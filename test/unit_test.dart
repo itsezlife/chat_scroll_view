@@ -97,6 +97,8 @@ import 'widgets/chat_markdown_body_inline_layer_test.dart'
     as chat_markdown_body_inline_layer_test;
 import 'widgets/chat_markdown_body_painter_ownership_test.dart'
     as chat_markdown_body_painter_ownership_test;
+import 'widgets/chat_markdown_body_theme_test.dart'
+    as chat_markdown_body_theme_test;
 import 'widgets/chat_message_body_layout_test.dart'
     as chat_message_body_layout_test;
 import 'widgets/chat_message_body_test.dart' as chat_message_body_test;
@@ -329,6 +331,10 @@ void main() {
   group(
     'widgets/chat_markdown_body_painter_ownership_test.dart',
     chat_markdown_body_painter_ownership_test.main,
+  );
+  group(
+    'widgets/chat_markdown_body_theme_test.dart',
+    chat_markdown_body_theme_test.main,
   );
   group(
     'widgets/chat_selection_highlight_test.dart',

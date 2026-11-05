@@ -154,22 +154,40 @@ class ChatMarkdownBody extends StatefulWidget {
   State<ChatMarkdownBody> createState() => _ChatMarkdownBodyState();
 }
 
+/// The themes [_ChatMarkdownBodyState] resolves, shared by every body with the
+/// same inputs.
+///
+/// The engine keeps a body's shaped text only while its theme is the same
+/// instance (a theme with a block builder cannot be compared otherwise), and
+/// a kept painter (`MarkdownPainterCache`) only serves a body whose theme is
+/// the instance it was laid out with. A theme per body made every body that
+/// returned to the list, and every rebuilt one, lay its text out again.
+final Expando<Map<_ResolvedThemeKey, MarkdownThemeData>> _resolvedThemes =
+    Expando<Map<_ResolvedThemeKey, MarkdownThemeData>>('chat body themes');
+
+/// What a resolved theme depends on besides its ambient theme.
+/// [BlockPainter$ScrollableTable.enabled] is construct-time, not a live
+/// callback, so the table pan is part of it.
+typedef _ResolvedThemeKey = ({
+  ChatSelectionPolicy policy,
+  ChatCodeBlockLabels codeBlockLabels,
+  bool tablePanEnabled,
+});
+
+/// The themes of bodies with no [MarkdownTheme] above them, by their inputs.
+final Map<(TextStyle, TextDirection, TextScaler), MarkdownThemeData>
+_fallbackThemes = <(TextStyle, TextDirection, TextScaler), MarkdownThemeData>{};
+
+/// One adapter per host resolver: the engine resolves a body's embeds again
+/// whenever its resolver is another instance.
+final Expando<ChatInlineEmbedAdapter> _embedAdapters =
+    Expando<ChatInlineEmbedAdapter>('chat body embed adapters');
+
 class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     with TickerProviderStateMixin {
-  MarkdownThemeData? _cachedAmbient;
-  MarkdownThemeData? _cachedUserTheme;
-  ChatSelectionPolicy? _cachedPolicy;
-  ChatCodeBlockLabels? _cachedCodeBlockLabels;
-
-  /// Cached with theme so [BlockPainter$ScrollableTable.enabled] rebuilds when
-  /// membership flips (`enabled` is construct-time, not a live callback).
-  bool? _cachedTablePanEnabled;
-  MarkdownThemeData? _resolvedTheme;
-
   AnimationController? _pressController;
   AnimationController? _releaseController;
   final _feedbackNotifier = ValueNotifier<ChatSpanFeedback?>(null);
-  ChatInlineEmbedAdapter? _embedAdapter;
   MarkdownThemeData? _fallback;
 
   /// What a body without a mounted selection surface registers with: the
@@ -369,15 +387,13 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
 
   // One adapter per resolver: the engine disposes every embed and resolves
   // them again when it sees another instance.
-  MarkdownInlineEmbedResolver? _adaptedEmbedResolver() {
-    final resolver = widget.embedResolver;
-    if (resolver == null) return _embedAdapter = null;
-    if (_embedAdapter case final adapter?
-        when identical(adapter.resolver, resolver)) {
-      return adapter;
-    }
-    return _embedAdapter = ChatInlineEmbedAdapter(resolver);
-  }
+  MarkdownInlineEmbedResolver? _adaptedEmbedResolver() =>
+      switch (widget.embedResolver) {
+        final resolver? => _embedAdapters[resolver] ??= ChatInlineEmbedAdapter(
+          resolver,
+        ),
+        null => null,
+      };
 
   // The theme of a body with no [MarkdownTheme] above it, kept while its
   // inputs hold: the engine rebuilds its painter (and resolves every embed
@@ -388,17 +404,13 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
     final scaler =
         MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
-    if (_fallback case final cached?
-        when cached.textStyle == style &&
-            cached.textDirection == direction &&
-            cached.textScaler == scaler) {
-      return cached;
-    }
-    return _fallback = MarkdownThemeData(
-      textStyle: style,
-      textDirection: direction,
-      textScaler: scaler,
-    );
+    // Shared by every body with the same inputs, as the resolved themes are.
+    return _fallback = _fallbackThemes[(style, direction, scaler)] ??=
+        MarkdownThemeData(
+          textStyle: style,
+          textDirection: direction,
+          textScaler: scaler,
+        );
   }
 
   /// The emoji of a text the platform draws in colour, for
@@ -420,25 +432,30 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     final codeBlockLabels = ChatCodeBlockLabelsScope.of(context);
     // ADR 015 keeps selected bodies hittable — IgnorePointer is not the gate.
     final tablePanEnabled = !widget.controller.isSelected(widget.messageId);
-    if (_resolvedTheme case final resolved?
-        when identical(ambient, _cachedAmbient) &&
-            identical(widget.theme, _cachedUserTheme) &&
-            policy == _cachedPolicy &&
-            codeBlockLabels == _cachedCodeBlockLabels &&
-            tablePanEnabled == _cachedTablePanEnabled) {
-      return resolved;
-    }
+    final themes = _resolvedThemes[ambient] ??=
+        <_ResolvedThemeKey, MarkdownThemeData>{};
+    return themes[(
+      policy: policy,
+      codeBlockLabels: codeBlockLabels,
+      tablePanEnabled: tablePanEnabled,
+    )] ??= _themeFor(
+      ambient,
+      policy: policy,
+      codeBlockLabels: codeBlockLabels,
+      tablePanEnabled: tablePanEnabled,
+    );
+  }
 
-    _cachedAmbient = ambient;
-    _cachedUserTheme = widget.theme;
-    _cachedPolicy = policy;
-    _cachedCodeBlockLabels = codeBlockLabels;
-    _cachedTablePanEnabled = tablePanEnabled;
-
+  /// The body theme over [ambient]. Knows no body: the cursor, which does, is
+  /// [_cursorFor], passed beside it.
+  static MarkdownThemeData _themeFor(
+    MarkdownThemeData ambient, {
+    required ChatSelectionPolicy policy,
+    required ChatCodeBlockLabels codeBlockLabels,
+    required bool tablePanEnabled,
+  }) {
     final userBuilder = ambient.builder;
-    final userCursorResolver = ambient.cursorResolver;
-
-    return _resolvedTheme = ambient.copyWith(
+    return ambient.copyWith(
       emojiRuns: ambient.emojiRuns ?? _colourEmojiRuns,
       // The table and code painters below are made anew on every call and are
       // the body's, so it may dispose the ones an update replaces. A host
@@ -471,13 +488,27 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
           labels: codeBlockLabels,
         );
       },
-      cursorResolver: (localOffset, blockIndex, block) {
-        if (userCursorResolver?.call(localOffset, blockIndex, block)
-            case final custom?) {
-          return custom;
-        }
-        return _resolveCursor(localOffset, blockIndex, block, policy);
-      },
+    );
+  }
+
+  /// The body's cursor: the ambient theme's first, then the fenced code
+  /// header's. A tear-off of one body stays equal across builds, so the engine
+  /// sees it unchanged.
+  MouseCursor? _cursorFor(
+    Offset localOffset,
+    int? blockIndex,
+    MD$Block? block,
+  ) {
+    final ambient = widget.theme ?? MarkdownTheme.maybeOf(context) ?? _fallback;
+    if (ambient?.cursorResolver?.call(localOffset, blockIndex, block)
+        case final custom?) {
+      return custom;
+    }
+    return _resolveCursor(
+      localOffset,
+      blockIndex,
+      block,
+      widget.controller.selectionPolicy,
     );
   }
 
@@ -593,6 +624,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
               child: MarkdownWidget(
                 markdown: md,
                 theme: _resolveTheme(context),
+                cursorResolver: _cursorFor,
                 // The message id keys the spoiler state whether or not the
                 // selection surface is mounted (a spoiler must not show its
                 // text because another message is selected).
