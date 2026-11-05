@@ -10,7 +10,6 @@ uses the browser's decoder. No platform player is created per message.
 **Status**: Accepted  
 **Date**: 2026-11-06  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 022](022-asset-cache-and-media-pipeline.md) (page pool and frame cache amendment), [ADR 030](030-testing-policy.md), [ADR 021](021-content-identity-and-collections.md)  
-**Spec and evidence**: `.scratch/native-media-ffi/spec.md`, the map and its research (not shipped; the decisions below are the contract)
 
 ## Context
 
@@ -23,32 +22,25 @@ The reference clients agree on the shape: render at display size, never above
 cached compressed per size and replayed; playback follows visibility; no inline
 platform player. None of them isolates the engine from the process.
 
-Facts the decisions rest on, with how they were established:
+Facts the decisions rest on:
 
-- **tlottie** (`dkaraush/tlottie`, MIT, v1.0.6, commit `92df98d`) is the
-  engine Telegram Desktop ships since 2026-09-06. It is not on crates.io, has
-  a 14-function C API, takes raw JSON (the caller gunzips TGS), renders into a
-  caller buffer, and does not render image layers, text layers, expressions or
-  effects. Verified from source and the header.
-- All 187 stickers of the test corpus render through its WebAssembly build,
-  about 2 ms per 512 px frame. Five use layer effects and render plausibly.
+- **tlottie** (`dkaraush/tlottie`, MIT) is the engine Telegram Desktop ships.
+  It is not on crates.io, has a small C API, takes raw JSON (the caller
+  gunzips TGS), renders into a caller buffer, and does not render image
+  layers, text layers, expressions or effects.
 - The WebAssembly build returns **straight** alpha; the native C API returns
-  **premultiplied** (zero violations on 187 stickers under AddressSanitizer).
-  Premultiplying the wasm output matches the native render to within one
-  colour level on every pixel of all 187 stickers, so the web conversion is
-  exact.
-- Native renders on separate handles in 8 threads at once matched a
-  single-thread render frame for frame; a handle is not shared. Of 563
-  malformed inputs (byte flips, truncations, 269 zero bytes, huge sizes,
-  1,200 nested layers, 2,000-deep nesting, and 400 value-corrupted valid
-  files) none crashed or hung under AddressSanitizer; most are refused at
-  parse. The original 269-byte file itself was not available.
+  **premultiplied**. Premultiplying the wasm output matches the native render
+  to within one colour level on every pixel of the test corpus, so the web
+  conversion is exact.
+- Renders on separate handles in parallel threads match a single-thread
+  render frame for frame, and a corpus of malformed inputs (flips,
+  truncations, zero bytes, huge sizes, deep nesting) neither crashed nor hung
+  under AddressSanitizer; a handle is not shared between threads.
 - A native fault in a worker isolate most likely ends the process. Not
   documented; treated as true.
-- Build hooks (`hooks` 1.0.3, `code_assets` 1.0.0, `native_toolchain_c`
-  0.17.6) build and run under Flutter 3.41.7 and inside this pub workspace; a
-  missing `@Native` symbol throws a catchable `ArgumentError`. Verified by a
-  throwaway package.
+- Build hooks build and run under the pinned Flutter inside this pub
+  workspace, and a missing `@Native` symbol throws a catchable
+  `ArgumentError`.
 - FFmpeg's native VP9 decoder drops alpha; Telegram Desktop forces `libvpx-vp9`.
 
 ## Decided

@@ -48,7 +48,8 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `lib/` (`chat_scroll_view`)              | Anchor viewport; **message selection** + **text selection**; span gesture | scroll, layout, selection membership, text subject/range, span                   |
 | `packages/content_model`                 | Pure-Dart leaf: content key / descriptor / collection, data seams, fakes + contracts; change signals are `package:listen` (see [ADR 023](docs/adr/023-data-layering-and-persistence.md)) | content identity, sources, stores, rich text                    |
 | `packages/chrome_foundation`             | Leaf: palette, token groups, theme scope, motion, strings, icons, glass   | theme, glass, motion, strings                                                    |
-| `packages/catalog_assets`                | Asset cache, media pipeline seams, baked glyph atlas                      | paintables, readiness, budgets, atlas / bake                                     |
+| `packages/catalog_assets`                | Asset cache, media pipeline seams, baked glyph atlas, dynamic frame pool  | paintables, readiness, budgets, atlas / bake, frame pool                        |
+| `packages/lottie_native`                 | Leaf: Lottie wrapper crate, build hook, FFI binding, fake and contract    | decoding Lottie / TGS natively                                                   |
 | `packages/chat_wallpaper`                | Leaf: chat wallpaper model, codec, freeform renderer, motion, view, service fills | wallpaper fills, patterns, motion, resize behaviour ([ADR 040](docs/adr/040-chat-wallpaper.md)) |
 | `packages/image_decoder`                 | Decoder adapter: engine image codecs, stills and animated WebP / GIF      | decoding fetched images, frame-sequence playback                                 |
 | `packages/panel_catalog`                 | Panel catalog viewport                                                    | emoji/sticker/GIF grid, section layout, leaf hit, snapshot                       |
@@ -107,8 +108,8 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 | Panel presentation, occupancy, IME (supersedes the inset parts of ADR 007)               | [ADR 028](docs/adr/028-panel-presentation.md)                         |
 | Host composition root, inline embeds                                                     | [ADR 029](docs/adr/029-host-integration.md)                           |
 | Fakes, contracts, gates                                                                  | [ADR 030](docs/adr/030-testing-policy.md)                             |
-| Native media decoding: Lottie / TGS and video over FFI, page pool, frame cache, web      | [ADR 042](docs/adr/042-native-media-decoding.md)                      |
 | Strings, RTL, semantics, shortcuts                                                       | [ADR 031](docs/adr/031-localization-accessibility-and-input.md)       |
+| Native media decoding: Lottie / TGS and video over FFI, page pool, frame cache, web      | [ADR 042](docs/adr/042-native-media-decoding.md)                      |
 
 **Package invariants**
 
