@@ -32,8 +32,17 @@ Facts the decisions rest on, with how they were established:
   effects. Verified from source and the header.
 - All 187 stickers of the test corpus render through its WebAssembly build,
   about 2 ms per 512 px frame. Five use layer effects and render plausibly.
-- The WebAssembly build returns **straight** alpha, the C header documents
-  **premultiplied**. Observed on the wasm build, documented for the native one.
+- The WebAssembly build returns **straight** alpha; the native C API returns
+  **premultiplied** (zero violations on 187 stickers under AddressSanitizer).
+  Premultiplying the wasm output matches the native render to within one
+  colour level on every pixel of all 187 stickers, so the web conversion is
+  exact.
+- Native renders on separate handles in 8 threads at once matched a
+  single-thread render frame for frame; a handle is not shared. Of 563
+  malformed inputs (byte flips, truncations, 269 zero bytes, huge sizes,
+  1,200 nested layers, 2,000-deep nesting, and 400 value-corrupted valid
+  files) none crashed or hung under AddressSanitizer; most are refused at
+  parse. The original 269-byte file itself was not available.
 - A native fault in a worker isolate most likely ends the process. Not
   documented; treated as true.
 - Build hooks (`hooks` 1.0.3, `code_assets` 1.0.0, `native_toolchain_c`
@@ -94,14 +103,18 @@ Facts the decisions rest on, with how they were established:
 Settled before the corresponding package lands, as the first implementation
 tickets:
 
-- The native build on each target; the native C API's premultiplied output;
-  thread safety of concurrent renders on separate handles; the 269-byte
-  malformed file and the whole fuzz corpus; parity against a reference render.
+- The native build on targets other than macOS arm64 (built and checked there;
+  needs Rust on iOS, Android, Windows and Linux CI).
+- The original 269-byte malformed file and a coverage-guided fuzz run; the
+  checks above are a fixed corpus, not a proof.
+- Thread safety beyond one handle per thread: a handle shared between threads
+  was not tested and is not allowed.
 - The offline build and a macOS profile build of a hook package.
 - The Apple store and LGPL relink rules, per-ABI FFmpeg sizes, the H.264
   patent position. The last is a decision for the product owner, not code.
 - Whether the Invert and Layer Control effects change a render the engine
-  ignores.
+  ignores (native and wasm agree with each other, which says nothing about a
+  reference render).
 
 ## Related
 
