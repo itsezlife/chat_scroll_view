@@ -20,7 +20,8 @@ void main() {
       expectedInfo: info,
       malformedBytes: Uint8List.fromList([9, 9]),
       laterFrame: 30,
-      unavailable: () => FakeLottieBinding(available: false),
+      unavailable: () =>
+          FakeLottieBinding(availability: LottieAvailability.missingLibrary),
     ),
   );
 }

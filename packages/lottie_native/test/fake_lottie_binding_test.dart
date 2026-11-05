@@ -105,10 +105,44 @@ void main() {
   });
 
   test('a binding that is not available throws on render', () {
-    final off = FakeLottieBinding(available: false);
+    final off = FakeLottieBinding(availability: LottieAvailability.abiMismatch);
 
     expect(off.isAvailable, isFalse);
+    expect(off.availability, LottieAvailability.abiMismatch);
     expect(() => off.renderBatch(const []), throwsStateError);
+  });
+
+  test('a scripted internal rejection is reported', () {
+    final broken = Uint8List.fromList([6]);
+    binding.reject(broken, LottieRejection.internal);
+
+    expect(
+      (binding.load(broken) as LottieRejected).reason,
+      LottieRejection.internal,
+    );
+  });
+
+  test('an edge over the maximum is a bad size', () {
+    final handle = load();
+    final wide = LottieRenderJob(
+      handle: handle,
+      frame: 0,
+      width: LottieRenderJob.maxEdge + 1,
+      height: 4,
+      target: memory,
+      strideBytes: (LottieRenderJob.maxEdge + 1) * 4,
+    );
+
+    expect(binding.renderBatch([wide]), [LottieRenderStatus.badSize]);
+  });
+
+  test('close drops every live handle', () {
+    load();
+    load();
+
+    binding.close();
+
+    expect(binding.liveHandles, 0);
   });
 
   test('live reports the handles not yet disposed', () {

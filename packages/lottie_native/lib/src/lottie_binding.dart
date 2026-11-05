@@ -12,11 +12,15 @@ import 'package:lottie_native/src/lottie_load_result.dart';
 /// created it unless the implementation says otherwise.
 abstract interface class LottieBinding {
   /// Whether the native library loaded and speaks the ABI version this
-  /// package expects.
+  /// package expects, and why not when it does not.
   ///
-  /// Decided once at construction, so it never changes. The host registers a
-  /// binding only when it is available; [load] and [renderBatch] on one that
-  /// is not throw a [StateError].
+  /// Decided once at construction, so it never changes.
+  LottieAvailability get availability;
+
+  /// Whether [availability] is [LottieAvailability.available].
+  ///
+  /// The host registers a binding only when it is available; [load] and
+  /// [renderBatch] on one that is not throw a [StateError].
   bool get isAvailable;
 
   /// Parses [bytes] (gzip or JSON).
@@ -31,6 +35,23 @@ abstract interface class LottieBinding {
   /// Releases [handle]. Idempotent; a disposed handle is refused by
   /// [renderBatch] with [LottieRenderStatus.badArgument].
   void dispose(LottieHandle handle);
+
+  /// Frees every live handle and retires the binding. Idempotent; [load] and
+  /// [renderBatch] afterwards throw a [StateError], as on an unavailable
+  /// binding, and [dispose] stays harmless.
+  void close();
+}
+
+/// Whether a binding can be used, and if not, why.
+enum LottieAvailability {
+  /// The library loaded and speaks the expected ABI version.
+  available,
+
+  /// The library, or a symbol of it, could not be found.
+  missingLibrary,
+
+  /// The library loaded but speaks another ABI version.
+  abiMismatch,
 }
 
 /// An opaque reference to a loaded animation.
@@ -52,6 +73,10 @@ final class LottieRenderJob {
     required this.target,
     required this.strideBytes,
   });
+
+  /// The largest slot edge, in pixels, a renderer accepts; a decoder's size
+  /// classes must not exceed it.
+  static const int maxEdge = 512;
 
   /// The animation to draw.
   final LottieHandle handle;
@@ -81,9 +106,10 @@ enum LottieRenderStatus {
   /// An unknown or disposed handle, a null target or an invalid frame.
   badArgument,
 
-  /// A zero size, or a stride under the row width.
+  /// A zero edge, an edge over [LottieRenderJob.maxEdge], or a stride under
+  /// the row width.
   badSize,
 
-  /// The renderer failed on this job.
+  /// The renderer failed on this job, or hit an internal error.
   failed,
 }

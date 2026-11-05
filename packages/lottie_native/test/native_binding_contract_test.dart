@@ -15,6 +15,12 @@ final class _OverreachingBinding implements LottieBinding {
   bool get isAvailable => _inner.isAvailable;
 
   @override
+  LottieAvailability get availability => _inner.availability;
+
+  @override
+  void close() => _inner.close();
+
+  @override
   LottieLoadResult load(Uint8List bytes) => _inner.load(bytes);
 
   @override
