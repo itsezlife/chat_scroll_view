@@ -1,5 +1,11 @@
 ## Unreleased
 
+### `flutter_md` 0.8.2
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.8.2` in every
+  pubspec and workflow. A selection scope that attached no handle leaders no
+  longer walks every mounted surface to clear them on each scroll frame (with
+  one scope per body that was 7–8% of the UI thread while scrolling).
+
 ### `flutter_md` 0.8.1
 - **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.8.1` in every
   pubspec and workflow. 0.7 merged upstream `DoctorinaAI/md` 0.3.0: inline
