@@ -222,7 +222,8 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
        _reverse = reverse,
        _bottomPadding = bottomPadding,
        _topPadding = topPadding,
-       _groupBy = groupBy,
+       _groupBySource = groupBy,
+       _groupBy = _memoizeGroupBy(groupBy),
        _dayHeaderDelegate = dayHeaderDelegate,
        _scrollActivityTiming = scrollActivityTiming,
        _senderRunLayout = senderRunLayout,
@@ -648,17 +649,34 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   double get _topPad => _topPadding?.value ?? 0.0;
 
+  /// The host's grouping callback, as given; [_groupBy] is its memo.
+  Object Function(IChatMessage)? _groupBySource;
+
   /// Groups messages into sections for the date separators / floating header.
   /// `null` turns the feature off entirely.
+  ///
+  /// Memoized per message object: a row's bucket is read for itself and its
+  /// neighbours on every layout and header walk, and a date bucket costs a
+  /// time-zone lookup per call. Messages are immutable — an edit arrives as a
+  /// new object — so the memo never goes stale.
   Object Function(IChatMessage)? _groupBy;
   set groupBy(Object Function(IChatMessage)? value) {
     // `==` instead of `identical`: an instance-method tear-off
     // (`widget.someMethod`) is not necessarily identical across accesses but
     // *is* equal — so `identical` would force a relayout every parent rebuild
     // while `==` correctly recognises the unchanged callback.
-    if (_groupBy == value) return;
-    _groupBy = value;
+    if (_groupBySource == value) return;
+    _groupBySource = value;
+    _groupBy = _memoizeGroupBy(value);
     markNeedsLayout();
+  }
+
+  static Object Function(IChatMessage)? _memoizeGroupBy(
+    Object Function(IChatMessage)? groupBy,
+  ) {
+    if (groupBy == null) return null;
+    final memo = Expando<Object>('ChatScrollView.groupBy');
+    return (message) => memo[message] ??= groupBy(message);
   }
 
   /// Day header policy. See [ChatScrollView.dayHeaderDelegate].
