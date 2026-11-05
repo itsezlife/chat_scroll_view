@@ -5095,7 +5095,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         _animator.farAnimateActive && _animator.stitchMeasured;
     final coverageNeedsLayout =
         !_animator.farAnimateActive &&
-        (_prefetchShort || _rangeNoLongerCovers());
+        (_prefetchShort || _rangeNoLongerCovers() || _leadNoLongerCovers());
     if (stitchMeasuredFlight) {
       if (headerDayChanged) {
         markNeedsLayout();
@@ -5118,10 +5118,33 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     }
   }
 
-  /// Whether the built child range no longer covers viewport + cache extent.
-  /// Considers both message tiles and chunk-error tiles — the latter may be
-  /// the outermost build at a boundary (e.g. the anchor's chunk errored).
-  bool _rangeNoLongerCovers() {
+  /// Whether the built range no longer covers the build zone on the side the
+  /// list travels toward: the band, the keep band and the directional lead.
+  ///
+  /// [_rangeNoLongerCovers] alone asks for a layout only once the band is
+  /// uncovered, when the rows inside it can no longer wait: a fast fling then
+  /// builds several rows in that one frame and none in the frames between.
+  /// Asking as soon as the lead runs short lets each layout add the next row
+  /// or two within the prefetch budget, so rows arrive at the pace the list
+  /// moves.
+  bool _leadNoLongerCovers() {
+    final velocity = _scrollVelocity;
+    if (velocity == 0.0 || !hasSize) return false;
+    final zone =
+        _cacheExtent +
+        _extraBuildExtent +
+        (velocity.abs() * _leadFrames).clamp(0.0, size.height);
+    return velocity > 0
+        ? _rangeNoLongerCovers(topExtent: zone)
+        : _rangeNoLongerCovers(bottomExtent: zone);
+  }
+
+  /// Whether the built child range no longer covers the viewport plus
+  /// [topExtent] above and [bottomExtent] below (both [cacheExtent] when
+  /// null). Considers both message tiles and chunk-error tiles — the latter
+  /// may be the outermost build at a boundary (e.g. the anchor's chunk
+  /// errored).
+  bool _rangeNoLongerCovers({double? topExtent, double? bottomExtent}) {
     // Tier-1 hot path: the inline walk below allocates no closures and uses
     // the same min/max accumulation that the original (messages-only)
     // implementation did.
@@ -5166,11 +5189,11 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
     if (topY > size.height || bottomY < 0) return true;
 
-    if (bottomY < size.height + _cacheExtent) {
+    if (bottomY < size.height + (bottomExtent ?? _cacheExtent)) {
       final newest = _dataSource.newestKnownId;
       if (newest == null || lastId < newest) return true;
     }
-    if (topY > -_cacheExtent) {
+    if (topY > -(topExtent ?? _cacheExtent)) {
       if (!_dataSource.reachedOldest) {
         if (firstId > 0) return true;
       } else {

@@ -315,7 +315,9 @@ inside its budget (30% of the frame interval, timed from the start of
 `performLayout`). A row already built passes free. When the budget stops a
 direction short, `_prefetchShort` is set and the next tick asks for a layout
 (Tier-1 coverage, [05-tier1-scroll.md](05-tier1-scroll.md)), which builds on
-from there.
+from there. The tick also asks once the lead runs short while the band is
+still covered (`_leadNoLongerCovers`), so the lead stays built and a band
+crossing finds its rows ready.
 
 Without the budget, the frame that finds the band uncovered builds the whole
 lead at once — several frames of travel, four to seven short rows in one

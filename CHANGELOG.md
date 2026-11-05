@@ -5,6 +5,10 @@
   fling counted its time from its first tick, so that frame moved by zero and
   the next one by two frames' worth; it now counts from the last frame the
   drag showed and carries on at the release velocity.
+- **CHANGED**: a fling builds rows as they come due. The viewport laid out
+  only once the `cacheExtent` band ran out, then built the lead in one burst;
+  it now lays out as soon as the directional lead runs short, one or two rows
+  at a time within the prefetch budget.
 
 ### `flutter_md` 0.8.2
 - **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.8.2` in every

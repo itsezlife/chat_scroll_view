@@ -171,15 +171,21 @@ Returns `true` (need layout) when:
 
 1. No messages and no chunk-errors.
 2. Entire built range off-screen (`topY > height` or `bottomY < 0`).
-3. Bottom of built range inside cache margin **and** not at conversation newest
-   (`lastId < newest`).
-4. Top of built range inside cache margin **and** more older content exists
+3. Bottom of built range inside the bottom margin **and** not at conversation
+   newest (`lastId < newest`).
+4. Top of built range inside the top margin **and** more older content exists
    (`!reachedOldest && firstId > 0`, or `firstId > oldest`).
+
+Both margins are `cacheExtent` unless the caller passes `topExtent` /
+`bottomExtent`. `_leadNoLongerCovers` passes the whole build zone on the side
+the list travels toward (`cacheExtent + extraBuildExtent + lead`), and is
+false at rest.
 
 Tick decision:
 
 ```
-if (_prefetchShort || _rangeNoLongerCovers() || headerDayChanged)
+if (_prefetchShort || _rangeNoLongerCovers() || _leadNoLongerCovers()
+    || headerDayChanged)
   markNeedsLayout();
 else
   markNeedsPaint();
@@ -187,6 +193,10 @@ else
 
 `_prefetchShort` is set by a fan-out that ran out of its prefetch budget
 before the build zone was full ([04-layout-pipeline.md](04-layout-pipeline.md#prefetch-budget)).
+`_leadNoLongerCovers` asks as soon as the lead runs short, not once the band
+is uncovered: each such layout adds the next row or two within the budget, so
+rows arrive at the pace the list moves instead of in one burst per band
+crossing.
 
 `headerDayChanged` comes from `_tickFloatingHeader` — the topmost day bucket
 changed; header **text** needs a layout rebuild (opacity alone does not).
