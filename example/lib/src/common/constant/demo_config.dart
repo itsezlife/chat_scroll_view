@@ -72,6 +72,11 @@ abstract final class DemoConfig {
   /// glass's share of a frame from the wallpaper's.
   static const bool glassLite = bool.fromEnvironment('GLASS_LITE');
 
+  /// Whether the scroll lab is mounted: the LAB switches, the frame log and
+  /// the pointer tape, from `--dart-define=SCROLL_LAB=true`. Off, the app and
+  /// its tests run without them.
+  static const bool scrollLab = bool.fromEnvironment('SCROLL_LAB');
+
   /// Whether the Supabase publishable key is set.
   static bool get hasSupabasePublishableKey =>
       supabasePublishableKey.isNotEmpty;

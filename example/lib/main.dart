@@ -34,7 +34,7 @@ void main() => l.capture<void>(
   () => runZonedGuarded<void>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
-      ScrollLab.install();
+      if (DemoConfig.scrollLab) ScrollLab.install();
       // In a browser a right-click opens the browser's own menu over the
       // app's (message menus, the composer's, the panel's) unless the app
       // takes it over.
@@ -180,15 +180,16 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
     ),
     // Above the navigator, as a product mounts them: every chat shares the
     // wallpaper's motion, rasters and last composite.
-    builder: (context, child) => ScrollLabOverlay(
-      child: AppChrome(
+    builder: (context, child) {
+      final app = AppChrome(
         services: widget.services,
         child: DemoWallpaperScope(
           wallpaper: DemoWallpaper.configured,
           child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
         ),
-      ),
-    ),
+      );
+      return DemoConfig.scrollLab ? ScrollLabOverlay(child: app) : app;
+    },
     navigatorObservers: [_overlays],
     debugShowCheckedModeBanner: false,
     showPerformanceOverlay: false,
