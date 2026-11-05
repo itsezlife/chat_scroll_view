@@ -92,4 +92,18 @@ void main() {
     expect(byId[2], isNot(same(byId[1])));
     expect(byId[3], same(byId[1]));
   });
+
+  testWidgets('a body built later gets the theme resolved for it now', (
+    tester,
+  ) async {
+    await pump(tester);
+    final context = tester.element(find.byType(ChatScrollView));
+    // What a host lays a body out with before the body is built.
+    final resolved = ChatMarkdownBody.resolvedTheme(
+      context,
+      controller: selection,
+      messageId: 1,
+    );
+    expect(themes(tester)[1], same(resolved));
+  });
 }

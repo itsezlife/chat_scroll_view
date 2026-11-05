@@ -97,6 +97,35 @@ const Set<String> _teamMembers = {
 
 bool _isOutgoing(String sender) => _teamMembers.contains(sender);
 
+/// Whether a message from [sender] is drawn as outgoing.
+bool isDemoOutgoing(String sender) => _isOutgoing(sender);
+
+/// The body text style of an outgoing or incoming bubble.
+TextStyle demoBubbleTextStyle({required bool outgoing}) => TextStyle(
+  color: outgoing ? _kOutgoingText : _kIncomingText,
+  fontSize: 15,
+  height: 1.35,
+);
+
+/// The markdown theme of an outgoing or incoming bubble body under
+/// [context]: one instance per app theme, side and text style, as the
+/// engine keeps a body's laid-out text only while its theme is the same
+/// instance.
+MarkdownThemeData demoBubbleMarkdownTheme(
+  BuildContext context, {
+  required bool outgoing,
+  TextStyle? textStyle,
+}) {
+  final style = textStyle ?? demoBubbleTextStyle(outgoing: outgoing);
+  final base = MarkdownTheme.maybeOf(context) ?? demoDarkMarkdownTheme(context);
+  return (_bubbleThemes[base] ??= {})[(outgoing, style)] ??= base.copyWith(
+    textStyle: style,
+    // On the outgoing bubble the blue of a link would vanish.
+    linkColor: outgoing ? const Color(0xFFBBDEFB) : null,
+    mentionColor: outgoing ? const Color(0xFFBBDEFB) : null,
+  );
+}
+
 const List<Color> _senderColors = <Color>[
   Color(0xFF42A5F5),
   Color(0xFF66BB6A),
@@ -326,7 +355,6 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = isOutgoing ? _kOutgoingBg : _kIncomingBg;
-    final textColor = isOutgoing ? _kOutgoingText : _kIncomingText;
     final metaColor = isOutgoing
         ? _kOutgoingText.withValues(alpha: 0.78)
         : _kIncomingText.withValues(alpha: 0.55);
@@ -336,7 +364,7 @@ class _Bubble extends StatelessWidget {
       run: runLayout,
     );
     final padding = ChatBubbleMetrics.bubbleContentPadding(theme: theme);
-    final textStyle = TextStyle(color: textColor, fontSize: 15, height: 1.35);
+    final textStyle = demoBubbleTextStyle(outgoing: isOutgoing);
     final body = switch ((selection, markdown)) {
       (final controller?, final md?) => _RegisteredChatMdBody(
         selection: controller,
@@ -506,18 +534,11 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
 
   @override
   Widget build(BuildContext context) {
-    final base =
-        MarkdownTheme.maybeOf(context) ?? demoDarkMarkdownTheme(context);
-    final bubbleMarkdownTheme =
-        (_bubbleThemes[base] ??= {})[(
-          widget.isOutgoing,
-          widget.textStyle,
-        )] ??= base.copyWith(
-          textStyle: widget.textStyle,
-          // On the outgoing bubble the blue of a link would vanish.
-          linkColor: widget.isOutgoing ? const Color(0xFFBBDEFB) : null,
-          mentionColor: widget.isOutgoing ? const Color(0xFFBBDEFB) : null,
-        );
+    final bubbleMarkdownTheme = demoBubbleMarkdownTheme(
+      context,
+      outgoing: widget.isOutgoing,
+      textStyle: widget.textStyle,
+    );
 
     final body = MarkdownTheme(
       data: bubbleMarkdownTheme,

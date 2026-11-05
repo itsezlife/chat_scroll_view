@@ -30,6 +30,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.da
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_interaction_stub.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/body_prefill.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_dialogs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_bar.dart';
@@ -1004,37 +1005,44 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               child: DemoChatWallpaper(
                 child: MarkdownPainterCacheScope(
                   cache: _bodyPainters,
-                  child: ChatKeyboardShortcuts(
+                  child: BodyPrefill(
+                    cache: _bodyPainters,
                     controller: _controller,
-                    selectionController: _selection,
-                    reverse: true,
-                    preserveExternalFocus: true,
-                    child: ChatScrollView(
-                      reverse: true,
-                      dataSource: _dataSource!,
+                    dataSource: _dataSource!,
+                    selection: _selection,
+                    embedResolver: _bodies.embedResolver,
+                    child: ChatKeyboardShortcuts(
                       controller: _controller,
                       selectionController: _selection,
-                      onIdleMessageTap: _presentMessageMenu,
-                      onSecondaryMessageTap: _presentMessageMenu,
-                      isSelfMessage: _isSelfMessage,
-                      bottomPadding: insets.bottomPadding,
-                      topPadding: insets.topPadding,
-                      messageBuilder: _buildMessage,
-                      chunkErrorBuilder: _buildChunkError,
-                      emptyBuilder: _buildEmpty,
-                      loadingBuilder: _buildInitialSkeleton,
-                      scrollActivityTiming: const ChatScrollActivityTiming(),
-                      dayHeaderDelegate: const ChatPushingDayHeader(),
-                      dateSeparatorBuilder: (context, bucket, date) =>
-                          DateSeparator(date: date),
-                      unreadBoundary: _unreadBoundary,
-                      unreadSeparatorBuilder: _buildUnreadSeparator,
-                      senderRunLayout: switch (_unreadBoundary) {
-                        final boundary? => UnreadBoundarySenderRunLayout(
-                          boundary: boundary,
-                        ),
-                        null => DefaultChatSenderRunLayout.instance,
-                      },
+                      reverse: true,
+                      preserveExternalFocus: true,
+                      child: ChatScrollView(
+                        reverse: true,
+                        dataSource: _dataSource!,
+                        controller: _controller,
+                        selectionController: _selection,
+                        onIdleMessageTap: _presentMessageMenu,
+                        onSecondaryMessageTap: _presentMessageMenu,
+                        isSelfMessage: _isSelfMessage,
+                        bottomPadding: insets.bottomPadding,
+                        topPadding: insets.topPadding,
+                        messageBuilder: _buildMessage,
+                        chunkErrorBuilder: _buildChunkError,
+                        emptyBuilder: _buildEmpty,
+                        loadingBuilder: _buildInitialSkeleton,
+                        scrollActivityTiming: const ChatScrollActivityTiming(),
+                        dayHeaderDelegate: const ChatPushingDayHeader(),
+                        dateSeparatorBuilder: (context, bucket, date) =>
+                            DateSeparator(date: date),
+                        unreadBoundary: _unreadBoundary,
+                        unreadSeparatorBuilder: _buildUnreadSeparator,
+                        senderRunLayout: switch (_unreadBoundary) {
+                          final boundary? => UnreadBoundarySenderRunLayout(
+                            boundary: boundary,
+                          ),
+                          null => DefaultChatSenderRunLayout.instance,
+                        },
+                      ),
                     ),
                   ),
                 ),
