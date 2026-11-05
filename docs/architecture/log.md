@@ -17,3 +17,4 @@
 
 * **Update**: Fan-out builds rows past the `cacheExtent` band within a per-frame prefetch budget and resumes on the next tick; `groupBy` is memoized per message (`04`, `05`).
 * **Update**: A press that catches a fling drags from its first pixel; other presses use the platform's touch slop (`05`).
+* **Update**: A fling counts from the last frame the drag showed, so the frame after the release moves on (`05`).

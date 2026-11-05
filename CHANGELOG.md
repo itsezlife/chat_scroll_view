@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Scroll
+- **FIXED**: the frame after a fling release no longer stands still. The
+  fling counted its time from its first tick, so that frame moved by zero and
+  the next one by two frames' worth; it now counts from the last frame the
+  drag showed and carries on at the release velocity.
+
 ### `flutter_md` 0.8.2
 - **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.8.2` in every
   pubspec and workflow. A selection scope that attached no handle leaders no

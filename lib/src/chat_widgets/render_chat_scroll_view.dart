@@ -3182,7 +3182,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       _drag!.dispose();
       _drag = _buildDragRecognizer();
     }
-    _ticker?.stop();
+    _stopTicker();
     // Fetch poll + LRU eviction — [ChatChunkFetchScheduler].
     _chunkFetchScheduler.onLayoutCleared();
     _updateScrollSemantics();
@@ -4826,6 +4826,13 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     if (ticker != null && !ticker.isActive) ticker.start();
   }
 
+  /// A restarted ticker counts `elapsed` from zero again, so the last tick's
+  /// `elapsed` stops meaning anything with it.
+  void _stopTicker() {
+    _ticker?.stop();
+    _lastTickElapsed = null;
+  }
+
   void _stopTickerIfIdle() {
     _releaseMotionIfSettled();
     if (!_motion.fling.isFlinging &&
@@ -4836,7 +4843,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         !_dragInProgress &&
         !_spanAutoScrollOccupying &&
         !_scrollbarRuntime.isAnimating) {
-      _ticker?.stop();
+      _stopTicker();
       // Scroll ended — drop the directional lead so the next layout re-fans
       // a symmetric range and collects the now-unneeded lead children.
       if (_scrollVelocity != 0.0) {
@@ -4849,7 +4856,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   void _startFling(double velocity) {
     // Cancel first so a re-armed fling emits ChatFlingEnd before ChatFlingStart.
     _cancelFling();
-    _motion.fling.startFling(velocity);
+    // Counted from the last frame the drag showed, so the release frame
+    // moves on at the release speed instead of standing still.
+    _motion.fling.startFling(velocity, since: _lastTickElapsed);
     _ensureTicker();
     _controller.notifyScrollEvent(ChatFlingStart(velocity));
   }
@@ -4921,7 +4930,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       _clearHighlight();
       _cancelOverscroll();
       _dragInProgress = false;
-      _ticker?.stop();
+      _stopTicker();
       return;
     }
 

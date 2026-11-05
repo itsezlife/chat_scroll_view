@@ -82,6 +82,12 @@ paint tops.
   `FrictionSimulation` with drag `decelerationRate^1000` (iOS normal
   `0.998` → `0.135`), stopping below 10 px/s.
 - **No-op** when [_contentFitsInViewport](./06-boundaries.md#short-content--_contentfitsinviewport).
+- **Release frame**: the curve counts from the ticker `elapsed` of the last
+  frame the drag showed (`startFling(v, since:)`), so the first tick after the
+  release moves a whole frame at the release velocity. Counting from that
+  first tick would leave it standing still, and the next frame would cover
+  two. A stopped ticker clears that `elapsed`, since a restarted one counts
+  from zero again; a `since` after the first tick is ignored.
 - Per-tick clamp during fling (not suspended).
 - Layout has no overscroll resistance. Unconsumed dy at a reached edge feeds
   the paint-only edge effect, which owns any resistance (rubber-band).

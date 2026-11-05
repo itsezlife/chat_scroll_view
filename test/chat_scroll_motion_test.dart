@@ -176,6 +176,24 @@ void main() {
       expect(fast, lessThan(normal / 3));
     });
 
+    test('a fling counted from the release frame moves on its first tick', () {
+      const release = Duration(milliseconds: 500);
+      final motion = ChatFlingMotion()..startFling(3000, since: release);
+      final first = motion.tickFling(
+        release + const Duration(microseconds: 8333),
+      );
+      // One frame at the release speed, not a frame standing still.
+      expect(first, closeTo(3000 * 0.008333, 3));
+    });
+
+    test('a fling without a release frame starts on its first tick', () {
+      final motion = ChatFlingMotion()
+        ..startFling(3000, since: const Duration(seconds: 2));
+      // A `since` past the first tick (a restarted ticker) is ignored.
+      expect(motion.tickFling(const Duration(milliseconds: 100)), 0);
+      expect(motion.tickFling(const Duration(milliseconds: 108)), isPositive);
+    });
+
     test('decay velocity decays by the rate per millisecond', () {
       final motion = ChatFlingMotion(const ChatFling.decay())
         ..startFling(3000)
