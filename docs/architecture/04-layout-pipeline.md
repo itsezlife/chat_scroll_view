@@ -306,6 +306,24 @@ lowerBound = height + bottomExtent
 
 Directional lead keeps a fast fling from outrunning the built range.
 
+### Prefetch budget
+
+Rows inside the `cacheExtent` band (`-cacheExtent .. height + cacheExtent`)
+are always built. Past the band — the keep band and the lead — the zone is
+**prefetch**: a row not yet built is built only while the layout pass is
+inside its budget (30% of the frame interval, timed from the start of
+`performLayout`). A row already built passes free. When the budget stops a
+direction short, `_prefetchShort` is set and the next tick asks for a layout
+(Tier-1 coverage, [05-tier1-scroll.md](05-tier1-scroll.md)), which builds on
+from there.
+
+Without the budget, the frame that finds the band uncovered builds the whole
+lead at once — several frames of travel, four to seven short rows in one
+frame of a fast fling. Under it that work spreads over the frames that
+follow, each spending its slack, as a platform list prefetches between
+frames. Tests meter it by rows instead of time
+(`RenderChatScrollView.debugPrefetchRowsPerLayout`).
+
 ### Anchor resolution
 
 1. If the anchor’s chunk is errored **and** an error builder is wired → build
@@ -337,7 +355,10 @@ Symmetric. Lower bound is `_fanOutOldestBound`:
 
 ### `_buildMessage`
 
-1. `bucket = _bucketOf(id)` (`groupBy(message)` or null).
+1. `bucket = _bucketOf(id)` (`groupBy(message)` or null). The render object
+   memoizes `groupBy` per message object: the bucket of a row and its
+   neighbours is read on every layout and header walk, and a date bucket
+   costs a time-zone lookup.
 2. `startsDay = _startsDay(id, bucket)`.
 3. `childManager.buildChild(id, startsNewDay:, groupBucket:)`.
 4. `child.layout(fullWidthConstraints)`.

@@ -173,11 +173,14 @@ Returns `true` (need layout) when:
 Tick decision:
 
 ```
-if (_rangeNoLongerCovers() || headerDayChanged)
+if (_prefetchShort || _rangeNoLongerCovers() || headerDayChanged)
   markNeedsLayout();
 else
   markNeedsPaint();
 ```
+
+`_prefetchShort` is set by a fan-out that ran out of its prefetch budget
+before the build zone was full ([04-layout-pipeline.md](04-layout-pipeline.md#prefetch-budget)).
 
 `headerDayChanged` comes from `_tickFloatingHeader` — the topmost day bucket
 changed; header **text** needs a layout rebuild (opacity alone does not).
@@ -217,7 +220,12 @@ and follow-tail converge on the next layout.
   viewport back under the wheel. Fling / animate cancel with the same path.
 - Pointer down during a fling or edge spring: cancel the fling or freeze the
   spring, and set `flingCancelSuppressesLongPress` so the viewport-owned
-  selection tap and long-press do not fire on the catching press.
+  selection tap and long-press do not fire on the catching press. A press
+  that catches a fling drags with a zero touch slop and
+  `DragStartBehavior.down`, so the list follows the finger from its first
+  pixel, as a platform list does. Any other press uses the platform's touch
+  slop (`MediaQuery.gestureSettingsOf`, `kTouchSlop` without one) and starts
+  the drag where it crossed it.
 - When a selection controller is wired, the same pointer down is also
   offered to `ChatSelectionPointer` (long-press enters selection or starts
   an unselect span if the origin was already selected; tap toggles while
