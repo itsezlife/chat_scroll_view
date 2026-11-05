@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:ffi';
+import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
 import 'package:lottie_decoder/testing.dart';
@@ -37,6 +40,63 @@ const _fakeInfo = LottieInfo(
 LottieBinding _fakeBinding() =>
     FakeLottieBinding()..accept(_fakeBytes, _fakeInfo);
 
+LottieBinding _unavailableBinding() =>
+    FakeLottieBinding(availability: LottieAvailability.abiMismatch);
+
+LottieBinding _throwOnceBinding() => _ScriptedBinding(throwOnce: true);
+
+LottieBinding _dyingBinding() => _ScriptedBinding();
+
+/// A closure that captures only the port, so it can cross isolates.
+LottieBinding Function() _reportingFactory(SendPort port) =>
+    () => _ScriptedBinding(report: port);
+
+/// The bytes that make [_ScriptedBinding] end its isolate on load.
+final _poison = Uint8List.fromList([66]);
+
+/// The fake, plus scripted trouble: a first render that throws, a load that
+/// ends the isolate, and a report of the live handles when it is closed.
+final class _ScriptedBinding implements LottieBinding {
+  _ScriptedBinding({this.throwOnce = false, this.report}) {
+    _fake.accept(_fakeBytes, _fakeInfo);
+  }
+
+  final bool throwOnce;
+  final SendPort? report;
+  final _fake = FakeLottieBinding();
+  var _thrown = false;
+
+  @override
+  LottieAvailability get availability => _fake.availability;
+
+  @override
+  bool get isAvailable => _fake.isAvailable;
+
+  @override
+  LottieLoadResult load(Uint8List bytes) {
+    if (bytes.length == 1 && bytes.first == _poison.first) Isolate.exit();
+    return _fake.load(bytes);
+  }
+
+  @override
+  List<LottieRenderStatus> renderBatch(List<LottieRenderJob> jobs) {
+    if (throwOnce && !_thrown) {
+      _thrown = true;
+      throw StateError('scripted render failure');
+    }
+    return _fake.renderBatch(jobs);
+  }
+
+  @override
+  void dispose(LottieHandle handle) => _fake.dispose(handle);
+
+  @override
+  void close() {
+    report?.send(_fake.liveHandles);
+    _fake.close();
+  }
+}
+
 void main() {
   group('over the fake binding', () {
     LottieEngineContract.run(
@@ -58,6 +118,111 @@ void main() {
         malformedBytes: Uint8List.fromList([9]),
       ),
     );
+  });
+
+  group('the render isolate', () {
+    test('spawn throws, carrying the reason, over an unavailable binding', () {
+      expect(
+        IsolateLottieEngine.spawn(bindingFactory: _unavailableBinding),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('abiMismatch'),
+          ),
+        ),
+      );
+    });
+
+    test(
+      'an exception in one request fails it and spares the engine',
+      () async {
+        final engine = await IsolateLottieEngine.spawn(
+          bindingFactory: _throwOnceBinding,
+        );
+        addTearDown(engine.close);
+        final handle = ((await engine.load(_fakeBytes)) as LottieLoaded).handle;
+        final page = calloc<Uint8>(64 * 64 * 4);
+        addTearDown(() => calloc.free(page));
+        final job = LottieEngineJob(
+          handle: handle,
+          frame: 0,
+          width: 64,
+          height: 64,
+          address: page.address,
+          strideBytes: 64 * 4,
+        );
+
+        await expectLater(
+          engine.renderBatch([job]),
+          throwsA(
+            isA<RemoteError>()
+                .having(
+                  (e) => e.toString(),
+                  'description',
+                  contains('scripted'),
+                )
+                .having((e) => e.stackTrace.toString(), 'stack', isNotEmpty),
+          ),
+        );
+        expect(await engine.renderBatch([job]), [LottieRenderStatus.ok]);
+      },
+    );
+
+    test('the isolate ending fails every pending request and closes', () async {
+      final engine = await IsolateLottieEngine.spawn(
+        bindingFactory: _dyingBinding,
+      );
+      final doomed = engine.load(_poison);
+      final alsoPending = engine.load(_fakeBytes);
+
+      await expectLater(doomed, throwsStateError);
+      await expectLater(alsoPending, throwsStateError);
+      await expectLater(engine.load(_fakeBytes), throwsStateError);
+      await expectLater(engine.close(), completes);
+    });
+
+    test('requests pending at close fail', () async {
+      final engine = await IsolateLottieEngine.spawn(
+        bindingFactory: _fakeBinding,
+      );
+      final pending = engine.load(_fakeBytes);
+
+      final closing = engine.close();
+
+      await expectLater(pending, throwsStateError);
+      await closing;
+    });
+
+    test('200 renders in a row leave no handle behind', () async {
+      final reports = ReceivePort();
+      addTearDown(reports.close);
+      final live = reports.first;
+      final engine = await IsolateLottieEngine.spawn(
+        bindingFactory: _reportingFactory(reports.sendPort),
+      );
+      final page = calloc<Uint8>(64 * 64 * 4);
+      addTearDown(() => calloc.free(page));
+
+      for (var i = 0; i < 200; i++) {
+        final handle = ((await engine.load(_fakeBytes)) as LottieLoaded).handle;
+        final statuses = await engine.renderBatch([
+          LottieEngineJob(
+            handle: handle,
+            frame: i % 10,
+            width: 64,
+            height: 64,
+            address: page.address,
+            strideBytes: 64 * 4,
+          ),
+        ]);
+        expect(statuses, [LottieRenderStatus.ok]);
+        await engine.dispose(handle);
+      }
+      await engine.close();
+
+      expect(await live, 0);
+    });
   });
 
   final native = NativeLottieBinding.probe().isAvailable;
