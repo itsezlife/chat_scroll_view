@@ -69,6 +69,7 @@ import 'widgets/chat_desktop_stuck_pointer_test.dart'
     as chat_desktop_stuck_pointer_test;
 import 'widgets/chat_dispose_during_animate_test.dart'
     as chat_dispose_during_animate_test;
+import 'widgets/chat_drag_slop_test.dart' as chat_drag_slop_test;
 import 'widgets/chat_follow_tail_growth_test.dart'
     as chat_follow_tail_growth_test;
 import 'widgets/chat_follow_tail_test.dart' as chat_follow_tail_test;
@@ -274,6 +275,7 @@ void main() {
     'widgets/chat_dispose_during_animate_test.dart',
     chat_dispose_during_animate_test.main,
   );
+  group('widgets/chat_drag_slop_test.dart', chat_drag_slop_test.main);
   group(
     'widgets/chat_follow_tail_growth_test.dart',
     chat_follow_tail_growth_test.main,

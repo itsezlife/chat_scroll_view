@@ -911,6 +911,20 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   VerticalDragGestureRecognizer? _drag;
 
+  /// The platform's gesture settings (its touch slop), from
+  /// [MediaQuery.gestureSettingsOf]; `null` falls back to [kTouchSlop].
+  DeviceGestureSettings? _gestureSettings;
+  set gestureSettings(DeviceGestureSettings? value) {
+    if (_gestureSettings == value) return;
+    _gestureSettings = value;
+    _drag?.gestureSettings = value;
+  }
+
+  /// A press that catches a fling drags at once, as a platform list does:
+  /// the list was already moving, so the first pixel of travel is a drag,
+  /// never a tap.
+  static const _catchGestureSettings = DeviceGestureSettings(touchSlop: 0);
+
   ChatSelectionPointer? _selectionPointer;
 
   /// Pointer that caught an in-flight fling or edge spring; tap and
@@ -1746,6 +1760,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
             PointerDeviceKind.trackpad,
           },
         )
+        ..gestureSettings = _gestureSettings
         ..onStart = _onDragStart
         ..onUpdate = _onDragUpdate
         ..onEnd = _onDragEnd;
@@ -5652,7 +5667,17 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       }
       _selectionPointer?.addPointer(event);
       if (event.kind != PointerDeviceKind.mouse) {
-        _drag?.addPointer(event);
+        // A caught fling drags from the press itself, so the finger's first
+        // pixel moves the list; otherwise the drag starts where it crossed
+        // the slop, as a platform list does.
+        _drag
+          ?..gestureSettings = catchesFling
+              ? _catchGestureSettings
+              : _gestureSettings
+          ..dragStartBehavior = catchesFling
+              ? DragStartBehavior.down
+              : DragStartBehavior.start
+          ..addPointer(event);
       }
     } else if (event is PointerUpEvent || event is PointerCancelEvent) {
       if (_flingCancelPointer == event.pointer) {
