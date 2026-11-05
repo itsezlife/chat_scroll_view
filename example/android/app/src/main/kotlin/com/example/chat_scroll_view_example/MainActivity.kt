@@ -1,6 +1,9 @@
 package com.example.chat_scroll_view_example
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -26,8 +29,35 @@ class MainActivity : FlutterActivity() {
             null
         }
 
+    private var labChannel: MethodChannel? = null
+
+    /// `adb shell am broadcast -a lab.SET --es key snap --ez value true`
+    /// flips a lab switch without touching the screen.
+    private val labReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            labChannel?.invokeMethod(
+                "set",
+                mapOf(
+                    "key" to intent.getStringExtra("key"),
+                    "value" to intent.getBooleanExtra("value", false),
+                    "name" to intent.getStringExtra("name"),
+                ),
+            )
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        labChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, LAB_CHANNEL)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(labReceiver, IntentFilter("lab.SET"), Context.RECEIVER_EXPORTED)
+        }
+        labChannel!!.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "filesDir" -> result.success(getExternalFilesDir(null)?.path)
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             HAPTIC_CHANNEL,
@@ -147,6 +177,7 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val HAPTIC_CHANNEL = "chat_scroll_view_example/selection_cap_haptic"
+        private const val LAB_CHANNEL = "chat_scroll_view_example/lab"
         private const val PRE_IME_BACK_CHANNEL = "chat_scroll_view_example/pre_ime_back"
     }
 }

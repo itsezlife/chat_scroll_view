@@ -32,6 +32,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart'
     show RenderChatRowChrome;
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_debug_snapshot.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_experiments.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_runtime.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
@@ -7158,9 +7159,15 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     // Apply stitch translations whenever the jump has happened — including
     // the pre-measure frame (provisional off-screen incoming).
     final stitching = _animator.farAnimateActive && _animator.farAnimateJumped;
+    final snapDpr = ChatScrollExperiments.snapRowsToPhysicalPixels
+        ? PlatformDispatcher.instance.implicitView?.devicePixelRatio
+        : null;
     for (final child in _children.values) {
       final pd = _parentData(child);
-      final paintY = pd.offset + (stitching ? _stitchPaintDy(pd.id) : 0.0);
+      var paintY = pd.offset + (stitching ? _stitchPaintDy(pd.id) : 0.0);
+      if (snapDpr case final dpr?) {
+        paintY = (paintY * dpr).roundToDouble() / dpr;
+      }
       // Cull children fully outside the viewport — off-screen build-extent
       // children stay built but are not composited until they scroll in.
       if (paintY >= viewportHeight || paintY + child.size.height <= 0) {
