@@ -30,7 +30,8 @@ fn text_layer_is_flagged() {
 
 #[test]
 fn image_layer_and_image_asset_are_flagged() {
-    let layer = r#",{"ddd":0,"ind":2,"ty":2,"nm":"i","refId":"img_0","ks":{},"ip":0,"op":60,"st":0}"#;
+    let layer =
+        r#",{"ddd":0,"ind":2,"ty":2,"nm":"i","refId":"img_0","ks":{},"ip":0,"op":60,"st":0}"#;
     assert_eq!(features_of(fixture_with("", "", layer, "")), IMAGES);
     let asset = r#"{"id":"img_0","w":4,"h":4,"u":"","p":"data:image/png;base64,AAAA","e":1}"#;
     assert_eq!(features_of(fixture_with("", "", "", asset)), IMAGES);

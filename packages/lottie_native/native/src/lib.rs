@@ -45,7 +45,12 @@ fn load(data: &[u8]) -> Result<(ChatLottieInfo, ChatLottie), i32> {
     let composition = Composition::parse(&json, &Limits::default()).map_err(|e| status_of(&e))?;
     let frame_count = composition.frame_count();
     let frame_rate = composition.frame_rate;
-    if composition.width == 0 || composition.height == 0 || frame_count == 0 || !frame_rate.is_finite() || frame_rate <= 0.0 {
+    if composition.width == 0
+        || composition.height == 0
+        || frame_count == 0
+        || !frame_rate.is_finite()
+        || frame_rate <= 0.0
+    {
         return Err(status::UNSUPPORTED);
     }
     // The scan runs after tlottie accepted the file and can only add info.
@@ -57,7 +62,12 @@ fn load(data: &[u8]) -> Result<(ChatLottieInfo, ChatLottie), i32> {
         frame_rate,
         features,
     };
-    Ok((info, ChatLottie { renderer: CPURenderer::new(composition) }))
+    Ok((
+        info,
+        ChatLottie {
+            renderer: CPURenderer::new(composition),
+        },
+    ))
 }
 
 #[no_mangle]
@@ -68,7 +78,12 @@ pub extern "C" fn chat_lottie_abi_version() -> u32 {
 /// # Safety
 /// `data..data+len` must be readable; `out_info` and `out_handle` writable.
 #[no_mangle]
-pub unsafe extern "C" fn chat_lottie_load(data: *const u8, len: usize, out_info: *mut ChatLottieInfo, out_handle: *mut *mut ChatLottie) -> i32 {
+pub unsafe extern "C" fn chat_lottie_load(
+    data: *const u8,
+    len: usize,
+    out_info: *mut ChatLottieInfo,
+    out_handle: *mut *mut ChatLottie,
+) -> i32 {
     guarded(status::MALFORMED, || {
         if data.is_null() || out_info.is_null() || out_handle.is_null() {
             return status::INVALID_ARGUMENT;
@@ -96,4 +111,95 @@ pub unsafe extern "C" fn chat_lottie_free(handle: *mut ChatLottie) {
         // A panicking drop must not unwind into C either.
         guarded((), || drop(unsafe { Box::from_raw(handle) }));
     }
+}
+
+/// Largest frame edge a batch accepts. Stickers are drawn at a few hundred
+/// pixels at most; the cap bounds the scratch buffer a hostile job can force.
+pub const MAX_FRAME_EDGE: u32 = 512;
+
+/// One frame to draw into a slot of page memory.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct ChatLottieJob {
+    pub handle: *mut ChatLottie,
+    pub frame: f32,
+    pub width: u32,
+    pub height: u32,
+    /// Top-left pixel of the slot; rows are `stride_bytes` apart.
+    pub target: *mut u8,
+    pub stride_bytes: usize,
+}
+
+/// Draws `job` into its slot, premultiplied `[R, G, B, A]`, touching only the
+/// first `width * 4` bytes of each of `height` rows.
+///
+/// # Safety
+/// The job's pointers must satisfy the contract in `chat_lottie.h`.
+unsafe fn render_job(job: &ChatLottieJob, scratch: &mut Vec<u32>) -> i32 {
+    let Some(animation) = (unsafe { job.handle.as_mut() }) else {
+        return status::INVALID_ARGUMENT;
+    };
+    if job.target.is_null() || job.width == 0 || job.height == 0 {
+        return status::INVALID_ARGUMENT;
+    }
+    if job.width > MAX_FRAME_EDGE || job.height > MAX_FRAME_EDGE {
+        return status::TOO_LARGE;
+    }
+    let (width, height) = (job.width as usize, job.height as usize);
+    let row_bytes = width * 4;
+    // The last row ends at (height - 1) * stride + row_bytes; it must be addressable.
+    let extent = (height - 1)
+        .checked_mul(job.stride_bytes)
+        .and_then(|n| n.checked_add(row_bytes));
+    if job.stride_bytes < row_bytes || extent.is_none_or(|n| n > isize::MAX as usize) {
+        return status::TOO_LARGE;
+    }
+    scratch.clear();
+    scratch.resize(width * height, 0);
+    let options = tlottie::RenderOptions::default();
+    if animation
+        .renderer
+        .render(job.frame, scratch, job.width, job.height, options)
+        .is_err()
+    {
+        return status::RENDER_FAILED;
+    }
+    for (y, row) in scratch.chunks_exact(width).enumerate() {
+        // SAFETY: extent above proved row y lies inside the caller's slot.
+        let out = unsafe {
+            std::slice::from_raw_parts_mut(job.target.add(y * job.stride_bytes), row_bytes)
+        };
+        let (quads, _) = out.as_chunks_mut::<4>();
+        for (bytes, pixel) in quads.iter_mut().zip(row) {
+            // tlottie's RGBA word is 0xAABBGGRR; little-endian bytes are [R, G, B, A].
+            *bytes = pixel.to_le_bytes();
+        }
+    }
+    status::OK
+}
+
+/// # Safety
+/// `jobs` and `statuses` must each point to `count` valid elements.
+#[no_mangle]
+pub unsafe extern "C" fn chat_lottie_render_batch(
+    jobs: *const ChatLottieJob,
+    count: usize,
+    statuses: *mut i32,
+) -> i32 {
+    if count == 0 {
+        return status::OK;
+    }
+    if jobs.is_null() || statuses.is_null() {
+        return status::INVALID_ARGUMENT;
+    }
+    let jobs = unsafe { std::slice::from_raw_parts(jobs, count) };
+    let statuses = unsafe { std::slice::from_raw_parts_mut(statuses, count) };
+    let mut scratch = Vec::new();
+    for (job, slot) in jobs.iter().zip(statuses) {
+        // A panic in one job is that job's failure, not the batch's.
+        *slot = guarded(status::RENDER_FAILED, || unsafe {
+            render_job(job, &mut scratch)
+        });
+    }
+    status::OK
 }

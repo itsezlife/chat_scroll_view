@@ -62,7 +62,10 @@ fn deeply_nested_file_is_limit_or_malformed() {
 fn no_pixels_is_unsupported() {
     let flat = fixture().replace(r#""w":100"#, r#""w":0"#);
     let status = try_load(flat.as_bytes()).err();
-    assert!(matches!(status, Some(-5) | Some(-3) | Some(-4)), "{status:?}");
+    assert!(
+        matches!(status, Some(-5) | Some(-3) | Some(-4)),
+        "{status:?}"
+    );
 }
 
 #[test]
@@ -73,9 +76,18 @@ fn null_arguments_are_invalid() {
     let mut handle = std::ptr::null_mut();
     unsafe {
         let p = json.as_ptr();
-        assert_eq!(chat_lottie_load(std::ptr::null(), 4, &mut info, &mut handle), -1);
-        assert_eq!(chat_lottie_load(p, json.len(), std::ptr::null_mut(), &mut handle), -1);
-        assert_eq!(chat_lottie_load(p, json.len(), &mut info, std::ptr::null_mut()), -1);
+        assert_eq!(
+            chat_lottie_load(std::ptr::null(), 4, &mut info, &mut handle),
+            -1
+        );
+        assert_eq!(
+            chat_lottie_load(p, json.len(), std::ptr::null_mut(), &mut handle),
+            -1
+        );
+        assert_eq!(
+            chat_lottie_load(p, json.len(), &mut info, std::ptr::null_mut()),
+            -1
+        );
     }
 }
 

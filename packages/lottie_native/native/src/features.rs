@@ -38,7 +38,11 @@ fn scan_root(root: &Value) -> u32 {
 fn scan_layers(layers: Option<&Value>) -> u32 {
     let mut found = 0;
     for layer in layers.and_then(Value::as_array).into_iter().flatten() {
-        if layer.get("ef").and_then(Value::as_array).is_some_and(|e| !e.is_empty()) {
+        if layer
+            .get("ef")
+            .and_then(Value::as_array)
+            .is_some_and(|e| !e.is_empty())
+        {
             found |= LAYER_EFFECTS;
         }
         match layer.get("ty").and_then(Value::as_u64) {
