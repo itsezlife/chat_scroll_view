@@ -123,6 +123,7 @@ import 'widgets/chat_navigation_alignment_test.dart'
     as chat_navigation_alignment_test;
 import 'widgets/chat_overscroll_sink_test.dart' as chat_overscroll_sink_test;
 import 'widgets/chat_overscroll_test.dart' as chat_overscroll_test;
+import 'widgets/chat_prefetch_test.dart' as chat_prefetch_test;
 import 'widgets/chat_row_chrome_test.dart' as chat_row_chrome_test;
 import 'widgets/chat_rtl_test.dart' as chat_rtl_test;
 import 'widgets/chat_scroll_physics_test.dart'
@@ -383,6 +384,7 @@ void main() {
     chat_overscroll_sink_test.main,
   );
   group('widgets/chat_overscroll_test.dart', chat_overscroll_test.main);
+  group('widgets/chat_prefetch_test.dart', chat_prefetch_test.main);
   group('widgets/chat_row_chrome_test.dart', chat_row_chrome_test.main);
   group('widgets/chat_rtl_test.dart', chat_rtl_test.main);
   group(
