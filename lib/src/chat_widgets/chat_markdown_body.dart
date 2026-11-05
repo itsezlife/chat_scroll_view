@@ -152,6 +152,63 @@ class ChatMarkdownBody extends StatefulWidget {
 
   @override
   State<ChatMarkdownBody> createState() => _ChatMarkdownBodyState();
+
+  /// The theme a body of [messageId] under [context] paints with: the very
+  /// instance it resolves, with [theme] in place of [ChatMarkdownBody.theme].
+  ///
+  /// For laying a body's text out before it is built
+  /// (`MarkdownPainterCache.prepare`): the engine reuses a prepared painter
+  /// only for the theme instance it was laid out with.
+  static MarkdownThemeData resolvedTheme(
+    BuildContext context, {
+    required ChatSelectionController controller,
+    required int messageId,
+    MarkdownThemeData? theme,
+  }) {
+    final ambient =
+        theme ?? MarkdownTheme.maybeOf(context) ?? _fallbackTheme(context);
+    final policy = controller.selectionPolicy;
+    final codeBlockLabels = ChatCodeBlockLabelsScope.of(context);
+    // ADR 015 keeps selected bodies hittable — IgnorePointer is not the gate.
+    final tablePanEnabled = !controller.isSelected(messageId);
+    final themes = _resolvedThemes[ambient] ??=
+        <_ResolvedThemeKey, MarkdownThemeData>{};
+    return themes[(
+      policy: policy,
+      codeBlockLabels: codeBlockLabels,
+      tablePanEnabled: tablePanEnabled,
+    )] ??= _ChatMarkdownBodyState._themeFor(
+      ambient,
+      policy: policy,
+      codeBlockLabels: codeBlockLabels,
+      tablePanEnabled: tablePanEnabled,
+    );
+  }
+
+  /// The resolver a body with [resolver] hands the engine: the same instance
+  /// for every body, as the engine reuses a painter only with it.
+  static MarkdownInlineEmbedResolver? adaptedEmbedResolver(
+    InlineEmbedResolver? resolver,
+  ) => switch (resolver) {
+    final resolver? => _embedAdapters[resolver] ??= ChatInlineEmbedAdapter(
+      resolver,
+    ),
+    null => null,
+  };
+
+  // The theme of a body with no [MarkdownTheme] above it, shared by every
+  // body with the same inputs, as the resolved themes are.
+  static MarkdownThemeData _fallbackTheme(BuildContext context) {
+    final style = DefaultTextStyle.of(context).style;
+    final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    return _fallbackThemes[(style, direction, scaler)] ??= MarkdownThemeData(
+      textStyle: style,
+      textDirection: direction,
+      textScaler: scaler,
+    );
+  }
 }
 
 /// The themes [_ChatMarkdownBodyState] resolves, shared by every body with the
@@ -188,7 +245,6 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   AnimationController? _pressController;
   AnimationController? _releaseController;
   final _feedbackNotifier = ValueNotifier<ChatSpanFeedback?>(null);
-  MarkdownThemeData? _fallback;
 
   /// What a body without a mounted selection surface registers with: the
   /// engine keys spoilers and the repaint boundary on a selection controller
@@ -388,31 +444,12 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   // One adapter per resolver: the engine disposes every embed and resolves
   // them again when it sees another instance.
   MarkdownInlineEmbedResolver? _adaptedEmbedResolver() =>
-      switch (widget.embedResolver) {
-        final resolver? => _embedAdapters[resolver] ??= ChatInlineEmbedAdapter(
-          resolver,
-        ),
-        null => null,
-      };
+      ChatMarkdownBody.adaptedEmbedResolver(widget.embedResolver);
 
   // The theme of a body with no [MarkdownTheme] above it, kept while its
   // inputs hold: the engine rebuilds its painter (and resolves every embed
   // again) whenever the theme is another instance, and a new one per build
   // would do that on every selection change.
-  MarkdownThemeData _fallbackTheme(BuildContext context) {
-    final style = DefaultTextStyle.of(context).style;
-    final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
-    final scaler =
-        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
-    // Shared by every body with the same inputs, as the resolved themes are.
-    return _fallback = _fallbackThemes[(style, direction, scaler)] ??=
-        MarkdownThemeData(
-          textStyle: style,
-          textDirection: direction,
-          textScaler: scaler,
-        );
-  }
-
   /// The emoji of a text the platform draws in colour, for
   /// [MarkdownThemeData.emojiRuns]: they are set at the font's height, as the
   /// reference clients do, instead of at its size. A theme with its own
@@ -422,29 +459,13 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
       TextRange(start: start, end: end),
   ];
 
-  MarkdownThemeData _resolveTheme(BuildContext context) {
-    final ambient =
-        widget.theme ??
-        MarkdownTheme.maybeOf(context) ??
-        _fallbackTheme(context);
-
-    final policy = widget.controller.selectionPolicy;
-    final codeBlockLabels = ChatCodeBlockLabelsScope.of(context);
-    // ADR 015 keeps selected bodies hittable — IgnorePointer is not the gate.
-    final tablePanEnabled = !widget.controller.isSelected(widget.messageId);
-    final themes = _resolvedThemes[ambient] ??=
-        <_ResolvedThemeKey, MarkdownThemeData>{};
-    return themes[(
-      policy: policy,
-      codeBlockLabels: codeBlockLabels,
-      tablePanEnabled: tablePanEnabled,
-    )] ??= _themeFor(
-      ambient,
-      policy: policy,
-      codeBlockLabels: codeBlockLabels,
-      tablePanEnabled: tablePanEnabled,
-    );
-  }
+  MarkdownThemeData _resolveTheme(BuildContext context) =>
+      ChatMarkdownBody.resolvedTheme(
+        context,
+        controller: widget.controller,
+        messageId: widget.messageId,
+        theme: widget.theme,
+      );
 
   /// The body theme over [ambient]. Knows no body: the cursor, which does, is
   /// [_cursorFor], passed beside it.
@@ -499,8 +520,11 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     int? blockIndex,
     MD$Block? block,
   ) {
-    final ambient = widget.theme ?? MarkdownTheme.maybeOf(context) ?? _fallback;
-    if (ambient?.cursorResolver?.call(localOffset, blockIndex, block)
+    final ambient =
+        widget.theme ??
+        MarkdownTheme.maybeOf(context) ??
+        ChatMarkdownBody._fallbackTheme(context);
+    if (ambient.cursorResolver?.call(localOffset, blockIndex, block)
         case final custom?) {
       return custom;
     }

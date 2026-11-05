@@ -1,12 +1,18 @@
 ## Unreleased
 
-### `flutter_md` 0.9.0
-- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.9.0` in every
+### `flutter_md` 0.9.1
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.9.1` in every
   pubspec and workflow. It adds `MarkdownPainterCache`: a host that puts a
   `MarkdownPainterCacheScope` above the list keeps the laid-out text of bodies
   that scroll away, and a body that scrolls back paints from it.
+  `MarkdownPainterCache.prepare` lays a body out before its row is built.
 
 ### Bodies
+- **ADDED**: `ChatMarkdownBody.resolvedTheme` and
+  `ChatMarkdownBody.adaptedEmbedResolver` return the theme and resolver a
+  body with those inputs uses, the same instances. A host that lays bodies
+  out ahead of their rows (`MarkdownPainterCache.prepare`) passes them, so the
+  row that scrolls in keeps the laid-out text.
 - **CHANGED**: `ChatMarkdownBody` shares its resolved theme, and its adapted
   inline embed resolver, among every body with the same inputs. The engine
   keeps a body's shaped text only while its theme is the same instance, so a

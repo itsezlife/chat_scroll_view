@@ -281,7 +281,7 @@ packages:
       path: "../md"
       relative: true
     source: path
-    version: "0.9.0"
+    version: "0.9.1"
   flutter_svg:
     dependency: transitive
     description:
