@@ -3287,11 +3287,28 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
     FocusManager.instance.removeListener(_resetJustResumed);
   }
 
+  /// The text processing actions of this app run, queried by the first field
+  /// that mounts (divergence L).
+  static Future<List<ProcessTextAction>>? _sharedProcessTextActions;
+
+  /// Lets the next field query the engine again, as on a fresh app run.
+  @visibleForTesting
+  static void debugResetProcessTextActions() =>
+      _sharedProcessTextActions = null;
+
   /// Query the engine to initialize the list of text processing actions to show
   /// in the text selection toolbar.
+  ///
+  /// Once per app run, not per field: the actions are the device's text
+  /// processing apps, and the query runs on the platform thread, which is the
+  /// UI thread on Android. The first one there took 32 ms, and a field that
+  /// mounts again (the composer's, after a message selection) asked again.
   Future<void> _initProcessTextActions() async {
-    _processTextActions.clear();
-    _processTextActions.addAll(await _processTextService.queryTextActions());
+    final actions = await (_sharedProcessTextActions ??= _processTextService
+        .queryTextActions());
+    _processTextActions
+      ..clear()
+      ..addAll(actions);
   }
 
   // Whether `TickerMode.of(context)` is true and animations (like blinking the

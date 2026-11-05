@@ -226,6 +226,17 @@ control), so `ExtendedEditableText.onSecondaryClick` (and the same parameter on
 - The press is recorded in `lastSecondaryTapDownPosition` as stock does, so the
   anchors of a menu built from it still work.
 
+### L. Text processing actions queried once per app run
+
+Stock queries the platform for its text processing actions (the apps that
+take selected text) in every editable's `initState`. On Android the query
+runs on the platform thread, which is the UI thread since the merged-thread
+engine; the first one took 32 ms there, and the composer's field mounts
+again whenever a message selection ends, so it asked again each time.
+`ExtendedEditableText` queries once per app run and shares the result with
+every field. An app installed while the app runs shows in the toolbar from
+the next run. Tests reset it with `debugResetProcessTextActions`.
+
 ### Seams not in stock
 
 - `clipboardTextBuilder` / `pasteTextTransformer` (`ExtendedClipboardTextBuilder`,
