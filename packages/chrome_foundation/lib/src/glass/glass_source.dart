@@ -291,15 +291,15 @@ class RenderGlassSource extends RenderProxyBox {
     if (width <= 0 || height <= 0) return null;
 
     final builder = ui.SceneBuilder();
-    if (blurSigma > 0) {
-      builder.pushImageFilter(
-        ui.ImageFilter.blur(
-          sigmaX: blurSigma,
-          sigmaY: blurSigma,
-          tileMode: TileMode.clamp,
-        ),
-      );
-    }
+    final blur = blurSigma > 0
+        ? builder.pushImageFilter(
+            ui.ImageFilter.blur(
+              sigmaX: blurSigma,
+              sigmaY: blurSigma,
+              tileMode: TileMode.clamp,
+            ),
+          )
+        : null;
     final transform = Matrix4.diagonal3Values(pixelRatio, pixelRatio, 1)
       ..translateByDouble(
         -(region.left + layer.offset.dx),
@@ -307,12 +307,17 @@ class RenderGlassSource extends RenderProxyBox {
         0,
         1,
       );
-    builder.pushTransform(transform.storage);
+    final root = builder.pushTransform(transform.storage);
     final scene = layer.buildScene(builder);
     try {
       return scene.toImageSync(width, height);
     } finally {
+      // The pushed layers retain this frame's whole layer tree. Left to the
+      // garbage collector, every captured frame's tree is torn down at once
+      // inside a scavenge on the UI thread.
       scene.dispose();
+      root.dispose();
+      blur?.dispose();
     }
   }
 }
