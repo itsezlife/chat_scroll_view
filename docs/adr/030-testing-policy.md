@@ -10,6 +10,7 @@ reproducibility; performance benchmarks report nightly and never block a merge.
 **Amended**: 2026-10-16 — change notification is `package:listen`, which brings its own tests: there is no `Observable` fake or contract suite, and the seams' suites keep requiring an idempotent `dispose` of their owner ([ADR 023](023-data-layering-and-persistence.md) Amendment). A test that makes a listener throw sets `Listenable.onError` in `setUp` and restores it in `tearDown`; the packages never set it  
 **Amended**: 2026-10-18 (chat-polish-3, ticket 10): the playback lifecycle source joins the table; process-wide binding state a contract run moves (the lifecycle) is restored by the run's own tear-down  
 **Amended**: 2026-11-05 — golden baselines belong to one host, the CI runner (`linux_x64`): `golden_baseline`'s `useGoldenBaselines` compares them there only (a test on another host is reported skipped) and refuses to regenerate them anywhere else; `scripts/goldens` runs them in a `linux/amd64` container from any machine, and the Goldens workflow regenerates them on the runner. A scene that needs a platform's own fonts names its own baseline host. `GoldenBaselineLint` keeps every golden test on it  
+**Amended**: 2026-11-06 — native decoders: a fake binding per native package, the page pool's contract suite, the alpha golden on both builds, and the fuzz rule (section *Amendment: native decoders*)  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 023](023-data-layering-and-persistence.md)
 
 ## Decided
@@ -17,6 +18,8 @@ reproducibility; performance benchmarks report nightly and never block a merge.
 | Seam or area | Fake | Contract suite | Location |
 | ------------ | ---- | -------------- | -------- |
 | Asset fetcher, decoder, cache | `FakeFetcher`, `FakeDecoder`, manual clock | `AssetFetcherContract.run`, `DecoderContract.run`; cache invariants: pinned while attached, evict never touches live bindings, no visible failure plus retry on re-attach, connectivity-restored and `retry()`, dedupe, cancel on last detach, staged readiness, page hold counts | `catalog_assets` (`testing.dart`) |
+| Native binding (`lottie_native`, `video_native`) | `FakeLottieBinding`, `FakeVideoBinding`: scripted parse results, frames and failures, no native library | `NativeBindingContract.run` (probe reports availability once; a failed parse returns an error and never throws; render writes the documented pixel format; disposed handles refuse) over the fake and, where a native library is present, the real binding | each `*_native` package (`testing.dart`) |
+| Dynamic page pool and renderer seam | `FakeFrameRenderer` writing known pixels into slots, manual clock | `FramePoolContract.run`: a slot is pinned while bound, unattached slots evict least-recently-used, a full pool shows the first-frame still, a late frame keeps the last good one, release on memory pressure, hold counts balance | `catalog_assets` (`testing.dart`) |
 | `KeyValueStore`, `RecentsStore`, `PreferenceStore`, `CollectionSource`, `SearchSource`, `KeywordSource`, `GlyphSupport` | In-memory fakes | One `...Contract.run` per seam | `content_model` (`testing.dart`) |
 | Playback tick source, lifecycle source | `ManualPlaybackTickSource`, `ManualPlaybackLifecycleSource` (with `ManualRetentionTimers` for grace periods) | `PlaybackTickSourceContract.run`, `PlaybackLifecycleSourceContract.run` (each distinct change notifies once, a repeated state nothing, a disposed source says nothing, dispose is idempotent) over the production adapter and the fake; `PlaybackActivity` is concrete and tested by behaviour over the fakes and a real clock | `catalog_assets` (`testing.dart`) |
 | Presentation policy and strategies | Fake IME input port, manual clock | `PresentationPolicyContract.run`; IME hand-off state-machine tests | `panel_presentation` (`testing.dart`) |
@@ -49,3 +52,17 @@ reproducibility; performance benchmarks report nightly and never block a merge.
 ## Related
 
 - Lint rules, fake and adapter naming conventions: [scripts/README.md](../../scripts/README.md)
+
+## Amendment: native decoders
+
+[ADR 042](042-native-media-decoding.md) adds native engines. Their tests keep
+the shape of this ADR: contracts over fakes, with the real binding as one more
+implementation of the same suite.
+
+| Area | Decision |
+| ---- | -------- |
+| Adapters | `lottie_decoder` and `video_decoder` run `DecoderContract.run` against their fake binding, so no test of an adapter needs a native library. |
+| Alpha | One golden with a semi-transparent sticker (premultiplied output, no fringing) runs against the native build and the WebAssembly build on the `golden_baseline` host; both must match the same baseline within the documented tolerance. |
+| Fuzzing | A fixed corpus of malformed files (including the known 269-byte file and truncated and mutated TGS, JSON and WebM) replays against the wrapper's input checks on every pull request and must finish in under a minute. A longer coverage-guided fuzz runs nightly and opens an issue on a finding; like the benchmarks it never blocks a merge. |
+| Load failure | A test per decoder proves that a failed probe leaves the form unregistered and the placeholder in place. |
+| Benchmark | A scroll benchmark with animated stickers extends `scroll_trace` and reports nightly as ratios, per the performance rule above. |

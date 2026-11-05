@@ -8,6 +8,7 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Status**: Accepted  
 **Date**: 2026-10-16  
 **Amended**: 2026-10-18 (chat-polish-3, ticket 10): the pause policies of the reference desktop client reach the shared clock through one lifecycle seam (section *Amendment: pause policies*); `PlaybackPauseLayer` gains three values and the default pausing set is spelled out  
+**Amended**: 2026-11-06: the dynamic page pool, the renderer seam and the frame cache for native animated media ([ADR 042](042-native-media-decoding.md); section *Amendment: dynamic frame pages*)  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -115,3 +116,22 @@ painted. The workspace had the sink (the shared clock and its layers) but only
 Not verified on a device: the pause behaviour on a real desktop (the tests use
 fake lifecycle sources and a manual frame source), including whether the
 embedder delivers `inactive` and `hidden` as the engine sources say.
+
+## Amendment: dynamic frame pages
+
+The first decision table anticipated "a separate dynamic page pool for
+animation frames" sharing the sprite abstraction. This section makes it a
+contract for the native engines of [ADR 042](042-native-media-decoding.md).
+Evidence and open items are in that ADR.
+
+| Area | Decision |
+| ---- | -------- |
+| Surface | An animated asset owns a **slot** on a shared **dynamic page**. A worker renders every active slot in one batch call per tick; the pool uploads one image per page that changed. The paintable exposes the sprite capability: the chat paints it with a rectangle draw from the page, the panel batches draws per page. Static glyph pages and dynamic pages share the sprite type and nothing else: separate pools, separate budgets. |
+| Renderer seam | `catalog_assets` defines an engine-agnostic seam: given slots, frame times and sizes, write premultiplied pixels into page memory. A decoder adapter implements it; the pool, the slot allocator and page residency stay in `catalog_assets`, which depends on no native code. |
+| Time | A paintable's frame is derived from `AssetPaintContext.time`, so every visible animation stays in step and a pause is freeze-and-continue (Resume, above). The worker renders one to two frames ahead. A frame that is late never blocks painting: the slot keeps its last good frame. Until a first frame exists the first-frame still or the placeholder shows. |
+| Budget | The pool has its own host-configured byte budget (default about 48 MiB), apart from the 64 MiB of static glyph pages. A slot is held while a binding is attached and visible; unattached slots evict least-recently-used. A full pool shows the newest asset's first-frame still instead of animating: never an error, never a visible failed stage. Pages release on memory pressure like glyph pages. |
+| Frame cache | After the first render, each frame is stored lz4-compressed, keyed by content, display pixel size and engine version, and replayed on a cache isolate into the slot; a few frames stay in memory ahead of playback. The disk tier counts against a host-configured budget with least-recently-used eviction. The key and the rule that skips the cache above 512 x 512 use the **display** size, not the source size. Web keeps the cache in memory only. |
+| Fps | The fps cap derives from the spec's pixel size, as above. An asset authored at 60 fps and shown small plays at the cap, not at 60. |
+| Video | Video GIFs and video stickers write display-size BGRA into the same slots and pages. A shader-side YUV upload is a later optimisation behind the seam. |
+| Rest | `loop` false holds the rest frame and `restart()` replays from frame 0; `animate` false uses the first-frame stage only: the existing paintable contract, unchanged. |
+| Failure | A native library that fails its start-up probe leaves its media form without a decoder; the entry stays at its placeholder. An input the engine's checks reject ends in `AssetProgress.fail`. Both follow the failure rule above. |

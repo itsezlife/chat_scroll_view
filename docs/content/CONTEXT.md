@@ -10,7 +10,8 @@ Decisions: [ADR 021](../adr/021-content-identity-and-collections.md),
 [ADR 023](../adr/023-data-layering-and-persistence.md),
 [ADR 017](../adr/017-body-linkify-host-invoked.md) (entity detection),
 [ADR 034](../adr/034-rich-text-wire-and-persistence.md),
-[ADR 036](../adr/036-emoji-only-message-presentation.md).
+[ADR 036](../adr/036-emoji-only-message-presentation.md),
+[ADR 042](../adr/042-native-media-decoding.md) (native decoders).
 
 ## Language
 
@@ -133,6 +134,22 @@ _Avoid_: A pause flag on a widget, feeding app lifecycle into a row's `isActive`
 **Glyph sprite source**:
 The one narrow seam through which the asset cache reaches a glyph atlas: the sprite of a glyph, a hold on its page, a page listener, and whether a sprite is on its way (`waitsForSprite`; a glyph nothing waits for is drawn as text). Several atlases are one source through a layered source: the background bake first, glyphs that joined later after it. The atlas implements it and the host registers it with the scope. Bindings hold the page from attach to detach.
 _Avoid_: The cache creating or owning atlases, `panel_catalog` importing atlas types
+
+**Dynamic page**:
+A shared page of animation frames in the asset cache. An animated asset owns a **slot** on it; a worker renders every active slot in one batch call per tick and the pool uploads one image per page that changed. The paintable exposes a sprite on it. It is a separate pool and budget from the baked glyph pages ([ADR 022](../adr/022-asset-cache-and-media-pipeline.md) amendment, [ADR 042](../adr/042-native-media-decoding.md)).
+_Avoid_: A `ui.Image` per animated asset, mixing frame slots into glyph pages
+
+**Renderer seam**:
+The engine-agnostic seam in `catalog_assets`: given slots, frame times and sizes, write premultiplied pixels into page memory. A native decoder adapter implements it; the pool, slot allocator and residency stay in the core, which holds no native code.
+_Avoid_: The pool calling an engine, a decoder owning pages
+
+**Frame cache**:
+Compressed rendered frames of an animation, keyed by content, display size and engine version, replayed instead of re-rendering. Skipped above 512 x 512 display size; disk and memory tiers on native, memory only on web.
+_Avoid_: Keying by source size, a cache that is a visible stage
+
+**Native binding**:
+The leaf package that owns the native library, its build hook, its `dart:ffi` or web-worker bindings and a guarded load probe. A decoder adapter depends on it; a failed probe means the decoder is never registered.
+_Avoid_: FFI calls in an adapter or the core, retrying a library that failed to load
 
 **Content embed**:
 The `catalog_assets` adapter implementing an inline embed over an asset binding with the `messages` preset.

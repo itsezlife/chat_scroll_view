@@ -107,6 +107,7 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 | Panel presentation, occupancy, IME (supersedes the inset parts of ADR 007)               | [ADR 028](docs/adr/028-panel-presentation.md)                         |
 | Host composition root, inline embeds                                                     | [ADR 029](docs/adr/029-host-integration.md)                           |
 | Fakes, contracts, gates                                                                  | [ADR 030](docs/adr/030-testing-policy.md)                             |
+| Native media decoding: Lottie / TGS and video over FFI, page pool, frame cache, web      | [ADR 042](docs/adr/042-native-media-decoding.md)                      |
 | Strings, RTL, semantics, shortcuts                                                       | [ADR 031](docs/adr/031-localization-accessibility-and-input.md)       |
 
 **Package invariants**
