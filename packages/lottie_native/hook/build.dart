@@ -1,7 +1,7 @@
 /// Builds the `native/` crate with cargo and registers the library as the
 /// code asset that `lib/src/native/chat_lottie_symbols.dart` binds to.
 ///
-/// macOS only for now; see [rustTargetFor]. A first build needs network for
+/// macOS only for now; see [rustTargetFor] (another target gets no asset). A first build needs network for
 /// the crates and the pinned tlottie commit.
 library;
 
@@ -22,6 +22,13 @@ void main(List<String> args) async {
 
     final code = input.config.code;
     final target = rustTargetFor(code.targetOS, code.targetArchitecture);
+    if (target == null) {
+      // No asset: the build succeeds and the probe finds no library.
+      stderr.writeln(
+        'warning: ${unsupportedTargetWarning(code.targetOS, code.targetArchitecture)}',
+      );
+      return;
+    }
     final cargo = findCargo(environment: Platform.environment);
 
     final crate = input.packageRoot.resolve('native/');
@@ -38,13 +45,15 @@ void main(List<String> args) async {
       crate.resolve('Cargo.toml').toFilePath(),
     ]);
     if (result.exitCode != 0) {
+      final output = '${result.stdout}\n${result.stderr}';
+      final hint = missingTargetHint(output, target);
       throw ProcessException(
         cargo,
         ['build', '--release', '--target', target],
         'cargo failed building the lottie_native crate '
         '(exit ${result.exitCode}). A first build needs network for the '
         'crates and the pinned tlottie commit.\n'
-        '${result.stdout}\n${result.stderr}',
+        '$output${hint == null ? '' : '\n$hint'}',
         result.exitCode,
       );
     }

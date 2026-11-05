@@ -16,21 +16,44 @@ void main() {
       expect(rustTargetFor(OS.macOS, Architecture.x64), 'x86_64-apple-darwin');
     });
 
-    test('names the later slice for any other target', () {
-      expect(
-        () => rustTargetFor(OS.linux, Architecture.x64),
-        throwsA(
-          isA<UnsupportedError>().having(
-            (e) => e.message,
-            'message',
-            allOf(contains('linux'), contains('slice 6'), contains('macOS')),
-          ),
-        ),
-      );
-      expect(
-        () => rustTargetFor(OS.macOS, Architecture.ia32),
-        throwsUnsupportedError,
-      );
+    test('is null for any other target: the library is then absent', () {
+      expect(rustTargetFor(OS.linux, Architecture.x64), isNull);
+      expect(rustTargetFor(OS.macOS, Architecture.ia32), isNull);
+    });
+  });
+
+  group('unsupportedTargetWarning', () {
+    test(
+      'names the target and says the library is unavailable at run time',
+      () {
+        final warning = unsupportedTargetWarning(OS.linux, Architecture.x64);
+
+        expect(
+          warning,
+          allOf(contains('linux'), contains('x64'), contains('at run time')),
+        );
+      },
+    );
+  });
+
+  group('missingTargetHint', () {
+    test(
+      'suggests rustup target add when cargo says the target is missing',
+      () {
+        for (final output in [
+          "error[E0463]: can't find crate for `core`",
+          'note: the `x86_64-apple-darwin` target may not be installed',
+        ]) {
+          expect(
+            missingTargetHint(output, 'x86_64-apple-darwin'),
+            'rustup target add x86_64-apple-darwin',
+          );
+        }
+      },
+    );
+
+    test('has nothing to add for any other failure', () {
+      expect(missingTargetHint('error: linker failed', 'a-b'), isNull);
     });
   });
 
