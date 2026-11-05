@@ -37,6 +37,20 @@ class CachedLabel extends LeafRenderObjectWidget {
         ),
       );
 
+  /// The shared, laid-out painter for [text] in [style], for a render object
+  /// that paints a label of its own. Do not dispose it.
+  static TextPainter painterFor(
+    String text,
+    TextStyle style, {
+    required TextScaler scaler,
+    required TextDirection direction,
+  }) => _LabelCache.painter(
+    text: text,
+    style: style,
+    scaler: scaler,
+    direction: direction,
+  );
+
   /// The label.
   final String text;
 

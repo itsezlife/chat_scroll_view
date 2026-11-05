@@ -1,5 +1,6 @@
 import 'package:catalog_assets/catalog_assets.dart' show InlineEmbedResolver;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
@@ -8,6 +9,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_me
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_row_hover.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/message_row_frame.dart';
 import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';
@@ -215,130 +217,49 @@ class DemoMessageBubble extends StatelessWidget {
     final isFirstInRun = runLayout.isFirstInSenderRun;
     final isLastInRun = runLayout.isLastInSenderRun;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final viewportWidth = constraints.maxWidth;
-        final maxWidth = layout.bubbleCap(
-          viewportWidth,
-          hasAvatarGutter: !outgoing,
-        );
-        final edited = message.updatedAt != message.createdAt;
-        final bubble = switch ((emojiOnly, selection, host)) {
-          (final emoji?, final controller?, final host?) => ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: DemoEmojiMessage(
-              messageId: message.id,
-              emojiOnly: emoji,
-              selection: controller,
-              host: host,
-              createdAt: message.createdAt,
-              isOutgoing: outgoing,
-              edited: edited,
-              hovered: hovered,
-            ),
-          ),
-          _ => _Bubble(
-            messageId: message.id,
-            sender: isFirstInRun ? message.sender : null,
-            content: content,
-            markdown: markdown,
-            createdAt: message.createdAt,
-            edited: edited,
-            isOutgoing: outgoing,
-            runLayout: runLayout,
-            theme: layout,
-            maxWidth: maxWidth,
-            selection: selection,
-            embedResolver: host?.embedResolver,
-            onSenderTap: onSenderTap,
-          ),
-        };
-        final Widget row;
-        if (outgoing) {
-          row = Align(alignment: AlignmentDirectional.centerEnd, child: bubble);
-        } else {
-          row = Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              if (isLastInRun)
-                _Avatar(
-                  sender: message.sender,
-                  size: layout.avatarSize,
-                  onTap: onAvatarTap != null
-                      ? () => onAvatarTap!(message.sender)
-                      : null,
-                )
-              else
-                SizedBox(width: layout.avatarSize),
-              SizedBox(width: layout.avatarGap),
-              Flexible(child: bubble),
-            ],
-          );
-        }
-
-        return Align(
-          alignment: layout.columnAlignment(
-            viewportWidth: viewportWidth,
-            outgoing: outgoing,
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: layout.columnWidth(viewportWidth),
-            ),
-            child: Padding(
-              padding: layout.padding.copyWith(
-                top: layout.topInset(isFirstInRun: isFirstInRun),
-                bottom: layout.bottomInset(isLastInRun: isLastInRun),
-              ),
-              child: row,
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.sender, required this.size, this.onTap});
-
-  final String sender;
-  final double size;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final initial = sender.isEmpty
-        ? '?'
-        : sender.characters.first.toUpperCase();
-    final actionsAllowed =
-        ChatSelectionStateScope.maybeOf(context)?.canPerformActions ?? true;
-    final tap = actionsAllowed ? onTap : null;
-    return MouseRegion(
-      cursor: tap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTap: tap,
-        onLongPress:
-            () {}, // Absorb long-press so avatar does not trigger message selection (Decision 3)
-        child: Container(
-          width: size,
-          height: size,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: _colorForSender(sender),
-            shape: BoxShape.circle,
-          ),
-          child: Text(
-            initial,
-            style: const TextStyle(
-              color: Color(0xFFFFFFFF),
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              height: 1,
-            ),
-          ),
-        ),
+    final edited = message.updatedAt != message.createdAt;
+    final bubble = switch ((emojiOnly, selection, host)) {
+      (final emoji?, final controller?, final host?) => DemoEmojiMessage(
+        messageId: message.id,
+        emojiOnly: emoji,
+        selection: controller,
+        host: host,
+        createdAt: message.createdAt,
+        isOutgoing: outgoing,
+        edited: edited,
+        hovered: hovered,
       ),
+      _ => _Bubble(
+        messageId: message.id,
+        sender: isFirstInRun ? message.sender : null,
+        content: content,
+        markdown: markdown,
+        createdAt: message.createdAt,
+        edited: edited,
+        isOutgoing: outgoing,
+        runLayout: runLayout,
+        theme: layout,
+        selection: selection,
+        embedResolver: host?.embedResolver,
+        onSenderTap: onSenderTap,
+      ),
+    };
+    return MessageRowFrame(
+      theme: layout,
+      outgoing: outgoing,
+      runLayout: runLayout,
+      bubble: bubble,
+      avatar: !outgoing && isLastInRun
+          ? MessageAvatar(
+              sender: message.sender,
+              size: layout.avatarSize,
+              color: _colorForSender(message.sender),
+              onTap: switch (onAvatarTap) {
+                final tap? => () => tap(message.sender),
+                null => null,
+              },
+            )
+          : null,
     );
   }
 }
@@ -359,7 +280,6 @@ class _Bubble extends StatelessWidget {
     required this.isOutgoing,
     required this.runLayout,
     required this.theme,
-    required this.maxWidth,
     this.markdown,
     this.selection,
     this.embedResolver,
@@ -392,9 +312,6 @@ class _Bubble extends StatelessWidget {
 
   /// Layout + bubble chrome tokens from [ChatScrollTheme.messageOf].
   final ChatMessageThemeData theme;
-
-  /// Cap from [ChatMessageThemeData.bubbleCap]; not a forced width.
-  final double maxWidth;
 
   /// When set, content is [_RegisteredChatMdBody]; otherwise plain [Text].
   final ChatSelectionController? selection;
@@ -432,30 +349,28 @@ class _Bubble extends StatelessWidget {
       _ => Text(content, style: textStyle),
     };
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      child: switch (selection) {
-        final controller? => ChatMessageSurfaceBounds(
-          controller: controller,
-          messageId: messageId,
-          shape: RoundedRectangleBorder(borderRadius: radius),
-          child: _bubbleChrome(
-            bg: bg,
-            metaColor: metaColor,
-            radius: radius,
-            padding: padding,
-            body: body,
-          ),
-        ),
-        null => _bubbleChrome(
+    // [MessageRowFrame] caps the width.
+    return switch (selection) {
+      final controller? => ChatMessageSurfaceBounds(
+        controller: controller,
+        messageId: messageId,
+        shape: RoundedRectangleBorder(borderRadius: radius),
+        child: _bubbleChrome(
           bg: bg,
           metaColor: metaColor,
           radius: radius,
           padding: padding,
           body: body,
         ),
-      },
-    );
+      ),
+      null => _bubbleChrome(
+        bg: bg,
+        metaColor: metaColor,
+        radius: radius,
+        padding: padding,
+        body: body,
+      ),
+    };
   }
 
   Widget _bubbleChrome({
@@ -593,22 +508,26 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
           mentionColor: widget.isOutgoing ? const Color(0xFFBBDEFB) : null,
         );
 
+    final body = MarkdownTheme(
+      data: bubbleMarkdownTheme,
+      child: DefaultTextStyle.merge(
+        style: widget.textStyle,
+        child: ChatMarkdownBody(
+          controller: widget.selection,
+          messageId: widget.messageId,
+          markdown: widget.markdown,
+          embedResolver: widget.embedResolver,
+        ),
+      ),
+    );
+    // Only a lab build listens for its plain-text switch: every row would
+    // otherwise join and leave one shared notifier as it scrolls.
+    if (!DemoConfig.scrollLab) return body;
     return ValueListenableBuilder<bool>(
       valueListenable: ScrollLab.plainText,
       builder: (context, plain, _) => plain
           ? Text(widget.markdown.markdown, style: widget.textStyle)
-          : MarkdownTheme(
-              data: bubbleMarkdownTheme,
-              child: DefaultTextStyle.merge(
-                style: widget.textStyle,
-                child: ChatMarkdownBody(
-                  controller: widget.selection,
-                  messageId: widget.messageId,
-                  markdown: widget.markdown,
-                  embedResolver: widget.embedResolver,
-                ),
-              ),
-            ),
+          : body,
     );
   }
 }
