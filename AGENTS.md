@@ -27,7 +27,10 @@ Each package's `test/unit_test.dart` imports every `*_test.dart` and runs each
 `main` in a group of its own, in one process; `scripts/check` runs only that
 file. A new test file is imported and grouped there (`TestEntrypointLint` fails
 otherwise). The files share the process, so a test restores any global state
-it changes, and a golden test pins `goldenFileComparator` to its own file.
+it changes, and a golden test calls `useGoldenBaselines('<its path>')` from
+`golden_baseline`. Golden baselines are the CI runner's: on a Mac they are
+skipped, never failed; compare or regenerate them with `scripts/goldens
+[--update]`.
 Details: [scripts/README.md](scripts/README.md).
 
 The repo is one **pub workspace** (one `pubspec.lock`, at the root); package-local
@@ -54,6 +57,7 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `packages/panel_shell` / `panel_pages` / `panel_presentation` | Panel shell + page registry / catalog pages / presentation kinds and policy | panel tabs, search, pages, popup / docked / keyboard replacement, occupancy |
 | `packages/chat_composer`                 | Slot-based composer, input controller, entity text, formatting commands, selection menu | composer slots, input, queries, formatting                          |
 | `packages/composer_editable`             | Leaf: the composer's one editable (patched Flutter text field)            | field gestures, handles, magnifier, re-vendor                                    |
+| `packages/golden_baseline`              | Test support: golden baselines held to the CI runner (`useGoldenBaselines`) | adding or regenerating a golden test                                              |
 | `example/`                               | Demo host only — not the portable contract                                | wiring demos                                                                     |
 | `scripts/`                               | `scripts/check` entry + the workspace lints (`workspace_check` package)   | CI gates, dependency direction, re-export / fakes rules                          |
 | `tdesktop/`                              | Read-only Telegram Desktop reference checkout                             | desktop selection parity analysis                                                |

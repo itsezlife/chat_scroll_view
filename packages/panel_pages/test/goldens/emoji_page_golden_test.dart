@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart' show SemanticsAction;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/testing.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -11,25 +12,16 @@ import 'package:panel_shell/testing.dart';
 
 import '../emoji/emoji_fixtures.dart' as fixtures;
 
-// Regenerate with `flutter test --update-goldens test/goldens`.
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
 //
 // flutter_test draws text with the Ahem font, so an emoji is a square and
 // glyph shapes do not depend on the host platform; the strip's pictures are
 // the bundled art, decoded before the first frame. The page is drawn on the
 // flat path (token colours, no glass), without an atlas: what is checked is
 // layout, tokens, headers, strip and picker, in both reading directions.
-//
-// The goldens were generated on macOS. Pixel-exact comparison on another
-// platform (CI runs Linux) is unconfirmed, as for the shell's goldens: if edge
-// anti-aliasing of the rounded shapes differs there, regenerate on the pinned
-// platform or add a tolerance comparator.
 void main() {
+  useGoldenBaselines('test/goldens/emoji_page_golden_test.dart');
   // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  setUpAll(
-    () => goldenFileComparator = LocalFileComparator(
-      Uri.file('test/goldens/emoji_page_golden_test.dart'),
-    ),
-  );
   Future<void> precacheStripArt(WidgetTester tester) =>
       tester.runAsync(() async {
             for (final id in EmojiTabIcons.assets.keys) {

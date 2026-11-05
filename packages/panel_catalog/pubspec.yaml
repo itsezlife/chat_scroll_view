@@ -25,6 +25,9 @@ dependencies:
     sdk: flutter
 
 dev_dependencies:
+  # Golden baselines are the CI runner's: compared and regenerated there only.
+  golden_baseline:
+    path: ../golden_baseline
   flutter_lints: ^6.0.0
   # Frozen A/B baseline for panel catalog benches (issue 08) — not a runtime dep.
   super_sliver_list: ^0.4.1

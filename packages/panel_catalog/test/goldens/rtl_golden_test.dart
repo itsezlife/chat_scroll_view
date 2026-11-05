@@ -2,11 +2,12 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 
-// Regenerate with `flutter test --update-goldens test/goldens`.
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
 //
 // The catalog under a right-to-left `Directionality`: cells fill each row from
 // the right, the title starts at the right edge and the header action sits at
@@ -17,11 +18,6 @@ import 'package:panel_catalog/testing.dart';
 // The sticker wash is painted at a fixed frame time, seven tenths of the way
 // through its sweep. flutter_test renders text with the Ahem font, so titles
 // and labels do not depend on the host platform.
-//
-// The goldens were generated on macOS. Pixel-exact comparison on another
-// platform (CI runs Linux) is unconfirmed: if edge anti-aliasing of the
-// rounded shapes differs there, regenerate on the pinned platform or add a
-// tolerance comparator, and record it here.
 List<CatalogLeaf> _leaves(int count) => [
   for (var i = 0; i < count; i++)
     switch (i % 3) {
@@ -79,12 +75,8 @@ final _scenarios =
     };
 
 void main() {
+  useGoldenBaselines('test/goldens/rtl_golden_test.dart');
   // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  setUpAll(
-    () => goldenFileComparator = LocalFileComparator(
-      Uri.file('test/goldens/rtl_golden_test.dart'),
-    ),
-  );
   final variants = {
     'light': PanelCatalogThemeData.light,
     'dark': PanelCatalogThemeData.dark,

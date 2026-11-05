@@ -4,12 +4,12 @@ import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
 import '../support/material_icons.dart';
-import '../support/tolerant_golden_comparator.dart';
 
-// Regenerate with `flutter test --update-goldens test/view`; see
-// composer_golden_test.dart for what the goldens pin.
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's);
+// see composer_golden_test.dart for what the goldens pin.
 const _tolerance = 0.01;
 
 const _bullet = EntityListKind.bullet;
@@ -86,12 +86,12 @@ class _CellState extends State<_Cell> {
 }
 
 void main() {
+  useGoldenBaselines(
+    'test/view/composer_list_gutter_golden_test.dart',
+    tolerance: _tolerance,
+  );
   setUpAll(() async {
     await loadMaterialIcons();
-    goldenFileComparator = TolerantGoldenComparator(
-      Uri.file('test/view/composer_list_gutter_golden_test.dart'),
-      tolerance: _tolerance,
-    );
   });
 
   testWidgets('bullets and numbers at depths 0 to 2, LTR and RTL', (

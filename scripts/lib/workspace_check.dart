@@ -1,5 +1,6 @@
 /// Gates behind `scripts/check`: workspace loading, the dependency-direction,
-/// re-export, fakes-in-production, pure-Dart and test entrypoint lints, and
+/// re-export, fakes-in-production, pure-Dart, test entrypoint and golden
+/// baseline lints, and
 /// the per-member analyze / test plan.
 library;
 
@@ -10,6 +11,7 @@ export 'src/check_plan.dart';
 export 'src/check_runner.dart';
 export 'src/dependency_lint.dart';
 export 'src/fakes_lint.dart';
+export 'src/golden_baseline_lint.dart';
 export 'src/legacy_baseline.dart';
 export 'src/library_file.dart';
 export 'src/pure_dart_lint.dart';

@@ -8,10 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_md/flutter_md.dart'
     show MarkdownTheme, MarkdownThemeData;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
-// Regenerate with
-// `flutter test --update-goldens test/goldens/chat_markdown_emoji_golden_test.dart`.
-//
 // Unicode emoji in an ordinary bubble, the two messages of the report (five
 // emoji, and eleven emoji and a word) and the same five with two custom
 // emoji among them, drawn the way the app draws them: SF for the letters and
@@ -20,26 +18,11 @@ import 'package:flutter_test/flutter_test.dart';
 //
 // Unlike the other goldens, these need the platform's own fonts (Ahem draws
 // every emoji as a square, which is exactly what could not show the bug), so
-// they were generated on macOS and the test is skipped where the two font files
-// are missing. The emoji pictures change between macOS releases, so the
-// comparator forgives a larger share of pixels than the others do; a
-// different macOS that still differs is regenerated, not worked around.
-class _GoldenComparator extends LocalFileComparator {
-  _GoldenComparator(super.testFile);
-
-  static const double _tolerance = 0.03;
-
-  @override
-  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await GoldenFileComparator.compareLists(
-      imageBytes,
-      await getGoldenBytes(golden),
-    );
-    if (result.passed || result.diffPercent <= _tolerance) return true;
-    final error = await generateFailureOutput(result, golden, basedir);
-    throw FlutterError(error);
-  }
-}
+// their baselines are an Apple Silicon Mac's, not the runner's: compared and
+// regenerated there (`flutter test --update-goldens` on that Mac), and skipped
+// where the two font files are missing. The emoji pictures change between
+// macOS releases, hence the larger tolerance; a release that still differs
+// is regenerated, not worked around.
 
 const _emojiFile = '/System/Library/Fonts/Apple Color Emoji.ttc';
 const _textFile = '/System/Library/Fonts/SFNS.ttf';
@@ -95,18 +78,17 @@ const _cases = <String, String>{
 };
 
 void main() {
+  useGoldenBaselines(
+    'test/goldens/chat_markdown_emoji_golden_test.dart',
+    tolerance: 0.03,
+    baselineHost: 'macos_arm64',
+  );
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final hasFonts =
       File(_emojiFile).existsSync() && File(_textFile).existsSync();
 
-  // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  late GoldenFileComparator previous;
   setUpAll(() async {
-    previous = goldenFileComparator;
-    goldenFileComparator = _GoldenComparator(
-      Uri.file('test/goldens/chat_markdown_emoji_golden_test.dart'),
-    );
     if (!hasFonts) return;
     for (final (family, file) in const [
       ('RealEmoji', _emojiFile),
@@ -118,7 +100,6 @@ void main() {
           .load();
     }
   });
-  tearDownAll(() => goldenFileComparator = previous);
 
   for (final MapEntry(:key, :value) in _cases.entries) {
     testWidgets('a bubble with $key', (tester) async {

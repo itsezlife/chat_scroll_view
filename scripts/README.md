@@ -17,6 +17,12 @@ Every step runs even after a failure; the exit code is 1 if any failed, 2 if
 the repository is not a workspace the gates understand (including a package
 under `packages/` or `example/` missing from the root `workspace:` list).
 
+`scripts/goldens [--update]` runs the golden tests on the host their
+baselines belong to (`linux_x64`, the CI runner): directly there, in a
+`linux/amd64` container with the pinned Flutter anywhere else. `--update`
+regenerates them; the Goldens workflow does the same on the runner and commits
+the PNGs that changed.
+
 `scripts/bench` is not a gate and not part of `scripts/check`: it runs the
 headless benchmarks and sets their ratios against the committed baselines. The
 nightly workflow calls it; usage, tolerance and re-baselining are in
@@ -48,10 +54,11 @@ start does.
 
 | Lint | Fails when |
 | --- | --- |
-| `DependencyLint` | members form a cycle; `content_model` / `chrome_foundation` / `composer_editable` depend on a member; any member but `chat_composer` depends on `composer_editable`; `panel_shell` / `panel_pages` / `panel_presentation` reach `emoji_catalog_pack` or an adapter package; `panel_catalog` reaches `chrome_foundation`; any member but `kv_shared_preferences` declares `shared_preferences` (or a `shared_preferences_*` package); any member outside `example/` depends on `rich_clipboard` |
+| `DependencyLint` | members form a cycle; `content_model` / `chrome_foundation` / `composer_editable` / `golden_baseline` depend on a member (a dev dependency on `golden_baseline` excepted); a member declares `golden_baseline` outside `dev_dependencies:`; any member but `chat_composer` depends on `composer_editable`; `panel_shell` / `panel_pages` / `panel_presentation` reach `emoji_catalog_pack` or an adapter package; `panel_catalog` reaches `chrome_foundation`; any member but `kv_shared_preferences` declares `shared_preferences` (or a `shared_preferences_*` package); any member outside `example/` depends on `rich_clipboard` |
 | `ReexportLint` | a `lib/` file exports another workspace package |
 | `FakesLint` | production code under `lib/` exports or imports a fake source |
 | `TestEntrypointLint` | a member with test files has no `test/unit_test.dart`, or it does not import one of them |
+| `GoldenBaselineLint` | a file under a member's `test/` calls `matchesGoldenFile` without `useGoldenBaselines`, assigns `goldenFileComparator`, or extends / implements a golden comparator |
 | `PureDartLint` | `content_model`, `emoji_data` or `emoji_catalog_pack` declares a Flutter SDK dependency, or a file under its `lib/` imports or exports `package:flutter*` or `dart:ui` |
 
 Conventions the lints read:
@@ -73,12 +80,16 @@ Conventions the lints read:
   process-wide handler) restores it, and a golden test points
   `goldenFileComparator` at its own file, since goldens otherwise resolve
   next to the entrypoint.
-- **Golden baselines are the CI runner's** (`ubuntu-latest`, the pinned Flutter).
-  Rendering differs by platform, so a golden test can fail on another one: a
-  macOS or Windows checkout shows failures the runner does not. Regenerate
-  baselines on the runner, not locally (`flutter test --update-goldens` from a
-  one-off workflow that commits the PNGs), and commit only the images that
-  changed.
+- **Golden baselines are the CI runner's** (`linux_x64`, the pinned Flutter).
+  Rendering differs by host (an arm64 Mac antialiases a few hundred pixels
+  of a row differently), so a golden test calls
+  `useGoldenBaselines('<its path>', tolerance: ...)` from `golden_baseline`:
+  it compares on the runner only, reports the test skipped elsewhere, and
+  refuses `--update-goldens` off the runner. Compare or regenerate from any
+  machine with `scripts/goldens [--update]`, or regenerate with the Goldens
+  workflow; `GOLDEN_BASELINE=compare` compares locally anyway, to look at
+  the differences. A scene that needs a platform's own fonts names its own
+  `baselineHost`.
 
 ## Legacy baseline
 

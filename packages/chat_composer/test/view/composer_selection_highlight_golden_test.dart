@@ -4,23 +4,23 @@ import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
 import '../support/material_icons.dart';
-import '../support/tolerant_golden_comparator.dart';
 
-// Regenerate with `flutter test --update-goldens test/view/composer_selection_highlight_golden_test.dart`.
-// Generated on macOS with the test font. The tolerance is far under the
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
+// Drawn with the test font. The tolerance is far under the
 // composer goldens': a seam in the highlight is one pixel row per line break,
 // about a thousandth of the image, and must not pass as anti-aliasing.
 const _tolerance = 0.0005;
 
 void main() {
+  useGoldenBaselines(
+    'test/view/composer_selection_highlight_golden_test.dart',
+    tolerance: _tolerance,
+  );
   setUpAll(() async {
     await loadMaterialIcons();
-    goldenFileComparator = TolerantGoldenComparator(
-      Uri.file('test/view/composer_selection_highlight_golden_test.dart'),
-      tolerance: _tolerance,
-    );
   });
 
   testWidgets(

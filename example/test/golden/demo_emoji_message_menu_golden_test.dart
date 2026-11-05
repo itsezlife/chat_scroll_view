@@ -1,14 +1,14 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
 import '../support/emoji_menu_rig.dart';
 
-// Regenerate with
-// `flutter test --update-goldens test/golden/demo_emoji_message_menu_golden_test.dart`.
+// Baselines are the CI runner's (golden_baseline): compared there and
+// regenerated there, with `scripts/goldens --update`.
 //
 // The message menu (mobile sheet) open on an emoji-only message, per platform
 // family (Android, iOS): the text layout of three emoji and the sticker
@@ -19,27 +19,6 @@ import '../support/emoji_menu_rig.dart';
 // them. The emoji are unicode glyphs, which flutter_test draws with the Ahem
 // font (a solid square of the font size), so the picture reads without the
 // host platform's fonts.
-//
-// The goldens were generated on macOS. The comparator forgives antialiasing
-// noise (a fraction of a percent of the pixels) so the same files can hold on
-// another platform; if CI on Linux still differs, regenerate there and record
-// it here.
-class _GoldenComparator extends LocalFileComparator {
-  _GoldenComparator(super.testFile);
-
-  static const double _tolerance = 0.005;
-
-  @override
-  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await GoldenFileComparator.compareLists(
-      imageBytes,
-      await getGoldenBytes(golden),
-    );
-    if (result.passed || result.diffPercent <= _tolerance) return true;
-    final error = await generateFailureOutput(result, golden, basedir);
-    throw FlutterError(error);
-  }
-}
 
 final _text = EmojiOnly(const [
   EmojiOnlyItem(ContentKey.unicode('\u{1F44D}')),
@@ -51,17 +30,11 @@ final _sticker = EmojiOnly(const [
 ]);
 
 void main() {
+  useGoldenBaselines(
+    'test/golden/demo_emoji_message_menu_golden_test.dart',
+    tolerance: 0.005,
+  );
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  late GoldenFileComparator previous;
-  setUpAll(() {
-    previous = goldenFileComparator;
-    goldenFileComparator = _GoldenComparator(
-      Uri.file('test/golden/demo_emoji_message_menu_golden_test.dart'),
-    );
-  });
-  tearDownAll(() => goldenFileComparator = previous);
 
   // No reaction strip, three rows and the finger just under the message: the
   // card and the strip are placed at the finger (and a tall card is moved up

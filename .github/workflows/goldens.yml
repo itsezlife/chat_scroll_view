@@ -1,0 +1,55 @@
+name: Goldens
+
+# Regenerates the golden baselines on the host they belong to (linux_x64, the
+# runner `check.yml` compares them on) and commits the PNGs that changed to the
+# branch it runs on. Run it from the Actions tab on the branch whose pictures
+# changed on purpose; a baseline regenerated anywhere else is refused by
+# golden_baseline.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: goldens-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # The same checkout, fork and SDK as check.yml, so the pictures are the
+      # ones the gate compares.
+      - uses: actions/checkout@v4
+        with:
+          path: chat_scroll_view
+      - uses: actions/checkout@v4
+        with:
+          repository: itsezlife/md
+          ref: v0.8.2
+          path: md
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.7
+          cache: true
+
+      - name: scripts/goldens --update
+        working-directory: chat_scroll_view
+        run: scripts/goldens --update
+
+      - name: Commit the baselines that changed
+        working-directory: chat_scroll_view
+        run: |
+          git add -A -- '*.png' ':(exclude)**/failures/**'
+          if git diff --cached --quiet; then
+            echo "No baseline changed."
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m 'test: regenerate golden baselines on the CI runner'
+          git push

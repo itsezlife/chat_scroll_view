@@ -1,14 +1,13 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
-import '../support/tolerant_golden_comparator.dart';
-
-// Regenerate with `flutter test --update-goldens test/glass`. Goldens cover
-// the flat path (fill, strokes, shadow) over a striped backdrop on the pinned
-// platform (macOS); rounded anti-aliased edges get a 1% pixel tolerance. The
-// sampled and filtered paths depend on the device and are covered by the
-// strategy-selection table and the device checklist.
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
+// Goldens cover the flat path (fill, strokes, shadow) over a striped backdrop;
+// rounded anti-aliased edges get a 1% pixel tolerance. The sampled and filtered
+// paths depend on the device and are covered by the strategy-selection table
+// and the device checklist.
 const _tolerance = 0.01;
 
 class _Row extends StatelessWidget {
@@ -57,13 +56,10 @@ class _Stripes extends StatelessWidget {
 }
 
 void main() {
-  setUpAll(() {
-    // Goldens sit next to this file, also when test/unit_test.dart runs it.
-    goldenFileComparator = TolerantGoldenComparator(
-      Uri.file('test/glass/glass_flat_golden_test.dart'),
-      tolerance: _tolerance,
-    );
-  });
+  useGoldenBaselines(
+    'test/glass/glass_flat_golden_test.dart',
+    tolerance: _tolerance,
+  );
 
   for (final material in GlassMaterial.values) {
     testWidgets('${material.name} flat glass, light and dark', (tester) async {
