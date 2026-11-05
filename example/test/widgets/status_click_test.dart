@@ -20,7 +20,6 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
-import 'package:chat_scroll_view_example/src/common/widgets/cached_label.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
@@ -515,9 +514,8 @@ void main() {
   });
 
   group('time of an ordinary message', () {
-    final time = find.byWidgetPredicate(
-      (widget) => widget is CachedLabel && widget.text == '09:05',
-    );
+    // The time is the meta: one render object.
+    final time = find.byType(DemoMessageMeta);
 
     Future<_Rig> mountBubble(
       WidgetTester tester, {

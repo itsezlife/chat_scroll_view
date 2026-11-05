@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 /// The atlas adds glyphs on the raster thread in the frame that first shows
 /// them, and redrawing it costs milliseconds; a row scrolled in for the first
 /// time can miss its frame on that alone. Glyphs are kept per size, weight,
-/// scale and subpixel offset, so the warm-up draws each style at four
-/// horizontal and four vertical offsets.
+/// scale and horizontal subpixel offset, so the warm-up draws each style at
+/// four horizontal offsets. Every glyph it adds is redrawn whenever the
+/// atlas has to grow, so it warms only what the chat draws.
 abstract final class GlyphWarmup {
   static const String _charset =
       'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 '
@@ -20,6 +21,9 @@ abstract final class GlyphWarmup {
     TextStyle(fontSize: 15, height: 1.35, fontWeight: FontWeight.bold),
     TextStyle(fontSize: 15, height: 1.35, fontStyle: FontStyle.italic),
     TextStyle(fontSize: 14, height: 1.35, fontFamily: 'monospace'),
+    // Avatar initials and the unread separator.
+    TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+    TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
     TextStyle(fontSize: 13, height: 1.15, fontWeight: FontWeight.w600),
     TextStyle(fontSize: 13),
     TextStyle(fontSize: 11, height: 1),
@@ -27,10 +31,10 @@ abstract final class GlyphWarmup {
 
   static const Color _unseen = Color(0x01000000);
 
-  static double get _height => _styles.length * 16 * 24.0;
+  static double get _height => _styles.length * 4 * 24.0;
 
-  /// Paints every style at four horizontal and four vertical subpixel
-  /// offsets, ending at [bottom].
+  /// Paints every style at four horizontal subpixel offsets, ending at
+  /// [bottom].
   static void paint(Canvas canvas, double bottom) {
     var y = bottom - _height;
     for (final style in _styles) {
@@ -43,8 +47,8 @@ abstract final class GlyphWarmup {
         ),
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: 2000);
-      for (var i = 0; i < 16; i++) {
-        painter.paint(canvas, Offset(i % 4 / 4, y + i ~/ 4 / 4));
+      for (var i = 0; i < 4; i++) {
+        painter.paint(canvas, Offset(i / 4, y));
         y += 24;
       }
       painter.dispose();

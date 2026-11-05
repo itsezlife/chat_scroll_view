@@ -158,6 +158,12 @@ class RenderChatMessageChangeTransition extends RenderBox
   /// Settled (incoming) meta top-left after layout.
   Offset get metaOffset => _metaOffset;
 
+  /// Width of the incoming meta as last laid out; `0` without one.
+  double get metaWidth => switch (_meta) {
+    final meta? when meta.hasSize => meta.size.width,
+    _ => 0,
+  };
+
   /// Painted meta top-left for the current [params] (tests / diagnostics).
   Offset get paintedMetaOffset => _params.metaPaintOffset(
     settledMeta: _metaOffset,

@@ -1,5 +1,14 @@
 ## Unreleased
 
+### Rows
+- **CHANGED**: a message row costs less to build and to drop. The selection
+  wrapper of every row makes its two animation controllers on the first
+  selection animation instead of when the row mounts (two tickers per row,
+  each joining the shared ticker mode); `ChatMessageChangeTransition` makes
+  its controller on the first change and reads the laid-out bubble and meta
+  from its render object instead of through two global keys and a post-frame
+  callback on every build.
+
 ### Scroll
 - **FIXED**: the frame after a fling release no longer stands still. The
   fling counted its time from its first tick, so that frame moved by zero and

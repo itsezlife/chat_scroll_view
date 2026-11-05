@@ -115,6 +115,7 @@ import 'widgets/glyph_warmup_test.dart' as glyph_warmup_test;
 import 'widgets/large_emoji_limit_button_test.dart'
     as large_emoji_limit_button_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
+import 'widgets/message_row_frame_test.dart' as message_row_frame_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
 import 'widgets/panel_keeps_composer_focus_test.dart'
     as panel_keeps_composer_focus_test;
@@ -325,6 +326,7 @@ void main() {
     large_emoji_limit_button_test.main,
   );
   group('widgets/message_menu_test.dart', message_menu_test.main);
+  group('widgets/message_row_frame_test.dart', message_row_frame_test.main);
   group('widgets/notes_dialog_test.dart', notes_dialog_test.main);
   group(
     'widgets/panel_keeps_composer_focus_test.dart',
