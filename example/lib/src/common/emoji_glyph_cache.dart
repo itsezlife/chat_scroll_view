@@ -4,9 +4,9 @@ import 'package:chat_scroll_view_example/src/common/environment_specific/host_en
 
 /// The demo's persistent home for baked emoji pages.
 ///
-/// The directory is the platform's temporary (cache) directory, resolved by
-/// `dart:io` without a plugin: enough for a demo, and a cleared cache only
-/// costs a re-bake. A production app would use its application-support
+/// The directory is the platform's cache directory, resolved by `dart:io`
+/// without a plugin: enough for a demo, and a cleared cache only costs a
+/// re-bake. A production app would use its application-support
 /// directory from its own path lookup.
 ///
 /// Which art the pages were baked from is the glyph probe's fingerprint of a

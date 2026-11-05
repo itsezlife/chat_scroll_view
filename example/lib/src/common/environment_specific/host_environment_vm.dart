@@ -1,9 +1,19 @@
 import 'dart:io';
 
 /// The VM hook: a directory for the baked emoji pages in the platform's
-/// temporary (cache) directory, resolved without a plugin.
-String $glyphCacheDirectoryPath() =>
-    '${Directory.systemTemp.path}/emoji_glyph_atlas_cache';
+/// cache directory, resolved without a plugin.
+///
+/// On Android [Directory.systemTemp] is the app's `code_cache`, which the
+/// system empties on every app update (and every reinstall), so the pages
+/// were baked again after each one; the `cache` directory beside it keeps
+/// them until the system needs the space.
+String $glyphCacheDirectoryPath() {
+  final temp = Directory.systemTemp;
+  final base = Platform.isAndroid && temp.path.endsWith('/code_cache')
+      ? '${temp.parent.path}/cache'
+      : temp.path;
+  return '$base/emoji_glyph_atlas_cache';
+}
 
 /// The VM hook: the operating system's version string, the supplementary
 /// signal of the system emoji art version.
