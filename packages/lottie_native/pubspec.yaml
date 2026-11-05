@@ -14,8 +14,9 @@ environment:
 
 dependencies:
   ffi: ^2.1.0
-  meta: ^1.17.0
-
-dev_dependencies:
+  # Only lib/testing.dart needs this: the contract suite is written with the
+  # test framework, and a library cannot import a dev dependency (the same
+  # arrangement as catalog_assets). Production entry points never import it.
   flutter_test:
     sdk: flutter
+  meta: ^1.17.0

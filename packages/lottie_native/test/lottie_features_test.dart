@@ -25,9 +25,11 @@ void main() {
   });
 
   test('contains asks for every bit of the argument', () {
-    final used = LottieFeatures.effects;
+    const used = LottieFeatures.effects;
 
-    expect(used.contains(LottieFeatures.effects | LottieFeatures.textLayers),
-        isFalse);
+    expect(
+      used.contains(LottieFeatures.effects | LottieFeatures.textLayers),
+      isFalse,
+    );
   });
 }
