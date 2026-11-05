@@ -14,6 +14,7 @@ import 'check_plan_test.dart' as check_plan_test;
 import 'check_runner_test.dart' as check_runner_test;
 import 'dependency_lint_test.dart' as dependency_lint_test;
 import 'fakes_lint_test.dart' as fakes_lint_test;
+import 'golden_baseline_lint_test.dart' as golden_baseline_lint_test;
 import 'legacy_baseline_test.dart' as legacy_baseline_test;
 import 'library_file_test.dart' as library_file_test;
 import 'pure_dart_lint_test.dart' as pure_dart_lint_test;
@@ -28,6 +29,7 @@ void main() {
   group('check_runner_test.dart', check_runner_test.main);
   group('dependency_lint_test.dart', dependency_lint_test.main);
   group('fakes_lint_test.dart', fakes_lint_test.main);
+  group('golden_baseline_lint_test.dart', golden_baseline_lint_test.main);
   group('legacy_baseline_test.dart', legacy_baseline_test.main);
   group('library_file_test.dart', library_file_test.main);
   group('pure_dart_lint_test.dart', pure_dart_lint_test.main);

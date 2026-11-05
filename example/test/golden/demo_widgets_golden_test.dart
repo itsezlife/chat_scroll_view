@@ -2,30 +2,16 @@
 @Tags(<String>['golden'])
 library;
 
-import 'dart:io' show Platform;
-
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
-// Golden tests run only on Linux — the project's reference platform. Other
-// platforms render fonts and anti-aliasing differently enough to trip the
-// exact-pixel default comparator. The group is `skip`-gated below so a
-// plain `flutter test` on macOS/Windows leaves the baselines untouched
-// instead of failing on platform drift.
-//
-// To refresh the baselines after an intentional visual change run, on Linux:
-//   flutter test --update-goldens test/golden/demo_widgets_golden_test.dart
-
-/// Non-null when the host platform is not the golden-reference one — passed
-/// as the `skip` argument so the test reporter prints a single `[SKIPPED]`
-/// line per case explaining why.
-final String? _platformSkip = Platform.isLinux
-    ? null
-    : 'Golden baselines are Linux-only; skipping on ${Platform.operatingSystem}.';
+// Baselines are the CI runner's (golden_baseline); regenerate with
+// `scripts/goldens --update`.
 
 UserChatMessage _msg({
   required String sender,
@@ -55,13 +41,9 @@ Widget _box({required Widget child, double width = 400, double height = 120}) =>
     );
 
 void main() {
+  useGoldenBaselines('test/golden/demo_widgets_golden_test.dart');
   // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  setUpAll(
-    () => goldenFileComparator = LocalFileComparator(
-      Uri.file('test/golden/demo_widgets_golden_test.dart'),
-    ),
-  );
-  group('demo widget goldens', skip: _platformSkip, () {
+  group('demo widget goldens', () {
     testWidgets('incoming message bubble', (tester) async {
       await tester.pumpWidget(
         _box(

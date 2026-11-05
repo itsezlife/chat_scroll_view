@@ -110,11 +110,44 @@ void main() {
       });
     });
 
+    group('test support', () {
+      WorkspaceGraph withGoldens({required bool dev}) => WorkspaceGraph(
+        root: '.',
+        members: [
+          const WorkspaceMember(
+            name: 'golden_baseline',
+            path: 'packages/golden_baseline',
+          ),
+          WorkspaceMember(
+            name: 'chrome_foundation',
+            path: 'packages/chrome_foundation',
+            dependencies: const {'golden_baseline'},
+            devDependencies: dev ? const {'golden_baseline'} : const {},
+          ),
+        ],
+      );
+
+      test('a leaf may take golden_baseline as a dev dependency', () {
+        expect(DependencyLint.check(withGoldens(dev: true)), isEmpty);
+      });
+
+      test('golden_baseline under dependencies is reported', () {
+        final violations = DependencyLint.check(withGoldens(dev: false));
+
+        expect(violations.map((v) => v.rule), [
+          LintRule.leafDependsOnPackage,
+          LintRule.testSupportOutsideDevDependencies,
+        ]);
+        expect(violations.last.subject, 'chrome_foundation -> golden_baseline');
+      });
+    });
+
     group('leaves', () {
       for (final leaf in [
         'content_model',
         'chrome_foundation',
         'composer_editable',
+        'golden_baseline',
       ]) {
         test('$leaf depending on a workspace package is reported', () {
           final violations = DependencyLint.check(

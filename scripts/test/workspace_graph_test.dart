@@ -39,6 +39,19 @@ void main() {
       expect(graph.dependenciesOf(graph.member('gamma')!), {'beta'});
     });
 
+    test('tells the dev-only dependencies apart', () {
+      fixture.member(
+        'alpha',
+        dependencies: ['meta', 'path'],
+        devDependencies: ['path', 'test'],
+      );
+
+      final alpha = WorkspaceGraph.load(fixture.path).member('alpha')!;
+
+      expect(alpha.dependencies, {'meta', 'path', 'test'});
+      expect(alpha.devDependencies, {'test'});
+    });
+
     test('a member that needs the Flutter SDK is not a pure-Dart member', () {
       fixture
         ..member('plain', dependencies: ['meta'])

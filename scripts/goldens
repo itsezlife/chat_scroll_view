@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# The golden tests on the host their baselines belong to (linux_x64, the CI
+# runner; see packages/golden_baseline). Anywhere else, the same tests run in a
+# linux/amd64 container with the pinned Flutter, so a Mac compares and
+# regenerates exactly what CI does.
+#
+# Usage: scripts/goldens [--update]
+#   (no flag)  compare every golden test against its baseline
+#   --update   regenerate the baselines (commit only the PNGs that changed)
+#
+# The container works on a copy of the checkout (its pub resolution would
+# otherwise overwrite the host's .dart_tool); it hands back the PNGs that
+# changed and every test/**/failures directory.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+MODE="${1:-}"
+case "$MODE" in
+  "" | --update) ;;
+  *) echo "usage: scripts/goldens [--update]" >&2; exit 64 ;;
+esac
+
+# Every workspace member (the root and the `workspace:` list) whose test/
+# holds a golden test, relative to the root.
+golden_members() {
+  local members=(.)
+  while IFS= read -r m; do members+=("$m"); done < <(
+    sed -nE '/^workspace:/,/^[^ ]/ s/^  - (.+)$/\1/p' "$ROOT/pubspec.yaml")
+  for m in "${members[@]}"; do
+    [[ "$m" == scripts || "$m" == packages/golden_baseline ]] && continue
+    [[ -d "$ROOT/$m/test" ]] || continue
+    grep -rlq --include='*_test.dart' 'useGoldenBaselines(' "$ROOT/$m/test" \
+      && echo "$m"
+  done
+}
+
+# Runs the golden test files of every member in the current checkout.
+run_here() {
+  local flags=()
+  [[ "$MODE" == --update ]] && flags=(--update-goldens)
+  flutter pub get >/dev/null
+  local failed=0
+  for member in $(golden_members); do
+    local files
+    files=$(cd "$member" && grep -rl --include='*_test.dart' \
+      'useGoldenBaselines(' test | sort)
+    echo "==> $member"
+    # shellcheck disable=SC2086
+    (cd "$member" && flutter test ${flags[@]+"${flags[@]}"} $files) || failed=1
+  done
+  return "$failed"
+}
+
+host="$(uname -s)_$(uname -m)"
+if [[ "$host" == Linux_x86_64 || "${GOLDENS_IN_CONTAINER:-}" == 1 ]]; then
+  cd "$ROOT"
+  run_here
+  exit $?
+fi
+
+FLUTTER="$(sed -nE 's/.*"flutter": *"([^"]+)".*/\1/p' "$ROOT/.fvmrc")"
+IMAGE="ghcr.io/cirruslabs/flutter:$FLUTTER"
+PARENT="$(dirname "$ROOT")"
+NAME="$(basename "$ROOT")"
+
+# The parent is mounted because the workspace resolves flutter_md from ../md.
+docker run --rm --platform linux/amd64 \
+  -v "$PARENT:/src" -e GOLDENS_IN_CONTAINER=1 -e MODE="$MODE" \
+  "$IMAGE" bash -euo pipefail -c "
+    git config --global --add safe.directory '*'
+    mkdir -p /work
+    cp -a /src/$NAME /work/$NAME
+    [ -d /src/md ] && cp -a /src/md /work/md
+    rm -rf /work/$NAME/.dart_tool /work/$NAME/build
+    cd /work/$NAME
+    status=0
+    scripts/goldens $MODE || status=\$?
+    # Hand back what changed: regenerated baselines and failure images.
+    git status --porcelain -- '*.png' | sed -E 's/^.. //' | while read -r f; do
+      mkdir -p \"/src/$NAME/\$(dirname \"\$f\")\"
+      cp \"\$f\" \"/src/$NAME/\$f\"
+    done
+    find . -path '*/test/*' -type d -name failures -prune | while read -r d; do
+      rm -rf \"/src/$NAME/\$d\" && cp -a \"\$d\" \"/src/$NAME/\$d\"
+    done
+    exit \$status
+  "

@@ -9,12 +9,12 @@ import 'package:chat_composer/src/menu/selection_menu_swipe_back.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
 import '../support/material_icons.dart';
-import '../support/tolerant_golden_comparator.dart';
 
-// Regenerate with `flutter test --update-goldens test/view/composer_selection_menu_golden_test.dart`.
-// The cards are drawn on the pinned platform (macOS) with the test font, so
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
+// The cards are drawn with the test font, so
 // they check geometry, mirroring and the token colours; rounded anti-aliased
 // edges and shadows get a 1% pixel tolerance. The test font draws every glyph
 // as a square of the font size, so these cards are far wider than a real
@@ -202,12 +202,12 @@ class _Cell extends StatelessWidget {
 }
 
 void main() {
+  useGoldenBaselines(
+    'test/view/composer_selection_menu_golden_test.dart',
+    tolerance: _tolerance,
+  );
   setUpAll(() async {
     await loadMaterialIcons();
-    goldenFileComparator = TolerantGoldenComparator(
-      Uri.file('test/view/composer_selection_menu_golden_test.dart'),
-      tolerance: _tolerance,
-    );
   });
 
   Future<void> check(

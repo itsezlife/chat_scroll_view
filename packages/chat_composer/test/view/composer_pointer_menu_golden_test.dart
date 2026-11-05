@@ -3,11 +3,10 @@
 /// submenu open, a link under the pointer, a misspelled word with Spelling on
 /// top and at the bottom, and the night theme.
 ///
-/// **macOS-generated**, drawn with the test font (every glyph a square): they
-/// check geometry, hints, the greyed and highlighted states and the token
-/// colours. Rounded edges and the blurred shadow are anti-aliased, hence the
-/// 1% pixel tolerance. Regenerate with `flutter test --update-goldens
-/// test/view/composer_pointer_menu_golden_test.dart`.
+/// Drawn with the test font (every glyph a square): they check geometry, hints,
+/// the greyed and highlighted states and the token colours. Rounded edges and
+/// the blurred shadow are anti-aliased, hence the 1% pixel tolerance.
+/// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
 library;
 
 import 'package:chat_composer/chat_composer.dart';
@@ -20,9 +19,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
 import '../support/composer_harness.dart';
-import '../support/tolerant_golden_comparator.dart';
 
 const _tolerance = 0.01;
 
@@ -89,12 +88,10 @@ final _baselineStrings = ChromeStrings(
 );
 
 void main() {
-  setUpAll(() {
-    goldenFileComparator = TolerantGoldenComparator(
-      Uri.file('test/view/composer_pointer_menu_golden_test.dart'),
-      tolerance: _tolerance,
-    );
-  });
+  useGoldenBaselines(
+    'test/view/composer_pointer_menu_golden_test.dart',
+    tolerance: _tolerance,
+  );
 
   Future<void> shoot(
     WidgetTester tester,

@@ -13,10 +13,27 @@ enum LintRule {
 
   /// A leaf package ([DependencyLint]) depends on another workspace member.
   leafDependsOnPackage(
-    'content_model, chrome_foundation and composer_editable are leaves: '
-    'every other package may depend on the first two, and the editable fork '
-    'is a copy of Flutter sources that must stay free of workspace code, so '
-    'they depend on no workspace package.',
+    'content_model, chrome_foundation, composer_editable and golden_baseline '
+    'are leaves: every other package may depend on the first two, the '
+    'editable fork is a copy of Flutter sources that must stay free of '
+    'workspace code, and golden_baseline is test support for all of them, so '
+    'they depend on no workspace package (a dev dependency on golden_baseline '
+    'excepted).',
+  ),
+
+  /// A member ships a test-support package in `dependencies:`.
+  testSupportOutsideDevDependencies(
+    'golden_baseline is test support: a member declares it under '
+    'dev_dependencies only, so no library ships flutter_test with it.',
+  ),
+
+  /// A golden test bypasses the shared baseline comparator.
+  goldenOutsideBaseline(
+    'Golden baselines are the CI runner\'s (golden_baseline): a golden test '
+    'calls useGoldenBaselines, which compares on the runner only and refuses '
+    'to regenerate elsewhere. A comparator of its own (or an assignment to '
+    'goldenFileComparator) brings back baselines that hold on one machine '
+    'and fail on the next.',
   ),
 
   /// An edge the package topology forbids outright.

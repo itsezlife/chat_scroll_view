@@ -2,29 +2,21 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/testing.dart';
 
-// Regenerate with `flutter test --update-goldens test/goldens`.
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
 //
 // The popup is drawn on the flat path: solid fills and token colours, no
 // glass. The three heights cover the minimum clamp, the 0.75 ratio and the
 // maximum clamp; each is drawn left-to-right and right-to-left, where the
 // popup hangs from the opposite edge. flutter_test renders text with the Ahem
 // font, so glyph shapes do not depend on the host platform.
-//
-// The goldens were generated on macOS. Pixel-exact comparison on another
-// platform (CI runs Linux) is unconfirmed: if edge anti-aliasing of the
-// rounded corners or the shadow differs there, regenerate on the pinned
-// platform or add a tolerance comparator, and record it here.
 void main() {
+  useGoldenBaselines('test/goldens/anchored_popup_golden_test.dart');
   // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  setUpAll(
-    () => goldenFileComparator = LocalFileComparator(
-      Uri.file('test/goldens/anchored_popup_golden_test.dart'),
-    ),
-  );
   const windowWidth = 640.0;
   const composerHeight = 56.0;
   const sizes = {'min_clamp': 300.0, 'ratio': 600.0, 'max_clamp': 1000.0};

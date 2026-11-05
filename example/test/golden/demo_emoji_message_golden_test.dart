@@ -7,12 +7,12 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_me
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_header_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_reactions_row.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
-// Regenerate with
-// `flutter test --update-goldens test/golden/demo_emoji_message_golden_test.dart`.
+// Baselines are the CI runner's (golden_baseline): compared there and
+// regenerated there, with `scripts/goldens --update`.
 //
 // The chrome around an emoji-only message, per platform family (Android, iOS,
 // desktop): the text layout of 1, 3 and 10 emoji and the sticker layout, for
@@ -22,27 +22,6 @@ import 'package:flutter_test/flutter_test.dart';
 // so the layout reads off the picture and nothing depends on the host
 // platform's fonts. An incoming desktop message shows its time only under the
 // pointer, so those pictures are taken with the pointer on it.
-//
-// The goldens were generated on macOS. The comparator forgives antialiasing
-// noise (a fraction of a percent of the pixels) so the same files can hold on
-// another platform; if CI on Linux still differs, regenerate there and record
-// it here.
-class _GoldenComparator extends LocalFileComparator {
-  _GoldenComparator(super.testFile);
-
-  static const double _tolerance = 0.005;
-
-  @override
-  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await GoldenFileComparator.compareLists(
-      imageBytes,
-      await getGoldenBytes(golden),
-    );
-    if (result.passed || result.diffPercent <= _tolerance) return true;
-    final error = await generateFailureOutput(result, golden, basedir);
-    throw FlutterError(error);
-  }
-}
 
 const _glyphs = <String>[
   '\u{1F44D}',
@@ -74,17 +53,11 @@ const _reactions = [
 ];
 
 void main() {
+  useGoldenBaselines(
+    'test/golden/demo_emoji_message_golden_test.dart',
+    tolerance: 0.005,
+  );
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  late GoldenFileComparator previous;
-  setUpAll(() {
-    previous = goldenFileComparator;
-    goldenFileComparator = _GoldenComparator(
-      Uri.file('test/golden/demo_emoji_message_golden_test.dart'),
-    );
-  });
-  tearDownAll(() => goldenFileComparator = previous);
 
   Future<void> shoot(
     WidgetTester tester,

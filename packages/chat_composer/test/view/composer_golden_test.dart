@@ -3,15 +3,15 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
 import '../support/material_icons.dart';
-import '../support/tolerant_golden_comparator.dart';
 
-// Regenerate with `flutter test --update-goldens test/view`. The goldens use
-// the flat glass path (fill, strokes, shadow) on the pinned platform (macOS)
-// and the test font, so they check layout, mirroring and colours; rounded
-// anti-aliased edges get a 1% pixel tolerance. The sampled and filtered glass
-// paths depend on the device and are covered by the device checklist.
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
+// The goldens use the flat glass path (fill, strokes, shadow) and the test
+// font, so they check layout, mirroring and colours; rounded anti-aliased edges
+// get a 1% pixel tolerance. The sampled and filtered glass paths depend on the
+// device and are covered by the device checklist.
 const _tolerance = 0.01;
 const _restricted = ComposerPanelId('restricted');
 
@@ -132,13 +132,12 @@ List<ActionDescriptor> _actions({bool hasText = false}) => [
 ];
 
 void main() {
+  useGoldenBaselines(
+    'test/view/composer_golden_test.dart',
+    tolerance: _tolerance,
+  );
   setUpAll(() async {
     await loadMaterialIcons();
-    // Goldens sit next to this file, also when test/unit_test.dart runs it.
-    goldenFileComparator = TolerantGoldenComparator(
-      Uri.file('test/view/composer_golden_test.dart'),
-      tolerance: _tolerance,
-    );
   });
 
   final states = <String, ComposerSpec Function()>{
