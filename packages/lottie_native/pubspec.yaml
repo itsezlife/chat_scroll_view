@@ -1,0 +1,22 @@
+name: lottie_native
+description: >
+  The binding interface to the native Lottie renderer (tlottie behind a batch
+  C API): load, render into page memory, dispose. Includes a fake binding and
+  a contract suite in testing.dart. A leaf: it depends on no workspace package.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  ffi: ^2.1.0
+  # Only lib/testing.dart needs this: the contract suite is written with the
+  # test framework, and a library cannot import a dev dependency (the same
+  # arrangement as catalog_assets). Production entry points never import it.
+  flutter_test:
+    sdk: flutter
+  meta: ^1.17.0
