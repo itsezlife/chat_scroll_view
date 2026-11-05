@@ -3291,6 +3291,17 @@ class ExtendedEditableTextState extends State<ExtendedEditableText>
   /// that mounts (divergence L).
   static Future<List<ProcessTextAction>>? _sharedProcessTextActions;
 
+  /// Queries the text processing actions of this app run now, so the first
+  /// field that mounts does not (divergence L).
+  ///
+  /// The query blocks the UI thread on Android. Made by a field, it lands in
+  /// the frame that field first shows in, often in the middle of the route
+  /// transition bringing it in. A host calls this at an idle moment before its
+  /// first field, such as after the app's first frame. Calls after the first
+  /// do nothing.
+  static void prefetchProcessTextActions() => _sharedProcessTextActions ??=
+      DefaultProcessTextService().queryTextActions();
+
   /// Lets the next field query the engine again, as on a fresh app run.
   @visibleForTesting
   static void debugResetProcessTextActions() =>

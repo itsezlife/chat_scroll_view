@@ -235,7 +235,10 @@ engine; the first one took 32 ms there, and the composer's field mounts
 again whenever a message selection ends, so it asked again each time.
 `ExtendedEditableText` queries once per app run and shares the result with
 every field. An app installed while the app runs shows in the toolbar from
-the next run. Tests reset it with `debugResetProcessTextActions`.
+the next run. A host can make the query earlier, at an idle moment, with
+`ExtendedEditableTextState.prefetchProcessTextActions`, so it does not land
+in the frame the first field shows in. Tests reset it with
+`debugResetProcessTextActions`.
 
 ### Seams not in stock
 

@@ -21,7 +21,7 @@ class GlassStyle {
     this.cornerRadius = 22,
     this.blurSigma = 4,
     this.backdropSaturation = 3,
-    this.sourceDownscale = 4,
+    this.sourceDownscale = defaultSourceDownscale,
     this.liquidThickness = 11,
     this.liquidIntensity = 0.75,
     this.liquidIndex = 1.5,
@@ -79,6 +79,10 @@ class GlassStyle {
   /// A scene backdrop filter cannot change resolution, so it blurs at full
   /// resolution with [effectiveBlurSigma].
   final double sourceDownscale;
+
+  /// The [sourceDownscale] of every style that does not set one, those of
+  /// [GlassStyle.resolve] among them.
+  static const double defaultSourceDownscale = 4;
 
   /// Full-resolution Gaussian sigma (logical px) standing in for the
   /// downscale then blur chain on the scene-filter path.
