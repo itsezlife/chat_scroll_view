@@ -591,34 +591,36 @@ class ChatScrollView extends RenderObjectWidget {
   RenderChatScrollView createRenderObject(BuildContext context) {
     final theme = ChatScrollTheme.resolve(context);
     return RenderChatScrollView(
-      dataSource: dataSource,
-      controller: controller,
-      cacheExtent: cacheExtent,
-      extraBuildExtent: extraBuildExtent,
-      ticking: TickerMode.valuesOf(context).enabled,
-      reverse: reverse,
-      bottomPadding: bottomPadding,
-      topPadding: topPadding,
-      groupBy: _effectiveGroupBy,
-      dayHeaderDelegate: dayHeaderDelegate,
-      scrollActivityTiming: scrollActivityTiming,
-      senderRunLayout: senderRunLayout,
-      unreadBoundary: unreadBoundary,
-      hasErrorBuilder: chunkErrorBuilder != null,
-      hasEmptyBuilder: emptyBuilder != null,
-      hasLoadingBuilder: loadingBuilder != null,
-      highlightColor: highlightColor ?? theme.highlightColor!,
-      highlightDuration: highlightDuration ?? theme.highlightDuration!,
-      textDirection: _resolveDirection(context),
-      scrollbarTheme: theme.scrollbar!,
-      scrollbar: _effectiveScrollbar,
-      selectionController: selectionController,
-      onIdleMessageTap: onIdleMessageTap,
-      onBackgroundTap: onBackgroundTap,
-      onSecondaryMessageTap: onSecondaryMessageTap,
-      isSelfMessage: isSelfMessage,
-      physics: _effectivePhysics,
-    )..overscrollSink = overscrollSink;
+        dataSource: dataSource,
+        controller: controller,
+        cacheExtent: cacheExtent,
+        extraBuildExtent: extraBuildExtent,
+        ticking: TickerMode.valuesOf(context).enabled,
+        reverse: reverse,
+        bottomPadding: bottomPadding,
+        topPadding: topPadding,
+        groupBy: _effectiveGroupBy,
+        dayHeaderDelegate: dayHeaderDelegate,
+        scrollActivityTiming: scrollActivityTiming,
+        senderRunLayout: senderRunLayout,
+        unreadBoundary: unreadBoundary,
+        hasErrorBuilder: chunkErrorBuilder != null,
+        hasEmptyBuilder: emptyBuilder != null,
+        hasLoadingBuilder: loadingBuilder != null,
+        highlightColor: highlightColor ?? theme.highlightColor!,
+        highlightDuration: highlightDuration ?? theme.highlightDuration!,
+        textDirection: _resolveDirection(context),
+        scrollbarTheme: theme.scrollbar!,
+        scrollbar: _effectiveScrollbar,
+        selectionController: selectionController,
+        onIdleMessageTap: onIdleMessageTap,
+        onBackgroundTap: onBackgroundTap,
+        onSecondaryMessageTap: onSecondaryMessageTap,
+        isSelfMessage: isSelfMessage,
+        physics: _effectivePhysics,
+      )
+      ..overscrollSink = overscrollSink
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }
 
   @override
@@ -655,6 +657,7 @@ class ChatScrollView extends RenderObjectWidget {
       ..onSecondaryMessageTap = onSecondaryMessageTap
       ..isSelfMessage = isSelfMessage
       ..physics = _effectivePhysics
-      ..overscrollSink = overscrollSink;
+      ..overscrollSink = overscrollSink
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }
 }

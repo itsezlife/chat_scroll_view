@@ -17,7 +17,15 @@ enum GeneratedMessageStyle {
   /// The bodies of [ShowcaseBodies] in turn: custom emoji in the text,
   /// spoilers, mentions, hashtags and the emoji-only layouts.
   showcase,
+
+  /// Runs of [sizeMixRun] messages, each run one size mix in turn: one-line
+  /// only, medium only, one-line with medium, one-line with long, medium
+  /// with long. Scrolling crosses every density of rows on screen.
+  sizeMix,
 }
+
+/// Messages per run of one size mix in [GeneratedMessageStyle.sizeMix].
+const sizeMixRun = 60;
 
 /// In-memory [ChatDataSource] that synthesizes messages on demand.
 ///
@@ -199,10 +207,15 @@ class GeneratedChatDataSource extends ChatDataSource {
       GeneratedMessageStyle.varied => _variedContent(rng),
       GeneratedMessageStyle.showcase =>
         ShowcaseBodies.all[id % ShowcaseBodies.all.length],
+      GeneratedMessageStyle.sizeMix => _sizeMixContent(rng, id),
     };
     return UserChatMessage(
       id: id,
-      sender: senders[id % senders.length],
+      // A size mix keeps one sender for a few messages, so a run of one-line
+      // bodies groups into one-line bubbles as a live chat does.
+      sender:
+          senders[(style == GeneratedMessageStyle.sizeMix ? id ~/ 5 : id) %
+              senders.length],
       createdAt: time,
       updatedAt: time,
       // Receive fallback — same seam as asset/backend ingest (ADR 017).
@@ -312,4 +325,18 @@ String _variedContent(Random rng) {
     return _mediumPhrases[rng.nextInt(_mediumPhrases.length)];
   }
   return _longPhrases[rng.nextInt(_longPhrases.length)];
+}
+
+String _pick(Random rng, List<String> phrases) =>
+    phrases[rng.nextInt(phrases.length)];
+
+String _sizeMixContent(Random rng, int id) {
+  final half = rng.nextBool();
+  return switch ((id ~/ sizeMixRun) % 5) {
+    0 => _pick(rng, _shortPhrases),
+    1 => _pick(rng, _mediumPhrases),
+    2 => _pick(rng, half ? _shortPhrases : _mediumPhrases),
+    3 => _pick(rng, half ? _shortPhrases : _longPhrases),
+    _ => _pick(rng, half ? _mediumPhrases : _longPhrases),
+  };
 }

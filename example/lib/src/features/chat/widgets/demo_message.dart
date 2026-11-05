@@ -1,6 +1,7 @@
 import 'package:catalog_assets/catalog_assets.dart' show InlineEmbedResolver;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_message.dart';
@@ -592,17 +593,22 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
           mentionColor: widget.isOutgoing ? const Color(0xFFBBDEFB) : null,
         );
 
-    return MarkdownTheme(
-      data: bubbleMarkdownTheme,
-      child: DefaultTextStyle.merge(
-        style: widget.textStyle,
-        child: ChatMarkdownBody(
-          controller: widget.selection,
-          messageId: widget.messageId,
-          markdown: widget.markdown,
-          embedResolver: widget.embedResolver,
-        ),
-      ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: ScrollLab.plainText,
+      builder: (context, plain, _) => plain
+          ? Text(widget.markdown.markdown, style: widget.textStyle)
+          : MarkdownTheme(
+              data: bubbleMarkdownTheme,
+              child: DefaultTextStyle.merge(
+                style: widget.textStyle,
+                child: ChatMarkdownBody(
+                  controller: widget.selection,
+                  messageId: widget.messageId,
+                  markdown: widget.markdown,
+                  embedResolver: widget.embedResolver,
+                ),
+              ),
+            ),
     );
   }
 }

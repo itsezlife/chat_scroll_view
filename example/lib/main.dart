@@ -11,6 +11,7 @@ import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
 import 'package:chat_scroll_view_example/src/common/environment_specific/host_environment.dart'
     as environment_specific;
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
+import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
@@ -33,6 +34,7 @@ void main() => l.capture<void>(
   () => runZonedGuarded<void>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      if (DemoConfig.scrollLab) ScrollLab.install();
       // In a browser a right-click opens the browser's own menu over the
       // app's (message menus, the composer's, the panel's) unless the app
       // takes it over.
@@ -49,6 +51,7 @@ void main() => l.capture<void>(
           chatDataSourceLoader: switch (DemoConfig.chatSource) {
             'showcase' => _loadShowcase,
             'comments+showcase' => _loadCommentsWithShowcase,
+            'sizes' => _loadSizeMix,
             _ => null,
           },
         ),
@@ -72,6 +75,12 @@ void main() => l.capture<void>(
 Future<ChatDataSource> _loadShowcase() async => GeneratedChatDataSource(
   messageCount: ShowcaseBodies.all.length * 4,
   style: GeneratedMessageStyle.showcase,
+);
+
+// Runs of one-line, medium and long messages in every mix.
+Future<ChatDataSource> _loadSizeMix() async => GeneratedChatDataSource(
+  messageCount: sizeMixRun * 5 * 20,
+  style: GeneratedMessageStyle.sizeMix,
 );
 
 // The bundled comments, then one round of the showcase bodies as the newest
@@ -171,13 +180,16 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
     ),
     // Above the navigator, as a product mounts them: every chat shares the
     // wallpaper's motion, rasters and last composite.
-    builder: (context, child) => AppChrome(
-      services: widget.services,
-      child: DemoWallpaperScope(
-        wallpaper: DemoWallpaper.configured,
-        child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
-      ),
-    ),
+    builder: (context, child) {
+      final app = AppChrome(
+        services: widget.services,
+        child: DemoWallpaperScope(
+          wallpaper: DemoWallpaper.configured,
+          child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
+        ),
+      );
+      return DemoConfig.scrollLab ? ScrollLabOverlay(child: app) : app;
+    },
     navigatorObservers: [_overlays],
     debugShowCheckedModeBanner: false,
     showPerformanceOverlay: false,

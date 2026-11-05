@@ -42,7 +42,8 @@ abstract final class DemoConfig {
   /// Which messages the app opens: `comments` (the bundled issue comments,
   /// the default), `showcase` (generated rows of the inline layer and the
   /// emoji-only bodies) or `comments+showcase` (the comments, then one round
-  /// of the showcase bodies as the newest messages), from
+  /// of the showcase bodies as the newest messages) or `sizes` (runs of
+  /// one-line, medium and long messages in every mix), from
   /// `--dart-define=CHAT_SOURCE=showcase`.
   static const String chatSource = String.fromEnvironment(
     'CHAT_SOURCE',
@@ -70,6 +71,11 @@ abstract final class DemoConfig {
   /// `--dart-define=GLASS_LITE=true`. On-device suites use it to tell the
   /// glass's share of a frame from the wallpaper's.
   static const bool glassLite = bool.fromEnvironment('GLASS_LITE');
+
+  /// Whether the scroll lab is mounted: the LAB switches, the frame log and
+  /// the pointer tape, from `--dart-define=SCROLL_LAB=true`. Off, the app and
+  /// its tests run without them.
+  static const bool scrollLab = bool.fromEnvironment('SCROLL_LAB');
 
   /// Whether the Supabase publishable key is set.
   static bool get hasSupabasePublishableKey =>

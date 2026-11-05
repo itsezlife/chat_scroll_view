@@ -4,6 +4,7 @@ import 'dart:async' show scheduleMicrotask, unawaited;
 import 'dart:async';
 import 'dart:collection';
 import 'dart:math' as math;
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_animator.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_chunk_fetch_scheduler.dart';
@@ -31,6 +32,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_row_chrome.dart'
     show RenderChatRowChrome;
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_debug_snapshot.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_element.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_experiments.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_runtime.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
@@ -222,7 +224,8 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
        _reverse = reverse,
        _bottomPadding = bottomPadding,
        _topPadding = topPadding,
-       _groupBy = groupBy,
+       _groupBySource = groupBy,
+       _groupBy = _memoizeGroupBy(groupBy),
        _dayHeaderDelegate = dayHeaderDelegate,
        _scrollActivityTiming = scrollActivityTiming,
        _senderRunLayout = senderRunLayout,
@@ -648,17 +651,34 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   double get _topPad => _topPadding?.value ?? 0.0;
 
+  /// The host's grouping callback, as given; [_groupBy] is its memo.
+  Object Function(IChatMessage)? _groupBySource;
+
   /// Groups messages into sections for the date separators / floating header.
   /// `null` turns the feature off entirely.
+  ///
+  /// Memoized per message object: a row's bucket is read for itself and its
+  /// neighbours on every layout and header walk, and a date bucket costs a
+  /// time-zone lookup per call. Messages are immutable — an edit arrives as a
+  /// new object — so the memo never goes stale.
   Object Function(IChatMessage)? _groupBy;
   set groupBy(Object Function(IChatMessage)? value) {
     // `==` instead of `identical`: an instance-method tear-off
     // (`widget.someMethod`) is not necessarily identical across accesses but
     // *is* equal — so `identical` would force a relayout every parent rebuild
     // while `==` correctly recognises the unchanged callback.
-    if (_groupBy == value) return;
-    _groupBy = value;
+    if (_groupBySource == value) return;
+    _groupBySource = value;
+    _groupBy = _memoizeGroupBy(value);
     markNeedsLayout();
+  }
+
+  static Object Function(IChatMessage)? _memoizeGroupBy(
+    Object Function(IChatMessage)? groupBy,
+  ) {
+    if (groupBy == null) return null;
+    final memo = Expando<Object>('ChatScrollView.groupBy');
+    return (message) => memo[message] ??= groupBy(message);
   }
 
   /// Day header policy. See [ChatScrollView.dayHeaderDelegate].
@@ -849,6 +869,58 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   double _scrollVelocity = 0;
   static const double _leadFrames = 4;
 
+  /// Times this layout pass for the prefetch budget.
+  final Stopwatch _layoutClock = Stopwatch();
+
+  /// Set when fan-out stopped short of the build zone because the prefetch
+  /// budget ran out; the next tick asks for a layout to build on.
+  bool _prefetchShort = false;
+
+  /// Share of the frame interval a layout pass may spend building rows past
+  /// the [cacheExtent] band.
+  ///
+  /// Rows inside the band are always built. The rest of the zone (the keep
+  /// band and the directional lead) is prefetch: a fast fling over short
+  /// rows would otherwise build several frames of rows in the one frame that
+  /// finds the band uncovered. Under the budget that work spreads over the
+  /// frames that follow, each spending only its slack, as a platform list
+  /// prefetches in the gap between frames.
+  static const double _prefetchFrameShare = 0.3;
+
+  /// Rows built past the [cacheExtent] band in this layout pass.
+  int _prefetchRowsThisLayout = 0;
+
+  /// Replaces the time budget with a row count per layout pass, so tests
+  /// meter prefetch deterministically. `null` uses the frame budget.
+  @visibleForTesting
+  static int? debugPrefetchRowsPerLayout;
+
+  /// Whether fan-out may still build a row beyond the [cacheExtent] band in
+  /// this layout pass.
+  bool get _prefetchAllowed {
+    if (debugPrefetchRowsPerLayout case final rows?) {
+      return _prefetchRowsThisLayout < rows;
+    }
+    final hz =
+        PlatformDispatcher.instance.implicitView?.display.refreshRate ?? 60;
+    final budgetMicros = 1e6 / (hz > 0 ? hz : 60) * _prefetchFrameShare;
+    return _layoutClock.elapsedMicroseconds < budgetMicros;
+  }
+
+  /// Whether fan-out may build message [id], [beyondBand] when it lies past
+  /// the [cacheExtent] band on the side being fanned. A row already built
+  /// costs nothing and always passes. Records a stop for the next frame to
+  /// resume from.
+  bool _mayBuildBeyondBand(int id, {required bool beyondBand}) {
+    if (!beyondBand || _children.containsKey(id)) return true;
+    if (_prefetchAllowed) {
+      _prefetchRowsThisLayout++;
+      return true;
+    }
+    _prefetchShort = true;
+    return false;
+  }
+
   /// Set when a row chrome input outside the data source changed (the
   /// unread boundary, or a separator transition frame); consumed by the next
   /// [performLayout], which holds the reading position across the resulting
@@ -892,6 +964,20 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   ChatScrollMotion _motion;
 
   VerticalDragGestureRecognizer? _drag;
+
+  /// The platform's gesture settings (its touch slop), from
+  /// [MediaQuery.gestureSettingsOf]; `null` falls back to [kTouchSlop].
+  DeviceGestureSettings? _gestureSettings;
+  set gestureSettings(DeviceGestureSettings? value) {
+    if (_gestureSettings == value) return;
+    _gestureSettings = value;
+    _drag?.gestureSettings = value;
+  }
+
+  /// A press that catches a fling drags at once, as a platform list does:
+  /// the list was already moving, so the first pixel of travel is a drag,
+  /// never a tap.
+  static const _catchGestureSettings = DeviceGestureSettings(touchSlop: 0);
 
   ChatSelectionPointer? _selectionPointer;
 
@@ -1728,6 +1814,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
             PointerDeviceKind.trackpad,
           },
         )
+        ..gestureSettings = _gestureSettings
         ..onStart = _onDragStart
         ..onUpdate = _onDragUpdate
         ..onEnd = _onDragEnd;
@@ -2549,6 +2636,11 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   @override
   void performLayout() {
+    _layoutClock
+      ..reset()
+      ..start();
+    _prefetchShort = false;
+    _prefetchRowsThisLayout = 0;
     assert(childManager != null, 'childManager not wired by ChatScrollElement');
     assert(
       constraints.hasBoundedHeight && constraints.hasBoundedWidth,
@@ -3608,6 +3700,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     final bottomExtent = base + (_scrollVelocity < 0 ? lead : 0.0);
     final lowerBound = size.height + bottomExtent;
     final topBound = -topExtent;
+    // Past these the zone is prefetch, built only within the frame budget.
+    final bandBottom = size.height + _cacheExtent;
+    final bandTop = -_cacheExtent;
 
     // Anchor: chunk-error tile when the anchor's chunk failed and a builder
     // was supplied; the actual message otherwise. The anchor's "size" then
@@ -3668,6 +3763,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         id = _nextNonAbsentIdDown(id + 1, bound);
         continue;
       }
+      if (!_mayBuildBeyondBand(id, beyondBand: y >= bandBottom)) break;
       final child = _buildMessage(id, cc);
       // null means the element declined (host unmounted); treat as a genuine
       // stop, not an absent skip — it is NOT safe to advance id++ here.
@@ -3701,6 +3797,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         id = _nextNonAbsentIdUp(id - 1, bound);
         continue;
       }
+      if (!_mayBuildBeyondBand(id, beyondBand: y <= bandTop)) break;
       final child = _buildMessage(id, cc);
       if (child == null) break;
       y -= child.size.height;
@@ -4988,7 +5085,8 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     final stitchMeasuredFlight =
         _animator.farAnimateActive && _animator.stitchMeasured;
     final coverageNeedsLayout =
-        !_animator.farAnimateActive && _rangeNoLongerCovers();
+        !_animator.farAnimateActive &&
+        (_prefetchShort || _rangeNoLongerCovers());
     if (stitchMeasuredFlight) {
       if (headerDayChanged) {
         markNeedsLayout();
@@ -5634,7 +5732,17 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       }
       _selectionPointer?.addPointer(event);
       if (event.kind != PointerDeviceKind.mouse) {
-        _drag?.addPointer(event);
+        // A caught fling drags from the press itself, so the finger's first
+        // pixel moves the list; otherwise the drag starts where it crossed
+        // the slop, as a platform list does.
+        _drag
+          ?..gestureSettings = catchesFling
+              ? _catchGestureSettings
+              : _gestureSettings
+          ..dragStartBehavior = catchesFling
+              ? DragStartBehavior.down
+              : DragStartBehavior.start
+          ..addPointer(event);
       }
     } else if (event is PointerUpEvent || event is PointerCancelEvent) {
       if (_flingCancelPointer == event.pointer) {
@@ -7051,9 +7159,15 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     // Apply stitch translations whenever the jump has happened — including
     // the pre-measure frame (provisional off-screen incoming).
     final stitching = _animator.farAnimateActive && _animator.farAnimateJumped;
+    final snapDpr = ChatScrollExperiments.snapRowsToPhysicalPixels
+        ? PlatformDispatcher.instance.implicitView?.devicePixelRatio
+        : null;
     for (final child in _children.values) {
       final pd = _parentData(child);
-      final paintY = pd.offset + (stitching ? _stitchPaintDy(pd.id) : 0.0);
+      var paintY = pd.offset + (stitching ? _stitchPaintDy(pd.id) : 0.0);
+      if (snapDpr case final dpr?) {
+        paintY = (paintY * dpr).roundToDouble() / dpr;
+      }
       // Cull children fully outside the viewport — off-screen build-extent
       // children stay built but are not composited until they scroll in.
       if (paintY >= viewportHeight || paintY + child.size.height <= 0) {

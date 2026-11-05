@@ -12,3 +12,8 @@
 ## 2026-11-02
 
 * **Update**: A held navigation placement is no longer re-applied when its target's row chrome changes; the row chrome hold keeps the target's body still (`02`, `04`, `10`, `12`).
+
+## 2026-11-05
+
+* **Update**: Fan-out builds rows past the `cacheExtent` band within a per-frame prefetch budget and resumes on the next tick; `groupBy` is memoized per message (`04`, `05`).
+* **Update**: A press that catches a fling drags from its first pixel; other presses use the platform's touch slop (`05`).
