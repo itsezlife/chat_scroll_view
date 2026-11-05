@@ -49,7 +49,11 @@ import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_md/flutter_md.dart' show MarkdownSpoilerController;
+import 'package:flutter_md/flutter_md.dart'
+    show
+        MarkdownPainterCache,
+        MarkdownPainterCacheScope,
+        MarkdownSpoilerController;
 import 'package:panel_presentation/panel_presentation.dart';
 
 /// Supplies the message source of a [WidgetChatScreen].
@@ -94,6 +98,10 @@ class WidgetChatScreen extends StatefulWidget {
 class _WidgetChatScreenState extends State<WidgetChatScreen> {
   ChatDataSource? _dataSource;
   late final ChatScrollController _controller;
+
+  /// Laid-out message bodies that scrolled away, for when they scroll back: a
+  /// little more than a screen of rows each way.
+  final MarkdownPainterCache _bodyPainters = MarkdownPainterCache(capacity: 96);
   late final ChatSelectionController _selection;
 
   /// Which messages have their spoilers revealed. The screen owns it (the
@@ -382,6 +390,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _unreadBoundary?.dispose();
     _search?.dispose();
     _controller.dispose();
+    _bodyPainters.clear();
     _selection.dispose();
     _spoilers.dispose();
     widget.services.largeEmoji.enabled.removeListener(_refreshEmojiPolicy);
@@ -993,37 +1002,40 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             // its region at a scale of its own, and those glyphs warm too.
             child: GlyphWarmupLayer(
               child: DemoChatWallpaper(
-                child: ChatKeyboardShortcuts(
-                  controller: _controller,
-                  selectionController: _selection,
-                  reverse: true,
-                  preserveExternalFocus: true,
-                  child: ChatScrollView(
-                    reverse: true,
-                    dataSource: _dataSource!,
+                child: MarkdownPainterCacheScope(
+                  cache: _bodyPainters,
+                  child: ChatKeyboardShortcuts(
                     controller: _controller,
                     selectionController: _selection,
-                    onIdleMessageTap: _presentMessageMenu,
-                    onSecondaryMessageTap: _presentMessageMenu,
-                    isSelfMessage: _isSelfMessage,
-                    bottomPadding: insets.bottomPadding,
-                    topPadding: insets.topPadding,
-                    messageBuilder: _buildMessage,
-                    chunkErrorBuilder: _buildChunkError,
-                    emptyBuilder: _buildEmpty,
-                    loadingBuilder: _buildInitialSkeleton,
-                    scrollActivityTiming: const ChatScrollActivityTiming(),
-                    dayHeaderDelegate: const ChatPushingDayHeader(),
-                    dateSeparatorBuilder: (context, bucket, date) =>
-                        DateSeparator(date: date),
-                    unreadBoundary: _unreadBoundary,
-                    unreadSeparatorBuilder: _buildUnreadSeparator,
-                    senderRunLayout: switch (_unreadBoundary) {
-                      final boundary? => UnreadBoundarySenderRunLayout(
-                        boundary: boundary,
-                      ),
-                      null => DefaultChatSenderRunLayout.instance,
-                    },
+                    reverse: true,
+                    preserveExternalFocus: true,
+                    child: ChatScrollView(
+                      reverse: true,
+                      dataSource: _dataSource!,
+                      controller: _controller,
+                      selectionController: _selection,
+                      onIdleMessageTap: _presentMessageMenu,
+                      onSecondaryMessageTap: _presentMessageMenu,
+                      isSelfMessage: _isSelfMessage,
+                      bottomPadding: insets.bottomPadding,
+                      topPadding: insets.topPadding,
+                      messageBuilder: _buildMessage,
+                      chunkErrorBuilder: _buildChunkError,
+                      emptyBuilder: _buildEmpty,
+                      loadingBuilder: _buildInitialSkeleton,
+                      scrollActivityTiming: const ChatScrollActivityTiming(),
+                      dayHeaderDelegate: const ChatPushingDayHeader(),
+                      dateSeparatorBuilder: (context, bucket, date) =>
+                          DateSeparator(date: date),
+                      unreadBoundary: _unreadBoundary,
+                      unreadSeparatorBuilder: _buildUnreadSeparator,
+                      senderRunLayout: switch (_unreadBoundary) {
+                        final boundary? => UnreadBoundarySenderRunLayout(
+                          boundary: boundary,
+                        ),
+                        null => DefaultChatSenderRunLayout.instance,
+                      },
+                    ),
                   ),
                 ),
               ),

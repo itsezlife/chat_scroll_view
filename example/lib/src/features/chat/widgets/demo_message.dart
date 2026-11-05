@@ -453,6 +453,13 @@ class _RegisteredChatMdBody extends StatefulWidget {
   State<_RegisteredChatMdBody> createState() => _RegisteredChatMdBodyState();
 }
 
+/// The bubble themes over each app theme, one per side and text style: the
+/// engine keeps a body's laid-out text only while its theme is the same
+/// instance, and a theme made per build laid every rebuilt or returning
+/// bubble out again.
+final Expando<Map<(bool, TextStyle), MarkdownThemeData>> _bubbleThemes =
+    Expando<Map<(bool, TextStyle), MarkdownThemeData>>('demo bubble themes');
+
 class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
   Object? _token;
 
@@ -499,9 +506,13 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
 
   @override
   Widget build(BuildContext context) {
-    final baseMarkdownTheme = MarkdownTheme.maybeOf(context);
+    final base =
+        MarkdownTheme.maybeOf(context) ?? demoDarkMarkdownTheme(context);
     final bubbleMarkdownTheme =
-        (baseMarkdownTheme ?? demoDarkMarkdownTheme(context)).copyWith(
+        (_bubbleThemes[base] ??= {})[(
+          widget.isOutgoing,
+          widget.textStyle,
+        )] ??= base.copyWith(
           textStyle: widget.textStyle,
           // On the outgoing bubble the blue of a link would vanish.
           linkColor: widget.isOutgoing ? const Color(0xFFBBDEFB) : null,
