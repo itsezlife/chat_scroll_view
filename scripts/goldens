@@ -59,7 +59,7 @@ if [[ "$host" == Linux_x86_64 || "${GOLDENS_IN_CONTAINER:-}" == 1 ]]; then
 fi
 
 FLUTTER="$(sed -nE 's/.*"flutter": *"([^"]+)".*/\1/p' "$ROOT/.fvmrc")"
-IMAGE="ghcr.io/cirruslabs/flutter:$FLUTTER"
+IMAGE="plugfox/flutter:$FLUTTER"
 PARENT="$(dirname "$ROOT")"
 NAME="$(basename "$ROOT")"
 
