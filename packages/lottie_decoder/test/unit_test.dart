@@ -6,11 +6,17 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'playback/lottie_frame_scheduler_test.dart'
+    as lottie_frame_scheduler_test;
 import 'in_process_lottie_engine_test.dart' as in_process_lottie_engine_test;
 import 'lottie_frame_renderer_test.dart' as lottie_frame_renderer_test;
 import 'native_frame_page_memory_test.dart' as native_frame_page_memory_test;
 
 void main() {
+  group(
+    'playback/lottie_frame_scheduler_test.dart',
+    lottie_frame_scheduler_test.main,
+  );
   group(
     'in_process_lottie_engine_test.dart',
     in_process_lottie_engine_test.main,
