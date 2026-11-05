@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:meta/meta.dart';
+import 'package:flutter/foundation.dart';
 
 /// One cell of a dynamic page: where an animated asset's current frame lives.
 ///
@@ -65,6 +65,7 @@ final class FrameSlotAllocator {
     required this.pageSide,
     required this.maxPages,
     this.sizeClasses = const [64, 128, 256, 512],
+    this.onPageReleased,
   }) : assert(pageSide > 0, 'pageSide must be positive'),
        assert(maxPages > 0, 'maxPages must be positive'),
        assert(sizeClasses.isNotEmpty, 'sizeClasses must not be empty'),
@@ -85,6 +86,10 @@ final class FrameSlotAllocator {
 
   /// Cell edges in pixels, ascending.
   final List<int> sizeClasses;
+
+  /// Called with the index of a page that went back to the budget, so its
+  /// owner can free what it keeps for that page (its bytes, its image).
+  final ValueChanged<int>? onPageReleased;
 
   final Map<int, _Page> _pages = <int, _Page>{};
   int _nextPageIndex = 0;
@@ -158,7 +163,10 @@ final class FrameSlotAllocator {
       throw StateError('$slot is not held by this allocator.');
     }
     _used--;
-    if (page.isEmpty) _pages.remove(page.index);
+    if (page.isEmpty) {
+      _pages.remove(page.index);
+      onPageReleased?.call(page.index);
+    }
   }
 
   static bool _ascending(List<int> values) {

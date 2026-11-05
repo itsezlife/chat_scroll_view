@@ -155,4 +155,24 @@ void main() {
       expect(allocator.usedSlots, 1);
     });
   });
+
+  group('page release', () {
+    test('the page of the last released slot is announced once', () {
+      final pages = <int>[];
+      final watched = FrameSlotAllocator(
+        pageSide: 256,
+        maxPages: 2,
+        sizeClasses: const [64, 128],
+        onPageReleased: pages.add,
+      );
+      final a = watched.allocate(64, 64)!;
+      final b = watched.allocate(64, 64)!;
+
+      watched.release(a);
+      expect(pages, isEmpty, reason: 'b still holds the page');
+      watched.release(b);
+
+      expect(pages, [0]);
+    });
+  });
 }

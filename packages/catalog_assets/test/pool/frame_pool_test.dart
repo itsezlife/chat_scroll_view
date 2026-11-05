@@ -160,4 +160,24 @@ void main() {
       );
     });
   });
+
+  group('pages', () {
+    test('a page is announced when its last entry is evicted', () {
+      final pages = <int>[];
+      final watched = FramePool<String>(
+        pageSide: 256,
+        budgetBytes: _budget,
+        sizeClasses: const [128, 256],
+        onPageReleased: pages.add,
+      );
+      for (var i = 0; i < 4; i++) {
+        watched.acquire('a$i', 100, 100)!.release();
+      }
+      expect(pages, isEmpty);
+
+      watched.releaseUnpinned();
+
+      expect(pages, [0]);
+    });
+  });
 }

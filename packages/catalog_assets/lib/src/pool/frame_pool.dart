@@ -60,17 +60,20 @@ final class FramePool<K extends Object> {
   /// Creates a pool of the pages [budgetBytes] pays for at [pageSide].
   ///
   /// [onEvict] is called with the key of each entry that loses its slot, so
-  /// its owner knows the frames are gone. Throws an [ArgumentError] when the
+  /// its owner knows the frames are gone; [onPageReleased] with the index of
+  /// each page that then has no slot left. Throws an [ArgumentError] when the
   /// budget does not cover one page.
   FramePool({
     required int pageSide,
     required int budgetBytes,
     List<int> sizeClasses = const [64, 128, 256, 512],
     this.onEvict,
+    ValueChanged<int>? onPageReleased,
   }) : _allocator = FrameSlotAllocator(
          pageSide: pageSide,
          maxPages: _pagesIn(pageSide, budgetBytes),
          sizeClasses: sizeClasses,
+         onPageReleased: onPageReleased,
        );
 
   static const int _bytesPerPixel = 4;
@@ -101,6 +104,9 @@ final class FramePool<K extends Object> {
 
   /// Entries that hold a slot, pinned or idle.
   int get residentEntries => _entries.length;
+
+  /// Whether [key] holds a slot, pinned or idle.
+  bool contains(K key) => _entries.containsKey(key);
 
   /// Entries a lease covers now.
   int get pinnedEntries => _entries.values.where((e) => e.leases > 0).length;

@@ -1,0 +1,271 @@
+import 'dart:async';
+import 'dart:ui';
+
+import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
+import 'package:catalog_assets/src/pool/frame_page_images.dart';
+import 'package:catalog_assets/src/pool/frame_pool.dart';
+import 'package:catalog_assets/src/pool/frame_renderer.dart';
+
+/// What an entry has rendered, shared by every handle on it.
+final class _FrameState {
+  int? frame;
+}
+
+/// A claim on an animation's slot in a [FrameAtlas].
+///
+/// What a paintable holds while it is attached: [sprite] says where its
+/// current frame is, or null while there is none to draw. Released exactly
+/// once; an entry that outlives its last handle keeps its frame until the room
+/// is wanted.
+final class FrameHandle<K extends Object> {
+  FrameHandle._(
+    this._atlas,
+    this.key,
+    this._lease,
+    this._state, {
+    required this.width,
+    required this.height,
+    required this.source,
+  });
+
+  final FrameAtlas<K> _atlas;
+  final FrameLease _lease;
+  final _FrameState _state;
+
+  /// The entry this handle claims.
+  final K key;
+
+  /// Pixels of a frame.
+  final int width;
+
+  /// Pixels of a frame.
+  final int height;
+
+  /// What the renderer renders, as it understands it.
+  final Object source;
+
+  /// Whether [release] was called.
+  bool get isReleased => _lease.isReleased;
+
+  /// The frame the slot holds, or null before the first one was rendered.
+  int? get frame => _state.frame;
+
+  /// Whether the slot holds a frame to draw.
+  bool get hasFrame => _state.frame != null;
+
+  /// Where the current frame is, or null while there is nothing to draw: no
+  /// frame yet, no image of the page yet, a released handle, a disposed
+  /// atlas. A late frame leaves the last good one in place, so a sprite that
+  /// exists keeps drawing.
+  ///
+  /// Read it when painting and never keep it: the page image is replaced on
+  /// every flush.
+  AtlasSprite? get sprite {
+    if (isReleased || _atlas._disposed || _state.frame == null) return null;
+    final slot = _lease.slot;
+    final page = _atlas._images.imageOf(slot.pageIndex);
+    if (page == null) return null;
+    return AtlasSprite(
+      pageIndex: slot.pageIndex,
+      page: page,
+      source: Rect.fromLTWH(
+        slot.rect.left,
+        slot.rect.top,
+        width.toDouble(),
+        height.toDouble(),
+      ),
+    );
+  }
+
+  /// Ends the claim. Idempotent.
+  void release() => _lease.release();
+}
+
+/// One frame to render for one handle.
+typedef FrameRequest<K extends Object> = ({FrameHandle<K> handle, int frame});
+
+/// What a batch did: the handles that now hold their frame and those the
+/// renderer could not render.
+typedef FrameBatch<K extends Object> = ({
+  List<FrameHandle<K>> rendered,
+  List<FrameHandle<K>> failed,
+});
+
+/// The dynamic frame pages of animated assets: slots, the renderer that fills
+/// them, and the images that make them drawable.
+///
+/// Joins the pieces under one owner, as `GlyphAtlas` does for baked glyphs:
+/// a [FramePool] decides who has a slot, a [FrameRenderer] writes frames into
+/// the [FramePageMemory], [FramePageImages] uploads the pages that changed,
+/// and a [FrameHandle] exposes the result as an `AtlasSprite`. A page whose
+/// last entry went is freed, bytes and image, through the pool.
+///
+/// ## A tick
+///
+/// The owner (the playback clock's consumer) works out which frame each
+/// attached handle should show and calls [render] once: one batch to the
+/// renderer, one upload per page that changed, then the sprites are current.
+/// Batches run one after the other, so a late batch never overlaps the next
+/// and [FramePageImages.flush] never reads bytes a renderer is writing. A
+/// batch that is slow just means the handles keep their last good frame.
+///
+/// ## Pins during a batch
+///
+/// Each batch takes its own claim on every entry it names, from the moment
+/// [render] is called until the batch ends. A handle released meanwhile
+/// cannot let its slot go to another entry that the running renderer would
+/// then overwrite.
+///
+/// Single-threaded on the UI isolate; the renderer may work elsewhere.
+final class FrameAtlas<K extends Object> {
+  /// Creates an atlas of the pages [budgetBytes] pays for.
+  FrameAtlas({
+    required this.renderer,
+    required FramePageMemory memory,
+    required int budgetBytes,
+    List<int> sizeClasses = const [64, 128, 256, 512],
+    FramePageUploader upload = uploadFramePage,
+  }) : _memory = memory {
+    _images = FramePageImages(memory: memory, upload: upload);
+    _pool = FramePool<K>(
+      pageSide: memory.pageSide,
+      budgetBytes: budgetBytes,
+      sizeClasses: sizeClasses,
+      onEvict: _states.remove,
+      onPageReleased: _images.release,
+    );
+  }
+
+  /// Draws the frames.
+  final FrameRenderer renderer;
+
+  final FramePageMemory _memory;
+  late final FramePageImages _images;
+  late final FramePool<K> _pool;
+  final Map<K, _FrameState> _states = <K, _FrameState>{};
+  Future<void> _chain = Future<void>.value();
+  bool _disposed = false;
+
+  /// Bytes of the page images that exist.
+  int get residentBytes => _images.residentBytes;
+
+  /// Whether [key] holds a slot, pinned or idle.
+  bool isResident(K key) => _pool.contains(key);
+
+  /// A handle on [key]'s slot, or null when every page is open and every cell
+  /// pinned. The caller then shows the first-frame still instead of
+  /// animating: never an error.
+  ///
+  /// [source] is what the renderer renders; [width] and [height] the pixels of
+  /// a frame. Throws an [ArgumentError] for a size the pool refuses.
+  FrameHandle<K>? acquire(
+    K key, {
+    required Object source,
+    required int width,
+    required int height,
+  }) {
+    final lease = _pool.acquire(key, width, height);
+    if (lease == null) return null;
+    final state = _states.putIfAbsent(key, _FrameState.new);
+    return FrameHandle<K>._(
+      this,
+      key,
+      lease,
+      state,
+      width: width,
+      height: height,
+      source: source,
+    );
+  }
+
+  /// Renders [requests] in one batch and uploads the pages it changed.
+  ///
+  /// Throws a [StateError] for a released handle and an [ArgumentError] for
+  /// one named twice. After [dispose] it renders nothing.
+  Future<FrameBatch<K>> render(List<FrameRequest<K>> requests) {
+    if (_disposed) {
+      return Future.value((
+        rendered: <FrameHandle<K>>[],
+        failed: <FrameHandle<K>>[],
+      ));
+    }
+    final seen = <K>{};
+    for (final request in requests) {
+      if (request.handle.isReleased) {
+        throw StateError('${request.handle.key} was released.');
+      }
+      if (!seen.add(request.handle.key)) {
+        throw ArgumentError.value(
+          request.handle.key,
+          'requests',
+          'is named twice in one batch',
+        );
+      }
+    }
+    // Pinned from now, not from when the batch starts: it may wait behind
+    // another, and the handle can be released in between.
+    final pins = [
+      for (final request in requests)
+        _pool.acquire(
+          request.handle.key,
+          request.handle.width,
+          request.handle.height,
+        )!,
+    ];
+    final run = _chain.then((_) => _renderOnce(requests, pins));
+    _chain = run.then<void>((_) {}, onError: (Object _) {});
+    return run;
+  }
+
+  /// Evicts every idle entry now, as memory pressure asks.
+  void releaseUnpinned() => _pool.releaseUnpinned();
+
+  /// Disposes the images and ignores later work. Idempotent.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _images.dispose();
+    _states.clear();
+  }
+
+  Future<FrameBatch<K>> _renderOnce(
+    List<FrameRequest<K>> requests,
+    List<FrameLease> pins,
+  ) async {
+    try {
+      final rendered = <FrameHandle<K>>[];
+      final failed = <FrameHandle<K>>[];
+      if (_disposed || requests.isEmpty) {
+        return (rendered: rendered, failed: failed);
+      }
+      final jobs = <FrameJob, FrameHandle<K>>{
+        for (final request in requests)
+          FrameJob(
+            slot: request.handle._lease.slot,
+            frame: request.frame,
+            width: request.handle.width,
+            height: request.handle.height,
+            source: request.handle.source,
+          ): request.handle,
+      };
+      final done = await renderer.render(jobs.keys.toList(), _memory);
+      if (_disposed) return (rendered: rendered, failed: failed);
+      final doneJobs = done.toSet();
+      jobs.forEach((job, handle) {
+        if (doneJobs.contains(job)) {
+          handle._state.frame = job.frame;
+          _images.markDirty(job.slot.pageIndex);
+          rendered.add(handle);
+        } else {
+          failed.add(handle);
+        }
+      });
+      await _images.flush();
+      return (rendered: rendered, failed: failed);
+    } finally {
+      pins.forEach(_release);
+    }
+  }
+
+  static void _release(FrameLease pin) => pin.release();
+}
