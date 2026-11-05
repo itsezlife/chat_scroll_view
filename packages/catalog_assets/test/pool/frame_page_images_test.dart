@@ -1,0 +1,215 @@
+import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:catalog_assets/frame_pool.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+const _side = 8;
+
+ui.Image _image() {
+  final recorder = ui.PictureRecorder();
+  ui.Canvas(recorder).drawRect(const ui.Rect.fromLTWH(0, 0, 2, 2), ui.Paint());
+  final picture = recorder.endRecording();
+  final image = picture.toImageSync(_side, _side);
+  picture.dispose();
+  return image;
+}
+
+/// An uploader that records what it was given and answers when told to.
+final class _Uploads {
+  final List<({int firstByte, int side})> calls = [];
+  final List<ui.Image> made = [];
+  final List<Completer<void>> pending = [];
+  bool manual = false;
+
+  Future<ui.Image> call(Uint8List pixels, int side) {
+    calls.add((firstByte: pixels[0], side: side));
+    final image = _image();
+    made.add(image);
+    if (!manual) return Future.value(image);
+    // The image is made now but delivered later, as an engine upload is.
+    final completer = Completer<void>();
+    pending.add(completer);
+    return completer.future.then((_) => image);
+  }
+
+  void finishAll() {
+    for (final completer in pending) {
+      completer.complete();
+    }
+    pending.clear();
+  }
+}
+
+void main() {
+  late ListFramePageMemory memory;
+  late _Uploads uploads;
+  late FramePageImages images;
+
+  setUp(() {
+    memory = ListFramePageMemory(pageSide: _side);
+    uploads = _Uploads();
+    images = FramePageImages(memory: memory, upload: uploads.call);
+  });
+  tearDown(() => images.dispose());
+
+  test('nothing is uploaded until a page is marked dirty', () async {
+    await images.flush();
+
+    expect(uploads.calls, isEmpty);
+    expect(images.imageOf(0), isNull);
+  });
+
+  test('flush uploads each dirty page once with its bytes and side', () async {
+    memory.page(0)[0] = 7;
+    memory.page(1)[0] = 9;
+    images
+      ..markDirty(0)
+      ..markDirty(1)
+      ..markDirty(1);
+
+    await images.flush();
+
+    expect(uploads.calls.map((c) => c.firstByte), unorderedEquals([7, 9]));
+    expect(uploads.calls.every((c) => c.side == _side), isTrue);
+    expect(images.imageOf(0), isNotNull);
+    expect(images.imageOf(1), isNotNull);
+  });
+
+  test('a clean page is not uploaded again', () async {
+    images.markDirty(0);
+    await images.flush();
+
+    await images.flush();
+
+    expect(uploads.calls, hasLength(1));
+  });
+
+  test('a new upload replaces the image and disposes the old one', () async {
+    images.markDirty(0);
+    await images.flush();
+    final first = images.imageOf(0)!;
+
+    images.markDirty(0);
+    await images.flush();
+
+    expect(images.imageOf(0), isNot(same(first)));
+    expect(first.debugDisposed, isTrue);
+    expect(images.imageOf(0)!.debugDisposed, isFalse);
+  });
+
+  test('the old image keeps drawing while its replacement uploads', () async {
+    images.markDirty(0);
+    await images.flush();
+    final first = images.imageOf(0)!;
+    uploads.manual = true;
+
+    images.markDirty(0);
+    final flushing = images.flush();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(images.imageOf(0), same(first));
+    expect(first.debugDisposed, isFalse);
+    uploads.finishAll();
+    await flushing;
+    expect(first.debugDisposed, isTrue);
+  });
+
+  test('release disposes the image and drops the page bytes', () async {
+    memory.page(0)[0] = 5;
+    images.markDirty(0);
+    await images.flush();
+    final image = images.imageOf(0)!;
+
+    images.release(0);
+
+    expect(image.debugDisposed, isTrue);
+    expect(images.imageOf(0), isNull);
+    expect(memory.page(0)[0], 0, reason: 'a later page() is blank');
+  });
+
+  test('a released page is no longer dirty', () async {
+    images
+      ..markDirty(0)
+      ..release(0);
+
+    await images.flush();
+
+    expect(uploads.calls, isEmpty);
+  });
+
+  test('a page released during its upload does not keep the image', () async {
+    uploads.manual = true;
+    images.markDirty(0);
+    final flushing = images.flush();
+    await Future<void>.delayed(Duration.zero);
+
+    images.release(0);
+    uploads.finishAll();
+    await flushing;
+
+    expect(images.imageOf(0), isNull);
+    expect(uploads.made.single.debugDisposed, isTrue);
+  });
+
+  test('a page marked again during its upload is uploaded again', () async {
+    uploads.manual = true;
+    images.markDirty(0);
+    final flushing = images.flush();
+    await Future<void>.delayed(Duration.zero);
+
+    images.markDirty(0);
+    final second = images.flush();
+    uploads.finishAll();
+    await flushing;
+    await Future<void>.delayed(Duration.zero);
+    uploads.finishAll();
+    await second;
+
+    expect(uploads.calls, hasLength(2));
+  });
+
+  test('residentBytes counts every page that has an image', () async {
+    images
+      ..markDirty(0)
+      ..markDirty(3);
+    await images.flush();
+
+    expect(images.residentBytes, 2 * _side * _side * 4);
+  });
+
+  test('dispose disposes the images and ignores later work', () async {
+    images.markDirty(0);
+    await images.flush();
+    final image = images.imageOf(0)!;
+
+    images.dispose();
+    images.markDirty(1);
+    await images.flush();
+
+    expect(image.debugDisposed, isTrue);
+    expect(uploads.calls, hasLength(1));
+    expect(images.imageOf(0), isNull);
+  });
+
+  test('dispose twice is harmless', () {
+    images.dispose();
+
+    expect(images.dispose, returnsNormally);
+  });
+
+  testWidgets('the engine upload makes a square image from the bytes', (
+    tester,
+  ) async {
+    final pixels = Uint8List(_side * _side * 4)..fillRange(0, _side * 4, 255);
+
+    final image = (await tester.runAsync(
+      () => uploadFramePage(pixels, _side),
+    ))!;
+    addTearDown(image.dispose);
+
+    expect(image.width, _side);
+    expect(image.height, _side);
+  });
+}
