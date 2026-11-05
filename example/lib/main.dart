@@ -49,6 +49,7 @@ void main() => l.capture<void>(
           chatDataSourceLoader: switch (DemoConfig.chatSource) {
             'showcase' => _loadShowcase,
             'comments+showcase' => _loadCommentsWithShowcase,
+            'sizes' => _loadSizeMix,
             _ => null,
           },
         ),
@@ -72,6 +73,12 @@ void main() => l.capture<void>(
 Future<ChatDataSource> _loadShowcase() async => GeneratedChatDataSource(
   messageCount: ShowcaseBodies.all.length * 4,
   style: GeneratedMessageStyle.showcase,
+);
+
+// Runs of one-line, medium and long messages in every mix.
+Future<ChatDataSource> _loadSizeMix() async => GeneratedChatDataSource(
+  messageCount: sizeMixRun * 5 * 20,
+  style: GeneratedMessageStyle.sizeMix,
 );
 
 // The bundled comments, then one round of the showcase bodies as the newest

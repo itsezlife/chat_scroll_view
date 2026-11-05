@@ -42,7 +42,8 @@ abstract final class DemoConfig {
   /// Which messages the app opens: `comments` (the bundled issue comments,
   /// the default), `showcase` (generated rows of the inline layer and the
   /// emoji-only bodies) or `comments+showcase` (the comments, then one round
-  /// of the showcase bodies as the newest messages), from
+  /// of the showcase bodies as the newest messages) or `sizes` (runs of
+  /// one-line, medium and long messages in every mix), from
   /// `--dart-define=CHAT_SOURCE=showcase`.
   static const String chatSource = String.fromEnvironment(
     'CHAT_SOURCE',
