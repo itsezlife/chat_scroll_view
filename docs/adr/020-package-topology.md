@@ -12,6 +12,7 @@ API.
 **Amended**: 2026-10-16 — change notification is `package:listen`, an external package every package that names its types declares for itself; it is not a workspace edge and is never re-exported ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
 **Amended**: 2026-10-18 — a `composer_editable` leaf (the composer's editable, [ADR 038](038-composer-editable-fork.md)), depended on by `chat_composer` only; the root `chat_scroll_view` package depends on `catalog_assets` and `content_model` (rows added and changed below; rule 6 added)  
 **Amended**: 2026-10-31 — a `chat_wallpaper` leaf ([ADR 040](040-chat-wallpaper.md)); it depends on no workspace package and nothing in the workspace depends on it but the example  
+**Amended**: 2026-11-05 — a `golden_baseline` leaf: test support for golden tests ([ADR 030](030-testing-policy.md) Amendment), declared by any member under `dev_dependencies:` only; such a dev dependency does not make a leaf stop being one (rule 7)  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (package list in its Decided table is replaced by this one), [ADR 007](007-keyboard-panel-controller.md), [ADR 012](012-cross-platform-selection-policies.md)
 
 ## Decided
@@ -32,6 +33,7 @@ API.
 | `panel_presentation` | Sealed presentation kinds, the `$Mobile` / `$Desktop` policy, the presentation controller, occupancy, IME arbitration | `panel_shell`, `chrome_foundation` |
 | `composer_editable` | Leaf. The composer's one editable: a renamed, patched copy of the Flutter framework's text field, editable text and selection overlay, with the touch gesture matrix, handle and magnifier motion and the toolbar fade ([ADR 038](038-composer-editable-fork.md)). Nothing chat-specific | none (`flutter` and `characters` only) |
 | `chat_composer` | Slot-based composer, input-only controller, entity-aware text controller with formatting commands, selection menu, input query; renders through `composer_editable` | `chrome_foundation`, `content_model`, `catalog_assets`, `composer_editable` |
+| `golden_baseline` | Leaf, test support only. `useGoldenBaselines` and the comparator that holds golden baselines to the CI runner | none (`flutter`, `flutter_test`) |
 | `chat_scroll_view` (repo root) | The anchor viewport and its markdown bodies: message and text selection, inline hits, the embed adapter, spoiler wiring, `ChatEmojiBody`. Consumes the markdown engine fork by git ref ([ADR 035](035-markdown-engine-fork.md)), which is not a workspace package | `catalog_assets`, `content_model` |
 
 Codec and fetcher adapters (Lottie, WebM, WebP, network, disk) are separate
@@ -47,6 +49,7 @@ Rules, enforced by the dependency lint in `scripts/check` ([ADR 030](030-testing
 4. Fakes are exported only from a package's `testing.dart` and never used by production code.
 5. `panel_catalog` does not depend on `chrome_foundation`. Pages adapt tokens.
 6. `composer_editable` is a leaf with `chat_composer` as its only dependent. A host reaches the field through the composer view, never the raw editable.
+7. `golden_baseline` is test support: any member may declare it, under `dev_dependencies:` only, and a leaf that does stays a leaf. No library ships it.
 
 `chat_chrome` has no successor and there is no umbrella package. The inset
 arbiter is not a shared leaf: it is a property of the keyboard-replacement

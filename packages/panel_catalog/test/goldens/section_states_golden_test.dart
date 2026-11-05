@@ -2,11 +2,12 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 
-// Regenerate with `flutter test --update-goldens test/goldens`.
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
 //
 // What a section paints beyond its leaves: skeleton leaves while it loads (one
 // row each in the three placeholder styles), a header with a trailing action,
@@ -16,11 +17,6 @@ import 'package:panel_catalog/testing.dart';
 // tenths of the way through its sweep. flutter_test renders text with the Ahem
 // font, so titles, labels and messages do not depend on the host platform. The
 // action is a label: an icon is a glyph of a font the test run does not load.
-//
-// The goldens were generated on macOS. Pixel-exact comparison on another
-// platform (CI runs Linux) is unconfirmed: if edge anti-aliasing of the
-// rounded shapes differs there, regenerate on the pinned platform or add a
-// tolerance comparator, and record it here.
 const _loadingSticker = CatalogSection(
   id: 'stickers',
   title: 'Stickers',
@@ -85,12 +81,8 @@ final _scenarios = <String, ({List<CatalogSection> sections, Size size})>{
 };
 
 void main() {
+  useGoldenBaselines('test/goldens/section_states_golden_test.dart');
   // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  setUpAll(
-    () => goldenFileComparator = LocalFileComparator(
-      Uri.file('test/goldens/section_states_golden_test.dart'),
-    ),
-  );
   final variants = {
     'light': PanelCatalogThemeData.light,
     'dark': PanelCatalogThemeData.dark,

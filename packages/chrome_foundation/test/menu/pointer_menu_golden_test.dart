@@ -1,31 +1,15 @@
-import 'dart:typed_data';
-
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
-// Regenerate with `flutter test --update-goldens
-// test/menu/pointer_menu_golden_test.dart`. The goldens are macOS-generated,
-// drawn with the test font (every glyph a square), so they check geometry,
-// the hover and disabled states and the reference colours; rounded edges and
-// the blurred shadow are anti-aliased, hence the 1% pixel tolerance.
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
+// The goldens are drawn with the test font (every glyph a square), so they
+// check geometry, the hover and disabled states and the reference colours;
+// rounded edges and the blurred shadow are anti-aliased, hence the 1% pixel
+// tolerance.
 const _size = Size(640, 340);
-
-class _Tolerant extends LocalFileComparator {
-  _Tolerant(super.testFile);
-
-  @override
-  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await GoldenFileComparator.compareLists(
-      imageBytes,
-      await getGoldenBytes(golden),
-    );
-    if (result.passed || result.diffPercent <= 0.01) return true;
-    final error = await generateFailureOutput(result, golden, basedir);
-    throw FlutterError(error);
-  }
-}
 
 List<PointerMenuEntry> _entries() {
   PointerMenuItem item(
@@ -66,10 +50,9 @@ List<PointerMenuEntry> _entries() {
 }
 
 void main() {
-  setUpAll(
-    () => goldenFileComparator = _Tolerant(
-      Uri.file('test/menu/pointer_menu_golden_test.dart'),
-    ),
+  useGoldenBaselines(
+    'test/menu/pointer_menu_golden_test.dart',
+    tolerance: 0.01,
   );
 
   Future<void> shoot(

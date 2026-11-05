@@ -15,6 +15,7 @@ workspace:
   - packages/content_model
   - packages/emoji_catalog_pack
   - packages/emoji_data
+  - packages/golden_baseline
   - packages/image_decoder
   - packages/kv_shared_preferences
   - packages/panel_catalog
@@ -48,6 +49,9 @@ dependencies:
       ref: v0.8.1
 
 dev_dependencies:
+  # Golden baselines are the CI runner's: compared and regenerated there only.
+  golden_baseline:
+    path: packages/golden_baseline
   flutter_test:
     sdk: flutter
   integration_test:

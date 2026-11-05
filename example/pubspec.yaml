@@ -57,6 +57,9 @@ dependencies:
   freezed_annotation: ^3.1.0
 
 dev_dependencies:
+  # Golden baselines are the CI runner's: compared and regenerated there only.
+  golden_baseline:
+    path: ../packages/golden_baseline
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

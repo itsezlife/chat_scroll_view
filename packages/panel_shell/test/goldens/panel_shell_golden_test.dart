@@ -2,27 +2,19 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/testing.dart';
 
-// Regenerate with `flutter test --update-goldens test/goldens`.
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
 //
 // The shell is drawn on the flat path: solid fills and token colours, no
 // glass or blur, which `chrome_foundation` has not introduced yet. flutter_test
 // renders text with the Ahem font, so glyph shapes do not depend on the host
 // platform; icons come from the Material icon font of the test bundle.
-//
-// The goldens were generated on macOS. Pixel-exact comparison on another
-// platform (CI runs Linux) is unconfirmed: if edge anti-aliasing of the
-// rounded shapes differs there, regenerate on the pinned platform or add a
-// tolerance comparator, and record it here.
 void main() {
+  useGoldenBaselines('test/goldens/panel_shell_golden_test.dart');
   // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  setUpAll(
-    () => goldenFileComparator = LocalFileComparator(
-      Uri.file('test/goldens/panel_shell_golden_test.dart'),
-    ),
-  );
   final variants = {
     'light_ltr': (Brightness.light, TextDirection.ltr),
     'dark_ltr': (Brightness.dark, TextDirection.ltr),

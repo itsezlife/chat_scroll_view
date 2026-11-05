@@ -77,6 +77,7 @@ bool _lint(WorkspaceGraph graph) {
     ...FakesLint.check(graph),
     ...PureDartLint.check(graph),
     ...TestEntrypointLint.check(graph),
+    ...GoldenBaselineLint.check(graph),
   ]);
   if (violations.isEmpty) {
     stdout.writeln('    no violations');

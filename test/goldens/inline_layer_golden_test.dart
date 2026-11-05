@@ -5,14 +5,15 @@ import 'dart:math';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart'
     show MarkdownThemeData, MarkdownTheme;
 import 'package:flutter_md/src/render/spoiler_particle_tile.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
-// Regenerate with `flutter test --update-goldens test/goldens`.
+// Baselines are the CI runner's (golden_baseline): compared there and
+// regenerated there, with `scripts/goldens --update`.
 //
 // One chat row holding the whole inline layer: a mention, an embed, a hashtag
 // and a hidden spoiler, left-to-right and right-to-left, then the same rows
@@ -20,27 +21,6 @@ import 'package:flutter_test/flutter_test.dart';
 // so its place in the line can be read off; the dust over the spoiler is
 // seeded, so the pictures are the same on every run. flutter_test renders text
 // with the Ahem font, so nothing depends on the host platform's fonts.
-//
-// The goldens were generated on macOS. The comparator forgives antialiasing
-// noise (a fraction of a percent of the pixels) so the same files can hold on
-// another platform; if CI on Linux still differs, regenerate there and record
-// it here.
-class _GoldenComparator extends LocalFileComparator {
-  _GoldenComparator(super.testFile);
-
-  static const double _tolerance = 0.005;
-
-  @override
-  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await GoldenFileComparator.compareLists(
-      imageBytes,
-      await getGoldenBytes(golden),
-    );
-    if (result.passed || result.diffPercent <= _tolerance) return true;
-    final error = await generateFailureOutput(result, golden, basedir);
-    throw FlutterError(error);
-  }
-}
 
 /// An embed that paints a solid square in the colour of the text around it.
 final class _SquareEmbed implements InlineEmbed {
@@ -86,17 +66,11 @@ const _source =
     '||a secret that wraps||';
 
 void main() {
+  useGoldenBaselines(
+    'test/goldens/inline_layer_golden_test.dart',
+    tolerance: 0.005,
+  );
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  late GoldenFileComparator previous;
-  setUpAll(() {
-    previous = goldenFileComparator;
-    goldenFileComparator = _GoldenComparator(
-      Uri.file('test/goldens/inline_layer_golden_test.dart'),
-    );
-  });
-  tearDownAll(() => goldenFileComparator = previous);
 
   setUp(() => SpoilerParticleTiles.debugConfigure(random: () => Random(7)));
   tearDown(SpoilerParticleTiles.debugReset);

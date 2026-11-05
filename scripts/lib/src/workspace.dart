@@ -35,6 +35,7 @@ final class WorkspaceMember {
     required this.name,
     required this.path,
     this.dependencies = const <String>{},
+    this.devDependencies = const <String>{},
     this.usesFlutter = false,
     this.analysisTargets = const <String>[],
     this.testFiles = const <String>[],
@@ -69,6 +70,10 @@ final class WorkspaceMember {
   /// Every package named in `dependencies:` or `dev_dependencies:`, workspace
   /// member or not. [WorkspaceGraph.dependenciesOf] narrows it to members.
   final Set<String> dependencies;
+
+  /// The names in [dependencies] declared only under `dev_dependencies:`:
+  /// what the member's tests use and its libraries never ship.
+  final Set<String> devDependencies;
 
   /// Whether any dependency is an SDK entry for Flutter (`flutter`,
   /// `flutter_test`, `integration_test`, ...).
@@ -251,11 +256,13 @@ final class WorkspaceGraph {
   ) {
     final directory = p.normalize(p.join(root, path));
     final dependencies = <String>{};
+    final runtime = <String>{};
     var usesFlutter = false;
     for (final section in const ['dependencies', 'dev_dependencies']) {
       if (pubspec[section] case final YamlMap declared) {
         for (final entry in declared.entries) {
           dependencies.add('${entry.key}');
+          if (section == 'dependencies') runtime.add('${entry.key}');
           if (entry.value case {'sdk': 'flutter'}) usesFlutter = true;
         }
       }
@@ -265,6 +272,7 @@ final class WorkspaceGraph {
       name: '${pubspec['name']}',
       path: path,
       dependencies: dependencies,
+      devDependencies: dependencies.difference(runtime),
       usesFlutter: usesFlutter,
       analysisTargets: [
         for (final layout in WorkspaceMember.layoutDirectories)

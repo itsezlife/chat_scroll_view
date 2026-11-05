@@ -28,6 +28,9 @@ dependencies:
   meta: ^1.17.0
 
 dev_dependencies:
+  # Golden baselines are the CI runner's: compared and regenerated there only.
+  golden_baseline:
+    path: ../golden_baseline
   flutter_test:
     sdk: flutter
 

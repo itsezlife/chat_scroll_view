@@ -1,23 +1,13 @@
 import 'package:composer_editable/composer_editable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
-// Regenerate with `flutter test --update-goldens test/selection_highlight_golden_test.dart`.
-// Generated on macOS with the test font, at the default device pixel ratio.
+// Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
+// Drawn with the test font, at the default device pixel ratio.
 // Compared exactly: a seam is a one pixel row, which any tolerance would hide.
 void main() {
-  late GoldenFileComparator saved;
-
-  setUp(() {
-    saved = goldenFileComparator;
-    goldenFileComparator = LocalFileComparator(
-      Uri.file('test/selection_highlight_golden_test.dart'),
-    );
-  });
-
-  tearDown(() {
-    goldenFileComparator = saved;
-  });
+  useGoldenBaselines('test/selection_highlight_golden_test.dart');
 
   testWidgets(
     'a multi-line selection on desktop is one shape',

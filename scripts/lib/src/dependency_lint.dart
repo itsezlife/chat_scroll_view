@@ -8,8 +8,12 @@ import 'package:workspace_check/src/workspace.dart';
 ///
 /// - **No cycles.** Reported once per cycle, as `a -> b -> a` starting from the
 ///   alphabetically smallest member.
-/// - **Leaves stay leaves.** `content_model`, `chrome_foundation` and
-///   `composer_editable` depend on no workspace package.
+/// - **Leaves stay leaves.** `content_model`, `chrome_foundation`,
+///   `composer_editable` and `golden_baseline` depend on no workspace
+///   package; a dev dependency on the test support `golden_baseline` is not
+///   an edge for this rule.
+/// - **Test support stays in tests.** `golden_baseline` is declared under
+///   `dev_dependencies:` only. Reported as `member -> golden_baseline`.
 /// - **Panel hosts stay payload-free.** `panel_shell`, `panel_pages` and
 ///   `panel_presentation` never depend on `emoji_catalog_pack` or on a codec /
 ///   decoder / fetcher adapter package, directly or through other members
@@ -47,7 +51,12 @@ abstract final class DependencyLint {
     'content_model',
     'chrome_foundation',
     'composer_editable',
+    'golden_baseline',
   };
+
+  // Test support: any member may take it, under dev_dependencies only, and a
+  // dev dependency on it does not make a leaf stop being one.
+  static const Set<String> _testSupport = <String>{'golden_baseline'};
 
   static const Set<String> _payloadFreeHosts = <String>{
     'panel_shell',
@@ -87,7 +96,20 @@ abstract final class DependencyLint {
     ..._pluginBreaches(graph),
     ..._hostAdapterBreaches(graph),
     ..._composerEditableBreaches(graph),
+    ..._testSupportBreaches(graph),
   ];
+
+  static Iterable<Violation> _testSupportBreaches(WorkspaceGraph graph) =>
+      <Violation>[
+        for (final member in graph.members)
+          for (final name in member.dependencies.toList()..sort())
+            if (_testSupport.contains(name) &&
+                !member.devDependencies.contains(name))
+              Violation(
+                LintRule.testSupportOutsideDevDependencies,
+                '${member.name} -> $name',
+              ),
+      ];
 
   static Iterable<Violation> _composerEditableBreaches(WorkspaceGraph graph) =>
       <Violation>[
@@ -152,10 +174,12 @@ abstract final class DependencyLint {
     for (final member in graph.members)
       if (_leaves.contains(member.name))
         for (final dependency in graph.dependenciesOf(member))
-          Violation(
-            LintRule.leafDependsOnPackage,
-            '${member.name} -> $dependency',
-          ),
+          if (!(_testSupport.contains(dependency) &&
+              member.devDependencies.contains(dependency)))
+            Violation(
+              LintRule.leafDependsOnPackage,
+              '${member.name} -> $dependency',
+            ),
   ];
 
   static Iterable<Violation> _pluginBreaches(WorkspaceGraph graph) =>

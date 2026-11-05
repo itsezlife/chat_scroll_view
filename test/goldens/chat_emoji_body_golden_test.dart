@@ -4,11 +4,12 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_baseline/golden_baseline.dart';
 
-// Regenerate with `flutter test --update-goldens test/goldens`.
+// Baselines are the CI runner's (golden_baseline): compared there and
+// regenerated there, with `scripts/goldens --update`.
 //
 // The emoji-only body at 1, 2, 3, 5 and 10 items, all custom and mixed (the
 // first item a unicode glyph), the sticker layout, and the right-to-left
@@ -17,27 +18,6 @@ import 'package:flutter_test/flutter_test.dart';
 // text, which flutter_test draws with the Ahem font, a square of the font
 // size, so nothing depends on the host platform's fonts. The sizes themselves
 // are asserted in test/emoji/; these pictures show the arrangement.
-//
-// The goldens were generated on macOS. The comparator forgives antialiasing
-// noise (a fraction of a percent of the pixels) so the same files can hold on
-// another platform; if CI on Linux still differs, regenerate there and record
-// it here.
-class _GoldenComparator extends LocalFileComparator {
-  _GoldenComparator(super.testFile);
-
-  static const double _tolerance = 0.005;
-
-  @override
-  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await GoldenFileComparator.compareLists(
-      imageBytes,
-      await getGoldenBytes(golden),
-    );
-    if (result.passed || result.diffPercent <= _tolerance) return true;
-    final error = await generateFailureOutput(result, golden, basedir);
-    throw FlutterError(error);
-  }
-}
 
 const _palette = <Color>[
   Color(0xFFE53935),
@@ -95,17 +75,11 @@ EmojiOnly _items(int count, {required bool allCustom}) => EmojiOnly([
 ]);
 
 void main() {
+  useGoldenBaselines(
+    'test/goldens/chat_emoji_body_golden_test.dart',
+    tolerance: 0.005,
+  );
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  // Goldens sit next to this file, also when test/unit_test.dart runs it.
-  late GoldenFileComparator previous;
-  setUpAll(() {
-    previous = goldenFileComparator;
-    goldenFileComparator = _GoldenComparator(
-      Uri.file('test/goldens/chat_emoji_body_golden_test.dart'),
-    );
-  });
-  tearDownAll(() => goldenFileComparator = previous);
 
   Future<void> shoot(
     WidgetTester tester,
