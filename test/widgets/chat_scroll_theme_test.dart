@@ -5,6 +5,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_message_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scrollbar_theme.dart';
+import 'package:chat_scroll_view/src/chat_widgets/chat_selection_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -143,6 +144,70 @@ void main() {
       ),
     );
     expect(resolved.contentMaxWidth, 720);
+  });
+
+  group('selectionOf matches the selection of resolve', () {
+    const inherited = ChatSelectionThemeData(
+      modeDuration: Duration(milliseconds: 111),
+    );
+    const extension = ChatSelectionThemeData(
+      modeDuration: Duration(milliseconds: 222),
+    );
+    const standalone = ChatSelectionThemeData(
+      modeDuration: Duration(milliseconds: 333),
+    );
+
+    Future<(ChatSelectionThemeData, ChatSelectionThemeData)> read(
+      WidgetTester tester, {
+      ChatScrollThemeData? scope,
+      List<ThemeExtension<dynamic>> extensions = const [],
+    }) async {
+      late ChatSelectionThemeData narrow;
+      late ChatSelectionThemeData full;
+      Widget home = Builder(
+        builder: (context) {
+          narrow = ChatScrollTheme.selectionOf(context);
+          full = ChatScrollTheme.resolve(context).selection!;
+          return const SizedBox();
+        },
+      );
+      if (scope != null) home = ChatScrollTheme(data: scope, child: home);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(extensions: extensions),
+          home: home,
+        ),
+      );
+      return (narrow, full);
+    }
+
+    testWidgets('inherited ChatScrollTheme', (tester) async {
+      final (narrow, full) = await read(
+        tester,
+        scope: const ChatScrollThemeData(selection: inherited),
+        extensions: const [ChatScrollThemeData(selection: extension)],
+      );
+      expect(narrow.modeDuration, inherited.modeDuration);
+      expect(narrow.modeDuration, full.modeDuration);
+    });
+
+    testWidgets('ThemeData extension', (tester) async {
+      final (narrow, full) = await read(
+        tester,
+        extensions: const [ChatScrollThemeData(selection: extension)],
+      );
+      expect(narrow.modeDuration, extension.modeDuration);
+      expect(narrow.modeDuration, full.modeDuration);
+    });
+
+    testWidgets('selection fallback when the scope has none', (tester) async {
+      final (narrow, full) = await read(
+        tester,
+        scope: const ChatScrollThemeData(),
+        extensions: const [standalone],
+      );
+      expect(narrow.modeDuration, full.modeDuration);
+    });
   });
 
   testWidgets('omitted message still reads ChatMessageThemeData extension', (

@@ -1678,18 +1678,17 @@ class ChatSelectionController implements Listenable {
 
   // --- Listeners ---
 
-  /// Plain `List` so the field's runtime type stays stable across hot-reload.
-  /// `addListener` dedups explicitly so a double-registration with the same
-  /// closure is a no-op — otherwise the symmetric `removeListener` only
-  /// strips one of multiple registrations and the listener silently keeps
-  /// firing for the rest of the controller's lifetime.
-  final _listeners = <VoidCallback>[];
+  /// An insertion-ordered set: every mounted message row subscribes, so add
+  /// and remove run on each row that enters or leaves the build range, and a
+  /// list's equality scan over the other rows' callbacks cost as much as a
+  /// row's text layout. The set also makes a double registration with the
+  /// same closure a no-op — otherwise the symmetric `removeListener` would
+  /// strip only one of them and the listener would keep firing for the rest
+  /// of the controller's lifetime.
+  final _listeners = <VoidCallback>{};
 
   @override
-  void addListener(VoidCallback listener) {
-    if (_listeners.contains(listener)) return;
-    _listeners.add(listener);
-  }
+  void addListener(VoidCallback listener) => _listeners.add(listener);
 
   @override
   void removeListener(VoidCallback listener) => _listeners.remove(listener);

@@ -107,7 +107,7 @@ class _SelectableMessageState extends State<SelectableMessage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final theme = ChatScrollTheme.resolve(context).selection!;
+    final theme = ChatScrollTheme.selectionOf(context);
     _mode.duration = theme.modeDuration;
     _select.duration = theme.selectDuration;
   }

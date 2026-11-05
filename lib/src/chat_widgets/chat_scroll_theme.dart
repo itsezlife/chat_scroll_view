@@ -147,6 +147,16 @@ class ChatScrollTheme extends InheritedWidget {
   static ChatMessageThemeData messageOf(BuildContext context) =>
       maybeOf(context)?.message ?? ChatMessageThemeData.resolve(context);
 
+  /// Selection tokens for [context], from the same sources as [resolve].
+  ///
+  /// Resolves only the selection field — every message row reads it, and
+  /// [resolve] would build the scrollbar and menu tokens with it each time.
+  static ChatSelectionThemeData selectionOf(BuildContext context) {
+    final base =
+        maybeOf(context) ?? Theme.of(context).extension<ChatScrollThemeData>();
+    return base?.selection ?? ChatSelectionThemeData.resolve(context);
+  }
+
   /// Message-menu tokens for [context].
   static ChatMessageMenuThemeData menuOf(BuildContext context) {
     final nested =
