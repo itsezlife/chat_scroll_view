@@ -4,3 +4,4 @@ library;
 export 'src/lottie_binding.dart';
 export 'src/lottie_features.dart';
 export 'src/lottie_load_result.dart';
+export 'src/native/native_lottie_binding.dart';

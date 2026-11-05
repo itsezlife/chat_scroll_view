@@ -6,8 +6,18 @@ render frames into page memory, dispose. A leaf of the workspace
 ([ADR 020](../../docs/adr/020-package-topology.md), rule 8): it depends on no
 workspace package and is reached through its decoder only.
 
-This package holds the interface, the fake and the contract. The native
-library and its build hook arrive with the wrapper crate.
+This package holds the interface, the fake, the contract, the native binding
+(`NativeLottieBinding`) and the build hook that compiles `native/` with cargo.
+
+## Building
+
+`hook/build.dart` runs `cargo build --release` on the `native/` crate for the
+build's macOS architecture (arm64 or x86_64) and registers the dylib as a
+bundled code asset. It finds `cargo` on `PATH`, then under `CARGO_HOME`, then
+in `~/.cargo/bin`; without Rust it fails and says to install it from
+[rustup.rs](https://rustup.rs). Other targets fail with an `UnsupportedError`
+naming slice 6 (hash-pinned prebuilt libraries and an opt-in compile flag). A
+first build needs network for the crates and the pinned tlottie commit.
 
 ## Types
 
@@ -18,13 +28,14 @@ library and its build hook arrive with the wrapper crate.
 | `LottieRejection` | `tooLarge`, `malformed`, `limitExceeded`, `unsupported`, mirroring the wrapper's load statuses. |
 | `LottieInfo` | Size, frame count, frame rate and `LottieFeatures` of a loaded file. |
 | `LottieFeatures` | Bitmask of what the file uses and the renderer does not draw: effects, expressions, image layers, text layers. Informational. |
+| `NativeLottieBinding` | The binding over the compiled library. `NativeLottieBinding.probe()` calls `chat_lottie_abi_version()` once; a missing library or symbol, or a version other than 1, yields `isAvailable == false`. It logs nothing. |
 | `LottieRenderJob` / `LottieRenderStatus` | One frame into a slot of page memory (premultiplied RGBA, rows `strideBytes` apart); `ok`, `badArgument`, `badSize`, `failed`. |
 
 ## Host contract
 
 | The host provides | The host must not |
 | --- | --- |
-| A binding it registers only when `isAvailable` is true | Call `load` or `renderBatch` on one that is not (they throw `StateError`) |
+| A binding it registers only when `isAvailable` is true: probe first (`NativeLottieBinding.probe()`), log once through its own diagnostics if the probe says no, register only on yes | Call `load` or `renderBatch` on one that is not (they throw `StateError`) |
 | Page memory it owns, with the slot's top-left pixel as `target` and the page's row distance as `strideBytes` | Expect a render to touch a byte outside the slot's `width * 4` bytes of each of its rows |
 | `dispose` for every `LottieLoaded` handle it is done with | Render a disposed handle (it answers `badArgument`) or share a binding across isolates |
 
