@@ -12,6 +12,8 @@ memory a render isolate can write, and a `FrameRenderer` that draws into it.
 | `LottieEngine` | The async face of a `LottieBinding`: `load`, `renderBatch` (of `LottieEngineJob`), `dispose`, `close` (idempotent; later calls throw `StateError`). |
 | `LottieEngineJob` | A render job whose target is an `int` address, so it crosses isolates. |
 | `InProcessLottieEngine` | Runs a binding on the calling isolate. With `FakeLottieBinding` it is the engine fake. |
+| `IsolateLottieEngine` | One long-lived render isolate that owns the binding and every handle. `spawn({bindingFactory})` throws a `StateError` with the `LottieAvailability` reason when the binding is unavailable. One request failing throws a `RemoteError` and spares the engine; the isolate ending fails every pending request and closes it. Requests run in arrival order. A native fault ends the process and cannot be caught. |
+| `LottieEngineContract` (`testing.dart`) | The behaviour every engine shares, run over the in-process engine and over the isolate engine on the fake and on the real binding. |
 | `NativeFramePageMemory` | `FramePageMemory` in `calloc`ed memory (a Dart-heap list cannot be written from another isolate). `addressOf(page)`, `drop`, `dispose`. |
 | `LottieFrameRenderer` | `FrameRenderer` over an engine and one memory; a job's `source` is a `LottieHandle`. |
 
