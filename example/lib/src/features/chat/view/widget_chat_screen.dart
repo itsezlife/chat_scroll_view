@@ -4,8 +4,10 @@ import 'dart:developer' as dev;
 import 'package:chat_composer/chat_composer.dart' show ComposerBottomFade;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/panel_trace.dart';
+import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
@@ -168,6 +170,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   void initState() {
     super.initState();
     _controller = ChatScrollController();
+    if (DemoConfig.scrollLab) ScrollLab.watch(_controller);
     _selection = ChatSelectionController(
       onInteraction: _onSelectionInteraction,
       // Selections and code taps keep their formatting on the clipboard.
