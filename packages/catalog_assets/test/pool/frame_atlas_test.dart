@@ -38,6 +38,22 @@ void main() {
   FrameHandle<String>? acquire(String key, {Object source = 'ok'}) =>
       atlas.acquire(key, source: source, width: 100, height: 90);
 
+  group('defaults', () {
+    test('the default budget pays for twelve default pages', () {
+      const pageBytes =
+          FrameAtlas.defaultPageSide * FrameAtlas.defaultPageSide * 4;
+
+      expect(FrameAtlas.defaultBudgetBytes, 48 * 1024 * 1024);
+      expect(FrameAtlas.defaultBudgetBytes ~/ pageBytes, 12);
+    });
+
+    test('every default size class divides the default page', () {
+      for (final sizeClass in FrameAtlas.defaultSizeClasses) {
+        expect(FrameAtlas.defaultPageSide % sizeClass, 0, reason: '$sizeClass');
+      }
+    });
+  });
+
   group('before a frame', () {
     test('a handle has no frame and no sprite', () {
       final handle = acquire('a')!;

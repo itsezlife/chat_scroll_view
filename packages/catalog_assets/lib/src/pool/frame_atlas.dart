@@ -122,8 +122,8 @@ final class FrameAtlas<K extends Object> {
   FrameAtlas({
     required this.renderer,
     required FramePageMemory memory,
-    required int budgetBytes,
-    List<int> sizeClasses = const [64, 128, 256, 512],
+    this.budgetBytes = defaultBudgetBytes,
+    List<int> sizeClasses = defaultSizeClasses,
     FramePageUploader upload = uploadFramePage,
   }) : _memory = memory {
     _images = FramePageImages(memory: memory, upload: upload);
@@ -136,8 +136,24 @@ final class FrameAtlas<K extends Object> {
     );
   }
 
+  /// Page edge a host gives its [FramePageMemory]: 1024 px, so the default
+  /// budget is twelve pages. A page holds one size class only, and at 2048 px
+  /// (the glyph pages' size) the same budget would be three pages for four
+  /// classes, too coarse to hold a few of each at once.
+  static const int defaultPageSide = 1024;
+
+  /// Default byte budget of the pages, apart from the glyph pages' own.
+  static const int defaultBudgetBytes = 48 * 1024 * 1024;
+
+  /// Default cell edges: the display sizes animated assets come in, capped at
+  /// 512 px like the reference clients' render size.
+  static const List<int> defaultSizeClasses = [64, 128, 256, 512];
+
   /// Draws the frames.
   final FrameRenderer renderer;
+
+  /// What the pages may cost together.
+  final int budgetBytes;
 
   final FramePageMemory _memory;
   late final FramePageImages _images;
