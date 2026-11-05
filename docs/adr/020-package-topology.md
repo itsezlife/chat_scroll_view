@@ -57,7 +57,7 @@ Rules, enforced by the dependency lint in `scripts/check` ([ADR 030](030-testing
 6. `composer_editable` is a leaf with `chat_composer` as its only dependent. A host reaches the field through the composer view, never the raw editable.
 7. `golden_baseline` is test support: any member may declare it, under `dev_dependencies:` only, and a leaf that does stays a leaf. No library ships it.
 
-8. A `*_native` package is a leaf: it depends on no workspace package, owns every `dart:ffi` and `dart:js_interop` use, and is reached through its `*_decoder` only. `catalog_assets` stays pure Dart: the page pool and the renderer seam live in it, and a decoder implements the seam. `panel_shell`, `panel_pages` and `panel_presentation` depend on no decoder or native package; only the host wires a decoder into a `DecoderRegistry`.
+8. A `*_native` package is a leaf: it depends on no workspace package, owns every `dart:ffi` and `dart:js_interop` use, and is reached through its `*_decoder` only. `catalog_assets` stays pure Dart: the page pool and the renderer seam live in it, and a decoder implements the seam. `panel_shell`, `panel_pages` and `panel_presentation` depend on no decoder or native package; only the host wires a decoder into a `DecoderRegistry`. Rule 8 is held by convention: the dependency lint is not extended for these packages.
 
 `chat_chrome` has no successor and there is no umbrella package. The inset
 arbiter is not a shared leaf: it is a property of the keyboard-replacement
