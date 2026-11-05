@@ -16,6 +16,8 @@ import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chat_composer/src/view/composer_primary_style.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:composer_editable/composer_editable.dart'
+    show ExtendedEditableTextState;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Material, MaterialType;
 import 'package:flutter/widgets.dart';
@@ -77,6 +79,18 @@ class ComposerView extends StatefulWidget {
     this.autofocus = true,
     super.key,
   });
+
+  /// Asks the platform now for the text processing actions the field's
+  /// selection toolbar offers (the apps that take selected text), so the
+  /// first composer that mounts does not.
+  ///
+  /// They are asked once per app run. On Android the query blocks the UI
+  /// thread, and asked by the field it lands in the frame the composer first
+  /// shows in, often during the route transition bringing the chat in. A host
+  /// calls this at an idle moment before its first composer, such as after
+  /// its first frame. Calls after the first do nothing.
+  static void prefetchTextActions() =>
+      ExtendedEditableTextState.prefetchProcessTextActions();
 
   /// The input state: text, focus, selection, soft keyboard mode. Its
   /// `extent` and `fieldHeight` receive what the view measures.

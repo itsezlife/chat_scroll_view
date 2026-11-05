@@ -41,4 +41,14 @@ void main() {
     await tester.pump();
     expect(queries, 1);
   });
+
+  testWidgets('a field after a prefetch asks no more', (tester) async {
+    ExtendedEditableTextState.prefetchProcessTextActions();
+    ExtendedEditableTextState.prefetchProcessTextActions();
+    expect(queries, 1);
+
+    await tester.pumpWidget(field(const Key('first')));
+    await tester.pump();
+    expect(queries, 1);
+  });
 }

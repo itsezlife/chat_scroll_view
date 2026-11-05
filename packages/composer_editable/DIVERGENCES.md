@@ -24,7 +24,7 @@ Against its baseline, each vendored file changed by (git diff, lines):
 
 | Vendored file | Lines added | Lines removed |
 | --- | ---: | ---: |
-| `lib/src/widget/editable_text.dart` | 473 | 561 |
+| `lib/src/widget/editable_text.dart` | 484 | 561 |
 | `lib/src/widget/text_selection.dart` | 1680 | 635 |
 | `lib/src/widget/_web_browser_detection_io.dart` | 0 | 0 |
 | `lib/src/widget/_web_browser_detection_web.dart` | 0 | 0 |
@@ -294,7 +294,10 @@ engine; the first one took 32 ms there, and the composer's field mounts
 again whenever a message selection ends, so it asked again each time.
 `ExtendedEditableText` queries once per app run and shares the result with
 every field. An app installed while the app runs shows in the toolbar from
-the next run. Tests reset it with `debugResetProcessTextActions`.
+the next run. A host can make the query earlier, at an idle moment, with
+`ExtendedEditableTextState.prefetchProcessTextActions`, so it does not land
+in the frame the first field shows in. Tests reset it with
+`debugResetProcessTextActions`.
 
 ### Seams not in stock
 
