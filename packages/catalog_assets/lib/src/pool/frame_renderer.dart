@@ -15,6 +15,9 @@ import 'package:meta/meta.dart';
 /// first use. Native adapters back it with memory the render isolate and the
 /// UI isolate both see; [ListFramePageMemory] keeps it on the Dart heap.
 abstract interface class FramePageMemory {
+  /// Bytes of one pixel: premultiplied RGBA.
+  static const int bytesPerPixel = 4;
+
   /// Page edge in pixels.
   int get pageSide;
 
@@ -38,8 +41,9 @@ final class ListFramePageMemory implements FramePageMemory {
   final Map<int, Uint8List> _pages = <int, Uint8List>{};
 
   @override
-  Uint8List page(int pageIndex) =>
-      _pages[pageIndex] ??= Uint8List(pageSide * pageSide * 4);
+  Uint8List page(int pageIndex) => _pages[pageIndex] ??= Uint8List(
+    pageSide * pageSide * FramePageMemory.bytesPerPixel,
+  );
 
   @override
   void drop(int pageIndex) => _pages.remove(pageIndex);
@@ -85,12 +89,14 @@ final class FrameJob {
 ///
 /// ## Contract
 ///
-/// - [render] completes with the jobs that now hold their frame. A job left out
+/// - [render] completes with the indices, into `jobs`, of the jobs that now
+///   hold their frame. Indices, not the jobs: a renderer on another isolate or
+///   thread need not hand back the same objects. A job whose index is left out
 ///   failed or was dropped; its slot keeps what it had and nothing else about
 ///   the batch changes. It never throws for one bad job.
 /// - A job writes inside its slot, premultiplied, and touches no other byte.
 /// - An empty batch completes with an empty list and writes nothing.
 abstract interface class FrameRenderer {
   /// Renders every job of [jobs] into [memory].
-  Future<List<FrameJob>> render(List<FrameJob> jobs, FramePageMemory memory);
+  Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory);
 }

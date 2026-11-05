@@ -5,6 +5,7 @@ import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 import 'package:catalog_assets/src/pool/frame_page_images.dart';
 import 'package:catalog_assets/src/pool/frame_pool.dart';
 import 'package:catalog_assets/src/pool/frame_renderer.dart';
+import 'package:flutter/foundation.dart' show Listenable;
 
 /// What an entry has rendered, shared by every handle on it.
 final class _FrameState {
@@ -119,21 +120,51 @@ typedef FrameBatch<K extends Object> = ({
 /// Single-threaded on the UI isolate; the renderer may work elsewhere.
 final class FrameAtlas<K extends Object> {
   /// Creates an atlas of the pages [budgetBytes] pays for.
-  FrameAtlas({
-    required this.renderer,
+  ///
+  /// [memoryPressure], when given, releases every idle entry each time it
+  /// fires; [dispose] stops listening.
+  ///
+  /// A factory: the pool's callbacks close over the states and the images, so
+  /// those are built first, in order, and the private constructor receives
+  /// finished objects.
+  factory FrameAtlas({
+    required FrameRenderer renderer,
     required FramePageMemory memory,
-    this.budgetBytes = defaultBudgetBytes,
+    int budgetBytes = defaultBudgetBytes,
     List<int> sizeClasses = defaultSizeClasses,
     FramePageUploader upload = uploadFramePage,
-  }) : _memory = memory {
-    _images = FramePageImages(memory: memory, upload: upload);
-    _pool = FramePool<K>(
+    Listenable? memoryPressure,
+  }) {
+    final states = <K, _FrameState>{};
+    final images = FramePageImages(memory: memory, upload: upload);
+    final pool = FramePool<K>(
       pageSide: memory.pageSide,
       budgetBytes: budgetBytes,
       sizeClasses: sizeClasses,
-      onEvict: _states.remove,
-      onPageReleased: _images.release,
+      onEvict: states.remove,
+      onPageReleased: images.release,
     );
+    return FrameAtlas._(
+      renderer,
+      memory,
+      budgetBytes,
+      states,
+      images,
+      pool,
+      memoryPressure,
+    );
+  }
+
+  FrameAtlas._(
+    this.renderer,
+    this._memory,
+    this.budgetBytes,
+    this._states,
+    this._images,
+    this._pool,
+    this._memoryPressure,
+  ) {
+    _memoryPressure?.addListener(releaseUnpinned);
   }
 
   /// Page edge a host gives its [FramePageMemory]: 1024 px, so the default
@@ -156,9 +187,10 @@ final class FrameAtlas<K extends Object> {
   final int budgetBytes;
 
   final FramePageMemory _memory;
-  late final FramePageImages _images;
-  late final FramePool<K> _pool;
-  final Map<K, _FrameState> _states = <K, _FrameState>{};
+  final FramePageImages _images;
+  final FramePool<K> _pool;
+  final Map<K, _FrameState> _states;
+  final Listenable? _memoryPressure;
   Future<void> _chain = Future<void>.value();
   bool _disposed = false;
 
@@ -240,6 +272,7 @@ final class FrameAtlas<K extends Object> {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _memoryPressure?.removeListener(releaseUnpinned);
     _images.dispose();
     _states.clear();
   }
@@ -254,7 +287,7 @@ final class FrameAtlas<K extends Object> {
       if (_disposed || requests.isEmpty) {
         return (rendered: rendered, failed: failed);
       }
-      final jobs = <FrameJob, FrameHandle<K>>{
+      final jobs = [
         for (final request in requests)
           FrameJob(
             slot: request.handle._lease.slot,
@@ -262,20 +295,20 @@ final class FrameAtlas<K extends Object> {
             width: request.handle.width,
             height: request.handle.height,
             source: request.handle.source,
-          ): request.handle,
-      };
-      final done = await renderer.render(jobs.keys.toList(), _memory);
+          ),
+      ];
+      final done = (await renderer.render(jobs, _memory)).toSet();
       if (_disposed) return (rendered: rendered, failed: failed);
-      final doneJobs = done.toSet();
-      jobs.forEach((job, handle) {
-        if (doneJobs.contains(job)) {
-          handle._state.frame = job.frame;
-          _images.markDirty(job.slot.pageIndex);
+      for (var i = 0; i < jobs.length; i++) {
+        final handle = requests[i].handle;
+        if (done.contains(i)) {
+          handle._state.frame = jobs[i].frame;
+          _images.markDirty(jobs[i].slot.pageIndex);
           rendered.add(handle);
         } else {
           failed.add(handle);
         }
-      });
+      }
       await _images.flush();
       return (rendered: rendered, failed: failed);
     } finally {

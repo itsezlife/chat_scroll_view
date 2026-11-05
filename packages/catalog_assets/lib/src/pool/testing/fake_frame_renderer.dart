@@ -28,20 +28,17 @@ final class FakeFrameRenderer implements FrameRenderer {
   }
 
   @override
-  Future<List<FrameJob>> render(
-    List<FrameJob> jobs,
-    FramePageMemory memory,
-  ) async {
+  Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory) async {
     final gate = _gate;
     if (gate != null) await gate.future;
-    if (jobs.isEmpty) return const <FrameJob>[];
+    if (jobs.isEmpty) return const <int>[];
     batches.add([for (final job in jobs) job.frame]);
 
-    final rendered = <FrameJob>[];
-    for (final job in jobs) {
-      if (job.source == rejected) continue;
-      _write(job, memory);
-      rendered.add(job);
+    final rendered = <int>[];
+    for (var i = 0; i < jobs.length; i++) {
+      if (jobs[i].source == rejected) continue;
+      _write(jobs[i], memory);
+      rendered.add(i);
     }
     return rendered;
   }
@@ -54,7 +51,8 @@ final class FakeFrameRenderer implements FrameRenderer {
     final red = job.frame % 256;
     for (var y = 0; y < job.height; y++) {
       for (var x = 0; x < job.width; x++) {
-        final at = ((top + y) * side + left + x) * 4;
+        final at =
+            ((top + y) * side + left + x) * FramePageMemory.bytesPerPixel;
         bytes[at] = red;
         bytes[at + 1] = 255 - red;
         bytes[at + 2] = 0;

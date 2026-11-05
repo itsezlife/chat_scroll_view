@@ -17,6 +17,30 @@ Future<ui.Image> _upload(Uint8List pixels, int side) {
   return Future.value(image);
 }
 
+/// Fills slots through [_inner] but answers with fixed [answer] indices and
+/// copied jobs, as a renderer across an isolate boundary would.
+final class _IndexOnlyRenderer implements FrameRenderer {
+  _IndexOnlyRenderer(this._inner, {required this.answer});
+
+  final FrameRenderer _inner;
+  final List<int> answer;
+
+  @override
+  Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory) async {
+    await _inner.render([
+      for (final job in jobs)
+        FrameJob(
+          slot: job.slot,
+          frame: job.frame,
+          width: job.width,
+          height: job.height,
+          source: job.source,
+        ),
+    ], memory);
+    return answer;
+  }
+}
+
 void main() {
   late FakeFrameRenderer renderer;
   late ListFramePageMemory memory;
@@ -140,6 +164,41 @@ void main() {
       expect(good.sprite, isNotNull);
     });
 
+    test(
+      'a renderer on another thread answers by index, not identity',
+      () async {
+        final remote = _IndexOnlyRenderer(FakeFrameRenderer(), answer: [1]);
+        final remoteAtlas = FrameAtlas<String>(
+          renderer: remote,
+          memory: ListFramePageMemory(pageSide: 256),
+          budgetBytes: _budget,
+          sizeClasses: const [128, 256],
+          upload: _upload,
+        );
+        addTearDown(remoteAtlas.dispose);
+        final first = remoteAtlas.acquire(
+          'first',
+          source: 'ok',
+          width: 100,
+          height: 90,
+        )!;
+        final second = remoteAtlas.acquire(
+          'second',
+          source: 'ok',
+          width: 100,
+          height: 90,
+        )!;
+
+        final batch = await remoteAtlas.render([
+          (handle: first, frame: 0),
+          (handle: second, frame: 0),
+        ]);
+
+        expect(batch.rendered, [second]);
+        expect(batch.failed, [first]);
+      },
+    );
+
     test('a released handle in a batch is a state error', () async {
       final handle = acquire('a')!;
       handle.release();
@@ -240,6 +299,37 @@ void main() {
       expect(atlas.isResident('a'), isFalse);
       expect(atlas.residentBytes, 0);
     });
+
+    test(
+      'memory pressure releases idle entries, and dispose stops listening',
+      () async {
+        final pressure = ManualMemoryPressure();
+        final pressured = FrameAtlas<String>(
+          renderer: renderer,
+          memory: ListFramePageMemory(pageSide: 256),
+          budgetBytes: _budget,
+          sizeClasses: const [128, 256],
+          upload: _upload,
+          memoryPressure: pressure,
+        );
+        final handle = pressured.acquire(
+          'a',
+          source: 'ok',
+          width: 100,
+          height: 90,
+        )!;
+        await pressured.render([(handle: handle, frame: 0)]);
+        handle.release();
+        expect(pressured.isResident('a'), isTrue);
+
+        pressure.raise();
+
+        expect(pressured.isResident('a'), isFalse);
+        expect(pressure.isListened, isTrue);
+        pressured.dispose();
+        expect(pressure.isListened, isFalse);
+      },
+    );
 
     test('a pinned handle survives releaseUnpinned', () async {
       final handle = acquire('a')!;
