@@ -20,9 +20,11 @@ const _expectedAbiVersion = 1;
 final class NativeLottieBinding implements LottieBinding {
   /// Probes the library once: a guarded `chat_lottie_abi_version()` call.
   ///
-  /// A missing library or symbol (an `ArgumentError` at the first call) or a
-  /// version other than 1 yields a binding that is not available. Nothing is
-  /// logged here; the host logs once through its diagnostics.
+  /// A missing library or symbol (an `ArgumentError` at the first call) is
+  /// [LottieAvailability.missingLibrary]; a version other than 1 is
+  /// [LottieAvailability.abiMismatch]. Any other error is not an answer about
+  /// the library and propagates. Nothing is logged here; the host logs once
+  /// through its diagnostics.
   factory NativeLottieBinding.probe() =>
       NativeLottieBinding.probing(chatLottieAbiVersion);
 
@@ -30,23 +32,30 @@ final class NativeLottieBinding implements LottieBinding {
   /// in a library that lacks it or speaks another version.
   @visibleForTesting
   NativeLottieBinding.probing(int Function() abiVersion)
-    : isAvailable = _probe(abiVersion);
+    : availability = _probe(abiVersion);
 
-  static bool _probe(int Function() abiVersion) {
+  static LottieAvailability _probe(int Function() abiVersion) {
     try {
-      return abiVersion() == _expectedAbiVersion;
-      // A symbol the library lacks surfaces as an ArgumentError; any other
-      // failure to call is the same answer for the host: not available.
-    } on Object {
-      return false;
+      return abiVersion() == _expectedAbiVersion
+          ? LottieAvailability.available
+          : LottieAvailability.abiMismatch;
+      // A symbol the library lacks surfaces as exactly this Error: it is the
+      // dynamic-linking answer being probed for, not a bug to propagate.
+      // ignore: avoid_catching_errors
+    } on ArgumentError {
+      return LottieAvailability.missingLibrary;
     }
   }
 
   @override
-  final bool isAvailable;
+  final LottieAvailability availability;
+
+  @override
+  bool get isAvailable => availability == LottieAvailability.available;
 
   final Map<int, Pointer<Void>> _handles = {};
   int _nextId = 1;
+  bool _closed = false;
 
   @override
   LottieLoadResult load(Uint8List bytes) {
@@ -59,7 +68,9 @@ final class NativeLottieBinding implements LottieBinding {
     try {
       data.asTypedList(bytes.length).setAll(0, bytes);
       final status = chatLottieLoad(data, bytes.length, info, out);
-      if (status != 0) return LottieRejected(_rejection(status));
+      if (status != ChatLottieStatus.ok) {
+        return LottieRejected(rejectionFor(status));
+      }
 
       final id = _nextId++;
       _handles[id] = out.value;
@@ -101,11 +112,13 @@ final class NativeLottieBinding implements LottieBinding {
           ..strideBytes = job.strideBytes;
       }
       final status = chatLottieRenderBatch(native, jobs.length, statuses);
-      if (status != 0) {
-        return List.filled(jobs.length, LottieRenderStatus.badArgument);
+      // A nonzero batch status means jobs or statuses was null, which this
+      // code cannot produce: a bug here, not a verdict on any job.
+      if (status != ChatLottieStatus.ok) {
+        throw StateError('chat_lottie_render_batch returned $status.');
       }
       return [
-        for (var i = 0; i < jobs.length; i++) _jobStatus(jobs[i], statuses[i]),
+        for (var i = 0; i < jobs.length; i++) renderStatusFor(statuses[i]),
       ];
     } finally {
       calloc
@@ -120,6 +133,13 @@ final class NativeLottieBinding implements LottieBinding {
     if (pointer != null) chatLottieFree(pointer);
   }
 
+  @override
+  void close() {
+    _closed = true;
+    _handles.values.forEach(chatLottieFree);
+    _handles.clear();
+  }
+
   void _requireAvailable() {
     if (!isAvailable) {
       throw StateError(
@@ -127,38 +147,27 @@ final class NativeLottieBinding implements LottieBinding {
         'NativeLottieBinding only when isAvailable is true.',
       );
     }
+    if (_closed) throw StateError('The native Lottie binding is closed.');
   }
 
-  // Header: -2 over a size cap, -4 a renderer limit, -5 nothing to draw;
-  // -3 and anything unknown (including -1) read as a bad file.
-  static LottieRejection _rejection(int status) => switch (status) {
-    -2 => LottieRejection.tooLarge,
-    -4 => LottieRejection.limitExceeded,
-    -5 => LottieRejection.unsupported,
+  /// The rejection a load [status] stands for; anything unknown reads as a
+  /// bad file.
+  @visibleForTesting
+  static LottieRejection rejectionFor(int status) => switch (status) {
+    ChatLottieStatus.tooLarge => LottieRejection.tooLarge,
+    ChatLottieStatus.limitExceeded => LottieRejection.limitExceeded,
+    ChatLottieStatus.unsupported => LottieRejection.unsupported,
+    ChatLottieStatus.internal => LottieRejection.internal,
     _ => LottieRejection.malformed,
   };
 
-  // The library answers a zero size with -1; the interface (and its fake)
-  // call that badSize once the handle, target and frame are fine, so the
-  // contract reads the same over both.
-  LottieRenderStatus _jobStatus(LottieRenderJob job, int status) {
-    final mapped = _renderStatus(status);
-    if (mapped == LottieRenderStatus.badArgument &&
-        (job.width <= 0 || job.height <= 0) &&
-        _handles.containsKey(job.handle.id) &&
-        job.target.address != 0 &&
-        job.frame.isFinite &&
-        job.frame >= 0) {
-      return LottieRenderStatus.badSize;
-    }
-    return mapped;
-  }
-
-  // Header: -1 bad argument, -2 stride or size overflow, -3 render failed.
-  static LottieRenderStatus _renderStatus(int status) => switch (status) {
-    0 => LottieRenderStatus.ok,
-    -1 => LottieRenderStatus.badArgument,
-    -2 => LottieRenderStatus.badSize,
+  /// The job status a render [status] stands for; anything unknown is a
+  /// failed render.
+  @visibleForTesting
+  static LottieRenderStatus renderStatusFor(int status) => switch (status) {
+    ChatLottieStatus.ok => LottieRenderStatus.ok,
+    ChatLottieStatus.invalidArgument => LottieRenderStatus.badArgument,
+    ChatLottieStatus.badSize => LottieRenderStatus.badSize,
     _ => LottieRenderStatus.failed,
   };
 }

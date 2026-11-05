@@ -37,9 +37,62 @@ void main() {
       expect(() => binding.renderBatch(const []), throwsStateError);
     });
 
-    test('reports unavailable for an ABI version other than 1', () {
-      expect(NativeLottieBinding.probing(() => 2).isAvailable, isFalse);
-      expect(NativeLottieBinding.probing(() => 1).isAvailable, isTrue);
+    test('says the library is missing', () {
+      expect(
+        NativeLottieBinding.probing(missingAbiVersion).availability,
+        LottieAvailability.missingLibrary,
+      );
+    });
+
+    test('says the ABI differs for a version other than 1', () {
+      final other = NativeLottieBinding.probing(() => 2);
+
+      expect(other.isAvailable, isFalse);
+      expect(other.availability, LottieAvailability.abiMismatch);
+      final same = NativeLottieBinding.probing(() => 1);
+      expect(same.isAvailable, isTrue);
+      expect(same.availability, LottieAvailability.available);
+    });
+
+    test('lets any other error out of the probe', () {
+      expect(
+        () => NativeLottieBinding.probing(() => throw StateError('bug')),
+        throwsStateError,
+      );
+    });
+  });
+
+  group('status mapping', () {
+    test('each load status reads as one rejection', () {
+      expect(
+        {
+          for (final status in [-2, -3, -4, -5, -6])
+            status: NativeLottieBinding.rejectionFor(status),
+        },
+        {
+          -2: LottieRejection.tooLarge,
+          -3: LottieRejection.malformed,
+          -4: LottieRejection.limitExceeded,
+          -5: LottieRejection.unsupported,
+          -6: LottieRejection.internal,
+        },
+      );
+    });
+
+    test('each render status reads as one job status', () {
+      expect(
+        {
+          for (final status in [0, -1, -6, -7, -8])
+            status: NativeLottieBinding.renderStatusFor(status),
+        },
+        {
+          0: LottieRenderStatus.ok,
+          -1: LottieRenderStatus.badArgument,
+          -6: LottieRenderStatus.failed,
+          -7: LottieRenderStatus.badSize,
+          -8: LottieRenderStatus.failed,
+        },
+      );
     });
   });
 

@@ -9,23 +9,37 @@ import 'dart:io';
 
 import 'package:code_assets/code_assets.dart';
 
-/// The Rust target triple for [os] and [architecture].
+/// The Rust target triple for [os] and [architecture], or null when this
+/// slice does not build for it.
 ///
-/// Only macOS is built from source in this slice. Every other target throws,
-/// naming what lands later, so a host on Linux or Android reads the plan
-/// instead of a linker error.
-String rustTargetFor(OS os, Architecture architecture) {
+/// Only macOS is built from source in this slice. Another target gets no
+/// asset rather than a failed build: a host that never registers the binding
+/// (it probes first) still builds and runs, and the probe reports
+/// [unsupportedTargetWarning]'s consequence at run time.
+String? rustTargetFor(OS os, Architecture architecture) {
   if (os == OS.macOS) {
     if (architecture == Architecture.arm64) return 'aarch64-apple-darwin';
     if (architecture == Architecture.x64) return 'x86_64-apple-darwin';
   }
-  throw UnsupportedError(
-    'lottie_native builds its native library from source on macOS (arm64 and '
-    'x86_64) only; this build targets $os/$architecture. Android, iOS, '
-    'Windows and Linux arrive with slice 6: hash-pinned prebuilt libraries '
-    'and an opt-in flag to compile from source.',
-  );
+  return null;
 }
+
+/// The warning the hook logs when [rustTargetFor] has no answer.
+String unsupportedTargetWarning(OS os, Architecture architecture) =>
+    'lottie_native builds its native library from source on macOS (arm64 and '
+    'x86_64) only; this build targets $os/$architecture, so no library is '
+    'bundled and it is unavailable at run time (NativeLottieBinding.probe() '
+    'reports missingLibrary). Android, iOS, Windows and Linux arrive with '
+    'slice 6: hash-pinned prebuilt libraries and an opt-in flag to compile '
+    'from source.';
+
+/// A line to append to a failed cargo run's message when [output] says the
+/// Rust standard library for [target] is not installed, else null.
+String? missingTargetHint(String output, String target) =>
+    output.contains("can't find crate for") ||
+        output.contains('target may not be installed')
+    ? 'rustup target add $target'
+    : null;
 
 /// Thrown when no `cargo` executable can be found.
 final class CargoNotFound implements Exception {

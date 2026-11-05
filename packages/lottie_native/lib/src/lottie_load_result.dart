@@ -42,6 +42,10 @@ enum LottieRejection {
 
   /// Nothing to show: no pixels, no frames, or a non-finite frame rate.
   unsupported,
+
+  /// The wrapper hit a bug of its own (a caught panic). Not a verdict on the
+  /// file: a host must not cache it as one, and may try the file again.
+  internal,
 }
 
 /// What a loaded file declares about itself.

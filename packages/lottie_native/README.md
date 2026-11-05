@@ -15,21 +15,24 @@ This package holds the interface, the fake, the contract, the native binding
 build's macOS architecture (arm64 or x86_64) and registers the dylib as a
 bundled code asset. It finds `cargo` on `PATH`, then under `CARGO_HOME`, then
 in `~/.cargo/bin`; without Rust it fails and says to install it from
-[rustup.rs](https://rustup.rs). Other targets fail with an `UnsupportedError`
-naming slice 6 (hash-pinned prebuilt libraries and an opt-in compile flag). A
+[rustup.rs](https://rustup.rs). Other targets emit no asset and log a warning that
+the library is then unavailable at run time (the probe reports
+`missingLibrary`) until slice 6 (hash-pinned prebuilt libraries and an opt-in
+compile flag). When cargo fails for a missing Rust target, the message ends
+with the `rustup target add` line. A
 first build needs network for the crates and the pinned tlottie commit.
 
 ## Types
 
 | Type | Role |
 | --- | --- |
-| `LottieBinding` | The interface: `isAvailable`, `load`, `renderBatch`, `dispose`. A native binding, a fake and a web binding satisfy it. |
+| `LottieBinding` | The interface: `availability` (`LottieAvailability`: `available`, `missingLibrary`, `abiMismatch`) and `isAvailable`, `load`, `renderBatch`, `dispose`, `close` (frees every live handle; later `load` / `renderBatch` throw `StateError`). A native binding, a fake and a web binding satisfy it. |
 | `LottieLoadResult` | Sealed: `LottieLoaded(handle, info)` or `LottieRejected(reason)`. A bad file is a value, never an exception. |
-| `LottieRejection` | `tooLarge`, `malformed`, `limitExceeded`, `unsupported`, mirroring the wrapper's load statuses. |
+| `LottieRejection` | `tooLarge`, `malformed`, `limitExceeded`, `unsupported`, `internal`, mirroring the wrapper's load statuses. `internal` is a bug in the wrapper, never the file's fault: do not cache it as a verdict on the file. |
 | `LottieInfo` | Size, frame count, frame rate and `LottieFeatures` of a loaded file. |
 | `LottieFeatures` | Bitmask of what the file uses and the renderer does not draw: effects, expressions, image layers, text layers. Informational. |
-| `NativeLottieBinding` | The binding over the compiled library. `NativeLottieBinding.probe()` calls `chat_lottie_abi_version()` once; a missing library or symbol, or a version other than 1, yields `isAvailable == false`. It logs nothing. |
-| `LottieRenderJob` / `LottieRenderStatus` | One frame into a slot of page memory (premultiplied RGBA, rows `strideBytes` apart); `ok`, `badArgument`, `badSize`, `failed`. |
+| `NativeLottieBinding` | The binding over the compiled library. `NativeLottieBinding.probe()` calls `chat_lottie_abi_version()` once; a missing library or symbol is `missingLibrary`, a version other than 1 is `abiMismatch`; any other error propagates. It logs nothing. |
+| `LottieRenderJob` / `LottieRenderStatus` | One frame into a slot of page memory (premultiplied RGBA, rows `strideBytes` apart); `ok`, `badArgument`, `badSize`, `failed`. A slot edge is at most `LottieRenderJob.maxEdge` (512): a decoder's size classes must not exceed it. |
 
 ## Host contract
 

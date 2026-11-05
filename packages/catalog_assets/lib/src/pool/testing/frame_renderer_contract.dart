@@ -76,7 +76,7 @@ abstract final class FrameRendererContract {
 
         final rendered = await harness.renderer.render([job], harness.memory);
 
-        expect(rendered, [job]);
+        expect(rendered, [0]);
         expect(
           region(slot).any((byte) => byte != 0),
           isTrue,
@@ -144,7 +144,7 @@ abstract final class FrameRendererContract {
 
         final rendered = await harness.renderer.render(jobs, harness.memory);
 
-        expect(rendered, unorderedEquals(jobs));
+        expect(rendered, unorderedEquals([0, 1, 2, 3, 4, 5]));
       });
 
       test(
@@ -153,14 +153,13 @@ abstract final class FrameRendererContract {
           final good = allocator.allocate(48, 48)!;
           final bad = allocator.allocate(48, 48)!;
           final beforeBad = region(bad);
-          final goodJob = harness.job(good, 0);
 
           final rendered = await harness.renderer.render([
             harness.unrenderable(bad),
-            goodJob,
+            harness.job(good, 0),
           ], harness.memory);
 
-          expect(rendered, [goodJob]);
+          expect(rendered, [1], reason: 'the index of the good job');
           expect(
             region(bad),
             beforeBad,

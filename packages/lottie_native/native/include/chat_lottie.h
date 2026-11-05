@@ -4,8 +4,11 @@
  * independent, so rendering different handles on different threads in
  * parallel is fine.
  *
+ * Lifetime: a handle is freed exactly once; a second free is undefined.
+ *
  * Panics never cross this boundary: a panic inside a call becomes the
- * "malformed" / "render failed" status (-3) or a null result.
+ * "internal" status (-6), which is a bug in this library and never the
+ * file's fault.
  */
 #ifndef CHAT_LOTTIE_H
 #define CHAT_LOTTIE_H
@@ -17,14 +20,18 @@
 extern "C" {
 #endif
 
-/* Status codes. 0 is success, every failure is negative. */
+/* Status codes. 0 is success, every failure is negative, and a code means
+ * one thing across load and render. */
 enum {
   CHAT_LOTTIE_OK = 0,
-  CHAT_LOTTIE_INVALID_ARGUMENT = -1,
-  CHAT_LOTTIE_TOO_LARGE = -2,       /* load: over a size cap; render: stride or size overflow */
-  CHAT_LOTTIE_MALFORMED = -3,       /* load: not gzip, not JSON, parse error; render: draw failed */
-  CHAT_LOTTIE_LIMIT_EXCEEDED = -4,  /* load: a tlottie Limits budget tripped */
-  CHAT_LOTTIE_UNSUPPORTED = -5      /* load: nothing to draw, or non-finite frame rate */
+  CHAT_LOTTIE_INVALID_ARGUMENT = -1, /* a null pointer or a bad enum */
+  CHAT_LOTTIE_TOO_LARGE = -2,        /* load: encoded or inflated input over its cap */
+  CHAT_LOTTIE_MALFORMED = -3,        /* load: not gzip, not JSON, parse error */
+  CHAT_LOTTIE_LIMIT_EXCEEDED = -4,   /* load: a tlottie Limits budget tripped */
+  CHAT_LOTTIE_UNSUPPORTED = -5,      /* load: nothing to draw, or non-finite frame rate */
+  CHAT_LOTTIE_INTERNAL = -6,         /* a panic caught at the boundary: a bug, never the file's fault */
+  CHAT_LOTTIE_BAD_SIZE = -7,         /* render: zero edge, edge over 512, stride under the row width, byte-size overflow */
+  CHAT_LOTTIE_RENDER_FAILED = -8     /* render: the frame could not be drawn */
 };
 
 /* Features of the file that tlottie does not render. Informational: a file
@@ -66,14 +73,14 @@ uint32_t chat_lottie_abi_version(void);
 int32_t chat_lottie_load(const uint8_t *data, size_t len, ChatLottieInfo *out_info,
                          ChatLottie **out_handle);
 
-/* Releases a handle. NULL is accepted. */
+/* Releases a handle. NULL is accepted; any other handle is freed exactly
+ * once (a second free is undefined). */
 void chat_lottie_free(ChatLottie *handle);
 
 /* Renders every job as premultiplied RGBA, bytes [R, G, B, A], writing only
  * the first width * 4 bytes of each of height rows at target. statuses[i] is
- * 0 or a negative code (-1 bad argument or null, -2 stride or size overflow
- * or an edge over 512, -3 render failed); one bad job never stops the
- * others. Returns 0 when the batch ran, -1 when jobs or statuses is NULL
+ * 0 or a negative code (-1 null handle or target, -6 internal, -7 bad size,
+ * -8 render failed); one bad job never stops the others. Returns 0 when the batch ran, -1 when jobs or statuses is NULL
  * with count > 0. */
 int32_t chat_lottie_render_batch(const ChatLottieJob *jobs, size_t count, int32_t *statuses);
 

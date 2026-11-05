@@ -7,6 +7,20 @@
 // ignore_for_file: public_member_api_docs
 import 'dart:ffi';
 
+/// The status numbers of `chat_lottie.h`, in one place so no other file
+/// carries a bare literal.
+abstract final class ChatLottieStatus {
+  static const ok = 0;
+  static const invalidArgument = -1;
+  static const tooLarge = -2;
+  static const malformed = -3;
+  static const limitExceeded = -4;
+  static const unsupported = -5;
+  static const internal = -6;
+  static const badSize = -7;
+  static const renderFailed = -8;
+}
+
 /// `ChatLottieInfo`.
 final class ChatLottieInfo extends Struct {
   @Uint32()

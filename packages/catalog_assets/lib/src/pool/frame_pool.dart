@@ -1,3 +1,4 @@
+import 'package:catalog_assets/src/pool/frame_renderer.dart';
 import 'package:catalog_assets/src/pool/frame_slot_allocator.dart';
 import 'package:flutter/foundation.dart';
 
@@ -76,10 +77,9 @@ final class FramePool<K extends Object> {
          onPageReleased: onPageReleased,
        );
 
-  static const int _bytesPerPixel = 4;
-
   static int _pagesIn(int pageSide, int budgetBytes) {
-    final pages = budgetBytes ~/ (pageSide * pageSide * _bytesPerPixel);
+    final pages =
+        budgetBytes ~/ (pageSide * pageSide * FramePageMemory.bytesPerPixel);
     if (pages < 1) {
       throw ArgumentError.value(
         budgetBytes,

@@ -58,12 +58,14 @@ reproducibility; performance benchmarks report nightly and never block a merge.
 
 [ADR 042](042-native-media-decoding.md) adds native engines. Their tests keep
 the shape of this ADR: contracts over fakes, with the real binding as one more
-implementation of the same suite.
+implementation of the same suite. Rows that name a package or a build not in
+the repository yet apply when that adapter lands; they are the plan, not
+present facts.
 
 | Area | Decision |
 | ---- | -------- |
-| Adapters | `lottie_decoder` and `video_decoder` run `DecoderContract.run` against their fake binding, so no test of an adapter needs a native library. |
-| Alpha | One golden with a semi-transparent sticker (premultiplied output, no fringing) runs against the native build and the WebAssembly build on the `golden_baseline` host; both must match the same baseline within the documented tolerance. |
-| Fuzzing | A fixed corpus of malformed files (including the known 269-byte file and truncated and mutated TGS, JSON and WebM) replays against the wrapper's input checks on every pull request and must finish in under a minute. A longer coverage-guided fuzz runs nightly and opens an issue on a finding; like the benchmarks it never blocks a merge. |
-| Load failure | A test per decoder proves that a failed probe leaves the form unregistered and the placeholder in place. |
+| Adapters | When the adapter lands, `lottie_decoder` and `video_decoder` run `DecoderContract.run` against their fake binding, so no test of an adapter needs a native library. |
+| Alpha | When the adapter lands, one golden with a semi-transparent sticker (premultiplied output, no fringing) runs against the native build and the WebAssembly build on the `golden_baseline` host; both must match the same baseline within the documented tolerance. |
+| Fuzzing | The wrapper's crate replays a seeded corpus (prefix truncations, zero bytes, byte mutations) through `chat_lottie_load` in its own tests today; when the adapter lands, a fixed corpus of malformed files (including the known 269-byte file and truncated and mutated TGS, JSON and WebM) replays against the wrapper's input checks on every pull request and must finish in under a minute. A longer coverage-guided fuzz runs nightly and opens an issue on a finding; like the benchmarks it never blocks a merge. |
+| Load failure | When the adapter lands, a test per decoder proves that a failed probe leaves the form unregistered and the placeholder in place. |
 | Benchmark | A scroll benchmark with animated stickers extends `scroll_trace` and reports nightly as ratios, per the performance rule above. |

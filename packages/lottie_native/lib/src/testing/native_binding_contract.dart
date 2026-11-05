@@ -67,8 +67,10 @@ abstract final class NativeBindingContract {
 
       test('the probe says available, and stays so', () {
         expect(harness.binding.isAvailable, isTrue);
+        expect(harness.binding.availability, LottieAvailability.available);
         load();
         expect(harness.binding.isAvailable, isTrue);
+        expect(harness.binding.availability, LottieAvailability.available);
       });
 
       test('valid bytes load with the expected info', () {
@@ -117,6 +119,21 @@ abstract final class NativeBindingContract {
         expect(page.slot().any((byte) => byte != 0), isTrue);
       });
 
+      test('an edge over the maximum is a bad size', () {
+        final handle = load();
+        final page = _Page();
+        addTearDown(page.free);
+        final wide = page.job(
+          handle,
+          harness.earlyFrame,
+          width: LottieRenderJob.maxEdge + 1,
+        );
+
+        expect(harness.binding.renderBatch([wide]), [
+          LottieRenderStatus.badSize,
+        ]);
+      });
+
       test('a disposed handle is refused, not crashed on', () {
         final handle = load();
         harness.binding.dispose(handle);
@@ -147,7 +164,36 @@ abstract final class NativeBindingContract {
         final off = make();
 
         expect(off.isAvailable, isFalse);
+        expect(off.availability, isNot(LottieAvailability.available));
         expect(() => off.load(harness.validBytes), throwsStateError);
+      });
+
+      test('close refuses load and renderBatch afterwards', () {
+        final handle = load();
+        final page = _Page();
+        addTearDown(page.free);
+
+        harness.binding.close();
+
+        expect(
+          () => harness.binding.load(harness.validBytes),
+          throwsStateError,
+        );
+        expect(
+          () => harness.binding.renderBatch([
+            page.job(handle, harness.earlyFrame),
+          ]),
+          throwsStateError,
+        );
+      });
+
+      test('close twice, and dispose after close, are harmless', () {
+        final handle = load();
+
+        harness.binding.close();
+
+        expect(() => harness.binding.close(), returnsNormally);
+        expect(() => harness.binding.dispose(handle), returnsNormally);
       });
     });
   }

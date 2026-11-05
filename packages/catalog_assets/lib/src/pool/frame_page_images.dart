@@ -81,7 +81,10 @@ final class FramePageImages {
 
   /// Bytes of the page images that exist.
   int get residentBytes =>
-      _images.length * memory.pageSide * memory.pageSide * 4;
+      _images.length *
+      memory.pageSide *
+      memory.pageSide *
+      FramePageMemory.bytesPerPixel;
 
   /// Notes that the bytes of page [pageIndex] changed.
   void markDirty(int pageIndex) {

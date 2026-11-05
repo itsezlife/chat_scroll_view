@@ -8,16 +8,20 @@ import 'package:lottie_native/src/lottie_load_result.dart';
 /// A [LottieBinding] without a native library: scripted files, and jobs that
 /// fill their slot with one premultiplied colour derived from the frame.
 final class FakeLottieBinding implements LottieBinding {
-  /// Creates a fake; with [available] false it behaves as a missing library.
-  FakeLottieBinding({this.available = true});
+  /// Creates a fake that reports [availability]; anything but
+  /// [LottieAvailability.available] behaves as an unusable library.
+  FakeLottieBinding({this.availability = LottieAvailability.available});
 
-  /// Whether [isAvailable] reports true.
-  final bool available;
+  @override
+  final LottieAvailability availability;
 
   /// Whether every otherwise valid job reports [LottieRenderStatus.failed].
   bool renderFails = false;
 
-  final _scripted = <String, LottieLoadResult Function(int handle)>{};
+  // What each scripted file answers. A scripted LottieLoaded carries a
+  // placeholder handle: load issues a fresh one per call.
+  final _scripted = <String, LottieLoadResult>{};
+  var _closed = false;
   final _live = <int, LottieInfo>{};
   var _nextHandle = 1;
 
@@ -26,35 +30,41 @@ final class FakeLottieBinding implements LottieBinding {
 
   /// Makes [bytes] load as an animation described by [info].
   void accept(Uint8List bytes, LottieInfo info) {
-    _scripted[_key(bytes)] = (id) {
-      _live[id] = info;
-      return LottieLoaded(LottieHandle(id), info);
-    };
+    _scripted[_key(bytes)] = LottieLoaded(const LottieHandle(0), info);
   }
 
   /// Makes [bytes] refuse to load for [reason]. Bytes never scripted are
   /// refused as [LottieRejection.malformed].
   void reject(Uint8List bytes, LottieRejection reason) {
-    _scripted[_key(bytes)] = (_) => LottieRejected(reason);
+    _scripted[_key(bytes)] = LottieRejected(reason);
   }
 
   static String _key(Uint8List bytes) => base64.encode(bytes);
 
   @override
-  bool get isAvailable => available;
+  bool get isAvailable => availability == LottieAvailability.available;
 
   void _requireAvailable() {
-    if (!available) {
+    if (!isAvailable) {
       throw StateError('The Lottie binding is not available.');
     }
+    if (_closed) throw StateError('The Lottie binding is closed.');
   }
 
   @override
   LottieLoadResult load(Uint8List bytes) {
     _requireAvailable();
-    final script = _scripted[_key(bytes)];
-    if (script == null) return const LottieRejected(LottieRejection.malformed);
-    return script(_nextHandle++);
+    return switch (_scripted[_key(bytes)]) {
+      LottieLoaded(:final info) => _issue(info),
+      final LottieRejected rejected => rejected,
+      null => const LottieRejected(LottieRejection.malformed),
+    };
+  }
+
+  LottieLoaded _issue(LottieInfo info) {
+    final id = _nextHandle++;
+    _live[id] = info;
+    return LottieLoaded(LottieHandle(id), info);
   }
 
   @override
@@ -71,7 +81,11 @@ final class FakeLottieBinding implements LottieBinding {
         job.frame < 0) {
       return LottieRenderStatus.badArgument;
     }
-    if (job.width <= 0 || job.height <= 0 || job.strideBytes < job.width * 4) {
+    if (job.width <= 0 ||
+        job.height <= 0 ||
+        job.width > LottieRenderJob.maxEdge ||
+        job.height > LottieRenderJob.maxEdge ||
+        job.strideBytes < job.width * 4) {
       return LottieRenderStatus.badSize;
     }
     if (renderFails) return LottieRenderStatus.failed;
@@ -99,5 +113,11 @@ final class FakeLottieBinding implements LottieBinding {
   @override
   void dispose(LottieHandle handle) {
     _live.remove(handle.id);
+  }
+
+  @override
+  void close() {
+    _closed = true;
+    _live.clear();
   }
 }
