@@ -10,6 +10,7 @@ import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
 import 'package:chat_scroll_view_example/src/common/environment_specific/host_environment.dart'
     as environment_specific;
+import 'package:chat_scroll_view_example/src/common/frame_rate_boost.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
@@ -35,6 +36,7 @@ void main() => l.capture<void>(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
       if (DemoConfig.scrollLab) ScrollLab.install();
+      FrameRateBoost.install();
       // In a browser a right-click opens the browser's own menu over the
       // app's (message menus, the composer's, the panel's) unless the app
       // takes it over.

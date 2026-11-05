@@ -65,6 +65,7 @@ import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
 import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
+import 'frame_rate_boost_test.dart' as frame_rate_boost_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
 import 'golden/demo_emoji_message_golden_test.dart'
     as demo_emoji_message_golden_test;
@@ -196,6 +197,7 @@ void main() {
   group('chat_perf/table_test.dart', chat_perf_table_test.main);
   group('chat_perf/trace_counts_test.dart', chat_perf_trace_counts_test.main);
   group('chat_viewport_insets_test.dart', chat_viewport_insets_test.main);
+  group('frame_rate_boost_test.dart', frame_rate_boost_test.main);
   group(
     'common/chat_message_markdown_test.dart',
     chat_message_markdown_test.main,
