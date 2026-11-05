@@ -13,7 +13,11 @@ environment:
   flutter: ">=3.27.0"
 
 dependencies:
+  # Both are for hook/build.dart: hook dependencies go under dependencies,
+  # not dev_dependencies.
+  code_assets: ^1.0.0
   ffi: ^2.1.0
+  hooks: ^1.0.0
   # Only lib/testing.dart needs this: the contract suite is written with the
   # test framework, and a library cannot import a dev dependency (the same
   # arrangement as catalog_assets). Production entry points never import it.
