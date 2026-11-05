@@ -20,6 +20,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/cached_label.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
@@ -514,6 +515,10 @@ void main() {
   });
 
   group('time of an ordinary message', () {
+    final time = find.byWidgetPredicate(
+      (widget) => widget is CachedLabel && widget.text == '09:05',
+    );
+
     Future<_Rig> mountBubble(
       WidgetTester tester, {
       int buttons = kPrimaryMouseButton,
@@ -527,7 +532,7 @@ void main() {
       rig.selection.startSelection(0);
       await tester.pump();
 
-      await click(tester, rig, tester.getCenter(inRow(1, find.text('09:05'))));
+      await click(tester, rig, tester.getCenter(inRow(1, time)));
       expect(rig.selection.selectedIds, <int>{0});
 
       await click(
@@ -542,7 +547,7 @@ void main() {
     chatTest('a secondary click on it opens the message menu', (tester) async {
       final rig = await mountBubble(tester, buttons: kSecondaryMouseButton);
 
-      await click(tester, rig, tester.getCenter(inRow(1, find.text('09:05'))));
+      await click(tester, rig, tester.getCenter(inRow(1, time)));
 
       expect(rig.secondary, <int>[1]);
     });

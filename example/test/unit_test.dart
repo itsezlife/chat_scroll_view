@@ -80,6 +80,7 @@ import 'pre_ime_back_native_test.dart' as pre_ime_back_native_test;
 import 'supabase_chat_data_source_test.dart' as supabase_chat_data_source_test;
 import 'theme/demo_chat_theme_test.dart' as demo_chat_theme_test;
 import 'theme/demo_markdown_theme_test.dart' as demo_markdown_theme_test;
+import 'widgets/cached_label_test.dart' as cached_label_test;
 import 'widgets/chat_composer_menu_test.dart' as chat_composer_menu_test;
 import 'widgets/chat_composer_paste_toast_test.dart'
     as chat_composer_paste_toast_test;
@@ -261,6 +262,7 @@ void main() {
   );
   group('theme/demo_chat_theme_test.dart', demo_chat_theme_test.main);
   group('theme/demo_markdown_theme_test.dart', demo_markdown_theme_test.main);
+  group('widgets/cached_label_test.dart', cached_label_test.main);
   group('widgets/chat_composer_menu_test.dart', chat_composer_menu_test.main);
   group(
     'widgets/chat_composer_paste_toast_test.dart',

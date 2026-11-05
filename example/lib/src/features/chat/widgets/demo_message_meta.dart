@@ -1,3 +1,4 @@
+import 'package:chat_scroll_view_example/src/common/widgets/cached_label.dart';
 import 'package:flutter/material.dart';
 
 /// Time (+ optional “edited” + delivery ticks) for the change-transition meta
@@ -46,17 +47,22 @@ class DemoMessageMeta extends StatelessWidget {
         if (edited) ...<Widget>[
           Opacity(
             opacity: editedOpacity.clamp(0.0, 1.0),
-            child: Text(
+            child: CachedLabel(
               'edited',
               style: TextStyle(color: color, fontSize: 11, height: 1),
             ),
           ),
           const SizedBox(width: 4),
         ],
-        Text(time, style: TextStyle(color: color, fontSize: 11, height: 1)),
+        // Labels, not [Text]: every row shows one of a few times and the same
+        // ticks, and a paragraph each would cost as much as the message.
+        CachedLabel(
+          time,
+          style: TextStyle(color: color, fontSize: 11, height: 1),
+        ),
         if (showStatus) ...<Widget>[
           const SizedBox(width: 3),
-          Icon(Icons.done_all, size: 14, color: color),
+          CachedLabel.icon(Icons.done_all, size: 14, color: color),
         ],
       ],
     );
