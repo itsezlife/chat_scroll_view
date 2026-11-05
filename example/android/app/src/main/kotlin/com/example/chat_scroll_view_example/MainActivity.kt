@@ -8,6 +8,8 @@ import android.os.Build
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.view.KeyEvent
+import android.view.Surface
+import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -57,6 +59,20 @@ class MainActivity : FlutterActivity() {
                 "filesDir" -> result.success(getExternalFilesDir(null)?.path)
                 else -> result.notImplemented()
             }
+        }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            FRAME_RATE_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "high" -> voteFrameRate(high = true)
+                "default" -> voteFrameRate(high = false)
+                else -> {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+            }
+            result.success(null)
         }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -149,6 +165,39 @@ class MainActivity : FlutterActivity() {
         preImeBackChannel?.invokeMethod("onBack", null)
     }
 
+    private var flutterSurfaceView: SurfaceView? = null
+
+    /// Votes the display's top refresh rate for Flutter's surface while it
+    /// animates, and no preference once it stops.
+    ///
+    /// An idle display drops to a low rate (24 Hz here). A touch raises it at
+    /// once, but an animation no finger started (a scroll to a new message)
+    /// waited about 250 ms for the system to notice the frames and spent them
+    /// at 24 Hz; a vote on the surface switches the mode now.
+    private fun voteFrameRate(high: Boolean) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val view = flutterSurfaceView?.takeIf { it.isAttachedToWindow }
+            ?: findSurfaceView(window.decorView)?.also { flutterSurfaceView = it }
+            ?: return
+        // The surface is recreated with the view's; take the current one.
+        val surface = view.holder.surface
+        if (!surface.isValid) return
+        val rate = if (high) {
+            display?.supportedModes?.maxOfOrNull { it.refreshRate } ?: 0f
+        } else {
+            0f
+        }
+        surface.setFrameRate(rate, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT)
+    }
+
+    private fun findSurfaceView(view: View): SurfaceView? = when (view) {
+        is SurfaceView -> view
+        is ViewGroup -> (0 until view.childCount).firstNotNullOfOrNull {
+            findSurfaceView(view.getChildAt(it))
+        }
+        else -> null
+    }
+
     /// Selecting past the 100-message cap: `vibrator.vibrate(200)` — a 200 ms
     /// one-shot, not `APP_ERROR`.
     private fun playSelectionLimit() {
@@ -176,6 +225,7 @@ class MainActivity : FlutterActivity() {
     }
 
     companion object {
+        private const val FRAME_RATE_CHANNEL = "chat_scroll_view_example/frame_rate"
         private const val HAPTIC_CHANNEL = "chat_scroll_view_example/selection_cap_haptic"
         private const val LAB_CHANNEL = "chat_scroll_view_example/lab"
         private const val PRE_IME_BACK_CHANNEL = "chat_scroll_view_example/pre_ime_back"

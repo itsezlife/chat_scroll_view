@@ -60,6 +60,21 @@ abstract final class ScrollLab {
           final n = await PointerTape.stop(dir!, name);
           _log('tape saved $name events=$n');
           return;
+        case 'animate':
+          // A scroll no finger started, as the jump to a new message is:
+          // `--es name <messages>` back from the anchor (30 by default).
+          if (_watched case final controller?) {
+            final by = int.tryParse(name) ?? 30;
+            _log('animate by $by');
+            unawaited(
+              controller.animateTo(
+                controller.anchorMessageId - by,
+                duration: const Duration(milliseconds: 600),
+                highlight: false,
+              ),
+            );
+          }
+          return;
         case 'replay':
           final dir = await _channel.invokeMethod<String>('filesDir');
           _log('tape replay start $name');
@@ -187,11 +202,15 @@ abstract final class ScrollLab {
 
   static double _scrolled = 0;
 
+  static ChatScrollController? _watched;
+
   /// Marks where the content stands on every frame [controller] scrolls, as a
   /// `LABy <px>` timeline slice inside that frame, so a trace pairs each
   /// presented frame with its content position. No-op unless installed.
   static void watch(ChatScrollController controller) {
-    if (_installed) controller.addScrollListener(_onScroll);
+    if (!_installed) return;
+    _watched = controller;
+    controller.addScrollListener(_onScroll);
   }
 
   static void _onScroll(ChatScrollEvent event) {

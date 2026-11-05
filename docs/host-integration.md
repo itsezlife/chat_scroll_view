@@ -583,6 +583,15 @@ low-power flag to `GlassQualityScope(liteMode:)` and to the `PlaybackActivity`
 `reducedMotion` input, sets `PlaybackPauseLayer.reducedMotion`: reported, and
 not stopping playback unless the clock's policy adds the layer.
 
+**Refresh rate (Android).** An idle display drops to a low refresh rate (24
+Hz on a current flagship). A touch raises it at once, but an animation no
+finger started (the jump to a new message, a panel opening from a key) runs
+its first quarter second at the low rate while the system notices the frames.
+No package asks the platform for a rate: the host votes the display's top rate
+on Flutter's surface (`Surface.setFrameRate`) while tickers ask for frames, and
+withdraws the vote a moment after they stop, so an idle display still saves
+power. The example's `FrameRateBoost` and `MainActivity.voteFrameRate` do this.
+
 **Text scale.** The shell's search field and bottom bar clamp the platform text
 scale at 1.3x (their pill heights are fixed). The composer field and the
 strings follow the platform scale; cap it with
