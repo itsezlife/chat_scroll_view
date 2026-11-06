@@ -4,10 +4,11 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
+import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
 import 'package:lottie_native/lottie_native.dart';
 
 /// What a [LottieEngineContract] run needs besides the engine.
-final class LottieEngineHarness {
+final class LottieEngineHarness<E extends LottieEngine> {
   /// Creates a harness whose engines come from [open].
   LottieEngineHarness({
     required this.open,
@@ -19,7 +20,7 @@ final class LottieEngineHarness {
 
   /// Opens a fresh engine over an available binding and an available frame
   /// codec; the contract closes it.
-  final Future<LottieEngine> Function() open;
+  final Future<E> Function() open;
 
   /// A file the binding loads.
   final Uint8List validBytes;
@@ -34,20 +35,16 @@ final class LottieEngineHarness {
   final double frame;
 }
 
-/// The behaviour every [LottieEngine] shares, run over the in-process engine
-/// on the fake and over the isolate engine on the fake and on the real
-/// binding alike.
+/// The behaviour every [LottieEngine] shares, whether it can reach native
+/// memory or only returns pixels: the in-process and isolate engines on the
+/// fake and on the real binding, and the pixel-only fake.
 abstract final class LottieEngineContract {
-  static const _side = 16;
-  static const _pageSide = 48;
-  static const _slotX = 16;
-  static const _slotY = 16;
-  static const _stride = _pageSide * 4;
+  static const _edge = 16;
 
   /// Registers the contract's tests; [create] builds a fresh harness for each.
-  static void run(LottieEngineHarness Function() create) {
+  static void run(LottieEngineHarness<LottieEngine> Function() create) {
     group('LottieEngine contract', () {
-      late LottieEngineHarness harness;
+      late LottieEngineHarness<LottieEngine> harness;
       late LottieEngine engine;
 
       setUp(() async {
@@ -62,6 +59,14 @@ abstract final class LottieEngineContract {
         return (result as LottieLoaded).handle;
       }
 
+      LottiePixelJob job(LottieHandle handle, {int width = _edge}) =>
+          LottiePixelJob(
+            handle: handle,
+            frame: harness.frame,
+            width: width,
+            height: _edge,
+          );
+
       test('valid bytes load with the expected info', () async {
         final result = await engine.load(harness.validBytes);
 
@@ -74,6 +79,130 @@ abstract final class LottieEngineContract {
           isA<LottieRejected>(),
         );
         expect(await engine.load(Uint8List(0)), isA<LottieRejected>());
+      });
+
+      test('renderPixels returns exactly width x height premultiplied RGBA '
+          'bytes', () async {
+        final handle = await load();
+
+        final pixels = await engine.renderPixels([
+          job(handle),
+          job(handle, width: 8),
+        ]);
+
+        expect(pixels, hasLength(2));
+        expect(pixels[0], hasLength(_edge * _edge * 4));
+        expect(pixels[1], hasLength(8 * _edge * 4));
+        expect(pixels[0]!.any((byte) => byte != 0), isTrue, reason: 'blank');
+        for (final frame in pixels) {
+          for (var p = 0; p < frame!.length; p += 4) {
+            final alpha = frame[p + 3];
+            expect(
+              [frame[p], frame[p + 1], frame[p + 2]].every((c) => c <= alpha),
+              isTrue,
+              reason: 'pixel ${p ~/ 4} has a channel above its alpha',
+            );
+          }
+        }
+      });
+
+      test('renderPixels answers an empty batch with an empty list', () async {
+        expect(await engine.renderPixels(const []), isEmpty);
+      });
+
+      test('a bad pixel job is null and spares the others, in order', () async {
+        final handle = await load();
+
+        final pixels = await engine.renderPixels([
+          job(handle, width: 0),
+          job(handle),
+          job(handle, width: LottiePixelJob.maxEdge + 1),
+        ]);
+
+        expect(pixels[0], isNull);
+        expect(pixels[1], hasLength(_edge * _edge * 4));
+        expect(pixels[2], isNull);
+      });
+
+      test('a disposed handle renders null, not a crash', () async {
+        final handle = await load();
+
+        await engine.dispose(handle);
+
+        expect(await engine.renderPixels([job(handle)]), [null]);
+      });
+
+      test('dispose twice is harmless', () async {
+        final handle = await load();
+
+        await engine.dispose(handle);
+
+        await expectLater(engine.dispose(handle), completes);
+      });
+
+      test(
+        'close is idempotent and later calls throw LottieEngineClosed',
+        () async {
+          final handle = await load();
+
+          await engine.close();
+          await engine.close();
+
+          final closed = throwsA(isA<LottieEngineClosed>());
+          await expectLater(engine.load(harness.validBytes), closed);
+          await expectLater(engine.renderPixels(const []), closed);
+          await expectLater(engine.dispose(handle), closed);
+        },
+      );
+    });
+  }
+}
+
+/// The behaviour every [LottieSlotEngine] shares on top of
+/// [LottieEngineContract]: the address-based render, capture and restore, and
+/// that [LottieEngine.renderPixels] draws what the slot render draws.
+abstract final class LottieSlotEngineContract {
+  static const _side = 16;
+  static const _pageSide = 48;
+  static const _slotX = 16;
+  static const _slotY = 16;
+  static const _stride = _pageSide * 4;
+
+  /// Registers the contract's tests; [create] builds a fresh harness for each.
+  static void run(LottieEngineHarness<LottieSlotEngine> Function() create) {
+    LottieEngineContract.run(create);
+    group('LottieSlotEngine contract', () {
+      late LottieEngineHarness<LottieSlotEngine> harness;
+      late LottieSlotEngine engine;
+
+      setUp(() async {
+        harness = create();
+        engine = await harness.open();
+        addTearDown(engine.close);
+      });
+
+      Future<LottieHandle> load() async {
+        final result = await engine.load(harness.validBytes);
+        expect(result, isA<LottieLoaded>());
+        return (result as LottieLoaded).handle;
+      }
+
+      test('renderPixels draws what renderBatch writes into a slot', () async {
+        final handle = await load();
+        final page = _Page();
+        addTearDown(page.free);
+
+        await engine.renderBatch([page.job(handle, harness.frame)]);
+        final pixels = await engine.renderPixels([
+          LottiePixelJob(
+            handle: handle,
+            frame: harness.frame,
+            width: _side,
+            height: _side,
+          ),
+        ]);
+
+        expect(pixels.single, page.slot());
       });
 
       test('a render writes premultiplied pixels inside its slot', () async {
@@ -132,14 +261,6 @@ abstract final class LottieEngineContract {
         ]);
 
         expect(statuses, [LottieRenderStatus.badArgument]);
-      });
-
-      test('dispose twice is harmless', () async {
-        final handle = await load();
-
-        await engine.dispose(handle);
-
-        await expectLater(engine.dispose(handle), completes);
       });
 
       group('capture and restore', () {
@@ -231,22 +352,14 @@ abstract final class LottieEngineContract {
         });
       });
 
-      test(
-        'close is idempotent and later calls throw LottieEngineClosed',
-        () async {
-          final handle = await load();
+      test('after close the slot calls throw LottieEngineClosed', () async {
+        await engine.close();
 
-          await engine.close();
-          await engine.close();
-
-          final closed = throwsA(isA<LottieEngineClosed>());
-          await expectLater(engine.load(harness.validBytes), closed);
-          await expectLater(engine.renderBatch(const []), closed);
-          await expectLater(engine.renderCapturing(const []), closed);
-          await expectLater(engine.restore(const []), closed);
-          await expectLater(engine.dispose(handle), closed);
-        },
-      );
+        final closed = throwsA(isA<LottieEngineClosed>());
+        await expectLater(engine.renderBatch(const []), closed);
+        await expectLater(engine.renderCapturing(const []), closed);
+        await expectLater(engine.restore(const []), closed);
+      });
     });
   }
 }
@@ -256,7 +369,7 @@ abstract final class LottieEngineContract {
 final class _Page {
   _Page()
     : _memory = calloc<Uint8>(
-        LottieEngineContract._pageSide * LottieEngineContract._stride,
+        LottieSlotEngineContract._pageSide * LottieSlotEngineContract._stride,
       );
 
   final Pointer<Uint8> _memory;
@@ -265,13 +378,13 @@ final class _Page {
       LottieEngineJob(
         handle: handle,
         frame: frame,
-        width: width ?? LottieEngineContract._side,
-        height: LottieEngineContract._side,
+        width: width ?? LottieSlotEngineContract._side,
+        height: LottieSlotEngineContract._side,
         address:
             _memory.address +
-            LottieEngineContract._slotY * LottieEngineContract._stride +
-            LottieEngineContract._slotX * 4,
-        strideBytes: LottieEngineContract._stride,
+            LottieSlotEngineContract._slotY * LottieSlotEngineContract._stride +
+            LottieSlotEngineContract._slotX * 4,
+        strideBytes: LottieSlotEngineContract._stride,
       );
 
   /// A restore of [compressed] into the slot; [width] overrides the slot's.
@@ -290,16 +403,16 @@ final class _Page {
   void fill(int value) => _all().fillRange(0, _all().length, value);
 
   Uint8List _all() => _memory.asTypedList(
-    LottieEngineContract._pageSide * LottieEngineContract._stride,
+    LottieSlotEngineContract._pageSide * LottieSlotEngineContract._stride,
   );
 
   bool _inSlot(int offset) {
-    final y = offset ~/ LottieEngineContract._stride;
-    final x = (offset % LottieEngineContract._stride) ~/ 4;
-    return y >= LottieEngineContract._slotY &&
-        y < LottieEngineContract._slotY + LottieEngineContract._side &&
-        x >= LottieEngineContract._slotX &&
-        x < LottieEngineContract._slotX + LottieEngineContract._side;
+    final y = offset ~/ LottieSlotEngineContract._stride;
+    final x = (offset % LottieSlotEngineContract._stride) ~/ 4;
+    return y >= LottieSlotEngineContract._slotY &&
+        y < LottieSlotEngineContract._slotY + LottieSlotEngineContract._side &&
+        x >= LottieSlotEngineContract._slotX &&
+        x < LottieSlotEngineContract._slotX + LottieSlotEngineContract._side;
   }
 
   /// The slot's bytes, row by row.

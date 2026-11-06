@@ -208,7 +208,7 @@ void main() {
     late LottieHandle handle;
     late FrameCacheKey key;
 
-    LottieEngine open({required LottieFrameCodec? codec}) =>
+    LottieSlotEngine open({required LottieFrameCodec? codec}) =>
         InProcessLottieEngine(
           FakeLottieBinding()..accept(bytes, info),
           codec: codec,

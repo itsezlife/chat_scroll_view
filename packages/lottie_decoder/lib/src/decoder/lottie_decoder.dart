@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:lottie_decoder/src/cache/frame_cache.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
+import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
 import 'package:lottie_decoder/src/paint/lottie_animation_paintable.dart';
 import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
 import 'package:lottie_decoder/src/playback/lottie_frame_scheduler.dart';
@@ -103,7 +104,7 @@ final class LottieDecoder implements Decoder {
   /// [decodeImage] and [uploadPixels] are the two steps that need the
   /// engine's image machinery; tests replace them.
   LottieDecoder({
-    required LottieEngine engine,
+    required LottieSlotEngine engine,
     required LottieFrameScheduler scheduler,
     FrameCache? cache,
     LottieImageDecoder decodeImage = _imageFromList,
@@ -114,7 +115,7 @@ final class LottieDecoder implements Decoder {
        _decodeImage = decodeImage,
        _uploadPixels = uploadPixels;
 
-  final LottieEngine _engine;
+  final LottieSlotEngine _engine;
   final LottieFrameScheduler _scheduler;
   final FrameCache? _cache;
   final LottieImageDecoder _decodeImage;

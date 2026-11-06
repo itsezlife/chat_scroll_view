@@ -70,7 +70,7 @@ DecodeRequest _request(
 /// image steps replaced so no test needs the engine's image machinery.
 final class _Rig {
   _Rig({
-    LottieEngine? engine,
+    LottieSlotEngine? engine,
     LottieImageDecoder? decodeImage,
     LottiePixelUploader? upload,
     FrameRenderer? renderer,
@@ -104,7 +104,7 @@ final class _Rig {
   }
 
   final FakeLottieBinding binding;
-  late final LottieEngine engine;
+  late final LottieSlotEngine engine;
   late final ManualPlaybackTickSource ticks;
   late final PlaybackClock clock;
   late final LottieFrameScheduler scheduler;
@@ -632,15 +632,19 @@ void main() {
 
 /// An engine that spawns its render isolate on first use, so a contract
 /// harness, which is built synchronously, can hold it.
-final class _DeferredEngine implements LottieEngine {
+final class _DeferredEngine implements LottieSlotEngine {
   _DeferredEngine(this._open);
 
-  final Future<LottieEngine> Function() _open;
-  late final Future<LottieEngine> _engine = _open();
+  final Future<LottieSlotEngine> Function() _open;
+  late final Future<LottieSlotEngine> _engine = _open();
 
   @override
   Future<LottieLoadResult> load(Uint8List bytes) async =>
       (await _engine).load(bytes);
+
+  @override
+  Future<List<LottiePixels?>> renderPixels(List<LottiePixelJob> jobs) async =>
+      (await _engine).renderPixels(jobs);
 
   @override
   Future<List<LottieRenderStatus>> renderBatch(
@@ -665,7 +669,7 @@ final class _DeferredEngine implements LottieEngine {
 }
 
 /// An in-process engine whose handle disposal throws [error].
-final class _DisposeThrows implements LottieEngine {
+final class _DisposeThrows implements LottieSlotEngine {
   _DisposeThrows(this.error);
 
   final Object error;
@@ -675,6 +679,10 @@ final class _DisposeThrows implements LottieEngine {
 
   @override
   Future<LottieLoadResult> load(Uint8List bytes) => _inner.load(bytes);
+
+  @override
+  Future<List<LottiePixels?>> renderPixels(List<LottiePixelJob> jobs) =>
+      _inner.renderPixels(jobs);
 
   @override
   Future<List<LottieRenderStatus>> renderBatch(List<LottieEngineJob> jobs) =>
