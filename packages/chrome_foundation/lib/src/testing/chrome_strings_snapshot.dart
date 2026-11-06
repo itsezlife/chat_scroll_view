@@ -32,6 +32,7 @@ abstract final class ChromeStringsSnapshot {
       'panel.clearRecentAction': panel.clearRecentAction,
       'panel.colorAllTitle': panel.colorAllTitle,
       'panel.gifsEmpty': panel.gifsEmpty,
+      'panel.stickersEmpty': panel.stickersEmpty,
       'panel.gifsFailed': panel.gifsFailed,
       'panel.retryAction': panel.retryAction,
       'composer.messageHint': composer.messageHint,

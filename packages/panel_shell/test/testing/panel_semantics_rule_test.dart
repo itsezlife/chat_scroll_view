@@ -26,6 +26,7 @@ ChromeStrings stringsWith({
       clearRecentAction: base.panel.clearRecentAction,
       colorAllTitle: base.panel.colorAllTitle,
       gifsEmpty: base.panel.gifsEmpty,
+      stickersEmpty: base.panel.stickersEmpty,
       gifsFailed: base.panel.gifsFailed,
       retryAction: base.panel.retryAction,
     ),
