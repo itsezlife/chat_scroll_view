@@ -4,8 +4,11 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:lottie_native/src/lottie_availability.dart';
 import 'package:lottie_native/src/lottie_binding.dart';
+import 'package:lottie_native/src/lottie_handle.dart';
 import 'package:lottie_native/src/lottie_load_result.dart';
+import 'package:lottie_native/src/lottie_render_status.dart';
 
 /// What a [NativeBindingContract] run needs besides the binding.
 final class NativeBindingHarness {

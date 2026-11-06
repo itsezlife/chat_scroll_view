@@ -6,6 +6,20 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- `package:lottie_native/lottie_native.dart` now compiles for the web. The
+  value types (`LottieHandle`, `LottieInfo`, `LottieFeatures`,
+  `LottieLoadResult`, `LottieRejection`, `LottieRenderStatus`,
+  `LottieAvailability`, `LottieNativeVersion`) are exported everywhere; the
+  `dart:ffi` types (`LottieBinding`, `LottieRenderJob`, `LottieFrameCodec`,
+  `LottieFrameRegion`, `NativeLottieBinding`, `NativeLottieFrameCodec`) only
+  through a conditional export that is empty on the web. Nothing changes on
+  the VM: the same names from the same barrel. `LottieHandle`,
+  `LottieAvailability` and `LottieRenderStatus` moved out of
+  `src/lottie_binding.dart` into files of their own; code importing that
+  `src/` path for them must import the barrel.
+
 ### Added
 
 - A seeded long fuzz of the C ABI (`native/tests/fuzz_long.rs`, ignored by

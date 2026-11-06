@@ -197,6 +197,24 @@ already disables the old artifacts at build time; the check is what stops it
 from lingering unnoticed. While `artifacts` is empty, `source_hash.dart
 --write` alone satisfies it.
 
+## Platforms
+
+`package:lottie_native/lottie_native.dart` compiles on the web: the value
+types are exported everywhere, and everything that needs `dart:ffi` is
+exported only where the VM is (a conditional export: the native file is the
+default, and `dart.library.js_interop` swaps in an empty stub; the analyzer
+reads only the default, so the stub cannot be the default). The test
+`web_compile_test.dart` runs `dart compile js` on a small entry to hold this.
+`package:lottie_native/testing.dart` is native-only: the fakes and contracts
+use `dart:ffi`.
+
+| Type | VM | Web |
+| --- | --- | --- |
+| `LottieHandle`, `LottieInfo`, `LottieFeatures`, `LottieLoadResult` (`LottieLoaded`, `LottieRejected`), `LottieRejection`, `LottieRenderStatus`, `LottieAvailability`, `LottieNativeVersion` | yes | yes |
+| `LottieBinding`, `LottieRenderJob` (carries a `Pointer<Uint8>`) | yes | no |
+| `LottieFrameCodec`, `LottieFrameRegion` | yes | no |
+| `NativeLottieBinding`, `NativeLottieFrameCodec` | yes | no |
+
 ## Types
 
 | Type | Role |
