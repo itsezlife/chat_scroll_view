@@ -43,6 +43,7 @@ import 'chat_perf/table_test.dart' as chat_perf_table_test;
 import 'chat_perf/trace_counts_test.dart' as chat_perf_trace_counts_test;
 import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
+import 'common/mouse_back_button_test.dart' as mouse_back_button_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
 import 'features/chat/chat_body_host_test.dart' as chat_body_host_test;
@@ -203,6 +204,7 @@ void main() {
     'common/chat_message_markdown_test.dart',
     chat_message_markdown_test.main,
   );
+  group('common/mouse_back_button_test.dart', mouse_back_button_test.main);
   group(
     'features/chat/animated_emoji_pack_test.dart',
     animated_emoji_pack_test.main,
