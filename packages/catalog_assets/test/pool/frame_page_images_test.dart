@@ -210,6 +210,71 @@ void main() {
     );
   });
 
+  group('rows', () {
+    test('a page marked down to some rows uploads only those rows', () async {
+      memory.page(0, side: _side);
+      images.markDirty(0, rows: 3);
+
+      await images.flush();
+
+      expect(uploads.calls.single.side, _side);
+      expect(uploads.calls.single.length, _side * 3 * 4);
+      expect(images.residentBytes, _side * 3 * 4);
+    });
+
+    test(
+      'the rows only grow: what was drawn below stays in the image',
+      () async {
+        memory.page(0, side: _side);
+        images.markDirty(0, rows: 5);
+        await images.flush();
+
+        images.markDirty(0, rows: 2);
+        await images.flush();
+
+        expect(uploads.calls.last.length, _side * 5 * 4);
+      },
+    );
+
+    test('a page marked without rows uploads whole, and stays whole', () async {
+      memory.page(0, side: _side);
+      images
+        ..markDirty(0, rows: 2)
+        ..markDirty(0);
+      await images.flush();
+
+      images.markDirty(0, rows: 1);
+      await images.flush();
+
+      expect(uploads.calls.map((c) => c.length), [
+        _side * _side * 4,
+        _side * _side * 4,
+      ]);
+    });
+
+    test('rows beyond the page are the page', () async {
+      memory.page(0, side: _side);
+      images.markDirty(0, rows: 3 * _side);
+
+      await images.flush();
+
+      expect(uploads.calls.single.length, _side * _side * 4);
+    });
+
+    test('a released page forgets its rows', () async {
+      memory.page(0, side: _side);
+      images.markDirty(0, rows: 6);
+      await images.flush();
+      images.release(0);
+
+      memory.page(0, side: _side);
+      images.markDirty(0, rows: 1);
+      await images.flush();
+
+      expect(uploads.calls.last.length, _side * 1 * 4);
+    });
+  });
+
   test('dispose disposes the images and ignores later work', () async {
     memory
       ..page(0, side: _side)
@@ -233,7 +298,7 @@ void main() {
     expect(images.dispose, returnsNormally);
   });
 
-  testWidgets('the engine upload makes a square image from the bytes', (
+  testWidgets('the engine upload makes an image of the rows it is given', (
     tester,
   ) async {
     final pixels = Uint8List(_side * _side * 4)..fillRange(0, _side * 4, 255);
@@ -245,5 +310,19 @@ void main() {
 
     expect(image.width, _side);
     expect(image.height, _side);
+  });
+
+  testWidgets('the engine upload of fewer rows makes a shorter image', (
+    tester,
+  ) async {
+    final pixels = Uint8List(_side * 3 * 4);
+
+    final image = (await tester.runAsync(
+      () => uploadFramePage(pixels, _side),
+    ))!;
+    addTearDown(image.dispose);
+
+    expect(image.width, _side);
+    expect(image.height, 3);
   });
 }

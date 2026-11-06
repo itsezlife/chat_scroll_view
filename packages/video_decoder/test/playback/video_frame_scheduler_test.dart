@@ -263,9 +263,10 @@ void main() {
       scheduler.want(lease, Duration.zero);
       await settle();
 
-      // A 16 px clip lives in the 64 px class: 64 * 64 * 4 bytes.
+      // A 16 px clip lives in a 64 px cell on a 64 px page, and the upload
+      // stops at its last row: 16 rows of 64 pixels.
       expect(uploadedBytes, isNotEmpty);
-      expect(uploadedBytes.toSet(), {64 * 64 * 4});
+      expect(uploadedBytes.toSet(), {64 * 16 * 4});
     });
 
     test('a tick uploads the cells that moved, not their neighbours', () async {
@@ -282,9 +283,9 @@ void main() {
       scheduler.want(moving, const Duration(milliseconds: _frameMs + 1));
       await settle();
 
-      // Only the newest lease advances; its upload is one 64 px cell.
+      // Only the newest lease advances; its upload is its own page's 16 rows.
       expect(uploadedBytes, isNotEmpty);
-      expect(uploadedBytes.every((bytes) => bytes == 64 * 64 * 4), isTrue);
+      expect(uploadedBytes.every((bytes) => bytes == 64 * 16 * 4), isTrue);
     });
 
     test(

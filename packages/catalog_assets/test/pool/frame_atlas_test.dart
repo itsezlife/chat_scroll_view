@@ -390,7 +390,7 @@ void main() {
         memory: ListFramePageMemory(),
         upload: (pixels, side) {
           uploaded.add(pixels.length);
-          expect(pixels.length, side * side * 4);
+          expect(pixels.length % (side * 4), 0, reason: 'whole rows');
           return _upload(pixels, side);
         },
       );
@@ -400,7 +400,7 @@ void main() {
     FrameHandle<String> sticker(String key, int edge) =>
         sized.acquire(key, source: 'ok', width: edge, height: edge)!;
 
-    test('each dirty page uploads exactly its own side squared', () async {
+    test('each dirty page uploads the rows its cells reach', () async {
       final small = sticker('small', 60);
       final large = sticker('large', 500);
 
@@ -409,17 +409,46 @@ void main() {
         (handle: large, frame: 0),
       ]);
 
-      expect(uploaded, unorderedEquals([128 * 128 * 4, 1024 * 1024 * 4]));
+      // Rows down to each frame's bottom: 60 of 128, 500 of 1024.
+      expect(uploaded, unorderedEquals([128 * 60 * 4, 1024 * 500 * 4]));
     });
 
-    test('one 128 px sticker uploads 256 KiB a tick, not 4 MiB', () async {
+    test('one 128 px sticker uploads 128 KiB a tick, not 4 MiB', () async {
       final handle = sticker('a', 128);
 
       await sized.render([(handle: handle, frame: 0)]);
       uploaded.clear();
       await sized.render([(handle: handle, frame: 1)]);
 
-      expect(uploaded, [256 * 1024]);
+      expect(uploaded, [256 * 128 * 4]);
+    });
+
+    test('a frame shorter than its cell uploads only its rows', () async {
+      final handle = sized.acquire(
+        'wide',
+        source: 'ok',
+        width: 120,
+        height: 50,
+      )!;
+
+      await sized.render([(handle: handle, frame: 0)]);
+
+      expect(uploaded, [256 * 50 * 4]);
+    });
+
+    test('rows already drawn below stay in the image', () async {
+      // Cells 0 and 1 of a 256 px page are its top row, 2 and 3 the next.
+      final top = sticker('top', 128);
+      sticker('beside', 128);
+      final below = sticker('below', 128);
+      await sized.render([(handle: top, frame: 0)]);
+      await sized.render([(handle: below, frame: 0)]);
+      uploaded.clear();
+
+      await sized.render([(handle: top, frame: 1)]);
+
+      // The cell on top moved again; the image still reaches the lower row.
+      expect(uploaded, [256 * 256 * 4]);
     });
 
     test('four stickers of a class share one small page', () async {
@@ -440,8 +469,9 @@ void main() {
         for (final handle in handles) (handle: handle, frame: 0),
       ]);
 
-      expect(uploaded, [64 * 1024, 64 * 1024]);
-      expect(sized.residentBytes, 2 * 64 * 1024);
+      // The second page holds one cell: its top 64 rows, not the 128 of a page.
+      expect(uploaded, [64 * 1024, 32 * 1024]);
+      expect(sized.residentBytes, 96 * 1024);
     });
   });
 }

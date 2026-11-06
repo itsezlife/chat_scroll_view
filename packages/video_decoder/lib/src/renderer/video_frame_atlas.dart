@@ -65,13 +65,14 @@ abstract final class VideoFrameAtlas {
   );
 
   /// The upload of a BGRA page: `decodeImageFromPixels` as
-  /// `rgba8888`, which copies the bytes when called.
+  /// `bgra8888`, which copies the bytes when called. [pixels] holds the top
+  /// rows of the page, as many as its length says.
   static Future<ui.Image> uploadBgraFramePage(Uint8List pixels, int side) {
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
       pixels,
       side,
-      side,
+      pixels.length ~/ (side * FramePageMemory.bytesPerPixel),
       ui.PixelFormat.bgra8888,
       completer.complete,
     );
