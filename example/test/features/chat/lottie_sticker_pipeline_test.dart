@@ -68,7 +68,7 @@ void main() {
       timers = ManualRetentionTimers();
       scheduler = LottieFrameScheduler(
         atlas: FrameAtlas<Object>(
-          renderer: LottieFrameRenderer(engine, memory),
+          renderer: LottieFrameRenderer(engine: engine, memory: memory),
           memory: memory,
         ),
         clock: clock,
