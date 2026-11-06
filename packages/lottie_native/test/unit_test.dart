@@ -18,6 +18,7 @@ import 'lottie_frame_codec_contract_test.dart'
     as lottie_frame_codec_contract_test;
 import 'native_binding_contract_test.dart' as native_binding_contract_test;
 import 'native_lottie_binding_test.dart' as native_lottie_binding_test;
+import 'native_lottie_frame_codec_test.dart' as native_lottie_frame_codec_test;
 
 void main() {
   group(
@@ -38,4 +39,8 @@ void main() {
   );
   group('native_binding_contract_test.dart', native_binding_contract_test.main);
   group('native_lottie_binding_test.dart', native_lottie_binding_test.main);
+  group(
+    'native_lottie_frame_codec_test.dart',
+    native_lottie_frame_codec_test.main,
+  );
 }
