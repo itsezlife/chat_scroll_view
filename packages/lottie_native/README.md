@@ -197,6 +197,54 @@ already disables the old artifacts at build time; the check is what stops it
 from lingering unnoticed. While `artifacts` is empty, `source_hash.dart
 --write` alone satisfies it.
 
+## Web build
+
+On web the same crate runs as WebAssembly in plain JavaScript workers
+([ADR 042](../../docs/adr/042-native-media-decoding.md)). The files live in
+`web/`; **the built `.wasm` files are not committed**. Build them with:
+
+```sh
+dart native/tool/build_web.dart --out packages/lottie_native/web/dist
+```
+
+(`web/dist/` is git-ignored.) The tool runs cargo twice for
+`wasm32-unknown-unknown` and writes, into the output directory:
+
+| File | What |
+| --- | --- |
+| `chat_lottie.wasm` | built with `-C target-feature=+simd128` |
+| `chat_lottie.nosimd.wasm` | plain wasm32, for runtimes that cannot validate SIMD |
+| `chat_lottie_core.mjs` | `createChatLottie(wasmBytes)`: `load`, `renderPixels`, `dispose`, `close`; no DOM |
+| `chat_lottie_worker.js` | the module worker; protocol at the top of the file |
+
+Both builds need `cargo` and `rustup target add wasm32-unknown-unknown`; the
+tool never installs anything and says so when either is missing. It clears
+`RUSTFLAGS` and `CARGO_ENCODED_RUSTFLAGS` so the plain build is plain.
+Serve the four files from one directory (the worker imports the core by
+relative path); the host sends `{type: 'init', wasmUrl, wasmNoSimdUrl}` and
+the worker picks the build with a `WebAssembly.validate` probe. At most
+`min(4, hardwareConcurrency)` workers are meant to run (ADR 042).
+
+The module exports the C ABI plus `chat_lottie_alloc` / `chat_lottie_dealloc`
+(wasm32 only, in `chat_lottie.h`): JavaScript cannot write into module memory
+without owning a region of it. Pixels come out as the header says everywhere,
+premultiplied `[R, G, B, A]`, tightly packed, one `Uint8Array` copy per job,
+transferred to the host.
+
+Tests run in Node only (v22; no browser):
+
+```sh
+node --test web/test
+```
+
+They build the wasm through the tool and skip with a message when `cargo`,
+the wasm Rust target or `dart` is missing. `web/test/layout.test.mjs` derives
+the byte offsets of `ChatLottieInfo` and `ChatLottieJob` on wasm32 from the
+header and compares them with the constants in the core, so a change to
+either struct fails there before it corrupts memory. Changing a crate source
+file changes the manifest's `sourceHash` (`dart native/tool/source_hash.dart
+--write`).
+
 ## Types
 
 | Type | Role |

@@ -8,6 +8,16 @@ package is pre-1.0.
 
 ### Added
 
+- Web build: the crate exports `chat_lottie_alloc` / `chat_lottie_dealloc` on
+  wasm32 (a region of 1 byte to 256 MiB; anything else returns null), and
+  `web/` holds `chat_lottie_core.mjs` (load, one-call batch render into pooled
+  scratch regions, dispose; SIMD chosen by a `WebAssembly.validate` probe) and
+  `chat_lottie_worker.js` (a module worker with a documented message protocol;
+  pixel buffers are transferred). `dart native/tool/build_web.dart --out <dir>`
+  writes the SIMD and no-SIMD wasm files next to them; the output is not
+  committed. Tested in Node with `node --test web/test`; see the README, "Web
+  build".
+
 - `LottieNativeVersion.engine`: the crate version and pinned tlottie revision
   as one token, part of every frame-cache key; a test compares it with
   `native/Cargo.toml`.
