@@ -18,10 +18,12 @@ dependencies:
   ffi: ^2.1.0
   flutter:
     sdk: flutter
+  # Only lib/testing.dart needs this: the contract suite is written with the
+  # test framework, and a library cannot import a dev dependency (the same
+  # arrangement as lottie_native). Production entry points never import it.
+  flutter_test:
+    sdk: flutter
   lottie_native:
     path: ../lottie_native
   meta: ^1.17.0
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter

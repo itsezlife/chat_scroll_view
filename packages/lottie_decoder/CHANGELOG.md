@@ -16,3 +16,6 @@ package is pre-1.0.
 - `LottieAnimationPaintable` (frame from the paints' accumulated playback
   time, one frame ahead, rest frame, restart, freeze-and-continue across a
   pause) and `LottieStillPaintable`.
+- `IsolateLottieEngine`: one render isolate that owns the binding, with
+  `spawn` refusing an unavailable binding by naming the reason, and
+  `LottieEngineContract` in `testing.dart`, run over every engine.
