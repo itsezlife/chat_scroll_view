@@ -1,8 +1,11 @@
 name: lottie_native
 description: >
-  The binding interface to the native Lottie renderer (tlottie behind a batch
-  C API): load, render into page memory, dispose. Includes a fake binding and
-  a contract suite in testing.dart. A leaf: it depends on no workspace package.
+  The native Lottie renderer (tlottie behind a batch C API): the binding
+  interface (load, render into page memory, dispose), a fake and a contract
+  suite in testing.dart, the native binding, the lz4 frame codec,
+  LottieNativeVersion, the build hook that delivers the library (from source
+  or as a hash-pinned prebuilt), and the WebAssembly core and worker. A leaf:
+  it depends on no workspace package.
 version: 0.1.0
 publish_to: none
 

@@ -6,8 +6,13 @@ render frames into page memory, dispose. A leaf of the workspace
 ([ADR 020](../../docs/adr/020-package-topology.md), rule 8): it depends on no
 workspace package and is reached through its decoder only.
 
-This package holds the interface, the fake, the contract, the native binding
-(`NativeLottieBinding`) and the build hook that delivers the compiled library.
+This package holds the whole native surface of Lottie: the binding interface
+(`LottieBinding`), the fake and the contract suite (`testing.dart`), the
+native binding (`NativeLottieBinding`) with the frame codec
+(`LottieFrameCodec`, lz4 over page memory) and `LottieNativeVersion`, the
+build hook that delivers the compiled library (from source or as a
+hash-pinned prebuilt, `native/prebuilts.json`), and the web side: the same
+crate as WebAssembly with its JavaScript core and worker (`web/`).
 
 ## Native library delivery
 
@@ -279,6 +284,18 @@ module it already compiled, answers the request that hit the trap with `-6`
 `-1` afterwards: the caller loads again what it still needs. Ids keep
 counting across the restart.
 
+**Cross-build golden.** `native/tests/fixtures/golden_64x64_frame_30.rgba`
+(16 384 bytes, premultiplied `[R, G, B, A]`, frame 30 of the repository's own
+hand-authored fixture, so it is redistributable) is the one reference all
+builds are held to: `native/tests/golden.rs` compares the host build and
+`web/test/golden.test.mjs` both wasm builds (SIMD and plain), each within one
+colour level per channel. After a deliberate change of the renderer,
+regenerate it from the host build (from `native/`) and review the diff:
+
+```sh
+CHAT_LOTTIE_UPDATE_GOLDEN=1 cargo test --test golden
+```
+
 Tests run in Node only (v22; no browser):
 
 ```sh
@@ -356,7 +373,15 @@ NativeBindingContract.run(() => NativeBindingHarness(
 ## Fuzzing and benchmarks
 
 The C ABI is fuzzed two ways. The fixed corpus replay (`native/tests/replay.rs`)
-runs with `cargo test` on every pull request. The long run is
+runs with `cargo test` on every pull request: prefix truncations and byte
+mutations of the hand-authored fixture, the same as TGS (valid, truncated at
+several points, with a damaged gzip header or trailer, a gzip bomb exactly at
+the 8 MiB inflated cap and one byte over), all under the one-minute budget of
+ADR 030, which the test measures over the whole replay and fails above. The
+"269 zero bytes" input is a **stand-in**: ADR 030 names a known 269-byte
+malformed file, but that file is not available to this repository, so the
+corpus holds 269 zero bytes, which exercises the same short-input paths and
+says nothing about the original. The long run is
 `native/tests/fuzz_long.rs`, `#[ignore]`d so a plain `cargo test` never waits
 for it; the nightly workflow `.github/workflows/lottie_native_fuzz.yml` runs it
 for 20 minutes with a random seed and opens or updates one issue on a finding.
