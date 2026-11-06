@@ -30,3 +30,5 @@ export 'src/playback/lottie_frame_scheduler.dart';
 export 'src/renderer/lottie_frame_size.dart';
 export 'src/renderer/lottie_source.dart';
 export 'src/renderer/pixel_copy_frame_renderer.dart';
+export 'src/web/web_exports_stub.dart'
+    if (dart.library.js_interop) 'src/web/web_exports.dart';
