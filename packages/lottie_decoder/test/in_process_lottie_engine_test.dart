@@ -83,15 +83,13 @@ void main() {
       expect(binding.liveHandles, 0);
     });
 
-    test('later calls throw StateError', () async {
+    test('later calls throw LottieEngineClosed', () async {
       await engine.close();
 
-      await expectLater(engine.load(bytes), throwsStateError);
-      await expectLater(engine.renderBatch(const []), throwsStateError);
-      await expectLater(
-        engine.dispose(const LottieHandle(1)),
-        throwsStateError,
-      );
+      final closed = throwsA(isA<LottieEngineClosed>());
+      await expectLater(engine.load(bytes), closed);
+      await expectLater(engine.renderBatch(const []), closed);
+      await expectLater(engine.dispose(const LottieHandle(1)), closed);
     });
   });
 }

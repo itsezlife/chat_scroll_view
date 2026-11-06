@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
 import 'package:lottie_native/lottie_native.dart';
@@ -318,6 +318,38 @@ void main() {
       expect(rig.binding.liveHandles, 0);
     });
 
+    test('a closed engine at handle disposal is not reported', () async {
+      final reported = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      addTearDown(() => FlutterError.onError = previous);
+      final closing = _Rig(engine: _DisposeThrows(LottieEngineClosed()));
+      addTearDown(closing.close);
+      closing.decoder.decode(_request(_fakeBytes), report);
+      await settle();
+
+      report.advances.last.paintable.dispose();
+      await settle();
+
+      expect(reported, isEmpty);
+    });
+
+    test('any other failure at handle disposal is reported', () async {
+      final reported = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      addTearDown(() => FlutterError.onError = previous);
+      final failing = _Rig(engine: _DisposeThrows(StateError('not a close')));
+      addTearDown(failing.close);
+      failing.decoder.decode(_request(_fakeBytes), report);
+      await settle();
+
+      report.advances.last.paintable.dispose();
+      await settle();
+
+      expect(reported.single.exception, isA<StateError>());
+    });
+
     test('an engine that throws fails permanently, never throws', () async {
       await rig.engine.close();
 
@@ -447,4 +479,27 @@ final class _DeferredEngine implements LottieEngine {
 
   @override
   Future<void> close() async => (await _engine).close();
+}
+
+/// An in-process engine whose handle disposal throws [error].
+final class _DisposeThrows implements LottieEngine {
+  _DisposeThrows(this.error);
+
+  final Object error;
+  final _inner = InProcessLottieEngine(
+    FakeLottieBinding()..accept(_fakeBytes, _info),
+  );
+
+  @override
+  Future<LottieLoadResult> load(Uint8List bytes) => _inner.load(bytes);
+
+  @override
+  Future<List<LottieRenderStatus>> renderBatch(List<LottieEngineJob> jobs) =>
+      _inner.renderBatch(jobs);
+
+  @override
+  Future<void> dispose(LottieHandle handle) => Future.error(error);
+
+  @override
+  Future<void> close() => _inner.close();
 }

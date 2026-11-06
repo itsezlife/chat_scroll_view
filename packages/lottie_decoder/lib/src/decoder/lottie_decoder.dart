@@ -294,8 +294,8 @@ final class _LottieDecode implements AssetTask {
             onError: (Object error, StackTrace stackTrace) {
               // A closed engine already freed every handle it issued: the
               // host shut down while this decode was ending, and there is
-              // nothing left to free.
-              if (error is StateError) return;
+              // nothing left to free. Any other failure is a real one.
+              if (error is LottieEngineClosed) return;
               FlutterError.reportError(
                 FlutterErrorDetails(
                   exception: error,

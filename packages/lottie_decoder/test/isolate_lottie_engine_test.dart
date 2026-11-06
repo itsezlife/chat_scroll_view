@@ -125,10 +125,10 @@ void main() {
       expect(
         IsolateLottieEngine.spawn(bindingFactory: _unavailableBinding),
         throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('abiMismatch'),
+          isA<LottieUnavailable>().having(
+            (e) => e.availability,
+            'availability',
+            LottieAvailability.abiMismatch,
           ),
         ),
       );
@@ -176,9 +176,10 @@ void main() {
       final doomed = engine.load(_poison);
       final alsoPending = engine.load(_fakeBytes);
 
-      await expectLater(doomed, throwsStateError);
-      await expectLater(alsoPending, throwsStateError);
-      await expectLater(engine.load(_fakeBytes), throwsStateError);
+      final closed = throwsA(isA<LottieEngineClosed>());
+      await expectLater(doomed, closed);
+      await expectLater(alsoPending, closed);
+      await expectLater(engine.load(_fakeBytes), closed);
       await expectLater(engine.close(), completes);
     });
 

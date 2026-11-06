@@ -16,7 +16,7 @@ final class InProcessLottieEngine implements LottieEngine {
   bool _closed = false;
 
   void _requireOpen() {
-    if (_closed) throw StateError('The Lottie engine is closed.');
+    if (_closed) throw LottieEngineClosed();
   }
 
   @override

@@ -31,10 +31,10 @@ final class IsolateLottieEngine implements LottieEngine {
   ///
   /// [bindingFactory] builds the isolate's binding and must be a top-level or
   /// static function, since it crosses isolates; it defaults to
-  /// [NativeLottieBinding.probe]. Throws a [StateError] carrying the reported
-  /// [LottieAvailability] when that binding is not available (the isolate is
-  /// shut down first), and a [StateError] when the isolate ends before it is
-  /// ready; the host decides what to log and does not register the decoder.
+  /// [NativeLottieBinding.probe]. Throws a [LottieUnavailable] carrying the
+  /// reported [LottieAvailability] when that binding is not available (the
+  /// isolate is shut down first), and a [StateError] when the isolate ends
+  /// before it is ready; the host decides what to log and does not register the decoder.
   static Future<IsolateLottieEngine> spawn({
     LottieBinding Function()? bindingFactory,
   }) async {
@@ -94,7 +94,7 @@ final class IsolateLottieEngine implements LottieEngine {
   Future<void> close() async {
     if (!_closed) {
       _closed = true;
-      _failPending(StateError('The Lottie engine was closed.'));
+      _failPending(LottieEngineClosed('The Lottie engine was closed.'));
       _commands.send(const _Close());
     }
     await _exited.future;
@@ -104,7 +104,7 @@ final class IsolateLottieEngine implements LottieEngine {
 
   Future<T> _request<T>(_Request Function(int id) make) {
     if (_closed) {
-      return Future<T>.error(StateError('The Lottie engine is closed.'));
+      return Future<T>.error(LottieEngineClosed());
     }
     final id = _nextId++;
     final completer = Completer<Object?>();
@@ -117,12 +117,7 @@ final class IsolateLottieEngine implements LottieEngine {
     switch (message) {
       case _Ready(:final commands, :final availability):
         if (commands == null) {
-          _ready.completeError(
-            StateError(
-              'The Lottie binding is not available in the render isolate: '
-              '${availability.name}.',
-            ),
-          );
+          _ready.completeError(LottieUnavailable(availability));
         } else {
           _commands = commands;
           _ready.complete();
@@ -141,7 +136,7 @@ final class IsolateLottieEngine implements LottieEngine {
 
   void _onExit() {
     _closed = true;
-    _failPending(StateError('the render isolate ended'));
+    _failPending(LottieEngineClosed('the render isolate ended'));
     if (!_ready.isCompleted) {
       _ready.completeError(
         StateError(
