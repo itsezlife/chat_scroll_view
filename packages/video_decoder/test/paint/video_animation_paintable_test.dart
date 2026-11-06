@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -280,7 +279,7 @@ void main() {
       expect(p.sprite, isNotNull);
       // The fake's frame 2 is B 32, G 16, R 0 under alpha 200. Over white
       // each channel adds the 55 the alpha lets through: R 55, G 71, B 87.
-      final at = (8 * 16 + 8) * 4;
+      const at = (8 * 16 + 8) * 4;
       expect(
         [for (var c = 0; c < 4; c++) rgba.getUint8(at + c)],
         [closeTo(55, 2), closeTo(71, 2), closeTo(87, 2), 255],

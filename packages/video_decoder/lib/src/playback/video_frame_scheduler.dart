@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
@@ -459,20 +458,20 @@ final class _ClipPlayer implements VideoFrameSource {
             VideoFrameStatus.failed:
           failed = true;
       }
-    } on VideoEngineClosed {
-      failed = true;
-    } on VideoClipLost {
-      failed = true;
     } on Object catch (error, stack) {
       failed = true;
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stack,
-          library: 'video_decoder',
-          context: ErrorDescription('while decoding a frame'),
-        ),
-      );
+      // The engine ended under the clip (disposed, or its worker): the host
+      // is shutting down or the clip is gone, and there is nothing to report.
+      if (error is! VideoEngineClosed && error is! VideoClipLost) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stack,
+            library: 'video_decoder',
+            context: ErrorDescription('while decoding a frame'),
+          ),
+        );
+      }
     } finally {
       if (buffer != null) _recycle(buffer);
       _inFlight = false;

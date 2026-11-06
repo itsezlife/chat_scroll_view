@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:video_decoder/src/engine/video_engine.dart';
 import 'package:video_decoder/src/paint/video_still_paintable.dart';
