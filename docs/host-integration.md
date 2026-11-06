@@ -196,7 +196,8 @@ Create, in this order:
    scheduler follows the same clock as every binding, so it is gated by the
    same pause layers, and it must exist before the scope does. A scope handed a
    clock does not own it: the host disposes it, after the scope.
-2. The engine: `IsolateLottieEngine.spawn()` inside a guard that catches
+2. The engine: `IsolateLottieEngine.spawn()` (a `LottieSlotEngine`: it renders
+   into native memory by address) inside a guard that catches
    every failure, since the probe means "the engine could not start". A
    `LottieUnavailable` (a `StateError` carrying the `LottieAvailability`) means
    the library is missing or speaks another version; any other error is the
@@ -205,7 +206,7 @@ Create, in this order:
 3. One `NativeFramePageMemory` (the render isolate writes it; it takes no
    size, each page is made at the side of its slot: twice the size class's
    edge by default, `FrameAtlas.pageSideFor`), a `FrameCache`
-   (`directory:` the folder the host keeps rendered frames in between
+   (`directoryPath:` the folder the host keeps rendered frames in between
    launches, null for memory only; the byte budgets are its own parameters),
    a `FrameAtlas` over the memory (its `budgetBytes`, default 48 MiB, is what
    the open pages may cost together) with a `LottieFrameRenderer(engine:,
@@ -234,9 +235,20 @@ requests already sent finish, and a use after it throws `LottieEngineClosed`
 (the one error a handle's disposal may ignore). The example holds the
 steps in `LottiePlayback`, a class with the `decoder` and a `close()` that runs
 them in that order, once, and never skips one because another failed; the host
-reports a failing close instead of leaving an unhandled future. `dart:ffi` does
-not compile for the web, so put the probe behind a conditional import and keep
-the native file unreachable from a web build.
+reports a failing close instead of leaving an unhandled future.
+
+`LottieEngine` is the neutral interface (`load`, `renderPixels`, `dispose`,
+`close`); the decoder, the scheduler, the paintables and the cache depend on it
+only, and `package:lottie_decoder/lottie_decoder.dart` compiles for the web.
+The address-based methods (`renderBatch`, `renderCapturing`, `restore`) are
+`LottieSlotEngine`, with `IsolateLottieEngine`, `InProcessLottieEngine`,
+`NativeFramePageMemory` and `LottieFrameRenderer`; the barrel exports them only
+where `dart:ffi` exists, so a host that names them keeps that code behind a
+conditional import (as the example's `lottie_playback_native.dart` does). A
+web host has an engine over the worker, a `ListFramePageMemory`, a
+`PixelCopyFrameRenderer(engine)` in place of `LottieFrameRenderer`, and a
+`FrameCache(directoryPath: null)`: memory only, a path there is an
+`ArgumentError`. A `FetchedFile` fails the decode there (no file system).
 
 ## 4. Per-chat controller set
 

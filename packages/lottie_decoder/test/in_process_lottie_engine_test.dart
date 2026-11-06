@@ -18,7 +18,7 @@ void main() {
   );
 
   late FakeLottieBinding binding;
-  late LottieEngine engine;
+  late LottieSlotEngine engine;
 
   setUp(() {
     binding = FakeLottieBinding()..accept(bytes, info);

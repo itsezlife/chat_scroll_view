@@ -208,7 +208,7 @@ void main() {
     late LottieHandle handle;
     late FrameCacheKey key;
 
-    LottieEngine open({required LottieFrameCodec? codec}) =>
+    LottieSlotEngine open({required LottieFrameCodec? codec}) =>
         InProcessLottieEngine(
           FakeLottieBinding()..accept(bytes, info),
           codec: codec,
@@ -271,7 +271,7 @@ void main() {
 
     test('the first pass renders and stores; the second restores and '
         'renders nothing', () async {
-      final cache = FrameCache(directory: null);
+      final cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
       final r = renderer(cache);
       final first = jobs([0, 1, 2], source(cacheKey: key));
@@ -292,7 +292,7 @@ void main() {
 
     test('a batch of cached and fresh frames renders only the fresh, and '
         'answers in job order', () async {
-      final cache = FrameCache(directory: null);
+      final cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
       final r = renderer(cache);
       await r.render(jobs([1, 2], source(cacheKey: key)), memory);
@@ -328,7 +328,7 @@ void main() {
             source: source(cacheKey: key),
           ),
       ];
-      final before = FrameCache(directory: dir);
+      final before = FrameCache(directoryPath: dir.path);
       await renderer(before).render(pass(), memory);
       await before.dispose();
       final expected = [for (final job in pass()) pixels(job)];
@@ -338,7 +338,7 @@ void main() {
         ..restored = 0;
 
       // A new process, as far as the cache can tell: nothing in RAM.
-      final after = FrameCache(directory: dir);
+      final after = FrameCache(directoryPath: dir.path);
       addTearDown(after.dispose);
       final jobs = pass();
       final held = await renderer(after).render(jobs, memory);
@@ -354,7 +354,7 @@ void main() {
 
     test('a corrupt entry is rendered instead, and the animation is '
         'dropped from the cache', () async {
-      final cache = FrameCache(directory: null);
+      final cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
       for (var i = 0; i < info.frameCount; i++) {
         cache.put(
@@ -385,7 +385,7 @@ void main() {
     });
 
     test('a key above the display cap bypasses the cache', () async {
-      final cache = FrameCache(directory: null);
+      final cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
       final big = FrameCacheKey(
         contentHash: 'abc123',
@@ -414,7 +414,7 @@ void main() {
     });
 
     test('a source without a key renders every time', () async {
-      final cache = FrameCache(directory: null);
+      final cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
       final r = renderer(cache);
 
@@ -425,7 +425,7 @@ void main() {
     });
 
     test('a frame that did not render is not stored, nor reported', () async {
-      final cache = FrameCache(directory: null);
+      final cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
       await engine.dispose(handle);
 
@@ -438,7 +438,7 @@ void main() {
     });
 
     test('a frame outside the animation renders and is not stored', () async {
-      final cache = FrameCache(directory: null);
+      final cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
 
       final held = await renderer(
@@ -453,7 +453,7 @@ void main() {
       final bare = open(codec: null);
       addTearDown(bare.close);
       final bareHandle = ((await bare.load(bytes)) as LottieLoaded).handle;
-      final cache = FrameCache(directory: null);
+      final cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
       final r = LottieFrameRenderer(engine: bare, memory: memory, cache: cache);
 
@@ -476,7 +476,7 @@ void main() {
     });
 
     test('a disposed cache is skipped, not an error', () async {
-      final cache = FrameCache(directory: null);
+      final cache = FrameCache(directoryPath: null);
       final r = renderer(cache);
       await cache.dispose();
 
@@ -520,7 +520,7 @@ void main() {
         height: side,
         engineVersion: LottieNativeVersion.engine,
       );
-      final cache = FrameCache(directory: null);
+      final cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
       final renderer = LottieFrameRenderer(
         engine: engine,

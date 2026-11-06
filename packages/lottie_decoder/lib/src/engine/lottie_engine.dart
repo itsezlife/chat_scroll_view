@@ -1,33 +1,28 @@
-import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:lottie_native/lottie_native.dart';
 import 'package:meta/meta.dart';
 
-/// The async face of a [LottieBinding].
+/// The pixels of one rendered frame: tightly packed premultiplied RGBA, byte
+/// order `[R, G, B, A]`, rows `width * 4` bytes apart, exactly
+/// `width * height * 4` bytes.
+typedef LottiePixels = Uint8List;
+
+/// The async, pixel-returning face of a Lottie renderer.
 ///
-/// The real binding lives on another isolate, so every call is a `Future`.
-/// Handles, results and statuses are the binding's own; an engine adds only
-/// the asynchrony and the address-based job.
+/// The one seam every platform has: a native engine draws into memory and
+/// copies out, the web engine (WebAssembly in a worker) transfers the bytes
+/// it drew. Handles, results and statuses are the binding's own; an engine
+/// adds the asynchrony and the pixel job. What only a native engine can do,
+/// drawing straight into page memory by address, is a [LottieSlotEngine].
 abstract interface class LottieEngine {
   /// Parses [bytes]; a refused file is a [LottieRejected], never a throw.
   Future<LottieLoadResult> load(Uint8List bytes);
 
-  /// Renders every job; one status per job, in job order.
-  Future<List<LottieRenderStatus>> renderBatch(List<LottieEngineJob> jobs);
-
-  /// Renders like [renderBatch] and, for every job that rendered, also
-  /// returns the slot's pixels compressed, for the frame cache.
-  ///
-  /// One [LottieCapture] per job, in job order. Where the engine has no frame
-  /// codec the frames still render and carry no bytes.
-  Future<List<LottieCapture>> renderCapturing(List<LottieEngineJob> jobs);
-
-  /// Writes each job's compressed frame into its slot: [LottieRenderStatus.ok],
-  /// or [LottieRenderStatus.failed] for corrupt data, data of another size or
-  /// an engine without a frame codec, in which case the slot is unchanged.
-  /// One status per job, in job order.
-  Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs);
+  /// Renders every job; one entry per job, in job order: its [LottiePixels],
+  /// or null for a job that did not render (a disposed handle, an invalid
+  /// size, a renderer failure). Never throws for one bad job.
+  Future<List<LottiePixels?>> renderPixels(List<LottiePixelJob> jobs);
 
   /// Releases [handle]. Idempotent.
   Future<void> dispose(LottieHandle handle);
@@ -39,19 +34,22 @@ abstract interface class LottieEngine {
   Future<void> close();
 }
 
-/// One frame to draw: a [LottieRenderJob] whose target is a raw address, an
-/// `int` because it crosses isolates.
+/// One frame to draw and return as pixels.
 @immutable
-final class LottieEngineJob {
+final class LottiePixelJob {
   /// Creates a job.
-  const LottieEngineJob({
+  const LottiePixelJob({
     required this.handle,
     required this.frame,
     required this.width,
     required this.height,
-    required this.address,
-    required this.strideBytes,
   });
+
+  /// The largest edge, in pixels, an engine renders; the same limit as
+  /// `LottieRenderJob.maxEdge`, repeated here because that type needs
+  /// `dart:ffi` and this one compiles for the web. A native test holds the
+  /// two equal.
+  static const int maxEdge = 512;
 
   /// The animation to draw.
   final LottieHandle handle;
@@ -59,86 +57,16 @@ final class LottieEngineJob {
   /// The frame; fractions are allowed.
   final double frame;
 
-  /// The slot width in pixels.
+  /// The width in pixels, from 1 to [maxEdge].
   final int width;
 
-  /// The slot height in pixels.
+  /// The height in pixels, from 1 to [maxEdge].
   final int height;
 
-  /// The address of the slot's top-left pixel.
-  final int address;
-
-  /// The distance in bytes between the starts of two rows.
-  final int strideBytes;
-
-  /// The binding's own job, with [address] turned back into a pointer. An
-  /// engine calls it on the isolate that owns the binding.
-  LottieRenderJob toBindingJob() => LottieRenderJob(
-    handle: handle,
-    frame: frame,
-    width: width,
-    height: height,
-    target: Pointer<Uint8>.fromAddress(address),
-    strideBytes: strideBytes,
-  );
-
-  /// The slot this job writes, as the frame codec reads it.
-  LottieFrameRegion toRegion() => LottieFrameRegion(
-    target: Pointer<Uint8>.fromAddress(address),
-    width: width,
-    height: height,
-    strideBytes: strideBytes,
-  );
-}
-
-/// What [LottieEngine.renderCapturing] made of one job.
-@immutable
-final class LottieCapture {
-  /// Creates a capture of a job that ended with [status].
-  const LottieCapture(this.status, [this.compressed]);
-
-  /// How the render ended.
-  final LottieRenderStatus status;
-
-  /// The slot's pixels compressed; null when the job did not render or the
-  /// engine has no frame codec.
-  final Uint8List? compressed;
-}
-
-/// One compressed frame to write back into a slot.
-@immutable
-final class LottieRestoreJob {
-  /// Creates a job.
-  const LottieRestoreJob({
-    required this.compressed,
-    required this.width,
-    required this.height,
-    required this.address,
-    required this.strideBytes,
-  });
-
-  /// What [LottieEngine.renderCapturing] returned for the frame.
-  final Uint8List compressed;
-
-  /// The slot width in pixels.
-  final int width;
-
-  /// The slot height in pixels.
-  final int height;
-
-  /// The address of the slot's top-left pixel.
-  final int address;
-
-  /// The distance in bytes between the starts of two rows.
-  final int strideBytes;
-
-  /// The slot this job writes, as the frame codec writes it.
-  LottieFrameRegion toRegion() => LottieFrameRegion(
-    target: Pointer<Uint8>.fromAddress(address),
-    width: width,
-    height: height,
-    strideBytes: strideBytes,
-  );
+  /// Whether the size can be rendered at all; an engine answers null to a job
+  /// that is not, before it allocates anything for it.
+  bool get hasValidSize =>
+      width >= 1 && width <= maxEdge && height >= 1 && height <= maxEdge;
 }
 
 /// An engine was used after it closed (or after its isolate ended): the

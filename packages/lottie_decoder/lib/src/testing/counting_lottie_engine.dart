@@ -1,18 +1,19 @@
 import 'dart:typed_data';
 
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
+import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
 import 'package:lottie_native/lottie_native.dart';
 
-/// A [LottieEngine] that forwards to another and counts the work it was given,
+/// A [LottieSlotEngine] that forwards to another and counts the work it was given,
 /// so a test can say "this pass rendered nothing" instead of inferring it.
-final class CountingLottieEngine implements LottieEngine {
+final class CountingLottieEngine implements LottieSlotEngine {
   /// Wraps [inner], which it does not own: [close] closes it too, as an
   /// engine's owner expects.
   CountingLottieEngine(this._inner);
 
-  final LottieEngine _inner;
+  final LottieSlotEngine _inner;
 
-  /// Jobs sent to [renderBatch] and [renderCapturing] so far.
+  /// Jobs sent to [renderPixels], [renderBatch] and [renderCapturing] so far.
   int rendered = 0;
 
   /// Jobs sent to [restore] so far.
@@ -20,6 +21,12 @@ final class CountingLottieEngine implements LottieEngine {
 
   @override
   Future<LottieLoadResult> load(Uint8List bytes) => _inner.load(bytes);
+
+  @override
+  Future<List<LottiePixels?>> renderPixels(List<LottiePixelJob> jobs) {
+    rendered += jobs.length;
+    return _inner.renderPixels(jobs);
+  }
 
   @override
   Future<List<LottieRenderStatus>> renderBatch(List<LottieEngineJob> jobs) {

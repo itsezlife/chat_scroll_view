@@ -2,13 +2,14 @@ import 'dart:typed_data';
 
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine_work.dart';
+import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
 import 'package:lottie_native/lottie_native.dart';
 
-/// A [LottieEngine] that runs a [LottieBinding] on the calling isolate; its
+/// A [LottieSlotEngine] that runs a [LottieBinding] on the calling isolate; its
 /// futures complete at once.
 ///
 /// For tests (over `FakeLottieBinding`) and hosts that want no isolate.
-final class InProcessLottieEngine implements LottieEngine {
+final class InProcessLottieEngine implements LottieSlotEngine {
   /// Creates an engine over [binding], which it owns and closes.
   ///
   /// [codec] compresses and restores frames for the frame cache; without one
@@ -28,6 +29,12 @@ final class InProcessLottieEngine implements LottieEngine {
   Future<LottieLoadResult> load(Uint8List bytes) async {
     _requireOpen();
     return _binding.load(bytes);
+  }
+
+  @override
+  Future<List<LottiePixels?>> renderPixels(List<LottiePixelJob> jobs) async {
+    _requireOpen();
+    return LottieEngineWork.renderPixels(_binding, jobs);
   }
 
   @override

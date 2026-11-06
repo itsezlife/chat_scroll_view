@@ -173,8 +173,8 @@ final class _BlockingBinding implements LottieBinding {
 
 void main() {
   group('over the fake binding', () {
-    LottieEngineContract.run(
-      () => LottieEngineHarness(
+    LottieSlotEngineContract.run(
+      () => LottieEngineHarness<LottieSlotEngine>(
         open: () async =>
             InProcessLottieEngine(_fakeBinding(), codec: _fakeCodec()),
         validBytes: _fakeBytes,
@@ -185,8 +185,8 @@ void main() {
   });
 
   group('in the render isolate over the fake binding', () {
-    LottieEngineContract.run(
-      () => LottieEngineHarness(
+    LottieSlotEngineContract.run(
+      () => LottieEngineHarness<LottieSlotEngine>(
         open: () => IsolateLottieEngine.spawn(
           bindingFactory: _fakeBinding,
           codecFactory: _fakeCodec,
@@ -477,28 +477,45 @@ void main() {
   });
 
   final native = NativeLottieBinding.probe().isAvailable;
-  group(
-    'in the render isolate over the native library',
-    () {
-      LottieEngineContract.run(
-        () => LottieEngineHarness(
-          open: IsolateLottieEngine.spawn,
-          validBytes: Uint8List.fromList(utf8.encode(_fixture)),
-          expectedInfo: const LottieInfo(
-            width: 100,
-            height: 100,
-            frameCount: 60,
-            frameRate: 30,
-            features: LottieFeatures.none,
+  for (final (name, open) in <(String, Future<LottieSlotEngine> Function())>[
+    ('in the render isolate', IsolateLottieEngine.spawn),
+    (
+      'in process',
+      () async => InProcessLottieEngine(
+        NativeLottieBinding.probe(),
+        codec: NativeLottieFrameCodec.probe(),
+      ),
+    ),
+  ]) {
+    group(
+      '$name over the native library',
+      () {
+        LottieSlotEngineContract.run(
+          () => LottieEngineHarness<LottieSlotEngine>(
+            open: open,
+            validBytes: Uint8List.fromList(utf8.encode(_fixture)),
+            expectedInfo: const LottieInfo(
+              width: 100,
+              height: 100,
+              frameCount: 60,
+              frameRate: 30,
+              features: LottieFeatures.none,
+            ),
+            malformedBytes: Uint8List.fromList(
+              utf8.encode('not a lottie file'),
+            ),
+            frame: 20,
           ),
-          malformedBytes: Uint8List.fromList(utf8.encode('not a lottie file')),
-          frame: 20,
-        ),
-      );
-    },
-    skip: native
-        ? false
-        : 'The native library is absent or speaks another ABI version: the '
-              'build hook compiles it with cargo on macOS only (rustup.rs).',
-  );
+        );
+      },
+      skip: native
+          ? false
+          : 'The native library is absent or speaks another ABI version: the '
+                'build hook compiles it with cargo on macOS only (rustup.rs).',
+    );
+  }
+
+  test('the web-neutral pixel job limit is the binding limit', () {
+    expect(LottiePixelJob.maxEdge, LottieRenderJob.maxEdge);
+  });
 }

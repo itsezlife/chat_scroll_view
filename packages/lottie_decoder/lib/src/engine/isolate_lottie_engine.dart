@@ -4,10 +4,11 @@ import 'dart:typed_data';
 
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine_work.dart';
+import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
 import 'package:lottie_native/lottie_native.dart';
 import 'package:meta/meta.dart';
 
-/// A [LottieEngine] whose [LottieBinding] lives on one long-lived isolate of
+/// A [LottieSlotEngine] whose [LottieBinding] lives on one long-lived isolate of
 /// its own, so parsing and rasterizing never take a frame from the UI isolate
 /// (ADR 042 "Workers").
 ///
@@ -22,7 +23,7 @@ import 'package:meta/meta.dart';
 ///
 /// [close] lets requests already sent finish: a render's future completes
 /// only after native code is done with the address it was given.
-final class IsolateLottieEngine implements LottieEngine {
+final class IsolateLottieEngine implements LottieSlotEngine {
   IsolateLottieEngine._() {
     // Listening before the isolate exists means no message can arrive unheard;
     // closing a port ends its subscription.
@@ -95,7 +96,7 @@ final class IsolateLottieEngine implements LottieEngine {
   var _closed = false;
   String? _lastError;
 
-  // --- LottieEngine ---
+  // --- LottieSlotEngine ---
 
   @override
   Future<LottieLoadResult> load(Uint8List bytes) {
@@ -103,6 +104,14 @@ final class IsolateLottieEngine implements LottieEngine {
     // read once here and not again.
     final data = TransferableTypedData.fromList([bytes]);
     return _request((id) => _Load(id, data));
+  }
+
+  @override
+  Future<List<LottiePixels?>> renderPixels(List<LottiePixelJob> jobs) async {
+    final wire = await _request<List<TransferableTypedData?>>(
+      (id) => _RenderPixels(id, jobs),
+    );
+    return [for (final bytes in wire) bytes?.materialize().asUint8List()];
   }
 
   @override
@@ -260,6 +269,12 @@ final class _Render extends _Request {
   final List<LottieEngineJob> jobs;
 }
 
+final class _RenderPixels extends _Request {
+  const _RenderPixels(this.id, this.jobs);
+  final int id;
+  final List<LottiePixelJob> jobs;
+}
+
 final class _RenderCapturing extends _Request {
   const _RenderCapturing(this.id, this.jobs);
   final int id;
@@ -350,6 +365,16 @@ void _renderIsolateMain(_Boot boot) {
           id,
           () =>
               binding.renderBatch([for (final job in jobs) job.toBindingJob()]),
+        );
+      case _RenderPixels(:final id, :final jobs):
+        // Pixels leave as transferables too: the copy out of the temporary
+        // buffer is the only one.
+        answer(
+          id,
+          () => [
+            for (final pixels in LottieEngineWork.renderPixels(binding, jobs))
+              pixels == null ? null : TransferableTypedData.fromList([pixels]),
+          ],
         );
       case _RenderCapturing(:final id, :final jobs):
         // Bytes leave as transferables: no copy through the port.
