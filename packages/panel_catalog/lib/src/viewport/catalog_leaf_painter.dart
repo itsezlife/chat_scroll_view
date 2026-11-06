@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -15,6 +16,12 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_paragraph_cache.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
+
+// [DEBUG-fl01] ticket 55 diagnosis probe; remove with `grep -rn DEBUG-fl01`.
+const bool _fl01 = bool.fromEnvironment('DEBUG_FL01');
+void _fl01Log(String message) =>
+    // ignore: avoid_print
+    print('[DEBUG-fl01] t=${developer.Timeline.now} $message');
 
 /// Most text paragraphs one painter keeps; a paragraph is keyed by text, style
 /// and layout width, so a resize adds a few per visible header per step (title,
@@ -134,6 +141,30 @@ final class CatalogLeafPainter {
   final CatalogParagraphCache<_TextPaintKey> _textParagraphs =
       CatalogParagraphCache(limit: _kHeaderParagraphCacheLimit);
   final CatalogGlyphSpriteBatch _glyphSprites = CatalogGlyphSpriteBatch();
+
+  // [DEBUG-fl01] the last signature printed per leaf.
+  final Map<Object, String> _fl01Seen = {};
+
+  // [DEBUG-fl01] prints a leaf's paint signature when it changes: what kind of
+  // draw (sprite, image, stand-in), the stage, the sprite's page image identity
+  // and source rect, whether the content fade runs. Reads no state it could advance.
+  void _fl01Leaf(
+    CatalogLeafSlot slot,
+    String kind,
+    String stage, {
+    AtlasSprite? sprite,
+    bool fading = false,
+  }) {
+    final signature = '$kind $stage rect=${sprite?.source} fading=$fading';
+    final key = slot.leaf.key;
+    if (_fl01Seen[key] == signature) return;
+    _fl01Seen[key] = signature;
+    _fl01Log(
+      'paint leaf=${key.hashCode} $signature '
+      'page=${sprite == null ? '-' : identityHashCode(sprite.page)} '
+      'pageIndex=${sprite?.pageIndex}',
+    );
+  }
 
   // State of the open pass.
   Duration _frameTime = Duration.zero;
@@ -509,6 +540,15 @@ final class CatalogLeafPainter {
     final animated = paintable != null && paintable.isAnimated;
     if (animated) binding!.advancePlayback();
     final sprite = paintable?.sprite;
+    if (_fl01 && animated) {
+      _fl01Leaf(
+        slot,
+        sprite != null ? 'sprite' : 'no-sprite',
+        '${binding!.readiness.stage.name}/${paintable.runtimeType}',
+        sprite: sprite,
+        fading: bound!.isFadingAt(_frameTime),
+      );
+    }
     if (sprite != null) {
       // A queued sprite carries the press scale in its own transform, so it
       // needs no canvas save and restore and stays in its page's batch.

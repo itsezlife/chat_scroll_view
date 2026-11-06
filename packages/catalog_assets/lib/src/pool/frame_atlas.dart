@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:ui';
 
 import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
@@ -6,6 +7,12 @@ import 'package:catalog_assets/src/pool/frame_page_images.dart';
 import 'package:catalog_assets/src/pool/frame_pool.dart';
 import 'package:catalog_assets/src/pool/frame_renderer.dart';
 import 'package:flutter/foundation.dart' show Listenable;
+
+// [DEBUG-fl01] ticket 55 diagnosis probe; remove with `grep -rn DEBUG-fl01`.
+const bool _fl01 = bool.fromEnvironment('DEBUG_FL01');
+void _fl01Log(String message) =>
+    // ignore: avoid_print
+    print('[DEBUG-fl01] t=${developer.Timeline.now} $message');
 
 /// What an entry has rendered, shared by every handle on it.
 final class _FrameState {
@@ -310,6 +317,14 @@ final class FrameAtlas<K extends Object> {
         final handle = requests[i].handle;
         if (done.contains(i)) {
           handle._state.frame = jobs[i].frame;
+          if (_fl01) {
+            _fl01Log(
+              'atlas frame-set key=${handle.key.hashCode} '
+              'page=${jobs[i].slot.pageIndex} rect=${jobs[i].slot.rect} '
+              'frame=${jobs[i].frame} '
+              'pageImage=${identityHashCode(_images.imageOf(jobs[i].slot.pageIndex))}',
+            );
+          }
           _images.markDirty(jobs[i].slot.pageIndex);
           rendered.add(handle);
         } else {
@@ -317,6 +332,12 @@ final class FrameAtlas<K extends Object> {
         }
       }
       await _images.flush();
+      if (_fl01) {
+        _fl01Log(
+          'atlas uploaded pages=${{for (final h in rendered) h._lease.slot.pageIndex}} '
+          'images=${{for (final h in rendered) identityHashCode(_images.imageOf(h._lease.slot.pageIndex))}}',
+        );
+      }
       return (rendered: rendered, failed: failed);
     } finally {
       pins.forEach(_release);
