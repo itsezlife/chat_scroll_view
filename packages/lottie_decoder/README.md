@@ -100,3 +100,44 @@ file) never fails a render: the first is passed to `onError` (default
 `FlutterError.reportError`), later ones are dropped, and after a failed write
 the cache stops writing and serves from memory. The directory belongs to one
 cache at a time. Web keeps memory only (a later slice).
+
+## Fuzzing and benchmarks
+
+The native library is fuzzed in `lottie_native` (see its README). This package
+has the playback benchmark, `test/benchmark/lottie_playback_bench_test.dart`:
+the real native library in a real render isolate, the scheduler on a manual
+clock, the real page uploader, 1, 8 and 32 simultaneous stickers of the
+hand-authored fixture at 128 px, 300 ticks after 10 warm-up ticks. It never
+fails on a time and is not part of `scripts/bench`; the file is gated by the
+`benchmark` tag and by an environment variable, so the unit entrypoint skips it.
+
+```shell
+cd packages/lottie_decoder
+LOTTIE_PLAYBACK_BENCH=1 flutter test --concurrency 40 test/benchmark/lottie_playback_bench_test.dart
+# after an intended change, replace the committed baseline:
+LOTTIE_PLAYBACK_BENCH=1 LOTTIE_BENCH_WRITE_BASELINE=1 flutter test --concurrency 40 test/benchmark/lottie_playback_bench_test.dart
+```
+
+It prints a table, writes `build/bench/lottie_playback.json` and lists each
+metric against `test/benchmark/baseline.json` as a ratio (more than 1.5x for a
+time or 1.05x for a count is called worse; nothing fails). Absolute times on a
+development machine in debug mode are noisy, so read the shape. The baseline is
+the per-metric median of five runs on an Apple-silicon Mac; the first run after
+a build is about 2x slower than the rest.
+
+| Stickers | tick (UI isolate) | settled | render round trip | upload | uploaded per tick | pages |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 0.05 ms | 0.93 ms | 0.17 ms | 0.53 ms | 4 MiB | 1 |
+| 8 | 0.05 ms | 0.83 ms | 0.22 ms | 0.38 ms | 4 MiB | 1 |
+| 32 | 0.05 ms | 1.10 ms | 0.49 ms | 0.35 ms | 4 MiB | 1 |
+
+What it says. Building and sending the batch costs the UI isolate about 50
+microseconds whatever the count. The render isolate round trip grows with the
+count (0.17 to 0.49 ms), as it should. The upload does not: every tick uploads
+each dirty page in full, so one 1024 px page is 4 MiB per tick for one sticker
+or for 32, 64x the 64 KiB that changed at N = 1 and 2x the 2 MiB at N = 32. The
+upload time here is the engine's `decodeImageFromPixels` copy and callback in
+the headless test engine; it does not include the GPU upload on a device
+(frame-timing tools hide that cost too), so the byte count is the finding, not
+the 0.4 ms. A partial upload of the changed slots, or a smaller page for a few
+stickers, would cut it; that belongs to the frame cache slice.

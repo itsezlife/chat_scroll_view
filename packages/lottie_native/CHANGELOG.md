@@ -8,6 +8,7 @@ package is pre-1.0.
 
 ### Added
 
+- A seeded long fuzz of the C ABI (`native/tests/fuzz_long.rs`, ignored by default) and a nightly workflow that opens an issue on a finding.
 - `LottieBinding`, the interface to the native Lottie renderer, with its load
   result, info, features bitmask and render job types.
 - `testing.dart`: `FakeLottieBinding` and `NativeBindingContract`, which every
