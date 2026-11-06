@@ -53,6 +53,7 @@ final class _SourceRecordingRenderer implements FrameRenderer {
   @override
   Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory) async {
     sources.addAll([for (final job in jobs) job.source]);
+    _touch(jobs, memory);
     return [for (var i = 0; i < jobs.length; i++) i];
   }
 }
@@ -79,7 +80,7 @@ void main() {
       LottieFrameScheduler(
         atlas: FrameAtlas<Object>(
           renderer: r,
-          memory: ListFramePageMemory(pageSide: 128),
+          memory: ListFramePageMemory(),
           budgetBytes: budget,
           sizeClasses: const [64],
           upload: _upload,
@@ -433,7 +434,7 @@ void main() {
         ..renderFails = fails;
       final engine = InProcessLottieEngine(binding);
       final loaded = (await engine.load(bytes)) as LottieLoaded;
-      final memory = NativeFramePageMemory(pageSide: 128);
+      final memory = NativeFramePageMemory();
       final real = LottieFrameScheduler(
         atlas: FrameAtlas<Object>(
           renderer: LottieFrameRenderer(engine: engine, memory: memory),
@@ -484,4 +485,11 @@ void main() {
       expect(canvas.draws.single.src, const Rect.fromLTWH(0, 0, 8, 8));
     });
   });
+}
+
+/// Makes the pages the jobs name, as a renderer that really wrote them would.
+void _touch(List<FrameJob> jobs, FramePageMemory memory) {
+  for (final job in jobs) {
+    memory.page(job.slot.pageIndex, side: job.slot.pageSide);
+  }
 }

@@ -173,15 +173,11 @@ abstract final class FrameRendererContract {
               reason: 'the page was made at the side of its slot',
             );
           }
-          final bytes = harness.memory.page(
-            large.pageIndex,
-            side: large.pageSide,
+          expect(
+            region(large).any((byte) => byte != 0),
+            isTrue,
+            reason: 'the frame is in the cell of the larger page',
           );
-          final at =
-              (large.rect.top.toInt() * large.pageSide +
-                  large.rect.left.toInt()) *
-              4;
-          expect(bytes.sublist(at, at + 4).any((b) => b != 0), isTrue);
         },
       );
 

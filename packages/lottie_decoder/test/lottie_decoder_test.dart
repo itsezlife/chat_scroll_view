@@ -82,7 +82,7 @@ final class _Rig {
     scheduler = LottieFrameScheduler(
       atlas: FrameAtlas<Object>(
         renderer: renderer ?? FakeFrameRenderer(),
-        memory: ListFramePageMemory(pageSide: 1024),
+        memory: ListFramePageMemory(),
         sizeClasses: const [64, 128, 256, 512],
         upload: (pixels, side) async => _image(),
       ),
@@ -706,6 +706,7 @@ final class _JobRecordingRenderer implements FrameRenderer {
       for (final job in jobs)
         (source: job.source, width: job.width, height: job.height),
     ]);
+    _touch(jobs, memory);
     return [for (var i = 0; i < jobs.length; i++) i];
   }
 }
@@ -717,6 +718,14 @@ final class _SizeRecordingRenderer implements FrameRenderer {
   @override
   Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory) async {
     sizes.addAll([for (final job in jobs) (job.width, job.height)]);
+    _touch(jobs, memory);
     return [for (var i = 0; i < jobs.length; i++) i];
+  }
+}
+
+/// Makes the pages the jobs name, as a renderer that really wrote them would.
+void _touch(List<FrameJob> jobs, FramePageMemory memory) {
+  for (final job in jobs) {
+    memory.page(job.slot.pageIndex, side: job.slot.pageSide);
   }
 }
