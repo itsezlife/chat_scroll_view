@@ -29,6 +29,7 @@ import 'emoji/emoji_variant_picker_ink_test.dart'
     as emoji_variant_picker_ink_test;
 import 'emoji/emoji_variant_picker_layout_test.dart'
     as emoji_variant_picker_layout_test;
+import 'gifs/gif_page_search_test.dart' as gif_page_search_test;
 import 'gifs/gif_page_test.dart' as gif_page_test;
 import 'gifs/gif_row_layout_test.dart' as gif_row_layout_test;
 import 'goldens/emoji_page_golden_test.dart' as emoji_page_golden_test;
@@ -84,6 +85,7 @@ void main() {
     'emoji/emoji_variant_picker_layout_test.dart',
     emoji_variant_picker_layout_test.main,
   );
+  group('gifs/gif_page_search_test.dart', gif_page_search_test.main);
   group('gifs/gif_page_test.dart', gif_page_test.main);
   group('gifs/gif_row_layout_test.dart', gif_row_layout_test.main);
   group('goldens/emoji_page_golden_test.dart', emoji_page_golden_test.main);
