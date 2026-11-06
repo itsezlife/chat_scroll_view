@@ -29,9 +29,10 @@ import 'package:video_native/video_native.dart';
 /// seam hands out a `Uint8List`, which has no address a worker could write
 /// to; a native-only engine that decodes into caller-owned native memory
 /// (the way lottie's slot engines do) removes both copies and is a later
-/// part, to be built when a paintable shows the copy in a profile. At the
-/// sizes a chat shows (up to 512 by 512, 1 MiB) a copy is well under a
-/// millisecond.
+/// part, to be built when a paintable shows the copy in a profile. Measured on
+/// an Apple-silicon Mac at 512 by 512 (1 MiB): a destination copy is about
+/// 30 microseconds of a 1.4 millisecond awaited round trip that includes a
+/// VP9 decode, so the copies are not where the time goes.
 ///
 /// A fault inside native code ends the whole process and cannot be caught;
 /// nothing here pretends otherwise. What is handled: a Dart exception in one
