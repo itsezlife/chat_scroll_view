@@ -1,22 +1,20 @@
-/// Ticket 55, symptom 1, thumbnail case (not fixed by ticket 56, which closed
-/// the page-upload and stale-frame causes): "a weird flash when one [sticker or GIF cell] gets
-/// loaded", especially while the panel scrolls.
-///
-/// **Run** (red on purpose; not part of `test/unit_test.dart`):
-/// `cd example && flutter test test_diagnostic/flicker/thumbnail_fade_diagnosis_test.dart`
+/// Ticket 55, symptom 1, thumbnail case (the page-upload and stale-frame
+/// causes were closed by ticket 56): "a weird flash when one [sticker or GIF
+/// cell] gets loaded", especially while the panel scrolls.
 ///
 /// **Seam:** the real `PanelCatalogViewport` over a real `AssetCacheScope`
 /// whose producer hands out what `VideoDecoder` hands out (a thumbnail still,
 /// a first-frame still, then a `VideoAnimationPaintable`), played by the real
-/// `VideoFrameScheduler` and frame pool of `test/support/flicker/video_rig.dart`. Page
-/// uploads finish after a latency the test sets. Every pass the viewport paints
-/// into a `SignatureCanvas`; a cell's passes form a timeline that must go
-/// placeholder, still, animating without ever being less drawn than before
+/// `VideoFrameScheduler` and frame pool of `test/support/flicker/video_rig.dart`.
+/// Page uploads finish after a latency the test sets. Every pass the viewport
+/// paints into a `SignatureCanvas`; a cell's passes form a timeline that must
+/// go placeholder, still, animating without ever being less drawn than before
 /// (`CellTimeline.flashes`).
 ///
-/// Finding: when the first frame arrives over a thumbnail, the painter fades the
-/// content in over the style's stand-in, not over the thumbnail, so the
-/// thumbnail vanishes and the cell rebuilds from alpha 0.
+/// Contract: when the first frame arrives over a thumbnail, the thumbnail stays
+/// under the fading content until the content is opaque, then goes (a bitmap
+/// thumbnail does not fade in the reference client, `ImageReceiver.draw`), so
+/// the cell never dips back towards the stand-in colour.
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -28,8 +26,8 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 import 'package:video_decoder/video_decoder.dart';
 
-import '../../test/support/flicker/paint_signature.dart';
-import '../../test/support/flicker/video_rig.dart';
+import '../support/flicker/paint_signature.dart';
+import '../support/flicker/video_rig.dart';
 
 // 4 columns of 80 x 40 cells under a 24 px header, as in the viewport's own
 // animated-sprite test.
@@ -183,11 +181,6 @@ void main() {
     }
   }
 
-  void report(String title, List<String> flashes) {
-    // ignore: avoid_print
-    print('[thumbnail] $title\n  ${flashes.join('\n  ')}');
-  }
-
   group('thumbnail to content', () {
     testWidgets('a thumbnail is replaced by the loaded content without a dip', (
       tester,
@@ -198,8 +191,7 @@ void main() {
       await frames(tester, 30);
 
       final flashes = timelines[0].flashes(ownTag: 1);
-      report('thumbnail; cell 0: ${timelines[0].compact}', flashes);
-      expect(flashes, isEmpty);
+      expect(flashes, isEmpty, reason: timelines[0].compact);
     });
   });
 }
