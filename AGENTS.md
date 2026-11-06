@@ -50,6 +50,7 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `packages/chrome_foundation`             | Leaf: palette, token groups, theme scope, motion, strings, icons, glass   | theme, glass, motion, strings                                                    |
 | `packages/catalog_assets`                | Asset cache, media pipeline seams, baked glyph atlas, dynamic frame pool  | paintables, readiness, budgets, atlas / bake, frame pool                        |
 | `packages/lottie_native`                 | Leaf: Lottie wrapper crate, build hook, FFI binding, fake and contract    | decoding Lottie / TGS natively                                                   |
+| `packages/lottie_decoder`                | Decoder for Lottie / TGS, render isolate, frame scheduler, animation paintable | playing vector-animation stickers                                           |
 | `packages/chat_wallpaper`                | Leaf: chat wallpaper model, codec, freeform renderer, motion, view, service fills | wallpaper fills, patterns, motion, resize behaviour ([ADR 040](docs/adr/040-chat-wallpaper.md)) |
 | `packages/image_decoder`                 | Decoder adapter: engine image codecs, stills and animated WebP / GIF      | decoding fetched images, frame-sequence playback                                 |
 | `packages/panel_catalog`                 | Panel catalog viewport                                                    | emoji/sticker/GIF grid, section layout, leaf hit, snapshot                       |
