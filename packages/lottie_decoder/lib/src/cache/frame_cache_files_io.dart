@@ -8,11 +8,11 @@ import 'package:meta/meta.dart';
 /// The [FrameCacheFiles] of one directory on a file system.
 ///
 /// An entry is `<stem>.frames`. A write goes to
-/// `<stem>.frames.<pid>.<n>.<random>.tmp` and is renamed into place, so a process that dies mid-write leaves a temp file and
-/// never a partial entry under a real name. Temp files are not entries: [scan]
-/// deletes them. The directory belongs to one cache at a time; a second cache
-/// sharing it could have its in-flight temp file swept.
-///
+/// `<stem>.frames.<pid>.<n>.<random>.tmp` and is renamed into place, so a
+/// process that dies mid-write leaves a temp file and never a partial entry
+/// under a real name. Temp files are not entries: [scan] deletes them. The
+/// directory belongs to one cache at a time; a second cache sharing it could
+/// have its in-flight temp file swept.
 class DirectoryFrameCacheFiles implements FrameCacheFiles {
   /// Creates the files of the directory at [path], which is created on the
   /// first write.
@@ -30,7 +30,7 @@ class DirectoryFrameCacheFiles implements FrameCacheFiles {
   // a directory, and the random part the case where a pid is reused or a
   // container makes every process pid 1.
   static int _nextTemp = 0;
-  static final Random _random = Random();
+  static final Random _random = Random.secure();
 
   static String _tempSuffix() {
     final nonce = _random.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
@@ -48,11 +48,14 @@ class DirectoryFrameCacheFiles implements FrameCacheFiles {
         if (entity is! File) continue;
         final name = entity.uri.pathSegments.last;
         if (name.endsWith(_tempExtension)) {
-          await entity.delete();
+          await discardTemp(entity);
         } else if (name.endsWith(_entryExtension)) {
           // Synchronous: one stat per file in a one-off scan, and the async
           // form is the slow one on the platforms this runs on.
           final stat = entity.statSync();
+          // Gone since the listing (another process, or an eviction): not an
+          // entry, and not a reason to give up on the others.
+          if (stat.type == FileSystemEntityType.notFound) continue;
           infos.add(
             FrameCacheFileInfo(
               stem: name.substring(0, name.length - _entryExtension.length),

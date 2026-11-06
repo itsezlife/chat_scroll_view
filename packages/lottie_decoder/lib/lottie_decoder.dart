@@ -5,7 +5,8 @@
 /// frame cache (memory only on the web). What needs `dart:ffi`, `dart:io` or
 /// `dart:isolate` (the slot engines that write to native memory by address,
 /// native page memory, the zero-copy renderer, the cache's directory files)
-/// is exported only where they exist.
+/// is exported only where they exist. The browser worker lives in
+/// `package:lottie_decoder/web.dart`, which only a web build imports.
 library;
 
 export 'src/cache/frame_cache.dart';
@@ -30,5 +31,3 @@ export 'src/playback/lottie_frame_scheduler.dart';
 export 'src/renderer/lottie_frame_size.dart';
 export 'src/renderer/lottie_source.dart';
 export 'src/renderer/pixel_copy_frame_renderer.dart';
-export 'src/web/web_exports_stub.dart'
-    if (dart.library.js_interop) 'src/web/web_exports.dart';

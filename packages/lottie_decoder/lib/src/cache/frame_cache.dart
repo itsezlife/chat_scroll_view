@@ -150,7 +150,7 @@ final class FrameCache {
     if (frameCount < 1) {
       throw ArgumentError.value(frameCount, 'frameCount', 'must be positive');
     }
-    RangeError.checkValidIndex(index, List<void>.filled(frameCount, null));
+    RangeError.checkValueInInterval(index, 0, frameCount - 1, 'index');
     final animation = _animations.putIfAbsent(
       key,
       () => _Animation(key.toFileStem(), frameCount, lastUsed: _clock()),
@@ -182,7 +182,8 @@ final class FrameCache {
   ///
   /// The RAM entry goes before the first `await`, so a caller that renders on
   /// and [put]s again need not wait: the new frames build a fresh animation.
-  /// A file-system failure is reported like any other, never thrown.
+  /// A file-system failure is reported like any other, never thrown. An
+  /// animation put again meanwhile and written keeps its file.
   Future<void> invalidate(FrameCacheKey key) async {
     _checkAlive();
     final dropped = _animations.remove(key);
@@ -190,6 +191,9 @@ final class FrameCache {
     final files = _files;
     if (files == null) return;
     await _settle();
+    // Frames put again while this waited built a new animation and, once
+    // complete, a new file under the same name: it is not the damaged one.
+    if (_animations[key]?.persisted ?? false) return;
     try {
       _disk.remove(key.toFileStem());
       await files.delete(key.toFileStem());

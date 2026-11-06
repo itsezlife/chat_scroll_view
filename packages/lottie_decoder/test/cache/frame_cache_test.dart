@@ -869,6 +869,22 @@ void main() {
       },
     );
 
+    test('invalidate does not delete the file of an animation put again '
+        'after it', () async {
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
+      addTearDown(cache.dispose);
+      putAll(cache, _key('a'), 2, 10);
+
+      final invalidated = cache.invalidate(_key('a'));
+      putAll(cache, _key('a'), 2, 20);
+      await invalidated;
+      await cache.dispose();
+
+      expect(_names(dir, '.frames'), [
+        '${_key('a').toFileStem()}.frames',
+      ], reason: 'the new animation is on disk');
+    });
+
     test('invalidate of an unknown key is harmless', () async {
       final cache = FrameCache(directoryPath: dir.path, clock: clock);
       addTearDown(cache.dispose);

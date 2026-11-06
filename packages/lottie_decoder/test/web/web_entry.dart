@@ -7,10 +7,7 @@ import 'dart:typed_data';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
-// The analyzer resolves the barrel's conditional export to the VM stub, so the
-// browser types are imported directly; the compiler takes the barrel's web
-// branch for the rest.
-import 'package:lottie_decoder/src/web/web_exports.dart';
+import 'package:lottie_decoder/web.dart';
 import 'package:lottie_native/lottie_native.dart';
 
 /// The engine a web host has: no slot method, only pixels.

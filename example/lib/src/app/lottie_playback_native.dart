@@ -81,23 +81,18 @@ String? defaultCacheDirectory({
   Map<String, String>? environment,
 }) {
   final env = environment ?? Platform.environment;
-  final os = operatingSystem ?? Platform.operatingSystem;
-  const app = 'chat_scroll_view_example';
-  const folder = 'lottie_frames';
-  switch (os) {
-    case 'macos':
-      final home = env['HOME'];
-      return home == null ? null : '$home/Library/Caches/$app/$folder';
-    case 'linux':
-      final base = env['XDG_CACHE_HOME'] ?? _under(env['HOME'], '.cache');
-      return base == null ? null : '$base/$app/$folder';
-    case 'windows':
-      final base = env['LOCALAPPDATA'];
-      return base == null ? null : '$base\\$app\\$folder';
-    default:
-      return null;
-  }
+  final home = env['HOME'];
+  final (base, separator) = switch (operatingSystem ??
+      Platform.operatingSystem) {
+    'macos' => (home == null ? null : '$home/Library/Caches', '/'),
+    'linux' => (
+      env['XDG_CACHE_HOME'] ?? (home == null ? null : '$home/.cache'),
+      '/',
+    ),
+    'windows' => (env['LOCALAPPDATA'], r'\'),
+    _ => (null, '/'),
+  };
+  return base == null
+      ? null
+      : [base, 'chat_scroll_view_example', 'lottie_frames'].join(separator);
 }
-
-String? _under(String? home, String child) =>
-    home == null ? null : '$home/$child';

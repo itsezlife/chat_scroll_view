@@ -26,7 +26,5 @@ installed for you. Without the folder the build still succeeds and the app
 runs: it logs once that Lottie stickers are off and those stickers keep their
 placeholder. Frames are kept in memory only on the web.
 
-**What has been run.** `flutter build web --release` (with and without the
-folder) and `flutter build web --wasm` compile. The protocol runs on the VM in
-tests over an in-memory worker. **No browser has run the page: the real worker,
-the wasm and the Dart client together are unrun.**
+What has and has not run in a browser: see "Not run" under Web in
+[host integration](../docs/host-integration.md).

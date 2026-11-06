@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
@@ -52,7 +53,7 @@ abstract final class LottieWorkerStatus {
 /// replies are matched by `id`, never by position, so the engine does not
 /// depend on that order.
 final class WebWorkerLottieEngine implements LottieEngine {
-  WebWorkerLottieEngine._(this._port, this.simd) {
+  WebWorkerLottieEngine._(this._port, this.simd, this._closeTimeout) {
     _subscriptions = [
       _port.messages.listen(_onMessage),
       _port.failures.listen((_) => _onWorkerEnded()),
@@ -61,7 +62,12 @@ final class WebWorkerLottieEngine implements LottieEngine {
 
   static const _workerEnded = 'the worker ended';
 
+  /// The most jobs one `render` request may hold: the worker's `MAX_JOBS`
+  /// cap, over which it fails the request. A longer list is sent as several.
+  static const maxJobsPerRequest = 256;
+
   final LottieWorkerPort _port;
+  final Duration _closeTimeout;
 
   /// Whether the worker runs the SIMD build of the module.
   final bool simd;
@@ -77,12 +83,14 @@ final class WebWorkerLottieEngine implements LottieEngine {
   ///
   /// Throws a [LottieUnavailable] (and terminates the worker) when the worker
   /// answers `unavailable`, fails before it is ready, or says nothing within
-  /// [readyTimeout].
+  /// [readyTimeout]. [close] waits at most [closeTimeout] for the requests
+  /// already made, then ends the worker and fails what is still pending.
   static Future<WebWorkerLottieEngine> spawn(
     LottieWorkerPort port, {
     required Uri wasmUrl,
     required Uri wasmNoSimdUrl,
     Duration readyTimeout = const Duration(seconds: 10),
+    Duration closeTimeout = const Duration(seconds: 10),
   }) async {
     final ready = Completer<bool>();
     void fail(String reason) {
@@ -119,7 +127,7 @@ final class WebWorkerLottieEngine implements LottieEngine {
           reason: 'the worker was not ready within $readyTimeout',
         ),
       );
-      return WebWorkerLottieEngine._(port, simd);
+      return WebWorkerLottieEngine._(port, simd, closeTimeout);
     } on Object {
       port.terminate();
       rethrow;
@@ -214,10 +222,14 @@ final class WebWorkerLottieEngine implements LottieEngine {
         if (job.hasValidSize) job,
     ];
     final results = <LottiePixels?>[];
-    if (sent.isNotEmpty) {
+    for (var from = 0; from < sent.length; from += maxJobsPerRequest) {
+      final chunk = sent.sublist(
+        from,
+        math.min(from + maxJobsPerRequest, sent.length),
+      );
       final reply = await _post('render', {
         'jobs': [
-          for (final job in sent)
+          for (final job in chunk)
             {
               'handle': job.handle.id,
               'frame': job.frame,
@@ -227,9 +239,10 @@ final class WebWorkerLottieEngine implements LottieEngine {
         ],
       });
       final answers = reply['results']! as List<Object?>;
-      for (var i = 0; i < sent.length; i++) {
+      for (var i = 0; i < chunk.length; i++) {
+        final answer = i < answers.length ? answers[i] : null;
         results.add(
-          i < answers.length ? _pixelsOf(answers[i]! as Map, sent[i]) : null,
+          answer is Map<Object?, Object?> ? _pixelsOf(answer, chunk[i]) : null,
         );
       }
     }
@@ -262,16 +275,32 @@ final class WebWorkerLottieEngine implements LottieEngine {
   Future<void> close() => _closing ??= _shutdown();
 
   Future<void> _shutdown() async {
-    // Requests already made run to completion first, as the interface says.
-    await Future.wait([
+    // Requests already made run to completion first, as the interface says,
+    // but not forever: a worker that never answers would hold the host's
+    // shutdown with it.
+    final settled = Future.wait([
       for (final reply in [..._pending.values])
         reply.future.then<void>((_) {}, onError: (Object _) {}),
     ]);
+    var gaveUp = false;
+    await settled.timeout(
+      _closeTimeout,
+      onTimeout: () {
+        gaveUp = true;
+        return const <void>[];
+      },
+    );
+    if (gaveUp) {
+      _onWorkerEnded();
+      return;
+    }
     try {
-      if (!_ended) await _post('close');
+      if (!_ended) await _post('close').timeout(_closeTimeout);
       // ignore: avoid_catching_errors, the interface's own closed signal.
     } on LottieEngineClosed {
       // The worker ended while it was asked to: it is closed all the same.
+    } on TimeoutException {
+      _onWorkerEnded();
     } finally {
       if (!_ended) _end();
     }
