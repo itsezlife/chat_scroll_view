@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (sticker pack strip label)
+
+- `SemanticsStrings.stickerPackStripLabel`, the label of the stickers page's
+  strip of packs, required, with English and Russian presets. A host that
+  builds `SemanticsStrings(...)` field by field must pass it.
+
 ### Added (monospace face)
 
 - `ChromeMonospace`: the system monospace family per platform and a fallback

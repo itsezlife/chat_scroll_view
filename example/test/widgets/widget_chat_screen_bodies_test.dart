@@ -178,7 +178,7 @@ void main() {
           LottieStickerPack.stickers.length +
           StaticStickerPack.stickers.length +
           VideoStickerPack.items.length;
-      expect(emojiOnly, 21);
+      expect(emojiOnly, 24);
       expect(find.byType(ChatEmojiBody), findsNWidgets(emojiOnly));
 
       await tester.tap(find.byTooltip('Large emoji: on'));

@@ -100,8 +100,8 @@ void main() {
         ],
         [
           // The unicode emoji, the animated one, the four Lottie stickers, the
-          // four static ones and the seven video items.
-          ...List.filled(17, 1),
+          // four static ones and the ten video items.
+          ...List.filled(20, 1),
           3, 5, 12, 3,
         ],
       );

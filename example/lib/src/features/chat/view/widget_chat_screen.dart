@@ -26,6 +26,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_sourc
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_interaction_stub.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
@@ -468,6 +469,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         dataSource: backend,
         clipboard: widget.services.clipboard,
         selection: _selection,
+        canEdit: _canEdit,
         actions: MessageMenuActions(
           onDelete: (messageId) => _handleDeleteSelected([messageId]),
           onDeleteSelected: _handleDeleteSelected,
@@ -780,7 +782,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   Widget _buildInitialSkeleton(BuildContext context) =>
       const DemoInitialSkeleton();
 
+  // Whether the message may be edited: not a sticker or a GIF.
+  bool _canEdit(int messageId) => switch (_dataSource?.getMessage(messageId)) {
+    final message? => MessageEditability.canEdit(message),
+    null => false,
+  };
+
   void _beginEdit(int messageId) {
+    if (!_canEdit(messageId)) return;
     final content = _dataSource?.getMessage(messageId)?.text;
     if (content == null) return;
     _selection.clear();
@@ -1109,6 +1118,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             onSelectText: _selectTextFromBar,
             onCopy: _copySelected,
             onEdit: _editSelectedFromBar,
+            canEdit: _canEdit,
             onDelete: () => _handleDeleteSelected(_selection.selectedIds),
           ),
         ),

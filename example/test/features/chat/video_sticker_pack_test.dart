@@ -6,10 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('VideoStickerPack', () {
-    test('holds three WebM stickers, two MP4 clips and two GIFs', () {
+    test('holds three WebM stickers, four MP4 clips and three GIFs', () {
       expect(VideoStickerPack.stickers, hasLength(3));
-      expect(VideoStickerPack.clips, hasLength(2));
-      expect(VideoStickerPack.gifs, hasLength(2));
+      expect(VideoStickerPack.clips, hasLength(4));
+      expect(VideoStickerPack.gifs, hasLength(3));
       expect(VideoStickerPack.items, [
         ...VideoStickerPack.stickers,
         ...VideoStickerPack.clips,
@@ -20,7 +20,7 @@ void main() {
     test('describes every item as animated video content', () {
       final descriptors = VideoStickerPack.descriptors.toList();
 
-      expect(descriptors, hasLength(7));
+      expect(descriptors, hasLength(10));
       for (final descriptor in descriptors) {
         expect(descriptor.key, isA<ContentKey$Document>());
         expect(descriptor.key.encoded, startsWith('document:demo-video:'));
@@ -56,6 +56,26 @@ void main() {
       );
     });
 
+    test(
+      'gives the clips the proportions of their files, not all a square',
+      () {
+        final sizes = {
+          for (final item in [
+            ...VideoStickerPack.clips,
+            ...VideoStickerPack.gifs,
+          ])
+            item.name: item.descriptor.size,
+        };
+
+        expect(sizes['gradient'], const ContentSize(256, 256));
+        expect(sizes['bars'], const ContentSize(128, 128));
+        // 16:9, 3:4 and 2:1: the justified rows of the GIF page have a mix.
+        expect(sizes['wave'], const ContentSize(320, 180));
+        expect(sizes['tunnel'], const ContentSize(180, 240));
+        expect(sizes['ticker'], const ContentSize(192, 96));
+      },
+    );
+
     test('finds an item by its key and no other content', () {
       for (final item in VideoStickerPack.items) {
         expect(VideoStickerPack.of(item.key), same(item));
@@ -77,6 +97,42 @@ void main() {
           reason: item.assetPath,
         );
       }
+    });
+
+    test('lists the stickers as one installed collection of the WebM only', () {
+      final source = VideoStickerPack.stickerSource();
+      addTearDown(source.dispose);
+
+      final collection = source.collections.value.single;
+
+      expect(collection.id, VideoStickerPack.id);
+      expect(collection.metadata.title, VideoStickerPack.title);
+      expect(
+        (collection.contents as CollectionContents$Loaded).items.map(
+          (item) => item.key,
+        ),
+        VideoStickerPack.stickers.map((item) => item.key),
+      );
+    });
+
+    test('lists the clips and GIFs as a collection of their own', () {
+      final source = VideoStickerPack.gifSource();
+      addTearDown(source.dispose);
+
+      final collection = source.collections.value.single;
+
+      expect(collection.id, VideoStickerPack.gifsId);
+      expect(collection.id, isNot(VideoStickerPack.id));
+      expect(collection.metadata.title, VideoStickerPack.gifsTitle);
+      expect(
+        (collection.contents as CollectionContents$Loaded).items.map(
+          (item) => item.key,
+        ),
+        [
+          ...VideoStickerPack.clips,
+          ...VideoStickerPack.gifs,
+        ].map((item) => item.key),
+      );
     });
 
     test('lists as one installed collection holding every item', () {

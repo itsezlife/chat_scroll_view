@@ -1,19 +1,22 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _OneMessageSource extends ChatDataSource {
-  _OneMessageSource() {
+  _OneMessageSource({String content = 'hello'}) {
     upsertMessages(<IChatMessage>[
       UserChatMessage(
         id: 1,
         sender: 'User',
         createdAt: DateTime(2026),
         updatedAt: DateTime(2026),
-        content: 'hello',
+        content: content,
       ),
     ]);
   }
@@ -108,6 +111,64 @@ void main() {
     expect(scrim.hole, request.surfaceGlobal);
     expect(scrim.holeShape, shape);
     expect(scrim.holeClip, request.bandGlobal);
+  });
+
+  group('the Edit row', () {
+    // A long press opens the menu of the message under the finger; whether it
+    // offers Edit is the host's rule for what the message is.
+    Future<void> openMenu(WidgetTester tester, String content) async {
+      final dataSource = _OneMessageSource(content: content);
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
+      addTearDown(dataSource.dispose);
+      addTearDown(selection.dispose);
+      final menu = MessageMenu(
+        dataSource: dataSource,
+        selection: selection,
+        actions: MessageMenuActions(onDelete: (_) {}, onEdit: (_) {}),
+        clipboard: FakeRichClipboard(),
+        canEdit: (id) => switch (dataSource.getMessage(id)) {
+          final message? => MessageEditability.canEdit(message),
+          null => false,
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => menu.present(context, _request(messageId: 1)),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    testWidgets('is offered on a text message', (tester) async {
+      await openMenu(tester, 'hello');
+
+      expect(find.text('Edit'), findsOneWidget);
+    });
+
+    testWidgets('is not offered on a sticker or a GIF, the rest stays', (
+      tester,
+    ) async {
+      for (final item in [
+        VideoStickerPack.stickers.first,
+        VideoStickerPack.gifs.first,
+      ]) {
+        await openMenu(tester, StickerMessageBody.of(item));
+
+        expect(find.text('Edit'), findsNothing, reason: item.name);
+        expect(find.text('Delete'), findsOneWidget, reason: item.name);
+        await tester.pumpWidget(const SizedBox());
+      }
+    });
   });
 
   group(r'MessageMenuCatalog ($Mobile)', () {

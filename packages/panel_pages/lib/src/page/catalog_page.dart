@@ -673,6 +673,7 @@ class _CatalogPageState extends State<CatalogPage>
     );
     final fieldMounted = widget.searchFieldReady?.value ?? true;
     return ChromeCatalogTheme(
+      headerStartInset: widget.policy.headerStartInset,
       child: CatalogContextMenuHost(
         host: _host,
         controller: _menu,

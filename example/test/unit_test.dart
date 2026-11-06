@@ -70,6 +70,10 @@ import 'features/chat/lottie_sticker_pack_test.dart'
     as lottie_sticker_pack_test;
 import 'features/chat/lottie_sticker_pipeline_test.dart'
     as lottie_sticker_pipeline_test;
+import 'features/chat/message_editability_test.dart'
+    as message_editability_test;
+import 'features/chat/recent_content_source_test.dart'
+    as recent_content_source_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/static_sticker_pack_test.dart'
     as static_sticker_pack_test;
@@ -77,6 +81,8 @@ import 'features/chat/static_sticker_pipeline_test.dart'
     as static_sticker_pipeline_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
+import 'features/chat/sticker_message_body_test.dart'
+    as sticker_message_body_test;
 import 'features/chat/video_sticker_pack_test.dart' as video_sticker_pack_test;
 import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
 import 'frame_rate_boost_test.dart' as frame_rate_boost_test;
@@ -141,6 +147,7 @@ import 'widgets/panel_menu_holds_popup_test.dart'
 import 'widgets/static_sticker_message_test.dart'
     as static_sticker_message_test;
 import 'widgets/status_click_test.dart' as status_click_test;
+import 'widgets/sticker_gif_pages_test.dart' as sticker_gif_pages_test;
 import 'widgets/unread_boundary_background_test.dart'
     as unread_boundary_background_test;
 import 'widgets/unread_separator_test.dart' as unread_separator_test;
@@ -151,6 +158,10 @@ import 'widgets/widget_chat_screen_source_test.dart'
     as widget_chat_screen_source_test;
 
 void main() {
+  group(
+    'features/chat/recent_content_source_test.dart',
+    recent_content_source_test.main,
+  );
   group(
     'features/streaming/streaming_screen_test.dart',
     streaming_screen_test.main,
@@ -220,6 +231,14 @@ void main() {
   group('chat_perf/table_test.dart', chat_perf_table_test.main);
   group('chat_perf/trace_counts_test.dart', chat_perf_trace_counts_test.main);
   group('chat_viewport_insets_test.dart', chat_viewport_insets_test.main);
+  group(
+    'features/chat/message_editability_test.dart',
+    message_editability_test.main,
+  );
+  group(
+    'features/chat/sticker_message_body_test.dart',
+    sticker_message_body_test.main,
+  );
   group('frame_rate_boost_test.dart', frame_rate_boost_test.main);
   group(
     'common/chat_message_markdown_test.dart',
@@ -277,6 +296,7 @@ void main() {
     'widgets/static_sticker_message_test.dart',
     static_sticker_message_test.main,
   );
+  group('widgets/sticker_gif_pages_test.dart', sticker_gif_pages_test.main);
   group(
     'widgets/video_sticker_message_test.dart',
     video_sticker_message_test.main,

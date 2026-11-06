@@ -628,6 +628,84 @@ void main() {
     });
   });
 
+  group('the stickers and GIF page sources', () {
+    List<CollectionId> ids(CollectionSource source) => [
+      for (final collection in source.collections.value) collection.id,
+    ];
+
+    test('list the recents, then every sticker pack with the WebM ones as '
+        'stickers only', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+
+      expect(ids(services.stickerPageSource), [
+        CollectionId.recent,
+        LottieStickerPack.id,
+        StaticStickerPack.id,
+        VideoStickerPack.id,
+      ]);
+      final video = services.stickerPageSource.collections.value.last;
+      expect(
+        (video.contents as CollectionContents$Loaded).items.map(
+          (item) => item.key,
+        ),
+        VideoStickerPack.stickers.map((item) => item.key),
+      );
+    });
+
+    test('list the recents, then the clips and GIFs', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+
+      expect(ids(services.gifPageSource), [
+        CollectionId.recent,
+        VideoStickerPack.gifsId,
+      ]);
+    });
+
+    test('show a pick as a recent once the host commits, not before', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      final sticker = LottieStickerPack.stickers.first;
+      List<ContentKey> recent() =>
+          switch (services.stickerPageSource.collections.value.first.contents) {
+            CollectionContents$Loaded(:final items) => [
+              for (final item in items) item.key,
+            ],
+            _ => const [],
+          };
+
+      await services.recents.record(sticker.key, kind: SemanticKind.sticker);
+      expect(recent(), isEmpty);
+
+      services.recentsShown.commit();
+      expect(recent(), [sticker.key]);
+    });
+
+    test('keep the stickers apart from the GIFs in the recents', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      final clip = VideoStickerPack.clips.first;
+
+      await services.recents.record(clip.key, kind: SemanticKind.gif);
+      services.recentsShown.commit();
+
+      expect(
+        (services.gifPageSource.collections.value.first.contents
+                as CollectionContents$Loaded)
+            .items
+            .map((item) => item.key),
+        [clip.key],
+      );
+      expect(
+        (services.stickerPageSource.collections.value.first.contents
+                as CollectionContents$Loaded)
+            .items,
+        isEmpty,
+      );
+    });
+  });
+
   group('the emoji page source', () {
     test(
       'lists the animated emoji pack, the Lottie stickers, the static ones and the video ones, after the '

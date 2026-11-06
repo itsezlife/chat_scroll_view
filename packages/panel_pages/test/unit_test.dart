@@ -29,6 +29,8 @@ import 'emoji/emoji_variant_picker_ink_test.dart'
     as emoji_variant_picker_ink_test;
 import 'emoji/emoji_variant_picker_layout_test.dart'
     as emoji_variant_picker_layout_test;
+import 'gifs/gif_page_test.dart' as gif_page_test;
+import 'gifs/gif_row_layout_test.dart' as gif_row_layout_test;
 import 'goldens/emoji_page_golden_test.dart' as emoji_page_golden_test;
 import 'menu/catalog_context_menu_test.dart' as catalog_context_menu_test;
 import 'page/catalog_page_contents_change_test.dart'
@@ -41,6 +43,9 @@ import 'page/catalog_sticky_header_test.dart' as catalog_sticky_header_test;
 import 'scroll/page_scroll_reporter_test.dart' as page_scroll_reporter_test;
 import 'snapshot/catalog_snapshot_builder_test.dart'
     as catalog_snapshot_builder_test;
+import 'stickers/sticker_pack_strip_test.dart' as sticker_pack_strip_test;
+import 'stickers/stickers_page_policy_test.dart' as stickers_page_policy_test;
+import 'stickers/stickers_page_test.dart' as stickers_page_test;
 import 'theme/chrome_catalog_theme_test.dart' as chrome_catalog_theme_test;
 
 void main() {
@@ -79,6 +84,8 @@ void main() {
     'emoji/emoji_variant_picker_layout_test.dart',
     emoji_variant_picker_layout_test.main,
   );
+  group('gifs/gif_page_test.dart', gif_page_test.main);
+  group('gifs/gif_row_layout_test.dart', gif_row_layout_test.main);
   group('goldens/emoji_page_golden_test.dart', emoji_page_golden_test.main);
   group('menu/catalog_context_menu_test.dart', catalog_context_menu_test.main);
   group(
@@ -104,5 +111,11 @@ void main() {
     'snapshot/catalog_snapshot_builder_test.dart',
     catalog_snapshot_builder_test.main,
   );
+  group('stickers/sticker_pack_strip_test.dart', sticker_pack_strip_test.main);
+  group(
+    'stickers/stickers_page_policy_test.dart',
+    stickers_page_policy_test.main,
+  );
+  group('stickers/stickers_page_test.dart', stickers_page_test.main);
   group('theme/chrome_catalog_theme_test.dart', chrome_catalog_theme_test.main);
 }

@@ -11,8 +11,10 @@ final class VideoPackItem implements BundledItem {
     this.spokenName, {
     required this.extension,
     required this.kind,
-    required int side,
-  }) : _side = side;
+    required int width,
+    required int height,
+  }) : _width = width,
+       _height = height;
 
   /// The file's name, without its extension.
   final String name;
@@ -27,7 +29,8 @@ final class VideoPackItem implements BundledItem {
   /// file, both "a short loop sent as a message").
   final SemanticKind kind;
 
-  final int _side;
+  final int _width;
+  final int _height;
 
   /// Its content identity: a document key under the pack's own prefix, so its
   /// cache entry and recents slot never meet another pack's.
@@ -43,7 +46,7 @@ final class VideoPackItem implements BundledItem {
     semanticKind: kind,
     mediaForm: MediaForm.video,
     animated: true,
-    size: ContentSize(_side, _side),
+    size: ContentSize(_width, _height),
     spokenName: spokenName,
   );
 
@@ -53,8 +56,8 @@ final class VideoPackItem implements BundledItem {
 
 /// The demo's pack of video-coded content, generated for it with FFmpeg from
 /// synthetic sources (`assets/video_stickers/README.md` holds the commands):
-/// three VP9 WebM stickers with alpha, two silent H.264 MP4 clips and two
-/// tiny GIFs.
+/// three VP9 WebM stickers with alpha, four silent H.264 MP4 clips and three
+/// tiny GIFs, the clips and GIFs of four proportions.
 ///
 /// It stands in for content a real host fetches from its backend, like the
 /// other bundled packs: [source] publishes the pack as a collection,
@@ -79,57 +82,89 @@ abstract final class VideoStickerPack {
       'an orbiting ball',
       extension: 'webm',
       kind: SemanticKind.sticker,
-      side: 512,
+      width: 512,
+      height: 512,
     ),
     VideoPackItem._(
       'pulse',
       'a pulsing ring',
       extension: 'webm',
       kind: SemanticKind.sticker,
-      side: 512,
+      width: 512,
+      height: 512,
     ),
     VideoPackItem._(
       'slide',
       'a sliding square',
       extension: 'webm',
       kind: SemanticKind.sticker,
-      side: 512,
+      width: 512,
+      height: 512,
     ),
   ];
 
-  /// The MP4 clips, 256 x 256, silent.
+  /// The MP4 clips, silent: two 256 x 256, a 16:9 and a portrait one, so the
+  /// GIF page has rows of different proportions to justify.
   static const List<VideoPackItem> clips = [
     VideoPackItem._(
       'gradient',
       'a drifting gradient',
       extension: 'mp4',
       kind: SemanticKind.gif,
-      side: 256,
+      width: 256,
+      height: 256,
     ),
     VideoPackItem._(
       'spiral',
       'a turning spiral',
       extension: 'mp4',
       kind: SemanticKind.gif,
-      side: 256,
+      width: 256,
+      height: 256,
+    ),
+    VideoPackItem._(
+      'wave',
+      'a rippling wave',
+      extension: 'mp4',
+      kind: SemanticKind.gif,
+      width: 320,
+      height: 180,
+    ),
+    VideoPackItem._(
+      'tunnel',
+      'a tunnel of rings',
+      extension: 'mp4',
+      kind: SemanticKind.gif,
+      width: 180,
+      height: 240,
     ),
   ];
 
-  /// The GIFs, 128 x 128.
+  /// The GIFs, 128 x 128 and a wide one.
   static const List<VideoPackItem> gifs = [
     VideoPackItem._(
       'bars',
       'a test pattern',
       extension: 'gif',
       kind: SemanticKind.gif,
-      side: 128,
+      width: 128,
+      height: 128,
     ),
     VideoPackItem._(
       'plasma',
       'a colour plasma',
       extension: 'gif',
       kind: SemanticKind.gif,
-      side: 128,
+      width: 128,
+      height: 128,
+    ),
+    VideoPackItem._(
+      'ticker',
+      'a scrolling ticker',
+      extension: 'gif',
+      kind: SemanticKind.gif,
+      width: 192,
+      height: 96,
     ),
   ];
 
@@ -147,7 +182,26 @@ abstract final class VideoStickerPack {
   static Iterable<ContentDescriptor> get descriptors =>
       items.map((item) => item.descriptor);
 
-  /// A source that lists the pack, loaded from the start.
+  /// The collection the clips and GIFs are listed as on the GIF page.
+  static const CollectionId gifsId = CollectionId.set('demo_gifs');
+
+  /// The title of the GIF collection.
+  static const String gifsTitle = 'Demo GIFs';
+
+  /// A source that lists the whole pack as one collection, loaded from the
+  /// start: what the emoji page shows after its categories.
   static CollectionSource source() =>
       BundledPackSource(id: id, title: title, items: items);
+
+  /// A source that lists the WebM stickers as the pack, for the stickers page.
+  static CollectionSource stickerSource() =>
+      BundledPackSource(id: id, title: title, items: stickers);
+
+  /// A source that lists the clips and GIFs as a collection of their own,
+  /// for the GIF page.
+  static CollectionSource gifSource() => BundledPackSource(
+    id: gifsId,
+    title: gifsTitle,
+    items: [...clips, ...gifs],
+  );
 }

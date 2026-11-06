@@ -98,6 +98,7 @@ abstract final class ChromeStringsSnapshot {
       'semantics.backspaceAction': semantics.backspaceAction,
       'semantics.variantsAction': semantics.variantsAction,
       'semantics.categoryStripLabel': semantics.categoryStripLabel,
+      'semantics.stickerPackStripLabel': semantics.stickerPackStripLabel,
     };
   }
 }
