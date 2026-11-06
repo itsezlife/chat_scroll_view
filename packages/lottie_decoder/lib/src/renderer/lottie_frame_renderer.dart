@@ -13,15 +13,17 @@ import 'package:lottie_native/lottie_native.dart';
 /// them.
 ///
 /// A job's `source` is the [LottieSource] of a loaded file. A batch is a few
-/// engine calls at most; an engine error propagates.
+/// engine calls at most; an engine error propagates as itself.
 ///
 /// ## With a cache
 ///
 /// A job whose source has a [FrameCacheKey] that the cache admits, and whose
 /// frame is inside the animation, is **cacheable**. The batch asks the cache
-/// to `open` each key the first time the renderer sees it (that is what makes
-/// the frames of an earlier launch resident; later batches do not wait for
-/// the disk). Then:
+/// to `open` each key the first time the renderer sees it, and again once its
+/// frames have left RAM (that is what makes the frames of an earlier launch,
+/// or of an eviction, resident). Only the batch that starts an open waits for
+/// it; a batch that meets one still reading treats the key as a miss and
+/// renders. A cache that cannot open a key is not used for that batch. Then:
 ///
 /// - a cacheable job whose frame is resident is **restored**: the engine
 ///   decompresses the cached bytes into the slot;
@@ -51,10 +53,9 @@ final class LottieFrameRenderer implements FrameRenderer {
   final NativeFramePageMemory _memory;
   final FrameCache? _cache;
 
-  // One open per key, kept: the first batch to see a key waits for it, and
-  // later batches find it done. A key stays for the life of the renderer, one
-  // small value per animation and size shown.
-  final Map<FrameCacheKey, Future<void>> _opened = {};
+  // The open of each key last started. A key stays for the life of the
+  // renderer, one small value per animation and size shown.
+  final Map<FrameCacheKey, _Open> _opened = {};
 
   @override
   Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory) async {
@@ -93,10 +94,19 @@ final class LottieFrameRenderer implements FrameRenderer {
     List<_Entry> entries,
   ) async {
     final keys = {for (final entry in entries) ?entry.key};
-    await Future.wait([
-      for (final key in keys)
-        _opened[key] ??= cache.open(key).then<void>((_) {}),
-    ]);
+    // Only a batch that starts an open waits for it. A done open is started
+    // again once RAM has let the animation go, so that its file refills RAM
+    // instead of the frames being rendered over; a pending one is a miss.
+    final starts = <Future<bool>>[];
+    for (final key in keys) {
+      final open = _opened[key];
+      if (open == null || (open.done && !cache.has(key, 0))) {
+        starts.add(_open(cache, key));
+      }
+    }
+    if (!(await Future.wait(starts)).every((opened) => opened)) {
+      return _renderPlain(entries);
+    }
     // The cache may have been disposed while the disk was read.
     if (cache.isDisposed) return _renderPlain(entries);
 
@@ -115,13 +125,18 @@ final class LottieFrameRenderer implements FrameRenderer {
       }
     }
 
-    final (restored, captured, drawn) = await (
-      _restore(restores),
-      _capture(captures),
-      plain.isEmpty
-          ? Future.value(const <LottieRenderStatus>[])
-          : _engine.renderBatch([for (final entry in plain) entry.job]),
-    ).wait;
+    // Sent together, so the engine overlaps them; awaited one by one, so that
+    // its error arrives as itself and not wrapped in a ParallelWaitError.
+    final restoredAsk = _restore(restores)..ignore();
+    final capturedAsk = _capture(captures)..ignore();
+    final drawnAsk =
+        (plain.isEmpty
+              ? Future.value(const <LottieRenderStatus>[])
+              : _engine.renderBatch([for (final entry in plain) entry.job]))
+          ..ignore();
+    final restored = await restoredAsk;
+    final captured = await capturedAsk;
+    final drawn = await drawnAsk;
 
     final held = <int>[];
     final damaged = <_Entry>[];
@@ -146,6 +161,23 @@ final class LottieFrameRenderer implements FrameRenderer {
       held.addAll(_store(cache, damaged, await _capture(damaged)));
     }
     return held..sort();
+  }
+
+  /// Starts the open of [key] and records it; true when the cache opened it.
+  /// A failed open is a miss and leaves no record, so the next batch tries
+  /// again.
+  Future<bool> _open(FrameCache cache, FrameCacheKey key) async {
+    final open = _opened[key] = _Open();
+    try {
+      await cache.open(key);
+      open.done = true;
+      return true;
+    } on Object {
+      // The cache is not fit to serve this batch (it was disposed meanwhile);
+      // the batch renders without it, and its own reporting is not repeated.
+      if (identical(_opened[key], open)) _opened.remove(key);
+      return false;
+    }
   }
 
   Future<List<LottieRenderStatus>> _restore(List<_Entry> entries) {
@@ -191,6 +223,11 @@ final class LottieFrameRenderer implements FrameRenderer {
     }
     return held;
   }
+}
+
+/// The open of one key: done once the cache has answered.
+final class _Open {
+  bool done = false;
 }
 
 /// One job of a batch, read once: where it sits, what it draws, where it is
