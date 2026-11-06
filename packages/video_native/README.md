@@ -41,15 +41,44 @@ rewind and free of the fixtures and damaged copies reports none).
 
 ## Delivery
 
-`hook/build.dart` supports macOS arm64 only. It compiles the wrapper with the
-system `cc` against the recipe's prefix and bundles it plus the four FFmpeg
-dylibs as code assets (the Flutter tool then rewrites their install names
+`hook/build.dart` supports macOS arm64 and Android arm64-v8a. On macOS it
+compiles the wrapper with the system `cc` against the recipe's prefix and
+bundles it plus the four FFmpeg dylibs as code assets (the Flutter tool then rewrites their install names
 together; the dylibs therefore need header padding, which the recipe now
-links in). The prefix is `native/.build/macos-arm64/prefix`, or the directory
+links in). On Android it compiles with the NDK clang (the NDK is found the way
+`lottie_native` finds it: `ANDROID_NDK_HOME`, `ANDROID_NDK_ROOT`, then the
+highest `<sdk>/ndk/<version>`; the clang for the app's NDK API level) and
+bundles `libchat_video.so` plus `libavcodec.so`, `libavformat.so`,
+`libavutil.so`, `libswscale.so`; Android x86_64 and armv7 emit nothing and
+warn. The prefix is `native/.build/<target>/prefix`, or the directory
 `CHAT_VIDEO_FFMPEG_DIR` names (an environment change needs `flutter clean`).
 With no prefix, or on another target, no asset is emitted and a warning names
 the recipe command; `NativeVideoBinding.probe()` then reports `missingLibrary`
 and the tests that need the library skip. Prebuilt delivery is a later ticket.
+
+## Build (Android arm64-v8a)
+
+```shell
+TARGET=android-arm64 packages/video_native/native/recipe/build.sh         # libvpx, ffmpeg
+TARGET=android-arm64 packages/video_native/native/recipe/build.sh verify  # ELF checks
+```
+
+Cross-compiled on a Mac with the NDK (no nasm: arm64 uses NEON, so no
+`--disable-asm`). Same pinned sources and flags as macOS plus `--enable-cross-compile
+--arch=aarch64 --target-os=android --enable-neon`, `--enable-jni` and mediacodec off,
+`-Wl,-z,max-page-size=16384`; libvpx `--target=arm64-android-gcc
+--disable-runtime-cpu-detect`. Output in `native/.build/android-arm64/`. The
+probe cannot run on the host, so `verify` reads the ELF headers: aarch64, every
+`PT_LOAD` aligned 0x4000, no text relocations, `NEEDED` only the FFmpeg
+libraries and libc/libm/libdl/liblog, and no GPL flag in `configure-line.txt`.
+
+| Library (arm64-v8a, API 24) | Size |
+| --- | --- |
+| libavcodec.so (includes libvpx) | 1,785,608 B |
+| libavformat.so | 436,520 B |
+| libavutil.so | 558,696 B |
+| libswscale.so | 675,048 B |
+| libchat_video.so (debug APK) | 13,832 B |
 
 ## Tests
 
