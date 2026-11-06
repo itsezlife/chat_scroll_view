@@ -65,6 +65,8 @@ import 'features/chat/large_emoji_test.dart' as large_emoji_test;
 import 'features/chat/link_activation_test.dart' as link_activation_test;
 import 'features/chat/lottie_sticker_pack_test.dart'
     as lottie_sticker_pack_test;
+import 'features/chat/lottie_sticker_pipeline_test.dart'
+    as lottie_sticker_pipeline_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
@@ -231,6 +233,10 @@ void main() {
     joined_collection_source_test.main,
   );
   group('features/chat/bundled_packs_test.dart', bundled_packs_test.main);
+  group(
+    'features/chat/lottie_sticker_pipeline_test.dart',
+    lottie_sticker_pipeline_test.main,
+  );
   group(
     'features/chat/lottie_sticker_pack_test.dart',
     lottie_sticker_pack_test.main,
