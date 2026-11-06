@@ -24,7 +24,7 @@ import 'package:meta/meta.dart';
 /// [close] lets requests already sent finish: a render's future completes
 /// only after native code is done with the address it was given.
 final class IsolateLottieEngine implements LottieSlotEngine {
-  IsolateLottieEngine._() {
+  IsolateLottieEngine._(this._closeTimeout) {
     // Listening before the isolate exists means no message can arrive unheard;
     // closing a port ends its subscription.
     _replies.listen(_onReply);
@@ -47,11 +47,16 @@ final class IsolateLottieEngine implements LottieSlotEngine {
   /// available, and a codec that is not available is dropped: the engine then
   /// renders without compressing, and the cache sees only misses. Compressed
   /// bytes cross isolates as `TransferableTypedData`.
+  ///
+  /// [close] waits at most [closeTimeout] for the isolate to finish what it
+  /// was asked; after that the isolate is killed and what is still pending
+  /// fails with [LottieEngineClosed].
   static Future<IsolateLottieEngine> spawn({
     LottieBinding Function()? bindingFactory,
     LottieFrameCodec Function()? codecFactory,
+    Duration closeTimeout = const Duration(seconds: 10),
   }) async {
-    final engine = IsolateLottieEngine._();
+    final engine = IsolateLottieEngine._(closeTimeout);
     // The isolate can end before anyone awaits readiness (a binding factory
     // that throws): the error is then recorded on the future but not left
     // unhandled; the await below still receives it.
@@ -83,6 +88,7 @@ final class IsolateLottieEngine implements LottieSlotEngine {
   @visibleForTesting
   static ReceivePort Function() debugPortFactory = ReceivePort.new;
 
+  final Duration _closeTimeout;
   final _replies = debugPortFactory();
   final _errors = debugPortFactory();
   final _exits = debugPortFactory();
@@ -162,7 +168,16 @@ final class IsolateLottieEngine implements LottieSlotEngine {
       // ending (_onExit) fails what is still pending, as a last resort.
       _commands.send(const _Close());
     }
-    await _exited.future;
+    await _exited.future.timeout(
+      _closeTimeout,
+      onTimeout: () {
+        // A render that never returns holds the host's shutdown; the isolate
+        // goes (a kill lands when native code returns, if it ever does) and
+        // the engine stops waiting for an exit message that may not come.
+        _isolate?.kill(priority: Isolate.immediate);
+        _onExit();
+      },
+    );
   }
 
   // --- Requests and replies ---
@@ -174,7 +189,14 @@ final class IsolateLottieEngine implements LottieSlotEngine {
     final id = _nextId++;
     final completer = Completer<Object?>();
     _pending[id] = completer;
-    _commands.send(make(id));
+    try {
+      _commands.send(make(id));
+    } on Object {
+      // Nothing was sent, so nothing will answer: a leftover completer would
+      // fail unobserved when the isolate ends.
+      _pending.remove(id);
+      rethrow;
+    }
     return completer.future.then((value) => value as T);
   }
 

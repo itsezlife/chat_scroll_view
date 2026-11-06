@@ -305,6 +305,57 @@ void main() {
       await expectLater(engine.close(), completes);
     });
 
+    test('close gives up on a worker that never answers, ends it and fails '
+        'what was pending', () async {
+      final silent = FakeLottieWorker()..core.accept(bytes, info);
+      final impatient = await WebWorkerLottieEngine.spawn(
+        silent.port,
+        wasmUrl: wasm,
+        wasmNoSimdUrl: wasmNoSimd,
+        closeTimeout: const Duration(milliseconds: 50),
+      );
+      final handle = ((await impatient.load(bytes)) as LottieLoaded).handle;
+      silent.holdReplies = true;
+      final render = impatient.renderPixels([jobOf(handle)]);
+      final failed = expectLater(render, throwsA(isA<LottieEngineClosed>()));
+      await pumpEventQueue();
+
+      await impatient.close().timeout(const Duration(seconds: 5));
+
+      await failed;
+      expect(silent.terminated, isTrue);
+    });
+
+    test('more jobs than the worker takes are sent as several requests and '
+        'answered in order', () async {
+      final handle = await load();
+      final jobs = [
+        for (var i = 0; i < 300; i++)
+          LottiePixelJob(handle: handle, frame: i % 10, width: 4, height: 4),
+      ];
+
+      final results = await engine.renderPixels(jobs);
+
+      expect(results, hasLength(300));
+      expect(results.every((pixels) => pixels != null), isTrue);
+      final renders = worker.received.where((m) => m['type'] == 'render');
+      expect(renders, hasLength(2));
+      expect(
+        [for (final m in renders) (m['jobs']! as List).length],
+        [WebWorkerLottieEngine.maxJobsPerRequest, 300 - 256],
+      );
+    });
+
+    test('a render reply holding a null answer reads as a null job, never '
+        'a throw', () async {
+      final handle = await load();
+      worker.sendNullAnswers();
+
+      final results = await engine.renderPixels([jobOf(handle), jobOf(handle)]);
+
+      expect(results, [isNull, isNull]);
+    });
+
     test('close lets requests already made finish first, then ends the '
         'worker', () async {
       final handle = await load();

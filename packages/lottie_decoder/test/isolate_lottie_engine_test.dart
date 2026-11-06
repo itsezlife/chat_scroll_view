@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
@@ -310,6 +311,54 @@ void main() {
       await expectLater(engine.close(), completes);
     });
 
+    test('a request that cannot be sent leaves nothing pending', () async {
+      final engine = await IsolateLottieEngine.spawn(
+        bindingFactory: _fakeBinding,
+      );
+      final jobs = _UnsendableJobs();
+      addTearDown(jobs.port.close);
+
+      // A list of a class the isolate protocol cannot copy: send throws.
+      expect(() => engine.renderBatch(jobs), throwsArgumentError);
+
+      // A leftover completer would fail unobserved when the isolate ends,
+      // and the test would die of an uncaught error.
+      await expectLater(engine.close(), completes);
+    });
+
+    test('close gives up on a render that never returns, and fails it '
+        'with LottieEngineClosed', () async {
+      final dir = Directory.systemTemp.createTempSync('isolate_close_');
+      final flag = '${dir.path}/release';
+      addTearDown(() {
+        File(flag).createSync();
+        dir.deleteSync(recursive: true);
+      });
+      final engine = await IsolateLottieEngine.spawn(
+        bindingFactory: _blockingFactory(flag),
+        closeTimeout: const Duration(milliseconds: 200),
+      );
+      final handle = ((await engine.load(_fakeBytes)) as LottieLoaded).handle;
+      final buffer = calloc<Uint8>(64 * 64 * 4);
+      // Never freed while native code may still write: leaked on purpose.
+      final render = engine.renderBatch([
+        LottieEngineJob(
+          handle: handle,
+          frame: 0,
+          width: 64,
+          height: 64,
+          address: buffer.address,
+          strideBytes: 64 * 4,
+        ),
+      ]);
+      final failed = expectLater(render, throwsA(isA<LottieEngineClosed>()));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      await engine.close().timeout(const Duration(seconds: 5));
+
+      await failed;
+    });
+
     group('a failed spawn', () {
       late List<_RecordingPort> ports;
       late ReceivePort Function() previous;
@@ -518,4 +567,18 @@ void main() {
   test('the web-neutral pixel job limit is the binding limit', () {
     expect(LottiePixelJob.maxEdge, LottieRenderJob.maxEdge);
   });
+}
+
+/// A list the isolate protocol cannot copy: it holds a port.
+final class _UnsendableJobs extends ListBase<LottieEngineJob> {
+  final ReceivePort port = ReceivePort();
+
+  @override
+  int length = 0;
+
+  @override
+  LottieEngineJob operator [](int index) => throw RangeError.index(index, this);
+
+  @override
+  void operator []=(int index, LottieEngineJob value) {}
 }

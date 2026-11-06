@@ -48,6 +48,7 @@ final class FakeLottieWorker {
   var _hold = false;
   final _scriptedFailures = <String>[];
   var _shortPixels = false;
+  var _nullAnswers = false;
 
   /// Every message the host posted, in order.
   List<Map<String, Object?>> get received => List.unmodifiable(_received);
@@ -79,6 +80,9 @@ final class FakeLottieWorker {
 
   /// Every pixel buffer is sent one byte short, as a worker with a bug would.
   void sendShortPixels() => _shortPixels = true;
+
+  /// Every render answer is null, as a worker with a bug would send.
+  void sendNullAnswers() => _nullAnswers = true;
 
   /// The worker fails: the host sees a failure and nothing more is answered.
   void die() {
@@ -136,8 +140,19 @@ final class FakeLottieWorker {
           },
         });
       case 'render':
+        final requested = message['jobs']! as List;
+        if (requested.length > WebWorkerLottieEngine.maxJobsPerRequest) {
+          _reply({
+            'id': id,
+            'ok': false,
+            'error':
+                '${requested.length} jobs is over the cap of '
+                '${WebWorkerLottieEngine.maxJobsPerRequest}',
+          });
+          return;
+        }
         final jobs = [
-          for (final job in message['jobs']! as List)
+          for (final job in requested)
             LottiePixelJob(
               handle: LottieHandle((job as Map)['handle']! as int),
               frame: (job['frame']! as num).toDouble(),
@@ -151,7 +166,9 @@ final class FakeLottieWorker {
           'ok': true,
           'results': [
             for (final frame in pixels)
-              if (frame == null)
+              if (_nullAnswers)
+                null
+              else if (frame == null)
                 {'status': LottieWorkerStatus.badSize, 'pixels': null}
               else
                 {
