@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -38,20 +39,43 @@ List<String> _names(Directory dir, String extension) =>
         .toList()
       ..sort();
 
-/// Counts the files written through it.
+/// Counts the files written and read through it, and lets a test wait for the
+/// n-th write to be on disk without sleeping.
 class _CountingFiles extends FrameCacheFiles {
   _CountingFiles(super.directory);
 
   final List<String> written = [];
+  final List<String> reads = [];
+  final List<(int, Completer<void>)> _waiters = [];
+
+  /// Completes once [count] writes have finished.
+  Future<void> writes(int count) {
+    if (written.length >= count) return Future.value();
+    final waiter = Completer<void>();
+    _waiters.add((count, waiter));
+    return waiter.future;
+  }
 
   @override
   Future<void> write(
     String stem,
     Uint8List bytes, {
     required DateTime modified,
-  }) {
+  }) async {
+    await super.write(stem, bytes, modified: modified);
     written.add(stem);
-    return super.write(stem, bytes, modified: modified);
+    for (final (count, waiter) in _waiters.toList()) {
+      if (written.length >= count) {
+        _waiters.remove((count, waiter));
+        waiter.complete();
+      }
+    }
+  }
+
+  @override
+  Future<Uint8List?> read(String stem) {
+    reads.add(stem);
+    return super.read(stem);
   }
 }
 
@@ -423,6 +447,241 @@ void main() {
       addTearDown(third.dispose);
       expect(await third.open(key), 3);
       expect(third.frame(key, 2), _bytes(10, 3));
+    });
+  });
+
+  group('disk budget', () {
+    late Directory dir;
+    late _CountingFiles files;
+
+    /// The size of the file of an animation of three 10-byte frames under a
+    /// one-letter hash.
+    const fileBytes = 36 + 5 + 1 + 3 * 8 + 30;
+
+    FrameCache build({required int budget, _CountingFiles? with_}) {
+      files = with_ ?? _CountingFiles(dir);
+      final cache = FrameCache(
+        directory: dir,
+        files: files,
+        diskBudgetBytes: budget,
+        clock: clock,
+      );
+      addTearDown(cache.dispose);
+      return cache;
+    }
+
+    setUp(() => dir = _tempDir());
+
+    test('evicts the least recently used file after a write', () async {
+      final cache = build(budget: fileBytes * 2 + 1);
+      putAll(cache, _key('a'), 3, 10);
+      await files.writes(1);
+      advance();
+      putAll(cache, _key('b'), 3, 10);
+      await files.writes(2);
+      advance();
+      cache.frame(_key('a'), 0); // a is more recent than b now
+      advance();
+      putAll(cache, _key('c'), 3, 10);
+      await cache.dispose();
+
+      expect(_names(dir, '.frames'), [
+        '${_key('a').toFileStem()}.frames',
+        '${_key('c').toFileStem()}.frames',
+      ]);
+    });
+
+    test('evicts on the first scan, oldest first, by the clock that stamped '
+        'the files', () async {
+      final writer = build(budget: fileBytes * 10);
+      for (final name in ['a', 'b', 'c']) {
+        putAll(writer, _key(name), 3, 10);
+        await files.writes(files.written.length + 1);
+        advance();
+      }
+      await writer.dispose();
+      expect(_names(dir, '.frames'), hasLength(3));
+
+      final restarted = build(budget: fileBytes * 2 + 1);
+      expect(await restarted.open(_key('c')), 3);
+      expect(_names(dir, '.frames'), [
+        '${_key('b').toFileStem()}.frames',
+        '${_key('c').toFileStem()}.frames',
+      ]);
+    });
+
+    test('reading a file counts as using it across restarts', () async {
+      final writer = build(budget: fileBytes * 10);
+      for (final name in ['a', 'b', 'c']) {
+        putAll(writer, _key(name), 3, 10);
+        await files.writes(files.written.length + 1);
+        advance();
+      }
+      await writer.dispose();
+
+      final reader = build(budget: fileBytes * 10);
+      expect(await reader.open(_key('a')), 3); // a: now the most recent
+      await reader.dispose();
+      advance();
+
+      final restarted = build(budget: fileBytes * 2 + 1);
+      expect(await restarted.open(_key('a')), 3);
+      expect(_names(dir, '.frames'), [
+        '${_key('a').toFileStem()}.frames',
+        '${_key('c').toFileStem()}.frames',
+      ]);
+    });
+  });
+
+  group('failures degrade to memory', () {
+    late Directory dir;
+    late List<Object> reported;
+
+    bool isRoot() =>
+        !Platform.isWindows &&
+        Process.runSync('id', ['-u']).stdout.toString().trim() == '0';
+
+    setUp(() {
+      dir = _tempDir();
+      reported = [];
+    });
+
+    test(
+      'a read-only directory is reported once and frames stay in memory',
+      () async {
+        if (isRoot()) {
+          markTestSkipped('root ignores file modes');
+          return;
+        }
+        Process.runSync('chmod', ['500', dir.path]);
+        final cache = FrameCache(
+          directory: dir,
+          clock: clock,
+          onError: (e, _) => reported.add(e),
+        );
+        putAll(cache, _key('a'), 2, 10);
+        putAll(cache, _key('b'), 2, 10);
+        await cache.dispose();
+
+        expect(reported, hasLength(1));
+        expect(reported.single, isA<FileSystemException>());
+        expect(cache.frame(_key('a'), 1), _bytes(10, 2));
+        expect(cache.frame(_key('b'), 0), _bytes(10, 1));
+        expect(dir.listSync(), isEmpty);
+      },
+    );
+
+    test('an unreadable file is a reported miss, not a thrown error', () async {
+      if (isRoot()) {
+        markTestSkipped('root ignores file modes');
+        return;
+      }
+      final writer = FrameCache(directory: dir, clock: clock);
+      putAll(writer, _key('a'), 2, 10);
+      await writer.dispose();
+      Process.runSync('chmod', [
+        '000',
+        '${dir.path}/${_key('a').toFileStem()}.frames',
+      ]);
+
+      final cache = FrameCache(
+        directory: dir,
+        clock: clock,
+        onError: (e, _) => reported.add(e),
+      );
+      addTearDown(cache.dispose);
+      expect(await cache.open(_key('a')), isNull);
+      expect(reported, hasLength(1));
+    });
+
+    test('a directory that is a file never fails a put', () async {
+      final blocker = File('${dir.path}/cache')..writeAsStringSync('x');
+      final cache = FrameCache(
+        directory: Directory(blocker.path),
+        clock: clock,
+        onError: (e, _) => reported.add(e),
+      );
+      putAll(cache, _key('a'), 2, 10);
+      await cache.dispose();
+      expect(cache.frame(_key('a'), 0), _bytes(10, 1));
+      expect(reported, hasLength(1));
+    });
+  });
+
+  group('concurrency and lifecycle', () {
+    late Directory dir;
+    setUp(() => dir = _tempDir());
+
+    test('concurrent opens of one key share one read', () async {
+      final writer = FrameCache(directory: dir, clock: clock);
+      putAll(writer, _key('a'), 3, 10);
+      await writer.dispose();
+
+      final files = _CountingFiles(dir);
+      final cache = FrameCache(directory: dir, files: files, clock: clock);
+      addTearDown(cache.dispose);
+      final counts = await Future.wait([
+        cache.open(_key('a')),
+        cache.open(_key('a')),
+        cache.open(_key('a')),
+      ]);
+      expect(counts, [3, 3, 3]);
+      expect(files.reads, [_key('a').toFileStem()]);
+
+      expect(await cache.open(_key('a')), 3);
+      expect(files.reads, hasLength(1), reason: 'resident: no further read');
+    });
+
+    test('open is idempotent for a different key too', () async {
+      final writer = FrameCache(directory: dir, clock: clock);
+      putAll(writer, _key('a'), 2, 10);
+      putAll(writer, _key('b'), 2, 10);
+      await writer.dispose();
+
+      final files = _CountingFiles(dir);
+      final cache = FrameCache(directory: dir, files: files, clock: clock);
+      addTearDown(cache.dispose);
+      await Future.wait([cache.open(_key('a')), cache.open(_key('b'))]);
+      expect(files.reads, hasLength(2));
+    });
+
+    test('dispose finishes pending writes and is idempotent', () async {
+      final cache = FrameCache(directory: dir, clock: clock);
+      putAll(cache, _key('a'), 2, 10);
+      await Future.wait([cache.dispose(), cache.dispose()]);
+      await cache.dispose();
+      expect(_names(dir, '.frames'), hasLength(1));
+      expect(_names(dir, '.tmp'), isEmpty);
+    });
+
+    test('a put or an open after dispose is a StateError', () async {
+      final cache = FrameCache(directory: dir, clock: clock);
+      await cache.dispose();
+      expect(
+        () => cache.put(_key('a'), 0, _bytes(1, 1), frameCount: 1),
+        throwsStateError,
+      );
+      expect(cache.open(_key('a')), throwsStateError);
+    });
+
+    test('clear drops both tiers, after a pending write finishes', () async {
+      final cache = FrameCache(directory: dir, clock: clock);
+      putAll(cache, _key('a'), 2, 10);
+      await cache.clear();
+
+      expect(cache.has(_key('a'), 0), isFalse);
+      expect(await cache.open(_key('a')), isNull);
+      await cache.dispose();
+      expect(_names(dir, '.frames'), isEmpty, reason: 'the write was cleared');
+    });
+
+    test('a cache is usable again after clear', () async {
+      final cache = FrameCache(directory: dir, clock: clock);
+      putAll(cache, _key('a'), 2, 10);
+      await cache.clear();
+      putAll(cache, _key('a'), 2, 10);
+      await cache.dispose();
+      expect(_names(dir, '.frames'), hasLength(1));
     });
   });
 }

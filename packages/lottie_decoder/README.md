@@ -65,3 +65,38 @@ try {
 
 `atlas` is a `FrameAtlas` over a `LottieFrameRenderer` and the one
 `NativeFramePageMemory`. Close the engine and dispose the scheduler at shutdown.
+
+## Frame cache
+
+`FrameCache` keeps the **compressed** frames of rendered animations so a second
+play, or the next launch, skips the render (ADR 022 "dynamic frame pages", row
+Frame cache). It stores opaque bytes: it knows nothing of the codec, the engine
+or pixels. It is not wired into the renderer yet.
+
+| Type | Role |
+| --- | --- |
+| `FrameCacheKey` | Content hash, DISPLAY size and engine version. Validated and lower-cased in the constructor (`ArgumentError` for a hash or version with path characters); `toFileStem()` is the file name; `admitted([maxEdge = 512])` tells whether the size is cacheable. |
+| `FrameCache` | `open(key)` makes an animation resident and returns its frame count (null: nothing cached; an unadmitted key is always null). `frame` and `has` are synchronous and RAM only. `put(key, index, bytes, frameCount:)` stores one frame, first write wins; when every frame is present the animation is written to disk once, asynchronously. `clear`, `dispose` (finishes pending reads and writes; idempotent). |
+| `FrameCacheFiles` | The one place that touches the file system; `FrameCache` takes `directory`, and tests pass a subclass to count or break writes. |
+
+**Tiers.** The RAM tier (default 32 MiB) evicts whole animations, least
+recently used first, and never the one being filled when it is the only one.
+The disk tier (default 128 MiB) evicts least recently used files after each
+write and on the first scan of the directory. Recency is the injected clock;
+on disk it is the file's modified time, stamped when the file is written or
+opened. `directory: null` keeps memory only.
+
+**File.** `<stem>.frames`, little-endian: magic `FRMC`, format version 1, width,
+height, frame count, payload length, payload CRC-32, engine and hash lengths,
+the engine version and hash, an offsets table, a lengths table, then the
+frames. It is written to `<stem>.<n>.tmp` and renamed, so a crash leaves a temp
+file, never a partial entry; the first scan deletes temp files. A file that is
+truncated, of another format version or key, with offsets that do not tile the
+payload or a wrong CRC is a miss and is deleted, never an exception. The full
+layout is documented on `FrameCacheCodec`.
+
+**Failures.** A file-system error (read-only or missing directory, unreadable
+file) never fails a render: the first is passed to `onError` (default
+`FlutterError.reportError`), later ones are dropped, and after a failed write
+the cache stops writing and serves from memory. The directory belongs to one
+cache at a time. Web keeps memory only (a later slice).

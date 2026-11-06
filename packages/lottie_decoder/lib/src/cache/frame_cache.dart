@@ -95,7 +95,7 @@ final class FrameCache {
     if (!key.admitted()) return null;
     final animation = _animations[key];
     if (animation != null) {
-      animation.lastUsed = _clock();
+      _touch(animation);
       return animation.frames.length;
     }
     if (_files == null) return null;
@@ -124,7 +124,7 @@ final class FrameCache {
     if (animation == null || index < 0 || index >= animation.frames.length) {
       return null;
     }
-    animation.lastUsed = _clock();
+    _touch(animation);
     return animation.frames[index];
   }
 
@@ -151,14 +151,14 @@ final class FrameCache {
     RangeError.checkValidIndex(index, List<void>.filled(frameCount, null));
     final animation = _animations.putIfAbsent(
       key,
-      () => _Animation(frameCount),
+      () => _Animation(key.toFileStem(), frameCount),
     );
     if (animation.frames.length != frameCount) {
       throw StateError(
         '$key has ${animation.frames.length} frames, not $frameCount',
       );
     }
-    animation.lastUsed = _clock();
+    _touch(animation);
     if (animation.frames[index] != null) return;
     animation.frames[index] = compressed;
     animation.filled++;
@@ -177,11 +177,30 @@ final class FrameCache {
   Future<void> clear() async {
     _animations.clear();
     _ramBytes = 0;
+    // A write already under way finishes first, so that its file is among
+    // those removed rather than appearing after the clear.
+    await _settle();
+    final files = _files;
+    if (files == null) return;
+    try {
+      await _ensureScanned();
+      for (final stem in _disk.keys.toList()) {
+        await files.delete(stem);
+      }
+      _disk.clear();
+    } on Object catch (error, stack) {
+      _report(error, stack);
+    }
   }
 
   /// Finishes pending reads and writes, then stops; idempotent.
   Future<void> dispose() async {
     _disposed = true;
+    await _settle();
+  }
+
+  /// Waits until no read or write is under way.
+  Future<void> _settle() async {
     while (_pending.isNotEmpty || _reads.isNotEmpty) {
       await Future.wait<Object?>([..._pending, ..._reads.values]);
     }
@@ -208,6 +227,30 @@ final class FrameCache {
       // found, and the first write will report if it cannot write either.
       _report(error, stack);
     }
+    await _evictDisk();
+  }
+
+  /// Deletes files, least recently used first, until the rest fits the
+  /// budget. A file larger than the whole budget goes too: the budget is the
+  /// host's, and a tier that exceeded it would be a leak with extra steps.
+  Future<void> _evictDisk() async {
+    var total = _disk.values.fold<int>(0, (sum, f) => sum + f.bytes);
+    while (total > diskBudgetBytes && _disk.isNotEmpty) {
+      MapEntry<String, _DiskFile>? oldest;
+      for (final entry in _disk.entries) {
+        if (oldest == null ||
+            entry.value.lastUsed.isBefore(oldest.value.lastUsed)) {
+          oldest = entry;
+        }
+      }
+      _disk.remove(oldest!.key);
+      total -= oldest.value.bytes;
+      try {
+        await _files!.delete(oldest.key);
+      } on Object catch (error, stack) {
+        _report(error, stack);
+      }
+    }
   }
 
   Future<int?> _load(FrameCacheKey key) async {
@@ -227,7 +270,7 @@ final class FrameCache {
       final raced = _animations[key];
       if (raced != null) return raced.frames.length;
       final now = _clock();
-      final animation = _Animation.complete(frames)
+      final animation = _Animation.complete(stem, frames)
         ..persisted = true
         ..lastUsed = now;
       _animations[key] = animation;
@@ -251,6 +294,7 @@ final class FrameCache {
       final now = _clock();
       await _files!.write(stem, bytes, modified: now);
       _disk[stem] = _DiskFile(bytes.length, now);
+      await _evictDisk();
     } on Object catch (error, stack) {
       _writable = false;
       _report(error, stack);
@@ -263,6 +307,15 @@ final class FrameCache {
     if (_reported) return;
     _reported = true;
     _onError(error, stack);
+  }
+
+  /// Marks [animation] used now, in both tiers. The file's time on disk is
+  /// stamped when it is read or written, not per frame: a stat per painted
+  /// frame would cost more than the recency it buys.
+  void _touch(_Animation animation) {
+    final now = _clock();
+    animation.lastUsed = now;
+    _disk[animation.stem]?.lastUsed = now;
   }
 
   void _checkAlive() {
@@ -289,16 +342,18 @@ final class FrameCache {
 
 /// One animation's resident frames; a slot is null until its frame arrives.
 final class _Animation {
-  _Animation(int frameCount)
+  _Animation(this.stem, int frameCount)
     : frames = List<Uint8List?>.filled(frameCount, null),
       filled = 0;
 
   /// An animation read whole from a file.
-  _Animation.complete(List<Uint8List> read)
+  _Animation.complete(this.stem, List<Uint8List> read)
     : frames = List<Uint8List?>.of(read),
       filled = read.length,
       bytes = read.fold<int>(0, (sum, f) => sum + f.length);
 
+  /// The file this animation lives in, spelled once: reads are per frame.
+  final String stem;
   final List<Uint8List?> frames;
   int filled;
   int bytes = 0;
