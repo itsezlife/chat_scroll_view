@@ -169,7 +169,7 @@ void main() {
 
     setUp(() {
       recorder = _JobRecordingRenderer();
-      cache = FrameCache(directory: null);
+      cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
     });
 

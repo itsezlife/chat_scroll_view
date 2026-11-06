@@ -26,6 +26,7 @@ import 'renderer/pixel_copy_frame_renderer_test.dart'
     as pixel_copy_frame_renderer_test;
 import 'testing/fake_pixel_lottie_engine_test.dart'
     as fake_pixel_lottie_engine_test;
+import 'web_compile_test.dart' as web_compile_test;
 
 void main() {
   group(
@@ -64,4 +65,5 @@ void main() {
     'native_frame_page_memory_test.dart',
     native_frame_page_memory_test.main,
   );
+  group('web_compile_test.dart', web_compile_test.main);
 }
