@@ -6,6 +6,18 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (pack strip covers)
+
+- `StickerPackStrip` plays a pack's animated cover in its tab, looping, as the
+  reference mobile client does; before, a tab showed the cover's first frame.
+  It plays on the shared playback clock, so the clock's pause layers (low
+  power among them) stop it, and only while its tab is in the strip's view: a
+  tab scrolled away stops repainting and gives its frame slot back. A still
+  cover stays still. Covers are decoded at their size on the screen
+  (`AssetPresets.keyboardCell`, 26 times the density), as the other animated
+  cells are, and now ask for the whole asset (`AssetVariant.full`), not the
+  first frame, so a host's decoder sees full requests for them.
+
 ### Added (pages with nothing to list)
 
 - `StickersPage` says `PanelStrings.stickersEmpty` in the middle of the page
