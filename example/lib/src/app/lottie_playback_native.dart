@@ -23,9 +23,9 @@ Future<LottiePlayback?> start({
   required PlaybackClock clock,
   required Listenable memoryPressure,
   String? cacheDirectory,
-  Future<LottieEngine> Function() spawn = IsolateLottieEngine.spawn,
+  Future<LottieSlotEngine> Function() spawn = IsolateLottieEngine.spawn,
 }) async {
-  final LottieEngine engine;
+  final LottieSlotEngine engine;
   try {
     engine = await spawn();
   } on Object catch (reason, stackTrace) {
@@ -38,7 +38,7 @@ Future<LottiePlayback?> start({
   // can write it.
   final memory = NativeFramePageMemory();
   final cache = FrameCache(
-    directory: cacheDirectory == null ? null : Directory(cacheDirectory),
+    directoryPath: cacheDirectory,
     // A cache that cannot touch its folder serves from memory; saying so once
     // is enough (the cache reports only the first failure).
     onError: (error, stackTrace) =>
