@@ -35,3 +35,34 @@ export function selectWasm(validate, urls) {
   }
   return simd ? { url: urls.simd, simd } : { url: urls.noSimd, simd };
 }
+
+// --- Memory layout of the header's structs on wasm32 ----------------------
+
+/** Largest frame edge the module draws (`MAX_FRAME_EDGE` in the crate). */
+export const MAX_EDGE = 512;
+
+/**
+ * Byte offsets of the fields of `ChatLottieInfo` and `ChatLottieJob` in module
+ * memory. On wasm32 every field is 4 bytes wide, pointers and `size_t`
+ * included. `layout.test.mjs` derives the same numbers from the header, so a
+ * drift in either fails a test instead of corrupting memory.
+ */
+export const LAYOUT = Object.freeze({
+  info: Object.freeze({
+    width: 0,
+    height: 4,
+    frameCount: 8,
+    frameRate: 12,
+    features: 16,
+    size: 20,
+  }),
+  job: Object.freeze({
+    handle: 0,
+    frame: 4,
+    width: 8,
+    height: 12,
+    target: 16,
+    strideBytes: 20,
+    size: 24,
+  }),
+});
