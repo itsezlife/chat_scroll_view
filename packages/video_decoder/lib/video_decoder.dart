@@ -11,5 +11,10 @@ library;
 // `dart.library.js_interop`. That condition is true on every web compiler and
 // false on the VM.
 export 'src/engine/video_engine.dart';
+export 'src/playback/video_frame_scheduler.dart';
+export 'src/renderer/video_frame_atlas.dart';
+export 'src/renderer/video_frame_renderer.dart';
+export 'src/renderer/video_frame_size.dart';
+export 'src/renderer/video_frame_source.dart';
 export 'src/native_exports.dart'
     if (dart.library.js_interop) 'src/native_exports_stub.dart';
