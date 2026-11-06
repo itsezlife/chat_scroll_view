@@ -8,6 +8,9 @@ package is pre-1.0.
 
 ### Added
 
+- `LottieNativeVersion.engine`: the crate version and pinned tlottie revision
+  as one token, part of every frame-cache key; a test compares it with
+  `native/Cargo.toml`.
 - `LottieBinding`, the interface to the native Lottie renderer, with its load
   result, info, features bitmask and render job types.
 - `testing.dart`: `FakeLottieBinding` and `NativeBindingContract`, which every

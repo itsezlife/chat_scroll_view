@@ -9,24 +9,27 @@ memory a render isolate can write, and a `FrameRenderer` that draws into it.
 
 | Type | Role |
 | --- | --- |
-| `LottieEngine` | The async face of a `LottieBinding`: `load`, `renderBatch` (of `LottieEngineJob`), `dispose`, `close` (idempotent; requests already made run to completion first; later calls throw `LottieEngineClosed`, a `StateError`). |
+| `LottieEngine` | The async face of a `LottieBinding`: `load`, `renderBatch` (of `LottieEngineJob`), `renderCapturing` (the same, and each rendered slot comes back compressed as a `LottieCapture`), `restore` (decompress `LottieRestoreJob`s into slots: `ok`, or `failed` with the slot untouched), `dispose`, `close` (idempotent; requests already made run to completion first; later calls throw `LottieEngineClosed`, a `StateError`). |
 | `LottieEngineJob` | A render job whose target is an `int` address, so it crosses isolates. |
-| `InProcessLottieEngine` | Runs a binding on the calling isolate. With `FakeLottieBinding` it is the engine fake. |
-| `IsolateLottieEngine` | One long-lived render isolate that owns the binding and every handle. `spawn({bindingFactory})` throws a `LottieUnavailable` (a `StateError`) carrying the `LottieAvailability` when the binding is unavailable; any other start-up failure surfaces as it happened, and the isolate and ports are released. One request failing throws a `RemoteError` and spares the engine; the isolate ending fails every pending request with `LottieEngineClosed` and closes the engine. Requests run in arrival order. A native fault ends the process and cannot be caught. |
+| `InProcessLottieEngine` | Runs a binding on the calling isolate, and a `LottieFrameCodec` if given one. With `FakeLottieBinding` it is the engine fake. |
+| `IsolateLottieEngine` | One long-lived render isolate that owns the binding and every handle. `spawn({bindingFactory, codecFactory})` builds the binding and the frame codec inside the isolate (the codec only if the binding is available, and dropped if it is not; compressed bytes cross as `TransferableTypedData`) and throws a `LottieUnavailable` (a `StateError`) carrying the `LottieAvailability` when the binding is unavailable; any other start-up failure surfaces as it happened, and the isolate and ports are released. One request failing throws a `RemoteError` and spares the engine; the isolate ending fails every pending request with `LottieEngineClosed` and closes the engine. Requests run in arrival order. A native fault ends the process and cannot be caught. |
 | `LottieEngineContract` (`testing.dart`) | The behaviour every engine shares, run over the in-process engine and over the isolate engine on the fake and on the real binding. |
 | `NativeFramePageMemory` | `FramePageMemory` in `calloc`ed memory (a Dart-heap list cannot be written from another isolate). `addressOf(page)`, `drop`, `dispose`. |
 | `LottieFrameScheduler` | The one owner of the host's `FrameAtlas`: follows `PlaybackClock` while a lease exists, renders the wanted frames as one batch per tick, and frees a slot after one to two idle periods (default 1 s) by a single sweep timer. The sweep uses a real `Timer` by design: it keeps counting while the clock is paused, and a repaint after a long pause reacquires the entry and draws the last rendered frame, not the still. |
 | `LottieFrameSize` | The one render size (`fitting(info, edge)`) the decoder and the paintable share. |
 | `LottieAnimationPaintable` / `LottieStillPaintable` | The animation (pull-driven, one scheduler key per animation, `onDispose` frees its handle) and a decoded still. |
 | `LottieDecoder` | The `Decoder` for `MediaForm.vectorAnimation`, built from an engine, the scheduler and two injectable image steps (`decodeImage`, `uploadPixels`). |
-| `LottieFrameRenderer` | `FrameRenderer` over an engine and one memory; a job's `source` is a `LottieHandle`. |
+| `LottieSource` | A frame job's `source`: the `LottieHandle`, the animation's frame count and its `FrameCacheKey?`. |
+| `LottieFrameRenderer` | `FrameRenderer` over an engine, one memory and an optional `FrameCache`; a job's `source` is a `LottieSource`. |
+| `CountingLottieEngine` (`testing.dart`) | Forwards to an engine and counts the jobs rendered and restored, for "this pass rendered nothing". |
 
 ## Host contract
 
 | The host provides | The host must not |
 | --- | --- |
-| An engine over an available binding, and the one `NativeFramePageMemory` the renderer and the pool share | Pass the renderer another memory (`StateError`) or a job whose `source` is not a `LottieHandle` (`ArgumentError`) |
+| An engine over an available binding, and the one `NativeFramePageMemory` the renderer and the pool share | Pass the renderer another memory (`StateError`) or a job whose `source` is not a `LottieSource` (`ArgumentError`) |
 | `dispose` for each loaded handle and `close` for the engine | Use a view from `page` after `drop` or `dispose` |
+| `dispose` for the `FrameCache`, before `close` for the engine | Give one cache directory to two caches |
 
 ## The decoder
 
@@ -55,7 +58,7 @@ try {
   final scheduler = LottieFrameScheduler(atlas: atlas, clock: clock);
   decoders.register(
     MediaForm.vectorAnimation,
-    LottieDecoder(engine: engine, scheduler: scheduler),
+    LottieDecoder(engine: engine, scheduler: scheduler, cache: cache),
   );
 } on Object catch (reason) {
   // No decoder (a LottieUnavailable names why): vector animations keep their
@@ -63,15 +66,17 @@ try {
 }
 ```
 
-`atlas` is a `FrameAtlas` over a `LottieFrameRenderer` and the one
-`NativeFramePageMemory`. Close the engine and dispose the scheduler at shutdown.
+`atlas` is a `FrameAtlas` over a `LottieFrameRenderer(engine:, memory:,
+cache:)` and the one `NativeFramePageMemory`; `cache` is the `FrameCache` below
+(`cache:` is optional on both). At shutdown dispose the scheduler, then the
+cache (it finishes the writes under way), then close the engine.
 
 ## Frame cache
 
 `FrameCache` keeps the **compressed** frames of rendered animations so a second
 play, or the next launch, skips the render (ADR 022 "dynamic frame pages", row
 Frame cache). It stores opaque bytes: it knows nothing of the codec, the engine
-or pixels. It is not wired into the renderer yet.
+or pixels.
 
 | Type | Role |
 | --- | --- |
@@ -100,3 +105,29 @@ file) never fails a render: the first is passed to `onError` (default
 `FlutterError.reportError`), later ones are dropped, and after a failed write
 the cache stops writing and serves from memory. The directory belongs to one
 cache at a time. Web keeps memory only (a later slice).
+
+### In the renderer
+
+`LottieFrameRenderer` is what uses the cache. A job is **cacheable** when its
+`LottieSource.cacheKey` is set and admitted and its frame is inside the
+animation. For the cacheable jobs of a batch the renderer `open`s each key the
+first time it sees it (later batches never wait for the disk), then:
+
+- a frame the cache has is **restored** (`LottieEngine.restore`) and nothing is
+  rendered for it;
+- every other frame renders through `renderCapturing`, and its compressed
+  bytes are `put`;
+- a restore that fails (corrupt or wrong-size entry) is rendered after all in
+  the same batch, and `FrameCache.invalidate` drops the animation: one damaged
+  frame says nothing of how many others are.
+
+The answer lists every job that holds its frame, in job order. Without a cache,
+for an uncacheable job, with an engine that has no codec, or with a cache that
+was disposed meanwhile, the frame renders as before. There is no cache isolate
+([ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md)): the render
+isolate owns the codec and the file work is asynchronous `dart:io`.
+
+`LottieDecoder(cache:)` names each animation: `FrameCacheKey(contentHash:` the
+SHA-256 of the file, `width`/`height:` the size the frames render at,
+`engineVersion: LottieNativeVersion.engine)`. A spec above 512 px does not
+animate and has no key.

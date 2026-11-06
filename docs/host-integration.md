@@ -202,20 +202,33 @@ Create, in this order:
    the library is missing or speaks another version; any other error is the
    isolate failing to start. Log once through the host's diagnostics with the
    error's type, create nothing more and do not register.
-3. One `NativeFramePageMemory` (the render isolate writes it), a `FrameAtlas`
-   over it with a `LottieFrameRenderer` and the memory-pressure `Listenable`
-   the scope shares, and a `LottieFrameScheduler` on the clock, which owns the
-   atlas.
+3. One `NativeFramePageMemory` (the render isolate writes it), a `FrameCache`
+   (`directory:` the folder the host keeps rendered frames in between
+   launches, null for memory only; the byte budgets are its own parameters),
+   a `FrameAtlas` over the memory with a `LottieFrameRenderer(engine:, memory:,
+   cache:)` and the memory-pressure `Listenable` the scope shares, and a
+   `LottieFrameScheduler` on the clock, which owns the atlas.
 4. `decoders.register(MediaForm.vectorAnimation, LottieDecoder(engine:,
-   scheduler:))`, before the `AssetPipeline` is built. Tell the pipeline the
+   scheduler:, cache:))`, before the `AssetPipeline` is built. Tell the pipeline the
    descriptors up front (`pipeline.know`); a fetcher serves the file bytes.
+
+The cache is optional and only skips renders. The renderer stores each frame it
+draws and, on a later play (this run or the next launch), restores it instead
+of rendering; a frame it cannot restore is rendered after all and its
+animation is dropped from the cache. The decoder names an animation in the
+cache by the SHA-256 of the file, the pixel size it renders at and
+`LottieNativeVersion.engine`. Pick the folder from the platform's user cache
+location (the example reads it from the environment and keeps memory only on
+Android and iOS, since it does not depend on `path_provider`; a host that does
+passes `getApplicationCacheDirectory()`), and give it to one cache at a time.
 
 Dispose in this order: the scope and the pipeline (dropping an entry frees the
 animation it holds, through the engine), then the scheduler (which disposes the
-atlas), then `engine.close()`, then the memory, then the clock. The engine
-closes before the memory because its isolate writes into it; `close()` lets the
+atlas), then `cache.dispose()` (it finishes the writes under way; a render still
+in flight then stores nothing), then `engine.close()`, then the memory, then the
+clock. The engine closes before the memory because its isolate writes into it; `close()` lets the
 requests already sent finish, and a use after it throws `LottieEngineClosed`
-(the one error a handle's disposal may ignore). The example holds the three
+(the one error a handle's disposal may ignore). The example holds the
 steps in `LottiePlayback`, a class with the `decoder` and a `close()` that runs
 them in that order, once, and never skips one because another failed; the host
 reports a failing close instead of leaving an unhandled future. `dart:ffi` does
@@ -1126,7 +1139,7 @@ not use the hover-open toggle region.
 | Step | File |
 | --- | --- |
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
-| Lottie decoder probe and start (native and web forks) | `example/lib/src/app/lottie_playback.dart`, `lottie_playback_native.dart`, `lottie_playback_stub.dart` |
+| Lottie decoder probe and start, the frame cache and its folder (native and web forks) | `example/lib/src/app/lottie_playback.dart`, `lottie_playback_native.dart`, `lottie_playback_stub.dart` |
 | Bundled packs: one lookup, fetcher and resolver, one pack source, the authored Lottie and static stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart`, `static_sticker_pack.dart` |
 | `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
 | App scopes | `example/lib/src/app/app_chrome.dart` |
