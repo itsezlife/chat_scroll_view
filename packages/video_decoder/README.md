@@ -9,6 +9,8 @@ that plays clips against the shared clock, and the engine seam under them.
 - `InProcessVideoEngine`: runs the binding on the calling isolate.
 - `IsolateVideoEngine.spawn(workers: 2)`: workers own their clips; a clip is
   pinned to one worker, requests for it run in the order made.
+- `WebVideoEngine`: the browser's decoder, a hidden `<video>` per clip behind
+  `VideoElementPort`; `package:video_decoder/web.dart` adds `JsVideoElementPort`.
 - `VideoDecoder`: decodes at the display size and reports the stages below.
 - `VideoFrameScheduler`: decodes each playing clip a few frames ahead and
   draws the frame the clock names.
@@ -57,6 +59,35 @@ advancing clip:
 order, uploaded as `bgra8888`, so no channel is swapped on the way), and its
 renderer copies already-decoded frames. When the pool is full, `acquire`
 answers null and the paintable keeps its still.
+
+## On the web
+
+```dart
+import 'package:video_decoder/web.dart';
+
+final engine = WebVideoEngine(createPort: JsVideoElementPort.create);
+```
+
+Compose it with the scheduler and atlas as below. Differences from the native
+engines:
+
+- **Real time.** The browser presents frames when it decides; `nextFrame` waits
+  for the next one (`requestVideoFrameCallback`, or an animation frame in which
+  `currentTime` moved), and the scheduler already skips what it is late for.
+  `frameRate` is 0.
+- **Alpha** is what the browser decodes; `hasAlpha` is true only if the first
+  frame, drawn to a canvas, has a transparent pixel. Canvas pixels come back
+  straight, so the engine premultiplies them and swaps to BGRA.
+- **Cap.** `maxElements` (16) open clips; past it `open` is rejected with
+  `VideoRejection.limitExceeded`. Closing a clip removes its element.
+- **Timeouts.** A video not ready within `metadataTimeout` (10 s) is rejected
+  as `unsupported`; `dispose` waits `disposeTimeout` (2 s) for frames under way,
+  then fails them. A hidden tab presents no frames.
+- GIF is not playable in a `<video>` and is refused.
+
+`JsVideoElementPort` is compile-checked on the VM side (`web_compile_test`) and
+has run only in a headless Chrome; the engine's rules are tested over
+`FakeVideoElements`.
 
 ## Host recipe
 

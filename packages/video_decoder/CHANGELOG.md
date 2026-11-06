@@ -8,6 +8,15 @@ this package is pre-1.0.
 
 ### Added
 
+- `WebVideoEngine` (`package:video_decoder/web.dart` for the browser end): a
+  `VideoEngine` that plays each clip in a hidden, muted `<video>` element and
+  reads presented frames back through a canvas as premultiplied BGRA. Browsers
+  decode in real time, so `nextFrame` waits for the next presented frame and
+  `VideoInfo.frameRate` is 0; `hasAlpha` is read from the first frame; more
+  than `maxElements` (16) open clips are refused with `limitExceeded`; GIF is
+  refused as `unsupported`. Existing hosts are not affected: the engine and its
+  `VideoElementPort` seam are neutral Dart and tested on the VM with
+  `FakeVideoElements` (in `testing.dart`) and the engine contract.
 - `VideoDecoder`, the `Decoder` of `MediaForm.video`: a still at the display
   size (snapped to the video pool's size classes, aspect kept), then an animated
   `VideoAnimationPaintable`. A refused file fails the decode with
