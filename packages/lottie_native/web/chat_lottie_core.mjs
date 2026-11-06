@@ -42,6 +42,34 @@ export function selectWasm(validate, urls) {
 export const MAX_EDGE = 512;
 
 /**
+ * Most jobs one `render` request may carry. A page of stickers is a few dozen
+ * frames; the cap bounds the job table and the scratch a request can make the
+ * module reserve (the worst case, 256 frames of 512 x 512, is 256 MiB of
+ * module memory, which a real page stays far below and memory never shrinks).
+ */
+export const MAX_JOBS = 256;
+
+/** Largest encoded file one `load` request may carry: the crate's own cap. */
+export const MAX_FILE_BYTES = 4 * 1024 * 1024;
+
+/**
+ * The statuses of `native/include/chat_lottie.h`, by the names the header
+ * gives them without the `CHAT_LOTTIE_` prefix. `status.test.mjs` parses the
+ * header and fails if a number or a name drifts.
+ */
+export const STATUS = Object.freeze({
+  OK: 0,
+  INVALID_ARGUMENT: -1,
+  TOO_LARGE: -2,
+  MALFORMED: -3,
+  LIMIT_EXCEEDED: -4,
+  UNSUPPORTED: -5,
+  INTERNAL: -6,
+  BAD_SIZE: -7,
+  RENDER_FAILED: -8,
+});
+
+/**
  * Byte offsets of the fields of `ChatLottieInfo` and `ChatLottieJob` in module
  * memory. On wasm32 every field is 4 bytes wide, pointers and `size_t`
  * included. `layout.test.mjs` derives the same numbers from the header, so a
@@ -69,9 +97,6 @@ export const LAYOUT = Object.freeze({
 
 // --- The module in use ----------------------------------------------------
 
-/** Statuses the core itself reports; the rest come from the module. */
-const TOO_LARGE = -2;
-
 /**
  * Most bytes of idle scratch regions a core keeps for reuse. A batch of
  * sticker-sized frames fits many times over; a burst of large ones is freed
@@ -86,8 +111,11 @@ const POOL_LIMIT_BYTES = 16 * 1024 * 1024;
  */
 const PLACEHOLDER_BYTES = 4;
 
-/** Written to a status slot before the call, so an unwritten slot is visible. */
-const INTERNAL_UNSET = -6;
+/**
+ * Written to a status slot before the call, so a slot the module never wrote
+ * reads as the bug it is (`INTERNAL`) and not as success.
+ */
+const UNSET_SLOT = STATUS.INTERNAL;
 
 /** The ABI version this file was written against (`chat_lottie_abi_version`). */
 const ABI_VERSION = 1;
@@ -165,11 +193,11 @@ export async function createChatLottie(wasmBytes) {
     // The module refuses an empty region, and an empty file is a malformed
     // one: give it one byte and the true length 0.
     const pointer = wasm.chat_lottie_alloc(Math.max(input.length, 1));
-    if (pointer === 0) return { status: TOO_LARGE };
+    if (pointer === 0) return { status: STATUS.TOO_LARGE };
     try {
       bytes().set(input, pointer);
       const status = wasm.chat_lottie_load(pointer, input.length, infoPtr, handlePtr);
-      if (status !== 0) return { status };
+      if (status !== STATUS.OK) return { status };
       const view = words();
       const id = nextId++;
       live.set(id, view.getUint32(handlePtr, true));
@@ -225,16 +253,16 @@ export async function createChatLottie(wasmBytes) {
         view.setUint32(at + LAYOUT.job.height, job.height, true);
         view.setUint32(at + LAYOUT.job.target, regions[i].pointer, true);
         view.setUint32(at + LAYOUT.job.strideBytes, regions[i].stride, true);
-        view.setInt32(statusesAt + i * 4, INTERNAL_UNSET, true);
+        view.setInt32(statusesAt + i * 4, UNSET_SLOT, true);
       });
       const code = wasm.chat_lottie_render_batch(table, jobs.length, statusesAt);
-      if (code !== 0) throw new Error(`chat_lottie_render_batch failed with ${code}`);
+      if (code !== STATUS.OK) throw new Error(`chat_lottie_render_batch failed with ${code}`);
       // The call may have grown memory too: fresh views.
       const after = words();
       const memory = bytes();
       return regions.map((region, i) => {
         const status = after.getInt32(statusesAt + i * 4, true);
-        if (status !== 0) return { status, pixels: null };
+        if (status !== STATUS.OK) return { status, pixels: null };
         return { status, pixels: memory.slice(region.pointer, region.pointer + region.size) };
       });
     } finally {
