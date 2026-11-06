@@ -17,7 +17,7 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_draft_sync
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_format_offer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
-import 'package:chat_scroll_view_example/src/features/chat/input/stub_panel_pages.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/media_panel_pages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
@@ -202,8 +202,8 @@ final class ChatInputSet {
                   !keyboardStrategy.keyboardIsUp,
             ),
             // Type tabs in the order of the panel: emoji, GIFs, stickers.
-            StubPanelPages.gif(),
-            StubPanelPages.stickers(),
+            MediaPanelPages.gif(services: services),
+            MediaPanelPages.stickers(services: services),
           ],
           preferences: services.preferences,
         ),

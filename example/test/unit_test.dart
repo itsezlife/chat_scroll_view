@@ -72,6 +72,8 @@ import 'features/chat/lottie_sticker_pipeline_test.dart'
     as lottie_sticker_pipeline_test;
 import 'features/chat/message_editability_test.dart'
     as message_editability_test;
+import 'features/chat/recent_content_source_test.dart'
+    as recent_content_source_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/static_sticker_pack_test.dart'
     as static_sticker_pack_test;
@@ -145,6 +147,7 @@ import 'widgets/panel_menu_holds_popup_test.dart'
 import 'widgets/static_sticker_message_test.dart'
     as static_sticker_message_test;
 import 'widgets/status_click_test.dart' as status_click_test;
+import 'widgets/sticker_gif_pages_test.dart' as sticker_gif_pages_test;
 import 'widgets/unread_boundary_background_test.dart'
     as unread_boundary_background_test;
 import 'widgets/unread_separator_test.dart' as unread_separator_test;
@@ -155,6 +158,10 @@ import 'widgets/widget_chat_screen_source_test.dart'
     as widget_chat_screen_source_test;
 
 void main() {
+  group(
+    'features/chat/recent_content_source_test.dart',
+    recent_content_source_test.main,
+  );
   group(
     'features/streaming/streaming_screen_test.dart',
     streaming_screen_test.main,
@@ -289,6 +296,7 @@ void main() {
     'widgets/static_sticker_message_test.dart',
     static_sticker_message_test.main,
   );
+  group('widgets/sticker_gif_pages_test.dart', sticker_gif_pages_test.main);
   group(
     'widgets/video_sticker_message_test.dart',
     video_sticker_message_test.main,

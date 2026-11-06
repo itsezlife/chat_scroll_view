@@ -13,6 +13,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store
 import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/recent_content_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
@@ -59,7 +60,10 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 ///    under the [glyphProbe] that hides what the system cannot draw, the
 ///    animated emoji pack, the Lottie sticker pack, the static sticker pack
 ///    and the video sticker pack, and [emojiPageSource],
-///    which lists the packs after the catalogue's categories;
+///    which lists the packs after the catalogue's categories, and the
+///    [stickerPageSource] and [gifPageSource] of the two dedicated pages,
+///    over the recent stickers and GIFs (a view of the recents that catches
+///    up when the panel opens);
 /// 5. the [clipboard]: the `rich_clipboard` adapter every copy and paste
 ///    goes through, so text keeps its entities (ADR 032).
 ///
@@ -93,6 +97,9 @@ final class AppServices {
     required this.emojiSource,
     required this.emojiSearch,
     required this.emojiPageSource,
+    required this.stickerPageSource,
+    required this.gifPageSource,
+    required List<CollectionSource> pageParts,
     required CollectionSource animatedEmoji,
     required CollectionSource lottieStickers,
     required CollectionSource staticStickers,
@@ -111,6 +118,7 @@ final class AppServices {
     required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
   }) : _animatedEmoji = animatedEmoji,
+       _pageParts = pageParts,
        _lottieStickers = lottieStickers,
        _staticStickers = staticStickers,
        _videoStickers = videoStickers,
@@ -378,6 +386,41 @@ final class AppServices {
         (source) => source.dispose(),
       );
 
+      // The stickers page: the recent stickers, then every pack of stickers;
+      // the video pack only with its WebM stickers, its clips and GIFs being
+      // the GIF page's. The parts are the emoji page's own where they are the
+      // same packs.
+      final recentStickers = owned(
+        RecentContentSource(recents: recentsShown, kind: SemanticKind.sticker),
+        (source) => source.dispose(),
+      );
+      final videoStickerPack = owned(
+        VideoStickerPack.stickerSource(),
+        (source) => source.dispose(),
+      );
+      final stickerPageSource = owned(
+        JoinedCollectionSource([
+          recentStickers,
+          lottieStickers,
+          staticStickers,
+          videoStickerPack,
+        ]),
+        (source) => source.dispose(),
+      );
+      // The GIF page: the recent GIFs, then the clips and GIFs.
+      final recentGifs = owned(
+        RecentContentSource(recents: recentsShown, kind: SemanticKind.gif),
+        (source) => source.dispose(),
+      );
+      final gifClips = owned(
+        VideoStickerPack.gifSource(),
+        (source) => source.dispose(),
+      );
+      final gifPageSource = owned(
+        JoinedCollectionSource([recentGifs, gifClips]),
+        (source) => source.dispose(),
+      );
+
       return AppServices._(
         keyValueStore: storage,
         recents: recents,
@@ -397,6 +440,9 @@ final class AppServices {
         emojiSource: emojiSource,
         emojiSearch: emojiSearch,
         emojiPageSource: emojiPageSource,
+        stickerPageSource: stickerPageSource,
+        gifPageSource: gifPageSource,
+        pageParts: [recentStickers, videoStickerPack, recentGifs, gifClips],
         animatedEmoji: animatedEmoji,
         lottieStickers: lottieStickers,
         staticStickers: staticStickers,
@@ -504,6 +550,15 @@ final class AppServices {
   /// ones and the pack of video. It owns none.
   final CollectionSource emojiPageSource;
 
+  /// What the stickers page lists: the recent stickers, then the pack of
+  /// Lottie stickers, the pack of static ones and the WebM stickers of the
+  /// video pack. It owns none.
+  final CollectionSource stickerPageSource;
+
+  /// What the GIF page lists: the recent GIFs, then the video pack's MP4
+  /// clips and GIFs. It owns none.
+  final CollectionSource gifPageSource;
+
   /// Which glyphs the system cannot draw.
   final MissingGlyphProbe glyphProbe;
 
@@ -518,6 +573,7 @@ final class AppServices {
   final GlyphCacheStore? glyphCache;
 
   final CollectionSource _animatedEmoji;
+  final List<CollectionSource> _pageParts;
   final CollectionSource _lottieStickers;
   final CollectionSource _staticStickers;
   final CollectionSource _videoStickers;
@@ -591,6 +647,11 @@ final class AppServices {
     if (_disposed) return;
     _disposed = true;
     _webProbePass?.cancel();
+    stickerPageSource.dispose();
+    gifPageSource.dispose();
+    for (final part in _pageParts) {
+      part.dispose();
+    }
     emojiPageSource.dispose();
     _videoStickers.dispose();
     _staticStickers.dispose();

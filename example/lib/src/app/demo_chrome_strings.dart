@@ -110,6 +110,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     backspaceAction: 'Удалить',
     variantsAction: 'Показать варианты',
     categoryStripLabel: 'Категории',
+    stickerPackStripLabel: 'Наборы стикеров',
   ),
 );
 
