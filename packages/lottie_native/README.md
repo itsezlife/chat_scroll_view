@@ -261,6 +261,24 @@ without owning a region of it. Pixels come out as the header says everywhere,
 premultiplied `[R, G, B, A]`, tightly packed, one `Uint8Array` copy per job,
 transferred to the host.
 
+**Handles, limits and traps.** A `handle` in the worker protocol is an opaque
+id (1, 2, 3, ...), never an address in the module, and an id is never
+reissued, so a stale handle fails with `-1` and cannot reach a later
+animation. The worker drops a message that is not an object with a string
+`type` and (but for `init`) an integer `id` with one `{type: 'error'}` reply,
+closes the previous core on a second `init`, and refuses a request over the
+caps: at most 256 jobs, integer edges 1 to 512 and a finite frame, and a file
+of at most 4 MiB (`MAX_JOBS`, `MAX_EDGE` and `MAX_FILE_BYTES` in the core;
+`STATUS` names the header's statuses and a test reads them back from
+`chat_lottie.h`). **A trap loses all loaded animations; the Dart side
+reloads.** wasm32 cannot unwind, so a Rust panic is a
+`WebAssembly.RuntimeError`, not the `-6` status that `catch_unwind` gives the
+native build. The core then drops that instance, builds a fresh one from the
+module it already compiled, answers the request that hit the trap with `-6`
+(every job of a batch gets it), and every id issued before the trap fails with
+`-1` afterwards: the caller loads again what it still needs. Ids keep
+counting across the restart.
+
 Tests run in Node only (v22; no browser):
 
 ```sh
