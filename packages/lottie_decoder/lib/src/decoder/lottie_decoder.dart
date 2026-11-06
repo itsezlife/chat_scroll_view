@@ -1,17 +1,14 @@
 import 'dart:async';
-import 'dart:ffi';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:crypto/crypto.dart';
-import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lottie_decoder/src/cache/frame_cache.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
+import 'package:lottie_decoder/src/decoder/read_file_bytes.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
-import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
 import 'package:lottie_decoder/src/paint/lottie_animation_paintable.dart';
 import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
 import 'package:lottie_decoder/src/playback/lottie_frame_scheduler.dart';
@@ -23,8 +20,7 @@ import 'package:lottie_native/lottie_native.dart';
 typedef LottieImageDecoder = Future<ui.Image> Function(Uint8List bytes);
 
 /// Turns premultiplied RGBA [pixels] of [width] x [height] into an image;
-/// `ui.decodeImageFromPixels` by default. It copies [pixels] before the
-/// future completes: the caller frees the buffer right after.
+/// `ui.decodeImageFromPixels` by default.
 typedef LottiePixelUploader =
     Future<ui.Image> Function(Uint8List pixels, int width, int height);
 
@@ -56,7 +52,7 @@ Future<ui.Image> _imageFromPixels(Uint8List pixels, int width, int height) {
 /// | content, full | `firstFrame` (a still), then `full` (a [LottieAnimationPaintable], animated tier) |
 ///
 /// Frame 0 is drawn at the spec's pixel size (the longer side capped at
-/// `LottieRenderJob.maxEdge`) into a temporary native buffer, not into an
+/// `LottiePixelJob.maxEdge`) through [LottieEngine.renderPixels], not into an
 /// atlas slot: the pool may be full, and the still must exist whatever it
 /// answers.
 ///
@@ -69,7 +65,7 @@ Future<ui.Image> _imageFromPixels(Uint8List pixels, int width, int height) {
 ///
 /// ## Above the largest size class
 ///
-/// A spec whose longer side is over `LottieRenderJob.maxEdge` (512, the
+/// A spec whose longer side is over `LottiePixelJob.maxEdge` (512, the
 /// largest size class of the pool) does not animate: the reference clients
 /// skip the frame cache and cap the render at 512, so here the still is
 /// reported as `firstFrame` and again as `full`, and the handle is freed
@@ -104,7 +100,7 @@ final class LottieDecoder implements Decoder {
   /// [decodeImage] and [uploadPixels] are the two steps that need the
   /// engine's image machinery; tests replace them.
   LottieDecoder({
-    required LottieSlotEngine engine,
+    required LottieEngine engine,
     required LottieFrameScheduler scheduler,
     FrameCache? cache,
     LottieImageDecoder decodeImage = _imageFromList,
@@ -115,7 +111,7 @@ final class LottieDecoder implements Decoder {
        _decodeImage = decodeImage,
        _uploadPixels = uploadPixels;
 
-  final LottieSlotEngine _engine;
+  final LottieEngine _engine;
   final LottieFrameScheduler _scheduler;
   final FrameCache? _cache;
   final LottieImageDecoder _decodeImage;
@@ -152,7 +148,7 @@ final class _LottieDecode implements AssetTask {
 
   Future<Uint8List> _bytes() => switch (_request.content) {
     FetchedBytes(:final bytes) => Future.value(bytes),
-    FetchedFile(:final path) => File(path).readAsBytes(),
+    FetchedFile(:final path) => readFileBytes(path),
   };
 
   void _fail(Object error, StackTrace stackTrace) {
@@ -207,7 +203,7 @@ final class _LottieDecode implements AssetTask {
     final spec = _request.spec;
     final edge = math.min(
       math.max(spec.pixelWidth, spec.pixelHeight),
-      LottieRenderJob.maxEdge,
+      LottiePixelJob.maxEdge,
     );
     final LottieFrameSize(:width, :height) = LottieFrameSize.fitting(
       info,
@@ -234,7 +230,7 @@ final class _LottieDecode implements AssetTask {
     final finalImage = spec.variant == AssetVariant.full ? image.clone() : null;
     final animates =
         spec.variant == AssetVariant.full &&
-        math.max(spec.pixelWidth, spec.pixelHeight) <= LottieRenderJob.maxEdge;
+        math.max(spec.pixelWidth, spec.pixelHeight) <= LottiePixelJob.maxEdge;
     if (!animates) {
       _release(handle);
       _progress.advance(
@@ -289,31 +285,14 @@ final class _LottieDecode implements AssetTask {
     int width,
     int height,
   ) async {
-    final buffer = calloc<Uint8>(width * height * 4);
-    try {
-      final statuses = await _owner._engine.renderBatch([
-        LottieEngineJob(
-          handle: handle,
-          frame: 0,
-          width: width,
-          height: height,
-          address: buffer.address,
-          strideBytes: width * 4,
-        ),
-      ]);
-      if (statuses.single != LottieRenderStatus.ok) {
-        throw StateError(
-          'The first frame did not render: ${statuses.single.name}',
-        );
-      }
-      return await _owner._uploadPixels(
-        buffer.asTypedList(width * height * 4),
-        width,
-        height,
-      );
-    } finally {
-      calloc.free(buffer);
+    final frames = await _owner._engine.renderPixels([
+      LottiePixelJob(handle: handle, frame: 0, width: width, height: height),
+    ]);
+    final pixels = frames.single;
+    if (pixels == null) {
+      throw StateError('The first frame did not render.');
     }
+    return _owner._uploadPixels(pixels, width, height);
   }
 
   void _release(LottieHandle handle) {

@@ -12,6 +12,8 @@ import 'cache/frame_cache_key_test.dart' as frame_cache_key_test;
 import 'cache/frame_cache_test.dart' as frame_cache_test;
 import 'in_process_lottie_engine_test.dart' as in_process_lottie_engine_test;
 import 'isolate_lottie_engine_test.dart' as isolate_lottie_engine_test;
+import 'lottie_decoder_pixel_engine_test.dart'
+    as lottie_decoder_pixel_engine_test;
 import 'lottie_decoder_test.dart' as lottie_decoder_test;
 import 'lottie_frame_renderer_test.dart' as lottie_frame_renderer_test;
 import 'lottie_frame_size_test.dart' as lottie_frame_size_test;
@@ -51,6 +53,10 @@ void main() {
     in_process_lottie_engine_test.main,
   );
   group('isolate_lottie_engine_test.dart', isolate_lottie_engine_test.main);
+  group(
+    'lottie_decoder_pixel_engine_test.dart',
+    lottie_decoder_pixel_engine_test.main,
+  );
   group('lottie_decoder_test.dart', lottie_decoder_test.main);
   group('lottie_frame_renderer_test.dart', lottie_frame_renderer_test.main);
   group('lottie_frame_size_test.dart', lottie_frame_size_test.main);
