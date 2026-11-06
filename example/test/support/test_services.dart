@@ -30,4 +30,5 @@ Future<AppServices> createTestServices({
 Future<LottiePlayback?> _noLottie({
   required PlaybackClock clock,
   required Listenable memoryPressure,
+  String? cacheDirectory,
 }) async => null;

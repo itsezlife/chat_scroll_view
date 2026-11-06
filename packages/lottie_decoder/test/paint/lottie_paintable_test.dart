@@ -46,6 +46,17 @@ final class _FailingRenderer implements FrameRenderer {
   }
 }
 
+/// Keeps the source of every job, and renders them all.
+final class _SourceRecordingRenderer implements FrameRenderer {
+  final List<Object> sources = [];
+
+  @override
+  Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory) async {
+    sources.addAll([for (final job in jobs) job.source]);
+    return [for (var i = 0; i < jobs.length; i++) i];
+  }
+}
+
 void main() {
   const info = LottieInfo(
     width: 64,
@@ -86,9 +97,11 @@ void main() {
     Object key = 'a',
     ui.Image? still,
     VoidCallback? onDispose,
+    FrameCacheKey? cacheKey,
   }) => LottieAnimationPaintable(
     key: key,
     handle: handle,
+    cacheKey: cacheKey,
     info: info,
     firstFrame: still ?? _image(8),
     scheduler: scheduler,
@@ -187,6 +200,25 @@ void main() {
       expect(renderer.batches, [
         [1],
         [7],
+      ]);
+    });
+
+    test('renders through a source carrying its handle, key and frame '
+        'count', () async {
+      final recording = _SourceRecordingRenderer();
+      scheduler.dispose();
+      scheduler = build(recording);
+      final cacheKey = FrameCacheKey(
+        contentHash: 'abc',
+        width: 48,
+        height: 48,
+        engineVersion: '1.0.0',
+      );
+
+      await paintAndSettle(make(cacheKey: cacheKey), at(0));
+
+      expect(recording.sources, [
+        LottieSource(handle, cacheKey: cacheKey, frameCount: info.frameCount),
       ]);
     });
 
@@ -404,7 +436,7 @@ void main() {
       final memory = NativeFramePageMemory(pageSide: 128);
       final real = LottieFrameScheduler(
         atlas: FrameAtlas<Object>(
-          renderer: LottieFrameRenderer(engine, memory),
+          renderer: LottieFrameRenderer(engine: engine, memory: memory),
           memory: memory,
           budgetBytes: _budget,
           sizeClasses: const [64],

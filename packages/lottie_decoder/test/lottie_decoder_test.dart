@@ -74,6 +74,7 @@ final class _Rig {
     LottieImageDecoder? decodeImage,
     LottiePixelUploader? upload,
     FrameRenderer? renderer,
+    FrameCache? cache,
   }) : binding = FakeLottieBinding()..accept(_fakeBytes, _info) {
     this.engine = engine ?? InProcessLottieEngine(binding);
     ticks = ManualPlaybackTickSource();
@@ -91,6 +92,7 @@ final class _Rig {
     decoder = LottieDecoder(
       engine: this.engine,
       scheduler: scheduler,
+      cache: cache,
       decodeImage: decodeImage ?? (bytes) async => _image(),
       uploadPixels:
           upload ??
@@ -158,6 +160,129 @@ void main() {
         valid: (part, spec) => _request(_fakeBytes, part: part, spec: spec),
         invalid: () => _request(_badBytes),
       );
+    });
+  });
+
+  group('LottieDecoder with a frame cache', () {
+    late _JobRecordingRenderer recorder;
+    late FrameCache cache;
+
+    setUp(() {
+      recorder = _JobRecordingRenderer();
+      cache = FrameCache(directory: null);
+      addTearDown(cache.dispose);
+    });
+
+    /// Decodes [bytes] in full under [rig], paints the animation once and
+    /// lets the first batch go out.
+    Future<void> paintOnce(_Rig rig, Uint8List bytes, AssetSpec spec) async {
+      final report = _Report();
+      rig.decoder.decode(_request(bytes, spec: spec), report);
+      await pumpEventQueue();
+      final pictures = ui.PictureRecorder();
+      report.advances.last.paintable.paint(
+        ui.Canvas(pictures),
+        const ui.Rect.fromLTWH(0, 0, 64, 64),
+        const AssetPaintContext(
+          time: Duration.zero,
+          loop: true,
+          restFrame: AssetRestFrame.first,
+          animate: true,
+          opacity: 1,
+        ),
+      );
+      pictures.endRecording().dispose();
+      rig.ticks.tick(const Duration(milliseconds: 16));
+      await pumpEventQueue();
+    }
+
+    test('the frames are keyed by content hash, render size and engine '
+        'version', () async {
+      final rig = _Rig(renderer: recorder, cache: cache);
+      addTearDown(rig.close);
+
+      await paintOnce(
+        rig,
+        _fakeBytes,
+        const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+      );
+
+      final source = recorder.jobs.single.source as LottieSource;
+      expect(source.cacheKey, isNotNull);
+      expect(
+        source.cacheKey,
+        FrameCacheKey(
+          // SHA-256 of the bytes 01 02 03, from `shasum -a 256`.
+          contentHash:
+              '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81',
+          width: 64,
+          height: 64,
+          engineVersion: LottieNativeVersion.engine,
+        ),
+      );
+      expect(source.frameCount, _info.frameCount);
+    });
+
+    test('the key carries the size the frames are rendered at', () async {
+      final rig = _Rig(renderer: recorder, cache: cache);
+      addTearDown(rig.close);
+      rig.binding.accept(
+        Uint8List.fromList([7]),
+        const LottieInfo(
+          width: 300,
+          height: 100,
+          frameCount: 10,
+          frameRate: 30,
+          features: LottieFeatures.none,
+        ),
+      );
+
+      await paintOnce(
+        rig,
+        Uint8List.fromList([7]),
+        const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+      );
+
+      final job = recorder.jobs.single;
+      final key = (job.source as LottieSource).cacheKey!;
+      expect((key.width, key.height), (job.width, job.height));
+      expect((key.width, key.height), (64, 21));
+    });
+
+    test('different content under one size has a different key', () async {
+      final rig = _Rig(renderer: recorder, cache: cache);
+      addTearDown(rig.close);
+      rig.binding.accept(Uint8List.fromList([7]), _info);
+
+      await paintOnce(
+        rig,
+        _fakeBytes,
+        const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+      );
+      await paintOnce(
+        rig,
+        Uint8List.fromList([7]),
+        const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+      );
+
+      final keys = {
+        for (final job in recorder.jobs)
+          (job.source as LottieSource).cacheKey!.contentHash,
+      };
+      expect(keys, hasLength(2));
+    });
+
+    test('without a cache the source has no key', () async {
+      final rig = _Rig(renderer: recorder);
+      addTearDown(rig.close);
+
+      await paintOnce(
+        rig,
+        _fakeBytes,
+        const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+      );
+
+      expect((recorder.jobs.single.source as LottieSource).cacheKey, isNull);
     });
   });
 
@@ -523,6 +648,15 @@ final class _DeferredEngine implements LottieEngine {
   ) async => (await _engine).renderBatch(jobs);
 
   @override
+  Future<List<LottieCapture>> renderCapturing(
+    List<LottieEngineJob> jobs,
+  ) async => (await _engine).renderCapturing(jobs);
+
+  @override
+  Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) async =>
+      (await _engine).restore(jobs);
+
+  @override
   Future<void> dispose(LottieHandle handle) async =>
       (await _engine).dispose(handle);
 
@@ -547,10 +681,33 @@ final class _DisposeThrows implements LottieEngine {
       _inner.renderBatch(jobs);
 
   @override
+  Future<List<LottieCapture>> renderCapturing(List<LottieEngineJob> jobs) =>
+      _inner.renderCapturing(jobs);
+
+  @override
+  Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) =>
+      _inner.restore(jobs);
+
+  @override
   Future<void> dispose(LottieHandle handle) => Future.error(error);
 
   @override
   Future<void> close() => _inner.close();
+}
+
+/// A renderer that keeps the source and size of every job, and renders them
+/// all.
+final class _JobRecordingRenderer implements FrameRenderer {
+  final List<({Object source, int width, int height})> jobs = [];
+
+  @override
+  Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory) async {
+    this.jobs.addAll([
+      for (final job in jobs)
+        (source: job.source, width: job.width, height: job.height),
+    ]);
+    return [for (var i = 0; i < jobs.length; i++) i];
+  }
 }
 
 /// A renderer that notes the size of every job and renders nothing.

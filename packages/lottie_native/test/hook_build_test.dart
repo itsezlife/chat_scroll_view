@@ -1,4 +1,3 @@
-import 'package:code_assets/code_assets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // The hook is not part of lib/: a hook may not import the Flutter package
@@ -7,35 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import '../hook/src/cargo_build.dart';
 
 void main() {
-  group('rustTargetFor', () {
-    test('maps macOS arm64 and x86_64 to their Apple triples', () {
-      expect(
-        rustTargetFor(OS.macOS, Architecture.arm64),
-        'aarch64-apple-darwin',
-      );
-      expect(rustTargetFor(OS.macOS, Architecture.x64), 'x86_64-apple-darwin');
-    });
-
-    test('is null for any other target: the library is then absent', () {
-      expect(rustTargetFor(OS.linux, Architecture.x64), isNull);
-      expect(rustTargetFor(OS.macOS, Architecture.ia32), isNull);
-    });
-  });
-
-  group('unsupportedTargetWarning', () {
-    test(
-      'names the target and says the library is unavailable at run time',
-      () {
-        final warning = unsupportedTargetWarning(OS.linux, Architecture.x64);
-
-        expect(
-          warning,
-          allOf(contains('linux'), contains('x64'), contains('at run time')),
-        );
-      },
-    );
-  });
-
   group('missingTargetHint', () {
     test(
       'suggests rustup target add when cargo says the target is missing',

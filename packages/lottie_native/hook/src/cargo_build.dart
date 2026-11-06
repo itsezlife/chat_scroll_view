@@ -1,37 +1,97 @@
 /// What `hook/build.dart` needs to compile the `native/` crate with cargo:
-/// the Rust target for a code target, and where cargo is.
+/// where cargo is, how to run it for a target, and what to say when it fails
+/// (the Rust target for a code target is `LottieNativeTarget.rustTriple`).
 ///
 /// Kept apart from the hook entry so the decisions are tested without
-/// running a build.
+/// running a build, and so the opt-in cross-compile test drives the same
+/// function the hook does.
 library;
 
 import 'dart:io';
 
 import 'package:code_assets/code_assets.dart';
 
-/// The Rust target triple for [os] and [architecture], or null when this
-/// slice does not build for it.
-///
-/// Only macOS is built from source in this slice. Another target gets no
-/// asset rather than a failed build: a host that never registers the binding
-/// (it probes first) still builds and runs, and the probe reports
-/// [unsupportedTargetWarning]'s consequence at run time.
-String? rustTargetFor(OS os, Architecture architecture) {
-  if (os == OS.macOS) {
-    if (architecture == Architecture.arm64) return 'aarch64-apple-darwin';
-    if (architecture == Architecture.x64) return 'x86_64-apple-darwin';
-  }
-  return null;
-}
+import 'android_ndk.dart';
+import 'artifact_check.dart';
+import 'build_environment.dart';
+import 'delivery_plan.dart' show buildFromSourceEnvironment;
+import 'targets.dart';
 
-/// The warning the hook logs when [rustTargetFor] has no answer.
-String unsupportedTargetWarning(OS os, Architecture architecture) =>
-    'lottie_native builds its native library from source on macOS (arm64 and '
-    'x86_64) only; this build targets $os/$architecture, so no library is '
-    'bundled and it is unavailable at run time (NativeLottieBinding.probe() '
-    'reports missingLibrary). Android, iOS, Windows and Linux arrive with '
-    'slice 6: hash-pinned prebuilt libraries and an opt-in flag to compile '
-    'from source.';
+/// Compiles the crate in [crate] (the `native/` folder) for [target] into
+/// [targetDir] and returns the library, after checking its header.
+///
+/// Builds on the running host. Throws [UnsupportedError] when it cannot
+/// build [target],
+/// [AndroidNdkUnavailable] when an Android build has no usable NDK (before
+/// cargo starts), [ProcessException] when cargo fails, and [StateError] when
+/// cargo succeeded but wrote a library for the wrong architecture or without
+/// 16 KB alignment.
+Future<File> compileCrate({
+  required String cargo,
+  required Uri crate,
+  required Uri targetDir,
+  required LottieNativeTarget target,
+  required Map<String, String> environment,
+}) async {
+  final hostOs = OS.current;
+  final triple = target.rustTriple;
+  if (triple == null ||
+      !target.buildableOn(
+        hostOs: hostOs,
+        hostArch: Architecture.current,
+        environment: environment,
+      )) {
+    throw UnsupportedError(
+      'lottie_native cannot compile its native library for $target from '
+      'source on this host; unset build_from_source / '
+      '$buildFromSourceEnvironment to use a prebuilt, if one is published.',
+    );
+  }
+  final ndk = target.os == OS.android
+      ? findAndroidNdk(environment: environment, hostOs: hostOs)
+      : null;
+  final arguments = [
+    'build',
+    '--release',
+    '--locked',
+    '--target',
+    triple,
+    '--target-dir',
+    targetDir.toFilePath(),
+    '--manifest-path',
+    crate.resolve('Cargo.toml').toFilePath(),
+  ];
+  final result = await Process.run(
+    cargo,
+    arguments,
+    environment: cargoBuildEnvironment(
+      target: target,
+      environment: environment,
+      ndk: ndk,
+    ),
+  );
+  if (result.exitCode != 0) {
+    final output = '${result.stdout}\n${result.stderr}';
+    final hint = missingTargetHint(output, triple);
+    throw ProcessException(
+      cargo,
+      arguments,
+      'cargo failed building the lottie_native crate '
+      '(exit ${result.exitCode}). A first build needs network for the '
+      'crates and the pinned tlottie commit.\n'
+      '$output${hint == null ? '' : '\n$hint'}',
+      result.exitCode,
+    );
+  }
+  final library = File(
+    targetDir.resolve('$triple/release/${target.libraryFileName}').toFilePath(),
+  );
+  final problem = artifactProblem(library.readAsBytesSync(), target);
+  if (problem != null) {
+    throw StateError('cargo built ${library.path} for $target, but $problem.');
+  }
+  return library;
+}
 
 /// A line to append to a failed cargo run's message when [output] says the
 /// Rust standard library for [target] is not installed, else null.

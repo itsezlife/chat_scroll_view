@@ -1,0 +1,4 @@
+tags:
+  # Real cross-compiles of the crate, compile only (nothing is ever run).
+  # Opt in with LOTTIE_NATIVE_CROSS=1; see test/cross_compile_test.dart.
+  native-cross: {}

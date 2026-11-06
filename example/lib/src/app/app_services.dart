@@ -150,6 +150,8 @@ final class AppServices {
   /// language set of emoji search, the app language first. [startLottie]
   /// starts the Lottie decoder (the platform's unless a test passes its own);
   /// it answers null where there is none, and then nothing is registered.
+  /// [lottieCacheDirectory] is the folder its rendered frames are kept in
+  /// between launches (null: in memory only, as in a test).
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -158,6 +160,7 @@ final class AppServices {
     List<String> languages = const <String>['ru', 'en'],
     RichClipboard clipboard = const SystemRichClipboard(),
     LottiePlaybackStarter startLottie = startLottiePlayback,
+    String? lottieCacheDirectory,
   }) async {
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
@@ -213,6 +216,7 @@ final class AppServices {
       final lottiePlayback = await startLottie(
         clock: clock,
         memoryPressure: memoryPressure,
+        cacheDirectory: lottieCacheDirectory,
       );
       if (lottiePlayback != null) {
         owned(lottiePlayback, _closePlayback);

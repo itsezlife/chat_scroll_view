@@ -42,6 +42,11 @@ const _fakeInfo = LottieInfo(
 LottieBinding _fakeBinding() =>
     FakeLottieBinding()..accept(_fakeBytes, _fakeInfo);
 
+LottieFrameCodec _fakeCodec() => FakeLottieFrameCodec();
+
+LottieFrameCodec _unavailableCodec() =>
+    FakeLottieFrameCodec(isAvailable: false);
+
 LottieBinding _unavailableBinding() =>
     FakeLottieBinding(availability: LottieAvailability.abiMismatch);
 
@@ -170,7 +175,8 @@ void main() {
   group('over the fake binding', () {
     LottieEngineContract.run(
       () => LottieEngineHarness(
-        open: () async => InProcessLottieEngine(_fakeBinding()),
+        open: () async =>
+            InProcessLottieEngine(_fakeBinding(), codec: _fakeCodec()),
         validBytes: _fakeBytes,
         expectedInfo: _fakeInfo,
         malformedBytes: Uint8List.fromList([9]),
@@ -181,12 +187,64 @@ void main() {
   group('in the render isolate over the fake binding', () {
     LottieEngineContract.run(
       () => LottieEngineHarness(
-        open: () => IsolateLottieEngine.spawn(bindingFactory: _fakeBinding),
+        open: () => IsolateLottieEngine.spawn(
+          bindingFactory: _fakeBinding,
+          codecFactory: _fakeCodec,
+        ),
         validBytes: _fakeBytes,
         expectedInfo: _fakeInfo,
         malformedBytes: Uint8List.fromList([9]),
       ),
     );
+  });
+
+  group('in the render isolate without a usable frame codec', () {
+    late IsolateLottieEngine engine;
+    setUp(() async {
+      engine = await IsolateLottieEngine.spawn(
+        bindingFactory: _fakeBinding,
+        codecFactory: _unavailableCodec,
+      );
+      addTearDown(engine.close);
+    });
+
+    test('renderCapturing renders and carries no bytes', () async {
+      final handle = ((await engine.load(_fakeBytes)) as LottieLoaded).handle;
+      final page = calloc<Uint8>(64 * 64 * 4);
+      addTearDown(() => calloc.free(page));
+
+      final captures = await engine.renderCapturing([
+        LottieEngineJob(
+          handle: handle,
+          frame: 3,
+          width: 64,
+          height: 64,
+          address: page.address,
+          strideBytes: 64 * 4,
+        ),
+      ]);
+
+      expect(captures.single.status, LottieRenderStatus.ok);
+      expect(captures.single.compressed, isNull);
+      expect(page[3], isNot(0));
+    });
+
+    test('restore fails every job', () async {
+      final page = calloc<Uint8>(64 * 64 * 4);
+      addTearDown(() => calloc.free(page));
+
+      final statuses = await engine.restore([
+        LottieRestoreJob(
+          compressed: Uint8List.fromList([1, 2, 3]),
+          width: 64,
+          height: 64,
+          address: page.address,
+          strideBytes: 64 * 4,
+        ),
+      ]);
+
+      expect(statuses, [LottieRenderStatus.failed]);
+    });
   });
 
   group('the render isolate', () {

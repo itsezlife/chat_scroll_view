@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
+import 'package:lottie_decoder/src/engine/lottie_engine_work.dart';
 import 'package:lottie_native/lottie_native.dart';
 
 /// A [LottieEngine] that runs a [LottieBinding] on the calling isolate; its
@@ -9,9 +10,14 @@ import 'package:lottie_native/lottie_native.dart';
 /// For tests (over `FakeLottieBinding`) and hosts that want no isolate.
 final class InProcessLottieEngine implements LottieEngine {
   /// Creates an engine over [binding], which it owns and closes.
-  InProcessLottieEngine(this._binding);
+  ///
+  /// [codec] compresses and restores frames for the frame cache; without one
+  /// (or with one that is not available) frames render and carry no bytes.
+  InProcessLottieEngine(this._binding, {LottieFrameCodec? codec})
+    : _codec = LottieEngineWork.usable(codec);
 
   final LottieBinding _binding;
+  final LottieFrameCodec? _codec;
   bool _closed = false;
 
   void _requireOpen() {
@@ -30,6 +36,20 @@ final class InProcessLottieEngine implements LottieEngine {
   ) async {
     _requireOpen();
     return _binding.renderBatch([for (final job in jobs) job.toBindingJob()]);
+  }
+
+  @override
+  Future<List<LottieCapture>> renderCapturing(
+    List<LottieEngineJob> jobs,
+  ) async {
+    _requireOpen();
+    return LottieEngineWork.renderCapturing(_binding, _codec, jobs);
+  }
+
+  @override
+  Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) async {
+    _requireOpen();
+    return LottieEngineWork.restore(_codec, jobs);
   }
 
   @override
