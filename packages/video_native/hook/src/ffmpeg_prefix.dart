@@ -45,7 +45,8 @@ Directory? findFfmpegPrefix({
 
 /// The shared libraries of [prefix] by the name their dependents load them
 /// under, one per entry of [ffmpegLibraries]: `libavcodec.63.dylib` on macOS
-/// (the file whose install name is `@rpath/<that name>`), `libavcodec.so`
+/// and iOS (the file whose install name is `@rpath/<that name>`; the Flutter
+/// tool turns each into a framework on iOS), `libavcodec.so`
 /// on Android (unversioned, and its own soname).
 ///
 /// Throws a [StateError] naming what is missing, so a half-built prefix is a

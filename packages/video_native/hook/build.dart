@@ -2,8 +2,9 @@
 /// `lib/src/native/chat_video_symbols.dart` binds to, plus the FFmpeg shared
 /// libraries it links.
 ///
-/// macOS arm64 and Android arm64-v8a: the wrapper is compiled (the system C
-/// compiler, or the NDK clang) against the FFmpeg + libvpx prefix built by
+/// macOS arm64, iOS arm64 (device and simulator) and Android arm64-v8a: the
+/// wrapper is compiled (the system C compiler, Xcode's clang for iOS, or the
+/// NDK clang) against the FFmpeg + libvpx prefix built by
 /// `native/recipe/build.sh` for that target (or the one `CHAT_VIDEO_FFMPEG_DIR`
 /// names). With no prefix, or on another target, no asset is emitted with a
 /// warning and the probe reports `missingLibrary`; prebuilt delivery is a
@@ -35,12 +36,18 @@ void main(List<String> args) async {
     if (!input.config.buildCodeAssets) return;
 
     final code = input.config.code;
-    final target = recipeTarget(code.targetOS, code.targetArchitecture);
+    final ios = code.targetOS == OS.iOS;
+    final target = recipeTarget(
+      code.targetOS,
+      code.targetArchitecture,
+      iosSdk: ios ? code.iOS.targetSdk : null,
+    );
     if (target == null) {
       stderr.writeln(
         'warning: video_native has no native library for '
-        '${code.targetOS} ${code.targetArchitecture}: only macOS arm64 and '
-        'Android arm64-v8a are built so far. No asset is bundled.',
+        '${code.targetOS} ${code.targetArchitecture}: only macOS arm64, iOS '
+        'arm64 (device and simulator) and Android arm64-v8a are built so far '
+        '(there is no x86_64 simulator build). No asset is bundled.',
       );
       return;
     }
@@ -96,6 +103,14 @@ void main(List<String> args) async {
         libraries: libraries.values.toList(),
         output: File.fromUri(out.resolve('libchat_video.so')),
         compiler: clang,
+      );
+    } else if (ios) {
+      wrapper = await compileIosWrapper(
+        native: native,
+        prefix: prefix,
+        output: File.fromUri(out.resolve('libchat_video.dylib')),
+        sdk: code.iOS.targetSdk,
+        minVersion: code.iOS.targetVersion,
       );
     } else {
       wrapper = await compileWrapper(
