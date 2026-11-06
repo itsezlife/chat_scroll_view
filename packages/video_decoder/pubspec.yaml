@@ -1,0 +1,27 @@
+name: video_decoder
+description: >
+  The video decoder adapter, part 1: an async engine seam over a video_native
+  binding (open, next frame into a caller's buffer, rewind, close), an
+  in-process engine, and a pool of long-lived worker isolates that decode
+  clips off the UI isolate. Fakes and a contract suite are in testing.dart.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  # Only the cross-isolate worker core uses it: native scratch buffers.
+  ffi: ^2.1.0
+  # Only lib/testing.dart needs this: the contract suite is written with the
+  # test framework, and a library cannot import a dev dependency (the same
+  # arrangement as video_native and lottie_decoder). Production entry points
+  # never import it.
+  flutter_test:
+    sdk: flutter
+  meta: ^1.17.0
+  video_native:
+    path: ../video_native
