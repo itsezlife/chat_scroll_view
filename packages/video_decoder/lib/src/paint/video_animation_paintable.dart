@@ -115,15 +115,11 @@ final class VideoAnimationPaintable extends AssetPaintable {
       _still.paint(canvas, rect, context);
       return;
     }
-    final fitted = applyBoxFit(
-      BoxFit.contain,
-      Size(_clip.width.toDouble(), _clip.height.toDouble()),
-      rect.size,
-    );
+    final placed = context.fit.placeRegion(sprite.source, rect);
     canvas.drawImageRect(
       sprite.page,
-      sprite.source,
-      Alignment.center.inscribe(fitted.destination, rect),
+      placed.source,
+      placed.destination,
       Paint()
         ..filterQuality = FilterQuality.medium
         ..color = Color.fromRGBO(0, 0, 0, context.opacity),
