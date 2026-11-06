@@ -30,6 +30,34 @@ final class LottieNativeTarget {
     iosVersion: config.targetOS == OS.iOS ? config.iOS.targetVersion : null,
   );
 
+  /// Every target the manifest has a key for, in the order the keys are
+  /// published. [key] is the one place that spells the vocabulary; this list
+  /// only says which targets exist, so [fromKey] and [keys] cannot drift from
+  /// it (a test checks each entry round-trips).
+  static const _published = <LottieNativeTarget>[
+    LottieNativeTarget(OS.macOS, Architecture.arm64),
+    LottieNativeTarget(OS.macOS, Architecture.x64),
+    LottieNativeTarget(OS.iOS, Architecture.arm64, sdk: IOSSdk.iPhoneOS),
+    LottieNativeTarget(OS.iOS, Architecture.arm64, sdk: IOSSdk.iPhoneSimulator),
+    LottieNativeTarget(OS.iOS, Architecture.x64, sdk: IOSSdk.iPhoneSimulator),
+    LottieNativeTarget(OS.android, Architecture.arm64),
+    LottieNativeTarget(OS.android, Architecture.x64),
+    LottieNativeTarget(OS.linux, Architecture.x64),
+    LottieNativeTarget(OS.linux, Architecture.arm64),
+    LottieNativeTarget(OS.windows, Architecture.x64),
+  ];
+
+  /// Every manifest key, in publication order.
+  static List<String> get keys => [for (final t in _published) t.key!];
+
+  /// The target a manifest [key] names, or null for an unknown key.
+  static LottieNativeTarget? fromKey(String key) {
+    for (final target in _published) {
+      if (target.key == key) return target;
+    }
+    return null;
+  }
+
   /// The operating system.
   final OS os;
 

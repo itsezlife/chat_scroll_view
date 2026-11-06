@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:code_assets/code_assets.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,8 +12,14 @@ import 'package:flutter_test/flutter_test.dart';
 import '../hook/src/prebuilt_download.dart';
 // ignore: avoid_relative_lib_imports, always_use_package_imports
 import '../hook/src/prebuilt_manifest.dart';
+// ignore: avoid_relative_lib_imports, always_use_package_imports
+import '../hook/src/targets.dart';
+import 'support/library_headers.dart';
 
-final _payload = utf8.encode('pretend this is a dylib ' * 50);
+const _target = LottieNativeTarget(OS.macOS, Architecture.arm64);
+
+/// A thin arm64 Mach-O header followed by filler: sound for [_target].
+final _payload = [...machoLibrary(machoArmCpu), ...utf8.encode('dylib ' * 50)];
 final _digest = sha256.convert(_payload).toString();
 
 PrebuiltArtifact _artifact({
@@ -54,13 +61,28 @@ void main() {
 
   Future<PrebuiltFetch> fetch({
     PrebuiltArtifact? artifact,
+    LottieNativeTarget target = _target,
     Duration timeout = const Duration(seconds: 5),
   }) => fetchPrebuilt(
     artifact: artifact ?? _artifact(),
     url: url,
     cacheDir: cache,
+    target: target,
     timeout: timeout,
   );
+
+  /// Serves [bytes] and returns the artifact that pins them.
+  PrebuiltArtifact serve(List<int> bytes, {String file = 'libchat_lottie.so'}) {
+    handler = (request) async {
+      request.response.add(bytes);
+      await request.response.close();
+    };
+    return PrebuiltArtifact(
+      file: file,
+      sha256: sha256.convert(bytes).toString(),
+      size: bytes.length,
+    );
+  }
 
   /// Every file left anywhere under the cache.
   List<String> leftovers() => [
@@ -207,5 +229,59 @@ void main() {
       expect(result, isA<PrebuiltUnavailable>());
       expect(File('${dir.path}/libchat_lottie.dylib').existsSync(), isFalse);
     });
+  });
+
+  group('fetchPrebuilt checks the library against its target', () {
+    const androidArm64 = LottieNativeTarget(OS.android, Architecture.arm64);
+
+    test('a library of another architecture is refused though its hash is '
+        'right, and nothing is left to register', () async {
+      final wrong = serve(soundElf(machine: elfX8664));
+
+      final result = await fetch(artifact: wrong, target: androidArm64);
+
+      expect(
+        (result as PrebuiltUnavailable).reason,
+        allOf(contains('0x3e'), contains('0xb7')),
+      );
+      expect(leftovers(), isEmpty);
+    });
+
+    test('a 4 KB aligned Android library is refused', () async {
+      final unaligned = serve(
+        elfLibrary(machine: elfAarch64, segments: [(ptLoad, 0x1000)]),
+      );
+
+      final result = await fetch(artifact: unaligned, target: androidArm64);
+
+      expect((result as PrebuiltUnavailable).reason, contains('16 KB'));
+      expect(leftovers(), isEmpty);
+    });
+
+    test('a library that fits its target is ready', () async {
+      final sound = serve(soundElf(machine: elfAarch64));
+
+      final result = await fetch(artifact: sound, target: androidArm64);
+
+      expect(result, isA<PrebuiltReady>());
+    });
+
+    test(
+      'a cached file that fails the check is deleted, not trusted',
+      () async {
+        final wrong = serve(soundElf(machine: elfX8664));
+        // A first fetch for a target it fits puts it in the cache.
+        const linuxX64 = LottieNativeTarget(OS.linux, Architecture.x64);
+        final first = await fetch(artifact: wrong, target: linuxX64);
+        expect(first, isA<PrebuiltReady>());
+        final before = requests;
+
+        final second = await fetch(artifact: wrong, target: androidArm64);
+
+        expect(second, isA<PrebuiltUnavailable>());
+        expect(leftovers(), isEmpty);
+        expect(requests, before, reason: 'the same bytes would fail again');
+      },
+    );
   });
 }

@@ -11,14 +11,17 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
+import 'artifact_check.dart';
 import 'prebuilt_manifest.dart';
+import 'targets.dart';
 
 /// The outcome of [fetchPrebuilt].
 sealed class PrebuiltFetch {
   const PrebuiltFetch();
 }
 
-/// A library on disk whose size and SHA-256 match the manifest.
+/// A library on disk whose size and SHA-256 match the manifest and whose
+/// header fits the target.
 final class PrebuiltReady extends PrebuiltFetch {
   /// Creates the result for [file].
   const PrebuiltReady(this.file);
@@ -46,6 +49,12 @@ final class PrebuiltUnavailable extends PrebuiltFetch {
 /// verified again and reused with no network; one that no longer verifies is
 /// deleted and fetched anew.
 ///
+/// A hash only proves the file is the one the manifest names, not that the
+/// manifest named a library for [target]: every file also passes
+/// [artifactProblem] (machine or CPU, and 16 KB segments on Android) before it
+/// is registered. One that fails is deleted and unavailable, never retried,
+/// because the same bytes would fail again.
+///
 /// The download goes to a temporary `.part` file that is verified and then
 /// renamed, so a crash or a concurrent build never leaves the final path
 /// holding half a library. [timeout] bounds the whole fetch.
@@ -53,17 +62,23 @@ Future<PrebuiltFetch> fetchPrebuilt({
   required PrebuiltArtifact artifact,
   required Uri url,
   required Directory cacheDir,
+  required LottieNativeTarget target,
   Duration timeout = const Duration(seconds: 60),
 }) async {
   final dir = Directory('${cacheDir.path}/${artifact.sha256}');
-  final target = File('${dir.path}/${artifact.file}');
-  if (target.existsSync()) {
-    if (await _mismatch(target, artifact) == null) return PrebuiltReady(target);
-    target.deleteSync();
+  final file = File('${dir.path}/${artifact.file}');
+  if (file.existsSync()) {
+    if (await _mismatch(file, artifact) == null) {
+      final problem = artifactProblem(file.readAsBytesSync(), target);
+      if (problem == null) return PrebuiltReady(file);
+      file.deleteSync();
+      return PrebuiltUnavailable('the cached $url is unusable: $problem');
+    }
+    file.deleteSync();
   }
 
   final part = File(
-    '${target.path}.$pid-${DateTime.now().microsecondsSinceEpoch}.part',
+    '${file.path}.$pid-${DateTime.now().microsecondsSinceEpoch}.part',
   );
   final client = HttpClient()..connectionTimeout = timeout;
   try {
@@ -71,8 +86,9 @@ Future<PrebuiltFetch> fetchPrebuilt({
       client,
       url,
       artifact,
-      part,
       target,
+      part,
+      file,
     ).timeout(timeout);
   } on TimeoutException {
     return PrebuiltUnavailable(
@@ -92,8 +108,9 @@ Future<PrebuiltFetch> _download(
   HttpClient client,
   Uri url,
   PrebuiltArtifact artifact,
+  LottieNativeTarget target,
   File part,
-  File target,
+  File destination,
 ) async {
   final request = await client.getUrl(url);
   final response = await request.close();
@@ -125,9 +142,11 @@ Future<PrebuiltFetch> _download(
 
   final mismatch = await _mismatch(part, artifact);
   if (mismatch != null) return PrebuiltUnavailable('$url: $mismatch');
+  final problem = artifactProblem(part.readAsBytesSync(), target);
+  if (problem != null) return PrebuiltUnavailable('$url: $problem');
   // Same directory, so the rename is atomic.
-  part.renameSync(target.path);
-  return PrebuiltReady(target);
+  part.renameSync(destination.path);
+  return PrebuiltReady(destination);
 }
 
 /// Why [file] is not [artifact] (size first, it is cheap), or null when it

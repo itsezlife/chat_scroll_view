@@ -70,6 +70,7 @@ void main(List<String> args) async {
           input,
           artifact,
           url,
+          target,
         ),
         CompileFromSource() => await _compile(
           input,
@@ -111,12 +112,14 @@ Future<Uri?> _download(
   BuildInput input,
   PrebuiltArtifact artifact,
   Uri url,
+  LottieNativeTarget target,
 ) async {
   // The shared directory outlives this build and is the same for every
   // consumer of the package, so a library is downloaded once.
   final result = await fetchPrebuilt(
     artifact: artifact,
     url: url,
+    target: target,
     cacheDir: Directory.fromUri(
       input.outputDirectoryShared.resolve('lottie_native_prebuilts/'),
     ),

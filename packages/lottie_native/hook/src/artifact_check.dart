@@ -1,10 +1,13 @@
-/// A cheap check of a freshly built library's header, so a wrong-architecture
-/// or mis-aligned file fails the build instead of shipping.
+/// A cheap check of a library's header, so a wrong-architecture or mis-aligned
+/// file fails the build instead of shipping. It judges a freshly built library
+/// and, because a hash only proves a download is the file the manifest names,
+/// a downloaded prebuilt too.
 ///
 /// Android: every loadable segment must be aligned to 16 KB (Google Play
 /// refuses 64-bit apps whose libraries are not) and the machine must be the
-/// target's. Apple: the Mach-O CPU must be the target's. Pure Dart over the
-/// header bytes, so it is tested on handcrafted fixtures.
+/// target's. Linux: the ELF machine. Apple: the Mach-O CPU. Windows: the PE
+/// machine. Pure Dart over the header bytes, so it is tested on handcrafted
+/// fixtures.
 library;
 
 import 'dart:typed_data';
@@ -14,11 +17,13 @@ import 'package:code_assets/code_assets.dart';
 import 'targets.dart';
 
 /// What is wrong with the library [bytes] for [target], or null when it is
-/// fine (or when nothing is checked for the target: Linux and Windows).
+/// fine (or when nothing is checked for the target: an OS without a key).
 String? artifactProblem(Uint8List bytes, LottieNativeTarget target) =>
     switch (target.os) {
-      OS.android => _elfProblem(bytes, target.arch),
+      OS.android => _elfProblem(bytes, target.arch, pageAligned: true),
+      OS.linux => _elfProblem(bytes, target.arch, pageAligned: false),
       OS.macOS || OS.iOS => _machOProblem(bytes, target.arch),
+      OS.windows => _peProblem(bytes, target.arch),
       _ => null,
     };
 
@@ -28,7 +33,11 @@ const _elfMachines = {Architecture.arm64: 0xb7, Architecture.x64: 0x3e};
 const _ptLoad = 1;
 const _sixteenKb = 0x4000;
 
-String? _elfProblem(Uint8List bytes, Architecture arch) {
+String? _elfProblem(
+  Uint8List bytes,
+  Architecture arch, {
+  required bool pageAligned,
+}) {
   const headerSize = 64;
   if (bytes.length < headerSize ||
       bytes[0] != 0x7f ||
@@ -47,6 +56,10 @@ String? _elfProblem(Uint8List bytes, Architecture arch) {
     return 'the library is built for ELF machine 0x${machine.toRadixString(16)} '
         'but the target needs 0x${expected?.toRadixString(16)} ($arch)';
   }
+
+  // Only Android is held to the Play Store's page size; a desktop library
+  // is loaded wherever its linker put it.
+  if (!pageAligned) return null;
 
   final tableOffset = data.getUint64(0x20, Endian.little);
   final entrySize = data.getUint16(0x36, Endian.little);
@@ -107,4 +120,30 @@ String? _machOProblem(Uint8List bytes, Architecture arch) {
   };
   return 'the Mach-O library holds ${cpus.map(name).join(', ')} but the '
       'target needs ${name(expected)}';
+}
+
+// --- PE --------------------------------------------------------------------
+
+const _peMachines = {Architecture.x64: 0x8664, Architecture.arm64: 0xaa64};
+
+String? _peProblem(Uint8List bytes, Architecture arch) {
+  const notPe = 'the library is not a PE file';
+  if (bytes.length < 0x40 || bytes[0] != 0x4d || bytes[1] != 0x5a) {
+    return notPe;
+  }
+  final data = ByteData.sublistView(bytes);
+  // e_lfanew points at "PE\0\0", then the COFF header whose first field is
+  // the machine.
+  final at = data.getUint32(0x3c, Endian.little);
+  if (at + 6 > bytes.length ||
+      data.getUint32(at, Endian.little) != 0x00004550) {
+    return notPe;
+  }
+  final machine = data.getUint16(at + 4, Endian.little);
+  final expected = _peMachines[arch];
+  if (machine != expected) {
+    return 'the library is built for PE machine 0x${machine.toRadixString(16)} '
+        'but the target needs 0x${expected?.toRadixString(16)} ($arch)';
+  }
+  return null;
 }
