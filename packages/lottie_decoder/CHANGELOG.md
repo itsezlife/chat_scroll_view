@@ -19,3 +19,8 @@ package is pre-1.0.
 - `IsolateLottieEngine`: one render isolate that owns the binding, with
   `spawn` refusing an unavailable binding by naming the reason, and
   `LottieEngineContract` in `testing.dart`, run over every engine.
+- `LottieDecoder`, the `Decoder` of `MediaForm.vectorAnimation`: thumbnail,
+  first-frame and animated stages, the still above the largest size class,
+  permanent failures, cancel that frees the handle.
+- `LottieAnimationPaintable.onDispose`, run once on dispose so the decoder can
+  free the engine handle.

@@ -1,9 +1,9 @@
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
@@ -82,15 +82,19 @@ void main() {
     ticks.tick(now);
   }
 
-  LottieAnimationPaintable make({Object key = 'a', ui.Image? still}) =>
-      LottieAnimationPaintable(
-        key: key,
-        handle: handle,
-        info: info,
-        firstFrame: still ?? _image(8),
-        scheduler: scheduler,
-        renderEdge: 48,
-      );
+  LottieAnimationPaintable make({
+    Object key = 'a',
+    ui.Image? still,
+    VoidCallback? onDispose,
+  }) => LottieAnimationPaintable(
+    key: key,
+    handle: handle,
+    info: info,
+    firstFrame: still ?? _image(8),
+    scheduler: scheduler,
+    renderEdge: 48,
+    onDispose: onDispose,
+  );
 
   AssetPaintContext at(
     int ms, {
@@ -158,6 +162,16 @@ void main() {
   });
 
   group('LottieAnimationPaintable', () {
+    test('dispose runs onDispose once, so its owner frees the handle', () {
+      var disposed = 0;
+      final p = make(onDispose: () => disposed++);
+
+      p.dispose();
+      p.dispose();
+
+      expect(disposed, 1);
+    });
+
     test('is animated and paints itself', () {
       final p = make();
       expect(p.isAnimated, isTrue);
