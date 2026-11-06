@@ -29,6 +29,14 @@ placeholder. Frames are kept in memory only on the web.
 What has and has not run in a browser: see "Not run" under Web in
 [host integration](../docs/host-integration.md).
 
+## Stickers and GIFs in the panel
+
+The panel's second and third pages are the stickers page (a strip of packs over
+the recent stickers and the three bundled packs) and the GIF page (the recent
+GIFs and the demo's clips and GIFs in justified rows). Tapping one sends it as
+a message and leaves the panel open; a sent sticker or GIF cannot be edited.
+Wiring: `lib/src/features/chat/input/media_panel_pages.dart`.
+
 ## Video stickers, clips and GIFs on macOS
 
 The "Demo video stickers" pack (WebM, MP4 and GIF; see

@@ -6,6 +6,18 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (stickers and GIF pages)
+
+- `StickersPage` with `StickersPagePolicy` and `StickerPackStrip`: the
+  reference client's sticker list (columns from the width at 72, rows 82,
+  stickers at most 66, headers 27 tall beginning 15 in) under a strip of packs
+  whose tabs are covers, with a clear button on the recents header.
+- `GifPage` with `GifRowLayout`: the reference client's justified rows of GIFs.
+- `CatalogPagePolicy.headerStartInset` (default null: the viewport's), and
+  `ChromeCatalogTheme` takes it. A policy of a list whose titles begin
+  somewhere else says so; existing policies are unchanged.
+- Requires `SemanticsStrings.stickerPackStripLabel` from `chrome_foundation`.
+
 ### Changed
 
 - `EmojiTabIconScope` leaves a tab to the host when the enclosing

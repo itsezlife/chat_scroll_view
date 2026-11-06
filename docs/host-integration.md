@@ -1129,6 +1129,36 @@ Everything above stays. Add:
 The atlas stays an emoji concern: stickers and GIFs bind through the cache's
 fetch and decode path and never touch it.
 
+### The stickers and GIF pages
+
+`panel_pages` ships both: `StickersPage` (a strip of packs over a catalogue of
+stickers) and `GifPage` (the clips in justified rows). A host registers each as
+a `PanelPage` (ids and tab icons of its choosing) and gives each one
+`CollectionSource`:
+
+- the **recents first** as `CollectionId.recent`, loaded from the start (a
+  collection a page hides is never asked to load, so a recents list that is
+  hidden while it loads would stay hidden), then the packs as
+  `CollectionId.set`, each with a title and a cover (`CollectionMetadata.cover`
+  or its first item) for the strip;
+- descriptors that carry the content's kind (`sticker` or `gif`) and its
+  proportions (`ContentDescriptor.size`; the GIF page justifies rows by them).
+
+A tap is a `ContentPicked` with the content's own kind and recents kind, so the
+host's one handler sends it: **the panel stays open and the composer keeps its
+text**, as the reference client's `onStickerSelected` and `onGifSelected` leave
+them, the sent item is filed in the recents of its kind (`RecentsStore.record`,
+shown on the next open through a deferred view so the list does not move under
+the finger), and the message goes out through the host's own send path (the
+reference client also scrolls the chat to it, `onMessageSend`; that is the
+chat's, not the panel's). The sticker page's clear button on the recents header is a `ClearRecentsRequested` the host
+confirms.
+
+A sent sticker or GIF has no text to edit. Every way into edit mode (the
+message menu, the selection bar, a shortcut, a restored draft) asks one rule by
+what the message is, so none can forget it (`MessageEditability` in the
+reference host).
+
 ## 11. Verifying your host
 
 - `scripts/check` is the gate this repo runs; a host app runs `dart analyze`
@@ -1177,8 +1207,8 @@ Decisions a migrating host makes once:
 
 ## 13. Reference host map
 
-The demo app under `example/` is the reference. It registers the emoji page
-only, fetches nothing from a network (its animated emoji are bundled), and does
+The demo app under `example/` is the reference. It registers the emoji page,
+the stickers page and the GIF page, fetches nothing from a network (its animated emoji are bundled), and does
 not use the hover-open toggle region.
 
 | Step | File |
@@ -1190,6 +1220,7 @@ not use the hover-open toggle region.
 | App scopes | `example/lib/src/app/app_chrome.dart` |
 | Per-chat controller set, event handler, back, hand-off | `example/lib/src/features/chat/input/chat_input_set.dart` |
 | Emoji page composition (atlas host factory, planner) | `example/lib/src/features/chat/input/emoji_panel_page.dart` |
+| Stickers and GIF pages (sources of the recents and the packs, sending on a pick, editability) | `example/lib/src/features/chat/input/media_panel_pages.dart`, `data/recent_content_source.dart`, `data/video_sticker_pack.dart`, `utils/sticker_message_body.dart`, `utils/message_editability.dart` |
 | Composer spec | `example/lib/src/features/chat/input/chat_composer_spec.dart` |
 | Inset aggregation | `example/lib/src/features/chat/utils/chat_viewport_insets.dart` |
 | IME readings and keyboard commands | `example/lib/src/common/soft_keyboard_port.dart` |
