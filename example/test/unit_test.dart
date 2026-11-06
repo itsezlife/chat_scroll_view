@@ -45,6 +45,7 @@ import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
+import 'features/chat/bundled_packs_test.dart' as bundled_packs_test;
 import 'features/chat/chat_body_host_test.dart' as chat_body_host_test;
 import 'features/chat/chat_body_markdown_test.dart' as chat_body_markdown_test;
 import 'features/chat/chat_composer_spec_test.dart' as chat_composer_spec_test;
@@ -227,6 +228,7 @@ void main() {
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,
   );
+  group('features/chat/bundled_packs_test.dart', bundled_packs_test.main);
   group(
     'features/chat/lottie_sticker_pack_test.dart',
     lottie_sticker_pack_test.main,
