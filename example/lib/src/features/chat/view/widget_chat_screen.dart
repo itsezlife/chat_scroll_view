@@ -197,6 +197,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _bodies = ChatBodyHost(
       assets: widget.services.assets,
       policy: _emojiPolicy,
+      describe: widget.services.describe,
     );
     _stickerInteractions = StickerInteractionStub(
       onBroadcast: (broadcast) => _showDemoSnack('Would broadcast $broadcast'),
