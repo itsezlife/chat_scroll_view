@@ -350,25 +350,24 @@ class _GifPageState extends State<GifPage> {
         !_sameCollections(_lineKey.$1, collections);
     if (!stale) return _lines;
     _lineKey = (collections, width, strings, widget.attribution);
+    // A collection that failed ends its own rows with the failure, so it is
+    // read where the clips would have been, not after the ones that follow.
     final rows = [
       for (final (i, collection) in collections.indexed) ...[
         if (i > 0 && (collection.metadata.title ?? '').isNotEmpty)
           _HeaderLine(collection.metadata.title!),
         ..._rowsOf(collection, width),
+        if (collection.id != CollectionId.recent &&
+            collection.contents is CollectionContents$Failed)
+          _NoticeLine(strings.gifsFailed, onRetry: _retry),
       ],
     ];
-    final failed = collections.any(
-      (collection) =>
-          collection.id != CollectionId.recent &&
-          collection.contents is CollectionContents$Failed,
-    );
     final foundNothing = switch (results?.contents) {
       CollectionContents$Loaded(:final items) => items.isEmpty,
       _ => false,
     };
     return _lines = [
       ...rows,
-      if (failed) _NoticeLine(strings.gifsFailed, onRetry: _retry),
       if (foundNothing) _NoticeLine(strings.gifsEmpty),
       if (widget.attribution case final attribution?
           when rows.any((line) => line is _RowLine))
