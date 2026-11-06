@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/frame_pool.dart' show FrameAtlas;
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/emoji/emoji_categories.dart';
@@ -28,6 +31,15 @@ import 'package:panel_shell/panel_shell.dart';
 /// cannot disagree. The tab stays marked after the jump until the user scrolls
 /// into another section. There is one source of truth for the scroll, the
 /// catalogue's; the strip only follows it.
+///
+/// ## The covers
+///
+/// A pack's tab shows its cover, the first sticker when the pack names none.
+/// An animated cover plays and loops while its tab is in the strip's view, on
+/// the shared playback clock (its pause layers pause it), decoded no larger
+/// than [coverMaxPixels]; a still cover stays still. The covers repaint on
+/// their own and never rebuild the strip, and the strip gives them back when
+/// it leaves the tree.
 ///
 /// ## The mark
 ///
@@ -61,6 +73,15 @@ class StickerPackStrip extends StatefulWidget {
 
   /// Side of the recents' icon: `StickerTabView.IMAGE_ICON_SMALL_SIZE`.
   static const double recentsIconSize = 24;
+
+  /// The most pixels a side of a cover is decoded at: the smallest cell of
+  /// the frame pools ([FrameAtlas.defaultSizeClasses]).
+  ///
+  /// [iconSize] at a density of 3 is 78 pixels, which would take a 128 cell,
+  /// four times the bytes, for a picture 26 wide (and a clip is decoded at
+  /// its cell, so at 128). The reference client decodes at 40 dp; this strip
+  /// spends less, a little softer on the densest screens.
+  static final int coverMaxPixels = FrameAtlas.defaultSizeClasses.first;
 
   /// Radius of a cover's corners: `imageView.setRoundRadius(dp(6))`.
   static const double coverRadius = 6;
@@ -106,6 +127,38 @@ class _Tab {
       };
 }
 
+// The tabs from [start] up to [end], not included: those the strip's viewport
+// shows, in part or whole.
+@immutable
+class _TabRange {
+  const _TabRange(this.start, this.end);
+
+  // The tabs a viewport of [metrics] shows.
+  factory _TabRange.of(ScrollMetrics metrics, int tabCount) {
+    const width = StickerPackStrip.tabWidth;
+    final from = metrics.pixels - StickerPackStrip.padH;
+    return _TabRange(
+      (from / width).floor().clamp(0, tabCount),
+      ((from + metrics.viewportDimension) / width).ceil().clamp(0, tabCount),
+    );
+  }
+
+  // Before the first layout: nothing plays yet.
+  static const _TabRange none = _TabRange(0, 0);
+
+  final int start;
+  final int end;
+
+  bool contains(int index) => index >= start && index < end;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _TabRange && other.start == start && other.end == end;
+
+  @override
+  int get hashCode => Object.hash(start, end);
+}
+
 class _StickerPackStripState extends State<StickerPackStrip>
     with SingleTickerProviderStateMixin {
   // `currentPositionAnimated`: 350 ms ease-out quint.
@@ -122,6 +175,9 @@ class _StickerPackStripState extends State<StickerPackStrip>
   // that is coming down.
   late final AnimationController _slide;
   final _row = ScrollController();
+  // Which covers play. A notifier, not state: a scroll of the strip moves the
+  // range, and only the tabs' players follow it, never the whole strip.
+  final _inView = ValueNotifier<_TabRange>(_TabRange.none);
   late StreamSubscription<PanelCatalogScrollEvent> _scrollEvents;
   var _tabs = const <_Tab>[];
   String? _active;
@@ -145,6 +201,7 @@ class _StickerPackStripState extends State<StickerPackStrip>
     _active = _tabFor(_handle.currentSectionId) ?? _tabs.firstOrNull?.sectionId;
     _handle.entries.addListener(_onEntries);
     _scrollEvents = _handle.scrollEvents.listen(_onScroll);
+    _row.addListener(_onRowScroll);
     _aim(animate: false);
   }
 
@@ -165,6 +222,7 @@ class _StickerPackStripState extends State<StickerPackStrip>
     unawaited(_scrollEvents.cancel());
     _slide.dispose();
     _row.dispose();
+    _inView.dispose();
     super.dispose();
   }
 
@@ -279,6 +337,17 @@ class _StickerPackStripState extends State<StickerPackStrip>
     }
   }
 
+  // --- The covers in view ---------------------------------------------------
+
+  void _onRowScroll() {
+    if (_row.hasClients) _showTabsOf(_row.position);
+  }
+
+  // The scroll moves the range; a new size of the strip or a new set of tabs
+  // moves it too, and arrives as a metrics change (the first layout is one).
+  void _showTabsOf(ScrollMetrics metrics) =>
+      _inView.value = _TabRange.of(metrics, _tabs.length);
+
   Rect _pillAt() {
     final a = _curve.transform(_slide.value);
     final at = lerpDouble(_from, _to, a)!;
@@ -310,59 +379,68 @@ class _StickerPackStripState extends State<StickerPackStrip>
         child: SizedBox(
           height: StickerPackStrip.height,
           width: double.infinity,
-          child: SingleChildScrollView(
-            controller: _row,
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: width,
-              height: StickerPackStrip.height,
-              child: Stack(
-                children: [
-                  AnimatedBuilder(
-                    animation: _slide,
-                    builder: (context, _) {
-                      final pill = _pillAt();
-                      return PositionedDirectional(
-                        start: pill.left,
-                        top: pill.top,
-                        width: pill.width,
-                        height: pill.height,
-                        child: DecoratedBox(
-                          key: StickerPackStrip.markKey,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              pill.height / 2,
-                            ),
-                            // The idle icon colour at a low alpha: the wash
-                            // is a tint of the icon, as the emoji strip's.
-                            color: tokens.categoryIcon.withValues(
-                              alpha: tokens.categoryIcon.a * 0.18,
+          child: NotificationListener<ScrollMetricsNotification>(
+            onNotification: (notification) {
+              _showTabsOf(notification.metrics);
+              return false;
+            },
+            child: SingleChildScrollView(
+              controller: _row,
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: width,
+                height: StickerPackStrip.height,
+                child: Stack(
+                  children: [
+                    AnimatedBuilder(
+                      animation: _slide,
+                      builder: (context, _) {
+                        final pill = _pillAt();
+                        return PositionedDirectional(
+                          start: pill.left,
+                          top: pill.top,
+                          width: pill.width,
+                          height: pill.height,
+                          child: DecoratedBox(
+                            key: StickerPackStrip.markKey,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(
+                                pill.height / 2,
+                              ),
+                              // The idle icon colour at a low alpha: the wash
+                              // is a tint of the icon, as the emoji strip's.
+                              color: tokens.categoryIcon.withValues(
+                                alpha: tokens.categoryIcon.a * 0.18,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  for (final (i, tab) in _tabs.indexed)
-                    PositionedDirectional(
-                      start:
-                          StickerPackStrip.padH + i * StickerPackStrip.tabWidth,
-                      top: 0,
-                      width: StickerPackStrip.tabWidth,
-                      height: StickerPackStrip.height,
-                      child: _TabButton(
-                        label: tab.isRecents
-                            ? strings.panel.recentlyUsedTitle
-                            : tab.collection.metadata.title ?? '',
-                        cover: tab.isRecents ? null : tab.cover,
-                        selected: tab.sectionId == _active,
-                        tokens: tokens,
-                        assets: widget.assets,
-                        duration: _still ? Duration.zero : _slideDuration,
-                        onTap: () => unawaited(_onTap(tab)),
-                      ),
+                        );
+                      },
                     ),
-                ],
+                    for (final (i, tab) in _tabs.indexed)
+                      PositionedDirectional(
+                        start:
+                            StickerPackStrip.padH +
+                            i * StickerPackStrip.tabWidth,
+                        top: 0,
+                        width: StickerPackStrip.tabWidth,
+                        height: StickerPackStrip.height,
+                        child: _TabButton(
+                          index: i,
+                          inView: _inView,
+                          label: tab.isRecents
+                              ? strings.panel.recentlyUsedTitle
+                              : tab.collection.metadata.title ?? '',
+                          cover: tab.isRecents ? null : tab.cover,
+                          selected: tab.sectionId == _active,
+                          tokens: tokens,
+                          assets: widget.assets,
+                          duration: _still ? Duration.zero : _slideDuration,
+                          onTap: () => unawaited(_onTap(tab)),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -376,6 +454,8 @@ class _StickerPackStripState extends State<StickerPackStrip>
 /// cover.
 class _TabButton extends StatelessWidget {
   const _TabButton({
+    required this.index,
+    required this.inView,
     required this.label,
     required this.cover,
     required this.selected,
@@ -384,6 +464,12 @@ class _TabButton extends StatelessWidget {
     required this.duration,
     required this.onTap,
   });
+
+  /// Where the tab is in the strip.
+  final int index;
+
+  /// The tabs the strip's viewport shows.
+  final ValueListenable<_TabRange> inView;
 
   final String label;
   final ContentKey? cover;
@@ -438,24 +524,35 @@ class _TabButton extends StatelessWidget {
       );
     }
     if (scope == null) return const SizedBox.shrink();
-    // The cover's first frame, as a still of its own: the reference client's
-    // tab is static, and a still entry holds no decoder.
+    // The whole cover, playing and looping: the reference client's tab plays
+    // an animated cover (filter `40_40`, `40_40_firstframe` only in its lite
+    // mode, which here is the clock's `lowPower` layer). A still cover is a
+    // still paintable and never moves. The view repaints through its binding,
+    // so the strip is not rebuilt for a frame.
+    final pixels = math.min(
+      (StickerPackStrip.iconSize * MediaQuery.devicePixelRatioOf(context))
+          .ceil(),
+      StickerPackStrip.coverMaxPixels,
+    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(StickerPackStrip.coverRadius),
       child: SizedBox.square(
         dimension: StickerPackStrip.iconSize,
-        child: ContentView(
-          content: cover,
-          scope: scope,
-          preset: AssetPreset(
-            size: const Size.square(StickerPackStrip.iconSize),
-            spec: AssetSpec.atDensity(
-              logicalWidth: StickerPackStrip.iconSize,
-              logicalHeight: StickerPackStrip.iconSize,
-              devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-              variant: AssetVariant.firstFrame,
+        child: ValueListenableBuilder<_TabRange>(
+          valueListenable: inView,
+          // Off the strip's screen the binding stops, so a tab scrolled away
+          // neither repaints nor keeps its frame lease (nor a video slot), as
+          // the reference strip clears the images of the tabs out of view.
+          builder: (context, range, view) =>
+              TickerMode(enabled: range.contains(index), child: view!),
+          child: ContentView(
+            content: cover,
+            scope: scope,
+            preset: AssetPreset(
+              size: const Size.square(StickerPackStrip.iconSize),
+              spec: AssetSpec(pixelWidth: pixels, pixelHeight: pixels),
+              profile: const AssetProfile(animate: true),
             ),
-            profile: const AssetProfile(),
           ),
         ),
       ),
