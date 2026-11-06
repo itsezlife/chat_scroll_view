@@ -671,11 +671,11 @@ void main() {
       final services = await createTestServices(corpus: corpus);
       addTearDown(services.dispose);
 
-      expect(ids(services.stickerPageSource).last, corpus.packs.single.id);
-      expect(
-        services.describe(corpus.packs.single.stickers.single.key),
-        isNotNull,
-      );
+      // The on-disk pack comes last, whatever corpus files a developer has
+      // linked into the (gitignored) bundled assets folder.
+      final fox = corpus.packs.last;
+      expect(ids(services.stickerPageSource).last, fox.id);
+      expect(services.describe(fox.stickers.single.key), isNotNull);
     });
 
     test('list Giphy\'s trending after the recents when there is a key, with '
