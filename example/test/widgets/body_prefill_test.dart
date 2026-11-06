@@ -29,7 +29,7 @@ class _LoadedSource extends ChatDataSource {
   }) async => const <IChatMessage>[];
 }
 
-/// A message far past the screen whose body is laid out by its row.
+/// A message far past the screen with a body of many blocks.
 const int _long = 38;
 
 void main() {
@@ -45,7 +45,7 @@ void main() {
         createdAt: DateTime(2026, 1, 1, 12, 30),
         updatedAt: DateTime(2026, 1, 1, 12, 30),
         content: id == _long
-            ? 'A body too long to lay out between two frames. ' * 60
+            ? 'A paragraph of a long body, one block of many.\n\n' * 60
             : 'Message $id carries a **body** long enough to wrap over '
                   'several lines of the bubble it is drawn in.',
       ),
@@ -140,7 +140,6 @@ void main() {
     // its row is built already and has a painter of its own.
     var prepared = 0;
     for (var id = range.firstId - 1; id > range.firstId - 24; id--) {
-      if (id == _long) continue;
       if (shown(id)) {
         expect(cache.holds(bodyOf(id)), isFalse, reason: 'message $id');
       } else {
@@ -149,10 +148,10 @@ void main() {
       }
     }
     expect(prepared, greaterThan(10));
-    // Too long to lay out within one gap: left to its row.
+    // A long body is prepared too, a block at a time over the slices.
     expect(_long, lessThan(range.firstId - 1));
     expect(shown(_long), isFalse);
-    expect(cache.holds(bodyOf(_long)), isFalse);
+    expect(cache.holds(bodyOf(_long)), isTrue);
     // Newer messages, behind the travel, are left alone.
     expect(cache.holds(bodyOf(range.lastId + 10)), isFalse);
   });

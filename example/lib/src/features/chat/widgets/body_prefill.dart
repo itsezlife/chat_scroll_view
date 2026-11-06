@@ -15,9 +15,9 @@ import 'package:flutter_md/flutter_md.dart';
 /// A row's body was laid out in the frame the row was built in, the largest
 /// part of what a row costs. Here it is laid out in the gaps between frames,
 /// a slice at a time, each under [_slice] so the next frame is not delayed.
-/// Rows already built are skipped by the cache; so are messages not loaded,
-/// emoji-only ones, which draw no markdown body, and bodies too long to lay
-/// out within one gap.
+/// A long body is laid out a block at a time across as many slices as it
+/// takes. Rows already built are skipped by the cache; so are messages not
+/// loaded and emoji-only ones, which draw no markdown body.
 ///
 /// [child] is the list: the prepared width is read from this widget's box.
 class BodyPrefill extends StatefulWidget {
@@ -62,12 +62,6 @@ class _BodyPrefillState extends State<BodyPrefill> {
   /// The most one slice spends: a frame at 120 Hz leaves this much slack
   /// after the work of a scrolling frame.
   static const Duration _slice = Duration(milliseconds: 2);
-
-  /// The longest source a body may have to be prepared. Laying out takes up
-  /// to a few microseconds a character on a phone, and one body is laid out
-  /// whole: a longer one would overrun the gap between two frames and delay
-  /// the next. It is laid out in the frame its row is built in instead.
-  static const int _maxLength = 2000;
 
   /// +1 when the list last travelled toward older messages, -1 toward newer.
   int _travel = 1;
@@ -132,10 +126,9 @@ class _BodyPrefillState extends State<BodyPrefill> {
       if (message case UserChatMessage(
         :final markdownBody?,
         emojiOnly: null,
-      ) when markdownBody.markdown.length <= _maxLength &&
-          !widget.cache.holds(markdownBody)) {
+      ) when !widget.cache.holds(markdownBody)) {
         final outgoing = isDemoOutgoing(message.sender);
-        widget.cache.prepare(
+        final done = widget.cache.prepare(
           markdownBody,
           theme: ChatMarkdownBody.resolvedTheme(
             context,
@@ -149,7 +142,13 @@ class _BodyPrefillState extends State<BodyPrefill> {
           ),
           embedResolver: embeds,
           devicePixelRatio: dpr,
+          more: () => clock.elapsed < _slice,
         );
+        if (!done) {
+          // Out of time inside this body: the next slice resumes it.
+          _schedule();
+          return;
+        }
       }
     }
   }
