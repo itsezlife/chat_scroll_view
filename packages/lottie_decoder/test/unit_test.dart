@@ -28,7 +28,8 @@ import 'testing/fake_pixel_lottie_engine_test.dart'
     as fake_pixel_lottie_engine_test;
 import 'web_compile_test.dart' as web_compile_test;
 import 'web_worker/lottie_worker_status_test.dart' as lottie_worker_status_test;
-import 'web_worker/lottie_worker_status_test.dart' as lottie_worker_status_test;
+import 'web_worker/web_worker_lottie_engine_test.dart'
+    as web_worker_lottie_engine_test;
 
 void main() {
   group(
@@ -73,7 +74,7 @@ void main() {
     lottie_worker_status_test.main,
   );
   group(
-    'web_worker/lottie_worker_status_test.dart',
-    lottie_worker_status_test.main,
+    'web_worker/web_worker_lottie_engine_test.dart',
+    web_worker_lottie_engine_test.main,
   );
 }

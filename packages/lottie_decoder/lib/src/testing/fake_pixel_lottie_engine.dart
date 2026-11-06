@@ -11,7 +11,7 @@ import 'package:lottie_native/lottie_native.dart';
 /// moves a row, a pixel or a frame to the wrong place shows:
 /// `[x % 256, y % 256, frame % 256, 255]`, which [pixelAt] spells out.
 final class FakePixelLottieEngine implements LottieEngine {
-  final _scripted = <String, LottieInfo>{};
+  final _scripted = <String, LottieLoadResult>{};
   final _live = <int, LottieInfo>{};
   var _nextHandle = 1;
   var _closed = false;
@@ -22,7 +22,12 @@ final class FakePixelLottieEngine implements LottieEngine {
   /// Makes [bytes] load as an animation described by [info]; other bytes are
   /// refused as [LottieRejection.malformed].
   void accept(Uint8List bytes, LottieInfo info) {
-    _scripted[base64.encode(bytes)] = info;
+    _scripted[base64.encode(bytes)] = LottieLoaded(const LottieHandle(0), info);
+  }
+
+  /// Makes [bytes] refuse to load for [reason].
+  void reject(Uint8List bytes, LottieRejection reason) {
+    _scripted[base64.encode(bytes)] = LottieRejected(reason);
   }
 
   /// The pixel this engine draws at column [x], row [y] of [frame].
@@ -40,13 +45,13 @@ final class FakePixelLottieEngine implements LottieEngine {
   @override
   Future<LottieLoadResult> load(Uint8List bytes) async {
     _requireOpen();
-    final info = _scripted[base64.encode(bytes)];
-    if (info == null) {
-      return const LottieRejected(LottieRejection.malformed);
+    final scripted = _scripted[base64.encode(bytes)];
+    if (scripted is! LottieLoaded) {
+      return scripted ?? const LottieRejected(LottieRejection.malformed);
     }
     final id = _nextHandle++;
-    _live[id] = info;
-    return LottieLoaded(LottieHandle(id), info);
+    _live[id] = scripted.info;
+    return LottieLoaded(LottieHandle(id), scripted.info);
   }
 
   @override

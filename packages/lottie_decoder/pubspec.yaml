@@ -31,3 +31,7 @@ dependencies:
     path: ../lottie_native
   meta: ^1.17.0
 
+
+dev_dependencies:
+  # The web engine's handshake timeout is tested on a fake clock.
+  fake_async: ^1.3.3
