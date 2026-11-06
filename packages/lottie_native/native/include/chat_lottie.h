@@ -25,12 +25,12 @@ extern "C" {
 enum {
   CHAT_LOTTIE_OK = 0,
   CHAT_LOTTIE_INVALID_ARGUMENT = -1, /* a null pointer or a bad enum */
-  CHAT_LOTTIE_TOO_LARGE = -2,        /* load: encoded or inflated input over its cap */
-  CHAT_LOTTIE_MALFORMED = -3,        /* load: not gzip, not JSON, parse error */
+  CHAT_LOTTIE_TOO_LARGE = -2,        /* load: encoded or inflated input over its cap; compress: dst_cap too small */
+  CHAT_LOTTIE_MALFORMED = -3,        /* load: not gzip, not JSON, parse error; decompress: corrupt or wrong-size stream */
   CHAT_LOTTIE_LIMIT_EXCEEDED = -4,   /* load: a tlottie Limits budget tripped */
   CHAT_LOTTIE_UNSUPPORTED = -5,      /* load: nothing to draw, or non-finite frame rate */
   CHAT_LOTTIE_INTERNAL = -6,         /* a panic caught at the boundary: a bug, never the file's fault */
-  CHAT_LOTTIE_BAD_SIZE = -7,         /* render: zero edge, edge over 512, stride under the row width, byte-size overflow */
+  CHAT_LOTTIE_BAD_SIZE = -7,         /* render, lz4: zero edge, edge over 512, stride under the row width, byte-size overflow */
   CHAT_LOTTIE_RENDER_FAILED = -8     /* render: the frame could not be drawn */
 };
 
@@ -83,6 +83,31 @@ void chat_lottie_free(ChatLottie *handle);
  * -8 render failed); one bad job never stops the others. Returns 0 when the batch ran, -1 when jobs or statuses is NULL
  * with count > 0. */
 int32_t chat_lottie_render_batch(const ChatLottieJob *jobs, size_t count, int32_t *statuses);
+
+/* Frame codec: lz4 over a region of page memory, `height` rows of width * 4
+ * bytes, rows stride_bytes apart. Edges are 1..512 and stride_bytes is at
+ * least width * 4. A region is packed as one lz4 block of its tight pixels,
+ * so the packed form does not depend on the stride. Nothing outside the
+ * described bytes is read or written. */
+
+/* The most bytes a compressed width x height region can take (the lz4 worst
+ * case for width * height * 4), or 0 for a size the codec does not accept. */
+size_t chat_lottie_lz4_bound(uint32_t width, uint32_t height);
+
+/* Compresses the region at target into dst and stores the packed length in
+ * *out_len (left untouched on failure). Returns 0, -1 for a NULL pointer, -7
+ * for a bad size or stride, -2 when the packed form is longer than dst_cap
+ * (a dst_cap of chat_lottie_lz4_bound always suffices). */
+int32_t chat_lottie_compress_region(const uint8_t *target, size_t stride_bytes, uint32_t width,
+                                    uint32_t height, uint8_t *dst, size_t dst_cap, size_t *out_len);
+
+/* Decompresses src into the region at target. The stream must unpack to
+ * exactly width * height * 4 bytes. Returns 0, -1 for a NULL pointer, -7 for
+ * a bad size or stride, -3 for a corrupt or wrong-size stream; on any
+ * failure the region is left untouched. Never reads or writes out of
+ * bounds. */
+int32_t chat_lottie_decompress_region(const uint8_t *src, size_t src_len, uint8_t *target,
+                                      size_t stride_bytes, uint32_t width, uint32_t height);
 
 #ifdef __cplusplus
 }
