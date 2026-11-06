@@ -231,7 +231,7 @@ animation it holds, through the engine), then the scheduler (which disposes the
 atlas), then `cache.dispose()` (it finishes the writes under way; a render still
 in flight then stores nothing), then `engine.close()`, then the memory, then the
 clock. The engine closes before the memory because its isolate writes into it; `close()` lets the
-requests already sent finish, and a use after it throws `LottieEngineClosed`
+requests already sent finish (for ten seconds at most, `closeTimeout`), and a use after it throws `LottieEngineClosed`
 (the one error a handle's disposal may ignore). The example holds the
 steps in `LottiePlayback`, a class with the `decoder` and a `close()` that runs
 them in that order, once, and never skips one because another failed; the host
@@ -255,8 +255,9 @@ web host has an engine over the worker, a `ListFramePageMemory`, a
 The composition on the web is the native one with two substitutions:
 
 1. The engine is `JsLottieWorker.spawnFromUrls(workerUrl:, wasmUrl:,
-   wasmNoSimdUrl:)` (`WebWorkerLottieEngine` over a module `Worker`); relative
-   urls resolve against the page. It is the probe: with the files missing it
+   wasmNoSimdUrl:)` from `package:lottie_decoder/web.dart` (a web build
+   imports it; `WebWorkerLottieEngine` over a module `Worker`); relative urls
+   resolve against the page. It is the probe: with the files missing it
    throws `LottieUnavailable`, the host logs once and registers no decoder.
 2. The pages are a `ListFramePageMemory` and the renderer is
    `PixelCopyFrameRenderer(engine)`; there is no `FrameCache`, so the frames
@@ -268,16 +269,16 @@ composition and the shutdown order (scheduler, then engine); the web file
 (`lottie_playback_web.dart`, chosen by `dart.library.js_interop`) supplies only
 the factory. The worker, `chat_lottie_core.mjs` beside it and the two wasm
 builds come from `dart packages/lottie_native/native/tool/build_web.dart --out
-<dir>`; the example puts them in `example/web/lottie/` (gitignored, not
-committed; where a host serves them from is not decided).
+<dir>`; the host serves them beside the page.
 
 When the files are not served, or the worker is not ready in ten seconds, the
 page works as on a platform without the native library: vector animations keep
 their placeholder, everything else plays. `flutter build web` succeeds with or
 without the files, and `--wasm` compiles.
 
-**Not run.** No browser has run this. The builds only compile; the whole path
-real worker, real wasm and Dart together is unverified.
+**Not run.** The Dart side of the protocol runs on the VM against a scripted
+worker, and `flutter build web` (also `--wasm`) compiles. No browser has run
+the browser port, the real worker and the wasm together.
 
 ## 4. Per-chat controller set
 
