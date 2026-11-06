@@ -91,7 +91,9 @@ FFMPEG_FLAGS=(
   --enable-bsf=vp9_superframe_split
   --install-name-dir=@rpath
   --extra-cflags="-I$PREFIX/include -mmacosx-version-min=$MIN_MACOS"
-  --extra-ldflags="-L$PREFIX/lib -mmacosx-version-min=$MIN_MACOS"
+  # Header padding: the Flutter tool rewrites the install names of bundled
+  # dylibs to longer paths, which install_name_tool refuses without room.
+  --extra-ldflags="-L$PREFIX/lib -mmacosx-version-min=$MIN_MACOS -Wl,-headerpad_max_install_names"
 )
 
 do_ffmpeg() {
