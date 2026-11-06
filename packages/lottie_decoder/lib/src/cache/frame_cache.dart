@@ -173,6 +173,29 @@ final class FrameCache {
     _evictRam(keep: key);
   }
 
+  /// Drops one animation from both tiers: the resident frames at once, the
+  /// file once a write under way has finished. For an entry a renderer found
+  /// damaged (its bytes decoded to nothing), which would otherwise be served
+  /// again on every launch. Unknown keys are fine.
+  ///
+  /// The RAM entry goes before the first `await`, so a caller that renders on
+  /// and [put]s again need not wait: the new frames build a fresh animation.
+  /// A file-system failure is reported like any other, never thrown.
+  Future<void> invalidate(FrameCacheKey key) async {
+    _checkAlive();
+    final dropped = _animations.remove(key);
+    if (dropped != null) _ramBytes -= dropped.bytes;
+    final files = _files;
+    if (files == null) return;
+    await _settle();
+    try {
+      _disk.remove(key.toFileStem());
+      await files.delete(key.toFileStem());
+    } on Object catch (error, stack) {
+      _report(error, stack);
+    }
+  }
+
   /// Drops both tiers.
   Future<void> clear() async {
     _animations.clear();
@@ -192,6 +215,9 @@ final class FrameCache {
       _report(error, stack);
     }
   }
+
+  /// Whether [dispose] was called: [open], [put] and [invalidate] then throw.
+  bool get isDisposed => _disposed;
 
   /// Finishes pending reads and writes, then stops; idempotent.
   Future<void> dispose() async {

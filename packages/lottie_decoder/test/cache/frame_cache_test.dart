@@ -683,5 +683,66 @@ void main() {
       await cache.dispose();
       expect(_names(dir, '.frames'), hasLength(1));
     });
+
+    test(
+      'invalidate drops the RAM entry and the file of one animation',
+      () async {
+        final cache = FrameCache(directory: dir, clock: clock);
+        addTearDown(cache.dispose);
+        putAll(cache, _key('a'), 2, 10);
+        putAll(cache, _key('b'), 2, 10);
+        await cache.dispose();
+        final reopened = FrameCache(directory: dir, clock: clock);
+        addTearDown(reopened.dispose);
+        expect(await reopened.open(_key('a')), 2);
+
+        await reopened.invalidate(_key('a'));
+
+        expect(reopened.has(_key('a'), 0), isFalse);
+        expect(await reopened.open(_key('a')), isNull);
+        expect(_names(dir, '.frames'), [
+          '${_key('b').toFileStem()}.frames',
+        ], reason: 'only the invalidated file went');
+        expect(await reopened.open(_key('b')), 2, reason: 'b is untouched');
+      },
+    );
+
+    test(
+      'invalidate waits for a write under way, so its file goes too',
+      () async {
+        final cache = FrameCache(directory: dir, clock: clock);
+        addTearDown(cache.dispose);
+        putAll(cache, _key('a'), 2, 10);
+
+        await cache.invalidate(_key('a'));
+
+        expect(_names(dir, '.frames'), isEmpty);
+      },
+    );
+
+    test('invalidate of an unknown key is harmless', () async {
+      final cache = FrameCache(directory: dir, clock: clock);
+      addTearDown(cache.dispose);
+
+      await expectLater(cache.invalidate(_key('nope')), completes);
+    });
+
+    test('invalidate frees the RAM it held, in a memory-only cache', () async {
+      final cache = FrameCache(directory: null, clock: clock);
+      addTearDown(cache.dispose);
+      putAll(cache, _key('a'), 2, 10);
+
+      await cache.invalidate(_key('a'));
+
+      expect(cache.has(_key('a'), 0), isFalse);
+      expect(await cache.open(_key('a')), isNull);
+    });
+
+    test('isDisposed tells a renderer to stop using the cache', () async {
+      final cache = FrameCache(directory: dir, clock: clock);
+      expect(cache.isDisposed, isFalse);
+      await cache.dispose();
+      expect(cache.isDisposed, isTrue);
+    });
   });
 }
