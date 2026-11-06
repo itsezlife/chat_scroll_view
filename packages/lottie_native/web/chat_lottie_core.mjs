@@ -95,7 +95,8 @@ const ABI_VERSION = 1;
 /**
  * Instantiates the module from [wasmBytes] and returns the handle over it:
  * `load`, `renderPixels`, `dispose` and `close`. One core serves one caller at
- * a time (a worker handles requests in order).
+ * a time (a worker handles requests in order). The `handle` of a loaded
+ * animation is an opaque id (1, 2, 3, ...), not an address in the module.
  *
  * Every call into the module can grow its memory, which detaches the old
  * `ArrayBuffer`; views are therefore made right before each use and never kept.
@@ -111,7 +112,15 @@ export async function createChatLottie(wasmBytes) {
   const bytes = () => new Uint8Array(wasm.memory.buffer);
   const words = () => new DataView(wasm.memory.buffer);
   let closed = false;
-  const live = new Set();
+  // Handles given to callers are ids, never module pointers. A freed pointer
+  // is handed out again by the allocator, so a caller holding a stale pointer
+  // would have drawn (or freed) whatever animation was loaded next; an id is
+  // never reissued, so a stale one just misses in this map. The ids are
+  // module-independent too, which is what lets a rebuilt module fail every
+  // older one (see `recover`).
+  let nextId = 1;
+  /** id -> pointer of the live animations. */
+  const live = new Map();
 
   // Out-parameters of `load`: allocated once, reused by every call.
   const infoPtr = allocate(LAYOUT.info.size);
@@ -162,12 +171,12 @@ export async function createChatLottie(wasmBytes) {
       const status = wasm.chat_lottie_load(pointer, input.length, infoPtr, handlePtr);
       if (status !== 0) return { status };
       const view = words();
-      const handle = view.getUint32(handlePtr, true);
-      live.add(handle);
+      const id = nextId++;
+      live.set(id, view.getUint32(handlePtr, true));
       return {
         status,
         info: {
-          handle,
+          handle: id,
           width: view.getUint32(infoPtr + LAYOUT.info.width, true),
           height: view.getUint32(infoPtr + LAYOUT.info.height, true),
           frameCount: view.getUint32(infoPtr + LAYOUT.info.frameCount, true),
@@ -208,9 +217,9 @@ export async function createChatLottie(wasmBytes) {
       const statusesAt = table + jobs.length * LAYOUT.job.size;
       jobs.forEach((job, i) => {
         const at = table + i * LAYOUT.job.size;
-        // A handle that was disposed or never issued is passed as null, which
-        // the module answers with -1; freed handles must never reach it.
-        view.setUint32(at + LAYOUT.job.handle, live.has(job.handle) ? job.handle : 0, true);
+        // An id that was disposed or never issued is passed as null, which
+        // the module answers with -1; a freed animation must never reach it.
+        view.setUint32(at + LAYOUT.job.handle, live.get(job.handle) ?? 0, true);
         view.setFloat32(at + LAYOUT.job.frame, job.frame, true);
         view.setUint32(at + LAYOUT.job.width, job.width, true);
         view.setUint32(at + LAYOUT.job.height, job.height, true);
@@ -235,13 +244,15 @@ export async function createChatLottie(wasmBytes) {
   }
 
   function dispose(handle) {
-    if (!live.delete(handle)) return;
-    wasm.chat_lottie_free(handle);
+    const pointer = live.get(handle);
+    if (pointer === undefined) return;
+    live.delete(handle);
+    wasm.chat_lottie_free(pointer);
   }
 
   function close() {
     if (closed) return;
-    for (const handle of live) wasm.chat_lottie_free(handle);
+    for (const pointer of live.values()) wasm.chat_lottie_free(pointer);
     live.clear();
     for (const [size, idle] of pool) {
       for (const pointer of idle) wasm.chat_lottie_dealloc(pointer, size);
