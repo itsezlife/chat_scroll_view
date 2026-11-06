@@ -6,7 +6,11 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'android_ndk_test.dart' as android_ndk_test;
+import 'artifact_check_test.dart' as artifact_check_test;
 import 'assemble_manifest_test.dart' as assemble_manifest_test;
+import 'build_environment_test.dart' as build_environment_test;
+import 'cross_compile_test.dart' as cross_compile_test;
 import 'delivery_plan_test.dart' as delivery_plan_test;
 import 'fake_lottie_binding_contract_test.dart'
     as fake_lottie_binding_contract_test;
@@ -30,7 +34,11 @@ import 'rebuild_inputs_test.dart' as rebuild_inputs_test;
 import 'source_hash_test.dart' as source_hash_test;
 
 void main() {
+  group('android_ndk_test.dart', android_ndk_test.main);
+  group('artifact_check_test.dart', artifact_check_test.main);
   group('assemble_manifest_test.dart', assemble_manifest_test.main);
+  group('build_environment_test.dart', build_environment_test.main);
+  group('cross_compile_test.dart', cross_compile_test.main);
   group('delivery_plan_test.dart', delivery_plan_test.main);
   group(
     'fake_lottie_binding_contract_test.dart',

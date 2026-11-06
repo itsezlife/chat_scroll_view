@@ -5,7 +5,7 @@
 /// the app asks for it, else download the hash-pinned prebuilt listed in
 /// `native/prebuilts.json`, else compile if this host can, else bundle
 /// nothing and warn. A first source build needs network for the crates and
-/// the pinned tlottie commit.
+/// the pinned tlottie commit; Android needs the NDK, and iOS and macOS a Mac.
 library;
 
 import 'dart:io';
@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 
+import 'src/android_ndk.dart';
 import 'src/cargo_build.dart';
 import 'src/delivery_plan.dart';
 import 'src/prebuilt_download.dart';
@@ -43,17 +44,23 @@ void main(List<String> args) async {
       noCargo = e;
     }
 
+    final forced = wantsBuildFromSource(
+      userDefine: input.userDefines['build_from_source'],
+      environment: Platform.environment,
+    );
     final steps = planDelivery(
-      buildFromSource: wantsBuildFromSource(
-        userDefine: input.userDefines['build_from_source'],
-        environment: Platform.environment,
-      ),
+      buildFromSource: forced,
       match: matchPrebuilt(
         manifest: _readManifest(native),
         sourceHash: computeSourceHash(native),
         target: target,
       ),
       hasCargo: cargo != null,
+      hostBuilds: target.buildableOn(
+        hostOs: OS.current,
+        hostArch: Architecture.current,
+        environment: Platform.environment,
+      ),
       target: target,
     );
 
@@ -68,6 +75,7 @@ void main(List<String> args) async {
           input,
           target,
           cargo ?? (throw noCargo!),
+          forced: forced,
         ),
         // No asset: the build succeeds and the probe finds no library.
         NoLibrary(:final reason) => _warn(reason),
@@ -125,43 +133,25 @@ Future<Uri?> _download(
 Future<Uri?> _compile(
   BuildInput input,
   LottieNativeTarget target,
-  String cargo,
-) async {
-  final triple = target.rustTriple;
-  if (triple == null) {
-    throw UnsupportedError(
-      'lottie_native cannot compile its native library for $target from '
-      'source yet; unset build_from_source / '
-      '$buildFromSourceEnvironment to use a prebuilt, if one is published.',
+  String cargo, {
+  required bool forced,
+}) async {
+  try {
+    final library = await compileCrate(
+      cargo: cargo,
+      crate: input.packageRoot.resolve('native/'),
+      targetDir: input.outputDirectory.resolve('cargo/'),
+      target: target,
+      environment: Platform.environment,
     );
+    return library.uri;
+  } on AndroidNdkUnavailable catch (e) {
+    // The app did not ask for a source build, so a missing NDK is a missing
+    // library with an actionable warning, not a failed build; a forced
+    // build fails loudly like a missing cargo does.
+    if (forced) rethrow;
+    return _warn('$e');
   }
-  final crate = input.packageRoot.resolve('native/');
-  final targetDir = input.outputDirectory.resolve('cargo/');
-  final result = await Process.run(cargo, [
-    'build',
-    '--release',
-    '--locked',
-    '--target',
-    triple,
-    '--target-dir',
-    targetDir.toFilePath(),
-    '--manifest-path',
-    crate.resolve('Cargo.toml').toFilePath(),
-  ]);
-  if (result.exitCode != 0) {
-    final output = '${result.stdout}\n${result.stderr}';
-    final hint = missingTargetHint(output, triple);
-    throw ProcessException(
-      cargo,
-      ['build', '--release', '--target', triple],
-      'cargo failed building the lottie_native crate '
-      '(exit ${result.exitCode}). A first build needs network for the '
-      'crates and the pinned tlottie commit.\n'
-      '$output${hint == null ? '' : '\n$hint'}',
-      result.exitCode,
-    );
-  }
-  return targetDir.resolve('$triple/release/libchat_lottie.dylib');
 }
 
 Uri? _warn(String reason) {

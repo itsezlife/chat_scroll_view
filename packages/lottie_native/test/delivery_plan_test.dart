@@ -150,11 +150,13 @@ void main() {
       PrebuiltMatch match = none,
       bool cargo = true,
       LottieNativeTarget target = _mac,
+      bool host = true,
     }) => [
       for (final step in planDelivery(
         buildFromSource: flag,
         match: match,
         hasCargo: cargo,
+        hostBuilds: host,
         target: target,
       ))
         switch (step) {
@@ -181,7 +183,10 @@ void main() {
     });
 
     test('a matching prebuilt for a target this host cannot build', () {
-      expect(plan(match: foundLinux, target: _linux), ['prebuilt', 'none']);
+      expect(plan(match: foundLinux, target: _linux, host: false), [
+        'prebuilt',
+        'none',
+      ]);
     });
 
     test('no prebuilt compiles where the host can', () {
@@ -193,7 +198,7 @@ void main() {
     });
 
     test('no prebuilt on an unsupported host is no library', () {
-      expect(plan(target: _linux), ['none']);
+      expect(plan(target: _linux, host: false), ['none']);
     });
 
     test('the final step is always terminal', () {
@@ -204,6 +209,7 @@ void main() {
               buildFromSource: flag,
               match: match,
               hasCargo: cargo,
+              hostBuilds: true,
               target: _mac,
             );
             expect(steps.last, isNot(isA<UsePrebuilt>()));
@@ -217,6 +223,7 @@ void main() {
         buildFromSource: false,
         match: const PrebuiltMissing('manifest lists none'),
         hasCargo: true,
+        hostBuilds: false,
         target: _linux,
       );
 
@@ -236,10 +243,29 @@ void main() {
         buildFromSource: false,
         match: none,
         hasCargo: false,
+        hostBuilds: true,
         target: _mac,
       );
 
       expect((steps.single as NoLibrary).reason, contains('cargo'));
     });
+
+    test(
+      'a host that cannot build the target points at the prebuilt route',
+      () {
+        final steps = planDelivery(
+          buildFromSource: false,
+          match: none,
+          hasCargo: true,
+          hostBuilds: false,
+          target: _linux,
+        );
+
+        expect(
+          (steps.single as NoLibrary).reason,
+          allOf(contains('cannot build'), contains('prebuilt')),
+        );
+      },
+    );
   });
 }
