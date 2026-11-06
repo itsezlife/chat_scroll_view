@@ -95,6 +95,9 @@ final class FramePool<K extends Object> {
   /// Whether [key] holds a slot, pinned or idle.
   bool contains(K key) => _entries.containsKey(key);
 
+  /// Whether a lease covers [key] now.
+  bool isPinned(K key) => (_entries[key]?.leases ?? 0) > 0;
+
   /// Entries a lease covers now.
   int get pinnedEntries => _entries.values.where((e) => e.leases > 0).length;
 

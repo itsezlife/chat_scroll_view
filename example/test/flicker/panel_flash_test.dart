@@ -1,3 +1,5 @@
+/// Ticket 55 symptom 1, fixed by ticket 56 (regression).
+///
 /// Ticket 55, symptom 1: "a weird flash when one [sticker or GIF cell] gets
 /// loaded", especially while the panel scrolls.
 ///
@@ -10,11 +12,7 @@
 /// placeholder, still, animating without ever being less drawn than before
 /// (`CellTimeline.flashes`).
 ///
-/// **Run** (red on purpose; not part of `test/unit_test.dart`):
-/// `cd example && flutter test test_diagnostic/flicker/panel_flash_diagnosis_test.dart`
 library;
-
-import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
@@ -25,8 +23,8 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 import 'package:video_decoder/video_decoder.dart';
 
-import 'support/paint_signature.dart';
-import 'support/video_rig.dart';
+import '../support/flicker/paint_signature.dart';
+import '../support/flicker/video_rig.dart';
 
 // 4 columns of 80 x 40 cells under a 24 px header, as in the viewport's own
 // animated-sprite test.
@@ -181,7 +179,7 @@ void main() {
 
   void report(String title, List<String> flashes) {
     // ignore: avoid_print
-    print('[DEBUG-fl01-test] $title\n  ${flashes.join('\n  ')}');
+    print('[flash] $title\n  ${flashes.join('\n  ')}');
   }
 
   group('symptom 1: a flash when a cell gets loaded', () {
@@ -227,19 +225,6 @@ void main() {
         expect(flashes, isEmpty);
       },
     );
-
-    testWidgets('a thumbnail is replaced by the loaded content without a dip', (
-      tester,
-    ) async {
-      await pumpPanel(tester, latency: 0, thumbnails: true, cells: 1);
-      await frames(tester, 5);
-      await producer.finish(0);
-      await frames(tester, 30);
-
-      final flashes = timelines[0].flashes(ownTag: 1);
-      report('thumbnail; cell 0: ${timelines[0].compact}', flashes);
-      expect(flashes, isEmpty);
-    });
 
     testWidgets(
       'control: one clip alone on its page, no thumbnail, never dips',

@@ -75,6 +75,7 @@ import 'playback/playback_tick_source_contract_test.dart'
 import 'pool/fake_frame_renderer_contract_test.dart'
     as fake_frame_renderer_contract_test;
 import 'pool/frame_atlas_test.dart' as frame_atlas_test;
+import 'pool/frame_atlas_visibility_test.dart' as frame_atlas_visibility_test;
 import 'pool/frame_page_images_test.dart' as frame_page_images_test;
 import 'pool/frame_pool_test.dart' as frame_pool_test;
 import 'pool/frame_slot_allocator_test.dart' as frame_slot_allocator_test;
@@ -193,6 +194,10 @@ void main() {
     fake_frame_renderer_contract_test.main,
   );
   group('pool/frame_atlas_test.dart', frame_atlas_test.main);
+  group(
+    'pool/frame_atlas_visibility_test.dart',
+    frame_atlas_visibility_test.main,
+  );
   group('pool/frame_page_images_test.dart', frame_page_images_test.main);
   group('pool/frame_pool_test.dart', frame_pool_test.main);
   group('pool/frame_slot_allocator_test.dart', frame_slot_allocator_test.main);
