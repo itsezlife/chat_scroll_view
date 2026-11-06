@@ -103,8 +103,8 @@ abstract final class VideoStickerPack {
     ),
   ];
 
-  /// The MP4 clips, silent: two 256 x 256, a 16:9 and a portrait one, so the
-  /// GIF page has rows of different proportions to justify.
+  /// The MP4 clips, silent: two 256 x 256, a 16:9 and a portrait one, of
+  /// different proportions for a GIF grid to justify.
   static const List<VideoPackItem> clips = [
     VideoPackItem._(
       'gradient',
@@ -182,23 +182,23 @@ abstract final class VideoStickerPack {
   static Iterable<ContentDescriptor> get descriptors =>
       items.map((item) => item.descriptor);
 
-  /// The collection the clips and GIFs are listed as on the GIF page.
+  /// The collection the clips and GIFs are listed as by [gifSource].
   static const CollectionId gifsId = CollectionId.set('demo_gifs');
 
   /// The title of the GIF collection.
   static const String gifsTitle = 'Demo GIFs';
 
   /// A source that lists the whole pack as one collection, loaded from the
-  /// start: what the emoji page shows after its categories.
+  /// start. The panel lists no demo pack: the pack is the showcase chat's.
   static CollectionSource source() =>
       BundledPackSource(id: id, title: title, items: items);
 
-  /// A source that lists the WebM stickers as the pack, for the stickers page.
+  /// A source that lists the WebM stickers as the pack, for a stickers grid.
   static CollectionSource stickerSource() =>
       BundledPackSource(id: id, title: title, items: stickers);
 
   /// A source that lists the clips and GIFs as a collection of their own,
-  /// for the GIF page.
+  /// for a GIF grid.
   static CollectionSource gifSource() => BundledPackSource(
     id: gifsId,
     title: gifsTitle,
