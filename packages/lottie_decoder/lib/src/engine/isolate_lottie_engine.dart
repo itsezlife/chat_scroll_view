@@ -18,6 +18,9 @@ import 'package:lottie_native/lottie_native.dart';
 /// nothing here pretends otherwise. What is handled is a Dart exception in
 /// one request (that request fails, the isolate stays usable) and the
 /// isolate ending (every pending request fails, the engine is closed).
+///
+/// [close] lets requests already sent finish: a render's future completes
+/// only after native code is done with the address it was given.
 final class IsolateLottieEngine implements LottieEngine {
   IsolateLottieEngine._() {
     // Listening before the isolate exists means no message can arrive unheard;
@@ -94,7 +97,11 @@ final class IsolateLottieEngine implements LottieEngine {
   Future<void> close() async {
     if (!_closed) {
       _closed = true;
-      _failPending(LottieEngineClosed('The Lottie engine was closed.'));
+      // Requests already sent are not failed here: the isolate answers them
+      // in order before it handles the close, and native code may still be
+      // writing to the address a render was given. Failing the future early
+      // would let the caller free that memory under it. Only the isolate
+      // ending (_onExit) fails what is still pending, as a last resort.
       _commands.send(const _Close());
     }
     await _exited.future;

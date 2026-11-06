@@ -18,7 +18,9 @@ abstract interface class LottieEngine {
   /// Releases [handle]. Idempotent.
   Future<void> dispose(LottieHandle handle);
 
-  /// Retires the engine and what it holds. Idempotent; every other call
+  /// Retires the engine and what it holds. Requests already made run to
+  /// completion first, so no native code writes to a caller's memory after
+  /// its future completes. Idempotent; every other call
   /// afterwards throws a [LottieEngineClosed].
   Future<void> close();
 }
