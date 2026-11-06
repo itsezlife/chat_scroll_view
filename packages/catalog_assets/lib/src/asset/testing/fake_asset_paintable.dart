@@ -10,8 +10,9 @@ import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 /// binding and the surfaces above it can be driven by a clock alone: the first
 /// paint that animates starts a pass, the frame shown follows the time since
 /// then, and a paint that does not loop holds the rest frame once the pass is
-/// over. Without them it only records, and never holds.
-final class FakeAssetPaintable implements AssetPaintable {
+/// over. Without them it only records, and never holds. [advancePlayback]
+/// steps the sequence like [paint] does.
+final class FakeAssetPaintable extends AssetPaintable {
   /// Creates a paintable called [label] (shown in failures).
   FakeAssetPaintable({
     this.label = 'paintable',
@@ -26,8 +27,10 @@ final class FakeAssetPaintable implements AssetPaintable {
   @override
   final bool isAnimated;
 
+  /// The sprite it exposes; a test sets it to play a paintable whose frame
+  /// arrives after it was advanced.
   @override
-  final AtlasSprite? sprite;
+  AtlasSprite? sprite;
 
   /// How long each frame of the sequence it plays lasts; empty for a
   /// paintable that only records.
@@ -35,6 +38,13 @@ final class FakeAssetPaintable implements AssetPaintable {
 
   /// Every [paint] call, in order.
   final List<({Rect rect, AssetPaintContext context})> paints = [];
+
+  /// What [sprite] becomes at the first [advancePlayback], like an animation
+  /// whose frame lands once it is asked for. Null leaves [sprite] alone.
+  AtlasSprite? spriteOnAdvance;
+
+  /// The context of every [advancePlayback] call, in order.
+  final List<AssetPaintContext> advances = [];
 
   /// How many times [dispose] was called.
   int disposals = 0;
@@ -69,9 +79,23 @@ final class FakeAssetPaintable implements AssetPaintable {
   }
 
   @override
+  void advancePlayback(AssetPaintContext context) {
+    assert(!isDisposed, '$label advanced after dispose');
+    advances.add(context);
+    final arrived = spriteOnAdvance;
+    if (arrived != null) sprite = arrived;
+    _play(context);
+  }
+
+  @override
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
     assert(!isDisposed, '$label painted after dispose');
     paints.add((rect: rect, context: context));
+    _play(context);
+  }
+
+  // What a paint and an advance both do: step the sequence it plays.
+  void _play(AssetPaintContext context) {
     if (frameDurations.isEmpty || !context.animate) return;
     if (_holding) {
       if (!context.loop) return;

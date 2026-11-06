@@ -75,7 +75,7 @@ const double _kActionIconScale = 1.3;
 ///
 /// | The binding | Paint |
 /// | ----------- | ----- |
-/// | has a paintable with a **sprite** (a baked glyph on an atlas page) | queued; [endPass] draws every queued sprite of one page with one batched atlas draw. The pressed cell is queued scaled about its centre, so it needs no canvas transform and stays in its page's batch |
+/// | has a paintable with a **sprite** (a baked glyph, or the frame an animation was advanced to, on a page) | queued; [endPass] draws every queued sprite of one page with one batched atlas draw. The pressed cell is queued scaled about its centre, so it needs no canvas transform and stays in its page's batch |
 /// | none, or stage `none` | the placeholder of the leaf's style |
 /// | stage `placeholder` of a glyph (a glyph not baked yet) | the circle |
 /// | stage `placeholder` of other content | the binding's stand-in paintable (its thumbnail) |
@@ -502,16 +502,55 @@ final class CatalogLeafPainter {
     // Read once: for a baked glyph this asks the atlas, which queues the reload
     // of a released page, so it is neither free nor to be repeated per leaf.
     final binding = bound?.binding;
-    final sprite = binding?.paintable.sprite;
+    final paintable = binding?.paintable;
+    // An animation's sprite is its leased frame, and the lease is taken and the
+    // frame asked for by advancing it, which only a paint did before: a leaf
+    // that takes the sprite path never paints, so it advances here first.
+    final animated = paintable != null && paintable.isAnimated;
+    if (animated) binding!.advancePlayback();
+    final sprite = paintable?.sprite;
     if (sprite != null) {
       // A queued sprite carries the press scale in its own transform, so it
       // needs no canvas save and restore and stays in its page's batch.
       final center = cellRect.center;
+      // Fitted like the paintable fits itself: contain, centred in the glyph
+      // box (a baked glyph is square, so for it this is the box).
+      final fit = math.min(
+        glyphRect.width / sprite.source.width,
+        glyphRect.height / sprite.source.height,
+      );
+      var opacity = 1.0;
+      if (animated) {
+        // Animated content fades in over its stand-in like any content that was
+        // not there at attach; a baked glyph is never faded.
+        opacity = bound!.opacityAt(_frameTime);
+        if (opacity < 1) {
+          _needsFrame = true;
+          final standIn = Rect.fromCenter(
+            center: glyphRect.center,
+            width: glyphRect.width * pressScale,
+            height: glyphRect.height * pressScale,
+          );
+          _paintStandIn(
+            canvas,
+            slot.placeholderStyle,
+            standIn,
+            alpha: 1 - opacity,
+          );
+        }
+      }
       _glyphSprites.add(
         sprite,
-        left: center.dx + (glyphRect.left - center.dx) * pressScale,
-        top: center.dy + (glyphRect.top - center.dy) * pressScale,
-        scale: glyphRect.width / sprite.source.width * pressScale,
+        left:
+            center.dx +
+            (glyphRect.center.dx - sprite.source.width * fit / 2 - center.dx) *
+                pressScale,
+        top:
+            center.dy +
+            (glyphRect.center.dy - sprite.source.height * fit / 2 - center.dy) *
+                pressScale,
+        scale: fit * pressScale,
+        opacity: opacity,
       );
       return;
     }

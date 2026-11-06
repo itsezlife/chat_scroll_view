@@ -60,7 +60,9 @@ final class AssetPaintContext {
 /// rectangle. A surface that batches (the catalogue viewport draws every
 /// sprite of one page in a single atlas draw) uses it instead of [paint]; a
 /// paintable without a sprite paints itself, and [paint] always works whether
-/// or not there is one.
+/// or not there is one. A paintable whose sprite exists only once it has
+/// been advanced (an animation) is advanced through [advancePlayback] before
+/// [sprite] is read.
 ///
 /// ## Ownership
 ///
@@ -70,7 +72,11 @@ final class AssetPaintContext {
 /// with a live binding, so a binding's [paint] never reaches a disposed
 /// paintable; a surface still must not keep a paintable or a sprite across
 /// frames, because the stage behind a binding can improve.
-abstract interface class AssetPaintable {
+abstract class AssetPaintable {
+  /// For subclasses; a paintable extends this to inherit the no-op
+  /// [advancePlayback].
+  const AssetPaintable();
+
   /// The sprite to draw, or null when this paintable paints itself.
   ///
   /// Read it when painting and never keep it: the page behind it can be
@@ -92,6 +98,19 @@ abstract interface class AssetPaintable {
   /// says whether it did. Does nothing, returning false, while a pass is
   /// running: a pass in progress is never rewound.
   bool restart();
+
+  /// Lets a paintable that plays advance before a surface reads [sprite], for
+  /// a surface that draws the sprite itself and so never calls [paint].
+  ///
+  /// A paintable that keeps playback state (a lease on a frame, a played
+  /// time) does there what [paint] does before it draws: it works out the
+  /// frame [context] names and asks for it. The surface calls it once per
+  /// animated paintable per pass, then reads [sprite]; a surface that calls
+  /// [paint] instead needs no call, because [paint] does the same. Calling both
+  /// in one pass is harmless: the same [AssetPaintContext.time] adds no time
+  /// played. Does nothing by default, which is right for a still and for a
+  /// baked glyph.
+  void advancePlayback(AssetPaintContext context) {}
 
   /// Paints into [rect] of [canvas].
   void paint(Canvas canvas, Rect rect, AssetPaintContext context);

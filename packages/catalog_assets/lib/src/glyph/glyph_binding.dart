@@ -164,7 +164,7 @@ final class GlyphBinding extends AssetBindingBase {
   }
 }
 
-final class _GlyphPaintable implements AssetPaintable {
+final class _GlyphPaintable extends AssetPaintable {
   _GlyphPaintable(this._binding, this._placeholder);
 
   final GlyphBinding _binding;

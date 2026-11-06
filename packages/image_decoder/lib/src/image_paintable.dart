@@ -35,7 +35,7 @@ abstract final class _ImagePainter {
 
 /// A decoded still, or the first frame of an animation where only that is
 /// wanted.
-final class StillImagePaintable implements AssetPaintable {
+final class StillImagePaintable extends AssetPaintable {
   /// Paints [image], which it owns from now on.
   StillImagePaintable(this._image, {required bool template})
     : _template = template;
@@ -113,7 +113,7 @@ final class StillImagePaintable implements AssetPaintable {
 /// [FlutterError.reportError] and the image stops on the frame it shows: the
 /// entry already reached its final stage, and a frozen frame is the closest
 /// to the rule that a failure is never painted.
-final class PlayingImagePaintable implements AssetPaintable {
+final class PlayingImagePaintable extends AssetPaintable {
   /// Plays [codec], whose frame [first] was just decoded. Owns both from now
   /// on.
   PlayingImagePaintable(

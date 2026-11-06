@@ -41,6 +41,51 @@ void main() {
     return binding;
   }
 
+  group('advancePlayback', () {
+    test('hands the paintable the context a paint would, without painting', () {
+      final binding = scope.attach(_key, _large, _plays);
+      final paintable = producer.last.advance(
+        AssetStage.full,
+        tier: AssetTier.animated,
+        animated: true,
+      );
+
+      binding.advancePlayback();
+
+      expect(paintable.paints, isEmpty);
+      expect(paintable.advances, hasLength(1));
+      final context = paintable.advances.single;
+      expect(context.animate, isTrue);
+      expect(context.loop, isTrue);
+    });
+
+    test('a profile that does not animate advances nothing', () {
+      final binding = scope.attach(_key, _large, const AssetProfile());
+      final paintable = producer.last.advance(AssetStage.full, animated: true);
+
+      binding.advancePlayback();
+
+      expect(paintable.advances.single.animate, isFalse);
+    });
+
+    test(
+      'a detached binding advances the placeholder, not its old paintable',
+      () {
+        final binding = scope.attach(_key, _large, _plays);
+        final paintable = producer.last.advance(
+          AssetStage.full,
+          tier: AssetTier.animated,
+          animated: true,
+        );
+        binding.detach();
+
+        binding.advancePlayback();
+
+        expect(paintable.advances, isEmpty);
+      },
+    );
+  });
+
   group('gating: profile animate AND visible', () {
     test('an animated binding plays and asks the engine for frames', () {
       final binding = animated();
