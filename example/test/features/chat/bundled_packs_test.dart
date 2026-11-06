@@ -6,6 +6,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_sou
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -33,12 +34,14 @@ void main() {
   final emoji = AnimatedEmojiPack.emoji.first;
   final sticker = LottieStickerPack.stickers.first;
   final still = StaticStickerPack.stickers.first;
+  final video = VideoStickerPack.stickers.first;
 
   test('lists the descriptors of every pack', () {
     expect(BundledPacks.descriptors, [
       ...AnimatedEmojiPack.descriptors,
       ...LottieStickerPack.descriptors,
       ...StaticStickerPack.descriptors,
+      ...VideoStickerPack.descriptors,
     ]);
   });
 
@@ -46,6 +49,7 @@ void main() {
     expect(BundledPacks.of(emoji.key), same(emoji));
     expect(BundledPacks.of(sticker.key), same(sticker));
     expect(BundledPacks.of(still.key), same(still));
+    expect(BundledPacks.of(video.key), same(video));
     expect(BundledPacks.of(const ContentKey.document('other')), isNull);
     expect(BundledPacks.of(const ContentKey.unicode('\u{1F600}')), isNull);
   });
@@ -76,6 +80,7 @@ void main() {
       final stillContent = await fetcher.fetch(_request(still.descriptor));
       final emojiContent = await fetcher.fetch(_request(emoji.descriptor));
       final stickerContent = await fetcher.fetch(_request(sticker.descriptor));
+      final videoContent = await fetcher.fetch(_request(video.descriptor));
 
       expect(
         (emojiContent as FetchedBytes).bytes,
@@ -88,6 +93,10 @@ void main() {
       expect(
         (stillContent as FetchedBytes).bytes,
         File(still.assetPath).readAsBytesSync(),
+      );
+      expect(
+        (videoContent as FetchedBytes).bytes,
+        File(video.assetPath).readAsBytesSync(),
       );
     });
 
@@ -119,6 +128,7 @@ void main() {
         emoji.key,
         sticker.key,
         still.key,
+        video.key,
         const ContentKey.document('other'),
       ]);
 
@@ -126,6 +136,7 @@ void main() {
         emoji.key: emoji.descriptor,
         sticker.key: sticker.descriptor,
         still.key: still.descriptor,
+        video.key: video.descriptor,
       });
     },
   );

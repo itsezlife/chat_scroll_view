@@ -50,6 +50,12 @@ dependencies:
     path: ../packages/panel_shell
   rich_clipboard:
     path: ../packages/rich_clipboard
+  # Depending on video_native is what runs its native build hook for the app
+  # (macOS arm64); video_decoder is the Decoder over it.
+  video_decoder:
+    path: ../packages/video_decoder
+  video_native:
+    path: ../packages/video_native
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
@@ -99,6 +105,9 @@ flutter:
     - assets/lottie_stickers/
     # Static stickers authored for the demo (no third-party artwork).
     - assets/static_stickers/
+    # Video stickers, clips and GIFs generated for the demo from synthetic
+    # sources (no third-party artwork); the README there has the commands.
+    - assets/video_stickers/
     - path: assets/comments/
       platforms:
         - android

@@ -1,6 +1,7 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
+import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:content_model/testing.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
@@ -20,8 +21,10 @@ Future<AppServices> createTestServices({
   FakeKeyValueStore? storage,
   EmojiAssetLoader? loader,
   LottiePlaybackStarter startLottie = _noLottie,
+  VideoPlaybackStarter startVideo = _noVideo,
 }) => AppServices.create(
   startLottie: startLottie,
+  startVideo: startVideo,
   keyValueStore: storage ?? FakeKeyValueStore(),
   assetLoader: loader ?? rootBundle.loadString,
   clipboard: FakeRichClipboard(),
@@ -31,4 +34,9 @@ Future<LottiePlayback?> _noLottie({
   required PlaybackClock clock,
   required Listenable memoryPressure,
   String? cacheDirectory,
+}) async => null;
+
+Future<VideoPlayback?> _noVideo({
+  required PlaybackClock clock,
+  required Listenable memoryPressure,
 }) async => null;

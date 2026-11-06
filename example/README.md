@@ -28,3 +28,13 @@ placeholder. Frames are kept in memory only on the web.
 
 What has and has not run in a browser: see "Not run" under Web in
 [host integration](../docs/host-integration.md).
+
+## Video stickers, clips and GIFs on macOS
+
+The "Demo video stickers" pack (WebM, MP4 and GIF; see
+`assets/video_stickers/README.md`) plays through `video_native`, whose build
+hook needs the FFmpeg prefix built by
+`packages/video_native/native/recipe/build.sh` (macOS arm64 only so far).
+Without it, or on another platform, the build still succeeds and the app
+runs: it logs once that video stickers are off and those items keep their
+placeholder. The web does not play video yet.

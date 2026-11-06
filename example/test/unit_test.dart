@@ -16,6 +16,7 @@ import 'app/lottie_playback_pixel_test.dart' as lottie_playback_pixel_test;
 import 'app/lottie_playback_test.dart' as lottie_playback_test;
 import 'app/overlay_pause_observer_test.dart' as overlay_pause_observer_test;
 import 'app/system_reduced_motion_test.dart' as system_reduced_motion_test;
+import 'app/video_playback_test.dart' as video_playback_test;
 import 'backend_chat_data_source_test.dart' as backend_chat_data_source_test;
 import 'backend_realtime_reconnect_test.dart'
     as backend_realtime_reconnect_test;
@@ -76,6 +77,7 @@ import 'features/chat/static_sticker_pipeline_test.dart'
     as static_sticker_pipeline_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
+import 'features/chat/video_sticker_pack_test.dart' as video_sticker_pack_test;
 import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
 import 'frame_rate_boost_test.dart' as frame_rate_boost_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
@@ -142,6 +144,7 @@ import 'widgets/status_click_test.dart' as status_click_test;
 import 'widgets/unread_boundary_background_test.dart'
     as unread_boundary_background_test;
 import 'widgets/unread_separator_test.dart' as unread_separator_test;
+import 'widgets/video_sticker_message_test.dart' as video_sticker_message_test;
 import 'widgets/widget_chat_screen_bodies_test.dart'
     as widget_chat_screen_bodies_test;
 import 'widgets/widget_chat_screen_source_test.dart'
@@ -163,6 +166,7 @@ void main() {
     overlay_pause_observer_test.main,
   );
   group('app/system_reduced_motion_test.dart', system_reduced_motion_test.main);
+  group('app/video_playback_test.dart', video_playback_test.main);
   group(
     'backend_chat_data_source_test.dart',
     backend_chat_data_source_test.main,
@@ -262,12 +266,20 @@ void main() {
     static_sticker_pack_test.main,
   );
   group(
+    'features/chat/video_sticker_pack_test.dart',
+    video_sticker_pack_test.main,
+  );
+  group(
     'features/chat/static_sticker_pipeline_test.dart',
     static_sticker_pipeline_test.main,
   );
   group(
     'widgets/static_sticker_message_test.dart',
     static_sticker_message_test.main,
+  );
+  group(
+    'widgets/video_sticker_message_test.dart',
+    video_sticker_message_test.main,
   );
   group(
     'features/chat/chat_messages_copy_format_test.dart',
