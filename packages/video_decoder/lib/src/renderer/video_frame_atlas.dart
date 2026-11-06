@@ -50,7 +50,7 @@ abstract final class VideoFrameAtlas {
   );
 
   /// The upload of a BGRA page: `decodeImageFromPixels` as
-  /// `bgra8888`, which copies the bytes when called.
+  /// `rgba8888`, which copies the bytes when called.
   static Future<ui.Image> uploadBgraFramePage(Uint8List pixels, int side) {
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
