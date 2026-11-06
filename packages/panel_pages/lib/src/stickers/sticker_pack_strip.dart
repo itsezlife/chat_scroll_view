@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart' show FrameAtlas;
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -36,8 +34,8 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// A pack's tab shows its cover, the first sticker when the pack names none.
 /// An animated cover plays and loops while its tab is in the strip's view, on
-/// the shared playback clock (its pause layers pause it), decoded no larger
-/// than [coverMaxPixels]; a still cover stays still. The covers repaint on
+/// the shared playback clock (its pause layers pause it), decoded at its size
+/// on the screen as every animated cell is; a still cover stays still. The covers repaint on
 /// their own and never rebuild the strip, and the strip gives them back when
 /// it leaves the tree.
 ///
@@ -73,15 +71,6 @@ class StickerPackStrip extends StatefulWidget {
 
   /// Side of the recents' icon: `StickerTabView.IMAGE_ICON_SMALL_SIZE`.
   static const double recentsIconSize = 24;
-
-  /// The most pixels a side of a cover is decoded at: the smallest cell of
-  /// the frame pools ([FrameAtlas.defaultSizeClasses]).
-  ///
-  /// [iconSize] at a density of 3 is 78 pixels, which would take a 128 cell,
-  /// four times the bytes, for a picture 26 wide (and a clip is decoded at
-  /// its cell, so at 128). The reference client decodes at 40 dp; this strip
-  /// spends less, a little softer on the densest screens.
-  static final int coverMaxPixels = FrameAtlas.defaultSizeClasses.first;
 
   /// Radius of a cover's corners: `imageView.setRoundRadius(dp(6))`.
   static const double coverRadius = 6;
@@ -528,12 +517,9 @@ class _TabButton extends StatelessWidget {
     // an animated cover (filter `40_40`, `40_40_firstframe` only in its lite
     // mode, which here is the clock's `lowPower` layer). A still cover is a
     // still paintable and never moves. The view repaints through its binding,
-    // so the strip is not rebuilt for a frame.
-    final pixels = math.min(
-      (StickerPackStrip.iconSize * MediaQuery.devicePixelRatioOf(context))
-          .ceil(),
-      StickerPackStrip.coverMaxPixels,
-    );
+    // so the strip is not rebuilt for a frame. Decoded at its size on the
+    // screen, as every animated cell is; the decoders snap that to their
+    // frame size classes.
     return ClipRRect(
       borderRadius: BorderRadius.circular(StickerPackStrip.coverRadius),
       child: SizedBox.square(
@@ -548,10 +534,9 @@ class _TabButton extends StatelessWidget {
           child: ContentView(
             content: cover,
             scope: scope,
-            preset: AssetPreset(
-              size: const Size.square(StickerPackStrip.iconSize),
-              spec: AssetSpec(pixelWidth: pixels, pixelHeight: pixels),
-              profile: const AssetProfile(animate: true),
+            preset: AssetPresets.keyboardCell(
+              extent: StickerPackStrip.iconSize,
+              devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
             ),
           ),
         ),

@@ -11,9 +11,11 @@
 library;
 
 import 'dart:async';
+import 'dart:math' show max;
 import 'dart:ui' show Tristate;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/frame_pool.dart' show FrameAtlas;
 import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -391,16 +393,24 @@ void main() {
       expect(ticks.isRunning, isFalse);
     });
 
-    testWidgets('decodes the cover at the smallest frame size class', (
-      tester,
-    ) async {
-      await pump(tester, assets: scope, devicePixelRatio: 3);
+    // The frame pool cell a decode of [spec] takes: the smallest class that
+    // holds its longer side.
+    int sizeClassOf(AssetSpec spec) => FrameAtlas.defaultSizeClasses.firstWhere(
+      (edge) => edge >= max(spec.pixelWidth, spec.pixelHeight),
+    );
 
-      final spec = attemptOf(cats).request.spec;
-      expect(spec.variant, AssetVariant.full);
-      expect(spec.pixelWidth, lessThanOrEqualTo(64));
-      expect(spec.pixelHeight, lessThanOrEqualTo(64));
-    });
+    for (final (density, sizeClass) in [(1.0, 64), (3.0, 128)]) {
+      testWidgets('decodes the whole cover at its size on the screen, the '
+          '$sizeClass class at a density of $density', (tester) async {
+        await pump(tester, assets: scope, devicePixelRatio: density);
+
+        final spec = attemptOf(cats).request.spec;
+        expect(spec.variant, AssetVariant.full);
+        expect(spec.pixelWidth, (26 * density).ceil());
+        expect(spec.pixelHeight, (26 * density).ceil());
+        expect(sizeClassOf(spec), sizeClass);
+      });
+    }
 
     testWidgets('animates by repainting, never rebuilding the tab', (
       tester,
