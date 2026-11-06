@@ -131,6 +131,7 @@ isolate owns the codec and the file work is asynchronous `dart:io`.
 SHA-256 of the file, `width`/`height:` the size the frames render at,
 `engineVersion: LottieNativeVersion.engine)`. A spec above 512 px does not
 animate and has no key.
+
 ## Fuzzing and benchmarks
 
 The native library is fuzzed in `lottie_native` (see its README). This package

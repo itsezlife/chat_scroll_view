@@ -80,7 +80,8 @@ const _fixture = '''
 // Meters: the real parts of the path, wrapped to time them
 // ---------------------------------------------------------------------------
 
-/// The real engine, timing each `renderBatch` as the UI isolate sees it.
+/// The real engine, timing each render call as the UI isolate sees it (this
+/// benchmark has no frame cache, so that is `renderBatch`).
 final class _MeteredEngine implements LottieEngine {
   _MeteredEngine(this._inner);
 
@@ -90,17 +91,26 @@ final class _MeteredEngine implements LottieEngine {
   @override
   Future<LottieLoadResult> load(Uint8List bytes) => _inner.load(bytes);
 
-  @override
-  Future<List<LottieRenderStatus>> renderBatch(
-    List<LottieEngineJob> jobs,
-  ) async {
+  Future<T> _timed<T>(Future<T> Function() call) async {
     final watch = Stopwatch()..start();
     try {
-      return await _inner.renderBatch(jobs);
+      return await call();
     } finally {
       roundTripsUs.add(watch.elapsedMicroseconds);
     }
   }
+
+  @override
+  Future<List<LottieRenderStatus>> renderBatch(List<LottieEngineJob> jobs) =>
+      _timed(() => _inner.renderBatch(jobs));
+
+  @override
+  Future<List<LottieCapture>> renderCapturing(List<LottieEngineJob> jobs) =>
+      _timed(() => _inner.renderCapturing(jobs));
+
+  @override
+  Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) =>
+      _timed(() => _inner.restore(jobs));
 
   @override
   Future<void> dispose(LottieHandle handle) => _inner.dispose(handle);
@@ -175,7 +185,7 @@ Future<_Samples> _play(int stickers) async {
   final ticks = ManualPlaybackTickSource();
   final clock = PlaybackClock(ticks: ticks);
   final atlas = FrameAtlas<Object>(
-    renderer: LottieFrameRenderer(engine, memory),
+    renderer: LottieFrameRenderer(engine: engine, memory: memory),
     memory: memory,
     upload: meter.call,
   );
@@ -192,7 +202,7 @@ Future<_Samples> _play(int stickers) async {
       for (var i = 0; i < stickers; i++)
         scheduler.acquire(
           'sticker-$i',
-          handle as Object,
+          LottieSource(handle, frameCount: 60),
           _displayEdge,
           _displayEdge,
         )!,
