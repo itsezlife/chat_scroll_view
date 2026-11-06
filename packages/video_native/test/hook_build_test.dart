@@ -1,11 +1,16 @@
 import 'dart:io';
 
+import 'package:code_assets/code_assets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // The hook is not part of lib/: a hook may not import the Flutter package
 // that it builds for, so its testable logic is reached by path.
 // ignore: avoid_relative_lib_imports, always_use_package_imports
+import '../hook/src/android_ndk.dart';
+// ignore: avoid_relative_lib_imports, always_use_package_imports
 import '../hook/src/ffmpeg_prefix.dart';
+// ignore: avoid_relative_lib_imports, always_use_package_imports
+import '../hook/src/video_target.dart';
 // ignore: avoid_relative_lib_imports, always_use_package_imports
 import '../hook/src/wrapper_compile.dart';
 
@@ -172,6 +177,152 @@ void main() {
         '/sdk/MacOSX.sdk',
       ]);
       expect(arguments(), isNot(contains('-isysroot')));
+    });
+  });
+
+  group('recipeTarget', () {
+    test('builds macOS and Android on arm64 only', () {
+      expect(recipeTarget(OS.macOS, Architecture.arm64), 'macos-arm64');
+      expect(recipeTarget(OS.android, Architecture.arm64), 'android-arm64');
+      for (final architecture in [
+        Architecture.x64,
+        Architecture.arm,
+        Architecture.ia32,
+      ]) {
+        expect(recipeTarget(OS.android, architecture), isNull);
+      }
+      expect(recipeTarget(OS.macOS, Architecture.x64), isNull);
+      expect(recipeTarget(OS.iOS, Architecture.arm64), isNull);
+    });
+  });
+
+  group('recipeCommandFor', () {
+    test('names the TARGET only where the default would be wrong', () {
+      expect(recipeCommandFor('macos-arm64'), recipeCommand);
+      expect(
+        recipeCommandFor('android-arm64'),
+        'TARGET=android-arm64 $recipeCommand',
+      );
+    });
+  });
+
+  group('bundledLibraries on Android', () {
+    test('maps each library to its unversioned soname, ignoring libvpx.a', () {
+      final prefix = prefixWith(
+        'p',
+        lib: [
+          for (final lib in ['avutil', 'avcodec', 'avformat', 'swscale'])
+            'lib$lib.so',
+          'libvpx.a',
+        ],
+      );
+
+      final libraries = bundledLibraries(prefix, os: OS.android);
+
+      expect(
+        libraries.keys,
+        unorderedEquals([
+          'libavutil.so',
+          'libavcodec.so',
+          'libavformat.so',
+          'libswscale.so',
+        ]),
+      );
+    });
+
+    test('does not mistake the macOS names for Android ones', () {
+      final prefix = prefixWith(
+        'p',
+        lib: [
+          'libavutil.61.dylib',
+          'libavcodec.63.dylib',
+          'libavformat.63.dylib',
+          'libswscale.10.dylib',
+        ],
+      );
+
+      expect(
+        () => bundledLibraries(prefix, os: OS.android),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('libavcodec.so'),
+          ),
+        ),
+      );
+    });
+  });
+
+  group('androidWrapperCompileArguments', () {
+    final arguments = androidWrapperCompileArguments(
+      source: 'a.c',
+      includeDir: 'inc',
+      prefix: '/p',
+      libraries: ['/p/lib/libavcodec.so', '/p/lib/libavutil.so'],
+      output: 'out.so',
+    );
+
+    test('link the libraries by file, so the files the prefix holds', () {
+      expect(
+        arguments,
+        containsAllInOrder(['/p/lib/libavcodec.so', '/p/lib/libavutil.so']),
+      );
+      expect(arguments, isNot(contains('-lavcodec')));
+    });
+
+    test('name the soname, align for 16 KiB pages and hide symbols', () {
+      expect(
+        arguments,
+        containsAll([
+          '-shared',
+          '-fPIC',
+          '-fvisibility=hidden',
+          '-Wl,-soname,libchat_video.so',
+          '-Wl,-z,max-page-size=16384',
+          '-I/p/include',
+        ]),
+      );
+      expect(arguments.join(' '), isNot(contains('-isysroot')));
+    });
+  });
+
+  group('AndroidNdk', () {
+    NdkFiles fs(Map<String, List<String>> tree) =>
+        NdkFiles(isDirectory: tree.containsKey, list: (d) => tree[d] ?? []);
+    const sdk = '/Users/u/Library/Android/sdk';
+    String bin(String version) =>
+        '$sdk/ndk/$version/toolchains/llvm/prebuilt/darwin-x86_64/bin';
+
+    test('takes the highest NDK and the API level nearest below the ask', () {
+      final ndk = findAndroidNdk(
+        environment: const {'HOME': '/Users/u'},
+        hostOs: OS.macOS,
+        files: fs({
+          '$sdk/ndk': ['28.1.1', '28.2.1'],
+          bin('28.1.1'): ['aarch64-linux-android21-clang'],
+          bin('28.2.1'): [
+            for (final api in [21, 24, 29]) 'aarch64-linux-android$api-clang',
+          ],
+        }),
+      );
+
+      expect(ndk.root, '$sdk/ndk/28.2.1');
+      expect(
+        ndk.linker('aarch64-linux-android', 26),
+        '${bin('28.2.1')}/aarch64-linux-android24-clang',
+      );
+    });
+
+    test('says what to install when there is no NDK', () {
+      expect(
+        () => findAndroidNdk(
+          environment: const {'HOME': '/Users/u'},
+          hostOs: OS.macOS,
+          files: fs({}),
+        ),
+        throwsA(isA<AndroidNdkUnavailable>()),
+      );
     });
   });
 }

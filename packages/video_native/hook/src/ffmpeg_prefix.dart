@@ -7,12 +7,18 @@ library;
 
 import 'dart:io';
 
+import 'package:code_assets/code_assets.dart';
+
 /// The environment variable that names a prefix (a directory holding
 /// `include/` and `lib/`) in place of the recipe's output.
 const ffmpegDirVariable = 'CHAT_VIDEO_FFMPEG_DIR';
 
 /// The command that produces the prefix this hook looks for by default.
 const recipeCommand = 'packages/video_native/native/recipe/build.sh';
+
+/// The command that builds the prefix for the recipe's [target].
+String recipeCommandFor(String target) =>
+    target == 'macos-arm64' ? recipeCommand : 'TARGET=$target $recipeCommand';
 
 /// The libraries the wrapper links, by their short names.
 const ffmpegLibraries = ['avutil', 'avcodec', 'avformat', 'swscale'];
@@ -38,12 +44,13 @@ Directory? findFfmpegPrefix({
 }
 
 /// The shared libraries of [prefix] by the name their dependents load them
-/// under (`libavcodec.63.dylib`: the file whose install name is
-/// `@rpath/<that name>`), one per entry of [ffmpegLibraries].
+/// under, one per entry of [ffmpegLibraries]: `libavcodec.63.dylib` on macOS
+/// (the file whose install name is `@rpath/<that name>`), `libavcodec.so`
+/// on Android (unversioned, and its own soname).
 ///
 /// Throws a [StateError] naming what is missing, so a half-built prefix is a
 /// message and not a link error.
-Map<String, File> bundledLibraries(Directory prefix) {
+Map<String, File> bundledLibraries(Directory prefix, {OS os = OS.macOS}) {
   final lib = Directory('${prefix.path}/lib');
   final names = [
     for (final entity in lib.listSync())
@@ -52,10 +59,14 @@ Map<String, File> bundledLibraries(Directory prefix) {
   final found = <String, File>{};
   final missing = <String>[];
   for (final short in ffmpegLibraries) {
-    final pattern = RegExp('^lib$short\\.\\d+\\.dylib\$');
+    final pattern = os == OS.android
+        ? RegExp('^lib$short\\.so\$')
+        : RegExp('^lib$short\\.\\d+\\.dylib\$');
     final match = names.where(pattern.hasMatch).toList()..sort();
     if (match.isEmpty) {
-      missing.add('lib$short.<major>.dylib');
+      missing.add(
+        os == OS.android ? 'lib$short.so' : 'lib$short.<major>.dylib',
+      );
     } else {
       found[match.first] = File('${lib.path}/${match.first}');
     }

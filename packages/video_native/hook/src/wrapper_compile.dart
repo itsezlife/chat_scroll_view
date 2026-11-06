@@ -1,5 +1,5 @@
-/// Compiles `native/src/chat_video.c` into the wrapper dylib with the system
-/// C compiler.
+/// Compiles `native/src/chat_video.c` into the wrapper library: a dylib with
+/// the system C compiler on macOS, a `.so` with the NDK clang on Android.
 library;
 
 import 'dart:io';
@@ -52,6 +52,42 @@ List<String> wrapperCompileArguments({
   output,
 ];
 
+/// The compiler arguments for Android: pure, like the macOS ones.
+///
+/// [libraries] are the FFmpeg `.so` files by path, not `-l` names: the exact
+/// files the hook then bundles are the ones linked, whatever else the search
+/// path holds. Each records its own soname (`libavcodec.so`) as NEEDED, the
+/// name the APK carries it under. The loader needs no rpath: all of an app's
+/// libraries sit in one directory.
+List<String> androidWrapperCompileArguments({
+  required String source,
+  required String includeDir,
+  required String prefix,
+  required List<String> libraries,
+  required String output,
+}) => [
+  '-shared',
+  '-fPIC',
+  '-std=c11',
+  '-O2',
+  '-Wall',
+  '-Wextra',
+  '-Werror',
+  '-fvisibility=hidden',
+  '-I$includeDir',
+  '-I$prefix/include',
+  source,
+  ...libraries,
+  '-llog',
+  '-Wl,-soname,libchat_video.so',
+  // Android 15 devices may run 16 KiB pages; Google Play requires 64-bit
+  // libraries to be aligned for them.
+  '-Wl,-z,max-page-size=16384',
+  '-Wl,--no-undefined',
+  '-o',
+  output,
+];
+
 /// A compiler run that failed.
 final class WrapperCompileFailed implements Exception {
   /// Creates the failure of [command] with its [output].
@@ -96,14 +132,43 @@ Future<File> compileWrapper({
   required File output,
   String compiler = 'cc',
   String? sysroot,
-}) async {
-  final arguments = wrapperCompileArguments(
+}) async => runCompiler(
+  compiler,
+  wrapperCompileArguments(
     source: '${native.path}/src/chat_video.c',
     includeDir: '${native.path}/include',
     prefix: prefix.path,
     output: output.path,
     sysroot: sysroot ?? await macosSdkPath(),
-  );
+  ),
+  output,
+);
+
+/// Compiles the wrapper for Android with the NDK clang at [compiler].
+Future<File> compileAndroidWrapper({
+  required Directory native,
+  required Directory prefix,
+  required List<File> libraries,
+  required File output,
+  required String compiler,
+}) => runCompiler(
+  compiler,
+  androidWrapperCompileArguments(
+    source: '${native.path}/src/chat_video.c',
+    includeDir: '${native.path}/include',
+    prefix: prefix.path,
+    libraries: [for (final library in libraries) library.path],
+    output: output.path,
+  ),
+  output,
+);
+
+/// Runs [compiler] with [arguments] and returns [output], which it writes.
+Future<File> runCompiler(
+  String compiler,
+  List<String> arguments,
+  File output,
+) async {
   await output.parent.create(recursive: true);
   final result = await Process.run(compiler, arguments);
   if (result.exitCode != 0) {
