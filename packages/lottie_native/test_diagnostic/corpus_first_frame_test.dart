@@ -1,5 +1,3 @@
-// A diagnostic run prints its per-pack table on purpose.
-// ignore_for_file: avoid_print
 // Diagnostic (ticket 57), not in unit_test.dart. Renders every corpus Lottie
 // file through the real native binding and counts non-empty frames.
 //
@@ -83,8 +81,8 @@ void main() {
         }
       }
     }
-    // ignore: avoid_print
     perPack.forEach(
+      // ignore: avoid_print
       (k, v) => print(
         'PACK $k total=${v[0]} loadFail=${v[1]} frame0Blank=${v[2]} midBlank=${v[3]}',
       ),
