@@ -20,6 +20,10 @@ import 'paint/lottie_paintable_test.dart' as lottie_paintable_test;
 import 'playback/lottie_frame_scheduler_test.dart'
     as lottie_frame_scheduler_test;
 import 'renderer/lottie_source_test.dart' as lottie_source_test;
+import 'renderer/pixel_copy_frame_renderer_test.dart'
+    as pixel_copy_frame_renderer_test;
+import 'testing/fake_pixel_lottie_engine_test.dart'
+    as fake_pixel_lottie_engine_test;
 
 void main() {
   group(
@@ -34,6 +38,14 @@ void main() {
     lottie_frame_scheduler_test.main,
   );
   group('renderer/lottie_source_test.dart', lottie_source_test.main);
+  group(
+    'renderer/pixel_copy_frame_renderer_test.dart',
+    pixel_copy_frame_renderer_test.main,
+  );
+  group(
+    'testing/fake_pixel_lottie_engine_test.dart',
+    fake_pixel_lottie_engine_test.main,
+  );
   group(
     'in_process_lottie_engine_test.dart',
     in_process_lottie_engine_test.main,
