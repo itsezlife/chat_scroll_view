@@ -238,3 +238,43 @@ NativeBindingContract.run(() => NativeBindingHarness(
       malformedBytes: malformedBytes,
     ));
 ```
+
+## Fuzzing and benchmarks
+
+The C ABI is fuzzed two ways. The fixed corpus replay (`native/tests/replay.rs`)
+runs with `cargo test` on every pull request. The long run is
+`native/tests/fuzz_long.rs`, `#[ignore]`d so a plain `cargo test` never waits
+for it; the nightly workflow `.github/workflows/lottie_native_fuzz.yml` runs it
+for 20 minutes with a random seed and opens or updates one issue on a finding.
+It is seeded and structure-aware, not coverage-guided: a small PRNG of its own
+(no crate) edits the hand-authored fixtures at the byte level (flips,
+truncations, insertions, copies, deletions) and through `serde_json` (corrupt
+numbers and types, renamed, dropped and inserted keys, duplicated and deeply
+nested arrays, a precomp that includes itself), wraps cases in gzip and
+corrupts the header, the trailer and the member structure, and now and then
+sends a size bomb. Each input goes through `chat_lottie_load`, then (when it
+loads) `chat_lottie_render_batch` at several sizes with hostile frame numbers
+and bad jobs in the same batch, `compress_region` / `decompress_region` round
+trips with a corrupt stream, a short destination and a wrong-size region, and
+`chat_lottie_free`; the input is also fed to `decompress_region` as a stream.
+
+Per input it asserts a documented status for each call, never `-6` (a caught
+panic is a bug), a null handle after a failed load, premultiplied pixels, no
+write outside the slot and a rejected stream leaving the region alone. Each case runs on a worker thread with a
+deadline; a hang is a finding too. The harness itself is tested with planted
+defects (a fake driver answering `-6`, hanging or panicking) in the same file.
+
+```shell
+cd packages/lottie_native/native
+cargo test --release --test fuzz_long -- --ignored --nocapture
+```
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `CHAT_LOTTIE_FUZZ_SECONDS` | `20` | How long to generate cases. |
+| `CHAT_LOTTIE_FUZZ_SEED` | the clock | Printed first; the same seed makes the same cases. |
+| `CHAT_LOTTIE_FUZZ_DIR` | `target/fuzz-failures` | Where a failing input (`.bin`) and its recipe (`.txt`) are written; an `inflight-*.bin` is the case a crash that never reported was running. |
+| `CHAT_LOTTIE_FUZZ_CASE_MS` | `5000` | The per-input time limit. |
+
+The playback benchmark lives with the adapter: see "Fuzzing and benchmarks" in
+`lottie_decoder`.

@@ -8,6 +8,8 @@ package is pre-1.0.
 
 ### Added
 
+- A seeded long fuzz of the C ABI (`native/tests/fuzz_long.rs`, ignored by
+  default) and a nightly workflow that opens an issue on a finding.
 - `LottieNativeVersion.engine`: the crate version and pinned tlottie revision
   as one token, part of every frame-cache key; a test compares it with
   `native/Cargo.toml`.
