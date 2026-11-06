@@ -18,6 +18,9 @@ Future<({Decoder decoder, Future<void> Function() close})?> start({
   final LottieEngine engine;
   try {
     engine = await spawn();
+    // The engine reports a library it cannot use as a StateError: that is
+    // the probe's answer, not a bug to propagate.
+    // ignore: avoid_catching_errors
   } on StateError catch (reason) {
     l.w('Lottie stickers are off: ${reason.message}');
     return null;
