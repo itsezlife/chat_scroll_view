@@ -316,4 +316,113 @@ void main() {
       expect(_names(dir, '.tmp'), isEmpty, reason: 'swept on the first scan');
     });
   });
+
+  group('damaged files', () {
+    late Directory dir;
+    final key = _key('a');
+    late File file;
+    late List<Object> reported;
+
+    /// A valid file for [key], then [damage] applied to its bytes.
+    Future<void> writeThenDamage(
+      Uint8List Function(Uint8List bytes) damage,
+    ) async {
+      dir = _tempDir();
+      final writer = FrameCache(directory: dir, clock: clock);
+      putAll(writer, key, 3, 10);
+      await writer.dispose();
+      file = File('${dir.path}/${key.toFileStem()}.frames');
+      file.writeAsBytesSync(damage(file.readAsBytesSync()));
+    }
+
+    /// Where the offsets table starts for [key]: after the fixed header, the
+    /// engine version "1.0.0" and the hash "a".
+    const tablesStart = 36 + 5 + 1;
+
+    Uint8List patch(Uint8List bytes, void Function(ByteData data) edit) {
+      edit(ByteData.sublistView(bytes));
+      return bytes;
+    }
+
+    final damages = <String, Uint8List Function(Uint8List)>{
+      'empty': (b) => Uint8List(0),
+      'truncated inside the header': (b) => b.sublist(0, 20),
+      'truncated inside the payload': (b) => b.sublist(0, b.length - 3),
+      'longer than it says': (b) => Uint8List.fromList([...b, 0]),
+      'bad magic': (b) => patch(b, (d) => d.setUint8(0, 0)),
+      'another format version': (b) =>
+          patch(b, (d) => d.setUint32(4, 2, Endian.little)),
+      'payload bit flipped': (b) =>
+          patch(b, (d) => d.setUint8(b.length - 1, 0xFF)),
+      'wrong CRC': (b) => patch(b, (d) => d.setUint32(24, 0, Endian.little)),
+      'impossible frame count': (b) =>
+          patch(b, (d) => d.setUint32(16, 0xFFFFFFFF, Endian.little)),
+      'zero frame count': (b) =>
+          patch(b, (d) => d.setUint32(16, 0, Endian.little)),
+      'impossible engine length': (b) =>
+          patch(b, (d) => d.setUint32(28, 0xFFFFFFFF, Endian.little)),
+      'offset past the payload': (b) => patch(
+        b,
+        (d) => d.setUint32(tablesStart + 4, 0xFFFFFFF0, Endian.little),
+      ),
+      'offsets that do not tile': (b) =>
+          patch(b, (d) => d.setUint32(tablesStart + 4, 3, Endian.little)),
+      'a length past the payload': (b) => patch(
+        b,
+        (d) => d.setUint32(tablesStart + 3 * 4, 0xFFFFFFF0, Endian.little),
+      ),
+    };
+
+    for (final MapEntry(key: name, value: damage) in damages.entries) {
+      test('$name is a miss, deleted, and not an error', () async {
+        reported = [];
+        await writeThenDamage(damage);
+        final cache = FrameCache(
+          directory: dir,
+          clock: clock,
+          onError: (e, _) => reported.add(e),
+        );
+        addTearDown(cache.dispose);
+
+        expect(await cache.open(key), isNull);
+        expect(file.existsSync(), isFalse, reason: 'removed');
+        expect(reported, isEmpty);
+      });
+    }
+
+    test('a file renamed onto another key is not served as that key', () async {
+      await writeThenDamage((b) => b);
+      for (final other in [
+        _key('a', size: 64), // another display size
+        _key('b'), // another content
+        FrameCacheKey(
+          contentHash: 'a',
+          width: 128,
+          height: 128,
+          engineVersion: '2.0.0',
+        ), // another engine
+      ]) {
+        final copy = File('${dir.path}/${other.toFileStem()}.frames')
+          ..writeAsBytesSync(file.readAsBytesSync());
+        final cache = FrameCache(directory: dir, clock: clock);
+        addTearDown(cache.dispose);
+        expect(await cache.open(other), isNull, reason: '$other');
+        expect(copy.existsSync(), isFalse);
+      }
+      expect(file.existsSync(), isTrue, reason: 'the genuine file stays');
+    });
+
+    test('after a miss the animation can be cached again', () async {
+      await writeThenDamage((b) => b.sublist(0, 30));
+      final again = FrameCache(directory: dir, clock: clock);
+      expect(await again.open(key), isNull);
+      putAll(again, key, 3, 10);
+      await again.dispose();
+
+      final third = FrameCache(directory: dir, clock: clock);
+      addTearDown(third.dispose);
+      expect(await third.open(key), 3);
+      expect(third.frame(key, 2), _bytes(10, 3));
+    });
+  });
 }
