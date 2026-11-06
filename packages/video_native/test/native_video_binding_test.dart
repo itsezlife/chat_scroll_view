@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -183,6 +184,196 @@ void main() {
       expect(binding.rewind(const VideoHandle(9999)), isFalse);
     });
   });
+
+  group('hostile input', skip: nativeSkipReason(binding), () {
+    VideoRejection? rejection(
+      Uint8List bytes, {
+      int width = 32,
+      int height = 24,
+    }) => switch (binding.open(bytes, width: width, height: height)) {
+      VideoRejected(:final reason) => reason,
+      final VideoOpened opened => () {
+        binding.dispose(opened.handle);
+        return null;
+      }(),
+    };
+
+    test('input over the byte cap is refused before it is read', () {
+      expect(
+        rejection(Uint8List(10 * 1024 * 1024 + 1)),
+        VideoRejection.tooLarge,
+      );
+    });
+
+    test('empty and garbage input is malformed', () {
+      expect(rejection(Uint8List(0)), VideoRejection.malformed);
+      expect(rejection(Uint8List(4096)), VideoRejection.malformed);
+      expect(
+        rejection(Uint8List.fromList(List.generate(4096, (i) => i * 31))),
+        VideoRejection.malformed,
+      );
+    });
+
+    test('a target size of zero or over the cap is a bad size', () {
+      for (final (w, h) in [(0, 24), (32, 0), (2049, 24), (32, 2049)]) {
+        expect(
+          rejection(mp4.bytes, width: w, height: h),
+          VideoRejection.badSize,
+          reason: '${w}x$h',
+        );
+      }
+      expect(rejection(mp4.bytes, width: 2048, height: 2048), isNull);
+    });
+
+    test('a source over the dimension cap is refused', () {
+      // Over the area cap and over the edge cap, each by one step.
+      expect(
+        rejection(_gif(width: 3000, height: 2900, frames: 1)),
+        VideoRejection.limitExceeded,
+      );
+      expect(
+        rejection(_gif(width: 3841, height: 1, frames: 1)),
+        VideoRejection.limitExceeded,
+      );
+      // At the caps it opens.
+      expect(rejection(_gif(width: 3840, height: 1, frames: 1)), isNull);
+      expect(rejection(_gif(width: 3000, height: 2700, frames: 1)), isNull);
+      // FFmpeg's own size check refuses this one before the wrapper's cap.
+      expect(
+        rejection(_gif(width: 60000, height: 60000, frames: 1)),
+        anyOf(VideoRejection.malformed, VideoRejection.limitExceeded),
+      );
+    });
+
+    test('a stream past the frame budget fails, and a rewind revives it', () {
+      final opened =
+          binding.open(
+                _gif(width: 1, height: 1, frames: 10100),
+                width: 1,
+                height: 1,
+              )
+              as VideoOpened;
+      final target = calloc<Uint8>(4);
+      try {
+        var frames = 0;
+        late VideoFrameResult last;
+        do {
+          last = binding.nextFrame(
+            opened.handle,
+            target: target,
+            strideBytes: 4,
+          );
+          if (last.status == VideoFrameStatus.frame) frames++;
+        } while (last.status == VideoFrameStatus.frame);
+
+        expect(last.status, VideoFrameStatus.failed);
+        expect(frames, 10000);
+        // Spent: it stays failed until a rewind.
+        expect(
+          binding
+              .nextFrame(opened.handle, target: target, strideBytes: 4)
+              .status,
+          VideoFrameStatus.failed,
+        );
+        expect(binding.rewind(opened.handle), isTrue);
+        expect(
+          binding
+              .nextFrame(opened.handle, target: target, strideBytes: 4)
+              .status,
+          VideoFrameStatus.frame,
+        );
+      } finally {
+        calloc.free(target);
+        binding.dispose(opened.handle);
+      }
+    });
+
+    test('damaged copies of each fixture end in a defined status', () {
+      for (final fixture in fixtures) {
+        final good = fixture.bytes;
+        final damaged = <String, Uint8List>{
+          'truncated to a tenth': good.sublist(0, good.length ~/ 10),
+          'truncated to half': good.sublist(0, good.length ~/ 2),
+          'truncated by a byte': good.sublist(0, good.length - 1),
+          'every 97th byte flipped': Uint8List.fromList([
+            for (var i = 0; i < good.length; i++)
+              i % 97 == 0 ? good[i] ^ 0xff : good[i],
+          ]),
+          'every 7th byte flipped': Uint8List.fromList([
+            for (var i = 0; i < good.length; i++)
+              i % 7 == 0 ? good[i] ^ 0xa5 : good[i],
+          ]),
+          'middle zeroed': Uint8List.fromList([
+            for (var i = 0; i < good.length; i++)
+              i > good.length ~/ 4 && i < good.length * 3 ~/ 4 ? 0 : good[i],
+          ]),
+          'all zeroed': Uint8List(good.length),
+        };
+        for (final MapEntry(key: how, value: bytes) in damaged.entries) {
+          final reason = '${fixture.file} $how';
+          final opened = binding.open(bytes, width: 32, height: 24);
+          if (opened is! VideoOpened) continue;
+          final target = calloc<Uint8>(32 * 24 * 4);
+          try {
+            var last = VideoFrameStatus.frame;
+            // Bounded by the frame budget; a run that does not stop is a bug.
+            for (var i = 0; i < 10100 && last == VideoFrameStatus.frame; i++) {
+              last = binding
+                  .nextFrame(opened.handle, target: target, strideBytes: 128)
+                  .status;
+            }
+            expect(
+              last,
+              anyOf(VideoFrameStatus.endOfStream, VideoFrameStatus.failed),
+              reason: reason,
+            );
+          } finally {
+            calloc.free(target);
+            binding.dispose(opened.handle);
+          }
+        }
+      }
+    });
+  });
+
+  group('memory', skip: nativeSkipReason(binding), () {
+    test('open, decode and free cycles do not grow the process', () {
+      final damaged = Uint8List.fromList([
+        for (var i = 0; i < mp4.bytes.length; i++)
+          i % 97 == 0 ? mp4.bytes[i] ^ 0xff : mp4.bytes[i],
+      ]);
+      final target = calloc<Uint8>(64 * 48 * 4);
+      void cycle(Uint8List bytes) {
+        final result = binding.open(bytes, width: 64, height: 48);
+        if (result is! VideoOpened) return;
+        for (var i = 0; i < 3; i++) {
+          binding.nextFrame(result.handle, target: target, strideBytes: 256);
+        }
+        binding.rewind(result.handle);
+        binding.dispose(result.handle);
+      }
+
+      try {
+        // Warm up allocator pools, then measure.
+        for (var i = 0; i < 50; i++) {
+          cycle(webm.bytes);
+        }
+        final before = ProcessInfo.currentRss;
+        for (var i = 0; i < 200; i++) {
+          cycle(
+            [mp4.bytes, webm.bytes, gif.bytes, damaged, Uint8List(64)][i % 5],
+          );
+        }
+        final grown = ProcessInfo.currentRss - before;
+
+        // A leaked decoder context is hundreds of KB; 200 leaks would be
+        // tens of MB.
+        expect(grown, lessThan(8 * 1024 * 1024));
+      } finally {
+        calloc.free(target);
+      }
+    });
+  });
 }
 
 /// Every frame of [fixture] at [width] by [height], and what a further call
@@ -230,4 +421,25 @@ final class _Frame {
   const _Frame(this.ptsMs, this.pixels);
   final int ptsMs;
   final Uint8List pixels;
+}
+
+/// A GIF of [frames] one-pixel images on a [width] by [height] screen: the
+/// only fixture-less way to make a hostile size or a very long stream.
+Uint8List _gif({required int width, required int height, required int frames}) {
+  final out = BytesBuilder()
+    ..add('GIF89a'.codeUnits)
+    ..add([width & 0xff, width >> 8, height & 0xff, height >> 8, 0x80, 0, 0])
+    // A two-colour global table: without a palette no frame decodes.
+    ..add([0, 0, 0, 255, 255, 255]);
+  for (var i = 0; i < frames; i++) {
+    out
+      // Graphic control: 1/100 s delay.
+      ..add([0x21, 0xf9, 4, 0, 1, 0, 0, 0])
+      // Image descriptor: 1x1 at the origin, no local table.
+      ..add([0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0])
+      // LZW minimum code size 2: clear, pixel 0, end.
+      ..add([2, 2, 0x44, 0x01, 0]);
+  }
+  out.addByte(0x3b);
+  return out.toBytes();
 }
