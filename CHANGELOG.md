@@ -1,5 +1,11 @@
 ## Unreleased
 
+### `flutter_md` 0.9.3
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.9.3`. Its
+  code highlighter tokenizes in linear time: a long fenced block (50,000 lines
+  of JSON) highlights in about a second instead of a minute, with the same
+  spans.
+
 ### `flutter_md` 0.9.2
 - **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.9.2` in every
   pubspec and workflow. It adds `MarkdownPainterCache`: a host that puts a
