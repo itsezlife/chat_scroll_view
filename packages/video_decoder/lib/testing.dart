@@ -4,5 +4,6 @@
 /// never imports them.
 library;
 
+export 'src/testing/fake_video_elements.dart';
 export 'src/testing/fake_video_engine.dart';
 export 'src/testing/video_engine_contract.dart';

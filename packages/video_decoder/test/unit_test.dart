@@ -19,6 +19,9 @@ import 'paint/video_animation_paintable_test.dart'
     as video_animation_paintable_test;
 import 'playback/video_frame_scheduler_test.dart' as video_frame_scheduler_test;
 import 'renderer/video_frame_size_test.dart' as video_frame_size_test;
+import 'web/video_frame_pixels_test.dart' as video_frame_pixels_test;
+import 'web/web_compile_test.dart' as web_compile_test;
+import 'web/web_video_engine_test.dart' as web_video_engine_test;
 
 void main() {
   group(
@@ -46,4 +49,7 @@ void main() {
     isolate_video_engine_native_test.main,
   );
   group('isolate_video_engine_test.dart', isolate_video_engine_test.main);
+  group('web/video_frame_pixels_test.dart', video_frame_pixels_test.main);
+  group('web/web_compile_test.dart', web_compile_test.main);
+  group('web/web_video_engine_test.dart', web_video_engine_test.main);
 }

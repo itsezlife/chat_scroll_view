@@ -16,6 +16,7 @@ import 'app/lottie_playback_pixel_test.dart' as lottie_playback_pixel_test;
 import 'app/lottie_playback_test.dart' as lottie_playback_test;
 import 'app/overlay_pause_observer_test.dart' as overlay_pause_observer_test;
 import 'app/system_reduced_motion_test.dart' as system_reduced_motion_test;
+import 'app/video_playback_pixel_test.dart' as video_playback_pixel_test;
 import 'app/video_playback_test.dart' as video_playback_test;
 import 'backend_chat_data_source_test.dart' as backend_chat_data_source_test;
 import 'backend_realtime_reconnect_test.dart'
@@ -177,6 +178,7 @@ void main() {
     overlay_pause_observer_test.main,
   );
   group('app/system_reduced_motion_test.dart', system_reduced_motion_test.main);
+  group('app/video_playback_pixel_test.dart', video_playback_pixel_test.main);
   group('app/video_playback_test.dart', video_playback_test.main);
   group(
     'backend_chat_data_source_test.dart',

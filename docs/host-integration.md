@@ -186,13 +186,38 @@ started.
 
 `video_native` ships its native library on macOS arm64, iOS arm64 (device and
 Apple-silicon simulator) and Android arm64-v8a. On any other target (Android
-x86_64 and armv7, the x86_64 iOS simulator, Windows, Linux, web) the
+x86_64 and armv7, the x86_64 iOS simulator, Windows, Linux) the
 hook bundles nothing and warns, and the probe (`NativeVideoBinding.probe()`,
 or starting the engine) reports `missingLibrary`: a host registers the video
 decoder only when that works, so video keeps its placeholder. A build without
 the recipe's prefix behaves the same; the warning names the command that makes
 it. Android needs the NDK at build time, and the library is aligned for 16 KiB
 pages.
+
+**On the web** the browser decodes: `WebVideoEngine(createPort:
+JsVideoElementPort.create)` from `package:video_decoder/web.dart` plays each
+clip in a hidden, muted `<video>` element fed a Blob URL, and the same
+scheduler and frame pool run over it (`startPixelVideoPlayback` in the
+example takes the engine factory; the web file supplies it). No file is served
+beside the page. What degrades, by contract:
+
+- **Alpha** is whatever the browser decodes: a browser without WebM alpha
+  draws the clip opaque and `VideoInfo.hasAlpha` reads false (it is decided by
+  looking at the first frame, so a clip whose first frame is opaque reads the
+  same).
+- **Real-time frames.** The browser decides when a frame is presented;
+  `nextFrame` waits for it, so a slow page skips frames. `VideoInfo.frameRate`
+  is 0. An element nobody asks frames from is paused after 300 ms.
+- **An element cap** (16 by default, `maxElements`): past it `open` answers
+  `VideoRejection.limitExceeded` and the clip keeps its placeholder.
+- **GIF** is not a `<video>` source: it is refused (`unsupported`) and keeps
+  its placeholder. A file the browser cannot play at all is the same.
+- A hidden tab presents no frames; `dispose` is bounded (2 s) and fails what
+  is still waiting.
+
+**Run in a headless Chrome**, not in the other browsers: the video stickers of
+the example draw with their transparency and loop, with no console error
+(Safari and Firefox untried).
 
 ### The vector-animation decoder
 
@@ -1226,6 +1251,7 @@ not use the hover-open toggle region.
 | Step | File |
 | --- | --- |
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
+| Video decoder probe and start (native and web forks) | `example/lib/src/app/video_playback.dart`, `video_playback_native.dart`, `video_playback_pixel.dart`, `video_playback_web.dart`, `video_playback_stub.dart` |
 | Lottie decoder probe and start, the frame cache and its folder (native and web forks) | `example/lib/src/app/lottie_playback.dart`, `lottie_playback_native.dart`, `lottie_playback_pixel.dart`, `lottie_playback_web.dart`, `lottie_playback_stub.dart` |
 | Bundled packs: one lookup, fetcher and resolver, one pack source, the authored Lottie and static stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart`, `static_sticker_pack.dart` |
 | `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
