@@ -9,6 +9,8 @@ import 'dart:io';
 
 import 'package:code_assets/code_assets.dart';
 
+import 'targets.dart';
+
 /// The Rust target triple for [os] and [architecture], or null when this
 /// slice does not build for it.
 ///
@@ -16,13 +18,8 @@ import 'package:code_assets/code_assets.dart';
 /// asset rather than a failed build: a host that never registers the binding
 /// (it probes first) still builds and runs, and the probe reports
 /// [unsupportedTargetWarning]'s consequence at run time.
-String? rustTargetFor(OS os, Architecture architecture) {
-  if (os == OS.macOS) {
-    if (architecture == Architecture.arm64) return 'aarch64-apple-darwin';
-    if (architecture == Architecture.x64) return 'x86_64-apple-darwin';
-  }
-  return null;
-}
+String? rustTargetFor(OS os, Architecture architecture) =>
+    LottieNativeTarget(os, architecture).rustTriple;
 
 /// The warning the hook logs when [rustTargetFor] has no answer.
 String unsupportedTargetWarning(OS os, Architecture architecture) =>

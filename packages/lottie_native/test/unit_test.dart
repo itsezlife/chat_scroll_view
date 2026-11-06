@@ -16,6 +16,7 @@ import 'hook_build_test.dart' as hook_build_test;
 import 'lottie_features_test.dart' as lottie_features_test;
 import 'lottie_frame_codec_contract_test.dart'
     as lottie_frame_codec_contract_test;
+import 'lottie_native_target_test.dart' as lottie_native_target_test;
 import 'native_binding_contract_test.dart' as native_binding_contract_test;
 import 'native_lottie_binding_test.dart' as native_lottie_binding_test;
 import 'native_lottie_frame_codec_test.dart' as native_lottie_frame_codec_test;
@@ -37,6 +38,7 @@ void main() {
     'lottie_frame_codec_contract_test.dart',
     lottie_frame_codec_contract_test.main,
   );
+  group('lottie_native_target_test.dart', lottie_native_target_test.main);
   group('native_binding_contract_test.dart', native_binding_contract_test.main);
   group('native_lottie_binding_test.dart', native_lottie_binding_test.main);
   group(
