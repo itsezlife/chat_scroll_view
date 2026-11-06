@@ -50,10 +50,10 @@ void _runContract(
       frame: frame * frameStep,
       width: 48,
       height: 48,
-      source: source as Object,
+      source: LottieSource(source, frameCount: 60),
     );
     return FrameRendererHarness(
-      renderer: LottieFrameRenderer(engine, memory),
+      renderer: LottieFrameRenderer(engine: engine, memory: memory),
       memory: memory,
       job: (slot, frame) => job(slot, frame, good),
       unrenderable: (slot) => job(slot, 0, bad),
@@ -88,7 +88,7 @@ void main() {
     setUp(() async {
       engine = InProcessLottieEngine(FakeLottieBinding()..accept(bytes, info));
       memory = NativeFramePageMemory(pageSide: 128);
-      renderer = LottieFrameRenderer(engine, memory);
+      renderer = LottieFrameRenderer(engine: engine, memory: memory);
       handle = ((await engine.load(bytes)) as LottieLoaded).handle;
       final allocator = FrameSlotAllocator(
         pageSide: 128,
@@ -114,20 +114,22 @@ void main() {
       addTearDown(other.dispose);
 
       await expectLater(
-        renderer.render([job(handle as Object)], other),
+        renderer.render([job(LottieSource(handle, frameCount: 10))], other),
         throwsStateError,
       );
     });
 
-    test('rejects a source that is not a handle', () async {
+    test('rejects a source that is not a LottieSource', () async {
       await expectLater(
-        renderer.render([job('nope')], memory),
+        renderer.render([job(handle as Object)], memory),
         throwsArgumentError,
       );
     });
 
     test('writes at the slot offset with a page-wide stride', () async {
-      await renderer.render([job(handle as Object)], memory);
+      await renderer.render([
+        job(LottieSource(handle, frameCount: 10)),
+      ], memory);
 
       final page = memory.page(slot.pageIndex);
       final left = slot.rect.left.toInt();
@@ -143,7 +145,7 @@ void main() {
       await engine.close();
 
       await expectLater(
-        renderer.render([job(handle as Object)], memory),
+        renderer.render([job(LottieSource(handle, frameCount: 10))], memory),
         throwsStateError,
       );
     });

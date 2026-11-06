@@ -3,9 +3,11 @@ import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/painting.dart';
+import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
 import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
 import 'package:lottie_decoder/src/playback/lottie_frame_scheduler.dart';
 import 'package:lottie_decoder/src/renderer/lottie_frame_size.dart';
+import 'package:lottie_decoder/src/renderer/lottie_source.dart';
 import 'package:lottie_native/lottie_native.dart';
 
 /// A Lottie animation played by the shared clock through a
@@ -47,6 +49,9 @@ final class LottieAnimationPaintable implements AssetPaintable {
   /// scheduler's atlas (one paintable per key). [renderEdge] is the pixels of
   /// the longer side of a rendered frame, within the atlas's size classes.
   ///
+  /// [cacheKey] names where the animation's frames are cached, null for none;
+  /// it travels to the renderer in the [LottieSource] of every frame job.
+  ///
   /// [onDispose] runs once, from [dispose]: the paintable holds a [handle] but
   /// no engine, so whoever owns the engine frees the handle there.
   LottieAnimationPaintable({
@@ -56,9 +61,14 @@ final class LottieAnimationPaintable implements AssetPaintable {
     required ui.Image firstFrame,
     required LottieFrameScheduler scheduler,
     required int renderEdge,
+    FrameCacheKey? cacheKey,
     VoidCallback? onDispose,
   }) : _key = key,
-       _handle = handle,
+       _source = LottieSource(
+         handle,
+         frameCount: info.frameCount,
+         cacheKey: cacheKey,
+       ),
        _info = info,
        _still = LottieStillPaintable(firstFrame),
        _scheduler = scheduler,
@@ -70,7 +80,7 @@ final class LottieAnimationPaintable implements AssetPaintable {
   static const Duration resumeGap = Duration(milliseconds: 500);
 
   final Object _key;
-  final LottieHandle _handle;
+  final LottieSource _source;
   final LottieInfo _info;
   final LottieStillPaintable _still;
   final LottieFrameScheduler _scheduler;
@@ -137,11 +147,9 @@ final class LottieAnimationPaintable implements AssetPaintable {
       return;
     }
     if (lease == null || lease.isReleased) {
-      // An extension type on int is not an Object statically; the renderer
-      // checks `is LottieHandle` at run time.
       lease = _lease = _scheduler.acquire(
         _key,
-        _handle as Object,
+        _source,
         _size.width,
         _size.height,
       );

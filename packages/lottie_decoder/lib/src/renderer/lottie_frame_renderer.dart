@@ -1,16 +1,21 @@
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/memory/native_frame_page_memory.dart';
+import 'package:lottie_decoder/src/renderer/lottie_source.dart';
 import 'package:lottie_native/lottie_native.dart';
 
 /// A [FrameRenderer] that draws through a [LottieEngine] into one
 /// [NativeFramePageMemory].
 ///
-/// A job's `source` is the [LottieHandle] of a loaded file. A batch is one
+/// A job's `source` is the [LottieSource] of a loaded file. A batch is one
 /// engine call; an engine error propagates.
 final class LottieFrameRenderer implements FrameRenderer {
   /// Creates a renderer of [engine] that writes into [memory] only.
-  LottieFrameRenderer(this._engine, this._memory);
+  LottieFrameRenderer({
+    required LottieEngine engine,
+    required NativeFramePageMemory memory,
+  }) : _engine = engine,
+       _memory = memory;
 
   final LottieEngine _engine;
   final NativeFramePageMemory _memory;
@@ -22,14 +27,12 @@ final class LottieFrameRenderer implements FrameRenderer {
     }
     final engineJobs = <LottieEngineJob>[];
     for (final job in jobs) {
-      // LottieHandle is an extension type on int, so this pattern is an
-      // `is int` check at run time.
       final handle = switch (job.source) {
-        final LottieHandle source => source,
+        final LottieSource source => source.handle,
         final other => throw ArgumentError.value(
           other,
           'job.source',
-          'must be a LottieHandle',
+          'must be a LottieSource',
         ),
       };
       final side = _memory.pageSide;
