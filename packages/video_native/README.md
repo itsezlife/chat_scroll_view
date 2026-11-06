@@ -41,7 +41,7 @@ rewind and free of the fixtures and damaged copies reports none).
 
 ## Delivery
 
-`hook/build.dart` supports macOS arm64 and Android arm64-v8a. On macOS it
+`hook/build.dart` supports macOS arm64, iOS arm64 (device and simulator) and Android arm64-v8a. On macOS it
 compiles the wrapper with the system `cc` against the recipe's prefix and
 bundles it plus the four FFmpeg dylibs as code assets (the Flutter tool then rewrites their install names
 together; the dylibs therefore need header padding, which the recipe now
@@ -50,7 +50,12 @@ links in). On Android it compiles with the NDK clang (the NDK is found the way
 highest `<sdk>/ndk/<version>`; the clang for the app's NDK API level) and
 bundles `libchat_video.so` plus `libavcodec.so`, `libavformat.so`,
 `libavutil.so`, `libswscale.so`; Android x86_64 and armv7 emit nothing and
-warn. The prefix is `native/.build/<target>/prefix`, or the directory
+warn. On iOS it compiles with `xcrun clang` for the device or the simulator
+(the platform differs in the Mach-O header, so each has its own triple and
+prefix) and emits the same five dynamic libraries; the Flutter tool wraps each
+into a framework in `Runner.app/Frameworks` (`chat_video`, `avcodec63`,
+`avformat63`, `avutil61`, `swscale10`) and rewrites the `@rpath` dependencies
+between them. The x86_64 simulator emits nothing and warns. The prefix is `native/.build/<target>/prefix`, or the directory
 `CHAT_VIDEO_FFMPEG_DIR` names (an environment change needs `flutter clean`).
 With no prefix, or on another target, no asset is emitted and a warning names
 the recipe command; `NativeVideoBinding.probe()` then reports `missingLibrary`
@@ -79,6 +84,34 @@ libraries and libc/libm/libdl/liblog, and no GPL flag in `configure-line.txt`.
 | libavutil.so | 558,696 B |
 | libswscale.so | 675,048 B |
 | libchat_video.so (debug APK) | 13,832 B |
+
+## Build (iOS arm64: device and simulator)
+
+```shell
+TARGET=ios-arm64     packages/video_native/native/recipe/build.sh         # device
+TARGET=ios-sim-arm64 packages/video_native/native/recipe/build.sh         # simulator
+TARGET=ios-arm64     packages/video_native/native/recipe/build.sh verify  # Mach-O checks
+```
+
+Cross-compiled on an arm64 Mac with Xcode (`xcrun --sdk iphoneos|iphonesimulator`),
+minimum iOS 13.0 (the simulator's arm64 floor is 14.0). Same pinned sources and flags
+as macOS plus `--enable-cross-compile --arch=arm64 --target-os=darwin --enable-neon`;
+no x86. libvpx has no arm64 simulator target, so both builds use
+`arm64-darwin-gcc` through compiler wrappers that swap its hardcoded SDK for the
+build's own. Output in `native/.build/ios-arm64/` and `ios-sim-arm64/`. `verify`
+reads the Mach-O files: arm64 only, platform `IOS` or `IOSSIMULATOR`, `@rpath`
+install names, no GPL flag. The probe cannot run, so nothing here is run on a
+simulator or device; the proof is `flutter build ios` of the example (debug,
+`--no-codesign`, with and without `--simulator`). The libraries link CoreFoundation,
+CoreVideo and CoreMedia (system frameworks). LGPL dynamic linking and the App Store:
+see the handoff decision list.
+
+| Library (iOS arm64, 13.0) | Device | Simulator |
+| --- | --- | --- |
+| libavcodec (includes libvpx) | 1,385,032 B | 1,379,448 B |
+| libavformat | 452,928 B | 456,616 B |
+| libavutil | 551,384 B | 539,272 B |
+| libswscale | 618,888 B | 607,384 B |
 
 ## Tests
 

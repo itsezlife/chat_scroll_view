@@ -194,6 +194,104 @@ void main() {
       expect(recipeTarget(OS.macOS, Architecture.x64), isNull);
       expect(recipeTarget(OS.iOS, Architecture.arm64), isNull);
     });
+
+    test('builds iOS arm64 for the device and for the simulator', () {
+      expect(
+        recipeTarget(OS.iOS, Architecture.arm64, iosSdk: IOSSdk.iPhoneOS),
+        'ios-arm64',
+      );
+      expect(
+        recipeTarget(
+          OS.iOS,
+          Architecture.arm64,
+          iosSdk: IOSSdk.iPhoneSimulator,
+        ),
+        'ios-sim-arm64',
+      );
+    });
+
+    test('has no x86_64 simulator build', () {
+      expect(
+        recipeTarget(OS.iOS, Architecture.x64, iosSdk: IOSSdk.iPhoneSimulator),
+        isNull,
+      );
+    });
+  });
+
+  group('bundledLibraries on iOS', () {
+    test('names them as on macOS: the versioned dylib is the install name', () {
+      final prefix = prefixWith(
+        'p',
+        lib: [
+          'libavutil.61.dylib',
+          'libavcodec.63.dylib',
+          'libavformat.63.dylib',
+          'libswscale.10.dylib',
+        ],
+      );
+
+      expect(
+        bundledLibraries(prefix, os: OS.iOS).keys,
+        unorderedEquals([
+          'libavutil.61.dylib',
+          'libavcodec.63.dylib',
+          'libavformat.63.dylib',
+          'libswscale.10.dylib',
+        ]),
+      );
+    });
+  });
+
+  group('iosWrapperCompileArguments', () {
+    List<String> arguments({
+      required IOSSdk sdk,
+      String sdkPath = '/sdk/iPhoneOS.sdk',
+    }) => iosWrapperCompileArguments(
+      source: 'a.c',
+      includeDir: 'inc',
+      prefix: '/p',
+      output: 'out.dylib',
+      sdk: sdk,
+      sdkPath: sdkPath,
+      minVersion: 15,
+    );
+
+    test('target the device and name its SDK', () {
+      final device = arguments(sdk: IOSSdk.iPhoneOS);
+
+      expect(device, containsAllInOrder(['-target', 'arm64-apple-ios15.0']));
+      expect(device, containsAllInOrder(['-isysroot', '/sdk/iPhoneOS.sdk']));
+    });
+
+    test('target the simulator by its own triple', () {
+      final simulator = arguments(
+        sdk: IOSSdk.iPhoneSimulator,
+        sdkPath: '/sdk/iPhoneSimulator.sdk',
+      );
+
+      expect(
+        simulator,
+        containsAllInOrder(['-target', 'arm64-apple-ios15.0-simulator']),
+      );
+      expect(simulator, isNot(contains('arm64-apple-ios15.0')));
+    });
+
+    test('link, hide symbols and leave room for the install-name rewrite', () {
+      expect(
+        arguments(sdk: IOSSdk.iPhoneOS),
+        containsAll([
+          '-lavformat',
+          '-lavcodec',
+          '-lavutil',
+          '-lswscale',
+          '-fvisibility=hidden',
+          '-Wl,-headerpad_max_install_names',
+          '-Wl,-install_name,@rpath/libchat_video.dylib',
+          '-I/p/include',
+          '-L/p/lib',
+        ]),
+      );
+    });
   });
 
   group('recipeCommandFor', () {
