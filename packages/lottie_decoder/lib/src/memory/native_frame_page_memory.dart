@@ -8,45 +8,72 @@ import 'package:ffi/ffi.dart';
 /// see the same bytes.
 ///
 /// A Dart-heap `Uint8List` cannot be written from another isolate; a page here
-/// is `calloc`ed (zero-filled) and a render job names it by [addressOf].
-/// [dispose] frees every page: views from [page] are invalid afterwards.
+/// is `calloc`ed (zero-filled) at the side its first user asks for, and a
+/// render job names it by [addressOf]. [dispose] frees every page: views from
+/// [page] are invalid afterwards.
 final class NativeFramePageMemory implements FramePageMemory {
-  /// Creates memory of [pageSide] x [pageSide] pixel pages.
-  NativeFramePageMemory({required this.pageSide})
-    : assert(pageSide > 0, 'pageSide must be positive');
+  /// Creates memory with no pages; each is made on its first use.
+  NativeFramePageMemory();
 
-  @override
-  final int pageSide;
-
-  final Map<int, Pointer<Uint8>> _pages = <int, Pointer<Uint8>>{};
+  final Map<int, _NativePage> _pages = <int, _NativePage>{};
   bool _disposed = false;
 
-  int get _pageBytes => pageSide * pageSide * FramePageMemory.bytesPerPixel;
-
-  Pointer<Uint8> _pointer(int pageIndex) {
+  _NativePage _live(int pageIndex, int side) {
     if (_disposed) throw StateError('The page memory is disposed.');
-    return _pages[pageIndex] ??= calloc<Uint8>(_pageBytes);
+    if (side <= 0) throw ArgumentError.value(side, 'side', 'must be positive');
+    final page = _pages[pageIndex];
+    if (page == null) {
+      return _pages[pageIndex] = _NativePage(
+        side,
+        calloc<Uint8>(side * side * FramePageMemory.bytesPerPixel),
+      );
+    }
+    if (page.side != side) {
+      throw StateError('Page $pageIndex is ${page.side} px, not $side px.');
+    }
+    return page;
   }
 
   @override
-  Uint8List page(int pageIndex) => _pointer(pageIndex).asTypedList(_pageBytes);
+  Uint8List page(int pageIndex, {required int side}) {
+    final page = _live(pageIndex, side);
+    return page.pointer.asTypedList(
+      side * side * FramePageMemory.bytesPerPixel,
+    );
+  }
 
-  /// The address of page [pageIndex]'s first byte, making the page if needed.
+  @override
+  int sideOf(int pageIndex) =>
+      _pages[pageIndex]?.side ??
+      (throw StateError('Page $pageIndex does not exist.'));
+
+  /// The address of page [pageIndex]'s first byte, making the page at [side]
+  /// if needed.
   ///
   /// An `int`, because it crosses to a render isolate. Stable until [drop].
-  int addressOf(int pageIndex) => _pointer(pageIndex).address;
+  int addressOf(int pageIndex, {required int side}) =>
+      _live(pageIndex, side).pointer.address;
 
   @override
   void drop(int pageIndex) {
-    final pointer = _pages.remove(pageIndex);
-    if (pointer != null) calloc.free(pointer);
+    final page = _pages.remove(pageIndex);
+    if (page != null) calloc.free(page.pointer);
   }
 
   /// Frees every page. Idempotent; [page] and [addressOf] throw afterwards.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _pages.values.forEach(calloc.free);
+    for (final page in _pages.values) {
+      calloc.free(page.pointer);
+    }
     _pages.clear();
   }
+}
+
+final class _NativePage {
+  _NativePage(this.side, this.pointer);
+
+  final int side;
+  final Pointer<Uint8> pointer;
 }

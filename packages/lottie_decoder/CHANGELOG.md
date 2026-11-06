@@ -5,6 +5,49 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (web-compilable core, breaking)
+
+- `LottieEngine` is now the neutral interface: `load`, `renderPixels`,
+  `dispose`, `close`. `renderBatch`, `renderCapturing` and `restore` moved to
+  the native-only `LottieSlotEngine`, which `InProcessLottieEngine` and
+  `IsolateLottieEngine` implement. Code that called those methods, or built
+  `LottieFrameRenderer` or `LottieDecoder` from a variable typed
+  `LottieEngine`, types it `LottieSlotEngine`; a custom `LottieEngine` now
+  implements `renderPixels` and no longer the slot methods. `LottieDecoder`
+  accepts any `LottieEngine`, and draws the first frame through
+  `renderPixels`.
+- `FrameCache(directory: Directory?)` is `FrameCache(directoryPath: String?)`.
+  `FrameCacheFiles` is an interface; the directory implementation is
+  `DirectoryFrameCacheFiles` (a test subclass of the old class extends that
+  and passes a path). On the web a non-null path is an `ArgumentError`.
+- The barrel exports the files that need `dart:ffi`, `dart:io` or
+  `dart:isolate` only where they exist; every VM importer sees the same names
+  as before, and the package compiles for the web (`web_compile_test`).
+- `LottieDecoder` reads a `FetchedFile` through `readFileBytes`: `dart:io` on
+  the VM, an `UnsupportedError` (a failed decode) on the web.
+
+### Added (web-compilable core)
+
+- `LottiePixelJob` and `LottiePixels`, the `renderPixels` job and result;
+  `LottiePixelJob.maxEdge` is the size limit that `LottieRenderJob.maxEdge`
+  has natively (a test holds them equal).
+- `PixelCopyFrameRenderer`: a `FrameRenderer` over any `LottieEngine` that
+  copies the pixels it returns into any `FramePageMemory`; no frame cache.
+- `FakePixelLottieEngine`, `LottieSlotEngineContract` and `renderPixels`
+  cases in `LottieEngineContract` (`testing.dart`).
+
+### Changed (pages sized by class, breaking)
+
+- `NativeFramePageMemory()` takes no page side: `page(i, side:)` and
+  `addressOf(i, side:)` make the page at the side of its slot, `sideOf(i)`
+  answers it, and a live page asked for at another side is a `StateError`.
+  Code that built `NativeFramePageMemory(pageSide: ...)` drops the argument.
+- `LottieFrameRenderer` writes at `(top * side + left) * 4` with a stride of
+  `side * 4`, `side` being `FrameSlot.pageSide`.
+- The playback benchmark's baseline moves: one 128 px sticker uploads 256 KiB a
+  tick (was 4 MiB), eight 512 KiB, 32 stickers 2 MiB (were 4 MiB each); at 32
+  the eight smaller uploads take longer in total than the one large one did.
+
 ### Added
 
 - A playback benchmark over the real native library (1, 8 and 32 stickers: tick, render round trip, upload, bytes per tick, pages), gated by the `benchmark` tag and `LOTTIE_PLAYBACK_BENCH=1`, reported against a committed baseline as ratios.

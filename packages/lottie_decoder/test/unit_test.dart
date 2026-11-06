@@ -12,6 +12,8 @@ import 'cache/frame_cache_key_test.dart' as frame_cache_key_test;
 import 'cache/frame_cache_test.dart' as frame_cache_test;
 import 'in_process_lottie_engine_test.dart' as in_process_lottie_engine_test;
 import 'isolate_lottie_engine_test.dart' as isolate_lottie_engine_test;
+import 'lottie_decoder_pixel_engine_test.dart'
+    as lottie_decoder_pixel_engine_test;
 import 'lottie_decoder_test.dart' as lottie_decoder_test;
 import 'lottie_frame_renderer_test.dart' as lottie_frame_renderer_test;
 import 'lottie_frame_size_test.dart' as lottie_frame_size_test;
@@ -20,6 +22,11 @@ import 'paint/lottie_paintable_test.dart' as lottie_paintable_test;
 import 'playback/lottie_frame_scheduler_test.dart'
     as lottie_frame_scheduler_test;
 import 'renderer/lottie_source_test.dart' as lottie_source_test;
+import 'renderer/pixel_copy_frame_renderer_test.dart'
+    as pixel_copy_frame_renderer_test;
+import 'testing/fake_pixel_lottie_engine_test.dart'
+    as fake_pixel_lottie_engine_test;
+import 'web_compile_test.dart' as web_compile_test;
 
 void main() {
   group(
@@ -35,10 +42,22 @@ void main() {
   );
   group('renderer/lottie_source_test.dart', lottie_source_test.main);
   group(
+    'renderer/pixel_copy_frame_renderer_test.dart',
+    pixel_copy_frame_renderer_test.main,
+  );
+  group(
+    'testing/fake_pixel_lottie_engine_test.dart',
+    fake_pixel_lottie_engine_test.main,
+  );
+  group(
     'in_process_lottie_engine_test.dart',
     in_process_lottie_engine_test.main,
   );
   group('isolate_lottie_engine_test.dart', isolate_lottie_engine_test.main);
+  group(
+    'lottie_decoder_pixel_engine_test.dart',
+    lottie_decoder_pixel_engine_test.main,
+  );
   group('lottie_decoder_test.dart', lottie_decoder_test.main);
   group('lottie_frame_renderer_test.dart', lottie_frame_renderer_test.main);
   group('lottie_frame_size_test.dart', lottie_frame_size_test.main);
@@ -46,4 +65,5 @@ void main() {
     'native_frame_page_memory_test.dart',
     native_frame_page_memory_test.main,
   );
+  group('web_compile_test.dart', web_compile_test.main);
 }

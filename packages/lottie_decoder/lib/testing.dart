@@ -5,4 +5,5 @@
 library;
 
 export 'src/testing/counting_lottie_engine.dart';
+export 'src/testing/fake_pixel_lottie_engine.dart';
 export 'src/testing/lottie_engine_contract.dart';

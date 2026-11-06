@@ -48,11 +48,12 @@ void main() {
 
   setUp(() {
     renderer = FakeFrameRenderer();
-    memory = ListFramePageMemory(pageSide: 256);
+    memory = ListFramePageMemory();
     atlas = FrameAtlas<String>(
       renderer: renderer,
       memory: memory,
       budgetBytes: _budget,
+      pageSideFor: (_) => 256,
       sizeClasses: const [128, 256],
       upload: _upload,
     );
@@ -63,18 +64,29 @@ void main() {
       atlas.acquire(key, source: source, width: 100, height: 90);
 
   group('defaults', () {
-    test('the default budget pays for twelve default pages', () {
-      const pageBytes =
-          FrameAtlas.defaultPageSide * FrameAtlas.defaultPageSide * 4;
-
+    test('the default budget is 48 MiB', () {
       expect(FrameAtlas.defaultBudgetBytes, 48 * 1024 * 1024);
-      expect(FrameAtlas.defaultBudgetBytes ~/ pageBytes, 12);
     });
 
-    test('every default size class divides the default page', () {
+    test('a class opens a page of twice its edge', () {
+      expect(FrameAtlas.pageSideFor(64), 128);
+      expect(FrameAtlas.pageSideFor(128), 256);
+      expect(FrameAtlas.pageSideFor(256), 512);
+      expect(FrameAtlas.pageSideFor(512), 1024);
+    });
+
+    test('every default size class divides its default page', () {
       for (final sizeClass in FrameAtlas.defaultSizeClasses) {
-        expect(FrameAtlas.defaultPageSide % sizeClass, 0, reason: '$sizeClass');
+        expect(FrameAtlas.pageSideFor(sizeClass) % sizeClass, 0);
       }
+    });
+
+    test('the default budget pays for the largest page twelve times', () {
+      final largest = FrameAtlas.pageSideFor(
+        FrameAtlas.defaultSizeClasses.last,
+      );
+
+      expect(FrameAtlas.defaultBudgetBytes ~/ (largest * largest * 4), 12);
     });
   });
 
@@ -170,8 +182,9 @@ void main() {
         final remote = _IndexOnlyRenderer(FakeFrameRenderer(), answer: [1]);
         final remoteAtlas = FrameAtlas<String>(
           renderer: remote,
-          memory: ListFramePageMemory(pageSide: 256),
+          memory: ListFramePageMemory(),
           budgetBytes: _budget,
+          pageSideFor: (_) => 256,
           sizeClasses: const [128, 256],
           upload: _upload,
         );
@@ -306,8 +319,9 @@ void main() {
         final pressure = ManualMemoryPressure();
         final pressured = FrameAtlas<String>(
           renderer: renderer,
-          memory: ListFramePageMemory(pageSide: 256),
+          memory: ListFramePageMemory(),
           budgetBytes: _budget,
+          pageSideFor: (_) => 256,
           sizeClasses: const [128, 256],
           upload: _upload,
           memoryPressure: pressure,
@@ -361,6 +375,73 @@ void main() {
       atlas.dispose();
 
       expect(atlas.dispose, returnsNormally);
+    });
+  });
+
+  group('upload size', () {
+    // An atlas on the default sizes, recording the length of every upload.
+    late List<int> uploaded;
+    late FrameAtlas<String> sized;
+
+    setUp(() {
+      uploaded = <int>[];
+      sized = FrameAtlas<String>(
+        renderer: FakeFrameRenderer(),
+        memory: ListFramePageMemory(),
+        upload: (pixels, side) {
+          uploaded.add(pixels.length);
+          expect(pixels.length, side * side * 4);
+          return _upload(pixels, side);
+        },
+      );
+      addTearDown(sized.dispose);
+    });
+
+    FrameHandle<String> sticker(String key, int edge) =>
+        sized.acquire(key, source: 'ok', width: edge, height: edge)!;
+
+    test('each dirty page uploads exactly its own side squared', () async {
+      final small = sticker('small', 60);
+      final large = sticker('large', 500);
+
+      await sized.render([
+        (handle: small, frame: 0),
+        (handle: large, frame: 0),
+      ]);
+
+      expect(uploaded, unorderedEquals([128 * 128 * 4, 1024 * 1024 * 4]));
+    });
+
+    test('one 128 px sticker uploads 256 KiB a tick, not 4 MiB', () async {
+      final handle = sticker('a', 128);
+
+      await sized.render([(handle: handle, frame: 0)]);
+      uploaded.clear();
+      await sized.render([(handle: handle, frame: 1)]);
+
+      expect(uploaded, [256 * 1024]);
+    });
+
+    test('four stickers of a class share one small page', () async {
+      final handles = [for (var i = 0; i < 4; i++) sticker('a$i', 64)];
+      uploaded.clear();
+
+      await sized.render([
+        for (final handle in handles) (handle: handle, frame: 0),
+      ]);
+
+      expect(uploaded, [64 * 1024]);
+    });
+
+    test('five stickers of a class upload two small pages', () async {
+      final handles = [for (var i = 0; i < 5; i++) sticker('a$i', 64)];
+
+      await sized.render([
+        for (final handle in handles) (handle: handle, frame: 0),
+      ]);
+
+      expect(uploaded, [64 * 1024, 64 * 1024]);
+      expect(sized.residentBytes, 2 * 64 * 1024);
     });
   });
 }

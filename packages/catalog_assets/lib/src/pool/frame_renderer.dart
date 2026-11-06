@@ -6,44 +6,65 @@ import 'package:meta/meta.dart';
 /// The bytes of the dynamic pages, where a renderer writes frames.
 ///
 /// Pixels are **premultiplied RGBA**, byte order `[R, G, B, A]`, four bytes a
-/// pixel, rows `pageSide * 4` bytes apart, whatever engine wrote them. One
+/// pixel, rows `side * 4` bytes apart, whatever engine wrote them. One
 /// format everywhere is the point: an engine whose own output differs
 /// (the WebAssembly build returns straight alpha) converts before it writes,
 /// so no surface and no upload ever has to ask.
 ///
-/// A page is addressed by the index of its slot's page; the memory makes it on
-/// first use. Native adapters back it with memory the render isolate and the
-/// UI isolate both see; [ListFramePageMemory] keeps it on the Dart heap.
+/// A page is addressed by the index of its slot's page and has a side of its
+/// own: pages are sized by class (see [FrameSlotAllocator]), and the slot
+/// carries the side, so the memory is told it on first use rather than
+/// configured with one. Native adapters back it with memory the render
+/// isolate and the UI isolate both see; [ListFramePageMemory] keeps it on the
+/// Dart heap.
 abstract interface class FramePageMemory {
   /// Bytes of one pixel: premultiplied RGBA.
   static const int bytesPerPixel = 4;
 
-  /// Page edge in pixels.
-  int get pageSide;
+  /// The bytes of page [pageIndex], a [side] x [side] pixel page that is zero
+  /// (transparent) when first made. Valid until [drop]: read it when needed
+  /// and never keep it.
+  ///
+  /// Throws a [StateError] when the page is live at another side: an index is
+  /// never reused with a different size, so that is a bookkeeping bug to see.
+  Uint8List page(int pageIndex, {required int side});
 
-  /// The bytes of page [pageIndex], zero (transparent) when first made.
-  /// Valid until [drop]: read it when needed and never keep it.
-  Uint8List page(int pageIndex);
+  /// The side of the live page [pageIndex]. Throws a [StateError] when the
+  /// page was never made or was dropped.
+  int sideOf(int pageIndex);
 
-  /// Forgets page [pageIndex]; a later [page] makes it again, blank.
+  /// Forgets page [pageIndex]; a later [page] makes it again, blank, and at
+  /// any side.
   void drop(int pageIndex);
 }
 
 /// [FramePageMemory] on the Dart heap.
 final class ListFramePageMemory implements FramePageMemory {
-  /// Creates memory of [pageSide] x [pageSide] pixel pages.
-  ListFramePageMemory({required this.pageSide})
-    : assert(pageSide > 0, 'pageSide must be positive');
+  /// Creates memory with no pages; each is made on its first [page].
+  ListFramePageMemory();
+
+  final Map<int, ({int side, Uint8List bytes})> _pages =
+      <int, ({int side, Uint8List bytes})>{};
 
   @override
-  final int pageSide;
-
-  final Map<int, Uint8List> _pages = <int, Uint8List>{};
+  Uint8List page(int pageIndex, {required int side}) {
+    if (side <= 0) throw ArgumentError.value(side, 'side', 'must be positive');
+    final page = _pages[pageIndex];
+    if (page == null) {
+      final bytes = Uint8List(side * side * FramePageMemory.bytesPerPixel);
+      _pages[pageIndex] = (side: side, bytes: bytes);
+      return bytes;
+    }
+    if (page.side != side) {
+      throw StateError('Page $pageIndex is ${page.side} px, not $side px.');
+    }
+    return page.bytes;
+  }
 
   @override
-  Uint8List page(int pageIndex) => _pages[pageIndex] ??= Uint8List(
-    pageSide * pageSide * FramePageMemory.bytesPerPixel,
-  );
+  int sideOf(int pageIndex) =>
+      _pages[pageIndex]?.side ??
+      (throw StateError('Page $pageIndex does not exist.'));
 
   @override
   void drop(int pageIndex) => _pages.remove(pageIndex);
@@ -63,7 +84,7 @@ final class FrameJob {
   });
 
   /// Where the frame goes. The renderer writes inside [FrameSlot.rect] only,
-  /// from its top left corner.
+  /// from its top left corner; [FrameSlot.pageSide] is the page's side.
   final FrameSlot slot;
 
   /// The frame index to render.

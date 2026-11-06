@@ -70,7 +70,7 @@ DecodeRequest _request(
 /// image steps replaced so no test needs the engine's image machinery.
 final class _Rig {
   _Rig({
-    LottieEngine? engine,
+    LottieSlotEngine? engine,
     LottieImageDecoder? decodeImage,
     LottiePixelUploader? upload,
     FrameRenderer? renderer,
@@ -82,7 +82,7 @@ final class _Rig {
     scheduler = LottieFrameScheduler(
       atlas: FrameAtlas<Object>(
         renderer: renderer ?? FakeFrameRenderer(),
-        memory: ListFramePageMemory(pageSide: 1024),
+        memory: ListFramePageMemory(),
         sizeClasses: const [64, 128, 256, 512],
         upload: (pixels, side) async => _image(),
       ),
@@ -104,7 +104,7 @@ final class _Rig {
   }
 
   final FakeLottieBinding binding;
-  late final LottieEngine engine;
+  late final LottieSlotEngine engine;
   late final ManualPlaybackTickSource ticks;
   late final PlaybackClock clock;
   late final LottieFrameScheduler scheduler;
@@ -169,7 +169,7 @@ void main() {
 
     setUp(() {
       recorder = _JobRecordingRenderer();
-      cache = FrameCache(directory: null);
+      cache = FrameCache(directoryPath: null);
       addTearDown(cache.dispose);
     });
 
@@ -632,15 +632,19 @@ void main() {
 
 /// An engine that spawns its render isolate on first use, so a contract
 /// harness, which is built synchronously, can hold it.
-final class _DeferredEngine implements LottieEngine {
+final class _DeferredEngine implements LottieSlotEngine {
   _DeferredEngine(this._open);
 
-  final Future<LottieEngine> Function() _open;
-  late final Future<LottieEngine> _engine = _open();
+  final Future<LottieSlotEngine> Function() _open;
+  late final Future<LottieSlotEngine> _engine = _open();
 
   @override
   Future<LottieLoadResult> load(Uint8List bytes) async =>
       (await _engine).load(bytes);
+
+  @override
+  Future<List<LottiePixels?>> renderPixels(List<LottiePixelJob> jobs) async =>
+      (await _engine).renderPixels(jobs);
 
   @override
   Future<List<LottieRenderStatus>> renderBatch(
@@ -665,7 +669,7 @@ final class _DeferredEngine implements LottieEngine {
 }
 
 /// An in-process engine whose handle disposal throws [error].
-final class _DisposeThrows implements LottieEngine {
+final class _DisposeThrows implements LottieSlotEngine {
   _DisposeThrows(this.error);
 
   final Object error;
@@ -675,6 +679,10 @@ final class _DisposeThrows implements LottieEngine {
 
   @override
   Future<LottieLoadResult> load(Uint8List bytes) => _inner.load(bytes);
+
+  @override
+  Future<List<LottiePixels?>> renderPixels(List<LottiePixelJob> jobs) =>
+      _inner.renderPixels(jobs);
 
   @override
   Future<List<LottieRenderStatus>> renderBatch(List<LottieEngineJob> jobs) =>
@@ -706,6 +714,7 @@ final class _JobRecordingRenderer implements FrameRenderer {
       for (final job in jobs)
         (source: job.source, width: job.width, height: job.height),
     ]);
+    _touch(jobs, memory);
     return [for (var i = 0; i < jobs.length; i++) i];
   }
 }
@@ -717,6 +726,14 @@ final class _SizeRecordingRenderer implements FrameRenderer {
   @override
   Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory) async {
     sizes.addAll([for (final job in jobs) (job.width, job.height)]);
+    _touch(jobs, memory);
     return [for (var i = 0; i < jobs.length; i++) i];
+  }
+}
+
+/// Makes the pages the jobs name, as a renderer that really wrote them would.
+void _touch(List<FrameJob> jobs, FramePageMemory memory) {
+  for (final job in jobs) {
+    memory.page(job.slot.pageIndex, side: job.slot.pageSide);
   }
 }

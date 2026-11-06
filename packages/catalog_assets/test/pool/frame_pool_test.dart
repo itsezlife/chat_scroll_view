@@ -11,7 +11,7 @@ void main() {
   setUp(() {
     evicted = <String>[];
     pool = FramePool<String>(
-      pageSide: 256,
+      pageSideFor: (_) => 256,
       budgetBytes: _budget,
       sizeClasses: const [128, 256],
       onEvict: evicted.add,
@@ -149,13 +149,34 @@ void main() {
   });
 
   group('budget', () {
-    test('the page count is the byte budget over the page bytes', () {
-      expect(pool.maxPages, 2);
+    test('the pool reports the byte budget it was given', () {
+      expect(pool.budgetBytes, _budget);
+    });
+
+    test('pages sized by class are paid for in bytes', () {
+      // A 128 class opens a 256 px page (256 KiB), a 64 class a 128 px page
+      // (64 KiB): 384 KiB pays for one page of the first and two of the
+      // second, not for a second page of the first.
+      final sized = FramePool<String>(
+        pageSideFor: (c) => 2 * c,
+        budgetBytes: 384 * 1024,
+        sizeClasses: const [64, 128],
+      );
+      for (var i = 0; i < 4; i++) {
+        sized.acquire('big$i', 100, 100);
+      }
+      for (var i = 0; i < 8; i++) {
+        sized.acquire('small$i', 50, 50);
+      }
+
+      expect(sized.residentEntries, 12);
+      expect(sized.acquire('big', 100, 100), isNull);
+      expect(sized.acquire('small', 50, 50), isNull);
     });
 
     test('a budget under one page is an error', () {
       expect(
-        () => FramePool<String>(pageSide: 256, budgetBytes: 1000),
+        () => FramePool<String>(pageSideFor: (_) => 256, budgetBytes: 1000),
         throwsArgumentError,
       );
     });
@@ -165,7 +186,7 @@ void main() {
     test('a page is announced when its last entry is evicted', () {
       final pages = <int>[];
       final watched = FramePool<String>(
-        pageSide: 256,
+        pageSideFor: (_) => 256,
         budgetBytes: _budget,
         sizeClasses: const [128, 256],
         onPageReleased: pages.add,

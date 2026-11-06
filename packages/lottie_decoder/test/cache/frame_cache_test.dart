@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
+import 'package:lottie_decoder/src/cache/frame_cache_files_stub.dart' as web;
 import 'package:meta/meta.dart';
 
 FrameCacheKey _key(String hash, {int size = 128}) => FrameCacheKey(
@@ -41,8 +42,8 @@ List<String> _names(Directory dir, String extension) =>
 
 /// Counts the files written and read through it, and lets a test wait for the
 /// n-th write to be on disk without sleeping.
-class _CountingFiles extends FrameCacheFiles {
-  _CountingFiles(super.directory);
+class _CountingFiles extends DirectoryFrameCacheFiles {
+  _CountingFiles(super.path);
 
   final List<String> written = [];
   final List<String> reads = [];
@@ -81,8 +82,8 @@ class _CountingFiles extends FrameCacheFiles {
 }
 
 /// Files whose timestamps cannot be set (a file system without them).
-class _UnstampableFiles extends FrameCacheFiles {
-  _UnstampableFiles(super.directory);
+class _UnstampableFiles extends DirectoryFrameCacheFiles {
+  _UnstampableFiles(super.path);
 
   @override
   @protected
@@ -91,8 +92,8 @@ class _UnstampableFiles extends FrameCacheFiles {
 }
 
 /// Records the temp file of every write before it is published.
-class _TempRecordingFiles extends FrameCacheFiles {
-  _TempRecordingFiles(super.directory, this.temps);
+class _TempRecordingFiles extends DirectoryFrameCacheFiles {
+  _TempRecordingFiles(super.path, this.temps);
 
   final List<String> temps;
 
@@ -105,8 +106,8 @@ class _TempRecordingFiles extends FrameCacheFiles {
 }
 
 /// A process that dies after the temp file is complete and before the rename.
-class _CrashingFiles extends FrameCacheFiles {
-  _CrashingFiles(super.directory);
+class _CrashingFiles extends DirectoryFrameCacheFiles {
+  _CrashingFiles(super.path);
 
   @override
   @protected
@@ -135,7 +136,7 @@ void main() {
 
   group('memory only', () {
     late FrameCache cache;
-    setUp(() => cache = FrameCache(directory: null, clock: clock));
+    setUp(() => cache = FrameCache(directoryPath: null, clock: clock));
     tearDown(() => cache.dispose());
 
     test('a frame put is had and read back byte for byte', () {
@@ -206,7 +207,7 @@ void main() {
       'evicts the least recently used animation, whole, over the budget',
       () {
         final cache = FrameCache(
-          directory: null,
+          directoryPath: null,
           ramBudgetBytes: 130,
           clock: clock,
         );
@@ -230,7 +231,7 @@ void main() {
 
     test('never evicts the animation being filled when it is the only one', () {
       final cache = FrameCache(
-        directory: null,
+        directoryPath: null,
         ramBudgetBytes: 50,
         clock: clock,
       );
@@ -242,7 +243,7 @@ void main() {
 
     test('a filling animation survives pressure from older ones', () {
       final cache = FrameCache(
-        directory: null,
+        directoryPath: null,
         ramBudgetBytes: 100,
         clock: clock,
       );
@@ -254,14 +255,22 @@ void main() {
     });
   });
 
+  group('without a file system', () {
+    // The web build swaps in this file for the directory one; on the VM it is
+    // plain Dart, so what the web does with a path is testable here.
+    test('a path is an ArgumentError, memory only is not', () {
+      expect(() => web.openFrameCacheFiles('/frames'), throwsArgumentError);
+    });
+  });
+
   group('disk tier', () {
     late Directory dir;
     late _CountingFiles files;
     late FrameCache cache;
     setUp(() {
       dir = _tempDir();
-      files = _CountingFiles(dir);
-      cache = FrameCache(directory: dir, files: files, clock: clock);
+      files = _CountingFiles(dir.path);
+      cache = FrameCache(directoryPath: dir.path, files: files, clock: clock);
     });
 
     test('a complete animation is written once, as one file', () async {
@@ -288,7 +297,7 @@ void main() {
       await cache.dispose();
       expect(dir.listSync(), isEmpty);
 
-      final restarted = FrameCache(directory: dir, clock: clock);
+      final restarted = FrameCache(directoryPath: dir.path, clock: clock);
       addTearDown(restarted.dispose);
       expect(await restarted.open(_key('a')), isNull);
     });
@@ -300,7 +309,7 @@ void main() {
         putAll(cache, key, 3, 10);
         await cache.dispose();
 
-        final second = FrameCache(directory: dir, clock: clock);
+        final second = FrameCache(directoryPath: dir.path, clock: clock);
         addTearDown(second.dispose);
         expect(second.has(key, 0), isFalse, reason: 'not resident before open');
         expect(await second.open(key), 3);
@@ -349,8 +358,8 @@ void main() {
         'entry, and the leftover is never read as one', () async {
       final key = _key('a');
       final crashing = FrameCache(
-        directory: dir,
-        files: _CrashingFiles(dir),
+        directoryPath: dir.path,
+        files: _CrashingFiles(dir.path),
         onError: (_, _) {},
         clock: clock,
       );
@@ -359,7 +368,7 @@ void main() {
       expect(_names(dir, '.frames'), isEmpty);
       expect(_names(dir, '.tmp'), isNotEmpty, reason: 'the crash left it');
 
-      final restarted = FrameCache(directory: dir, clock: clock);
+      final restarted = FrameCache(directoryPath: dir.path, clock: clock);
       addTearDown(restarted.dispose);
       expect(await restarted.open(key), isNull);
       expect(_names(dir, '.tmp'), isEmpty, reason: 'swept on the first scan');
@@ -377,7 +386,7 @@ void main() {
       Uint8List Function(Uint8List bytes) damage,
     ) async {
       dir = _tempDir();
-      final writer = FrameCache(directory: dir, clock: clock);
+      final writer = FrameCache(directoryPath: dir.path, clock: clock);
       putAll(writer, key, 3, 10);
       await writer.dispose();
       file = File('${dir.path}/${key.toFileStem()}.frames');
@@ -427,7 +436,7 @@ void main() {
         reported = [];
         await writeThenDamage(damage);
         final cache = FrameCache(
-          directory: dir,
+          directoryPath: dir.path,
           clock: clock,
           onError: (e, _) => reported.add(e),
         );
@@ -453,7 +462,7 @@ void main() {
       ]) {
         final copy = File('${dir.path}/${other.toFileStem()}.frames')
           ..writeAsBytesSync(file.readAsBytesSync());
-        final cache = FrameCache(directory: dir, clock: clock);
+        final cache = FrameCache(directoryPath: dir.path, clock: clock);
         addTearDown(cache.dispose);
         expect(await cache.open(other), isNull, reason: '$other');
         expect(copy.existsSync(), isFalse);
@@ -463,12 +472,12 @@ void main() {
 
     test('after a miss the animation can be cached again', () async {
       await writeThenDamage((b) => b.sublist(0, 30));
-      final again = FrameCache(directory: dir, clock: clock);
+      final again = FrameCache(directoryPath: dir.path, clock: clock);
       expect(await again.open(key), isNull);
       putAll(again, key, 3, 10);
       await again.dispose();
 
-      final third = FrameCache(directory: dir, clock: clock);
+      final third = FrameCache(directoryPath: dir.path, clock: clock);
       addTearDown(third.dispose);
       expect(await third.open(key), 3);
       expect(third.frame(key, 2), _bytes(10, 3));
@@ -484,9 +493,9 @@ void main() {
     const fileBytes = 36 + 5 + 1 + 3 * 8 + 30;
 
     FrameCache build({required int budget, _CountingFiles? with_}) {
-      files = with_ ?? _CountingFiles(dir);
+      files = with_ ?? _CountingFiles(dir.path);
       final cache = FrameCache(
-        directory: dir,
+        directoryPath: dir.path,
         files: files,
         diskBudgetBytes: budget,
         clock: clock,
@@ -562,14 +571,14 @@ void main() {
     test('is a miss and deleted, not read whole', () async {
       final dir = _tempDir();
       final key = _key('a');
-      final small = FrameCache(directory: dir, clock: clock);
+      final small = FrameCache(directoryPath: dir.path, clock: clock);
       putAll(small, key, 3, 10);
       await small.dispose();
       const fits = 36 + 5 + 1 + 3 * 8 + 30;
 
-      final files = _CountingFiles(dir);
+      final files = _CountingFiles(dir.path);
       final reader = FrameCache(
-        directory: dir,
+        directoryPath: dir.path,
         files: files,
         diskBudgetBytes: fits + 10,
         clock: clock,
@@ -578,7 +587,7 @@ void main() {
       // The scan sees the small file...
       expect(await reader.open(_key('other')), isNull);
       // ...then another writer replaces it with a valid, larger one.
-      final bigger = FrameCache(directory: dir, clock: clock);
+      final bigger = FrameCache(directoryPath: dir.path, clock: clock);
       putAll(bigger, key, 3, 400);
       await bigger.dispose();
       expect(
@@ -597,8 +606,8 @@ void main() {
       () async {
         final dir = _tempDir();
         final temps = <String>[];
-        final first = _TempRecordingFiles(dir, temps);
-        final second = _TempRecordingFiles(dir, temps);
+        final first = _TempRecordingFiles(dir.path, temps);
+        final second = _TempRecordingFiles(dir.path, temps);
         final bytes = _bytes(4, 1);
 
         await first.write('s', bytes, modified: now);
@@ -622,9 +631,9 @@ void main() {
       () async {
         final dir = _tempDir();
         final reported = <Object>[];
-        final files = _UnstampableFiles(dir);
+        final files = _UnstampableFiles(dir.path);
         final cache = FrameCache(
-          directory: dir,
+          directoryPath: dir.path,
           files: files,
           clock: clock,
           onError: (e, _) => reported.add(e),
@@ -635,7 +644,7 @@ void main() {
 
         // Later writes still go to disk, and are tracked for eviction.
         final again = FrameCache(
-          directory: dir,
+          directoryPath: dir.path,
           files: files,
           clock: clock,
           onError: (e, _) => reported.add(e),
@@ -652,8 +661,8 @@ void main() {
       final dir = _tempDir();
       final reported = <Object>[];
       final cache = FrameCache(
-        directory: dir,
-        files: _UnstampableFiles(dir),
+        directoryPath: dir.path,
+        files: _UnstampableFiles(dir.path),
         clock: clock,
         onError: (e, _) => reported.add(e),
       );
@@ -687,7 +696,7 @@ void main() {
         }
         Process.runSync('chmod', ['500', dir.path]);
         final cache = FrameCache(
-          directory: dir,
+          directoryPath: dir.path,
           clock: clock,
           onError: (e, _) => reported.add(e),
         );
@@ -708,7 +717,7 @@ void main() {
         markTestSkipped('root ignores file modes');
         return;
       }
-      final writer = FrameCache(directory: dir, clock: clock);
+      final writer = FrameCache(directoryPath: dir.path, clock: clock);
       putAll(writer, _key('a'), 2, 10);
       await writer.dispose();
       Process.runSync('chmod', [
@@ -717,7 +726,7 @@ void main() {
       ]);
 
       final cache = FrameCache(
-        directory: dir,
+        directoryPath: dir.path,
         clock: clock,
         onError: (e, _) => reported.add(e),
       );
@@ -729,7 +738,7 @@ void main() {
     test('a directory that is a file never fails a put', () async {
       final blocker = File('${dir.path}/cache')..writeAsStringSync('x');
       final cache = FrameCache(
-        directory: Directory(blocker.path),
+        directoryPath: blocker.path,
         clock: clock,
         onError: (e, _) => reported.add(e),
       );
@@ -745,12 +754,16 @@ void main() {
     setUp(() => dir = _tempDir());
 
     test('concurrent opens of one key share one read', () async {
-      final writer = FrameCache(directory: dir, clock: clock);
+      final writer = FrameCache(directoryPath: dir.path, clock: clock);
       putAll(writer, _key('a'), 3, 10);
       await writer.dispose();
 
-      final files = _CountingFiles(dir);
-      final cache = FrameCache(directory: dir, files: files, clock: clock);
+      final files = _CountingFiles(dir.path);
+      final cache = FrameCache(
+        directoryPath: dir.path,
+        files: files,
+        clock: clock,
+      );
       addTearDown(cache.dispose);
       final counts = await Future.wait([
         cache.open(_key('a')),
@@ -765,20 +778,24 @@ void main() {
     });
 
     test('open is idempotent for a different key too', () async {
-      final writer = FrameCache(directory: dir, clock: clock);
+      final writer = FrameCache(directoryPath: dir.path, clock: clock);
       putAll(writer, _key('a'), 2, 10);
       putAll(writer, _key('b'), 2, 10);
       await writer.dispose();
 
-      final files = _CountingFiles(dir);
-      final cache = FrameCache(directory: dir, files: files, clock: clock);
+      final files = _CountingFiles(dir.path);
+      final cache = FrameCache(
+        directoryPath: dir.path,
+        files: files,
+        clock: clock,
+      );
       addTearDown(cache.dispose);
       await Future.wait([cache.open(_key('a')), cache.open(_key('b'))]);
       expect(files.reads, hasLength(2));
     });
 
     test('dispose finishes pending writes and is idempotent', () async {
-      final cache = FrameCache(directory: dir, clock: clock);
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
       putAll(cache, _key('a'), 2, 10);
       await Future.wait([cache.dispose(), cache.dispose()]);
       await cache.dispose();
@@ -787,7 +804,7 @@ void main() {
     });
 
     test('a put or an open after dispose is a StateError', () async {
-      final cache = FrameCache(directory: dir, clock: clock);
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
       await cache.dispose();
       expect(
         () => cache.put(_key('a'), 0, _bytes(1, 1), frameCount: 1),
@@ -797,7 +814,7 @@ void main() {
     });
 
     test('clear drops both tiers, after a pending write finishes', () async {
-      final cache = FrameCache(directory: dir, clock: clock);
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
       putAll(cache, _key('a'), 2, 10);
       await cache.clear();
 
@@ -808,7 +825,7 @@ void main() {
     });
 
     test('a cache is usable again after clear', () async {
-      final cache = FrameCache(directory: dir, clock: clock);
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
       putAll(cache, _key('a'), 2, 10);
       await cache.clear();
       putAll(cache, _key('a'), 2, 10);
@@ -819,12 +836,12 @@ void main() {
     test(
       'invalidate drops the RAM entry and the file of one animation',
       () async {
-        final cache = FrameCache(directory: dir, clock: clock);
+        final cache = FrameCache(directoryPath: dir.path, clock: clock);
         addTearDown(cache.dispose);
         putAll(cache, _key('a'), 2, 10);
         putAll(cache, _key('b'), 2, 10);
         await cache.dispose();
-        final reopened = FrameCache(directory: dir, clock: clock);
+        final reopened = FrameCache(directoryPath: dir.path, clock: clock);
         addTearDown(reopened.dispose);
         expect(await reopened.open(_key('a')), 2);
 
@@ -842,7 +859,7 @@ void main() {
     test(
       'invalidate waits for a write under way, so its file goes too',
       () async {
-        final cache = FrameCache(directory: dir, clock: clock);
+        final cache = FrameCache(directoryPath: dir.path, clock: clock);
         addTearDown(cache.dispose);
         putAll(cache, _key('a'), 2, 10);
 
@@ -853,14 +870,14 @@ void main() {
     );
 
     test('invalidate of an unknown key is harmless', () async {
-      final cache = FrameCache(directory: dir, clock: clock);
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
       addTearDown(cache.dispose);
 
       await expectLater(cache.invalidate(_key('nope')), completes);
     });
 
     test('invalidate frees the RAM it held, in a memory-only cache', () async {
-      final cache = FrameCache(directory: null, clock: clock);
+      final cache = FrameCache(directoryPath: null, clock: clock);
       addTearDown(cache.dispose);
       putAll(cache, _key('a'), 2, 10);
 
@@ -871,7 +888,7 @@ void main() {
     });
 
     test('isDisposed tells a renderer to stop using the cache', () async {
-      final cache = FrameCache(directory: dir, clock: clock);
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
       expect(cache.isDisposed, isFalse);
       await cache.dispose();
       expect(cache.isDisposed, isTrue);

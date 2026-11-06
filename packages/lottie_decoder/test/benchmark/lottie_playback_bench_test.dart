@@ -82,10 +82,10 @@ const _fixture = '''
 
 /// The real engine, timing each render call as the UI isolate sees it (this
 /// benchmark has no frame cache, so that is `renderBatch`).
-final class _MeteredEngine implements LottieEngine {
+final class _MeteredEngine implements LottieSlotEngine {
   _MeteredEngine(this._inner);
 
-  final LottieEngine _inner;
+  final LottieSlotEngine _inner;
   final List<int> roundTripsUs = [];
 
   @override
@@ -99,6 +99,10 @@ final class _MeteredEngine implements LottieEngine {
       roundTripsUs.add(watch.elapsedMicroseconds);
     }
   }
+
+  @override
+  Future<List<LottiePixels?>> renderPixels(List<LottiePixelJob> jobs) =>
+      _timed(() => _inner.renderPixels(jobs));
 
   @override
   Future<List<LottieRenderStatus>> renderBatch(List<LottieEngineJob> jobs) =>
@@ -181,7 +185,7 @@ Future<_Samples> _play(int stickers) async {
   final timeline = Stopwatch()..start();
   final meter = _MeteredUploader(timeline);
   final engine = _MeteredEngine(await IsolateLottieEngine.spawn());
-  final memory = NativeFramePageMemory(pageSide: FrameAtlas.defaultPageSide);
+  final memory = NativeFramePageMemory();
   final ticks = ManualPlaybackTickSource();
   final clock = PlaybackClock(ticks: ticks);
   final atlas = FrameAtlas<Object>(
@@ -207,7 +211,8 @@ Future<_Samples> _play(int stickers) async {
           _displayEdge,
         )!,
     ];
-    final pageBytes = memory.pageSide * memory.pageSide * 4;
+    final pageSide = FrameAtlas.pageSideFor(_displayEdge);
+    final pageBytes = pageSide * pageSide * 4;
     var time = Duration.zero;
 
     for (var tick = 0; tick < _warmupTicks + _measuredTicks; tick++) {

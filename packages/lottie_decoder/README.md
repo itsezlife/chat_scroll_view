@@ -5,29 +5,37 @@ The Lottie adapter for the frame pool
 pages"): an async engine seam over a `lottie_native` binding, native page
 memory a render isolate can write, and a `FrameRenderer` that draws into it.
 
+`package:lottie_decoder/lottie_decoder.dart` compiles for the web: the neutral
+files are exported plainly, and the files that need `dart:ffi`, `dart:io` or
+`dart:isolate` (`LottieSlotEngine`, the two engines, `NativeFramePageMemory`,
+`LottieFrameRenderer`, `DirectoryFrameCacheFiles`) only where they exist, as in
+`lottie_native`.
+
 ## Types
 
 | Type | Role |
 | --- | --- |
-| `LottieEngine` | The async face of a `LottieBinding`: `load`, `renderBatch` (of `LottieEngineJob`), `renderCapturing` (the same, and each rendered slot comes back compressed as a `LottieCapture`), `restore` (decompress `LottieRestoreJob`s into slots: `ok`, or `failed` with the slot untouched), `dispose`, `close` (idempotent; requests already made run to completion first; later calls throw `LottieEngineClosed`, a `StateError`). |
-| `LottieEngineJob` | A render job whose target is an `int` address, so it crosses isolates. |
-| `InProcessLottieEngine` | Runs a binding on the calling isolate, and a `LottieFrameCodec` if given one. With `FakeLottieBinding` it is the engine fake. |
-| `IsolateLottieEngine` | One long-lived render isolate that owns the binding and every handle. `spawn({bindingFactory, codecFactory})` builds the binding and the frame codec inside the isolate (the codec only if the binding is available, and dropped if it is not; compressed bytes cross as `TransferableTypedData`) and throws a `LottieUnavailable` (a `StateError`) carrying the `LottieAvailability` when the binding is unavailable; any other start-up failure surfaces as it happened, and the isolate and ports are released. One request failing throws a `RemoteError` and spares the engine; the isolate ending fails every pending request with `LottieEngineClosed` and closes the engine. Requests run in arrival order. A native fault ends the process and cannot be caught. |
-| `LottieEngineContract` (`testing.dart`) | The behaviour every engine shares, run over the in-process engine and over the isolate engine on the fake and on the real binding. |
-| `NativeFramePageMemory` | `FramePageMemory` in `calloc`ed memory (a Dart-heap list cannot be written from another isolate). `addressOf(page)`, `drop`, `dispose`. |
+| `LottieEngine` | The neutral, pixel-returning face of a renderer, and the only engine the decoder, the scheduler and the paintables know: `load`, `renderPixels` (of `LottiePixelJob`; one `LottiePixels` per job, tightly packed premultiplied RGBA of exactly `width * height * 4` bytes, or null for a job that did not render; never throws for one bad job), `dispose`, `close` (idempotent; requests already made run to completion first; later calls throw `LottieEngineClosed`, a `StateError`). Compiles for the web. |
+| `LottieSlotEngine` | A `LottieEngine` that also draws into native memory by address (native only): `renderBatch` (of `LottieEngineJob`), `renderCapturing` (the same, and each rendered slot comes back compressed as a `LottieCapture`), `restore` (decompress `LottieRestoreJob`s into slots: `ok`, or `failed` with the slot untouched). |
+| `InProcessLottieEngine` | A `LottieSlotEngine` that runs a binding on the calling isolate, and a `LottieFrameCodec` if given one. `renderPixels` renders into a temporary native buffer and copies out. With `FakeLottieBinding` it is the engine fake. |
+| `IsolateLottieEngine` | A `LottieSlotEngine` on one long-lived render isolate that owns the binding and every handle. `spawn({bindingFactory, codecFactory})` builds the binding and the frame codec inside the isolate (the codec only if the binding is available, and dropped if it is not; compressed bytes and pixels cross as `TransferableTypedData`) and throws a `LottieUnavailable` (a `StateError`) carrying the `LottieAvailability` when the binding is unavailable; any other start-up failure surfaces as it happened, and the isolate and ports are released. One request failing throws a `RemoteError` and spares the engine; the isolate ending fails every pending request with `LottieEngineClosed` and closes the engine. Requests run in arrival order. A native fault ends the process and cannot be caught. |
+| `LottieEngineContract`, `LottieSlotEngineContract` (`testing.dart`) | The behaviour every engine shares (the first), and every slot engine adds (the second), run over the in-process engine and the isolate engine on the fake and on the real binding, and over `FakePixelLottieEngine`. |
+| `FakePixelLottieEngine` (`testing.dart`) | A pixel-only `LottieEngine` (no slot method) whose pixel at column x, row y of frame f is `[x, y, f, 255]`, so a misplaced copy shows. |
+| `NativeFramePageMemory` | `FramePageMemory` in `calloc`ed memory (a Dart-heap list cannot be written from another isolate). `page(i, side:)`, `sideOf(i)`, `addressOf(i, side:)`, `drop`, `dispose`; each page has the side of its slot. |
 | `LottieFrameScheduler` | The one owner of the host's `FrameAtlas`: follows `PlaybackClock` while a lease exists, renders the wanted frames as one batch per tick, and frees a slot after one to two idle periods (default 1 s) by a single sweep timer. The sweep uses a real `Timer` by design: it keeps counting while the clock is paused, and a repaint after a long pause reacquires the entry and draws the last rendered frame, not the still. |
 | `LottieFrameSize` | The one render size (`fitting(info, edge)`) the decoder and the paintable share. |
 | `LottieAnimationPaintable` / `LottieStillPaintable` | The animation (pull-driven, one scheduler key per animation, `onDispose` frees its handle) and a decoded still. |
 | `LottieDecoder` | The `Decoder` for `MediaForm.vectorAnimation`, built from an engine, the scheduler and two injectable image steps (`decodeImage`, `uploadPixels`). |
 | `LottieSource` | A frame job's `source`: the `LottieHandle`, the animation's frame count and its `FrameCacheKey?`. |
-| `LottieFrameRenderer` | `FrameRenderer` over an engine, one memory and an optional `FrameCache`; a job's `source` is a `LottieSource`. |
+| `LottieFrameRenderer` | `FrameRenderer` over a `LottieSlotEngine`, one `NativeFramePageMemory` and an optional `FrameCache`; zero-copy and native only. A job's `source` is a `LottieSource`. |
+| `PixelCopyFrameRenderer` | `FrameRenderer` over any `LottieEngine`: one `renderPixels` per batch, then each result's rows copied into any `FramePageMemory` at the slot offset (`ListFramePageMemory` on the web). No frame cache: web v1 is memory only. Compiles for the web. |
 | `CountingLottieEngine` (`testing.dart`) | Forwards to an engine and counts the jobs rendered and restored, for "this pass rendered nothing". |
 
 ## Host contract
 
 | The host provides | The host must not |
 | --- | --- |
-| An engine over an available binding, and the one `NativeFramePageMemory` the renderer and the pool share | Pass the renderer another memory (`StateError`) or a job whose `source` is not a `LottieSource` (`ArgumentError`) |
+| An engine over an available binding (a `LottieSlotEngine` for `LottieFrameRenderer`, any `LottieEngine` for `PixelCopyFrameRenderer`), and the one `NativeFramePageMemory` the renderer and the pool share | Pass the renderer another memory (`StateError`) or a job whose `source` is not a `LottieSource` (`ArgumentError`) |
 | `dispose` for each loaded handle and `close` for the engine | Use a view from `page` after `drop` or `dispose` |
 | `dispose` for the `FrameCache`, before `close` for the engine | Give one cache directory to two caches |
 
@@ -40,8 +48,9 @@ memory a render isolate can write, and a `FrameRenderer` that draws into it.
 | content, full | `firstFrame` (a still), then `full` (animated tier) |
 | content, spec above 512 px | `firstFrame`, then the same still as `full`; the render is capped at 512 and the handle freed |
 
-Frame 0 is drawn into a temporary native buffer, not an atlas slot (the pool may
-be full) and uploaded as premultiplied RGBA. The `full` stage costs the frame
+Frame 0 is drawn through `renderPixels`, not into an atlas slot (the pool may
+be full) and uploaded as premultiplied RGBA. A `FetchedFile` is read with
+`dart:io`; on the web it fails the decode (`UnsupportedError`). The `full` stage costs the frame
 (`w * h * 4`) plus `4 *` the encoded size for the parsed model, as the web client
 estimates. A rejected file, an engine error or a frame that does not render ends
 in `fail(..., AssetFailureKind.permanent)`; `cancel` stops reporting and frees
@@ -82,14 +91,14 @@ or pixels.
 | --- | --- |
 | `FrameCacheKey` | Content hash, DISPLAY size and engine version. Validated and lower-cased in the constructor (`ArgumentError` for a hash or version with path characters); `toFileStem()` is the file name; `admitted([maxEdge = 512])` tells whether the size is cacheable. |
 | `FrameCache` | `open(key)` makes an animation resident and returns its frame count (null: nothing cached; an unadmitted key is always null). `frame` and `has` are synchronous and RAM only. `put(key, index, bytes, frameCount:)` stores one frame, first write wins; when every frame is present the animation is written to disk once, asynchronously. `clear`, `dispose` (finishes pending reads and writes; idempotent). |
-| `FrameCacheFiles` | The one place that touches the file system; `FrameCache` takes `directory`, and tests pass a subclass to count or break writes. |
+| `FrameCacheFiles` | The interface of the one place that touches the file system. `DirectoryFrameCacheFiles` (native) is the implementation `FrameCache(directoryPath:)` opens through a conditional import; tests pass a subclass to count or break writes. The web's stub refuses a path with an `ArgumentError`. |
 
 **Tiers.** The RAM tier (default 32 MiB) evicts whole animations, least
 recently used first, and never the one being filled when it is the only one.
 The disk tier (default 128 MiB) evicts least recently used files after each
 write and on the first scan of the directory. Recency is the injected clock;
 on disk it is the file's modified time, stamped when the file is written or
-opened. `directory: null` keeps memory only.
+opened. `directoryPath: null` keeps memory only.
 
 **File.** `<stem>.frames`, little-endian: magic `FRMC`, format version 1, width,
 height, frame count, payload length, payload CRC-32, engine and hash lengths,
@@ -104,7 +113,7 @@ layout is documented on `FrameCacheCodec`.
 file) never fails a render: the first is passed to `onError` (default
 `FlutterError.reportError`), later ones are dropped, and after a failed write
 the cache stops writing and serves from memory. The directory belongs to one
-cache at a time. Web keeps memory only (a later slice).
+cache at a time. The web keeps memory only: `directoryPath` must be null there.
 
 ### In the renderer
 
@@ -113,7 +122,7 @@ cache at a time. Web keeps memory only (a later slice).
 animation. For the cacheable jobs of a batch the renderer `open`s each key the
 first time it sees it (later batches never wait for the disk), then:
 
-- a frame the cache has is **restored** (`LottieEngine.restore`) and nothing is
+- a frame the cache has is **restored** (`LottieSlotEngine.restore`) and nothing is
   rendered for it;
 - every other frame renders through `renderCapturing`, and its compressed
   bytes are `put`;
@@ -158,17 +167,22 @@ a build is about 2x slower than the rest.
 
 | Stickers | tick (UI isolate) | settled | render round trip | upload | uploaded per tick | pages |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 0.05 ms | 0.93 ms | 0.17 ms | 0.53 ms | 4 MiB | 1 |
-| 8 | 0.05 ms | 0.83 ms | 0.22 ms | 0.38 ms | 4 MiB | 1 |
-| 32 | 0.05 ms | 1.10 ms | 0.49 ms | 0.35 ms | 4 MiB | 1 |
+| 1 | 0.04 ms | 0.58 ms | 0.12 ms | 0.33 ms | 256 KiB | 1 |
+| 8 | 0.04 ms | 0.67 ms | 0.18 ms | 0.31 ms | 512 KiB | 2 |
+| 32 | 0.04 ms | 1.33 ms | 0.38 ms | 0.77 ms | 2 MiB | 8 |
 
-What it says. Building and sending the batch costs the UI isolate about 50
+What it says. Building and sending the batch costs the UI isolate about 40
 microseconds whatever the count. The render isolate round trip grows with the
-count (0.17 to 0.49 ms), as it should. The upload does not: every tick uploads
-each dirty page in full, so one 1024 px page is 4 MiB per tick for one sticker
-or for 32, 64x the 64 KiB that changed at N = 1 and 2x the 2 MiB at N = 32. The
-upload time here is the engine's `decodeImageFromPixels` copy and callback in
+count (0.12 to 0.38 ms), as it should. A page is uploaded whole
+(`decodeImageFromPixels` has no partial update), so the page size is what a
+changed frame costs. Pages are sized by class (twice the class edge: 256 px for
+the 128 px stickers here), so one sticker uploads 256 KiB, 4x the 64 KiB that
+changed, and eight or more upload exactly what changed. Before this change every
+class shared a 1024 px page: 4 MiB per tick for one sticker or for 32, 64x the
+bytes that changed at N = 1 (see the amendment in ADR 022). The price shows at
+N = 32: eight uploads of 256 KiB take 0.77 ms where one 4 MiB upload took 0.35 ms
+in the headless engine, so the per-call cost matters more than the bytes there.
+That upload time is the engine's `decodeImageFromPixels` copy and callback in
 the headless test engine; it does not include the GPU upload on a device
 (frame-timing tools hide that cost too), so the byte count is the finding, not
-the 0.4 ms. A partial upload of the changed slots, or a smaller page for a few
-stickers, would cut it; that belongs to the frame cache slice.
+the milliseconds.

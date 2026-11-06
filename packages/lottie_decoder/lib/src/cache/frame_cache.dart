@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_codec.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_files.dart';
+import 'package:lottie_decoder/src/cache/frame_cache_files_open.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
 
 /// Tells the time; injected so tests order recency without waiting.
@@ -44,20 +43,23 @@ void _reportToFlutter(Object error, StackTrace stack) {
 /// costs the same render as having none. The disk tier writes an animation
 /// once, when its last frame arrives, and evicts files least recently used.
 final class FrameCache {
-  /// Creates a cache keeping files in [directory]; null keeps memory only.
+  /// Creates a cache keeping files in the directory at [directoryPath]; null
+  /// keeps memory only, which is all the web can do (a path there is an
+  /// [ArgumentError]).
   FrameCache({
-    required Directory? directory,
+    required String? directoryPath,
     this.ramBudgetBytes = 32 * 1024 * 1024,
     this.diskBudgetBytes = 128 * 1024 * 1024,
     FrameCacheClock clock = _systemClock,
     FrameCacheErrorHandler onError = _reportToFlutter,
     @visibleForTesting FrameCacheFiles? files,
   }) : assert(
-         files == null || directory != null,
+         files == null || directoryPath != null,
          'files need the directory they live in',
        ),
        _files =
-           files ?? (directory == null ? null : FrameCacheFiles(directory)),
+           files ??
+           (directoryPath == null ? null : openFrameCacheFiles(directoryPath)),
        _clock = clock,
        _onError = onError;
 

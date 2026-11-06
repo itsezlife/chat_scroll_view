@@ -3,12 +3,12 @@ import 'dart:typed_data';
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:lottie_decoder/src/cache/frame_cache.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
-import 'package:lottie_decoder/src/engine/lottie_engine.dart';
+import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
 import 'package:lottie_decoder/src/memory/native_frame_page_memory.dart';
 import 'package:lottie_decoder/src/renderer/lottie_source.dart';
 import 'package:lottie_native/lottie_native.dart';
 
-/// A [FrameRenderer] that draws through a [LottieEngine] into one
+/// A [FrameRenderer] that draws through a [LottieSlotEngine] into one
 /// [NativeFramePageMemory], replaying frames from a [FrameCache] when it has
 /// them.
 ///
@@ -40,14 +40,14 @@ final class LottieFrameRenderer implements FrameRenderer {
   /// Creates a renderer of [engine] that writes into [memory] only, and
   /// remembers frames in [cache] when there is one.
   LottieFrameRenderer({
-    required LottieEngine engine,
+    required LottieSlotEngine engine,
     required NativeFramePageMemory memory,
     FrameCache? cache,
   }) : _engine = engine,
        _memory = memory,
        _cache = cache;
 
-  final LottieEngine _engine;
+  final LottieSlotEngine _engine;
   final NativeFramePageMemory _memory;
   final FrameCache? _cache;
 
@@ -214,7 +214,7 @@ final class _Entry {
         'must be a LottieSource',
       ),
     };
-    final side = memory.pageSide;
+    final side = job.slot.pageSide;
     final left = job.slot.rect.left.toInt();
     final top = job.slot.rect.top.toInt();
     final candidate = source.cacheKey;
@@ -234,7 +234,7 @@ final class _Entry {
         width: job.width,
         height: job.height,
         address:
-            memory.addressOf(job.slot.pageIndex) +
+            memory.addressOf(job.slot.pageIndex, side: side) +
             (top * side + left) * FramePageMemory.bytesPerPixel,
         strideBytes: side * FramePageMemory.bytesPerPixel,
       ),

@@ -1,4 +1,3 @@
-import 'package:catalog_assets/src/pool/frame_renderer.dart';
 import 'package:catalog_assets/src/pool/frame_slot_allocator.dart';
 import 'package:flutter/foundation.dart';
 
@@ -58,37 +57,25 @@ final class FrameLease {
 /// Knows nothing of images or engines: page images, the renderer that fills a
 /// slot and the frame cache are the layers above it.
 final class FramePool<K extends Object> {
-  /// Creates a pool of the pages [budgetBytes] pays for at [pageSide].
+  /// Creates a pool of the pages [budgetBytes] pays for, each class opening a
+  /// page of [pageSideFor] pixels.
   ///
   /// [onEvict] is called with the key of each entry that loses its slot, so
   /// its owner knows the frames are gone; [onPageReleased] with the index of
   /// each page that then has no slot left. Throws an [ArgumentError] when the
-  /// budget does not cover one page.
+  /// budget does not cover the smallest page (see [FrameSlotAllocator]).
   FramePool({
-    required int pageSide,
-    required int budgetBytes,
+    required int Function(int sizeClass) pageSideFor,
+    required this.budgetBytes,
     List<int> sizeClasses = const [64, 128, 256, 512],
     this.onEvict,
     ValueChanged<int>? onPageReleased,
   }) : _allocator = FrameSlotAllocator(
-         pageSide: pageSide,
-         maxPages: _pagesIn(pageSide, budgetBytes),
+         pageSideFor: pageSideFor,
+         budgetBytes: budgetBytes,
          sizeClasses: sizeClasses,
          onPageReleased: onPageReleased,
        );
-
-  static int _pagesIn(int pageSide, int budgetBytes) {
-    final pages =
-        budgetBytes ~/ (pageSide * pageSide * FramePageMemory.bytesPerPixel);
-    if (pages < 1) {
-      throw ArgumentError.value(
-        budgetBytes,
-        'budgetBytes',
-        'does not cover one ${pageSide}x$pageSide page',
-      );
-    }
-    return pages;
-  }
 
   /// Called with the key of an entry that lost its slot.
   final ValueChanged<K>? onEvict;
@@ -99,8 +86,8 @@ final class FramePool<K extends Object> {
   /// touch is a remove and a re-insert.
   final Map<K, _Entry<K>> _entries = <K, _Entry<K>>{};
 
-  /// Most pages the budget pays for.
-  int get maxPages => _allocator.maxPages;
+  /// What the open pages may cost together, in bytes.
+  final int budgetBytes;
 
   /// Entries that hold a slot, pinned or idle.
   int get residentEntries => _entries.length;
