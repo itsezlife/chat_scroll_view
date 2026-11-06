@@ -13,6 +13,7 @@ import 'asset/asset_cache_demand_test.dart' as asset_cache_demand_test;
 import 'asset/asset_cache_failure_test.dart' as asset_cache_failure_test;
 import 'asset/asset_cache_playback_test.dart' as asset_cache_playback_test;
 import 'asset/asset_cache_scope_test.dart' as asset_cache_scope_test;
+import 'asset/asset_fit_test.dart' as asset_fit_test;
 import 'asset/asset_playback_test.dart' as asset_playback_test;
 import 'asset/asset_spec_test.dart' as asset_spec_test;
 import 'asset/asset_stand_in_test.dart' as asset_stand_in_test;
@@ -69,6 +70,7 @@ import 'pipeline/pipeline_orchestration_test.dart'
 import 'pipeline/pipeline_resolver_test.dart' as pipeline_resolver_test;
 import 'placeholder/mini_thumbnail_test.dart' as mini_thumbnail_test;
 import 'placeholder/radial_progress_test.dart' as radial_progress_test;
+import 'placeholder/rect_placeholder_test.dart' as rect_placeholder_test;
 import 'placeholder/soft_placeholder_test.dart' as soft_placeholder_test;
 import 'playback/playback_activity_test.dart' as playback_activity_test;
 import 'playback/playback_clock_test.dart' as playback_clock_test;
@@ -96,6 +98,7 @@ void main() {
   group('asset/asset_cache_scope_test.dart', asset_cache_scope_test.main);
   group('asset/asset_playback_test.dart', asset_playback_test.main);
   group('asset/asset_spec_test.dart', asset_spec_test.main);
+  group('asset/asset_fit_test.dart', asset_fit_test.main);
   group('asset/asset_stand_in_test.dart', asset_stand_in_test.main);
   group('atlas/bake_governor_test.dart', bake_governor_test.main);
   group(
@@ -186,6 +189,7 @@ void main() {
   group('pipeline/pipeline_resolver_test.dart', pipeline_resolver_test.main);
   group('placeholder/mini_thumbnail_test.dart', mini_thumbnail_test.main);
   group('placeholder/radial_progress_test.dart', radial_progress_test.main);
+  group('placeholder/rect_placeholder_test.dart', rect_placeholder_test.main);
   group('placeholder/soft_placeholder_test.dart', soft_placeholder_test.main);
   group('playback/playback_activity_test.dart', playback_activity_test.main);
   group('playback/playback_clock_test.dart', playback_clock_test.main);
