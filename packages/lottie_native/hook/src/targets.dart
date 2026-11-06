@@ -114,7 +114,7 @@ final class LottieNativeTarget {
       OS.linux =>
         hostOs == OS.linux &&
             (hostArch == arch ||
-                environment.containsKey(cargoLinkerVariable(triple))),
+                environment.containsKey(cargoTargetVariable(triple, 'LINKER'))),
       OS.windows => hostOs == OS.windows,
       _ => false,
     };
@@ -124,7 +124,7 @@ final class LottieNativeTarget {
   String toString() => '$os/$arch${sdk == null ? '' : '/${sdk!.type}'}';
 }
 
-/// The variable that names cargo's linker for [triple]:
-/// `CARGO_TARGET_<TRIPLE>_LINKER`, the triple upper-cased with `-` as `_`.
-String cargoLinkerVariable(String triple) =>
-    'CARGO_TARGET_${triple.toUpperCase().replaceAll('-', '_')}_LINKER';
+/// The per-triple cargo variable `CARGO_TARGET_<TRIPLE>_<name>` (for
+/// example `LINKER`, `AR`): the triple upper-cased with `-` as `_`.
+String cargoTargetVariable(String triple, String name) =>
+    'CARGO_TARGET_${triple.toUpperCase().replaceAll('-', '_')}_$name';
