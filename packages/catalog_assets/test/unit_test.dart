@@ -69,6 +69,7 @@ import 'pipeline/pipeline_orchestration_test.dart'
 import 'pipeline/pipeline_resolver_test.dart' as pipeline_resolver_test;
 import 'placeholder/mini_thumbnail_test.dart' as mini_thumbnail_test;
 import 'placeholder/radial_progress_test.dart' as radial_progress_test;
+import 'placeholder/soft_placeholder_test.dart' as soft_placeholder_test;
 import 'playback/playback_activity_test.dart' as playback_activity_test;
 import 'playback/playback_clock_test.dart' as playback_clock_test;
 import 'playback/playback_lifecycle_source_contract_test.dart'
@@ -185,6 +186,7 @@ void main() {
   group('pipeline/pipeline_resolver_test.dart', pipeline_resolver_test.main);
   group('placeholder/mini_thumbnail_test.dart', mini_thumbnail_test.main);
   group('placeholder/radial_progress_test.dart', radial_progress_test.main);
+  group('placeholder/soft_placeholder_test.dart', soft_placeholder_test.main);
   group('playback/playback_activity_test.dart', playback_activity_test.main);
   group('playback/playback_clock_test.dart', playback_clock_test.main);
   group(
