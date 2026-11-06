@@ -1,4 +1,3 @@
-import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
@@ -16,7 +15,7 @@ final class InProcessLottieEngine implements LottieEngine {
   bool _closed = false;
 
   void _requireOpen() {
-    if (_closed) throw StateError('The Lottie engine is closed.');
+    if (_closed) throw LottieEngineClosed();
   }
 
   @override
@@ -30,17 +29,7 @@ final class InProcessLottieEngine implements LottieEngine {
     List<LottieEngineJob> jobs,
   ) async {
     _requireOpen();
-    return _binding.renderBatch([
-      for (final job in jobs)
-        LottieRenderJob(
-          handle: job.handle,
-          frame: job.frame,
-          width: job.width,
-          height: job.height,
-          target: Pointer<Uint8>.fromAddress(job.address),
-          strideBytes: job.strideBytes,
-        ),
-    ]);
+    return _binding.renderBatch([for (final job in jobs) job.toBindingJob()]);
   }
 
   @override

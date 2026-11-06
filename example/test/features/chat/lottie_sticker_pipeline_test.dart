@@ -54,6 +54,7 @@ void main() {
     late NativeFramePageMemory memory;
     late ManualPlaybackTickSource ticks;
     late PlaybackClock clock;
+    late ManualRetentionTimers timers;
     late LottieFrameScheduler scheduler;
     late AssetPipeline pipeline;
     late AssetCacheScope scope;
@@ -64,13 +65,14 @@ void main() {
       memory = NativeFramePageMemory(pageSide: FrameAtlas.defaultPageSide);
       ticks = ManualPlaybackTickSource();
       clock = PlaybackClock(ticks: ticks);
+      timers = ManualRetentionTimers();
       scheduler = LottieFrameScheduler(
         atlas: FrameAtlas<Object>(
           renderer: LottieFrameRenderer(engine, memory),
           memory: memory,
         ),
         clock: clock,
-        idleRelease: const Duration(milliseconds: 100),
+        startTimer: timers.start,
       );
       pipeline = AssetPipeline(
         fetcher: BundledPacks.fetcher(_DiskBundle()),
@@ -163,7 +165,12 @@ void main() {
         }
         expect(scheduler.leaseCount, 1);
 
-        await Future<void>.delayed(const Duration(milliseconds: 400));
+        // The sweep timer is the scheduler's own seam, so the idle period is
+        // stepped by hand: no wall-clock wait, no margin to tune. The first
+        // sweep sees the last paint, the second finds nothing since.
+        timers.elapse(scheduler.idleRelease);
+        expect(scheduler.leaseCount, 1);
+        timers.elapse(scheduler.idleRelease);
 
         expect(scheduler.leaseCount, 0);
       },

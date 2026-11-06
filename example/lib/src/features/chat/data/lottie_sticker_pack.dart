@@ -1,10 +1,10 @@
+import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
-import 'package:listen/listen.dart' as listen;
 
 /// One sticker of the [LottieStickerPack]: a Lottie file in the app bundle.
 @immutable
-final class LottieSticker {
+final class LottieSticker implements BundledItem {
   const LottieSticker._(this.name, this.spokenName);
 
   /// The file's name, without its extension.
@@ -15,12 +15,14 @@ final class LottieSticker {
 
   /// Its content identity: a document key under the pack's own prefix, so its
   /// cache entry and recents slot never meet another pack's.
+  @override
   ContentKey get key =>
       ContentKey.document('${LottieStickerPack._keyPrefix}$name');
 
   /// What the pipeline needs to make it. The decoder registered for
   /// [MediaForm.vectorAnimation] draws it; without one it keeps its
   /// placeholder.
+  @override
   ContentDescriptor get descriptor => ContentDescriptor(
     key: key,
     semanticKind: SemanticKind.sticker,
@@ -33,7 +35,7 @@ final class LottieSticker {
     spokenName: spokenName,
   );
 
-  /// Where the bundle holds the file.
+  @override
   String get assetPath => 'assets/lottie_stickers/$name.json';
 }
 
@@ -43,9 +45,9 @@ final class LottieSticker {
 ///
 /// It stands in for content a real host fetches from its backend, as
 /// `AnimatedEmojiPack` does: [source] publishes the pack as a collection,
-/// [descriptors] are what the host tells its asset pipeline, [resolver]
-/// describes the pack's keys found bare (in the recents), and the bundle
-/// fetcher of the app reads [LottieSticker.assetPath].
+/// [descriptors] are what the host tells its asset pipeline, and `BundledPacks`
+/// describes the pack's keys found bare (in the recents) and reads
+/// [LottieSticker.assetPath] from the bundle.
 abstract final class LottieStickerPack {
   /// The collection the pack is listed as.
   static const CollectionId id = CollectionId.set('demo_lottie');
@@ -79,52 +81,6 @@ abstract final class LottieStickerPack {
 
   /// A source that lists the pack, loaded from the start: everything it holds
   /// is in the bundle, so there is nothing to wait for.
-  static CollectionSource source() => _PackSource();
-
-  /// A resolver that knows the pack's stickers and nothing else.
-  static ContentResolver resolver() => const _PackResolver();
-}
-
-final class _PackSource implements CollectionSource {
-  final listen.ValueNotifier<List<Collection>> _collections =
-      listen.ValueNotifier(
-        List.unmodifiable([
-          Collection(
-            id: LottieStickerPack.id,
-            metadata: const CollectionMetadata(
-              title: LottieStickerPack.title,
-              flags: CollectionFlags.installed,
-            ),
-            contents: CollectionContents.loaded([
-              for (final sticker in LottieStickerPack.stickers)
-                CollectionItem.described(sticker.descriptor),
-            ]),
-          ),
-        ]),
-      );
-
-  @override
-  listen.ValueListenable<List<Collection>> get collections => _collections;
-
-  // Loaded from the start, with no page after the first.
-  @override
-  Future<void> load(CollectionId id) async {}
-
-  @override
-  Future<void> loadMore(CollectionId id) async {}
-
-  @override
-  void dispose() => _collections.dispose();
-}
-
-/// Describes the pack's keys; any other key is unknown content.
-final class _PackResolver implements ContentResolver {
-  const _PackResolver();
-
-  @override
-  Future<Map<ContentKey, ContentDescriptor>> resolve(
-    Iterable<ContentKey> keys,
-  ) async => {
-    for (final key in keys) key: ?LottieStickerPack.of(key)?.descriptor,
-  };
+  static CollectionSource source() =>
+      BundledPackSource(id: id, title: title, items: stickers);
 }

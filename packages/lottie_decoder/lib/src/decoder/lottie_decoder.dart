@@ -11,6 +11,7 @@ import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/paint/lottie_animation_paintable.dart';
 import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
 import 'package:lottie_decoder/src/playback/lottie_frame_scheduler.dart';
+import 'package:lottie_decoder/src/renderer/lottie_frame_size.dart';
 import 'package:lottie_native/lottie_native.dart';
 
 /// Decodes an encoded still image (the thumbnail of an animation) into an
@@ -188,8 +189,10 @@ final class _LottieDecode implements AssetTask {
       math.max(spec.pixelWidth, spec.pixelHeight),
       LottieRenderJob.maxEdge,
     );
-    final width = _scaled(info.width, info, edge);
-    final height = _scaled(info.height, info, edge);
+    final LottieFrameSize(:width, :height) = LottieFrameSize.fitting(
+      info,
+      edge,
+    );
     final ui.Image image;
     try {
       image = await _renderFirstFrame(handle, width, height);
@@ -294,8 +297,8 @@ final class _LottieDecode implements AssetTask {
             onError: (Object error, StackTrace stackTrace) {
               // A closed engine already freed every handle it issued: the
               // host shut down while this decode was ending, and there is
-              // nothing left to free.
-              if (error is StateError) return;
+              // nothing left to free. Any other failure is a real one.
+              if (error is LottieEngineClosed) return;
               FlutterError.reportError(
                 FlutterErrorDetails(
                   exception: error,
@@ -308,7 +311,4 @@ final class _LottieDecode implements AssetTask {
           ),
     );
   }
-
-  static int _scaled(int side, LottieInfo info, int edge) =>
-      math.max(1, (side * edge / math.max(info.width, info.height)).round());
 }

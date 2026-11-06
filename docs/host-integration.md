@@ -187,9 +187,12 @@ Create, in this order:
    scheduler follows the same clock as every binding, so it is gated by the
    same pause layers, and it must exist before the scope does. A scope handed a
    clock does not own it: the host disposes it, after the scope.
-2. The engine: `IsolateLottieEngine.spawn()` inside a guard. A `StateError`
-   means the library is missing or speaks another version: log once through
-   the host's diagnostics, create nothing more and do not register.
+2. The engine: `IsolateLottieEngine.spawn()` inside a guard that catches
+   every failure, since the probe means "the engine could not start". A
+   `LottieUnavailable` (a `StateError` carrying the `LottieAvailability`) means
+   the library is missing or speaks another version; any other error is the
+   isolate failing to start. Log once through the host's diagnostics with the
+   error's type, create nothing more and do not register.
 3. One `NativeFramePageMemory` (the render isolate writes it), a `FrameAtlas`
    over it with a `LottieFrameRenderer` and the memory-pressure `Listenable`
    the scope shares, and a `LottieFrameScheduler` on the clock, which owns the
@@ -201,7 +204,12 @@ Create, in this order:
 Dispose in this order: the scope and the pipeline (dropping an entry frees the
 animation it holds, through the engine), then the scheduler (which disposes the
 atlas), then `engine.close()`, then the memory, then the clock. The engine
-closes before the memory because its isolate writes into it. `dart:ffi` does
+closes before the memory because its isolate writes into it; `close()` lets the
+requests already sent finish, and a use after it throws `LottieEngineClosed`
+(the one error a handle's disposal may ignore). The example holds the three
+steps in `LottiePlayback`, a class with the `decoder` and a `close()` that runs
+them in that order, once, and never skips one because another failed; the host
+reports a failing close instead of leaving an unhandled future. `dart:ffi` does
 not compile for the web, so put the probe behind a conditional import and keep
 the native file unreachable from a web build.
 
@@ -1110,7 +1118,7 @@ not use the hover-open toggle region.
 | --- | --- |
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
 | Lottie decoder probe and start (native and web forks) | `example/lib/src/app/lottie_playback.dart`, `lottie_playback_native.dart`, `lottie_playback_stub.dart` |
-| Bundled packs: one fetcher and resolver, the authored Lottie stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `lottie_sticker_pack.dart` |
+| Bundled packs: one lookup, fetcher and resolver, one pack source, the authored Lottie stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart` |
 | `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
 | App scopes | `example/lib/src/app/app_chrome.dart` |
 | Per-chat controller set, event handler, back, hand-off | `example/lib/src/features/chat/input/chat_input_set.dart` |

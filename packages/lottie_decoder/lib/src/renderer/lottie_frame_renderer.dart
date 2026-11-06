@@ -22,21 +22,22 @@ final class LottieFrameRenderer implements FrameRenderer {
     }
     final engineJobs = <LottieEngineJob>[];
     for (final job in jobs) {
-      // An extension type on int: the check below is `is int` at run time.
-      final source = job.source;
-      if (source is! LottieHandle) {
-        throw ArgumentError.value(
-          source,
+      // LottieHandle is an extension type on int, so this pattern is an
+      // `is int` check at run time.
+      final handle = switch (job.source) {
+        final LottieHandle source => source,
+        final other => throw ArgumentError.value(
+          other,
           'job.source',
           'must be a LottieHandle',
-        );
-      }
+        ),
+      };
       final side = _memory.pageSide;
       final left = job.slot.rect.left.toInt();
       final top = job.slot.rect.top.toInt();
       engineJobs.add(
         LottieEngineJob(
-          handle: source as LottieHandle,
+          handle: handle,
           frame: job.frame.toDouble(),
           width: job.width,
           height: job.height,

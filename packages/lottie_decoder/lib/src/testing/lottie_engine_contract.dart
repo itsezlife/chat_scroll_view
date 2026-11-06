@@ -141,16 +141,20 @@ abstract final class LottieEngineContract {
         await expectLater(engine.dispose(handle), completes);
       });
 
-      test('close is idempotent and later calls throw StateError', () async {
-        final handle = await load();
+      test(
+        'close is idempotent and later calls throw LottieEngineClosed',
+        () async {
+          final handle = await load();
 
-        await engine.close();
-        await engine.close();
+          await engine.close();
+          await engine.close();
 
-        await expectLater(engine.load(harness.validBytes), throwsStateError);
-        await expectLater(engine.renderBatch(const []), throwsStateError);
-        await expectLater(engine.dispose(handle), throwsStateError);
-      });
+          final closed = throwsA(isA<LottieEngineClosed>());
+          await expectLater(engine.load(harness.validBytes), closed);
+          await expectLater(engine.renderBatch(const []), closed);
+          await expectLater(engine.dispose(handle), closed);
+        },
+      );
     });
   }
 }

@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_native/lottie_native.dart';
+import 'package:meta/meta.dart';
 
 /// A [LottieEngine] whose [LottieBinding] lives on one long-lived isolate of
 /// its own, so parsing and rasterizing never take a frame from the UI isolate
@@ -18,6 +18,9 @@ import 'package:lottie_native/lottie_native.dart';
 /// nothing here pretends otherwise. What is handled is a Dart exception in
 /// one request (that request fails, the isolate stays usable) and the
 /// isolate ending (every pending request fails, the engine is closed).
+///
+/// [close] lets requests already sent finish: a render's future completes
+/// only after native code is done with the address it was given.
 final class IsolateLottieEngine implements LottieEngine {
   IsolateLottieEngine._() {
     // Listening before the isolate exists means no message can arrive unheard;
@@ -31,14 +34,18 @@ final class IsolateLottieEngine implements LottieEngine {
   ///
   /// [bindingFactory] builds the isolate's binding and must be a top-level or
   /// static function, since it crosses isolates; it defaults to
-  /// [NativeLottieBinding.probe]. Throws a [StateError] carrying the reported
-  /// [LottieAvailability] when that binding is not available (the isolate is
-  /// shut down first), and a [StateError] when the isolate ends before it is
-  /// ready; the host decides what to log and does not register the decoder.
+  /// [NativeLottieBinding.probe]. Throws a [LottieUnavailable] carrying the
+  /// reported [LottieAvailability] when that binding is not available (the
+  /// isolate is shut down first), and a [StateError] when the isolate ends
+  /// before it is ready; the host decides what to log and does not register the decoder.
   static Future<IsolateLottieEngine> spawn({
     LottieBinding Function()? bindingFactory,
   }) async {
     final engine = IsolateLottieEngine._();
+    // The isolate can end before anyone awaits readiness (a binding factory
+    // that throws): the error is then recorded on the future but not left
+    // unhandled; the await below still receives it.
+    final ready = engine._ready.future..ignore();
     try {
       engine._isolate = await Isolate.spawn(
         _renderIsolateMain,
@@ -46,23 +53,30 @@ final class IsolateLottieEngine implements LottieEngine {
         onError: engine._errors.sendPort,
         onExit: engine._exits.sendPort,
       );
-      await engine._ready.future;
+      await ready;
       return engine;
       // Whatever stopped the start-up, the isolate and the ports go with it.
       // ignore: avoid_catches_without_on_clauses
     } catch (_) {
-      engine._isolate.kill(priority: Isolate.immediate);
-      engine._releasePorts();
+      // Ports first: the isolate may never have existed (spawn itself threw),
+      // and nothing here may throw in place of the original error.
+      engine
+        .._releasePorts()
+        .._isolate?.kill(priority: Isolate.immediate);
       rethrow;
     }
   }
 
   // --- State ---
 
-  final _replies = ReceivePort();
-  final _errors = ReceivePort();
-  final _exits = ReceivePort();
-  late final Isolate _isolate;
+  /// How the engine makes its three ports; tests swap it to see them close.
+  @visibleForTesting
+  static ReceivePort Function() debugPortFactory = ReceivePort.new;
+
+  final _replies = debugPortFactory();
+  final _errors = debugPortFactory();
+  final _exits = debugPortFactory();
+  Isolate? _isolate;
   late final SendPort _commands;
 
   final _ready = Completer<void>();
@@ -94,7 +108,11 @@ final class IsolateLottieEngine implements LottieEngine {
   Future<void> close() async {
     if (!_closed) {
       _closed = true;
-      _failPending(StateError('The Lottie engine was closed.'));
+      // Requests already sent are not failed here: the isolate answers them
+      // in order before it handles the close, and native code may still be
+      // writing to the address a render was given. Failing the future early
+      // would let the caller free that memory under it. Only the isolate
+      // ending (_onExit) fails what is still pending, as a last resort.
       _commands.send(const _Close());
     }
     await _exited.future;
@@ -104,7 +122,7 @@ final class IsolateLottieEngine implements LottieEngine {
 
   Future<T> _request<T>(_Request Function(int id) make) {
     if (_closed) {
-      return Future<T>.error(StateError('The Lottie engine is closed.'));
+      return Future<T>.error(LottieEngineClosed());
     }
     final id = _nextId++;
     final completer = Completer<Object?>();
@@ -114,34 +132,22 @@ final class IsolateLottieEngine implements LottieEngine {
   }
 
   void _onReply(Object? message) {
-    switch (message) {
-      case _Ready(:final commands, :final availability):
-        if (commands == null) {
-          _ready.completeError(
-            StateError(
-              'The Lottie binding is not available in the render isolate: '
-              '${availability.name}.',
-            ),
-          );
-        } else {
-          _commands = commands;
-          _ready.complete();
-        }
-      case _Reply(:final id, :final error, :final stack, :final value):
-        final completer = _pending.remove(id);
-        if (error == null) {
-          completer?.complete(value);
-        } else {
-          completer?.completeError(RemoteError(error, stack!));
-        }
-      default:
-        throw StateError('Unexpected render isolate message: $message');
+    switch (message as _Event) {
+      case _Ready(:final commands):
+        _commands = commands;
+        _ready.complete();
+      case _Unavailable(:final availability):
+        _ready.completeError(LottieUnavailable(availability));
+      case _Value(:final id, :final value):
+        _pending.remove(id)?.complete(value);
+      case _Failure(:final id, :final error, :final stack):
+        _pending.remove(id)?.completeError(RemoteError(error, stack));
     }
   }
 
   void _onExit() {
     _closed = true;
-    _failPending(StateError('the render isolate ended'));
+    _failPending(LottieEngineClosed('the render isolate ended'));
     if (!_ready.isCompleted) {
       _ready.completeError(
         StateError(
@@ -178,11 +184,24 @@ final class _Boot {
   final LottieBinding Function()? bindingFactory;
 }
 
-/// The isolate's first message: where to send requests, or `null` and why
-/// the binding cannot serve (the isolate ends right after).
-final class _Ready {
-  const _Ready(this.commands, this.availability);
-  final SendPort? commands;
+/// What the isolate sends back: its start-up verdict, then one answer per
+/// request. Closed, so the receiving side matches every case and reads no
+/// nullable field.
+sealed class _Event {
+  const _Event();
+}
+
+/// The isolate's first message when the binding can serve: where to send
+/// requests.
+final class _Ready extends _Event {
+  const _Ready(this.commands);
+  final SendPort commands;
+}
+
+/// The isolate's first message when the binding cannot serve, and why (the
+/// isolate ends right after).
+final class _Unavailable extends _Event {
+  const _Unavailable(this.availability);
   final LottieAvailability availability;
 }
 
@@ -214,15 +233,19 @@ final class _Close extends _Request {
   const _Close();
 }
 
-/// The one reply type: the request id, and either a value or a failure.
-final class _Reply {
-  const _Reply.value(this.id, this.value) : error = null, stack = null;
-  const _Reply.failure(this.id, String this.error, String this.stack)
-    : value = null;
+/// A request that succeeded, with its result.
+final class _Value extends _Event {
+  const _Value(this.id, this.value);
   final int id;
   final Object? value;
-  final String? error;
-  final String? stack;
+}
+
+/// A request that threw: the error and stack as text (they cross isolates).
+final class _Failure extends _Event {
+  const _Failure(this.id, this.error, this.stack);
+  final int id;
+  final String error;
+  final String stack;
 }
 
 // --- The isolate side ---
@@ -230,19 +253,19 @@ final class _Reply {
 void _renderIsolateMain(_Boot boot) {
   final binding = boot.bindingFactory?.call() ?? NativeLottieBinding.probe();
   if (!binding.isAvailable) {
-    boot.replies.send(_Ready(null, binding.availability));
+    boot.replies.send(_Unavailable(binding.availability));
     return;
   }
 
   final commands = ReceivePort();
   void answer(int id, Object? Function() work) {
     try {
-      boot.replies.send(_Reply.value(id, work()));
+      boot.replies.send(_Value(id, work()));
       // One request's failure must not end the isolate; it is reported with
       // its stack to the caller of that request.
       // ignore: avoid_catches_without_on_clauses
     } catch (error, stack) {
-      boot.replies.send(_Reply.failure(id, '$error', '$stack'));
+      boot.replies.send(_Failure(id, '$error', '$stack'));
     }
   }
 
@@ -253,17 +276,8 @@ void _renderIsolateMain(_Boot boot) {
       case _Render(:final id, :final jobs):
         answer(
           id,
-          () => binding.renderBatch([
-            for (final job in jobs)
-              LottieRenderJob(
-                handle: job.handle,
-                frame: job.frame,
-                width: job.width,
-                height: job.height,
-                target: Pointer<Uint8>.fromAddress(job.address),
-                strideBytes: job.strideBytes,
-              ),
-          ]),
+          () =>
+              binding.renderBatch([for (final job in jobs) job.toBindingJob()]),
         );
       case _Dispose(:final id, :final handle):
         answer(id, () => binding.dispose(handle));
@@ -277,5 +291,5 @@ void _renderIsolateMain(_Boot boot) {
         }
     }
   });
-  boot.replies.send(_Ready(commands.sendPort, binding.availability));
+  boot.replies.send(_Ready(commands.sendPort));
 }

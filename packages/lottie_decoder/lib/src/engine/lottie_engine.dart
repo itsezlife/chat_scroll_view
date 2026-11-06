@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:lottie_native/lottie_native.dart';
@@ -18,8 +19,10 @@ abstract interface class LottieEngine {
   /// Releases [handle]. Idempotent.
   Future<void> dispose(LottieHandle handle);
 
-  /// Retires the engine and what it holds. Idempotent; every other call
-  /// afterwards throws a [StateError].
+  /// Retires the engine and what it holds. Requests already made run to
+  /// completion first, so no native code writes to a caller's memory after
+  /// its future completes. Idempotent; every other call
+  /// afterwards throws a [LottieEngineClosed].
   Future<void> close();
 }
 
@@ -54,4 +57,41 @@ final class LottieEngineJob {
 
   /// The distance in bytes between the starts of two rows.
   final int strideBytes;
+
+  /// The binding's own job, with [address] turned back into a pointer. An
+  /// engine calls it on the isolate that owns the binding.
+  LottieRenderJob toBindingJob() => LottieRenderJob(
+    handle: handle,
+    frame: frame,
+    width: width,
+    height: height,
+    target: Pointer<Uint8>.fromAddress(address),
+    strideBytes: strideBytes,
+  );
+}
+
+/// An engine was used after it closed (or after its isolate ended): the
+/// handles it issued are gone with it, so a caller freeing one may ignore
+/// this and nothing else.
+///
+/// A [StateError] so code that only wants "unusable engine" keeps working;
+/// a catch site that must tell this case apart matches this type, never the
+/// bare [StateError].
+final class LottieEngineClosed extends StateError {
+  /// Creates the error; [message] says which way the engine ended.
+  LottieEngineClosed([super.message = 'The Lottie engine is closed.']);
+}
+
+/// The render isolate could not serve: its binding reported [availability]
+/// other than `available`. The host does not register the decoder.
+final class LottieUnavailable extends StateError {
+  /// Creates the error for a binding that reported [availability].
+  LottieUnavailable(this.availability)
+    : super(
+        'The Lottie binding is not available in the render isolate: '
+        '${availability.name}.',
+      );
+
+  /// Why the binding cannot serve.
+  final LottieAvailability availability;
 }

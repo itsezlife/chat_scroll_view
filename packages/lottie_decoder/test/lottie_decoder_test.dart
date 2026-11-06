@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
 import 'package:lottie_native/lottie_native.dart';
@@ -73,13 +73,14 @@ final class _Rig {
     LottieEngine? engine,
     LottieImageDecoder? decodeImage,
     LottiePixelUploader? upload,
+    FrameRenderer? renderer,
   }) : binding = FakeLottieBinding()..accept(_fakeBytes, _info) {
     this.engine = engine ?? InProcessLottieEngine(binding);
     ticks = ManualPlaybackTickSource();
     clock = PlaybackClock(ticks: ticks);
     scheduler = LottieFrameScheduler(
       atlas: FrameAtlas<Object>(
-        renderer: FakeFrameRenderer(),
+        renderer: renderer ?? FakeFrameRenderer(),
         memory: ListFramePageMemory(pageSide: 1024),
         sizeClasses: const [64, 128, 256, 512],
         upload: (pixels, side) async => _image(),
@@ -213,6 +214,54 @@ void main() {
       expect(rig.uploaded.single.pixels, hasLength(100 * 50 * 4));
     });
 
+    test(
+      'the decode and the paintable render a non-square file at one size',
+      () async {
+        final sizes = _SizeRecordingRenderer();
+        final wide = _Rig(renderer: sizes);
+        addTearDown(wide.close);
+        wide.binding.accept(
+          Uint8List.fromList([7]),
+          const LottieInfo(
+            width: 300,
+            height: 100,
+            frameCount: 10,
+            frameRate: 30,
+            features: LottieFeatures.none,
+          ),
+        );
+        wide.decoder.decode(
+          _request(
+            Uint8List.fromList([7]),
+            spec: const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+          ),
+          report,
+        );
+        await settle();
+
+        final paintable = report.advances.last.paintable;
+        final recorder = ui.PictureRecorder();
+        paintable.paint(
+          ui.Canvas(recorder),
+          const ui.Rect.fromLTWH(0, 0, 64, 64),
+          const AssetPaintContext(
+            time: Duration.zero,
+            loop: true,
+            restFrame: AssetRestFrame.first,
+            animate: true,
+            opacity: 1,
+          ),
+        );
+        recorder.endRecording().dispose();
+        wide.ticks.tick(const Duration(milliseconds: 16));
+        await settle();
+
+        final first = wide.uploaded.single;
+        expect(sizes.sizes, [(first.width, first.height)]);
+        expect((first.width, first.height), (64, 21));
+      },
+    );
+
     test('the animation frees its handle when it is disposed', () async {
       rig.decoder.decode(_request(_fakeBytes), report);
       await settle();
@@ -316,6 +365,38 @@ void main() {
       expect(report.failures, [AssetFailureKind.permanent]);
       expect(report.advances, isEmpty);
       expect(rig.binding.liveHandles, 0);
+    });
+
+    test('a closed engine at handle disposal is not reported', () async {
+      final reported = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      addTearDown(() => FlutterError.onError = previous);
+      final closing = _Rig(engine: _DisposeThrows(LottieEngineClosed()));
+      addTearDown(closing.close);
+      closing.decoder.decode(_request(_fakeBytes), report);
+      await settle();
+
+      report.advances.last.paintable.dispose();
+      await settle();
+
+      expect(reported, isEmpty);
+    });
+
+    test('any other failure at handle disposal is reported', () async {
+      final reported = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      addTearDown(() => FlutterError.onError = previous);
+      final failing = _Rig(engine: _DisposeThrows(StateError('not a close')));
+      addTearDown(failing.close);
+      failing.decoder.decode(_request(_fakeBytes), report);
+      await settle();
+
+      report.advances.last.paintable.dispose();
+      await settle();
+
+      expect(reported.single.exception, isA<StateError>());
     });
 
     test('an engine that throws fails permanently, never throws', () async {
@@ -447,4 +528,38 @@ final class _DeferredEngine implements LottieEngine {
 
   @override
   Future<void> close() async => (await _engine).close();
+}
+
+/// An in-process engine whose handle disposal throws [error].
+final class _DisposeThrows implements LottieEngine {
+  _DisposeThrows(this.error);
+
+  final Object error;
+  final _inner = InProcessLottieEngine(
+    FakeLottieBinding()..accept(_fakeBytes, _info),
+  );
+
+  @override
+  Future<LottieLoadResult> load(Uint8List bytes) => _inner.load(bytes);
+
+  @override
+  Future<List<LottieRenderStatus>> renderBatch(List<LottieEngineJob> jobs) =>
+      _inner.renderBatch(jobs);
+
+  @override
+  Future<void> dispose(LottieHandle handle) => Future.error(error);
+
+  @override
+  Future<void> close() => _inner.close();
+}
+
+/// A renderer that notes the size of every job and renders nothing.
+final class _SizeRecordingRenderer implements FrameRenderer {
+  final List<(int, int)> sizes = [];
+
+  @override
+  Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory) async {
+    sizes.addAll([for (final job in jobs) (job.width, job.height)]);
+    return [for (var i = 0; i < jobs.length; i++) i];
+  }
 }

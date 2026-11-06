@@ -5,6 +5,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/painting.dart';
 import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
 import 'package:lottie_decoder/src/playback/lottie_frame_scheduler.dart';
+import 'package:lottie_decoder/src/renderer/lottie_frame_size.dart';
 import 'package:lottie_native/lottie_native.dart';
 
 /// A Lottie animation played by the shared clock through a
@@ -62,8 +63,7 @@ final class LottieAnimationPaintable implements AssetPaintable {
        _still = LottieStillPaintable(firstFrame),
        _scheduler = scheduler,
        _onDispose = onDispose,
-       _width = _scaled(info.width, info, renderEdge),
-       _height = _scaled(info.height, info, renderEdge);
+       _size = LottieFrameSize.fitting(info, renderEdge);
 
   /// The largest step of the clock between two paints that counts as time
   /// played; a longer one is a pause that ended.
@@ -75,8 +75,7 @@ final class LottieAnimationPaintable implements AssetPaintable {
   final LottieStillPaintable _still;
   final LottieFrameScheduler _scheduler;
   final VoidCallback? _onDispose;
-  final int _width;
-  final int _height;
+  final LottieFrameSize _size;
 
   LottieFrameLease? _lease;
   Duration _played = Duration.zero;
@@ -84,9 +83,6 @@ final class LottieAnimationPaintable implements AssetPaintable {
   bool _holding = false;
   bool _failed = false;
   bool _disposed = false;
-
-  static int _scaled(int side, LottieInfo info, int edge) =>
-      math.max(1, (side * edge / math.max(info.width, info.height)).round());
 
   @override
   AtlasSprite? get sprite => null;
@@ -146,8 +142,8 @@ final class LottieAnimationPaintable implements AssetPaintable {
       lease = _lease = _scheduler.acquire(
         _key,
         _handle as Object,
-        _width,
-        _height,
+        _size.width,
+        _size.height,
       );
       if (lease == null) return;
     }

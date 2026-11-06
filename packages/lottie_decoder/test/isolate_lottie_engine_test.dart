@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
@@ -51,6 +53,11 @@ LottieBinding _dyingBinding() => _ScriptedBinding();
 LottieBinding Function() _reportingFactory(SendPort port) =>
     () => _ScriptedBinding(report: port);
 
+/// A binding whose render does not return until the file [flag] exists, so a
+/// render stays in flight in the isolate for as long as a test wants.
+LottieBinding Function() _blockingFactory(String flag) =>
+    () => _BlockingBinding(flag);
+
 /// The bytes that make [_ScriptedBinding] end its isolate on load.
 final _poison = Uint8List.fromList([66]);
 
@@ -97,6 +104,68 @@ final class _ScriptedBinding implements LottieBinding {
   }
 }
 
+LottieBinding _throwingBinding() => throw StateError('scripted factory');
+
+/// A port that remembers whether it was closed.
+final class _RecordingPort extends Stream<dynamic> implements ReceivePort {
+  final _inner = ReceivePort();
+  bool closed = false;
+
+  @override
+  StreamSubscription<dynamic> listen(
+    void Function(Object? event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) => _inner.listen(
+    onData,
+    onError: onError,
+    onDone: onDone,
+    cancelOnError: cancelOnError,
+  );
+
+  @override
+  SendPort get sendPort => _inner.sendPort;
+
+  @override
+  void close() {
+    closed = true;
+    _inner.close();
+  }
+}
+
+final class _BlockingBinding implements LottieBinding {
+  _BlockingBinding(this.flag) {
+    _fake.accept(_fakeBytes, _fakeInfo);
+  }
+
+  final String flag;
+  final _fake = FakeLottieBinding();
+
+  @override
+  LottieAvailability get availability => _fake.availability;
+
+  @override
+  bool get isAvailable => _fake.isAvailable;
+
+  @override
+  LottieLoadResult load(Uint8List bytes) => _fake.load(bytes);
+
+  @override
+  List<LottieRenderStatus> renderBatch(List<LottieRenderJob> jobs) {
+    while (!File(flag).existsSync()) {
+      sleep(const Duration(milliseconds: 5));
+    }
+    return _fake.renderBatch(jobs);
+  }
+
+  @override
+  void dispose(LottieHandle handle) => _fake.dispose(handle);
+
+  @override
+  void close() => _fake.close();
+}
+
 void main() {
   group('over the fake binding', () {
     LottieEngineContract.run(
@@ -125,10 +194,10 @@ void main() {
       expect(
         IsolateLottieEngine.spawn(bindingFactory: _unavailableBinding),
         throwsA(
-          isA<StateError>().having(
-            (e) => e.message,
-            'message',
-            contains('abiMismatch'),
+          isA<LottieUnavailable>().having(
+            (e) => e.availability,
+            'availability',
+            LottieAvailability.abiMismatch,
           ),
         ),
       );
@@ -176,13 +245,75 @@ void main() {
       final doomed = engine.load(_poison);
       final alsoPending = engine.load(_fakeBytes);
 
-      await expectLater(doomed, throwsStateError);
-      await expectLater(alsoPending, throwsStateError);
-      await expectLater(engine.load(_fakeBytes), throwsStateError);
+      final closed = throwsA(isA<LottieEngineClosed>());
+      await expectLater(doomed, closed);
+      await expectLater(alsoPending, closed);
+      await expectLater(engine.load(_fakeBytes), closed);
       await expectLater(engine.close(), completes);
     });
 
-    test('requests pending at close fail', () async {
+    group('a failed spawn', () {
+      late List<_RecordingPort> ports;
+      late ReceivePort Function() previous;
+
+      setUp(() {
+        ports = [];
+        previous = IsolateLottieEngine.debugPortFactory;
+        IsolateLottieEngine.debugPortFactory = () {
+          final port = _RecordingPort();
+          ports.add(port);
+          return port;
+        };
+      });
+      tearDown(() => IsolateLottieEngine.debugPortFactory = previous);
+
+      test('before the isolate starts surfaces the original error', () async {
+        // A closure over a port cannot cross isolates: Isolate.spawn throws.
+        final unsendable = ReceivePort();
+        addTearDown(unsendable.close);
+
+        await expectLater(
+          IsolateLottieEngine.spawn(
+            bindingFactory: () {
+              unsendable.close();
+              return _fakeBinding();
+            },
+          ),
+          throwsA(isA<ArgumentError>()),
+        );
+
+        expect(ports, hasLength(3));
+        expect(ports.every((p) => p.closed), isTrue);
+      });
+
+      test('before ready surfaces the error and closes every port', () async {
+        await expectLater(
+          IsolateLottieEngine.spawn(bindingFactory: _throwingBinding),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('scripted factory'),
+            ),
+          ),
+        );
+
+        expect(ports, hasLength(3));
+        expect(ports.every((p) => p.closed), isTrue);
+      });
+
+      test('over an unavailable binding closes every port', () async {
+        await expectLater(
+          IsolateLottieEngine.spawn(bindingFactory: _unavailableBinding),
+          throwsA(isA<LottieUnavailable>()),
+        );
+
+        expect(ports, hasLength(3));
+        expect(ports.every((p) => p.closed), isTrue);
+      });
+    });
+
+    test('requests sent before close run to completion', () async {
       final engine = await IsolateLottieEngine.spawn(
         bindingFactory: _fakeBinding,
       );
@@ -190,7 +321,69 @@ void main() {
 
       final closing = engine.close();
 
-      await expectLater(pending, throwsStateError);
+      expect(await pending, isA<LottieLoaded>());
+      await closing;
+    });
+
+    test('close waits for a render in flight, which still succeeds', () async {
+      // The decoder frees its buffer when the render's future completes, so
+      // that future must not complete (least of all with an error) while
+      // native code may still write to the buffer.
+      final dir = Directory.systemTemp.createTempSync('lottie_close');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final flag = '${dir.path}/release';
+      final engine = await IsolateLottieEngine.spawn(
+        bindingFactory: _blockingFactory(flag),
+      );
+      final handle = ((await engine.load(_fakeBytes)) as LottieLoaded).handle;
+      final buffer = calloc<Uint8>(64 * 64 * 4);
+      addTearDown(() => calloc.free(buffer));
+      final events = <String>[];
+      final render = engine
+          .renderBatch([
+            LottieEngineJob(
+              handle: handle,
+              frame: 0,
+              width: 64,
+              height: 64,
+              address: buffer.address,
+              strideBytes: 64 * 4,
+            ),
+          ])
+          .then(
+            (statuses) {
+              events.add('render finished: ${statuses.single.name}');
+              return statuses;
+            },
+            onError: (Object error) {
+              events.add('render failed: $error');
+              return const <LottieRenderStatus>[];
+            },
+          );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      final closing = engine.close().then((_) => events.add('close completed'));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(events, isEmpty, reason: 'the render is still running');
+
+      File(flag).createSync();
+      await closing;
+
+      expect(events, ['render finished: ok', 'close completed']);
+      expect(await render, [LottieRenderStatus.ok]);
+      expect(buffer[3], isNot(0), reason: 'the render wrote its pixels');
+    });
+
+    test('a request after close is refused', () async {
+      final engine = await IsolateLottieEngine.spawn(
+        bindingFactory: _fakeBinding,
+      );
+      final closing = engine.close();
+
+      await expectLater(
+        engine.load(_fakeBytes),
+        throwsA(isA<LottieEngineClosed>()),
+      );
       await closing;
     });
 

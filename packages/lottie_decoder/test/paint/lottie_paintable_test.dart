@@ -334,6 +334,28 @@ void main() {
       expect(scheduler.leaseCount, 1);
     });
 
+    test(
+      'a repaint in a pause longer than the idle period keeps the frame',
+      () async {
+        final still = _image(8);
+        final p = make(still: still);
+        await paintAndSettle(p, at(0));
+        final before = await paintAndSettle(p, at(frame.inMilliseconds));
+        final rendered = before.draws.single.image;
+        expect(rendered, isNot(same(still)), reason: 'a frame is on screen');
+
+        // The clock stands still, but the sweep timer is real time by design.
+        clock.setPaused(PlaybackPauseLayer.fastScroll, paused: true);
+        for (var i = 0; i < 4; i++) {
+          timers.elapse(const Duration(seconds: 1));
+        }
+        final canvas = _RecordingCanvas();
+        p.paint(canvas, box, at(frame.inMilliseconds));
+
+        expect(canvas.draws.single.image, same(rendered));
+      },
+    );
+
     test('stops asking after a failed frame and keeps its still', () async {
       scheduler.dispose();
       final failing = _FailingRenderer();

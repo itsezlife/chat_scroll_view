@@ -1,13 +1,10 @@
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:chat_scroll_view_example/src/features/chat/data/bundle_fetcher.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:listen/listen.dart' as listen;
 
 /// One emoji of the [AnimatedEmojiPack]: an animated WebP in the app bundle.
 @immutable
-final class AnimatedEmoji {
+final class AnimatedEmoji implements BundledItem {
   const AnimatedEmoji._(this.code, this.name);
 
   /// The code points, as Noto names its files: lower-case hex joined by `_`.
@@ -24,10 +21,11 @@ final class AnimatedEmoji {
   /// Its content identity. A document key, not the unicode one: the animated
   /// emoji is other content than the glyph it stands for, and the two must
   /// never share a cache entry or a recents slot.
+  @override
   ContentKey get key =>
       ContentKey.document('${AnimatedEmojiPack._keyPrefix}$code');
 
-  /// What the pipeline needs to make it.
+  @override
   ContentDescriptor get descriptor => ContentDescriptor(
     key: key,
     semanticKind: SemanticKind.customEmoji,
@@ -40,7 +38,7 @@ final class AnimatedEmoji {
     spokenName: name,
   );
 
-  /// Where the bundle holds the file.
+  @override
   String get assetPath => 'assets/animated_emoji/$code.webp';
 }
 
@@ -49,10 +47,10 @@ final class AnimatedEmoji {
 /// the files; the credit CC BY 4.0 asks for is in their `LICENSE.md`).
 ///
 /// It stands in for content a real host fetches from its backend: [source]
-/// publishes the pack as a collection, [descriptors] are what the host tells
-/// its asset pipeline, [resolver] describes the pack's keys found bare (in the
-/// recents), and [fetcher] reads the files from the bundle where a real one
-/// would download them.
+/// publishes the pack as a collection and [descriptors] are what the host tells
+/// its asset pipeline. `BundledPacks` reads the files from the bundle where a
+/// real host would download them, and describes the pack's keys found bare (in
+/// the recents).
 abstract final class AnimatedEmojiPack {
   /// The collection the pack is listed as.
   static const CollectionId id = CollectionId.set('noto_animated_emoji');
@@ -132,56 +130,6 @@ abstract final class AnimatedEmojiPack {
 
   /// A source that lists the pack, loaded from the start: everything it holds
   /// is in the bundle, so there is nothing to wait for.
-  static CollectionSource source() => _PackSource();
-
-  /// A resolver that knows the pack's emoji and nothing else.
-  static ContentResolver resolver() => const _PackResolver();
-
-  /// A fetcher that reads the pack's files from [bundle].
-  static ContentFetcher fetcher(AssetBundle bundle) =>
-      BundleFetcher(bundle, pathOf: (key) => of(key)?.assetPath);
-}
-
-final class _PackSource implements CollectionSource {
-  final listen.ValueNotifier<List<Collection>> _collections =
-      listen.ValueNotifier(
-        List.unmodifiable([
-          Collection(
-            id: AnimatedEmojiPack.id,
-            metadata: const CollectionMetadata(
-              title: AnimatedEmojiPack.title,
-              flags: CollectionFlags.installed,
-            ),
-            contents: CollectionContents.loaded([
-              for (final item in AnimatedEmojiPack.emoji)
-                CollectionItem.described(item.descriptor),
-            ]),
-          ),
-        ]),
-      );
-
-  @override
-  listen.ValueListenable<List<Collection>> get collections => _collections;
-
-  // Loaded from the start, with no page after the first.
-  @override
-  Future<void> load(CollectionId id) async {}
-
-  @override
-  Future<void> loadMore(CollectionId id) async {}
-
-  @override
-  void dispose() => _collections.dispose();
-}
-
-/// Describes the pack's keys; any other key is unknown content.
-final class _PackResolver implements ContentResolver {
-  const _PackResolver();
-
-  @override
-  Future<Map<ContentKey, ContentDescriptor>> resolve(
-    Iterable<ContentKey> keys,
-  ) async => {
-    for (final key in keys) key: ?AnimatedEmojiPack.of(key)?.descriptor,
-  };
+  static CollectionSource source() =>
+      BundledPackSource(id: id, title: title, items: emoji);
 }

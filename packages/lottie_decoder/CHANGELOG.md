@@ -24,3 +24,13 @@ package is pre-1.0.
   permanent failures, cancel that frees the handle.
 - `LottieAnimationPaintable.onDispose`, run once on dispose so the decoder can
   free the engine handle.
+
+### Changed
+
+- `IsolateLottieEngine.close` lets requests already sent run to completion
+  (a render's future no longer fails while native code may still write to its
+  buffer); a failed `spawn` surfaces its own error and closes its ports.
+- `LottieEngineClosed` and `LottieUnavailable` (both `StateError`s) replace bare
+  `StateError`s for a closed engine and an unavailable binding.
+- `LottieFrameSize.fitting` is the one render size of the decoder and the
+  paintable; `LottieEngineJob.toBindingJob` the one job projection.
