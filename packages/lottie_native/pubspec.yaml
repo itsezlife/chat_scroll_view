@@ -13,9 +13,11 @@ environment:
   flutter: ">=3.27.0"
 
 dependencies:
-  # Both are for hook/build.dart: hook dependencies go under dependencies,
+  # All of these are for hook/build.dart: hook dependencies go under dependencies,
   # not dev_dependencies.
   code_assets: ^1.0.0
+  # SHA-256 of the sources and of a downloaded prebuilt library.
+  crypto: ^3.0.6
   ffi: ^2.1.0
   hooks: ^1.0.0
   # Only lib/testing.dart needs this: the contract suite is written with the
