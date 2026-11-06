@@ -89,6 +89,15 @@ abstract interface class AssetBinding implements Listenable {
   bool get visible;
   set visible(bool value);
 
+  /// Advances the asset's playback for this frame without painting, for a
+  /// surface that draws the paintable's sprite itself (see
+  /// [AssetPaintable.advancePlayback]).
+  ///
+  /// Call it before reading `paintable.sprite` of an animated paintable, with
+  /// the same playback time, animate flag and loop settings [paint] would use.
+  /// A surface that calls [paint] needs no call.
+  void advancePlayback();
+
   /// Paints the asset into [rect] at the scope's playback time: [paintable]
   /// clipped to the profile's corner radius, in [tint] and at [opacity].
   void paint(Canvas canvas, Rect rect, {Color? tint, double opacity = 1});

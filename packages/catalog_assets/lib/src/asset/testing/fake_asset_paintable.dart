@@ -11,7 +11,7 @@ import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 /// paint that animates starts a pass, the frame shown follows the time since
 /// then, and a paint that does not loop holds the rest frame once the pass is
 /// over. Without them it only records, and never holds.
-final class FakeAssetPaintable implements AssetPaintable {
+final class FakeAssetPaintable extends AssetPaintable {
   /// Creates a paintable called [label] (shown in failures).
   FakeAssetPaintable({
     this.label = 'paintable',
@@ -26,8 +26,10 @@ final class FakeAssetPaintable implements AssetPaintable {
   @override
   final bool isAnimated;
 
+  /// The sprite it exposes; a test sets it to play a paintable whose frame
+  /// arrives after it was advanced.
   @override
-  final AtlasSprite? sprite;
+  AtlasSprite? sprite;
 
   /// How long each frame of the sequence it plays lasts; empty for a
   /// paintable that only records.
@@ -35,6 +37,9 @@ final class FakeAssetPaintable implements AssetPaintable {
 
   /// Every [paint] call, in order.
   final List<({Rect rect, AssetPaintContext context})> paints = [];
+
+  /// The context of every [advancePlayback] call, in order.
+  final List<AssetPaintContext> advances = [];
 
   /// How many times [dispose] was called.
   int disposals = 0;
@@ -67,6 +72,9 @@ final class FakeAssetPaintable implements AssetPaintable {
     restarts++;
     return true;
   }
+
+  @override
+  void advancePlayback(AssetPaintContext context) => advances.add(context);
 
   @override
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) {

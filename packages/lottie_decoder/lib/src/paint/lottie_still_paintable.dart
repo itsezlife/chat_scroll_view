@@ -9,7 +9,7 @@ import 'package:flutter/painting.dart';
 ///
 /// It never animates, so a binding of it costs the clock nothing. A copy of
 /// the idea in `image_decoder`, which this package does not depend on.
-final class LottieStillPaintable implements AssetPaintable {
+final class LottieStillPaintable extends AssetPaintable {
   /// Paints [image], which it owns from now on.
   LottieStillPaintable(this._image);
 
