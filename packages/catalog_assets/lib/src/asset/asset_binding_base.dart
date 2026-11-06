@@ -116,6 +116,7 @@ abstract base class AssetBindingBase
         animate: animates,
         loop: profile.loop,
         restFrame: profile.restFrame,
+        fit: profile.fit,
       );
 
   @override

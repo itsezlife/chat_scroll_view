@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:catalog_assets/src/asset/asset_fit.dart';
 import 'package:catalog_assets/src/asset/asset_profile.dart';
 import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 import 'package:meta/meta.dart';
@@ -16,6 +17,7 @@ final class AssetPaintContext {
     this.animate = true,
     this.loop = true,
     this.restFrame = AssetRestFrame.first,
+    this.fit = AssetFit.contain,
   }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
 
   /// Colour a template asset (`AssetDecodeMode.template`) is drawn in, and the
@@ -44,6 +46,11 @@ final class AssetPaintContext {
 
   /// The frame a pass rests on when [loop] is false (`AssetProfile.restFrame`).
   final AssetRestFrame restFrame;
+
+  /// How a picture fills the rectangle (`AssetProfile.fit`). A paintable that
+  /// draws a picture places it with [AssetFit.place]; one that has no
+  /// proportions of its own (a placeholder) ignores it.
+  final AssetFit fit;
 }
 
 /// The thing a surface paints for an asset: the best stage the entry has
