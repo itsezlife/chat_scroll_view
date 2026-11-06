@@ -11,6 +11,11 @@ package is pre-1.0.
 - `LottieNativeVersion.engine`: the crate version and pinned tlottie revision
   as one token, part of every frame-cache key; a test compares it with
   `native/Cargo.toml`.
+- `native/tool/assemble_manifest.dart` builds `prebuilts.json` from a directory
+  of built libraries (header, duplicate and `--require` checks, re-read
+  verification); `source_hash.dart --check` fails on a stale recorded hash;
+  two GitHub workflows (untested on GitHub) publish the prebuilts and gate
+  crate changes. See the README, "Publishing prebuilts".
 - `LottieBinding`, the interface to the native Lottie renderer, with its load
   result, info, features bitmask and render job types.
 - `testing.dart`: `FakeLottieBinding` and `NativeBindingContract`, which every

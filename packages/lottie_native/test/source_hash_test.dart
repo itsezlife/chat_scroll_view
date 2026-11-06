@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import '../hook/src/prebuilt_manifest.dart';
 // ignore: avoid_relative_lib_imports, always_use_package_imports
 import '../hook/src/source_hash.dart';
+// ignore: avoid_relative_lib_imports, always_use_package_imports
+import '../native/tool/source_hash.dart' show runSourceHashCommand;
 
 const _cargoToml = '[package]\nname = "x"\nversion = "1.2.3"\n';
 
@@ -226,6 +228,88 @@ void main() {
 
       expect(code, 64);
       expect(out.toString(), contains('--write'));
+    });
+  });
+
+  group('runSourceHashCommand --check', () {
+    void writeManifest(Object? sourceHash) => _write(
+      native,
+      'prebuilts.json',
+      jsonEncode({
+        'schema': 1,
+        'crateVersion': '1.2.3',
+        'sourceHash': sourceHash,
+        'baseUrl': '',
+        'artifacts': <String, Object?>{},
+      }),
+    );
+
+    int check(StringBuffer out, [List<String> args = const ['--check']]) =>
+        runSourceHashCommand(args, native: native, out: out);
+
+    test('passes when the recorded hash is the hash of the sources', () {
+      _tree(native);
+      writeManifest(computeSourceHash(native));
+
+      expect(check(StringBuffer()), 0);
+    });
+
+    test('fails when the sources changed after the hash was recorded', () {
+      _tree(native);
+      final recorded = computeSourceHash(native);
+      writeManifest(recorded);
+      _write(native, 'src/x.rs', 'changed');
+      final out = StringBuffer();
+
+      final code = check(out);
+
+      expect(code, 1);
+      expect(out.toString(), contains('--write'));
+      expect(out.toString(), contains(recorded));
+    });
+
+    test('passes with an empty hash: nothing is published on purpose', () {
+      _tree(native);
+      writeManifest('');
+
+      expect(check(StringBuffer()), 0);
+    });
+
+    test('fails when the manifest is missing', () {
+      _tree(native);
+      final out = StringBuffer();
+
+      expect(check(out), 1);
+      expect(out.toString(), contains('prebuilts.json'));
+    });
+
+    test('fails when the manifest is not JSON', () {
+      _tree(native);
+      _write(native, 'prebuilts.json', '{nope');
+
+      expect(check(StringBuffer()), 1);
+    });
+
+    test('fails when sourceHash is not a string', () {
+      _tree(native);
+      writeManifest(5);
+
+      expect(check(StringBuffer()), 1);
+    });
+
+    test('--check does not combine with --write', () {
+      _tree(native);
+      writeManifest(computeSourceHash(native));
+
+      expect(check(StringBuffer(), const ['--check', '--write']), 64);
+    });
+
+    test('other arguments still reach the hash tool', () {
+      _tree(native);
+      final out = StringBuffer();
+
+      expect(check(out, const []), 0);
+      expect(out.toString().trim(), computeSourceHash(native));
     });
   });
 }

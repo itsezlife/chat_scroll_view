@@ -90,18 +90,65 @@ dependencies, so editing any of them re-runs it.
 
 ### Publishing prebuilts (maintainer)
 
-1. Build the library for each target from the current sources.
-2. Upload the files so that `baseUrl` + `file` resolves to each.
-3. For each file, print its entry and paste it under `artifacts`:
-   `dart native/tool/manifest_entry.dart <file>` prints `sha256` and `size`.
-4. Set `baseUrl`, then run `dart native/tool/source_hash.dart --write` from
-   the package root. It records the current `sourceHash` and the crate
-   version; without `--write` it only prints the hash. (Use `dart <file>`,
-   not `dart run`, which would run the build hook.)
+> The two workflows (`lottie_native_prebuilts.yml`,
+> `lottie_native_check.yml`) are UNTESTED on GitHub: they were written
+> without a hosted runner and only their YAML was parsed. Expect to fix them
+> on first use.
 
-After any edit to the crate, re-run step 4 only once new libraries are
-published; until then the stale `sourceHash` correctly disables the old
-artifacts.
+**Open decision: where the binaries are hosted.** The workflow assumes the
+GitHub Releases of this repository (`baseUrl` is
+`https://github.com/<owner>/<repo>/releases/download/<tag>/`). A release is
+immutable in practice and the manifest pins every file's SHA-256, so the host
+is not trusted, but a private repository needs another host or a token, and
+another host means another `--base-url`.
+
+Steps:
+
+1. Make the crate final: edit, commit and merge it. Bump `version` in
+   `native/Cargo.toml` if the libraries should get a new tag (the tag must be
+   `lottie_native-v<Cargo version>`; the workflow refuses a tag that
+   disagrees).
+2. Push the tag `lottie_native-v<version>` (or run the workflow by hand on
+   that tag). The workflow builds all ten target keys with
+   `cargo build --release --locked`, assembles `prebuilts.json` with
+   `--require` of every key (a missing, empty, duplicated or wrong-format
+   library fails the run) and creates the GitHub Release with the libraries
+   and the manifest attached. Run by hand from a branch it builds and
+   assembles but publishes nothing.
+3. Review the release: ten libraries, `prebuilts.json`. The manifest is also
+   the workflow artifact `prebuilts-manifest`.
+4. Copy that `prebuilts.json` over `native/prebuilts.json` and open a pull
+   request. The workflow never commits. `native check` runs
+   `dart native/tool/source_hash.dart --check` on it.
+5. Merge. From then on a consumer downloads the prebuilt for its target while
+   `sourceHash` equals the hash of the sources it has.
+
+By hand (any machine, same result): put the built files, named
+`libchat_lottie-<key>.<so|dylib|dll>`, alone in a directory and run, from the
+package root,
+
+```sh
+dart native/tool/assemble_manifest.dart <dir> --base-url <https url ending /> \
+  --require macos-arm64,macos-x64,ios-arm64,ios-arm64-simulator,ios-x64-simulator,android-arm64,android-x64,linux-x64,linux-arm64,windows-x64
+```
+
+It writes `native/prebuilts.json` (or `--out <file>`): each artifact's
+`file`, `sha256` and `size`, the current `sourceHash` and `crateVersion`. It
+writes nothing if a file is empty, has the wrong header for its key (ELF for
+Android and Linux, Mach-O for macOS and iOS, PE for Windows), two files claim
+one key, or a `--require` key has none, and it re-reads what it wrote.
+`manifest_entry.dart` prints one entry; `source_hash.dart` prints the hash,
+`--write` records it, `--check` exits non-zero when a non-empty recorded
+`sourceHash` differs from the sources. (Use `dart <file>`, not `dart run`,
+which would run the build hook.)
+
+**When the crate changes**, `--check` fails the pull request until the
+manifest agrees with the sources: publish new libraries (steps 1 to 5), or
+withdraw the old ones on purpose by setting `sourceHash` to `""` and
+`artifacts` to `{}`. Until new libraries are published, a stale `sourceHash`
+already disables the old artifacts at build time; the check is what stops it
+from lingering unnoticed. While `artifacts` is empty, `source_hash.dart
+--write` alone satisfies it.
 
 ## Types
 
