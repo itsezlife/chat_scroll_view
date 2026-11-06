@@ -5,6 +5,37 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (web-compilable core, breaking)
+
+- `LottieEngine` is now the neutral interface: `load`, `renderPixels`,
+  `dispose`, `close`. `renderBatch`, `renderCapturing` and `restore` moved to
+  the native-only `LottieSlotEngine`, which `InProcessLottieEngine` and
+  `IsolateLottieEngine` implement. Code that called those methods, or built
+  `LottieFrameRenderer` or `LottieDecoder` from a variable typed
+  `LottieEngine`, types it `LottieSlotEngine`; a custom `LottieEngine` now
+  implements `renderPixels` and no longer the slot methods. `LottieDecoder`
+  accepts any `LottieEngine`, and draws the first frame through
+  `renderPixels`.
+- `FrameCache(directory: Directory?)` is `FrameCache(directoryPath: String?)`.
+  `FrameCacheFiles` is an interface; the directory implementation is
+  `DirectoryFrameCacheFiles` (a test subclass of the old class extends that
+  and passes a path). On the web a non-null path is an `ArgumentError`.
+- The barrel exports the files that need `dart:ffi`, `dart:io` or
+  `dart:isolate` only where they exist; every VM importer sees the same names
+  as before, and the package compiles for the web (`web_compile_test`).
+- `LottieDecoder` reads a `FetchedFile` through `readFileBytes`: `dart:io` on
+  the VM, an `UnsupportedError` (a failed decode) on the web.
+
+### Added (web-compilable core)
+
+- `LottiePixelJob` and `LottiePixels`, the `renderPixels` job and result;
+  `LottiePixelJob.maxEdge` is the size limit that `LottieRenderJob.maxEdge`
+  has natively (a test holds them equal).
+- `PixelCopyFrameRenderer`: a `FrameRenderer` over any `LottieEngine` that
+  copies the pixels it returns into any `FramePageMemory`; no frame cache.
+- `FakePixelLottieEngine`, `LottieSlotEngineContract` and `renderPixels`
+  cases in `LottieEngineContract` (`testing.dart`).
+
 ### Changed (pages sized by class, breaking)
 
 - `NativeFramePageMemory()` takes no page side: `page(i, side:)` and
