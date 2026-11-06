@@ -159,9 +159,7 @@ final class LottieFrameScheduler {
   /// Idempotent.
   void dispose() {
     if (_disposed) return;
-    for (final lease in List.of(_leases.values)) {
-      _release(lease);
-    }
+    List.of(_leases.values).forEach(_release);
     _disposed = true;
     _atlas.dispose();
   }
