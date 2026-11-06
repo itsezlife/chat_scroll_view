@@ -182,6 +182,17 @@ the host shows, in the same `DecoderRegistry` as the others. It needs no native
 library, so it is registered whether or not the vector-animation decoder below
 started.
 
+### The video decoder: targets
+
+`video_native` ships its native library on macOS arm64 and Android arm64-v8a.
+On any other target (Android x86_64 and armv7, iOS, Windows, Linux, web) the
+hook bundles nothing and warns, and the probe (`NativeVideoBinding.probe()`,
+or starting the engine) reports `missingLibrary`: a host registers the video
+decoder only when that works, so video keeps its placeholder. A build without
+the recipe's prefix behaves the same; the warning names the command that makes
+it. Android needs the NDK at build time, and the library is aligned for 16 KiB
+pages.
+
 ### The vector-animation decoder
 
 A host that shows Lottie content registers one `Decoder` under
