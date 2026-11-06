@@ -8,6 +8,13 @@ this package is pre-1.0.
 
 ### Changed
 
+- The cap on playing clips no longer freezes the oldest. `maxAdvancing` now
+  defaults to 12 and counts the clips served per tick: past it the slots
+  rotate (overdue clips first, then the most recently leased half, then
+  round-robin), so every visible clip updates at least every `maxStaleness`
+  (250 ms) as far as the cap allows. Clip time runs for every playing clip;
+  `maxAdvancing` is settable; clips unpainted for `visibleWindow` take no
+  slot. Fixes GIFs stopping in the panel and in the chat while it is open.
 - The default thumbnail decode is `MiniThumbnail.decode`: at most 40 px on
   the longer side, blurred once, so painting a loading clip's thumbnail is one
   small image draw. Pass `decodeImage` for the previous full-size decode.
