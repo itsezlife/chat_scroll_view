@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
+import 'package:lottie_decoder/testing.dart';
 import 'package:lottie_native/lottie_native.dart';
 import 'package:lottie_native/testing.dart';
 
@@ -151,6 +153,293 @@ void main() {
     });
   });
 
+  group('with a frame cache', () {
+    const side = 48;
+    late CountingLottieEngine engine;
+    late NativeFramePageMemory memory;
+    late FrameSlotAllocator allocator;
+    late LottieHandle handle;
+    late FrameCacheKey key;
+
+    LottieEngine open({required LottieFrameCodec? codec}) =>
+        InProcessLottieEngine(
+          FakeLottieBinding()..accept(bytes, info),
+          codec: codec,
+        );
+
+    setUp(() async {
+      engine = CountingLottieEngine(open(codec: FakeLottieFrameCodec()));
+      memory = NativeFramePageMemory(pageSide: 256);
+      allocator = FrameSlotAllocator(
+        pageSide: 256,
+        maxPages: 1,
+        sizeClasses: const [64],
+      );
+      handle = ((await engine.load(bytes)) as LottieLoaded).handle;
+      key = FrameCacheKey(
+        contentHash: 'abc123',
+        width: side,
+        height: side,
+        engineVersion: '1.0.0',
+      );
+    });
+    tearDown(() async {
+      memory.dispose();
+      await engine.close();
+    });
+
+    LottieSource source({FrameCacheKey? cacheKey, int? frameCount}) =>
+        LottieSource(
+          handle,
+          frameCount: frameCount ?? info.frameCount,
+          cacheKey: cacheKey,
+        );
+
+    /// One job per frame, each into a slot of its own.
+    List<FrameJob> jobs(Iterable<int> frames, LottieSource source) => [
+      for (final frame in frames)
+        FrameJob(
+          slot: allocator.allocate(side, side)!,
+          frame: frame,
+          width: side,
+          height: side,
+          source: source,
+        ),
+    ];
+
+    /// The pixels of [job]'s slot, row by row.
+    List<int> pixels(FrameJob job) {
+      final page = memory.page(job.slot.pageIndex);
+      final left = job.slot.rect.left.toInt();
+      final top = job.slot.rect.top.toInt();
+      return [
+        for (var y = 0; y < side; y++)
+          for (var x = 0; x < side * 4; x++)
+            page[((top + y) * 256 + left) * 4 + x],
+      ];
+    }
+
+    LottieFrameRenderer renderer(FrameCache? cache) =>
+        LottieFrameRenderer(engine: engine, memory: memory, cache: cache);
+
+    test('the first pass renders and stores; the second restores and '
+        'renders nothing', () async {
+      final cache = FrameCache(directory: null);
+      addTearDown(cache.dispose);
+      final r = renderer(cache);
+      final first = jobs([0, 1, 2], source(cacheKey: key));
+      final second = jobs([0, 1, 2], source(cacheKey: key));
+
+      expect(await r.render(first, memory), [0, 1, 2]);
+      expect(engine.rendered, 3);
+      expect(engine.restored, 0);
+      expect(await r.render(second, memory), [0, 1, 2]);
+
+      expect(engine.rendered, 3, reason: 'nothing rendered again');
+      expect(engine.restored, 3);
+      for (var i = 0; i < 3; i++) {
+        expect(pixels(second[i]), pixels(first[i]), reason: 'frame $i');
+        expect(pixels(second[i]).any((b) => b != 0), isTrue);
+      }
+    });
+
+    test('a batch of cached and fresh frames renders only the fresh, and '
+        'answers in job order', () async {
+      final cache = FrameCache(directory: null);
+      addTearDown(cache.dispose);
+      final r = renderer(cache);
+      await r.render(jobs([1, 2], source(cacheKey: key)), memory);
+      engine
+        ..rendered = 0
+        ..restored = 0;
+
+      final mixed = jobs([0, 1, 2, 3], source(cacheKey: key));
+      final held = await r.render(mixed, memory);
+
+      expect(held, [0, 1, 2, 3]);
+      expect(engine.rendered, 2, reason: 'frames 0 and 3');
+      expect(engine.restored, 2, reason: 'frames 1 and 2');
+      expect(cache.has(key, 0), isTrue);
+      expect(cache.has(key, 3), isTrue);
+    });
+
+    test('a fresh cache on the same directory restores without rendering '
+        'after open', () async {
+      final dir = Directory.systemTemp.createTempSync('lottie_renderer_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final slots = [
+        for (var i = 0; i < info.frameCount; i++)
+          allocator.allocate(side, side)!,
+      ];
+      List<FrameJob> pass() => [
+        for (var i = 0; i < slots.length; i++)
+          FrameJob(
+            slot: slots[i],
+            frame: i,
+            width: side,
+            height: side,
+            source: source(cacheKey: key),
+          ),
+      ];
+      final before = FrameCache(directory: dir);
+      await renderer(before).render(pass(), memory);
+      await before.dispose();
+      final expected = [for (final job in pass()) pixels(job)];
+      memory.page(0).fillRange(0, 256 * 256 * 4, 0);
+      engine
+        ..rendered = 0
+        ..restored = 0;
+
+      // A new process, as far as the cache can tell: nothing in RAM.
+      final after = FrameCache(directory: dir);
+      addTearDown(after.dispose);
+      final jobs = pass();
+      final held = await renderer(after).render(jobs, memory);
+
+      expect(held, hasLength(info.frameCount));
+      expect(engine.rendered, 0);
+      expect(engine.restored, info.frameCount);
+      for (var i = 0; i < jobs.length; i++) {
+        expect(pixels(jobs[i]), expected[i], reason: 'frame $i');
+        expect(pixels(jobs[i]).any((b) => b != 0), isTrue);
+      }
+    });
+
+    test('a corrupt entry is rendered instead, and the animation is '
+        'dropped from the cache', () async {
+      final cache = FrameCache(directory: null);
+      addTearDown(cache.dispose);
+      for (var i = 0; i < info.frameCount; i++) {
+        cache.put(
+          key,
+          i,
+          Uint8List.fromList([9, 9, 9]),
+          frameCount: info.frameCount,
+        );
+      }
+      final job = jobs([3], source(cacheKey: key));
+
+      final held = await renderer(cache).render(job, memory);
+
+      expect(held, [0], reason: 'the frame is there, rendered');
+      expect(engine.restored, 1, reason: 'the entry was tried');
+      expect(engine.rendered, 1, reason: 'and the frame rendered after it');
+      expect(pixels(job.single).any((b) => b != 0), isTrue);
+      expect(
+        cache.has(key, 4),
+        isFalse,
+        reason: 'the rest of the garbage went',
+      );
+      expect(
+        cache.frame(key, 3),
+        isNot(Uint8List.fromList([9, 9, 9])),
+        reason: 'the rendered frame replaced the garbage',
+      );
+    });
+
+    test('a key above the display cap bypasses the cache', () async {
+      final cache = FrameCache(directory: null);
+      addTearDown(cache.dispose);
+      final big = FrameCacheKey(
+        contentHash: 'abc123',
+        width: 600,
+        height: 600,
+        engineVersion: '1.0.0',
+      );
+      final r = renderer(cache);
+
+      expect(await r.render(jobs([0], source(cacheKey: big)), memory), [0]);
+      expect(await r.render(jobs([0], source(cacheKey: big)), memory), [0]);
+
+      expect(engine.rendered, 2);
+      expect(engine.restored, 0);
+      expect(cache.has(big, 0), isFalse);
+    });
+
+    test('without a cache every frame renders, as before', () async {
+      final r = renderer(null);
+
+      await r.render(jobs([0, 1], source(cacheKey: key)), memory);
+      await r.render(jobs([0, 1], source(cacheKey: key)), memory);
+
+      expect(engine.rendered, 4);
+      expect(engine.restored, 0);
+    });
+
+    test('a source without a key renders every time', () async {
+      final cache = FrameCache(directory: null);
+      addTearDown(cache.dispose);
+      final r = renderer(cache);
+
+      await r.render(jobs([0], source()), memory);
+      await r.render(jobs([0], source()), memory);
+
+      expect(engine.rendered, 2);
+    });
+
+    test('a frame that did not render is not stored, nor reported', () async {
+      final cache = FrameCache(directory: null);
+      addTearDown(cache.dispose);
+      await engine.dispose(handle);
+
+      final held = await renderer(
+        cache,
+      ).render(jobs([0], source(cacheKey: key)), memory);
+
+      expect(held, isEmpty);
+      expect(cache.has(key, 0), isFalse);
+    });
+
+    test('a frame outside the animation renders and is not stored', () async {
+      final cache = FrameCache(directory: null);
+      addTearDown(cache.dispose);
+
+      final held = await renderer(
+        cache,
+      ).render(jobs([info.frameCount + 5], source(cacheKey: key)), memory);
+
+      expect(held, [0]);
+      expect(await cache.open(key), isNull);
+    });
+
+    test('an engine without a codec renders, and stores nothing', () async {
+      final bare = open(codec: null);
+      addTearDown(bare.close);
+      final bareHandle = ((await bare.load(bytes)) as LottieLoaded).handle;
+      final cache = FrameCache(directory: null);
+      addTearDown(cache.dispose);
+      final r = LottieFrameRenderer(engine: bare, memory: memory, cache: cache);
+
+      final held = await r.render([
+        FrameJob(
+          slot: allocator.allocate(side, side)!,
+          frame: 1,
+          width: side,
+          height: side,
+          source: LottieSource(
+            bareHandle,
+            frameCount: info.frameCount,
+            cacheKey: key,
+          ),
+        ),
+      ], memory);
+
+      expect(held, [0]);
+      expect(cache.has(key, 1), isFalse);
+    });
+
+    test('a disposed cache is skipped, not an error', () async {
+      final cache = FrameCache(directory: null);
+      final r = renderer(cache);
+      await cache.dispose();
+
+      final held = await r.render(jobs([0], source(cacheKey: key)), memory);
+
+      expect(held, [0]);
+      expect(engine.rendered, 1);
+    });
+  });
+
   final probe = NativeLottieBinding.probe();
   if (!probe.isAvailable) {
     test(
@@ -163,6 +452,85 @@ void main() {
     return;
   }
   group('over the native library', () {
+    test('30 rendered frames restore from the cache pixel for pixel', () async {
+      const side = 48;
+      const count = 30;
+      final engine = CountingLottieEngine(
+        InProcessLottieEngine(
+          NativeLottieBinding.probe(),
+          codec: NativeLottieFrameCodec.probe(),
+        ),
+      );
+      addTearDown(engine.close);
+      final memory = NativeFramePageMemory(pageSide: 512);
+      addTearDown(memory.dispose);
+      final loaded =
+          await engine.load(Uint8List.fromList(utf8.encode(_fixture)))
+              as LottieLoaded;
+      final key = FrameCacheKey(
+        contentHash: 'fixture',
+        width: side,
+        height: side,
+        engineVersion: LottieNativeVersion.engine,
+      );
+      final cache = FrameCache(directory: null);
+      addTearDown(cache.dispose);
+      final renderer = LottieFrameRenderer(
+        engine: engine,
+        memory: memory,
+        cache: cache,
+      );
+      final allocator = FrameSlotAllocator(
+        pageSide: 512,
+        maxPages: 1,
+        sizeClasses: const [64],
+      );
+      final slots = [
+        for (var i = 0; i < count * 2; i++) allocator.allocate(side, side)!,
+      ];
+      List<FrameJob> pass(int from) => [
+        for (var i = 0; i < count; i++)
+          FrameJob(
+            slot: slots[from + i],
+            frame: i,
+            width: side,
+            height: side,
+            source: LottieSource(
+              loaded.handle,
+              frameCount: loaded.info.frameCount,
+              cacheKey: key,
+            ),
+          ),
+      ];
+      List<int> pixels(FrameJob job) {
+        final page = memory.page(job.slot.pageIndex);
+        final left = job.slot.rect.left.toInt();
+        final top = job.slot.rect.top.toInt();
+        return [
+          for (var y = 0; y < side; y++)
+            for (var x = 0; x < side * 4; x++)
+              page[((top + y) * 512 + left) * 4 + x],
+        ];
+      }
+
+      final rendered = pass(0);
+      await renderer.render(rendered, memory);
+      final restored = pass(count);
+      final held = await renderer.render(restored, memory);
+
+      expect(held, hasLength(count));
+      expect(engine.rendered, count, reason: 'the second pass drew nothing');
+      expect(engine.restored, count);
+      for (var i = 0; i < count; i++) {
+        expect(pixels(restored[i]), pixels(rendered[i]), reason: 'frame $i');
+      }
+      expect(
+        {for (final job in rendered) pixels(job).join(',')}.length,
+        greaterThan(1),
+        reason: 'the frames differ, so equality means something',
+      );
+    });
+
     _runContract(
       NativeLottieBinding.probe,
       Uint8List.fromList(utf8.encode(_fixture)),
