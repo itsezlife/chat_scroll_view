@@ -39,8 +39,9 @@ abstract final class FrameRendererContract {
       setUp(() {
         harness = create();
         allocator = FrameSlotAllocator(
-          pageSide: harness.memory.pageSide,
-          maxPages: 2,
+          pageSideFor: (_) => harness.memory.pageSide,
+          budgetBytes:
+              2 * harness.memory.pageSide * harness.memory.pageSide * 4,
           sizeClasses: const [64],
         );
       });

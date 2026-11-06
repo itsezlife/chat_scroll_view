@@ -138,7 +138,7 @@ final class FrameAtlas<K extends Object> {
     final states = <K, _FrameState>{};
     final images = FramePageImages(memory: memory, upload: upload);
     final pool = FramePool<K>(
-      pageSide: memory.pageSide,
+      pageSideFor: (_) => memory.pageSide,
       budgetBytes: budgetBytes,
       sizeClasses: sizeClasses,
       onEvict: states.remove,
