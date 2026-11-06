@@ -4,6 +4,8 @@ mod features;
 mod frame_codec;
 mod input;
 mod status;
+#[cfg(any(target_arch = "wasm32", test))]
+mod wasm_alloc;
 
 pub use frame_codec::{
     chat_lottie_compress_region, chat_lottie_decompress_region, chat_lottie_lz4_bound,
