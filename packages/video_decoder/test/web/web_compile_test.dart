@@ -60,7 +60,7 @@ void main() {
     // A web import in the neutral files would break every VM build of the
     // package; only lib/web.dart and lib/src/web may use it.
     final webImport = RegExp(
-      r"^import '(dart:js_interop|package:web/)",
+      "^import '(dart:js_interop|package:web/)",
       multiLine: true,
     );
     final offenders = <String>[];

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback_stub.dart'
     if (dart.library.ffi) 'package:chat_scroll_view_example/src/app/video_playback_native.dart'
+    if (dart.library.js_interop) 'package:chat_scroll_view_example/src/app/video_playback_web.dart'
     as platform;
 import 'package:flutter/foundation.dart';
 import 'package:l/l.dart';
@@ -73,8 +74,8 @@ typedef VideoPlaybackStarter =
     });
 
 /// The platform's [VideoPlaybackStarter]: the native library behind
-/// `dart:ffi` where there is one, nothing elsewhere (the web plays video with
-/// the browser's own element, which a later change adds).
+/// `dart:ffi` where there is one, the browser's own `<video>` element behind
+/// `dart:js_interop` on the web, nothing elsewhere.
 ///
 /// A platform fork is a file, not a condition: `dart:ffi` is not importable
 /// in a web build, so the native file must not be reachable from it.
