@@ -284,4 +284,163 @@ void main() {
       },
     );
   });
+
+  group('fetchPrebuilt under hostile conditions', () {
+    // File permissions and symbolic links behave differently on Windows.
+    final posixOnly = Platform.isWindows ? 'POSIX file system only' : null;
+
+    test('a cleanup that fails never replaces the verdict or throws', () async {
+      // The server sends the body, then (once the .part file exists) takes
+      // away the right to delete in its directory before it ends the
+      // response. The file fails its hash, and removing it then fails too.
+      final dir = Directory('${cache.path}/${'ab' * 32}');
+      handler = (request) async {
+        request.response.add(_payload);
+        await request.response.flush();
+        while (!(dir.existsSync() &&
+            dir.listSync().any((e) => e.path.endsWith('.part')))) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+        await Process.run('chmod', ['555', dir.path]);
+        await request.response.close();
+      };
+      addTearDown(() => Process.runSync('chmod', ['755', dir.path]));
+
+      final result = await fetch(artifact: _artifact(sha256: 'ab' * 32));
+
+      final reason = (result as PrebuiltUnavailable).reason;
+      expect(reason, contains('sha256'), reason: 'the verdict is kept');
+      expect(reason, contains('could not delete'));
+    }, skip: posixOnly);
+
+    test('a timeout ends the transfer and no write follows it', () async {
+      // A raw socket, because an HttpServer cannot tell that its client has
+      // gone: this one sees the end of the connection as the end of its read
+      // side. It answers 200 and then trickles the body for ever.
+      final raw = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(raw.close);
+      final clientGone = Completer<void>();
+      raw.listen((socket) {
+        // The reset also fails the write side; it is the expected end.
+        unawaited(socket.done.then<void>((_) {}, onError: (Object _) {}));
+        socket.listen(
+          (_) {},
+          onDone: () {
+            if (!clientGone.isCompleted) clientGone.complete();
+          },
+          onError: (Object _) {
+            if (!clientGone.isCompleted) clientGone.complete();
+          },
+        );
+        socket.write(
+          'HTTP/1.1 200 OK\r\ncontent-length: ${_payload.length}\r\n\r\n',
+        );
+        Timer.periodic(const Duration(milliseconds: 20), (timer) {
+          if (clientGone.isCompleted) return timer.cancel();
+          try {
+            socket.add([1]);
+          } on Object {
+            timer.cancel();
+          }
+        });
+      });
+      url = Uri.parse('http://127.0.0.1:${raw.port}/libchat_lottie.dylib');
+
+      final result = await fetch(timeout: const Duration(milliseconds: 300));
+
+      expect((result as PrebuiltUnavailable).reason, contains('timed out'));
+      expect(leftovers(), isEmpty);
+      await clientGone.future.timeout(
+        const Duration(seconds: 3),
+        onTimeout: () => fail('the connection was left open after the timeout'),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(leftovers(), isEmpty, reason: 'nothing is written afterwards');
+    });
+
+    test('a redirect to a URL that is not HTTPS is not followed', () async {
+      var followed = 0;
+      handler = (request) async {
+        if (request.uri.path == '/elsewhere') {
+          followed++;
+          request.response.add(_payload);
+        } else {
+          request.response.statusCode = HttpStatus.found;
+          request.response.headers.set(
+            HttpHeaders.locationHeader,
+            'http://127.0.0.1:${server.port}/elsewhere',
+          );
+        }
+        await request.response.close();
+      };
+
+      final result = await fetch();
+
+      expect(
+        (result as PrebuiltUnavailable).reason,
+        allOf(contains('redirect'), contains('HTTPS')),
+      );
+      expect(followed, 0);
+      expect(leftovers(), isEmpty);
+    });
+
+    test('a relative redirect is resolved, and refused all the same', () async {
+      handler = (request) async {
+        request.response.statusCode = HttpStatus.movedPermanently;
+        request.response.headers.set(HttpHeaders.locationHeader, '/elsewhere');
+        await request.response.close();
+      };
+
+      final result = await fetch();
+
+      expect((result as PrebuiltUnavailable).reason, contains('HTTPS'));
+      expect(requests, 1);
+    });
+
+    test('a symlinked cache file is not trusted, and its target is left '
+        'alone', () async {
+      final outside = File('${cache.parent.path}/outside_${pid}_lib')
+        ..writeAsBytesSync(_payload);
+      addTearDown(() {
+        if (outside.existsSync()) outside.deleteSync();
+      });
+      final dir = Directory('${cache.path}/$_digest')..createSync();
+      Link('${dir.path}/libchat_lottie.dylib').createSync(outside.path);
+      final before = requests;
+
+      final result = await fetch();
+
+      final file = (result as PrebuiltReady).file;
+      expect(
+        FileSystemEntity.typeSync(file.path, followLinks: false),
+        FileSystemEntityType.file,
+        reason: 'a regular file replaced the link',
+      );
+      expect(requests, before + 1, reason: 'it was fetched, not trusted');
+      expect(outside.readAsBytesSync(), _payload);
+    }, skip: posixOnly);
+
+    test('a cache directory that is a link out is replaced, not written '
+        'through', () async {
+      final outside = Directory.systemTemp.createTempSync('prebuilt_outside');
+      addTearDown(() => outside.deleteSync(recursive: true));
+      File('${outside.path}/libchat_lottie.dylib').writeAsBytesSync(_payload);
+      Link('${cache.path}/$_digest').createSync(outside.path);
+      final before = requests;
+
+      final result = await fetch();
+
+      final file = (result as PrebuiltReady).file;
+      expect(
+        file.resolveSymbolicLinksSync(),
+        startsWith(cache.resolveSymbolicLinksSync()),
+      );
+      expect(requests, before + 1);
+      expect(
+        outside.listSync().map((e) => e.uri.pathSegments.last),
+        ['libchat_lottie.dylib'],
+        reason: 'nothing was written into the link target',
+      );
+    }, skip: posixOnly);
+  });
 }

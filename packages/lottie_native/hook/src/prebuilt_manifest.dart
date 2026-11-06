@@ -19,7 +19,8 @@ final class PrebuiltArtifact {
     required this.size,
   });
 
-  /// The file name under the manifest's `baseUrl`, a bare name.
+  /// The file name under the manifest's `baseUrl`: letters, digits, `.`, `_`
+  /// and `-`, not starting with a dot and never holding `..`.
   final String file;
 
   /// The lower-case hex SHA-256 of the file.
@@ -91,10 +92,22 @@ final class PrebuiltManifest {
   PrebuiltArtifact? artifactFor(String key) => artifacts[key];
 
   /// Where [artifact] is downloaded from, or null without a [baseUrl].
-  Uri? urlOf(PrebuiltArtifact artifact) => baseUrl?.resolve(artifact.file);
+  ///
+  /// The name is appended to the base path (percent-encoded, though the
+  /// parser only admits characters that need no encoding) instead of being
+  /// resolved against it: resolving would let a name act as a relative
+  /// reference.
+  Uri? urlOf(PrebuiltArtifact artifact) {
+    final base = baseUrl;
+    if (base == null) return null;
+    return base.replace(
+      path: '${base.path}${Uri.encodeComponent(artifact.file)}',
+    );
+  }
 }
 
 final _hexDigest = RegExp(r'^[0-9a-f]{64}$');
+final _fileName = RegExp(r'^[A-Za-z0-9_-][A-Za-z0-9._-]*$');
 
 String _string(Map<String, Object?> from, String key) {
   final value = from[key];
@@ -142,14 +155,13 @@ PrebuiltArtifact _artifact(String key, Object? value) {
     throw FormatException('prebuilts.json artifact "$key" must be an object');
   }
   final file = _string(value, 'file');
-  // The name is joined onto a directory and a URL: only a bare name is safe.
-  if (file.isEmpty ||
-      file == '.' ||
-      file == '..' ||
-      file.contains('/') ||
-      file.contains(r'\')) {
+  // The name is joined onto a directory and a URL: a short allow-list is
+  // safer than a list of what to forbid (separators, drive letters, "%2e",
+  // control characters, a reserved device name all fall outside it).
+  if (!_fileName.hasMatch(file) || file.contains('..')) {
     throw FormatException(
-      'prebuilts.json artifact "$key" "file" must be a bare file name, '
+      'prebuilts.json artifact "$key" "file" must be a bare file name of '
+      'letters, digits, ".", "_" and "-" that does not start with a dot, '
       'found "$file"',
     );
   }

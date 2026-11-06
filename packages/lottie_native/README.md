@@ -126,7 +126,9 @@ dependencies, so editing any of them re-runs it.
   `ios-arm64-simulator`, `ios-x64-simulator`, `android-arm64`, `android-x64`,
   `linux-x64`, `linux-arm64`, `windows-x64`.
 - `baseUrl` is empty or an absolute `https` URL ending with `/`; `file` is a
-  bare file name appended to it. Hex values are lower case.
+  bare file name of letters, digits, `.`, `_` and `-` (no leading dot, no
+  `..`), percent-encoded and appended to it. A redirect is followed only to
+  another `https` URL. Hex values are lower case.
 - An empty `baseUrl` or `artifacts` means "no prebuilt", never an error. A
   manifest that does not parse is ignored with a warning.
 - `sourceHash` is the SHA-256 over this listing: the line
