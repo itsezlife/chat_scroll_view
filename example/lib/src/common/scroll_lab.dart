@@ -5,6 +5,7 @@ import 'dart:ui' show FramePhase, FrameTiming;
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatScrollController, ChatScrollEvent, ChatViewportScrolled;
 import 'package:chat_scroll_view/experiments.dart';
+import 'package:chat_scroll_view_example/src/common/lab_net.dart';
 import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:chat_scroll_view_example/src/common/tape_system_events.dart';
 import 'package:flutter/gestures.dart';
@@ -48,6 +49,12 @@ abstract final class ScrollLab {
     plainText.addListener(() => _log('switch plainText=${plainText.value}'));
     PointerTape.install();
     TapeSystemRecorder.install();
+    final net = LabNet.instance = LabNet(
+      filesDir: () async => (await _channel.invokeMethod<String>('filesDir'))!,
+    );
+    // The mode a launcher left in `net_mode.txt`, in force before the first
+    // Giphy request of a cold start.
+    unawaited(net.loadPersisted());
     _channel.setMethodCallHandler((call) async {
       if (call.method != 'set') return;
       final args = call.arguments as Map<Object?, Object?>;
@@ -55,11 +62,13 @@ abstract final class ScrollLab {
       switch (args['key']) {
         case 'record' when args['value'] == true:
           PointerTape.start();
+          await net.select(LabNetMode.record, name);
           _log('tape record start $name');
           return;
         case 'record':
           final dir = await _channel.invokeMethod<String>('filesDir');
           final n = await PointerTape.stop(dir!, name);
+          await net.select(LabNetMode.off, name);
           _log('tape saved $name events=$n');
           return;
         case 'animate':
@@ -77,8 +86,17 @@ abstract final class ScrollLab {
             );
           }
           return;
+        case 'net':
+          final mode = LabNetMode.values.asNameMap()[args['text']];
+          if (mode == null) {
+            _log('net: value must be off|record|replay');
+          } else {
+            await net.select(mode, name);
+          }
+          return;
         case 'replay':
           final dir = await _channel.invokeMethod<String>('filesDir');
+          await net.select(LabNetMode.replay, name);
           _log('tape replay start $name');
           _replayFrames = [];
           final n = await PointerTape.replay(
@@ -90,6 +108,7 @@ abstract final class ScrollLab {
           await Future<void>.delayed(const Duration(milliseconds: 1500));
           _logReplaySummary(_replayFrames!);
           _replayFrames = null;
+          net.logSummary();
           _log('tape replay done $name events=$n');
           return;
       }
