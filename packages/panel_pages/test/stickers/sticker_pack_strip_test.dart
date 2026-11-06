@@ -117,6 +117,16 @@ void main() {
       .position
       .pixels;
 
+  testWidgets('goes away cleanly when it never had a tab', (tester) async {
+    handle.dispose();
+    handle = _Handle(const []);
+    await pump(tester);
+
+    await tester.pumpWidget(const SizedBox());
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('is 36 tall, the height of the reference strip', (tester) async {
     await pump(tester);
 
