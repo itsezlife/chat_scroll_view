@@ -14,6 +14,10 @@ environment:
   flutter: ">=3.27.0"
 
 dependencies:
+  catalog_assets:
+    path: ../catalog_assets
+  content_model:
+    path: ../content_model
   # Only the cross-isolate worker core uses it: native scratch buffers.
   ffi: ^2.1.0
   # Only lib/testing.dart needs this: the contract suite is written with the
@@ -21,6 +25,8 @@ dependencies:
   # arrangement as video_native and lottie_decoder). Production entry points
   # never import it.
   flutter_test:
+    sdk: flutter
+  flutter:
     sdk: flutter
   meta: ^1.17.0
   video_native:
