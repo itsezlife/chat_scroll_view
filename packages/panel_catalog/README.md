@@ -174,7 +174,8 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   (glyph, until baked), shaped wash (sticker: one gradient per paint pass
   sweeps every wash on screen together, and stops while the scope's clock is
   paused), thumb-first (other media: the binding's own thumbnail once it has
-  one)
+  one); a GIF leaf's sprite and thumbnail cover the cell (cropped through the
+  source rectangle, still one draw per page)
 
 ## Host contract
 

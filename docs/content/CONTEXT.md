@@ -116,8 +116,12 @@ _Avoid_: Drawable, `ui.Image` per tick, a downcast to find the sprite
 _Avoid_: Failed state, error stand-in, three-state readiness
 
 **Stand-in**:
-What a surface draws for content that is not there yet: the scope's placeholder paintable (a circle), a placeholder an embed brings (`SoftPlaceholder`, a quiet rounded square for a sticker), or the thumbnail. A bitmap thumbnail stays fully opaque under content that fades in and is released when the content is opaque (the binding keeps it for that: `paintStandIn` / `releaseStandIn`); a silhouette stand-in fades out as the content rises.
-_Avoid_: Fading a bitmap thumbnail out while the content fades in, a failed stand-in
+What a surface draws for content that is not there yet: the scope's placeholder paintable (a circle for a glyph, the whole rectangle in one quiet colour for any other media, `RectPlaceholder`), a placeholder an embed brings (`SoftPlaceholder`, a quiet rounded square for a sticker), or the thumbnail. The rectangle has the size and proportion of the final cell from the first frame, so a thumbnail that arrives moves nothing; a binding rounds its corners with the surface's `AssetProfile.cornerRadius`. A bitmap thumbnail stays fully opaque under content that fades in and is released when the content is opaque (the binding keeps it for that: `paintStandIn` / `releaseStandIn`); a silhouette stand-in fades out as the content rises.
+_Avoid_: Fading a bitmap thumbnail out while the content fades in, a failed stand-in, a circle for media
+
+**Asset fit**:
+How content of one proportion fills a rectangle of another, chosen per surface (`AssetProfile.fit`): `contain` shows the whole picture with bars, `cover` fills the rectangle and crops the overflow, centre-anchored. A GIF in a grid cell covers it (the reference client's `isAspectFit` is false there); a sticker is contained. Content and its thumbnail follow the same fit, so a thumbnail replaced by content does not change its crop.
+_Avoid_: Letterboxed GIF in a grid cell, a clip or a second draw for the crop
 
 **Mini-thumbnail**:
 The small preview still of a piece of content (`ContentDescriptor.thumbnail`), decoded to at most 40 pixels on its longer side and blurred once at decode (`MiniThumbnail.decode`, the reference client's stripped photo with its radius 3 stack blur), then stretched over the box by the surface. A host that has no preview for a content gives none and the cell keeps its placeholder.

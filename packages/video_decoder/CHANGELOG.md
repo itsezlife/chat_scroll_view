@@ -8,6 +8,11 @@ this package is pre-1.0.
 
 ### Changed
 
+- The still and the playing sprite are placed by `AssetPaintContext.fit`
+  (contain by default, cover for a surface that asks).
+
+### Changed
+
 - The default thumbnail decode is `MiniThumbnail.decode`: at most 40 px on
   the longer side, blurred once, so painting a loading clip's thumbnail is one
   small image draw. Pass `decodeImage` for the previous full-size decode.
