@@ -40,7 +40,7 @@ struct ChatVideo {
   int64_t packets; /* read since the last rewind */
   int64_t frames;  /* decoded since the last rewind */
   int skipped;     /* consecutive undecodable packets */
-  int64_t last_pts_ms;
+  int64_t last_pts_ms; /* -1 before the first frame of a pass */
 };
 
 /* --- In-memory AVIO --------------------------------------------------- */
@@ -180,6 +180,7 @@ int32_t chat_video_open(const uint8_t *data, size_t len, uint32_t target_w,
   h->size = len;
   h->target_w = target_w;
   h->target_h = target_h;
+  h->last_pts_ms = -1;
 
   const int io_size = 32 * 1024;
   uint8_t *io_buffer = av_malloc(io_size);
@@ -206,9 +207,111 @@ int32_t chat_video_info(const ChatVideo *h, ChatVideoInfo *out_info) {
   return CHAT_VIDEO_OK;
 }
 
+/* --- Decoding ---------------------------------------------------------- */
+
+/* c = c * a / 255, rounded, on straight BGRA rows. */
+static void premultiply(uint8_t *dst, size_t stride, uint32_t w, uint32_t h) {
+  for (uint32_t y = 0; y < h; y++) {
+    uint8_t *p = dst + y * stride;
+    for (uint32_t x = 0; x < w; x++, p += 4) {
+      uint32_t a = p[3];
+      if (a == 255) continue;
+      p[0] = (uint8_t)((p[0] * a + 127) / 255);
+      p[1] = (uint8_t)((p[1] * a + 127) / 255);
+      p[2] = (uint8_t)((p[2] * a + 127) / 255);
+    }
+  }
+}
+
+/* Scales the decoded frame into dst as BGRA. */
+static int32_t convert(ChatVideo *h, uint8_t *dst, size_t stride) {
+  const AVFrame *f = h->frame;
+  if (f->width <= 0 || f->height <= 0 || f->width > CHAT_VIDEO_MAX_SOURCE_EDGE ||
+      f->height > CHAT_VIDEO_MAX_SOURCE_EDGE ||
+      (int64_t)f->width * f->height > CHAT_VIDEO_MAX_SOURCE_PIXELS)
+    return CHAT_VIDEO_LIMIT_EXCEEDED;
+  h->sws = sws_getCachedContext(h->sws, f->width, f->height, f->format, (int)h->target_w,
+                                (int)h->target_h, AV_PIX_FMT_BGRA, SWS_BILINEAR, NULL, NULL, NULL);
+  if (!h->sws) return CHAT_VIDEO_DECODE_FAILED; /* a format swscale cannot read */
+  uint8_t *planes[4] = {dst, NULL, NULL, NULL};
+  int strides[4] = {(int)stride, 0, 0, 0};
+  if (sws_scale(h->sws, (const uint8_t *const *)f->data, f->linesize, 0, f->height, planes,
+                strides) != (int)h->target_h)
+    return CHAT_VIDEO_DECODE_FAILED;
+  if (has_alpha_format(f->format)) premultiply(dst, stride, h->target_w, h->target_h);
+  return CHAT_VIDEO_OK;
+}
+
+static int64_t frame_pts_ms(ChatVideo *h) {
+  int64_t ts = h->frame->best_effort_timestamp;
+  AVStream *st = h->fmt->streams[h->stream];
+  if (ts == AV_NOPTS_VALUE) {
+    /* Without a timestamp, one frame period after the last one. */
+    int64_t period = h->info.frame_rate > 0 ? (int64_t)(1000.0f / h->info.frame_rate) : 40;
+    return h->last_pts_ms < 0 ? 0 : h->last_pts_ms + period;
+  }
+  if (st->start_time != AV_NOPTS_VALUE) ts -= st->start_time;
+  int64_t ms = av_rescale_q(ts, st->time_base, (AVRational){1, 1000});
+  return ms < 0 ? 0 : ms;
+}
+
+static int32_t spend(ChatVideo *h, int32_t status) {
+  h->state = STATE_SPENT;
+  return status;
+}
+
 int32_t chat_video_next(ChatVideo *h, uint8_t *dst, size_t stride, int64_t *out_pts_ms) {
-  (void)h; (void)dst; (void)stride; (void)out_pts_ms;
-  return CHAT_VIDEO_INTERNAL;
+  if (!h || !dst || !out_pts_ms) return CHAT_VIDEO_INVALID_ARGUMENT;
+  if (stride < (size_t)h->target_w * 4) return CHAT_VIDEO_BAD_SIZE;
+  if (h->state == STATE_DONE) return CHAT_VIDEO_END_OF_STREAM;
+  if (h->state == STATE_SPENT) return CHAT_VIDEO_DECODE_FAILED;
+
+  for (;;) {
+    int r = avcodec_receive_frame(h->dec, h->frame);
+    if (r == 0) {
+      if (h->frames >= CHAT_VIDEO_MAX_FRAMES_PER_PASS) {
+        av_frame_unref(h->frame);
+        return spend(h, CHAT_VIDEO_LIMIT_EXCEEDED);
+      }
+      h->frames++;
+      int32_t status = convert(h, dst, stride);
+      if (status == CHAT_VIDEO_OK) {
+        *out_pts_ms = h->last_pts_ms = frame_pts_ms(h);
+        h->skipped = 0;
+      }
+      av_frame_unref(h->frame);
+      return status == CHAT_VIDEO_OK ? CHAT_VIDEO_OK : spend(h, status);
+    }
+    if (r == AVERROR_EOF) {
+      h->state = STATE_DONE;
+      return CHAT_VIDEO_END_OF_STREAM;
+    }
+    if (r != AVERROR(EAGAIN)) return spend(h, CHAT_VIDEO_DECODE_FAILED);
+    /* EAGAIN after the flush packet cannot happen; do not wait for it. */
+    if (h->state == STATE_DRAINING) {
+      h->state = STATE_DONE;
+      return CHAT_VIDEO_END_OF_STREAM;
+    }
+
+    /* The decoder wants a packet. */
+    if (h->packets >= CHAT_VIDEO_MAX_PACKETS_PER_PASS) return spend(h, CHAT_VIDEO_LIMIT_EXCEEDED);
+    r = av_read_frame(h->fmt, h->pkt);
+    if (r == AVERROR_EOF) {
+      h->state = STATE_DRAINING;
+      if (avcodec_send_packet(h->dec, NULL) < 0) return spend(h, CHAT_VIDEO_DECODE_FAILED);
+      continue;
+    }
+    if (r < 0) return spend(h, CHAT_VIDEO_DECODE_FAILED);
+    h->packets++;
+    if (h->pkt->stream_index != h->stream) {
+      av_packet_unref(h->pkt);
+      continue;
+    }
+    r = avcodec_send_packet(h->dec, h->pkt);
+    av_packet_unref(h->pkt);
+    if (r == AVERROR_INVALIDDATA && ++h->skipped <= CHAT_VIDEO_MAX_SKIPPED_PACKETS) continue;
+    if (r < 0 && r != AVERROR(EAGAIN)) return spend(h, CHAT_VIDEO_DECODE_FAILED);
+  }
 }
 
 int32_t chat_video_rewind(ChatVideo *h) {

@@ -102,7 +102,38 @@ final class NativeVideoBinding implements VideoBinding {
     VideoHandle handle, {
     required Pointer<Uint8> target,
     required int strideBytes,
-  }) => throw UnimplementedError();
+  }) {
+    _requireAvailable();
+    final pts = calloc<Int64>();
+    try {
+      // An unknown handle is a null pointer: the library answers it with its
+      // own invalid-argument status, like any bad call.
+      final status = chatVideoNext(
+        _handles[handle.id] ?? nullptr,
+        target,
+        strideBytes,
+        pts,
+      );
+      return switch (status) {
+        ChatVideoStatus.ok => VideoFrameResult(
+          VideoFrameStatus.frame,
+          pts.value,
+        ),
+        ChatVideoStatus.endOfStream => const VideoFrameResult(
+          VideoFrameStatus.endOfStream,
+        ),
+        ChatVideoStatus.invalidArgument => const VideoFrameResult(
+          VideoFrameStatus.badArgument,
+        ),
+        ChatVideoStatus.badSize => const VideoFrameResult(
+          VideoFrameStatus.badSize,
+        ),
+        _ => const VideoFrameResult(VideoFrameStatus.failed),
+      };
+    } finally {
+      calloc.free(pts);
+    }
+  }
 
   @override
   bool rewind(VideoHandle handle) => throw UnimplementedError();
