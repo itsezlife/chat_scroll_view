@@ -7,6 +7,7 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
@@ -269,6 +270,43 @@ void main() {
     });
   });
 
+  group('the still decoder', () {
+    // Stills are the engine's image codecs' work, so they need no native
+    // library: they decode with the Lottie decoder absent, as on the web.
+    test('is registered beside the animated image one, with no Lottie '
+        'decoder', () async {
+      final services = await AppServices.create(
+        keyValueStore: FakeKeyValueStore(),
+        assetLoader: rootBundle.loadString,
+        clipboard: FakeRichClipboard(),
+        startLottie: ({required clock, required memoryPressure}) async => null,
+      );
+      addTearDown(services.dispose);
+
+      for (final (key, animated) in [
+        (StaticStickerPack.stickers.first.key, false),
+        (AnimatedEmojiPack.emoji.first.key, true),
+      ]) {
+        final binding = services.assets.attach(
+          key,
+          const AssetSpec(pixelWidth: 96, pixelHeight: 96),
+          const AssetProfile(animate: true),
+        );
+        addTearDown(binding.detach);
+        for (
+          var i = 0;
+          i < 300 && binding.readiness.stage != AssetStage.full;
+          i++
+        ) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+
+        expect(binding.readiness.stage, AssetStage.full, reason: '$key');
+        expect(binding.paintable.isAnimated, animated, reason: '$key');
+      }
+    });
+  });
+
   group('a step that fails', () {
     test('frees what the earlier steps made and rethrows', () async {
       final watch = DisposalWatch();
@@ -473,22 +511,26 @@ void main() {
   });
 
   group('the emoji page source', () {
-    test('lists the animated emoji pack, then the Lottie stickers, after the '
-        'catalogue\'s categories', () async {
-      final services = await createTestServices();
-      addTearDown(services.dispose);
+    test(
+      'lists the animated emoji pack, the Lottie stickers and the static ones, after the '
+      'catalogue\'s categories',
+      () async {
+        final services = await createTestServices();
+        addTearDown(services.dispose);
 
-      final ids = [
-        for (final collection in services.emojiPageSource.collections.value)
-          collection.id,
-      ];
-      expect(ids.first, CollectionId.recent);
-      expect(ids.sublist(ids.length - 2), [
-        AnimatedEmojiPack.id,
-        LottieStickerPack.id,
-      ]);
-      expect(ids.whereType<CollectionId$Category>(), isNotEmpty);
-    });
+        final ids = [
+          for (final collection in services.emojiPageSource.collections.value)
+            collection.id,
+        ];
+        expect(ids.first, CollectionId.recent);
+        expect(ids.sublist(ids.length - 3), [
+          AnimatedEmojiPack.id,
+          LottieStickerPack.id,
+          StaticStickerPack.id,
+        ]);
+        expect(ids.whereType<CollectionId$Category>(), isNotEmpty);
+      },
+    );
 
     test('lists an animated emoji in the recents, described, beside the '
         'unicode ones', () async {
