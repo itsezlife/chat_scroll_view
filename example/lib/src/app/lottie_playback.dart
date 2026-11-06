@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback_stub.dart'
     if (dart.library.ffi) 'package:chat_scroll_view_example/src/app/lottie_playback_native.dart'
+    if (dart.library.js_interop) 'package:chat_scroll_view_example/src/app/lottie_playback_web.dart'
     as platform;
 import 'package:flutter/foundation.dart';
+import 'package:l/l.dart';
 
 /// The Lottie decoder of a host that can run one, and how to stop what it
 /// needs.
@@ -23,6 +25,14 @@ final class LottiePlayback {
 
   /// The decoder to register for vector animation.
   final Decoder decoder;
+
+  /// Says, once, that the engine could not start and no decoder is
+  /// registered: the one log line of "the probe failed", whichever platform
+  /// probed, with the error's type so a missing library and a bug read apart.
+  static void reportUnavailable(Object reason, StackTrace stackTrace) => l.w(
+    'Lottie stickers are off (${reason.runtimeType}): $reason',
+    stackTrace,
+  );
 
   final List<FutureOr<void> Function()> _shutdown;
   Future<void>? _closing;
@@ -65,7 +75,8 @@ typedef LottiePlaybackStarter =
     });
 
 /// The platform's [LottiePlaybackStarter]: the native library behind
-/// `dart:ffi` where there is one, nothing on the web.
+/// `dart:ffi` where there is one, the WebAssembly worker behind
+/// `dart:js_interop` on the web, nothing elsewhere.
 ///
 /// A platform fork is a file, not a condition: `dart:ffi` is not importable
 /// in a web build, so the native file must not be reachable from it.
