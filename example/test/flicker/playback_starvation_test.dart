@@ -1,40 +1,42 @@
-/// Ticket 55, symptoms 2 and 3: a clip the user can see stops playing.
+/// Ticket 55 symptoms 2 and 3, fixed by ticket 61 (regression): a clip the
+/// user can see keeps playing.
 ///
 /// (2) "GIFs in the panel might occasionally just stop playing: after it
 /// loaded it can play some and just stop." (3) "When opening the panel the
 /// same GIFs in the messages are not playing."
 ///
 /// **Seam:** the real `VideoFrameScheduler` + `VideoAnimationPaintable` + frame
-/// pool over a scripted engine and a manual clock (`test/support/flicker/video_rig.dart`),
+/// pool over a scripted engine and a manual clock (`support/flicker/video_rig.dart`),
 /// one scheduler for the chat and the panel as the example builds it. Every
 /// surface paints each of its visible clips every frame, which is what a
 /// viewport does for a visible animated cell. The probe is the renderer's log:
 /// the frames copied into a page, per clip, per span of clock time.
 ///
-/// **Run** (red on purpose; not part of `test/unit_test.dart`):
-/// `cd example && flutter test test_diagnostic/flicker/playback_starvation_diagnosis_test.dart`
-///
-/// The `control:` tests are the same scenes with the cap lifted. They are the
-/// proof the probe can go green; they fix nothing.
+/// The cases with a small cap are the scene past what the scheduler can
+/// serve at once: the clips must be time-sliced, not frozen. Before ticket 61
+/// the oldest leases froze (0 frames in 2 s) and these were red.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../test/support/flicker/video_rig.dart';
+import '../support/flicker/video_rig.dart';
 
 const _second = Duration(seconds: 1);
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   // A clip that is painted every frame and "plays" renders about 30 frames a
   // second; stalled it renders none. Anything near 15 is advancing.
   const advancing = 15;
 
   group('symptom 3: the chat stops when the panel opens', () {
-    for (final (name, cap) in [
-      ('cap 6 (shipped)', 6),
-      ('control: cap 99', 99),
+    // `minFrames`: frames a clip gets in 2 s. All 11 clips fit the cap: 2 s of
+    // 30 fps. Past it the clips are time-sliced, and none updates less often
+    // than the scheduler's fairness bound (250 ms, so 8 times in 2 s).
+    for (final (name, cap, minFrames) in [
+      ('default cap', null, advancing * 2),
+      ('cap 6, time-sliced', 6, 8),
+      ('cap 2, time-sliced', 2, 8),
+      ('control: cap 99', 99, advancing * 2),
     ]) {
       test(
         '3 chat clips, then 8 panel clips: all 11 keep advancing ($name)',
@@ -65,7 +67,7 @@ void main() {
           final end = rig.now;
           final stalled = <String>[
             for (final tag in [1, 2, 3, ...List.generate(8, (i) => 11 + i)])
-              if (rig.framesOf(tag, end - _second * 2, end) < advancing * 2)
+              if (rig.framesOf(tag, end - _second * 2, end) < minFrames)
                 '${tag < 10 ? 'chat' : 'panel'}#$tag '
                     '${rig.framesOf(tag, end - _second * 2, end)} frames in 2 s',
           ];
@@ -81,7 +83,8 @@ void main() {
 
   group('symptom 2: a panel clip plays, then stops', () {
     for (final (name, cap, clips) in [
-      ('cap 6 (shipped), 7 clips', 6, 7),
+      ('default cap, 7 clips', null, 7),
+      ('cap 6, 7 clips', 6, 7),
       ('minimal: cap 1, 2 clips', 1, 2),
       ('control: cap 99, 7 clips', 99, 7),
     ]) {

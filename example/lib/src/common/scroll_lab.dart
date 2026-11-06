@@ -12,6 +12,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:video_decoder/video_decoder.dart' show VideoFrameScheduler;
 
 /// Scroll-smoothness lab: runtime switches to A/B on a device, and a frame
 /// log in logcat (`adb logcat -s flutter | grep LAB`).
@@ -30,6 +31,13 @@ abstract final class ScrollLab {
   /// markdown engine.
   static final plainText = ValueNotifier<bool>(false);
 
+  /// [VideoFrameScheduler.maxAdvancing]: video clips served per tick, the
+  /// rest time-sliced. `adb shell am broadcast -a lab.SET --es key video_cap
+  /// --es value 4` sets it; a number below 1 is ignored.
+  static final videoCap = ValueNotifier<int>(
+    VideoFrameScheduler.defaultMaxAdvancing,
+  );
+
   static const _channel = MethodChannel('chat_scroll_view_example/lab');
 
   static bool _installed = false;
@@ -47,6 +55,7 @@ abstract final class ScrollLab {
       _log('switch pixelSnap=${pixelSnap.value}');
     });
     plainText.addListener(() => _log('switch plainText=${plainText.value}'));
+    videoCap.addListener(() => _log('switch videoCap=${videoCap.value}'));
     PointerTape.install();
     TapeSystemRecorder.install();
     final net = LabNet.instance = LabNet(
@@ -111,6 +120,15 @@ abstract final class ScrollLab {
           net.logSummary();
           _log('tape replay done $name events=$n');
           return;
+      }
+      if (args['key'] == 'video_cap') {
+        final cap = int.tryParse('${args['text']}');
+        if (cap == null || cap < 1) {
+          _log('video_cap: value must be a number from 1 (--es value 6)');
+        } else {
+          videoCap.value = cap;
+        }
+        return;
       }
       final target = switch (args['key']) {
         'resampling' => resampling,

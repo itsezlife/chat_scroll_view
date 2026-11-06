@@ -197,7 +197,7 @@ final class _LoggingRenderer implements FrameRenderer {
 /// scheduler, one clock, one pool for the chat and the panel alike.
 final class VideoRig {
   VideoRig({
-    int maxAdvancing = 6,
+    int? maxAdvancing,
     int latencySteps = 0,
     Duration idleRelease = const Duration(seconds: 1),
     int frames = 60,
@@ -217,7 +217,7 @@ final class VideoRig {
         forgetIdleFrames: true,
       ),
       clock: clock,
-      maxAdvancing: maxAdvancing,
+      maxAdvancing: maxAdvancing ?? VideoFrameScheduler.defaultMaxAdvancing,
       idleRelease: idleRelease,
       startTimer: timers.start,
     );
