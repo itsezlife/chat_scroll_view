@@ -47,6 +47,9 @@ abstract final class VideoFrameAtlas {
     sizeClasses: sizeClasses,
     upload: upload,
     memoryPressure: memoryPressure,
+    // A clip leased again restarts at its first frame, so the frame it stopped
+    // on must not be drawn while it does.
+    forgetIdleFrames: true,
   );
 
   /// The upload of a BGRA page: `decodeImageFromPixels` as

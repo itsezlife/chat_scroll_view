@@ -28,10 +28,7 @@ final class _FrameState {
 /// What a paintable holds while it is attached: [sprite] says where its
 /// current frame is, or null while there is none to draw. Released exactly
 /// once. An entry that outlives its last handle keeps its slot until the room
-/// is wanted, but not its frame: a handle acquired on it starts without one
-/// and shows its still until its first frame is uploaded, as a new clip does
-/// (a restarted clip begins at its first frame, and an old one would flash
-/// before it).
+/// is wanted, and its frame too unless the atlas [FrameAtlas.forgetIdleFrames].
 final class FrameHandle<K extends Object> {
   FrameHandle._(
     this._atlas,
@@ -93,8 +90,9 @@ final class FrameHandle<K extends Object> {
     );
   }
 
-  /// Ends the claim. Idempotent. When it was the entry's last claim the frame
-  /// is forgotten; a batch still running on the entry forgets it when it ends.
+  /// Ends the claim. Idempotent. When it was the entry's last claim and the
+  /// atlas [FrameAtlas.forgetIdleFrames], the frame is forgotten; a batch still
+  /// running on the entry forgets it when it ends.
   void release() {
     _lease.release();
     _atlas._forgetIfIdle(this);
@@ -153,7 +151,8 @@ final class FrameAtlas<K extends Object> {
   /// a page of [pageSideFor] pixels (twice the class edge by default).
   ///
   /// [memoryPressure], when given, releases every idle entry each time it
-  /// fires; [dispose] stops listening.
+  /// fires; [dispose] stops listening. [forgetIdleFrames] says what an idle
+  /// entry remembers, see there.
   ///
   /// A factory: the pool's callbacks close over the states and the images, so
   /// those are built first, in order, and the private constructor receives
@@ -166,6 +165,7 @@ final class FrameAtlas<K extends Object> {
     List<int> sizeClasses = defaultSizeClasses,
     FramePageUploader upload = uploadFramePage,
     Listenable? memoryPressure,
+    bool forgetIdleFrames = false,
   }) {
     final states = <K, _FrameState>{};
     final images = FramePageImages(memory: memory, upload: upload);
@@ -184,6 +184,7 @@ final class FrameAtlas<K extends Object> {
       images,
       pool,
       memoryPressure,
+      forgetIdleFrames,
     );
   }
 
@@ -195,6 +196,7 @@ final class FrameAtlas<K extends Object> {
     this._images,
     this._pool,
     this._memoryPressure,
+    this.forgetIdleFrames,
   ) {
     _memoryPressure?.addListener(releaseUnpinned);
   }
@@ -222,6 +224,17 @@ final class FrameAtlas<K extends Object> {
 
   /// What the pages may cost together.
   final int budgetBytes;
+
+  /// Whether an entry nobody holds forgets its frame, so the next handle on
+  /// it starts without one and its cell shows the still until the first new
+  /// frame is uploaded.
+  ///
+  /// For a source that restarts when it is leased again (a decoded video
+  /// begins at its first frame): the frame it stopped on is not on its way
+  /// back, and drawing it for a few passes before frame 0 is a flash. Not for
+  /// one whose frame is a function of the clock (Lottie), where the frame it
+  /// stopped on is still the right one while the clock stood still.
+  final bool forgetIdleFrames;
 
   final FramePageMemory _memory;
   final FramePageImages _images;
@@ -352,7 +365,7 @@ final class FrameAtlas<K extends Object> {
       // The pages hold the frames now. A handle released meanwhile shows
       // nothing, so its frame is not admitted.
       for (final handle in rendered) {
-        if (handle.isReleased) continue;
+        if (forgetIdleFrames && handle.isReleased) continue;
         handle._state.frame = frames[handle]!;
       }
       if (_fl01) {
@@ -373,7 +386,7 @@ final class FrameAtlas<K extends Object> {
   // An entry with no claim shows no frame: a re-lease would draw the frame it
   // stopped on, for a few passes, before the first new frame replaced it.
   void _forgetIfIdle(FrameHandle<K> handle) {
-    if (handle.isReleased && !_pool.isPinned(handle.key)) {
+    if (forgetIdleFrames && handle.isReleased && !_pool.isPinned(handle.key)) {
       handle._state.frame = null;
     }
   }

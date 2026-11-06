@@ -214,6 +214,7 @@ final class VideoRig {
         budgetBytes: VideoFrameAtlas.defaultBudgetBytes,
         sizeClasses: VideoFrameSize.defaultClasses,
         upload: uploads.upload,
+        forgetIdleFrames: true,
       ),
       clock: clock,
       maxAdvancing: maxAdvancing,

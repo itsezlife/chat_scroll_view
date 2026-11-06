@@ -46,17 +46,20 @@ void main() {
   late _GatedUploads uploads;
   late FrameAtlas<String> atlas;
 
+  FrameAtlas<String> build({bool forget = true}) => FrameAtlas<String>(
+    renderer: renderer,
+    memory: ListFramePageMemory(),
+    budgetBytes: _budget,
+    pageSideFor: (_) => 256,
+    sizeClasses: const [128, 256],
+    upload: uploads.upload,
+    forgetIdleFrames: forget,
+  );
+
   setUp(() {
     renderer = FakeFrameRenderer();
     uploads = _GatedUploads();
-    atlas = FrameAtlas<String>(
-      renderer: renderer,
-      memory: ListFramePageMemory(),
-      budgetBytes: _budget,
-      pageSideFor: (_) => 256,
-      sizeClasses: const [128, 256],
-      upload: uploads.upload,
-    );
+    atlas = build();
   });
   tearDown(() => atlas.dispose());
 
@@ -84,6 +87,20 @@ void main() {
       uploads.finish();
       await batch;
       expect(handle.frame, 0);
+      expect(handle.sprite, isNotNull);
+    });
+
+    test('the same holds for an atlas that keeps idle frames', () async {
+      atlas.dispose();
+      atlas = build(forget: false);
+      final handle = acquire('a')!;
+
+      final batch = atlas.render([(handle: handle, frame: 0)]);
+      await _settle();
+
+      expect(handle.sprite, isNull);
+      uploads.finish();
+      await batch;
       expect(handle.sprite, isNotNull);
     });
 
