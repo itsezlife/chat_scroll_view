@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:ui' show Canvas, Color, Rect;
 
 import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_binding_base.dart';
@@ -317,7 +318,26 @@ final class AssetCacheScope {
       return;
     }
     final previous = entry.paintable;
-    if (previous != null && !identical(previous, paintable)) previous.dispose();
+    // A thumbnail replaced by content is kept for the bindings that were
+    // showing it: they fade the content in over it (a bitmap thumbnail stays
+    // opaque beneath, as in the reference client) and release it when the
+    // content is opaque. Without a waiting binding there is nobody to keep it
+    // for.
+    final keep =
+        previous != null &&
+        entry.stage == AssetStage.placeholder &&
+        stage.index > AssetStage.placeholder.index &&
+        entry.bindings.isNotEmpty;
+    if (keep) {
+      entry.disposeStandIn();
+      entry.standIn = previous;
+      for (final binding in entry.bindings) {
+        binding._holdsStandIn = true;
+        entry.standInHolders++;
+      }
+    } else if (previous != null && !identical(previous, paintable)) {
+      previous.dispose();
+    }
     if (previous != null)
       _bytes[entry.tier] = _bytes[entry.tier]! - entry.bytes;
     entry
@@ -360,6 +380,7 @@ final class AssetCacheScope {
     }
     entry.paintable?.dispose();
     entry
+      ..disposeStandIn()
       ..paintable = null
       ..bytes = 0;
   }
@@ -390,11 +411,20 @@ final class _Entry {
   final _Demand demand = _Demand();
   AssetStage stage = AssetStage.none;
   AssetPaintable? paintable;
+  // The thumbnail the content replaced, while a binding still fades over it.
+  AssetPaintable? standIn;
+  int standInHolders = 0;
   int bytes = 0;
   AssetTier tier = AssetTier.still;
   Object? lastError;
   AssetFailureKind? failureKind;
   _Attempt? attempt;
+
+  void disposeStandIn() {
+    standIn?.dispose();
+    standIn = null;
+    standInHolders = 0;
+  }
 
   bool get isFinal =>
       stage == AssetStage.full ||
@@ -486,6 +516,8 @@ final class _EntryBinding extends AssetBindingBase {
   final AssetCacheScope _scope;
   final _Entry entry;
   bool _registered = false;
+  // Waiting to release the entry's stand-in.
+  bool _holdsStandIn = false;
   // A replay turns a profile that does not animate into one that does, for
   // this binding.
   bool _replayed = false;
@@ -570,6 +602,34 @@ final class _EntryBinding extends AssetBindingBase {
     return paintable;
   }
 
+  // A surface that paints the content opaque has nothing left to fade over the
+  // thumbnail, so it is released with that paint: surfaces that do not fade
+  // never have to know about it.
+  @override
+  void paint(Canvas canvas, Rect rect, {Color? tint, double opacity = 1}) {
+    super.paint(canvas, rect, tint: tint, opacity: opacity);
+    if (opacity >= 1 &&
+        _holdsStandIn &&
+        _effectiveStage.index > AssetStage.placeholder.index) {
+      releaseStandIn();
+    }
+  }
+
+  @override
+  bool paintStandIn(Canvas canvas, Rect rect) {
+    final standIn = entry.standIn;
+    if (!_holdsStandIn || standIn == null || isDetached) return false;
+    standIn.paint(canvas, rect, const AssetPaintContext());
+    return true;
+  }
+
+  @override
+  void releaseStandIn() {
+    if (!_holdsStandIn) return;
+    _holdsStandIn = false;
+    if (--entry.standInHolders <= 0) entry.disposeStandIn();
+  }
+
   @override
   Object? get lastError => entry.lastError;
 
@@ -611,6 +671,7 @@ final class _EntryBinding extends AssetBindingBase {
 
   @override
   void releaseResources() {
+    releaseStandIn();
     if (_registered) {
       _registered = false;
       clock.unregister(_target);
