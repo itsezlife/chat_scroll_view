@@ -31,8 +31,6 @@ package is pre-1.0.
   writes the SIMD and no-SIMD wasm files next to them; the output is not
   committed. Tested in Node with `node --test web/test`; see the README, "Web
   build".
-
-
 - A seeded long fuzz of the C ABI (`native/tests/fuzz_long.rs`, ignored by
   default) and a nightly workflow that opens an issue on a finding.
 - `LottieNativeVersion.engine`: the crate version and pinned tlottie revision
