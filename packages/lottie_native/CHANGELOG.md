@@ -6,8 +6,31 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- `package:lottie_native/lottie_native.dart` now compiles for the web. The
+  value types (`LottieHandle`, `LottieInfo`, `LottieFeatures`,
+  `LottieLoadResult`, `LottieRejection`, `LottieRenderStatus`,
+  `LottieAvailability`, `LottieNativeVersion`) are exported everywhere; the
+  `dart:ffi` types (`LottieBinding`, `LottieRenderJob`, `LottieFrameCodec`,
+  `LottieFrameRegion`, `NativeLottieBinding`, `NativeLottieFrameCodec`) only
+  through a conditional export that is empty on the web. Nothing changes on
+  the VM: the same names from the same barrel. `LottieHandle`,
+  `LottieAvailability` and `LottieRenderStatus` moved out of
+  `src/lottie_binding.dart` into files of their own; code importing that
+  `src/` path for them must import the barrel.
+
 ### Added
 
+- Web build: the crate exports `chat_lottie_alloc` / `chat_lottie_dealloc` on
+  wasm32 (a region of 1 byte to 256 MiB; anything else returns null), and
+  `web/` holds `chat_lottie_core.mjs` (load, one-call batch render into pooled
+  scratch regions, dispose; SIMD chosen by a `WebAssembly.validate` probe) and
+  `chat_lottie_worker.js` (a module worker with a documented message protocol;
+  pixel buffers are transferred). `dart native/tool/build_web.dart --out <dir>`
+  writes the SIMD and no-SIMD wasm files next to them; the output is not
+  committed. Tested in Node with `node --test web/test`; see the README, "Web
+  build".
 - A seeded long fuzz of the C ABI (`native/tests/fuzz_long.rs`, ignored by
   default) and a nightly workflow that opens an issue on a finding.
 - `LottieNativeVersion.engine`: the crate version and pinned tlottie revision

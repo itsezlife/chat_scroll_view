@@ -2,8 +2,11 @@ import 'dart:convert';
 import 'dart:ffi';
 import 'dart:typed_data';
 
+import 'package:lottie_native/src/lottie_availability.dart';
 import 'package:lottie_native/src/lottie_binding.dart';
+import 'package:lottie_native/src/lottie_handle.dart';
 import 'package:lottie_native/src/lottie_load_result.dart';
+import 'package:lottie_native/src/lottie_render_status.dart';
 
 /// A [LottieBinding] without a native library: scripted files, and jobs that
 /// fill their slot with one premultiplied colour derived from the frame.

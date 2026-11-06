@@ -109,6 +109,14 @@ int32_t chat_lottie_compress_region(const uint8_t *target, size_t stride_bytes, 
 int32_t chat_lottie_decompress_region(const uint8_t *src, size_t src_len, uint8_t *target,
                                       size_t stride_bytes, uint32_t width, uint32_t height);
 
+/* Web only (compiled for wasm32, absent from native libraries): JavaScript
+ * cannot write into the module's memory without owning a region of it, so the
+ * module hands out its own. chat_lottie_alloc returns len bytes (4-aligned,
+ * uninitialised), or NULL when len is 0 or over 256 MiB; chat_lottie_dealloc
+ * takes the pointer back with the same len (NULL is accepted). */
+uint8_t *chat_lottie_alloc(size_t len);
+void chat_lottie_dealloc(uint8_t *ptr, size_t len);
+
 #ifdef __cplusplus
 }
 #endif
