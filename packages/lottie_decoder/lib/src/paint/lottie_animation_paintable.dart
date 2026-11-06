@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
 import 'package:lottie_decoder/src/playback/lottie_frame_scheduler.dart';
@@ -45,6 +46,9 @@ final class LottieAnimationPaintable implements AssetPaintable {
   /// It owns [firstFrame] from now on. [key] names its entry in the
   /// scheduler's atlas (one paintable per key). [renderEdge] is the pixels of
   /// the longer side of a rendered frame, within the atlas's size classes.
+  ///
+  /// [onDispose] runs once, from [dispose]: the paintable holds a [handle] but
+  /// no engine, so whoever owns the engine frees the handle there.
   LottieAnimationPaintable({
     required Object key,
     required LottieHandle handle,
@@ -52,11 +56,13 @@ final class LottieAnimationPaintable implements AssetPaintable {
     required ui.Image firstFrame,
     required LottieFrameScheduler scheduler,
     required int renderEdge,
+    VoidCallback? onDispose,
   }) : _key = key,
        _handle = handle,
        _info = info,
        _still = LottieStillPaintable(firstFrame),
        _scheduler = scheduler,
+       _onDispose = onDispose,
        _width = _scaled(info.width, info, renderEdge),
        _height = _scaled(info.height, info, renderEdge);
 
@@ -69,6 +75,7 @@ final class LottieAnimationPaintable implements AssetPaintable {
   final LottieInfo _info;
   final LottieStillPaintable _still;
   final LottieFrameScheduler _scheduler;
+  final VoidCallback? _onDispose;
   final int _width;
   final int _height;
 
@@ -176,5 +183,6 @@ final class LottieAnimationPaintable implements AssetPaintable {
     _lease?.release();
     _lease = null;
     _still.dispose();
+    _onDispose?.call();
   }
 }
