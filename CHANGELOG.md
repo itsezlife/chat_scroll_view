@@ -8,6 +8,11 @@
   `MarkdownPainterCache.prepare` lays a body out before its row is built, a
   block at a time across as many short slices as a long body takes.
 
+### Example
+- **CHANGED**: the comments chat parses a chunk of messages (JSON, entity
+  detection, markdown) in a background isolate; on the web, where there are
+  none, as before.
+
 ### Bodies
 - **CHANGED**: a press on a fenced code block reads the boxes of its first
   and last lines only to place the copy chrome, not the boxes of every line.
