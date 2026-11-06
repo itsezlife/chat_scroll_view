@@ -315,8 +315,22 @@ int32_t chat_video_next(ChatVideo *h, uint8_t *dst, size_t stride, int64_t *out_
 }
 
 int32_t chat_video_rewind(ChatVideo *h) {
-  (void)h;
-  return CHAT_VIDEO_INTERNAL;
+  if (!h) return CHAT_VIDEO_INVALID_ARGUMENT;
+  AVStream *st = h->fmt->streams[h->stream];
+  int64_t start = st->start_time != AV_NOPTS_VALUE ? st->start_time : 0;
+  /* tdesktop's fallback chain, shortened: by timestamp, by a seek window,
+   * then by byte offset. */
+  int r = av_seek_frame(h->fmt, h->stream, start, AVSEEK_FLAG_BACKWARD);
+  if (r < 0) r = avformat_seek_file(h->fmt, h->stream, INT64_MIN, start, start, 0);
+  if (r < 0) r = av_seek_frame(h->fmt, h->stream, 0, AVSEEK_FLAG_BYTE);
+  if (r < 0) return spend(h, CHAT_VIDEO_DECODE_FAILED);
+  avcodec_flush_buffers(h->dec);
+  h->state = STATE_RUNNING;
+  h->packets = 0;
+  h->frames = 0;
+  h->skipped = 0;
+  h->last_pts_ms = -1;
+  return CHAT_VIDEO_OK;
 }
 
 uint32_t chat_video_abi_version(void) { return CHAT_VIDEO_ABI_VERSION; }

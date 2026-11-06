@@ -136,7 +136,11 @@ final class NativeVideoBinding implements VideoBinding {
   }
 
   @override
-  bool rewind(VideoHandle handle) => throw UnimplementedError();
+  bool rewind(VideoHandle handle) {
+    _requireAvailable();
+    final pointer = _handles[handle.id];
+    return pointer != null && chatVideoRewind(pointer) == ChatVideoStatus.ok;
+  }
 
   @override
   void dispose(VideoHandle handle) {

@@ -138,6 +138,51 @@ void main() {
       }
     });
   });
+
+  group('rewind', skip: nativeSkipReason(binding), () {
+    test('restarts the stream with an identical first frame', () {
+      for (final fixture in fixtures) {
+        final opened =
+            binding.open(fixture.bytes, width: 32, height: 24) as VideoOpened;
+        final target = calloc<Uint8>(32 * 24 * 4);
+        Uint8List next() {
+          final result = binding.nextFrame(
+            opened.handle,
+            target: target,
+            strideBytes: 32 * 4,
+          );
+          expect(result.status, VideoFrameStatus.frame, reason: fixture.file);
+          return Uint8List.fromList(target.asTypedList(32 * 24 * 4));
+        }
+
+        try {
+          final first = next();
+          // Mid-stream, then to the very end, then back.
+          next();
+          expect(binding.rewind(opened.handle), isTrue);
+          expect(next(), orderedEquals(first), reason: fixture.file);
+
+          var count = 1;
+          while (binding
+                  .nextFrame(opened.handle, target: target, strideBytes: 128)
+                  .status ==
+              VideoFrameStatus.frame) {
+            count++;
+          }
+          expect(count, fixture.frames, reason: fixture.file);
+          expect(binding.rewind(opened.handle), isTrue);
+          expect(next(), orderedEquals(first), reason: fixture.file);
+        } finally {
+          calloc.free(target);
+          binding.dispose(opened.handle);
+        }
+      }
+    });
+
+    test('is refused for a handle that is not open', () {
+      expect(binding.rewind(const VideoHandle(9999)), isFalse);
+    });
+  });
 }
 
 /// Every frame of [fixture] at [width] by [height], and what a further call
