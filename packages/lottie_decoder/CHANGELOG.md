@@ -11,8 +11,9 @@ package is pre-1.0.
   (the Lottie worker protocol of `lottie_native/web`), `LottieWorkerError` and
   `LottieWorkerStatus` (the load statuses, held to `chat_lottie.h` by a test).
 - `JsLottieWorkerPort` and `JsLottieWorker.spawnFromUrls`, the browser
-  implementation over `package:web`, exported only where `dart:js_interop`
-  exists. Compile-checked, not run in a browser.
+  implementation over `package:web`, in `package:lottie_decoder/web.dart`
+  (a web build imports it; the main library stays free of `dart:js_interop`).
+  Compile-checked, not run in a browser.
 - `FakeLottieWorker` (`testing.dart`) and `FakePixelLottieEngine.reject`.
 - `LottieUnavailable.reason`, the worker's own words when it gave any.
 - Depends on `web`; `fake_async` for tests.

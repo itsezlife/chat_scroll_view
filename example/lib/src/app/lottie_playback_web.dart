@@ -2,12 +2,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback_pixel.dart';
 import 'package:flutter/foundation.dart';
-// The barrel exports `JsLottieWorker` only where `dart.library.js_interop` is
-// true, and the analyzer resolves a conditional export to its default (the
-// stub): the file is imported directly so that it is analyzed, as it is
-// compiled, as the web file it is.
-// ignore: implementation_imports
-import 'package:lottie_decoder/src/web/js_lottie_worker.dart';
+import 'package:lottie_decoder/web.dart';
 
 /// Starts the WebAssembly Lottie worker, which is the probe: it throws a
 /// `LottieUnavailable` when the files are not served beside the page (see
