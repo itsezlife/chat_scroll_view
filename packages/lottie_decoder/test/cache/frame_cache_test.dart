@@ -102,7 +102,7 @@ void main() {
       () {
         final cache = FrameCache(
           directory: null,
-          ramBudgetBytes: 100,
+          ramBudgetBytes: 130,
           clock: clock,
         );
         putAll(cache, _key('a'), 2, 30);
