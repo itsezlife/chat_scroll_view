@@ -10,6 +10,8 @@ import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
@@ -1061,6 +1063,60 @@ void main() {
       expect(rig.services.recents.recents(SemanticKind.unicodeEmoji), [
         rocket.key,
       ]);
+    });
+
+    testWidgets('of a sticker sends it as a message, keeps the panel open and '
+        'the composer as it was, and files it in the recent stickers', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      rig.set.composer.insertText('half a thought');
+      await _open(tester, rig);
+      final sticker = LottieStickerPack.stickers.first;
+
+      rig.set.shell
+          .hostFor('stickers')
+          .pick(sticker.key, kind: SemanticKind.sticker);
+      await tester.pump();
+
+      expect(rig.sent, [StickerMessageBody.of(sticker)]);
+      expect(_state(rig), isA<PanelVisibility$Shown>());
+      expect(rig.set.composer.text.text, 'half a thought');
+      expect(rig.services.recents.recents(SemanticKind.sticker), [sticker.key]);
+    });
+
+    testWidgets('of a GIF sends it as a message and files it in the recent '
+        'GIFs', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final gif = VideoStickerPack.gifs.first;
+
+      rig.set.shell.hostFor('gif').pick(gif.key, kind: SemanticKind.gif);
+      await tester.pump();
+
+      expect(rig.sent, [StickerMessageBody.of(gif)]);
+      expect(_state(rig), isA<PanelVisibility$Shown>());
+      expect(rig.services.recents.recents(SemanticKind.gif), [gif.key]);
+    });
+
+    testWidgets('of a sticker from search is sent but not recorded', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final sticker = StaticStickerPack.stickers.first;
+
+      rig.set.shell
+          .hostFor('stickers')
+          .pick(
+            sticker.key,
+            kind: SemanticKind.sticker,
+            source: PickSource.search,
+          );
+      await tester.pump();
+
+      expect(rig.sent, [StickerMessageBody.of(sticker)]);
+      expect(rig.services.recents.recents(SemanticKind.sticker), isEmpty);
     });
 
     testWidgets('from search results is not recorded', (tester) async {

@@ -22,6 +22,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markd
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/link_url_dialog.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -934,6 +935,13 @@ final class ChatInputSet {
             InlineContentRef(key: key, alternativeText: alternativeText),
           );
         }
+        // A sticker or a GIF is not text: tapping it sends it, and the panel
+        // stays open and the composer as it is, as the reference client does
+        // (`onStickerSelected` and `onGifSelected` send, add to the recents
+        // and leave the panel up).
+        if (StickerMessageBody.ofKey(key) case final body?) {
+          unawaited(_sendPicked(body));
+        }
         // In the list the page chose: the emoji page files unicode and
         // animated emoji in one.
         unawaited(
@@ -963,6 +971,24 @@ final class ChatInputSet {
         if (isPanelVisible) composer.requestFocus();
       case ActionInvoked() || PageChanged() || SearchOpened():
         break;
+    }
+  }
+
+  // Sends the body of a picked sticker or GIF. The chat screen has already
+  // told the user why a send failed (its sender shows the reason and rethrows),
+  // so a failure is reported to the framework, not shown twice, and not lost.
+  Future<void> _sendPicked(String body) async {
+    try {
+      await _send(body);
+    } on Object catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'chat_scroll_view_example',
+          context: ErrorDescription('while sending a picked sticker or GIF'),
+        ),
+      );
     }
   }
 
