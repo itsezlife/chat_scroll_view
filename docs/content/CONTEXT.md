@@ -115,6 +115,18 @@ _Avoid_: Drawable, `ui.Image` per tick, a downcast to find the sprite
 `none`, `placeholder`, `firstFrame`, `full`, each with `isFinal`. No visible failed stage: a failed fetch or decode leaves the placeholder showing. Retry happens on re-attach, on the host's connectivity-restored signal, or through `retry()`.
 _Avoid_: Failed state, error stand-in, three-state readiness
 
+**Stand-in**:
+What a surface draws for content that is not there yet: the scope's placeholder paintable (a circle), a placeholder an embed brings (`SoftPlaceholder`, a quiet rounded square for a sticker), or the thumbnail. A bitmap thumbnail stays fully opaque under content that fades in and is released when the content is opaque (the binding keeps it for that: `paintStandIn` / `releaseStandIn`); a silhouette stand-in fades out as the content rises.
+_Avoid_: Fading a bitmap thumbnail out while the content fades in, a failed stand-in
+
+**Mini-thumbnail**:
+The small preview still of a piece of content (`ContentDescriptor.thumbnail`), decoded to at most 40 pixels on its longer side and blurred once at decode (`MiniThumbnail.decode`, the reference client's stripped photo with its radius 3 stack blur), then stretched over the box by the surface. A host that has no preview for a content gives none and the cell keeps its placeholder.
+_Avoid_: A blur per frame, a blur hash, decoding the preview at full size
+
+**Radial progress**:
+The reference client's loading indicator for media (`RadialProgress`): a translucent dark disc with a turning white arc and a cross, painted by the surface over the thumbnail while the content loads. A function of the frame time of the surface's own paint pass; the cache reports stages and no fractions, so the arc sweeps a fixed quarter.
+_Avoid_: A controller per cell, a progress percentage the cache does not have
+
 **Content fetcher**:
 Host seam from descriptor to bytes or file. Owns network, provenance refresh and the disk tier.
 _Avoid_: Loader that also decodes

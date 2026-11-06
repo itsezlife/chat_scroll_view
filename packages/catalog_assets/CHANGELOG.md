@@ -6,6 +6,24 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (loading placeholders of the reference client)
+
+- `AssetBinding.paintStandIn` / `releaseStandIn` (source-breaking for
+  implementers of `AssetBinding`; `AssetBindingBase` supplies a no-op): the
+  thumbnail a better stage replaced is kept for the bindings that were
+  attached while it showed, so a surface fades content in over it. It is
+  released by `releaseStandIn`, by a paint at full opacity, or by a detach.
+  Existing code that asserted a replaced stage was disposed at once will see
+  it disposed at that release instead.
+- `RadialProgress.paint`: the disc, turning arc and cross over loading media,
+  a function of the caller's frame time.
+- `MiniThumbnail.decode`: a preview still decoded to at most 40 px and
+  blurred once.
+- `SoftPlaceholder` and `ContentEmbed(placeholder:)`: an embed can draw a
+  quiet rounded square instead of the scope's circle until its content has a
+  thumbnail.
+
+
 ### Changed (dynamic frame pages sized by class, breaking)
 
 - A page holds one size class and is **twice the class edge** wide (128, 256,
