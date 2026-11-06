@@ -14,7 +14,7 @@ void main() {
   group('LottieNativeVersion.engine', () {
     test('names the crate version of native/Cargo.toml', () {
       final version = field(
-        RegExp(r'^version = "([^"]+)"', multiLine: true),
+        RegExp('^version = "([^"]+)"', multiLine: true),
         'package version',
       );
 
