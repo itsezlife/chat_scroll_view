@@ -10,6 +10,16 @@ name: lottie_native fuzz
 #
 # The seed is random and always printed first, so a finding is reproduced with
 #   CHAT_LOTTIE_FUZZ_SEED=<seed> cargo test --release --test fuzz_long -- --ignored --nocapture
+#
+# Two jobs, so that the one running the fuzz holds a read-only token: only the
+# `report` job, which runs a few `gh` commands and no repository code, may
+# write issues (a permission belongs to a job, not to a step).
+#
+# Actions are pinned to major tags (`actions/checkout@v4`), not to commit
+# SHAs: a deliberate decision. Only first-party `actions/*` and
+# `subosito/flutter-action` are used, a SHA pin would need a bot to keep it
+# fresh, and the job that holds a write permission runs no third-party code.
+# Revisit if a third-party action with a token is ever added.
 on:
   schedule:
     # Schedules only run on the default branch.
@@ -25,7 +35,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: lottie-native-fuzz
@@ -34,12 +43,18 @@ concurrency:
 jobs:
   fuzz:
     runs-on: ubuntu-24.04
-    # The fuzz itself plus the build and the issue step.
+    # The fuzz itself plus the build.
     timeout-minutes: 40
+    outputs:
+      seed: ${{ steps.seed.outputs.seed }}
+      # Only a failed fuzz is a finding: a rejected input or a failed
+      # toolchain install is not worth an issue.
+      found: ${{ steps.fuzz.outcome == 'failure' }}
+      artifact-url: ${{ steps.upload.outputs.artifact-url }}
     env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-      FUZZ_SECONDS: ${{ inputs.seconds || '1200' }}
+      # Through env, never interpolated into a script: an input is text a
+      # person typed.
+      FUZZ_SECONDS_INPUT: ${{ inputs.seconds }}
       FUZZ_SEED_INPUT: ${{ inputs.seed }}
     defaults:
       run:
@@ -60,9 +75,16 @@ jobs:
           key: lottie-native-fuzz-${{ hashFiles('packages/lottie_native/native/Cargo.lock') }}
 
       - name: Pick the seed
+        id: seed
         run: |
+          seconds="${FUZZ_SECONDS_INPUT:-1200}"
           seed="${FUZZ_SEED_INPUT:-$(od -An -N8 -tu8 /dev/urandom | tr -d ' ')}"
+          # Digits only: these reach $GITHUB_ENV and a command line.
+          case "$seconds" in ''|*[!0-9]*) echo "seconds must be digits only" >&2; exit 1;; esac
+          case "$seed" in ''|*[!0-9]*) echo "seed must be digits only" >&2; exit 1;; esac
+          echo "FUZZ_SECONDS=$seconds" >> "$GITHUB_ENV"
           echo "FUZZ_SEED=$seed" >> "$GITHUB_ENV"
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
           echo "seed: $seed"
 
       - name: Fuzz
@@ -83,11 +105,22 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  report:
+    name: open or update the issue
+    needs: fuzz
+    if: ${{ always() && needs.fuzz.outputs.found == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
       - name: Open or update the issue
-        if: failure()
         env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FUZZ_SEED: ${{ needs.fuzz.outputs.seed }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          ARTIFACT_URL: ${{ needs.fuzz.outputs.artifact-url }}
         run: |
           title="lottie_native nightly fuzz failure"
           body="The nightly fuzz of the lottie_native C ABI failed.

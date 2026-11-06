@@ -89,8 +89,15 @@ link-arg=-Wl,-z,max-page-size=16384`, appended to the flags the app set in
 ignores `rustflags` from `.cargo/config.toml` once either variable is set).
 After each Android build the hook reads the ELF program headers and fails
 the build if the machine is not the target's or any `PT_LOAD` segment is
-aligned below 0x4000; after an Apple build it checks the Mach-O CPU. Neither
-check runs on Linux or Windows output.
+aligned below 0x4000; after an Apple build it checks the Mach-O CPU. A
+downloaded prebuilt passes the same check (machine or CPU, and 16 KB segments
+on Android; the ELF machine on Linux, the PE machine on Windows) before it is
+used, because its hash only says it is the file the manifest names: a failing
+file is deleted and treated as no prebuilt, and the hook goes on to compile.
+
+**Android API level.** The hook links for the app's Android API level (the
+`<triple><api>-clang` above). The published prebuilts are built at API 21,
+Flutter's minimum, so one library loads on every supported device.
 
 **Cross-compile smoke.** `LOTTIE_NATIVE_CROSS=1 flutter test --concurrency 40
 test/unit_test.dart --plain-name cross-compile` compiles the crate for each
@@ -165,10 +172,11 @@ Steps:
    disagrees).
 2. Push the tag `lottie_native-v<version>` (or run the workflow by hand on
    that tag). The workflow builds all ten target keys with
-   `cargo build --release --locked`, assembles `prebuilts.json` with
-   `--require` of every key (a missing, empty, duplicated or wrong-format
-   library fails the run) and creates the GitHub Release with the libraries
-   and the manifest attached. Run by hand from a branch it builds and
+   `cargo build --release --locked`, checks each library with
+   `native/tool/verify_artifact.dart` (a wrong CPU or 4 KB pages fail that
+   build leg), assembles `prebuilts.json` with `--require-all` (a missing,
+   empty, duplicated, mislabelled or wrong-format library fails the run) and
+   creates the GitHub Release with the libraries and the manifest attached. Run by hand from a branch it builds and
    assembles but publishes nothing.
 3. Review the release: ten libraries, `prebuilts.json`. The manifest is also
    the workflow artifact `prebuilts-manifest`.
@@ -184,18 +192,32 @@ package root,
 
 ```sh
 dart native/tool/assemble_manifest.dart <dir> --base-url <https url ending /> \
-  --require macos-arm64,macos-x64,ios-arm64,ios-arm64-simulator,ios-x64-simulator,android-arm64,android-x64,linux-x64,linux-arm64,windows-x64
+  --require-all
+dart native/tool/verify_artifact.dart <file> <key>   # prints OK or the problem
 ```
 
 It writes `native/prebuilts.json` (or `--out <file>`): each artifact's
 `file`, `sha256` and `size`, the current `sourceHash` and `crateVersion`. It
-writes nothing if a file is empty, has the wrong header for its key (ELF for
-Android and Linux, Mach-O for macOS and iOS, PE for Windows), two files claim
-one key, or a `--require` key has none, and it re-reads what it wrote.
+writes nothing if a file is empty, fails the hook's header check for its key
+(the format, the CPU, and 16 KB segments on Android), two files claim one key,
+or a required key has none (`--require-all` requires every key the hook
+knows; `--require a,b` names some), and it re-reads what it wrote.
 `manifest_entry.dart` prints one entry; `source_hash.dart` prints the hash,
 `--write` records it, `--check` exits non-zero when a non-empty recorded
 `sourceHash` differs from the sources. (Use `dart <file>`, not `dart run`,
 which would run the build hook.)
+
+**What CI repeats from the hook.** The prebuilts workflow spells out the
+per-target build commands (`cargo build --release --locked --target`, the
+Android linker, `-Wl,-z,max-page-size=16384`) instead of calling the hook's
+builder, because that builder (`compileCrate`) is reached through a Flutter
+build with a hook input, and a leg that only needs cargo should not need
+Flutter to build. The duplication is the Android linker setup and the build
+flags; `verify_artifact.dart` in every leg catches a drift (a wrong machine,
+4 KB pages) before anything is published. Actions are pinned to major tags
+(`actions/checkout@v4`), not commit SHAs, on purpose: only first-party
+actions and `subosito/flutter-action` are used, and the one job with a write
+permission runs no third-party code.
 
 **When the crate changes**, `--check` fails the pull request until the
 manifest agrees with the sources: publish new libraries (steps 1 to 5), or
