@@ -30,6 +30,7 @@ export 'src/asset/asset_producer.dart';
 export 'src/asset/asset_profile.dart';
 export 'src/asset/asset_readiness.dart';
 export 'src/asset/asset_spec.dart';
+export 'src/asset/radial_progress.dart';
 export 'src/atlas/atlas_sprite.dart';
 export 'src/embed/content_embed.dart';
 export 'src/embed/content_embed_resolver.dart';

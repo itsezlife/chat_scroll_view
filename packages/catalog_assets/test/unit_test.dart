@@ -67,6 +67,7 @@ import 'pipeline/pipeline_offline_test.dart' as pipeline_offline_test;
 import 'pipeline/pipeline_orchestration_test.dart'
     as pipeline_orchestration_test;
 import 'pipeline/pipeline_resolver_test.dart' as pipeline_resolver_test;
+import 'placeholder/radial_progress_test.dart' as radial_progress_test;
 import 'playback/playback_activity_test.dart' as playback_activity_test;
 import 'playback/playback_clock_test.dart' as playback_clock_test;
 import 'playback/playback_lifecycle_source_contract_test.dart'
@@ -181,6 +182,7 @@ void main() {
     pipeline_orchestration_test.main,
   );
   group('pipeline/pipeline_resolver_test.dart', pipeline_resolver_test.main);
+  group('placeholder/radial_progress_test.dart', radial_progress_test.main);
   group('playback/playback_activity_test.dart', playback_activity_test.main);
   group('playback/playback_clock_test.dart', playback_clock_test.main);
   group(
