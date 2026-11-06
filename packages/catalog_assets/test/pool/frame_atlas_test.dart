@@ -268,23 +268,25 @@ void main() {
       renderer.resume();
       await batch;
 
-      // Still resident, with the frame the batch rendered: had the entry been
-      // evicted meanwhile, its state would be gone.
+      // Still resident: the batch pinned it, so the new entries did not evict
+      // it. It shows no frame, as nobody holds it (see the visibility tests).
       expect(atlas.isResident('a'), isTrue);
-      expect(acquire('a')!.frame, 0);
+      expect(acquire('a')!.hasFrame, isFalse);
     });
   });
 
   group('residency', () {
-    test('a released handle that is still resident keeps its frame', () async {
+    test('a released handle that is still resident keeps its slot, '
+        'not its frame', () async {
       final handle = acquire('a')!;
       await atlas.render([(handle: handle, frame: 5)]);
       handle.release();
 
       final again = acquire('a')!;
 
-      expect(again.frame, 5);
-      expect(again.sprite, isNotNull);
+      expect(atlas.isResident('a'), isTrue);
+      expect(again.hasFrame, isFalse);
+      expect(again.sprite, isNull);
     });
 
     test('an evicted entry comes back without a frame', () async {
