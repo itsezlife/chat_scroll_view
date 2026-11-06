@@ -8,6 +8,7 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -169,9 +170,13 @@ void main() {
       tester,
     ) async {
       await openChat(tester);
-      // Six messages of emoji, and one sticker each of the Lottie pack.
-      const emojiOnly = 6 + 4;
-      expect(LottieStickerPack.stickers, hasLength(emojiOnly - 6));
+      // Six messages of emoji, and one sticker each of the Lottie pack and of
+      // the static one.
+      final emojiOnly =
+          6 +
+          LottieStickerPack.stickers.length +
+          StaticStickerPack.stickers.length;
+      expect(emojiOnly, 14);
       expect(find.byType(ChatEmojiBody), findsNWidgets(emojiOnly));
 
       await tester.tap(find.byTooltip('Large emoji: on'));

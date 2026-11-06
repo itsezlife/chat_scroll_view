@@ -97,6 +97,8 @@ flutter:
     - assets/animated_emoji/
     # Lottie stickers authored for the demo (no third-party artwork).
     - assets/lottie_stickers/
+    # Static stickers authored for the demo (no third-party artwork).
+    - assets/static_stickers/
     - path: assets/comments/
       platforms:
         - android

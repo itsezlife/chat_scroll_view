@@ -85,11 +85,10 @@ class DemoMessageMeta extends LeafRenderObjectWidget {
   }
 
   @override
-  RenderBox createRenderObject(BuildContext context) =>
-      _RenderDemoMessageMeta(
-        labels: _labels(context),
-        editedOpacity: editedOpacity,
-      );
+  RenderBox createRenderObject(BuildContext context) => _RenderDemoMessageMeta(
+    labels: _labels(context),
+    editedOpacity: editedOpacity,
+  );
 
   @override
   void updateRenderObject(
