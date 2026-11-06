@@ -46,7 +46,7 @@ dependencies:
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
-      ref: v0.9.2
+      ref: v0.9.3
 
 dev_dependencies:
   # Golden baselines are the CI runner's: compared and regenerated there only.
@@ -62,11 +62,11 @@ dev_dependencies:
 
 # Overrides are honoured only here, never in members. Members and CI pin the
 # fork by git ref (itsezlife/md) so the lockfile is reproducible: a release tag,
-# or a commit while the change it carries has no release yet (now v0.9.2).
+# or a commit while the change it carries has no release yet (now v0.9.3).
 # This override points the root at the sibling checkout so fork work lands
 # without a push-and-repin loop. CI checks the same ref out next to this repo,
 # so the override and the pin resolve to the same source there. Move the ref in
-# every pin (this file, example/pubspec.yaml, the four workflows) together.
+# every pin (this file, example/pubspec.yaml, the five workflows) together.
 dependency_overrides:
   flutter_md:
     path: ../md
