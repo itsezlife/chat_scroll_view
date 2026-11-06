@@ -71,7 +71,23 @@ export const LAYOUT = Object.freeze({
 
 /** Statuses the core itself reports; the rest come from the module. */
 const TOO_LARGE = -2;
-const INVALID_ARGUMENT = -1;
+
+/**
+ * Most bytes of idle scratch regions a core keeps for reuse. A batch of
+ * sticker-sized frames fits many times over; a burst of large ones is freed
+ * on return instead of pinning module memory (which never shrinks) for good.
+ */
+const POOL_LIMIT_BYTES = 16 * 1024 * 1024;
+
+/**
+ * A job whose size the module will refuse still needs a non-null target: the
+ * module checks the pointer before the size, and the size check is the answer
+ * the caller should get (-7). Four bytes is never written.
+ */
+const PLACEHOLDER_BYTES = 4;
+
+/** Written to a status slot before the call, so an unwritten slot is visible. */
+const INTERNAL_UNSET = -6;
 
 /** The ABI version this file was written against (`chat_lottie_abi_version`). */
 const ABI_VERSION = 1;
@@ -107,6 +123,30 @@ export async function createChatLottie(wasmBytes) {
     return pointer;
   }
 
+  // Scratch regions by size, handed out and taken back around each batch.
+  const pool = new Map();
+  let pooledBytes = 0;
+
+  function borrow(size) {
+    const idle = pool.get(size);
+    if (idle?.length) {
+      pooledBytes -= size;
+      return idle.pop();
+    }
+    return allocate(size);
+  }
+
+  function giveBack(pointer, size) {
+    if (pooledBytes + size > POOL_LIMIT_BYTES) {
+      wasm.chat_lottie_dealloc(pointer, size);
+      return;
+    }
+    pooledBytes += size;
+    const idle = pool.get(size);
+    if (idle) idle.push(pointer);
+    else pool.set(size, [pointer]);
+  }
+
   function ensureOpen() {
     if (closed) throw new Error('the chat_lottie core is closed');
   }
@@ -140,6 +180,60 @@ export async function createChatLottie(wasmBytes) {
     }
   }
 
+  const fitsFrame = (edge) => Number.isInteger(edge) && edge >= 1 && edge <= MAX_EDGE;
+
+  /**
+   * Draws every job in one module call. [jobs] is `[{handle, frame, width,
+   * height}]`; the result has one `{status, pixels}` per job, `pixels` a
+   * tightly packed premultiplied RGBA copy (null when the status is not 0).
+   */
+  function renderPixels(jobs) {
+    ensureOpen();
+    if (jobs.length === 0) return [];
+    const regions = jobs.map((job) => {
+      const fits = fitsFrame(job.width) && fitsFrame(job.height);
+      const size = fits ? job.width * job.height * 4 : PLACEHOLDER_BYTES;
+      return { size, stride: fits ? job.width * 4 : PLACEHOLDER_BYTES };
+    });
+    const tableBytes = jobs.length * (LAYOUT.job.size + 4);
+    const table = borrow(tableBytes);
+    const borrowed = [];
+    try {
+      for (const region of regions) {
+        region.pointer = borrow(region.size);
+        borrowed.push(region);
+      }
+      // Every allocation above may have grown memory: take the view now.
+      const view = words();
+      const statusesAt = table + jobs.length * LAYOUT.job.size;
+      jobs.forEach((job, i) => {
+        const at = table + i * LAYOUT.job.size;
+        // A handle that was disposed or never issued is passed as null, which
+        // the module answers with -1; freed handles must never reach it.
+        view.setUint32(at + LAYOUT.job.handle, live.has(job.handle) ? job.handle : 0, true);
+        view.setFloat32(at + LAYOUT.job.frame, job.frame, true);
+        view.setUint32(at + LAYOUT.job.width, job.width, true);
+        view.setUint32(at + LAYOUT.job.height, job.height, true);
+        view.setUint32(at + LAYOUT.job.target, regions[i].pointer, true);
+        view.setUint32(at + LAYOUT.job.strideBytes, regions[i].stride, true);
+        view.setInt32(statusesAt + i * 4, INTERNAL_UNSET, true);
+      });
+      const code = wasm.chat_lottie_render_batch(table, jobs.length, statusesAt);
+      if (code !== 0) throw new Error(`chat_lottie_render_batch failed with ${code}`);
+      // The call may have grown memory too: fresh views.
+      const after = words();
+      const memory = bytes();
+      return regions.map((region, i) => {
+        const status = after.getInt32(statusesAt + i * 4, true);
+        if (status !== 0) return { status, pixels: null };
+        return { status, pixels: memory.slice(region.pointer, region.pointer + region.size) };
+      });
+    } finally {
+      for (const region of borrowed) giveBack(region.pointer, region.size);
+      giveBack(table, tableBytes);
+    }
+  }
+
   function dispose(handle) {
     if (!live.delete(handle)) return;
     wasm.chat_lottie_free(handle);
@@ -149,6 +243,11 @@ export async function createChatLottie(wasmBytes) {
     if (closed) return;
     for (const handle of live) wasm.chat_lottie_free(handle);
     live.clear();
+    for (const [size, idle] of pool) {
+      for (const pointer of idle) wasm.chat_lottie_dealloc(pointer, size);
+    }
+    pool.clear();
+    pooledBytes = 0;
     wasm.chat_lottie_dealloc(infoPtr, LAYOUT.info.size);
     wasm.chat_lottie_dealloc(handlePtr, 4);
     closed = true;
@@ -156,8 +255,13 @@ export async function createChatLottie(wasmBytes) {
 
   return {
     abiVersion: version,
+    /** Bytes of idle scratch kept for reuse (observable so reuse is testable). */
+    get pooledBytes() {
+      return pooledBytes;
+    },
     exports: wasm,
     load,
+    renderPixels,
     dispose,
     close,
   };
