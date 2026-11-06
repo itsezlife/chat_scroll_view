@@ -671,10 +671,10 @@ void main() {
       final services = await createTestServices(corpus: corpus);
       addTearDown(services.dispose);
 
-      // The on-disk pack comes last, whatever corpus files a developer has
-      // linked into the (gitignored) bundled assets folder.
-      final fox = corpus.packs.last;
-      expect(ids(services.stickerPageSource).last, fox.id);
+      // Pick the on-disk pack by folder: a developer may have linked corpus
+      // files into the (gitignored) bundled assets folder, which add packs.
+      final fox = corpus.packs.singleWhere((pack) => pack.folder == 'fox');
+      expect(ids(services.stickerPageSource), contains(fox.id));
       expect(services.describe(fox.stickers.single.key), isNotNull);
     });
 
