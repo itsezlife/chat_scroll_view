@@ -6,7 +6,7 @@ void main() {
     final renderer = FakeFrameRenderer();
     return FrameRendererHarness(
       renderer: renderer,
-      memory: ListFramePageMemory(pageSide: 128),
+      memory: ListFramePageMemory(),
       job: (slot, frame) => FrameJob(
         slot: slot,
         frame: frame,

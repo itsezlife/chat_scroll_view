@@ -36,7 +36,7 @@ Future<LottiePlayback?> start({
   }
   // One memory for the renderer and the atlas, native so the render isolate
   // can write it.
-  final memory = NativeFramePageMemory(pageSide: FrameAtlas.defaultPageSide);
+  final memory = NativeFramePageMemory();
   final cache = FrameCache(
     directory: cacheDirectory == null ? null : Directory(cacheDirectory),
     // A cache that cannot touch its folder serves from memory; saying so once

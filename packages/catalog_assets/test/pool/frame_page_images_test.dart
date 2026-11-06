@@ -18,13 +18,13 @@ ui.Image _image() {
 
 /// An uploader that records what it was given and answers when told to.
 final class _Uploads {
-  final List<({int firstByte, int side})> calls = [];
+  final List<({int firstByte, int side, int length})> calls = [];
   final List<ui.Image> made = [];
   final List<Completer<void>> pending = [];
   bool manual = false;
 
   Future<ui.Image> call(Uint8List pixels, int side) {
-    calls.add((firstByte: pixels[0], side: side));
+    calls.add((firstByte: pixels[0], side: side, length: pixels.length));
     final image = _image();
     made.add(image);
     if (!manual) return Future.value(image);
@@ -48,7 +48,7 @@ void main() {
   late FramePageImages images;
 
   setUp(() {
-    memory = ListFramePageMemory(pageSide: _side);
+    memory = ListFramePageMemory();
     uploads = _Uploads();
     images = FramePageImages(memory: memory, upload: uploads.call);
   });
@@ -62,8 +62,8 @@ void main() {
   });
 
   test('flush uploads each dirty page once with its bytes and side', () async {
-    memory.page(0)[0] = 7;
-    memory.page(1)[0] = 9;
+    memory.page(0, side: _side)[0] = 7;
+    memory.page(1, side: _side)[0] = 9;
     images
       ..markDirty(0)
       ..markDirty(1)
@@ -78,6 +78,7 @@ void main() {
   });
 
   test('a clean page is not uploaded again', () async {
+    memory.page(0, side: _side);
     images.markDirty(0);
     await images.flush();
 
@@ -87,6 +88,7 @@ void main() {
   });
 
   test('a new upload replaces the image and disposes the old one', () async {
+    memory.page(0, side: _side);
     images.markDirty(0);
     await images.flush();
     final first = images.imageOf(0)!;
@@ -100,6 +102,7 @@ void main() {
   });
 
   test('the old image keeps drawing while its replacement uploads', () async {
+    memory.page(0, side: _side);
     images.markDirty(0);
     await images.flush();
     final first = images.imageOf(0)!;
@@ -117,7 +120,7 @@ void main() {
   });
 
   test('release disposes the image and drops the page bytes', () async {
-    memory.page(0)[0] = 5;
+    memory.page(0, side: _side)[0] = 5;
     images.markDirty(0);
     await images.flush();
     final image = images.imageOf(0)!;
@@ -126,7 +129,11 @@ void main() {
 
     expect(image.debugDisposed, isTrue);
     expect(images.imageOf(0), isNull);
-    expect(memory.page(0)[0], 0, reason: 'a later page() is blank');
+    expect(
+      memory.page(0, side: _side)[0],
+      0,
+      reason: 'a later page() is blank',
+    );
   });
 
   test('a released page is no longer dirty', () async {
@@ -140,6 +147,7 @@ void main() {
   });
 
   test('a page released during its upload does not keep the image', () async {
+    memory.page(0, side: _side);
     uploads.manual = true;
     images.markDirty(0);
     final flushing = images.flush();
@@ -154,6 +162,7 @@ void main() {
   });
 
   test('a page marked again during its upload is uploaded again', () async {
+    memory.page(0, side: _side);
     uploads.manual = true;
     images.markDirty(0);
     final flushing = images.flush();
@@ -170,16 +179,41 @@ void main() {
     expect(uploads.calls, hasLength(2));
   });
 
-  test('residentBytes counts every page that has an image', () async {
+  test('residentBytes sums the pages, each at its own side', () async {
+    memory
+      ..page(0, side: _side)
+      ..page(3, side: 2 * _side);
     images
       ..markDirty(0)
       ..markDirty(3);
     await images.flush();
 
-    expect(images.residentBytes, 2 * _side * _side * 4);
+    expect(images.residentBytes, (1 + 4) * _side * _side * 4);
+  });
+
+  test('each dirty page is uploaded at exactly its own side', () async {
+    memory
+      ..page(0, side: _side)
+      ..page(1, side: 4 * _side);
+    images
+      ..markDirty(0)
+      ..markDirty(1);
+
+    await images.flush();
+
+    expect(
+      uploads.calls.map((c) => (c.side, c.length)),
+      unorderedEquals([
+        (_side, _side * _side * 4),
+        (4 * _side, 16 * _side * _side * 4),
+      ]),
+    );
   });
 
   test('dispose disposes the images and ignores later work', () async {
+    memory
+      ..page(0, side: _side)
+      ..page(1, side: _side);
     images.markDirty(0);
     await images.flush();
     final image = images.imageOf(0)!;

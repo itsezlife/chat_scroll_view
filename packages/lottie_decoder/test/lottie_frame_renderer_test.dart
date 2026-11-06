@@ -37,7 +37,7 @@ void _runContract(
   FrameRendererContract.run(() {
     final engine = InProcessLottieEngine(binding());
     addTearDown(engine.close);
-    final memory = NativeFramePageMemory(pageSide: 128);
+    final memory = NativeFramePageMemory();
     addTearDown(memory.dispose);
     // The contract's jobs are built synchronously; the handles come from a
     // load that completes at once on an in-process engine.
@@ -89,12 +89,12 @@ void main() {
 
     setUp(() async {
       engine = InProcessLottieEngine(FakeLottieBinding()..accept(bytes, info));
-      memory = NativeFramePageMemory(pageSide: 128);
+      memory = NativeFramePageMemory();
       renderer = LottieFrameRenderer(engine: engine, memory: memory);
       handle = ((await engine.load(bytes)) as LottieLoaded).handle;
       final allocator = FrameSlotAllocator(
-        pageSide: 128,
-        maxPages: 2,
+        pageSideFor: (_) => 128,
+        budgetBytes: 2 * 128 * 128 * 4,
         sizeClasses: const [64],
       );
       // The fifth cell of a 2 x 2 grid: top left of the second page.
@@ -112,7 +112,7 @@ void main() {
         FrameJob(slot: slot, frame: 2, width: 48, height: 48, source: source);
 
     test('rejects memory other than the one it was built for', () async {
-      final other = NativeFramePageMemory(pageSide: 128);
+      final other = NativeFramePageMemory();
       addTearDown(other.dispose);
 
       await expectLater(
@@ -133,7 +133,7 @@ void main() {
         job(LottieSource(handle, frameCount: 10)),
       ], memory);
 
-      final page = memory.page(slot.pageIndex);
+      final page = memory.page(slot.pageIndex, side: slot.pageSide);
       final left = slot.rect.left.toInt();
       final top = slot.rect.top.toInt();
       int alphaAt(int x, int y) => page[(y * 128 + x) * 4 + 3];
@@ -142,6 +142,53 @@ void main() {
       expect(alphaAt(left + 48, top), 0, reason: 'past the job width');
       expect(alphaAt(left - 1, top), 0, reason: 'left of the slot');
     });
+
+    test(
+      'writes by the side of the slot, on pages of different sides',
+      () async {
+        // Class 64 opens a 128 px page, class 128 a 256 px one: the second
+        // cell of the large page starts at x 128 and its rows are 256 px apart.
+        final sized = FrameSlotAllocator(
+          pageSideFor: (c) => 2 * c,
+          budgetBytes: 1 << 20,
+          sizeClasses: const [64, 128],
+        );
+        final small = sized.allocate(48, 48)!;
+        sized.allocate(100, 100);
+        final large = sized.allocate(100, 100)!;
+        expect(large.pageSide, 256);
+        expect(large.rect.left, 128);
+
+        await renderer.render([
+          FrameJob(
+            slot: small,
+            frame: 2,
+            width: 48,
+            height: 48,
+            source: LottieSource(handle, frameCount: 10),
+          ),
+          FrameJob(
+            slot: large,
+            frame: 2,
+            width: 100,
+            height: 100,
+            source: LottieSource(handle, frameCount: 10),
+          ),
+        ], memory);
+
+        int alphaAt(FrameSlot slot, int x, int y) => memory.page(
+          slot.pageIndex,
+          side: slot.pageSide,
+        )[(y * slot.pageSide + x) * 4 + 3];
+        final left = large.rect.left.toInt();
+        final top = large.rect.top.toInt();
+        expect(alphaAt(large, left + 99, top + 99), isNot(0), reason: 'last');
+        expect(alphaAt(large, left + 100, top), 0, reason: 'past the width');
+        expect(alphaAt(large, left - 1, top), 0, reason: 'left of the cell');
+        expect(alphaAt(small, 47, 47), isNot(0));
+        expect(alphaAt(small, 48, 0), 0);
+      },
+    );
 
     test('an engine error propagates', () async {
       await engine.close();
@@ -169,10 +216,10 @@ void main() {
 
     setUp(() async {
       engine = CountingLottieEngine(open(codec: FakeLottieFrameCodec()));
-      memory = NativeFramePageMemory(pageSide: 256);
+      memory = NativeFramePageMemory();
       allocator = FrameSlotAllocator(
-        pageSide: 256,
-        maxPages: 1,
+        pageSideFor: (_) => 256,
+        budgetBytes: 256 * 256 * 4,
         sizeClasses: const [64],
       );
       handle = ((await engine.load(bytes)) as LottieLoaded).handle;
@@ -209,7 +256,7 @@ void main() {
 
     /// The pixels of [job]'s slot, row by row.
     List<int> pixels(FrameJob job) {
-      final page = memory.page(job.slot.pageIndex);
+      final page = memory.page(job.slot.pageIndex, side: job.slot.pageSide);
       final left = job.slot.rect.left.toInt();
       final top = job.slot.rect.top.toInt();
       return [
@@ -285,7 +332,7 @@ void main() {
       await renderer(before).render(pass(), memory);
       await before.dispose();
       final expected = [for (final job in pass()) pixels(job)];
-      memory.page(0).fillRange(0, 256 * 256 * 4, 0);
+      memory.page(0, side: 256).fillRange(0, 256 * 256 * 4, 0);
       engine
         ..rendered = 0
         ..restored = 0;
@@ -462,7 +509,7 @@ void main() {
         ),
       );
       addTearDown(engine.close);
-      final memory = NativeFramePageMemory(pageSide: 512);
+      final memory = NativeFramePageMemory();
       addTearDown(memory.dispose);
       final loaded =
           await engine.load(Uint8List.fromList(utf8.encode(_fixture)))
@@ -481,8 +528,8 @@ void main() {
         cache: cache,
       );
       final allocator = FrameSlotAllocator(
-        pageSide: 512,
-        maxPages: 1,
+        pageSideFor: (_) => 512,
+        budgetBytes: 512 * 512 * 4,
         sizeClasses: const [64],
       );
       final slots = [
@@ -503,7 +550,7 @@ void main() {
           ),
       ];
       List<int> pixels(FrameJob job) {
-        final page = memory.page(job.slot.pageIndex);
+        final page = memory.page(job.slot.pageIndex, side: job.slot.pageSide);
         final left = job.slot.rect.left.toInt();
         final top = job.slot.rect.top.toInt();
         return [

@@ -14,7 +14,7 @@ memory a render isolate can write, and a `FrameRenderer` that draws into it.
 | `InProcessLottieEngine` | Runs a binding on the calling isolate, and a `LottieFrameCodec` if given one. With `FakeLottieBinding` it is the engine fake. |
 | `IsolateLottieEngine` | One long-lived render isolate that owns the binding and every handle. `spawn({bindingFactory, codecFactory})` builds the binding and the frame codec inside the isolate (the codec only if the binding is available, and dropped if it is not; compressed bytes cross as `TransferableTypedData`) and throws a `LottieUnavailable` (a `StateError`) carrying the `LottieAvailability` when the binding is unavailable; any other start-up failure surfaces as it happened, and the isolate and ports are released. One request failing throws a `RemoteError` and spares the engine; the isolate ending fails every pending request with `LottieEngineClosed` and closes the engine. Requests run in arrival order. A native fault ends the process and cannot be caught. |
 | `LottieEngineContract` (`testing.dart`) | The behaviour every engine shares, run over the in-process engine and over the isolate engine on the fake and on the real binding. |
-| `NativeFramePageMemory` | `FramePageMemory` in `calloc`ed memory (a Dart-heap list cannot be written from another isolate). `addressOf(page)`, `drop`, `dispose`. |
+| `NativeFramePageMemory` | `FramePageMemory` in `calloc`ed memory (a Dart-heap list cannot be written from another isolate). `page(i, side:)`, `sideOf(i)`, `addressOf(i, side:)`, `drop`, `dispose`; each page has the side of its slot. |
 | `LottieFrameScheduler` | The one owner of the host's `FrameAtlas`: follows `PlaybackClock` while a lease exists, renders the wanted frames as one batch per tick, and frees a slot after one to two idle periods (default 1 s) by a single sweep timer. The sweep uses a real `Timer` by design: it keeps counting while the clock is paused, and a repaint after a long pause reacquires the entry and draws the last rendered frame, not the still. |
 | `LottieFrameSize` | The one render size (`fitting(info, edge)`) the decoder and the paintable share. |
 | `LottieAnimationPaintable` / `LottieStillPaintable` | The animation (pull-driven, one scheduler key per animation, `onDispose` frees its handle) and a decoded still. |
@@ -158,17 +158,22 @@ a build is about 2x slower than the rest.
 
 | Stickers | tick (UI isolate) | settled | render round trip | upload | uploaded per tick | pages |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 0.05 ms | 0.93 ms | 0.17 ms | 0.53 ms | 4 MiB | 1 |
-| 8 | 0.05 ms | 0.83 ms | 0.22 ms | 0.38 ms | 4 MiB | 1 |
-| 32 | 0.05 ms | 1.10 ms | 0.49 ms | 0.35 ms | 4 MiB | 1 |
+| 1 | 0.04 ms | 0.58 ms | 0.12 ms | 0.33 ms | 256 KiB | 1 |
+| 8 | 0.04 ms | 0.67 ms | 0.18 ms | 0.31 ms | 512 KiB | 2 |
+| 32 | 0.04 ms | 1.33 ms | 0.38 ms | 0.77 ms | 2 MiB | 8 |
 
-What it says. Building and sending the batch costs the UI isolate about 50
+What it says. Building and sending the batch costs the UI isolate about 40
 microseconds whatever the count. The render isolate round trip grows with the
-count (0.17 to 0.49 ms), as it should. The upload does not: every tick uploads
-each dirty page in full, so one 1024 px page is 4 MiB per tick for one sticker
-or for 32, 64x the 64 KiB that changed at N = 1 and 2x the 2 MiB at N = 32. The
-upload time here is the engine's `decodeImageFromPixels` copy and callback in
+count (0.12 to 0.38 ms), as it should. A page is uploaded whole
+(`decodeImageFromPixels` has no partial update), so the page size is what a
+changed frame costs. Pages are sized by class (twice the class edge: 256 px for
+the 128 px stickers here), so one sticker uploads 256 KiB, 4x the 64 KiB that
+changed, and eight or more upload exactly what changed. Before this change every
+class shared a 1024 px page: 4 MiB per tick for one sticker or for 32, 64x the
+bytes that changed at N = 1 (see the amendment in ADR 022). The price shows at
+N = 32: eight uploads of 256 KiB take 0.77 ms where one 4 MiB upload took 0.35 ms
+in the headless engine, so the per-call cost matters more than the bytes there.
+That upload time is the engine's `decodeImageFromPixels` copy and callback in
 the headless test engine; it does not include the GPU upload on a device
 (frame-timing tools hide that cost too), so the byte count is the finding, not
-the 0.4 ms. A partial upload of the changed slots, or a smaller page for a few
-stickers, would cut it; that belongs to the frame cache slice.
+the milliseconds.

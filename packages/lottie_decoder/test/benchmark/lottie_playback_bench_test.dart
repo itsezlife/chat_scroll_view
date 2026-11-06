@@ -181,7 +181,7 @@ Future<_Samples> _play(int stickers) async {
   final timeline = Stopwatch()..start();
   final meter = _MeteredUploader(timeline);
   final engine = _MeteredEngine(await IsolateLottieEngine.spawn());
-  final memory = NativeFramePageMemory(pageSide: FrameAtlas.defaultPageSide);
+  final memory = NativeFramePageMemory();
   final ticks = ManualPlaybackTickSource();
   final clock = PlaybackClock(ticks: ticks);
   final atlas = FrameAtlas<Object>(
@@ -207,7 +207,8 @@ Future<_Samples> _play(int stickers) async {
           _displayEdge,
         )!,
     ];
-    final pageBytes = memory.pageSide * memory.pageSide * 4;
+    final pageSide = FrameAtlas.pageSideFor(_displayEdge);
+    final pageBytes = pageSide * pageSide * 4;
     var time = Duration.zero;
 
     for (var tick = 0; tick < _warmupTicks + _measuredTicks; tick++) {

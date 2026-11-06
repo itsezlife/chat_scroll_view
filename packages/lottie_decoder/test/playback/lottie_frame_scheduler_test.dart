@@ -39,7 +39,7 @@ void main() {
   LottieFrameScheduler build({int budget = _budget}) {
     atlas = FrameAtlas<Object>(
       renderer: renderer,
-      memory: ListFramePageMemory(pageSide: 128),
+      memory: ListFramePageMemory(),
       budgetBytes: budget,
       sizeClasses: const [64],
       upload: _upload,
