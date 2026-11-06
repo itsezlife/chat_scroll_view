@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
@@ -6,6 +7,12 @@ import 'package:flutter/foundation.dart';
 import 'package:video_decoder/src/engine/video_engine.dart';
 import 'package:video_decoder/src/renderer/video_frame_source.dart';
 import 'package:video_native/video_native.dart';
+
+// [DEBUG-fl01] ticket 55 diagnosis probe; remove with `grep -rn DEBUG-fl01`.
+const bool _fl01 = bool.fromEnvironment('DEBUG_FL01');
+void _fl01Log(String message) =>
+    // ignore: avoid_print
+    print('[DEBUG-fl01] t=${developer.Timeline.now} $message');
 
 /// Starts the sweep timer; `Timer.new` by default, a manual one in tests.
 typedef VideoSweepTimerFactory =
@@ -164,6 +171,7 @@ final class VideoFrameScheduler {
   bool _disposed = false;
   int _nextSeq = 0;
   int _bufferedBytes = 0;
+  Set<int> _fl01Last = {};
 
   /// Leases alive now.
   int get leaseCount => _leases.length;
@@ -200,6 +208,12 @@ final class VideoFrameScheduler {
     if (handle == null) return null;
     final lease = VideoFrameLease._(this, handle, player, _nextSeq++);
     _leases[key] = lease;
+    if (_fl01) {
+      _fl01Log(
+        'sched acquire seq=${lease._seq} key=${key.hashCode} '
+        'hadFrame=${handle.hasFrame} leases=${_leases.length}',
+      );
+    }
     _following ??= _clock.follow(_onTick, frameInterval: tickInterval);
     _sweep ??= _startTimer(idleRelease, _onSweep);
     return lease;
@@ -231,6 +245,12 @@ final class VideoFrameScheduler {
   void _release(VideoFrameLease lease) {
     if (lease._released) return;
     lease._released = true;
+    if (_fl01) {
+      _fl01Log(
+        'sched release seq=${lease._seq} key=${lease._handle.key.hashCode} '
+        'leases=${_leases.length - 1}',
+      );
+    }
     lease._player.dispose();
     lease._handle.release();
     _leases.remove(lease._handle.key);
@@ -298,6 +318,18 @@ final class VideoFrameScheduler {
     final advancing = candidates.take(maxAdvancing).toSet();
     for (final lease in _leases.values) {
       lease._player.advancing = advancing.contains(lease);
+    }
+    if (_fl01) {
+      final now = {for (final l in advancing) l._seq};
+      if (!(_fl01Last.length == now.length && _fl01Last.containsAll(now))) {
+        _fl01Last = now;
+        _fl01Log(
+          'sched advancing=${now.toList()..sort()} '
+          'frozen=${[for (final l in _leases.values)
+            if (!now.contains(l._seq)) l._seq]..sort()} '
+          'leases=${_leases.length} cap=$maxAdvancing',
+        );
+      }
     }
     return advancing.toList();
   }
