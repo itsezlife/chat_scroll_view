@@ -1,0 +1,180 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
+import 'package:catalog_assets/catalog_assets.dart';
+import 'package:flutter/painting.dart';
+import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
+import 'package:lottie_decoder/src/playback/lottie_frame_scheduler.dart';
+import 'package:lottie_native/lottie_native.dart';
+
+/// A Lottie animation played by the shared clock through a
+/// [LottieFrameScheduler].
+///
+/// Pull-driven, like `PlayingImagePaintable`, and shared by every surface of
+/// its entry. It never schedules a timer. A paint that animates works out the
+/// frame its playback time names, [LottieFrameScheduler.want]s the one after
+/// it (the render lands a tick later, so the frame on screen is the one
+/// asked for a tick ago), and draws the sprite its lease holds; with no sprite
+/// yet, a failed lease, or a full pool, it draws the first-frame still, so
+/// nothing is blank and a late frame keeps the last sprite.
+///
+/// ## Playback time
+///
+/// The frame follows the time the paints add up, not the clock's absolute
+/// time: a pass starts at the first paint that animates, so a sticker that
+/// appears at minute five does not start at its middle, and a pass that does
+/// not loop has a start to end from. Each paint adds how far the clock moved
+/// since the previous one. A step larger than [resumeGap], or backwards, adds
+/// nothing: the clock stood still while paused and then jumped by the pause
+/// ("freeze and continue"), and the animation goes on from where it stopped.
+///
+/// ## One pass, then a rest frame
+///
+/// A paint that does not loop plays the animation once. When the last frame's
+/// time is over it holds the rest frame (`AssetPaintContext.restFrame`), asks
+/// for nothing and says so ([isHolding]); [restart], or a paint that loops,
+/// plays another pass from the first frame.
+///
+/// ## Failure
+///
+/// A lease the renderer failed on is never asked again: the paintable keeps
+/// painting its still.
+final class LottieAnimationPaintable implements AssetPaintable {
+  /// Creates the paintable of the animation [handle] describes by [info].
+  ///
+  /// It owns [firstFrame] from now on. [key] names its entry in the
+  /// scheduler's atlas (one paintable per key). [renderEdge] is the pixels of
+  /// the longer side of a rendered frame, within the atlas's size classes.
+  LottieAnimationPaintable({
+    required Object key,
+    required LottieHandle handle,
+    required LottieInfo info,
+    required ui.Image firstFrame,
+    required LottieFrameScheduler scheduler,
+    required int renderEdge,
+  }) : _key = key,
+       _handle = handle,
+       _info = info,
+       _still = LottieStillPaintable(firstFrame),
+       _scheduler = scheduler,
+       _width = _scaled(info.width, info, renderEdge),
+       _height = _scaled(info.height, info, renderEdge);
+
+  /// The largest step of the clock between two paints that counts as time
+  /// played; a longer one is a pause that ended.
+  static const Duration resumeGap = Duration(milliseconds: 500);
+
+  final Object _key;
+  final LottieHandle _handle;
+  final LottieInfo _info;
+  final LottieStillPaintable _still;
+  final LottieFrameScheduler _scheduler;
+  final int _width;
+  final int _height;
+
+  LottieFrameLease? _lease;
+  Duration _played = Duration.zero;
+  Duration? _lastTime;
+  bool _holding = false;
+  bool _failed = false;
+  bool _disposed = false;
+
+  static int _scaled(int side, LottieInfo info, int edge) =>
+      math.max(1, (side * edge / math.max(info.width, info.height)).round());
+
+  @override
+  AtlasSprite? get sprite => null;
+
+  @override
+  bool get isAnimated => true;
+
+  @override
+  bool get isHolding => _holding;
+
+  @override
+  bool restart() {
+    if (!_holding) return false;
+    _beginPass();
+    return true;
+  }
+
+  void _beginPass() {
+    _holding = false;
+    _played = Duration.zero;
+    _lastTime = null;
+  }
+
+  @override
+  void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
+    if (context.animate && !_failed) _ask(context);
+    final sprite = _lease?.sprite;
+    if (sprite == null) {
+      _still.paint(canvas, rect, context);
+      return;
+    }
+    final fitted = applyBoxFit(
+      BoxFit.contain,
+      Size(_info.width.toDouble(), _info.height.toDouble()),
+      rect.size,
+    );
+    canvas.drawImageRect(
+      sprite.page,
+      sprite.source,
+      Alignment.center.inscribe(fitted.destination, rect),
+      Paint()
+        ..filterQuality = FilterQuality.medium
+        ..color = Color.fromRGBO(0, 0, 0, context.opacity),
+    );
+  }
+
+  void _ask(AssetPaintContext context) {
+    if (_holding && context.loop) _beginPass();
+    var lease = _lease;
+    if (lease != null && lease.isFailed) {
+      _failed = true;
+      return;
+    }
+    if (lease == null || lease.isReleased) {
+      // An extension type on int is not an Object statically; the renderer
+      // checks `is LottieHandle` at run time.
+      lease = _lease = _scheduler.acquire(
+        _key,
+        _handle as Object,
+        _width,
+        _height,
+      );
+      if (lease == null) return;
+    }
+    _scheduler.want(lease, _frameFor(context));
+  }
+
+  int _frameFor(AssetPaintContext context) {
+    final count = _info.frameCount;
+    if (_holding) return _restFrame(context.restFrame);
+    final last = _lastTime;
+    _lastTime = context.time;
+    if (last != null) {
+      final step = context.time - last;
+      if (!step.isNegative && step <= resumeGap) _played += step;
+    }
+    final index = _played.inMicroseconds * _info.frameRate ~/ 1000000;
+    if (context.loop) return (index % count + 1) % count;
+    if (index >= count) {
+      _holding = true;
+      return _restFrame(context.restFrame);
+    }
+    return math.min(index + 1, count - 1);
+  }
+
+  int _restFrame(AssetRestFrame rest) =>
+      rest == AssetRestFrame.last ? _info.frameCount - 1 : 0;
+
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _lease?.release();
+    _lease = null;
+    _still.dispose();
+  }
+}

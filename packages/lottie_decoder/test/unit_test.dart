@@ -10,8 +10,16 @@ import 'in_process_lottie_engine_test.dart' as in_process_lottie_engine_test;
 import 'isolate_lottie_engine_test.dart' as isolate_lottie_engine_test;
 import 'lottie_frame_renderer_test.dart' as lottie_frame_renderer_test;
 import 'native_frame_page_memory_test.dart' as native_frame_page_memory_test;
+import 'paint/lottie_paintable_test.dart' as lottie_paintable_test;
+import 'playback/lottie_frame_scheduler_test.dart'
+    as lottie_frame_scheduler_test;
 
 void main() {
+  group('paint/lottie_paintable_test.dart', lottie_paintable_test.main);
+  group(
+    'playback/lottie_frame_scheduler_test.dart',
+    lottie_frame_scheduler_test.main,
+  );
   group(
     'in_process_lottie_engine_test.dart',
     in_process_lottie_engine_test.main,
