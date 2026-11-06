@@ -9,6 +9,7 @@
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/semantics.dart';
@@ -303,6 +304,51 @@ void main() {
 
       // 480 px shows five rows of 102 (partly); 20 rows are laid out in all.
       expect(find.byType(ContentView).evaluate().length, lessThan(30));
+    });
+  });
+
+  group('a cell that waits for its clip', () {
+    // The painting box inside the view's repaint boundary.
+    RenderObject boxOf(WidgetTester tester) => tester.renderObject(
+      find.descendant(
+        of: find.byType(ContentView).first,
+        matching: find.byWidgetPredicate((w) => w is LeafRenderObjectWidget),
+      ),
+    );
+
+    pageTest('is the clip\'s rectangle in a quiet token, not a circle', (
+      tester,
+    ) async {
+      await pumpPage(tester);
+
+      final view = find.byType(ContentView).first;
+      final skeleton = ChromeThemeScope.of(
+        tester.element(view),
+      ).placeholder.skeleton;
+      // A square clip of 25 spans is a 98 x 100 cell (the gap is after it): drawn whole from the
+      // first frame, so the thumbnail that arrives changes no bounds.
+      expect(
+        tester.renderObject(view),
+        paints..rect(rect: const Rect.fromLTWH(0, 0, 98, 100), color: skeleton),
+      );
+      expect(tester.renderObject(view), isNot(paints..path()));
+    });
+
+    pageTest('has the radial progress over its centre', (tester) async {
+      await pumpPage(tester);
+
+      expect(boxOf(tester), paints..circle(x: 49, y: 50, radius: 12));
+    });
+
+    pageTest('fills its cell with the clip, cropping the overflow', (
+      tester,
+    ) async {
+      await pumpPage(tester);
+
+      final view = tester.widget<ContentView>(find.byType(ContentView).first);
+
+      expect(view.preset.profile.fit, AssetFit.cover);
+      expect(view.preset.profile.animate, isTrue);
     });
   });
 }
