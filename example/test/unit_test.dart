@@ -121,6 +121,8 @@ import 'widgets/emoji_selection_clear_test.dart' as emoji_selection_clear_test;
 import 'widgets/glyph_warmup_test.dart' as glyph_warmup_test;
 import 'widgets/large_emoji_limit_button_test.dart'
     as large_emoji_limit_button_test;
+import 'widgets/lottie_sticker_message_test.dart'
+    as lottie_sticker_message_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
 import 'widgets/message_row_frame_test.dart' as message_row_frame_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
@@ -236,6 +238,10 @@ void main() {
   group(
     'features/chat/lottie_sticker_pipeline_test.dart',
     lottie_sticker_pipeline_test.main,
+  );
+  group(
+    'widgets/lottie_sticker_message_test.dart',
+    lottie_sticker_message_test.main,
   );
   group(
     'features/chat/lottie_sticker_pack_test.dart',

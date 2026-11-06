@@ -5,6 +5,7 @@ library;
 
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:content_model/content_model.dart';
@@ -95,11 +96,26 @@ void main() {
           for (final message in messages.skip(10))
             message.emojiOnly?.items.length,
         ],
-        [1, 1, 3, 5, 12, 3],
+        [1, 1, 1, 1, 1, 1, 3, 5, 12, 3],
       );
       expect(
         messages.last.emojiOnly!.items.map((item) => item.lineBreaksBefore),
         [0, 2, 0],
+      );
+    });
+
+    test('has each Lottie sticker of the pack as a lone document', () {
+      // After the lone unicode emoji and the lone animated emoji.
+      final stickers = messages
+          .skip(12)
+          .take(LottieStickerPack.stickers.length);
+
+      expect(
+        [
+          for (final message in stickers)
+            message.emojiOnly?.items.map((item) => item.key).single,
+        ],
+        [for (final sticker in LottieStickerPack.stickers) sticker.key],
       );
     });
 
