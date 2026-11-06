@@ -34,7 +34,7 @@ void main() {
 
   setUp(() async {
     worker = FakeLottieWorker();
-    worker.core.accept(bytes, info); worker.sendShortPixels();
+    worker.core.accept(bytes, info);
     engine = await WebWorkerLottieEngine.spawn(
       worker.port,
       wasmUrl: Uri.parse('https://host.test/a.wasm'),
