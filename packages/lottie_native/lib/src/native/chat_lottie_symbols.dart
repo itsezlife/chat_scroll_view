@@ -1,4 +1,4 @@
-// The C ABI of native/include/chat_lottie.h, bound by hand: five functions
+// The C ABI of native/include/chat_lottie.h, bound by hand: eight functions
 // are too few to be worth putting LLVM (ffigen) on every contributor. The
 // asset id of these `@Native`s is this file's library URI, which is the name
 // hook/build.dart registers the library under; moving this file means
@@ -6,6 +6,9 @@
 // The names mirror the header one to one and are documented there.
 // ignore_for_file: public_member_api_docs
 import 'dart:ffi';
+
+/// The ABI version of `chat_lottie.h` the bindings were written against.
+const chatLottieExpectedAbiVersion = 1;
 
 /// The status numbers of `chat_lottie.h`, in one place so no other file
 /// carries a bare literal.
@@ -91,4 +94,43 @@ external int chatLottieRenderBatch(
   Pointer<ChatLottieJob> jobs,
   int count,
   Pointer<Int32> statuses,
+);
+
+/// The worst-case compressed size of a region, 0 for a size the codec
+/// refuses. Not a leaf, like the other two codec calls: they run long enough
+/// to stall the isolate group at a safepoint.
+@Native<Size Function(Uint32, Uint32)>(symbol: 'chat_lottie_lz4_bound')
+external int chatLottieLz4Bound(int width, int height);
+
+@Native<
+  Int32 Function(
+    Pointer<Uint8>,
+    Size,
+    Uint32,
+    Uint32,
+    Pointer<Uint8>,
+    Size,
+    Pointer<Size>,
+  )
+>(symbol: 'chat_lottie_compress_region')
+external int chatLottieCompressRegion(
+  Pointer<Uint8> target,
+  int strideBytes,
+  int width,
+  int height,
+  Pointer<Uint8> dst,
+  int dstCap,
+  Pointer<Size> outLen,
+);
+
+@Native<
+  Int32 Function(Pointer<Uint8>, Size, Pointer<Uint8>, Size, Uint32, Uint32)
+>(symbol: 'chat_lottie_decompress_region')
+external int chatLottieDecompressRegion(
+  Pointer<Uint8> src,
+  int srcLen,
+  Pointer<Uint8> target,
+  int strideBytes,
+  int width,
+  int height,
 );
