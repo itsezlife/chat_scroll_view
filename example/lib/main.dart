@@ -17,6 +17,7 @@ import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
+import 'package:chat_scroll_view_example/src/features/chat/view/chat_page_route.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
@@ -162,7 +163,12 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
   // the chat. One per app, so the navigator keeps the same observer across
   // rebuilds.
   late final PlaybackOverlayPauseObserver _overlays =
-      PlaybackOverlayPauseObserver(widget.services.activity);
+      PlaybackOverlayPauseObserver(
+        widget.services.activity,
+        // The chat list pushes the chat as a ChatPageRoute: that page is the
+        // chat, not an overlay laid over it.
+        isChat: (route) => route is ChatPageRoute<dynamic>,
+      );
 
   @override
   void dispose() {

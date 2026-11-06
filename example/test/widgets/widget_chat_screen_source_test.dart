@@ -10,6 +10,7 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_s
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat_list/view/chat_list_screen.dart';
 import 'package:content_model/content_model.dart'
     as model
     show Entity, EntityKind, RichText;
@@ -64,6 +65,30 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byType(ChatScrollView), findsOneWidget);
     expect(find.byType(DemoMessageBubble), findsWidgets);
+  });
+
+  testWidgets('a chat opened from the chat list leaves the shared clock '
+      'running', (tester) async {
+    services = (await tester.runAsync(createTestServices))!;
+    addTearDown(services.dispose);
+    await tester.pumpWidget(
+      ChatDemoApp(
+        services: services,
+        start: DemoStart.chatList,
+        softKeyboard: keyboard,
+        chatDataSourceLoader: () async => source,
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(ChatListScreen.tileKey(0)));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.byType(ChatScrollView), findsOneWidget);
+    // The chat is the page the animations belong to: nothing was laid over it.
+    expect(services.assets.clock.pausedLayers, isEmpty);
   });
 
   testWidgets('a dialog opened over the chat holds the shared clock until it '
