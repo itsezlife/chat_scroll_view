@@ -81,16 +81,23 @@ final class LottieEngineClosed extends StateError {
   LottieEngineClosed([super.message = 'The Lottie engine is closed.']);
 }
 
-/// The render isolate could not serve: its binding reported [availability]
-/// other than `available`. The host does not register the decoder.
+/// The render isolate or worker could not serve: its binding reported
+/// [availability] other than `available`. The host does not register the
+/// decoder.
 final class LottieUnavailable extends StateError {
-  /// Creates the error for a binding that reported [availability].
-  LottieUnavailable(this.availability)
+  /// Creates the error for a binding that reported [availability]; [reason]
+  /// is what the binding said, when it said anything.
+  LottieUnavailable(this.availability, {this.reason})
     : super(
         'The Lottie binding is not available in the render isolate: '
-        '${availability.name}.',
+        '${availability.name}'
+        '${reason == null ? '' : ' ($reason)'}.',
       );
 
   /// Why the binding cannot serve.
   final LottieAvailability availability;
+
+  /// The binding's own words (a worker's `unavailable` reason), when it gave
+  /// any.
+  final String? reason;
 }

@@ -29,7 +29,44 @@ files are exported plainly, and the files that need `dart:ffi`, `dart:io` or
 | `LottieSource` | A frame job's `source`: the `LottieHandle`, the animation's frame count and its `FrameCacheKey?`. |
 | `LottieFrameRenderer` | `FrameRenderer` over a `LottieSlotEngine`, one `NativeFramePageMemory` and an optional `FrameCache`; zero-copy and native only. A job's `source` is a `LottieSource`. |
 | `PixelCopyFrameRenderer` | `FrameRenderer` over any `LottieEngine`: one `renderPixels` per batch, then each result's rows copied into any `FramePageMemory` at the slot offset (`ListFramePageMemory` on the web). No frame cache: web v1 is memory only. Compiles for the web. |
+| `WebWorkerLottieEngine` | The web's `LottieEngine`: `spawn(port, {wasmUrl, wasmNoSimdUrl, readyTimeout})` over a `LottieWorkerPort`. Neutral Dart (it runs on the VM in tests). Posts `init`, waits for `ready` (10 s by default) and throws a `LottieUnavailable` (`missingLibrary`, with the worker's reason) on `unavailable`, on a worker failure before ready, or on a timeout, terminating the worker. Requests are posted at once in call order, each under an `id`, and replies are matched by `id` (the worker serves them in order, the engine does not rely on it). A load status maps to a `LottieRejection` as in the native binding; a render result whose buffer is not `width * height * 4` bytes is a null job. An `ok: false` reply fails that request only (`LottieWorkerError`); the worker failing or dying fails every pending request with `LottieEngineClosed('the worker ended')` and closes the engine. |
+| `LottieWorkerPort` | The host's end of a Lottie worker: `post`, `messages`, `failures`, `terminate`. The seam between the protocol and what carries it. |
+| `JsLottieWorkerPort`, `JsLottieWorker.spawnFromUrls` | The browser implementation over `package:web` (a module `Worker`), and the one call that starts it and the engine. Exported only where `dart.library.js_interop` is true. |
+| `FakeLottieWorker` (`testing.dart`) | The worker side of the protocol in memory, over a `FakePixelLottieEngine`, with knobs to hold and reorder replies, fail a request, send a short buffer, stay silent, report `unavailable` or die. |
 | `CountingLottieEngine` (`testing.dart`) | Forwards to an engine and counts the jobs rendered and restored, for "this pass rendered nothing". |
+
+## Web
+
+`WebWorkerLottieEngine` is the `LottieEngine` of the web: WebAssembly in a
+module worker draws the frames and transfers the pixels back, and
+`PixelCopyFrameRenderer` copies them into page memory
+([ADR 042](../../docs/adr/042-native-media-decoding.md), "Web, Lottie"). The
+protocol is documented at the top of `chat_lottie_worker.js` in
+`lottie_native/web`; the engine mirrors it and a status test parses
+`chat_lottie.h` so a number cannot drift.
+
+```dart
+final engine = await JsLottieWorker.spawnFromUrls(
+  workerUrl: Uri.parse('lottie/chat_lottie_worker.js'),
+  wasmUrl: Uri.parse('lottie/chat_lottie.wasm'),
+  wasmNoSimdUrl: Uri.parse('lottie/chat_lottie_nosimd.wasm'),
+); // throws LottieUnavailable: register no Lottie decoder then
+```
+
+Hand that engine to `LottieDecoder` and `PixelCopyFrameRenderer` as any other.
+The worker, its `chat_lottie_core.mjs` (which must sit beside it) and the two
+wasm builds come from `dart native/tool/build_web.dart` of `lottie_native`;
+where a host serves them from is not decided yet. Relative urls resolve
+against the page.
+
+**What has been run.** The protocol layer runs on the VM in the test suite
+(`FakeLottieWorker`, `LottieEngineContract`, the decoder over the web engine).
+The worker and the wasm core are run in Node by `lottie_native`. **The browser
+port (`JsLottieWorkerPort`), `spawnFromUrls` and the whole path real worker,
+real wasm and Dart together are compile-checked only (`web_compile_test`,
+`dart compile js`): no browser has run them.** Until one does, treat the
+`jsify`/`dartify` conversions (a `Uint8List` going out, a `Uint8List` coming
+back) as unverified.
 
 ## Host contract
 

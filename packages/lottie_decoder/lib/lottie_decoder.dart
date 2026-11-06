@@ -13,6 +13,9 @@ export 'src/cache/frame_cache_files.dart';
 export 'src/cache/frame_cache_key.dart';
 export 'src/decoder/lottie_decoder.dart';
 export 'src/engine/lottie_engine.dart';
+export 'src/engine/lottie_worker_port.dart';
+export 'src/engine/web_worker_lottie_engine.dart'
+    show LottieWorkerError, WebWorkerLottieEngine;
 // The native file is the default and the stub the exception because the
 // analyzer resolves a conditional export to its default URI and ignores
 // `dart.library.js_interop`: written the other way round, the analyzer sees no
@@ -27,3 +30,5 @@ export 'src/playback/lottie_frame_scheduler.dart';
 export 'src/renderer/lottie_frame_size.dart';
 export 'src/renderer/lottie_source.dart';
 export 'src/renderer/pixel_copy_frame_renderer.dart';
+export 'src/web/web_exports_stub.dart'
+    if (dart.library.js_interop) 'src/web/web_exports.dart';

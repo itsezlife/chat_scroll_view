@@ -30,4 +30,10 @@ dependencies:
   lottie_native:
     path: ../lottie_native
   meta: ^1.17.0
+  # The browser worker port (lib/src/web), compiled only for the web.
+  web: ^1.1.1
 
+
+dev_dependencies:
+  # The web engine's handshake timeout is tested on a fake clock.
+  fake_async: ^1.3.3

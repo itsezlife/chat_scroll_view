@@ -1,11 +1,16 @@
 // Compiled to JavaScript by web_compile_test.dart, never run: it only has to
 // build the neutral decode path through the public barrel, over an engine
-// that returns pixels and nothing else.
+// that returns pixels and nothing else, and the web engine with its browser
+// worker port.
 import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
+// The analyzer resolves the barrel's conditional export to the VM stub, so the
+// browser types are imported directly; the compiler takes the barrel's web
+// branch for the rest.
+import 'package:lottie_decoder/src/web/web_exports.dart';
 import 'package:lottie_native/lottie_native.dart';
 
 /// The engine a web host has: no slot method, only pixels.
@@ -41,6 +46,14 @@ void main() {
     scheduler: scheduler,
     cache: FrameCache(directoryPath: null),
   );
+  // The web engine and its browser constructor: built, never started.
   // ignore: avoid_print
-  print([decoder, LottieFrameSize, LottiePixelJob.maxEdge]);
+  print([
+    decoder,
+    LottieFrameSize,
+    LottiePixelJob.maxEdge,
+    WebWorkerLottieEngine.spawn,
+    JsLottieWorker.spawnFromUrls,
+    JsLottieWorkerPort,
+  ]);
 }
