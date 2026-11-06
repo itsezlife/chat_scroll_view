@@ -633,7 +633,7 @@ final class _EntryBinding extends AssetBindingBase {
   bool paintStandIn(Canvas canvas, Rect rect) {
     final standIn = entry.standIn;
     if (!_holdsStandIn || standIn == null || isDetached) return false;
-    standIn.paint(canvas, rect, const AssetPaintContext());
+    standIn.paint(canvas, rect, AssetPaintContext(fit: profile.fit));
     return true;
   }
 

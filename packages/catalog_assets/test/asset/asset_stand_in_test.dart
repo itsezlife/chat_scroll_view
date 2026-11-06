@@ -47,6 +47,20 @@ void main() {
       },
     );
 
+    test('the thumbnail is placed as the profile fits, like the content', () {
+      final binding = scope.attach(
+        _key,
+        _spec,
+        const AssetProfile(fit: AssetFit.cover),
+      );
+      final thumbnail = producer.last.advance(AssetStage.placeholder);
+      producer.last.advance(AssetStage.firstFrame);
+
+      binding.paintStandIn(canvas, _rect);
+
+      expect(thumbnail.paints.single.context.fit, AssetFit.cover);
+    });
+
     test('content that arrives with no thumbnail has no stand-in', () {
       final binding = scope.attach(_key, _spec, _profile);
 
