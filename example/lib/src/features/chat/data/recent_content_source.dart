@@ -6,9 +6,10 @@ import 'package:listen/listen.dart' as listen;
 /// ahead of its packs: `CollectionId.recent`, loaded from the start.
 ///
 /// The list is the [recents] store's for [kind], best first; what is on it is
-/// described by the bundled packs, since this host's content is all bundled.
-/// A key no pack describes (a pack the host no longer ships) is left out
-/// rather than listed as a cell nothing can draw.
+/// described by `describe` (the bundled packs unless the host passes its own,
+/// which also knows content from elsewhere). A key nothing describes (a pack
+/// the host no longer ships, a feed's clip this session never listed) is left
+/// out rather than listed as a cell nothing can draw.
 ///
 /// The collection is published again whenever [recents] changes. A host that
 /// does not want the page to reorder under the finger that is picking from it
@@ -18,8 +19,12 @@ import 'package:listen/listen.dart' as listen;
 /// It owns nothing: [dispose] only stops listening.
 final class RecentContentSource implements CollectionSource {
   /// Lists the [kind] list of [recents].
-  RecentContentSource({required RecentsStore recents, required this.kind})
-    : _recents = recents {
+  RecentContentSource({
+    required RecentsStore recents,
+    required this.kind,
+    DescribeContent describe = BundledPacks.describe,
+  }) : _recents = recents,
+       _describe = describe {
     _collections = listen.ValueNotifier(_collect());
     recents.changes.addListener(_republish);
   }
@@ -28,6 +33,7 @@ final class RecentContentSource implements CollectionSource {
   final SemanticKind kind;
 
   final RecentsStore _recents;
+  final DescribeContent _describe;
   late final listen.ValueNotifier<List<Collection>> _collections;
   var _disposed = false;
 
@@ -61,8 +67,8 @@ final class RecentContentSource implements CollectionSource {
       metadata: const CollectionMetadata(flags: CollectionFlags.installed),
       contents: CollectionContents.loaded([
         for (final key in _recents.recents(kind))
-          if (BundledPacks.of(key) case final item?)
-            CollectionItem.described(item.descriptor),
+          if (_describe(key) case final descriptor?)
+            CollectionItem.described(descriptor),
       ]),
     ),
   ];

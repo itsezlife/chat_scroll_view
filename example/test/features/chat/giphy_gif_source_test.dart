@@ -22,10 +22,10 @@ import 'package:http/testing.dart';
 // of the feed with prefix `p` at position `n` is `p<n>`; `overlap` makes each
 // page repeat the last clip of the one before.
 final class _FakeGiphy {
-  var failFirst = false;
-  var failLater = false;
-  var overlap = false;
-  final requests = <Uri>[];
+  bool failFirst = false;
+  bool failLater = false;
+  bool overlap = false;
+  final List<Uri> requests = <Uri>[];
   Completer<void>? gate;
 
   http.Client get client => MockClient((request) async {

@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_files.dart';

@@ -1,12 +1,16 @@
 /// The composition root: what it builds, in which order, and who frees what.
 library;
 
+import 'dart:io';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
@@ -16,6 +20,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import '../support/disposal_watch.dart';
 import '../support/test_services.dart';
@@ -651,6 +657,50 @@ void main() {
         ),
         VideoStickerPack.stickers.map((item) => item.key),
       );
+    });
+
+    test('list a local corpus after the bundled packs, a pack each', () async {
+      final dir = Directory.systemTemp.createTempSync('corpus_services');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      Directory('${dir.path}/fox').createSync();
+      File('${dir.path}/fox/0.json').writeAsStringSync('{}');
+      final corpus = await CorpusStickerPack.load(
+        bundle: rootBundle,
+        directory: dir.path,
+      );
+      final services = await createTestServices(corpus: corpus);
+      addTearDown(services.dispose);
+
+      expect(ids(services.stickerPageSource).last, corpus.packs.single.id);
+      expect(
+        services.describe(corpus.packs.single.stickers.single.key),
+        isNotNull,
+      );
+    });
+
+    test('list Giphy\'s trending after the recents when there is a key, with '
+        'the bundled clips still last', () async {
+      final services = await createTestServices(
+        giphyApiKey: 'test-key',
+        giphyHttpClient: MockClient((_) async => http.Response('', 503)),
+      );
+      addTearDown(services.dispose);
+
+      expect(ids(services.gifPageSource), [
+        CollectionId.recent,
+        GiphyGifSource.id,
+        VideoStickerPack.gifsId,
+      ]);
+      expect(services.gifSearch, isNotNull);
+      expect(services.giphy, isNotNull);
+    });
+
+    test('keep the bundled clips alone without a key', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+
+      expect(services.gifSearch, isNull);
+      expect(services.giphy, isNull);
     });
 
     test('list the recents, then the clips and GIFs', () async {

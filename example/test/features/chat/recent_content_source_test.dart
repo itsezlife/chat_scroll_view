@@ -103,4 +103,27 @@ void main() {
 
     expect(_keys(stickers), isEmpty);
   });
+
+  test('lists content the host describes beyond the bundled packs', () async {
+    const key = ContentKey.document('giphy:abc');
+    const descriptor = ContentDescriptor(
+      key: key,
+      semanticKind: SemanticKind.gif,
+      mediaForm: MediaForm.video,
+    );
+    final gifs = RecentContentSource(
+      recents: recents,
+      kind: SemanticKind.gif,
+      describe: (k) => k == key ? descriptor : null,
+    );
+    addTearDown(gifs.dispose);
+
+    await recents.record(key, kind: SemanticKind.gif);
+    await recents.record(
+      VideoStickerPack.clips.first.key,
+      kind: SemanticKind.gif,
+    );
+
+    expect(_keys(gifs), [key]);
+  });
 }

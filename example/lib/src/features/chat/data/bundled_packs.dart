@@ -8,6 +8,11 @@ import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pa
 import 'package:content_model/content_model.dart';
 import 'package:flutter/services.dart';
 
+/// What the host knows of a piece of content from its key: the bundled packs
+/// answer for theirs, and a host with content from elsewhere (a feed, a local
+/// corpus) answers for that too. Null for a key it cannot describe.
+typedef DescribeContent = ContentDescriptor? Function(ContentKey key);
+
 /// The packs the app bundles, as the host's asset pipeline and its recents see
 /// them: one lookup, one fetcher, one resolver and one list of descriptors over
 /// all of them, so a pack added here is served, described and known in one
@@ -27,6 +32,10 @@ abstract final class BundledPacks {
       LottieStickerPack.of(key) ??
       StaticStickerPack.of(key) ??
       VideoStickerPack.of(key);
+
+  /// The descriptor of the item of [key] in any pack, or null: a
+  /// [DescribeContent] over the bundled packs alone.
+  static ContentDescriptor? describe(ContentKey key) => of(key)?.descriptor;
 
   /// A fetcher that reads every pack's files from [bundle].
   static ContentFetcher fetcher(AssetBundle bundle) =>

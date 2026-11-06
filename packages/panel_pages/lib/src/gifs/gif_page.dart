@@ -50,7 +50,7 @@ import 'package:panel_shell/panel_shell.dart';
 /// A collection that failed to load, or a search that failed, ends the list
 /// with the panel's [PanelStrings.gifsFailed] and a retry button; a search
 /// that found nothing says [PanelStrings.gifsEmpty]. Clips already listed stay
-/// above it. The [attribution], when the host gives one, closes the list: a
+/// above it. The [attribution], when the host gives one, heads the list: a
 /// provider's terms may require its name on the content it supplies, and the
 /// page knows no provider.
 ///
@@ -87,7 +87,7 @@ class GifPage extends StatefulWidget {
   /// How long typing must pause before a search runs.
   final Duration searchDebounce;
 
-  /// The line that closes the list, such as the name of the provider the clips
+  /// The line that heads the list, such as the name of the provider the clips
   /// come from, or null for none. Shown as given: it is not translated.
   final String? attribution;
 
@@ -367,11 +367,11 @@ class _GifPageState extends State<GifPage> {
       _ => false,
     };
     return _lines = [
-      ...rows,
-      if (foundNothing) _NoticeLine(strings.gifsEmpty),
       if (widget.attribution case final attribution?
           when rows.any((line) => line is _RowLine))
         _AttributionLine(attribution),
+      ...rows,
+      if (foundNothing) _NoticeLine(strings.gifsEmpty),
     ];
   }
 

@@ -9,7 +9,6 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';

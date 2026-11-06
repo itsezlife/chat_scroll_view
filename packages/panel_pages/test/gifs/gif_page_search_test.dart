@@ -116,9 +116,7 @@ void main() {
   });
 
   group('the attribution', () {
-    testWidgets('is shown under the clips when the host gives one', (
-      tester,
-    ) async {
+    testWidgets('heads the clips when the host gives one', (tester) async {
       await pumpPage(tester, attribution: 'Powered by GIPHY');
 
       expect(find.text('Powered by GIPHY'), findsOneWidget);

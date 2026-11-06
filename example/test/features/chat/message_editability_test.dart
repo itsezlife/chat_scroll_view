@@ -106,4 +106,17 @@ void main() {
       );
     });
   });
+
+  group('a sent Giphy GIF or corpus sticker', () {
+    test('cannot be edited, though no bundled pack describes it', () {
+      expect(
+        MessageEditability.canEditBody('![cat](document:giphy:abc123)'),
+        isFalse,
+      );
+      expect(
+        MessageEditability.canEditBody('![duck 3](document:corpus:duck:3)'),
+        isFalse,
+      );
+    });
+  });
 }

@@ -153,7 +153,7 @@ final class _GiphyFetcher implements ContentFetcher {
     } finally {
       // Not before the caller stored the future: this body suspends at its
       // first await, so it cannot get here earlier.
-      _inFlight.remove(key);
+      unawaited(_inFlight.remove(key) ?? Future<void>.value());
     }
   }
 }

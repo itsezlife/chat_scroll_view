@@ -75,10 +75,7 @@ void main() {
         if (failApi) return http.Response('', 503);
         if (request.url.host == 'api.giphy.com') {
           final ids = request.url.queryParameters['ids']!.split(',');
-          final clips = [
-            for (final id in ids)
-              if (known[id] case final clip?) clip,
-          ];
+          final clips = [for (final id in ids) ?known[id]];
           return http.Response(
             '{"data":[${[for (final clip in clips) '{"id":"${clip.id}","title":"${clip.title}",'
                   '"images":{"fixed_width":{"mp4":"${clip.url}",'
