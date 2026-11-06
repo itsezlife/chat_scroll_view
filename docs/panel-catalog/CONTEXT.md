@@ -97,8 +97,12 @@ Reserved stand-in for a unicode leaf whose glyph is not baked yet (solid circle 
 _Avoid_: Using circle for animated or sticker leaves, moving gradient wash, sticker-shaped shimmer for unicode cells, treating the circle as a failure state
 
 **Thumb-first placeholder**:
-Loading stand-in for document-backed animated/custom emoji: static/SVG thumb via the image pipeline until media is ready.
-_Avoid_: Circle placeholder for animated leaves when a thumb exists
+Loading stand-in for document-backed animated/custom emoji and GIFs: the quiet rounded rect, then the blurred mini-thumbnail ([Content and Assets glossary](../content/CONTEXT.md): Mini-thumbnail) via the image pipeline until media is ready. The thumbnail stays opaque under the fading content and is released when the content is opaque.
+_Avoid_: Circle placeholder for animated leaves when a thumb exists, fading the thumbnail out while the content fades in
+
+**Loading GIF**:
+A GIF leaf (`SemanticKind.gif`) with no content drawn yet shows the radial progress ([Content and Assets glossary](../content/CONTEXT.md): Radial progress, disc radius 12 as in the reference client's panel GIF cell) over its stand-in, and it fades out with the content. The arc turns with the frame time of the viewport's paint pass, which asks for frames only while one shows and not while playback is paused.
+_Avoid_: A controller per cell, a progress indicator on a sticker or an emoji
 
 **Shaped loading wash**:
 Loading stand-in for sticker leaves: sticker SVG silhouette with a moving gradient.

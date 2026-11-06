@@ -12,7 +12,22 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_pol
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+final class _Counting implements Canvas {
+  int rrects = 0;
+  int circles = 0;
+
+  @override
+  void drawRRect(RRect rrect, Paint paint) => rrects++;
+
+  @override
+  void drawCircle(Offset c, double radius, Paint paint) => circles++;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
 
 EmojiOnly _only(List<ContentKey> keys) =>
     EmojiOnly([for (final key in keys) EmojiOnlyItem(key)]);
@@ -79,6 +94,38 @@ void main() {
         embed.sizeHint,
         AssetPresets.emojiOnly(step: 40, devicePixelRatio: 2).size,
       );
+    });
+
+    group('what a sticker shows while it loads', () {
+      final preset = AssetPresets.emojiOnly(step: 40, devicePixelRatio: 2);
+      const rect = Rect.fromLTWH(0, 0, 40, 40);
+
+      // Counts what an embed asks of a canvas before its content exists.
+      ({int rrects, int circles}) drawnBefore(InlineEmbed embed) {
+        final canvas = _Counting();
+        embed.paint(canvas, rect, const InlineEmbedPaintContext());
+        return (rrects: canvas.rrects, circles: canvas.circles);
+      }
+
+      test('a document is a quiet rounded square, not the circle', () {
+        final embed = host.embedFactory(
+          const ContentKey.document('5368'),
+          preset,
+        )!;
+        addTearDown(embed.dispose);
+
+        expect(drawnBefore(embed), (rrects: 1, circles: 0));
+      });
+
+      test('a unicode emoji keeps the circle', () {
+        final embed = host.embedFactory(
+          const ContentKey.unicode('\u{1F600}'),
+          preset,
+        )!;
+        addTearDown(embed.dispose);
+
+        expect(drawnBefore(embed), (rrects: 0, circles: 1));
+      });
     });
 
     test('resolves a document target of an image span to an embed', () {

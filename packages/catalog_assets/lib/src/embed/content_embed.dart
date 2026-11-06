@@ -2,8 +2,10 @@ import 'dart:ui' hide VoidCallback;
 
 import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_cache_scope.dart';
+import 'package:catalog_assets/src/asset/asset_paintable.dart';
 import 'package:catalog_assets/src/asset/asset_playback.dart';
 import 'package:catalog_assets/src/asset/asset_preset.dart';
+import 'package:catalog_assets/src/asset/asset_readiness.dart';
 import 'package:catalog_assets/src/embed/inline_embed.dart';
 import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart';
@@ -22,6 +24,10 @@ import 'package:listen/listen.dart';
 /// It is a [PlayableEmbed]: [replay] asks the binding for another pass of a
 /// profile that does not loop.
 ///
+/// Which placeholder shows until the content has a thumbnail is the scope's
+/// (a circle) unless the embed is given its own: the host knows that this
+/// content is a sticker, the scope shared by all embeds does not.
+///
 /// The embed does not own the scope. Its signal is the binding's: a better
 /// stage, a baked page that landed, an animation frame.
 final class ContentEmbed implements PlayableEmbed {
@@ -30,10 +36,13 @@ final class ContentEmbed implements PlayableEmbed {
     required AssetCacheScope scope,
     required ContentKey content,
     required AssetPreset preset,
+    AssetPaintable? placeholder,
   }) : sizeHint = preset.size,
+       _placeholder = placeholder,
        _binding = scope.attach(content, preset.spec, preset.profile);
 
   final AssetBinding _binding;
+  final AssetPaintable? _placeholder;
   bool _disposed = false;
 
   @override
@@ -62,6 +71,19 @@ final class ContentEmbed implements PlayableEmbed {
   @override
   void paint(Canvas canvas, Rect rect, InlineEmbedPaintContext context) {
     if (_disposed) return;
+    // Before anything exists the embed's own placeholder replaces the scope's
+    // (every embed of a scope shares that one, whatever the content): a
+    // sticker is not drawn as the circle of an emoji. A thumbnail is the
+    // binding's to paint.
+    if (_placeholder case final placeholder?
+        when _binding.readiness.stage == AssetStage.none) {
+      placeholder.paint(
+        canvas,
+        rect,
+        AssetPaintContext(tint: context.tint, opacity: context.opacity),
+      );
+      return;
+    }
     _binding.paint(canvas, rect, tint: context.tint, opacity: context.opacity);
   }
 

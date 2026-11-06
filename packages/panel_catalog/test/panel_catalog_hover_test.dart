@@ -292,11 +292,10 @@ void main() {
 
       final rects = hoverRects(paintOnce(tester));
 
-      expect(rects.single.outerRect, Rect.fromCenter(
-        center: cell.center,
-        width: 34,
-        height: 32,
-      ));
+      expect(
+        rects.single.outerRect,
+        Rect.fromCenter(center: cell.center, width: 34, height: 32),
+      );
       expect(rects.single.tlRadius, const Radius.circular(8));
     });
 

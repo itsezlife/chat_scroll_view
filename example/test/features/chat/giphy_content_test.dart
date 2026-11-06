@@ -17,13 +17,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-GiphyClip _clip(String id, {String title = 'a cat'}) => GiphyClip(
-  id: id,
-  title: title,
-  url: Uri.parse('https://media.example/$id.mp4'),
-  width: 200,
-  height: 100,
-);
+GiphyClip _clip(String id, {String title = 'a cat', bool still = false}) =>
+    GiphyClip(
+      id: id,
+      title: title,
+      url: Uri.parse('https://media.example/$id.mp4'),
+      width: 200,
+      height: 100,
+      thumbnailUrl: still
+          ? Uri.parse('https://media.example/$id.still.gif')
+          : null,
+    );
 
 FetchRequest _request(ContentKey key, {FetchPart part = FetchPart.content}) =>
     FetchRequest(
@@ -123,6 +127,14 @@ void main() {
       expect(descriptor.animated, isTrue);
       expect(descriptor.size, const ContentSize(200, 100));
       expect(descriptor.spokenName, 'a cat');
+    });
+
+    test('names the still of the clip as its thumbnail, when it has one', () {
+      expect(content.describe(_clip('abc')).thumbnail, isNull);
+      expect(
+        content.describe(_clip('abc', still: true)).thumbnail,
+        const ThumbnailRef('https://media.example/abc.still.gif'),
+      );
     });
 
     test('is spoken as a GIF when the clip has no title', () {
@@ -238,7 +250,44 @@ void main() {
       );
     });
 
-    test('has no thumbnail to give', () async {
+    test(
+      'downloads the still named by the descriptor as the thumbnail',
+      () async {
+        final clip = _clip('a', still: true);
+        content.remember([clip]);
+        files['/a.still.gif'] = Uint8List.fromList([7, 7]);
+        final request = FetchRequest(
+          descriptor: content.describe(clip),
+          part: FetchPart.thumbnail,
+          priority: AssetPriority.placeholder,
+          cancellation: CancellationToken(),
+        );
+
+        final fetched = await content.fetcher(otherwise: other).fetch(request);
+
+        expect((fetched as FetchedBytes).bytes, [7, 7]);
+        // Not the clip's file, and not an API request.
+        expect(requests.map((r) => r.url.path), ['/a.still.gif']);
+      },
+    );
+
+    test('a thumbnail of a failing still is a failure of its own', () async {
+      final clip = _clip('a', still: true);
+      content.remember([clip]);
+      final request = FetchRequest(
+        descriptor: content.describe(clip),
+        part: FetchPart.thumbnail,
+        priority: AssetPriority.placeholder,
+        cancellation: CancellationToken(),
+      );
+
+      await expectLater(
+        content.fetcher(otherwise: other).fetch(request),
+        throwsA(isA<FetchFailure>()),
+      );
+    });
+
+    test('has no thumbnail to give when the descriptor names none', () async {
       content.remember([_clip('a')]);
 
       await expectLater(

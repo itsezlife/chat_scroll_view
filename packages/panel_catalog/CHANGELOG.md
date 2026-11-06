@@ -6,6 +6,18 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- A GIF leaf that is loading draws the reference client's radial progress
+  (`RadialProgress`, disc radius 12) over its stand-in or thumbnail, and it
+  fades out with the content. The arc turns with the pass's frame time; frames
+  are asked for only while one shows and playback is not paused.
+- Content fading in over a thumbnail no longer drops back to the stand-in
+  colour: the thumbnail the binding kept stays opaque beneath until the
+  content is opaque, then goes (it used to be replaced at once by the style's
+  stand-in, which dipped the cell to alpha 0).
+
+
 ### Added
 
 - `CatalogSectionAction.painter` (`CatalogActionIconPainter`,

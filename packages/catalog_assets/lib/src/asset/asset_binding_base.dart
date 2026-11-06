@@ -137,6 +137,12 @@ abstract base class AssetBindingBase
   }
 
   @override
+  bool paintStandIn(Canvas canvas, Rect rect) => false;
+
+  @override
+  void releaseStandIn() {}
+
+  @override
   void detach() {
     if (_detached) return;
     _detached = true;

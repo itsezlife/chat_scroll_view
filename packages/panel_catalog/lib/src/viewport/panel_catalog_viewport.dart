@@ -296,8 +296,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// leaves. Only a mouse hovers, and the report does not depend on the
   /// theme's hover wash. Null reports nothing. What the hover shows (a
   /// tooltip) is the host's.
-  final void Function(CatalogLeafHit? hit, Offset globalPosition)?
-  onLeafHover;
+  final void Function(CatalogLeafHit? hit, Offset globalPosition)? onLeafHover;
 
   /// Shell long-press start (picker / contextual leaf actions).
   ///
