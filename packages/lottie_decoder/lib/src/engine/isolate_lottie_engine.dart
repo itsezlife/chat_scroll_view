@@ -352,9 +352,10 @@ void _renderIsolateMain(_Boot boot) {
               binding.renderBatch([for (final job in jobs) job.toBindingJob()]),
         );
       case _RenderCapturing(:final id, :final jobs):
-        answer(id, () {
-          // Bytes leave as transferables: no copy through the port.
-          return [
+        // Bytes leave as transferables: no copy through the port.
+        answer(
+          id,
+          () => [
             for (final capture in LottieEngineWork.renderCapturing(
               binding,
               codec,
@@ -366,11 +367,12 @@ void _renderIsolateMain(_Boot boot) {
                     ? null
                     : TransferableTypedData.fromList([capture.compressed!]),
               ),
-          ];
-        });
+          ],
+        );
       case _Restore(:final id, :final jobs):
-        answer(id, () {
-          return LottieEngineWork.restore(codec, [
+        answer(
+          id,
+          () => LottieEngineWork.restore(codec, [
             for (final job in jobs)
               LottieRestoreJob(
                 compressed: job.data.materialize().asUint8List(),
@@ -379,8 +381,8 @@ void _renderIsolateMain(_Boot boot) {
                 address: job.address,
                 strideBytes: job.strideBytes,
               ),
-          ]);
-        });
+          ]),
+        );
       case _Dispose(:final id, :final handle):
         answer(id, () => binding.dispose(handle));
       case _Close():

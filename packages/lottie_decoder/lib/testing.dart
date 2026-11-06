@@ -4,4 +4,5 @@
 /// never imports them.
 library;
 
+export 'src/testing/counting_lottie_engine.dart';
 export 'src/testing/lottie_engine_contract.dart';

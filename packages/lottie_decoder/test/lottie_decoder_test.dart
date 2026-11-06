@@ -523,6 +523,15 @@ final class _DeferredEngine implements LottieEngine {
   ) async => (await _engine).renderBatch(jobs);
 
   @override
+  Future<List<LottieCapture>> renderCapturing(
+    List<LottieEngineJob> jobs,
+  ) async => (await _engine).renderCapturing(jobs);
+
+  @override
+  Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) async =>
+      (await _engine).restore(jobs);
+
+  @override
   Future<void> dispose(LottieHandle handle) async =>
       (await _engine).dispose(handle);
 
@@ -545,6 +554,14 @@ final class _DisposeThrows implements LottieEngine {
   @override
   Future<List<LottieRenderStatus>> renderBatch(List<LottieEngineJob> jobs) =>
       _inner.renderBatch(jobs);
+
+  @override
+  Future<List<LottieCapture>> renderCapturing(List<LottieEngineJob> jobs) =>
+      _inner.renderCapturing(jobs);
+
+  @override
+  Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) =>
+      _inner.restore(jobs);
 
   @override
   Future<void> dispose(LottieHandle handle) => Future.error(error);
