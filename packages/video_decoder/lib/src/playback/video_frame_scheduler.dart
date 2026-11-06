@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:developer' as developer;
+import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
@@ -7,12 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:video_decoder/src/engine/video_engine.dart';
 import 'package:video_decoder/src/renderer/video_frame_source.dart';
 import 'package:video_native/video_native.dart';
-
-// [DEBUG-fl01] ticket 55 diagnosis probe; remove with `grep -rn DEBUG-fl01`.
-const bool _fl01 = bool.fromEnvironment('DEBUG_FL01');
-void _fl01Log(String message) =>
-    // ignore: avoid_print
-    print('[DEBUG-fl01] t=${developer.Timeline.now} $message');
 
 /// Starts the sweep timer; `Timer.new` by default, a manual one in tests.
 typedef VideoSweepTimerFactory =
@@ -32,10 +26,16 @@ final class VideoFrameLease {
   final FrameHandle<Object> _handle;
   final _ClipPlayer _player;
 
-  /// Order of acquisition: the cap on advancing clips favours the newest.
+  /// Order of acquisition: the newest is served first when slots are short.
   final int _seq;
 
   bool _touched = true;
+
+  /// The tick time at the last paint (the acquisition counts as one).
+  Duration _wantedAt = Duration.zero;
+
+  /// The tick time at which the clip last had a slot.
+  Duration _servedAt = Duration.zero;
   bool _released = false;
   bool _holding = false;
 
@@ -95,23 +95,45 @@ final class VideoFrameLease {
 ///
 /// ## Clip time
 ///
-/// The scheduler integrates the played time its paintables report, and only
-/// while the clip advances. A clip held back by the cap, or by [VideoFrameLease.hold],
-/// stops where it was and goes on from there when it advances again ("freeze
-/// and continue").
+/// The scheduler integrates the played time its paintables report, for every
+/// clip that is neither held ([VideoFrameLease.hold]) nor failed. A held clip
+/// stops where it was. A clip the cap passed over this tick still keeps its
+/// time: its frame is chosen by its own clock, it only updates less often.
 ///
-/// ## The cap
+/// ## The cap: time-slicing, never freezing
 ///
-/// At most [maxAdvancing] clips advance at once: the most recently leased
-/// ones. The others keep their last frame and cost nothing until a slot
-/// frees. Without it, a screen of clips would run as many decodes as clips.
+/// A visible clip keeps playing. At most [maxAdvancing] clips get a slot per
+/// tick: only a slot starts a decode or draws a frame. Up to the cap every
+/// clip has one, every tick. Above it the slots rotate:
+///
+/// 1. a clip that wants service and was last served [maxStaleness] ago or
+///    more goes first, the one served longest ago first: the fairness bound;
+/// 2. then the foreground: the `maxAdvancing ~/ 2` most recently leased
+///    clips (at least one) that want service, the surface that just came to
+///    the front: a panel opening, a cell scrolling in;
+/// 3. then the other clips that want service, the one served longest ago
+///    first: round-robin, so the background keeps moving at more than the
+///    bound's rate;
+/// 4. then the rest, which have nothing to do anyway.
+///
+/// A clip wants service when a frame is ready to show or its ring has room
+/// and no decode is in flight. So the slots go where work is, a clip waiting
+/// on a slow decode never holds one, and the foreground cannot starve the
+/// others: every one is served at least once per [maxStaleness], as far as
+/// the cap allows (more overdue clips than slots are served oldest first).
+/// A decode a slot started runs on to the ring's depth, so a served clip
+/// catches its own clock up in one go.
+///
+/// A clip that was not painted for [visibleWindow] is not a candidate: its
+/// cell is off screen or covered, its clock is not moving, and it takes no
+/// slot until painted again (the sweep then frees its lease).
 ///
 /// ## Memory
 ///
 /// Decoded frames outside the pool live in at most `prefetch + 4` buffers per
-/// advancing clip (the ring, the frame being decoded and the ones being
-/// drawn), so with the cap the total is bounded: see [bufferedBytes]. A lease
-/// exists only if the pool had a cell for it, which bounds the pages.
+/// clip (the ring, the frame being decoded and the ones being drawn), and a
+/// clip only fills them once it has had a slot, so the total is bounded by
+/// the leases, which the pool's cells bound: see [bufferedBytes].
 ///
 /// ## Leases and the sweep
 ///
@@ -136,20 +158,41 @@ final class VideoFrameScheduler {
     required VideoEngine engine,
     required FrameAtlas<Object> atlas,
     required PlaybackClock clock,
-    this.maxAdvancing = 6,
+    this.maxAdvancing = defaultMaxAdvancing,
     this.prefetch = 3,
+    this.maxStaleness = const Duration(milliseconds: 250),
+    this.visibleWindow = const Duration(milliseconds: 150),
     this.idleRelease = const Duration(seconds: 1),
     this.tickInterval = Duration.zero,
     VideoSweepTimerFactory startTimer = Timer.new,
-  }) : assert(maxAdvancing > 0, 'at least one clip must advance'),
+  }) : assert(maxAdvancing > 0, 'at least one clip must have a slot'),
        assert(prefetch > 0, 'a clip needs at least one frame ahead'),
        _engine = engine,
        _atlas = atlas,
        _clock = clock,
        _startTimer = startTimer;
 
-  /// How many clips may advance at once.
-  final int maxAdvancing;
+  /// Slots per tick when [maxAdvancing] is not given.
+  ///
+  /// Measured on an Apple M1 Pro through the real binding, one worker
+  /// decodes 1400 to 3700 frames a second (H.264 and VP9, 128 to 512 px), so
+  /// two workers carry about 90 clips at 30 fps and decode is not what limits
+  /// a screen of clips there; a phone is several times slower. A screen is
+  /// about a dozen clips (a few in the chat, a panel page of GIFs), so 12
+  /// serves all of them every tick on a desktop and, above it, the slots
+  /// rotate instead of freezing the oldest.
+  static const int defaultMaxAdvancing = 12;
+
+  /// How many clips get a slot per tick: may start a decode or draw a frame.
+  /// Changeable at run time (a lab switch); it applies from the next tick.
+  int maxAdvancing;
+
+  /// The longest a clip that wants service waits for a slot while others are
+  /// served ahead of it.
+  final Duration maxStaleness;
+
+  /// How long since its last paint a clip still counts as visible.
+  final Duration visibleWindow;
 
   /// Decoded frames a clip keeps ahead of its clip time.
   final int prefetch;
@@ -171,7 +214,7 @@ final class VideoFrameScheduler {
   bool _disposed = false;
   int _nextSeq = 0;
   int _bufferedBytes = 0;
-  Set<int> _fl01Last = {};
+  Duration _now = Duration.zero;
 
   /// Leases alive now.
   int get leaseCount => _leases.length;
@@ -206,14 +249,10 @@ final class VideoFrameScheduler {
       height: clip.height,
     );
     if (handle == null) return null;
-    final lease = VideoFrameLease._(this, handle, player, _nextSeq++);
+    final lease = VideoFrameLease._(this, handle, player, _nextSeq++)
+      .._wantedAt = _now
+      .._servedAt = _now;
     _leases[key] = lease;
-    if (_fl01) {
-      _fl01Log(
-        'sched acquire seq=${lease._seq} key=${key.hashCode} '
-        'hadFrame=${handle.hasFrame} leases=${_leases.length}',
-      );
-    }
     _following ??= _clock.follow(_onTick, frameInterval: tickInterval);
     _sweep ??= _startTimer(idleRelease, _onSweep);
     return lease;
@@ -227,6 +266,7 @@ final class VideoFrameScheduler {
   void want(VideoFrameLease lease, Duration played) {
     if (lease._released) return;
     lease._touched = true;
+    lease._wantedAt = _now;
     lease._player.note(played);
   }
 
@@ -245,12 +285,6 @@ final class VideoFrameScheduler {
   void _release(VideoFrameLease lease) {
     if (lease._released) return;
     lease._released = true;
-    if (_fl01) {
-      _fl01Log(
-        'sched release seq=${lease._seq} key=${lease._handle.key.hashCode} '
-        'leases=${_leases.length - 1}',
-      );
-    }
     lease._player.dispose();
     lease._handle.release();
     _leases.remove(lease._handle.key);
@@ -262,7 +296,8 @@ final class VideoFrameScheduler {
   }
 
   void _onTick(Duration now) {
-    final advancing = _chooseAdvancing();
+    _now = now;
+    final advancing = _chooseAdvancing(now);
     final due = <VideoFrameLease>[];
     for (final lease in advancing) {
       lease._player.step();
@@ -308,30 +343,48 @@ final class VideoFrameScheduler {
         );
   }
 
-  /// The leases that advance this tick: the newest [maxAdvancing] that are
-  /// neither failed, held nor released. Marks every lease either way.
-  List<VideoFrameLease> _chooseAdvancing() {
-    final candidates = [
-      for (final lease in _leases.values)
-        if (!lease._holding && !lease._player.failed) lease,
-    ]..sort((a, b) => b._seq.compareTo(a._seq));
-    final advancing = candidates.take(maxAdvancing).toSet();
+  /// The leases that get a slot this tick, and marks every lease's player
+  /// as slotted or not. Held, failed and unpainted clips are not candidates.
+  List<VideoFrameLease> _chooseAdvancing(Duration now) {
+    final candidates = <VideoFrameLease>[];
     for (final lease in _leases.values) {
-      lease._player.advancing = advancing.contains(lease);
-    }
-    if (_fl01) {
-      final now = {for (final l in advancing) l._seq};
-      if (!(_fl01Last.length == now.length && _fl01Last.containsAll(now))) {
-        _fl01Last = now;
-        _fl01Log(
-          'sched advancing=${now.toList()..sort()} '
-          'frozen=${[for (final l in _leases.values)
-            if (!now.contains(l._seq)) l._seq]..sort()} '
-          'leases=${_leases.length} cap=$maxAdvancing',
-        );
+      final player = lease._player;
+      player.slotted = false;
+      player.playing = !lease._holding && !player.failed;
+      if (player.playing && now - lease._wantedAt <= visibleWindow) {
+        candidates.add(lease);
       }
     }
-    return advancing.toList();
+    if (candidates.length > maxAdvancing) {
+      // Rotation: see the class doc. Each lease's tier is read once.
+      final seqs = [for (final lease in candidates) lease._seq]
+        ..sort((a, b) => b.compareTo(a));
+      final foregroundFrom = seqs[math.max(1, maxAdvancing ~/ 2) - 1];
+      final tiers = {
+        for (final lease in candidates)
+          lease: _tierOf(lease, now, foregroundFrom),
+      };
+      candidates.sort((a, b) {
+        final byTier = tiers[a]!.compareTo(tiers[b]!);
+        if (byTier != 0) return byTier;
+        // Foreground: the newest. Otherwise the longest unserved.
+        return tiers[a] == 1
+            ? b._seq.compareTo(a._seq)
+            : a._servedAt.compareTo(b._servedAt);
+      });
+      candidates.length = maxAdvancing;
+    }
+    for (final lease in candidates) {
+      lease._player.slotted = true;
+      lease._servedAt = now;
+    }
+    return candidates;
+  }
+
+  int _tierOf(VideoFrameLease lease, Duration now, int foregroundFrom) {
+    if (!lease._player.wantsService) return 3;
+    if (now - lease._servedAt >= maxStaleness) return 0;
+    return lease._seq >= foregroundFrom ? 1 : 2;
   }
 
   void _onSweep() {
@@ -377,7 +430,12 @@ final class _ClipPlayer implements VideoFrameSource {
   final Map<int, _Frame> _drawing = {};
   _Frame? _toShow;
 
-  bool advancing = true;
+  /// Whether the clip's time runs: neither held nor failed.
+  bool playing = true;
+
+  /// Whether the clip had a slot at the last tick: only a slotted clip
+  /// starts decodes.
+  bool slotted = true;
   bool failed = false;
   bool _dead = false;
   bool _inFlight = false;
@@ -402,9 +460,23 @@ final class _ClipPlayer implements VideoFrameSource {
   void note(Duration played) {
     final last = _lastPlayed;
     _lastPlayed = played;
-    if (last == null || !advancing) return;
+    if (last == null || !playing) return;
     final step = played - last;
     if (!step.isNegative) _clipTime += step;
+  }
+
+  /// Whether a slot would do something now: a frame is ready to show, or the
+  /// ring has room and no decode is in flight.
+  bool get wantsService {
+    if (_dead || failed) return false;
+    if (_toShow != null) return true;
+    var ahead = 0;
+    for (final frame in _ring) {
+      if (frame.time <= _clipTime) return true;
+      ahead++;
+    }
+    if (_inFlight || ahead >= _owner.prefetch) return false;
+    return !(_free.isEmpty && _allocated >= _owner.prefetch + 4);
   }
 
   /// Picks the frame to show and starts the next decode.
@@ -452,7 +524,7 @@ final class _ClipPlayer implements VideoFrameSource {
   Uint8List? pixelsOf(int frame) => _drawing[frame]?.pixels;
 
   void _pump() {
-    if (_inFlight || !advancing) return;
+    if (_inFlight || !slotted) return;
     final ahead = _ring.where((f) => f.time > _clipTime).length;
     if (ahead >= _owner.prefetch) return;
     // The ring, the frame in flight and the frames being drawn share a bound.

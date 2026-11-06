@@ -1,5 +1,6 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
+import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
 import 'package:video_decoder/video_decoder.dart';
 
@@ -30,11 +31,19 @@ Future<VideoPlayback?> startPixelVideoPlayback({
     engine: engine,
     atlas: VideoFrameAtlas.create(memoryPressure: memoryPressure),
     clock: clock,
+    maxAdvancing: ScrollLab.videoCap.value,
   );
+  // The scroll lab's `video_cap` switch changes the cap of the live scheduler.
+  void applyCap() => scheduler.maxAdvancing = ScrollLab.videoCap.value;
+  ScrollLab.videoCap.addListener(applyCap);
   // The scheduler goes first: it may still be asking the engine for frames.
   // The engine is disposed last and frees every clip still open.
   return VideoPlayback(
     decoder: VideoDecoder(engine: engine, scheduler: scheduler),
-    shutdown: [scheduler.dispose, engine.dispose],
+    shutdown: [
+      () => ScrollLab.videoCap.removeListener(applyCap),
+      scheduler.dispose,
+      engine.dispose,
+    ],
   );
 }

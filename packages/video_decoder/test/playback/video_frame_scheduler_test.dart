@@ -167,7 +167,7 @@ void main() {
     });
 
     test(
-      'at most maxAdvancing clips advance; the least recently leased hold',
+      'more clips than slots: every clip is shown, none is frozen',
       () async {
         scheduler.dispose();
         scheduler = build(maxAdvancing: 6);
@@ -175,39 +175,188 @@ void main() {
         for (var i = 0; i < 10; i++) {
           leases.add(scheduler.acquire('k$i', await openClip())!);
         }
-        for (final lease in leases) {
-          scheduler.want(lease, Duration.zero);
-        }
-        await settle();
-
-        final shown = leases.where((l) => l.sprite != null).toList();
-        expect(shown, hasLength(6));
-        // The newest six.
-        expect(shown, leases.sublist(4));
-      },
-    );
-
-    test(
-      'a held clip resumes when a slot frees, from where it stopped',
-      () async {
-        scheduler.dispose();
-        scheduler = build(maxAdvancing: 1);
-        final older = scheduler.acquire('old', await openClip())!;
-        final newer = scheduler.acquire('new', await openClip())!;
-        for (var ms = 0; ms <= 100; ms += 20) {
-          scheduler.want(older, Duration(milliseconds: ms));
-          scheduler.want(newer, Duration(milliseconds: ms));
+        for (var ms = 0; ms <= 400; ms += 16) {
+          for (final lease in leases) {
+            scheduler.want(lease, Duration(milliseconds: ms));
+          }
           await tick();
         }
-        expect(older.sprite, isNull);
 
-        newer.release();
-        scheduler.want(older, const Duration(milliseconds: 120));
-        await settle();
-
-        expect(older.sprite, isNotNull);
+        expect(leases.where((l) => l.sprite == null), isEmpty);
       },
     );
+
+    test('a clip passed over keeps its own clock', () async {
+      scheduler.dispose();
+      scheduler = build(maxAdvancing: 1);
+      final first = scheduler.acquire('first', await openClip())!;
+      final second = scheduler.acquire('second', await openClip())!;
+      for (var ms = 0; ms <= 80; ms += 16) {
+        scheduler.want(first, Duration(milliseconds: ms));
+        scheduler.want(second, Duration(milliseconds: ms));
+        await tick();
+      }
+      await settle();
+
+      // 80 ms in: both name frame 2 (pts 67), whichever had the slot.
+      expect(pixelOf(first), [32, 16, 0, 200]);
+      expect(pixelOf(second), [32, 16, 0, 200]);
+    });
+
+    group('under a slow engine', () {
+      late List<VideoFrameLease> leases;
+      late Map<VideoFrameLease, List<int>> changes;
+
+      /// Paints every lease every tick for [ms], lets [perTick] decodes finish
+      /// per tick, and writes down in which tick each lease's frame changed.
+      Future<void> play({
+        required int clips,
+        required int? perTick,
+        required int cap,
+        int ms = 2000,
+      }) async {
+        scheduler.dispose();
+        scheduler = build(maxAdvancing: cap);
+        leases = [
+          for (var i = 0; i < clips; i++)
+            scheduler.acquire('k$i', await openClip())!,
+        ];
+        changes = {for (final l in leases) l: <int>[]};
+        final shown = <VideoFrameLease, List<int>>{};
+        if (perTick != null) engine.hold();
+        for (var step = 0; step * 16 <= ms; step++) {
+          for (final lease in leases) {
+            scheduler.want(lease, Duration(milliseconds: step * 16));
+          }
+          await tick();
+          if (perTick != null) engine.release(perTick);
+          await pumpEventQueue();
+          for (final lease in leases) {
+            if (lease.sprite == null) continue;
+            final now = pixelOf(lease);
+            if (shown[lease]?.join() != now.join()) changes[lease]!.add(step);
+            shown[lease] = now;
+          }
+        }
+      }
+
+      test('no visible clip waits longer than the bound for a frame', () async {
+        // 8 clips need 240 frames a second; the engine finishes 2 per 16 ms.
+        await play(clips: 8, perTick: 2, cap: 3);
+
+        for (final lease in leases) {
+          final steps = changes[lease]!;
+          expect(steps, isNotEmpty);
+          var longest = steps.first;
+          for (var i = 1; i < steps.length; i++) {
+            longest = longest > steps[i] - steps[i - 1]
+                ? longest
+                : steps[i] - steps[i - 1];
+          }
+          // 250 ms is 16 ticks of 16 ms; a few more for the engine's queue.
+          expect(longest * 16, lessThanOrEqualTo(400), reason: '$lease');
+        }
+        expect(engine.maxInFlightPerClip, 1);
+      });
+
+      test('slots short, not decodes: the newest update most, the oldest '
+          'still update', () async {
+        await play(clips: 8, perTick: null, cap: 2);
+
+        final newest = changes[leases.last]!.length;
+        final oldest = changes[leases.first]!.length;
+        expect(oldest, greaterThanOrEqualTo(2000 ~/ 250));
+        expect(newest, greaterThan(oldest));
+      });
+    });
+
+    test('a cap raised at run time serves the clips it held back', () async {
+      scheduler.dispose();
+      scheduler = build(maxAdvancing: 1);
+      final leases = [
+        for (var i = 0; i < 4; i++) scheduler.acquire('k$i', await openClip())!,
+      ];
+      engine.hold();
+      for (var ms = 0; ms < 48; ms += 16) {
+        for (final lease in leases) {
+          scheduler.want(lease, Duration(milliseconds: ms));
+        }
+        await tick();
+      }
+      expect(
+        engine.inFlight.values.where((n) => n > 0),
+        hasLength(lessThan(4)),
+      );
+
+      scheduler.maxAdvancing = 4;
+      for (final lease in leases) {
+        scheduler.want(lease, const Duration(milliseconds: 64));
+      }
+      await tick();
+
+      expect(engine.inFlight.values.where((n) => n > 0), hasLength(4));
+      engine.release();
+    });
+
+    test(
+      'clips that are not painted take no slot and then lose the lease',
+      () async {
+        scheduler.dispose();
+        scheduler = build(maxAdvancing: 2);
+        final live = [
+          for (var i = 0; i < 2; i++)
+            scheduler.acquire('live$i', await openClip())!,
+        ];
+        final gone = [
+          for (var i = 0; i < 2; i++)
+            scheduler.acquire('gone$i', await openClip())!,
+        ];
+        // All painted once, then only the live ones are.
+        for (final lease in [...live, ...gone]) {
+          scheduler.want(lease, Duration.zero);
+        }
+        await tick();
+        engine.nextFrameCalls.clear();
+        var played = Duration.zero;
+        for (var i = 0; i < 40; i++) {
+          played += const Duration(milliseconds: 16);
+          for (final lease in live) {
+            scheduler.want(lease, played);
+          }
+          await tick();
+          timers.elapse(const Duration(milliseconds: 100));
+        }
+
+        expect(gone.every((l) => l.isReleased), isTrue);
+        expect(live.every((l) => !l.isReleased && l.sprite != null), isTrue);
+        expect(scheduler.leaseCount, 2);
+      },
+    );
+
+    test('a clip that is not painted for a while is not served', () async {
+      scheduler.dispose();
+      scheduler = build(maxAdvancing: 1);
+      final staleClip = await openClip();
+      final stale = scheduler.acquire('stale', staleClip)!;
+      final live = scheduler.acquire('live', await openClip())!;
+      scheduler.want(stale, Duration.zero);
+      await tick();
+      engine.nextFrameCalls.clear();
+      var played = Duration.zero;
+      var callsAtWindowEnd = 0;
+      for (var i = 0; i < 30; i++) {
+        played += const Duration(milliseconds: 16);
+        scheduler.want(live, played);
+        await tick();
+        // The window is 150 ms: ten ticks after its one paint.
+        if (i == 10)
+          callsAtWindowEnd = engine.nextFrameCalls[staleClip.id] ?? 0;
+      }
+
+      // Past the window the stale clip asks the engine for nothing more.
+      expect(engine.nextFrameCalls[staleClip.id] ?? 0, callsAtWindowEnd);
+      expect(live.sprite, isNotNull);
+    });
 
     test('a slow engine skips to the newest ready frame', () async {
       final lease = scheduler.acquire('a', await openClip())!;

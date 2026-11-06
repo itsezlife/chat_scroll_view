@@ -45,9 +45,14 @@ advancing clip:
 - Clips loop forever: at the end of the stream the scheduler rewinds and the
   timeline continues. With no declared duration the pass ends where the stream
   does.
-- `maxAdvancing` (6) clips advance at once, the most recently leased; the
-  others keep their last frame and resume, from where they stopped, when a
-  slot frees.
+- A visible clip keeps playing. `maxAdvancing` (12) clips get a slot per
+  tick (a slot starts a decode or draws a frame); every clip keeps its own
+  clock, so past the cap the slots rotate and a clip only updates less often,
+  never freezes. Order: a clip that wants service and waited `maxStaleness`
+  (250 ms) first; then the foreground (the `maxAdvancing ~/ 2` most recently
+  leased); then the others round-robin. A clip not painted for
+  `visibleWindow` (150 ms) takes no slot, and the sweep frees its lease.
+  `maxAdvancing` can be changed at run time.
 - It follows `PlaybackClock` only while a lease exists, so the pause layers
   apply and an idle clock sleeps. Paintables hold and restart as the Lottie
   one does, with the same 500 ms resume gap.
