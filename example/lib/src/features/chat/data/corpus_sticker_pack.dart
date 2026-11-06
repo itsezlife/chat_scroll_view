@@ -83,8 +83,8 @@ final class CorpusPack {
 ///   from disk (desktop). A folder there takes over a bundle pack of the same
 ///   name.
 ///
-/// With neither there is no pack, and the stickers page lists the bundled
-/// ones alone.
+/// With neither there is no pack, and the stickers page lists the recent
+/// stickers alone (and says it has none when there are no recents either).
 ///
 /// Like the other packs it stands in for content a host fetches from its
 /// backend: [sources] publish the packs, [descriptors] are what the pipeline

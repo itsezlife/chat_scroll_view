@@ -49,7 +49,8 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// A collection that failed to load, or a search that failed, ends the list
 /// with the panel's [PanelStrings.gifsFailed] and a retry button; a search
-/// that found nothing says [PanelStrings.gifsEmpty]. Clips already listed stay
+/// that found nothing, and a page whose collections all loaded with no clip
+/// to list (no recents and no provider), say [PanelStrings.gifsEmpty]. Clips already listed stay
 /// above it. The [attribution], when the host gives one, heads the list: a
 /// provider's terms may require its name on the content it supplies, and the
 /// page knows no provider.
@@ -366,12 +367,21 @@ class _GifPageState extends State<GifPage> {
       CollectionContents$Loaded(:final items) => items.isEmpty,
       _ => false,
     };
+    // Nothing to list at all, as for a host with no provider and no recents:
+    // said only once every collection has loaded, so neither a page still
+    // loading nor one whose load failed (it has its own line) says it.
+    final listsNothing =
+        _query.isEmpty &&
+        rows.isEmpty &&
+        _source.collections.value.every(
+          (collection) => collection.contents is CollectionContents$Loaded,
+        );
     return _lines = [
       if (widget.attribution case final attribution?
           when rows.any((line) => line is _RowLine))
         _AttributionLine(attribution),
       ...rows,
-      if (foundNothing) _NoticeLine(strings.gifsEmpty),
+      if (foundNothing || listsNothing) _NoticeLine(strings.gifsEmpty),
     ];
   }
 

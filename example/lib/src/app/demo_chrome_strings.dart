@@ -35,6 +35,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     clearRecentAction: 'Очистить недавние',
     colorAllTitle: 'Выберите тон кожи по умолчанию',
     gifsEmpty: 'GIF не найдены',
+    stickersEmpty: 'Стикеров пока нет',
     gifsFailed: 'Не удалось загрузить GIF',
     retryAction: 'Повторить',
   ),

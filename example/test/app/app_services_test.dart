@@ -372,24 +372,16 @@ void main() {
       expect(closed, 1);
     });
 
-    test(
-      'is left unregistered when the platform has none: the app boots, '
-      'its other packs still play and the video pack is still listed',
-      () async {
-        final services = await create(
-          startVideo: ({required clock, required memoryPressure}) async => null,
-        );
-        addTearDown(services.dispose);
+    test('is left unregistered when the platform has none: the app boots '
+        'and its other packs still play', () async {
+      final services = await create(
+        startVideo: ({required clock, required memoryPressure}) async => null,
+      );
+      addTearDown(services.dispose);
 
-        expect(decoder.decodes, isEmpty);
-        expect(
-          services.emojiPageSource.collections.value.map(
-            (collection) => collection.id,
-          ),
-          contains(VideoStickerPack.id),
-        );
-      },
-    );
+      expect(decoder.decodes, isEmpty);
+      expect(services.emojiPageSource.collections.value, isNotEmpty);
+    });
   });
 
   group('the still decoder', () {
@@ -639,27 +631,15 @@ void main() {
       for (final collection in source.collections.value) collection.id,
     ];
 
-    test('list the recents, then every sticker pack with the WebM ones as '
-        'stickers only', () async {
+    test('list the recent stickers alone without a corpus: no bundled demo '
+        'pack', () async {
       final services = await createTestServices();
       addTearDown(services.dispose);
 
-      expect(ids(services.stickerPageSource), [
-        CollectionId.recent,
-        LottieStickerPack.id,
-        StaticStickerPack.id,
-        VideoStickerPack.id,
-      ]);
-      final video = services.stickerPageSource.collections.value.last;
-      expect(
-        (video.contents as CollectionContents$Loaded).items.map(
-          (item) => item.key,
-        ),
-        VideoStickerPack.stickers.map((item) => item.key),
-      );
+      expect(ids(services.stickerPageSource), [CollectionId.recent]);
     });
 
-    test('list a local corpus after the bundled packs, a pack each', () async {
+    test('list a local corpus after the recents, a pack each', () async {
       final dir = Directory.systemTemp.createTempSync('corpus_services');
       addTearDown(() => dir.deleteSync(recursive: true));
       Directory('${dir.path}/fox').createSync();
@@ -674,12 +654,16 @@ void main() {
       // Pick the on-disk pack by folder: a developer may have linked corpus
       // files into the (gitignored) bundled assets folder, which add packs.
       final fox = corpus.packs.singleWhere((pack) => pack.folder == 'fox');
+      expect(ids(services.stickerPageSource), [
+        CollectionId.recent,
+        for (final pack in corpus.packs) pack.id,
+      ]);
       expect(ids(services.stickerPageSource), contains(fox.id));
       expect(services.describe(fox.stickers.single.key), isNotNull);
     });
 
-    test('list Giphy\'s trending after the recents when there is a key, with '
-        'the bundled clips still last', () async {
+    test('list Giphy\'s trending after the recents when there is a key, and '
+        'no bundled clips', () async {
       final services = await createTestServices(
         giphyApiKey: 'test-key',
         giphyHttpClient: MockClient((_) async => http.Response('', 503)),
@@ -689,28 +673,19 @@ void main() {
       expect(ids(services.gifPageSource), [
         CollectionId.recent,
         GiphyGifSource.id,
-        VideoStickerPack.gifsId,
       ]);
       expect(services.gifSearch, isNotNull);
       expect(services.giphy, isNotNull);
     });
 
-    test('keep the bundled clips alone without a key', () async {
+    test('list the recent GIFs alone without a key: no search, no bundled '
+        'clips', () async {
       final services = await createTestServices();
       addTearDown(services.dispose);
 
+      expect(ids(services.gifPageSource), [CollectionId.recent]);
       expect(services.gifSearch, isNull);
       expect(services.giphy, isNull);
-    });
-
-    test('list the recents, then the clips and GIFs', () async {
-      final services = await createTestServices();
-      addTearDown(services.dispose);
-
-      expect(ids(services.gifPageSource), [
-        CollectionId.recent,
-        VideoStickerPack.gifsId,
-      ]);
     });
 
     test('show a pick as a recent once the host commits, not before', () async {
@@ -757,27 +732,26 @@ void main() {
   });
 
   group('the emoji page source', () {
-    test(
-      'lists the animated emoji pack, the Lottie stickers, the static ones and the video ones, after the '
-      'catalogue\'s categories',
-      () async {
-        final services = await createTestServices();
-        addTearDown(services.dispose);
+    test('lists the animated emoji pack after the catalogue\'s categories, '
+        'and no sticker pack', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
 
-        final ids = [
-          for (final collection in services.emojiPageSource.collections.value)
-            collection.id,
-        ];
-        expect(ids.first, CollectionId.recent);
-        expect(ids.sublist(ids.length - 4), [
-          AnimatedEmojiPack.id,
-          LottieStickerPack.id,
-          StaticStickerPack.id,
-          VideoStickerPack.id,
-        ]);
-        expect(ids.whereType<CollectionId$Category>(), isNotEmpty);
-      },
-    );
+      final ids = [
+        for (final collection in services.emojiPageSource.collections.value)
+          collection.id,
+      ];
+      expect(ids.first, CollectionId.recent);
+      expect(ids.last, AnimatedEmojiPack.id);
+      expect(ids.whereType<CollectionId$Category>(), isNotEmpty);
+      for (final pack in [
+        LottieStickerPack.id,
+        StaticStickerPack.id,
+        VideoStickerPack.id,
+      ]) {
+        expect(ids, isNot(contains(pack)));
+      }
+    });
 
     test('lists an animated emoji in the recents, described, beside the '
         'unicode ones', () async {

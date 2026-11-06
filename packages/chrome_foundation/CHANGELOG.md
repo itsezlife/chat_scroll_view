@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (stickers page copy)
+
+- `PanelStrings.stickersEmpty`, required, with English and Russian presets:
+  the stickers page's placeholder when it has no recents and no pack. A host
+  that builds `PanelStrings(...)` must pass it (source-breaking).
+  `gifsEmpty` now also reads as the GIF page's placeholder when it has no clip
+  to list at all.
+
 ### Added (GIF page copy)
 
 - `PanelStrings.gifsEmpty`, `gifsFailed` and `retryAction`, required, with

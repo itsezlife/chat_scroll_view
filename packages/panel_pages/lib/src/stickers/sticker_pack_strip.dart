@@ -117,10 +117,10 @@ class _StickerPackStripState extends State<StickerPackStrip>
   // `scrollToChild` leaves a tab it scrolled to.
   static const double _reveal = StickerPackStrip.tabWidth;
 
-  late final AnimationController _slide = AnimationController(
-    vsync: this,
-    duration: _slideDuration,
-  );
+  // Made in initState, not lazily: a strip that never had a tab would
+  // otherwise first make it in dispose, looking up its ticker mode in a tree
+  // that is coming down.
+  late final AnimationController _slide;
   final _row = ScrollController();
   late StreamSubscription<PanelCatalogScrollEvent> _scrollEvents;
   var _tabs = const <_Tab>[];
@@ -140,6 +140,7 @@ class _StickerPackStripState extends State<StickerPackStrip>
   @override
   void initState() {
     super.initState();
+    _slide = AnimationController(vsync: this, duration: _slideDuration);
     _tabs = _tabsOf(_handle.entries.value);
     _active = _tabFor(_handle.currentSectionId) ?? _tabs.firstOrNull?.sectionId;
     _handle.entries.addListener(_onEntries);

@@ -1272,7 +1272,7 @@ not use the hover-open toggle region.
 | App scopes | `example/lib/src/app/app_chrome.dart` |
 | Per-chat controller set, event handler, back, hand-off | `example/lib/src/features/chat/input/chat_input_set.dart` |
 | Emoji page composition (atlas host factory, planner) | `example/lib/src/features/chat/input/emoji_panel_page.dart` |
-| Stickers and GIF pages (sources of the recents and the packs, sending on a pick, editability) | `example/lib/src/features/chat/input/media_panel_pages.dart`, `data/recent_content_source.dart`, `data/video_sticker_pack.dart`, `utils/sticker_message_body.dart`, `utils/message_editability.dart` |
+| Stickers and GIF pages (sources of the recents, the local sticker corpus and Giphy; sending on a pick, editability) | `example/lib/src/features/chat/input/media_panel_pages.dart`, `data/recent_content_source.dart`, `data/corpus_sticker_pack.dart`, `data/giphy_gif_source.dart`, `utils/sticker_message_body.dart`, `utils/message_editability.dart` |
 | Composer spec | `example/lib/src/features/chat/input/chat_composer_spec.dart` |
 | Inset aggregation | `example/lib/src/features/chat/utils/chat_viewport_insets.dart` |
 | IME readings and keyboard commands | `example/lib/src/common/soft_keyboard_port.dart` |

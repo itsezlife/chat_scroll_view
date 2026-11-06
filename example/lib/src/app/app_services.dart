@@ -18,10 +18,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.da
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
-import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/recent_content_source.dart';
-import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
-import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
@@ -66,12 +63,14 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 ///    pipeline, the scope;
 /// 4. the data sources: [catalog], [keywords], [emojiSource], [emojiSearch],
 ///    under the [glyphProbe] that hides what the system cannot draw, the
-///    animated emoji pack, the Lottie sticker pack, the static sticker pack
-///    and the video sticker pack, and [emojiPageSource],
-///    which lists the packs after the catalogue's categories, and the
-///    [stickerPageSource] and [gifPageSource] of the two dedicated pages,
-///    over the recent stickers and GIFs (a view of the recents that catches
-///    up when the panel opens);
+///    animated emoji pack, and [emojiPageSource], which lists that pack after
+///    the catalogue's categories, and the [stickerPageSource] and
+///    [gifPageSource] of the two dedicated pages, over the recent stickers
+///    and GIFs (a view of the recents that catches up when the panel opens).
+///    The panel lists only real content: the stickers page the local corpus,
+///    the GIF page Giphy. The bundled demo stickers and clips stay known to
+///    the pipeline, for the showcase chat and the recents, but no page lists
+///    them;
 /// 5. the [clipboard]: the `rich_clipboard` adapter every copy and paste
 ///    goes through, so text keeps its entities (ADR 032).
 ///
@@ -113,9 +112,6 @@ final class AppServices {
     required this.describe,
     required List<CollectionSource> pageParts,
     required CollectionSource animatedEmoji,
-    required CollectionSource lottieStickers,
-    required CollectionSource staticStickers,
-    required CollectionSource videoStickers,
     required PlaybackClock clock,
     required LottiePlayback? lottiePlayback,
     required VideoPlayback? videoPlayback,
@@ -131,9 +127,6 @@ final class AppServices {
     required AssetPipeline pipeline,
   }) : _animatedEmoji = animatedEmoji,
        _pageParts = pageParts,
-       _lottieStickers = lottieStickers,
-       _staticStickers = staticStickers,
-       _videoStickers = videoStickers,
        _clock = clock,
        _lottiePlayback = lottiePlayback,
        _videoPlayback = videoPlayback,
@@ -184,7 +177,7 @@ final class AppServices {
   /// its own, and null where there is none.
   ///
   /// [giphyApiKey] turns the GIF page's Giphy source on (see
-  /// [giphyApiKeyDefine]); empty leaves the page on the bundled clips.
+  /// [giphyApiKeyDefine]); empty leaves the page with the recent GIFs alone.
   /// [giphyHttpClient] is the transport it sends through, closed by the
   /// services only if they made it. [corpus] is the local sticker corpus; null
   /// looks for one in the app bundle and in the `CHAT_CORPUS_DIR` directory.
@@ -293,8 +286,8 @@ final class AppServices {
       if (giphyApiKey.isEmpty) {
         l.i(
           'Giphy GIFs are off: no GIPHY_API_KEY was given '
-          '(--dart-define=GIPHY_API_KEY=...); the GIF page keeps the bundled '
-          'clips',
+          '(--dart-define=GIPHY_API_KEY=...); the GIF page lists the recent '
+          'GIFs alone',
         );
       } else {
         final live =
@@ -422,33 +415,16 @@ final class AppServices {
         AnimatedEmojiPack.source(),
         (source) => source.dispose(),
       );
-      final lottieStickers = owned(
-        LottieStickerPack.source(),
-        (source) => source.dispose(),
-      );
-      final staticStickers = owned(
-        StaticStickerPack.source(),
-        (source) => source.dispose(),
-      );
-      final videoStickers = owned(
-        VideoStickerPack.source(),
-        (source) => source.dispose(),
-      );
+      // The animated emoji are emoji (custom emoji, picked on this page), not
+      // stickers: they stay. The demo sticker packs are not listed here.
       final emojiPageSource = owned(
-        JoinedCollectionSource([
-          emojiSource,
-          animatedEmoji,
-          lottieStickers,
-          staticStickers,
-          videoStickers,
-        ]),
+        JoinedCollectionSource([emojiSource, animatedEmoji]),
         (source) => source.dispose(),
       );
 
-      // The stickers page: the recent stickers, then every pack of stickers;
-      // the video pack only with its WebM stickers, its clips and GIFs being
-      // the GIF page's. The parts are the emoji page's own where they are the
-      // same packs.
+      // The stickers page: the recent stickers, then the local corpus, a pack
+      // each. Without a corpus (as on CI) the recents are all it lists; the
+      // bundled demo packs are content of the showcase chat, not of the panel.
       final recentStickers = owned(
         RecentContentSource(
           recents: recentsShown,
@@ -457,25 +433,18 @@ final class AppServices {
         ),
         (source) => source.dispose(),
       );
-      final videoStickerPack = owned(
-        VideoStickerPack.stickerSource(),
-        (source) => source.dispose(),
-      );
       final corpusSources = [
         for (final source in corpusPacks.sources())
           owned(source, (source) => source.dispose()),
       ];
       final stickerPageSource = owned(
-        JoinedCollectionSource([
-          recentStickers,
-          lottieStickers,
-          staticStickers,
-          videoStickerPack,
-          ...corpusSources,
-        ]),
+        JoinedCollectionSource([recentStickers, ...corpusSources]),
         (source) => source.dispose(),
       );
-      // The GIF page: the recent GIFs, then the clips and GIFs.
+      // The GIF page: the recent GIFs, then Giphy's trending when there is a
+      // key. Offline, trending fails and the page shows its failure line with
+      // a retry; without a key the recents are all it lists. No bundled clip
+      // is listed beneath either.
       final recentGifs = owned(
         RecentContentSource(
           recents: recentsShown,
@@ -484,13 +453,6 @@ final class AppServices {
         ),
         (source) => source.dispose(),
       );
-      final gifClips = owned(
-        VideoStickerPack.gifSource(),
-        (source) => source.dispose(),
-      );
-      // Giphy's trending after the recents, and the bundled clips after
-      // those: online they are below the end of trending, and offline they
-      // are what the page shows beneath the failure line.
       final giphyTrending = giphy == null
           ? null
           : owned(
@@ -504,7 +466,7 @@ final class AppServices {
               (search) => search.dispose(),
             );
       final gifPageSource = owned(
-        JoinedCollectionSource([recentGifs, ?giphyTrending, gifClips]),
+        JoinedCollectionSource([recentGifs, ?giphyTrending]),
         (source) => source.dispose(),
       );
 
@@ -535,16 +497,11 @@ final class AppServices {
         describe: describe,
         pageParts: [
           recentStickers,
-          videoStickerPack,
           recentGifs,
-          gifClips,
           ?giphyTrending,
           ...corpusSources,
         ],
         animatedEmoji: animatedEmoji,
-        lottieStickers: lottieStickers,
-        staticStickers: staticStickers,
-        videoStickers: videoStickers,
         clock: clock,
         lottiePlayback: lottiePlayback,
         videoPlayback: videoPlayback,
@@ -644,18 +601,15 @@ final class AppServices {
   final EmojiSearchSource emojiSearch;
 
   /// What the emoji page lists: the collections of [emojiSource], then the
-  /// pack of animated emoji, the pack of Lottie stickers, the pack of static
-  /// ones and the pack of video. It owns none.
+  /// pack of animated emoji. It owns none.
   final CollectionSource emojiPageSource;
 
-  /// What the stickers page lists: the recent stickers, then the pack of
-  /// Lottie stickers, the pack of static ones and the WebM stickers of the
-  /// video pack. It owns none.
+  /// What the stickers page lists: the recent stickers, then the packs of
+  /// the local [corpus]. It owns none.
   final CollectionSource stickerPageSource;
 
   /// What the GIF page lists: the recent GIFs, then Giphy's trending clips
-  /// when there is a key, then the video pack's MP4 clips and GIFs. It owns
-  /// none.
+  /// when there is a key. It owns none.
   final CollectionSource gifPageSource;
 
   /// Search of Giphy for the GIF page, or null without a key.
@@ -706,9 +660,6 @@ final class AppServices {
 
   final CollectionSource _animatedEmoji;
   final List<CollectionSource> _pageParts;
-  final CollectionSource _lottieStickers;
-  final CollectionSource _staticStickers;
-  final CollectionSource _videoStickers;
   final PlaybackClock _clock;
   final LottiePlayback? _lottiePlayback;
   final VideoPlayback? _videoPlayback;
@@ -785,9 +736,6 @@ final class AppServices {
       part.dispose();
     }
     emojiPageSource.dispose();
-    _videoStickers.dispose();
-    _staticStickers.dispose();
-    _lottieStickers.dispose();
     _animatedEmoji.dispose();
     emojiSearch.dispose();
     emojiSource.dispose();
