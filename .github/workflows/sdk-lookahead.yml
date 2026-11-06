@@ -1,6 +1,6 @@
 name: SDK look-ahead
 
-# Weekly dry run of `composer_editable`'s re-vendor against the newest stable
+# On-demand dry run (manual dispatch, no schedule, to spare CI minutes) of `composer_editable`'s re-vendor against the newest stable
 # Flutter, before anyone upgrades. It REPORTS: the job summary lists which
 # vendored files merge cleanly, which conflict, and what the package's suite
 # says on the new SDK. Conflicts and a failing suite do not turn the workflow
@@ -12,9 +12,6 @@ name: SDK look-ahead
 # upgrade for real, run `dart packages/composer_editable/tool/revendor.dart`
 # locally on a branch (packages/composer_editable/README.md).
 on:
-  schedule:
-    # Schedules only run on the default branch.
-    - cron: '17 4 * * 1'
   workflow_dispatch:
 
 permissions:

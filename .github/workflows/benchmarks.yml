@@ -1,6 +1,6 @@
 name: Benchmarks
 
-# Nightly ratio report of the headless benchmarks against the committed
+# On-demand ratio report (manual dispatch, no schedule, to spare CI minutes) of the headless benchmarks against the committed
 # baselines (benchmarks/baselines). NOT a gate: there is no pull_request
 # trigger, nothing here is a required check, and a regression opens an issue
 # instead of failing a merge, because headless debug timings are noisy
@@ -10,9 +10,6 @@ name: Benchmarks
 # atlas ceiling are the device acceptance (example/integration_test/panel_perf),
 # which needs a device and is run by hand, never here.
 on:
-  schedule:
-    # Schedules only run on the default branch.
-    - cron: '23 3 * * *'
   workflow_dispatch:
     inputs:
       force_regression:
@@ -105,7 +102,7 @@ jobs:
             title="Benchmark regression drill (forced, not a real regression)"
           fi
           gh label create "$label" --color B60205 \
-            --description "Nightly benchmark ratios moved past the tolerance" 2>/dev/null || true
+            --description "Benchmark ratios moved past the tolerance" 2>/dev/null || true
           {
             cat build/bench/report.md
             echo
