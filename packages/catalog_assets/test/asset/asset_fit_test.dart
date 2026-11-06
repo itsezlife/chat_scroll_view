@@ -40,7 +40,7 @@ void main() {
     test('the crop keeps the cell aspect, whatever the scale', () {
       final placed = AssetFit.cover.place(
         const Size(300, 200),
-        const Rect.fromLTWH(0, 0, 90, 60 * 1.5),
+        const Rect.fromLTWH(0, 0, 90, 90),
       );
 
       // 300x200 into 90x90: the longer side is cut to the cell's aspect.
@@ -54,6 +54,20 @@ void main() {
       expect(placed.source, const Rect.fromLTWH(0, 0, 50, 50));
       expect(placed.destination, cell);
     });
+  });
+
+  test('a region of a page is placed as a picture, the crop offset by it', () {
+    const region = Rect.fromLTWH(30, 40, 400, 100);
+
+    final placed = AssetFit.cover.placeRegion(region, cell);
+
+    expect(placed.destination, cell);
+    expect(placed.source, const Rect.fromLTWH(180, 40, 100, 100));
+    expect(
+      AssetFit.contain.placeRegion(region, cell).source,
+      region,
+      reason: 'contain draws the whole region',
+    );
   });
 
   test('an empty source or cell is placed as it is, never divided by', () {

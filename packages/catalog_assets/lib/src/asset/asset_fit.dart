@@ -58,4 +58,15 @@ enum AssetFit {
         );
     }
   }
+
+  /// [place] for a picture that sits on a page at [region]: the source is in
+  /// page pixels, so it can be handed straight to `drawImageRect` or to an
+  /// atlas draw.
+  ({Rect source, Rect destination}) placeRegion(Rect region, Rect destination) {
+    final placed = place(region.size, destination);
+    return (
+      source: placed.source.shift(region.topLeft),
+      destination: placed.destination,
+    );
+  }
 }
