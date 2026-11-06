@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
 import 'package:lottie_decoder/src/playback/lottie_frame_scheduler.dart';

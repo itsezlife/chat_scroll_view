@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -10,6 +11,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
 import 'package:lottie_native/lottie_native.dart';
 import 'package:lottie_native/testing.dart';
+
+/// A hand-authored 100x100, 30 fps, 60 frame animation: one rotating 60x60
+/// square filled with 50% opaque orange. Not a corpus sticker.
+const _fixture = '''
+{"v":"5.5.2","fr":30,"ip":0,"op":60,"w":100,"h":100,"nm":"fixture","ddd":0,
+"assets":[],
+"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"square","sr":1,
+"ks":{"o":{"a":0,"k":100},
+"r":{"a":1,"k":[{"t":0,"s":[0],"i":{"x":[0.5],"y":[1]},"o":{"x":[0.5],"y":[0]}},{"t":60,"s":[90]}]},
+"p":{"a":0,"k":[50,50,0]},"a":{"a":0,"k":[0,0,0]},"s":{"a":0,"k":[100,100,100]}},
+"ao":0,
+"shapes":[{"ty":"gr","it":[
+{"ty":"rc","d":1,"s":{"a":0,"k":[60,60]},"p":{"a":0,"k":[0,0]},"r":{"a":0,"k":0}},
+{"ty":"fl","c":{"a":0,"k":[1,0.5,0.25,1]},"o":{"a":0,"k":50},"r":1},
+{"ty":"tr","p":{"a":0,"k":[0,0]},"a":{"a":0,"k":[0,0]},"s":{"a":0,"k":[100,100]},"r":{"a":0,"k":0},"o":{"a":0,"k":100}}
+]}],"ip":0,"op":60,"st":0,"bm":0}]}''';
 
 final _fakeBytes = Uint8List.fromList([1, 2, 3]);
 final _badBytes = Uint8List.fromList([9]);
@@ -52,9 +69,12 @@ DecodeRequest _request(
 /// The fake binding, an in-process engine over it and a decoder, with the
 /// image steps replaced so no test needs the engine's image machinery.
 final class _Rig {
-  _Rig({LottieImageDecoder? decodeImage, LottiePixelUploader? upload})
-    : binding = FakeLottieBinding()..accept(_fakeBytes, _info) {
-    engine = InProcessLottieEngine(binding);
+  _Rig({
+    LottieEngine? engine,
+    LottieImageDecoder? decodeImage,
+    LottiePixelUploader? upload,
+  }) : binding = FakeLottieBinding()..accept(_fakeBytes, _info) {
+    this.engine = engine ?? InProcessLottieEngine(binding);
     ticks = ManualPlaybackTickSource();
     clock = PlaybackClock(ticks: ticks);
     scheduler = LottieFrameScheduler(
@@ -68,7 +88,7 @@ final class _Rig {
       startTimer: ManualRetentionTimers().start,
     );
     decoder = LottieDecoder(
-      engine: engine,
+      engine: this.engine,
       scheduler: scheduler,
       decodeImage: decodeImage ?? (bytes) async => _image(),
       uploadPixels:
@@ -81,15 +101,23 @@ final class _Rig {
   }
 
   final FakeLottieBinding binding;
-  late final InProcessLottieEngine engine;
+  late final LottieEngine engine;
   late final ManualPlaybackTickSource ticks;
   late final PlaybackClock clock;
   late final LottieFrameScheduler scheduler;
   late final LottieDecoder decoder;
   final List<({Uint8List pixels, int width, int height})> uploaded = [];
 
+  /// Waits until [report] has an outcome, for engines that take real time.
+  Future<void> settled(_Report report) async {
+    while (report.advances.isEmpty && report.failures.isEmpty) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+  }
+
   void close() {
     scheduler.dispose();
+    unawaited(engine.close());
     clock.dispose();
   }
 }
@@ -337,4 +365,86 @@ void main() {
       expect(report.advances, isEmpty);
     });
   });
+
+  final native = NativeLottieBinding.probe().isAvailable;
+  group(
+    'over the native library in the render isolate',
+    () {
+      final fixture = Uint8List.fromList(utf8.encode(_fixture));
+
+      DecoderContract.run(() {
+        final rig = _Rig(engine: _DeferredEngine(IsolateLottieEngine.spawn));
+        addTearDown(rig.close);
+        return DecoderHarness(
+          decoder: rig.decoder,
+          valid: (part, spec) => _request(fixture, part: part, spec: spec),
+          invalid: () =>
+              _request(Uint8List.fromList(utf8.encode('not a lottie file'))),
+        );
+      });
+
+      test('hands over the first frame as premultiplied RGBA', () async {
+        final rig = _Rig(engine: _DeferredEngine(IsolateLottieEngine.spawn));
+        addTearDown(rig.close);
+        final report = _Report();
+
+        rig.decoder.decode(
+          _request(
+            fixture,
+            spec: const AssetSpec(
+              pixelWidth: 100,
+              pixelHeight: 100,
+              variant: AssetVariant.firstFrame,
+            ),
+          ),
+          report,
+        );
+        await rig.settled(report);
+
+        final upload = rig.uploaded.single;
+        expect((upload.width, upload.height), (100, 100));
+        const center = (50 * 100 + 50) * 4;
+        final [r, g, b, a] = upload.pixels.sublist(center, center + 4);
+        // 50% orange (1, 0.5, 0.25): colour channels sit under the alpha.
+        expect(a, inInclusiveRange(120, 135));
+        expect(r, inInclusiveRange(120, 135));
+        expect(g, inInclusiveRange(58, 70));
+        expect(b, inInclusiveRange(28, 36));
+        expect(
+          [r, g, b].every((c) => c <= a),
+          isTrue,
+          reason: 'premultiplied: no channel above alpha',
+        );
+      });
+    },
+    skip: native
+        ? false
+        : 'The native library is absent or speaks another ABI version: the '
+              'build hook compiles it with cargo on macOS only (rustup.rs).',
+  );
+}
+
+/// An engine that spawns its render isolate on first use, so a contract
+/// harness, which is built synchronously, can hold it.
+final class _DeferredEngine implements LottieEngine {
+  _DeferredEngine(this._open);
+
+  final Future<LottieEngine> Function() _open;
+  late final Future<LottieEngine> _engine = _open();
+
+  @override
+  Future<LottieLoadResult> load(Uint8List bytes) async =>
+      (await _engine).load(bytes);
+
+  @override
+  Future<List<LottieRenderStatus>> renderBatch(
+    List<LottieEngineJob> jobs,
+  ) async => (await _engine).renderBatch(jobs);
+
+  @override
+  Future<void> dispose(LottieHandle handle) async =>
+      (await _engine).dispose(handle);
+
+  @override
+  Future<void> close() async => (await _engine).close();
 }

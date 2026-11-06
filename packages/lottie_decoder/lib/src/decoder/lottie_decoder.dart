@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -290,15 +289,22 @@ final class _LottieDecode implements AssetTask {
     unawaited(
       _owner._engine
           .dispose(handle)
-          .catchError(
-            (Object error, StackTrace stackTrace) => FlutterError.reportError(
-              FlutterErrorDetails(
-                exception: error,
-                stack: stackTrace,
-                library: 'lottie_decoder',
-                context: ErrorDescription('while disposing a Lottie handle'),
-              ),
-            ),
+          .then<void>(
+            (_) {},
+            onError: (Object error, StackTrace stackTrace) {
+              // A closed engine already freed every handle it issued: the
+              // host shut down while this decode was ending, and there is
+              // nothing left to free.
+              if (error is StateError) return;
+              FlutterError.reportError(
+                FlutterErrorDetails(
+                  exception: error,
+                  stack: stackTrace,
+                  library: 'lottie_decoder',
+                  context: ErrorDescription('while disposing a Lottie handle'),
+                ),
+              );
+            },
           ),
     );
   }
