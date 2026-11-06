@@ -16,6 +16,16 @@ abstract final class VideoFrameAtlas {
   /// the pool, so the pages are not where the memory goes.
   static const int defaultBudgetBytes = 32 * 1024 * 1024;
 
+  /// The page edge a size class opens: the class edge, one cell a page.
+  ///
+  /// A page reaches the GPU whole through `decodeImageFromPixels`, which
+  /// copies it on the UI isolate, and a playing clip rewrites its cell every
+  /// frame. A page of four cells (the Lottie default) made one 512 px clip
+  /// upload 4 MiB to move 1 MiB, and on the recorded session the video uploads
+  /// were most of the UI thread's frame cost. One cell a page also spends the
+  /// byte budget on cells that exist, not on three empty ones.
+  static int pageSideFor(int sizeClass) => sizeClass;
+
   /// Builds the atlas the `VideoFrameScheduler` owns.
   ///
   /// ## Why not the Lottie pool
@@ -37,6 +47,7 @@ abstract final class VideoFrameAtlas {
   static FrameAtlas<Object> create({
     int budgetBytes = defaultBudgetBytes,
     List<int> sizeClasses = VideoFrameSize.defaultClasses,
+    int Function(int sizeClass) pageSideFor = VideoFrameAtlas.pageSideFor,
     FramePageMemory? memory,
     FramePageUploader upload = uploadBgraFramePage,
     Listenable? memoryPressure,
@@ -45,6 +56,7 @@ abstract final class VideoFrameAtlas {
     memory: memory ?? ListFramePageMemory(),
     budgetBytes: budgetBytes,
     sizeClasses: sizeClasses,
+    pageSideFor: pageSideFor,
     upload: upload,
     memoryPressure: memoryPressure,
     // A clip leased again restarts at its first frame, so the frame it stopped
@@ -53,13 +65,14 @@ abstract final class VideoFrameAtlas {
   );
 
   /// The upload of a BGRA page: `decodeImageFromPixels` as
-  /// `rgba8888`, which copies the bytes when called.
+  /// `bgra8888`, which copies the bytes when called. [pixels] holds the top
+  /// rows of the page, as many as its length says.
   static Future<ui.Image> uploadBgraFramePage(Uint8List pixels, int side) {
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
       pixels,
       side,
-      side,
+      pixels.length ~/ (side * FramePageMemory.bytesPerPixel),
       ui.PixelFormat.bgra8888,
       completer.complete,
     );

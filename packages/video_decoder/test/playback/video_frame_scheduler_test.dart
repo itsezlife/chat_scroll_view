@@ -13,6 +13,7 @@ import '../support/gated_video_engine.dart';
 
 /// A tiny image per page upload: these tests read the page bytes, not pixels.
 Future<ui.Image> _upload(Uint8List pixels, int side) {
+  uploadedBytes.add(pixels.length);
   final recorder = ui.PictureRecorder();
   ui.Canvas(recorder).drawRect(const ui.Rect.fromLTWH(0, 0, 2, 2), ui.Paint());
   final picture = recorder.endRecording();
@@ -20,6 +21,9 @@ Future<ui.Image> _upload(Uint8List pixels, int side) {
   picture.dispose();
   return Future.value(image);
 }
+
+/// The byte length of every page upload so far, in order.
+final List<int> uploadedBytes = [];
 
 const _frameMs = 33;
 
@@ -92,6 +96,7 @@ void main() {
 
   setUp(() {
     time = Duration.zero;
+    uploadedBytes.clear();
     fake = FakeVideoEngine()..accept(bytes, _info, frameCount: 3);
     engine = GatedVideoEngine(fake);
     memory = ListFramePageMemory();
@@ -252,6 +257,56 @@ void main() {
 
       expect(scheduler.residentBytes, 0);
     });
+
+    test('a lone clip uploads its own cell, not a page of four', () async {
+      final lease = scheduler.acquire('a', await openClip())!;
+      scheduler.want(lease, Duration.zero);
+      await settle();
+
+      // A 16 px clip lives in a 64 px cell on a 64 px page, and the upload
+      // stops at its last row: 16 rows of 64 pixels.
+      expect(uploadedBytes, isNotEmpty);
+      expect(uploadedBytes.toSet(), {64 * 16 * 4});
+    });
+
+    test('a tick uploads the cells that moved, not their neighbours', () async {
+      scheduler.dispose();
+      scheduler = build(maxAdvancing: 1);
+      final clip = await openClip();
+      final frozen = scheduler.acquire('frozen', clip)!;
+      final moving = scheduler.acquire('moving', clip)!;
+      scheduler.want(frozen, Duration.zero);
+      scheduler.want(moving, Duration.zero);
+      await settle();
+      uploadedBytes.clear();
+
+      scheduler.want(moving, const Duration(milliseconds: _frameMs + 1));
+      await settle();
+
+      // Only the newest lease advances; its upload is its own page's 16 rows.
+      expect(uploadedBytes, isNotEmpty);
+      expect(uploadedBytes.every((bytes) => bytes == 64 * 16 * 4), isTrue);
+    });
+
+    test(
+      'clock frames that name the same video frame upload nothing',
+      () async {
+        final lease = scheduler.acquire('a', await openClip())!;
+        scheduler.want(lease, Duration.zero);
+        await settle();
+        final settled = uploadedBytes.length;
+        expect(settled, greaterThan(0));
+
+        // A 30 fps clip on a faster display: the clock ticks, the clip time
+        // stays inside frame 0's interval, so there is no new frame to show.
+        for (var i = 0; i < 6; i++) {
+          scheduler.want(lease, Duration(milliseconds: i));
+          await tick();
+        }
+
+        expect(uploadedBytes.length, settled);
+      },
+    );
 
     test('a full pool answers null so the caller keeps its still', () async {
       scheduler.dispose();

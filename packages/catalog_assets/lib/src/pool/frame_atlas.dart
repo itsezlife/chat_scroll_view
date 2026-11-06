@@ -353,7 +353,10 @@ final class FrameAtlas<K extends Object> {
       for (var i = 0; i < jobs.length; i++) {
         final handle = requests[i].handle;
         if (done.contains(i)) {
-          _images.markDirty(jobs[i].slot.pageIndex);
+          _images.markDirty(
+            jobs[i].slot.pageIndex,
+            rows: jobs[i].slot.rect.top.toInt() + jobs[i].height,
+          );
           frames[handle] = jobs[i].frame;
           rendered.add(handle);
         } else {
