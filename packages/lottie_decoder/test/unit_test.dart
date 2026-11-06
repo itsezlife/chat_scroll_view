@@ -27,6 +27,8 @@ import 'renderer/pixel_copy_frame_renderer_test.dart'
 import 'testing/fake_pixel_lottie_engine_test.dart'
     as fake_pixel_lottie_engine_test;
 import 'web_compile_test.dart' as web_compile_test;
+import 'web_worker/lottie_decoder_web_worker_test.dart'
+    as lottie_decoder_web_worker_test;
 import 'web_worker/lottie_worker_status_test.dart' as lottie_worker_status_test;
 import 'web_worker/web_worker_lottie_engine_test.dart'
     as web_worker_lottie_engine_test;
@@ -69,6 +71,10 @@ void main() {
     native_frame_page_memory_test.main,
   );
   group('web_compile_test.dart', web_compile_test.main);
+  group(
+    'web_worker/lottie_decoder_web_worker_test.dart',
+    lottie_decoder_web_worker_test.main,
+  );
   group(
     'web_worker/lottie_worker_status_test.dart',
     lottie_worker_status_test.main,
