@@ -16,6 +16,9 @@ tlottie = { git = "https://github.com/dkaraush/tlottie", rev = "92df98dc20" }
 # Pure-Rust inflate backend (miniz_oxide): no C toolchain needed to cross-build.
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 serde_json = "1"
+# Pure Rust and unsafe-free in these features, and it builds for wasm, so the
+# web wrapper shares the frame codec (ADR 042).
+lz4_flex = { version = "0.14.0", default-features = false, features = ["safe-encode", "safe-decode"] }
 
 [profile.release]
 opt-level = 3
