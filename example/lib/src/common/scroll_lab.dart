@@ -6,6 +6,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatScrollController, ChatScrollEvent, ChatViewportScrolled;
 import 'package:chat_scroll_view/experiments.dart';
 import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
+import 'package:chat_scroll_view_example/src/common/tape_system_events.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -46,6 +47,7 @@ abstract final class ScrollLab {
     });
     plainText.addListener(() => _log('switch plainText=${plainText.value}'));
     PointerTape.install();
+    TapeSystemRecorder.install();
     _channel.setMethodCallHandler((call) async {
       if (call.method != 'set') return;
       final args = call.arguments as Map<Object?, Object?>;
@@ -79,7 +81,11 @@ abstract final class ScrollLab {
           final dir = await _channel.invokeMethod<String>('filesDir');
           _log('tape replay start $name');
           _replayFrames = [];
-          final n = await PointerTape.replay(dir!, name);
+          final n = await PointerTape.replay(
+            dir!,
+            name,
+            system: dispatchTapeSystemEvent,
+          );
           // Timings arrive in batches; let the last one land.
           await Future<void>.delayed(const Duration(milliseconds: 1500));
           _logReplaySummary(_replayFrames!);

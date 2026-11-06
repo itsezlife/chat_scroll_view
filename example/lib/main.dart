@@ -13,6 +13,7 @@ import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
 import 'package:chat_scroll_view_example/src/common/environment_specific/host_environment.dart'
     as environment_specific;
 import 'package:chat_scroll_view_example/src/common/frame_rate_boost.dart';
+import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
@@ -44,7 +45,11 @@ void main() => l.capture<void>(
       // app's (message menus, the composer's, the panel's) unless the app
       // takes it over.
       if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
-      bindExamplePreImeBack();
+      bindExamplePreImeBack(
+        onBack: DemoConfig.scrollLab
+            ? () => PointerTape.note(TapeSystemEvent.backPreIme)
+            : null,
+      );
       await bootApp(
         createServices: _createServices,
         appOf: (services) => ChatDemoApp(

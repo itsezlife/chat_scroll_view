@@ -48,6 +48,7 @@ import 'chat_perf/table_test.dart' as chat_perf_table_test;
 import 'chat_perf/trace_counts_test.dart' as chat_perf_trace_counts_test;
 import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
+import 'common/pointer_tape_test.dart' as pointer_tape_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
 import 'features/chat/bundled_packs_test.dart' as bundled_packs_test;
@@ -251,6 +252,7 @@ void main() {
     'common/chat_message_markdown_test.dart',
     chat_message_markdown_test.main,
   );
+  group('common/pointer_tape_test.dart', pointer_tape_test.main);
   group(
     'features/chat/animated_emoji_pack_test.dart',
     animated_emoji_pack_test.main,
