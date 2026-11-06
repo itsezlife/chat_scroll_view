@@ -151,7 +151,7 @@ final class FrameCache {
     RangeError.checkValidIndex(index, List<void>.filled(frameCount, null));
     final animation = _animations.putIfAbsent(
       key,
-      () => _Animation(key.toFileStem(), frameCount),
+      () => _Animation(key.toFileStem(), frameCount, lastUsed: _clock()),
     );
     if (animation.frames.length != frameCount) {
       throw StateError(
@@ -284,7 +284,9 @@ final class FrameCache {
     try {
       await _ensureScanned();
       if (!_disk.containsKey(stem)) return null;
-      final bytes = await _files!.read(stem);
+      // A file above the whole budget would have been evicted by the scan
+      // that listed it; one that grew since is a miss like any damage.
+      final bytes = await _files!.read(stem, maxBytes: diskBudgetBytes);
       final frames = bytes == null ? null : FrameCacheCodec.decode(key, bytes);
       if (frames == null) {
         // Damage is a miss, and the file goes: left in place it would be
@@ -296,9 +298,8 @@ final class FrameCache {
       final raced = _animations[key];
       if (raced != null) return raced.frames.length;
       final now = _clock();
-      final animation = _Animation.complete(stem, frames)
-        ..persisted = true
-        ..lastUsed = now;
+      final animation = _Animation.complete(stem, frames, lastUsed: now)
+        ..persisted = true;
       _animations[key] = animation;
       _ramBytes += animation.bytes;
       _disk[stem]?.lastUsed = now;
@@ -318,8 +319,11 @@ final class FrameCache {
       await _ensureScanned();
       final bytes = FrameCacheCodec.encode(key, frames);
       final now = _clock();
-      await _files!.write(stem, bytes, modified: now);
+      final unstamped = await _files!.write(stem, bytes, modified: now);
+      // The entry is on disk: track it for eviction, keep writing, and only
+      // tell the host that its timestamps do not stick.
       _disk[stem] = _DiskFile(bytes.length, now);
+      if (unstamped != null) _report(unstamped, StackTrace.current);
       await _evictDisk();
     } on Object catch (error, stack) {
       _writable = false;
@@ -368,12 +372,12 @@ final class FrameCache {
 
 /// One animation's resident frames; a slot is null until its frame arrives.
 final class _Animation {
-  _Animation(this.stem, int frameCount)
+  _Animation(this.stem, int frameCount, {required this.lastUsed})
     : frames = List<Uint8List?>.filled(frameCount, null),
       filled = 0;
 
   /// An animation read whole from a file.
-  _Animation.complete(this.stem, List<Uint8List> read)
+  _Animation.complete(this.stem, List<Uint8List> read, {required this.lastUsed})
     : frames = List<Uint8List?>.of(read),
       filled = read.length,
       bytes = read.fold<int>(0, (sum, f) => sum + f.length);
@@ -383,7 +387,7 @@ final class _Animation {
   final List<Uint8List?> frames;
   int filled;
   int bytes = 0;
-  late DateTime lastUsed;
+  DateTime lastUsed;
 
   /// Whether a file holds exactly these frames (read from one, or written).
   bool persisted = false;
