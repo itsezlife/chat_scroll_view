@@ -24,6 +24,22 @@ typedef LottieImageDecoder = Future<ui.Image> Function(Uint8List bytes);
 typedef LottiePixelUploader =
     Future<ui.Image> Function(Uint8List pixels, int width, int height);
 
+/// Names the content of a Lottie file for the frame cache: a digest of
+/// [bytes] made of letters, digits and `-` (a [FrameCacheKey.contentHash]).
+/// The default is the file's SHA-256, computed on another isolate.
+typedef LottieContentHasher = Future<String> Function(Uint8List bytes);
+
+/// SHA-256 of [bytes] in hex, on a short-lived isolate (on the web, inline).
+///
+/// Hashing a sticker file on the calling isolate took 2-10 ms at a time on a
+/// phone, between frames: a grid that scrolls new stickers in decodes several
+/// per second, and each hash made the next frame start a vsync late. The
+/// bytes are copied to the worker, which is a memory copy and far cheaper.
+Future<String> sha256OffIsolate(Uint8List bytes) =>
+    compute(_sha256Hex, bytes, debugLabel: 'lottie content hash');
+
+String _sha256Hex(Uint8List bytes) => sha256.convert(bytes).toString();
+
 Future<ui.Image> _imageFromList(Uint8List bytes) {
   final completer = Completer<ui.Image>();
   ui.decodeImageFromList(bytes, completer.complete);
@@ -75,7 +91,9 @@ Future<ui.Image> _imageFromPixels(Uint8List pixels, int width, int height) {
 ///
 /// Given a cache, an animation that plays is named in it: its frames are keyed
 /// by the SHA-256 of the file, the pixel size they are rendered at and
-/// `LottieNativeVersion.engine`. A spec above the cap never animates, so it
+/// `LottieNativeVersion.engine`. The hash is computed off the calling isolate
+/// (see [LottieContentHasher]), started with the parse so it adds no wait,
+/// and only for an animation that plays with a cache. A spec above the cap never animates, so it
 /// has no key and no frame is cached. The renderer does the caching; see
 /// `LottieFrameRenderer`.
 ///
@@ -97,23 +115,29 @@ final class LottieDecoder implements Decoder {
   /// from the file's SHA-256, the render size and `LottieNativeVersion.engine`)
   /// and never reads or writes it. Without one nothing is keyed.
   ///
+  /// [hashContent] names a file in the cache, [sha256OffIsolate] by default;
+  /// null also means the default.
+  ///
   /// [decodeImage] and [uploadPixels] are the two steps that need the
   /// engine's image machinery; tests replace them.
   LottieDecoder({
     required LottieEngine engine,
     required LottieFrameScheduler scheduler,
     FrameCache? cache,
+    LottieContentHasher? hashContent,
     LottieImageDecoder decodeImage = _imageFromList,
     LottiePixelUploader uploadPixels = _imageFromPixels,
   }) : _engine = engine,
        _scheduler = scheduler,
        _cache = cache,
+       _hashContent = hashContent ?? sha256OffIsolate,
        _decodeImage = decodeImage,
        _uploadPixels = uploadPixels;
 
   final LottieEngine _engine;
   final LottieFrameScheduler _scheduler;
   final FrameCache? _cache;
+  final LottieContentHasher _hashContent;
   final LottieImageDecoder _decodeImage;
   final LottiePixelUploader _uploadPixels;
 
@@ -177,10 +201,21 @@ final class _LottieDecode implements AssetTask {
   }
 
   Future<void> _content() async {
+    final spec = _request.spec;
+    final animates =
+        spec.variant == AssetVariant.full &&
+        math.max(spec.pixelWidth, spec.pixelHeight) <= LottiePixelJob.maxEdge;
     final Uint8List bytes;
     final LottieLoadResult loaded;
+    Future<String>? contentHash;
     try {
       bytes = await _bytes();
+      // Started before the parse, so the two run side by side. Marked
+      // handled at once: a path that never reaches the key below must not
+      // leave its failure unhandled, and awaiting it still throws.
+      if (animates && _owner._cache != null) {
+        contentHash = _owner._hashContent(bytes)..ignore();
+      }
       loaded = await _owner._engine.load(bytes);
     } on Object catch (error, stackTrace) {
       _fail(error, stackTrace);
@@ -200,7 +235,6 @@ final class _LottieDecode implements AssetTask {
       return;
     }
     final LottieLoaded(:handle, :info) = loaded as LottieLoaded;
-    final spec = _request.spec;
     final edge = math.min(
       math.max(spec.pixelWidth, spec.pixelHeight),
       LottiePixelJob.maxEdge,
@@ -210,9 +244,18 @@ final class _LottieDecode implements AssetTask {
       edge,
     );
     final ui.Image image;
+    final String? hash;
     try {
       image = await _renderFirstFrame(handle, width, height);
     } on Object catch (error, stackTrace) {
+      _release(handle);
+      _fail(error, stackTrace);
+      return;
+    }
+    try {
+      hash = await contentHash;
+    } on Object catch (error, stackTrace) {
+      image.dispose();
       _release(handle);
       _fail(error, stackTrace);
       return;
@@ -228,9 +271,6 @@ final class _LottieDecode implements AssetTask {
     // The still of the final stage is a second reference to the pixels, taken
     // before the first stage goes out: the cache may dispose that one at once.
     final finalImage = spec.variant == AssetVariant.full ? image.clone() : null;
-    final animates =
-        spec.variant == AssetVariant.full &&
-        math.max(spec.pixelWidth, spec.pixelHeight) <= LottiePixelJob.maxEdge;
     if (!animates) {
       _release(handle);
       _progress.advance(
@@ -265,10 +305,10 @@ final class _LottieDecode implements AssetTask {
           firstFrame: finalImage!,
           scheduler: _owner._scheduler,
           renderEdge: edge,
-          cacheKey: _owner._cache == null
+          cacheKey: hash == null
               ? null
               : FrameCacheKey(
-                  contentHash: sha256.convert(bytes).toString(),
+                  contentHash: hash,
                   width: width,
                   height: height,
                   engineVersion: LottieNativeVersion.engine,
