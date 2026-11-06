@@ -47,6 +47,9 @@ typedef DrawnRRect = ({RRect rrect, Color color, ui.Shader? shader});
 /// A circle and the colour it was filled with, as drawn.
 typedef DrawnCircle = ({Offset center, double radius, Color color});
 
+/// An arc and where it started and how far it swept, in radians.
+typedef DrawnArc = ({Rect rect, double start, double sweep, Color color});
+
 /// A paragraph and where it was drawn: its top-left and the width it was laid
 /// out across.
 typedef DrawnParagraph = ({Offset offset, double width});
@@ -61,6 +64,7 @@ class RecordingCanvas implements Canvas {
   int imageDraws = 0;
   final List<DrawnCircle> circles = [];
   final List<DrawnRRect> rrects = [];
+  final List<DrawnArc> arcs = [];
 
   /// Draw calls of the kinds above that matter for stacking, in the order the
   /// canvas received them: `'rrect'` and `'atlas'`.
@@ -98,6 +102,20 @@ class RecordingCanvas implements Canvas {
   @override
   void drawCircle(Offset c, double radius, Paint paint) =>
       circles.add((center: c, radius: radius, color: paint.color));
+
+  @override
+  void drawArc(
+    Rect rect,
+    double startAngle,
+    double sweepAngle,
+    bool useCenter,
+    Paint paint,
+  ) => arcs.add((
+    rect: rect,
+    start: startAngle,
+    sweep: sweepAngle,
+    color: paint.color,
+  ));
 
   @override
   void drawParagraph(ui.Paragraph paragraph, Offset offset) =>

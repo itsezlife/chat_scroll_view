@@ -347,10 +347,7 @@ void main() {
       await tester.pump();
 
       expect(controller.offset, end);
-      expect(
-        events.whereType<PanelCatalogViewportScrolled>().single.delta,
-        40,
-      );
+      expect(events.whereType<PanelCatalogViewportScrolled>().single.delta, 40);
     });
 
     testWidgets('animateTo and a section jump keep scrolling until they end', (
