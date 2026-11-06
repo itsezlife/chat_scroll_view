@@ -15,8 +15,7 @@ package is pre-1.0.
   its slot.
 - `NativeLottieBinding` over hand-written `@Native` bindings of
   `chat_lottie.h`, with a one-time `probe()`, and `hook/build.dart`, which
-  compiles the `native/` crate with cargo on macOS (arm64, x86_64). Other
-  targets fail with an `UnsupportedError` until prebuilt libraries land.
+  compiles the `native/` crate with cargo.
 
 - `LottieFrameCodec` and `NativeLottieFrameCodec`: the frame cache's lz4
   compress / decompress of a region of page memory, over three new C
@@ -34,6 +33,17 @@ package is pre-1.0.
   published yet and the manifest is empty, so builds still compile.
   `native/tool/source_hash.dart [--write]` and
   `native/tool/manifest_entry.dart` maintain the manifest. Adds `crypto`.
+
+- `hook/build.dart` builds from source for iOS (device, simulator arm64 and
+  x64), Android (arm64-v8a, x86_64) and, on a matching host, Linux and
+  Windows, not only macOS. Android finds the NDK (`ANDROID_NDK_HOME`,
+  `ANDROID_NDK_ROOT`, the highest under the SDK's `ndk/`), links with its
+  clang wrapper for the app's API level and always passes
+  `max-page-size=16384`; the built library's ELF alignment and machine, or
+  Mach-O CPU, are checked before it is bundled. A host that cannot build a
+  target, or an Android build without an NDK, bundles nothing and warns,
+  naming the prebuilt route. Opt-in cross-compile smoke:
+  `LOTTIE_NATIVE_CROSS=1`.
 
 ### Changed
 

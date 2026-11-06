@@ -40,16 +40,63 @@ source.** The machinery below is in place for when the maintainer publishes.
    checked for size and SHA-256, and refused on any mismatch. A verified
    cached file is reused with no network. A failed download (network, HTTP
    status, 60 s timeout) is logged, never fatal.
-3. **Compile from source** when this host builds the target (macOS arm64 and
-   x86_64 today) and `cargo` is found; otherwise **no asset** and a warning
-   that names the target: the build succeeds and
-   `NativeLottieBinding.probe()` reports `missingLibrary`.
+3. **Compile from source** when this host builds the target (table below)
+   and `cargo` is found; otherwise **no asset** and a warning that names the
+   target and points at the prebuilt route: the build succeeds and
+   `NativeLottieBinding.probe()` reports `missingLibrary`. The same holds
+   for an Android target when no NDK is found, unless the flag is on, which
+   fails the build with the NDK message.
 
 `cargo` is found on `PATH`, then under `CARGO_HOME`, then in `~/.cargo/bin`;
 without Rust and with the flag on, the build fails and says to install it from
 [rustup.rs](https://rustup.rs). When cargo fails for a missing Rust target the
 message ends with the `rustup target add` line. A first source build needs
 network for the crates and the pinned tlottie commit.
+
+### Targets and where they build
+
+| Target key | Rust triple | Built from source on |
+| --- | --- | --- |
+| `macos-arm64`, `macos-x64` | `aarch64-apple-darwin`, `x86_64-apple-darwin` | a Mac |
+| `ios-arm64` | `aarch64-apple-ios` | a Mac |
+| `ios-arm64-simulator`, `ios-x64-simulator` | `aarch64-apple-ios-sim`, `x86_64-apple-ios` | a Mac |
+| `android-arm64`, `android-x64` | `aarch64-linux-android`, `x86_64-linux-android` | macOS, Linux or Windows, with the NDK |
+| `linux-x64`, `linux-arm64` | `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` | Linux of the same architecture; another architecture only when the app sets `CARGO_TARGET_<TRIPLE>_LINKER` |
+| `windows-x64` | `x86_64-pc-windows-msvc` | Windows |
+
+Android 32-bit ARM is not supported (ADR 042): it gets no asset. Web has no
+native library. The Linux and Windows builds are not compiled by this
+repository's checks yet.
+
+A from-source build needs on the host: `cargo` and the Rust target
+(`rustup target add <triple>`; the hook never installs anything), Xcode for
+Apple targets, and the NDK for Android. iOS builds pass the hook's iOS
+deployment target as `IPHONEOS_DEPLOYMENT_TARGET`.
+
+**Android NDK discovery**, first match wins: `ANDROID_NDK_HOME`, then
+`ANDROID_NDK_ROOT`, then the highest version (compared as numbers) under
+`<sdk>/ndk`, where `<sdk>` is `ANDROID_HOME`, else `ANDROID_SDK_ROOT`, else
+the Android Studio default (`~/Library/Android/sdk`, `~/Android/Sdk`,
+`%LOCALAPPDATA%\Android\Sdk`). A folder counts only if it holds the host's
+`toolchains/llvm/prebuilt/<host>` directory. The linker is the NDK's
+`<triple><api>-clang` for the app's Android API level (the nearest level the
+NDK offers; below its lowest, the lowest), set through
+`CARGO_TARGET_<TRIPLE>_LINKER` and `_AR`.
+
+**16 KB pages.** Every Android build adds `-C
+link-arg=-Wl,-z,max-page-size=16384`, appended to the flags the app set in
+`CARGO_ENCODED_RUSTFLAGS` or `RUSTFLAGS` (these are carried over, but cargo
+ignores `rustflags` from `.cargo/config.toml` once either variable is set).
+After each Android build the hook reads the ELF program headers and fails
+the build if the machine is not the target's or any `PT_LOAD` segment is
+aligned below 0x4000; after an Apple build it checks the Mach-O CPU. Neither
+check runs on Linux or Windows output.
+
+**Cross-compile smoke.** `LOTTIE_NATIVE_CROSS=1 flutter test --concurrency 40
+test/unit_test.dart --plain-name cross-compile` compiles the crate for each
+Apple and Android target through the hook's own build function (compile only;
+nothing is launched). A target whose host, Rust target or NDK is missing is
+skipped with the reason.
 
 The hook declares every file under `native/src/` and `native/include/`,
 `Cargo.toml`, `Cargo.lock`, `prebuilts.json` and its own Dart sources as
