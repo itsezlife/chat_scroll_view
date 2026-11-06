@@ -1,15 +1,22 @@
 /// The pack strip of the stickers page: which tabs it shows, which one is
-/// active, where a tap lands and how the active mark moves.
+/// active, where a tap lands, how the active mark moves and how the covers
+/// play.
 ///
 /// **Seam:** [StickerPackStrip] over a fake [CatalogStripHandle] the test
 /// steers (the sections, the catalogue's events, the answer to a jump), under
 /// the chrome scopes, observed through the semantics of its tabs, the jumps
-/// the handle received and the strip's scroll offset.
+/// the handle received and the strip's scroll offset; the covers draw through
+/// an `AssetCacheScope` over a `FakeAssetProducer` and a manually ticked
+/// clock, observed through the paints of the fake paintables.
 library;
 
 import 'dart:async';
+import 'dart:math' show max;
 import 'dart:ui' show Tristate;
 
+import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/frame_pool.dart' show FrameAtlas;
+import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
@@ -69,6 +76,15 @@ Collection _pack(String id, String title) => Collection(
 
 const _recent = Collection(id: CollectionId.recent);
 
+// A pack whose first sticker, its cover, is [cover].
+Collection _packOf(String id, ContentKey cover) => Collection(
+  id: CollectionId.set(id),
+  metadata: CollectionMetadata(title: id),
+  contents: CollectionContents.loaded([CollectionItem.bare(cover)]),
+);
+
+const _frames = [Duration(milliseconds: 40), Duration(milliseconds: 40)];
+
 void main() {
   late _Handle handle;
 
@@ -82,6 +98,8 @@ void main() {
     double width = 360,
     ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
     TextDirection textDirection = TextDirection.ltr,
+    AssetCacheScope? assets,
+    double devicePixelRatio = 1,
   }) => tester.pumpWidget(
     PanelShellTestScope(
       speed: speed,
@@ -92,7 +110,14 @@ void main() {
           alignment: AlignmentDirectional.topStart,
           child: SizedBox(
             width: width,
-            child: StickerPackStrip(handle: handle),
+            child: Builder(
+              builder: (context) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(devicePixelRatio: devicePixelRatio),
+                child: StickerPackStrip(handle: handle, assets: assets),
+              ),
+            ),
           ),
         ),
       ),
@@ -116,6 +141,16 @@ void main() {
       )
       .position
       .pixels;
+
+  testWidgets('goes away cleanly when it never had a tab', (tester) async {
+    handle.dispose();
+    handle = _Handle(const []);
+    await pump(tester);
+
+    await tester.pumpWidget(const SizedBox());
+
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('is 36 tall, the height of the reference strip', (tester) async {
     await pump(tester);
@@ -296,6 +331,162 @@ void main() {
     final to = tester.getRect(find.bySemanticsLabel('Dogs')).center.dx;
     expect(mark.center.dx, greaterThan(from));
     expect(mark.center.dx, lessThanOrEqualTo(to));
+  });
+
+  group('the covers', () {
+    // The reference strip plays a pack's animated cover in its tab, looping,
+    // while the tab is on screen, and stops it once the tab scrolls away.
+    const cats = ContentKey.document('cats');
+    const dogs = ContentKey.document('dogs');
+    late FakeAssetProducer producer;
+    late ManualPlaybackTickSource ticks;
+    late AssetCacheScope scope;
+
+    setUp(() {
+      producer = FakeAssetProducer();
+      ticks = ManualPlaybackTickSource();
+      scope = AssetCacheScope(
+        producer: producer,
+        clock: PlaybackClock(ticks: ticks),
+      );
+      addTearDown(scope.dispose);
+      handle.entries.value = _entries([
+        _recent,
+        _packOf('a', cats),
+        _packOf('b', dogs),
+      ]);
+    });
+
+    FakeAssetAttempt attemptOf(ContentKey key) =>
+        producer.attempts.lastWhere((attempt) => attempt.request.key == key);
+
+    Future<void> tick(WidgetTester tester, int ms) async {
+      ticks.tick(Duration(milliseconds: ms));
+      await tester.pump();
+    }
+
+    testWidgets('plays an animated cover, looping, on the clock', (
+      tester,
+    ) async {
+      await pump(tester, assets: scope);
+      final cover = attemptOf(cats).advance(AssetStage.full, frames: _frames);
+      await tester.pump();
+      final before = cover.paints.length;
+
+      await tick(tester, 100);
+      await tick(tester, 200);
+
+      expect(cover.paints.length, before + 2);
+      expect(cover.paints.last.context.animate, isTrue);
+      expect(cover.paints.last.context.loop, isTrue);
+    });
+
+    testWidgets('leaves a still cover still', (tester) async {
+      await pump(tester, assets: scope);
+      final cover = attemptOf(cats).advance(AssetStage.full);
+      await tester.pump();
+      final before = cover.paints.length;
+
+      await tick(tester, 100);
+
+      expect(cover.paints.length, before);
+      expect(ticks.isRunning, isFalse);
+    });
+
+    // The frame pool cell a decode of [spec] takes: the smallest class that
+    // holds its longer side.
+    int sizeClassOf(AssetSpec spec) => FrameAtlas.defaultSizeClasses.firstWhere(
+      (edge) => edge >= max(spec.pixelWidth, spec.pixelHeight),
+    );
+
+    for (final (density, sizeClass) in [(1.0, 64), (3.0, 128)]) {
+      testWidgets('decodes the whole cover at its size on the screen, the '
+          '$sizeClass class at a density of $density', (tester) async {
+        await pump(tester, assets: scope, devicePixelRatio: density);
+
+        final spec = attemptOf(cats).request.spec;
+        expect(spec.variant, AssetVariant.full);
+        expect(spec.pixelWidth, (26 * density).ceil());
+        expect(spec.pixelHeight, (26 * density).ceil());
+        expect(sizeClassOf(spec), sizeClass);
+      });
+    }
+
+    testWidgets('animates by repainting, never rebuilding the tab', (
+      tester,
+    ) async {
+      await pump(tester, assets: scope);
+      attemptOf(cats).advance(AssetStage.full, frames: _frames);
+      await tester.pump();
+      final view = tester.widget(find.byType(ContentView).first);
+
+      await tick(tester, 100);
+      await tick(tester, 200);
+
+      expect(tester.widget(find.byType(ContentView).first), same(view));
+    });
+
+    testWidgets('stops while the clock is paused and goes on after', (
+      tester,
+    ) async {
+      await pump(tester, assets: scope);
+      final cover = attemptOf(cats).advance(AssetStage.full, frames: _frames);
+      await tester.pump();
+      final before = cover.paints.length;
+
+      scope.clock.setPaused(PlaybackPauseLayer.lowPower, paused: true);
+      await tick(tester, 100);
+      expect(cover.paints.length, before);
+
+      scope.clock.setPaused(PlaybackPauseLayer.lowPower, paused: false);
+      await tick(tester, 200);
+      expect(cover.paints.length, before + 1);
+    });
+
+    testWidgets('gives the covers back when the strip goes away', (
+      tester,
+    ) async {
+      await pump(tester, assets: scope);
+      attemptOf(cats).advance(AssetStage.full, frames: _frames);
+      await tester.pump();
+      final spec = attemptOf(cats).request.spec;
+      expect(ticks.isRunning, isTrue);
+
+      await tester.pumpWidget(const SizedBox());
+
+      expect(scope.isAttached(cats, spec), isFalse);
+      expect(scope.isAttached(dogs, spec), isFalse);
+      expect(ticks.isRunning, isFalse);
+    });
+
+    testWidgets('plays only the covers of the tabs in view', (tester) async {
+      handle.entries.value = _entries([
+        for (var i = 0; i < 20; i++) _packOf('p$i', ContentKey.document('p$i')),
+      ]);
+      await pump(tester, assets: scope, width: 200);
+      final first = attemptOf(
+        const ContentKey.document('p0'),
+      ).advance(AssetStage.full, frames: _frames);
+      final far = attemptOf(
+        const ContentKey.document('p15'),
+      ).advance(AssetStage.full, frames: _frames);
+      await tester.pump();
+      final farBefore = far.paints.length;
+      final firstBefore = first.paints.length;
+
+      await tick(tester, 100);
+      expect(first.paints.length, firstBefore + 1);
+      expect(far.paints.length, farBefore);
+
+      handle.enter('${const CollectionId.set('p15')}', 15);
+      await tester.pumpAndSettle();
+      final farInView = far.paints.length;
+      final firstGone = first.paints.length;
+      await tick(tester, 200);
+
+      expect(far.paints.length, farInView + 1);
+      expect(first.paints.length, firstGone);
+    });
   });
 
   testWidgets('puts the mark on the tab at once when motion is off', (

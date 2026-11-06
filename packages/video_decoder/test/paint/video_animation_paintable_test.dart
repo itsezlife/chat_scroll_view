@@ -303,35 +303,42 @@ void main() {
       for (var ms = 0; ms <= 80; ms += 20) {
         await paintAt(p, ms);
       }
-      // Real image uploads complete outside the fake event loop.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      await paintAt(p, 90);
-
-      final recorder = ui.PictureRecorder();
-      final canvas = ui.Canvas(recorder)
-        ..drawRect(
+      Future<List<int>> centre() async {
+        final recorder = ui.PictureRecorder();
+        final canvas = ui.Canvas(recorder)
+          ..drawRect(
+            const Rect.fromLTWH(0, 0, 16, 16),
+            ui.Paint()..color = const ui.Color(0xFFFFFFFF),
+          );
+        p.paint(
+          canvas,
           const Rect.fromLTWH(0, 0, 16, 16),
-          ui.Paint()..color = const ui.Color(0xFFFFFFFF),
+          const AssetPaintContext(time: Duration(milliseconds: 100)),
         );
-      p.paint(
-        canvas,
-        const Rect.fromLTWH(0, 0, 16, 16),
-        const AssetPaintContext(time: Duration(milliseconds: 100)),
-      );
-      final picture = recorder.endRecording();
-      final image = picture.toImageSync(16, 16);
-      picture.dispose();
-      final rgba = (await image.toByteData())!;
-      image.dispose();
+        final picture = recorder.endRecording();
+        final image = picture.toImageSync(16, 16);
+        picture.dispose();
+        final rgba = (await image.toByteData())!;
+        image.dispose();
+        const at = (8 * 16 + 8) * 4;
+        return [for (var c = 0; c < 4; c++) rgba.getUint8(at + c)];
+      }
+
+      // Real image uploads complete outside the fake event loop, and on a
+      // loaded runner later than any fixed wait. The clip loops, so keep
+      // painting until frame 2's upload is the one on screen.
+      var pixel = <int>[];
+      for (var attempt = 0; attempt < 100; attempt++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await paintAt(p, 90);
+        pixel = await centre();
+        if ((pixel[1] - 71).abs() <= 2) break;
+      }
 
       expect(p.sprite, isNotNull);
       // The fake's frame 2 is B 32, G 16, R 0 under alpha 200. Over white
       // each channel adds the 55 the alpha lets through: R 55, G 71, B 87.
-      const at = (8 * 16 + 8) * 4;
-      expect(
-        [for (var c = 0; c < 4; c++) rgba.getUint8(at + c)],
-        [closeTo(55, 2), closeTo(71, 2), closeTo(87, 2), 255],
-      );
+      expect(pixel, [closeTo(55, 2), closeTo(71, 2), closeTo(87, 2), 255]);
     });
   });
 }

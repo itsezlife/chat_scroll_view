@@ -7,7 +7,7 @@ docs, and this folder's `.gitignore` ignores everything but this README and
 itself, so a stray `git add` cannot take them.
 
 A checkout without the files builds and runs as usual: the stickers page just
-lists the bundled packs.
+lists the recent stickers (and says it has none when there are none).
 
 ## Putting them here
 

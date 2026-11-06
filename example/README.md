@@ -31,19 +31,34 @@ What has and has not run in a browser: see "Not run" under Web in
 
 ## Stickers and GIFs in the panel
 
-The panel's second and third pages are the stickers page (a strip of packs over
-the recent stickers and the three bundled packs) and the GIF page (the recent
-GIFs and the demo's clips and GIFs in justified rows). Tapping one sends it as
-a message and leaves the panel open; a sent sticker or GIF cannot be edited.
-Wiring: `lib/src/features/chat/input/media_panel_pages.dart`.
+The panel lists only real content:
+
+- the emoji page: the emoji catalogue, then the animated emoji pack (custom
+  emoji, not stickers);
+- the stickers page: the recent stickers, then the local Telegram corpus, a
+  pack per folder (see "Local Telegram stickers" below). Without the corpus
+  (a fresh checkout, CI) it lists the recents alone, and with no recents
+  either it says "Стикеров пока нет" (`PanelStrings.stickersEmpty`);
+- the GIF page: the recent GIFs, then Giphy's trending and search (see
+  "Giphy GIFs" below). Without a key it lists the recents alone, and with no
+  recents either it says "GIF не найдены" (`PanelStrings.gifsEmpty`).
+
+The bundled demo packs (Lottie, static and video stickers, MP4 clips and
+GIFs) are no longer on any panel page: they stay in the app for the showcase
+chat, which shows every one of them, and one already in the recents stays
+listed there. Tapping a sticker or GIF sends it as a message
+and leaves the panel open; a sent sticker or GIF cannot be edited. Wiring:
+`lib/src/app/app_services.dart` (the page sources) and
+`lib/src/features/chat/input/media_panel_pages.dart`.
 
 ## Giphy GIFs on the GIF page
 
 With a Giphy API key the GIF page lists Giphy's trending GIFs (paged as you
 scroll), gets a search field in the panel's bottom bar, and shows "Powered by
 GIPHY" at the top of the list, as Giphy's terms ask. Without a key nothing is
-sent anywhere: the page lists the bundled demo clips, and the app logs once
-that Giphy is off.
+sent anywhere: the page lists the recent GIFs alone (or says it has none),
+has no search, and the app logs once that Giphy is off. Get a key from the
+Giphy developer dashboard (developers.giphy.com, an API app).
 
 ```sh
 flutter run --dart-define=GIPHY_API_KEY=<your key>
@@ -68,7 +83,7 @@ the session has seen the clip (after a restart, once it is in trending or a
 search); a clip listed only in the recents stays out until then.
 
 Offline or with a busy server the page shows "Couldn't load GIFs" with a
-retry button above the bundled demo clips, which stay available.
+retry button under the recent GIFs; there are no demo clips beneath it.
 
 ## Local Telegram stickers (not in the repository)
 

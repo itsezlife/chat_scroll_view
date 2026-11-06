@@ -9,8 +9,8 @@ import 'package:panel_shell/panel_shell.dart';
 /// [AppServices]: the one place that says how this host composes
 /// `panel_pages`' [GifPage] and [StickersPage].
 ///
-/// Both list what the services publish (the recent ones, then the bundled
-/// packs) and draw through the app's asset cache, so a clip or sticker plays
+/// Both list what the services publish (the recent ones, then the local
+/// sticker corpus or Giphy's clips) and draw through the app's asset cache, so a clip or sticker plays
 /// by the same pause policies as the chat's. A tap reports a pick, which the
 /// chat's input set turns into a sent message.
 abstract final class MediaPanelPages {
