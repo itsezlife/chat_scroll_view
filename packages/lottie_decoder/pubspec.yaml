@@ -1,6 +1,6 @@
 name: lottie_decoder
 description: >
-  The Lottie decoder adapter: an async engine seam over a lottie_native
+  The Lottie decoder adapter: the Decoder, an async engine seam over a lottie_native
   binding, native page memory a render isolate can write, and a frame renderer
   for the catalog_assets frame pool.
 version: 0.1.0
