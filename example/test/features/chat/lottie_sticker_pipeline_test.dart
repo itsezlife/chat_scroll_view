@@ -62,7 +62,7 @@ void main() {
 
     setUp(() async {
       engine = await IsolateLottieEngine.spawn();
-      memory = NativeFramePageMemory(pageSide: FrameAtlas.defaultPageSide);
+      memory = NativeFramePageMemory();
       ticks = ManualPlaybackTickSource();
       clock = PlaybackClock(ticks: ticks);
       timers = ManualRetentionTimers();
