@@ -9,6 +9,11 @@
   block at a time across as many short slices as a long body takes.
 
 ### Example
+- **ADDED**: `tool/scroll_lab/`, the device scripts behind the scroll lab:
+  record the user's gestures as a tape, replay it under a trace, run one A/B
+  arm with the battery temperature per run, trace a cold open or a jump, and
+  count the visible hitches per refresh by cause. The analysis prints its
+  denominator and fails on an empty window. The lab gains a `jump` command.
 - **ADDED**: on desktop the mouse's back button is the platform's back: a
   press closes an open menu, the panel or a selection, or pops the page, in
   the order the system back does.
