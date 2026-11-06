@@ -11,6 +11,7 @@ import 'package:catalog_assets/src/asset/asset_profile.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
 import 'package:catalog_assets/src/asset/asset_spec.dart';
 import 'package:catalog_assets/src/asset/circle_placeholder.dart';
+import 'package:catalog_assets/src/asset/rect_placeholder.dart';
 import 'package:catalog_assets/src/glyph/glyph_binding.dart';
 import 'package:catalog_assets/src/glyph/glyph_sprite_source.dart';
 import 'package:catalog_assets/src/glyph/text_glyph_paintable.dart';
@@ -70,7 +71,9 @@ final class AssetCacheScope {
   /// drawn as text lay out again and repaint when it fires, since a browser
   /// fetches the font that draws an emoji only once it meets one, and what
   /// was laid out before drew the missing-glyph box. [placeholder] is what a
-  /// binding paints before any stage exists (a circle by default).
+  /// glyph binding paints before any stage exists (a circle by default);
+  /// [mediaPlaceholder] is what any other binding paints (the whole rectangle
+  /// in a quiet colour by default, `RectPlaceholder`).
   AssetCacheScope({
     AssetProducer? producer,
     GlyphSpriteSource? glyphSource,
@@ -79,6 +82,7 @@ final class AssetCacheScope {
     Listenable? memoryPressure,
     Listenable? systemFonts,
     AssetPaintable? placeholder,
+    AssetPaintable? mediaPlaceholder,
   }) : _producer = producer,
        _glyphSource = glyphSource,
        _budgets = budgets,
@@ -86,7 +90,8 @@ final class AssetCacheScope {
        _ownsClock = clock == null,
        _memoryPressure = memoryPressure,
        _systemFonts = systemFonts,
-       placeholder = placeholder ?? const CirclePlaceholder() {
+       placeholder = placeholder ?? const CirclePlaceholder(),
+       mediaPlaceholder = mediaPlaceholder ?? const RectPlaceholder() {
     memoryPressure?.addListener(clearAll);
     systemFonts?.addListener(_onSystemFonts);
     glyphSource?.addPageListener(_onGlyphPage);
@@ -101,8 +106,12 @@ final class AssetCacheScope {
   AssetCacheBudgets _budgets;
   bool _disposed = false;
 
-  /// What a binding paints before its entry has produced any stage.
+  /// What a glyph binding paints before its entry has produced any stage.
   final AssetPaintable placeholder;
+
+  /// What a binding of any other content paints before its entry has produced
+  /// any stage: a glyph has a box and no edges, media has a rectangle.
+  final AssetPaintable mediaPlaceholder;
 
   final Map<(ContentKey, AssetSpec), _Entry> _entries = {};
   // Entries nobody is bound to, per tier, least recently used first.
@@ -113,6 +122,11 @@ final class AssetCacheScope {
     for (final tier in AssetTier.values) tier: 0,
   };
   final Set<GlyphBinding> _glyphBindings = {};
+
+  // A unicode key that reaches an entry (a glyph drawn as text) is still a
+  // glyph: its stand-in is the circle, whatever the media default is.
+  AssetPaintable _placeholderOf(ContentKey key) =>
+      key is ContentKey$Unicode ? placeholder : mediaPlaceholder;
 
   /// The clock every animated binding of this scope advances by. Hosts set
   /// its pause layers.
@@ -509,7 +523,7 @@ final class _EntryBinding extends AssetBindingBase {
        super(
          key: entry.key,
          spec: entry.spec,
-         placeholder: scope.placeholder,
+         placeholder: scope._placeholderOf(entry.key),
          clock: scope.clock,
        );
 
@@ -597,7 +611,7 @@ final class _EntryBinding extends AssetBindingBase {
   AssetPaintable get livePaintable {
     final paintable = entry.paintable;
     if (paintable == null || _effectiveStage != entry.stage) {
-      return _scope.placeholder;
+      return _scope._placeholderOf(entry.key);
     }
     return paintable;
   }

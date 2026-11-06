@@ -30,10 +30,15 @@ void main() {
       final binding = scope.attach(_sticker, _spec, _profile);
 
       expect(binding.readiness, const AssetReadiness(AssetStage.none));
-      expect(binding.paintable, same(scope.placeholder));
+      expect(binding.paintable, same(scope.mediaPlaceholder));
       expect(binding.key, _sticker);
       expect(binding.spec, _spec);
       expect(binding.profile, _profile);
+    });
+
+    test('media waits behind a rectangle and a glyph behind a circle', () {
+      expect(scope.mediaPlaceholder, isA<RectPlaceholder>());
+      expect(scope.placeholder, isNot(isA<RectPlaceholder>()));
     });
 
     test('without a producer an attach stays at none and never fails', () {
@@ -130,7 +135,7 @@ void main() {
 
       attempt.advance(AssetStage.firstFrame);
       expect(binding.readiness.stage, AssetStage.placeholder);
-      expect(binding.paintable, same(scope.placeholder));
+      expect(binding.paintable, same(scope.mediaPlaceholder));
 
       final full = attempt.advance(AssetStage.full);
       expect(binding.readiness.stage, AssetStage.full);
@@ -143,7 +148,7 @@ void main() {
       final binding = scope.attach(_sticker, _spec, _profile);
 
       expect(binding.readiness.isFinal, isTrue);
-      expect(binding.paintable, isNot(same(scope.placeholder)));
+      expect(binding.paintable, isNot(same(scope.mediaPlaceholder)));
     });
   });
 
@@ -260,7 +265,7 @@ void main() {
       producer.last.advance(AssetStage.full);
 
       expect(signals, 0);
-      expect(binding.paintable, same(scope.placeholder));
+      expect(binding.paintable, same(scope.mediaPlaceholder));
     });
 
     test('a removed listener hears nothing', () {

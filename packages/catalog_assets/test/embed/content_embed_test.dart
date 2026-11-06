@@ -98,7 +98,7 @@ void main() {
       scope = AssetCacheScope(
         producer: producer,
         clock: PlaybackClock(ticks: ticks),
-        placeholder: placeholder,
+        mediaPlaceholder: placeholder,
       );
       addTearDown(scope.dispose);
       final embed = embedOf(_sticker);
@@ -117,7 +117,7 @@ void main() {
         scope = AssetCacheScope(
           producer: producer,
           clock: PlaybackClock(ticks: ticks),
-          placeholder: scopes,
+          mediaPlaceholder: scopes,
         );
         addTearDown(scope.dispose);
         final embed = embedWith(own);
