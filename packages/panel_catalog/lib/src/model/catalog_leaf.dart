@@ -1,3 +1,4 @@
+import 'package:catalog_assets/catalog_assets.dart' show AssetFit;
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
@@ -152,6 +153,18 @@ final class CatalogLeaf {
     SemanticKind.mask ||
     SemanticKind.gif => CatalogContentBox.cell,
     _ => CatalogContentBox.glyph,
+  };
+
+  /// How this leaf's content fills its box: a GIF fills its cell and is cut at
+  /// the edge, as the reference client's grid does (`ImageReceiver` with
+  /// `isAspectFit` false); everything else, a sticker included, is shown whole.
+  ///
+  /// A grid lays a GIF out in a cell of its own proportion, so the two differ
+  /// only where the cell is not (a clip beyond 4:1 or below 1:5 is laid out as
+  /// a square), and there a bar would leave the cell half empty.
+  AssetFit get contentFit => switch (semanticKind) {
+    SemanticKind.gif => AssetFit.cover,
+    _ => AssetFit.contain,
   };
 
   /// The stand-in for this leaf's content, from [mediaForm] and

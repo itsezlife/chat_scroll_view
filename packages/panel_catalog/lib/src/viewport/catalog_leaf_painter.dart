@@ -567,13 +567,9 @@ final class CatalogLeafPainter {
     if (sprite != null) {
       // A queued sprite carries the press scale in its own transform, so it
       // needs no canvas save and restore and stays in its page's batch.
-      final center = cellRect.center;
-      // Fitted like the paintable fits itself: contain, centred in the glyph
-      // box (a baked glyph is square, so for it this is the box).
-      final fit = math.min(
-        glyphRect.width / sprite.source.width,
-        glyphRect.height / sprite.source.height,
-      );
+      // Placed like the paintable places itself: as the leaf's fit says,
+      // centred in the glyph box (a baked glyph is square, so for it this is
+      // the box); a GIF covers the box, cropped through the sprite's source.
       var opacity = 1.0;
       if (animated) {
         // Animated content fades in over its stand-in like any content that was
@@ -593,15 +589,10 @@ final class CatalogLeafPainter {
       }
       _glyphSprites.add(
         sprite,
-        left:
-            center.dx +
-            (glyphRect.center.dx - sprite.source.width * fit / 2 - center.dx) *
-                pressScale,
-        top:
-            center.dy +
-            (glyphRect.center.dy - sprite.source.height * fit / 2 - center.dy) *
-                pressScale,
-        scale: fit * pressScale,
+        box: glyphRect,
+        fit: slot.leaf.contentFit,
+        anchor: cellRect.center,
+        pressScale: pressScale,
         opacity: opacity,
       );
       return;
