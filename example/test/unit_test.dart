@@ -68,6 +68,10 @@ import 'features/chat/lottie_sticker_pack_test.dart'
 import 'features/chat/lottie_sticker_pipeline_test.dart'
     as lottie_sticker_pipeline_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
+import 'features/chat/static_sticker_pack_test.dart'
+    as static_sticker_pack_test;
+import 'features/chat/static_sticker_pipeline_test.dart'
+    as static_sticker_pipeline_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
 import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
@@ -123,6 +127,8 @@ import 'widgets/large_emoji_limit_button_test.dart'
     as large_emoji_limit_button_test;
 import 'widgets/lottie_sticker_message_test.dart'
     as lottie_sticker_message_test;
+import 'widgets/static_sticker_message_test.dart'
+    as static_sticker_message_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
 import 'widgets/message_row_frame_test.dart' as message_row_frame_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
@@ -246,6 +252,18 @@ void main() {
   group(
     'features/chat/lottie_sticker_pack_test.dart',
     lottie_sticker_pack_test.main,
+  );
+  group(
+    'features/chat/static_sticker_pack_test.dart',
+    static_sticker_pack_test.main,
+  );
+  group(
+    'features/chat/static_sticker_pipeline_test.dart',
+    static_sticker_pipeline_test.main,
+  );
+  group(
+    'widgets/static_sticker_message_test.dart',
+    static_sticker_message_test.main,
   );
   group(
     'features/chat/chat_messages_copy_format_test.dart',
