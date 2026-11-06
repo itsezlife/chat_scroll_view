@@ -15,7 +15,7 @@ final class FrameRendererHarness {
   /// The renderer under test.
   final FrameRenderer renderer;
 
-  /// The memory it writes into. Its page side must be a multiple of 64.
+  /// The memory it writes into. Pages of any side are made on first use.
   final FramePageMemory memory;
 
   /// A job for frame [frame] of an animation the renderer can render, drawn
@@ -39,16 +39,15 @@ abstract final class FrameRendererContract {
       setUp(() {
         harness = create();
         allocator = FrameSlotAllocator(
-          pageSideFor: (_) => harness.memory.pageSide,
-          budgetBytes:
-              2 * harness.memory.pageSide * harness.memory.pageSide * 4,
+          pageSideFor: (c) => 2 * c,
+          budgetBytes: 2 * 128 * 128 * 4,
           sizeClasses: const [64],
         );
       });
 
       List<int> region(FrameSlot slot) {
-        final side = harness.memory.pageSide;
-        final bytes = harness.memory.page(slot.pageIndex);
+        final side = slot.pageSide;
+        final bytes = harness.memory.page(slot.pageIndex, side: side);
         final out = <int>[];
         for (var y = slot.rect.top.toInt(); y < slot.rect.bottom; y++) {
           for (var x = slot.rect.left.toInt(); x < slot.rect.right; x++) {
@@ -59,8 +58,9 @@ abstract final class FrameRendererContract {
         return out;
       }
 
-      List<int> wholePage(int pageIndex) =>
-          List<int>.of(harness.memory.page(pageIndex));
+      List<int> wholePage(FrameSlot slot) => List<int>.of(
+        harness.memory.page(slot.pageIndex, side: slot.pageSide),
+      );
 
       test('an empty batch renders nothing and completes', () async {
         final rendered = await harness.renderer.render(
@@ -107,7 +107,7 @@ abstract final class FrameRendererContract {
         final slot = allocator.allocate(48, 48)!;
         final other = allocator.allocate(48, 48)!;
         final beforeOther = region(other);
-        final outside = wholePage(slot.pageIndex);
+        final outside = wholePage(slot);
 
         await harness.renderer.render([harness.job(slot, 0)], harness.memory);
 
@@ -116,8 +116,8 @@ abstract final class FrameRendererContract {
           beforeOther,
           reason: 'the neighbour is untouched',
         );
-        final after = wholePage(slot.pageIndex);
-        final side = harness.memory.pageSide;
+        final after = wholePage(slot);
+        final side = slot.pageSide;
         for (var i = 0; i < after.length; i++) {
           final pixel = i ~/ 4;
           final x = pixel % side;
@@ -147,6 +147,43 @@ abstract final class FrameRendererContract {
 
         expect(rendered, unorderedEquals([0, 1, 2, 3, 4, 5]));
       });
+
+      test(
+        'pages of different sides in one batch each get their frame',
+        () async {
+          final mixed = FrameSlotAllocator(
+            pageSideFor: (c) => 2 * c,
+            budgetBytes: 1 << 20,
+            sizeClasses: const [64, 128],
+          );
+          final small = mixed.allocate(48, 48)!;
+          final large = mixed.allocate(100, 100)!;
+          expect(small.pageSide, isNot(large.pageSide));
+
+          final rendered = await harness.renderer.render([
+            harness.job(small, 0),
+            harness.job(large, 0),
+          ], harness.memory);
+
+          expect(rendered, unorderedEquals([0, 1]));
+          for (final slot in [small, large]) {
+            expect(
+              harness.memory.sideOf(slot.pageIndex),
+              slot.pageSide,
+              reason: 'the page was made at the side of its slot',
+            );
+          }
+          final bytes = harness.memory.page(
+            large.pageIndex,
+            side: large.pageSide,
+          );
+          final at =
+              (large.rect.top.toInt() * large.pageSide +
+                  large.rect.left.toInt()) *
+              4;
+          expect(bytes.sublist(at, at + 4).any((b) => b != 0), isTrue);
+        },
+      );
 
       test(
         'a job it cannot render is left out and spares the others',

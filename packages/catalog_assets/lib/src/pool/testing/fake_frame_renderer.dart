@@ -44,8 +44,8 @@ final class FakeFrameRenderer implements FrameRenderer {
   }
 
   void _write(FrameJob job, FramePageMemory memory) {
-    final side = memory.pageSide;
-    final bytes = memory.page(job.slot.pageIndex);
+    final side = job.slot.pageSide;
+    final bytes = memory.page(job.slot.pageIndex, side: side);
     final left = job.slot.rect.left.toInt();
     final top = job.slot.rect.top.toInt();
     final red = job.frame % 256;

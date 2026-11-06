@@ -119,7 +119,8 @@ typedef FrameBatch<K extends Object> = ({
 ///
 /// Single-threaded on the UI isolate; the renderer may work elsewhere.
 final class FrameAtlas<K extends Object> {
-  /// Creates an atlas of the pages [budgetBytes] pays for.
+  /// Creates an atlas of the pages [budgetBytes] pays for, each class opening
+  /// a page of [pageSideFor] pixels (twice the class edge by default).
   ///
   /// [memoryPressure], when given, releases every idle entry each time it
   /// fires; [dispose] stops listening.
@@ -131,6 +132,7 @@ final class FrameAtlas<K extends Object> {
     required FrameRenderer renderer,
     required FramePageMemory memory,
     int budgetBytes = defaultBudgetBytes,
+    int Function(int sizeClass) pageSideFor = FrameAtlas.pageSideFor,
     List<int> sizeClasses = defaultSizeClasses,
     FramePageUploader upload = uploadFramePage,
     Listenable? memoryPressure,
@@ -138,7 +140,7 @@ final class FrameAtlas<K extends Object> {
     final states = <K, _FrameState>{};
     final images = FramePageImages(memory: memory, upload: upload);
     final pool = FramePool<K>(
-      pageSideFor: (_) => memory.pageSide,
+      pageSideFor: pageSideFor,
       budgetBytes: budgetBytes,
       sizeClasses: sizeClasses,
       onEvict: states.remove,
@@ -167,11 +169,16 @@ final class FrameAtlas<K extends Object> {
     _memoryPressure?.addListener(releaseUnpinned);
   }
 
-  /// Page edge a host gives its [FramePageMemory]: 1024 px, so the default
-  /// budget is twelve pages. A page holds one size class only, and at 2048 px
-  /// (the glyph pages' size) the same budget would be three pages for four
-  /// classes, too coarse to hold a few of each at once.
-  static const int defaultPageSide = 1024;
+  /// The page edge a size class opens: twice the class edge, so a page holds
+  /// at most four cells.
+  ///
+  /// A page is uploaded whole, so its size is what one changed frame costs on
+  /// the GPU path. The playback benchmark measured one 128 px sticker
+  /// uploading a 4 MiB page every tick, 64 times the bytes that changed; with
+  /// this the same sticker uploads 256 KiB, and a few stickers of one class
+  /// share a page. A page of one cell would upload least but opens a page (and
+  /// an image) per sticker; four is the compromise.
+  static int pageSideFor(int sizeClass) => 2 * sizeClass;
 
   /// Default byte budget of the pages, apart from the glyph pages' own.
   static const int defaultBudgetBytes = 48 * 1024 * 1024;

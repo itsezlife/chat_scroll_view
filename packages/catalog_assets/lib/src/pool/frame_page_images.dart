@@ -5,7 +5,8 @@ import 'dart:ui' as ui;
 import 'package:catalog_assets/src/pool/frame_renderer.dart';
 
 /// Turns the bytes of one page into a GPU image. [pixels] is premultiplied
-/// RGBA, [side] x [side]; an uploader copies it before it returns, because the
+/// RGBA, [side] x [side] (the side of the page it came from, so the length is
+/// `side * side * 4`); an uploader copies it before it returns, because the
 /// bytes belong to the [FramePageMemory] and are written again.
 typedef FramePageUploader =
     Future<ui.Image> Function(Uint8List pixels, int side);
@@ -66,6 +67,9 @@ final class FramePageImages {
 
   final FramePageUploader _upload;
   final Map<int, ui.Image> _images = <int, ui.Image>{};
+
+  /// The side each image was made at, to count its bytes.
+  final Map<int, int> _sides = <int, int>{};
   final Set<int> _dirty = <int>{};
 
   /// Bumped on every release, so an upload that started before one can tell
@@ -80,11 +84,10 @@ final class FramePageImages {
   ui.Image? imageOf(int pageIndex) => _images[pageIndex];
 
   /// Bytes of the page images that exist.
-  int get residentBytes =>
-      _images.length *
-      memory.pageSide *
-      memory.pageSide *
-      FramePageMemory.bytesPerPixel;
+  int get residentBytes => _sides.values.fold(
+    0,
+    (sum, side) => sum + side * side * FramePageMemory.bytesPerPixel,
+  );
 
   /// Notes that the bytes of page [pageIndex] changed.
   void markDirty(int pageIndex) {
@@ -103,6 +106,7 @@ final class FramePageImages {
     _dirty.remove(pageIndex);
     _epochs[pageIndex] = (_epochs[pageIndex] ?? 0) + 1;
     _images.remove(pageIndex)?.dispose();
+    _sides.remove(pageIndex);
     memory.drop(pageIndex);
   }
 
@@ -114,6 +118,7 @@ final class FramePageImages {
       image.dispose();
     }
     _images.clear();
+    _sides.clear();
     _dirty.clear();
   }
 
@@ -126,13 +131,17 @@ final class FramePageImages {
 
   Future<void> _uploadPage(int pageIndex) async {
     final epoch = _epochs[pageIndex] ?? 0;
-    final image = await _upload(memory.page(pageIndex), memory.pageSide);
+    // The side is read with the bytes, so an upload is always a whole page of
+    // its own size: a page a quarter of a 1 MiB one costs a quarter.
+    final side = memory.sideOf(pageIndex);
+    final image = await _upload(memory.page(pageIndex, side: side), side);
     if (_disposed || (_epochs[pageIndex] ?? 0) != epoch) {
       image.dispose();
       return;
     }
     final previous = _images[pageIndex];
     _images[pageIndex] = image;
+    _sides[pageIndex] = side;
     previous?.dispose();
   }
 }
