@@ -177,12 +177,14 @@ Steps:
    disagrees).
 2. Push the tag `lottie_native-v<version>` (or run the workflow by hand on
    that tag). The workflow builds all ten target keys with
-   `cargo build --release --locked`, checks each library with
-   `native/tool/verify_artifact.dart` (a wrong CPU or 4 KB pages fail that
-   build leg), assembles `prebuilts.json` with `--require-all` (a missing,
-   empty, duplicated, mislabelled or wrong-format library fails the run) and
-   creates the GitHub Release with the libraries and the manifest attached. Run by hand from a branch it builds and
-   assembles but publishes nothing.
+   `cargo build --release --locked`, then one job assembles `prebuilts.json`
+   with `--require-all`: every library is held to the hook's own header check
+   for its target (`native/tool/verify_artifact.dart` is the same check on one
+   file), so a missing, empty, duplicated, mislabelled, wrong-CPU or 4 KB-aligned
+   Android library fails the run before anything is published. The release job
+   then creates the GitHub Release with the libraries and the manifest
+   attached. Run by hand from a branch it builds and assembles but publishes
+   nothing.
 3. Review the release: ten libraries, `prebuilts.json`. The manifest is also
    the workflow artifact `prebuilts-manifest`.
 4. Copy that `prebuilts.json` over `native/prebuilts.json` and open a pull
@@ -218,8 +220,10 @@ Android linker, `-Wl,-z,max-page-size=16384`) instead of calling the hook's
 builder, because that builder (`compileCrate`) is reached through a Flutter
 build with a hook input, and a leg that only needs cargo should not need
 Flutter to build. The duplication is the Android linker setup and the build
-flags; `verify_artifact.dart` in every leg catches a drift (a wrong machine,
-4 KB pages) before anything is published. Actions are pinned to major tags
+flags; the assemble job catches a drift (a wrong machine, 4 KB pages) before
+anything is published, though it reports it after the build legs, not at the
+end of the leg that drifted. Only the assemble job needs Flutter and the md
+fork checked out, to resolve the workspace. Actions are pinned to major tags
 (`actions/checkout@v4`), not commit SHAs, on purpose: only first-party
 actions and `subosito/flutter-action` are used, and the one job with a write
 permission runs no third-party code.
