@@ -184,10 +184,14 @@ test('compress then decompress a region is exact', { skip }, async () => {
   core.close();
 });
 
-test('the allocator refuses 0 and over 256 MiB', { skip }, async () => {
+test('the allocator refuses 0 and over 16 MiB, and gives 16 MiB itself', { skip }, async () => {
   const core = await coreOf();
+  const cap = 16 * 1024 * 1024;
   assert.equal(core.exports.chat_lottie_alloc(0), 0);
-  assert.equal(core.exports.chat_lottie_alloc(256 * 1024 * 1024 + 1), 0);
+  assert.equal(core.exports.chat_lottie_alloc(cap + 1), 0);
+  const whole = core.exports.chat_lottie_alloc(cap);
+  assert.notEqual(whole, 0);
+  core.exports.chat_lottie_dealloc(whole, cap);
   core.close();
 });
 
