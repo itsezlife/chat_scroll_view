@@ -213,7 +213,7 @@ The host names the glyphs on screen and the bake composes their page first, then
 _Avoid_: Reordering cells to put the visible band first (a persisted page must still match its glyphs), partial pages drawn before they are complete
 
 **Baked glyph (sprite)**:
-One glyph rasterised once at the baked cell size and addressed as a page plus a source rectangle. The viewport draws the sprites of one atlas page in one batched atlas draw. A paintable without a sprite paints itself.
+One glyph rasterised once at the baked cell size and addressed as a page plus a source rectangle. The viewport draws the sprites of one page image in one batched atlas draw, grouped by the image and not by page number (a glyph page and an animation frame page can share a number). A paintable without a sprite paints itself. An animated paintable's sprite is its current frame: the viewport advances it (`advancePlayback`) before reading the sprite, fits it by contain into the leaf's box, and fades it in over the placeholder like any content that was not there at attach.
 _Avoid_: Glyph drawn as text at scroll time on baking platforms, one image draw per leaf, a second paint path for emoji beside the shared paintable contract
 
 **Glyph cache key**:

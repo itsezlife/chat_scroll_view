@@ -150,8 +150,10 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   A `CatalogSection` may override it (`contentBox`) and the placeholder style
   (`placeholderStyle`) for all its leaves
 - **Painting what a binding has reached** — a paintable with a sprite is
-  queued and drawn in one batched atlas draw per page; any other paints
-  itself. Content that was not there at attach fades in over its placeholder
+  queued and drawn in one batched atlas draw per page image; any other paints
+  itself. An animated paintable is advanced (`advancePlayback`) before its
+  sprite is read, so its frame is batched too; the sprite is fitted by
+  contain into the leaf's box and fades in with the content. Content that was not there at attach fades in over its placeholder
   (150 ms); content that was (a memory hit) does not. A leaf that fails or
   hangs keeps its placeholder: there is no failed stand-in and no failed token
 - **Baked glyphs** — a scope whose glyph source is an atlas gives every unicode

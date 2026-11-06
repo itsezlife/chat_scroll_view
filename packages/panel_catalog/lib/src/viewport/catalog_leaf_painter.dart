@@ -75,7 +75,7 @@ const double _kActionIconScale = 1.3;
 ///
 /// | The binding | Paint |
 /// | ----------- | ----- |
-/// | has a paintable with a **sprite** (a baked glyph on an atlas page) | queued; [endPass] draws every queued sprite of one page with one batched atlas draw. The pressed cell is queued scaled about its centre, so it needs no canvas transform and stays in its page's batch |
+/// | has a paintable with a **sprite** (a baked glyph, or the frame an animation was advanced to, on a page) | queued; [endPass] draws every queued sprite of one page with one batched atlas draw. The pressed cell is queued scaled about its centre, so it needs no canvas transform and stays in its page's batch |
 /// | none, or stage `none` | the placeholder of the leaf's style |
 /// | stage `placeholder` of a glyph (a glyph not baked yet) | the circle |
 /// | stage `placeholder` of other content | the binding's stand-in paintable (its thumbnail) |
