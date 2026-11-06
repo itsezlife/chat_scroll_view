@@ -4,6 +4,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/system_reduced_motion.dart';
+import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_probe.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
@@ -13,6 +14,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/joined_collectio
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
@@ -44,17 +46,19 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 ///    behind the glyph path an `AssetPipeline` for the bundled packs: one
 ///    bundle fetcher, an `ImageCodecDecoder` for the animated emoji's WebP
 ///    and, when the platform can run one, the Lottie decoder for the
-///    stickers. The pipeline is told every descriptor of the packs up front,
+///    stickers and, likewise, the video decoder for the WebM, MP4 and GIF
+///    packs. The pipeline is told every descriptor of the packs up front,
 ///    so it needs no content resolver. The order inside this step is the
 ///    playback clock (made here so the Lottie frame scheduler can follow it
 ///    before the scope exists; the scope then does not own it), memory
 ///    pressure, the Lottie playback (probed by starting its render engine; a
 ///    platform without the library, or a failed probe, registers nothing and
-///    logs once), the pipeline, the scope;
+///    logs once), the video playback (probed and skipped the same way), the
+///    pipeline, the scope;
 /// 4. the data sources: [catalog], [keywords], [emojiSource], [emojiSearch],
 ///    under the [glyphProbe] that hides what the system cannot draw, the
-///    animated emoji pack, the Lottie sticker pack and the static sticker
-///    pack, and [emojiPageSource],
+///    animated emoji pack, the Lottie sticker pack, the static sticker pack
+///    and the video sticker pack, and [emojiPageSource],
 ///    which lists the packs after the catalogue's categories;
 /// 5. the [clipboard]: the `rich_clipboard` adapter every copy and paste
 ///    goes through, so text keeps its entities (ADR 032).
@@ -64,8 +68,8 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 /// What the caller hands in (the key-value store, the glyph cache, the asset
 /// loader) stays the caller's: it is used, never closed or cleared here.
 /// Everything [create] makes is disposed by [dispose], the Lottie playback
-/// after the scope and the pipeline that use its decoder, and the clock after
-/// it. Per-chat objects are
+/// after the scope and the pipeline that use its decoder, then the video
+/// playback the same way, and the clock after them. Per-chat objects are
 /// the chat screen's, and a disposed [ChatInputSet] leaves all of this
 /// usable.
 final class AppServices {
@@ -92,8 +96,10 @@ final class AppServices {
     required CollectionSource animatedEmoji,
     required CollectionSource lottieStickers,
     required CollectionSource staticStickers,
+    required CollectionSource videoStickers,
     required PlaybackClock clock,
     required LottiePlayback? lottiePlayback,
+    required VideoPlayback? videoPlayback,
     required this.glyphProbe,
     required this.glyphArtVersion,
     required this.glyphBakeObserver,
@@ -107,8 +113,10 @@ final class AppServices {
   }) : _animatedEmoji = animatedEmoji,
        _lottieStickers = lottieStickers,
        _staticStickers = staticStickers,
+       _videoStickers = videoStickers,
        _clock = clock,
        _lottiePlayback = lottiePlayback,
+       _videoPlayback = videoPlayback,
        _pipeline = pipeline,
        _lifecycleSource = lifecycleSource,
        _reducedMotion = reducedMotion,
@@ -151,7 +159,9 @@ final class AppServices {
   /// starts the Lottie decoder (the platform's unless a test passes its own);
   /// it answers null where there is none, and then nothing is registered.
   /// [lottieCacheDirectory] is the folder its rendered frames are kept in
-  /// between launches (null: in memory only, as in a test).
+  /// between launches (null: in memory only, as in a test). [startVideo]
+  /// does the same for the video decoder: the platform's unless a test passes
+  /// its own, and null where there is none.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -161,6 +171,7 @@ final class AppServices {
     RichClipboard clipboard = const SystemRichClipboard(),
     LottiePlaybackStarter startLottie = startLottiePlayback,
     String? lottieCacheDirectory,
+    VideoPlaybackStarter startVideo = startVideoPlayback,
   }) async {
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
@@ -221,6 +232,15 @@ final class AppServices {
       if (lottiePlayback != null) {
         owned(lottiePlayback, _closePlayback);
       }
+      // The video playback is probed the same way. None leaves video at its
+      // placeholder.
+      final videoPlayback = await startVideo(
+        clock: clock,
+        memoryPressure: memoryPressure,
+      );
+      if (videoPlayback != null) {
+        owned(videoPlayback, _closeVideoPlayback);
+      }
       // The emoji pack is animated WebP and the static stickers are PNG: both
       // are the engine's image codecs' work, whether or not Lottie runs here.
       final decoders = DecoderRegistry()
@@ -228,6 +248,9 @@ final class AppServices {
         ..register(MediaForm.animatedImage, const ImageCodecDecoder());
       if (lottiePlayback != null) {
         decoders.register(MediaForm.vectorAnimation, lottiePlayback.decoder);
+      }
+      if (videoPlayback != null) {
+        decoders.register(MediaForm.video, videoPlayback.decoder);
       }
       final pipeline = owned(
         AssetPipeline(
@@ -340,12 +363,17 @@ final class AppServices {
         StaticStickerPack.source(),
         (source) => source.dispose(),
       );
+      final videoStickers = owned(
+        VideoStickerPack.source(),
+        (source) => source.dispose(),
+      );
       final emojiPageSource = owned(
         JoinedCollectionSource([
           emojiSource,
           animatedEmoji,
           lottieStickers,
           staticStickers,
+          videoStickers,
         ]),
         (source) => source.dispose(),
       );
@@ -372,8 +400,10 @@ final class AppServices {
         animatedEmoji: animatedEmoji,
         lottieStickers: lottieStickers,
         staticStickers: staticStickers,
+        videoStickers: videoStickers,
         clock: clock,
         lottiePlayback: lottiePlayback,
+        videoPlayback: videoPlayback,
         glyphProbe: probe.probe,
         glyphArtVersion: glyphArtVersion ?? probe.artVersion,
         glyphBakeObserver: probe.bakeObserver,
@@ -470,8 +500,8 @@ final class AppServices {
   final EmojiSearchSource emojiSearch;
 
   /// What the emoji page lists: the collections of [emojiSource], then the
-  /// pack of animated emoji, the pack of Lottie stickers and the pack of
-  /// static ones. It owns none.
+  /// pack of animated emoji, the pack of Lottie stickers, the pack of static
+  /// ones and the pack of video. It owns none.
   final CollectionSource emojiPageSource;
 
   /// Which glyphs the system cannot draw.
@@ -490,8 +520,10 @@ final class AppServices {
   final CollectionSource _animatedEmoji;
   final CollectionSource _lottieStickers;
   final CollectionSource _staticStickers;
+  final CollectionSource _videoStickers;
   final PlaybackClock _clock;
   final LottiePlayback? _lottiePlayback;
+  final VideoPlayback? _videoPlayback;
   final AssetPipeline _pipeline;
   final WidgetsPlaybackLifecycleSource _lifecycleSource;
   final ValueNotifier<bool> _reducedMotion;
@@ -528,9 +560,16 @@ final class AppServices {
   /// Starts closing [playback] and reports a failure instead of leaving it
   /// to an unhandled future: a close is not awaited at shutdown, and one
   /// that fails has no caller to tell. Each path calls it once.
-  static void _closePlayback(LottiePlayback playback) {
+  static void _closePlayback(LottiePlayback playback) =>
+      _closeReporting(playback.close(), 'the Lottie playback');
+
+  /// [_closePlayback] for the video playback.
+  static void _closeVideoPlayback(VideoPlayback playback) =>
+      _closeReporting(playback.close(), 'the video playback');
+
+  static void _closeReporting(Future<void> closing, String what) {
     unawaited(
-      playback.close().then<void>(
+      closing.then<void>(
         (_) {},
         onError: (Object error, StackTrace stackTrace) {
           FlutterError.reportError(
@@ -538,7 +577,7 @@ final class AppServices {
               exception: error,
               stack: stackTrace,
               library: 'chat_scroll_view_example',
-              context: ErrorDescription('while closing the Lottie playback'),
+              context: ErrorDescription('while closing $what'),
             ),
           );
         },
@@ -553,6 +592,7 @@ final class AppServices {
     _disposed = true;
     _webProbePass?.cancel();
     emojiPageSource.dispose();
+    _videoStickers.dispose();
     _staticStickers.dispose();
     _lottieStickers.dispose();
     _animatedEmoji.dispose();
@@ -571,6 +611,7 @@ final class AppServices {
     // After the scope and the pipeline: dropping their entries frees the
     // animations the decoder made, through its engine.
     if (_lottiePlayback case final playback?) _closePlayback(playback);
+    if (_videoPlayback case final playback?) _closeVideoPlayback(playback);
     _clock.dispose();
     memoryPressure.dispose();
     largeEmoji.dispose();

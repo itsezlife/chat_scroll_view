@@ -5,9 +5,11 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
+import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
@@ -289,6 +291,101 @@ void main() {
     });
   });
 
+  group('the video decoder', () {
+    // A starter that records what it was given and hands out a fake decoder.
+    late FakeDecoder decoder;
+    late int closed;
+    PlaybackClock? givenClock;
+    Listenable? givenPressure;
+
+    Future<VideoPlayback?> start({
+      required PlaybackClock clock,
+      required Listenable memoryPressure,
+    }) async {
+      givenClock = clock;
+      givenPressure = memoryPressure;
+      return VideoPlayback(decoder: decoder, shutdown: [() async => closed++]);
+    }
+
+    setUp(() {
+      decoder = FakeDecoder();
+      closed = 0;
+      givenClock = null;
+      givenPressure = null;
+    });
+
+    Future<AppServices> create({VideoPlaybackStarter? startVideo}) =>
+        createTestServices(startVideo: startVideo ?? start);
+
+    test('is started on the clock and the memory pressure the app shares, '
+        'and registered for video', () async {
+      final services = await create();
+      addTearDown(services.dispose);
+
+      expect(givenClock, same(services.assets.clock));
+      expect(givenPressure, same(services.memoryPressure));
+      final item = VideoStickerPack.stickers.first;
+      final binding = services.assets.attach(
+        item.key,
+        const AssetSpec(pixelWidth: 128, pixelHeight: 128),
+        const AssetProfile(animate: true),
+      );
+      addTearDown(binding.detach);
+      for (var i = 0; i < 200 && decoder.decodes.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(decoder.decodes, isNotEmpty);
+      expect(decoder.decodes.first.request.descriptor, item.descriptor);
+    });
+
+    test('is closed once, when the services are disposed', () async {
+      final services = await create();
+
+      services.dispose();
+      services.dispose();
+
+      expect(closed, 1);
+    });
+
+    test('is closed when a later step fails the boot', () async {
+      await expectLater(
+        AppServices.create(
+          keyValueStore: FakeKeyValueStore(),
+          assetLoader: (key) async => throw StateError('no catalogue'),
+          startLottie:
+              ({
+                required clock,
+                required memoryPressure,
+                cacheDirectory,
+              }) async => null,
+          startVideo: start,
+        ),
+        throwsStateError,
+      );
+
+      expect(closed, 1);
+    });
+
+    test(
+      'is left unregistered when the platform has none: the app boots, '
+      'its other packs still play and the video pack is still listed',
+      () async {
+        final services = await create(
+          startVideo: ({required clock, required memoryPressure}) async => null,
+        );
+        addTearDown(services.dispose);
+
+        expect(decoder.decodes, isEmpty);
+        expect(
+          services.emojiPageSource.collections.value.map(
+            (collection) => collection.id,
+          ),
+          contains(VideoStickerPack.id),
+        );
+      },
+    );
+  });
+
   group('the still decoder', () {
     // Stills are the engine's image codecs' work, so they need no native
     // library: they decode with the Lottie decoder absent, as on the web.
@@ -533,7 +630,7 @@ void main() {
 
   group('the emoji page source', () {
     test(
-      'lists the animated emoji pack, the Lottie stickers and the static ones, after the '
+      'lists the animated emoji pack, the Lottie stickers, the static ones and the video ones, after the '
       'catalogue\'s categories',
       () async {
         final services = await createTestServices();
@@ -544,10 +641,11 @@ void main() {
             collection.id,
         ];
         expect(ids.first, CollectionId.recent);
-        expect(ids.sublist(ids.length - 3), [
+        expect(ids.sublist(ids.length - 4), [
           AnimatedEmojiPack.id,
           LottieStickerPack.id,
           StaticStickerPack.id,
+          VideoStickerPack.id,
         ]);
         expect(ids.whereType<CollectionId$Category>(), isNotEmpty);
       },
