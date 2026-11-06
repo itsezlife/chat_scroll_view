@@ -1,9 +1,60 @@
 # video_native
 
-Skeleton for native video decoding: FFmpeg (LGPL, shared libraries) with libvpx
-for VP9 alpha. Today it holds the reproducible build recipe and a C probe that
-proves the build decodes H.264 MP4, VP9 WebM with alpha, and GIF. There is no
-Dart API yet.
+Native video decoding for chat clips: FFmpeg (LGPL, shared libraries) with
+libvpx for VP9 alpha, behind a flat C ABI of our own
+([ADR 042](../../docs/adr/042-native-media-decoding.md)). A leaf of the
+workspace: it depends on no workspace package.
+
+It holds the C wrapper (`native/include/chat_video.h`, `native/src/chat_video.c`),
+the build recipe and proof probe, the build hook, and the Dart side: the
+`VideoBinding` interface, `NativeVideoBinding`, and `FakeVideoBinding` with a
+contract suite in `testing.dart`.
+
+## The wrapper
+
+`chat_video.h` is the only product API; no FFmpeg type crosses it.
+
+| Call | Does |
+| --- | --- |
+| `chat_video_abi_version` | The load probe, returns 1. |
+| `chat_video_open(bytes, len, w, h, &handle)` | Copies the bytes (AVIO over memory, no path API), takes the first video stream, forces `libvpx-vp9` for VP9, opens the decoder for frames of `w` by `h`. |
+| `chat_video_info` | Source size, duration (ms or -1), frame rate, `has_alpha`. |
+| `chat_video_next(handle, dst, stride, &pts_ms)` | Decodes the next frame, scales it with swscale to the target size, writes premultiplied BGRA. Returns `0`, or `CHAT_VIDEO_END_OF_STREAM` (1). |
+| `chat_video_rewind` | Seeks to the start, flushes the decoder, resets the per-pass budgets. |
+| `chat_video_free` | Releases the handle. |
+
+Statuses are the enum in the header (`0` ok, `1` end of stream, `-1`..`-8`
+failures); `ChatVideoStatus` in Dart repeats the numbers and a test compares
+them with the header. A handle is used by one thread at a time; handles are
+independent. `has_alpha` is the stream's declaration (WebM `alpha_mode` or an
+alpha pixel format); a GIF is reported without it although its frames may be
+transparent. Every frame is premultiplied whenever the decoded format has
+alpha. Frames are stretched to the target size, not letterboxed.
+
+Hardening, all in the header as `CHAT_VIDEO_MAX_*`: input 10 MiB (refused
+before it is read), source 3840 per side and 3840x2160 pixels, target 2048 per
+side, 20000 packets and 10000 frames per pass (a rewind starts a new pass), 10
+consecutive undecodable packets tolerated. FFmpeg may open nothing but the
+memory buffer (`protocol_whitelist` is empty). Every FFmpeg return is checked
+and every failure path frees what it made (`leaks --atExit` over open, decode,
+rewind and free of the fixtures and damaged copies reports none).
+
+## Delivery
+
+`hook/build.dart` supports macOS arm64 only. It compiles the wrapper with the
+system `cc` against the recipe's prefix and bundles it plus the four FFmpeg
+dylibs as code assets (the Flutter tool then rewrites their install names
+together; the dylibs therefore need header padding, which the recipe now
+links in). The prefix is `native/.build/macos-arm64/prefix`, or the directory
+`CHAT_VIDEO_FFMPEG_DIR` names (an environment change needs `flutter clean`).
+With no prefix, or on another target, no asset is emitted and a warning names
+the recipe command; `NativeVideoBinding.probe()` then reports `missingLibrary`
+and the tests that need the library skip. Prebuilt delivery is a later ticket.
+
+## Tests
+
+`flutter test test/unit_test.dart`. The native tests run against the three
+fixtures below; the contract suite runs over the fake and the native binding.
 
 ## Build (macOS arm64)
 
@@ -51,7 +102,7 @@ Exact configure line (`<P>` is `native/.build/macos-arm64/prefix`):
 --enable-decoder=libvpx_vp9 --enable-decoder=vp9 --enable-parser=h264
 --enable-parser=vp9 --enable-parser=gif --enable-bsf=vp9_superframe_split
 --install-name-dir=@rpath --extra-cflags="-I<P>/include -mmacosx-version-min=11.0"
---extra-ldflags="-L<P>/lib -mmacosx-version-min=11.0"
+--extra-ldflags="-L<P>/lib -mmacosx-version-min=11.0 -Wl,-headerpad_max_install_names"
 ```
 
 libvpx: `--target=arm64-darwin20-gcc --enable-pic --enable-static --disable-shared

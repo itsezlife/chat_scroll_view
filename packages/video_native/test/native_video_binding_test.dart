@@ -13,9 +13,13 @@ void main() {
   final binding = NativeVideoBinding.probe();
 
   group('NativeVideoBinding.probe', () {
-    test('finds the built library and its ABI version', () {
-      expect(binding.availability, VideoAvailability.available);
-    });
+    test(
+      'finds the built library and its ABI version',
+      skip: nativeSkipReason(binding),
+      () {
+        expect(binding.availability, VideoAvailability.available);
+      },
+    );
   });
 
   group('open', skip: nativeSkipReason(binding), () {

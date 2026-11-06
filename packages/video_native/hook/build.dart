@@ -43,6 +43,13 @@ void main(List<String> args) async {
       environment: Platform.environment,
     );
     if (prefix == null) {
+      // Watch the file the recipe will create, so that building it re-runs
+      // the hook (a hook with no dependencies is never re-run). The
+      // environment variable is not trackable: `flutter clean` after
+      // changing it.
+      output.dependencies.add(
+        native.uri.resolve('.build/macos-arm64/prefix/lib/libavcodec.dylib'),
+      );
       stderr.writeln(
         'warning: video_native found no FFmpeg build for macos-arm64, so no '
         'native video library is bundled. Build it with $recipeCommand, or '
