@@ -6,6 +6,20 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- `package:lottie_native/lottie_native.dart` now compiles for the web. The
+  value types (`LottieHandle`, `LottieInfo`, `LottieFeatures`,
+  `LottieLoadResult`, `LottieRejection`, `LottieRenderStatus`,
+  `LottieAvailability`, `LottieNativeVersion`) are exported everywhere; the
+  `dart:ffi` types (`LottieBinding`, `LottieRenderJob`, `LottieFrameCodec`,
+  `LottieFrameRegion`, `NativeLottieBinding`, `NativeLottieFrameCodec`) only
+  through a conditional export that is empty on the web. Nothing changes on
+  the VM: the same names from the same barrel. `LottieHandle`,
+  `LottieAvailability` and `LottieRenderStatus` moved out of
+  `src/lottie_binding.dart` into files of their own; code importing that
+  `src/` path for them must import the barrel.
+
 ### Added
 
 - Web build: the crate exports `chat_lottie_alloc` / `chat_lottie_dealloc` on
@@ -18,6 +32,9 @@ package is pre-1.0.
   committed. Tested in Node with `node --test web/test`; see the README, "Web
   build".
 
+
+- A seeded long fuzz of the C ABI (`native/tests/fuzz_long.rs`, ignored by
+  default) and a nightly workflow that opens an issue on a finding.
 - `LottieNativeVersion.engine`: the crate version and pinned tlottie revision
   as one token, part of every frame-cache key; a test compares it with
   `native/Cargo.toml`.

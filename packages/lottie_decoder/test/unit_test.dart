@@ -6,6 +6,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'benchmark/lottie_playback_bench_test.dart'
+    as lottie_playback_bench_test;
 import 'cache/frame_cache_key_test.dart' as frame_cache_key_test;
 import 'cache/frame_cache_test.dart' as frame_cache_test;
 import 'in_process_lottie_engine_test.dart' as in_process_lottie_engine_test;
@@ -20,6 +22,10 @@ import 'playback/lottie_frame_scheduler_test.dart'
 import 'renderer/lottie_source_test.dart' as lottie_source_test;
 
 void main() {
+  group(
+    'benchmark/lottie_playback_bench_test.dart',
+    lottie_playback_bench_test.main,
+  );
   group('cache/frame_cache_key_test.dart', frame_cache_key_test.main);
   group('cache/frame_cache_test.dart', frame_cache_test.main);
   group('paint/lottie_paintable_test.dart', lottie_paintable_test.main);

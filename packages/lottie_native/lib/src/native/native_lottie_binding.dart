@@ -2,9 +2,12 @@ import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:lottie_native/src/lottie_availability.dart';
 import 'package:lottie_native/src/lottie_binding.dart';
 import 'package:lottie_native/src/lottie_features.dart';
+import 'package:lottie_native/src/lottie_handle.dart';
 import 'package:lottie_native/src/lottie_load_result.dart';
+import 'package:lottie_native/src/lottie_render_status.dart';
 import 'package:lottie_native/src/native/chat_lottie_symbols.dart';
 import 'package:meta/meta.dart';
 

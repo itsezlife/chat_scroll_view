@@ -7,6 +7,7 @@ package is pre-1.0.
 
 ### Added
 
+- A playback benchmark over the real native library (1, 8 and 32 stickers: tick, render round trip, upload, bytes per tick, pages), gated by the `benchmark` tag and `LOTTIE_PLAYBACK_BENCH=1`, reported against a committed baseline as ratios.
 - `FrameCache`, `FrameCacheKey` and `FrameCacheFiles`: a RAM and disk store of
   compressed animation frames keyed by content, display size and engine
   version.
