@@ -3,6 +3,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
+import 'package:lottie_decoder/src/engine/lottie_engine_work.dart';
 import 'package:lottie_native/lottie_native.dart';
 import 'package:meta/meta.dart';
 
@@ -38,8 +39,16 @@ final class IsolateLottieEngine implements LottieEngine {
   /// reported [LottieAvailability] when that binding is not available (the
   /// isolate is shut down first), and a [StateError] when the isolate ends
   /// before it is ready; the host decides what to log and does not register the decoder.
+  ///
+  /// [codecFactory] builds the isolate's frame codec the same way (top-level
+  /// or static, since it crosses isolates) and defaults to
+  /// [NativeLottieFrameCodec.probe]. It runs only once the binding is
+  /// available, and a codec that is not available is dropped: the engine then
+  /// renders without compressing, and the cache sees only misses. Compressed
+  /// bytes cross isolates as `TransferableTypedData`.
   static Future<IsolateLottieEngine> spawn({
     LottieBinding Function()? bindingFactory,
+    LottieFrameCodec Function()? codecFactory,
   }) async {
     final engine = IsolateLottieEngine._();
     // The isolate can end before anyone awaits readiness (a binding factory
@@ -49,7 +58,7 @@ final class IsolateLottieEngine implements LottieEngine {
     try {
       engine._isolate = await Isolate.spawn(
         _renderIsolateMain,
-        _Boot(engine._replies.sendPort, bindingFactory),
+        _Boot(engine._replies.sendPort, bindingFactory, codecFactory),
         onError: engine._errors.sendPort,
         onExit: engine._exits.sendPort,
       );
@@ -99,6 +108,35 @@ final class IsolateLottieEngine implements LottieEngine {
   @override
   Future<List<LottieRenderStatus>> renderBatch(List<LottieEngineJob> jobs) =>
       _request((id) => _Render(id, jobs));
+
+  @override
+  Future<List<LottieCapture>> renderCapturing(
+    List<LottieEngineJob> jobs,
+  ) async {
+    final wire =
+        await _request<List<(LottieRenderStatus, TransferableTypedData?)>>(
+          (id) => _RenderCapturing(id, jobs),
+        );
+    return [
+      for (final (status, bytes) in wire)
+        LottieCapture(status, bytes?.materialize().asUint8List()),
+    ];
+  }
+
+  @override
+  Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) {
+    final wire = [
+      for (final job in jobs)
+        _RestoreWire(
+          TransferableTypedData.fromList([job.compressed]),
+          job.width,
+          job.height,
+          job.address,
+          job.strideBytes,
+        ),
+    ];
+    return _request((id) => _Restore(id, wire));
+  }
 
   @override
   Future<void> dispose(LottieHandle handle) =>
@@ -179,9 +217,10 @@ final class IsolateLottieEngine implements LottieEngine {
 
 /// What the isolate is started with.
 final class _Boot {
-  const _Boot(this.replies, this.bindingFactory);
+  const _Boot(this.replies, this.bindingFactory, this.codecFactory);
   final SendPort replies;
   final LottieBinding Function()? bindingFactory;
+  final LottieFrameCodec Function()? codecFactory;
 }
 
 /// What the isolate sends back: its start-up verdict, then one answer per
@@ -221,6 +260,34 @@ final class _Render extends _Request {
   final List<LottieEngineJob> jobs;
 }
 
+final class _RenderCapturing extends _Request {
+  const _RenderCapturing(this.id, this.jobs);
+  final int id;
+  final List<LottieEngineJob> jobs;
+}
+
+/// A restore job with its bytes in transferable form.
+final class _RestoreWire {
+  const _RestoreWire(
+    this.data,
+    this.width,
+    this.height,
+    this.address,
+    this.strideBytes,
+  );
+  final TransferableTypedData data;
+  final int width;
+  final int height;
+  final int address;
+  final int strideBytes;
+}
+
+final class _Restore extends _Request {
+  const _Restore(this.id, this.jobs);
+  final int id;
+  final List<_RestoreWire> jobs;
+}
+
 final class _Dispose extends _Request {
   const _Dispose(this.id, this.handle);
   final int id;
@@ -257,6 +324,11 @@ void _renderIsolateMain(_Boot boot) {
     return;
   }
 
+  // Only a serving binding gets a codec; one that cannot run is dropped.
+  final codec = LottieEngineWork.usable(
+    (boot.codecFactory ?? NativeLottieFrameCodec.probe)(),
+  );
+
   final commands = ReceivePort();
   void answer(int id, Object? Function() work) {
     try {
@@ -279,6 +351,36 @@ void _renderIsolateMain(_Boot boot) {
           () =>
               binding.renderBatch([for (final job in jobs) job.toBindingJob()]),
         );
+      case _RenderCapturing(:final id, :final jobs):
+        answer(id, () {
+          // Bytes leave as transferables: no copy through the port.
+          return [
+            for (final capture in LottieEngineWork.renderCapturing(
+              binding,
+              codec,
+              jobs,
+            ))
+              (
+                capture.status,
+                capture.compressed == null
+                    ? null
+                    : TransferableTypedData.fromList([capture.compressed!]),
+              ),
+          ];
+        });
+      case _Restore(:final id, :final jobs):
+        answer(id, () {
+          return LottieEngineWork.restore(codec, [
+            for (final job in jobs)
+              LottieRestoreJob(
+                compressed: job.data.materialize().asUint8List(),
+                width: job.width,
+                height: job.height,
+                address: job.address,
+                strideBytes: job.strideBytes,
+              ),
+          ]);
+        });
       case _Dispose(:final id, :final handle):
         answer(id, () => binding.dispose(handle));
       case _Close():
