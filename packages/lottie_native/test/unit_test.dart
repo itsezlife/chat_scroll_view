@@ -21,6 +21,7 @@ import 'native_binding_contract_test.dart' as native_binding_contract_test;
 import 'native_lottie_binding_test.dart' as native_lottie_binding_test;
 import 'native_lottie_frame_codec_test.dart' as native_lottie_frame_codec_test;
 import 'prebuilt_manifest_test.dart' as prebuilt_manifest_test;
+import 'source_hash_test.dart' as source_hash_test;
 
 void main() {
   group(
@@ -47,4 +48,5 @@ void main() {
     native_lottie_frame_codec_test.main,
   );
   group('prebuilt_manifest_test.dart', prebuilt_manifest_test.main);
+  group('source_hash_test.dart', source_hash_test.main);
 }
