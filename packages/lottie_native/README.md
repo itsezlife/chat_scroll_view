@@ -129,11 +129,17 @@ dependencies, so editing any of them re-runs it.
   bare file name appended to it. Hex values are lower case.
 - An empty `baseUrl` or `artifacts` means "no prebuilt", never an error. A
   manifest that does not parse is ignored with a warning.
-- `sourceHash` is the SHA-256 over this listing: the files `Cargo.toml`,
-  `Cargo.lock`, everything under `include/` and everything under `src/` (all
-  in `native/`), sorted by `/`-separated relative path, each as
-  `<path> LF <byte length> LF <bytes> LF`. Bytes are hashed as stored, so a
-  checkout that rewrites line endings falls back to compiling.
+- `sourceHash` is the SHA-256 over this listing: the line
+  `lottie-native-source-v2` and LF, then the files `Cargo.toml`, `Cargo.lock`,
+  everything under `include/` and everything under `src/` (all in `native/`),
+  sorted by `/`-separated relative path, each as
+  `<byte length of the path>:<path><byte length of the content>:<content>`
+  (ASCII decimal lengths, bytes counted after UTF-8, no other separator).
+  Every field announces its own length, so a path cannot imitate the framing
+  of the record after it; the first format (`<path> LF <length> LF <bytes>
+  LF`) could be fooled that way and is gone. A path with a control character
+  is an error. Bytes are hashed as stored, so a checkout that rewrites line
+  endings falls back to compiling.
 
 ### Publishing prebuilts (maintainer)
 

@@ -8,7 +8,11 @@
 /// ```
 ///
 /// CI and a developer who edited the crate run it; the definition of the
-/// hash lives in `hook/src/source_hash.dart`.
+/// hash lives in `hook/src/source_hash.dart`. In short: SHA-256 over the line
+/// `lottie-native-source-v2` and then, for every source file sorted by path,
+/// `<byte length of path>:<path><byte length of content>:<content>` (ASCII
+/// decimal lengths), so no path can imitate the framing of its neighbour; a
+/// path with a control character is an error.
 library;
 
 import 'dart:convert';
