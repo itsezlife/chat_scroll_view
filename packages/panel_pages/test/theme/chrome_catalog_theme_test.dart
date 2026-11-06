@@ -36,6 +36,27 @@ void main() {
       },
     );
 
+    test(
+      'keeps the viewport\'s header inset unless a page asks for another',
+      () {
+        final chrome = ChromeThemeData.fromPalette(_palette);
+
+        expect(
+          data.sectionHeaderStartInset,
+          PanelCatalogThemeData.forBrightness(
+            _palette.brightness,
+          ).sectionHeaderStartInset,
+        );
+        expect(
+          ChromeCatalogTheme.dataFor(
+            chrome,
+            headerStartInset: 15,
+          ).sectionHeaderStartInset,
+          15,
+        );
+      },
+    );
+
     test('has no hover under touch, and the text colour at 0x12 under the '
         'pointer arrangement', () {
       final chrome = ChromeThemeData.fromPalette(_palette);

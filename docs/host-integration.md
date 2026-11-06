@@ -173,6 +173,150 @@ of the pointer menu comes from `ChromeStrings`, so an app that has no Material
 delegate for its own language still shows its language in them. `PanelShell`
 builds on `EditableText` and needs no Material ancestor.
 
+### Stills and animated images
+
+A sticker is a semantic kind, not a media form: a static sticker is a
+`MediaForm.still` and an animated emoji a `MediaForm.animatedImage`, and the
+engine's image codecs decode both. Register `ImageCodecDecoder` under each form
+the host shows, in the same `DecoderRegistry` as the others. It needs no native
+library, so it is registered whether or not the vector-animation decoder below
+started.
+
+### The video decoder: targets
+
+`video_native` ships its native library on macOS arm64, iOS arm64 (device and
+Apple-silicon simulator) and Android arm64-v8a. On any other target (Android
+x86_64 and armv7, the x86_64 iOS simulator, Windows, Linux) the
+hook bundles nothing and warns, and the probe (`NativeVideoBinding.probe()`,
+or starting the engine) reports `missingLibrary`: a host registers the video
+decoder only when that works, so video keeps its placeholder. A build without
+the recipe's prefix behaves the same; the warning names the command that makes
+it. Android needs the NDK at build time, and the library is aligned for 16 KiB
+pages.
+
+**On the web** the browser decodes: `WebVideoEngine(createPort:
+JsVideoElementPort.create)` from `package:video_decoder/web.dart` plays each
+clip in a hidden, muted `<video>` element fed a Blob URL, and the same
+scheduler and frame pool run over it (`startPixelVideoPlayback` in the
+example takes the engine factory; the web file supplies it). No file is served
+beside the page. What degrades, by contract:
+
+- **Alpha** is whatever the browser decodes: a browser without WebM alpha
+  draws the clip opaque and `VideoInfo.hasAlpha` reads false (it is decided by
+  looking at the first frame, so a clip whose first frame is opaque reads the
+  same).
+- **Real-time frames.** The browser decides when a frame is presented;
+  `nextFrame` waits for it, so a slow page skips frames. `VideoInfo.frameRate`
+  is 0. An element nobody asks frames from is paused after 300 ms.
+- **An element cap** (16 by default, `maxElements`): past it `open` answers
+  `VideoRejection.limitExceeded` and the clip keeps its placeholder.
+- **GIF** is not a `<video>` source: it is refused (`unsupported`) and keeps
+  its placeholder. A file the browser cannot play at all is the same.
+- A hidden tab presents no frames; `dispose` is bounded (2 s) and fails what
+  is still waiting.
+
+**Run in a headless Chrome**, not in the other browsers: the video stickers of
+the example draw with their transparency and loop, with no console error
+(Safari and Firefox untried).
+
+### The vector-animation decoder
+
+A host that shows Lottie content registers one `Decoder` under
+`MediaForm.vectorAnimation` (`lottie_decoder`, over `lottie_native`). The native
+library is not on every target, so the host **probes by starting the render
+engine** and registers the decoder only when that works; where it does not,
+vector animations keep their placeholder and nothing else changes.
+
+Create, in this order:
+
+1. The `PlaybackClock`, and pass it to the scope (`clock:`). The frame
+   scheduler follows the same clock as every binding, so it is gated by the
+   same pause layers, and it must exist before the scope does. A scope handed a
+   clock does not own it: the host disposes it, after the scope.
+2. The engine: `IsolateLottieEngine.spawn()` (a `LottieSlotEngine`: it renders
+   into native memory by address) inside a guard that catches
+   every failure, since the probe means "the engine could not start". A
+   `LottieUnavailable` (a `StateError` carrying the `LottieAvailability`) means
+   the library is missing or speaks another version; any other error is the
+   isolate failing to start. Log once through the host's diagnostics with the
+   error's type, create nothing more and do not register.
+3. One `NativeFramePageMemory` (the render isolate writes it; it takes no
+   size, each page is made at the side of its slot: twice the size class's
+   edge by default, `FrameAtlas.pageSideFor`), a `FrameCache`
+   (`directoryPath:` the folder the host keeps rendered frames in between
+   launches, null for memory only; the byte budgets are its own parameters),
+   a `FrameAtlas` over the memory (its `budgetBytes`, default 48 MiB, is what
+   the open pages may cost together) with a `LottieFrameRenderer(engine:,
+   memory:, cache:)` and the memory-pressure `Listenable` the scope shares, and a
+   `LottieFrameScheduler` on the clock, which owns the atlas.
+4. `decoders.register(MediaForm.vectorAnimation, LottieDecoder(engine:,
+   scheduler:, cache:))`, before the `AssetPipeline` is built. Tell the pipeline the
+   descriptors up front (`pipeline.know`); a fetcher serves the file bytes.
+
+The cache is optional and only skips renders. The renderer stores each frame it
+draws and, on a later play (this run or the next launch), restores it instead
+of rendering; a frame it cannot restore is rendered after all and its
+animation is dropped from the cache. The decoder names an animation in the
+cache by the SHA-256 of the file, the pixel size it renders at and
+`LottieNativeVersion.engine`. Pick the folder from the platform's user cache
+location (the example reads it from the environment and keeps memory only on
+Android and iOS, since it does not depend on `path_provider`; a host that does
+passes `getApplicationCacheDirectory()`), and give it to one cache at a time.
+
+Dispose in this order: the scope and the pipeline (dropping an entry frees the
+animation it holds, through the engine), then the scheduler (which disposes the
+atlas), then `cache.dispose()` (it finishes the writes under way; a render still
+in flight then stores nothing), then `engine.close()`, then the memory, then the
+clock. The engine closes before the memory because its isolate writes into it; `close()` lets the
+requests already sent finish (for ten seconds at most, `closeTimeout`), and a use after it throws `LottieEngineClosed`
+(the one error a handle's disposal may ignore). The example holds the
+steps in `LottiePlayback`, a class with the `decoder` and a `close()` that runs
+them in that order, once, and never skips one because another failed; the host
+reports a failing close instead of leaving an unhandled future.
+
+`LottieEngine` is the neutral interface (`load`, `renderPixels`, `dispose`,
+`close`); the decoder, the scheduler, the paintables and the cache depend on it
+only, and `package:lottie_decoder/lottie_decoder.dart` compiles for the web.
+The address-based methods (`renderBatch`, `renderCapturing`, `restore`) are
+`LottieSlotEngine`, with `IsolateLottieEngine`, `InProcessLottieEngine`,
+`NativeFramePageMemory` and `LottieFrameRenderer`; the barrel exports them only
+where `dart:ffi` exists, so a host that names them keeps that code behind a
+conditional import (as the example's `lottie_playback_native.dart` does). A
+web host has an engine over the worker, a `ListFramePageMemory`, a
+`PixelCopyFrameRenderer(engine)` in place of `LottieFrameRenderer`, and a
+`FrameCache(directoryPath: null)`: memory only, a path there is an
+`ArgumentError`. A `FetchedFile` fails the decode there (no file system).
+
+### Web
+
+The composition on the web is the native one with two substitutions:
+
+1. The engine is `JsLottieWorker.spawnFromUrls(workerUrl:, wasmUrl:,
+   wasmNoSimdUrl:)` from `package:lottie_decoder/web.dart` (a web build
+   imports it; `WebWorkerLottieEngine` over a module `Worker`); relative urls
+   resolve against the page. It is the probe: with the files missing it
+   throws `LottieUnavailable`, the host logs once and registers no decoder.
+2. The pages are a `ListFramePageMemory` and the renderer is
+   `PixelCopyFrameRenderer(engine)`; there is no `FrameCache`, so the frames
+   are kept in memory only and nothing survives a reload.
+
+The example splits this in two: `startPixelLottiePlayback` (no
+`dart:js_interop`, takes an `engineFactory`, runs on the VM in tests) does the
+composition and the shutdown order (scheduler, then engine); the web file
+(`lottie_playback_web.dart`, chosen by `dart.library.js_interop`) supplies only
+the factory. The worker, `chat_lottie_core.mjs` beside it and the two wasm
+builds come from `dart packages/lottie_native/native/tool/build_web.dart --out
+<dir>`; the host serves them beside the page.
+
+When the files are not served, or the worker is not ready in ten seconds, the
+page works as on a platform without the native library: vector animations keep
+their placeholder, everything else plays. `flutter build web` succeeds with or
+without the files, and `--wasm` compiles.
+
+**Not run.** The Dart side of the protocol runs on the VM against a scripted
+worker, and `flutter build web` (also `--wasm`) compiles. No browser has run
+the browser port, the real worker and the wasm together.
+
 ## 4. Per-chat controller set
 
 A chat screen creates these when it opens and disposes them when it closes.
@@ -979,6 +1123,7 @@ desktop.
 | --- | --- | --- | --- |
 | `KeyValueStore` adapter, stores, fetcher, decoders, resolver | Host | App or account | Host |
 | `AssetCacheScope` | Host | App-wide | Host (scopes and `AssetCacheProvider` never dispose it) |
+| `PlaybackClock` handed to the scope, the Lottie engine, its page memory and frame scheduler | Host | App | Host (scope and pipeline first, then scheduler, engine, memory, clock) |
 | `PlaybackActivity` and its lifecycle source; the `lowPower` and `reducedMotion` notifiers it follows | Host | App | Host (dispose the activity first: it clears the layers it set) |
 | `routeMoving` / `fastScroll` layers, connectivity signal | Host, fed into the cache | App | Host |
 | Emoji and other data sources | Host | Account | Host |
@@ -1020,6 +1165,50 @@ Everything above stays. Add:
 
 The atlas stays an emoji concern: stickers and GIFs bind through the cache's
 fetch and decode path and never touch it.
+
+### The stickers and GIF pages
+
+`panel_pages` ships both: `StickersPage` (a strip of packs over a catalogue of
+stickers) and `GifPage` (the clips in justified rows). A host registers each as
+a `PanelPage` (ids and tab icons of its choosing) and gives each one
+`CollectionSource`:
+
+- the **recents first** as `CollectionId.recent`, loaded from the start (a
+  collection a page hides is never asked to load, so a recents list that is
+  hidden while it loads would stay hidden), then the packs as
+  `CollectionId.set`, each with a title and a cover (`CollectionMetadata.cover`
+  or its first item) for the strip;
+- descriptors that carry the content's kind (`sticker` or `gif`) and its
+  proportions (`ContentDescriptor.size`; the GIF page justifies rows by them).
+
+A tap is a `ContentPicked` with the content's own kind and recents kind, so the
+host's one handler sends it: **the panel stays open and the composer keeps its
+text**, as the reference client's `onStickerSelected` and `onGifSelected` leave
+them, the sent item is filed in the recents of its kind (`RecentsStore.record`,
+shown on the next open through a deferred view so the list does not move under
+the finger), and the message goes out through the host's own send path (the
+reference client also scrolls the chat to it, `onMessageSend`; that is the
+chat's, not the panel's). The sticker page's clear button on the recents header is a `ClearRecentsRequested` the host
+confirms.
+
+**Search, failure and attribution (GIF page).** Give `GifPage` a `searchSource`
+(a `SearchSource`) and declare `PageCapabilities(search: true)` on its
+`PanelPage`: the page follows the shell's search, debounces it, lists the
+results in place of the collections and pages them. A collection or search
+that failed shows `PanelStrings.gifsFailed` with `retryAction` (a failed
+collection is retried by `CollectionSource.load`); a search that found nothing
+shows `gifsEmpty`. `attribution` is a line the page heads its list with, for a
+provider whose terms ask for one. Content that is fetched rather than bundled
+reaches the pipeline through a `ContentFetcher` and a `ContentResolver` of the
+host's (the reference host's Giphy and local-corpus ones sit in front of the
+bundled ones and hand on any key that is not theirs), and a message that
+references it carries the key (`![alt](document:<id>)`), so the resolver must
+be able to describe it again after a restart.
+
+A sent sticker or GIF has no text to edit. Every way into edit mode (the
+message menu, the selection bar, a shortcut, a restored draft) asks one rule by
+what the message is, so none can forget it (`MessageEditability` in the
+reference host).
 
 ## 11. Verifying your host
 
@@ -1069,17 +1258,21 @@ Decisions a migrating host makes once:
 
 ## 13. Reference host map
 
-The demo app under `example/` is the reference. It registers the emoji page
-only, fetches nothing from a network (its animated emoji are bundled), and does
+The demo app under `example/` is the reference. It registers the emoji page,
+the stickers page and the GIF page, fetches nothing from a network (its animated emoji are bundled), and does
 not use the hover-open toggle region.
 
 | Step | File |
 | --- | --- |
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
+| Video decoder probe and start (native and web forks) | `example/lib/src/app/video_playback.dart`, `video_playback_native.dart`, `video_playback_pixel.dart`, `video_playback_web.dart`, `video_playback_stub.dart` |
+| Lottie decoder probe and start, the frame cache and its folder (native and web forks) | `example/lib/src/app/lottie_playback.dart`, `lottie_playback_native.dart`, `lottie_playback_pixel.dart`, `lottie_playback_web.dart`, `lottie_playback_stub.dart` |
+| Bundled packs: one lookup, fetcher and resolver, one pack source, the authored Lottie and static stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart`, `static_sticker_pack.dart` |
 | `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
 | App scopes | `example/lib/src/app/app_chrome.dart` |
 | Per-chat controller set, event handler, back, hand-off | `example/lib/src/features/chat/input/chat_input_set.dart` |
 | Emoji page composition (atlas host factory, planner) | `example/lib/src/features/chat/input/emoji_panel_page.dart` |
+| Stickers and GIF pages (sources of the recents, the local sticker corpus and Giphy; sending on a pick, editability) | `example/lib/src/features/chat/input/media_panel_pages.dart`, `data/recent_content_source.dart`, `data/corpus_sticker_pack.dart`, `data/giphy_gif_source.dart`, `utils/sticker_message_body.dart`, `utils/message_editability.dart` |
 | Composer spec | `example/lib/src/features/chat/input/chat_composer_spec.dart` |
 | Inset aggregation | `example/lib/src/features/chat/utils/chat_viewport_insets.dart` |
 | IME readings and keyboard commands | `example/lib/src/common/soft_keyboard_port.dart` |

@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:ui' show Canvas, Color, Rect;
 
 import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_binding_base.dart';
@@ -10,6 +11,7 @@ import 'package:catalog_assets/src/asset/asset_profile.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
 import 'package:catalog_assets/src/asset/asset_spec.dart';
 import 'package:catalog_assets/src/asset/circle_placeholder.dart';
+import 'package:catalog_assets/src/asset/rect_placeholder.dart';
 import 'package:catalog_assets/src/glyph/glyph_binding.dart';
 import 'package:catalog_assets/src/glyph/glyph_sprite_source.dart';
 import 'package:catalog_assets/src/glyph/text_glyph_paintable.dart';
@@ -69,7 +71,9 @@ final class AssetCacheScope {
   /// drawn as text lay out again and repaint when it fires, since a browser
   /// fetches the font that draws an emoji only once it meets one, and what
   /// was laid out before drew the missing-glyph box. [placeholder] is what a
-  /// binding paints before any stage exists (a circle by default).
+  /// glyph binding paints before any stage exists (a circle by default);
+  /// [mediaPlaceholder] is what any other binding paints (the whole rectangle
+  /// in a quiet colour by default, `RectPlaceholder`).
   AssetCacheScope({
     AssetProducer? producer,
     GlyphSpriteSource? glyphSource,
@@ -78,6 +82,7 @@ final class AssetCacheScope {
     Listenable? memoryPressure,
     Listenable? systemFonts,
     AssetPaintable? placeholder,
+    AssetPaintable? mediaPlaceholder,
   }) : _producer = producer,
        _glyphSource = glyphSource,
        _budgets = budgets,
@@ -85,7 +90,8 @@ final class AssetCacheScope {
        _ownsClock = clock == null,
        _memoryPressure = memoryPressure,
        _systemFonts = systemFonts,
-       placeholder = placeholder ?? const CirclePlaceholder() {
+       placeholder = placeholder ?? const CirclePlaceholder(),
+       mediaPlaceholder = mediaPlaceholder ?? const RectPlaceholder() {
     memoryPressure?.addListener(clearAll);
     systemFonts?.addListener(_onSystemFonts);
     glyphSource?.addPageListener(_onGlyphPage);
@@ -100,8 +106,12 @@ final class AssetCacheScope {
   AssetCacheBudgets _budgets;
   bool _disposed = false;
 
-  /// What a binding paints before its entry has produced any stage.
+  /// What a glyph binding paints before its entry has produced any stage.
   final AssetPaintable placeholder;
+
+  /// What a binding of any other content paints before its entry has produced
+  /// any stage: a glyph has a box and no edges, media has a rectangle.
+  final AssetPaintable mediaPlaceholder;
 
   final Map<(ContentKey, AssetSpec), _Entry> _entries = {};
   // Entries nobody is bound to, per tier, least recently used first.
@@ -112,6 +122,11 @@ final class AssetCacheScope {
     for (final tier in AssetTier.values) tier: 0,
   };
   final Set<GlyphBinding> _glyphBindings = {};
+
+  // A unicode key that reaches an entry (a glyph drawn as text) is still a
+  // glyph: its stand-in is the circle, whatever the media default is.
+  AssetPaintable _placeholderOf(ContentKey key) =>
+      key is ContentKey$Unicode ? placeholder : mediaPlaceholder;
 
   /// The clock every animated binding of this scope advances by. Hosts set
   /// its pause layers.
@@ -317,7 +332,26 @@ final class AssetCacheScope {
       return;
     }
     final previous = entry.paintable;
-    if (previous != null && !identical(previous, paintable)) previous.dispose();
+    // A thumbnail replaced by content is kept for the bindings that were
+    // showing it: they fade the content in over it (a bitmap thumbnail stays
+    // opaque beneath, as in the reference client) and release it when the
+    // content is opaque. Without a waiting binding there is nobody to keep it
+    // for.
+    final keep =
+        previous != null &&
+        entry.stage == AssetStage.placeholder &&
+        stage.index > AssetStage.placeholder.index &&
+        entry.bindings.isNotEmpty;
+    if (keep) {
+      entry.disposeStandIn();
+      entry.standIn = previous;
+      for (final binding in entry.bindings) {
+        binding._holdsStandIn = true;
+        entry.standInHolders++;
+      }
+    } else if (previous != null && !identical(previous, paintable)) {
+      previous.dispose();
+    }
     if (previous != null)
       _bytes[entry.tier] = _bytes[entry.tier]! - entry.bytes;
     entry
@@ -360,6 +394,7 @@ final class AssetCacheScope {
     }
     entry.paintable?.dispose();
     entry
+      ..disposeStandIn()
       ..paintable = null
       ..bytes = 0;
   }
@@ -390,11 +425,20 @@ final class _Entry {
   final _Demand demand = _Demand();
   AssetStage stage = AssetStage.none;
   AssetPaintable? paintable;
+  // The thumbnail the content replaced, while a binding still fades over it.
+  AssetPaintable? standIn;
+  int standInHolders = 0;
   int bytes = 0;
   AssetTier tier = AssetTier.still;
   Object? lastError;
   AssetFailureKind? failureKind;
   _Attempt? attempt;
+
+  void disposeStandIn() {
+    standIn?.dispose();
+    standIn = null;
+    standInHolders = 0;
+  }
 
   bool get isFinal =>
       stage == AssetStage.full ||
@@ -479,13 +523,15 @@ final class _EntryBinding extends AssetBindingBase {
        super(
          key: entry.key,
          spec: entry.spec,
-         placeholder: scope.placeholder,
+         placeholder: scope._placeholderOf(entry.key),
          clock: scope.clock,
        );
 
   final AssetCacheScope _scope;
   final _Entry entry;
   bool _registered = false;
+  // Waiting to release the entry's stand-in.
+  bool _holdsStandIn = false;
   // A replay turns a profile that does not animate into one that does, for
   // this binding.
   bool _replayed = false;
@@ -565,9 +611,37 @@ final class _EntryBinding extends AssetBindingBase {
   AssetPaintable get livePaintable {
     final paintable = entry.paintable;
     if (paintable == null || _effectiveStage != entry.stage) {
-      return _scope.placeholder;
+      return _scope._placeholderOf(entry.key);
     }
     return paintable;
+  }
+
+  // A surface that paints the content opaque has nothing left to fade over the
+  // thumbnail, so it is released with that paint: surfaces that do not fade
+  // never have to know about it.
+  @override
+  void paint(Canvas canvas, Rect rect, {Color? tint, double opacity = 1}) {
+    super.paint(canvas, rect, tint: tint, opacity: opacity);
+    if (opacity >= 1 &&
+        _holdsStandIn &&
+        _effectiveStage.index > AssetStage.placeholder.index) {
+      releaseStandIn();
+    }
+  }
+
+  @override
+  bool paintStandIn(Canvas canvas, Rect rect) {
+    final standIn = entry.standIn;
+    if (!_holdsStandIn || standIn == null || isDetached) return false;
+    standIn.paint(canvas, rect, AssetPaintContext(fit: profile.fit));
+    return true;
+  }
+
+  @override
+  void releaseStandIn() {
+    if (!_holdsStandIn) return;
+    _holdsStandIn = false;
+    if (--entry.standInHolders <= 0) entry.disposeStandIn();
   }
 
   @override
@@ -611,6 +685,7 @@ final class _EntryBinding extends AssetBindingBase {
 
   @override
   void releaseResources() {
+    releaseStandIn();
     if (_registered) {
       _registered = false;
       clock.unregister(_target);

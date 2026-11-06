@@ -6,6 +6,60 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (GIF cells: rectangle stand-in and cover)
+
+- `AssetFit` (`contain`, `cover`) with `place` / `placeRegion`, carried by
+  `AssetProfile.fit` and `AssetPaintContext.fit`. A paintable that draws a
+  picture places it by the context's fit; `contain` is the default, so existing
+  surfaces draw as before. A thumbnail kept under arriving content is painted
+  with the profile's fit as well.
+- `RectPlaceholder` and `AssetCacheScope.mediaPlaceholder`: a binding of
+  anything but a unicode glyph waits behind the whole rectangle in the
+  context's tint (the reference's `0xFFEDF3F7` without one). Existing code that
+  read `scope.placeholder` for a media binding's paintable now finds
+  `scope.mediaPlaceholder`; `placeholder` (the circle) remains a glyph's.
+- `ContentView.loadingRadius`: the radial progress over the view until the
+  content has a first frame, asking for a frame after each it paints.
+
+### Added (loading placeholders of the reference client)
+
+- `AssetBinding.paintStandIn` / `releaseStandIn` (source-breaking for
+  implementers of `AssetBinding`; `AssetBindingBase` supplies a no-op): the
+  thumbnail a better stage replaced is kept for the bindings that were
+  attached while it showed, so a surface fades content in over it. It is
+  released by `releaseStandIn`, by a paint at full opacity, or by a detach.
+  Existing code that asserted a replaced stage was disposed at once will see
+  it disposed at that release instead.
+- `RadialProgress.paint`: the disc, turning arc and cross over loading media,
+  a function of the caller's frame time.
+- `MiniThumbnail.decode`: a preview still decoded to at most 40 px and
+  blurred once.
+- `SoftPlaceholder` and `ContentEmbed(placeholder:)`: an embed can draw a
+  quiet rounded square instead of the scope's circle until its content has a
+  thumbnail.
+
+
+### Changed (dynamic frame pages sized by class, breaking)
+
+- A page holds one size class and is **twice the class edge** wide (128, 256,
+  512 or 1024 px), so a playing sticker uploads at most 4x what changed where
+  the shared 1024 px page uploaded up to 64x. `FrameAtlas.defaultPageSide` is
+  replaced by `FrameAtlas.pageSideFor(sizeClass)`; `FrameAtlas`, `FramePool`
+  and `FrameSlotAllocator` take `pageSideFor` (every class must divide its
+  page) and count their budget in bytes: a page opens while
+  `pageBytes + newPageBytes <= budgetBytes`. `FramePool.maxPages` becomes
+  `budgetBytes`; the allocator gains `pageBytes` and `usedBytes`. A budget below
+  the smallest page is an `ArgumentError`.
+- `FrameSlot.pageSide` (part of the slot's equality) tells a consumer the
+  stride of the page its cell is on.
+- `FramePageMemory.pageSide` is gone: `page(i, side:)` makes a page at the
+  side asked (a live page at another side is a `StateError`), `sideOf(i)`
+  answers it, and `ListFramePageMemory()` takes no argument. `FramePageImages`
+  uploads each page at `sideOf(page)` and `residentBytes` sums per page, so a
+  renderer that reports a job done must have written (made) its page.
+  `FrameRendererContract` now also runs a batch across pages of different
+  sides.
+
 ### Added (pause policies of the reference desktop client)
 
 - `PlaybackActivity` and `PlaybackActivityPolicy`: the one seam that turns the

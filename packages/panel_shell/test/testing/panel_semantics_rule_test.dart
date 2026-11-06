@@ -25,6 +25,10 @@ ChromeStrings stringsWith({
       removeRecentAction: base.panel.removeRecentAction,
       clearRecentAction: base.panel.clearRecentAction,
       colorAllTitle: base.panel.colorAllTitle,
+      gifsEmpty: base.panel.gifsEmpty,
+      stickersEmpty: base.panel.stickersEmpty,
+      gifsFailed: base.panel.gifsFailed,
+      retryAction: base.panel.retryAction,
     ),
     composer: base.composer,
     formatting: base.formatting,
@@ -38,6 +42,7 @@ ChromeStrings stringsWith({
       backspaceAction: base.semantics.backspaceAction,
       variantsAction: base.semantics.variantsAction,
       categoryStripLabel: base.semantics.categoryStripLabel,
+      stickerPackStripLabel: base.semantics.stickerPackStripLabel,
     ),
   );
 }

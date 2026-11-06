@@ -177,7 +177,7 @@ void main() {
       final withPlaceholder = AssetCacheScope(
         producer: producer,
         clock: PlaybackClock(ticks: ticks),
-        placeholder: placeholder,
+        mediaPlaceholder: placeholder,
       );
       addTearDown(withPlaceholder.dispose);
 
@@ -190,6 +190,57 @@ void main() {
 
       expect(placeholder.paints, hasLength(1));
       expect(placeholder.paints.single.rect.size, _preset.size);
+    });
+
+    group('loading progress', () {
+      RenderObject box(WidgetTester tester) =>
+          tester.renderObject(find.byType(ContentView));
+
+      testWidgets('is the reference radial progress over the centre until '
+          'the first frame exists', (tester) async {
+        await tester.pumpWidget(
+          host(
+            ContentView(content: _sticker, preset: _still, loadingRadius: 12),
+          ),
+        );
+
+        // The disc of the indicator, centred in the 20 x 20 box.
+        expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+
+        producer.last.advance(AssetStage.placeholder);
+        await tester.pump();
+        expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+
+        producer.last.advance(AssetStage.firstFrame);
+        await tester.pump();
+        expect(box(tester), isNot(paints..circle(radius: 12)));
+      });
+
+      testWidgets('is absent unless asked for', (tester) async {
+        await tester.pumpWidget(
+          host(ContentView(content: _sticker, preset: _still)),
+        );
+
+        expect(box(tester), isNot(paints..circle(radius: 12)));
+      });
+
+      testWidgets('asks for another frame only while it shows', (tester) async {
+        await tester.pumpWidget(
+          host(
+            ContentView(content: _sticker, preset: _still, loadingRadius: 12),
+          ),
+        );
+
+        expect(
+          tester.hasRunningAnimations || tester.binding.hasScheduledFrame,
+          isTrue,
+        );
+
+        producer.last.advance(AssetStage.full);
+        await tester.pump();
+        await tester.pump();
+        expect(tester.binding.hasScheduledFrame, isFalse);
+      });
     });
 
     testWidgets('paints the canned paintable into its box', (tester) async {

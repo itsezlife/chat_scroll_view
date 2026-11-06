@@ -31,6 +31,10 @@ abstract final class ChromeStringsSnapshot {
       'panel.removeRecentAction': panel.removeRecentAction,
       'panel.clearRecentAction': panel.clearRecentAction,
       'panel.colorAllTitle': panel.colorAllTitle,
+      'panel.gifsEmpty': panel.gifsEmpty,
+      'panel.stickersEmpty': panel.stickersEmpty,
+      'panel.gifsFailed': panel.gifsFailed,
+      'panel.retryAction': panel.retryAction,
       'composer.messageHint': composer.messageHint,
       'composer.sendAction': composer.sendAction,
       'composer.confirmEditAction': composer.confirmEditAction,
@@ -98,6 +102,7 @@ abstract final class ChromeStringsSnapshot {
       'semantics.backspaceAction': semantics.backspaceAction,
       'semantics.variantsAction': semantics.variantsAction,
       'semantics.categoryStripLabel': semantics.categoryStripLabel,
+      'semantics.stickerPackStripLabel': semantics.stickerPackStripLabel,
     };
   }
 }

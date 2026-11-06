@@ -49,6 +49,17 @@ void main() {
 
   Canvas canvas() => Canvas(PictureRecorder());
 
+  ContentEmbed embedWith(AssetPaintable placeholder) {
+    final embed = ContentEmbed(
+      scope: scope,
+      content: _sticker,
+      preset: _preset,
+      placeholder: placeholder,
+    );
+    addTearDown(embed.dispose);
+    return embed;
+  }
+
   InlineEmbedContract.run(() => embedOf(_sticker));
 
   group('attach', () {
@@ -87,7 +98,7 @@ void main() {
       scope = AssetCacheScope(
         producer: producer,
         clock: PlaybackClock(ticks: ticks),
-        placeholder: placeholder,
+        mediaPlaceholder: placeholder,
       );
       addTearDown(scope.dispose);
       final embed = embedOf(_sticker);
@@ -95,6 +106,44 @@ void main() {
       embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
 
       expect(placeholder.paints.single.rect, _rect);
+    });
+
+    test(
+      'an embed with a placeholder of its own paints that before any stage',
+      () {
+        final scopes = FakeAssetPaintable(label: 'scope');
+        final own = FakeAssetPaintable(label: 'own');
+        scope.dispose();
+        scope = AssetCacheScope(
+          producer: producer,
+          clock: PlaybackClock(ticks: ticks),
+          mediaPlaceholder: scopes,
+        );
+        addTearDown(scope.dispose);
+        final embed = embedWith(own);
+
+        embed.paint(
+          canvas(),
+          _rect,
+          const InlineEmbedPaintContext(tint: Color(0xFF123456), opacity: 0.5),
+        );
+
+        expect(scopes.paints, isEmpty);
+        expect(own.paints.single.rect, _rect);
+        expect(own.paints.single.context.tint, const Color(0xFF123456));
+        expect(own.paints.single.context.opacity, 0.5);
+      },
+    );
+
+    test('and once a thumbnail exists, paints the thumbnail instead', () {
+      final own = FakeAssetPaintable(label: 'own');
+      final embed = embedWith(own);
+      final thumbnail = producer.last.advance(AssetStage.placeholder);
+
+      embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+      expect(own.paints, isEmpty);
+      expect(thumbnail.paints.single.rect, _rect);
     });
 
     test('passes the text colour and opacity as tint and opacity', () {

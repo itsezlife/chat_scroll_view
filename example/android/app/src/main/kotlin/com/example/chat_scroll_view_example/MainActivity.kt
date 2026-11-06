@@ -34,7 +34,9 @@ class MainActivity : FlutterActivity() {
     private var labChannel: MethodChannel? = null
 
     /// `adb shell am broadcast -a lab.SET --es key snap --ez value true`
-    /// flips a lab switch without touching the screen.
+    /// flips a lab switch without touching the screen;
+    /// `--es key net --es value off|record|replay --es name <tape>` selects
+    /// the network tape.
     private val labReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             labChannel?.invokeMethod(
@@ -42,6 +44,8 @@ class MainActivity : FlutterActivity() {
                 mapOf(
                     "key" to intent.getStringExtra("key"),
                     "value" to intent.getBooleanExtra("value", false),
+                    // `--es value replay`, for the keys that take a word.
+                    "text" to intent.getStringExtra("value"),
                     "name" to intent.getStringExtra("name"),
                 ),
             )

@@ -20,6 +20,10 @@ final class PanelStrings {
     required this.removeRecentAction,
     required this.clearRecentAction,
     required this.colorAllTitle,
+    required this.gifsEmpty,
+    required this.stickersEmpty,
+    required this.gifsFailed,
+    required this.retryAction,
   });
 
   /// The name of the panel page registered under [pageId]. Page ids are open
@@ -73,4 +77,19 @@ final class PanelStrings {
   /// The title of the picker that chooses one tone for every emoji, and the
   /// spoken label of the button that opens it.
   final String colorAllTitle;
+
+  /// Placeholder of the GIF page when a search finds no clip, and when the
+  /// page has no clip to list at all (no recents, and no provider).
+  final String gifsEmpty;
+
+  /// Placeholder of the stickers page when it has no sticker to list: no
+  /// recents and no pack.
+  final String stickersEmpty;
+
+  /// Placeholder of the GIF page when its clips could not be loaded (offline,
+  /// a busy server): shown with [retryAction].
+  final String gifsFailed;
+
+  /// Label of the button that tries a failed load of the GIF page again.
+  final String retryAction;
 }

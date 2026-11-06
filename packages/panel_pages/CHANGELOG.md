@@ -6,6 +6,60 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (pack strip covers)
+
+- `StickerPackStrip` plays a pack's animated cover in its tab, looping, as the
+  reference mobile client does; before, a tab showed the cover's first frame.
+  It plays on the shared playback clock, so the clock's pause layers (low
+  power among them) stop it, and only while its tab is in the strip's view: a
+  tab scrolled away stops repainting and gives its frame slot back. A still
+  cover stays still. Covers are decoded at their size on the screen
+  (`AssetPresets.keyboardCell`, 26 times the density), as the other animated
+  cells are, and now ask for the whole asset (`AssetVariant.full`), not the
+  first frame, so a host's decoder sees full requests for them.
+
+### Added (pages with nothing to list)
+
+- `StickersPage` says `PanelStrings.stickersEmpty` in the middle of the page
+  when it has nothing to list: the recents known to be empty and no pack.
+  Before, such a page was blank.
+- `GifPage` says `PanelStrings.gifsEmpty` when every collection has loaded
+  and none has a clip to list (no recents, no provider), not only when a
+  search found nothing. A page still loading says nothing; one whose load
+  failed keeps its failure line. Requires `PanelStrings.stickersEmpty`.
+
+### Changed (GIF cells)
+
+- A GIF cell waits as the whole rectangle of its final size and proportion
+  in the skeleton token, with the radial progress over it until the clip has a
+  first frame, instead of a grey circle; the clip and its thumbnail fill the
+  cell and are cropped at the edge.
+
+### Added (GIF page search and empty states)
+
+- `GifPage` takes an optional `searchSource` (a `SearchSource`), `searchDebounce`
+  and `attribution`. Given a source, the page follows the shell's search (the
+  host's `PanelPage` declares `PageCapabilities(search: true)`) and lists the
+  results in place of the collections, paged as the end comes near. A
+  collection or search that failed ends the list with a retry button; a search
+  that found nothing says so; the attribution heads the list. Existing hosts
+  are unchanged: without a `searchSource` there is no search, and a failed
+  collection, which showed nothing before, now shows the failure line.
+- Requires `PanelStrings.gifsEmpty`, `gifsFailed` and `retryAction` from
+  `chrome_foundation`.
+
+### Added (stickers and GIF pages)
+
+- `StickersPage` with `StickersPagePolicy` and `StickerPackStrip`: the
+  reference client's sticker list (columns from the width at 72, rows 82,
+  stickers at most 66, headers 27 tall beginning 15 in) under a strip of packs
+  whose tabs are covers, with a clear button on the recents header.
+- `GifPage` with `GifRowLayout`: the reference client's justified rows of GIFs.
+- `CatalogPagePolicy.headerStartInset` (default null: the viewport's), and
+  `ChromeCatalogTheme` takes it. A policy of a list whose titles begin
+  somewhere else says so; existing policies are unchanged.
+- Requires `SemanticsStrings.stickerPackStripLabel` from `chrome_foundation`.
+
 ### Changed
 
 - `EmojiTabIconScope` leaves a tab to the host when the enclosing

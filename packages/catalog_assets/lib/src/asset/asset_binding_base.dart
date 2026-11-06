@@ -108,16 +108,23 @@ abstract base class AssetBindingBase
   // say): bursts of frames, where the profile promises one.
   Duration? _stillTime;
 
+  AssetPaintContext _context({Color? tint, double opacity = 1}) =>
+      AssetPaintContext(
+        tint: tint,
+        opacity: opacity,
+        time: animates ? _clock.now : _stillTime ??= _clock.now,
+        animate: animates,
+        loop: profile.loop,
+        restFrame: profile.restFrame,
+        fit: profile.fit,
+      );
+
+  @override
+  void advancePlayback() => paintable.advancePlayback(_context());
+
   @override
   void paint(Canvas canvas, Rect rect, {Color? tint, double opacity = 1}) {
-    final context = AssetPaintContext(
-      tint: tint,
-      opacity: opacity,
-      time: animates ? _clock.now : _stillTime ??= _clock.now,
-      animate: animates,
-      loop: profile.loop,
-      restFrame: profile.restFrame,
-    );
+    final context = _context(tint: tint, opacity: opacity);
     final radius = profile.cornerRadius;
     if (radius <= 0) {
       paintable.paint(canvas, rect, context);
@@ -129,6 +136,12 @@ abstract base class AssetBindingBase
     paintable.paint(canvas, rect, context);
     canvas.restore();
   }
+
+  @override
+  bool paintStandIn(Canvas canvas, Rect rect) => false;
+
+  @override
+  void releaseStandIn() {}
 
   @override
   void detach() {

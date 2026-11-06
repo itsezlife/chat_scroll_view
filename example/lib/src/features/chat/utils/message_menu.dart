@@ -394,6 +394,7 @@ final class MessageMenu {
     MessageMenuItemsBuilder? itemsFor,
     List<String>? reactions,
     this.excludeActionIds,
+    this.canEdit,
   }) : itemsFor = itemsFor ?? MessageMenuCatalog.itemsFor,
        _reactionsOverride = reactions;
 
@@ -416,6 +417,12 @@ final class MessageMenu {
 
   /// Action ids to omit from every present (capability / chat policy).
   final Iterable<String>? excludeActionIds;
+
+  /// Whether the message with the given id may be edited, or null for every
+  /// message. A message that may not be edited gets a menu without the Edit
+  /// row, whatever [excludeActionIds] says: the rule is per message (a sticker
+  /// has no text), where [excludeActionIds] is per chat.
+  final bool Function(int messageId)? canEdit;
 
   final List<String>? _reactionsOverride;
 
@@ -455,7 +462,13 @@ final class MessageMenu {
         visibleRect: request.bandGlobal,
         items: MessageMenuCatalog.excluding(
           itemsFor(request, policy),
-          excludeActionIds,
+          switch (canEdit) {
+            final canEdit? when !canEdit(request.messageId) => [
+              ...?excludeActionIds,
+              MessageMenuActionId.edit,
+            ],
+            _ => excludeActionIds,
+          },
         ),
         reactions: reactions,
         selectionPolicy: policy,

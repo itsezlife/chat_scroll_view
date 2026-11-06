@@ -104,6 +104,14 @@ _Avoid_: One page class per kind with copied viewport glue, a fully config-drive
 
 ### Panel presentation
 
+**Pack strip**:
+The strip of the stickers page: a tab for the recents and one per pack, each drawn by the pack's cover, which plays when it is animated and its tab is in view, with a mark on the active one. It follows the catalogue's current section; a tap jumps to the head of the pack's section, marks the tab at once and holds the mark there until the jump ends, so one scroll controller (the catalogue's) drives both. A pack is a collection of the page's source, not a category of a catalogue.
+_Avoid_: A second scroll controller for the strip, moving the mark from the strip's own scroll offset, a tab per sticker
+
+**Justified rows**:
+How the GIF page lays clips of different proportions out: rows of one height whose clips fill the width, each taking the share of the row its proportions ask for, the last row stretched to fill. Not a grid of equal cells, so it is not a `SectionLayout` of the catalogue viewport. `GifRowLayout` is the pure rule.
+_Avoid_: Cropping every clip to a square, a masonry layout with ragged rows
+
 **Panel presentation**:
 The sealed kind of host for the panel: keyboard replacement, anchored popup, docked section (a sheet later).
 _Avoid_: Platform-only fixed pair, open registry of presentations

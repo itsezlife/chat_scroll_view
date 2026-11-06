@@ -6,6 +6,27 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (stickers page copy)
+
+- `PanelStrings.stickersEmpty`, required, with English and Russian presets:
+  the stickers page's placeholder when it has no recents and no pack. A host
+  that builds `PanelStrings(...)` must pass it (source-breaking).
+  `gifsEmpty` now also reads as the GIF page's placeholder when it has no clip
+  to list at all.
+
+### Added (GIF page copy)
+
+- `PanelStrings.gifsEmpty`, `gifsFailed` and `retryAction`, required, with
+  English and Russian presets: the GIF page's placeholders for a search that
+  found nothing and for clips that could not be loaded, and the retry button.
+  A host that builds `PanelStrings(...)` must pass them (source-breaking).
+
+### Added (sticker pack strip label)
+
+- `SemanticsStrings.stickerPackStripLabel`, the label of the stickers page's
+  strip of packs, required, with English and Russian presets. A host that
+  builds `SemanticsStrings(...)` field by field must pass it.
+
 ### Added (glass capture scale)
 
 - `GlassSource.captureScale`: the scale, relative to the frame, at which a

@@ -2,21 +2,33 @@ import 'dart:async';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/system_reduced_motion.dart';
+import 'package:chat_scroll_view_example/src/app/video_playback.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_probe.dart';
+import 'package:chat_scroll_view_example/src/common/lab_net.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/recent_content_source.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_decoder/image_decoder.dart';
 import 'package:kv_shared_preferences/kv_shared_preferences.dart';
+import 'package:l/l.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:rich_clipboard/rich_clipboard.dart';
@@ -37,14 +49,28 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 /// 3. the asset cache [assets] with its pause policies ([activity]: the app's
 ///    focus and visibility, the [lowPower] switch, the system's reduced-motion
 ///    setting and the overlays over the chat) and memory pressure, and
-///    behind the glyph path an `AssetPipeline` for the [animatedEmoji] pack:
-///    the pack's bundle fetcher and an `ImageCodecDecoder` for its animated
-///    WebP. The pipeline is told every descriptor of the pack up front, so it
-///    needs no content resolver;
+///    behind the glyph path an `AssetPipeline` for the bundled packs: one
+///    bundle fetcher, an `ImageCodecDecoder` for the animated emoji's WebP
+///    and, when the platform can run one, the Lottie decoder for the
+///    stickers and, likewise, the video decoder for the WebM, MP4 and GIF
+///    packs. The pipeline is told every descriptor of the packs up front,
+///    so it needs no content resolver. The order inside this step is the
+///    playback clock (made here so the Lottie frame scheduler can follow it
+///    before the scope exists; the scope then does not own it), memory
+///    pressure, the Lottie playback (probed by starting its render engine; a
+///    platform without the library, or a failed probe, registers nothing and
+///    logs once), the video playback (probed and skipped the same way), the
+///    pipeline, the scope;
 /// 4. the data sources: [catalog], [keywords], [emojiSource], [emojiSearch],
 ///    under the [glyphProbe] that hides what the system cannot draw, the
-///    animated emoji pack, and [emojiPageSource], which lists the pack after
-///    the catalogue's categories;
+///    animated emoji pack, and [emojiPageSource], which lists that pack after
+///    the catalogue's categories, and the [stickerPageSource] and
+///    [gifPageSource] of the two dedicated pages, over the recent stickers
+///    and GIFs (a view of the recents that catches up when the panel opens).
+///    The panel lists only real content: the stickers page the local corpus,
+///    the GIF page Giphy. The bundled demo stickers and clips stay known to
+///    the pipeline, for the showcase chat and the recents, but no page lists
+///    them;
 /// 5. the [clipboard]: the `rich_clipboard` adapter every copy and paste
 ///    goes through, so text keeps its entities (ADR 032).
 ///
@@ -52,7 +78,9 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 ///
 /// What the caller hands in (the key-value store, the glyph cache, the asset
 /// loader) stays the caller's: it is used, never closed or cleared here.
-/// Everything [create] makes is disposed by [dispose]. Per-chat objects are
+/// Everything [create] makes is disposed by [dispose], the Lottie playback
+/// after the scope and the pipeline that use its decoder, then the video
+/// playback the same way, and the clock after them. Per-chat objects are
 /// the chat screen's, and a disposed [ChatInputSet] leaves all of this
 /// usable.
 final class AppServices {
@@ -76,7 +104,17 @@ final class AppServices {
     required this.emojiSource,
     required this.emojiSearch,
     required this.emojiPageSource,
+    required this.stickerPageSource,
+    required this.gifPageSource,
+    required this.gifSearch,
+    required this.giphy,
+    required this.corpus,
+    required this.describe,
+    required List<CollectionSource> pageParts,
     required CollectionSource animatedEmoji,
+    required PlaybackClock clock,
+    required LottiePlayback? lottiePlayback,
+    required VideoPlayback? videoPlayback,
     required this.glyphProbe,
     required this.glyphArtVersion,
     required this.glyphBakeObserver,
@@ -88,6 +126,10 @@ final class AppServices {
     required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
   }) : _animatedEmoji = animatedEmoji,
+       _pageParts = pageParts,
+       _clock = clock,
+       _lottiePlayback = lottiePlayback,
+       _videoPlayback = videoPlayback,
        _pipeline = pipeline,
        _lifecycleSource = lifecycleSource,
        _reducedMotion = reducedMotion,
@@ -126,7 +168,19 @@ final class AppServices {
   /// are kept between launches; null bakes in memory every launch.
   /// [glyphArtVersion] replaces the probe's fingerprint as the cache's art
   /// version (see `createExampleEmojiGlyphCache`). [languages] is the ordered
-  /// language set of emoji search, the app language first.
+  /// language set of emoji search, the app language first. [startLottie]
+  /// starts the Lottie decoder (the platform's unless a test passes its own);
+  /// it answers null where there is none, and then nothing is registered.
+  /// [lottieCacheDirectory] is the folder its rendered frames are kept in
+  /// between launches (null: in memory only, as in a test). [startVideo]
+  /// does the same for the video decoder: the platform's unless a test passes
+  /// its own, and null where there is none.
+  ///
+  /// [giphyApiKey] turns the GIF page's Giphy source on (see
+  /// [giphyApiKeyDefine]); empty leaves the page with the recent GIFs alone.
+  /// [giphyHttpClient] is the transport it sends through, closed by the
+  /// services only if they made it. [corpus] is the local sticker corpus; null
+  /// looks for one in the app bundle and in the `CHAT_CORPUS_DIR` directory.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -134,6 +188,12 @@ final class AppServices {
     GlyphArtVersionSource? glyphArtVersion,
     List<String> languages = const <String>['ru', 'en'],
     RichClipboard clipboard = const SystemRichClipboard(),
+    LottiePlaybackStarter startLottie = startLottiePlayback,
+    String? lottieCacheDirectory,
+    VideoPlaybackStarter startVideo = startVideoPlayback,
+    String giphyApiKey = giphyApiKeyDefine,
+    http.Client? giphyHttpClient,
+    CorpusStickerPack? corpus,
   }) async {
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
@@ -180,17 +240,86 @@ final class AppServices {
         SystemMemoryPressure(),
         (pressure) => pressure.dispose(),
       );
-      // The pack is animated WebP, which the engine's image codecs decode.
+      // The clock is the host's, not the scope's: the Lottie frame scheduler
+      // follows it, and it must exist before the decoder does, which is
+      // before the scope.
+      final clock = owned(PlaybackClock(), (clock) => clock.dispose());
+      // The Lottie playback is probed by starting its engine. None (no
+      // library here) leaves vector animations at their placeholder.
+      final lottiePlayback = await startLottie(
+        clock: clock,
+        memoryPressure: memoryPressure,
+        cacheDirectory: lottieCacheDirectory,
+      );
+      if (lottiePlayback != null) {
+        owned(lottiePlayback, _closePlayback);
+      }
+      // The video playback is probed the same way. None leaves video at its
+      // placeholder.
+      final videoPlayback = await startVideo(
+        clock: clock,
+        memoryPressure: memoryPressure,
+      );
+      if (videoPlayback != null) {
+        owned(videoPlayback, _closeVideoPlayback);
+      }
+      // The emoji pack is animated WebP and the static stickers are PNG: both
+      // are the engine's image codecs' work, whether or not Lottie runs here.
       final decoders = DecoderRegistry()
+        ..register(MediaForm.still, const ImageCodecDecoder())
         ..register(MediaForm.animatedImage, const ImageCodecDecoder());
+      if (lottiePlayback != null) {
+        decoders.register(MediaForm.vectorAnimation, lottiePlayback.decoder);
+      }
+      if (videoPlayback != null) {
+        decoders.register(MediaForm.video, videoPlayback.decoder);
+      }
+      // Content that is not bundled: the local corpus, found in the bundle
+      // and in the directory the build was given, and Giphy, only with a key.
+      final corpusPacks =
+          corpus ??
+          await CorpusStickerPack.load(
+            bundle: rootBundle,
+            directory: CorpusStickerPack.directoryDefine,
+          );
+      GiphyContent? giphy;
+      if (giphyApiKey.isEmpty) {
+        l.i(
+          'Giphy GIFs are off: no GIPHY_API_KEY was given '
+          '(--dart-define=GIPHY_API_KEY=...); the GIF page lists the recent '
+          'GIFs alone',
+        );
+      } else {
+        final live =
+            giphyHttpClient ??
+            owned<http.Client>(http.Client(), (client) => client.close());
+        // The scroll lab records and replays Giphy's answers with its pointer
+        // tape; every request of the Giphy code, API and media, goes through
+        // this one client.
+        final labNet = DemoConfig.scrollLab ? LabNet.instance : null;
+        final transport = labNet == null ? live : LabNetClient(live, labNet);
+        giphy = GiphyContent(
+          GiphyClient(apiKey: giphyApiKey, client: transport),
+        );
+      }
       final pipeline = owned(
         AssetPipeline(
-          fetcher: AnimatedEmojiPack.fetcher(rootBundle),
+          // Giphy first, then the corpus, then the bundle: each takes its own
+          // keys and hands the rest on.
+          fetcher: _contentFetcher(giphy, corpusPacks, rootBundle),
           decoders: decoders,
+          resolver: giphy?.resolver(otherwise: BundledPacks.resolver()),
         ),
         (pipeline) => pipeline.dispose(),
       );
-      AnimatedEmojiPack.descriptors.forEach(pipeline.know);
+      BundledPacks.descriptors.forEach(pipeline.know);
+      corpusPacks.descriptors.forEach(pipeline.know);
+      // What a key is, for the recents: the bundled packs, the corpus and the
+      // Giphy clips this session listed.
+      ContentDescriptor? describe(ContentKey key) =>
+          BundledPacks.describe(key) ??
+          corpusPacks.of(key)?.descriptor ??
+          giphy?.descriptorOf(key);
       // Whether the fonts that draw emoji as text are there: on the web the
       // emoji font downloads, and the grid shows placeholders, not
       // missing-glyph boxes, until it is (set once the probe's wait ends).
@@ -201,6 +330,7 @@ final class AppServices {
       final assets = owned(
         PageAssets.createScope(
           producer: pipeline,
+          clock: clock,
           memoryPressure: memoryPressure,
           systemFonts: PaintingBinding.instance.systemFonts,
           textGlyphsReady: glyphFontsReady,
@@ -264,7 +394,7 @@ final class AppServices {
           // The codes the pointer arrangement's tooltip shows.
           shortcodes: loader.shortcodes,
           // The recents hold the pack's emoji too, picked on the same page.
-          resolver: AnimatedEmojiPack.resolver(),
+          resolver: BundledPacks.resolver(),
           languages: languages,
         ),
         (source) => source.dispose(),
@@ -285,8 +415,58 @@ final class AppServices {
         AnimatedEmojiPack.source(),
         (source) => source.dispose(),
       );
+      // The animated emoji are emoji (custom emoji, picked on this page), not
+      // stickers: they stay. The demo sticker packs are not listed here.
       final emojiPageSource = owned(
         JoinedCollectionSource([emojiSource, animatedEmoji]),
+        (source) => source.dispose(),
+      );
+
+      // The stickers page: the recent stickers, then the local corpus, a pack
+      // each. Without a corpus (as on CI) the recents are all it lists; the
+      // bundled demo packs are content of the showcase chat, not of the panel.
+      final recentStickers = owned(
+        RecentContentSource(
+          recents: recentsShown,
+          kind: SemanticKind.sticker,
+          describe: describe,
+        ),
+        (source) => source.dispose(),
+      );
+      final corpusSources = [
+        for (final source in corpusPacks.sources())
+          owned(source, (source) => source.dispose()),
+      ];
+      final stickerPageSource = owned(
+        JoinedCollectionSource([recentStickers, ...corpusSources]),
+        (source) => source.dispose(),
+      );
+      // The GIF page: the recent GIFs, then Giphy's trending when there is a
+      // key. Offline, trending fails and the page shows its failure line with
+      // a retry; without a key the recents are all it lists. No bundled clip
+      // is listed beneath either.
+      final recentGifs = owned(
+        RecentContentSource(
+          recents: recentsShown,
+          kind: SemanticKind.gif,
+          describe: describe,
+        ),
+        (source) => source.dispose(),
+      );
+      final giphyTrending = giphy == null
+          ? null
+          : owned(
+              GiphyGifSource(client: giphy.client, content: giphy),
+              (source) => source.dispose(),
+            );
+      final gifSearch = giphy == null
+          ? null
+          : owned(
+              GiphyGifSearch(client: giphy.client, content: giphy),
+              (search) => search.dispose(),
+            );
+      final gifPageSource = owned(
+        JoinedCollectionSource([recentGifs, ?giphyTrending]),
         (source) => source.dispose(),
       );
 
@@ -309,7 +489,22 @@ final class AppServices {
         emojiSource: emojiSource,
         emojiSearch: emojiSearch,
         emojiPageSource: emojiPageSource,
+        stickerPageSource: stickerPageSource,
+        gifPageSource: gifPageSource,
+        gifSearch: gifSearch,
+        giphy: giphy,
+        corpus: corpusPacks,
+        describe: describe,
+        pageParts: [
+          recentStickers,
+          recentGifs,
+          ?giphyTrending,
+          ...corpusSources,
+        ],
         animatedEmoji: animatedEmoji,
+        clock: clock,
+        lottiePlayback: lottiePlayback,
+        videoPlayback: videoPlayback,
         glyphProbe: probe.probe,
         glyphArtVersion: glyphArtVersion ?? probe.artVersion,
         glyphBakeObserver: probe.bakeObserver,
@@ -406,8 +601,49 @@ final class AppServices {
   final EmojiSearchSource emojiSearch;
 
   /// What the emoji page lists: the collections of [emojiSource], then the
-  /// pack of animated emoji. It owns neither.
+  /// pack of animated emoji. It owns none.
   final CollectionSource emojiPageSource;
+
+  /// What the stickers page lists: the recent stickers, then the packs of
+  /// the local [corpus]. It owns none.
+  final CollectionSource stickerPageSource;
+
+  /// What the GIF page lists: the recent GIFs, then Giphy's trending clips
+  /// when there is a key. It owns none.
+  final CollectionSource gifPageSource;
+
+  /// Search of Giphy for the GIF page, or null without a key.
+  final SearchSource? gifSearch;
+
+  /// The Giphy clips this session lists and plays, or null without a key.
+  final GiphyContent? giphy;
+
+  /// The local corpus of Lottie stickers; [CorpusStickerPack.none] when the
+  /// build has none.
+  final CorpusStickerPack corpus;
+
+  /// What the host knows of a key beyond the bundled packs: the corpus and
+  /// the Giphy clips this session listed.
+  final DescribeContent describe;
+
+  /// The Giphy API key the build was given with
+  /// `--dart-define=GIPHY_API_KEY=...`, or empty. It is only ever read here,
+  /// handed to the client, and never logged.
+  static const String giphyApiKeyDefine = String.fromEnvironment(
+    'GIPHY_API_KEY',
+  );
+
+  /// The line Giphy's terms ask to be shown with its content.
+  static const String giphyAttribution = 'Powered by GIPHY';
+
+  static ContentFetcher _contentFetcher(
+    GiphyContent? giphy,
+    CorpusStickerPack corpus,
+    AssetBundle bundle,
+  ) {
+    final bundled = corpus.fetcher(otherwise: BundledPacks.fetcher(bundle));
+    return giphy == null ? bundled : giphy.fetcher(otherwise: bundled);
+  }
 
   /// Which glyphs the system cannot draw.
   final MissingGlyphProbe glyphProbe;
@@ -423,6 +659,10 @@ final class AppServices {
   final GlyphCacheStore? glyphCache;
 
   final CollectionSource _animatedEmoji;
+  final List<CollectionSource> _pageParts;
+  final PlaybackClock _clock;
+  final LottiePlayback? _lottiePlayback;
+  final VideoPlayback? _videoPlayback;
   final AssetPipeline _pipeline;
   final WidgetsPlaybackLifecycleSource _lifecycleSource;
   final ValueNotifier<bool> _reducedMotion;
@@ -456,12 +696,45 @@ final class AppServices {
     return GlyphPlan([...catalogue, ...extras]);
   }
 
+  /// Starts closing [playback] and reports a failure instead of leaving it
+  /// to an unhandled future: a close is not awaited at shutdown, and one
+  /// that fails has no caller to tell. Each path calls it once.
+  static void _closePlayback(LottiePlayback playback) =>
+      _closeReporting(playback.close(), 'the Lottie playback');
+
+  /// [_closePlayback] for the video playback.
+  static void _closeVideoPlayback(VideoPlayback playback) =>
+      _closeReporting(playback.close(), 'the video playback');
+
+  static void _closeReporting(Future<void> closing, String what) {
+    unawaited(
+      closing.then<void>(
+        (_) {},
+        onError: (Object error, StackTrace stackTrace) {
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stackTrace,
+              library: 'chat_scroll_view_example',
+              context: ErrorDescription('while closing $what'),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   /// Frees what [create] made, in the reverse of the order it made it.
   /// Idempotent. What was handed in is left as it is.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
     _webProbePass?.cancel();
+    stickerPageSource.dispose();
+    gifPageSource.dispose();
+    for (final part in _pageParts) {
+      part.dispose();
+    }
     emojiPageSource.dispose();
     _animatedEmoji.dispose();
     emojiSearch.dispose();
@@ -476,6 +749,11 @@ final class AppServices {
     assets.dispose();
     _glyphFontsReady.dispose();
     _pipeline.dispose();
+    // After the scope and the pipeline: dropping their entries frees the
+    // animations the decoder made, through its engine.
+    if (_lottiePlayback case final playback?) _closePlayback(playback);
+    if (_videoPlayback case final playback?) _closeVideoPlayback(playback);
+    _clock.dispose();
     memoryPressure.dispose();
     largeEmoji.dispose();
     preferences.dispose();

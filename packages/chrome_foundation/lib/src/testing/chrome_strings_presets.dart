@@ -45,6 +45,10 @@ abstract final class ChromeStringsPresets {
       removeRecentAction: 'Remove from recent',
       clearRecentAction: 'Clear recent',
       colorAllTitle: 'Choose default skin tone',
+      gifsEmpty: 'No GIFs found',
+      stickersEmpty: 'No stickers yet',
+      gifsFailed: "Couldn't load GIFs",
+      retryAction: 'Retry',
     ),
     composer: ComposerStrings(
       messageHint: 'Message',
@@ -121,6 +125,7 @@ abstract final class ChromeStringsPresets {
       backspaceAction: 'Delete',
       variantsAction: 'Show variants',
       categoryStripLabel: 'Categories',
+      stickerPackStripLabel: 'Sticker packs',
     ),
   );
 
@@ -155,6 +160,10 @@ abstract final class ChromeStringsPresets {
       removeRecentAction: 'Удалить из недавних',
       clearRecentAction: 'Очистить недавние',
       colorAllTitle: 'Выберите тон кожи по умолчанию',
+      gifsEmpty: 'GIF не найдены',
+      stickersEmpty: 'Стикеров пока нет',
+      gifsFailed: 'Не удалось загрузить GIF',
+      retryAction: 'Повторить',
     ),
     composer: ComposerStrings(
       messageHint: 'Сообщение',
@@ -231,6 +240,7 @@ abstract final class ChromeStringsPresets {
       backspaceAction: 'Удалить',
       variantsAction: 'Показать варианты',
       categoryStripLabel: 'Категории',
+      stickerPackStripLabel: 'Наборы стикеров',
     ),
   );
 }

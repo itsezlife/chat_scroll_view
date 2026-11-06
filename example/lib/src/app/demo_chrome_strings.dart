@@ -34,6 +34,10 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     removeRecentAction: 'Удалить из недавних',
     clearRecentAction: 'Очистить недавние',
     colorAllTitle: 'Выберите тон кожи по умолчанию',
+    gifsEmpty: 'GIF не найдены',
+    stickersEmpty: 'Стикеров пока нет',
+    gifsFailed: 'Не удалось загрузить GIF',
+    retryAction: 'Повторить',
   ),
   composer: ComposerStrings(
     messageHint: 'Сообщение',
@@ -110,6 +114,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     backspaceAction: 'Удалить',
     variantsAction: 'Показать варианты',
     categoryStripLabel: 'Категории',
+    stickerPackStripLabel: 'Наборы стикеров',
   ),
 );
 

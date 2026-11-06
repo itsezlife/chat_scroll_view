@@ -10,6 +10,7 @@ reproducibility; performance benchmarks report nightly and never block a merge.
 **Amended**: 2026-10-16 — change notification is `package:listen`, which brings its own tests: there is no `Observable` fake or contract suite, and the seams' suites keep requiring an idempotent `dispose` of their owner ([ADR 023](023-data-layering-and-persistence.md) Amendment). A test that makes a listener throw sets `Listenable.onError` in `setUp` and restores it in `tearDown`; the packages never set it  
 **Amended**: 2026-10-18 (chat-polish-3, ticket 10): the playback lifecycle source joins the table; process-wide binding state a contract run moves (the lifecycle) is restored by the run's own tear-down  
 **Amended**: 2026-11-05 — golden baselines belong to one host, the CI runner (`linux_x64`): `golden_baseline`'s `useGoldenBaselines` compares them there only (a test on another host is reported skipped) and refuses to regenerate them anywhere else; `scripts/goldens` runs them in a `linux/amd64` container from any machine, and the Goldens workflow regenerates them on the runner. A scene that needs a platform's own fonts names its own baseline host. `GoldenBaselineLint` keeps every golden test on it  
+**Amended**: 2026-11-06 — native decoders: a fake binding per native package, the frame renderer's contract suite, the alpha golden on both builds, and the fuzz rule (section *Amendment: native decoders*)  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 023](023-data-layering-and-persistence.md)
 
 ## Decided
@@ -17,6 +18,9 @@ reproducibility; performance benchmarks report nightly and never block a merge.
 | Seam or area | Fake | Contract suite | Location |
 | ------------ | ---- | -------------- | -------- |
 | Asset fetcher, decoder, cache | `FakeFetcher`, `FakeDecoder`, manual clock | `AssetFetcherContract.run`, `DecoderContract.run`; cache invariants: pinned while attached, evict never touches live bindings, no visible failure plus retry on re-attach, connectivity-restored and `retry()`, dedupe, cancel on last detach, staged readiness, page hold counts | `catalog_assets` (`testing.dart`) |
+| Native binding (`lottie_native`, `video_native`) | `FakeLottieBinding`, `FakeVideoBinding`: scripted parse results, frames and failures, no native library | `NativeBindingContract.run` (probe reports availability once; a failed parse returns an error and never throws; render writes the documented pixel format; disposed handles refuse) over the fake and, where a native library is present, the real binding | each `*_native` package (`testing.dart`) |
+| Frame renderer seam | `FakeFrameRenderer` writing known pixels into slots (it can hold batches to model a late frame), `ListFramePageMemory` | `FrameRendererContract.run`: an empty batch, premultiplied output, writes inside the slot only, a later frame replaces the earlier, a batch across pages, a bad job left out and the others spared. Run over the fake and over every engine adapter | `catalog_assets` (`testing.dart`) |
+| Dynamic frame pages (`FramePool`, `FramePageImages`, `FrameAtlas`) | The frame renderer fake and an injected uploader | None: they are concrete, like `PlaybackActivity`, and are tested by behaviour: pins and least-recently-used eviction, the full pool, memory pressure, one upload per changed page, an image that lives as long as its page, batches that run in order and pin what they name | `catalog_assets` |
 | `KeyValueStore`, `RecentsStore`, `PreferenceStore`, `CollectionSource`, `SearchSource`, `KeywordSource`, `GlyphSupport` | In-memory fakes | One `...Contract.run` per seam | `content_model` (`testing.dart`) |
 | Playback tick source, lifecycle source | `ManualPlaybackTickSource`, `ManualPlaybackLifecycleSource` (with `ManualRetentionTimers` for grace periods) | `PlaybackTickSourceContract.run`, `PlaybackLifecycleSourceContract.run` (each distinct change notifies once, a repeated state nothing, a disposed source says nothing, dispose is idempotent) over the production adapter and the fake; `PlaybackActivity` is concrete and tested by behaviour over the fakes and a real clock | `catalog_assets` (`testing.dart`) |
 | Presentation policy and strategies | Fake IME input port, manual clock | `PresentationPolicyContract.run`; IME hand-off state-machine tests | `panel_presentation` (`testing.dart`) |
@@ -49,3 +53,19 @@ reproducibility; performance benchmarks report nightly and never block a merge.
 ## Related
 
 - Lint rules, fake and adapter naming conventions: [scripts/README.md](../../scripts/README.md)
+
+## Amendment: native decoders
+
+[ADR 042](042-native-media-decoding.md) adds native engines. Their tests keep
+the shape of this ADR: contracts over fakes, with the real binding as one more
+implementation of the same suite. Rows that name a package or a build not in
+the repository yet apply when that adapter lands; they are the plan, not
+present facts.
+
+| Area | Decision |
+| ---- | -------- |
+| Adapters | When the adapter lands, `lottie_decoder` and `video_decoder` run `DecoderContract.run` against their fake binding, so no test of an adapter needs a native library. |
+| Alpha | When the adapter lands, one golden with a semi-transparent sticker (premultiplied output, no fringing) runs against the native build and the WebAssembly build on the `golden_baseline` host; both must match the same baseline within the documented tolerance. |
+| Fuzzing | The wrapper's crate replays a seeded corpus (prefix truncations, zero bytes, byte mutations) through `chat_lottie_load` in its own tests today; when the adapter lands, a fixed corpus of malformed files (including the known 269-byte file and truncated and mutated TGS, JSON and WebM) replays against the wrapper's input checks on every pull request and must finish in under a minute. A longer fuzz runs on demand (manual dispatch; no schedule, to spare CI minutes) and opens an issue on a finding; like the benchmarks it never blocks a merge. |
+| Load failure | When the adapter lands, a test per decoder proves that a failed probe leaves the form unregistered and the placeholder in place. |
+| Benchmark | A scroll benchmark with animated stickers extends `scroll_trace` and reports nightly as ratios, per the performance rule above. |

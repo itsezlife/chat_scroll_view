@@ -5,11 +5,14 @@ import 'dart:ui' show FramePhase, FrameTiming;
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatScrollController, ChatScrollEvent, ChatViewportScrolled;
 import 'package:chat_scroll_view/experiments.dart';
+import 'package:chat_scroll_view_example/src/common/lab_net.dart';
 import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
+import 'package:chat_scroll_view_example/src/common/tape_system_events.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:video_decoder/video_decoder.dart' show VideoFrameScheduler;
 
 /// Scroll-smoothness lab: runtime switches to A/B on a device, and a frame
 /// log in logcat (`adb logcat -s flutter | grep LAB`).
@@ -28,6 +31,13 @@ abstract final class ScrollLab {
   /// markdown engine.
   static final plainText = ValueNotifier<bool>(false);
 
+  /// [VideoFrameScheduler.maxAdvancing]: video clips served per tick, the
+  /// rest time-sliced. `adb shell am broadcast -a lab.SET --es key video_cap
+  /// --es value 4` sets it; a number below 1 is ignored.
+  static final videoCap = ValueNotifier<int>(
+    VideoFrameScheduler.defaultMaxAdvancing,
+  );
+
   static const _channel = MethodChannel('chat_scroll_view_example/lab');
 
   static bool _installed = false;
@@ -45,7 +55,15 @@ abstract final class ScrollLab {
       _log('switch pixelSnap=${pixelSnap.value}');
     });
     plainText.addListener(() => _log('switch plainText=${plainText.value}'));
+    videoCap.addListener(() => _log('switch videoCap=${videoCap.value}'));
     PointerTape.install();
+    TapeSystemRecorder.install();
+    final net = LabNet.instance = LabNet(
+      filesDir: () async => (await _channel.invokeMethod<String>('filesDir'))!,
+    );
+    // The mode a launcher left in `net_mode.txt`, in force before the first
+    // Giphy request of a cold start.
+    unawaited(net.loadPersisted());
     _channel.setMethodCallHandler((call) async {
       if (call.method != 'set') return;
       final args = call.arguments as Map<Object?, Object?>;
@@ -53,11 +71,13 @@ abstract final class ScrollLab {
       switch (args['key']) {
         case 'record' when args['value'] == true:
           PointerTape.start();
+          await net.select(LabNetMode.record, name);
           _log('tape record start $name');
           return;
         case 'record':
           final dir = await _channel.invokeMethod<String>('filesDir');
           final n = await PointerTape.stop(dir!, name);
+          await net.select(LabNetMode.off, name);
           _log('tape saved $name events=$n');
           return;
         case 'animate':
@@ -75,6 +95,14 @@ abstract final class ScrollLab {
             );
           }
           return;
+        case 'net':
+          final mode = LabNetMode.values.asNameMap()[args['text']];
+          if (mode == null) {
+            _log('net: value must be off|record|replay');
+          } else {
+            await net.select(mode, name);
+          }
+          return;
         case 'jump':
           // `--es name <id>` jumps the list to that message, so a run can
           // start at any stretch of the history without a finger.
@@ -88,15 +116,30 @@ abstract final class ScrollLab {
           return;
         case 'replay':
           final dir = await _channel.invokeMethod<String>('filesDir');
+          await net.select(LabNetMode.replay, name);
           _log('tape replay start $name');
           _replayFrames = [];
-          final n = await PointerTape.replay(dir!, name);
+          final n = await PointerTape.replay(
+            dir!,
+            name,
+            system: dispatchTapeSystemEvent,
+          );
           // Timings arrive in batches; let the last one land.
           await Future<void>.delayed(const Duration(milliseconds: 1500));
           _logReplaySummary(_replayFrames!);
           _replayFrames = null;
+          net.logSummary();
           _log('tape replay done $name events=$n');
           return;
+      }
+      if (args['key'] == 'video_cap') {
+        final cap = int.tryParse('${args['text']}');
+        if (cap == null || cap < 1) {
+          _log('video_cap: value must be a number from 1 (--es value 6)');
+        } else {
+          videoCap.value = cap;
+        }
+        return;
       }
       final target = switch (args['key']) {
         'resampling' => resampling,

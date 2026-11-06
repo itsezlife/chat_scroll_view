@@ -2,6 +2,8 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatEmojiEmbedFactory, ChatStickerPlayback;
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart'
+    show DescribeContent;
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
 import 'package:content_model/content_model.dart';
@@ -23,6 +25,10 @@ final class ChatBodyHost {
   /// sticker of an emoji plays, from the kind of asset and the user's
   /// animation settings; by default the reference client's (a unicode emoji
   /// plays once and rests on the first frame, a custom emoji loops).
+  ///
+  /// [describe] says what the host knows of a document: a GIF waits behind
+  /// the whole rectangle, as in the panel's grid, a sticker or custom emoji
+  /// behind a quiet rounded square. Without it every document is the latter.
   ChatBodyHost({
     required AssetCacheScope assets,
     required this.policy,
@@ -30,9 +36,22 @@ final class ChatBodyHost {
         AnimatedEmojiPack.stickerFor,
     StickerPlayMemory? plays,
     this.playbackFor = ChatStickerPlayback.defaultFor,
+    DescribeContent? describe,
   }) : embedResolver = ContentEmbedResolver(scope: assets),
-       embedFactory = ((content, preset) =>
-           ContentEmbed(scope: assets, content: content, preset: preset)),
+       embedFactory = ((content, preset) => ContentEmbed(
+         scope: assets,
+         content: content,
+         preset: preset,
+         // A document here is a sticker, a custom emoji drawn large or a GIF;
+         // the scope's circle is the stand-in of a glyph.
+         placeholder: switch (content) {
+           ContentKey$Document() =>
+             describe?.call(content)?.semanticKind == SemanticKind.gif
+                 ? const RectPlaceholder()
+                 : const SoftPlaceholder(),
+           _ => null,
+         },
+       )),
        plays = plays ?? StickerPlayMemory(),
        _stickerFor = stickerFor;
 

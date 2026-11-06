@@ -6,6 +6,8 @@ import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatDataSource;
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
+import 'package:chat_scroll_view_example/src/app/lottie_playback.dart'
+    show defaultLottieCacheDirectory;
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
@@ -14,12 +16,14 @@ import 'package:chat_scroll_view_example/src/common/environment_specific/host_en
 import 'package:chat_scroll_view_example/src/common/frame_rate_boost.dart';
 import 'package:chat_scroll_view_example/src/common/glyph_warmup.dart';
 import 'package:chat_scroll_view_example/src/common/mouse_back_button.dart';
+import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
+import 'package:chat_scroll_view_example/src/features/chat/view/chat_page_route.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
@@ -45,7 +49,11 @@ void main() => l.capture<void>(
       // app's (message menus, the composer's, the panel's) unless the app
       // takes it over.
       if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
-      bindExamplePreImeBack();
+      bindExamplePreImeBack(
+        onBack: DemoConfig.scrollLab
+            ? () => PointerTape.note(TapeSystemEvent.backPreIme)
+            : null,
+      );
       await bootApp(
         createServices: _createServices,
         appOf: (services) => ChatDemoApp(
@@ -106,6 +114,7 @@ Future<AppServices> _createServices() async {
   final services = AppServices.create(
     glyphCache: glyphCache.cache,
     glyphArtVersion: glyphCache.artVersion,
+    lottieCacheDirectory: defaultLottieCacheDirectory(),
   );
   // Its own failure is awaited below; until then it is not an unhandled one.
   services.ignore();
@@ -166,7 +175,12 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
   // the chat. One per app, so the navigator keeps the same observer across
   // rebuilds.
   late final PlaybackOverlayPauseObserver _overlays =
-      PlaybackOverlayPauseObserver(widget.services.activity);
+      PlaybackOverlayPauseObserver(
+        widget.services.activity,
+        // The chat list pushes the chat as a ChatPageRoute: that page is the
+        // chat, not an overlay laid over it.
+        isChat: (route) => route is ChatPageRoute<dynamic>,
+      );
 
   @override
   void initState() {

@@ -20,11 +20,11 @@ the content.
 
 | Type | Role |
 | --- | --- |
-| `AssetCacheScope` | Host-created instance (no static singleton); owns entries, the default clock and placeholder, and nothing it was handed. `attach`, `clearAll`, `connectivityRestored`, `dispose`; `glyphSource`, `budgets` |
+| `AssetCacheScope` | Host-created instance (no static singleton); owns entries, the default clock and placeholders (a circle for a glyph, `RectPlaceholder` for other media), and nothing it was handed. `attach`, `clearAll`, `connectivityRestored`, `dispose`; `glyphSource`, `budgets` |
 | `AssetSpec` | What is decoded: pixel size at density, decode mode (`original` / `template`), variant (`full` / `firstFrame`). With the `ContentKey` it is the entry identity |
 | `AssetProfile` | Per-attach behaviour: animate, loop, rest frame (`AssetRestFrame`, first or last, read when it does not loop), autoplay first frame, corner radius. Never splits an entry |
 | `AssetBinding` | One surface's live attach: `readiness`, `paintable`, `lastError`, `isPlaying`, `playback` (`AssetPlayback`: idle, playing, ended), `replay()`, `visible`, `paint`, `retry`, `detach`; a `listen` `Listenable`. A profile that does not loop plays one pass, holds its rest frame and costs no ticks; `replay()` plays another and returns false while a pass runs. Surfaces of one entry share one playback |
-| `AssetPaintable` | What a binding yields: `paint(canvas, rect, context)`, `isAnimated`, `isHolding` / `restart()` for a playback that stopped on its rest frame, and an optional `sprite` (atlas page + source rectangle) for surfaces that batch |
+| `AssetPaintable` | What a binding yields: `paint(canvas, rect, context)`, `isAnimated`, `isHolding` / `restart()` for a playback that stopped on its rest frame, an optional `sprite` (atlas page + source rectangle) for surfaces that batch, and `advancePlayback(context)` (no-op by default; `AssetBinding.advancePlayback()`) that a batching surface calls on an animated paintable before reading `sprite`, since it never calls `paint`. Extend `AssetPaintable` to inherit the no-op |
 | `AssetStage` / `AssetReadiness` | `none`, `placeholder`, `firstFrame`, `full` and `isFinal`. There is no failed stage |
 | `AssetProducer` (seam) | Makes the paintables of entries: `produce(request, progress, demand)` returns an `AssetTask`; reports stages, failures and cancellation through `AssetProgress`. `AssetPipeline` is the fetching and decoding implementation |
 | `AssetCacheBudgets` | Byte budgets of the unattached entries per tier (`still`, `animated`); documented defaults |
@@ -33,7 +33,7 @@ the content.
 | `PlaybackLifecycleSource` (seam) | The app's `AppLifecycleState` (or `null`: unknown); `WidgetsPlaybackLifecycleSource` in an app, `ManualPlaybackLifecycleSource` in tests |
 | `PlaybackTickSource` (seam) | The clock's per-frame callback; `SchedulerPlaybackTickSource` in an app, `ManualPlaybackTickSource` in tests |
 | `GlyphSpriteSource` (seam) | The one narrow seam to baked glyphs: `spriteOf`, `holdPageOf`, page listeners. `GlyphAtlas` implements it |
-| `AtlasSprite` | Page image + source rectangle; the sprite capability of an `AssetPaintable` |
+| `AtlasSprite` | Page image + source rectangle; the sprite capability of an `AssetPaintable`. Group draws by `page`, not `pageIndex` |
 
 Behaviour that matters to a surface:
 

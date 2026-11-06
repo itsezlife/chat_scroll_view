@@ -6,7 +6,10 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/main.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -58,7 +61,7 @@ void main() {
   // A tall window, so that every message of the showcase is mounted.
   Future<ChatSelectionController> openChat(WidgetTester tester) async {
     tester.view
-      ..physicalSize = const Size(500, 4000)
+      ..physicalSize = const Size(500, 6000)
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     services = (await tester.runAsync(createTestServices))!;
@@ -168,7 +171,15 @@ void main() {
       tester,
     ) async {
       await openChat(tester);
-      expect(find.byType(ChatEmojiBody), findsNWidgets(6));
+      // Six messages of emoji, and one sticker each of the Lottie pack and of
+      // the static one, and one item each of the video pack.
+      final emojiOnly =
+          6 +
+          LottieStickerPack.stickers.length +
+          StaticStickerPack.stickers.length +
+          VideoStickerPack.items.length;
+      expect(emojiOnly, 24);
+      expect(find.byType(ChatEmojiBody), findsNWidgets(emojiOnly));
 
       await tester.tap(find.byTooltip('Large emoji: on'));
       await tester.pump(const Duration(milliseconds: 100));
@@ -179,7 +190,7 @@ void main() {
       await tester.tap(find.byTooltip('Large emoji: off'));
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byType(ChatEmojiBody), findsNWidgets(6));
+      expect(find.byType(ChatEmojiBody), findsNWidgets(emojiOnly));
     });
   });
 }

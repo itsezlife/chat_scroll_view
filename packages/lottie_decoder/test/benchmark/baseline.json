@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "suite": "lottie_playback",
+  "metrics": {
+    "n1.tick_sync_ms": {
+      "kind": "milliseconds",
+      "value": 0.036
+    },
+    "n1.tick_settled_ms": {
+      "kind": "milliseconds",
+      "value": 0.581
+    },
+    "n1.render_round_trip_ms": {
+      "kind": "milliseconds",
+      "value": 0.118
+    },
+    "n1.upload_flush_ms": {
+      "kind": "milliseconds",
+      "value": 0.325
+    },
+    "n1.upload_bytes_per_tick": {
+      "kind": "count",
+      "value": 262144.0
+    },
+    "n1.upload_over_changed_bytes": {
+      "kind": "count",
+      "value": 4.0
+    },
+    "n1.peak_pages": {
+      "kind": "count",
+      "value": 1.0
+    },
+    "n8.tick_sync_ms": {
+      "kind": "milliseconds",
+      "value": 0.037
+    },
+    "n8.tick_settled_ms": {
+      "kind": "milliseconds",
+      "value": 0.671
+    },
+    "n8.render_round_trip_ms": {
+      "kind": "milliseconds",
+      "value": 0.175
+    },
+    "n8.upload_flush_ms": {
+      "kind": "milliseconds",
+      "value": 0.308
+    },
+    "n8.upload_bytes_per_tick": {
+      "kind": "count",
+      "value": 524288.0
+    },
+    "n8.upload_over_changed_bytes": {
+      "kind": "count",
+      "value": 1.0
+    },
+    "n8.peak_pages": {
+      "kind": "count",
+      "value": 2.0
+    },
+    "n32.tick_sync_ms": {
+      "kind": "milliseconds",
+      "value": 0.042
+    },
+    "n32.tick_settled_ms": {
+      "kind": "milliseconds",
+      "value": 1.326
+    },
+    "n32.render_round_trip_ms": {
+      "kind": "milliseconds",
+      "value": 0.376
+    },
+    "n32.upload_flush_ms": {
+      "kind": "milliseconds",
+      "value": 0.765
+    },
+    "n32.upload_bytes_per_tick": {
+      "kind": "count",
+      "value": 2097152.0
+    },
+    "n32.upload_over_changed_bytes": {
+      "kind": "count",
+      "value": 1.0
+    },
+    "n32.peak_pages": {
+      "kind": "count",
+      "value": 8.0
+    }
+  }
+}

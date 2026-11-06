@@ -6,6 +6,10 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- A decoded image is placed by `AssetPaintContext.fit` (contain by default).
+
 ### Added
 
 - `ImageCodecDecoder`: the `catalog_assets` decoder for engine-decodable

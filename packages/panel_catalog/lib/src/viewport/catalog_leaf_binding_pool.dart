@@ -7,10 +7,15 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 
 /// What a still leaf asks of the cache: one frame, shown at once.
 const AssetProfile _stillProfile = AssetProfile();
+const AssetProfile _stillCoverProfile = AssetProfile(fit: AssetFit.cover);
 
 /// What an animated leaf asks of the cache: play while it is shown and the
 /// scope's clock runs.
 const AssetProfile _playingProfile = AssetProfile(animate: true);
+const AssetProfile _playingCoverProfile = AssetProfile(
+  animate: true,
+  fit: AssetFit.cover,
+);
 
 /// One live attach of a visible leaf: the cache binding and what the painter
 /// needs to draw it.
@@ -276,11 +281,15 @@ final class CatalogLeafBindingPool {
       pixelHeight: pixels,
       decodeMode: mode,
     );
-    final binding = _scope.attach(
-      leaf.key,
-      spec,
-      leaf.animated ? _playingProfile : _stillProfile,
-    );
+    final binding = _scope.attach(leaf.key, spec, switch ((
+      leaf.animated,
+      leaf.contentFit,
+    )) {
+      (true, AssetFit.contain) => _playingProfile,
+      (true, AssetFit.cover) => _playingCoverProfile,
+      (false, AssetFit.contain) => _stillProfile,
+      (false, AssetFit.cover) => _stillCoverProfile,
+    });
     binding.addListener(_onChanged);
     final bound = CatalogBoundLeaf._(binding, spec);
     (_byKey[leaf.key] ??= []).add(bound);

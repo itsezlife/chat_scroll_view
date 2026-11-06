@@ -593,6 +593,47 @@ void main() {
       expect(translate.transform.storage[12], isNot(0));
     });
 
+    testWidgets(
+      'SelectionAppBar offers Edit only for a message that can be edited',
+      (tester) async {
+        final selection = ChatSelectionController();
+        addTearDown(selection.dispose);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Stack(
+                children: <Widget>[
+                  const SizedBox.expand(),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: SelectionAppBar(
+                      selection: selection,
+                      onEdit: () {},
+                      // Message 4 is a sticker.
+                      canEdit: (id) => id != 4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        selection.startSelection(3);
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.edit_rounded), findsOneWidget);
+
+        selection.clear();
+        await tester.pumpAndSettle();
+        selection.startSelection(4);
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.edit_rounded), findsNothing);
+        expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+      },
+    );
+
     testWidgets('SelectionAppBar copy action copies and clears the selection', (
       tester,
     ) async {

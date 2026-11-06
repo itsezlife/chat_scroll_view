@@ -20,6 +20,8 @@ import 'goldens/rtl_golden_test.dart' as rtl_golden_test;
 import 'goldens/section_states_golden_test.dart' as section_states_golden_test;
 import 'model/catalog_leaf_test.dart' as catalog_leaf_test;
 import 'model/catalog_section_test.dart' as catalog_section_test;
+import 'panel_catalog_animated_sprites_test.dart'
+    as panel_catalog_animated_sprites_test;
 import 'panel_catalog_asset_binding_test.dart'
     as panel_catalog_asset_binding_test;
 import 'panel_catalog_baked_sprites_test.dart'
@@ -28,6 +30,7 @@ import 'panel_catalog_controller_test.dart' as panel_catalog_controller_test;
 import 'panel_catalog_cursor_test.dart' as panel_catalog_cursor_test;
 import 'panel_catalog_focus_test.dart' as panel_catalog_focus_test;
 import 'panel_catalog_hover_test.dart' as panel_catalog_hover_test;
+import 'panel_catalog_loading_gif_test.dart' as panel_catalog_loading_gif_test;
 import 'panel_catalog_pointer_seams_test.dart'
     as panel_catalog_pointer_seams_test;
 import 'panel_catalog_scroll_events_test.dart'
@@ -43,6 +46,8 @@ import 'section_near_viewport_test.dart' as section_near_viewport_test;
 import 'section_states_test.dart' as section_states_test;
 import 'viewport/catalog_focus_navigation_test.dart'
     as catalog_focus_navigation_test;
+import 'viewport/catalog_glyph_sprite_batch_test.dart'
+    as catalog_glyph_sprite_batch_test;
 import 'viewport/section_direction_projection_test.dart'
     as section_direction_projection_test;
 import 'viewport/section_layout_projection_test.dart'
@@ -71,6 +76,10 @@ void main() {
   group('model/catalog_leaf_test.dart', catalog_leaf_test.main);
   group('model/catalog_section_test.dart', catalog_section_test.main);
   group(
+    'panel_catalog_animated_sprites_test.dart',
+    panel_catalog_animated_sprites_test.main,
+  );
+  group(
     'panel_catalog_asset_binding_test.dart',
     panel_catalog_asset_binding_test.main,
   );
@@ -85,6 +94,10 @@ void main() {
   group('panel_catalog_cursor_test.dart', panel_catalog_cursor_test.main);
   group('panel_catalog_focus_test.dart', panel_catalog_focus_test.main);
   group('panel_catalog_hover_test.dart', panel_catalog_hover_test.main);
+  group(
+    'panel_catalog_loading_gif_test.dart',
+    panel_catalog_loading_gif_test.main,
+  );
   group(
     'panel_catalog_pointer_seams_test.dart',
     panel_catalog_pointer_seams_test.main,
@@ -107,6 +120,10 @@ void main() {
   group(
     'viewport/catalog_focus_navigation_test.dart',
     catalog_focus_navigation_test.main,
+  );
+  group(
+    'viewport/catalog_glyph_sprite_batch_test.dart',
+    catalog_glyph_sprite_batch_test.main,
   );
   group(
     'viewport/section_direction_projection_test.dart',

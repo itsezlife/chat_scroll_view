@@ -18,11 +18,15 @@ workspace:
   - packages/golden_baseline
   - packages/image_decoder
   - packages/kv_shared_preferences
+  - packages/lottie_decoder
+  - packages/lottie_native
   - packages/panel_catalog
   - packages/panel_pages
   - packages/panel_presentation
   - packages/panel_shell
   - packages/rich_clipboard
+  - packages/video_decoder
+  - packages/video_native
   - example
   - scripts
 

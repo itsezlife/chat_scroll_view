@@ -13,8 +13,10 @@ import 'asset/asset_cache_demand_test.dart' as asset_cache_demand_test;
 import 'asset/asset_cache_failure_test.dart' as asset_cache_failure_test;
 import 'asset/asset_cache_playback_test.dart' as asset_cache_playback_test;
 import 'asset/asset_cache_scope_test.dart' as asset_cache_scope_test;
+import 'asset/asset_fit_test.dart' as asset_fit_test;
 import 'asset/asset_playback_test.dart' as asset_playback_test;
 import 'asset/asset_spec_test.dart' as asset_spec_test;
+import 'asset/asset_stand_in_test.dart' as asset_stand_in_test;
 import 'atlas/bake_governor_test.dart' as bake_governor_test;
 import 'atlas/cache/computed_glyph_art_version_test.dart'
     as computed_glyph_art_version_test;
@@ -66,12 +68,24 @@ import 'pipeline/pipeline_offline_test.dart' as pipeline_offline_test;
 import 'pipeline/pipeline_orchestration_test.dart'
     as pipeline_orchestration_test;
 import 'pipeline/pipeline_resolver_test.dart' as pipeline_resolver_test;
+import 'placeholder/mini_thumbnail_test.dart' as mini_thumbnail_test;
+import 'placeholder/radial_progress_test.dart' as radial_progress_test;
+import 'placeholder/rect_placeholder_test.dart' as rect_placeholder_test;
+import 'placeholder/soft_placeholder_test.dart' as soft_placeholder_test;
 import 'playback/playback_activity_test.dart' as playback_activity_test;
 import 'playback/playback_clock_test.dart' as playback_clock_test;
 import 'playback/playback_lifecycle_source_contract_test.dart'
     as playback_lifecycle_source_contract_test;
 import 'playback/playback_tick_source_contract_test.dart'
     as playback_tick_source_contract_test;
+import 'pool/fake_frame_renderer_contract_test.dart'
+    as fake_frame_renderer_contract_test;
+import 'pool/frame_atlas_test.dart' as frame_atlas_test;
+import 'pool/frame_atlas_visibility_test.dart' as frame_atlas_visibility_test;
+import 'pool/frame_page_images_test.dart' as frame_page_images_test;
+import 'pool/frame_pool_test.dart' as frame_pool_test;
+import 'pool/frame_slot_allocator_test.dart' as frame_slot_allocator_test;
+import 'pool/list_frame_page_memory_test.dart' as list_frame_page_memory_test;
 import 'preset/asset_presets_test.dart' as asset_presets_test;
 import 'widget/asset_cache_provider_test.dart' as asset_cache_provider_test;
 import 'widget/content_view_test.dart' as content_view_test;
@@ -84,6 +98,8 @@ void main() {
   group('asset/asset_cache_scope_test.dart', asset_cache_scope_test.main);
   group('asset/asset_playback_test.dart', asset_playback_test.main);
   group('asset/asset_spec_test.dart', asset_spec_test.main);
+  group('asset/asset_fit_test.dart', asset_fit_test.main);
+  group('asset/asset_stand_in_test.dart', asset_stand_in_test.main);
   group('atlas/bake_governor_test.dart', bake_governor_test.main);
   group(
     'atlas/cache/computed_glyph_art_version_test.dart',
@@ -171,6 +187,10 @@ void main() {
     pipeline_orchestration_test.main,
   );
   group('pipeline/pipeline_resolver_test.dart', pipeline_resolver_test.main);
+  group('placeholder/mini_thumbnail_test.dart', mini_thumbnail_test.main);
+  group('placeholder/radial_progress_test.dart', radial_progress_test.main);
+  group('placeholder/rect_placeholder_test.dart', rect_placeholder_test.main);
+  group('placeholder/soft_placeholder_test.dart', soft_placeholder_test.main);
   group('playback/playback_activity_test.dart', playback_activity_test.main);
   group('playback/playback_clock_test.dart', playback_clock_test.main);
   group(
@@ -180,6 +200,22 @@ void main() {
   group(
     'playback/playback_tick_source_contract_test.dart',
     playback_tick_source_contract_test.main,
+  );
+  group(
+    'pool/fake_frame_renderer_contract_test.dart',
+    fake_frame_renderer_contract_test.main,
+  );
+  group('pool/frame_atlas_test.dart', frame_atlas_test.main);
+  group(
+    'pool/frame_atlas_visibility_test.dart',
+    frame_atlas_visibility_test.main,
+  );
+  group('pool/frame_page_images_test.dart', frame_page_images_test.main);
+  group('pool/frame_pool_test.dart', frame_pool_test.main);
+  group('pool/frame_slot_allocator_test.dart', frame_slot_allocator_test.main);
+  group(
+    'pool/list_frame_page_memory_test.dart',
+    list_frame_page_memory_test.main,
   );
   group('preset/asset_presets_test.dart', asset_presets_test.main);
   group(

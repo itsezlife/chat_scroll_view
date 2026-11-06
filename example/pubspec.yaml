@@ -36,6 +36,12 @@ dependencies:
     path: ../packages/image_decoder
   kv_shared_preferences:
     path: ../packages/kv_shared_preferences
+  # Depending on lottie_native is what runs its native build hook for the app;
+  # lottie_decoder is the Decoder over it.
+  lottie_decoder:
+    path: ../packages/lottie_decoder
+  lottie_native:
+    path: ../packages/lottie_native
   panel_pages:
     path: ../packages/panel_pages
   panel_presentation:
@@ -44,10 +50,18 @@ dependencies:
     path: ../packages/panel_shell
   rich_clipboard:
     path: ../packages/rich_clipboard
+  # Depending on video_native is what runs its native build hook for the app
+  # (macOS arm64); video_decoder is the Decoder over it.
+  video_decoder:
+    path: ../packages/video_decoder
+  video_native:
+    path: ../packages/video_native
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
       ref: v0.9.3
+  # The Giphy client's transport, injectable so tests pass a fake.
+  http: ^1.6.0
   listen: ^1.0.1
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
@@ -89,6 +103,17 @@ flutter:
     - assets/chat_wallpaper/LICENSE.md
     # The animated emoji pack and its licence credit; see LICENSE.md there.
     - assets/animated_emoji/
+    # Lottie stickers authored for the demo (no third-party artwork).
+    - assets/lottie_stickers/
+    # Static stickers authored for the demo (no third-party artwork).
+    - assets/static_stickers/
+    # Video stickers, clips and GIFs generated for the demo from synthetic
+    # sources (no third-party artwork); the README there has the commands.
+    - assets/video_stickers/
+    # A local corpus of Telegram's Lottie stickers: the folder holds only a
+    # README and a .gitignore in a checkout (the files are Telegram's and never
+    # committed), so it exists and builds without them. See the README there.
+    - assets/telegram_stickers/
     - path: assets/comments/
       platforms:
         - android

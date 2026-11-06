@@ -38,3 +38,5 @@ export 'src/playback/testing/manual_playback_lifecycle_source.dart';
 export 'src/playback/testing/manual_playback_tick_source.dart';
 export 'src/playback/testing/playback_lifecycle_source_contract.dart';
 export 'src/playback/testing/playback_tick_source_contract.dart';
+export 'src/pool/testing/fake_frame_renderer.dart';
+export 'src/pool/testing/frame_renderer_contract.dart';

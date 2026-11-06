@@ -10,7 +10,8 @@ Decisions: [ADR 021](../adr/021-content-identity-and-collections.md),
 [ADR 023](../adr/023-data-layering-and-persistence.md),
 [ADR 017](../adr/017-body-linkify-host-invoked.md) (entity detection),
 [ADR 034](../adr/034-rich-text-wire-and-persistence.md),
-[ADR 036](../adr/036-emoji-only-message-presentation.md).
+[ADR 036](../adr/036-emoji-only-message-presentation.md),
+[ADR 042](../adr/042-native-media-decoding.md) (native decoders).
 
 ## Language
 
@@ -114,6 +115,22 @@ _Avoid_: Drawable, `ui.Image` per tick, a downcast to find the sprite
 `none`, `placeholder`, `firstFrame`, `full`, each with `isFinal`. No visible failed stage: a failed fetch or decode leaves the placeholder showing. Retry happens on re-attach, on the host's connectivity-restored signal, or through `retry()`.
 _Avoid_: Failed state, error stand-in, three-state readiness
 
+**Stand-in**:
+What a surface draws for content that is not there yet: the scope's placeholder paintable (a circle for a glyph, the whole rectangle in one quiet colour for any other media, `RectPlaceholder`), a placeholder an embed brings (`SoftPlaceholder`, a quiet rounded square for a sticker), or the thumbnail. The rectangle has the size and proportion of the final cell from the first frame, so a thumbnail that arrives moves nothing; a binding rounds its corners with the surface's `AssetProfile.cornerRadius`. A bitmap thumbnail stays fully opaque under content that fades in and is released when the content is opaque (the binding keeps it for that: `paintStandIn` / `releaseStandIn`); a silhouette stand-in fades out as the content rises.
+_Avoid_: Fading a bitmap thumbnail out while the content fades in, a failed stand-in, a circle for media
+
+**Asset fit**:
+How content of one proportion fills a rectangle of another, chosen per surface (`AssetProfile.fit`): `contain` shows the whole picture with bars, `cover` fills the rectangle and crops the overflow, centre-anchored. A GIF in a grid cell covers it (the reference client's `isAspectFit` is false there); a sticker is contained. Content and its thumbnail follow the same fit, so a thumbnail replaced by content does not change its crop.
+_Avoid_: Letterboxed GIF in a grid cell, a clip or a second draw for the crop
+
+**Mini-thumbnail**:
+The small preview still of a piece of content (`ContentDescriptor.thumbnail`), decoded to at most 40 pixels on its longer side and blurred once at decode (`MiniThumbnail.decode`, the reference client's stripped photo with its radius 3 stack blur), then stretched over the box by the surface. A host that has no preview for a content gives none and the cell keeps its placeholder.
+_Avoid_: A blur per frame, a blur hash, decoding the preview at full size
+
+**Radial progress**:
+The reference client's loading indicator for media (`RadialProgress`): a translucent dark disc with a turning white arc and a cross, painted by the surface over the thumbnail while the content loads. A function of the frame time of the surface's own paint pass; the cache reports stages and no fractions, so the arc sweeps a fixed quarter.
+_Avoid_: A controller per cell, a progress percentage the cache does not have
+
 **Content fetcher**:
 Host seam from descriptor to bytes or file. Owns network, provenance refresh and the disk tier.
 _Avoid_: Loader that also decodes
@@ -133,6 +150,22 @@ _Avoid_: A pause flag on a widget, feeding app lifecycle into a row's `isActive`
 **Glyph sprite source**:
 The one narrow seam through which the asset cache reaches a glyph atlas: the sprite of a glyph, a hold on its page, a page listener, and whether a sprite is on its way (`waitsForSprite`; a glyph nothing waits for is drawn as text). Several atlases are one source through a layered source: the background bake first, glyphs that joined later after it. The atlas implements it and the host registers it with the scope. Bindings hold the page from attach to detach.
 _Avoid_: The cache creating or owning atlases, `panel_catalog` importing atlas types
+
+**Dynamic page**:
+A shared page of animation frames in the asset cache. An animated asset owns a **slot** on it; a worker renders every active slot in one batch call per tick and the pool uploads one image per page that changed. The paintable exposes a sprite on it. It is a separate pool and budget from the baked glyph pages ([ADR 022](../adr/022-asset-cache-and-media-pipeline.md) amendment, [ADR 042](../adr/042-native-media-decoding.md)).
+_Avoid_: A `ui.Image` per animated asset, mixing frame slots into glyph pages
+
+**Renderer seam**:
+The engine-agnostic seam in `catalog_assets`: given slots, frame times and sizes, write premultiplied pixels into page memory. A native decoder adapter implements it; the pool, slot allocator and residency stay in the core, which holds no native code.
+_Avoid_: The pool calling an engine, a decoder owning pages
+
+**Frame cache**:
+Compressed rendered frames of an animation, keyed by content, display size and engine version, replayed instead of re-rendering. Skipped above 512 x 512 display size; disk and memory tiers on native, memory only on web.
+_Avoid_: Keying by source size, a cache that is a visible stage
+
+**Native binding**:
+The leaf package that owns the native library, its build hook, its `dart:ffi` or web-worker bindings and a guarded load probe. A decoder adapter depends on it; a failed probe means the decoder is never registered.
+_Avoid_: FFI calls in an adapter or the core, retrying a library that failed to load
 
 **Content embed**:
 The `catalog_assets` adapter implementing an inline embed over an asset binding with the `messages` preset.
