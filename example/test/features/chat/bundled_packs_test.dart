@@ -5,6 +5,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_p
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -31,17 +32,20 @@ FetchRequest _request(ContentDescriptor descriptor, {FetchPart? part}) =>
 void main() {
   final emoji = AnimatedEmojiPack.emoji.first;
   final sticker = LottieStickerPack.stickers.first;
+  final still = StaticStickerPack.stickers.first;
 
   test('lists the descriptors of every pack', () {
     expect(BundledPacks.descriptors, [
       ...AnimatedEmojiPack.descriptors,
       ...LottieStickerPack.descriptors,
+      ...StaticStickerPack.descriptors,
     ]);
   });
 
   test('finds an item of any pack by its key and no other content', () {
     expect(BundledPacks.of(emoji.key), same(emoji));
     expect(BundledPacks.of(sticker.key), same(sticker));
+    expect(BundledPacks.of(still.key), same(still));
     expect(BundledPacks.of(const ContentKey.document('other')), isNull);
     expect(BundledPacks.of(const ContentKey.unicode('\u{1F600}')), isNull);
   });
@@ -69,6 +73,7 @@ void main() {
     final fetcher = BundledPacks.fetcher(_DiskBundle());
 
     test('reads an emoji and a sticker from the bundle', () async {
+      final stillContent = await fetcher.fetch(_request(still.descriptor));
       final emojiContent = await fetcher.fetch(_request(emoji.descriptor));
       final stickerContent = await fetcher.fetch(_request(sticker.descriptor));
 
@@ -79,6 +84,10 @@ void main() {
       expect(
         (stickerContent as FetchedBytes).bytes,
         File(sticker.assetPath).readAsBytesSync(),
+      );
+      expect(
+        (stillContent as FetchedBytes).bytes,
+        File(still.assetPath).readAsBytesSync(),
       );
     });
 
@@ -109,12 +118,14 @@ void main() {
       final found = await BundledPacks.resolver().resolve([
         emoji.key,
         sticker.key,
+        still.key,
         const ContentKey.document('other'),
       ]);
 
       expect(found, {
         emoji.key: emoji.descriptor,
         sticker.key: sticker.descriptor,
+        still.key: still.descriptor,
       });
     },
   );

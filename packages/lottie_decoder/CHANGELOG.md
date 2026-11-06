@@ -7,6 +7,9 @@ package is pre-1.0.
 
 ### Added
 
+- `FrameCache`, `FrameCacheKey` and `FrameCacheFiles`: a RAM and disk store of
+  compressed animation frames keyed by content, display size and engine
+  version. Not wired into the renderer yet: nothing changes for existing hosts.
 - `LottieEngine` and `InProcessLottieEngine`, `NativeFramePageMemory` and
   `LottieFrameRenderer`, tested against `FrameRendererContract` over the fake
   and the native binding.
