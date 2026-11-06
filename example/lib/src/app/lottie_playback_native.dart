@@ -31,7 +31,7 @@ Future<LottiePlayback?> start({
   } on Object catch (reason, stackTrace) {
     // The probe's answer, not a bug to propagate: whatever stopped the
     // engine starting, the app boots without stickers.
-    l.w('Lottie stickers are off (${reason.runtimeType}): $reason', stackTrace);
+    LottiePlayback.reportUnavailable(reason, stackTrace);
     return null;
   }
   // One memory for the renderer and the atlas, native so the render isolate

@@ -250,6 +250,35 @@ web host has an engine over the worker, a `ListFramePageMemory`, a
 `FrameCache(directoryPath: null)`: memory only, a path there is an
 `ArgumentError`. A `FetchedFile` fails the decode there (no file system).
 
+### Web
+
+The composition on the web is the native one with two substitutions:
+
+1. The engine is `JsLottieWorker.spawnFromUrls(workerUrl:, wasmUrl:,
+   wasmNoSimdUrl:)` (`WebWorkerLottieEngine` over a module `Worker`); relative
+   urls resolve against the page. It is the probe: with the files missing it
+   throws `LottieUnavailable`, the host logs once and registers no decoder.
+2. The pages are a `ListFramePageMemory` and the renderer is
+   `PixelCopyFrameRenderer(engine)`; there is no `FrameCache`, so the frames
+   are kept in memory only and nothing survives a reload.
+
+The example splits this in two: `startPixelLottiePlayback` (no
+`dart:js_interop`, takes an `engineFactory`, runs on the VM in tests) does the
+composition and the shutdown order (scheduler, then engine); the web file
+(`lottie_playback_web.dart`, chosen by `dart.library.js_interop`) supplies only
+the factory. The worker, `chat_lottie_core.mjs` beside it and the two wasm
+builds come from `dart packages/lottie_native/native/tool/build_web.dart --out
+<dir>`; the example puts them in `example/web/lottie/` (gitignored, not
+committed; where a host serves them from is not decided).
+
+When the files are not served, or the worker is not ready in ten seconds, the
+page works as on a platform without the native library: vector animations keep
+their placeholder, everything else plays. `flutter build web` succeeds with or
+without the files, and `--wasm` compiles.
+
+**Not run.** No browser has run this. The builds only compile; the whole path
+real worker, real wasm and Dart together is unverified.
+
 ## 4. Per-chat controller set
 
 A chat screen creates these when it opens and disposes them when it closes.
@@ -1154,7 +1183,7 @@ not use the hover-open toggle region.
 | Step | File |
 | --- | --- |
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
-| Lottie decoder probe and start, the frame cache and its folder (native and web forks) | `example/lib/src/app/lottie_playback.dart`, `lottie_playback_native.dart`, `lottie_playback_stub.dart` |
+| Lottie decoder probe and start, the frame cache and its folder (native and web forks) | `example/lib/src/app/lottie_playback.dart`, `lottie_playback_native.dart`, `lottie_playback_pixel.dart`, `lottie_playback_web.dart`, `lottie_playback_stub.dart` |
 | Bundled packs: one lookup, fetcher and resolver, one pack source, the authored Lottie and static stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart`, `static_sticker_pack.dart` |
 | `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
 | App scopes | `example/lib/src/app/app_chrome.dart` |
