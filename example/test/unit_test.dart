@@ -127,8 +127,6 @@ import 'widgets/large_emoji_limit_button_test.dart'
     as large_emoji_limit_button_test;
 import 'widgets/lottie_sticker_message_test.dart'
     as lottie_sticker_message_test;
-import 'widgets/static_sticker_message_test.dart'
-    as static_sticker_message_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
 import 'widgets/message_row_frame_test.dart' as message_row_frame_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
@@ -136,6 +134,8 @@ import 'widgets/panel_keeps_composer_focus_test.dart'
     as panel_keeps_composer_focus_test;
 import 'widgets/panel_menu_holds_popup_test.dart'
     as panel_menu_holds_popup_test;
+import 'widgets/static_sticker_message_test.dart'
+    as static_sticker_message_test;
 import 'widgets/status_click_test.dart' as status_click_test;
 import 'widgets/unread_boundary_background_test.dart'
     as unread_boundary_background_test;
