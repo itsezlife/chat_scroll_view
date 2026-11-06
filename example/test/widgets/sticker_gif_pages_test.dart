@@ -94,8 +94,11 @@ void main() {
         .single;
 
     expect(_has('fox'), isTrue, reason: 'the strip names the pack');
-    // Its tab brings the pack into view, wherever linked packs put it.
-    tester.semantics.tap(find.semantics.byLabel('fox'));
+    // Its tab brings the pack into view, wherever linked packs put it. With
+    // the fox pack alone (no linked corpus) its section header is on screen
+    // too and carries the same label, so tap the first match: either one
+    // leaves the pack in view.
+    tester.semantics.tap(find.semantics.byLabel('fox').first);
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
