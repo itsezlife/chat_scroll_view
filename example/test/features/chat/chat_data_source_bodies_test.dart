@@ -8,6 +8,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_d
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -98,9 +99,9 @@ void main() {
             message.emojiOnly?.items.length,
         ],
         [
-          // The unicode emoji, the animated one, the four Lottie stickers and
-          // the four static ones.
-          ...List.filled(10, 1),
+          // The unicode emoji, the animated one, the four Lottie stickers, the
+          // four static ones and the seven video items.
+          ...List.filled(17, 1),
           3, 5, 12, 3,
         ],
       );
@@ -137,6 +138,26 @@ void main() {
             message.emojiOnly?.items.map((item) => item.key).single,
         ],
         [for (final sticker in StaticStickerPack.stickers) sticker.key],
+      );
+    });
+
+    test('has each WebM sticker, MP4 clip and GIF of the video pack as a lone '
+        'document', () {
+      // After the lone emoji, the Lottie stickers and the static ones.
+      final items = messages
+          .skip(
+            12 +
+                LottieStickerPack.stickers.length +
+                StaticStickerPack.stickers.length,
+          )
+          .take(VideoStickerPack.items.length);
+
+      expect(
+        [
+          for (final message in items)
+            message.emojiOnly?.items.map((item) => item.key).single,
+        ],
+        [for (final item in VideoStickerPack.items) item.key],
       );
     });
 

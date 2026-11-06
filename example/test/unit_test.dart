@@ -144,6 +144,7 @@ import 'widgets/status_click_test.dart' as status_click_test;
 import 'widgets/unread_boundary_background_test.dart'
     as unread_boundary_background_test;
 import 'widgets/unread_separator_test.dart' as unread_separator_test;
+import 'widgets/video_sticker_message_test.dart' as video_sticker_message_test;
 import 'widgets/widget_chat_screen_bodies_test.dart'
     as widget_chat_screen_bodies_test;
 import 'widgets/widget_chat_screen_source_test.dart'
@@ -275,6 +276,10 @@ void main() {
   group(
     'widgets/static_sticker_message_test.dart',
     static_sticker_message_test.main,
+  );
+  group(
+    'widgets/video_sticker_message_test.dart',
+    video_sticker_message_test.main,
   );
   group(
     'features/chat/chat_messages_copy_format_test.dart',
