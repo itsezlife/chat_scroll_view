@@ -3,6 +3,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_sou
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
 
 /// Message bodies that show the inline layer and the emoji-only bodies working
 /// in the reference host: custom emoji painted in the text, spoilers (with an
@@ -58,9 +59,9 @@ abstract final class ShowcaseBodies {
     '\u{1F44D}\n\n\u{1F44D} \u{1F44D}',
   ]);
 
-  // `![name](document:id)` of a [sticker] of either pack.
-  static String _sticker(BundledItem sticker) =>
-      '![${sticker.descriptor.spokenName}](${sticker.key.encoded})';
+  // `![name](document:id)` of a [sticker] of either pack: what picking it in
+  // the panel sends.
+  static String _sticker(BundledItem sticker) => StickerMessageBody.of(sticker);
 
   // `![glyph](document:id)` of the pack's emoji [code].
   static String _emoji(String code) {

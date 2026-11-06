@@ -21,6 +21,7 @@ import 'package:chat_scroll_view_example/src/features/chat/input/stub_panel_page
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/link_url_dialog.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -526,8 +527,12 @@ final class ChatInputSet {
   /// touch platform the soft keyboard rises (see [_raiseKeyboardForEdit]).
   /// Only a user's own edit does this: a draft that restores into edit mode
   /// ([bindDrafts]) leaves focus and the keyboard as they are.
+  ///
+  /// Does nothing for a body that is a sticker or a GIF
+  /// ([MessageEditability]): this is the one door every way into edit mode
+  /// goes through, so the rule holds for a door added later too.
   void beginEdit(int id, String body) {
-    if (_disposed) return;
+    if (_disposed || !MessageEditability.canEditBody(body)) return;
     final text = ChatBodyMarkdown.decodeForEdit(body);
     composer.restore(
       text,

@@ -10,8 +10,10 @@ import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/content_model.dart' as model show RichText;
@@ -1284,6 +1286,32 @@ void main() {
       expect(rig.set.editing.value, isNull);
       expect(rig.set.composer.text.text, isEmpty);
       expect(find.byType(ComposerView), findsNothing);
+    });
+  });
+
+  group('editing a sticker or a GIF', () {
+    testWidgets('is refused: the composer stays as it is', (tester) async {
+      final rig = await _mobileRig(tester);
+      rig.set.composer.text.text = 'draft';
+
+      rig.set.beginEdit(7, StickerMessageBody.of(VideoStickerPack.gifs.first));
+      rig.set.beginEdit(
+        8,
+        StickerMessageBody.of(VideoStickerPack.stickers.first),
+      );
+      await tester.pump();
+
+      expect(rig.set.editing.value, isNull);
+      expect(rig.set.composer.text.text, 'draft');
+    });
+
+    testWidgets('is allowed for text', (tester) async {
+      final rig = await _mobileRig(tester);
+
+      rig.set.beginEdit(7, 'hello');
+      await tester.pump();
+
+      expect(rig.set.editing.value?.id, 7);
     });
   });
 
