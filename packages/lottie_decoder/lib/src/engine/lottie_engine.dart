@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:lottie_native/lottie_native.dart';
@@ -56,6 +57,17 @@ final class LottieEngineJob {
 
   /// The distance in bytes between the starts of two rows.
   final int strideBytes;
+
+  /// The binding's own job, with [address] turned back into a pointer. An
+  /// engine calls it on the isolate that owns the binding.
+  LottieRenderJob toBindingJob() => LottieRenderJob(
+    handle: handle,
+    frame: frame,
+    width: width,
+    height: height,
+    target: Pointer<Uint8>.fromAddress(address),
+    strideBytes: strideBytes,
+  );
 }
 
 /// An engine was used after it closed (or after its isolate ended): the

@@ -73,13 +73,14 @@ final class _Rig {
     LottieEngine? engine,
     LottieImageDecoder? decodeImage,
     LottiePixelUploader? upload,
+    FrameRenderer? renderer,
   }) : binding = FakeLottieBinding()..accept(_fakeBytes, _info) {
     this.engine = engine ?? InProcessLottieEngine(binding);
     ticks = ManualPlaybackTickSource();
     clock = PlaybackClock(ticks: ticks);
     scheduler = LottieFrameScheduler(
       atlas: FrameAtlas<Object>(
-        renderer: FakeFrameRenderer(),
+        renderer: renderer ?? FakeFrameRenderer(),
         memory: ListFramePageMemory(pageSide: 1024),
         sizeClasses: const [64, 128, 256, 512],
         upload: (pixels, side) async => _image(),
@@ -212,6 +213,54 @@ void main() {
       expect(rig.uploaded.single.height, 50);
       expect(rig.uploaded.single.pixels, hasLength(100 * 50 * 4));
     });
+
+    test(
+      'the decode and the paintable render a non-square file at one size',
+      () async {
+        final sizes = _SizeRecordingRenderer();
+        final wide = _Rig(renderer: sizes);
+        addTearDown(wide.close);
+        wide.binding.accept(
+          Uint8List.fromList([7]),
+          const LottieInfo(
+            width: 300,
+            height: 100,
+            frameCount: 10,
+            frameRate: 30,
+            features: LottieFeatures.none,
+          ),
+        );
+        wide.decoder.decode(
+          _request(
+            Uint8List.fromList([7]),
+            spec: const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+          ),
+          report,
+        );
+        await settle();
+
+        final paintable = report.advances.last.paintable;
+        final recorder = ui.PictureRecorder();
+        paintable.paint(
+          ui.Canvas(recorder),
+          const ui.Rect.fromLTWH(0, 0, 64, 64),
+          const AssetPaintContext(
+            time: Duration.zero,
+            loop: true,
+            restFrame: AssetRestFrame.first,
+            animate: true,
+            opacity: 1,
+          ),
+        );
+        recorder.endRecording().dispose();
+        wide.ticks.tick(const Duration(milliseconds: 16));
+        await settle();
+
+        final first = wide.uploaded.single;
+        expect(sizes.sizes, [(first.width, first.height)]);
+        expect((first.width, first.height), (64, 21));
+      },
+    );
 
     test('the animation frees its handle when it is disposed', () async {
       rig.decoder.decode(_request(_fakeBytes), report);
@@ -502,4 +551,15 @@ final class _DisposeThrows implements LottieEngine {
 
   @override
   Future<void> close() => _inner.close();
+}
+
+/// A renderer that notes the size of every job and renders nothing.
+final class _SizeRecordingRenderer implements FrameRenderer {
+  final List<(int, int)> sizes = [];
+
+  @override
+  Future<List<int>> render(List<FrameJob> jobs, FramePageMemory memory) async {
+    sizes.addAll([for (final job in jobs) (job.width, job.height)]);
+    return [for (var i = 0; i < jobs.length; i++) i];
+  }
 }

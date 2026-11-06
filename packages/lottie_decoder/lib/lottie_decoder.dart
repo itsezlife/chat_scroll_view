@@ -10,3 +10,4 @@ export 'src/paint/lottie_animation_paintable.dart';
 export 'src/paint/lottie_still_paintable.dart';
 export 'src/playback/lottie_frame_scheduler.dart';
 export 'src/renderer/lottie_frame_renderer.dart';
+export 'src/renderer/lottie_frame_size.dart';
