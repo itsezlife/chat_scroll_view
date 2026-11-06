@@ -36,6 +36,12 @@ dependencies:
     path: ../packages/image_decoder
   kv_shared_preferences:
     path: ../packages/kv_shared_preferences
+  # Depending on lottie_native is what runs its native build hook for the app;
+  # lottie_decoder is the Decoder over it.
+  lottie_decoder:
+    path: ../packages/lottie_decoder
+  lottie_native:
+    path: ../packages/lottie_native
   panel_pages:
     path: ../packages/panel_pages
   panel_presentation:
@@ -89,6 +95,8 @@ flutter:
     - assets/chat_wallpaper/LICENSE.md
     # The animated emoji pack and its licence credit; see LICENSE.md there.
     - assets/animated_emoji/
+    # Lottie stickers authored for the demo (no third-party artwork).
+    - assets/lottie_stickers/
     - path: assets/comments/
       platforms:
         - android
