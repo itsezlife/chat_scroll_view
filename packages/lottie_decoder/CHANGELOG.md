@@ -5,6 +5,18 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (pages sized by class, breaking)
+
+- `NativeFramePageMemory()` takes no page side: `page(i, side:)` and
+  `addressOf(i, side:)` make the page at the side of its slot, `sideOf(i)`
+  answers it, and a live page asked for at another side is a `StateError`.
+  Code that built `NativeFramePageMemory(pageSide: ...)` drops the argument.
+- `LottieFrameRenderer` writes at `(top * side + left) * 4` with a stride of
+  `side * 4`, `side` being `FrameSlot.pageSide`.
+- The playback benchmark's baseline moves: one 128 px sticker uploads 256 KiB a
+  tick (was 4 MiB), eight 512 KiB, 32 stickers 2 MiB (were 4 MiB each); at 32
+  the eight smaller uploads take longer in total than the one large one did.
+
 ### Added
 
 - A playback benchmark over the real native library (1, 8 and 32 stickers: tick, render round trip, upload, bytes per tick, pages), gated by the `benchmark` tag and `LOTTIE_PLAYBACK_BENCH=1`, reported against a committed baseline as ratios.

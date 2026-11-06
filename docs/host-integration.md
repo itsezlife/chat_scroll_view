@@ -202,11 +202,14 @@ Create, in this order:
    the library is missing or speaks another version; any other error is the
    isolate failing to start. Log once through the host's diagnostics with the
    error's type, create nothing more and do not register.
-3. One `NativeFramePageMemory` (the render isolate writes it), a `FrameCache`
+3. One `NativeFramePageMemory` (the render isolate writes it; it takes no
+   size, each page is made at the side of its slot: twice the size class's
+   edge by default, `FrameAtlas.pageSideFor`), a `FrameCache`
    (`directory:` the folder the host keeps rendered frames in between
    launches, null for memory only; the byte budgets are its own parameters),
-   a `FrameAtlas` over the memory with a `LottieFrameRenderer(engine:, memory:,
-   cache:)` and the memory-pressure `Listenable` the scope shares, and a
+   a `FrameAtlas` over the memory (its `budgetBytes`, default 48 MiB, is what
+   the open pages may cost together) with a `LottieFrameRenderer(engine:,
+   memory:, cache:)` and the memory-pressure `Listenable` the scope shares, and a
    `LottieFrameScheduler` on the clock, which owns the atlas.
 4. `decoders.register(MediaForm.vectorAnimation, LottieDecoder(engine:,
    scheduler:, cache:))`, before the `AssetPipeline` is built. Tell the pipeline the
