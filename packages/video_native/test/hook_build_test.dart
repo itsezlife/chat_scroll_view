@@ -150,5 +150,28 @@ void main() {
         ]),
       );
     });
+
+    // Xcode runs the hook with only PATH, HOME and TMPDIR, and puts its own
+    // toolchain first in PATH: that `cc` has no SDK to default to, so the
+    // wrapper's first system include (errno.h) is not found unless the
+    // sysroot is passed.
+    test('name the SDK when given one, and leave it to the compiler '
+        'otherwise', () {
+      List<String> arguments({String? sysroot}) => wrapperCompileArguments(
+        source: 'a.c',
+        includeDir: 'inc',
+        prefix: '/p',
+        output: 'out.dylib',
+        sysroot: sysroot,
+      );
+
+      final withSdk = arguments(sysroot: '/sdk/MacOSX.sdk');
+
+      expect(withSdk.sublist(withSdk.indexOf('-isysroot')).take(2), [
+        '-isysroot',
+        '/sdk/MacOSX.sdk',
+      ]);
+      expect(arguments(), isNot(contains('-isysroot')));
+    });
   });
 }
