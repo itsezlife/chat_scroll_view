@@ -1,8 +1,8 @@
-import 'package:lottie_native/src/lottie_binding.dart';
 import 'package:lottie_native/src/lottie_features.dart';
+import 'package:lottie_native/src/lottie_handle.dart';
 import 'package:meta/meta.dart';
 
-/// The outcome of [LottieBinding.load]: a closed set, so a caller handles
+/// The outcome of `LottieBinding.load`: a closed set, so a caller handles
 /// both and a bad file is a value, never an exception.
 sealed class LottieLoadResult {
   const LottieLoadResult();

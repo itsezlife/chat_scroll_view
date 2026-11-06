@@ -1,7 +1,10 @@
 import 'dart:ffi';
 import 'dart:typed_data';
 
+import 'package:lottie_native/src/lottie_availability.dart';
+import 'package:lottie_native/src/lottie_handle.dart';
 import 'package:lottie_native/src/lottie_load_result.dart';
+import 'package:lottie_native/src/lottie_render_status.dart';
 
 /// The native Lottie renderer as the host sees it: load a file, render frames
 /// into page memory, dispose.
@@ -42,23 +45,6 @@ abstract interface class LottieBinding {
   void close();
 }
 
-/// Whether a binding can be used, and if not, why.
-enum LottieAvailability {
-  /// The library loaded and speaks the expected ABI version.
-  available,
-
-  /// The library, or a symbol of it, could not be found.
-  missingLibrary,
-
-  /// The library loaded but speaks another ABI version.
-  abiMismatch,
-}
-
-/// An opaque reference to a loaded animation.
-///
-/// An integer, not a pointer, so a fake and a web binding can issue them too.
-extension type const LottieHandle(int id) {}
-
 /// One frame to draw into a slot of page memory.
 final class LottieRenderJob {
   /// Creates a job.
@@ -96,20 +82,4 @@ final class LottieRenderJob {
 
   /// The distance in bytes between the starts of two rows.
   final int strideBytes;
-}
-
-/// What happened to one [LottieRenderJob].
-enum LottieRenderStatus {
-  /// The slot holds the frame.
-  ok,
-
-  /// An unknown or disposed handle, a null target or an invalid frame.
-  badArgument,
-
-  /// A zero edge, an edge over [LottieRenderJob.maxEdge], or a stride under
-  /// the row width.
-  badSize,
-
-  /// The renderer failed on this job, or hit an internal error.
-  failed,
 }
