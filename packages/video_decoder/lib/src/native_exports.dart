@@ -2,3 +2,4 @@
 // barrel exports this file by default and swaps in the stub where
 // `dart.library.js_interop` is true (the web).
 export 'package:video_decoder/src/engine/in_process_video_engine.dart';
+export 'package:video_decoder/src/engine/isolate_video_engine.dart';

@@ -46,25 +46,37 @@ final class VideoDecodeCore {
   /// Decodes the next frame of clip [id] and copies it into [destination].
   VideoFrameResult nextFrame(int id, Uint8List destination) {
     final open = _clips[id];
-    if (open == null) {
-      return const VideoFrameResult(VideoFrameStatus.badArgument);
-    }
-    if (destination.length < open.frameBytes) {
+    if (open != null && destination.length < open.frameBytes) {
       return const VideoFrameResult(VideoFrameStatus.badSize);
+    }
+    final (result, pixels) = decodeNext(id);
+    if (pixels != null) destination.setRange(0, pixels.length, pixels);
+    return result;
+  }
+
+  /// Decodes the next frame of clip [id] and returns it with a view of the
+  /// pixels (null unless the status is a frame).
+  ///
+  /// The view is the clip's own scratch memory: valid until the next call on
+  /// this clip or its close, so the caller copies it out at once. The worker
+  /// isolate copies it straight into a transferable, which is the one copy it
+  /// makes; [nextFrame] is the same call plus a copy into a caller's list.
+  (VideoFrameResult, Uint8List?) decodeNext(int id) {
+    final open = _clips[id];
+    if (open == null) {
+      return (const VideoFrameResult(VideoFrameStatus.badArgument), null);
     }
     final result = _binding.nextFrame(
       open.handle,
       target: open.scratch,
       strideBytes: open.rowBytes,
     );
-    if (result.status == VideoFrameStatus.frame) {
-      destination.setRange(
-        0,
-        open.frameBytes,
-        open.scratch.asTypedList(open.frameBytes),
-      );
-    }
-    return result;
+    return (
+      result,
+      result.status == VideoFrameStatus.frame
+          ? open.scratch.asTypedList(open.frameBytes)
+          : null,
+    );
   }
 
   /// Seeks clip [id] to its start.
