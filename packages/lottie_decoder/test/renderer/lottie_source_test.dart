@@ -40,7 +40,7 @@ void main() {
           LottieSource(const LottieHandle(2), cacheKey: key, frameCount: 60),
         ),
       );
-      expect(base, isNot(LottieSource(const LottieHandle(1), frameCount: 60)));
+      expect(base, isNot(const LottieSource(LottieHandle(1), frameCount: 60)));
       expect(
         base,
         isNot(
@@ -51,7 +51,7 @@ void main() {
 
     test('has no key unless given one: it is not cached', () {
       expect(
-        LottieSource(const LottieHandle(1), frameCount: 10).cacheKey,
+        const LottieSource(LottieHandle(1), frameCount: 10).cacheKey,
         isNull,
       );
     });
