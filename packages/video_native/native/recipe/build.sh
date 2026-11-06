@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
-# Reproducible FFmpeg + libvpx build for the video decoder, macOS arm64.
+# Reproducible FFmpeg + libvpx build for the video decoder.
 #
-#   native/recipe/build.sh [fetch|libvpx|ffmpeg|probe|check|all]   (default: all)
+#   [TARGET=macos-arm64|android-arm64] native/recipe/build.sh \
+#       [fetch|libvpx|ffmpeg|probe|check|verify|all]   (default: all)
+#
+# macos-arm64 (the default) builds natively on an arm64 Mac. android-arm64
+# cross-compiles on a Mac with the Android NDK (ANDROID_NDK_HOME, else the
+# highest <sdk>/ndk/<version> under ANDROID_HOME or ~/Library/Android/sdk;
+# ANDROID_API picks the API level, default 24). The Android build has no probe:
+# the host cannot run it; `verify` checks the ELF files instead.
 #
 # Everything lands in native/.build/<target>/ (gitignored): downloads in
 # dl/, sources in src/, the install prefix in prefix/, the probe in probe.
@@ -19,16 +26,47 @@ NATIVE="$(cd "$HERE/.." && pwd)"
 . "$HERE/manifest.env"
 
 TARGET="${TARGET:-macos-arm64}"
-[ "$TARGET" = macos-arm64 ] || { echo "only macos-arm64 is supported" >&2; exit 2; }
-[ "$(uname -s)-$(uname -m)" = Darwin-arm64 ] || { echo "run on an arm64 Mac" >&2; exit 2; }
-
 BUILD="$NATIVE/.build/$TARGET"
 DL="$BUILD/dl"
 SRC="$BUILD/src"
 PREFIX="$BUILD/prefix"
 JOBS="$(sysctl -n hw.ncpu)"
 MIN_MACOS=11.0
-export MACOSX_DEPLOYMENT_TARGET="$MIN_MACOS"
+ANDROID_API="${ANDROID_API:-24}"
+# Android 15+ devices may use 16 KiB pages: every .so must be aligned for them.
+ANDROID_LDFLAGS="-Wl,-z,max-page-size=16384"
+
+case "$TARGET" in
+  macos-arm64)
+    [ "$(uname -s)-$(uname -m)" = Darwin-arm64 ] || { echo "run on an arm64 Mac" >&2; exit 2; }
+    export MACOSX_DEPLOYMENT_TARGET="$MIN_MACOS"
+    LIBVPX_TARGET=arm64-darwin20-gcc
+    LIBVPX_EXTRA=()
+    ;;
+  android-arm64)
+    [ "$(uname -s)" = Darwin ] || { echo "the Android build is set up for a Mac host" >&2; exit 2; }
+    NDK="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
+    if [ -z "$NDK" ]; then
+      SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
+      NDK="$(ls -d "$SDK"/ndk/[0-9]* 2>/dev/null | sort -V | tail -n1 || true)"
+    fi
+    TOOLS="$NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin"
+    [ -x "$TOOLS/aarch64-linux-android$ANDROID_API-clang" ] || {
+      echo "no Android NDK clang for API $ANDROID_API under '${NDK:-<none>}'; set ANDROID_NDK_HOME" >&2
+      exit 2
+    }
+    LIBVPX_TARGET=arm64-android-gcc
+    # NEON is part of arm64, so no runtime detection (which on Android would
+    # need the NDK's cpu-features source).
+    LIBVPX_EXTRA=(--disable-runtime-cpu-detect)
+    # libvpx's configure reads the toolchain from these variables.
+    export CC="$TOOLS/aarch64-linux-android$ANDROID_API-clang"
+    export CXX="$TOOLS/aarch64-linux-android$ANDROID_API-clang++"
+    export AR="$TOOLS/llvm-ar" AS="$CC" LD="$CC" NM="$TOOLS/llvm-nm"
+    export RANLIB="$TOOLS/llvm-ranlib" STRIP="$TOOLS/llvm-strip"
+    ;;
+  *) echo "unsupported TARGET $TARGET (macos-arm64, android-arm64)" >&2; exit 2 ;;
+esac
 
 fetch_one() { # url sha256 file
   local url="$1" sha="$2" file="$DL/$3"
@@ -61,22 +99,22 @@ do_libvpx() {
   ( cd "$SRC/libvpx-build"
     # Decoder only (VP8 + VP9), static and PIC: it is linked into libavcodec.
     "$SRC/libvpx/configure" \
-      --target=arm64-darwin20-gcc \
+      --target="$LIBVPX_TARGET" \
       --prefix="$PREFIX" \
       --enable-pic --enable-static --disable-shared \
       --enable-vp8-decoder --enable-vp9-decoder \
       --disable-vp8-encoder --disable-vp9-encoder \
       --disable-examples --disable-tools --disable-docs --disable-unit-tests \
       --disable-install-bins --disable-install-docs \
-      --enable-multithread
+      --enable-multithread \
+      "${LIBVPX_EXTRA[@]}"
     make -j"$JOBS"
     make install )
 }
 
 # Mirrors Telegram's component list (research/07), minus audio, hevc, dav1d.
-FFMPEG_FLAGS=(
+FFMPEG_COMMON=(
   --prefix="$PREFIX"
-  --arch=arm64 --target-os=darwin
   --enable-shared --disable-static --enable-pic --enable-small
   --disable-everything --disable-programs --disable-doc --disable-debug
   --disable-network --disable-autodetect
@@ -89,12 +127,31 @@ FFMPEG_FLAGS=(
   --enable-decoder=libvpx_vp9 --enable-decoder=vp9
   --enable-parser=h264 --enable-parser=vp9 --enable-parser=gif
   --enable-bsf=vp9_superframe_split
-  --install-name-dir=@rpath
-  --extra-cflags="-I$PREFIX/include -mmacosx-version-min=$MIN_MACOS"
-  # Header padding: the Flutter tool rewrites the install names of bundled
-  # dylibs to longer paths, which install_name_tool refuses without room.
-  --extra-ldflags="-L$PREFIX/lib -mmacosx-version-min=$MIN_MACOS -Wl,-headerpad_max_install_names"
 )
+case "$TARGET" in
+  macos-arm64)
+    FFMPEG_FLAGS=("${FFMPEG_COMMON[@]}"
+      --arch=arm64 --target-os=darwin
+      --install-name-dir=@rpath
+      --extra-cflags="-I$PREFIX/include -mmacosx-version-min=$MIN_MACOS"
+      # Header padding: the Flutter tool rewrites the install names of bundled
+      # dylibs to longer paths, which install_name_tool refuses without room.
+      --extra-ldflags="-L$PREFIX/lib -mmacosx-version-min=$MIN_MACOS -Wl,-headerpad_max_install_names")
+    ;;
+  android-arm64)
+    # --enable-jni and --enable-mediacodec stay off (autodetect is off and
+    # neither is named): decoding is software, and JNI would tie the library to
+    # a JavaVM. The Android target builds unversioned libavcodec.so files with
+    # the same string as the soname, which is what the loader matches.
+    FFMPEG_FLAGS=("${FFMPEG_COMMON[@]}"
+      --enable-cross-compile --arch=aarch64 --target-os=android --enable-neon
+      --cc="$CC" --cxx="$CXX" --ar="$AR" --nm="$NM" --ranlib="$RANLIB" --strip="$STRIP"
+      --extra-cflags="-I$PREFIX/include"
+      --extra-ldflags="-L$PREFIX/lib $ANDROID_LDFLAGS")
+    # ffmpeg finds libvpx through pkg-config: point it at ours, not the host's.
+    export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"
+    ;;
+esac
 
 do_ffmpeg() {
   do_fetch
@@ -107,13 +164,20 @@ do_ffmpeg() {
   printf '%s\n' "configure ${FFMPEG_FLAGS[*]}" > "$BUILD/configure-line.txt"
   # Stripped copies are what we size and report.
   rm -rf "$BUILD/stripped"; mkdir -p "$BUILD/stripped"
-  for f in "$PREFIX"/lib/lib{avcodec,avformat,avutil,swscale}.*.*.*.dylib; do
+  local pattern='lib{avcodec,avformat,avutil,swscale}.*.*.*.dylib'
+  [ "$TARGET" = android-arm64 ] && pattern='lib{avcodec,avformat,avutil,swscale}.so'
+  for f in $(eval echo "$PREFIX/lib/$pattern"); do
     cp "$f" "$BUILD/stripped/"
-    strip -x "$BUILD/stripped/$(basename "$f")"
+    if [ "$TARGET" = android-arm64 ]; then
+      "$STRIP" --strip-unneeded "$BUILD/stripped/$(basename "$f")"
+    else
+      strip -x "$BUILD/stripped/$(basename "$f")"
+    fi
   done
 }
 
 do_probe() {
+  [ "$TARGET" = macos-arm64 ] || { echo "the probe runs on the host: macos-arm64 only" >&2; exit 2; }
   clang -O1 -Wall -Wextra -arch arm64 -mmacosx-version-min=$MIN_MACOS \
     -I"$PREFIX/include" "$NATIVE/probe/probe.c" \
     -L"$PREFIX/lib" -lavformat -lavcodec -lswscale -lavutil \
@@ -122,6 +186,7 @@ do_probe() {
 
 # Runs the probe over the fixtures and compares against expected.txt's claims.
 do_check() {
+  [ "$TARGET" = macos-arm64 ] || { echo "check runs the probe: macos-arm64 only; use verify" >&2; exit 2; }
   local fx="$NATIVE/probe/fixtures" p="$BUILD/probe" fail=0 out
   expect() { # label, output, needle...
     local label="$1" output="$2"; shift 2
@@ -141,12 +206,34 @@ do_check() {
   exit $fail
 }
 
+# Android: what the host can say about the ELF files without running them.
+do_verify() {
+  [ "$TARGET" = android-arm64 ] || { echo "verify is for android-arm64" >&2; exit 2; }
+  local readelf="$TOOLS/llvm-readelf" fail=0 f
+  for f in "$PREFIX"/lib/lib{avcodec,avformat,avutil,swscale}.so; do
+    echo "== $(basename "$f") ($(wc -c <"$f") bytes, $(wc -c <"$BUILD/stripped/$(basename "$f")") stripped)"
+    "$readelf" -h "$f" | grep -E 'Class|Machine'
+    "$readelf" -lW "$f" | awk '$1=="LOAD"{print "LOAD align " $NF}'
+    "$readelf" -dW "$f" | grep -E 'NEEDED|SONAME|TEXTREL' || true
+    "$readelf" -lW "$f" | awk '$1=="LOAD" && $NF!="0x4000"{bad=1} END{exit bad}' \
+      || { echo "FAIL: a LOAD segment is not aligned to 0x4000"; fail=1; }
+    ! "$readelf" -dW "$f" | grep -q TEXTREL || { echo "FAIL: text relocations"; fail=1; }
+  done
+  grep -q -- '--enable-gpl\|--enable-nonfree\|--enable-version3' "$BUILD/configure-line.txt" \
+    && { echo "FAIL: GPL/nonfree flag in the configure line"; fail=1; }
+  exit $fail
+}
+
 case "${1:-all}" in
+  verify) do_verify ;;
   fetch) do_fetch ;;
   libvpx) do_libvpx ;;
   ffmpeg) do_ffmpeg ;;
   probe) do_probe ;;
   check) do_check ;;
-  all) do_libvpx; do_ffmpeg; do_probe ;;
+  all)
+    do_libvpx; do_ffmpeg
+    [ "$TARGET" = macos-arm64 ] && do_probe
+    exit 0 ;;
   *) echo "unknown stage $1" >&2; exit 2 ;;
 esac
