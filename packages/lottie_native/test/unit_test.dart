@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'assemble_manifest_test.dart' as assemble_manifest_test;
 import 'delivery_plan_test.dart' as delivery_plan_test;
 import 'fake_lottie_binding_contract_test.dart'
     as fake_lottie_binding_contract_test;
@@ -28,6 +29,7 @@ import 'rebuild_inputs_test.dart' as rebuild_inputs_test;
 import 'source_hash_test.dart' as source_hash_test;
 
 void main() {
+  group('assemble_manifest_test.dart', assemble_manifest_test.main);
   group('delivery_plan_test.dart', delivery_plan_test.main);
   group(
     'fake_lottie_binding_contract_test.dart',
