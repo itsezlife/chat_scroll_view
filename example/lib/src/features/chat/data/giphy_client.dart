@@ -43,6 +43,7 @@ final class GiphyClip {
     required this.url,
     required this.width,
     required this.height,
+    this.thumbnailUrl,
   });
 
   /// Giphy's id of the GIF.
@@ -60,6 +61,11 @@ final class GiphyClip {
   /// The file's height in pixels.
   final int height;
 
+  /// Where the smallest still of the clip is: one frame as a GIF, a few KB,
+  /// which the panel shows blurred under the clip while it loads. Null when
+  /// the API gave none.
+  final Uri? thumbnailUrl;
+
   // The renditions to take, the smallest that still looks right in a row of
   // the panel first: a fixed width of 200 px, then smaller.
   static const _renditions = [
@@ -67,6 +73,23 @@ final class GiphyClip {
     'fixed_width_small',
     'downsized_small',
   ];
+
+  // The still renditions, the smallest first: a fixed width of 100 px, then
+  // 200 px, then the size the clip is downsized to.
+  static const _stills = [
+    'fixed_width_small_still',
+    'fixed_width_still',
+    'downsized_still',
+  ];
+
+  static Uri? _thumbnailOf(Map<String, Object?> images) {
+    for (final name in _stills) {
+      if (images[name] case {'url': final String url} when url.isNotEmpty) {
+        return Uri.tryParse(url);
+      }
+    }
+    return null;
+  }
 
   /// The clip [json] describes, or null for an entry without a playable file
   /// or a usable size: such a GIF is left out of the list, not shown broken.
@@ -102,6 +125,7 @@ final class GiphyClip {
                 url: Uri.parse(url),
                 width: width,
                 height: height,
+                thumbnailUrl: _thumbnailOf(images),
               );
             }
           }

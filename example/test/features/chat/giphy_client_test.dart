@@ -124,6 +124,73 @@ void main() {
       expect(clips[1].url.path, '/gifonly/200w.gif');
     });
 
+    // The still renditions of the API's `images` object: one frame of the
+    // clip as a GIF, `{url, width, height, size}` as strings, a few KB.
+    test('takes the smallest still as the thumbnail of a clip', () async {
+      final client = _client(
+        (_) async => http.Response(
+          _page([
+            _clipJson(
+              'both',
+              images: {
+                'fixed_width': {
+                  'mp4': 'https://media.example/both/200w.mp4',
+                  'width': '200',
+                  'height': '100',
+                },
+                'fixed_width_still': {
+                  'url': 'https://media.example/both/200w_s.gif',
+                  'width': '200',
+                  'height': '100',
+                  'size': '19000',
+                },
+                'fixed_width_small_still': {
+                  'url': 'https://media.example/both/100w_s.gif',
+                  'width': '100',
+                  'height': '50',
+                  'size': '6000',
+                },
+              },
+            ),
+            _clipJson(
+              'big',
+              images: {
+                'fixed_width': {
+                  'mp4': 'https://media.example/big/200w.mp4',
+                  'width': '200',
+                  'height': '100',
+                },
+                'fixed_width_still': {
+                  'url': 'https://media.example/big/200w_s.gif',
+                  'width': '200',
+                  'height': '100',
+                },
+              },
+            ),
+            _clipJson(
+              'none',
+              images: {
+                'fixed_width': {
+                  'mp4': 'https://media.example/none/200w.mp4',
+                  'width': '200',
+                  'height': '100',
+                },
+                'fixed_width_small_still': {'width': '100', 'height': '50'},
+              },
+            ),
+          ]),
+          200,
+        ),
+      );
+
+      final clips = (await client.trending()).clips;
+
+      expect(clips[0].thumbnailUrl?.path, '/both/100w_s.gif');
+      expect(clips[1].thumbnailUrl?.path, '/big/200w_s.gif');
+      // A still with no file is no thumbnail; the clip is still listed.
+      expect(clips[2].thumbnailUrl, isNull);
+    });
+
     test('leaves out a clip it cannot play or size', () async {
       final client = _client(
         (_) async => http.Response(

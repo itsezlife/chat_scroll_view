@@ -35,6 +35,12 @@ const double _kActionPartGap = 4;
 /// An action icon is drawn this much larger than the header text.
 const double _kActionIconScale = 1.3;
 
+/// Radius of the disc of the radial progress over a loading GIF: the reference
+/// client's panel GIF cell sets a 24 logical pixel box and `setCircleRadius(12)`
+/// (`ContextLinkCell.onMeasure`, a single `dp()` conversion), whatever the size
+/// of the cell.
+const double _kProgressRadius = 12;
+
 /// Paints catalog headers and leaves onto a [Canvas].
 ///
 /// Owns a bounded paragraph cache for section titles, action labels and empty
@@ -86,7 +92,7 @@ const double _kActionIconScale = 1.3;
 /// | none, or stage `none` | the placeholder of the leaf's style |
 /// | stage `placeholder` of a glyph (a glyph not baked yet) | the circle |
 /// | stage `placeholder` of other content | the binding's stand-in paintable (its thumbnail) |
-/// | stage `firstFrame` or `full` | the binding's paintable, faded in over the placeholder when the content was not there at attach |
+/// | stage `firstFrame` or `full` | the binding's paintable, faded in when the content was not there at attach: over the thumbnail the binding kept (opaque until the content is, then released), or over the style's placeholder fading out when there was none |
 ///
 /// A paintable without a sprite paints itself. Where emoji are baked a glyph
 /// is never in that row (unbaked is the circle, never text), so
@@ -103,6 +109,15 @@ const double _kActionIconScale = 1.3;
 ///
 /// The wash is one gradient per pass in viewport coordinates, so every wash on
 /// screen shimmers together and costs one shader however many there are.
+///
+/// ## Loading GIFs
+///
+/// A GIF leaf that is not drawn yet (no stage, or its thumbnail) also gets the
+/// reference client's radial progress ([RadialProgress]) over its centre, and
+/// it fades out with the content's fade. The arc turns with the pass's frame
+/// time: the pass asks for frames only while one shows, and not while the
+/// host paused playback, when the arc rests. The cache reports stages and no
+/// fractions, so the arc sweeps `RadialProgress.indeterminateProgress`.
 ///
 /// ## Press highlight
 ///
@@ -571,12 +586,9 @@ final class CatalogLeafPainter {
             width: glyphRect.width * pressScale,
             height: glyphRect.height * pressScale,
           );
-          _paintStandIn(
-            canvas,
-            slot.placeholderStyle,
-            standIn,
-            alpha: 1 - opacity,
-          );
+          _paintUnderContent(canvas, binding!, slot, standIn, opacity);
+        } else {
+          binding!.releaseStandIn();
         }
       }
       _glyphSprites.add(
@@ -608,22 +620,25 @@ final class CatalogLeafPainter {
     switch (binding?.readiness.stage) {
       case null || AssetStage.none:
         _paintStandIn(canvas, style, glyphRect);
+        _paintLoadingProgress(canvas, slot, glyphRect);
       case AssetStage.placeholder:
         if (style == CatalogPlaceholderStyle.circle) {
           _paintStandIn(canvas, style, glyphRect);
         } else {
           binding!.paint(canvas, glyphRect);
         }
+        _paintLoadingProgress(canvas, slot, glyphRect);
       case AssetStage.firstFrame || AssetStage.full:
         final opacity = bound!.opacityAt(_frameTime);
         if (opacity < 1) {
           _needsFrame = true;
-          _paintStandIn(canvas, style, glyphRect, alpha: 1 - opacity);
+          _paintUnderContent(canvas, binding!, slot, glyphRect, opacity);
         }
         if (slot.leaf.key case ContentKey$Unicode()) {
           PanelCatalogDiagnostics.glyphParagraphDraws++;
         }
         binding!.paint(canvas, glyphRect, opacity: opacity);
+        _paintLoadingProgress(canvas, slot, glyphRect, opacity: 1 - opacity);
     }
 
     if (scaled) {
@@ -677,6 +692,41 @@ final class CatalogLeafPainter {
           _wash(),
         );
     }
+  }
+
+  /// What shows under content that fades in over [rect]: the thumbnail the
+  /// [binding] kept, fully opaque (a bitmap thumbnail does not fade in the
+  /// reference client, `ImageReceiver.draw`: the content rises over it and it
+  /// is dropped when the content is opaque), or, with no thumbnail, the
+  /// style's placeholder fading out as the content rises.
+  void _paintUnderContent(
+    Canvas canvas,
+    AssetBinding binding,
+    CatalogLeafSlot slot,
+    Rect rect,
+    double opacity,
+  ) {
+    if (binding.paintStandIn(canvas, rect)) return;
+    _paintStandIn(canvas, slot.placeholderStyle, rect, alpha: 1 - opacity);
+  }
+
+  /// The radial progress of a loading GIF, centred in [box] at [opacity];
+  /// nothing for other content. See the class doc.
+  void _paintLoadingProgress(
+    Canvas canvas,
+    CatalogLeafSlot slot,
+    Rect box, {
+    double opacity = 1,
+  }) {
+    if (slot.leaf.semanticKind != SemanticKind.gif || opacity <= 0) return;
+    if (_animateWash) _needsFrame = true;
+    RadialProgress.paint(
+      canvas,
+      box.center,
+      radius: _kProgressRadius,
+      time: _animateWash ? _frameTime : Duration.zero,
+      opacity: opacity,
+    );
   }
 
   /// The placeholder of [style] in [glyphRect], at [alpha] of its colour.

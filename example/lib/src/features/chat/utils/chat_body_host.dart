@@ -31,8 +31,16 @@ final class ChatBodyHost {
     StickerPlayMemory? plays,
     this.playbackFor = ChatStickerPlayback.defaultFor,
   }) : embedResolver = ContentEmbedResolver(scope: assets),
-       embedFactory = ((content, preset) =>
-           ContentEmbed(scope: assets, content: content, preset: preset)),
+       embedFactory = ((content, preset) => ContentEmbed(
+         scope: assets,
+         content: content,
+         preset: preset,
+         // A document here is a sticker or a custom emoji drawn large; the
+         // scope's circle is the stand-in of a glyph.
+         placeholder: content is ContentKey$Document
+             ? const SoftPlaceholder()
+             : null,
+       )),
        plays = plays ?? StickerPlayMemory(),
        _stickerFor = stickerFor;
 

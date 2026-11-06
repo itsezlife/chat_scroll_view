@@ -72,13 +72,16 @@ void main() {
     });
 
     test('a stage the next one replaces is disposed', () {
-      scope.attach(_sticker, _spec, _profile);
+      final binding = scope.attach(_sticker, _spec, _profile);
       final attempt = producer.last;
 
       final placeholder = attempt.advance(AssetStage.placeholder);
       final first = attempt.advance(AssetStage.firstFrame);
       attempt.advance(AssetStage.full);
 
+      // The thumbnail waits for the binding to fade the content over it.
+      expect(placeholder.disposals, 0);
+      binding.releaseStandIn();
       expect(placeholder.disposals, 1);
       expect(first.disposals, 1);
     });

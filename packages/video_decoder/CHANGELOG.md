@@ -6,6 +6,13 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- The default thumbnail decode is `MiniThumbnail.decode`: at most 40 px on
+  the longer side, blurred once, so painting a loading clip's thumbnail is one
+  small image draw. Pass `decodeImage` for the previous full-size decode.
+
+
 ### Added
 
 - `WebVideoEngine` (`package:video_decoder/web.dart` for the browser end): a

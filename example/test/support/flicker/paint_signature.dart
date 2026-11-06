@@ -37,6 +37,7 @@ final class CellSignature {
     this.probe,
     this.page,
     this.quality,
+    this.underAlpha = 0,
   });
 
   final CellKind kind;
@@ -53,11 +54,16 @@ final class CellSignature {
   /// The filter quality of an image draw.
   final FilterQuality? quality;
 
+  /// The opacity of an image drawn in the cell beneath a sprite: the
+  /// thumbnail that stays under content fading in.
+  final double underAlpha;
+
   /// How much of the cell the content covers: a still at its opacity, a sprite
   /// at its opacity when its page holds a pixel there, else nothing.
   double get coverage => switch (kind) {
     CellKind.still => alpha,
-    CellKind.sprite => (probe?.alpha ?? 0) == 0 ? 0 : alpha,
+    CellKind.sprite =>
+      1 - (1 - underAlpha) * (1 - ((probe?.alpha ?? 0) == 0 ? 0 : alpha)),
     _ => 0,
   };
 
@@ -65,7 +71,8 @@ final class CellSignature {
   String toString() => switch (kind) {
     CellKind.sprite =>
       'sprite(a=${alpha.toStringAsFixed(2)}, '
-          '${probe == null || probe!.alpha == 0 ? 'BLANK' : 'clip ${probe!.tag} f${probe!.frame}'})',
+          '${probe == null || probe!.alpha == 0 ? 'BLANK' : 'clip ${probe!.tag} f${probe!.frame}'}'
+          '${underAlpha > 0 ? ', over still ${underAlpha.toStringAsFixed(2)}' : ''})',
     CellKind.still => 'still(a=${alpha.toStringAsFixed(2)}, $quality)',
     _ => kind.name,
   };
@@ -140,11 +147,18 @@ final class SignatureCanvas implements Canvas {
   CellSignature read(Rect cell) {
     for (final s in _sprites) {
       if (!cell.contains(s.dst.center)) continue;
+      // An image in the same cell is drawn before the sprite, which the pass
+      // flushes last: it is what the sprite fades in over.
+      var under = 0.0;
+      for (final i in _images) {
+        if (cell.contains(i.dst.center)) under = i.alpha;
+      }
       return CellSignature(
         CellKind.sprite,
         alpha: s.alpha,
         probe: _snapshots[s.image]?.probe(s.src),
         page: s.image,
+        underAlpha: under,
       );
     }
     for (final i in _images) {

@@ -197,6 +197,40 @@ void main() {
       expect(fake.openClips, 0);
     });
 
+    testWidgets(
+      'by default a thumbnail is decoded small, as a mini-thumbnail',
+      (tester) async {
+        final report = _Report();
+        final plain = VideoDecoder(engine: engine, scheduler: scheduler);
+        await tester.runAsync(() async {
+          final recorder = ui.PictureRecorder();
+          ui.Canvas(recorder).drawRect(
+            const ui.Rect.fromLTWH(0, 0, 100, 100),
+            ui.Paint()..color = const ui.Color(0xFF336699),
+          );
+          final picture = recorder.endRecording();
+          final source = await picture.toImage(200, 100);
+          picture.dispose();
+          final png = (await source.toByteData(
+            format: ui.ImageByteFormat.png,
+          ))!;
+          source.dispose();
+
+          plain.decode(
+            _request(png.buffer.asUint8List(), part: FetchPart.thumbnail),
+            report,
+          );
+          while (report.advances.isEmpty && report.failures.isEmpty) {
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+          }
+        });
+
+        expect(report.failures, isEmpty);
+        // 40 x 20 pixels at 4 bytes each, not the 200 x 100 of the file.
+        expect(report.advances.single.bytes, 40 * 20 * 4);
+      },
+    );
+
     test(
       'a rejected clip fails permanently with the reason and holds nothing',
       () async {

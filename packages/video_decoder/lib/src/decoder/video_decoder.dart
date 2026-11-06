@@ -13,19 +13,13 @@ import 'package:video_decoder/src/renderer/video_frame_size.dart';
 import 'package:video_native/video_native.dart';
 
 /// Decodes an encoded still image (the thumbnail of a clip) into an image;
-/// `ui.decodeImageFromList` by default.
+/// `MiniThumbnail.decode` by default: a few dozen pixels, blurred once.
 typedef VideoImageDecoder = Future<ui.Image> Function(Uint8List bytes);
 
 /// Turns premultiplied BGRA [pixels] of [width] x [height] into an image;
 /// `ui.decodeImageFromPixels` as `bgra8888` by default.
 typedef VideoPixelUploader =
     Future<ui.Image> Function(Uint8List pixels, int width, int height);
-
-Future<ui.Image> _imageFromList(Uint8List bytes) {
-  final completer = Completer<ui.Image>();
-  ui.decodeImageFromList(bytes, completer.complete);
-  return completer.future;
-}
 
 Future<ui.Image> _imageFromPixels(Uint8List pixels, int width, int height) {
   final completer = Completer<ui.Image>();
@@ -60,7 +54,7 @@ final class VideoDecodeRejected implements Exception {
 ///
 /// | Request | Reports |
 /// | --- | --- |
-/// | a thumbnail (an ordinary image, not video) | `AssetStage.placeholder`, a still |
+/// | a thumbnail (an ordinary image, not video) | `AssetStage.placeholder`, a still decoded small and blurred (`MiniThumbnail`) |
 /// | content, first frame only | `AssetStage.firstFrame`, a still |
 /// | content, full | `firstFrame` (a still), then `full` (a [VideoAnimationPaintable], animated tier) |
 ///
@@ -102,7 +96,7 @@ final class VideoDecoder implements Decoder {
     required VideoEngine engine,
     required VideoFrameScheduler scheduler,
     List<int> sizeClasses = VideoFrameSize.defaultClasses,
-    VideoImageDecoder decodeImage = _imageFromList,
+    VideoImageDecoder decodeImage = MiniThumbnail.decode,
     VideoPixelUploader uploadPixels = _imageFromPixels,
   }) : _engine = engine,
        _scheduler = scheduler,

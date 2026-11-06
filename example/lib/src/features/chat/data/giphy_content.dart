@@ -63,6 +63,10 @@ final class GiphyContent {
     animated: true,
     size: ContentSize(clip.width, clip.height),
     spokenName: clip.title.isEmpty ? 'GIF' : clip.title,
+    thumbnail: switch (clip.thumbnailUrl) {
+      final url? => ThumbnailRef('$url'),
+      null => null,
+    },
   );
 
   /// Remembers [clips], the most recently used last.
@@ -129,12 +133,33 @@ final class _GiphyFetcher implements ContentFetcher {
     final key = request.descriptor.key;
     if (!GiphyContent.isKey(key)) return _otherwise.fetch(request);
     if (request.part == FetchPart.thumbnail) {
-      throw FetchFailure.permanent('Giphy clips have no thumbnail: $key');
+      return _thumbnail(request.descriptor);
     }
     try {
       // Cancelling does not stop a download others may be waiting on: the
       // bytes arrive and the pipeline drops them.
       return FetchedContent.bytes(await (_inFlight[key] ??= _download(key)));
+    } on GiphyFailure catch (failure) {
+      throw failure.transient
+          ? FetchFailure.transient(failure.message, failure)
+          : FetchFailure.permanent(failure.message, failure);
+    }
+  }
+
+  // The still the descriptor names, a few KB. Its failure is the thumbnail's
+  // own: the pipeline keeps waiting for the clip.
+  Future<FetchedContent> _thumbnail(ContentDescriptor descriptor) async {
+    final url = switch (descriptor.thumbnail) {
+      final ref? => Uri.tryParse(ref.value),
+      null => null,
+    };
+    if (url == null) {
+      throw FetchFailure.permanent(
+        'Giphy clip has no thumbnail: ${descriptor.key}',
+      );
+    }
+    try {
+      return FetchedContent.bytes(await _content.client.download(url));
     } on GiphyFailure catch (failure) {
       throw failure.transient
           ? FetchFailure.transient(failure.message, failure)

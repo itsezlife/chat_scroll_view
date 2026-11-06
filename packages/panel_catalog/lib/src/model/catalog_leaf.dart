@@ -67,12 +67,7 @@ final class CatalogLeaf {
   /// empty. The leaf is a [MediaForm.glyph] of kind
   /// [SemanticKind.unicodeEmoji]: its stand-in is a circle. [spokenName] is the
   /// name in the active language, when the host has one.
-  CatalogLeaf.unicode(
-    String glyph, {
-    this.spokenName,
-    this.shortcode,
-    this.tag,
-  })
+  CatalogLeaf.unicode(String glyph, {this.spokenName, this.shortcode, this.tag})
     : key = ContentKey.unicode(glyph),
       semanticKind = SemanticKind.unicodeEmoji,
       mediaForm = MediaForm.glyph,
