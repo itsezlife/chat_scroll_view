@@ -17,6 +17,8 @@ dependencies:
     path: ../catalog_assets
   content_model:
     path: ../content_model
+  # SHA-256 of a file's bytes names its frames in the frame cache.
+  crypto: ^3.0.6
   ffi: ^2.1.0
   flutter:
     sdk: flutter
