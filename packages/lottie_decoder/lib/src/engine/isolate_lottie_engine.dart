@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_native/lottie_native.dart';
+import 'package:meta/meta.dart';
 
 /// A [LottieEngine] whose [LottieBinding] lives on one long-lived isolate of
 /// its own, so parsing and rasterizing never take a frame from the UI isolate
@@ -42,6 +43,10 @@ final class IsolateLottieEngine implements LottieEngine {
     LottieBinding Function()? bindingFactory,
   }) async {
     final engine = IsolateLottieEngine._();
+    // The isolate can end before anyone awaits readiness (a binding factory
+    // that throws): the error is then recorded on the future but not left
+    // unhandled; the await below still receives it.
+    final ready = engine._ready.future..ignore();
     try {
       engine._isolate = await Isolate.spawn(
         _renderIsolateMain,
@@ -49,23 +54,30 @@ final class IsolateLottieEngine implements LottieEngine {
         onError: engine._errors.sendPort,
         onExit: engine._exits.sendPort,
       );
-      await engine._ready.future;
+      await ready;
       return engine;
       // Whatever stopped the start-up, the isolate and the ports go with it.
       // ignore: avoid_catches_without_on_clauses
     } catch (_) {
-      engine._isolate.kill(priority: Isolate.immediate);
-      engine._releasePorts();
+      // Ports first: the isolate may never have existed (spawn itself threw),
+      // and nothing here may throw in place of the original error.
+      engine
+        .._releasePorts()
+        .._isolate?.kill(priority: Isolate.immediate);
       rethrow;
     }
   }
 
   // --- State ---
 
-  final _replies = ReceivePort();
-  final _errors = ReceivePort();
-  final _exits = ReceivePort();
-  late final Isolate _isolate;
+  /// How the engine makes its three ports; tests swap it to see them close.
+  @visibleForTesting
+  static ReceivePort Function() debugPortFactory = ReceivePort.new;
+
+  final _replies = debugPortFactory();
+  final _errors = debugPortFactory();
+  final _exits = debugPortFactory();
+  Isolate? _isolate;
   late final SendPort _commands;
 
   final _ready = Completer<void>();

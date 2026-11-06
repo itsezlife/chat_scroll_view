@@ -104,6 +104,36 @@ final class _ScriptedBinding implements LottieBinding {
   }
 }
 
+LottieBinding _throwingBinding() => throw StateError('scripted factory');
+
+/// A port that remembers whether it was closed.
+final class _RecordingPort extends Stream<dynamic> implements ReceivePort {
+  final _inner = ReceivePort();
+  bool closed = false;
+
+  @override
+  StreamSubscription<dynamic> listen(
+    void Function(Object? event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) => _inner.listen(
+    onData,
+    onError: onError,
+    onDone: onDone,
+    cancelOnError: cancelOnError,
+  );
+
+  @override
+  SendPort get sendPort => _inner.sendPort;
+
+  @override
+  void close() {
+    closed = true;
+    _inner.close();
+  }
+}
+
 final class _BlockingBinding implements LottieBinding {
   _BlockingBinding(this.flag) {
     _fake.accept(_fakeBytes, _fakeInfo);
@@ -220,6 +250,67 @@ void main() {
       await expectLater(alsoPending, closed);
       await expectLater(engine.load(_fakeBytes), closed);
       await expectLater(engine.close(), completes);
+    });
+
+    group('a failed spawn', () {
+      late List<_RecordingPort> ports;
+      late ReceivePort Function() previous;
+
+      setUp(() {
+        ports = [];
+        previous = IsolateLottieEngine.debugPortFactory;
+        IsolateLottieEngine.debugPortFactory = () {
+          final port = _RecordingPort();
+          ports.add(port);
+          return port;
+        };
+      });
+      tearDown(() => IsolateLottieEngine.debugPortFactory = previous);
+
+      test('before the isolate starts surfaces the original error', () async {
+        // A closure over a port cannot cross isolates: Isolate.spawn throws.
+        final unsendable = ReceivePort();
+        addTearDown(unsendable.close);
+
+        await expectLater(
+          IsolateLottieEngine.spawn(
+            bindingFactory: () {
+              unsendable.close();
+              return _fakeBinding();
+            },
+          ),
+          throwsA(isA<ArgumentError>()),
+        );
+
+        expect(ports, hasLength(3));
+        expect(ports.every((p) => p.closed), isTrue);
+      });
+
+      test('before ready surfaces the error and closes every port', () async {
+        await expectLater(
+          IsolateLottieEngine.spawn(bindingFactory: _throwingBinding),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('scripted factory'),
+            ),
+          ),
+        );
+
+        expect(ports, hasLength(3));
+        expect(ports.every((p) => p.closed), isTrue);
+      });
+
+      test('over an unavailable binding closes every port', () async {
+        await expectLater(
+          IsolateLottieEngine.spawn(bindingFactory: _unavailableBinding),
+          throwsA(isA<LottieUnavailable>()),
+        );
+
+        expect(ports, hasLength(3));
+        expect(ports.every((p) => p.closed), isTrue);
+      });
     });
 
     test('requests sent before close run to completion', () async {
