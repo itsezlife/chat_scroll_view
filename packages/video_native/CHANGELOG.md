@@ -6,6 +6,17 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (iOS)
+
+- iOS arm64, device and simulator: `TARGET=ios-arm64` and `TARGET=ios-sim-arm64`
+  of `native/recipe/build.sh` cross-compile libvpx and the four FFmpeg libraries
+  with Xcode's clang (minimum iOS 13.0), and `... verify` checks the Mach-O
+  files. The build hook compiles the wrapper for the app's iOS SDK and bundles
+  the five libraries, which the Flutter tool turns into frameworks in
+  `Runner.app/Frameworks`. The x86_64 simulator bundles nothing and warns. A
+  missing prefix or SDK warns instead of failing the build. Existing macOS and
+  Android builds are unchanged.
+
 ### Added (Android)
 
 - Android arm64-v8a: `TARGET=android-arm64 native/recipe/build.sh` cross-compiles

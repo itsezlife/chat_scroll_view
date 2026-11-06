@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reproducible FFmpeg + libvpx build for the video decoder.
 #
-#   [TARGET=macos-arm64|android-arm64] native/recipe/build.sh \
+#   [TARGET=macos-arm64|android-arm64|ios-arm64|ios-sim-arm64] native/recipe/build.sh \
 #       [fetch|libvpx|ffmpeg|probe|check|verify|all]   (default: all)
 #
 # macos-arm64 (the default) builds natively on an arm64 Mac. android-arm64
@@ -9,6 +9,10 @@
 # highest <sdk>/ndk/<version> under ANDROID_HOME or ~/Library/Android/sdk;
 # ANDROID_API picks the API level, default 24). The Android build has no probe:
 # the host cannot run it; `verify` checks the ELF files instead.
+# ios-arm64 (device) and ios-sim-arm64 (Apple-silicon simulator) cross-compile
+# with Xcode's clang against the iphoneos / iphonesimulator SDK (`xcrun`); like
+# Android they have no probe, and `verify` checks the Mach-O files (platform,
+# install names, dependencies). There is no x86_64 simulator build.
 #
 # Everything lands in native/.build/<target>/ (gitignored): downloads in
 # dl/, sources in src/, the install prefix in prefix/, the probe in probe.
@@ -32,6 +36,8 @@ SRC="$BUILD/src"
 PREFIX="$BUILD/prefix"
 JOBS="$(sysctl -n hw.ncpu)"
 MIN_MACOS=11.0
+# Flutter's own floor for iOS apps; the hook's deployment target is at least it.
+MIN_IOS=13.0
 ANDROID_API="${ANDROID_API:-24}"
 # Android 15+ devices may use 16 KiB pages: every .so must be aligned for them.
 ANDROID_LDFLAGS="-Wl,-z,max-page-size=16384"
@@ -65,7 +71,46 @@ case "$TARGET" in
     export AR="$TOOLS/llvm-ar" AS="$CC" LD="$CC" NM="$TOOLS/llvm-nm"
     export RANLIB="$TOOLS/llvm-ranlib" STRIP="$TOOLS/llvm-strip"
     ;;
-  *) echo "unsupported TARGET $TARGET (macos-arm64, android-arm64)" >&2; exit 2 ;;
+  ios-arm64|ios-sim-arm64)
+    [ "$(uname -s)-$(uname -m)" = Darwin-arm64 ] || { echo "run on an arm64 Mac with Xcode" >&2; exit 2; }
+    if [ "$TARGET" = ios-arm64 ]; then
+      IOS_SDK_NAME=iphoneos
+      IOS_TRIPLE="arm64-apple-ios$MIN_IOS"
+    else
+      IOS_SDK_NAME=iphonesimulator
+      IOS_TRIPLE="arm64-apple-ios$MIN_IOS-simulator"
+    fi
+    IOS_SDK="$(xcrun --sdk "$IOS_SDK_NAME" --show-sdk-path)"
+    [ -d "$IOS_SDK" ] || { echo "no $IOS_SDK_NAME SDK; install Xcode" >&2; exit 2; }
+    IOS_CLANG="$(xcrun --sdk "$IOS_SDK_NAME" --find clang)"
+    IOS_CLANGXX="$(xcrun --sdk "$IOS_SDK_NAME" --find clang++)"
+    # libvpx has no arm64 simulator target, and its iOS one (arm64-darwin-gcc)
+    # hardcodes the iphoneos SDK and minimum version into its flags. The
+    # wrappers drop those and put this target's triple and SDK in their place,
+    # so one libvpx target serves both builds.
+    mkdir -p "$BUILD/bin"
+    for pair in "cc:$IOS_CLANG" "cxx:$IOS_CLANGXX"; do
+      cat > "$BUILD/bin/${pair%%:*}" <<WRAP
+#!/usr/bin/env bash
+args=()
+while [ \$# -gt 0 ]; do
+  case "\$1" in
+    -isysroot|-arch|-ios_version_min) shift ;;
+    -miphoneos-version-min=*|-mios-version-min=*|-fembed-bitcode) ;;
+    *) args+=("\$1") ;;
+  esac
+  shift
+done
+exec ${pair#*:} -target $IOS_TRIPLE -isysroot $IOS_SDK "\${args[@]}"
+WRAP
+      chmod +x "$BUILD/bin/${pair%%:*}"
+    done
+    LIBVPX_TARGET=arm64-darwin-gcc
+    LIBVPX_EXTRA=(--enable-external-build)
+    export CC="$BUILD/bin/cc" CXX="$BUILD/bin/cxx" LD="$BUILD/bin/cxx" AS="$BUILD/bin/cc"
+    export AR="$(xcrun --find ar)" STRIP="$(xcrun --find strip)"
+    ;;
+  *) echo "unsupported TARGET $TARGET (macos-arm64, android-arm64, ios-arm64, ios-sim-arm64)" >&2; exit 2 ;;
 esac
 
 fetch_one() { # url sha256 file
@@ -151,6 +196,18 @@ case "$TARGET" in
     # ffmpeg finds libvpx through pkg-config: point it at ours, not the host's.
     export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"
     ;;
+  ios-arm64|ios-sim-arm64)
+    # The wrappers carry the triple and SDK; the dylibs are versioned as on
+    # macOS and install as @rpath/<name>, which the Flutter tool rewrites to
+    # the framework each becomes (hence the header padding).
+    FFMPEG_FLAGS=("${FFMPEG_COMMON[@]}"
+      --enable-cross-compile --arch=arm64 --target-os=darwin --enable-neon
+      --cc="$CC" --cxx="$CXX" --ar="$AR" --strip="$STRIP"
+      --install-name-dir=@rpath
+      --extra-cflags="-I$PREFIX/include"
+      --extra-ldflags="-L$PREFIX/lib -Wl,-headerpad_max_install_names")
+    export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"
+    ;;
 esac
 
 do_ffmpeg() {
@@ -224,8 +281,27 @@ do_verify() {
   exit $fail
 }
 
+# iOS: the Mach-O facts the host can read without running the files: CPU,
+# platform (iOS vs the simulator), minimum OS, install names, dependencies.
+do_verify_ios() {
+  local want=IOS fail=0 f dep
+  [ "$TARGET" = ios-sim-arm64 ] && want=IOSSIMULATOR
+  for f in "$PREFIX"/lib/lib{avcodec,avformat,avutil,swscale}.*.*.*.dylib; do
+    echo "== $(basename "$f") ($(wc -c <"$f") bytes, $(wc -c <"$BUILD/stripped/$(basename "$f")") stripped)"
+    lipo -archs "$f"
+    vtool -show-build "$f" | grep -E 'platform|minos'
+    otool -D "$f" | tail -n1
+    while read -r dep; do echo "  needs $dep"; done < <(otool -L "$f" | tail -n +3 | awk '{print $1}')
+    vtool -show-build "$f" | grep -q "platform $want" || { echo "FAIL: platform is not $want"; fail=1; }
+    [ "$(lipo -archs "$f")" = arm64 ] || { echo "FAIL: not arm64 only"; fail=1; }
+  done
+  grep -q -- '--enable-gpl\|--enable-nonfree\|--enable-version3' "$BUILD/configure-line.txt" \
+    && { echo "FAIL: GPL/nonfree flag in the configure line"; fail=1; }
+  exit $fail
+}
+
 case "${1:-all}" in
-  verify) do_verify ;;
+  verify) case "$TARGET" in ios-*) do_verify_ios ;; *) do_verify ;; esac ;;
   fetch) do_fetch ;;
   libvpx) do_libvpx ;;
   ffmpeg) do_ffmpeg ;;

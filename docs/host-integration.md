@@ -184,8 +184,9 @@ started.
 
 ### The video decoder: targets
 
-`video_native` ships its native library on macOS arm64 and Android arm64-v8a.
-On any other target (Android x86_64 and armv7, iOS, Windows, Linux, web) the
+`video_native` ships its native library on macOS arm64, iOS arm64 (device and
+Apple-silicon simulator) and Android arm64-v8a. On any other target (Android
+x86_64 and armv7, the x86_64 iOS simulator, Windows, Linux, web) the
 hook bundles nothing and warns, and the probe (`NativeVideoBinding.probe()`,
 or starting the engine) reports `missingLibrary`: a host registers the video
 decoder only when that works, so video keeps its placeholder. A build without
