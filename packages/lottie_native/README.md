@@ -387,7 +387,7 @@ malformed file, but that file is not available to this repository, so the
 corpus holds 269 zero bytes, which exercises the same short-input paths and
 says nothing about the original. The long run is
 `native/tests/fuzz_long.rs`, `#[ignore]`d so a plain `cargo test` never waits
-for it; the nightly workflow `.github/workflows/lottie_native_fuzz.yml` runs it
+for it; the manually dispatched workflow `.github/workflows/lottie_native_fuzz.yml` runs it
 for 20 minutes with a random seed and opens or updates one issue on a finding.
 It is seeded and structure-aware, not coverage-guided: a small PRNG of its own
 (no crate) edits the hand-authored fixtures at the byte level (flips,

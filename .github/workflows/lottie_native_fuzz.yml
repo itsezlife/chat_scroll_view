@@ -1,9 +1,10 @@
 name: lottie_native fuzz
 
-# Nightly long fuzz of the lottie_native C ABI (ADR 030, amendment "native
+# Long fuzz (run by hand, no schedule) of the lottie_native C ABI (ADR 030, amendment "native
 # decoders"). The fixed corpus replay (native/tests/replay.rs) is the gate on
-# every pull request; this is the open-ended counterpart, and like the other
-# nightly jobs it is NOT a gate: there is no pull_request trigger. A finding
+# every pull request; this is the open-ended counterpart, run on demand
+# (workflow_dispatch) to spare CI minutes, and it is NOT a gate: there is no
+# pull_request trigger. A finding
 # (a caught panic, a hang, an undocumented status, a non-null handle after a
 # failure, an unpremultiplied pixel) uploads the failing inputs and opens or
 # updates one issue; it is never a required check.
@@ -21,9 +22,6 @@ name: lottie_native fuzz
 # fresh, and the job that holds a write permission runs no third-party code.
 # Revisit if a third-party action with a token is ever added.
 on:
-  schedule:
-    # Schedules only run on the default branch.
-    - cron: '47 2 * * *'
   workflow_dispatch:
     inputs:
       seconds:
@@ -122,8 +120,8 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ARTIFACT_URL: ${{ needs.fuzz.outputs.artifact-url }}
         run: |
-          title="lottie_native nightly fuzz failure"
-          body="The nightly fuzz of the lottie_native C ABI failed.
+          title="lottie_native fuzz failure"
+          body="The fuzz run of the lottie_native C ABI failed.
 
           - seed: \`$FUZZ_SEED\`
           - run: $RUN_URL
