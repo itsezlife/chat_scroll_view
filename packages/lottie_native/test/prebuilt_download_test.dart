@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:code_assets/code_assets.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,8 +12,14 @@ import 'package:flutter_test/flutter_test.dart';
 import '../hook/src/prebuilt_download.dart';
 // ignore: avoid_relative_lib_imports, always_use_package_imports
 import '../hook/src/prebuilt_manifest.dart';
+// ignore: avoid_relative_lib_imports, always_use_package_imports
+import '../hook/src/targets.dart';
+import 'support/library_headers.dart';
 
-final _payload = utf8.encode('pretend this is a dylib ' * 50);
+const _target = LottieNativeTarget(OS.macOS, Architecture.arm64);
+
+/// A thin arm64 Mach-O header followed by filler: sound for [_target].
+final _payload = [...machoLibrary(machoArmCpu), ...utf8.encode('dylib ' * 50)];
 final _digest = sha256.convert(_payload).toString();
 
 PrebuiltArtifact _artifact({
@@ -54,13 +61,28 @@ void main() {
 
   Future<PrebuiltFetch> fetch({
     PrebuiltArtifact? artifact,
+    LottieNativeTarget target = _target,
     Duration timeout = const Duration(seconds: 5),
   }) => fetchPrebuilt(
     artifact: artifact ?? _artifact(),
     url: url,
     cacheDir: cache,
+    target: target,
     timeout: timeout,
   );
+
+  /// Serves [bytes] and returns the artifact that pins them.
+  PrebuiltArtifact serve(List<int> bytes, {String file = 'libchat_lottie.so'}) {
+    handler = (request) async {
+      request.response.add(bytes);
+      await request.response.close();
+    };
+    return PrebuiltArtifact(
+      file: file,
+      sha256: sha256.convert(bytes).toString(),
+      size: bytes.length,
+    );
+  }
 
   /// Every file left anywhere under the cache.
   List<String> leftovers() => [
@@ -207,5 +229,218 @@ void main() {
       expect(result, isA<PrebuiltUnavailable>());
       expect(File('${dir.path}/libchat_lottie.dylib').existsSync(), isFalse);
     });
+  });
+
+  group('fetchPrebuilt checks the library against its target', () {
+    const androidArm64 = LottieNativeTarget(OS.android, Architecture.arm64);
+
+    test('a library of another architecture is refused though its hash is '
+        'right, and nothing is left to register', () async {
+      final wrong = serve(soundElf(machine: elfX8664));
+
+      final result = await fetch(artifact: wrong, target: androidArm64);
+
+      expect(
+        (result as PrebuiltUnavailable).reason,
+        allOf(contains('0x3e'), contains('0xb7')),
+      );
+      expect(leftovers(), isEmpty);
+    });
+
+    test('a 4 KB aligned Android library is refused', () async {
+      final unaligned = serve(
+        elfLibrary(machine: elfAarch64, segments: [(ptLoad, 0x1000)]),
+      );
+
+      final result = await fetch(artifact: unaligned, target: androidArm64);
+
+      expect((result as PrebuiltUnavailable).reason, contains('16 KB'));
+      expect(leftovers(), isEmpty);
+    });
+
+    test('a library that fits its target is ready', () async {
+      final sound = serve(soundElf(machine: elfAarch64));
+
+      final result = await fetch(artifact: sound, target: androidArm64);
+
+      expect(result, isA<PrebuiltReady>());
+    });
+
+    test(
+      'a cached file that fails the check is deleted, not trusted',
+      () async {
+        final wrong = serve(soundElf(machine: elfX8664));
+        // A first fetch for a target it fits puts it in the cache.
+        const linuxX64 = LottieNativeTarget(OS.linux, Architecture.x64);
+        final first = await fetch(artifact: wrong, target: linuxX64);
+        expect(first, isA<PrebuiltReady>());
+        final before = requests;
+
+        final second = await fetch(artifact: wrong, target: androidArm64);
+
+        expect(second, isA<PrebuiltUnavailable>());
+        expect(leftovers(), isEmpty);
+        expect(requests, before, reason: 'the same bytes would fail again');
+      },
+    );
+  });
+
+  group('fetchPrebuilt under hostile conditions', () {
+    // File permissions and symbolic links behave differently on Windows.
+    final posixOnly = Platform.isWindows ? 'POSIX file system only' : null;
+
+    test('a cleanup that fails never replaces the verdict or throws', () async {
+      // The server sends the body, then (once the .part file exists) takes
+      // away the right to delete in its directory before it ends the
+      // response. The file fails its hash, and removing it then fails too.
+      final dir = Directory('${cache.path}/${'ab' * 32}');
+      handler = (request) async {
+        request.response.add(_payload);
+        await request.response.flush();
+        while (!(dir.existsSync() &&
+            dir.listSync().any((e) => e.path.endsWith('.part')))) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+        await Process.run('chmod', ['555', dir.path]);
+        await request.response.close();
+      };
+      addTearDown(() => Process.runSync('chmod', ['755', dir.path]));
+
+      final result = await fetch(artifact: _artifact(sha256: 'ab' * 32));
+
+      final reason = (result as PrebuiltUnavailable).reason;
+      expect(reason, contains('sha256'), reason: 'the verdict is kept');
+      expect(reason, contains('could not delete'));
+    }, skip: posixOnly);
+
+    test('a timeout ends the transfer and no write follows it', () async {
+      // A raw socket, because an HttpServer cannot tell that its client has
+      // gone: this one sees the end of the connection as the end of its read
+      // side. It answers 200 and then trickles the body for ever.
+      final raw = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(raw.close);
+      final clientGone = Completer<void>();
+      raw.listen((socket) {
+        // The reset also fails the write side; it is the expected end.
+        unawaited(socket.done.then<void>((_) {}, onError: (Object _) {}));
+        socket.listen(
+          (_) {},
+          onDone: () {
+            if (!clientGone.isCompleted) clientGone.complete();
+          },
+          onError: (Object _) {
+            if (!clientGone.isCompleted) clientGone.complete();
+          },
+        );
+        socket.write(
+          'HTTP/1.1 200 OK\r\ncontent-length: ${_payload.length}\r\n\r\n',
+        );
+        Timer.periodic(const Duration(milliseconds: 20), (timer) {
+          if (clientGone.isCompleted) return timer.cancel();
+          try {
+            socket.add([1]);
+          } on Object {
+            timer.cancel();
+          }
+        });
+      });
+      url = Uri.parse('http://127.0.0.1:${raw.port}/libchat_lottie.dylib');
+
+      final result = await fetch(timeout: const Duration(milliseconds: 300));
+
+      expect((result as PrebuiltUnavailable).reason, contains('timed out'));
+      expect(leftovers(), isEmpty);
+      await clientGone.future.timeout(
+        const Duration(seconds: 3),
+        onTimeout: () => fail('the connection was left open after the timeout'),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(leftovers(), isEmpty, reason: 'nothing is written afterwards');
+    });
+
+    test('a redirect to a URL that is not HTTPS is not followed', () async {
+      var followed = 0;
+      handler = (request) async {
+        if (request.uri.path == '/elsewhere') {
+          followed++;
+          request.response.add(_payload);
+        } else {
+          request.response.statusCode = HttpStatus.found;
+          request.response.headers.set(
+            HttpHeaders.locationHeader,
+            'http://127.0.0.1:${server.port}/elsewhere',
+          );
+        }
+        await request.response.close();
+      };
+
+      final result = await fetch();
+
+      expect(
+        (result as PrebuiltUnavailable).reason,
+        allOf(contains('redirect'), contains('HTTPS')),
+      );
+      expect(followed, 0);
+      expect(leftovers(), isEmpty);
+    });
+
+    test('a relative redirect is resolved, and refused all the same', () async {
+      handler = (request) async {
+        request.response.statusCode = HttpStatus.movedPermanently;
+        request.response.headers.set(HttpHeaders.locationHeader, '/elsewhere');
+        await request.response.close();
+      };
+
+      final result = await fetch();
+
+      expect((result as PrebuiltUnavailable).reason, contains('HTTPS'));
+      expect(requests, 1);
+    });
+
+    test('a symlinked cache file is not trusted, and its target is left '
+        'alone', () async {
+      final outside = File('${cache.parent.path}/outside_${pid}_lib')
+        ..writeAsBytesSync(_payload);
+      addTearDown(() {
+        if (outside.existsSync()) outside.deleteSync();
+      });
+      final dir = Directory('${cache.path}/$_digest')..createSync();
+      Link('${dir.path}/libchat_lottie.dylib').createSync(outside.path);
+      final before = requests;
+
+      final result = await fetch();
+
+      final file = (result as PrebuiltReady).file;
+      expect(
+        FileSystemEntity.typeSync(file.path, followLinks: false),
+        FileSystemEntityType.file,
+        reason: 'a regular file replaced the link',
+      );
+      expect(requests, before + 1, reason: 'it was fetched, not trusted');
+      expect(outside.readAsBytesSync(), _payload);
+    }, skip: posixOnly);
+
+    test('a cache directory that is a link out is replaced, not written '
+        'through', () async {
+      final outside = Directory.systemTemp.createTempSync('prebuilt_outside');
+      addTearDown(() => outside.deleteSync(recursive: true));
+      File('${outside.path}/libchat_lottie.dylib').writeAsBytesSync(_payload);
+      Link('${cache.path}/$_digest').createSync(outside.path);
+      final before = requests;
+
+      final result = await fetch();
+
+      final file = (result as PrebuiltReady).file;
+      expect(
+        file.resolveSymbolicLinksSync(),
+        startsWith(cache.resolveSymbolicLinksSync()),
+      );
+      expect(requests, before + 1);
+      expect(
+        outside.listSync().map((e) => e.uri.pathSegments.last),
+        ['libchat_lottie.dylib'],
+        reason: 'nothing was written into the link target',
+      );
+    }, skip: posixOnly);
   });
 }

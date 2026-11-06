@@ -19,11 +19,53 @@ package is pre-1.0.
   `LottieAvailability` and `LottieRenderStatus` moved out of
   `src/lottie_binding.dart` into files of their own; code importing that
   `src/` path for them must import the barrel.
+- The hook declares every crate source file as a dependency instead of the
+  `native/src/` directory: editing an existing file there did not re-run the
+  hook, so stale native code could ship. A host without cargo (and with no
+  prebuilt) now gets no asset and a warning instead of a failed build.
+- Every wrapper status has its own number (`-6` internal, `-7` bad size, `-8`
+  render failed); `LottieRejection.internal` and `LottieAvailability`
+  (`missingLibrary`, `abiMismatch`) replace the hidden probe reason.
+- `LottieBinding.close()` frees every live handle; `LottieRenderJob.maxEdge`
+  is the slot edge cap.
+- An unsupported build target emits no asset and logs a warning instead of
+  failing the build.
+
+### Fixed
+
+- A downloaded prebuilt is checked against its target (the ELF or Mach-O or
+  PE machine, and 16 KB segments on Android) before it is registered; one that
+  fails is deleted and the hook compiles instead. A manifest that names a
+  library for the wrong CPU used to be trusted because its hash matched.
+  `native/tool/verify_artifact.dart <file> <key>` runs the same check, and
+  `assemble_manifest.dart` now applies it to every artifact (it used to look at
+  magic bytes only) and takes `--require-all`.
+- `sourceHash` has a new, unambiguous format (`lottie-native-source-v2`, length
+  prefixed fields). The old listing could hash two different trees alike when a
+  path held a line feed. A committed manifest records the new hash; one written
+  by the old tool is stale and falls back to compiling.
+- The prebuilt downloader: a cleanup that fails no longer throws or changes the
+  verdict, a timeout closes the connection and waits for the transfer, manifest
+  file names are limited to letters, digits, `.`, `_` and `-` (a name outside
+  that is a manifest the hook ignores), a redirect to a URL that is not HTTPS is
+  refused, and a symbolic link in the cache is removed instead of trusted.
+- The Rust ABI refuses a length above `isize::MAX` (and a `load` over the 4 MiB
+  cap) before it builds a slice over the caller's pointer; the wasm allocation
+  cap is 16 MiB, not 256 MiB.
+- Web: handles are opaque ids that are never reissued (a stale handle used to be
+  able to draw the animation loaded after it); the worker validates every
+  message, closes the previous core on a second `init` and caps a request at 256
+  jobs, edges of 1 to 512 and a 4 MiB file; a wasm trap (a Rust panic) no longer
+  kills the core, which restarts and fails older handles. After a trap the Dart
+  side reloads what it needs.
+- Workflows: the fuzz issue is opened by a job of its own, inputs and the tag
+  name never reach a script by interpolation, the prebuilts workflow builds
+  Android at API 21 and verifies every library.
 
 ### Added
 
 - Web build: the crate exports `chat_lottie_alloc` / `chat_lottie_dealloc` on
-  wasm32 (a region of 1 byte to 256 MiB; anything else returns null), and
+  wasm32 (a region of 1 byte to 16 MiB; anything else returns null), and
   `web/` holds `chat_lottie_core.mjs` (load, one-call batch render into pooled
   scratch regions, dispose; SIMD chosen by a `WebAssembly.validate` probe) and
   `chat_lottie_worker.js` (a module worker with a documented message protocol;
@@ -31,6 +73,9 @@ package is pre-1.0.
   writes the SIMD and no-SIMD wasm files next to them; the output is not
   committed. Tested in Node with `node --test web/test`; see the README, "Web
   build".
+- Tests: the replay corpus gains TGS inputs and a measured one-minute budget,
+  and a golden frame (`native/tests/fixtures/golden_64x64_frame_30.rgba`) holds
+  the host build and both wasm builds to the same pixels within one level.
 - A seeded long fuzz of the C ABI (`native/tests/fuzz_long.rs`, ignored by
   default) and a nightly workflow that opens an issue on a finding.
 - `LottieNativeVersion.engine`: the crate version and pinned tlottie revision
@@ -49,14 +94,12 @@ package is pre-1.0.
 - `NativeLottieBinding` over hand-written `@Native` bindings of
   `chat_lottie.h`, with a one-time `probe()`, and `hook/build.dart`, which
   compiles the `native/` crate with cargo.
-
 - `LottieFrameCodec` and `NativeLottieFrameCodec`: the frame cache's lz4
   compress / decompress of a region of page memory, over three new C
   functions (`chat_lottie_lz4_bound`, `chat_lottie_compress_region`,
   `chat_lottie_decompress_region`) built on `lz4_flex` (pure Rust, no unsafe).
   A failed decompress writes nothing. `testing.dart` adds
   `FakeLottieFrameCodec` and `LottieFrameCodecContract`.
-
 - `hook/build.dart` delivers the native library in order: compile from source
   when `build_from_source` (pubspec user-define) or
   `LOTTIE_NATIVE_BUILD_FROM_SOURCE=1` is set; else download the hash-pinned
@@ -66,7 +109,6 @@ package is pre-1.0.
   published yet and the manifest is empty, so builds still compile.
   `native/tool/source_hash.dart [--write]` and
   `native/tool/manifest_entry.dart` maintain the manifest. Adds `crypto`.
-
 - `hook/build.dart` builds from source for iOS (device, simulator arm64 and
   x64), Android (arm64-v8a, x86_64) and, on a matching host, Linux and
   Windows, not only macOS. Android finds the NDK (`ANDROID_NDK_HOME`,
@@ -77,18 +119,3 @@ package is pre-1.0.
   target, or an Android build without an NDK, bundles nothing and warns,
   naming the prebuilt route. Opt-in cross-compile smoke:
   `LOTTIE_NATIVE_CROSS=1`.
-
-### Changed
-
-- The hook declares every crate source file as a dependency instead of the
-  `native/src/` directory: editing an existing file there did not re-run the
-  hook, so stale native code could ship. A host without cargo (and with no
-  prebuilt) now gets no asset and a warning instead of a failed build.
-
-- Every wrapper status has its own number (`-6` internal, `-7` bad size, `-8`
-  render failed); `LottieRejection.internal` and `LottieAvailability`
-  (`missingLibrary`, `abiMismatch`) replace the hidden probe reason.
-- `LottieBinding.close()` frees every live handle; `LottieRenderJob.maxEdge`
-  is the slot edge cap.
-- An unsupported build target emits no asset and logs a warning instead of
-  failing the build.

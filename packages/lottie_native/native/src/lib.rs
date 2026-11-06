@@ -101,6 +101,11 @@ pub unsafe extern "C" fn chat_lottie_load(
             return status::INVALID_ARGUMENT;
         }
         unsafe { *out_handle = std::ptr::null_mut() };
+        // Judged before the slice exists: a length over the cap is refused
+        // anyway, and one over isize::MAX must never reach from_raw_parts.
+        if len > input::MAX_ENCODED_BYTES {
+            return status::TOO_LARGE;
+        }
         let bytes = unsafe { std::slice::from_raw_parts(data, len) };
         match load(bytes) {
             Ok((info, handle)) => {

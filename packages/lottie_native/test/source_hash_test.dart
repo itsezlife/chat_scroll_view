@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // The hook is not part of lib/: a hook may not import the Flutter package
@@ -15,9 +16,10 @@ import '../native/tool/source_hash.dart' show runSourceHashCommand;
 const _cargoToml = '[package]\nname = "x"\nversion = "1.2.3"\n';
 
 /// Computed with an independent implementation (python hashlib) over the
-/// listing documented in source_hash.dart, for the tree the test writes.
+/// `lottie-native-source-v2` listing documented in source_hash.dart, for the
+/// tree the test writes.
 const _knownHash =
-    '5930baaf0a1651f7668d29498b3ab527316bf1488e8610650bcaae833db644d7';
+    'b5822682b007a5206702975d8697ba61a6fec4ab0af1e673cd315ccf1e36fe37';
 
 void _write(Directory root, String path, String content) {
   File('${root.path}/$path')
@@ -105,6 +107,50 @@ void main() {
 
       expect(computeSourceHash(native), isNot(one));
     });
+
+    test('cannot be fooled by a path that imitates the framing', () {
+      // Under the first framing (`path LF length LF bytes LF`) these two
+      // listings were the same byte string: a file named like the head of
+      // the next record swallowed it. They are different trees.
+      final payload = utf8.encode('fn main() {}');
+      final oneFile = hashSourceListing([(path: 'a\n1\nZ\nb', bytes: payload)]);
+      final twoFiles = hashSourceListing([
+        (path: 'a', bytes: utf8.encode('Z')),
+        (path: 'b', bytes: payload),
+      ]);
+
+      expect(oneFile, isNot(twoFiles));
+    });
+
+    test('starts from a version line, so a format change is a new hash', () {
+      // An empty listing is the version line alone.
+      expect(
+        hashSourceListing(const []),
+        sha256.convert(utf8.encode('lottie-native-source-v2\n')).toString(),
+      );
+    });
+
+    test('counts the length of a path in bytes, not characters', () {
+      // "é" is two bytes in UTF-8: 2:é 1:x, never 1:é.
+      final listing = utf8.encode('lottie-native-source-v2\n2:\u00e91:x');
+      expect(
+        hashSourceListing([(path: '\u00e9', bytes: utf8.encode('x'))]),
+        sha256.convert(listing).toString(),
+      );
+    });
+
+    test(
+      'refuses a source path with a control character',
+      () {
+        _tree(native);
+        _write(native, 'src/a\nb.rs', 'x');
+
+        expect(() => computeSourceHash(native), throwsFormatException);
+      },
+      skip: Platform.isWindows
+          ? 'Windows forbids control characters in names'
+          : null,
+    );
 
     test('ignores everything that is not an input of the build', () {
       _tree(native);

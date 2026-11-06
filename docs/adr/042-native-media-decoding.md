@@ -28,10 +28,14 @@ Facts the decisions rest on:
   It is not on crates.io, has a small C API, takes raw JSON (the caller
   gunzips TGS), renders into a caller buffer, and does not render image
   layers, text layers, expressions or effects.
-- The WebAssembly build returns **straight** alpha; the native C API returns
-  **premultiplied**. Premultiplying the wasm output matches the native render
-  to within one colour level on every pixel of the test corpus, so the web
-  conversion is exact.
+- Telegram's own tlottie web build returns **straight** alpha, while the
+  native C API returns **premultiplied**; premultiplying that web output
+  matched the native render to within one colour level on every pixel of the
+  test corpus (an experiment with that build). The wrapper does not use that
+  build: our own crate compiles to WebAssembly and writes the same
+  premultiplied bytes as the native build, so nothing converts anywhere. The
+  golden `native/tests/golden.rs` / `web/test/golden.test.mjs` holds the host
+  build and both wasm builds to one reference frame within one colour level.
 - Renders on separate handles in parallel threads match a single-thread
   render frame for frame, and a corpus of malformed inputs (flips,
   truncations, zero bytes, huge sizes, deep nesting) neither crashed nor hung
@@ -48,9 +52,9 @@ Facts the decisions rest on:
 | Area | Decision |
 | ---- | -------- |
 | Lottie engine | tlottie, pinned by commit, behind **our own thin Rust crate** (the wrapper). The wrapper gunzips TGS, validates a file before tlottie parses it, and exposes a batch render call. The same crate compiles to WebAssembly. rlottie is not kept: an unsupported or invalid file fails to its placeholder. |
-| Pixel contract | The wrapper writes **premultiplied** pixels in one documented channel order on every target and states it in its header. The web build's straight-alpha output is converted in the worker. A golden with a semi-transparent sticker runs on both builds. |
+| Pixel contract | The wrapper writes **premultiplied** pixels in one documented channel order on every target and states it in its header. The web build is the same crate, so it writes the same premultiplied bytes; the worker converts nothing. A golden with a semi-transparent sticker runs on both builds. |
 | Video engine | FFmpeg built `--disable-everything` as **separate shared libraries**: H.264 decoder, decoder-only libvpx VP9 (alpha), `mov` and `matroska` demuxers, swscale; LGPL only, no GPL and no non-free parts, dynamic linking. Output is display-size BGRA. Not folded into the Lottie library. |
-| Native source | In this repository. CI builds the native libraries and publishes **hash-pinned prebuilts**; the build hook downloads them. Compiling from source is an opt-in flag, so no host app needs Rust or an NDK by default. |
+| Native source | In this repository. CI builds the native libraries and publishes **hash-pinned prebuilts**; the build hook downloads them. Compiling from source is an opt-in flag, so no host app needs Rust or an NDK by default. **That promise holds only once a manifest with artifacts is published**: until then (`native/prebuilts.json` is committed empty) every build compiles from source or ships no library, and a host without cargo (or without the NDK, for Android) gets no library and a warning. |
 | Targets | Android arm64-v8a and x86_64, iOS device and simulator, macOS, Windows, Linux, web. Android libraries are 16 KB page aligned. |
 | Workers | One long-lived **render isolate** owns every Lottie handle and runs the batch call on the clock's cadence. There is no cache isolate: the render isolate also compresses and decompresses frames (it owns the codec), and the cache's file work is asynchronous `dart:io` on the UI isolate ([ADR 022](022-asset-cache-and-media-pipeline.md), row Frame cache). A pool of render isolates waits on a verified thread-safety contract. Video decodes on its own workers with a fixed small pool. Hot calls are `@Native(isLeaf: true)` where the native function neither blocks long nor calls back. |
 | Hardening | The wrapper checks every file before parsing: encoded size, dimensions, layer and nesting counts, a scan for features tlottie does not render, and frame-count and memory caps. A file that fails the check ends in `AssetProgress.fail`. The wrapper is fuzzed. There is no sandbox process: a native fault ends the app, so the check and the fuzz are the defence. |

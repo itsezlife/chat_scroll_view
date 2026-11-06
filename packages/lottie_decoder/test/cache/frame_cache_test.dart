@@ -58,12 +58,12 @@ class _CountingFiles extends DirectoryFrameCacheFiles {
   }
 
   @override
-  Future<void> write(
+  Future<FileSystemException?> write(
     String stem,
     Uint8List bytes, {
     required DateTime modified,
   }) async {
-    await super.write(stem, bytes, modified: modified);
+    final stampFailure = await super.write(stem, bytes, modified: modified);
     written.add(stem);
     for (final (count, waiter) in _waiters.toList()) {
       if (written.length >= count) {
@@ -71,12 +71,37 @@ class _CountingFiles extends DirectoryFrameCacheFiles {
         waiter.complete();
       }
     }
+    return stampFailure;
   }
 
   @override
-  Future<Uint8List?> read(String stem) {
+  Future<Uint8List?> read(String stem, {required int maxBytes}) {
     reads.add(stem);
-    return super.read(stem);
+    return super.read(stem, maxBytes: maxBytes);
+  }
+}
+
+/// Files whose timestamps cannot be set (a file system without them).
+class _UnstampableFiles extends DirectoryFrameCacheFiles {
+  _UnstampableFiles(super.path);
+
+  @override
+  @protected
+  Future<void> stamp(File target, DateTime modified) =>
+      Future<void>.error(const FileSystemException('no timestamps here'));
+}
+
+/// Records the temp file of every write before it is published.
+class _TempRecordingFiles extends DirectoryFrameCacheFiles {
+  _TempRecordingFiles(super.path, this.temps);
+
+  final List<String> temps;
+
+  @override
+  @protected
+  Future<void> publish(File temp, File target) {
+    temps.add(temp.uri.pathSegments.last);
+    return super.publish(temp, target);
   }
 }
 
@@ -539,6 +564,113 @@ void main() {
         '${_key('a').toFileStem()}.frames',
         '${_key('c').toFileStem()}.frames',
       ]);
+    });
+  });
+
+  group('a file larger than the disk budget', () {
+    test('is a miss and deleted, not read whole', () async {
+      final dir = _tempDir();
+      final key = _key('a');
+      final small = FrameCache(directoryPath: dir.path, clock: clock);
+      putAll(small, key, 3, 10);
+      await small.dispose();
+      const fits = 36 + 5 + 1 + 3 * 8 + 30;
+
+      final files = _CountingFiles(dir.path);
+      final reader = FrameCache(
+        directoryPath: dir.path,
+        files: files,
+        diskBudgetBytes: fits + 10,
+        clock: clock,
+      );
+      addTearDown(reader.dispose);
+      // The scan sees the small file...
+      expect(await reader.open(_key('other')), isNull);
+      // ...then another writer replaces it with a valid, larger one.
+      final bigger = FrameCache(directoryPath: dir.path, clock: clock);
+      putAll(bigger, key, 3, 400);
+      await bigger.dispose();
+      expect(
+        File('${dir.path}/${key.toFileStem()}.frames').lengthSync(),
+        greaterThan(fits + 10),
+      );
+
+      expect(await reader.open(key), isNull);
+      expect(_names(dir, '.frames'), isEmpty, reason: 'deleted');
+    });
+  });
+
+  group('temp files', () {
+    test(
+      'are named per process and per call, so no two writes share one',
+      () async {
+        final dir = _tempDir();
+        final temps = <String>[];
+        final first = _TempRecordingFiles(dir.path, temps);
+        final second = _TempRecordingFiles(dir.path, temps);
+        final bytes = _bytes(4, 1);
+
+        await first.write('s', bytes, modified: now);
+        await first.write('s', bytes, modified: now);
+        await second.write('s', bytes, modified: now);
+
+        expect(temps.toSet(), hasLength(3));
+        for (final name in temps) {
+          expect(
+            name,
+            matches(RegExp('^s\\.frames\\.$pid\\.\\d+\\.[0-9a-f]{8}\\.tmp\$')),
+          );
+        }
+      },
+    );
+  });
+
+  group('a timestamp that cannot be set', () {
+    test(
+      'does not make the cache unwritable: the entry was published',
+      () async {
+        final dir = _tempDir();
+        final reported = <Object>[];
+        final files = _UnstampableFiles(dir.path);
+        final cache = FrameCache(
+          directoryPath: dir.path,
+          files: files,
+          clock: clock,
+          onError: (e, _) => reported.add(e),
+        );
+        putAll(cache, _key('a'), 2, 10);
+        await cache.dispose();
+        expect(_names(dir, '.frames'), ['${_key('a').toFileStem()}.frames']);
+
+        // Later writes still go to disk, and are tracked for eviction.
+        final again = FrameCache(
+          directoryPath: dir.path,
+          files: files,
+          clock: clock,
+          onError: (e, _) => reported.add(e),
+        );
+        putAll(again, _key('b'), 2, 10);
+        putAll(again, _key('c'), 2, 10);
+        await again.dispose();
+        expect(_names(dir, '.frames'), hasLength(3));
+        expect(reported.every((e) => e is FileSystemException), isTrue);
+      },
+    );
+
+    test('is still told to the host, once', () async {
+      final dir = _tempDir();
+      final reported = <Object>[];
+      final cache = FrameCache(
+        directoryPath: dir.path,
+        files: _UnstampableFiles(dir.path),
+        clock: clock,
+        onError: (e, _) => reported.add(e),
+      );
+      putAll(cache, _key('a'), 2, 10);
+      putAll(cache, _key('b'), 2, 10);
+      await cache.dispose();
+
+      expect(reported, hasLength(1));
     });
   });
 

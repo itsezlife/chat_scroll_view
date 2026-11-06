@@ -95,3 +95,16 @@ fn null_arguments_are_invalid() {
 fn free_accepts_null() {
     unsafe { chat_lottie::chat_lottie_free(std::ptr::null_mut()) };
 }
+
+#[test]
+fn a_length_no_slice_can_have_is_too_large_and_the_pointer_is_never_read() {
+    let dangling = std::ptr::NonNull::<u8>::dangling().as_ptr();
+    for len in [usize::MAX, isize::MAX as usize + 1, 4 * 1024 * 1024 + 1] {
+        let mut info = chat_lottie::ChatLottieInfo::default();
+        let mut handle = std::ptr::null_mut();
+        let status =
+            unsafe { chat_lottie::chat_lottie_load(dangling, len, &mut info, &mut handle) };
+        assert_eq!(status, -2, "len {len}");
+        assert!(handle.is_null());
+    }
+}

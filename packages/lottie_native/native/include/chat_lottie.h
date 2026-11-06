@@ -67,7 +67,8 @@ uint32_t chat_lottie_abi_version(void);
 
 /* Loads a Lottie animation. Data starting with 1f 8b is gunzipped (TGS),
  * anything else is taken as JSON. Encoded input is capped at 4 MiB and the
- * inflated output at 8 MiB. On success returns 0, fills out_info and
+ * inflated output at 8 MiB; a len over the 4 MiB cap is refused (-2) before
+ * the bytes are looked at. On success returns 0, fills out_info and
  * out_handle; on failure returns a negative status and sets *out_handle to
  * NULL. */
 int32_t chat_lottie_load(const uint8_t *data, size_t len, ChatLottieInfo *out_info,
@@ -96,24 +97,26 @@ size_t chat_lottie_lz4_bound(uint32_t width, uint32_t height);
 
 /* Compresses the region at target into dst and stores the packed length in
  * *out_len (left untouched on failure). Returns 0, -1 for a NULL pointer, -7
- * for a bad size or stride, -2 when the packed form is longer than dst_cap
- * (a dst_cap of chat_lottie_lz4_bound always suffices). */
+ * for a bad size or stride or a dst_cap above PTRDIFF_MAX, -2 when the packed
+ * form is longer than dst_cap (a dst_cap of chat_lottie_lz4_bound always
+ * suffices). */
 int32_t chat_lottie_compress_region(const uint8_t *target, size_t stride_bytes, uint32_t width,
                                     uint32_t height, uint8_t *dst, size_t dst_cap, size_t *out_len);
 
 /* Decompresses src into the region at target. The stream must unpack to
  * exactly width * height * 4 bytes. Returns 0, -1 for a NULL pointer, -7 for
- * a bad size or stride, -3 for a corrupt or wrong-size stream; on any
- * failure the region is left untouched. Never reads or writes out of
- * bounds. */
+ * a bad size or stride or a src_len above PTRDIFF_MAX, -3 for a corrupt or
+ * wrong-size stream; on any failure the region is left untouched. Never reads
+ * or writes out of bounds. */
 int32_t chat_lottie_decompress_region(const uint8_t *src, size_t src_len, uint8_t *target,
                                       size_t stride_bytes, uint32_t width, uint32_t height);
 
 /* Web only (compiled for wasm32, absent from native libraries): JavaScript
  * cannot write into the module's memory without owning a region of it, so the
  * module hands out its own. chat_lottie_alloc returns len bytes (4-aligned,
- * uninitialised), or NULL when len is 0 or over 256 MiB; chat_lottie_dealloc
- * takes the pointer back with the same len (NULL is accepted). */
+ * uninitialised), or NULL when len is 0 or over 16 MiB (the real maximum is a
+ * 4 MiB input or a 1 MiB frame); chat_lottie_dealloc takes the pointer back
+ * with the same len (NULL is accepted). */
 uint8_t *chat_lottie_alloc(size_t len);
 void chat_lottie_dealloc(uint8_t *ptr, size_t len);
 

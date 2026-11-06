@@ -53,6 +53,23 @@ void main() {
       });
     }
 
+    for (final (target, key) in cases) {
+      test('$key names its target back', () {
+        final back = LottieNativeTarget.fromKey(key);
+        expect(back, isNotNull);
+        expect(
+          (back!.os, back.arch, back.sdk),
+          (target.os, target.arch, target.sdk),
+        );
+        expect(back.key, key);
+      });
+    }
+
+    test('fromKey knows exactly the published keys, in a stable order', () {
+      expect(LottieNativeTarget.keys, [for (final (_, key) in cases) key]);
+      expect(LottieNativeTarget.fromKey('plan9-x64'), isNull);
+    });
+
     test('is null for a target the manifest has no key for', () {
       expect(const LottieNativeTarget(OS.linux, Architecture.ia32).key, isNull);
       expect(const LottieNativeTarget(OS.iOS, Architecture.arm64).key, isNull);

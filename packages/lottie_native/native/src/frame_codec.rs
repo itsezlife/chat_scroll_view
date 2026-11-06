@@ -54,6 +54,11 @@ pub unsafe extern "C" fn chat_lottie_compress_region(
         if target.is_null() || dst.is_null() || out_len.is_null() {
             return status::INVALID_ARGUMENT;
         }
+        // No buffer is longer than isize::MAX bytes; a larger capacity is a
+        // lie about the caller's memory, so it is a bad size, not "plenty".
+        if dst_cap > isize::MAX as usize {
+            return status::BAD_SIZE;
+        }
         let (row_bytes, raw) = match region_size(width, height, stride_bytes) {
             Ok(sizes) => sizes,
             Err(code) => return code,
@@ -99,6 +104,10 @@ pub unsafe extern "C" fn chat_lottie_decompress_region(
     guarded(status::INTERNAL, || {
         if src.is_null() || target.is_null() {
             return status::INVALID_ARGUMENT;
+        }
+        // Checked before from_raw_parts: no slice is longer than isize::MAX.
+        if src_len > isize::MAX as usize {
+            return status::BAD_SIZE;
         }
         let (row_bytes, raw) = match region_size(width, height, stride_bytes) {
             Ok(sizes) => sizes,

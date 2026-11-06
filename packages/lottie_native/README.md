@@ -6,8 +6,13 @@ render frames into page memory, dispose. A leaf of the workspace
 ([ADR 020](../../docs/adr/020-package-topology.md), rule 8): it depends on no
 workspace package and is reached through its decoder only.
 
-This package holds the interface, the fake, the contract, the native binding
-(`NativeLottieBinding`) and the build hook that delivers the compiled library.
+This package holds the whole native surface of Lottie: the binding interface
+(`LottieBinding`), the fake and the contract suite (`testing.dart`), the
+native binding (`NativeLottieBinding`) with the frame codec
+(`LottieFrameCodec`, lz4 over page memory) and `LottieNativeVersion`, the
+build hook that delivers the compiled library (from source or as a
+hash-pinned prebuilt, `native/prebuilts.json`), and the web side: the same
+crate as WebAssembly with its JavaScript core and worker (`web/`).
 
 ## Native library delivery
 
@@ -89,8 +94,15 @@ link-arg=-Wl,-z,max-page-size=16384`, appended to the flags the app set in
 ignores `rustflags` from `.cargo/config.toml` once either variable is set).
 After each Android build the hook reads the ELF program headers and fails
 the build if the machine is not the target's or any `PT_LOAD` segment is
-aligned below 0x4000; after an Apple build it checks the Mach-O CPU. Neither
-check runs on Linux or Windows output.
+aligned below 0x4000; after an Apple build it checks the Mach-O CPU. A
+downloaded prebuilt passes the same check (machine or CPU, and 16 KB segments
+on Android; the ELF machine on Linux, the PE machine on Windows) before it is
+used, because its hash only says it is the file the manifest names: a failing
+file is deleted and treated as no prebuilt, and the hook goes on to compile.
+
+**Android API level.** The hook links for the app's Android API level (the
+`<triple><api>-clang` above). The published prebuilts are built at API 21,
+Flutter's minimum, so one library loads on every supported device.
 
 **Cross-compile smoke.** `LOTTIE_NATIVE_CROSS=1 flutter test --concurrency 40
 test/unit_test.dart --plain-name cross-compile` compiles the crate for each
@@ -126,14 +138,22 @@ dependencies, so editing any of them re-runs it.
   `ios-arm64-simulator`, `ios-x64-simulator`, `android-arm64`, `android-x64`,
   `linux-x64`, `linux-arm64`, `windows-x64`.
 - `baseUrl` is empty or an absolute `https` URL ending with `/`; `file` is a
-  bare file name appended to it. Hex values are lower case.
+  bare file name of letters, digits, `.`, `_` and `-` (no leading dot, no
+  `..`), percent-encoded and appended to it. A redirect is followed only to
+  another `https` URL. Hex values are lower case.
 - An empty `baseUrl` or `artifacts` means "no prebuilt", never an error. A
   manifest that does not parse is ignored with a warning.
-- `sourceHash` is the SHA-256 over this listing: the files `Cargo.toml`,
-  `Cargo.lock`, everything under `include/` and everything under `src/` (all
-  in `native/`), sorted by `/`-separated relative path, each as
-  `<path> LF <byte length> LF <bytes> LF`. Bytes are hashed as stored, so a
-  checkout that rewrites line endings falls back to compiling.
+- `sourceHash` is the SHA-256 over this listing: the line
+  `lottie-native-source-v2` and LF, then the files `Cargo.toml`, `Cargo.lock`,
+  everything under `include/` and everything under `src/` (all in `native/`),
+  sorted by `/`-separated relative path, each as
+  `<byte length of the path>:<path><byte length of the content>:<content>`
+  (ASCII decimal lengths, bytes counted after UTF-8, no other separator).
+  Every field announces its own length, so a path cannot imitate the framing
+  of the record after it; the first format (`<path> LF <length> LF <bytes>
+  LF`) could be fooled that way and is gone. A path with a control character
+  is an error. Bytes are hashed as stored, so a checkout that rewrites line
+  endings falls back to compiling.
 
 ### Publishing prebuilts (maintainer)
 
@@ -157,10 +177,11 @@ Steps:
    disagrees).
 2. Push the tag `lottie_native-v<version>` (or run the workflow by hand on
    that tag). The workflow builds all ten target keys with
-   `cargo build --release --locked`, assembles `prebuilts.json` with
-   `--require` of every key (a missing, empty, duplicated or wrong-format
-   library fails the run) and creates the GitHub Release with the libraries
-   and the manifest attached. Run by hand from a branch it builds and
+   `cargo build --release --locked`, checks each library with
+   `native/tool/verify_artifact.dart` (a wrong CPU or 4 KB pages fail that
+   build leg), assembles `prebuilts.json` with `--require-all` (a missing,
+   empty, duplicated, mislabelled or wrong-format library fails the run) and
+   creates the GitHub Release with the libraries and the manifest attached. Run by hand from a branch it builds and
    assembles but publishes nothing.
 3. Review the release: ten libraries, `prebuilts.json`. The manifest is also
    the workflow artifact `prebuilts-manifest`.
@@ -176,18 +197,32 @@ package root,
 
 ```sh
 dart native/tool/assemble_manifest.dart <dir> --base-url <https url ending /> \
-  --require macos-arm64,macos-x64,ios-arm64,ios-arm64-simulator,ios-x64-simulator,android-arm64,android-x64,linux-x64,linux-arm64,windows-x64
+  --require-all
+dart native/tool/verify_artifact.dart <file> <key>   # prints OK or the problem
 ```
 
 It writes `native/prebuilts.json` (or `--out <file>`): each artifact's
 `file`, `sha256` and `size`, the current `sourceHash` and `crateVersion`. It
-writes nothing if a file is empty, has the wrong header for its key (ELF for
-Android and Linux, Mach-O for macOS and iOS, PE for Windows), two files claim
-one key, or a `--require` key has none, and it re-reads what it wrote.
+writes nothing if a file is empty, fails the hook's header check for its key
+(the format, the CPU, and 16 KB segments on Android), two files claim one key,
+or a required key has none (`--require-all` requires every key the hook
+knows; `--require a,b` names some), and it re-reads what it wrote.
 `manifest_entry.dart` prints one entry; `source_hash.dart` prints the hash,
 `--write` records it, `--check` exits non-zero when a non-empty recorded
 `sourceHash` differs from the sources. (Use `dart <file>`, not `dart run`,
 which would run the build hook.)
+
+**What CI repeats from the hook.** The prebuilts workflow spells out the
+per-target build commands (`cargo build --release --locked --target`, the
+Android linker, `-Wl,-z,max-page-size=16384`) instead of calling the hook's
+builder, because that builder (`compileCrate`) is reached through a Flutter
+build with a hook input, and a leg that only needs cargo should not need
+Flutter to build. The duplication is the Android linker setup and the build
+flags; `verify_artifact.dart` in every leg catches a drift (a wrong machine,
+4 KB pages) before anything is published. Actions are pinned to major tags
+(`actions/checkout@v4`), not commit SHAs, on purpose: only first-party
+actions and `subosito/flutter-action` are used, and the one job with a write
+permission runs no third-party code.
 
 **When the crate changes**, `--check` fails the pull request until the
 manifest agrees with the sources: publish new libraries (steps 1 to 5), or
@@ -230,6 +265,36 @@ The module exports the C ABI plus `chat_lottie_alloc` / `chat_lottie_dealloc`
 without owning a region of it. Pixels come out as the header says everywhere,
 premultiplied `[R, G, B, A]`, tightly packed, one `Uint8Array` copy per job,
 transferred to the host.
+
+**Handles, limits and traps.** A `handle` in the worker protocol is an opaque
+id (1, 2, 3, ...), never an address in the module, and an id is never
+reissued, so a stale handle fails with `-1` and cannot reach a later
+animation. The worker drops a message that is not an object with a string
+`type` and (but for `init`) an integer `id` with one `{type: 'error'}` reply,
+closes the previous core on a second `init`, and refuses a request over the
+caps: at most 256 jobs, integer edges 1 to 512 and a finite frame, and a file
+of at most 4 MiB (`MAX_JOBS`, `MAX_EDGE` and `MAX_FILE_BYTES` in the core;
+`STATUS` names the header's statuses and a test reads them back from
+`chat_lottie.h`). **A trap loses all loaded animations; the Dart side
+reloads.** wasm32 cannot unwind, so a Rust panic is a
+`WebAssembly.RuntimeError`, not the `-6` status that `catch_unwind` gives the
+native build. The core then drops that instance, builds a fresh one from the
+module it already compiled, answers the request that hit the trap with `-6`
+(every job of a batch gets it), and every id issued before the trap fails with
+`-1` afterwards: the caller loads again what it still needs. Ids keep
+counting across the restart.
+
+**Cross-build golden.** `native/tests/fixtures/golden_64x64_frame_30.rgba`
+(16 384 bytes, premultiplied `[R, G, B, A]`, frame 30 of the repository's own
+hand-authored fixture, so it is redistributable) is the one reference all
+builds are held to: `native/tests/golden.rs` compares the host build and
+`web/test/golden.test.mjs` both wasm builds (SIMD and plain), each within one
+colour level per channel. After a deliberate change of the renderer,
+regenerate it from the host build (from `native/`) and review the diff:
+
+```sh
+CHAT_LOTTIE_UPDATE_GOLDEN=1 cargo test --test golden
+```
 
 Tests run in Node only (v22; no browser):
 
@@ -308,7 +373,15 @@ NativeBindingContract.run(() => NativeBindingHarness(
 ## Fuzzing and benchmarks
 
 The C ABI is fuzzed two ways. The fixed corpus replay (`native/tests/replay.rs`)
-runs with `cargo test` on every pull request. The long run is
+runs with `cargo test` on every pull request: prefix truncations and byte
+mutations of the hand-authored fixture, the same as TGS (valid, truncated at
+several points, with a damaged gzip header or trailer, a gzip bomb exactly at
+the 8 MiB inflated cap and one byte over), all under the one-minute budget of
+ADR 030, which the test measures over the whole replay and fails above. The
+"269 zero bytes" input is a **stand-in**: ADR 030 names a known 269-byte
+malformed file, but that file is not available to this repository, so the
+corpus holds 269 zero bytes, which exercises the same short-input paths and
+says nothing about the original. The long run is
 `native/tests/fuzz_long.rs`, `#[ignore]`d so a plain `cargo test` never waits
 for it; the nightly workflow `.github/workflows/lottie_native_fuzz.yml` runs it
 for 20 minutes with a random seed and opens or updates one issue on a finding.
