@@ -17,7 +17,8 @@ final class LottieEngineHarness {
     this.frame = 0,
   });
 
-  /// Opens a fresh engine over an available binding; the contract closes it.
+  /// Opens a fresh engine over an available binding and an available frame
+  /// codec; the contract closes it.
   final Future<LottieEngine> Function() open;
 
   /// A file the binding loads.
@@ -141,6 +142,95 @@ abstract final class LottieEngineContract {
         await expectLater(engine.dispose(handle), completes);
       });
 
+      group('capture and restore', () {
+        test('a captured frame restored elsewhere is byte identical', () async {
+          final handle = await load();
+          final source = _Page();
+          final target = _Page();
+          addTearDown(source.free);
+          addTearDown(target.free);
+
+          final captures = await engine.renderCapturing([
+            source.job(handle, harness.frame),
+          ]);
+          final statuses = await engine.restore([
+            target.restoreJob(captures.single.compressed!),
+          ]);
+
+          expect(captures.single.status, LottieRenderStatus.ok);
+          expect(statuses, [LottieRenderStatus.ok]);
+          expect(source.slot().any((byte) => byte != 0), isTrue);
+          expect(target.slot(), source.slot());
+          expect(target.outsideSlotIsZero(), isTrue);
+        });
+
+        test('capturing renders the slot as renderBatch does', () async {
+          final handle = await load();
+          final plain = _Page();
+          final capturing = _Page();
+          addTearDown(plain.free);
+          addTearDown(capturing.free);
+
+          await engine.renderBatch([plain.job(handle, harness.frame)]);
+          await engine.renderCapturing([capturing.job(handle, harness.frame)]);
+
+          expect(capturing.slot(), plain.slot());
+        });
+
+        test('a job that did not render has no bytes, and spares the '
+            'others', () async {
+          final handle = await load();
+          final page = _Page();
+          addTearDown(page.free);
+
+          final captures = await engine.renderCapturing([
+            page.job(handle, harness.frame, width: 0),
+            page.job(handle, harness.frame),
+          ]);
+
+          expect(captures[0].status, LottieRenderStatus.badSize);
+          expect(captures[0].compressed, isNull);
+          expect(captures[1].status, LottieRenderStatus.ok);
+          expect(captures[1].compressed, isNotEmpty);
+        });
+
+        test('corrupt data is failed and leaves the slot unchanged', () async {
+          final page = _Page()..fill(0x5A);
+          addTearDown(page.free);
+          final before = page.slot();
+
+          final statuses = await engine.restore([
+            page.restoreJob(Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8])),
+            page.restoreJob(Uint8List(0)),
+          ]);
+
+          expect(statuses, [
+            LottieRenderStatus.failed,
+            LottieRenderStatus.failed,
+          ]);
+          expect(page.slot(), before);
+        });
+
+        test('data of another size is failed, not written', () async {
+          final handle = await load();
+          final source = _Page();
+          final target = _Page()..fill(0x5A);
+          addTearDown(source.free);
+          addTearDown(target.free);
+          final captures = await engine.renderCapturing([
+            source.job(handle, harness.frame),
+          ]);
+          final before = target.slot();
+
+          final statuses = await engine.restore([
+            target.restoreJob(captures.single.compressed!, width: 12),
+          ]);
+
+          expect(statuses, [LottieRenderStatus.failed]);
+          expect(target.slot(), before);
+        });
+      });
+
       test(
         'close is idempotent and later calls throw LottieEngineClosed',
         () async {
@@ -152,6 +242,8 @@ abstract final class LottieEngineContract {
           final closed = throwsA(isA<LottieEngineClosed>());
           await expectLater(engine.load(harness.validBytes), closed);
           await expectLater(engine.renderBatch(const []), closed);
+          await expectLater(engine.renderCapturing(const []), closed);
+          await expectLater(engine.restore(const []), closed);
           await expectLater(engine.dispose(handle), closed);
         },
       );
@@ -181,6 +273,21 @@ final class _Page {
             LottieEngineContract._slotX * 4,
         strideBytes: LottieEngineContract._stride,
       );
+
+  /// A restore of [compressed] into the slot; [width] overrides the slot's.
+  LottieRestoreJob restoreJob(Uint8List compressed, {int? width}) {
+    final sized = job(const LottieHandle(0), 0, width: width);
+    return LottieRestoreJob(
+      compressed: compressed,
+      width: sized.width,
+      height: sized.height,
+      address: sized.address,
+      strideBytes: sized.strideBytes,
+    );
+  }
+
+  /// Sets every byte of the page, so a write that should not happen shows.
+  void fill(int value) => _all().fillRange(0, _all().length, value);
 
   Uint8List _all() => _memory.asTypedList(
     LottieEngineContract._pageSide * LottieEngineContract._stride,

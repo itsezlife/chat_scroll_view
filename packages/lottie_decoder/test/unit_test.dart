@@ -17,6 +17,7 @@ import 'native_frame_page_memory_test.dart' as native_frame_page_memory_test;
 import 'paint/lottie_paintable_test.dart' as lottie_paintable_test;
 import 'playback/lottie_frame_scheduler_test.dart'
     as lottie_frame_scheduler_test;
+import 'renderer/lottie_source_test.dart' as lottie_source_test;
 
 void main() {
   group('cache/frame_cache_key_test.dart', frame_cache_key_test.main);
@@ -26,6 +27,7 @@ void main() {
     'playback/lottie_frame_scheduler_test.dart',
     lottie_frame_scheduler_test.main,
   );
+  group('renderer/lottie_source_test.dart', lottie_source_test.main);
   group(
     'in_process_lottie_engine_test.dart',
     in_process_lottie_engine_test.main,

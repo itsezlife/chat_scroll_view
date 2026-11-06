@@ -73,6 +73,55 @@ void main() {
     expect(binding.liveHandles, 0);
   });
 
+  group('without a frame codec', () {
+    // An engine whose codec is absent or unusable still renders; it just has
+    // nothing to hand a cache, and cannot restore.
+    for (final (name, codec) in <(String, LottieFrameCodec?)>[
+      ('none', null),
+      ('an unavailable one', FakeLottieFrameCodec(isAvailable: false)),
+    ]) {
+      test('$name: renderCapturing renders and carries no bytes', () async {
+        final engine = InProcessLottieEngine(binding, codec: codec);
+        final handle = ((await engine.load(bytes)) as LottieLoaded).handle;
+        final target = calloc<Uint8>(64 * 4 * 64);
+        addTearDown(() => calloc.free(target));
+
+        final captures = await engine.renderCapturing([
+          LottieEngineJob(
+            handle: handle,
+            frame: 3,
+            width: 64,
+            height: 64,
+            address: target.address,
+            strideBytes: 64 * 4,
+          ),
+        ]);
+
+        expect(captures.single.status, LottieRenderStatus.ok);
+        expect(captures.single.compressed, isNull);
+        expect(target[3], isNot(0), reason: 'the frame still rendered');
+      });
+
+      test('$name: restore fails every job', () async {
+        final engine = InProcessLottieEngine(binding, codec: codec);
+        final target = calloc<Uint8>(64 * 4 * 64);
+        addTearDown(() => calloc.free(target));
+
+        final statuses = await engine.restore([
+          LottieRestoreJob(
+            compressed: Uint8List.fromList([1, 2, 3]),
+            width: 64,
+            height: 64,
+            address: target.address,
+            strideBytes: 64 * 4,
+          ),
+        ]);
+
+        expect(statuses, [LottieRenderStatus.failed]);
+      });
+    }
+  });
+
   group('close', () {
     test('closes the binding and is idempotent', () async {
       await engine.load(bytes);

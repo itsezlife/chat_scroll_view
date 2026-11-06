@@ -5,8 +5,11 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:crypto/crypto.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
+import 'package:lottie_decoder/src/cache/frame_cache.dart';
+import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/paint/lottie_animation_paintable.dart';
 import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
@@ -71,6 +74,14 @@ Future<ui.Image> _imageFromPixels(Uint8List pixels, int width, int height) {
 /// reported as `firstFrame` and again as `full`, and the handle is freed
 /// at once.
 ///
+/// ## The frame cache
+///
+/// Given a cache, an animation that plays is named in it: its frames are keyed
+/// by the SHA-256 of the file, the pixel size they are rendered at and
+/// `LottieNativeVersion.engine`. A spec above the cap never animates, so it
+/// has no key and no frame is cached. The renderer does the caching; see
+/// `LottieFrameRenderer`.
+///
 /// ## Handles
 ///
 /// A handle belongs to the decode until a [LottieAnimationPaintable] takes it
@@ -84,20 +95,28 @@ Future<ui.Image> _imageFromPixels(Uint8List pixels, int width, int height) {
 final class LottieDecoder implements Decoder {
   /// Creates a decoder that draws with [engine] and plays through [scheduler].
   ///
+  /// [cache] is the frame cache the host's `LottieFrameRenderer` replays
+  /// from: the decoder only names each animation in it (a [FrameCacheKey]
+  /// from the file's SHA-256, the render size and `LottieNativeVersion.engine`)
+  /// and never reads or writes it. Without one nothing is keyed.
+  ///
   /// [decodeImage] and [uploadPixels] are the two steps that need the
   /// engine's image machinery; tests replace them.
   LottieDecoder({
     required LottieEngine engine,
     required LottieFrameScheduler scheduler,
+    FrameCache? cache,
     LottieImageDecoder decodeImage = _imageFromList,
     LottiePixelUploader uploadPixels = _imageFromPixels,
   }) : _engine = engine,
        _scheduler = scheduler,
+       _cache = cache,
        _decodeImage = decodeImage,
        _uploadPixels = uploadPixels;
 
   final LottieEngine _engine;
   final LottieFrameScheduler _scheduler;
+  final FrameCache? _cache;
   final LottieImageDecoder _decodeImage;
   final LottiePixelUploader _uploadPixels;
 
@@ -249,6 +268,14 @@ final class _LottieDecode implements AssetTask {
           firstFrame: finalImage!,
           scheduler: _owner._scheduler,
           renderEdge: edge,
+          cacheKey: _owner._cache == null
+              ? null
+              : FrameCacheKey(
+                  contentHash: sha256.convert(bytes).toString(),
+                  width: width,
+                  height: height,
+                  engineVersion: LottieNativeVersion.engine,
+                ),
           onDispose: () => _release(handle),
         ),
         bytes: frameBytes + 4 * bytes.length,

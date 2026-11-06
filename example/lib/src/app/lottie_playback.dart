@@ -54,10 +54,14 @@ final class LottiePlayback {
 /// Starts the Lottie decoder over [clock] (the one the frame scheduler
 /// follows) and [memoryPressure] (which releases the idle frames), or answers
 /// null when this build cannot run one and the decoder must not be registered.
+///
+/// `cacheDirectory` is the folder the rendered frames are kept in between
+/// launches; null keeps them in memory only. The playback owns that cache.
 typedef LottiePlaybackStarter =
     Future<LottiePlayback?> Function({
       required PlaybackClock clock,
       required Listenable memoryPressure,
+      String? cacheDirectory,
     });
 
 /// The platform's [LottiePlaybackStarter]: the native library behind
@@ -68,4 +72,14 @@ typedef LottiePlaybackStarter =
 Future<LottiePlayback?> startLottiePlayback({
   required PlaybackClock clock,
   required Listenable memoryPressure,
-}) => platform.start(clock: clock, memoryPressure: memoryPressure);
+  String? cacheDirectory,
+}) => platform.start(
+  clock: clock,
+  memoryPressure: memoryPressure,
+  cacheDirectory: cacheDirectory,
+);
+
+/// Where this platform keeps the cache of rendered frames, or null for none
+/// (see `defaultCacheDirectory` in the native fork). Only `main` asks: a test
+/// passes no folder and keeps the frames in memory.
+String? defaultLottieCacheDirectory() => platform.defaultCacheDirectory();

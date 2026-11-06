@@ -8,6 +8,9 @@ package is pre-1.0.
 
 ### Added
 
+- `LottieNativeVersion.engine`: the crate version and pinned tlottie revision
+  as one token, part of every frame-cache key; a test compares it with
+  `native/Cargo.toml`.
 - `native/tool/assemble_manifest.dart` builds `prebuilts.json` from a directory
   of built libraries (header, duplicate and `--require` checks, re-read
   verification); `source_hash.dart --check` fails on a stale recorded hash;
