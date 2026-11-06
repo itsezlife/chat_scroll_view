@@ -66,3 +66,99 @@ export const LAYOUT = Object.freeze({
     size: 24,
   }),
 });
+
+// --- The module in use ----------------------------------------------------
+
+/** Statuses the core itself reports; the rest come from the module. */
+const TOO_LARGE = -2;
+const INVALID_ARGUMENT = -1;
+
+/** The ABI version this file was written against (`chat_lottie_abi_version`). */
+const ABI_VERSION = 1;
+
+/**
+ * Instantiates the module from [wasmBytes] and returns the handle over it:
+ * `load`, `renderPixels`, `dispose` and `close`. One core serves one caller at
+ * a time (a worker handles requests in order).
+ *
+ * Every call into the module can grow its memory, which detaches the old
+ * `ArrayBuffer`; views are therefore made right before each use and never kept.
+ */
+export async function createChatLottie(wasmBytes) {
+  const { instance } = await WebAssembly.instantiate(wasmBytes, {});
+  const wasm = instance.exports;
+  const version = wasm.chat_lottie_abi_version();
+  if (version !== ABI_VERSION) {
+    throw new Error(`chat_lottie wasm has ABI version ${version}, expected ${ABI_VERSION}`);
+  }
+
+  const bytes = () => new Uint8Array(wasm.memory.buffer);
+  const words = () => new DataView(wasm.memory.buffer);
+  let closed = false;
+  const live = new Set();
+
+  // Out-parameters of `load`: allocated once, reused by every call.
+  const infoPtr = allocate(LAYOUT.info.size);
+  const handlePtr = allocate(4);
+
+  function allocate(length) {
+    const pointer = wasm.chat_lottie_alloc(length);
+    if (pointer === 0) throw new Error(`chat_lottie_alloc(${length}) failed`);
+    return pointer;
+  }
+
+  function ensureOpen() {
+    if (closed) throw new Error('the chat_lottie core is closed');
+  }
+
+  function load(input) {
+    ensureOpen();
+    // The module refuses an empty region, and an empty file is a malformed
+    // one: give it one byte and the true length 0.
+    const pointer = wasm.chat_lottie_alloc(Math.max(input.length, 1));
+    if (pointer === 0) return { status: TOO_LARGE };
+    try {
+      bytes().set(input, pointer);
+      const status = wasm.chat_lottie_load(pointer, input.length, infoPtr, handlePtr);
+      if (status !== 0) return { status };
+      const view = words();
+      const handle = view.getUint32(handlePtr, true);
+      live.add(handle);
+      return {
+        status,
+        info: {
+          handle,
+          width: view.getUint32(infoPtr + LAYOUT.info.width, true),
+          height: view.getUint32(infoPtr + LAYOUT.info.height, true),
+          frameCount: view.getUint32(infoPtr + LAYOUT.info.frameCount, true),
+          frameRate: view.getFloat32(infoPtr + LAYOUT.info.frameRate, true),
+          features: view.getUint32(infoPtr + LAYOUT.info.features, true),
+        },
+      };
+    } finally {
+      wasm.chat_lottie_dealloc(pointer, Math.max(input.length, 1));
+    }
+  }
+
+  function dispose(handle) {
+    if (!live.delete(handle)) return;
+    wasm.chat_lottie_free(handle);
+  }
+
+  function close() {
+    if (closed) return;
+    for (const handle of live) wasm.chat_lottie_free(handle);
+    live.clear();
+    wasm.chat_lottie_dealloc(infoPtr, LAYOUT.info.size);
+    wasm.chat_lottie_dealloc(handlePtr, 4);
+    closed = true;
+  }
+
+  return {
+    abiVersion: version,
+    exports: wasm,
+    load,
+    dispose,
+    close,
+  };
+}
