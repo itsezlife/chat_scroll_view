@@ -29,13 +29,15 @@ import 'package:crypto/crypto.dart';
 /// Also what the hook declares as rebuild inputs, so the two cannot drift.
 List<File> crateSourceFiles(Directory native) {
   final root = _slashed(native.path);
+  // Resolved against the directory's URI, which always ends with a slash:
+  // joining a path string would give "native//src" for a trailing slash.
   final files = <File>[
     for (final name in const ['Cargo.toml', 'Cargo.lock'])
-      File('${native.path}/$name'),
-    for (final dir in const ['include', 'src'])
-      if (Directory('${native.path}/$dir').existsSync())
-        ...Directory(
-          '${native.path}/$dir',
+      File.fromUri(native.uri.resolve(name)),
+    for (final dir in const ['include/', 'src/'])
+      if (Directory.fromUri(native.uri.resolve(dir)).existsSync())
+        ...Directory.fromUri(
+          native.uri.resolve(dir),
         ).listSync(recursive: true).whereType<File>(),
   ];
   return files

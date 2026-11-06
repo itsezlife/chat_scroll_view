@@ -1,34 +1,12 @@
 /// What `hook/build.dart` needs to compile the `native/` crate with cargo:
-/// the Rust target for a code target, and where cargo is.
+/// where cargo is, and what to say when it fails (the Rust target for a code
+/// target is `LottieNativeTarget.rustTriple`).
 ///
 /// Kept apart from the hook entry so the decisions are tested without
 /// running a build.
 library;
 
 import 'dart:io';
-
-import 'package:code_assets/code_assets.dart';
-
-import 'targets.dart';
-
-/// The Rust target triple for [os] and [architecture], or null when this
-/// slice does not build for it.
-///
-/// Only macOS is built from source in this slice. Another target gets no
-/// asset rather than a failed build: a host that never registers the binding
-/// (it probes first) still builds and runs, and the probe reports
-/// [unsupportedTargetWarning]'s consequence at run time.
-String? rustTargetFor(OS os, Architecture architecture) =>
-    LottieNativeTarget(os, architecture).rustTriple;
-
-/// The warning the hook logs when [rustTargetFor] has no answer.
-String unsupportedTargetWarning(OS os, Architecture architecture) =>
-    'lottie_native builds its native library from source on macOS (arm64 and '
-    'x86_64) only; this build targets $os/$architecture, so no library is '
-    'bundled and it is unavailable at run time (NativeLottieBinding.probe() '
-    'reports missingLibrary). Android, iOS, Windows and Linux arrive with '
-    'slice 6: hash-pinned prebuilt libraries and an opt-in flag to compile '
-    'from source.';
 
 /// A line to append to a failed cargo run's message when [output] says the
 /// Rust standard library for [target] is not installed, else null.
