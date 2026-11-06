@@ -1,0 +1,12 @@
+name: video_native
+description: >
+  Native video decoding (FFmpeg and libvpx behind a C API). Skeleton: the
+  pinned build recipe and its proof probe only, no Dart API yet. A leaf: it
+  depends on no workspace package.
+version: 0.0.1
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
