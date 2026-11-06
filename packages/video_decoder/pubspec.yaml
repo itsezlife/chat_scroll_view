@@ -31,3 +31,5 @@ dependencies:
   meta: ^1.17.0
   video_native:
     path: ../video_native
+  # The browser element port (lib/src/web), compiled only for the web.
+  web: ^1.1.1
