@@ -1,9 +1,11 @@
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 
 /// Message bodies that show the inline layer and the emoji-only bodies working
 /// in the reference host: custom emoji painted in the text, spoilers (with an
 /// embed inside), mentions, usernames and hashtags, and messages of nothing but
-/// emoji in each of the layouts.
+/// emoji in each of the layouts, and the Lottie stickers of the demo pack as
+/// lone documents.
 ///
 /// Markdown as the wire carries it. The custom emoji are the animated pack's
 /// documents, which the app's asset pipeline knows, so they paint; a body can
@@ -35,16 +37,22 @@ abstract final class ShowcaseBodies {
         '[#release](hashtag:release) for notes',
     'A plain link too: [flutter.dev](https://flutter.dev)',
     // Messages of nothing but emoji: a lone unicode emoji with an animated
-    // sticker, a lone custom emoji, enlarged text of three, five and twelve,
-    // and a multi-line arrangement.
+    // sticker, a lone custom emoji, the Lottie stickers, enlarged text of
+    // three, five and twelve, and a multi-line arrangement.
     '\u{1F44D}',
     _emoji('1f680'),
+    // A lone document of the Lottie pack is a sticker, played in a loop.
+    for (final sticker in LottieStickerPack.stickers) _sticker(sticker),
     '\u{1F389}\u{1F525}\u{1F680}',
     '\u{1F600}${_emoji('1f602')}\u{1F60D}${_emoji('1f929')}\u{1F970}',
     '\u{1F600}\u{1F602}\u{1F60D}\u{1F929}\u{1F970}\u{1F973}'
         '\u{1F60E}\u{1F913}\u{1F914}\u{1F644}\u{1F62C}\u{1F631}',
     '\u{1F44D}\n\n\u{1F44D} \u{1F44D}',
   ]);
+
+  // `![name](document:id)` of a Lottie [sticker].
+  static String _sticker(LottieSticker sticker) =>
+      '![${sticker.spokenName}](${sticker.key.encoded})';
 
   // `![glyph](document:id)` of the pack's emoji [code].
   static String _emoji(String code) {

@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'app/app_services_test.dart' as app_services_test;
 import 'app/boot_test.dart' as boot_test;
 import 'app/listener_errors_test.dart' as listener_errors_test;
+import 'app/lottie_playback_test.dart' as lottie_playback_test;
 import 'app/overlay_pause_observer_test.dart' as overlay_pause_observer_test;
 import 'app/system_reduced_motion_test.dart' as system_reduced_motion_test;
 import 'backend_chat_data_source_test.dart' as backend_chat_data_source_test;
@@ -45,6 +46,7 @@ import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
+import 'features/chat/bundled_packs_test.dart' as bundled_packs_test;
 import 'features/chat/chat_body_host_test.dart' as chat_body_host_test;
 import 'features/chat/chat_body_markdown_test.dart' as chat_body_markdown_test;
 import 'features/chat/chat_composer_spec_test.dart' as chat_composer_spec_test;
@@ -61,6 +63,10 @@ import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
 import 'features/chat/large_emoji_test.dart' as large_emoji_test;
 import 'features/chat/link_activation_test.dart' as link_activation_test;
+import 'features/chat/lottie_sticker_pack_test.dart'
+    as lottie_sticker_pack_test;
+import 'features/chat/lottie_sticker_pipeline_test.dart'
+    as lottie_sticker_pipeline_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
@@ -115,6 +121,8 @@ import 'widgets/emoji_selection_clear_test.dart' as emoji_selection_clear_test;
 import 'widgets/glyph_warmup_test.dart' as glyph_warmup_test;
 import 'widgets/large_emoji_limit_button_test.dart'
     as large_emoji_limit_button_test;
+import 'widgets/lottie_sticker_message_test.dart'
+    as lottie_sticker_message_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
 import 'widgets/message_row_frame_test.dart' as message_row_frame_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
@@ -139,6 +147,7 @@ void main() {
   group('app/app_services_test.dart', app_services_test.main);
   group('app/boot_test.dart', boot_test.main);
   group('app/listener_errors_test.dart', listener_errors_test.main);
+  group('app/lottie_playback_test.dart', lottie_playback_test.main);
   group(
     'app/overlay_pause_observer_test.dart',
     overlay_pause_observer_test.main,
@@ -224,6 +233,19 @@ void main() {
   group(
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,
+  );
+  group('features/chat/bundled_packs_test.dart', bundled_packs_test.main);
+  group(
+    'features/chat/lottie_sticker_pipeline_test.dart',
+    lottie_sticker_pipeline_test.main,
+  );
+  group(
+    'widgets/lottie_sticker_message_test.dart',
+    lottie_sticker_message_test.main,
+  );
+  group(
+    'features/chat/lottie_sticker_pack_test.dart',
+    lottie_sticker_pack_test.main,
   );
   group(
     'features/chat/chat_messages_copy_format_test.dart',

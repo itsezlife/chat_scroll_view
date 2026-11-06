@@ -1,4 +1,5 @@
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/bundle_fetcher.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -39,7 +40,8 @@ final class AnimatedEmoji {
     spokenName: name,
   );
 
-  String get _assetPath => 'assets/animated_emoji/$code.webp';
+  /// Where the bundle holds the file.
+  String get assetPath => 'assets/animated_emoji/$code.webp';
 }
 
 /// The demo's one pack of animated emoji: Google's Noto Animated Emoji,
@@ -136,7 +138,8 @@ abstract final class AnimatedEmojiPack {
   static ContentResolver resolver() => const _PackResolver();
 
   /// A fetcher that reads the pack's files from [bundle].
-  static ContentFetcher fetcher(AssetBundle bundle) => _BundleFetcher(bundle);
+  static ContentFetcher fetcher(AssetBundle bundle) =>
+      BundleFetcher(bundle, pathOf: (key) => of(key)?.assetPath);
 }
 
 final class _PackSource implements CollectionSource {
@@ -181,41 +184,4 @@ final class _PackResolver implements ContentResolver {
   ) async => {
     for (final key in keys) key: ?AnimatedEmojiPack.of(key)?.descriptor,
   };
-}
-
-/// Reads the pack's files from an asset bundle.
-///
-/// A bundle read cannot be stopped, so a cancelled fetch still completes
-/// with its bytes, which the pipeline drops; a file is about 110 KB. A key
-/// that is not the pack's, or a file the bundle lacks, is missing content: a
-/// permanent failure. The pack has no thumbnails, so none is asked for.
-final class _BundleFetcher implements ContentFetcher {
-  _BundleFetcher(this._bundle);
-
-  final AssetBundle _bundle;
-
-  @override
-  Future<FetchedContent> fetch(FetchRequest request) async {
-    final item = AnimatedEmojiPack.of(request.descriptor.key);
-    if (item == null || request.part == FetchPart.thumbnail) {
-      throw FetchFailure.permanent(
-        'not in the bundled pack: ${request.descriptor.key} '
-        '(${request.part.name})',
-      );
-    }
-    final ByteData data;
-    try {
-      data = await _bundle.load(item._assetPath);
-      // A bundle reports a file it lacks as a FlutterError and offers no way
-      // to ask first.
-      // ignore: avoid_catching_errors
-    } on FlutterError catch (error) {
-      // A bundle does not gain files at run time, so retrying will not help.
-      // Anything else is a bug, and stays one.
-      throw FetchFailure.permanent('missing ${item._assetPath}', error);
-    }
-    return FetchedContent.bytes(
-      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-    );
-  }
 }

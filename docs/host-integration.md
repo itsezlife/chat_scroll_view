@@ -173,6 +173,38 @@ of the pointer menu comes from `ChromeStrings`, so an app that has no Material
 delegate for its own language still shows its language in them. `PanelShell`
 builds on `EditableText` and needs no Material ancestor.
 
+### The vector-animation decoder
+
+A host that shows Lottie content registers one `Decoder` under
+`MediaForm.vectorAnimation` (`lottie_decoder`, over `lottie_native`). The native
+library is not on every target, so the host **probes by starting the render
+engine** and registers the decoder only when that works; where it does not,
+vector animations keep their placeholder and nothing else changes.
+
+Create, in this order:
+
+1. The `PlaybackClock`, and pass it to the scope (`clock:`). The frame
+   scheduler follows the same clock as every binding, so it is gated by the
+   same pause layers, and it must exist before the scope does. A scope handed a
+   clock does not own it: the host disposes it, after the scope.
+2. The engine: `IsolateLottieEngine.spawn()` inside a guard. A `StateError`
+   means the library is missing or speaks another version: log once through
+   the host's diagnostics, create nothing more and do not register.
+3. One `NativeFramePageMemory` (the render isolate writes it), a `FrameAtlas`
+   over it with a `LottieFrameRenderer` and the memory-pressure `Listenable`
+   the scope shares, and a `LottieFrameScheduler` on the clock, which owns the
+   atlas.
+4. `decoders.register(MediaForm.vectorAnimation, LottieDecoder(engine:,
+   scheduler:))`, before the `AssetPipeline` is built. Tell the pipeline the
+   descriptors up front (`pipeline.know`); a fetcher serves the file bytes.
+
+Dispose in this order: the scope and the pipeline (dropping an entry frees the
+animation it holds, through the engine), then the scheduler (which disposes the
+atlas), then `engine.close()`, then the memory, then the clock. The engine
+closes before the memory because its isolate writes into it. `dart:ffi` does
+not compile for the web, so put the probe behind a conditional import and keep
+the native file unreachable from a web build.
+
 ## 4. Per-chat controller set
 
 A chat screen creates these when it opens and disposes them when it closes.
@@ -979,6 +1011,7 @@ desktop.
 | --- | --- | --- | --- |
 | `KeyValueStore` adapter, stores, fetcher, decoders, resolver | Host | App or account | Host |
 | `AssetCacheScope` | Host | App-wide | Host (scopes and `AssetCacheProvider` never dispose it) |
+| `PlaybackClock` handed to the scope, the Lottie engine, its page memory and frame scheduler | Host | App | Host (scope and pipeline first, then scheduler, engine, memory, clock) |
 | `PlaybackActivity` and its lifecycle source; the `lowPower` and `reducedMotion` notifiers it follows | Host | App | Host (dispose the activity first: it clears the layers it set) |
 | `routeMoving` / `fastScroll` layers, connectivity signal | Host, fed into the cache | App | Host |
 | Emoji and other data sources | Host | Account | Host |
@@ -1076,6 +1109,8 @@ not use the hover-open toggle region.
 | Step | File |
 | --- | --- |
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
+| Lottie decoder probe and start (native and web forks) | `example/lib/src/app/lottie_playback.dart`, `lottie_playback_native.dart`, `lottie_playback_stub.dart` |
+| Bundled packs: one fetcher and resolver, the authored Lottie stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `lottie_sticker_pack.dart` |
 | `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
 | App scopes | `example/lib/src/app/app_chrome.dart` |
 | Per-chat controller set, event handler, back, hand-off | `example/lib/src/features/chat/input/chat_input_set.dart` |
