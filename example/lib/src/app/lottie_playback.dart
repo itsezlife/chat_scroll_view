@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback_stub.dart'
     if (dart.library.ffi) 'package:chat_scroll_view_example/src/app/lottie_playback_native.dart'
@@ -7,11 +9,47 @@ import 'package:flutter/foundation.dart';
 /// The Lottie decoder of a host that can run one, and how to stop what it
 /// needs.
 ///
-/// [close] frees the frame atlas, then the render engine, then the page memory
-/// the engine writes: in that order, and idempotent. A [LottiePlayback] exists
-/// only after the engine was probed by starting it; a host without the library
-/// has none.
-typedef LottiePlayback = ({Decoder decoder, Future<void> Function() close});
+/// A [LottiePlayback] exists only after the engine was probed by starting it;
+/// a host without the library has none. [close] runs the [shutdown] steps in
+/// the order given and only once; the platform file that built the playback
+/// owns the order (the frame atlas, then the render engine, then the page
+/// memory the engine writes).
+final class LottiePlayback {
+  /// Creates a playback of [decoder] that [close] stops by running [shutdown].
+  LottiePlayback({
+    required this.decoder,
+    required List<FutureOr<void> Function()> shutdown,
+  }) : _shutdown = List.unmodifiable(shutdown);
+
+  /// The decoder to register for vector animation.
+  final Decoder decoder;
+
+  final List<FutureOr<void> Function()> _shutdown;
+  Future<void>? _closing;
+
+  /// Stops the playback. Idempotent: every call answers the same future.
+  ///
+  /// A step that fails does not skip the ones after it: the page memory must
+  /// be freed even when the engine would not close. The first failure is
+  /// rethrown once every step has run.
+  Future<void> close() => _closing ??= _run();
+
+  Future<void> _run() async {
+    Object? failure;
+    StackTrace? trace;
+    for (final step in _shutdown) {
+      try {
+        await step();
+        // Every step runs; the first failure is the one reported.
+        // ignore: avoid_catches_without_on_clauses
+      } catch (error, stack) {
+        failure ??= error;
+        trace ??= stack;
+      }
+    }
+    if (failure != null) Error.throwWithStackTrace(failure, trace!);
+  }
+}
 
 /// Starts the Lottie decoder over [clock] (the one the frame scheduler
 /// follows) and [memoryPressure] (which releases the idle frames), or answers

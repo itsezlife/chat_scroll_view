@@ -150,7 +150,7 @@ void main() {
     }) async {
       givenClock = clock;
       givenPressure = memoryPressure;
-      return (decoder: decoder, close: () async => closed++);
+      return LottiePlayback(decoder: decoder, shutdown: [() async => closed++]);
     }
 
     setUp(() {
@@ -209,6 +209,51 @@ void main() {
       );
 
       expect(closed, 1);
+    });
+
+    group('whose close fails', () {
+      late List<FlutterErrorDetails> reported;
+
+      setUp(() {
+        reported = [];
+        final previous = FlutterError.onError;
+        FlutterError.onError = reported.add;
+        addTearDown(() => FlutterError.onError = previous);
+      });
+
+      Future<LottiePlayback?> failing({
+        required PlaybackClock clock,
+        required Listenable memoryPressure,
+      }) async => LottiePlayback(
+        decoder: decoder,
+        shutdown: [() async => throw StateError('engine would not close')],
+      );
+
+      test('is reported once when the services are disposed', () async {
+        final services = await create(startLottie: failing);
+
+        services.dispose();
+        services.dispose();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(reported, hasLength(1));
+        expect(reported.single.exception, isA<StateError>());
+      });
+
+      test('is reported once when a later step fails the boot', () async {
+        await expectLater(
+          AppServices.create(
+            keyValueStore: FakeKeyValueStore(),
+            assetLoader: (key) async => throw StateError('no catalogue'),
+            startLottie: failing,
+          ),
+          throwsStateError,
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(reported, hasLength(1));
+        expect(reported.single.exception, isA<StateError>());
+      });
     });
 
     test('is left unregistered when the platform has none: the app boots '

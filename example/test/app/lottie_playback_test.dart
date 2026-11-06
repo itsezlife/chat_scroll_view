@@ -4,12 +4,14 @@ library;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback_native.dart'
     as native;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:l/l.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
+import 'package:lottie_native/lottie_native.dart';
 import 'package:lottie_native/testing.dart';
 
 void main() {
@@ -35,13 +37,34 @@ void main() {
     final playback = await native.start(
       clock: clock,
       memoryPressure: pressure,
-      spawn: () async => throw StateError('missingLibrary'),
+      spawn: () async =>
+          throw LottieUnavailable(LottieAvailability.missingLibrary),
     );
     await Future<void>.delayed(Duration.zero);
 
     expect(playback, isNull);
     expect(logged.where((line) => line.contains('Lottie')), hasLength(1));
     expect(logged.single, contains('missingLibrary'));
+  });
+
+  test('any failure to start gives no playback, and says so once, with its '
+      'type', () async {
+    final logged = <String>[];
+    final subscription = l.listen(
+      (message) => logged.add('${message.message}'),
+    );
+    addTearDown(subscription.cancel);
+
+    final playback = await native.start(
+      clock: clock,
+      memoryPressure: pressure,
+      spawn: () async => throw const FormatException('not a state error'),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(playback, isNull);
+    expect(logged.where((line) => line.contains('Lottie')), hasLength(1));
+    expect(logged.single, contains('FormatException'));
   });
 
   test('an engine that starts gives a decoder, and close frees it', () async {
@@ -58,5 +81,41 @@ void main() {
     await playback.close();
     await expectLater(engine.load(Uint8List(0)), throwsStateError);
     await playback.close();
+  });
+
+  group('LottiePlayback', () {
+    test('closes its steps in the order given, once', () async {
+      final order = <String>[];
+      final playback = LottiePlayback(
+        decoder: FakeDecoder(),
+        shutdown: [
+          () => order.add('atlas'),
+          () async => order.add('engine'),
+          () => order.add('memory'),
+        ],
+      );
+
+      await playback.close();
+      await playback.close();
+
+      expect(order, ['atlas', 'engine', 'memory']);
+    });
+
+    test('a failing step does not skip the ones after it, and is '
+        'rethrown', () async {
+      final order = <String>[];
+      final playback = LottiePlayback(
+        decoder: FakeDecoder(),
+        shutdown: [
+          () => order.add('atlas'),
+          () async => throw StateError('engine would not close'),
+          () => order.add('memory'),
+        ],
+      );
+
+      await expectLater(playback.close(), throwsStateError);
+
+      expect(order, ['atlas', 'memory'], reason: 'the memory still goes');
+    });
   });
 }

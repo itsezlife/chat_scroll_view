@@ -211,7 +211,7 @@ final class AppServices {
         memoryPressure: memoryPressure,
       );
       if (lottiePlayback != null) {
-        owned(lottiePlayback, (playback) => unawaited(playback.close()));
+        owned(lottiePlayback, _closePlayback);
       }
       // The emoji pack is animated WebP, which the engine's image codecs
       // decode.
@@ -504,6 +504,27 @@ final class AppServices {
     return GlyphPlan([...catalogue, ...extras]);
   }
 
+  /// Starts closing [playback] and reports a failure instead of leaving it
+  /// to an unhandled future: a close is not awaited at shutdown, and one
+  /// that fails has no caller to tell. Each path calls it once.
+  static void _closePlayback(LottiePlayback playback) {
+    unawaited(
+      playback.close().then<void>(
+        (_) {},
+        onError: (Object error, StackTrace stackTrace) {
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stackTrace,
+              library: 'chat_scroll_view_example',
+              context: ErrorDescription('while closing the Lottie playback'),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   /// Frees what [create] made, in the reverse of the order it made it.
   /// Idempotent. What was handed in is left as it is.
   void dispose() {
@@ -527,7 +548,7 @@ final class AppServices {
     _pipeline.dispose();
     // After the scope and the pipeline: dropping their entries frees the
     // animations the decoder made, through its engine.
-    unawaited(_lottiePlayback?.close());
+    if (_lottiePlayback case final playback?) _closePlayback(playback);
     _clock.dispose();
     memoryPressure.dispose();
     largeEmoji.dispose();
