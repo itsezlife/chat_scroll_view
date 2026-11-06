@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'cache/frame_cache_key_test.dart' as frame_cache_key_test;
 import 'in_process_lottie_engine_test.dart' as in_process_lottie_engine_test;
 import 'isolate_lottie_engine_test.dart' as isolate_lottie_engine_test;
 import 'lottie_decoder_test.dart' as lottie_decoder_test;
@@ -17,6 +18,7 @@ import 'playback/lottie_frame_scheduler_test.dart'
     as lottie_frame_scheduler_test;
 
 void main() {
+  group('cache/frame_cache_key_test.dart', frame_cache_key_test.main);
   group('paint/lottie_paintable_test.dart', lottie_paintable_test.main);
   group(
     'playback/lottie_frame_scheduler_test.dart',

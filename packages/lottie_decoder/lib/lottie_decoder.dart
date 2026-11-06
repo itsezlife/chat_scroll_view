@@ -1,6 +1,7 @@
 /// The Lottie decoder adapter for the frame pool.
 library;
 
+export 'src/cache/frame_cache_key.dart';
 export 'src/decoder/lottie_decoder.dart';
 export 'src/engine/in_process_lottie_engine.dart';
 export 'src/engine/isolate_lottie_engine.dart';
