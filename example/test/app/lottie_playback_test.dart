@@ -83,6 +83,63 @@ void main() {
     await playback.close();
   });
 
+  group('defaultCacheDirectory', () {
+    test('is under the user cache folder of macOS', () {
+      expect(
+        native.defaultCacheDirectory(
+          operatingSystem: 'macos',
+          environment: {'HOME': '/Users/me'},
+        ),
+        '/Users/me/Library/Caches/chat_scroll_view_example/lottie_frames',
+      );
+    });
+
+    test('follows XDG_CACHE_HOME on Linux, else ~/.cache', () {
+      expect(
+        native.defaultCacheDirectory(
+          operatingSystem: 'linux',
+          environment: {'XDG_CACHE_HOME': '/x', 'HOME': '/home/me'},
+        ),
+        '/x/chat_scroll_view_example/lottie_frames',
+      );
+      expect(
+        native.defaultCacheDirectory(
+          operatingSystem: 'linux',
+          environment: {'HOME': '/home/me'},
+        ),
+        '/home/me/.cache/chat_scroll_view_example/lottie_frames',
+      );
+    });
+
+    test('is under LOCALAPPDATA on Windows', () {
+      expect(
+        native.defaultCacheDirectory(
+          operatingSystem: 'windows',
+          environment: {'LOCALAPPDATA': r'C:\Users\me\AppData\Local'},
+        ),
+        r'C:\Users\me\AppData\Local\chat_scroll_view_example\lottie_frames',
+      );
+    });
+
+    test('is none where the platform cache folder is not known', () {
+      for (final os in ['android', 'ios', 'fuchsia']) {
+        expect(
+          native.defaultCacheDirectory(
+            operatingSystem: os,
+            environment: {'HOME': '/home/me'},
+          ),
+          isNull,
+          reason: os,
+        );
+      }
+      expect(
+        native.defaultCacheDirectory(operatingSystem: 'macos', environment: {}),
+        isNull,
+        reason: 'no HOME',
+      );
+    });
+  });
+
   group('LottiePlayback', () {
     test('closes its steps in the order given, once', () async {
       final order = <String>[];

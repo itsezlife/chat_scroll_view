@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'android_ndk_test.dart' as android_ndk_test;
 import 'artifact_check_test.dart' as artifact_check_test;
+import 'assemble_manifest_test.dart' as assemble_manifest_test;
 import 'build_environment_test.dart' as build_environment_test;
 import 'cross_compile_test.dart' as cross_compile_test;
 import 'delivery_plan_test.dart' as delivery_plan_test;
@@ -22,6 +23,7 @@ import 'lottie_features_test.dart' as lottie_features_test;
 import 'lottie_frame_codec_contract_test.dart'
     as lottie_frame_codec_contract_test;
 import 'lottie_native_target_test.dart' as lottie_native_target_test;
+import 'lottie_native_version_test.dart' as lottie_native_version_test;
 import 'manifest_entry_test.dart' as manifest_entry_test;
 import 'native_binding_contract_test.dart' as native_binding_contract_test;
 import 'native_lottie_binding_test.dart' as native_lottie_binding_test;
@@ -34,6 +36,7 @@ import 'source_hash_test.dart' as source_hash_test;
 void main() {
   group('android_ndk_test.dart', android_ndk_test.main);
   group('artifact_check_test.dart', artifact_check_test.main);
+  group('assemble_manifest_test.dart', assemble_manifest_test.main);
   group('build_environment_test.dart', build_environment_test.main);
   group('cross_compile_test.dart', cross_compile_test.main);
   group('delivery_plan_test.dart', delivery_plan_test.main);
@@ -54,6 +57,7 @@ void main() {
     lottie_frame_codec_contract_test.main,
   );
   group('lottie_native_target_test.dart', lottie_native_target_test.main);
+  group('lottie_native_version_test.dart', lottie_native_version_test.main);
   group('manifest_entry_test.dart', manifest_entry_test.main);
   group('native_binding_contract_test.dart', native_binding_contract_test.main);
   group('native_lottie_binding_test.dart', native_lottie_binding_test.main);

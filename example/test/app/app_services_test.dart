@@ -144,13 +144,16 @@ void main() {
     late int closed;
     PlaybackClock? givenClock;
     Listenable? givenPressure;
+    String? givenCacheDirectory;
 
     Future<LottiePlayback?> start({
       required PlaybackClock clock,
       required Listenable memoryPressure,
+      String? cacheDirectory,
     }) async {
       givenClock = clock;
       givenPressure = memoryPressure;
+      givenCacheDirectory = cacheDirectory;
       return LottiePlayback(decoder: decoder, shutdown: [() async => closed++]);
     }
 
@@ -161,13 +164,16 @@ void main() {
       givenPressure = null;
     });
 
-    Future<AppServices> create({LottiePlaybackStarter? startLottie}) =>
-        AppServices.create(
-          keyValueStore: FakeKeyValueStore(),
-          assetLoader: rootBundle.loadString,
-          clipboard: FakeRichClipboard(),
-          startLottie: startLottie ?? start,
-        );
+    Future<AppServices> create({
+      LottiePlaybackStarter? startLottie,
+      String? lottieCacheDirectory,
+    }) => AppServices.create(
+      keyValueStore: FakeKeyValueStore(),
+      assetLoader: rootBundle.loadString,
+      clipboard: FakeRichClipboard(),
+      startLottie: startLottie ?? start,
+      lottieCacheDirectory: lottieCacheDirectory,
+    );
 
     test('is started on the clock and the memory pressure the app shares, '
         'and registered for vector animation', () async {
@@ -188,6 +194,16 @@ void main() {
       }
       expect(decoder.decodes, isNotEmpty);
       expect(decoder.decodes.first.request.descriptor, sticker.descriptor);
+    });
+
+    test('is given the cache directory the host chose, else none', () async {
+      final without = await create();
+      addTearDown(without.dispose);
+      expect(givenCacheDirectory, isNull);
+
+      final with_ = await create(lottieCacheDirectory: '/cache/lottie');
+      addTearDown(with_.dispose);
+      expect(givenCacheDirectory, '/cache/lottie');
     });
 
     test('is closed once, when the services are disposed', () async {
@@ -225,6 +241,7 @@ void main() {
       Future<LottiePlayback?> failing({
         required PlaybackClock clock,
         required Listenable memoryPressure,
+        String? cacheDirectory,
       }) async => LottiePlayback(
         decoder: decoder,
         shutdown: [() async => throw StateError('engine would not close')],
@@ -260,7 +277,9 @@ void main() {
     test('is left unregistered when the platform has none: the app boots '
         'and its other packs still play', () async {
       final services = await create(
-        startLottie: ({required clock, required memoryPressure}) async => null,
+        startLottie:
+            ({required clock, required memoryPressure, cacheDirectory}) async =>
+                null,
       );
       addTearDown(services.dispose);
 
@@ -279,7 +298,9 @@ void main() {
         keyValueStore: FakeKeyValueStore(),
         assetLoader: rootBundle.loadString,
         clipboard: FakeRichClipboard(),
-        startLottie: ({required clock, required memoryPressure}) async => null,
+        startLottie:
+            ({required clock, required memoryPressure, cacheDirectory}) async =>
+                null,
       );
       addTearDown(services.dispose);
 

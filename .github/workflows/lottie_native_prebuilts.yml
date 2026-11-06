@@ -1,0 +1,196 @@
+name: lottie_native prebuilts
+
+# UNTESTED ON GITHUB: this workflow was written without a hosted runner. Its
+# YAML parses; nothing else about it has run. Expect to fix it on first use.
+#
+# Builds the native Lottie library for every target key of
+# packages/lottie_native/native/prebuilts.json, assembles the manifest with
+# `native/tool/assemble_manifest.dart --require <every key>` and publishes the
+# libraries and the manifest on the GitHub Release of the tag
+# (ADR 042: CI builds, the hook downloads hash-pinned files).
+#
+# The workflow never commits: the manifest is also uploaded as a workflow
+# artifact, and the maintainer commits it through a pull request (README,
+# "Publishing prebuilts"). Run from a branch (workflow_dispatch) it builds and
+# assembles but publishes nothing; the manifest then points at the release of
+# the crate version's tag, which does not exist yet.
+#
+# Each build job spells out `cargo build --release --locked --target ...`.
+# TODO(ticket 29): the hook will own the per-target build (Android linker,
+# 16 KB page size); once it has an entry point that builds one target, call it
+# here so CI and the hook cannot drift.
+on:
+  push:
+    tags: ['lottie_native-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lottie-native-prebuilts-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  NATIVE_DIR: packages/lottie_native/native
+
+jobs:
+  build:
+    name: build ${{ matrix.key }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The macOS runner builds Apple targets; the iOS ones need the SDK.
+          - {key: macos-arm64, runner: macos-14, triple: aarch64-apple-darwin, built: libchat_lottie.dylib, ext: dylib}
+          - {key: macos-x64, runner: macos-14, triple: x86_64-apple-darwin, built: libchat_lottie.dylib, ext: dylib}
+          - {key: ios-arm64, runner: macos-14, triple: aarch64-apple-ios, built: libchat_lottie.dylib, ext: dylib}
+          - {key: ios-arm64-simulator, runner: macos-14, triple: aarch64-apple-ios-sim, built: libchat_lottie.dylib, ext: dylib}
+          - {key: ios-x64-simulator, runner: macos-14, triple: x86_64-apple-ios, built: libchat_lottie.dylib, ext: dylib}
+          - {key: linux-x64, runner: ubuntu-24.04, triple: x86_64-unknown-linux-gnu, built: libchat_lottie.so, ext: so}
+          - {key: linux-arm64, runner: ubuntu-24.04-arm, triple: aarch64-unknown-linux-gnu, built: libchat_lottie.so, ext: so}
+          - {key: android-arm64, runner: ubuntu-24.04, triple: aarch64-linux-android, built: libchat_lottie.so, ext: so, ndk_prefix: aarch64-linux-android24}
+          - {key: android-x64, runner: ubuntu-24.04, triple: x86_64-linux-android, built: libchat_lottie.so, ext: so, ndk_prefix: x86_64-linux-android24}
+          - {key: windows-x64, runner: windows-2022, triple: x86_64-pc-windows-msvc, built: chat_lottie.dll, ext: dll}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runners ship rustup; the crate needs rust-version 1.88 or newer.
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add "${{ matrix.triple }}"
+          rustc --version
+
+      - name: Build
+        working-directory: ${{ env.NATIVE_DIR }}
+        run: |
+          if [ -n "${{ matrix.ndk_prefix }}" ]; then
+            # Same linker and page size the hook uses for Android: the
+            # runner's NDK, and 16 KB pages (Android 15 devices).
+            toolchain="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+            triple_env="$(echo "${{ matrix.triple }}" | tr 'a-z-' 'A-Z_')"
+            triple_cc="$(echo "${{ matrix.triple }}" | tr '-' '_')"
+            export "CARGO_TARGET_${triple_env}_LINKER=$toolchain/${{ matrix.ndk_prefix }}-clang"
+            export "CC_${triple_cc}=$toolchain/${{ matrix.ndk_prefix }}-clang"
+            export "AR_${triple_cc}=$toolchain/llvm-ar"
+            export "CARGO_TARGET_${triple_env}_RUSTFLAGS=-C link-arg=-Wl,-z,max-page-size=16384"
+          fi
+          cargo build --release --locked --target "${{ matrix.triple }}"
+
+      - name: Name the library as it is published
+        run: |
+          mkdir -p out
+          cp "${{ env.NATIVE_DIR }}/target/${{ matrix.triple }}/release/${{ matrix.built }}" \
+            "out/libchat_lottie-${{ matrix.key }}.${{ matrix.ext }}"
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lib-${{ matrix.key }}
+          path: out/libchat_lottie-${{ matrix.key }}.${{ matrix.ext }}
+          if-no-files-found: error
+          retention-days: 14
+
+  assemble:
+    name: assemble prebuilts.json
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      # The workspace root overrides flutter_md with `path: ../md`, so the fork
+      # is checked out as a sibling of the repo, as in check.yml.
+      - uses: actions/checkout@v4
+        with:
+          path: chat_scroll_view
+      - uses: actions/checkout@v4
+        with:
+          repository: itsezlife/md
+          ref: v0.9.0
+          path: md
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.7
+          cache: true
+      - name: Resolve workspace
+        working-directory: chat_scroll_view
+        run: flutter pub get --enforce-lockfile
+
+      # A tag names the release; a branch run uses the tag the crate version
+      # would get. A pushed tag that disagrees with Cargo.toml is a mistake.
+      - name: Release tag
+        id: tag
+        working-directory: chat_scroll_view/${{ env.NATIVE_DIR }}
+        run: |
+          version="$(sed -n '/^\[package\]/,/^\[/{s/^version *= *"\(.*\)"/\1/p;}' Cargo.toml | head -n1)"
+          expected="lottie_native-v$version"
+          if [ "${{ github.ref_type }}" = "tag" ] && [ "${{ github.ref_name }}" != "$expected" ]; then
+            echo "tag ${{ github.ref_name }} does not match Cargo.toml version (expected $expected)" >&2
+            exit 1
+          fi
+          echo "tag=$expected" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: lib-*
+          merge-multiple: true
+          path: libs
+
+      # Every key is required: a release missing a target is refused here, not
+      # discovered by a user whose build silently falls back to compiling.
+      - name: Assemble the manifest
+        working-directory: chat_scroll_view/packages/lottie_native
+        run: |
+          dart native/tool/assemble_manifest.dart "$GITHUB_WORKSPACE/libs" \
+            --base-url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/" \
+            --require macos-arm64,macos-x64,ios-arm64,ios-arm64-simulator,ios-x64-simulator,android-arm64,android-x64,linux-x64,linux-arm64,windows-x64 \
+            --out "$GITHUB_WORKSPACE/manifest/prebuilts.json"
+          cat "$GITHUB_WORKSPACE/manifest/prebuilts.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prebuilts-manifest
+          path: manifest/prebuilts.json
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: GitHub Release
+    needs: assemble
+    # Only a tag publishes; a branch run stops at the manifest artifact.
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: lib-*
+          merge-multiple: true
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: prebuilts-manifest
+          path: release
+      # Fails when the release exists: published files are never replaced, the
+      # manifest pins their hashes.
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ needs.assemble.outputs.tag }}" release/* \
+            --repo "${{ github.repository }}" \
+            --verify-tag \
+            --title "${{ needs.assemble.outputs.tag }}" \
+            --notes "Prebuilt native libraries for lottie_native. Commit the attached prebuilts.json through a pull request; see the package README, Publishing prebuilts."
