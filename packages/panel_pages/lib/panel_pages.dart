@@ -38,4 +38,7 @@ export 'src/page/catalog_strip.dart';
 export 'src/policy/catalog_page_policy.dart';
 export 'src/scroll/page_scroll_reporter.dart';
 export 'src/snapshot/catalog_snapshot_builder.dart';
+export 'src/stickers/sticker_pack_strip.dart';
+export 'src/stickers/stickers_page.dart';
+export 'src/stickers/stickers_page_policy.dart';
 export 'src/theme/chrome_catalog_theme.dart';

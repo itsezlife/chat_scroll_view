@@ -121,6 +121,7 @@ abstract final class ChromeStringsPresets {
       backspaceAction: 'Delete',
       variantsAction: 'Show variants',
       categoryStripLabel: 'Categories',
+      stickerPackStripLabel: 'Sticker packs',
     ),
   );
 
@@ -231,6 +232,7 @@ abstract final class ChromeStringsPresets {
       backspaceAction: 'Удалить',
       variantsAction: 'Показать варианты',
       categoryStripLabel: 'Категории',
+      stickerPackStripLabel: 'Наборы стикеров',
     ),
   );
 }

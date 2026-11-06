@@ -63,7 +63,12 @@ const _layout = SectionLayout.grid(
 );
 
 class _Policy extends CatalogPagePolicy {
-  _Policy({this.longPress = false, this.strip = false});
+  _Policy({this.longPress = false, this.strip = false, this.headerInset});
+
+  final double? headerInset;
+
+  @override
+  double? get headerStartInset => headerInset;
 
   final bool longPress;
   final bool strip;
@@ -513,6 +518,23 @@ void main() {
 
       expect(policy.sessionLog, isEmpty);
       expect(host.picks, hasLength(1));
+    });
+  });
+
+  group('the header', () {
+    testWidgets('starts its title where the policy says, else where the '
+        'viewport does', (tester) async {
+      double inset() => tester
+          .widget<PanelCatalogTheme>(find.byType(PanelCatalogTheme))
+          .data
+          .sectionHeaderStartInset;
+      await pumpPage(tester);
+      final viewport = inset();
+
+      await pumpPage(tester, withPolicy: _Policy(headerInset: 15));
+
+      expect(inset(), 15);
+      expect(viewport, isNot(15));
     });
   });
 

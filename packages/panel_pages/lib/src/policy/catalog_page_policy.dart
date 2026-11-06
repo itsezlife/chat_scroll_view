@@ -202,6 +202,11 @@ abstract class CatalogPagePolicy {
         _ => collection.metadata.title ?? '',
       };
 
+  /// How far in from the start edge the titles of section headers begin, or
+  /// null for the viewport's default. A reference list sets it per kind of
+  /// content (the sticker list's titles sit 15 in, the emoji list's 5).
+  double? get headerStartInset => null;
+
   /// The geometry of the section under [arrangement], or null for the
   /// viewport's defaults.
   SectionLayout? layoutOf(

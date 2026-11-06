@@ -38,6 +38,7 @@ ChromeStrings stringsWith({
       backspaceAction: base.semantics.backspaceAction,
       variantsAction: base.semantics.variantsAction,
       categoryStripLabel: base.semantics.categoryStripLabel,
+      stickerPackStripLabel: base.semantics.stickerPackStripLabel,
     ),
   );
 }

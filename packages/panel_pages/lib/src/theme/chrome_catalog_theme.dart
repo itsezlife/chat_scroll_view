@@ -15,11 +15,22 @@ import 'package:panel_shell/panel_shell.dart';
 /// Requires a [ChromeThemeScope] above. A [CatalogPage] mounts this itself;
 /// mount it directly only for a viewport used outside a page.
 class ChromeCatalogTheme extends StatelessWidget {
-  /// Provides the mapped theme to [child].
-  const ChromeCatalogTheme({required this.child, super.key});
+  /// Provides the mapped theme to [child], with the section titles starting
+  /// [headerStartInset] in, or where the viewport's own theme puts them when
+  /// null.
+  const ChromeCatalogTheme({
+    required this.child,
+    this.headerStartInset,
+    super.key,
+  });
 
   /// The subtree that reads the theme.
   final Widget child;
+
+  /// How far in from the start edge section titles begin, or null for the
+  /// viewport's: a kind of content whose reference list sets its titles
+  /// differently than another's (stickers 15, emoji 5) says so here.
+  final double? headerStartInset;
 
   /// The wash of a hovered or focused item on a card, in [palette]: the text
   /// colour at alpha `0x12`. The one recipe the cell hover, the variant
@@ -48,6 +59,7 @@ class ChromeCatalogTheme extends StatelessWidget {
   static PanelCatalogThemeData dataFor(
     ChromeThemeData chrome, {
     PanelArrangement arrangement = PanelArrangement.touch,
+    double? headerStartInset,
   }) {
     final palette = chrome.palette;
     final base = PanelCatalogThemeData.forBrightness(palette.brightness);
@@ -75,6 +87,7 @@ class ChromeCatalogTheme extends StatelessWidget {
       sectionHeaderStyle: base.sectionHeaderStyle.copyWith(
         color: chrome.panel.sectionTitle,
       ),
+      sectionHeaderStartInset: headerStartInset,
     );
   }
 
@@ -83,6 +96,7 @@ class ChromeCatalogTheme extends StatelessWidget {
     data: dataFor(
       ChromeThemeScope.of(context),
       arrangement: PanelArrangementScope.of(context),
+      headerStartInset: headerStartInset,
     ),
     child: child,
   );

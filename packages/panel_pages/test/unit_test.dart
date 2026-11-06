@@ -41,6 +41,9 @@ import 'page/catalog_sticky_header_test.dart' as catalog_sticky_header_test;
 import 'scroll/page_scroll_reporter_test.dart' as page_scroll_reporter_test;
 import 'snapshot/catalog_snapshot_builder_test.dart'
     as catalog_snapshot_builder_test;
+import 'stickers/sticker_pack_strip_test.dart' as sticker_pack_strip_test;
+import 'stickers/stickers_page_policy_test.dart' as stickers_page_policy_test;
+import 'stickers/stickers_page_test.dart' as stickers_page_test;
 import 'theme/chrome_catalog_theme_test.dart' as chrome_catalog_theme_test;
 
 void main() {
@@ -104,5 +107,11 @@ void main() {
     'snapshot/catalog_snapshot_builder_test.dart',
     catalog_snapshot_builder_test.main,
   );
+  group('stickers/sticker_pack_strip_test.dart', sticker_pack_strip_test.main);
+  group(
+    'stickers/stickers_page_policy_test.dart',
+    stickers_page_policy_test.main,
+  );
+  group('stickers/stickers_page_test.dart', stickers_page_test.main);
   group('theme/chrome_catalog_theme_test.dart', chrome_catalog_theme_test.main);
 }
