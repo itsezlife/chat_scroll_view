@@ -49,20 +49,24 @@ main = q(f"select utid from thread where upid={upid} and tid=(select pid from pr
 raster = q(f"select utid from thread where upid={upid} and name='1.raster'")[0].utid
 
 
-def top_slices(utid, name):
-    """(start, end) of the outermost `name` slices on a thread."""
+def top_slices(utid, name, outermost=True):
+    """(start, end) of the `name` slices on a thread, the outermost only
+    unless told otherwise (a slice that never nests may sit at any depth)."""
+    depth = (
+        f"and s.depth=(select min(depth) from slice s2 join thread_track t2 "
+        f"on s2.track_id=t2.id where t2.utid={utid} and s2.name='{name}')"
+        if outermost else ""
+    )
     rows = q(
         f"select s.ts, s.dur from slice s join thread_track tt on s.track_id=tt.id "
-        f"where tt.utid={utid} and s.name='{name}' and s.depth=(select min(depth) "
-        f"from slice s2 join thread_track t2 on s2.track_id=t2.id "
-        f"where t2.utid={utid} and s2.name='{name}') order by s.ts"
+        f"where tt.utid={utid} and s.name='{name}' {depth} order by s.ts"
     )
     return [(r.ts, r.ts + r.dur) for r in rows]
 
 
 ui = top_slices(main, "VsyncProcessCallback")
 ui_starts = [a for a, _ in ui]
-renders = [a for a, _ in top_slices(main, "Animator::Render")]
+renders = [a for a, _ in top_slices(main, "Animator::Render", outermost=False)]
 draws = top_slices(raster, "GPURasterizer::Draw")
 snapshots = top_slices(raster, "SnapshotDisplayList (impeller)")
 queued = [a for a, _ in top_slices(raster, "queueBuffer")]
