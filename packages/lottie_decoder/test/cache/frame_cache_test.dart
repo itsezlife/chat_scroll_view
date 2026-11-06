@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
+import 'package:meta/meta.dart';
 
 FrameCacheKey _key(String hash, {int size = 128}) => FrameCacheKey(
   contentHash: hash,
@@ -13,6 +15,60 @@ FrameCacheKey _key(String hash, {int size = 128}) => FrameCacheKey(
 /// [length] bytes, each [fill].
 Uint8List _bytes(int length, int fill) =>
     Uint8List(length)..fillRange(0, length, fill);
+
+Directory _tempDir() {
+  final dir = Directory.systemTemp.createTempSync('frame_cache_test_');
+  addTearDown(() {
+    if (dir.existsSync()) {
+      // A test may have made it read-only.
+      if (!Platform.isWindows)
+        Process.runSync('chmod', ['-R', '700', dir.path]);
+      dir.deleteSync(recursive: true);
+    }
+  });
+  return dir;
+}
+
+/// The files of [dir] with [extension], by name.
+List<String> _names(Directory dir, String extension) =>
+    dir
+        .listSync()
+        .map((e) => e.uri.pathSegments.where((s) => s.isNotEmpty).last)
+        .where((n) => n.endsWith(extension))
+        .toList()
+      ..sort();
+
+/// Counts the files written through it.
+class _CountingFiles extends FrameCacheFiles {
+  _CountingFiles(super.directory);
+
+  final List<String> written = [];
+
+  @override
+  Future<void> write(
+    String stem,
+    Uint8List bytes, {
+    required DateTime modified,
+  }) {
+    written.add(stem);
+    return super.write(stem, bytes, modified: modified);
+  }
+}
+
+/// A process that dies after the temp file is complete and before the rename.
+class _CrashingFiles extends FrameCacheFiles {
+  _CrashingFiles(super.directory);
+
+  @override
+  @protected
+  Future<void> publish(File temp, File target) =>
+      Future<void>.error(const FileSystemException('killed before rename'));
+
+  // A dead process cleans nothing up.
+  @override
+  @protected
+  Future<void> discardTemp(File temp) async {}
+}
 
 void main() {
   late DateTime now;
@@ -146,6 +202,118 @@ void main() {
       cache.put(_key('new'), 0, _bytes(60, 1), frameCount: 2);
       expect(cache.has(_key('old'), 0), isFalse);
       expect(cache.has(_key('new'), 0), isTrue);
+    });
+  });
+
+  group('disk tier', () {
+    late Directory dir;
+    late _CountingFiles files;
+    late FrameCache cache;
+    setUp(() {
+      dir = _tempDir();
+      files = _CountingFiles(dir);
+      cache = FrameCache(directory: dir, files: files, clock: clock);
+    });
+
+    test('a complete animation is written once, as one file', () async {
+      putAll(cache, _key('a'), 3, 10);
+      await cache.dispose();
+      expect(_names(dir, '.frames'), ['${_key('a').toFileStem()}.frames']);
+      expect(files.written, [_key('a').toFileStem()]);
+      expect(_names(dir, '.tmp'), isEmpty);
+    });
+
+    test(
+      'putting a frame again after completion does not write again',
+      () async {
+        putAll(cache, _key('a'), 2, 10);
+        putAll(cache, _key('a'), 2, 10);
+        await cache.dispose();
+        expect(files.written, hasLength(1));
+      },
+    );
+
+    test('a partial animation is not written, and a restart misses', () async {
+      cache.put(_key('a'), 0, _bytes(10, 1), frameCount: 3);
+      cache.put(_key('a'), 2, _bytes(10, 3), frameCount: 3);
+      await cache.dispose();
+      expect(dir.listSync(), isEmpty);
+
+      final restarted = FrameCache(directory: dir, clock: clock);
+      addTearDown(restarted.dispose);
+      expect(await restarted.open(_key('a')), isNull);
+    });
+
+    test(
+      'a second cache on the directory serves the frames byte for byte',
+      () async {
+        final key = _key('a');
+        putAll(cache, key, 3, 10);
+        await cache.dispose();
+
+        final second = FrameCache(directory: dir, clock: clock);
+        addTearDown(second.dispose);
+        expect(second.has(key, 0), isFalse, reason: 'not resident before open');
+        expect(await second.open(key), 3);
+        for (var i = 0; i < 3; i++) {
+          expect(second.frame(key, i), _bytes(10, i + 1));
+        }
+      },
+    );
+
+    test('the file starts with the documented little-endian header', () async {
+      final key = FrameCacheKey(
+        contentHash: 'ab',
+        width: 64,
+        height: 32,
+        engineVersion: '1.0.0',
+      );
+      putAll(cache, key, 2, 5);
+      await cache.dispose();
+
+      final bytes = File(
+        '${dir.path}/${key.toFileStem()}.frames',
+      ).readAsBytesSync();
+      final header = ByteData.sublistView(bytes);
+      expect(bytes.sublist(0, 4), [0x46, 0x52, 0x4D, 0x43], reason: 'FRMC');
+      expect(header.getUint32(4, Endian.little), 1, reason: 'format version');
+      expect(header.getUint32(8, Endian.little), 64);
+      expect(header.getUint32(12, Endian.little), 32);
+      expect(header.getUint32(16, Endian.little), 2, reason: 'frame count');
+      expect(header.getUint32(20, Endian.little), 10, reason: 'payload bytes');
+      expect(header.getUint32(28, Endian.little), 5, reason: 'engine length');
+      expect(header.getUint32(32, Endian.little), 2, reason: 'hash length');
+      expect(String.fromCharCodes(bytes.sublist(36, 41)), '1.0.0');
+      expect(String.fromCharCodes(bytes.sublist(41, 43)), 'ab');
+      // Offsets (0, 5), lengths (5, 5), then the payload.
+      expect(header.getUint32(43, Endian.little), 0);
+      expect(header.getUint32(47, Endian.little), 5);
+      expect(header.getUint32(51, Endian.little), 5);
+      expect(header.getUint32(55, Endian.little), 5);
+      expect(bytes.sublist(59), [...List.filled(5, 1), ...List.filled(5, 2)]);
+      // CRC-32 of the ten payload bytes, from an independent implementation
+      // (python zlib.crc32).
+      expect(header.getUint32(24, Endian.little), 0xB5C783AF);
+    });
+
+    test('a crash between writing the temp file and the rename leaves no '
+        'entry, and the leftover is never read as one', () async {
+      final key = _key('a');
+      final crashing = FrameCache(
+        directory: dir,
+        files: _CrashingFiles(dir),
+        onError: (_, _) {},
+        clock: clock,
+      );
+      putAll(crashing, key, 2, 10);
+      await crashing.dispose();
+      expect(_names(dir, '.frames'), isEmpty);
+      expect(_names(dir, '.tmp'), isNotEmpty, reason: 'the crash left it');
+
+      final restarted = FrameCache(directory: dir, clock: clock);
+      addTearDown(restarted.dispose);
+      expect(await restarted.open(key), isNull);
+      expect(_names(dir, '.tmp'), isEmpty, reason: 'swept on the first scan');
     });
   });
 }

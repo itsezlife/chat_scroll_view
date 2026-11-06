@@ -2,6 +2,7 @@
 library;
 
 export 'src/cache/frame_cache.dart';
+export 'src/cache/frame_cache_files.dart';
 export 'src/cache/frame_cache_key.dart';
 export 'src/decoder/lottie_decoder.dart';
 export 'src/engine/in_process_lottie_engine.dart';
