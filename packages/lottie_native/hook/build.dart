@@ -54,6 +54,11 @@ void main(List<String> args) async {
         target: target,
       ),
       hasCargo: cargo != null,
+      hostBuilds: target.buildableOn(
+        hostOs: OS.current,
+        hostArch: Architecture.current,
+        environment: Platform.environment,
+      ),
       target: target,
     );
 

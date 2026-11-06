@@ -11,13 +11,23 @@ import 'package:code_assets/code_assets.dart';
 /// simulator SDK.
 final class LottieNativeTarget {
   /// Creates the target; [sdk] is only meaningful for [OS.iOS].
-  const LottieNativeTarget(this.os, this.arch, {this.sdk});
+  const LottieNativeTarget(
+    this.os,
+    this.arch, {
+    this.sdk,
+    this.androidApi,
+    this.iosVersion,
+  });
 
   /// The target of a hook's code configuration.
   factory LottieNativeTarget.of(CodeConfig config) => LottieNativeTarget(
     config.targetOS,
     config.targetArchitecture,
     sdk: config.targetOS == OS.iOS ? config.iOS.targetSdk : null,
+    androidApi: config.targetOS == OS.android
+        ? config.android.targetNdkApi
+        : null,
+    iosVersion: config.targetOS == OS.iOS ? config.iOS.targetVersion : null,
   );
 
   /// The operating system.
@@ -28,6 +38,13 @@ final class LottieNativeTarget {
 
   /// The iOS SDK (device or simulator); null elsewhere.
   final IOSSdk? sdk;
+
+  /// The Android API level the app targets; null elsewhere.
+  final int? androidApi;
+
+  /// The iOS deployment target (the major version, such as 13); null
+  /// elsewhere.
+  final int? iosVersion;
 
   /// The manifest key of this target, `<os>-<arch>[-simulator]`, or null when
   /// the manifest has no key for it (an unlisted combination).
@@ -50,14 +67,64 @@ final class LottieNativeTarget {
     _ => null,
   };
 
-  /// The Rust target triple this host compiles for, or null when the hook
-  /// does not build this target from source (yet): only macOS today.
-  String? get rustTriple => switch ((os, arch)) {
-    (OS.macOS, Architecture.arm64) => 'aarch64-apple-darwin',
-    (OS.macOS, Architecture.x64) => 'x86_64-apple-darwin',
+  /// The Rust target triple, or null when ADR 042 ships no library for this
+  /// target (Android 32-bit ARM, an iOS target without an SDK, any
+  /// combination with no [key]).
+  String? get rustTriple => switch (key) {
+    'macos-arm64' => 'aarch64-apple-darwin',
+    'macos-x64' => 'x86_64-apple-darwin',
+    'ios-arm64' => 'aarch64-apple-ios',
+    'ios-arm64-simulator' => 'aarch64-apple-ios-sim',
+    'ios-x64-simulator' => 'x86_64-apple-ios',
+    'android-arm64' => 'aarch64-linux-android',
+    'android-x64' => 'x86_64-linux-android',
+    'linux-x64' => 'x86_64-unknown-linux-gnu',
+    'linux-arm64' => 'aarch64-unknown-linux-gnu',
+    'windows-x64' => 'x86_64-pc-windows-msvc',
     _ => null,
   };
+
+  /// The file cargo writes for the crate's `cdylib`.
+  String get libraryFileName => switch (os) {
+    OS.macOS || OS.iOS => 'libchat_lottie.dylib',
+    OS.windows => 'chat_lottie.dll',
+    _ => 'libchat_lottie.so',
+  };
+
+  /// Whether a build host running [hostOs] on [hostArch] can compile this
+  /// target from source.
+  ///
+  /// Apple targets need the Apple SDK, so only a Mac. Android needs only
+  /// the NDK, which ships for all three desktop hosts. Linux and Windows
+  /// build natively; a Linux host of another architecture also works when
+  /// the app has set cargo's linker for the triple in [environment]
+  /// (`CARGO_TARGET_<TRIPLE>_LINKER`), because only the app knows its
+  /// cross toolchain.
+  bool buildableOn({
+    required OS hostOs,
+    required Architecture hostArch,
+    Map<String, String> environment = const {},
+  }) {
+    final triple = rustTriple;
+    if (triple == null) return false;
+    return switch (os) {
+      OS.macOS || OS.iOS => hostOs == OS.macOS,
+      OS.android =>
+        hostOs == OS.macOS || hostOs == OS.linux || hostOs == OS.windows,
+      OS.linux =>
+        hostOs == OS.linux &&
+            (hostArch == arch ||
+                environment.containsKey(cargoLinkerVariable(triple))),
+      OS.windows => hostOs == OS.windows,
+      _ => false,
+    };
+  }
 
   @override
   String toString() => '$os/$arch${sdk == null ? '' : '/${sdk!.type}'}';
 }
+
+/// The variable that names cargo's linker for [triple]:
+/// `CARGO_TARGET_<TRIPLE>_LINKER`, the triple upper-cased with `-` as `_`.
+String cargoLinkerVariable(String triple) =>
+    'CARGO_TARGET_${triple.toUpperCase().replaceAll('-', '_')}_LINKER';

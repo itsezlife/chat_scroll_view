@@ -126,21 +126,23 @@ final class NoLibrary extends DeliveryStep {
 
 /// The steps for this build, in order; the last is never [UsePrebuilt].
 ///
-/// [hasCargo] only matters for the automatic fallback: an app that asked
+/// [hostBuilds] is `LottieNativeTarget.buildableOn` for this host. [hasCargo]
+/// only matters for the automatic fallback: an app that asked
 /// for [buildFromSource] gets [CompileFromSource] regardless, so a missing
 /// cargo fails loudly instead of quietly shipping no library.
 List<DeliveryStep> planDelivery({
   required bool buildFromSource,
   required PrebuiltMatch match,
   required bool hasCargo,
+  required bool hostBuilds,
   required LottieNativeTarget target,
 }) {
   if (buildFromSource) return const [CompileFromSource()];
 
-  final canCompile = target.rustTriple != null && hasCargo;
+  final canCompile = hostBuilds && hasCargo;
   final last = canCompile
       ? const CompileFromSource()
-      : NoLibrary(_noLibrary(match, target));
+      : NoLibrary(_noLibrary(match, target, hostBuilds));
   return [
     if (match case PrebuiltFound(:final artifact, :final url))
       UsePrebuilt(artifact, url),
@@ -148,9 +150,16 @@ List<DeliveryStep> planDelivery({
   ];
 }
 
-String _noLibrary(PrebuiltMatch match, LottieNativeTarget target) {
-  final why = target.rustTriple == null
-      ? 'this build cannot compile $target from source yet'
+String _noLibrary(
+  PrebuiltMatch match,
+  LottieNativeTarget target,
+  bool hostBuilds,
+) {
+  // Without a host that can build it, the only route left is a prebuilt
+  // library, so say that instead of leaving the app to guess.
+  final why = !hostBuilds
+      ? 'this host cannot build $target from source; publish or download a '
+            'prebuilt library for it (README, "Native library delivery")'
       : 'cargo was not found, so it cannot compile from source';
   final prebuilt = switch (match) {
     PrebuiltFound() => 'the prebuilt library was not used',
