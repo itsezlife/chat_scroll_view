@@ -18,7 +18,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:meta/meta.dart' show isTest;
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/testing.dart';
-import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/testing.dart';
 
 CollectionItem _sticker(String id) => CollectionItem.described(
