@@ -18,6 +18,13 @@ package is pre-1.0.
   compiles the `native/` crate with cargo on macOS (arm64, x86_64). Other
   targets fail with an `UnsupportedError` until prebuilt libraries land.
 
+- `LottieFrameCodec` and `NativeLottieFrameCodec`: the frame cache's lz4
+  compress / decompress of a region of page memory, over three new C
+  functions (`chat_lottie_lz4_bound`, `chat_lottie_compress_region`,
+  `chat_lottie_decompress_region`) built on `lz4_flex` (pure Rust, no unsafe).
+  A failed decompress writes nothing. `testing.dart` adds
+  `FakeLottieFrameCodec` and `LottieFrameCodecContract`.
+
 ### Changed
 
 - Every wrapper status has its own number (`-6` internal, `-7` bad size, `-8`

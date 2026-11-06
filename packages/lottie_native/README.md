@@ -32,6 +32,8 @@ first build needs network for the crates and the pinned tlottie commit.
 | `LottieInfo` | Size, frame count, frame rate and `LottieFeatures` of a loaded file. |
 | `LottieFeatures` | Bitmask of what the file uses and the renderer does not draw: effects, expressions, image layers, text layers. Informational. |
 | `NativeLottieBinding` | The binding over the compiled library. `NativeLottieBinding.probe()` calls `chat_lottie_abi_version()` once; a missing library or symbol is `missingLibrary`, a version other than 1 is `abiMismatch`; any other error propagates. It logs nothing. |
+| `LottieFrameCodec` / `LottieFrameRegion` | The frame cache's lz4 codec over a region of page memory (`target`, `width`, `height`, `strideBytes`): `compress` answers the packed bytes or null for a rejected region, `decompress` answers false for corrupt, wrong-size or rejected input and then touches no byte of the region. It never throws for data; unavailable, it throws `StateError`. The packed form is one lz4 block of the tight pixels, so it does not depend on the stride. The codec is in the wrapper so the web build shares it ([ADR 042](../../docs/adr/042-native-media-decoding.md)). |
+| `NativeLottieFrameCodec` | The codec over the compiled library. `NativeLottieFrameCodec.probe()` follows the binding's rule and also needs its own symbol: a missing symbol or an ABI other than 1 is not available. |
 | `LottieRenderJob` / `LottieRenderStatus` | One frame into a slot of page memory (premultiplied RGBA, rows `strideBytes` apart); `ok`, `badArgument`, `badSize`, `failed`. A slot edge is at most `LottieRenderJob.maxEdge` (512): a decoder's size classes must not exceed it. |
 
 ## Host contract
@@ -46,7 +48,10 @@ first build needs network for the crates and the pinned tlottie commit.
 
 `package:lottie_native/testing.dart` (opt-in) exports `FakeLottieBinding`
 (scripted files, a frame-derived colour per job, `available:`) and
-`NativeBindingContract.run` over a `NativeBindingHarness`. An implementation
+`NativeBindingContract.run` over a `NativeBindingHarness`; likewise
+`FakeLottieFrameCodec` (a header and the raw pixels; `compressFails`,
+`decompressFails`) and `LottieFrameCodecContract.run` over a
+`LottieFrameCodecHarness`. An implementation
 runs the contract against itself:
 
 ```dart

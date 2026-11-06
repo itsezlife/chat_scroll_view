@@ -1,8 +1,13 @@
 //! C ABI over tlottie. The contract is `include/chat_lottie.h`.
 
 mod features;
+mod frame_codec;
 mod input;
 mod status;
+
+pub use frame_codec::{
+    chat_lottie_compress_region, chat_lottie_decompress_region, chat_lottie_lz4_bound,
+};
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use tlottie::{CPURenderer, Composition, Error, Limits};

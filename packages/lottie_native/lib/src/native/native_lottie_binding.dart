@@ -8,9 +8,6 @@ import 'package:lottie_native/src/lottie_load_result.dart';
 import 'package:lottie_native/src/native/chat_lottie_symbols.dart';
 import 'package:meta/meta.dart';
 
-/// The ABI version of `chat_lottie.h` this binding was written against.
-const _expectedAbiVersion = 1;
-
 /// [LottieBinding] over the compiled `chat_lottie` library.
 ///
 /// Register it only when [isAvailable]. The binding hands out integer
@@ -36,7 +33,7 @@ final class NativeLottieBinding implements LottieBinding {
 
   static LottieAvailability _probe(int Function() abiVersion) {
     try {
-      return abiVersion() == _expectedAbiVersion
+      return abiVersion() == chatLottieExpectedAbiVersion
           ? LottieAvailability.available
           : LottieAvailability.abiMismatch;
       // A symbol the library lacks surfaces as exactly this Error: it is the
