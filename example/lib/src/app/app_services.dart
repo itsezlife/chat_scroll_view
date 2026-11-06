@@ -5,7 +5,9 @@ import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/system_reduced_motion.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_probe.dart';
+import 'package:chat_scroll_view_example/src/common/lab_net.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
@@ -295,9 +297,14 @@ final class AppServices {
           'clips',
         );
       } else {
-        final transport =
+        final live =
             giphyHttpClient ??
             owned<http.Client>(http.Client(), (client) => client.close());
+        // The scroll lab records and replays Giphy's answers with its pointer
+        // tape; every request of the Giphy code, API and media, goes through
+        // this one client.
+        final labNet = DemoConfig.scrollLab ? LabNet.instance : null;
+        final transport = labNet == null ? live : LabNetClient(live, labNet);
         giphy = GiphyContent(
           GiphyClient(apiKey: giphyApiKey, client: transport),
         );
