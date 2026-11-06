@@ -1191,6 +1191,20 @@ reference client also scrolls the chat to it, `onMessageSend`; that is the
 chat's, not the panel's). The sticker page's clear button on the recents header is a `ClearRecentsRequested` the host
 confirms.
 
+**Search, failure and attribution (GIF page).** Give `GifPage` a `searchSource`
+(a `SearchSource`) and declare `PageCapabilities(search: true)` on its
+`PanelPage`: the page follows the shell's search, debounces it, lists the
+results in place of the collections and pages them. A collection or search
+that failed shows `PanelStrings.gifsFailed` with `retryAction` (a failed
+collection is retried by `CollectionSource.load`); a search that found nothing
+shows `gifsEmpty`. `attribution` is a line the page heads its list with, for a
+provider whose terms ask for one. Content that is fetched rather than bundled
+reaches the pipeline through a `ContentFetcher` and a `ContentResolver` of the
+host's (the reference host's Giphy and local-corpus ones sit in front of the
+bundled ones and hand on any key that is not theirs), and a message that
+references it carries the key (`![alt](document:<id>)`), so the resolver must
+be able to describe it again after a restart.
+
 A sent sticker or GIF has no text to edit. Every way into edit mode (the
 message menu, the selection bar, a shortcut, a restored draft) asks one rule by
 what the message is, so none can forget it (`MessageEditability` in the

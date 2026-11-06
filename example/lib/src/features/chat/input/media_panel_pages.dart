@@ -18,17 +18,29 @@ abstract final class MediaPanelPages {
   /// Id of the stickers page in the shell.
   static const String stickersId = 'stickers';
 
-  /// The GIF [PanelPage]. It declares nothing: no search, no strip, no
-  /// actions, so the bottom bar shows the type tabs alone over it.
-  static PanelPage gif({required AppServices services}) => PanelPage(
-    id: gifId,
-    tab: const PanelTab(icon: ChromeIconId.gif, labelKey: gifId),
-    builder: (context, host) => GifPage(
-      host: host,
-      source: services.gifPageSource,
-      assets: services.assets,
-    ),
-  );
+  /// The GIF [PanelPage]. With Giphy (an API key was given) it declares
+  /// search and shows Giphy's attribution; without, it declares nothing: no
+  /// search, no strip, no actions, so the bottom bar shows the type tabs
+  /// alone over it.
+  static PanelPage gif({required AppServices services}) {
+    final search = services.gifSearch;
+    return PanelPage(
+      id: gifId,
+      tab: const PanelTab(icon: ChromeIconId.gif, labelKey: gifId),
+      capabilities: search == null
+          ? PageCapabilities.none
+          : const PageCapabilities(search: true),
+      builder: (context, host) => GifPage(
+        host: host,
+        source: services.gifPageSource,
+        assets: services.assets,
+        searchSource: search,
+        attribution: services.giphy == null
+            ? null
+            : AppServices.giphyAttribution,
+      ),
+    );
+  }
 
   /// The stickers [PanelPage]: a strip of packs over the catalogue.
   static PanelPage stickers({required AppServices services}) => PanelPage(

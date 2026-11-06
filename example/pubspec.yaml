@@ -60,6 +60,8 @@ dependencies:
     git:
       url: https://github.com/itsezlife/md.git
       ref: v0.9.0
+  # The Giphy client's transport, injectable so tests pass a fake.
+  http: ^1.6.0
   listen: ^1.0.1
   meta: ^1.17.0
   supabase_flutter: ^2.15.0
@@ -108,6 +110,10 @@ flutter:
     # Video stickers, clips and GIFs generated for the demo from synthetic
     # sources (no third-party artwork); the README there has the commands.
     - assets/video_stickers/
+    # A local corpus of Telegram's Lottie stickers: the folder holds only a
+    # README and a .gitignore in a checkout (the files are Telegram's and never
+    # committed), so it exists and builds without them. See the README there.
+    - assets/telegram_stickers/
     - path: assets/comments/
       platforms:
         - android

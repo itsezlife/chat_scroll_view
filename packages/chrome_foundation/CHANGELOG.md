@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (GIF page copy)
+
+- `PanelStrings.gifsEmpty`, `gifsFailed` and `retryAction`, required, with
+  English and Russian presets: the GIF page's placeholders for a search that
+  found nothing and for clips that could not be loaded, and the retry button.
+  A host that builds `PanelStrings(...)` must pass them (source-breaking).
+
 ### Added (sticker pack strip label)
 
 - `SemanticsStrings.stickerPackStripLabel`, the label of the stickers page's

@@ -45,6 +45,9 @@ abstract final class ChromeStringsPresets {
       removeRecentAction: 'Remove from recent',
       clearRecentAction: 'Clear recent',
       colorAllTitle: 'Choose default skin tone',
+      gifsEmpty: 'No GIFs found',
+      gifsFailed: "Couldn't load GIFs",
+      retryAction: 'Retry',
     ),
     composer: ComposerStrings(
       messageHint: 'Message',
@@ -156,6 +159,9 @@ abstract final class ChromeStringsPresets {
       removeRecentAction: 'Удалить из недавних',
       clearRecentAction: 'Очистить недавние',
       colorAllTitle: 'Выберите тон кожи по умолчанию',
+      gifsEmpty: 'GIF не найдены',
+      gifsFailed: 'Не удалось загрузить GIF',
+      retryAction: 'Повторить',
     ),
     composer: ComposerStrings(
       messageHint: 'Сообщение',

@@ -1,6 +1,8 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart' show IChatMessage;
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/markdown.dart' show RichTextMarkdown;
 
@@ -34,6 +36,9 @@ abstract final class MessageEditability {
     if (emojiOnly == null || emojiOnly.items.length != 1) return false;
     final key = emojiOnly.items.single.key;
     if (key is! ContentKey$Document) return false;
+    // Content the host lists but does not bundle is a sticker or a GIF by its
+    // key alone: a restart has not described it yet.
+    if (GiphyContent.isKey(key) || CorpusStickerPack.isKey(key)) return true;
     return switch (BundledPacks.of(key)?.descriptor.semanticKind) {
       SemanticKind.sticker || SemanticKind.gif => true,
       _ => false,

@@ -53,4 +53,34 @@ void main() {
 
     expect(StickerMessageBody.ofKey(emoji.key), isNull);
   });
+
+  group('for content the host describes itself', () {
+    const key = ContentKey.document('giphy:abc');
+    ContentDescriptor? describe(ContentKey k) => k == key
+        ? const ContentDescriptor(
+            key: key,
+            semanticKind: SemanticKind.gif,
+            mediaForm: MediaForm.video,
+            spokenName: 'cat [typing]\nGIF',
+          )
+        : null;
+
+    test('is the lone document with the descriptor name as alt text', () {
+      final body = StickerMessageBody.ofKey(key, describe: describe);
+
+      expect(body, '![cat typing GIF](document:giphy:abc)');
+      final emojiOnly = EmojiOnlyText.of(RichTextMarkdown.decode(body!));
+      expect(emojiOnly?.items.single.key, key);
+    });
+
+    test('is not made for a key the host does not describe', () {
+      expect(
+        StickerMessageBody.ofKey(
+          const ContentKey.document('giphy:zzz'),
+          describe: describe,
+        ),
+        isNull,
+      );
+    });
+  });
 }

@@ -939,7 +939,8 @@ final class ChatInputSet {
         // stays open and the composer as it is, as the reference client does
         // (`onStickerSelected` and `onGifSelected` send, add to the recents
         // and leave the panel up).
-        if (StickerMessageBody.ofKey(key) case final body?) {
+        if (StickerMessageBody.ofKey(key, describe: services.describe)
+            case final body?) {
           unawaited(_sendPicked(body));
         }
         // In the list the page chose: the emoji page files unicode and

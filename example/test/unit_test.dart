@@ -60,9 +60,14 @@ import 'features/chat/chat_data_source_bodies_test.dart'
 import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
 import 'features/chat/chat_messages_copy_format_test.dart'
     as chat_messages_copy_format_test;
+import 'features/chat/corpus_sticker_pack_test.dart'
+    as corpus_sticker_pack_test;
 import 'features/chat/emoji_chrome_test.dart' as emoji_chrome_test;
 import 'features/chat/emoji_service_colors_test.dart'
     as emoji_service_colors_test;
+import 'features/chat/giphy_client_test.dart' as giphy_client_test;
+import 'features/chat/giphy_content_test.dart' as giphy_content_test;
+import 'features/chat/giphy_gif_source_test.dart' as giphy_gif_source_test;
 import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
 import 'features/chat/large_emoji_test.dart' as large_emoji_test;
@@ -307,6 +312,13 @@ void main() {
     'features/chat/chat_messages_copy_format_test.dart',
     chat_messages_copy_format_test.main,
   );
+  group(
+    'features/chat/corpus_sticker_pack_test.dart',
+    corpus_sticker_pack_test.main,
+  );
+  group('features/chat/giphy_client_test.dart', giphy_client_test.main);
+  group('features/chat/giphy_content_test.dart', giphy_content_test.main);
+  group('features/chat/giphy_gif_source_test.dart', giphy_gif_source_test.main);
   group('features/chat/emoji_chrome_test.dart', emoji_chrome_test.main);
   group(
     'features/chat/emoji_service_colors_test.dart',

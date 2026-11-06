@@ -37,8 +37,25 @@ import 'package:panel_shell/panel_shell.dart';
 /// `catalog_assets`) are the only playback policy: a clip that is scrolled out
 /// of view detaches and stops. A clip's stand-in is the cache's.
 ///
-/// Not ported: the search field and its category chips, trending from a bot,
-/// and the preview a long press opens.
+/// ## Search
+///
+/// A page given a [searchSource] follows the shell's search (the host's
+/// `PanelPage` declares `PageCapabilities(search: true)`): once the typed text
+/// has paused ([searchDebounce]) the source is asked for it, and its results
+/// are listed in place of the collections until search closes or the text is
+/// cleared. Results are paged as the end comes near, like a collection.
+///
+/// ## When there is nothing to show
+///
+/// A collection that failed to load, or a search that failed, ends the list
+/// with the panel's [PanelStrings.gifsFailed] and a retry button; a search
+/// that found nothing says [PanelStrings.gifsEmpty]. Clips already listed stay
+/// above it. The [attribution], when the host gives one, heads the list: a
+/// provider's terms may require its name on the content it supplies, and the
+/// page knows no provider.
+///
+/// Not ported: the category chips, trending from a bot, and the preview a long
+/// press opens.
 ///
 /// Requires the chrome theme, strings and motion scopes.
 class GifPage extends StatefulWidget {
@@ -48,6 +65,9 @@ class GifPage extends StatefulWidget {
     required this.host,
     required this.source,
     required this.assets,
+    this.searchSource,
+    this.searchDebounce = DebouncedSearch.defaultDebounce,
+    this.attribution,
     super.key,
   });
 
@@ -60,6 +80,16 @@ class GifPage extends StatefulWidget {
 
   /// The asset cache the clips draw through.
   final AssetCacheScope assets;
+
+  /// Where search results come from, or null for a page that does not search.
+  final SearchSource? searchSource;
+
+  /// How long typing must pause before a search runs.
+  final Duration searchDebounce;
+
+  /// The line that heads the list, such as the name of the provider the clips
+  /// come from, or null for none. Shown as given: it is not translated.
+  final String? attribution;
 
   @override
   State<GifPage> createState() => _GifPageState();
@@ -76,6 +106,20 @@ final class _HeaderLine extends _Line {
   final String title;
 }
 
+final class _NoticeLine extends _Line {
+  const _NoticeLine(this.text, {this.onRetry}) : super(_noticeExtent);
+  final String text;
+  final VoidCallback? onRetry;
+}
+
+final class _AttributionLine extends _Line {
+  const _AttributionLine(this.text) : super(_attributionExtent);
+  final String text;
+}
+
+const double _noticeExtent = 120;
+const double _attributionExtent = 36;
+
 final class _RowLine extends _Line {
   _RowLine(this.collection, this.row) : super(row.height);
   final Collection collection;
@@ -85,17 +129,43 @@ final class _RowLine extends _Line {
 class _GifPageState extends State<GifPage> {
   final _scroll = ScrollController();
   var _lines = const <_Line>[];
-  var _lineKey = (<Collection>[], 0.0);
+  var _lineKey = (<Collection>[], 0.0, null as PanelStrings?, null as String?);
+  late DebouncedSearch<void> _debounced;
+  var _query = '';
+  String? _announced;
 
   PanelPageHost get _host => widget.host;
   CollectionSource get _source => widget.source;
+  SearchSource? get _search => widget.searchSource;
 
   @override
   void initState() {
     super.initState();
     _source.collections.addListener(_onCollections);
     _host.reselected.addListener(_onReselected);
+    _startSearch();
     _onCollections();
+  }
+
+  void _startSearch() {
+    _debounced = DebouncedSearch<void>(
+      search: (query) => _search?.search(query) ?? Future<void>.value(),
+      onResult: (_, _) {},
+      onCleared: () => unawaited(_search?.search('') ?? Future<void>.value()),
+      debounce: widget.searchDebounce,
+    );
+    _debounced.busy.addListener(_reportBusy);
+    _search?.results.addListener(_onResults);
+    _host.search.addListener(_onSearchState);
+    _syncQuery();
+    _debounced.update(_query);
+  }
+
+  void _stopSearch() {
+    _host.search.removeListener(_onSearchState);
+    _search?.results.removeListener(_onResults);
+    _debounced.busy.removeListener(_reportBusy);
+    _debounced.dispose();
   }
 
   @override
@@ -106,10 +176,19 @@ class _GifPageState extends State<GifPage> {
       widget.source.collections.addListener(_onCollections);
       _onCollections();
     }
+    if (!identical(oldWidget.searchSource, widget.searchSource)) {
+      oldWidget.searchSource?.results.removeListener(_onResults);
+      _host.search.removeListener(_onSearchState);
+      _debounced.busy.removeListener(_reportBusy);
+      _debounced.dispose();
+      _startSearch();
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
+    _stopSearch();
     _source.collections.removeListener(_onCollections);
     _host.reselected.removeListener(_onReselected);
     _scroll.dispose();
@@ -127,11 +206,74 @@ class _GifPageState extends State<GifPage> {
     if (mounted) setState(() {});
   }
 
+  // --- Search ---------------------------------------------------------------
+
+  // The text the page searches for: the shell's, trimmed, while search is open
+  // and the page has a source to ask. Says whether it changed.
+  bool _syncQuery() {
+    final state = _host.search.value;
+    final query = _search != null && state.isOpen ? state.query.trim() : '';
+    final changed = query != _query;
+    _query = query;
+    return changed;
+  }
+
+  void _onSearchState() {
+    if (!_syncQuery()) return;
+    _debounced.update(_query);
+    setState(() {});
+  }
+
+  void _reportBusy() => _host.reportSearchProgress(busy: _debounced.busy.value);
+
+  // The results are what the page lists only once they are those of the text
+  // in the field: between a keystroke and the reply they are the last
+  // query's, and not shown.
+  Collection? get _results {
+    final results = _search?.results.value;
+    if (_query.isEmpty || results == null) return null;
+    return results.id == CollectionId.query(_query) ? results : null;
+  }
+
+  void _onResults() {
+    if (_results?.contents case CollectionContents$Loaded(
+      :final items,
+    ) when _announced != _query) {
+      _announced = _query;
+      _host.reportSearchResultCount(items.length);
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _retry() {
+    if (_query.isNotEmpty) {
+      // A search is not retried by asking for the same text again, which the
+      // source ignores: clearing it first makes the text new.
+      final query = _query;
+      _announced = null;
+      unawaited(_search!.search('').then((_) => _search?.search(query)));
+      return;
+    }
+    for (final collection in _source.collections.value) {
+      if (collection.contents is CollectionContents$Failed) {
+        unawaited(_source.load(collection.id));
+      }
+    }
+  }
+
   // The next page of every collection that has one, as the end comes near.
   void _loadMoreNearEnd() {
     if (!_scroll.hasClients) return;
     final position = _scroll.position;
     if (position.extentAfter > position.viewportDimension) return;
+    if (_query.isNotEmpty) {
+      if (_results?.contents case CollectionContents$Loaded(
+        :final nextPageToken,
+      ) when nextPageToken != null) {
+        unawaited(_search!.loadMore());
+      }
+      return;
+    }
     for (final collection in _source.collections.value) {
       if (collection.contents case CollectionContents$Loaded(
         :final nextPageToken,
@@ -190,29 +332,51 @@ class _GifPageState extends State<GifPage> {
         _ => const [],
       };
 
-  // The lines for [width], rebuilt only when the collections or the width
-  // change: the rows are a function of nothing else.
-  List<_Line> _linesFor(double width) {
-    final collections = [
-      for (final collection in _source.collections.value)
-        if (!_isEmptyRecents(collection)) collection,
-    ];
+  // The lines for [width], rebuilt only when what they are a function of
+  // changes: the collections listed, the width, the strings and the
+  // attribution.
+  List<_Line> _linesFor(double width, PanelStrings strings) {
+    final results = _results;
+    final collections = _query.isNotEmpty
+        ? [?results]
+        : [
+            for (final collection in _source.collections.value)
+              if (!_isEmptyRecents(collection)) collection,
+          ];
     final stale =
         _lineKey.$2 != width ||
-        _lineKey.$1.length != collections.length ||
+        !identical(_lineKey.$3, strings) ||
+        _lineKey.$4 != widget.attribution ||
         !_sameCollections(_lineKey.$1, collections);
     if (!stale) return _lines;
-    _lineKey = (collections, width);
-    return _lines = [
+    _lineKey = (collections, width, strings, widget.attribution);
+    // A collection that failed ends its own rows with the failure, so it is
+    // read where the clips would have been, not after the ones that follow.
+    final rows = [
       for (final (i, collection) in collections.indexed) ...[
         if (i > 0 && (collection.metadata.title ?? '').isNotEmpty)
           _HeaderLine(collection.metadata.title!),
         ..._rowsOf(collection, width),
+        if (collection.id != CollectionId.recent &&
+            collection.contents is CollectionContents$Failed)
+          _NoticeLine(strings.gifsFailed, onRetry: _retry),
       ],
+    ];
+    final foundNothing = switch (results?.contents) {
+      CollectionContents$Loaded(:final items) => items.isEmpty,
+      _ => false,
+    };
+    return _lines = [
+      if (widget.attribution case final attribution?
+          when rows.any((line) => line is _RowLine))
+        _AttributionLine(attribution),
+      ...rows,
+      if (foundNothing) _NoticeLine(strings.gifsEmpty),
     ];
   }
 
   static bool _sameCollections(List<Collection> a, List<Collection> b) {
+    if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (!identical(a[i], b[i])) return false;
     }
@@ -245,7 +409,10 @@ class _GifPageState extends State<GifPage> {
       onNotification: _onScroll,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final lines = _linesFor(constraints.maxWidth);
+          final lines = _linesFor(
+            constraints.maxWidth,
+            ChromeStringsScope.panelOf(context),
+          );
           return ListView.builder(
             controller: _scroll,
             padding: EdgeInsets.only(bottom: bottom),
@@ -254,6 +421,11 @@ class _GifPageState extends State<GifPage> {
             itemExtentBuilder: (index, _) => lines[index].height,
             itemBuilder: (context, index) => switch (lines[index]) {
               _HeaderLine(:final title) => _Header(title: title),
+              _NoticeLine(:final text, :final onRetry) => _Notice(
+                text: text,
+                onRetry: onRetry,
+              ),
+              _AttributionLine(:final text) => _Attribution(text: text),
               _RowLine(:final collection, :final row) => _Row(
                 row: row,
                 collection: collection,
@@ -297,6 +469,68 @@ class _Header extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Notice extends StatelessWidget {
+  const _Notice({required this.text, required this.onRetry});
+
+  final String text;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ChromeThemeScope.of(context).palette;
+    final tokens = ChromeThemeScope.panelOf(context);
+    final retry = onRetry;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: tokens.sectionTitle, fontSize: 15),
+          ),
+          if (retry != null)
+            Semantics(
+              button: true,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: retry,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    ChromeStringsScope.panelOf(context).retryAction,
+                    style: TextStyle(
+                      color: palette.accent,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Attribution extends StatelessWidget {
+  const _Attribution({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = ChromeThemeScope.panelOf(context);
+    return Center(
+      child: Text(
+        text,
+        style: TextStyle(color: tokens.sectionTitle, fontSize: 12),
       ),
     );
   }

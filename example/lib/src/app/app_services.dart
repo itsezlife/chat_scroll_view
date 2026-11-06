@@ -10,6 +10,10 @@ import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_p
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
@@ -22,8 +26,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_decoder/image_decoder.dart';
 import 'package:kv_shared_preferences/kv_shared_preferences.dart';
+import 'package:l/l.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:rich_clipboard/rich_clipboard.dart';
@@ -99,6 +105,10 @@ final class AppServices {
     required this.emojiPageSource,
     required this.stickerPageSource,
     required this.gifPageSource,
+    required this.gifSearch,
+    required this.giphy,
+    required this.corpus,
+    required this.describe,
     required List<CollectionSource> pageParts,
     required CollectionSource animatedEmoji,
     required CollectionSource lottieStickers,
@@ -170,6 +180,12 @@ final class AppServices {
   /// between launches (null: in memory only, as in a test). [startVideo]
   /// does the same for the video decoder: the platform's unless a test passes
   /// its own, and null where there is none.
+  ///
+  /// [giphyApiKey] turns the GIF page's Giphy source on (see
+  /// [giphyApiKeyDefine]); empty leaves the page on the bundled clips.
+  /// [giphyHttpClient] is the transport it sends through, closed by the
+  /// services only if they made it. [corpus] is the local sticker corpus; null
+  /// looks for one in the app bundle and in the `CHAT_CORPUS_DIR` directory.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -180,6 +196,9 @@ final class AppServices {
     LottiePlaybackStarter startLottie = startLottiePlayback,
     String? lottieCacheDirectory,
     VideoPlaybackStarter startVideo = startVideoPlayback,
+    String giphyApiKey = giphyApiKeyDefine,
+    http.Client? giphyHttpClient,
+    CorpusStickerPack? corpus,
   }) async {
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
@@ -260,14 +279,47 @@ final class AppServices {
       if (videoPlayback != null) {
         decoders.register(MediaForm.video, videoPlayback.decoder);
       }
+      // Content that is not bundled: the local corpus, found in the bundle
+      // and in the directory the build was given, and Giphy, only with a key.
+      final corpusPacks =
+          corpus ??
+          await CorpusStickerPack.load(
+            bundle: rootBundle,
+            directory: CorpusStickerPack.directoryDefine,
+          );
+      GiphyContent? giphy;
+      if (giphyApiKey.isEmpty) {
+        l.i(
+          'Giphy GIFs are off: no GIPHY_API_KEY was given '
+          '(--dart-define=GIPHY_API_KEY=...); the GIF page keeps the bundled '
+          'clips',
+        );
+      } else {
+        final transport =
+            giphyHttpClient ??
+            owned<http.Client>(http.Client(), (client) => client.close());
+        giphy = GiphyContent(
+          GiphyClient(apiKey: giphyApiKey, client: transport),
+        );
+      }
       final pipeline = owned(
         AssetPipeline(
-          fetcher: BundledPacks.fetcher(rootBundle),
+          // Giphy first, then the corpus, then the bundle: each takes its own
+          // keys and hands the rest on.
+          fetcher: _contentFetcher(giphy, corpusPacks, rootBundle),
           decoders: decoders,
+          resolver: giphy?.resolver(otherwise: BundledPacks.resolver()),
         ),
         (pipeline) => pipeline.dispose(),
       );
       BundledPacks.descriptors.forEach(pipeline.know);
+      corpusPacks.descriptors.forEach(pipeline.know);
+      // What a key is, for the recents: the bundled packs, the corpus and the
+      // Giphy clips this session listed.
+      ContentDescriptor? describe(ContentKey key) =>
+          BundledPacks.describe(key) ??
+          corpusPacks.of(key)?.descriptor ??
+          giphy?.descriptorOf(key);
       // Whether the fonts that draw emoji as text are there: on the web the
       // emoji font downloads, and the grid shows placeholders, not
       // missing-glyph boxes, until it is (set once the probe's wait ends).
@@ -391,33 +443,61 @@ final class AppServices {
       // the GIF page's. The parts are the emoji page's own where they are the
       // same packs.
       final recentStickers = owned(
-        RecentContentSource(recents: recentsShown, kind: SemanticKind.sticker),
+        RecentContentSource(
+          recents: recentsShown,
+          kind: SemanticKind.sticker,
+          describe: describe,
+        ),
         (source) => source.dispose(),
       );
       final videoStickerPack = owned(
         VideoStickerPack.stickerSource(),
         (source) => source.dispose(),
       );
+      final corpusSources = [
+        for (final source in corpusPacks.sources())
+          owned(source, (source) => source.dispose()),
+      ];
       final stickerPageSource = owned(
         JoinedCollectionSource([
           recentStickers,
           lottieStickers,
           staticStickers,
           videoStickerPack,
+          ...corpusSources,
         ]),
         (source) => source.dispose(),
       );
       // The GIF page: the recent GIFs, then the clips and GIFs.
       final recentGifs = owned(
-        RecentContentSource(recents: recentsShown, kind: SemanticKind.gif),
+        RecentContentSource(
+          recents: recentsShown,
+          kind: SemanticKind.gif,
+          describe: describe,
+        ),
         (source) => source.dispose(),
       );
       final gifClips = owned(
         VideoStickerPack.gifSource(),
         (source) => source.dispose(),
       );
+      // Giphy's trending after the recents, and the bundled clips after
+      // those: online they are below the end of trending, and offline they
+      // are what the page shows beneath the failure line.
+      final giphyTrending = giphy == null
+          ? null
+          : owned(
+              GiphyGifSource(client: giphy.client, content: giphy),
+              (source) => source.dispose(),
+            );
+      final gifSearch = giphy == null
+          ? null
+          : owned(
+              GiphyGifSearch(client: giphy.client, content: giphy),
+              (search) => search.dispose(),
+            );
       final gifPageSource = owned(
-        JoinedCollectionSource([recentGifs, gifClips]),
+        JoinedCollectionSource([recentGifs, ?giphyTrending, gifClips]),
         (source) => source.dispose(),
       );
 
@@ -442,7 +522,18 @@ final class AppServices {
         emojiPageSource: emojiPageSource,
         stickerPageSource: stickerPageSource,
         gifPageSource: gifPageSource,
-        pageParts: [recentStickers, videoStickerPack, recentGifs, gifClips],
+        gifSearch: gifSearch,
+        giphy: giphy,
+        corpus: corpusPacks,
+        describe: describe,
+        pageParts: [
+          recentStickers,
+          videoStickerPack,
+          recentGifs,
+          gifClips,
+          ?giphyTrending,
+          ...corpusSources,
+        ],
         animatedEmoji: animatedEmoji,
         lottieStickers: lottieStickers,
         staticStickers: staticStickers,
@@ -555,9 +646,43 @@ final class AppServices {
   /// video pack. It owns none.
   final CollectionSource stickerPageSource;
 
-  /// What the GIF page lists: the recent GIFs, then the video pack's MP4
-  /// clips and GIFs. It owns none.
+  /// What the GIF page lists: the recent GIFs, then Giphy's trending clips
+  /// when there is a key, then the video pack's MP4 clips and GIFs. It owns
+  /// none.
   final CollectionSource gifPageSource;
+
+  /// Search of Giphy for the GIF page, or null without a key.
+  final SearchSource? gifSearch;
+
+  /// The Giphy clips this session lists and plays, or null without a key.
+  final GiphyContent? giphy;
+
+  /// The local corpus of Lottie stickers; [CorpusStickerPack.none] when the
+  /// build has none.
+  final CorpusStickerPack corpus;
+
+  /// What the host knows of a key beyond the bundled packs: the corpus and
+  /// the Giphy clips this session listed.
+  final DescribeContent describe;
+
+  /// The Giphy API key the build was given with
+  /// `--dart-define=GIPHY_API_KEY=...`, or empty. It is only ever read here,
+  /// handed to the client, and never logged.
+  static const String giphyApiKeyDefine = String.fromEnvironment(
+    'GIPHY_API_KEY',
+  );
+
+  /// The line Giphy's terms ask to be shown with its content.
+  static const String giphyAttribution = 'Powered by GIPHY';
+
+  static ContentFetcher _contentFetcher(
+    GiphyContent? giphy,
+    CorpusStickerPack corpus,
+    AssetBundle bundle,
+  ) {
+    final bundled = corpus.fetcher(otherwise: BundledPacks.fetcher(bundle));
+    return giphy == null ? bundled : giphy.fetcher(otherwise: bundled);
+  }
 
   /// Which glyphs the system cannot draw.
   final MissingGlyphProbe glyphProbe;

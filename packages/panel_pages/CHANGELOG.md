@@ -6,6 +6,19 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (GIF page search and empty states)
+
+- `GifPage` takes an optional `searchSource` (a `SearchSource`), `searchDebounce`
+  and `attribution`. Given a source, the page follows the shell's search (the
+  host's `PanelPage` declares `PageCapabilities(search: true)`) and lists the
+  results in place of the collections, paged as the end comes near. A
+  collection or search that failed ends the list with a retry button; a search
+  that found nothing says so; the attribution heads the list. Existing hosts
+  are unchanged: without a `searchSource` there is no search, and a failed
+  collection, which showed nothing before, now shows the failure line.
+- Requires `PanelStrings.gifsEmpty`, `gifsFailed` and `retryAction` from
+  `chrome_foundation`.
+
 ### Added (stickers and GIF pages)
 
 - `StickersPage` with `StickersPagePolicy` and `StickerPackStrip`: the
