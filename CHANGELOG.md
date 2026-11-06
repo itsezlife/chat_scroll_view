@@ -9,6 +9,9 @@
   block at a time across as many short slices as a long body takes.
 
 ### Example
+- **ADDED**: on desktop the mouse's back button is the platform's back: a
+  press closes an open menu, the panel or a selection, or pops the page, in
+  the order the system back does.
 - **CHANGED**: the comments chat parses a chunk of messages (JSON, entity
   detection, markdown) in a background isolate; on the web, where there are
   none, as before.

@@ -13,6 +13,7 @@ import 'package:chat_scroll_view_example/src/common/environment_specific/host_en
     as environment_specific;
 import 'package:chat_scroll_view_example/src/common/frame_rate_boost.dart';
 import 'package:chat_scroll_view_example/src/common/glyph_warmup.dart';
+import 'package:chat_scroll_view_example/src/common/mouse_back_button.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
@@ -207,7 +208,8 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
           ),
         ),
       );
-      return DemoConfig.scrollLab ? ScrollLabOverlay(child: app) : app;
+      final backed = MouseBackButton(child: app);
+      return DemoConfig.scrollLab ? ScrollLabOverlay(child: backed) : backed;
     },
     navigatorObservers: [_overlays],
     debugShowCheckedModeBanner: false,
