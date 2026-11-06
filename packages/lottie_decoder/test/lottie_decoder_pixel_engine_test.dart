@@ -137,7 +137,13 @@ void main() {
       _request(bytes, content: FetchedContent.file(file.path)),
       report,
     );
-    await pumpEventQueue();
+    // The read is real disk I/O, which a fixed pump of the event queue does
+    // not wait for: poll until the decode ends.
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (report.advances.length < 2 && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      await pumpEventQueue();
+    }
 
     expect(report.advances.map((a) => a.stage), [
       AssetStage.firstFrame,
