@@ -281,14 +281,8 @@ final class ChatTextSelection {
       if (!isChrome && surface != null && contentLocal != null) {
         final surfaceWidth = surface.globalBounds.width;
         if (contentLocal.dx >= 0 && contentLocal.dx <= surfaceWidth) {
-          final boxes = surface.localBoxesForRange(
-            hit.blockIndex,
-            0,
-            text.length,
-          );
-          if (boxes.isNotEmpty) {
-            final codeTop = boxes.first.top;
-            final codeBottom = boxes.last.bottom;
+          final bounds = codeTextBounds(surface, hit.blockIndex, text);
+          if (bounds case (final codeTop, final codeBottom)) {
             final inHeader =
                 contentLocal.dy >= 0 &&
                 contentLocal.dy < (codeTop - ChatCodeBlockPainter.padding);
@@ -341,6 +335,39 @@ final class ChatTextSelection {
     }
 
     return null;
+  }
+
+  /// The top of the first line and the bottom of the last line of the fenced
+  /// [code] laid out as [blockIndex] of [surface], or null when it shows no
+  /// text.
+  ///
+  /// Asks for the boxes of those two lines only: a press anywhere on a fence
+  /// asks this, and the boxes of every line of a fence of thousands took
+  /// longer than a frame.
+  @visibleForTesting
+  static (double, double)? codeTextBounds(
+    MarkdownSelectionSurface surface,
+    int blockIndex,
+    String code,
+  ) {
+    var end = code.length;
+    while (end > 0 && code.codeUnitAt(end - 1) == 0x0A) {
+      end--;
+    }
+    final firstEnd = switch (code.indexOf('\n')) {
+      -1 => code.length,
+      final i => i,
+    };
+    final lastStart = end == 0 ? 0 : code.lastIndexOf('\n', end - 1) + 1;
+    final first = surface.localBoxesForRange(blockIndex, 0, firstEnd);
+    final last = surface.localBoxesForRange(blockIndex, lastStart, code.length);
+    if (first.isEmpty || last.isEmpty) {
+      // An empty first or last line has no box: fall back to every line.
+      final boxes = surface.localBoxesForRange(blockIndex, 0, code.length);
+      if (boxes.isEmpty) return null;
+      return (boxes.first.top, boxes.last.bottom);
+    }
+    return (first.first.top, last.last.bottom);
   }
 
   /// Resolves an inline hit at a logical [blockIndex] and rendered-text [offset]

@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_text_selection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
@@ -563,4 +564,38 @@ void main() {
       }
     },
   );
+
+  testWidgets('a fence is bounded by its first and last lines alone', (
+    tester,
+  ) async {
+    final dataSource = _LoadedSource([_msg(1)]);
+    final controller = ChatScrollController();
+    final selection = ChatSelectionController();
+    addTearDown(controller.dispose);
+    addTearDown(selection.dispose);
+    addTearDown(dataSource.dispose);
+
+    for (final code in [
+      'one line',
+      'first\nmiddle\nlast',
+      '\nan empty first line\nlast',
+      'first\nan empty last line\n',
+    ]) {
+      selection.putBody(1, Markdown.fromString('```\n$code\n```'));
+      await pumpBody(
+        tester,
+        selection: selection,
+        dataSource: dataSource,
+        controller: controller,
+      );
+      final surface = selection.surfaceFor(1)!;
+      final text = (selection.bodyOf(1)!.blocks.single as MD$Code).text;
+      // What every line's boxes give.
+      final boxes = surface.localBoxesForRange(0, 0, text.length);
+      expect(ChatTextSelection.codeTextBounds(surface, 0, text), (
+        boxes.first.top,
+        boxes.last.bottom,
+      ), reason: code);
+    }
+  });
 }

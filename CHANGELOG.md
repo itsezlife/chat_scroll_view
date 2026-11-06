@@ -9,6 +9,8 @@
   block at a time across as many short slices as a long body takes.
 
 ### Bodies
+- **CHANGED**: a press on a fenced code block reads the boxes of its first
+  and last lines only to place the copy chrome, not the boxes of every line.
 - **ADDED**: `ChatMarkdownBody.resolvedTheme` and
   `ChatMarkdownBody.adaptedEmbedResolver` return the theme and resolver a
   body with those inputs uses, the same instances. A host that lays bodies
