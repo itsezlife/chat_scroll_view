@@ -3,6 +3,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_p
 import 'package:chat_scroll_view_example/src/features/chat/data/bundle_fetcher.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/services.dart';
 
@@ -15,11 +16,14 @@ abstract final class BundledPacks {
   static Iterable<ContentDescriptor> get descriptors => [
     ...AnimatedEmojiPack.descriptors,
     ...LottieStickerPack.descriptors,
+    ...StaticStickerPack.descriptors,
   ];
 
   /// The item of [key] in any pack, or null for content that is not bundled.
   static BundledItem? of(ContentKey key) =>
-      AnimatedEmojiPack.of(key) ?? LottieStickerPack.of(key);
+      AnimatedEmojiPack.of(key) ??
+      LottieStickerPack.of(key) ??
+      StaticStickerPack.of(key);
 
   /// A fetcher that reads every pack's files from [bundle].
   static ContentFetcher fetcher(AssetBundle bundle) =>

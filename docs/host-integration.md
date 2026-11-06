@@ -173,6 +173,15 @@ of the pointer menu comes from `ChromeStrings`, so an app that has no Material
 delegate for its own language still shows its language in them. `PanelShell`
 builds on `EditableText` and needs no Material ancestor.
 
+### Stills and animated images
+
+A sticker is a semantic kind, not a media form: a static sticker is a
+`MediaForm.still` and an animated emoji a `MediaForm.animatedImage`, and the
+engine's image codecs decode both. Register `ImageCodecDecoder` under each form
+the host shows, in the same `DecoderRegistry` as the others. It needs no native
+library, so it is registered whether or not the vector-animation decoder below
+started.
+
 ### The vector-animation decoder
 
 A host that shows Lottie content registers one `Decoder` under
@@ -1118,7 +1127,7 @@ not use the hover-open toggle region.
 | --- | --- |
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
 | Lottie decoder probe and start (native and web forks) | `example/lib/src/app/lottie_playback.dart`, `lottie_playback_native.dart`, `lottie_playback_stub.dart` |
-| Bundled packs: one lookup, fetcher and resolver, one pack source, the authored Lottie stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart` |
+| Bundled packs: one lookup, fetcher and resolver, one pack source, the authored Lottie and static stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart`, `static_sticker_pack.dart` |
 | `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
 | App scopes | `example/lib/src/app/app_chrome.dart` |
 | Per-chat controller set, event handler, back, hand-off | `example/lib/src/features/chat/input/chat_input_set.dart` |

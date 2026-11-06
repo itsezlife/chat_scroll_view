@@ -12,6 +12,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store
 import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
@@ -52,7 +53,8 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 ///    logs once), the pipeline, the scope;
 /// 4. the data sources: [catalog], [keywords], [emojiSource], [emojiSearch],
 ///    under the [glyphProbe] that hides what the system cannot draw, the
-///    animated emoji pack and the Lottie sticker pack, and [emojiPageSource],
+///    animated emoji pack, the Lottie sticker pack and the static sticker
+///    pack, and [emojiPageSource],
 ///    which lists the packs after the catalogue's categories;
 /// 5. the [clipboard]: the `rich_clipboard` adapter every copy and paste
 ///    goes through, so text keeps its entities (ADR 032).
@@ -89,6 +91,7 @@ final class AppServices {
     required this.emojiPageSource,
     required CollectionSource animatedEmoji,
     required CollectionSource lottieStickers,
+    required CollectionSource staticStickers,
     required PlaybackClock clock,
     required LottiePlayback? lottiePlayback,
     required this.glyphProbe,
@@ -103,6 +106,7 @@ final class AppServices {
     required AssetPipeline pipeline,
   }) : _animatedEmoji = animatedEmoji,
        _lottieStickers = lottieStickers,
+       _staticStickers = staticStickers,
        _clock = clock,
        _lottiePlayback = lottiePlayback,
        _pipeline = pipeline,
@@ -213,9 +217,10 @@ final class AppServices {
       if (lottiePlayback != null) {
         owned(lottiePlayback, _closePlayback);
       }
-      // The emoji pack is animated WebP, which the engine's image codecs
-      // decode.
+      // The emoji pack is animated WebP and the static stickers are PNG: both
+      // are the engine's image codecs' work, whether or not Lottie runs here.
       final decoders = DecoderRegistry()
+        ..register(MediaForm.still, const ImageCodecDecoder())
         ..register(MediaForm.animatedImage, const ImageCodecDecoder());
       if (lottiePlayback != null) {
         decoders.register(MediaForm.vectorAnimation, lottiePlayback.decoder);
@@ -327,8 +332,17 @@ final class AppServices {
         LottieStickerPack.source(),
         (source) => source.dispose(),
       );
+      final staticStickers = owned(
+        StaticStickerPack.source(),
+        (source) => source.dispose(),
+      );
       final emojiPageSource = owned(
-        JoinedCollectionSource([emojiSource, animatedEmoji, lottieStickers]),
+        JoinedCollectionSource([
+          emojiSource,
+          animatedEmoji,
+          lottieStickers,
+          staticStickers,
+        ]),
         (source) => source.dispose(),
       );
 
@@ -353,6 +367,7 @@ final class AppServices {
         emojiPageSource: emojiPageSource,
         animatedEmoji: animatedEmoji,
         lottieStickers: lottieStickers,
+        staticStickers: staticStickers,
         clock: clock,
         lottiePlayback: lottiePlayback,
         glyphProbe: probe.probe,
@@ -451,7 +466,8 @@ final class AppServices {
   final EmojiSearchSource emojiSearch;
 
   /// What the emoji page lists: the collections of [emojiSource], then the
-  /// pack of animated emoji and the pack of Lottie stickers. It owns none.
+  /// pack of animated emoji, the pack of Lottie stickers and the pack of
+  /// static ones. It owns none.
   final CollectionSource emojiPageSource;
 
   /// Which glyphs the system cannot draw.
@@ -469,6 +485,7 @@ final class AppServices {
 
   final CollectionSource _animatedEmoji;
   final CollectionSource _lottieStickers;
+  final CollectionSource _staticStickers;
   final PlaybackClock _clock;
   final LottiePlayback? _lottiePlayback;
   final AssetPipeline _pipeline;
@@ -532,6 +549,7 @@ final class AppServices {
     _disposed = true;
     _webProbePass?.cancel();
     emojiPageSource.dispose();
+    _staticStickers.dispose();
     _lottieStickers.dispose();
     _animatedEmoji.dispose();
     emojiSearch.dispose();

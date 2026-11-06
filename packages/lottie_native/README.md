@@ -7,20 +7,101 @@ render frames into page memory, dispose. A leaf of the workspace
 workspace package and is reached through its decoder only.
 
 This package holds the interface, the fake, the contract, the native binding
-(`NativeLottieBinding`) and the build hook that compiles `native/` with cargo.
+(`NativeLottieBinding`) and the build hook that delivers the compiled library.
 
-## Building
+## Native library delivery
 
-`hook/build.dart` runs `cargo build --release` on the `native/` crate for the
-build's macOS architecture (arm64 or x86_64) and registers the dylib as a
-bundled code asset. It finds `cargo` on `PATH`, then under `CARGO_HOME`, then
-in `~/.cargo/bin`; without Rust it fails and says to install it from
-[rustup.rs](https://rustup.rs). Other targets emit no asset and log a warning that
-the library is then unavailable at run time (the probe reports
-`missingLibrary`) until slice 6 (hash-pinned prebuilt libraries and an opt-in
-compile flag). When cargo fails for a missing Rust target, the message ends
-with the `rustup target add` line. A
-first build needs network for the crates and the pinned tlottie commit.
+**No prebuilt library is published yet: `native/prebuilts.json` is committed
+empty (no `baseUrl`, no artifacts), so every build today compiles from
+source.** The machinery below is in place for when the maintainer publishes.
+
+`hook/build.dart` gets the library in this order, first match wins:
+
+1. **Compile from source** when `build_from_source` is on: the app's pubspec
+   sets it for this package, or the environment variable
+   `LOTTIE_NATIVE_BUILD_FROM_SOURCE=1` is set.
+
+   ```yaml
+   # the app's pubspec.yaml
+   hooks:
+     user_defines:
+       lottie_native:
+         build_from_source: true
+   ```
+
+   Either switches it on; neither switches the other off. Hooks cannot track
+   the environment, so after changing the variable run `flutter clean` (or
+   touch `native/prebuilts.json`) to re-run the hook. With the flag on a
+   missing `cargo` or an uncompilable target fails the build.
+2. **Download the prebuilt** when the manifest has an artifact for the build's
+   target key, its `sourceHash` equals the hash of the `native/` sources in
+   this package, and `baseUrl` is set. The file is fetched into the hook's
+   shared output directory at `<sha256>/<file>` (every consumer reuses it),
+   checked for size and SHA-256, and refused on any mismatch. A verified
+   cached file is reused with no network. A failed download (network, HTTP
+   status, 60 s timeout) is logged, never fatal.
+3. **Compile from source** when this host builds the target (macOS arm64 and
+   x86_64 today) and `cargo` is found; otherwise **no asset** and a warning
+   that names the target: the build succeeds and
+   `NativeLottieBinding.probe()` reports `missingLibrary`.
+
+`cargo` is found on `PATH`, then under `CARGO_HOME`, then in `~/.cargo/bin`;
+without Rust and with the flag on, the build fails and says to install it from
+[rustup.rs](https://rustup.rs). When cargo fails for a missing Rust target the
+message ends with the `rustup target add` line. A first source build needs
+network for the crates and the pinned tlottie commit.
+
+The hook declares every file under `native/src/` and `native/include/`,
+`Cargo.toml`, `Cargo.lock`, `prebuilts.json` and its own Dart sources as
+dependencies, so editing any of them re-runs it.
+
+### The manifest
+
+`native/prebuilts.json`, schema 1 (unknown keys are ignored):
+
+```json
+{
+  "schema": 1,
+  "crateVersion": "0.1.0",
+  "sourceHash": "<64 hex: sha256 of the sources, see below>",
+  "baseUrl": "https://host.example/lottie_native/0.1.0/",
+  "artifacts": {
+    "macos-arm64": {
+      "file": "libchat_lottie-macos-arm64.dylib",
+      "sha256": "<64 hex>",
+      "size": 1234567
+    }
+  }
+}
+```
+
+- Target keys: `macos-arm64`, `macos-x64`, `ios-arm64`,
+  `ios-arm64-simulator`, `ios-x64-simulator`, `android-arm64`, `android-x64`,
+  `linux-x64`, `linux-arm64`, `windows-x64`.
+- `baseUrl` is empty or an absolute `https` URL ending with `/`; `file` is a
+  bare file name appended to it. Hex values are lower case.
+- An empty `baseUrl` or `artifacts` means "no prebuilt", never an error. A
+  manifest that does not parse is ignored with a warning.
+- `sourceHash` is the SHA-256 over this listing: the files `Cargo.toml`,
+  `Cargo.lock`, everything under `include/` and everything under `src/` (all
+  in `native/`), sorted by `/`-separated relative path, each as
+  `<path> LF <byte length> LF <bytes> LF`. Bytes are hashed as stored, so a
+  checkout that rewrites line endings falls back to compiling.
+
+### Publishing prebuilts (maintainer)
+
+1. Build the library for each target from the current sources.
+2. Upload the files so that `baseUrl` + `file` resolves to each.
+3. For each file, print its entry and paste it under `artifacts`:
+   `dart native/tool/manifest_entry.dart <file>` prints `sha256` and `size`.
+4. Set `baseUrl`, then run `dart native/tool/source_hash.dart --write` from
+   the package root. It records the current `sourceHash` and the crate
+   version; without `--write` it only prints the hash. (Use `dart <file>`,
+   not `dart run`, which would run the build hook.)
+
+After any edit to the crate, re-run step 4 only once new libraries are
+published; until then the stale `sourceHash` correctly disables the old
+artifacts.
 
 ## Types
 
