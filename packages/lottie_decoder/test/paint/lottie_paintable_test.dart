@@ -88,14 +88,14 @@ void main() {
     ui.Image? still,
     VoidCallback? onDispose,
   }) => LottieAnimationPaintable(
-        key: key,
-        handle: handle,
-        info: info,
-        firstFrame: still ?? _image(8),
-        scheduler: scheduler,
-        renderEdge: 48,
-        onDispose: onDispose,
-      );
+    key: key,
+    handle: handle,
+    info: info,
+    firstFrame: still ?? _image(8),
+    scheduler: scheduler,
+    renderEdge: 48,
+    onDispose: onDispose,
+  );
 
   AssetPaintContext at(
     int ms, {

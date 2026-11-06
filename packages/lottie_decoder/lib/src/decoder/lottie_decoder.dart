@@ -207,13 +207,28 @@ final class _LottieDecode implements AssetTask {
     // Outside the try above: from here the image and the handle belong to the
     // paintables handed over.
     final frameBytes = width * height * 4;
-    if (spec.variant == AssetVariant.firstFrame) {
+    // The still of the final stage is a second reference to the pixels, taken
+    // before the first stage goes out: the cache may dispose that one at once.
+    final finalImage = spec.variant == AssetVariant.full ? image.clone() : null;
+    final animates =
+        spec.variant == AssetVariant.full &&
+        math.max(spec.pixelWidth, spec.pixelHeight) <= LottieRenderJob.maxEdge;
+    if (!animates) {
       _release(handle);
       _progress.advance(
         AssetStage.firstFrame,
         LottieStillPaintable(image),
         bytes: frameBytes,
       );
+      // Above the cap the still is the final picture too; each stage owns its
+      // own reference to the pixels.
+      if (finalImage != null) {
+        _progress.advance(
+          AssetStage.full,
+          LottieStillPaintable(finalImage),
+          bytes: frameBytes,
+        );
+      }
       return;
     }
     final key = Object();
@@ -229,7 +244,7 @@ final class _LottieDecode implements AssetTask {
           key: key,
           handle: handle,
           info: info,
-          firstFrame: image.clone(),
+          firstFrame: finalImage!,
           scheduler: _owner._scheduler,
           renderEdge: edge,
           onDispose: () => _release(handle),
