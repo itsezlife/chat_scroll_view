@@ -10,6 +10,7 @@ library;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/semantics.dart';
@@ -212,6 +213,60 @@ void main() {
       await tester.pump();
 
       expect(host.picks.single.key, const ContentKey.document('a-0'));
+    });
+  });
+
+  group('with nothing to list', () {
+    final empty = ChromeStringsPresets.english.panel.gifsEmpty;
+
+    pageTest('says so once the recents are known to be empty and nothing '
+        'else is listed', (tester) async {
+      source.dispose();
+      source = FakeCollectionSource([
+        const FakeCollectionSpec(CollectionId.recent, pages: FakePages([[]])),
+      ]);
+      await pumpPage(tester);
+
+      expect(find.text(empty), findsOneWidget);
+    });
+
+    pageTest('says nothing of it while there are recents', (tester) async {
+      source.dispose();
+      source = FakeCollectionSource([_recents()]);
+      await pumpPage(tester);
+
+      expect(find.text(empty), findsNothing);
+    });
+
+    pageTest('says nothing of it while a collection is still loading', (
+      tester,
+    ) async {
+      source.dispose();
+      source = FakeCollectionSource([
+        const FakeCollectionSpec(CollectionId.recent, pages: FakePages([[]])),
+        _clips('t', 'Trending'),
+      ])..pause();
+      await pumpPage(tester);
+
+      expect(find.text(empty), findsNothing);
+      source.resume();
+    });
+
+    pageTest('says the load failed, not that there is nothing, when one did', (
+      tester,
+    ) async {
+      source.dispose();
+      source = FakeCollectionSource([
+        const FakeCollectionSpec(CollectionId.recent, pages: FakePages([[]])),
+        _clips('t', 'Trending'),
+      ])..failLoads = true;
+      await pumpPage(tester);
+
+      expect(find.text(empty), findsNothing);
+      expect(
+        find.text(ChromeStringsPresets.english.panel.gifsFailed),
+        findsOneWidget,
+      );
     });
   });
 

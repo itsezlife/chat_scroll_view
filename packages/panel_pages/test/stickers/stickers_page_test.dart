@@ -11,6 +11,7 @@ library;
 import 'dart:ui' show Tristate;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
@@ -136,6 +137,35 @@ void main() {
       source.collections.value.first.contents,
       isA<CollectionContents$Loaded>(),
     );
+  });
+
+  group('with nothing to list', () {
+    final empty = ChromeStringsPresets.english.panel.stickersEmpty;
+
+    pageTest('says so once the recents are known to be empty and there is '
+        'no pack', (tester) async {
+      source.dispose();
+      source = FakeCollectionSource([
+        const FakeCollectionSpec(CollectionId.recent, pages: FakePages([[]])),
+      ]);
+      await pumpPage(tester);
+
+      expect(find.text(empty), findsOneWidget);
+    });
+
+    pageTest('says nothing of it while there are recents', (tester) async {
+      source.dispose();
+      source = FakeCollectionSource([_recents()]);
+      await pumpPage(tester);
+
+      expect(find.text(empty), findsNothing);
+    });
+
+    pageTest('says nothing of it while there is a pack', (tester) async {
+      await pumpPage(tester);
+
+      expect(find.text(empty), findsNothing);
+    });
   });
 
   group('the grid', () {

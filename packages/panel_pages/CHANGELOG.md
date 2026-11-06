@@ -6,6 +6,16 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (pages with nothing to list)
+
+- `StickersPage` says `PanelStrings.stickersEmpty` in the middle of the page
+  when it has nothing to list: the recents known to be empty and no pack.
+  Before, such a page was blank.
+- `GifPage` says `PanelStrings.gifsEmpty` when every collection has loaded
+  and none has a clip to list (no recents, no provider), not only when a
+  search found nothing. A page still loading says nothing; one whose load
+  failed keeps its failure line. Requires `PanelStrings.stickersEmpty`.
+
 ### Changed (GIF cells)
 
 - A GIF cell waits as the whole rectangle of its final size and proportion
