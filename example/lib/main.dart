@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:chat_composer/chat_composer.dart' show ComposerView;
 import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatDataSource;
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
@@ -13,6 +14,8 @@ import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
 import 'package:chat_scroll_view_example/src/common/environment_specific/host_environment.dart'
     as environment_specific;
 import 'package:chat_scroll_view_example/src/common/frame_rate_boost.dart';
+import 'package:chat_scroll_view_example/src/common/glyph_warmup.dart';
+import 'package:chat_scroll_view_example/src/common/mouse_back_button.dart';
 import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
@@ -27,6 +30,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_the
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat_list/view/chat_list_screen.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show GlassSource;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
@@ -179,6 +183,16 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
       );
 
   @override
+  void initState() {
+    super.initState();
+    // While the first page shows, not in the frame the first composer mounts
+    // in: the query blocks the UI thread on Android.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => ComposerView.prefetchTextActions(),
+    );
+  }
+
+  @override
   void dispose() {
     _overlays.dispose();
     super.dispose();
@@ -197,14 +211,19 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
     // Above the navigator, as a product mounts them: every chat shares the
     // wallpaper's motion, rasters and last composite.
     builder: (context, child) {
-      final app = AppChrome(
-        services: widget.services,
-        child: DemoWallpaperScope(
-          wallpaper: DemoWallpaper.configured,
-          child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
+      final app = GlyphWarmupLayer(
+        // The chat's text, and the chat as the glass captures it.
+        scales: const [1, GlassSource.captureScale],
+        child: AppChrome(
+          services: widget.services,
+          child: DemoWallpaperScope(
+            wallpaper: DemoWallpaper.configured,
+            child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
+          ),
         ),
       );
-      return DemoConfig.scrollLab ? ScrollLabOverlay(child: app) : app;
+      final backed = MouseBackButton(child: app);
+      return DemoConfig.scrollLab ? ScrollLabOverlay(child: backed) : backed;
     },
     navigatorObservers: [_overlays],
     debugShowCheckedModeBanner: false,

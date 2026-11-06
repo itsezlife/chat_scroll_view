@@ -1,12 +1,40 @@
 ## Unreleased
 
-### `flutter_md` 0.9.0
-- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.9.0` in every
+### `flutter_md` 0.9.3
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.9.3`. Its
+  code highlighter tokenizes in linear time: a long fenced block (50,000 lines
+  of JSON) highlights in about a second instead of a minute, with the same
+  spans.
+
+### `flutter_md` 0.9.2
+- **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.9.2` in every
   pubspec and workflow. It adds `MarkdownPainterCache`: a host that puts a
   `MarkdownPainterCacheScope` above the list keeps the laid-out text of bodies
   that scroll away, and a body that scrolls back paints from it.
+  `MarkdownPainterCache.prepare` lays a body out before its row is built, a
+  block at a time across as many short slices as a long body takes.
+
+### Example
+- **ADDED**: `tool/scroll_lab/`, the device scripts behind the scroll lab:
+  record the user's gestures as a tape, replay it under a trace, run one A/B
+  arm with the battery temperature per run, trace a cold open or a jump, and
+  count the visible hitches per refresh by cause. The analysis prints its
+  denominator and fails on an empty window. The lab gains a `jump` command.
+- **ADDED**: on desktop the mouse's back button is the platform's back: a
+  press closes an open menu, the panel or a selection, or pops the page, in
+  the order the system back does.
+- **CHANGED**: the comments chat parses a chunk of messages (JSON, entity
+  detection, markdown) in a background isolate; on the web, where there are
+  none, as before.
 
 ### Bodies
+- **CHANGED**: a press on a fenced code block reads the boxes of its first
+  and last lines only to place the copy chrome, not the boxes of every line.
+- **ADDED**: `ChatMarkdownBody.resolvedTheme` and
+  `ChatMarkdownBody.adaptedEmbedResolver` return the theme and resolver a
+  body with those inputs uses, the same instances. A host that lays bodies
+  out ahead of their rows (`MarkdownPainterCache.prepare`) passes them, so the
+  row that scrolls in keeps the laid-out text.
 - **CHANGED**: `ChatMarkdownBody` shares its resolved theme, and its adapted
   inline embed resolver, among every body with the same inputs. The engine
   keeps a body's shaped text only while its theme is the same instance, so a

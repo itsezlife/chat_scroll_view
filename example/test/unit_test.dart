@@ -49,6 +49,7 @@ import 'chat_perf/trace_counts_test.dart' as chat_perf_trace_counts_test;
 import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
 import 'common/lab_net_test.dart' as lab_net_test;
+import 'common/mouse_back_button_test.dart' as mouse_back_button_test;
 import 'common/pointer_tape_test.dart' as pointer_tape_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
@@ -113,6 +114,7 @@ import 'pre_ime_back_native_test.dart' as pre_ime_back_native_test;
 import 'supabase_chat_data_source_test.dart' as supabase_chat_data_source_test;
 import 'theme/demo_chat_theme_test.dart' as demo_chat_theme_test;
 import 'theme/demo_markdown_theme_test.dart' as demo_markdown_theme_test;
+import 'widgets/body_prefill_test.dart' as body_prefill_test;
 import 'widgets/cached_label_test.dart' as cached_label_test;
 import 'widgets/chat_composer_menu_test.dart' as chat_composer_menu_test;
 import 'widgets/chat_composer_paste_toast_test.dart'
@@ -265,6 +267,7 @@ void main() {
   );
   group('common/lab_net_test.dart', lab_net_test.main);
   group('common/pointer_tape_test.dart', pointer_tape_test.main);
+  group('common/mouse_back_button_test.dart', mouse_back_button_test.main);
   group(
     'features/chat/animated_emoji_pack_test.dart',
     animated_emoji_pack_test.main,
@@ -370,6 +373,7 @@ void main() {
   );
   group('theme/demo_chat_theme_test.dart', demo_chat_theme_test.main);
   group('theme/demo_markdown_theme_test.dart', demo_markdown_theme_test.main);
+  group('widgets/body_prefill_test.dart', body_prefill_test.main);
   group('widgets/cached_label_test.dart', cached_label_test.main);
   group('widgets/chat_composer_menu_test.dart', chat_composer_menu_test.main);
   group(

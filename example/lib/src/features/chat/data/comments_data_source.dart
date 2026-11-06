@@ -8,6 +8,7 @@ import 'package:chat_scroll_view_example/src/common/environment_specific/asset_t
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_message_search.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
+import 'package:flutter/foundation.dart' show compute;
 
 /// Manifest for asset-based chat data.
 class CommentsManifest {
@@ -200,23 +201,12 @@ class CommentsDataSource extends ChatDataSource {
 
     final fileName = manifest.chunks[assetChunkIndex];
     final raw = await _loadString('$assetPrefix/$fileName');
-    final list = (jsonDecode(raw) as List<Object?>)
-        .cast<Map<String, Object?>>();
-
-    final baseTime = DateTime.now();
-    final messages = <IChatMessage>[
-      for (final item in list)
-        UserChatMessage(
-          id: item['id']! as int,
-          sender: item['sender']! as String,
-          createdAt:
-              DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
-          updatedAt:
-              DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
-          // Receive fallback — once, when the message model is made.
-          content: ChatBodyMarkdown.received(item['content'] as String? ?? ''),
-        ),
-    ];
+    // Off the UI thread: detecting and parsing a chunk's bodies took longer
+    // than a frame, in the middle of the scroll that reached the chunk.
+    final messages = await compute(_parseChunk, (
+      raw,
+      DateTime.now(),
+    ), debugLabel: 'comments chunk $assetChunkIndex');
 
     _chunkCache[assetChunkIndex] = messages;
     // Evict least-recently-used entries until within bound.
@@ -298,4 +288,24 @@ class CommentsDataSource extends ChatDataSource {
     }
     return hits;
   }
+}
+
+/// The messages of a chunk file's [raw] JSON, bodies detected and parsed;
+/// a message with no time takes the base time.
+List<IChatMessage> _parseChunk((String, DateTime) chunk) {
+  final (raw, baseTime) = chunk;
+  return <IChatMessage>[
+    for (final item
+        in (jsonDecode(raw) as List<Object?>).cast<Map<String, Object?>>())
+      UserChatMessage(
+        id: item['id']! as int,
+        sender: item['sender']! as String,
+        createdAt:
+            DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
+        updatedAt:
+            DateTime.tryParse(item['createdAt'] as String? ?? '') ?? baseTime,
+        // Receive fallback — once, when the message model is made.
+        content: ChatBodyMarkdown.received(item['content'] as String? ?? ''),
+      ),
+  ];
 }

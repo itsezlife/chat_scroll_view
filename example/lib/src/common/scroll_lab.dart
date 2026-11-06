@@ -103,6 +103,17 @@ abstract final class ScrollLab {
             await net.select(mode, name);
           }
           return;
+        case 'jump':
+          // `--es name <id>` jumps the list to that message, so a run can
+          // start at any stretch of the history without a finger.
+          if ((_watched, int.tryParse(name)) case (
+            final controller?,
+            final id?,
+          )) {
+            _log('jump $id');
+            controller.jumpTo(id);
+          }
+          return;
         case 'replay':
           final dir = await _channel.invokeMethod<String>('filesDir');
           await net.select(LabNetMode.replay, name);

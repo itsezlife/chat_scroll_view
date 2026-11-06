@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:chrome_foundation/src/glass/glass_style.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -216,6 +217,14 @@ class GlassSourceLink {
 class GlassSource extends SingleChildRenderObjectWidget {
   /// Wraps [child] as the sample tree of the enclosing [GlassSourceScope].
   const GlassSource({required Widget super.child, super.key});
+
+  /// The scale, relative to the frame, at which a glass captures this
+  /// subtree: its content is drawn a second time at that scale.
+  ///
+  /// Caches keyed by scale fill for the capture separately, the engine's
+  /// glyph atlas among them. A host that warms one before a glass first
+  /// shows warms it at this scale as well as at 1.
+  static const double captureScale = 1 / GlassStyle.defaultSourceDownscale;
 
   @override
   RenderGlassSource createRenderObject(BuildContext context) =>

@@ -19,6 +19,12 @@ package is pre-1.0.
   strip of packs, required, with English and Russian presets. A host that
   builds `SemanticsStrings(...)` field by field must pass it.
 
+### Added (glass capture scale)
+
+- `GlassSource.captureScale`: the scale, relative to the frame, at which a
+  glass captures its source. A host that warms caches kept per scale (the
+  engine's glyph atlas) before a glass first shows warms this scale too.
+
 ### Added (monospace face)
 
 - `ChromeMonospace`: the system monospace family per platform and a fallback

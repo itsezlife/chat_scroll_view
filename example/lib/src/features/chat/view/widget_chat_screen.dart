@@ -5,7 +5,6 @@ import 'package:chat_composer/chat_composer.dart' show ComposerBottomFade;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
-import 'package:chat_scroll_view_example/src/common/glyph_warmup.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/panel_trace.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
@@ -31,6 +30,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.da
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_interaction_stub.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/body_prefill.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_dialogs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_bar.dart';
@@ -1008,12 +1008,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         // Chat fills the screen; the composer is stacked over its bottom.
         Positioned.fill(
           child: GlassSource(
-            // Under the wallpaper, inside the glass source: the glass captures
-            // its region at a scale of its own, and those glyphs warm too.
-            child: GlyphWarmupLayer(
-              child: DemoChatWallpaper(
-                child: MarkdownPainterCacheScope(
+            child: DemoChatWallpaper(
+              child: MarkdownPainterCacheScope(
+                cache: _bodyPainters,
+                child: BodyPrefill(
                   cache: _bodyPainters,
+                  controller: _controller,
+                  dataSource: _dataSource!,
+                  selection: _selection,
+                  embedResolver: _bodies.embedResolver,
                   child: ChatKeyboardShortcuts(
                     controller: _controller,
                     selectionController: _selection,

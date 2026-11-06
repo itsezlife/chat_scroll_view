@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (text actions prefetch)
+
+- `ComposerView.prefetchTextActions`: asks the platform for the field's text
+  processing actions at a moment the host picks. Asked by the first field
+  that mounts, the query (which blocks the UI thread on Android) landed in
+  the route transition bringing the chat in.
+
 ### Added (hint and primary disc options)
 
 - `ComposerView.hintFontSize` / `hintMaxLines`: a smaller field hint on at most
