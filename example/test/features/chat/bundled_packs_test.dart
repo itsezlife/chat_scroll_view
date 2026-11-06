@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
@@ -36,6 +37,32 @@ void main() {
       ...AnimatedEmojiPack.descriptors,
       ...LottieStickerPack.descriptors,
     ]);
+  });
+
+  test('finds an item of any pack by its key and no other content', () {
+    expect(BundledPacks.of(emoji.key), same(emoji));
+    expect(BundledPacks.of(sticker.key), same(sticker));
+    expect(BundledPacks.of(const ContentKey.document('other')), isNull);
+    expect(BundledPacks.of(const ContentKey.unicode('\u{1F600}')), isNull);
+  });
+
+  test('a pack source lists its items loaded, every one described', () {
+    final source = BundledPackSource(
+      id: LottieStickerPack.id,
+      title: LottieStickerPack.title,
+      items: LottieStickerPack.stickers,
+    );
+    addTearDown(source.dispose);
+
+    final collection = source.collections.value.single;
+    expect(collection.id, LottieStickerPack.id);
+    expect(collection.metadata.title, LottieStickerPack.title);
+    expect(collection.metadata.flags, CollectionFlags.installed);
+    final contents = collection.contents as CollectionContents$Loaded;
+    expect([
+      for (final item in contents.items) item.descriptor,
+    ], LottieStickerPack.descriptors.toList());
+    expect(contents.nextPageToken, isNull);
   });
 
   group('the fetcher', () {
