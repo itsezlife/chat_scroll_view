@@ -5,7 +5,7 @@
 /// same GIFs in the messages are not playing."
 ///
 /// **Seam:** the real `VideoFrameScheduler` + `VideoAnimationPaintable` + frame
-/// pool over a scripted engine and a manual clock (`support/video_rig.dart`),
+/// pool over a scripted engine and a manual clock (`test/support/flicker/video_rig.dart`),
 /// one scheduler for the chat and the panel as the example builds it. Every
 /// surface paints each of its visible clips every frame, which is what a
 /// viewport does for a visible animated cell. The probe is the renderer's log:
@@ -20,7 +20,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/video_rig.dart';
+import '../../test/support/flicker/video_rig.dart';
 
 const _second = Duration(seconds: 1);
 

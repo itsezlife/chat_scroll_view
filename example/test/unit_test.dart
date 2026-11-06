@@ -93,6 +93,7 @@ import 'features/chat/sticker_message_body_test.dart'
     as sticker_message_body_test;
 import 'features/chat/video_sticker_pack_test.dart' as video_sticker_pack_test;
 import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
+import 'flicker/panel_flash_test.dart' as flicker_panel_flash_test;
 import 'frame_rate_boost_test.dart' as frame_rate_boost_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
 import 'golden/demo_emoji_message_golden_test.dart'
@@ -174,6 +175,7 @@ void main() {
     'features/streaming/streaming_screen_test.dart',
     streaming_screen_test.main,
   );
+  group('flicker/panel_flash_test.dart', flicker_panel_flash_test.main);
   group('app/app_services_test.dart', app_services_test.main);
   group('app/boot_test.dart', boot_test.main);
   group('app/listener_errors_test.dart', listener_errors_test.main);
