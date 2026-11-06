@@ -374,6 +374,80 @@ void main() {
     });
   });
 
+  group('GIF cells cover their box', () {
+    CatalogLeaf gif(int i) => CatalogLeaf.document(
+      'gif-$i',
+      semanticKind: SemanticKind.gif,
+      mediaForm: MediaForm.video,
+      animated: true,
+    );
+
+    Future<void> pumpGifs(WidgetTester tester, int count) async {
+      snapshots.replaceSections([
+        CatalogSection(
+          id: 'a',
+          title: 'A',
+          leaves: [for (var i = 0; i < count; i++) gif(i)],
+        ),
+      ]);
+      await pumpViewport(tester);
+    }
+
+    testWidgets('a wide frame is cropped left and right to the square box', (
+      tester,
+    ) async {
+      answerAll(size: const Size(40, 20));
+      await pumpGifs(tester, 1);
+
+      final draw = paintOnce(tester).atlasDraws.single;
+
+      // The box is the 40 px square of the 80 x 40 cell: the middle 20 x 20
+      // of the frame, doubled.
+      expect(draw.sources.single, const Rect.fromLTWH(10, 0, 20, 20));
+      expect(draw.scales.single, closeTo(2, 1e-6));
+      expect(draw.offsets.single.dx, closeTo(40 - _box / 2, 1e-4));
+      expect(draw.offsets.single.dy, closeTo(44 - _box / 2, 1e-4));
+    });
+
+    testWidgets('a tall frame is cropped above and below', (tester) async {
+      answerAll(size: const Size(20, 40));
+      await pumpGifs(tester, 1);
+
+      final draw = paintOnce(tester).atlasDraws.single;
+
+      expect(draw.sources.single, const Rect.fromLTWH(0, 10, 20, 20));
+      expect(draw.scales.single, closeTo(2, 1e-6));
+    });
+
+    testWidgets('a sticker in the same grid is still shown whole', (
+      tester,
+    ) async {
+      answerAll(size: const Size(40, 20));
+      snapshots.replaceSections([
+        CatalogSection(id: 'a', title: 'A', leaves: [_sticker(0)]),
+      ]);
+      await pumpViewport(tester);
+
+      final draw = paintOnce(tester).atlasDraws.single;
+
+      expect(draw.sources.single, const Rect.fromLTWH(0, 0, 40, 20));
+    });
+
+    testWidgets('cropping adds no draw: still one atlas draw per page', (
+      tester,
+    ) async {
+      answerAll(size: const Size(40, 20));
+      await pumpGifs(tester, _leaves);
+
+      final canvas = paintOnce(tester);
+
+      expect(canvas.atlasDraws, hasLength(3));
+      expect(canvas.atlasDraws.map((d) => d.sprites), everyElement(20));
+      expect(canvas.imageDraws, 0);
+      expect(canvas.ops.where((op) => op == 'atlas'), hasLength(3));
+    });
+  });
+
   group('fade', () {
     testWidgets('content there at attach draws at full opacity, no colours', (
       tester,

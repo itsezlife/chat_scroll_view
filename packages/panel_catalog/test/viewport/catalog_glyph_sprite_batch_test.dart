@@ -7,7 +7,7 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart' show AtlasSprite;
+import 'package:catalog_assets/catalog_assets.dart' show AssetFit, AtlasSprite;
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/src/viewport/catalog_glyph_sprite_batch.dart';
@@ -48,8 +48,21 @@ void main() {
     framePage.dispose();
   });
 
-  void add(AtlasSprite sprite, {double opacity = 1}) =>
-      batch.add(sprite, left: 0, top: 0, scale: 1, opacity: opacity);
+  // A 4 x 4 box at the origin: a 4 x 4 sprite lands there unscaled.
+  void add(
+    AtlasSprite sprite, {
+    double opacity = 1,
+    Rect box = const Rect.fromLTWH(0, 0, 4, 4),
+    AssetFit fit = AssetFit.contain,
+    double pressScale = 1,
+  }) => batch.add(
+    sprite,
+    box: box,
+    fit: fit,
+    anchor: box.center,
+    pressScale: pressScale,
+    opacity: opacity,
+  );
 
   test('pages with the same index but different images are drawn apart', () {
     // A glyph atlas page 0 and a frame pool page 0 are different pictures.
@@ -110,5 +123,74 @@ void main() {
     final colors = draw.colors!.map(Color.new).toList();
     expect(colors[0].a, closeTo(1, 0.01));
     expect(colors[1].a, closeTo(0.5, 0.01));
+  });
+
+  group('fit', () {
+    // A 40 x 20 sprite at (4, 2) on its page, drawn into a 20 x 20 box at (10, 30).
+    const wide = Rect.fromLTWH(4, 2, 40, 20);
+    const box = Rect.fromLTWH(10, 30, 20, 20);
+
+    AtlasSprite wideSprite() =>
+        AtlasSprite(pageIndex: 0, page: glyphPage, source: wide);
+
+    test('contain draws the whole sprite, scaled to the box and centred', () {
+      add(wideSprite(), box: box);
+
+      batch.flush(canvas);
+
+      final draw = canvas.atlasDraws.single;
+      expect(draw.sources.single, wide);
+      expect(draw.scales.single, closeTo(0.5, 1e-6));
+      expect(draw.offsets.single.dx, closeTo(10, 1e-4));
+      expect(draw.offsets.single.dy, closeTo(35, 1e-4));
+    });
+
+    test('cover draws the middle of the sprite over the whole box', () {
+      add(wideSprite(), box: box, fit: AssetFit.cover);
+
+      batch.flush(canvas);
+
+      final draw = canvas.atlasDraws.single;
+      // The box is square: the sprite's height, the middle 20 of its 40 width.
+      expect(draw.sources.single, const Rect.fromLTWH(14, 2, 20, 20));
+      expect(draw.scales.single, closeTo(1, 1e-6));
+      expect(draw.offsets.single.dx, closeTo(10, 1e-4));
+      expect(draw.offsets.single.dy, closeTo(30, 1e-4));
+    });
+
+    test('cover keeps one atlas draw however many sprites are cropped', () {
+      for (var i = 0; i < 5; i++) {
+        add(
+          wideSprite(),
+          box: box.shift(Offset(30.0 * i, 0)),
+          fit: AssetFit.cover,
+        );
+      }
+      add(_sprite(glyphPage, x: 4), box: const Rect.fromLTWH(0, 0, 8, 8));
+
+      batch.flush(canvas);
+
+      expect(canvas.atlasDraws, hasLength(1));
+      expect(canvas.atlasDraws.single.sprites, 6);
+    });
+
+    test('a press scales the placed sprite about the anchor, crop kept', () {
+      batch.add(
+        wideSprite(),
+        box: box,
+        fit: AssetFit.cover,
+        anchor: box.center,
+        pressScale: 0.8,
+      );
+
+      batch.flush(canvas);
+
+      final draw = canvas.atlasDraws.single;
+      expect(draw.sources.single, const Rect.fromLTWH(14, 2, 20, 20));
+      expect(draw.scales.single, closeTo(0.8, 1e-6));
+      // Top-left pulled 20% toward the centre (20, 40): (10, 30) -> (12, 32).
+      expect(draw.offsets.single.dx, closeTo(12, 1e-4));
+      expect(draw.offsets.single.dy, closeTo(32, 1e-4));
+    });
   });
 }

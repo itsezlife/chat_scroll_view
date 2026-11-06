@@ -2,7 +2,7 @@ import 'dart:collection';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart' show AtlasSprite;
+import 'package:catalog_assets/catalog_assets.dart' show AssetFit, AtlasSprite;
 import 'package:flutter/painting.dart';
 
 /// Collects the sprites of one paint pass and draws each page image's sprites
@@ -50,20 +50,43 @@ final class CatalogGlyphSpriteBatch {
       LinkedHashMap<ui.Image, _PageBatch>.identity();
   final List<_PageBatch> _idle = [];
 
-  /// Queues [sprite] to be drawn with its top-left corner at ([left], [top])
-  /// and its pixels scaled by [scale] (destination pixels per page pixel), at
-  /// [opacity] of its own.
+  /// Queues [sprite] to be drawn into [box] as [fit] says, at [opacity] of its
+  /// own.
+  ///
+  /// [AssetFit.contain] draws the whole sprite scaled to fit the box and
+  /// centred; [AssetFit.cover] draws the part of it that fills the box,
+  /// centred, by choosing the source rectangle: the crop costs no clip and no
+  /// second draw, and the sprite stays in its page's batch. The crop's edges
+  /// along the cropped axis lie inside the sprite, so bilinear sampling there
+  /// blends the sprite's own neighbouring pixels, never another sprite's; on
+  /// the other axis the source is the sprite's own edge, as it is for contain.
+  ///
+  /// [pressScale] shrinks the placed sprite about [anchor] (a pressed cell
+  /// scales about its centre), in its own transform.
   void add(
     AtlasSprite sprite, {
-    required double left,
-    required double top,
-    required double scale,
+    required Rect box,
+    required AssetFit fit,
+    required Offset anchor,
+    double pressScale = 1,
     double opacity = 1,
   }) {
     final batch = _active[sprite.page] ??= _idle.isEmpty
         ? _PageBatch()
         : _idle.removeLast();
-    batch.add(sprite, left: left, top: top, scale: scale, opacity: opacity);
+    final placed = fit.placeRegion(sprite.source, box);
+    final destination = placed.destination;
+    batch.add(
+      sprite,
+      source: placed.source,
+      left: anchor.dx + (destination.left - anchor.dx) * pressScale,
+      top: anchor.dy + (destination.top - anchor.dy) * pressScale,
+      // An empty sprite has nothing to scale; it draws nothing either way.
+      scale: placed.source.isEmpty
+          ? pressScale
+          : destination.width / placed.source.width * pressScale,
+      opacity: opacity,
+    );
   }
 
   /// Draws every queued sprite, one batched draw per image, and empties the
@@ -99,6 +122,7 @@ final class _PageBatch {
 
   void add(
     AtlasSprite sprite, {
+    required Rect source,
     required double left,
     required double top,
     required double scale,
@@ -122,7 +146,6 @@ final class _PageBatch {
     _transforms[at + 1] = 0;
     _transforms[at + 2] = left;
     _transforms[at + 3] = top;
-    final source = sprite.source;
     _rects[at] = source.left;
     _rects[at + 1] = source.top;
     _rects[at + 2] = source.right;

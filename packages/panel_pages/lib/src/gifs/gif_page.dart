@@ -607,6 +607,10 @@ class _Cell extends StatefulWidget {
 }
 
 class _CellState extends State<_Cell> {
+  // The loader's disc in a grid cell, whatever the cell's size
+  // (`ContextLinkCell.onMeasure`: `setCircleRadius(dp(12))`).
+  static const double _loadingRadius = 12;
+
   var _pressed = false;
 
   void _press(bool value) {
@@ -645,9 +649,19 @@ class _CellState extends State<_Cell> {
                     logicalHeight: size.height,
                     devicePixelRatio: density,
                   ),
-                  // Silent and looping, while it is in view.
-                  profile: const AssetProfile(animate: true),
+                  // Silent and looping, while it is in view; the clip fills its
+                  // cell and is cut at the edge, as the reference grid draws it
+                  // (`ImageReceiver`, `isAspectFit` false).
+                  profile: const AssetProfile(
+                    animate: true,
+                    fit: AssetFit.cover,
+                  ),
                 ),
+                // The cell's rectangle in a quiet token until the thumbnail
+                // arrives (`key_sharedMedia_photoPlaceholder`), under the
+                // loader the cell has until the clip's first frame.
+                tint: ChromeThemeScope.of(context).placeholder.skeleton,
+                loadingRadius: _loadingRadius,
               ),
               // The catalogue's press wash: the text colour at 0x0F.
               if (_pressed)

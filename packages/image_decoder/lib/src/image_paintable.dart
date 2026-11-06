@@ -4,7 +4,8 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-/// One decoded frame, painted centred in a rectangle.
+/// One decoded frame, placed in a rectangle as the surface's
+/// `AssetPaintContext.fit` says (centred whole, or centred and filling).
 ///
 /// A template image keeps only its alpha: the context's tint fills it. Without
 /// a tint it keeps its own colours, as `AssetPaintContext.tint` says.
@@ -16,20 +17,17 @@ abstract final class _ImagePainter {
     AssetPaintContext context, {
     required bool template,
   }) {
-    final source = Size(image.width.toDouble(), image.height.toDouble());
-    final fitted = applyBoxFit(BoxFit.contain, source, rect.size);
+    final placed = context.fit.place(
+      Size(image.width.toDouble(), image.height.toDouble()),
+      rect,
+    );
     final paint = Paint()
       ..filterQuality = FilterQuality.medium
       ..color = Color.fromRGBO(0, 0, 0, context.opacity);
     if (context.tint case final tint? when template) {
       paint.colorFilter = ColorFilter.mode(tint, BlendMode.srcIn);
     }
-    canvas.drawImageRect(
-      image,
-      Alignment.center.inscribe(fitted.source, Offset.zero & source),
-      Alignment.center.inscribe(fitted.destination, rect),
-      paint,
-    );
+    canvas.drawImageRect(image, placed.source, placed.destination, paint);
   }
 }
 

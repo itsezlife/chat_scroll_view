@@ -20,7 +20,7 @@ the content.
 
 | Type | Role |
 | --- | --- |
-| `AssetCacheScope` | Host-created instance (no static singleton); owns entries, the default clock and placeholder, and nothing it was handed. `attach`, `clearAll`, `connectivityRestored`, `dispose`; `glyphSource`, `budgets` |
+| `AssetCacheScope` | Host-created instance (no static singleton); owns entries, the default clock and placeholders (a circle for a glyph, `RectPlaceholder` for other media), and nothing it was handed. `attach`, `clearAll`, `connectivityRestored`, `dispose`; `glyphSource`, `budgets` |
 | `AssetSpec` | What is decoded: pixel size at density, decode mode (`original` / `template`), variant (`full` / `firstFrame`). With the `ContentKey` it is the entry identity |
 | `AssetProfile` | Per-attach behaviour: animate, loop, rest frame (`AssetRestFrame`, first or last, read when it does not loop), autoplay first frame, corner radius. Never splits an entry |
 | `AssetBinding` | One surface's live attach: `readiness`, `paintable`, `lastError`, `isPlaying`, `playback` (`AssetPlayback`: idle, playing, ended), `replay()`, `visible`, `paint`, `retry`, `detach`; a `listen` `Listenable`. A profile that does not loop plays one pass, holds its rest frame and costs no ticks; `replay()` plays another and returns false while a pass runs. Surfaces of one entry share one playback |

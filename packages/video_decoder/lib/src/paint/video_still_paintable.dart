@@ -3,7 +3,8 @@ import 'dart:ui' as ui;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/painting.dart';
 
-/// A decoded still, painted contain-fitted in its rectangle: the thumbnail
+/// A decoded still, placed in its rectangle as the surface's
+/// `AssetPaintContext.fit` says (contain unless it asks to cover): the thumbnail
 /// and first-frame stages of a video asset, and what the clip shows until its
 /// first frame is drawn from the pool.
 ///
@@ -30,12 +31,14 @@ final class VideoStillPaintable extends AssetPaintable {
 
   @override
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
-    final source = Size(_image.width.toDouble(), _image.height.toDouble());
-    final fitted = applyBoxFit(BoxFit.contain, source, rect.size);
+    final placed = context.fit.place(
+      Size(_image.width.toDouble(), _image.height.toDouble()),
+      rect,
+    );
     canvas.drawImageRect(
       _image,
-      Alignment.center.inscribe(fitted.source, Offset.zero & source),
-      Alignment.center.inscribe(fitted.destination, rect),
+      placed.source,
+      placed.destination,
       Paint()
         ..filterQuality = FilterQuality.medium
         ..color = Color.fromRGBO(0, 0, 0, context.opacity),

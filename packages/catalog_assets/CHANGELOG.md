@@ -6,6 +6,21 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (GIF cells: rectangle stand-in and cover)
+
+- `AssetFit` (`contain`, `cover`) with `place` / `placeRegion`, carried by
+  `AssetProfile.fit` and `AssetPaintContext.fit`. A paintable that draws a
+  picture places it by the context's fit; `contain` is the default, so existing
+  surfaces draw as before. A thumbnail kept under arriving content is painted
+  with the profile's fit as well.
+- `RectPlaceholder` and `AssetCacheScope.mediaPlaceholder`: a binding of
+  anything but a unicode glyph waits behind the whole rectangle in the
+  context's tint (the reference's `0xFFEDF3F7` without one). Existing code that
+  read `scope.placeholder` for a media binding's paintable now finds
+  `scope.mediaPlaceholder`; `placeholder` (the circle) remains a glyph's.
+- `ContentView.loadingRadius`: the radial progress over the view until the
+  content has a first frame, asking for a frame after each it paints.
+
 ### Added (loading placeholders of the reference client)
 
 - `AssetBinding.paintStandIn` / `releaseStandIn` (source-breaking for

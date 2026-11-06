@@ -146,6 +146,54 @@ void main() {
       expect(canvas.draws.single.src.size, const Size(16, 16));
     });
 
+    test('cover fills the cell with the still, cropping the overflow', () {
+      final p = paintable();
+      addTearDown(p.dispose);
+      final canvas = _RecordingCanvas();
+      const cell = Rect.fromLTWH(0, 0, 32, 16);
+
+      p.paint(canvas, cell, const AssetPaintContext(fit: AssetFit.cover));
+
+      // A 16 x 16 still in a 32 x 16 cell: the whole width, the middle half.
+      expect(canvas.draws.single.dst, cell);
+      expect(canvas.draws.single.src, const Rect.fromLTWH(0, 4, 16, 8));
+    });
+
+    test('contain keeps the still whole with bars', () {
+      final p = paintable();
+      addTearDown(p.dispose);
+      final canvas = _RecordingCanvas();
+
+      p.paint(
+        canvas,
+        const Rect.fromLTWH(0, 0, 32, 16),
+        const AssetPaintContext(),
+      );
+
+      expect(canvas.draws.single.src, const Rect.fromLTWH(0, 0, 16, 16));
+      expect(canvas.draws.single.dst, const Rect.fromLTWH(8, 0, 16, 16));
+    });
+
+    test('cover crops the lease sprite on its page', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+      for (var ms = 0; ms < 200; ms += 20) {
+        await paintAt(p, ms);
+      }
+      final sprite = p.sprite!;
+      final canvas = _RecordingCanvas();
+      const cell = Rect.fromLTWH(0, 0, 32, 16);
+
+      p.paint(canvas, cell, const AssetPaintContext(fit: AssetFit.cover));
+
+      final draw = canvas.draws.single;
+      expect(draw.image, same(sprite.page));
+      expect(draw.dst, cell);
+      expect(draw.src.width, sprite.source.width);
+      expect(draw.src.height, closeTo(sprite.source.height / 2, 1e-9));
+      expect(draw.src.center, sprite.source.center);
+    });
+
     test('a step over the resume gap adds no played time', () async {
       final p = paintable();
       addTearDown(p.dispose);

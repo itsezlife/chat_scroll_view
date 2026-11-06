@@ -18,6 +18,10 @@ import 'package:flutter_test/flutter_test.dart';
 final class _Counting implements Canvas {
   int rrects = 0;
   int circles = 0;
+  int rects = 0;
+
+  @override
+  void drawRect(Rect rect, Paint paint) => rects++;
 
   @override
   void drawRRect(RRect rrect, Paint paint) => rrects++;
@@ -106,6 +110,29 @@ void main() {
         embed.paint(canvas, rect, const InlineEmbedPaintContext());
         return (rrects: canvas.rrects, circles: canvas.circles);
       }
+
+      test('a GIF is the whole rectangle, as in the grid', () {
+        const gif = ContentKey.document('giphy:abc');
+        final own = ChatBodyHost(
+          assets: scope,
+          policy: policy,
+          describe: (key) => key == gif
+              ? const ContentDescriptor(
+                  key: gif,
+                  semanticKind: SemanticKind.gif,
+                  mediaForm: MediaForm.video,
+                  animated: true,
+                )
+              : null,
+        );
+        final embed = own.embedFactory(gif, preset)!;
+        addTearDown(embed.dispose);
+        final canvas = _Counting();
+
+        embed.paint(canvas, rect, const InlineEmbedPaintContext());
+
+        expect((canvas.rects, canvas.rrects, canvas.circles), (1, 0, 0));
+      });
 
       test('a document is a quiet rounded square, not the circle', () {
         final embed = host.embedFactory(

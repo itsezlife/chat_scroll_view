@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (GIF cover)
+
+- A GIF leaf fills its content box and is cropped at the edge instead of
+  being contained (`CatalogLeaf.contentFit`); the sprite batch crops by
+  choosing the source rectangle, so a page is still one atlas draw.
+  `CatalogGlyphSpriteBatch.add` takes the box, the fit and the press anchor
+  instead of a left, top and scale (internal). Stickers are unchanged.
+
 ### Changed
 
 - A GIF leaf that is loading draws the reference client's radial progress

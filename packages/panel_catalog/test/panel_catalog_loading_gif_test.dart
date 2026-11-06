@@ -125,6 +125,20 @@ void main() {
       expect(arc.rect, Rect.fromCircle(center: _centre, radius: 8));
     });
 
+    testWidgets('a thumbnail fills the cell, a sticker\'s stays whole', (
+      tester,
+    ) async {
+      await pump(tester, [_gif(0), _sticker(1)]);
+
+      final gif = producer.attempts.first.advance(AssetStage.placeholder);
+      final sticker = producer.attempts.last.advance(AssetStage.placeholder);
+      await tester.pump();
+      paintOnce(tester);
+
+      expect(gif.paints.last.context.fit, AssetFit.cover);
+      expect(sticker.paints.last.context.fit, AssetFit.contain);
+    });
+
     testWidgets('with a thumbnail, draws the thumbnail under the progress', (
       tester,
     ) async {

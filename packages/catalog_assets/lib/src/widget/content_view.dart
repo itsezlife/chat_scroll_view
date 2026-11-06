@@ -1,9 +1,12 @@
 import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_cache_scope.dart';
 import 'package:catalog_assets/src/asset/asset_preset.dart';
+import 'package:catalog_assets/src/asset/asset_readiness.dart';
+import 'package:catalog_assets/src/asset/radial_progress.dart';
 import 'package:catalog_assets/src/widget/asset_cache_provider.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 /// Shows cache content: attaches `(content, preset.spec, preset.profile)` to
@@ -43,6 +46,7 @@ class ContentView extends StatefulWidget {
     this.opacity = 1,
     this.semanticLabel,
     this.scope,
+    this.loadingRadius,
     super.key,
   }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
 
@@ -67,6 +71,17 @@ class ContentView extends StatefulWidget {
   /// The cache to attach to, instead of the one an [AssetCacheProvider]
   /// provides.
   final AssetCacheScope? scope;
+
+  /// Radius of the reference client's radial progress (`RadialProgress`) drawn
+  /// over the centre of the view while the content has no frame to show, or
+  /// null for none.
+  ///
+  /// The cache reports stages and no fractions, so the arc sweeps
+  /// `RadialProgress.indeterminateProgress`. The view asks for a frame after
+  /// each one it paints the indicator in, and stops when the first frame
+  /// exists or a [TickerMode] above it is off. A grid GIF cell uses 12
+  /// (`ContextLinkCell.onMeasure`).
+  final double? loadingRadius;
 
   @override
   State<ContentView> createState() => _ContentViewState();
@@ -131,6 +146,8 @@ class _ContentViewState extends State<ContentView> {
       size: preset.size,
       tint: widget.tint,
       opacity: widget.opacity,
+      loadingRadius: widget.loadingRadius,
+      ticking: _shown,
     );
     if (preset.profile.animate) view = RepaintBoundary(child: view);
     final label = widget.semanticLabel;
@@ -145,12 +162,16 @@ class _ContentLeaf extends LeafRenderObjectWidget {
     required this.size,
     required this.tint,
     required this.opacity,
+    required this.loadingRadius,
+    required this.ticking,
   });
 
   final AssetBinding binding;
   final Size size;
   final Color? tint;
   final double opacity;
+  final double? loadingRadius;
+  final bool ticking;
 
   @override
   RenderObject createRenderObject(BuildContext context) => _RenderContent(
@@ -158,6 +179,8 @@ class _ContentLeaf extends LeafRenderObjectWidget {
     preferredSize: size,
     tint: tint,
     opacity: opacity,
+    loadingRadius: loadingRadius,
+    ticking: ticking,
   );
 
   @override
@@ -166,7 +189,9 @@ class _ContentLeaf extends LeafRenderObjectWidget {
       ..binding = binding
       ..preferredSize = size
       ..tint = tint
-      ..opacity = opacity;
+      ..opacity = opacity
+      ..loadingRadius = loadingRadius
+      ..ticking = ticking;
   }
 }
 
@@ -176,15 +201,21 @@ class _RenderContent extends RenderBox {
     required Size preferredSize,
     required Color? tint,
     required double opacity,
+    required double? loadingRadius,
+    required bool ticking,
   }) : _binding = binding,
        _preferredSize = preferredSize,
        _tint = tint,
-       _opacity = opacity;
+       _opacity = opacity,
+       _loadingRadius = loadingRadius,
+       _ticking = ticking;
 
   AssetBinding _binding;
   Size _preferredSize;
   Color? _tint;
   double _opacity;
+  double? _loadingRadius;
+  bool _ticking;
 
   set binding(AssetBinding value) {
     if (identical(_binding, value)) return;
@@ -210,6 +241,20 @@ class _RenderContent extends RenderBox {
     if (_opacity == value) return;
     _opacity = value;
     markNeedsPaint();
+  }
+
+  set loadingRadius(double? value) {
+    if (_loadingRadius == value) return;
+    _loadingRadius = value;
+    markNeedsPaint();
+  }
+
+  set ticking(bool value) {
+    if (_ticking == value) return;
+    _ticking = value;
+    // Only the indicator reads it; a view without one must not repaint when a
+    // ticker mode flips.
+    if (_loadingRadius != null) markNeedsPaint();
   }
 
   @override
@@ -241,5 +286,33 @@ class _RenderContent extends RenderBox {
       tint: _tint,
       opacity: _opacity,
     );
+    _paintLoading(context.canvas, offset & size);
+  }
+
+  // Over the stand-in and the thumbnail, until a frame of the content exists.
+  // The arc is a function of the frame time, so it turns by being painted in
+  // every frame: the next one is asked for after this one is done (a paint
+  // may not mark itself dirty).
+  void _paintLoading(Canvas canvas, Rect box) {
+    final radius = _loadingRadius;
+    if (radius == null ||
+        _binding.readiness.stage.index >= AssetStage.firstFrame.index) {
+      return;
+    }
+    final scheduler = SchedulerBinding.instance;
+    RadialProgress.paint(
+      canvas,
+      box.center,
+      radius: radius,
+      time: _ticking && scheduler.schedulerPhase != SchedulerPhase.idle
+          ? scheduler.currentFrameTimeStamp
+          : Duration.zero,
+      opacity: _opacity,
+    );
+    if (_ticking) {
+      scheduler.addPostFrameCallback((_) {
+        if (attached) markNeedsPaint();
+      });
+    }
   }
 }

@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (GIF cells)
+
+- A GIF cell waits as the whole rectangle of its final size and proportion
+  in the skeleton token, with the radial progress over it until the clip has a
+  first frame, instead of a grey circle; the clip and its thumbnail fill the
+  cell and are cropped at the edge.
+
 ### Added (GIF page search and empty states)
 
 - `GifPage` takes an optional `searchSource` (a `SearchSource`), `searchDebounce`

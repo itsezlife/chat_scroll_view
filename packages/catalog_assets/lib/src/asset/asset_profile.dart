@@ -1,3 +1,4 @@
+import 'package:catalog_assets/src/asset/asset_fit.dart';
 import 'package:meta/meta.dart';
 
 /// The frame a playback that does not loop rests on once its pass is over.
@@ -28,6 +29,7 @@ final class AssetProfile {
     this.restFrame = AssetRestFrame.first,
     this.autoplayFirstFrame = true,
     this.cornerRadius = 0,
+    this.fit = AssetFit.contain,
   }) : assert(cornerRadius >= 0, 'A corner radius cannot be negative.');
 
   /// Whether the surface wants the asset to play when it is visible and no
@@ -61,6 +63,12 @@ final class AssetProfile {
   /// Logical corner radius the binding clips what it paints to; 0 for none.
   final double cornerRadius;
 
+  /// How the content fills the rectangle it is painted in: whole ([AssetFit.contain],
+  /// the default) or filling it and cut at the edge ([AssetFit.cover]). Applies
+  /// to the content and to its thumbnail alike, so the two never differ in
+  /// crop when one replaces the other.
+  final AssetFit fit;
+
   @override
   bool operator ==(Object other) =>
       other is AssetProfile &&
@@ -68,14 +76,21 @@ final class AssetProfile {
       other.loop == loop &&
       other.restFrame == restFrame &&
       other.autoplayFirstFrame == autoplayFirstFrame &&
-      other.cornerRadius == cornerRadius;
+      other.cornerRadius == cornerRadius &&
+      other.fit == fit;
 
   @override
-  int get hashCode =>
-      Object.hash(animate, loop, restFrame, autoplayFirstFrame, cornerRadius);
+  int get hashCode => Object.hash(
+    animate,
+    loop,
+    restFrame,
+    autoplayFirstFrame,
+    cornerRadius,
+    fit,
+  );
 
   @override
   String toString() =>
       'AssetProfile(animate: $animate, loop: $loop, '
-      'restFrame: ${restFrame.name}, autoplayFirstFrame: $autoplayFirstFrame, cornerRadius: $cornerRadius)';
+      'restFrame: ${restFrame.name}, autoplayFirstFrame: $autoplayFirstFrame, cornerRadius: $cornerRadius, fit: ${fit.name})';
 }

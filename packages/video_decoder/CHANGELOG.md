@@ -8,6 +8,8 @@ this package is pre-1.0.
 
 ### Changed
 
+- The still and the playing sprite are placed by `AssetPaintContext.fit`
+  (contain by default, cover for a surface that asks).
 - The cap on playing clips no longer freezes the oldest. `maxAdvancing` now
   defaults to 12 and counts the clips served per tick: past it the slots
   rotate (overdue clips first, then the most recently leased half, then
