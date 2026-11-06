@@ -1,0 +1,5 @@
+# Telegram's stickers are Telegram's property: they stay on this machine and
+# are never committed. Only this rule and the README are tracked.
+*
+!.gitignore
+!README.md

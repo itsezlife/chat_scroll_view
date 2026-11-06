@@ -124,7 +124,7 @@ void main() {
       expect(idsOf(source.collections.value.single), [
         'document:giphy:t0',
         'document:giphy:t1',
-        'document:giphy:t2',
+        'document:giphy:t3',
       ]);
     });
 
