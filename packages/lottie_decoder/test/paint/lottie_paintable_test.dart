@@ -405,6 +405,113 @@ void main() {
       expect(canvas.draws.single.image, same(still));
     });
 
+    group('as a sprite', () {
+      /// Advances at [ms] without painting, lets the clock tick and the batch
+      /// finish.
+      Future<void> advanceAndSettle(
+        LottieAnimationPaintable p,
+        AssetPaintContext context,
+      ) async {
+        p.advancePlayback(context);
+        tick();
+        await pumpEventQueue();
+      }
+
+      test(
+        'has no sprite until a frame is rendered, so the still paints',
+        () async {
+          final p = make();
+          expect(p.sprite, isNull);
+
+          await advanceAndSettle(p, at(0));
+          expect(p.sprite, isNotNull, reason: 'the frame landed');
+
+          final fresh = make(key: 'b');
+          expect(fresh.sprite, isNull);
+          fresh.dispose();
+        },
+      );
+
+      test(
+        'the sprite is the leased frame, cut at the rendered size',
+        () async {
+          final p = make();
+
+          await advanceAndSettle(p, at(0));
+
+          expect(p.sprite!.source.size, const Size(48, 48));
+        },
+      );
+
+      test(
+        'advancing without painting asks for the frames playback names',
+        () async {
+          final p = make();
+          await advanceAndSettle(p, at(5000));
+          await advanceAndSettle(p, at(5000 + 200));
+
+          expect(renderer.batches, [
+            [1],
+            [7],
+          ]);
+        },
+      );
+
+      test('advance then paint in one pass asks once', () async {
+        final p = make();
+        await advanceAndSettle(p, at(100));
+        final canvas = _RecordingCanvas();
+        p.paint(canvas, box, at(100));
+        tick();
+        await pumpEventQueue();
+
+        expect(renderer.batches, hasLength(1));
+      });
+
+      test(
+        'advancing a paint that does not animate asks for nothing',
+        () async {
+          final p = make();
+
+          await advanceAndSettle(p, at(0, animate: false));
+
+          expect(renderer.batches, isEmpty);
+          expect(scheduler.leaseCount, 0);
+          expect(p.sprite, isNull);
+        },
+      );
+
+      test('keeps the last sprite while a frame is late', () async {
+        final p = make();
+        await advanceAndSettle(p, at(0));
+        renderer.pause();
+        await advanceAndSettle(p, at(100));
+
+        expect(p.sprite, isNotNull);
+        renderer.resume();
+      });
+
+      test('has no sprite after the renderer failed it', () async {
+        scheduler.dispose();
+        scheduler = build(_FailingRenderer());
+        final p = make();
+
+        await advanceAndSettle(p, at(0));
+        await advanceAndSettle(p, at(200));
+
+        expect(p.sprite, isNull);
+      });
+
+      test('has none once disposed', () async {
+        final p = make();
+        await advanceAndSettle(p, at(0));
+
+        p.dispose();
+
+        expect(p.sprite, isNull);
+      });
+    });
+
     test('dispose releases the lease and the still', () async {
       final still = _image(8);
       final p = make(still: still);

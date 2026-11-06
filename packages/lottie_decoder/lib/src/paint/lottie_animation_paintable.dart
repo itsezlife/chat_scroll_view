@@ -21,6 +21,13 @@ import 'package:lottie_native/lottie_native.dart';
 /// yet, a failed lease, or a full pool, it draws the first-frame still, so
 /// nothing is blank and a late frame keeps the last sprite.
 ///
+/// ## Drawn by the surface
+///
+/// [sprite] is the lease's current frame, null until one exists. A surface
+/// that batches sprites calls [advancePlayback] (the first half of [paint]: it
+/// asks for the frame) and then draws [sprite] itself, falling back to [paint]
+/// for the still while it is null.
+///
 /// ## Playback time
 ///
 /// The frame follows the time the paints add up, not the clock's absolute
@@ -42,7 +49,7 @@ import 'package:lottie_native/lottie_native.dart';
 ///
 /// A lease the renderer failed on is never asked again: the paintable keeps
 /// painting its still.
-final class LottieAnimationPaintable implements AssetPaintable {
+final class LottieAnimationPaintable extends AssetPaintable {
   /// Creates the paintable of the animation [handle] describes by [info].
   ///
   /// It owns [firstFrame] from now on. [key] names its entry in the
@@ -95,7 +102,7 @@ final class LottieAnimationPaintable implements AssetPaintable {
   bool _disposed = false;
 
   @override
-  AtlasSprite? get sprite => null;
+  AtlasSprite? get sprite => _lease?.sprite;
 
   @override
   bool get isAnimated => true;
@@ -117,9 +124,14 @@ final class LottieAnimationPaintable implements AssetPaintable {
   }
 
   @override
-  void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
+  void advancePlayback(AssetPaintContext context) {
     if (context.animate && !_failed) _ask(context);
-    final sprite = _lease?.sprite;
+  }
+
+  @override
+  void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
+    advancePlayback(context);
+    final sprite = this.sprite;
     if (sprite == null) {
       _still.paint(canvas, rect, context);
       return;
