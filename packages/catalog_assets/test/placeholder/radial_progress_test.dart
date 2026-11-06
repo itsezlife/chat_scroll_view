@@ -78,7 +78,7 @@ void main() {
 
       expect(canvas.discs.single.center, center);
       expect(canvas.discs.single.radius, 12);
-      expect(canvas.discs.single.color, const Color(0x66000000));
+      expect(canvas.discs.single.color.toARGB32(), 0x66000000);
       // The arc rect is the disc's box inset by 4: radius 8.
       expect(
         canvas.arcs.single.rect,
@@ -88,7 +88,7 @@ void main() {
       expect(canvas.arcs.single.paint.strokeWidth, 2);
       expect(canvas.arcs.single.paint.strokeCap, StrokeCap.round);
       expect(canvas.arcs.single.paint.style, PaintingStyle.stroke);
-      expect(canvas.arcs.single.paint.color, const Color(0xFFFFFFFF));
+      expect(canvas.arcs.single.paint.color.toARGB32(), 0xFFFFFFFF);
       // The cross reaches 7 * (24 / 48) = 3.5 from the centre.
       expect(canvas.lines, hasLength(2));
       expect(canvas.lines[0].from, center + const Offset(-3.5, -3.5));
