@@ -33,6 +33,7 @@ import 'prebuilt_download_test.dart' as prebuilt_download_test;
 import 'prebuilt_manifest_test.dart' as prebuilt_manifest_test;
 import 'rebuild_inputs_test.dart' as rebuild_inputs_test;
 import 'source_hash_test.dart' as source_hash_test;
+import 'verify_artifact_test.dart' as verify_artifact_test;
 import 'web_compile_test.dart' as web_compile_test;
 
 void main() {
@@ -72,5 +73,6 @@ void main() {
   group('prebuilt_manifest_test.dart', prebuilt_manifest_test.main);
   group('rebuild_inputs_test.dart', rebuild_inputs_test.main);
   group('source_hash_test.dart', source_hash_test.main);
+  group('verify_artifact_test.dart', verify_artifact_test.main);
   group('web_compile_test.dart', web_compile_test.main);
 }

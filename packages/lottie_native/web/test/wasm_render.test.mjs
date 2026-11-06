@@ -184,10 +184,14 @@ test('compress then decompress a region is exact', { skip }, async () => {
   core.close();
 });
 
-test('the allocator refuses 0 and over 256 MiB', { skip }, async () => {
+test('the allocator refuses 0 and over 16 MiB, and gives 16 MiB itself', { skip }, async () => {
   const core = await coreOf();
+  const cap = 16 * 1024 * 1024;
   assert.equal(core.exports.chat_lottie_alloc(0), 0);
-  assert.equal(core.exports.chat_lottie_alloc(256 * 1024 * 1024 + 1), 0);
+  assert.equal(core.exports.chat_lottie_alloc(cap + 1), 0);
+  const whole = core.exports.chat_lottie_alloc(cap);
+  assert.notEqual(whole, 0);
+  core.exports.chat_lottie_dealloc(whole, cap);
   core.close();
 });
 
@@ -206,4 +210,33 @@ test('idle scratch is kept by size, bounded, and freed on close', { skip }, asyn
   assert.ok(core.pooledBytes <= 16 * 1024 * 1024);
   core.close();
   assert.equal(core.pooledBytes, 0);
+});
+
+// --- Opaque handles --------------------------------------------------------
+
+test('handles are small increasing integers, never the module pointers', { skip }, async () => {
+  const core = await coreOf();
+  const ids = [loaded(core).handle, loaded(core).handle, loaded(core).handle];
+  assert.deepEqual(ids, [1, 2, 3]);
+  core.close();
+});
+
+test('a freed id is never reused: a stale id cannot reach a later animation', { skip }, async () => {
+  const core = await coreOf();
+  const stale = loaded(core).handle;
+  core.dispose(stale);
+  // The module is free to hand the same memory to the next load; the id
+  // must still differ, or the stale id would draw the new animation.
+  const fresh = loaded(core).handle;
+  assert.notEqual(fresh, stale);
+  const before = core.renderPixels([{ handle: fresh, frame: 7, width: 24, height: 24 }]);
+  const [result] = core.renderPixels([{ handle: stale, frame: 7, width: 24, height: 24 }]);
+  assert.equal(result.status, -1);
+  assert.equal(result.pixels, null);
+  const after = core.renderPixels([{ handle: fresh, frame: 7, width: 24, height: 24 }]);
+  assert.deepEqual(after[0].pixels, before[0].pixels, 'the new animation is untouched');
+  // Disposing the stale id again must not free the new animation either.
+  core.dispose(stale);
+  assert.equal(core.renderPixels([{ handle: fresh, frame: 7, width: 24, height: 24 }])[0].status, 0);
+  core.close();
 });

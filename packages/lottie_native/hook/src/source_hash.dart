@@ -1,17 +1,23 @@
 /// The fingerprint of the crate sources, which ties a prebuilt library to the
 /// code it was built from.
 ///
-/// The hash is SHA-256 over this canonical listing: the files
-/// `Cargo.toml`, `Cargo.lock`, everything under `include/` and everything
-/// under `src/` (all relative to `native/`), sorted by their `/`-separated
-/// relative path (string order), each contributing
+/// The hash is SHA-256 over this canonical listing: the version line
+/// `lottie-native-source-v2` and LF, then for each file `Cargo.toml`,
+/// `Cargo.lock`, everything under `include/` and everything under `src/` (all
+/// relative to `native/`), sorted by their `/`-separated relative path
+/// (string order), one record
 ///
 /// ```text
-/// <relative path> LF <byte length in decimal> LF <the file's bytes> LF
+/// <byte length of the path>:<path><byte length of the content>:<content>
 /// ```
 ///
-/// The length frames the content so bytes cannot move between neighbours,
-/// and the path makes a rename visible. Bytes are hashed as stored: a
+/// Both lengths are ASCII decimal and count bytes (the path as UTF-8), and
+/// nothing else separates the fields. Because every field announces its own
+/// length, no path or content can imitate the framing of the next record, so
+/// two different trees never produce the same listing. (The first framing,
+/// `path LF length LF bytes LF`, let a path containing LF swallow its
+/// neighbour; `v2` replaces it.) A path with a control character is refused
+/// outright: it has no business in a crate. Bytes are hashed as stored: a
 /// checkout that rewrites line endings hashes differently and so falls back
 /// to compiling, never to a library of unknown origin.
 ///
@@ -44,19 +50,50 @@ List<File> crateSourceFiles(Directory native) {
     ..sort((a, b) => _relative(root, a).compareTo(_relative(root, b)));
 }
 
-/// The hex SHA-256 of [native]'s sources, as documented above.
-String computeSourceHash(Directory native) {
-  final root = _slashed(native.path);
+/// One record of the listing: a file's relative path and its bytes.
+typedef SourceRecord = ({String path, List<int> bytes});
+
+/// The version line the listing starts with; a change of format changes it.
+const _listingVersion = 'lottie-native-source-v2';
+
+/// The hex SHA-256 of the listing of [records], which must already be sorted
+/// (see the format above).
+String hashSourceListing(Iterable<SourceRecord> records) {
   // The sources are a few hundred kilobytes: one buffer, no streaming.
-  final listing = BytesBuilder(copy: false);
-  for (final file in crateSourceFiles(native)) {
-    final bytes = file.readAsBytesSync();
+  final listing = BytesBuilder(copy: false)
+    ..add(utf8.encode('$_listingVersion\n'));
+  for (final (:path, :bytes) in records) {
+    final name = utf8.encode(path);
     listing
-      ..add(utf8.encode('${_relative(root, file)}\n${bytes.length}\n'))
-      ..add(bytes)
-      ..addByte(0x0a);
+      ..add(utf8.encode('${name.length}:'))
+      ..add(name)
+      ..add(utf8.encode('${bytes.length}:'))
+      ..add(bytes);
   }
   return sha256.convert(listing.takeBytes()).toString();
+}
+
+/// The hex SHA-256 of [native]'s sources, as documented above.
+///
+/// Throws [FormatException] for a source path with a control character.
+String computeSourceHash(Directory native) {
+  final root = _slashed(native.path);
+  return hashSourceListing([
+    for (final file in crateSourceFiles(native))
+      (
+        path: _checkedPath(_relative(root, file)),
+        bytes: file.readAsBytesSync(),
+      ),
+  ]);
+}
+
+String _checkedPath(String path) {
+  if (path.codeUnits.any((unit) => unit < 0x20 || unit == 0x7f)) {
+    throw FormatException(
+      'a crate source path has a control character: ${jsonEncode(path)}',
+    );
+  }
+  return path;
 }
 
 /// The `version` of the `[package]` table of `native/Cargo.toml`.

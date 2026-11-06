@@ -12,6 +12,6 @@ export const fixtureGzip = gzipSync(fixtureJson);
 export const skip = builtWasm().skip;
 
 /** A fresh core over one of the built files: 'chat_lottie.wasm' or '.nosimd.'. */
-export async function coreOf(name = 'chat_lottie.wasm') {
-  return createChatLottie(readFileSync(join(builtWasm().dir, name)));
+export async function coreOf(name = 'chat_lottie.wasm', options = {}) {
+  return createChatLottie(readFileSync(join(builtWasm().dir, name)), options);
 }

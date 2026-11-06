@@ -7,6 +7,12 @@ name: lottie_native native check
 # tests, clippy and rustfmt, and that a published sourceHash still matches the
 # sources (a manifest that no longer matches must be refreshed or emptied on
 # purpose). The Dart side is covered by check.yml.
+#
+# Actions are pinned to major tags (`actions/checkout@v4`), not to commit
+# SHAs: a deliberate decision. Only first-party `actions/*` and
+# `subosito/flutter-action` are used, a SHA pin would need a bot to keep it
+# fresh, and the job that holds a write permission runs no third-party code.
+# Revisit if a third-party action with a token is ever added.
 on:
   pull_request:
     paths:

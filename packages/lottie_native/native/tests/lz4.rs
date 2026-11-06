@@ -306,3 +306,42 @@ fn a_stream_for_another_size_is_malformed() {
     assert_eq!(decompress(&packed, &mut target, 16 * 4, 16, 8), MALFORMED);
     assert!(target.iter().all(|&b| b == GUARD));
 }
+
+#[test]
+fn a_length_beyond_the_address_space_is_refused_before_any_slice_is_made() {
+    // A slice longer than isize::MAX bytes cannot exist, so the lengths are
+    // judged before the pointers are used: the dangling pointer below is
+    // never read, which is the point.
+    let dangling = std::ptr::NonNull::<u8>::dangling().as_ptr();
+    let mut target = vec![GUARD; 8 * 8 * 4];
+    let status = unsafe {
+        chat_lottie_decompress_region(
+            dangling,
+            isize::MAX as usize + 1,
+            target.as_mut_ptr(),
+            32,
+            8,
+            8,
+        )
+    };
+    assert_eq!(status, BAD_SIZE);
+    assert!(target.iter().all(|&b| b == GUARD));
+
+    let px = gradient(8, 8);
+    let (page, stride) = page_with(&px, 8, 8, 0, 0);
+    let mut dst = vec![0u8; 1024];
+    let mut len = 77usize;
+    let status = unsafe {
+        chat_lottie_compress_region(
+            page.as_ptr(),
+            stride,
+            8,
+            8,
+            dst.as_mut_ptr(),
+            isize::MAX as usize + 1,
+            &mut len,
+        )
+    };
+    assert_eq!(status, BAD_SIZE);
+    assert_eq!(len, 77, "out_len is untouched on failure");
+}

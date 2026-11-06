@@ -69,6 +69,33 @@ void main() {
       );
     });
 
+    test('accepts the file names a build produces', () {
+      for (final name in [
+        'libchat_lottie-ios-arm64-simulator.dylib',
+        'a.b_c-D9',
+      ]) {
+        final manifest = PrebuiltManifest.parse(
+          _manifest(
+            artifacts: {
+              'macos-arm64': {'file': name, 'sha256': _other, 'size': 1},
+            },
+          ),
+        );
+        expect(manifest.artifactFor('macos-arm64')!.file, name);
+      }
+    });
+
+    test('appends the file name to a baseUrl with a path of its own', () {
+      final manifest = PrebuiltManifest.parse(
+        _manifest(baseUrl: 'https://example.com/a%20b/releases/v1/'),
+      );
+
+      expect(
+        manifest.urlOf(manifest.artifactFor('macos-arm64')!).toString(),
+        'https://example.com/a%20b/releases/v1/libchat_lottie.dylib',
+      );
+    });
+
     test('has no url when baseUrl is empty', () {
       final manifest = PrebuiltManifest.parse(_manifest(baseUrl: ''));
 
@@ -130,6 +157,61 @@ void main() {
       'artifact file with a separator': _manifest(
         artifacts: {
           'macos-arm64': {'file': 'x/a', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with a leading dot': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': '.hidden', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with a double dot inside': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': 'a..b', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with a space': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': 'a b', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with a percent sign': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': 'a%2e', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with a colon': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': 'a:b', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with a backslash': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': r'a\b', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with a non-ASCII letter': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': 'caf\u00e9', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with a query': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': 'a?x=1', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with a newline': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': 'a\nb', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with only dots': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': '..', 'sha256': _other, 'size': 1},
+        },
+      ),
+      'artifact file with an empty name': _manifest(
+        artifacts: {
+          'macos-arm64': {'file': '', 'sha256': _other, 'size': 1},
         },
       ),
       'artifact missing file': _manifest(

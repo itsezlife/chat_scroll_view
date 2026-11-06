@@ -7,10 +7,11 @@
 
 use std::alloc::Layout;
 
-/// Largest region JavaScript may ask for: 256 MiB. Encoded input is capped at
-/// 4 MiB and a frame at 1 MiB, so the cap is generous; it only bounds what a
-/// confused or hostile caller can make the module reserve.
-pub const MAX_ALLOC_BYTES: usize = 256 * 1024 * 1024;
+/// Largest region JavaScript may ask for: 16 MiB. The real maximum is a
+/// 4 MiB encoded input or a 1 MiB frame (512 x 512 x 4) and a job table is a
+/// few KiB, so the cap leaves a wide margin yet bounds what a confused or
+/// hostile caller can make the module reserve (wasm memory never shrinks).
+pub const MAX_ALLOC_BYTES: usize = 16 * 1024 * 1024;
 
 /// The layout of a `len`-byte region, or `None` for 0 and for sizes over
 /// [`MAX_ALLOC_BYTES`]. Bytes need no alignment beyond 1; the header's
@@ -67,10 +68,10 @@ mod tests {
     #[test]
     fn the_cap_is_inclusive_and_one_past_it_is_refused() {
         assert_eq!(
-            layout_for(256 * 1024 * 1024).map(|l| l.size()),
-            Some(268_435_456)
+            layout_for(16 * 1024 * 1024).map(|l| l.size()),
+            Some(16_777_216)
         );
-        assert!(layout_for(256 * 1024 * 1024 + 1).is_none());
+        assert!(layout_for(16 * 1024 * 1024 + 1).is_none());
         assert!(layout_for(usize::MAX).is_none());
     }
 

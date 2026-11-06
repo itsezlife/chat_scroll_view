@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:lottie_decoder/src/cache/frame_cache_files.dart';
@@ -6,8 +7,8 @@ import 'package:meta/meta.dart';
 
 /// The [FrameCacheFiles] of one directory on a file system.
 ///
-/// An entry is `<stem>.frames`. A write goes to `<stem>.<n>.tmp` and is
-/// renamed into place, so a process that dies mid-write leaves a temp file and
+/// An entry is `<stem>.frames`. A write goes to
+/// `<stem>.frames.<pid>.<n>.<random>.tmp` and is renamed into place, so a process that dies mid-write leaves a temp file and
 /// never a partial entry under a real name. Temp files are not entries: [scan]
 /// deletes them. The directory belongs to one cache at a time; a second cache
 /// sharing it could have its in-flight temp file swept.
@@ -24,8 +25,17 @@ class DirectoryFrameCacheFiles implements FrameCacheFiles {
   static const String _tempExtension = '.tmp';
 
   // One name per write: two writes of one stem that overlap must not share a
-  // temp file, or the rename could publish bytes of both.
+  // temp file, or the rename could publish bytes of both. The counter keeps
+  // the writes of this process apart, the process id the processes that share
+  // a directory, and the random part the case where a pid is reused or a
+  // container makes every process pid 1.
   static int _nextTemp = 0;
+  static final Random _random = Random();
+
+  static String _tempSuffix() {
+    final nonce = _random.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
+    return '.$pid.${_nextTemp++}.$nonce$_tempExtension';
+  }
 
   File _entry(String stem) =>
       File('${directory.path}${Platform.pathSeparator}$stem$_entryExtension');
@@ -59,32 +69,44 @@ class DirectoryFrameCacheFiles implements FrameCacheFiles {
   }
 
   @override
-  Future<Uint8List?> read(String stem) async {
+  Future<Uint8List?> read(String stem, {required int maxBytes}) async {
+    final file = _entry(stem);
     try {
-      return await _entry(stem).readAsBytes();
+      if (await file.length() > maxBytes) return null;
+      return await file.readAsBytes();
     } on PathNotFoundException {
       return null;
     }
   }
 
   @override
-  Future<void> write(
+  Future<FileSystemException?> write(
     String stem,
     Uint8List bytes, {
     required DateTime modified,
   }) async {
     await directory.create(recursive: true);
     final target = _entry(stem);
-    final temp = File('${target.path}.${_nextTemp++}$_tempExtension');
+    final temp = File('${target.path}${_tempSuffix()}');
     try {
       await temp.writeAsBytes(bytes, flush: true);
       await publish(temp, target);
-      await target.setLastModified(modified);
     } on Object {
       await discardTemp(temp);
       rethrow;
     }
+    try {
+      await stamp(target, modified);
+    } on FileSystemException catch (e) {
+      return e;
+    }
+    return null;
   }
+
+  /// Sets the time of [target] to [modified].
+  @protected
+  Future<void> stamp(File target, DateTime modified) =>
+      target.setLastModified(modified);
 
   /// Makes a complete [temp] the entry [target]: the one step that makes a
   /// write visible, and atomic where a rename within a directory is.
