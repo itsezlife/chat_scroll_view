@@ -161,7 +161,7 @@ jobs:
           cache: true
       - name: Resolve workspace
         working-directory: chat_scroll_view
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
 
       # A tag names the release; a branch run uses the tag the crate version
       # would get. A pushed tag that disagrees with Cargo.toml is a mistake.

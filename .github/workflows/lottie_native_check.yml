@@ -67,7 +67,7 @@ jobs:
           cache: true
       - name: Resolve workspace
         working-directory: chat_scroll_view
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
       # `dart <file>`, not `dart run`, which would run the build hook.
       - name: Recorded sourceHash matches the sources
         working-directory: chat_scroll_view/packages/lottie_native
