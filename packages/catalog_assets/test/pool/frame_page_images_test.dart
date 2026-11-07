@@ -77,6 +77,52 @@ void main() {
     expect(images.imageOf(1), isNotNull);
   });
 
+  test('each page of a flush starts its upload in an event-loop turn of '
+      'its own, so a frame can start between two copies', () async {
+    final order = <String>[];
+    final images = FramePageImages(
+      memory: memory,
+      upload: (pixels, side) {
+        order.add('upload');
+        return uploads.call(pixels, side);
+      },
+    );
+    addTearDown(images.dispose);
+    for (final page in [0, 1, 2]) {
+      memory.page(page, side: _side);
+    }
+    images
+      ..markDirty(0)
+      ..markDirty(1)
+      ..markDirty(2);
+
+    final flushed = images.flush();
+    // Queued before the flush starts: it runs once the first upload yields.
+    Timer.run(() => order.add('event'));
+    await flushed;
+
+    expect(order, ['upload', 'event', 'upload', 'upload']);
+    expect([0, 1, 2].map(images.imageOf), everyElement(isNotNull));
+  });
+
+  test('a page released while its flush waits for its turn is not '
+      'uploaded', () async {
+    for (final page in [0, 1]) {
+      memory.page(page, side: _side);
+    }
+    images
+      ..markDirty(0)
+      ..markDirty(1);
+
+    final flushed = images.flush();
+    Timer.run(() => images.release(1));
+    await flushed;
+
+    expect(uploads.calls, hasLength(1));
+    expect(images.imageOf(0), isNotNull);
+    expect(images.imageOf(1), isNull);
+  });
+
   test('a clean page is not uploaded again', () async {
     memory.page(0, side: _side);
     images.markDirty(0);

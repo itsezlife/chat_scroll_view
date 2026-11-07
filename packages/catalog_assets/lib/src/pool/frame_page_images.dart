@@ -69,7 +69,8 @@ Future<ui.Image> uploadFramePage(Uint8List pixels, int side) {
 /// [flush] reads the bytes of the dirty pages when it starts, so the owner
 /// calls it while no renderer is writing: a frame is rendered, flushed, and
 /// only then is the next batch started. Calls to [flush] run one after the
-/// other.
+/// other. Within one flush each page starts its upload in an event-loop turn
+/// of its own, so the copies of a flush do not hold off a frame together.
 final class FramePageImages {
   /// Creates images over [memory], uploading with [upload].
   FramePageImages({
@@ -151,7 +152,22 @@ final class FramePageImages {
     if (_disposed || _dirty.isEmpty) return;
     final pages = _dirty.toList()..sort();
     _dirty.clear();
-    await Future.wait([for (final page in pages) _uploadPage(page)]);
+    // The engine copies a page on this isolate the moment its upload starts.
+    // Started together, a flush of several pages was one block of copies
+    // between two frames, long enough to start the next frame a vsync late
+    // while a grid of stickers played. Each page after the first starts in
+    // an event-loop turn of its own, so a frame due meanwhile runs between
+    // two copies; the uploads still run side by side.
+    // A page released while it waited for its turn has no bytes to upload.
+    final epochs = {for (final page in pages) page: _epochs[page] ?? 0};
+    final uploads = <Future<void>>[];
+    for (final page in pages) {
+      if (uploads.isNotEmpty) await Future<void>.delayed(Duration.zero);
+      if (_disposed) break;
+      if ((_epochs[page] ?? 0) != epochs[page]) continue;
+      uploads.add(_uploadPage(page));
+    }
+    await Future.wait(uploads);
   }
 
   Future<void> _uploadPage(int pageIndex) async {
