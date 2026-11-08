@@ -122,12 +122,13 @@ or pixels.
 
 | Type | Role |
 | --- | --- |
-| `FrameCacheKey` | Content hash, DISPLAY size and engine version. Validated and lower-cased in the constructor (`ArgumentError` for a hash or version with path characters); `toFileStem()` is the file name; `admitted([maxEdge = 512])` tells whether the size is cacheable. |
-| `FrameCache` | `open(key)` lists the directory once and answers whether anything is cached for the key (false for an unadmitted key); it reads no frame. `frame` answers synchronously where a frame is: a `CachedFrameBytes` while its animation is in RAM, a `CachedFrameFile` (path, key, index) once it is on disk, which the engine reads on its own isolate. `put(key, index, bytes, frameCount:)` stores one frame, first write wins; when every frame is present the animation is written to disk once, asynchronously, and then leaves RAM. `residentBytes`, `invalidate`, `clear`, `dispose` (finishes pending writes; idempotent). |
+| `FrameCacheKey` | Content hash, DISPLAY size and engine version. Validated and lower-cased in the constructor (`ArgumentError` for a hash or version with path characters); `toFileStem(parity)` is the file name of one parity (`FrameParity.even` or `odd`); `admitted([maxEdge = 512])` tells whether the size is cacheable. |
+| `FrameCache` | `open(key)` lists the directory once and answers whether anything is cached for the key (false for an unadmitted key); it reads no frame. `frame` answers synchronously where a frame is: a `CachedFrameBytes` while its animation is in RAM, a `CachedFrameFile` (path, key, index) once it is on disk, which the engine reads on its own isolate. `put(key, index, bytes, frameCount:)` stores one frame, first write wins. An animation is two fills, its even frames and its odd frames: when every frame of one parity is present that parity is written to disk once, as its own file, asynchronously, and then leaves RAM. A playback at half rate asks only for the even frames, so its fill completes over one pass; a playback at full rate later restores those and fills the odd ones. `residentBytes`, `invalidate`, `clear`, `dispose` (finishes pending writes; idempotent). |
 | `FrameCacheFiles` | The interface of the one place that touches the file system. `DirectoryFrameCacheFiles` (native) is the implementation `FrameCache(directoryPath:)` opens through the `$openFrameCacheFiles` hook of `src/environment_specific/` (the VM file by default, the JS file on the web); tests pass a subclass to count or break writes. The web's hook refuses a path with an `ArgumentError`. |
 
-**Tiers.** The RAM tier (default 32 MiB) holds the animations being filled
-(with no directory, the complete ones too) and evicts whole animations: first
+**Tiers.** The RAM tier (default 32 MiB) holds the fills under way (with no
+directory, the complete ones too) and evicts whole fills, one parity of an
+animation each: first
 those unused for `playingFor` (default 2 s), least recently used first, then,
 when all left play, the one that started filling last, never the oldest. A
 dropped animation renders as without a cache until there is room; nothing is
@@ -137,15 +138,16 @@ injected clock; on disk it is the file's modified time, stamped when the file
 is written or opened and at most every 30 s while it serves frames.
 `directoryPath: null` keeps memory only.
 
-**File.** `<stem>.frames`, little-endian: magic `FRMC`, format version 2, width,
-height, frame count, payload length, engine and hash lengths, the engine
-version and hash, an offsets table, a lengths table, then the frames (no
+**File.** `<stem>.frames`, one per parity of an animation, little-endian: magic
+`FRMC`, format version 3, width, height, frame count (of the parity), payload
+length, engine and hash lengths, the parity, the engine version and hash, an
+offsets table, a lengths table, then the frames (no
 checksum: the frame codec's exact-size decode catches a damaged frame). It is
 written as the header and then the frames, to `<stem>.<n>.tmp`, and renamed, so
 a crash leaves a temp file, never a partial entry; the first scan deletes temp
 files. The engine's `FrameFileReader` reads the header once per open file and
 then one frame at a time; a file that is missing, truncated, of another format
-version (version 1 included) or key, or whose offsets do not tile the payload
+version (versions 1 and 2 included), key or parity, or whose offsets do not tile the payload
 serves no frame, and the renderer's invalidate deletes it. The full layout is
 documented on `FrameCacheCodec`.
 

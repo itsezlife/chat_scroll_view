@@ -353,6 +353,59 @@ void main() {
       }
     });
 
+    group('a pass at half rate', () {
+      // The frames a half-rate paint asks for: the even ones of a pass.
+      final even = [for (var i = 0; i < info.frameCount; i += 2) i];
+      final all = [for (var i = 0; i < info.frameCount; i++) i];
+
+      late Directory dir;
+      setUp(() {
+        dir = Directory.systemTemp.createTempSync('lottie_renderer_half_');
+      });
+      tearDown(() => dir.deleteSync(recursive: true));
+
+      Future<void> firstPass() async {
+        final before = FrameCache(directoryPath: dir.path);
+        await renderer(
+          before,
+        ).render(jobs(even, source(cacheKey: key)), memory);
+        await before.dispose();
+        engine
+          ..rendered = 0
+          ..restored = 0;
+      }
+
+      test('persists its file, and the next pass restores every frame from '
+          'it', () async {
+        await firstPass();
+
+        // A new process, as far as the cache can tell: nothing in RAM.
+        final after = FrameCache(directoryPath: dir.path);
+        addTearDown(after.dispose);
+        final held = await renderer(
+          after,
+        ).render(jobs(even, source(cacheKey: key)), memory);
+
+        expect(held, hasLength(even.length));
+        expect(engine.rendered, 0);
+        expect(engine.restored, even.length);
+      });
+
+      test('serves a pass at full rate the frames it holds and no other: '
+          'the odd ones render', () async {
+        await firstPass();
+
+        final after = FrameCache(directoryPath: dir.path);
+        addTearDown(after.dispose);
+        final full = jobs(all, source(cacheKey: key));
+        final held = await renderer(after).render(full, memory);
+
+        expect(held, hasLength(all.length));
+        expect(engine.restored, even.length, reason: 'the even frames');
+        expect(engine.rendered, all.length - even.length, reason: 'the odd');
+      });
+    });
+
     test('a corrupt entry is rendered instead, and the animation is '
         'dropped from the cache', () async {
       final cache = FrameCache(directoryPath: null);
@@ -559,12 +612,14 @@ void main() {
       );
       final slots = slotsForAnimation();
       final r = renderer(cache);
-      // The budget holds one fill at a time: the second fills once the first
-      // is on disk and has left RAM.
-      await r.render(pass(slots, key), memory);
-      await files.writes(1);
-      await r.render(pass(slots, other), memory);
-      await files.writes(2);
+      // The budget holds one fill at a time: the even frames of a pass fill
+      // (the odd fill, younger, is dropped), and the odd ones fill on the
+      // next pass, once the even ones are on disk and have left RAM.
+      var written = 0;
+      for (final animation in [key, other, key, other]) {
+        await r.render(pass(slots, animation), memory);
+        await files.writes(++written);
+      }
       expect(cache.residentBytes, 0, reason: 'both live in their files');
       engine
         ..rendered = 0
@@ -583,7 +638,7 @@ void main() {
         0,
         reason: 'no frame was loaded into this isolate',
       );
-      expect(files.written, hasLength(2), reason: 'nothing rewritten');
+      expect(files.written, hasLength(4), reason: 'nothing rewritten');
     });
 
     test('a disposed cache is skipped, not an error', () async {

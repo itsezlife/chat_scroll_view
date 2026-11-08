@@ -37,19 +37,23 @@ void main() {
   });
 
   group('toFileStem', () {
-    test('spells the content, the display size and the engine', () {
-      expect(_key().toFileStem(), 'abc123_128x128_1.2.0');
+    test('spells the content, the display size, the engine and the '
+        'parity', () {
+      expect(_key().toFileStem(FrameParity.even), 'abc123_128x128_1.2.0_even');
+      expect(_key().toFileStem(FrameParity.odd), 'abc123_128x128_1.2.0_odd');
     });
 
-    test('is distinct for distinct keys', () {
+    test('is distinct for distinct keys and parities', () {
       final stems = {
-        _key().toFileStem(),
-        _key(width: 64).toFileStem(),
-        _key(height: 64).toFileStem(),
-        _key(hash: 'abd').toFileStem(),
-        _key(engine: '2').toFileStem(),
+        for (final parity in FrameParity.values) ...[
+          _key().toFileStem(parity),
+          _key(width: 64).toFileStem(parity),
+          _key(height: 64).toFileStem(parity),
+          _key(hash: 'abd').toFileStem(parity),
+          _key(engine: '2').toFileStem(parity),
+        ],
       };
-      expect(stems, hasLength(5));
+      expect(stems, hasLength(10));
     });
 
     test('a hash or engine version with path characters is rejected', () {
@@ -92,6 +96,34 @@ void main() {
     test('the cap is a parameter', () {
       expect(_key(width: 256, height: 256).admitted(256), isTrue);
       expect(_key(width: 257, height: 256).admitted(256), isFalse);
+    });
+  });
+
+  group('FrameParity', () {
+    test('places each frame among those of its parity', () {
+      expect(
+        [
+          for (var i = 0; i < 6; i++)
+            (FrameParity.of(i), FrameParity.slotOf(i)),
+        ],
+        [
+          (FrameParity.even, 0),
+          (FrameParity.odd, 0),
+          (FrameParity.even, 1),
+          (FrameParity.odd, 1),
+          (FrameParity.even, 2),
+          (FrameParity.odd, 2),
+        ],
+      );
+    });
+
+    test('counts the frames of each parity', () {
+      expect(FrameParity.even.countIn(1), 1);
+      expect(FrameParity.odd.countIn(1), 0);
+      expect(FrameParity.even.countIn(5), 3);
+      expect(FrameParity.odd.countIn(5), 2);
+      expect(FrameParity.even.countIn(6), 3);
+      expect(FrameParity.odd.countIn(6), 3);
     });
   });
 }

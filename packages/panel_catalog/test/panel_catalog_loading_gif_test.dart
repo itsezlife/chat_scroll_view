@@ -185,6 +185,20 @@ void main() {
       expect(paintOnce(tester).arcs.single.sweep, closeTo(math.pi, 1e-6));
     });
 
+    testWidgets('keeps the progress over the thumbnail after its download '
+        'fails, the clip still missing', (tester) async {
+      await pump(tester, [_gif(0)]);
+      producer.last
+        ..download(0.5)
+        ..advance(AssetStage.placeholder)
+        ..fail(StateError('offline'));
+      await tester.pump();
+      final canvas = paintOnce(tester);
+
+      expect(discs(canvas), hasLength(1));
+      expect(canvas.arcs.single.sweep, closeTo(math.pi, 1e-6));
+    });
+
     testWidgets('a GIF served from a cache gets no progress', (tester) async {
       await pump(tester, [_gif(0)]);
 

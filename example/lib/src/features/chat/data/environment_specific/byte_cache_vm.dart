@@ -35,6 +35,11 @@ final class _DirectoryByteCache implements ByteCache {
     }
   }
 
+  // One stat on the UI isolate per attempt, as the reference client checks
+  // that a file exists before it draws a cell's download.
+  @override
+  bool holds(String name) => _file(name).existsSync();
+
   @override
   Future<void> write(String name, Uint8List bytes) async {
     if (!await (_made ??= _make())) return;

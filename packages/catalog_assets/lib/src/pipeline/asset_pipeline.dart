@@ -228,7 +228,17 @@ final class _Job implements AssetTask {
   bool _ended = false;
   bool _resolving = false;
 
+  // Whether the attempt announced the download at its start: the content is
+  // known to be missing.
+  bool announcedDownload = false;
+
   void start() {
+    // Before the resolve and the thumbnail, which may each take a round trip:
+    // a surface shows the download of missing content from its first frame.
+    if (pipeline._fetcher.needsDownload(request.key)) {
+      announcedDownload = true;
+      progress.download(0);
+    }
     final known = pipeline._directory.lookup(request.key);
     if (known != null) {
       _begin(known);
@@ -379,9 +389,10 @@ final class _Work implements LaneWork {
 
   void fetched(FetchedContent fetchedContent) {
     if (_cancelled) return;
-    // All of it arrived, which a fetcher's last report need not say: a
-    // surface that drew the download shows it complete until the decode.
-    if (_transferred) reportDownload(1);
+    // All of it arrived, which a fetcher's last report need not say (nor a
+    // fetch that found the announced content after all): a surface that drew
+    // the download shows it complete until the decode.
+    if (_transferred || job.announcedDownload) reportDownload(1);
     content = fetchedContent;
     phase = _Phase.queuedDecode;
     _pipeline._decodeLane.enqueue(this);

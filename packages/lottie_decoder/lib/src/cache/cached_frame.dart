@@ -32,7 +32,9 @@ final class CachedFrameBytes extends CachedFrame {
 /// it: the UI isolate keeps only this reference, never the bytes.
 ///
 /// [key] travels with it so the reader checks the file is that key's (the
-/// header repeats it), and [index] is the frame in the file's table.
+/// header repeats it), and [index] is the frame of the animation: the file
+/// holds the frames of its parity (`FrameParity`), and the reader finds it
+/// among them.
 final class CachedFrameFile extends CachedFrame {
   /// Creates the reference to frame [index] of [key] in the file at [path].
   const CachedFrameFile(this.path, this.key, this.index);
@@ -43,6 +45,6 @@ final class CachedFrameFile extends CachedFrame {
   /// The animation the file must hold.
   final FrameCacheKey key;
 
-  /// The frame.
+  /// The frame of the animation.
   final int index;
 }

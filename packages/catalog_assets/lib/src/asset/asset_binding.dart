@@ -63,12 +63,15 @@ abstract interface class AssetBinding implements Listenable {
   AssetPaintable get paintable;
 
   /// How much of the content's download has arrived, 0 to 1, while the
-  /// attempt for this entry transfers it; null when nothing is downloading.
+  /// content is missing and downloads; null when it is not downloading.
   ///
-  /// It is set by the producer's reports (`AssetProgress.download`), from the
-  /// start of the transfer until the attempt ends (its final stage, a failure
-  /// or a cancel). Content the producer served from a cache, a memory hit, a
-  /// glyph and a detached binding read null, so a surface that draws a
+  /// It is set by the producer's reports (`AssetProgress.download`): from the
+  /// start of an attempt for content known to be missing (0, before its
+  /// thumbnail), or else from the start of the transfer, until the content's
+  /// final stage. A failed or cancelled attempt keeps it, since the content is
+  /// still missing; the next attempt starts without it and the last binding
+  /// leaving forgets it. Content the producer served from a cache, a memory
+  /// hit, a glyph and a detached binding read null, so a surface that draws a
   /// download indicator draws none for them. A change is signalled to the
   /// listeners. It is the entry's own download: a sibling's stage this binding
   /// borrows does not bring its download along.

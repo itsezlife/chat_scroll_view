@@ -158,11 +158,13 @@ void main() {
       expect(reader.residentBytes, 0);
 
       // Garble frame 5's codec header in place: the table is intact, the
-      // frame does not decode.
-      final file = File(dir.listSync().single.path);
+      // frame does not decode. It is the third of the odd file's five.
+      final file = File(
+        '${dir.path}/${key.toFileStem(FrameParity.odd)}.frames',
+      );
       final bytes = file.readAsBytesSync();
-      final frameBytes = (bytes.length - 32 - 5 - 6 - 80) ~/ 10;
-      final at = bytes.length - (info.frameCount - 5) * frameBytes;
+      final frameBytes = (bytes.length - 36 - 5 - 6 - 40) ~/ 5;
+      final at = bytes.length - (5 - 2) * frameBytes;
       bytes[at] ^= 0xFF;
       file.writeAsBytesSync(bytes);
       final reopened = FrameCache(directoryPath: dir.path);

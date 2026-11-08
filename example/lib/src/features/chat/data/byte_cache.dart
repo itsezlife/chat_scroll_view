@@ -13,6 +13,12 @@ abstract interface class ByteCache {
   /// The bytes kept under [name], or null.
   Future<Uint8List?> read(String name);
 
+  /// Whether bytes are kept under [name], answered at once (a stat of its
+  /// file) for a fetcher that must say before it reads whether content needs
+  /// a download. A true answer does not promise that [read] finds them: the
+  /// store may remove the file in between.
+  bool holds(String name);
+
   /// Keeps [bytes] under [name], replacing what was there.
   Future<void> write(String name, Uint8List bytes);
 
