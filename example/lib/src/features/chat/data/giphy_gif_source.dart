@@ -3,9 +3,26 @@ import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.da
 import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart' as listen;
 
+/// How long a page of clips waits for its stills before its rows are added
+/// anyway.
+///
+/// A still is a few KB from Giphy's media host, which a phone fetches in one
+/// or two hundred milliseconds once connected and in about twice that on the
+/// first request of a session (a new connection). 500 ms lets that first
+/// request finish, so a cold first page shows its blurred stills rather than
+/// boxes, while keeping the page's whole wait (the API's answer, then this)
+/// under a second. A still later than this shows the box until it arrives,
+/// as before. Pages read ahead wait the same, out of sight.
+const Duration giphyStillWait = Duration(milliseconds: 500);
+
 // One list of Giphy clips that is loaded a page at a time: the part trending
 // and search share. It owns no timer and no listener; [onChange] says that
 // [contents] changed.
+//
+// A page's rows are added once their stills are in memory, or after
+// [stillWait]. With [readAhead], the page after the one just added is fetched
+// at once, its stills too, and [more] adds it from there without waiting for
+// the network.
 //
 // Paging by offset lives here and nowhere else: the page token it publishes
 // is the next offset as text, which only this class reads back.
@@ -14,16 +31,24 @@ final class _Feed {
     required Future<GiphyPage> Function(int offset) fetch,
     required GiphyContent content,
     required void Function() onChange,
+    required Duration stillWait,
+    required bool readAhead,
   }) : _fetch = fetch,
        _content = content,
-       _onChange = onChange;
+       _onChange = onChange,
+       _stillWait = stillWait,
+       _readAhead = readAhead;
 
   final Future<GiphyPage> Function(int offset) _fetch;
   final GiphyContent _content;
   final void Function() _onChange;
+  final Duration _stillWait;
+  final bool _readAhead;
   final Set<ContentKey> _seen = {};
   var _paging = false;
   var _closed = false;
+  // The page read ahead and its offset.
+  (int, Future<GiphyPage>)? _ahead;
 
   CollectionContents contents = CollectionContents.idle;
 
@@ -39,7 +64,7 @@ final class _Feed {
     _onChange();
     final GiphyPage page;
     try {
-      page = await _fetch(0);
+      page = await _page(0);
     } on Object catch (error, stack) {
       // A failure is a state of the collection, which the page shows with a
       // retry; the cause is kept in it for the host to log.
@@ -55,6 +80,7 @@ final class _Feed {
       nextPageToken: _tokenOf(page),
     );
     _onChange();
+    _readNext(page);
   }
 
   // The page the loaded contents name. A page that fails leaves them as they
@@ -69,13 +95,19 @@ final class _Feed {
     }
     _paging = true;
     try {
-      final page = await _fetch(int.parse(current.nextPageToken!.value));
+      final offset = int.parse(current.nextPageToken!.value);
+      final ahead = _ahead;
+      _ahead = null;
+      final page = await (ahead != null && ahead.$1 == offset
+          ? ahead.$2
+          : _page(offset));
       if (_closed) return;
       contents = CollectionContents.loaded([
         ...current.items,
         ..._described(page),
       ], nextPageToken: _tokenOf(page));
       _onChange();
+      _readNext(page);
     } on GiphyFailure {
       // Stays loaded with the same token.
     } finally {
@@ -84,6 +116,24 @@ final class _Feed {
   }
 
   void close() => _closed = true;
+
+  // The clips at [offset], with their stills in memory or [_stillWait] spent.
+  Future<GiphyPage> _page(int offset) async {
+    final page = await _fetch(offset);
+    if (!_closed) {
+      await _content.prepareStills(page.clips, within: _stillWait);
+    }
+    return page;
+  }
+
+  // Starts fetching the page after [page], unless it was the last. A failure
+  // is [more]'s to meet: it is kept in the future, not reported here.
+  void _readNext(GiphyPage page) {
+    final next = page.nextOffset;
+    if (!_readAhead || _closed || next == null) return;
+    final future = _page(next)..ignore();
+    _ahead = (next, future);
+  }
 
   // The page's clips, remembered, minus those the list already holds: Giphy's
   // pages can overlap, and the seam lists no key twice.
@@ -109,15 +159,23 @@ final class _Feed {
 /// again); a later page that fails leaves the loaded clips as they are.
 ///
 /// Each clip it lists is remembered in [content], which the asset pipeline's
-/// fetcher and resolver read.
+/// fetcher and resolver read. A page's rows are added with their stills
+/// fetched, waiting up to [stillWait] for them, and with [readAhead] the next
+/// page is fetched while the current one shows (see [giphyStillWait]).
 final class GiphyGifSource implements CollectionSource {
   /// Lists the trending clips of [client], remembering them in [content].
-  GiphyGifSource({required GiphyClient client, required GiphyContent content})
-    : _collections = listen.ValueNotifier(const []) {
+  GiphyGifSource({
+    required GiphyClient client,
+    required GiphyContent content,
+    Duration stillWait = giphyStillWait,
+    bool readAhead = true,
+  }) : _collections = listen.ValueNotifier(const []) {
     _feed = _Feed(
       fetch: (offset) => client.trending(offset: offset),
       content: content,
       onChange: _publish,
+      stillWait: stillWait,
+      readAhead: readAhead,
     );
     _publish();
   }
@@ -167,15 +225,24 @@ final class GiphyGifSource implements CollectionSource {
 /// user types, paged by offset.
 ///
 /// A new query drops the one before it: its reply, if it still comes, is not
-/// published. Blank text clears to idle without a request.
+/// published. Blank text clears to idle without a request. Stills and the
+/// next page are fetched as [GiphyGifSource] fetches them.
 final class GiphyGifSearch implements SearchSource {
   /// Searches [client], remembering the clips found in [content].
-  GiphyGifSearch({required GiphyClient client, required GiphyContent content})
-    : _client = client,
-      _content = content;
+  GiphyGifSearch({
+    required GiphyClient client,
+    required GiphyContent content,
+    Duration stillWait = giphyStillWait,
+    bool readAhead = true,
+  }) : _client = client,
+       _content = content,
+       _stillWait = stillWait,
+       _readAhead = readAhead;
 
   final GiphyClient _client;
   final GiphyContent _content;
+  final Duration _stillWait;
+  final bool _readAhead;
   final _results = listen.ValueNotifier(
     const Collection(id: CollectionId.query('')),
   );
@@ -199,6 +266,8 @@ final class GiphyGifSearch implements SearchSource {
       fetch: (offset) => _client.search(query, offset: offset),
       content: _content,
       onChange: () => _publish(id),
+      stillWait: _stillWait,
+      readAhead: _readAhead,
     );
     await feed.first();
   }

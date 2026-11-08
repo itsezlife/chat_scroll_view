@@ -56,6 +56,7 @@ import 'common/pointer_tape_test.dart' as pointer_tape_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
 import 'features/chat/bundled_packs_test.dart' as bundled_packs_test;
+import 'features/chat/byte_cache_test.dart' as byte_cache_test;
 import 'features/chat/chat_body_host_test.dart' as chat_body_host_test;
 import 'features/chat/chat_body_markdown_test.dart' as chat_body_markdown_test;
 import 'features/chat/chat_composer_spec_test.dart' as chat_composer_spec_test;
@@ -343,6 +344,7 @@ void main() {
     'features/chat/corpus_sticker_pack_test.dart',
     corpus_sticker_pack_test.main,
   );
+  group('features/chat/byte_cache_test.dart', byte_cache_test.main);
   group('features/chat/giphy_client_test.dart', giphy_client_test.main);
   group('features/chat/giphy_content_test.dart', giphy_content_test.main);
   group('features/chat/giphy_gif_source_test.dart', giphy_gif_source_test.main);

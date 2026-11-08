@@ -9,6 +9,8 @@ library;
 
 import 'dart:async';
 
+import 'package:catalog_assets/catalog_assets.dart';
+
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
@@ -20,16 +22,31 @@ import 'package:http/testing.dart';
 
 // A fake Giphy of 6 clips per feed, 2 to a page, as hand-written JSON. A clip
 // of the feed with prefix `p` at position `n` is `p<n>`; `overlap` makes each
-// page repeat the last clip of the one before.
+// page repeat the last clip of the one before. Each clip has a still at
+// `https://media.example/<id>.still.gif`, held while [stillGate] is.
 final class _FakeGiphy {
   bool failFirst = false;
   bool failLater = false;
   bool overlap = false;
   final List<Uri> requests = <Uri>[];
+  // The still files answered, in order: a still is here once its bytes went
+  // back to the client.
+  final List<String> stillsServed = <String>[];
   Completer<void>? gate;
+  Completer<void>? stillGate;
+
+  List<Uri> get apiRequests => [
+    for (final url in requests)
+      if (url.host == 'api.giphy.com') url,
+  ];
 
   http.Client get client => MockClient((request) async {
     requests.add(request.url);
+    if (request.url.host == 'media.example') {
+      await stillGate?.future;
+      stillsServed.add(request.url.path);
+      return http.Response.bytes([1, 2, 3], 200);
+    }
     await gate?.future;
     final offset = int.parse(request.url.queryParameters['offset']!);
     if (offset == 0 ? failFirst : failLater) return http.Response('', 503);
@@ -44,7 +61,8 @@ final class _FakeGiphy {
     final data = [
       for (final id in ids)
         '{"id":"$id","title":"$id","images":{"fixed_width":'
-            '{"mp4":"https://media.example/$id.mp4","width":"200","height":"100"}}}',
+            '{"mp4":"https://media.example/$id.mp4","width":"200","height":"100"},'
+            '"fixed_width_small_still":{"url":"https://media.example/$id.still.gif"}}}',
     ].join(',');
     return http.Response(
       '{"data":[$data],"pagination":{"total_count":6,"count":2,"offset":$offset}}',
@@ -103,7 +121,7 @@ void main() {
       await source.loadMore(GiphyGifSource.id);
       await source.loadMore(GiphyGifSource.id);
 
-      expect(giphy.requests.map((u) => u.queryParameters['offset']), [
+      expect(giphy.apiRequests.map((u) => u.queryParameters['offset']), [
         '0',
         '2',
         '4',
@@ -156,6 +174,124 @@ void main() {
     );
   });
 
+  group('the stills', () {
+    test('are fetched before the rows that show them are added', () async {
+      final source = GiphyGifSource(client: client, content: content);
+      addTearDown(source.dispose);
+      final servedWhenAdded = <List<String>>[];
+      source.collections.addListener(() {
+        if (source.collections.value.single.contents
+            is CollectionContents$Loaded) {
+          servedWhenAdded.add([...giphy.stillsServed]);
+        }
+      });
+
+      await source.load(GiphyGifSource.id);
+
+      expect(
+        servedWhenAdded.first,
+        containsAll(['/t0.still.gif', '/t1.still.gif']),
+      );
+    });
+
+    test('a still later than the wait does not hold the rows back', () async {
+      giphy.stillGate = Completer<void>();
+      final source = GiphyGifSource(
+        client: client,
+        content: content,
+        stillWait: const Duration(milliseconds: 20),
+      );
+      addTearDown(source.dispose);
+
+      await source.load(GiphyGifSource.id);
+
+      expect(idsOf(source.collections.value.single), [
+        'document:giphy:t0',
+        'document:giphy:t1',
+      ]);
+      expect(giphy.stillsServed, isEmpty);
+      giphy.stillGate!.complete();
+    });
+
+    test('are the thumbnails the fetcher gives, without a request', () async {
+      final source = GiphyGifSource(client: client, content: content);
+      addTearDown(source.dispose);
+      await source.load(GiphyGifSource.id);
+      final item =
+          (source.collections.value.single.contents
+                  as CollectionContents$Loaded)
+              .items
+              .first;
+      final before = giphy.requests.length;
+
+      final fetched = await content
+          .fetcher(otherwise: _Unused())
+          .fetch(
+            FetchRequest(
+              descriptor: item.descriptor!,
+              part: FetchPart.thumbnail,
+              priority: AssetPriority.placeholder,
+              cancellation: CancellationToken(),
+            ),
+          );
+
+      expect((fetched as FetchedBytes).bytes, [1, 2, 3]);
+      expect(giphy.requests.length, before);
+    });
+  });
+
+  group('the next page', () {
+    test('is fetched, stills too, while the current one shows', () async {
+      final source = GiphyGifSource(client: client, content: content);
+      addTearDown(source.dispose);
+
+      await source.load(GiphyGifSource.id);
+      await pumpEventQueue();
+
+      expect(giphy.apiRequests.map((u) => u.queryParameters['offset']), [
+        '0',
+        '2',
+      ]);
+      expect(
+        giphy.stillsServed,
+        containsAll(['/t2.still.gif', '/t3.still.gif']),
+      );
+      // Still not listed: the page has not asked for it.
+      expect(idsOf(source.collections.value.single), hasLength(2));
+    });
+
+    test(
+      'is added from what was fetched ahead, without asking again',
+      () async {
+        final source = GiphyGifSource(client: client, content: content);
+        addTearDown(source.dispose);
+        await source.load(GiphyGifSource.id);
+        await pumpEventQueue();
+
+        giphy.gate = Completer<void>();
+        await source.loadMore(GiphyGifSource.id);
+
+        expect(idsOf(source.collections.value.single), [
+          for (var n = 0; n < 4; n++) 'document:giphy:t$n',
+        ]);
+        giphy.gate!.complete();
+      },
+    );
+
+    test('is fetched ahead for search results too', () async {
+      final search = GiphyGifSearch(client: client, content: content);
+      addTearDown(search.dispose);
+
+      await search.search('cat');
+      await pumpEventQueue();
+
+      expect(giphy.apiRequests.map((u) => u.queryParameters['offset']), [
+        '0',
+        '2',
+      ]);
+    });
+  });
+
   group('search', () {
     SearchSourceContract.run(() async {
       final giphy = _FakeGiphy();
@@ -180,8 +316,11 @@ void main() {
       await search.search('cat');
       await search.loadMore();
 
-      expect(giphy.requests.map((u) => u.queryParameters['q']), ['cat', 'cat']);
-      expect(giphy.requests.map((u) => u.queryParameters['offset']), [
+      expect(giphy.apiRequests.map((u) => u.queryParameters['q']), [
+        'cat',
+        'cat',
+      ]);
+      expect(giphy.apiRequests.map((u) => u.queryParameters['offset']), [
         '0',
         '2',
       ]);
@@ -196,4 +335,11 @@ void main() {
       expect(giphy.requests, isEmpty);
     });
   });
+}
+
+// The fetcher every other key would go to: these tests ask only for Giphy's.
+final class _Unused implements ContentFetcher {
+  @override
+  Future<FetchedContent> fetch(FetchRequest request) =>
+      throw StateError('not a Giphy key: ${request.descriptor.key}');
 }

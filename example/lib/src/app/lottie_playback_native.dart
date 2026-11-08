@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
+import 'package:chat_scroll_view_example/src/app/cache_directory_io.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
@@ -89,28 +88,15 @@ Future<LottiePlayback?> start({
 /// Where this platform keeps the cache of rendered frames, or null where
 /// there is no known folder (the frames are then kept in memory only).
 ///
-/// The platform's user cache folder, read from the environment: macOS
-/// `~/Library/Caches`, Linux `$XDG_CACHE_HOME` else `~/.cache`, Windows
-/// `%LOCALAPPDATA%`. The example does not depend on `path_provider`, so
-/// Android and iOS keep memory only; a host that does passes its own folder.
-/// [operatingSystem] and [environment] default to the running process's.
+/// The `lottie_frames` folder of [userCacheDirectory]. The example does not
+/// depend on `path_provider`, so Android and iOS keep memory only; a host
+/// that does passes its own folder. [operatingSystem] and [environment]
+/// default to the running process's.
 String? defaultCacheDirectory({
   String? operatingSystem,
   Map<String, String>? environment,
-}) {
-  final env = environment ?? Platform.environment;
-  final home = env['HOME'];
-  final (base, separator) = switch (operatingSystem ??
-      Platform.operatingSystem) {
-    'macos' => (home == null ? null : '$home/Library/Caches', '/'),
-    'linux' => (
-      env['XDG_CACHE_HOME'] ?? (home == null ? null : '$home/.cache'),
-      '/',
-    ),
-    'windows' => (env['LOCALAPPDATA'], r'\'),
-    _ => (null, '/'),
-  };
-  return base == null
-      ? null
-      : [base, 'chat_scroll_view_example', 'lottie_frames'].join(separator);
-}
+}) => userCacheDirectory(
+  'lottie_frames',
+  operatingSystem: operatingSystem,
+  environment: environment,
+);
