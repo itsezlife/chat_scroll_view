@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Copies a local corpus of Lottie stickers into the example's asset folder as
 # `<pack>--<n>.json`, where CorpusStickerPack finds them. The files stay out of
-# git (assets/telegram_stickers/.gitignore): they are Telegram's property.
+# git (assets/sticker_corpus/.gitignore): they are third-party property.
 #
-#   example/tool/link_corpus_assets.sh /path/to/telegram-stickers
+#   example/tool/link_corpus_assets.sh /path/to/sticker-corpus
 #
 # The argument: a folder with one subfolder per pack, each holding
 # `*.json` Lottie files. Run it again to refresh; it replaces earlier copies.
@@ -15,7 +15,7 @@ if [[ $# -ne 1 || ! -d "$1" ]]; then
 fi
 
 corpus="$1"
-dest="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/assets/telegram_stickers"
+dest="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/assets/sticker_corpus"
 
 # Only copies made by an earlier run are removed.
 find "$dest" -maxdepth 1 -name '*--*.json' -delete

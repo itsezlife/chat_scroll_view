@@ -49,7 +49,7 @@ FetchRequest _request(ContentDescriptor descriptor, {FetchPart? part}) =>
       cancellation: CancellationToken(),
     );
 
-const _dir = 'assets/telegram_stickers';
+const _dir = 'assets/sticker_corpus';
 
 List<String> _titles(CorpusStickerPack pack) => [
   for (final p in pack.packs) p.title,

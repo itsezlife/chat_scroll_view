@@ -113,10 +113,10 @@ flutter:
     # Video stickers, clips and GIFs generated for the demo from synthetic
     # sources (no third-party artwork); the README there has the commands.
     - assets/video_stickers/
-    # A local corpus of Telegram's Lottie stickers: the folder holds only a
-    # README and a .gitignore in a checkout (the files are Telegram's and never
+    # A local corpus of third-party Lottie stickers: the folder holds only a
+    # README and a .gitignore in a checkout (the files are third-party and never
     # committed), so it exists and builds without them. See the README there.
-    - assets/telegram_stickers/
+    - assets/sticker_corpus/
     - path: assets/comments/
       platforms:
         - android

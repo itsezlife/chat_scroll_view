@@ -30,7 +30,7 @@ example/tool/link_corpus_assets.sh \
 or by hand, for every pack folder:
 
 ```sh
-cd example/assets/telegram_stickers
+cd example/assets/sticker_corpus
 for pack in "$CORPUS"/*/; do
   name=$(basename "$pack")
   for f in "$pack"*.json; do cp "$f" "${name}--$(basename "$f")"; done
@@ -39,7 +39,7 @@ done
 
 Rebuild the app afterwards (a hot reload does not re-read the asset manifest).
 Check that nothing is staged: `git status` must show nothing under this
-folder, and `git check-ignore -v example/assets/telegram_stickers/duck--0.json`
+folder, and `git check-ignore -v example/assets/sticker_corpus/duck--0.json`
 names the rule above.
 
 ## Desktop without copying
