@@ -45,6 +45,23 @@ warm caches, and a Giphy file found on disk is a request never sent: a net
 tape recorded then lacks it, and a replay of it never reaches the tape. A
 build without the define keeps them on, as a shipped client does.
 
+The on/off switches (`lab_set <key> --ez value true|false`, or `LAB_ON` in
+`ab.sh` for the ones off by default):
+
+| Key | Off by default | Switches |
+|---|---|---|
+| `resampling` | yes | pointer samples resampled to the frame time |
+| `snap` | yes | rows snapped to physical pixels |
+| `plain` | yes | message bodies as plain text |
+| `textures` | no | playing Lottie and video assets on platform textures |
+| `glass` | no | the glass capture of the chat; off, every glass paints flat |
+
+`video_cap` takes a number (`--es value 4`). An arm with the glass off:
+
+```shell
+adb shell am broadcast -a lab.SET --es key glass --ez value false
+```
+
 Before trusting a number:
 
 - The trace inflates frames with many timeline events. Confirm a slow frame
