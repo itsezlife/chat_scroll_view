@@ -197,7 +197,7 @@ pages.
 **On the web** the browser decodes: `WebVideoEngine(createPort:
 JsVideoElementPort.create)` from `package:video_decoder/web.dart` plays each
 clip in a hidden, muted `<video>` element fed a Blob URL, and the same
-scheduler and frame pool run over it (`startPixelVideoPlayback` in the
+scheduler and frame pool run over it (`VideoPlayback.startPixel` in the
 example takes the engine factory; the web file supplies it). No file is served
 beside the page. What degrades, by contract:
 
@@ -281,7 +281,7 @@ The address-based methods (`renderBatch`, `renderCapturing`, `restore`) are
 `LottieSlotEngine`, with `IsolateLottieEngine`, `InProcessLottieEngine`,
 `NativeFramePageMemory` and `LottieFrameRenderer`; the barrel exports them only
 where `dart:ffi` exists, so a host that names them keeps that code behind a
-conditional import (as the example's `lottie_playback_native.dart` does). A
+conditional import (as the example's `lottie_playback_vm.dart` does). A
 web host has an engine over the worker, a `ListFramePageMemory`, a
 `PixelCopyFrameRenderer(engine)` in place of `LottieFrameRenderer`, and a
 `FrameCache(directoryPath: null)`: memory only, a path there is an
@@ -300,10 +300,10 @@ The composition on the web is the native one with two substitutions:
    `PixelCopyFrameRenderer(engine)`; there is no `FrameCache`, so the frames
    are kept in memory only and nothing survives a reload.
 
-The example splits this in two: `startPixelLottiePlayback` (no
+The example splits this in two: `LottiePlayback.startPixel` (no
 `dart:js_interop`, takes an `engineFactory`, runs on the VM in tests) does the
 composition and the shutdown order (scheduler, then engine); the web file
-(`lottie_playback_web.dart`, chosen by `dart.library.js_interop`) supplies only
+(`lottie_playback_js.dart`, chosen by `dart.library.js_interop`) supplies only
 the factory. The worker, `chat_lottie_core.mjs` beside it and the two wasm
 builds come from `dart packages/lottie_native/native/tool/build_web.dart --out
 <dir>`; the host serves them beside the page.
@@ -1265,8 +1265,8 @@ not use the hover-open toggle region.
 | Step | File |
 | --- | --- |
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
-| Video decoder probe and start (native and web forks) | `example/lib/src/app/video_playback.dart`, `video_playback_native.dart`, `video_playback_pixel.dart`, `video_playback_web.dart`, `video_playback_stub.dart` |
-| Lottie decoder probe and start, the frame cache and its folder (native and web forks) | `example/lib/src/app/lottie_playback.dart`, `lottie_playback_native.dart`, `lottie_playback_pixel.dart`, `lottie_playback_web.dart`, `lottie_playback_stub.dart` |
+| Video decoder probe and start (VM and web forks) | `example/lib/src/app/video_playback.dart`, `environment_specific/video_playback.dart`, `video_playback_vm.dart`, `video_playback_js.dart` |
+| Lottie decoder probe and start, the frame cache and its folder (VM and web forks) | `example/lib/src/app/lottie_playback.dart`, `environment_specific/lottie_playback.dart`, `lottie_playback_vm.dart`, `lottie_playback_js.dart`, `cache_directory_vm.dart`, `cache_directory_js.dart` |
 | Bundled packs: one lookup, fetcher and resolver, one pack source, the authored Lottie and static stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart`, `static_sticker_pack.dart` |
 | `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
 | App scopes | `example/lib/src/app/app_chrome.dart` |

@@ -1,15 +1,15 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
-import 'package:chat_scroll_view_example/src/app/cache_directory_io.dart';
+import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory_vm.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
 import 'package:l/l.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
 
-/// Starts the render isolate, which is the probe: it throws a
-/// [LottieUnavailable] naming why when the library is missing or speaks
-/// another version.
+/// The VM hook behind [LottiePlayback.start]: starts the render isolate,
+/// which is the probe: it throws a [LottieUnavailable] naming why when the
+/// library is missing or speaks another version.
 ///
 /// [spawn] is `IsolateLottieEngine.spawn` unless a test passes an engine of
 /// its own. The probe means "the engine could not start, for any reason": on
@@ -23,7 +23,7 @@ import 'package:lottie_decoder/lottie_decoder.dart';
 /// With [textures] (ADR 043) the render isolate also writes playing
 /// animations into the pool's platform textures; the scroll lab's `textures`
 /// switch turns that off and on at run time.
-Future<LottiePlayback?> start({
+Future<LottiePlayback?> $startLottiePlayback({
   required PlaybackClock clock,
   required Listenable memoryPressure,
   FrameTexturePool? textures,
@@ -85,17 +85,18 @@ Future<LottiePlayback?> start({
   );
 }
 
-/// Where this platform keeps the cache of rendered frames, or null where
-/// there is no known folder (the frames are then kept in memory only).
+/// The VM hook behind [LottiePlayback.defaultCacheDirectory]: where this
+/// platform keeps the cache of rendered frames, or null where there is no
+/// known folder (the frames are then kept in memory only).
 ///
-/// The `lottie_frames` folder of [userCacheDirectory]. The example does not
+/// The `lottie_frames` folder of [$userCacheDirectory]. The example does not
 /// depend on `path_provider`, so Android and iOS keep memory only; a host
 /// that does passes its own folder. [operatingSystem] and [environment]
 /// default to the running process's.
-String? defaultCacheDirectory({
+String? $defaultLottieCacheDirectory({
   String? operatingSystem,
   Map<String, String>? environment,
-}) => userCacheDirectory(
+}) => $userCacheDirectory(
   'lottie_frames',
   operatingSystem: operatingSystem,
   environment: environment,

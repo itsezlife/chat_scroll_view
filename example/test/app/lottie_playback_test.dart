@@ -4,9 +4,9 @@ library;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:chat_scroll_view_example/src/app/environment_specific/lottie_playback_vm.dart'
+    as vm;
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
-import 'package:chat_scroll_view_example/src/app/lottie_playback_native.dart'
-    as native;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:l/l.dart';
@@ -34,7 +34,7 @@ void main() {
     );
     addTearDown(subscription.cancel);
 
-    final playback = await native.start(
+    final playback = await vm.$startLottiePlayback(
       clock: clock,
       memoryPressure: pressure,
       spawn: () async =>
@@ -55,7 +55,7 @@ void main() {
     );
     addTearDown(subscription.cancel);
 
-    final playback = await native.start(
+    final playback = await vm.$startLottiePlayback(
       clock: clock,
       memoryPressure: pressure,
       spawn: () async => throw const FormatException('not a state error'),
@@ -70,7 +70,7 @@ void main() {
   test('an engine that starts gives a decoder, and close frees it', () async {
     final engine = InProcessLottieEngine(FakeLottieBinding());
 
-    final playback = await native.start(
+    final playback = await vm.$startLottiePlayback(
       clock: clock,
       memoryPressure: pressure,
       spawn: () async => engine,
@@ -83,10 +83,10 @@ void main() {
     await playback.close();
   });
 
-  group('defaultCacheDirectory', () {
+  group(r'$defaultLottieCacheDirectory', () {
     test('is under the user cache folder of macOS', () {
       expect(
-        native.defaultCacheDirectory(
+        vm.$defaultLottieCacheDirectory(
           operatingSystem: 'macos',
           environment: {'HOME': '/Users/me'},
         ),
@@ -96,14 +96,14 @@ void main() {
 
     test('follows XDG_CACHE_HOME on Linux, else ~/.cache', () {
       expect(
-        native.defaultCacheDirectory(
+        vm.$defaultLottieCacheDirectory(
           operatingSystem: 'linux',
           environment: {'XDG_CACHE_HOME': '/x', 'HOME': '/home/me'},
         ),
         '/x/chat_scroll_view_example/lottie_frames',
       );
       expect(
-        native.defaultCacheDirectory(
+        vm.$defaultLottieCacheDirectory(
           operatingSystem: 'linux',
           environment: {'HOME': '/home/me'},
         ),
@@ -113,7 +113,7 @@ void main() {
 
     test('is under LOCALAPPDATA on Windows', () {
       expect(
-        native.defaultCacheDirectory(
+        vm.$defaultLottieCacheDirectory(
           operatingSystem: 'windows',
           environment: {'LOCALAPPDATA': r'C:\Users\me\AppData\Local'},
         ),
@@ -124,7 +124,7 @@ void main() {
     test('is none where the platform cache folder is not known', () {
       for (final os in ['android', 'ios', 'fuchsia']) {
         expect(
-          native.defaultCacheDirectory(
+          vm.$defaultLottieCacheDirectory(
             operatingSystem: os,
             environment: {'HOME': '/home/me'},
           ),
@@ -133,7 +133,10 @@ void main() {
         );
       }
       expect(
-        native.defaultCacheDirectory(operatingSystem: 'macos', environment: {}),
+        vm.$defaultLottieCacheDirectory(
+          operatingSystem: 'macos',
+          environment: {},
+        ),
         isNull,
         reason: 'no HOME',
       );
