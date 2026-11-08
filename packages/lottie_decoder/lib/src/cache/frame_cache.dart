@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_codec.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_files.dart';
-import 'package:lottie_decoder/src/cache/frame_cache_files_open.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
+import 'package:lottie_decoder/src/environment_specific/frame_cache_files.dart'
+    as environment_specific;
 
 /// Tells the time; injected so tests order recency without waiting.
 typedef FrameCacheClock = DateTime Function();
@@ -59,7 +60,9 @@ final class FrameCache {
        ),
        _files =
            files ??
-           (directoryPath == null ? null : openFrameCacheFiles(directoryPath)),
+           (directoryPath == null
+               ? null
+               : environment_specific.$openFrameCacheFiles(directoryPath)),
        _clock = clock,
        _onError = onError;
 

@@ -7,8 +7,9 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lottie_decoder/src/cache/frame_cache.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
-import 'package:lottie_decoder/src/decoder/read_file_bytes.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
+import 'package:lottie_decoder/src/environment_specific/read_file_bytes.dart'
+    as environment_specific;
 import 'package:lottie_decoder/src/paint/lottie_animation_paintable.dart';
 import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
 import 'package:lottie_decoder/src/playback/lottie_frame_scheduler.dart';
@@ -28,17 +29,6 @@ typedef LottiePixelUploader =
 /// [bytes] made of letters, digits and `-` (a [FrameCacheKey.contentHash]).
 /// The default is the file's SHA-256, computed on another isolate.
 typedef LottieContentHasher = Future<String> Function(Uint8List bytes);
-
-/// SHA-256 of [bytes] in hex, on a short-lived isolate (on the web, inline).
-///
-/// Hashing a sticker file on the calling isolate took 2-10 ms at a time on a
-/// phone, between frames: a grid that scrolls new stickers in decodes several
-/// per second, and each hash made the next frame start a vsync late. The
-/// bytes are copied to the worker, which is a memory copy and far cheaper.
-Future<String> sha256OffIsolate(Uint8List bytes) =>
-    compute(_sha256Hex, bytes, debugLabel: 'lottie content hash');
-
-String _sha256Hex(Uint8List bytes) => sha256.convert(bytes).toString();
 
 Future<ui.Image> _imageFromList(Uint8List bytes) {
   final completer = Completer<ui.Image>();
@@ -130,9 +120,22 @@ final class LottieDecoder implements Decoder {
   }) : _engine = engine,
        _scheduler = scheduler,
        _cache = cache,
-       _hashContent = hashContent ?? sha256OffIsolate,
+       _hashContent = hashContent ?? LottieDecoder.sha256OffIsolate,
        _decodeImage = decodeImage,
        _uploadPixels = uploadPixels;
+
+  /// SHA-256 of [bytes] in hex, on a short-lived isolate (on the web,
+  /// inline): the default [LottieContentHasher].
+  ///
+  /// Hashing a sticker file on the calling isolate took 2-10 ms at a time on
+  /// a phone, between frames: a grid that scrolls new stickers in decodes
+  /// several per second, and each hash made the next frame start a vsync
+  /// late. The bytes are copied to the worker, which is a memory copy and far
+  /// cheaper.
+  static Future<String> sha256OffIsolate(Uint8List bytes) =>
+      compute(_sha256Hex, bytes, debugLabel: 'lottie content hash');
+
+  static String _sha256Hex(Uint8List bytes) => sha256.convert(bytes).toString();
 
   final LottieEngine _engine;
   final LottieFrameScheduler _scheduler;
@@ -172,7 +175,7 @@ final class _LottieDecode implements AssetTask {
 
   Future<Uint8List> _bytes() => switch (_request.content) {
     FetchedBytes(:final bytes) => Future.value(bytes),
-    FetchedFile(:final path) => readFileBytes(path),
+    FetchedFile(:final path) => environment_specific.$readFileBytes(path),
   };
 
   void _fail(Object error, StackTrace stackTrace) {

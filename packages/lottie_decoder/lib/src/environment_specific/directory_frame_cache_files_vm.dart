@@ -144,7 +144,3 @@ class DirectoryFrameCacheFiles implements FrameCacheFiles {
     }
   }
 }
-
-/// The files of the directory at [path].
-FrameCacheFiles openFrameCacheFiles(String path) =>
-    DirectoryFrameCacheFiles(path);

@@ -5,6 +5,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (vm/js forks, no public top-level functions)
+
+- The default content hasher is `LottieDecoder.sha256OffIsolate`, no longer
+  the top-level `sha256OffIsolate`; code that passed it by name renames it.
+- The platform forks live in `src/environment_specific/` as `_vm` / `_js`
+  pairs whose hooks are `$`-named (`$openFrameCacheFiles`, `$readFileBytes`);
+  `DirectoryFrameCacheFiles` keeps its name and its barrel export.
+
 ### Added (web engine)
 
 - `WebWorkerLottieEngine`, the web's `LottieEngine` over a `LottieWorkerPort`
@@ -36,8 +44,8 @@ package is pre-1.0.
 - The barrel exports the files that need `dart:ffi`, `dart:io` or
   `dart:isolate` only where they exist; every VM importer sees the same names
   as before, and the package compiles for the web (`web_compile_test`).
-- `LottieDecoder` reads a `FetchedFile` through `readFileBytes`: `dart:io` on
-  the VM, an `UnsupportedError` (a failed decode) on the web.
+- `LottieDecoder` reads a `FetchedFile` through the `$readFileBytes` hook:
+  `dart:io` on the VM, an `UnsupportedError` (a failed decode) on the web.
 
 ### Added (web-compilable core)
 

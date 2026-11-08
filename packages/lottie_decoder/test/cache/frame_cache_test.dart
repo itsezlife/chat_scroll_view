@@ -4,7 +4,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
-import 'package:lottie_decoder/src/cache/frame_cache_files_stub.dart' as web;
+import 'package:lottie_decoder/src/environment_specific/frame_cache_files_js.dart'
+    as web;
 import 'package:meta/meta.dart';
 
 FrameCacheKey _key(String hash, {int size = 128}) => FrameCacheKey(
@@ -259,7 +260,7 @@ void main() {
     // The web build swaps in this file for the directory one; on the VM it is
     // plain Dart, so what the web does with a path is testable here.
     test('a path is an ArgumentError, memory only is not', () {
-      expect(() => web.openFrameCacheFiles('/frames'), throwsArgumentError);
+      expect(() => web.$openFrameCacheFiles('/frames'), throwsArgumentError);
     });
   });
 

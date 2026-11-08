@@ -8,7 +8,8 @@ import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
-import 'package:lottie_decoder/src/decoder/read_file_bytes_stub.dart' as web;
+import 'package:lottie_decoder/src/environment_specific/read_file_bytes_js.dart'
+    as web;
 import 'package:lottie_decoder/testing.dart';
 import 'package:lottie_native/lottie_native.dart';
 
@@ -152,7 +153,7 @@ void main() {
   });
 
   test('on the web a file is an UnsupportedError, not a read', () async {
-    await expectLater(web.readFileBytes('a.json'), throwsUnsupportedError);
+    await expectLater(web.$readFileBytes('a.json'), throwsUnsupportedError);
   });
 
   test('a rejected file fails the decode and frees nothing twice', () async {
