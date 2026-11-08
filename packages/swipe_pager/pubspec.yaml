@@ -1,0 +1,22 @@
+name: swipe_pager
+description: >
+  A horizontal pager whose swipe claims the gesture only past a slop and a
+  direction rule, so a page's vertical scrollables and nested horizontal
+  scrollers keep their drags; settle physics, programmatic paging, a host
+  chosen page keep-alive policy, right-to-left, semantics and keyboard paging.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.32.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

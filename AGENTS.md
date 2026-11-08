@@ -56,6 +56,7 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `packages/panel_catalog`                 | Panel catalog viewport                                                    | emoji/sticker/GIF grid, section layout, leaf hit, snapshot                       |
 | `packages/emoji_data` / `emoji_catalog_pack` | Emoji logic and glyph probe / generated catalog and keyword packs     | emoji search, variants, probe, generator                                         |
 | `packages/kv_shared_preferences`         | `shared_preferences`-backed `KeyValueStore`                               | persistence adapter only                                                         |
+| `packages/swipe_pager`                   | Leaf: horizontal pager with the reference's swipe slop / direction rule, settle, keep-alive policy | swipeable pages anywhere (the panel's type pages first)                         |
 | `packages/panel_shell` / `panel_pages` / `panel_presentation` | Panel shell + page registry / catalog pages / presentation kinds and policy | panel tabs, search, pages, popup / docked / keyboard replacement, occupancy |
 | `packages/chat_composer`                 | Slot-based composer, input controller, entity text, formatting commands, selection menu | composer slots, input, queries, formatting                          |
 | `packages/composer_editable`             | Leaf: the composer's one editable (patched Flutter text field)            | field gestures, handles, magnifier, re-vendor                                    |

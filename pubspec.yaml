@@ -26,6 +26,7 @@ workspace:
   - packages/panel_presentation
   - packages/panel_shell
   - packages/rich_clipboard
+  - packages/swipe_pager
   - packages/video_decoder
   - packages/video_native
   - example

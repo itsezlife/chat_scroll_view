@@ -22,6 +22,8 @@ dependencies:
     sdk: flutter
   listen: ^1.0.1
   meta: ^1.17.0
+  swipe_pager:
+    path: ../swipe_pager
   # Only lib/testing.dart needs this: the semantic-label rule is written with
   # the test framework, and a library cannot import a dev dependency.
   # Production entry points never import it. Moving the rule to a package of

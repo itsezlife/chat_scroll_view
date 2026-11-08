@@ -3,24 +3,30 @@ import 'dart:async';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_shell/src/controller/panel_shell_controller.dart';
+import 'package:swipe_pager/swipe_pager.dart';
 
 /// The pager: one swipeable page per registered page, kept in step with the
 /// shell controller's selection.
 ///
-/// A swipe that settles on another page calls `selectPage`, the same intent a
-/// tab tap or a host uses; a selection made any other way moves the pager
+/// It is a `SwipePager` (package `swipe_pager`): a drag swipes only past the
+/// reference mobile client's slop and direction rule, so a slightly diagonal
+/// drag over a page's catalogue scrolls the catalogue, and a strip that
+/// scrolls sideways in a page keeps its drags; a mouse does not drag it.
+///
+/// A swipe that goes on to another page calls `selectPage`, the same intent
+/// a tab tap or a host uses; a selection made any other way moves the pager
 /// with a jump (no scroll animation, because the tabs' capsule has its own
-/// settle), or, given a [selectSlide], slides there from the neighbouring
-/// page over it, as the reference desktop client slides its sections.
+/// settle), or, given a [selectSlide], slides the chosen page in next to the
+/// current one, as the reference desktop client slides its sections.
 ///
 /// Pages are built lazily and, once built, kept alive for the life of the
 /// pager, so at most the registered pages are kept: a type tab switched away
 /// from keeps its page, with its cells, their frames and their positions, as
 /// the reference mobile client keeps every page of its pager. A page that is
-/// not on screen (a page or more from the pager's position) is under
-/// `TickerMode(enabled: false)`: its animations hold and a catalogue in it
-/// holds its bindings. What a page must restore after the shell itself is
-/// rebuilt still lives in the controller's registry.
+/// not on screen is offstage and under `TickerMode(enabled: false)`: its
+/// animations hold and a catalogue in it holds its bindings. What a page
+/// must restore after the shell itself is rebuilt still lives in the
+/// controller's registry.
 ///
 /// Swiping direction follows the reading direction, so in a right-to-left
 /// layout the first page sits at the right and swipes mirror.
@@ -55,7 +61,7 @@ class PanelPager extends StatefulWidget {
 }
 
 class _PanelPagerState extends State<PanelPager> {
-  late PageController _pages;
+  late final SwipePagerController _pages;
 
   int _indexOf(String pageId) =>
       widget.controller.pages.indexWhere((page) => page.id == pageId);
@@ -64,8 +70,9 @@ class _PanelPagerState extends State<PanelPager> {
   void initState() {
     super.initState();
     final initial = _indexOf(widget.controller.selectedPageId.value);
-    _pages = PageController(initialPage: initial)..addListener(_onTick);
-    widget.position.value = initial.toDouble();
+    _pages = SwipePagerController(initialPage: initial < 0 ? 0 : initial)
+      ..addPositionListener(_onPosition);
+    widget.position.value = _pages.position;
     widget.controller.selectedPageId.addListener(_onSelected);
   }
 
@@ -82,52 +89,38 @@ class _PanelPagerState extends State<PanelPager> {
   @override
   void dispose() {
     widget.controller.selectedPageId.removeListener(_onSelected);
+    // The pager under this state is unmounted, and has let the controller
+    // go, before this state is disposed.
     _pages
-      ..removeListener(_onTick)
+      ..removePositionListener(_onPosition)
       ..dispose();
     super.dispose();
   }
 
-  void _onTick() {
-    final page = _pages.page;
-    if (page == null) return;
-    if (page != widget.position.value) widget.position.value = page;
+  void _onPosition(double page) {
+    widget.position.value = page;
     final between = (page - page.roundToDouble()).abs() > 0.001;
     if (widget.dragging.value != between) widget.dragging.value = between;
   }
 
   void _onSelected() {
     final index = _indexOf(widget.controller.selectedPageId.value);
-    if (index < 0 || !_pages.hasClients) return;
-    final current = _pages.page?.round() ?? index;
-    if (current == index) return;
+    if (index < 0 || index == _pages.page) return;
     final slide = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : ChromeMotionScope.of(context).speed.scale(widget.selectSlide);
     if (slide == Duration.zero) {
-      _pages.jumpToPage(index);
-      widget.position.value = index.toDouble();
-      widget.dragging.value = false;
+      _pages.jumpTo(index);
       return;
     }
-    // From the page next to it, so a far page does not pass over the ones
-    // between.
-    _sliding = true;
-    _pages.jumpToPage(index > current ? index - 1 : index + 1);
     unawaited(
-      _pages
-          .animateToPage(index, duration: slide, curve: Curves.easeOutCirc)
-          .whenComplete(() => _sliding = false),
+      _pages.animateTo(index, duration: slide, curve: Curves.easeOutCirc),
     );
   }
 
-  // A slide this pager runs passes over pages that are not the selection.
-  var _sliding = false;
-
   void _onPageChanged(int index) {
-    if (_sliding) return;
     final id = widget.controller.pages[index].id;
-    // A jump we made ourselves also lands here; only a swipe differs.
+    // A move we made ourselves also lands here; only a swipe differs.
     if (id != widget.controller.selectedPageId.value) {
       widget.controller.selectPage(id);
     }
@@ -136,58 +129,17 @@ class _PanelPagerState extends State<PanelPager> {
   @override
   Widget build(BuildContext context) {
     final pages = widget.controller.pages;
-    return PageView.builder(
+    return SwipePager(
       controller: _pages,
-      itemCount: pages.length,
+      pageCount: pages.length,
       onPageChanged: _onPageChanged,
-      itemBuilder: (context, index) {
+      pageBuilder: (context, index) {
         final page = pages[index];
-        return _KeptPage(
+        return KeyedSubtree(
           key: ValueKey<String>(page.id),
-          index: index,
-          position: widget.position,
           child: page.builder(context, widget.controller.hostFor(page.id)),
         );
       },
-    );
-  }
-}
-
-/// One page of the pager: kept alive once built, and under
-/// `TickerMode(enabled: false)` while it is not on screen.
-class _KeptPage extends StatefulWidget {
-  const _KeptPage({
-    required this.index,
-    required this.position,
-    required this.child,
-    super.key,
-  });
-
-  final int index;
-  final ValueNotifier<double> position;
-  final Widget child;
-
-  @override
-  State<_KeptPage> createState() => _KeptPageState();
-}
-
-class _KeptPageState extends State<_KeptPage>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    // Rebuilt on every step of a swipe, but only the bool reaches the
-    // subtree, and a TickerMode of the same value notifies nobody.
-    return ValueListenableBuilder<double>(
-      valueListenable: widget.position,
-      child: widget.child,
-      builder: (context, position, child) => TickerMode(
-        enabled: (widget.index - position).abs() < 1,
-        child: child!,
-      ),
     );
   }
 }

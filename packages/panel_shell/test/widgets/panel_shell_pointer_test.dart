@@ -17,6 +17,7 @@ import 'package:panel_shell/src/widgets/panel_pager.dart';
 import 'package:panel_shell/src/widgets/panel_section_tabs.dart';
 import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 import 'package:panel_shell/testing.dart';
+import 'package:swipe_pager/swipe_pager.dart';
 
 const _extra = PageAction(
   id: 'extra',
@@ -302,8 +303,8 @@ void main() {
       tester,
     ) async {
       await pump(tester, arrangement: PanelArrangement.pointer);
-      final pager = find.byType(PageView);
-      double page() => tester.widget<PageView>(pager).controller!.page!;
+      final pager = find.byType(SwipePager);
+      double page() => tester.widget<SwipePager>(pager).controller!.position;
 
       await tester.tap(find.text('Stickers'));
       await tester.pump();
