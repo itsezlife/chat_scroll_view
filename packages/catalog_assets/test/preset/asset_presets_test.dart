@@ -256,6 +256,52 @@ void main() {
     });
   });
 
+  group('media', () {
+    test('shows the box it is given and decodes it at the density', () {
+      final preset = AssetPresets.media(
+        size: const Size(160, 90),
+        devicePixelRatio: 2,
+        profile: const AssetProfile(animate: true),
+      );
+
+      expect(preset.size, const Size(160, 90));
+      expect(preset.spec.pixelWidth, 320);
+      expect(preset.spec.pixelHeight, 180);
+      expect(preset.profile, const AssetProfile(animate: true));
+    });
+
+    test('caps the decode at the longer side, keeping the proportion', () {
+      // A 206 dp sticker at density 3 is 618 px: decoded at 512.
+      final square = AssetPresets.media(
+        size: const Size.square(206),
+        devicePixelRatio: 3,
+        profile: const AssetProfile(),
+        maxPixelExtent: 512,
+      );
+      final wide = AssetPresets.media(
+        size: const Size(288, 162),
+        devicePixelRatio: 3,
+        profile: const AssetProfile(),
+        maxPixelExtent: 512,
+      );
+
+      expect(square.size, const Size.square(206));
+      expect((square.spec.pixelWidth, square.spec.pixelHeight), (512, 512));
+      expect((wide.spec.pixelWidth, wide.spec.pixelHeight), (512, 288));
+    });
+
+    test('a decode under the cap is not enlarged to it', () {
+      final preset = AssetPresets.media(
+        size: const Size.square(112),
+        devicePixelRatio: 3,
+        profile: const AssetProfile(),
+        maxPixelExtent: 512,
+      );
+
+      expect((preset.spec.pixelWidth, preset.spec.pixelHeight), (336, 336));
+    });
+  });
+
   group('AssetPreset', () {
     test('is equal to a preset of the same size, spec and profile', () {
       const spec = AssetSpec(pixelWidth: 4, pixelHeight: 4);
