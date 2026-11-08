@@ -45,10 +45,12 @@ Future<AppServices> createTestServices({
 Future<LottiePlayback?> _noLottie({
   required PlaybackClock clock,
   required Listenable memoryPressure,
+  FrameTexturePool? textures,
   String? cacheDirectory,
 }) async => null;
 
 Future<VideoPlayback?> _noVideo({
   required PlaybackClock clock,
   required Listenable memoryPressure,
+  FrameTexturePool? textures,
 }) async => null;

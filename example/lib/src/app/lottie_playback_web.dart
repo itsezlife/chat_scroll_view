@@ -13,6 +13,7 @@ import 'package:lottie_decoder/web.dart';
 Future<LottiePlayback?> start({
   required PlaybackClock clock,
   required Listenable memoryPressure,
+  FrameTexturePool? textures,
   String? cacheDirectory,
 }) => startPixelLottiePlayback(
   clock: clock,

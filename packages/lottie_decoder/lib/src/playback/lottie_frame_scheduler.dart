@@ -268,9 +268,25 @@ final class LottieFrameScheduler {
 
   // --- Textures ---
 
+  /// Whether leases may take textures; true by default. Changeable at run
+  /// time (a lab switch, so both arms of a comparison share one build): off,
+  /// every lease on a texture goes back to a slot now and none takes one;
+  /// on, leases move to idle textures from the next tick.
+  bool get texturesEnabled => _texturesEnabled;
+  bool _texturesEnabled = true;
+  set texturesEnabled(bool value) {
+    if (value == _texturesEnabled) return;
+    _texturesEnabled = value;
+    if (value) return;
+    for (final lease in _leases.values) {
+      if (lease._texture != null) _toSlot(lease);
+    }
+  }
+
   bool _mayTakeTexture(LottieFrameLease lease) {
     final pool = _textures;
-    return pool != null &&
+    return _texturesEnabled &&
+        pool != null &&
         !_refused.contains(lease._key) &&
         pool.classOf(lease._width, lease._height) != null;
   }

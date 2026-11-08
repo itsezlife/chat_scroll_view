@@ -321,6 +321,27 @@ void main() {
       expect(a.texture, isNotNull);
     });
 
+    test('textures switched off send every lease to a slot, and back on '
+        'to idle textures', () async {
+      await pool.warm(64, 1);
+      final a = lease('a');
+      scheduler.want(a, 1);
+      await tick();
+      expect(a.texture, isNotNull);
+
+      scheduler.texturesEnabled = false;
+      expect(a.texture, isNull);
+      scheduler.want(a, 2);
+      await tick();
+      expect(renderer.batches.last, [2]);
+      expect(pool.idleTextures, 1);
+
+      scheduler.texturesEnabled = true;
+      scheduler.want(a, 3);
+      await tick();
+      expect(a.texture, isNotNull);
+    });
+
     test('dispose gives every texture back', () async {
       await pool.warm(64, 2);
       lease('a');

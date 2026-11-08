@@ -157,6 +157,7 @@ void main() {
     Future<LottiePlayback?> start({
       required PlaybackClock clock,
       required Listenable memoryPressure,
+      FrameTexturePool? textures,
       String? cacheDirectory,
     }) async {
       givenClock = clock;
@@ -249,6 +250,7 @@ void main() {
       Future<LottiePlayback?> failing({
         required PlaybackClock clock,
         required Listenable memoryPressure,
+        FrameTexturePool? textures,
         String? cacheDirectory,
       }) async => LottiePlayback(
         decoder: decoder,
@@ -286,8 +288,12 @@ void main() {
         'and its other packs still play', () async {
       final services = await create(
         startLottie:
-            ({required clock, required memoryPressure, cacheDirectory}) async =>
-                null,
+            ({
+              required clock,
+              required memoryPressure,
+              textures,
+              cacheDirectory,
+            }) async => null,
       );
       addTearDown(services.dispose);
 
@@ -307,6 +313,7 @@ void main() {
     Future<VideoPlayback?> start({
       required PlaybackClock clock,
       required Listenable memoryPressure,
+      FrameTexturePool? textures,
     }) async {
       givenClock = clock;
       givenPressure = memoryPressure;
@@ -362,6 +369,7 @@ void main() {
               ({
                 required clock,
                 required memoryPressure,
+                textures,
                 cacheDirectory,
               }) async => null,
           startVideo: start,
@@ -375,7 +383,8 @@ void main() {
     test('is left unregistered when the platform has none: the app boots '
         'and its other packs still play', () async {
       final services = await create(
-        startVideo: ({required clock, required memoryPressure}) async => null,
+        startVideo:
+            ({required clock, required memoryPressure, textures}) async => null,
       );
       addTearDown(services.dispose);
 
@@ -394,8 +403,12 @@ void main() {
         assetLoader: rootBundle.loadString,
         clipboard: FakeRichClipboard(),
         startLottie:
-            ({required clock, required memoryPressure, cacheDirectory}) async =>
-                null,
+            ({
+              required clock,
+              required memoryPressure,
+              textures,
+              cacheDirectory,
+            }) async => null,
       );
       addTearDown(services.dispose);
 

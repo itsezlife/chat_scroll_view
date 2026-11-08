@@ -10,6 +10,7 @@ import 'package:video_decoder/web.dart';
 Future<VideoPlayback?> start({
   required PlaybackClock clock,
   required Listenable memoryPressure,
+  FrameTexturePool? textures,
 }) => startPixelVideoPlayback(
   clock: clock,
   memoryPressure: memoryPressure,

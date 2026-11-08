@@ -7,6 +7,7 @@ import 'package:l/l.dart';
 Future<VideoPlayback?> start({
   required PlaybackClock clock,
   required Listenable memoryPressure,
+  FrameTexturePool? textures,
 }) async {
   l.i('Video stickers are off: this platform has no native video library');
   return null;

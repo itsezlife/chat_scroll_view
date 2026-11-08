@@ -187,6 +187,22 @@ void main() {
       expect(pool.idleTextures, 1);
     });
 
+    test('textures switched off send the clip to a slot', () async {
+      await pool.warm(64, 1);
+      final lease = scheduler.acquire('a', await openClip())!;
+      scheduler.want(lease, Duration.zero);
+      await settle();
+      expect(lease.texture, isNotNull);
+
+      scheduler.texturesEnabled = false;
+      scheduler.want(lease, const Duration(milliseconds: 34));
+      await settle();
+
+      expect(lease.texture, isNull);
+      expect(lease.sprite, isNotNull);
+      expect(pool.idleTextures, 1);
+    });
+
     test('an unpainted clip gives its texture back on the sweep', () async {
       await pool.warm(64, 1);
       final lease = scheduler.acquire('a', await openClip())!;

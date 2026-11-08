@@ -67,10 +67,13 @@ final class VideoPlayback {
 /// Starts the video decoder over [clock] (the one the frame scheduler
 /// follows) and [memoryPressure] (which releases the idle frames), or answers
 /// null when this build cannot run one and the decoder must not be registered.
+/// `textures` is the platform's texture pool (ADR 043), null where there is
+/// none; a platform whose engine cannot write textures ignores it.
 typedef VideoPlaybackStarter =
     Future<VideoPlayback?> Function({
       required PlaybackClock clock,
       required Listenable memoryPressure,
+      FrameTexturePool? textures,
     });
 
 /// The platform's [VideoPlaybackStarter]: the native library behind
@@ -82,4 +85,9 @@ typedef VideoPlaybackStarter =
 Future<VideoPlayback?> startVideoPlayback({
   required PlaybackClock clock,
   required Listenable memoryPressure,
-}) => platform.start(clock: clock, memoryPressure: memoryPressure);
+  FrameTexturePool? textures,
+}) => platform.start(
+  clock: clock,
+  memoryPressure: memoryPressure,
+  textures: textures,
+);

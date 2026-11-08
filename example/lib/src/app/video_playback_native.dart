@@ -13,9 +13,16 @@ import 'package:video_decoder/video_decoder.dart';
 Future<VideoPlayback?> start({
   required PlaybackClock clock,
   required Listenable memoryPressure,
+  FrameTexturePool? textures,
   Future<VideoEngine> Function() spawn = IsolateVideoEngine.spawn,
 }) => startPixelVideoPlayback(
   clock: clock,
   memoryPressure: memoryPressure,
   engineFactory: spawn,
+  textureWriter: textures == null
+      ? null
+      : (engine) => engine is VideoTextureEngine
+            ? VideoFrameTextureWriter(engine: engine, host: textures.host)
+            : null,
+  textures: textures,
 );

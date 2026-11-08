@@ -8,6 +8,7 @@ import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_probe.dart';
 import 'package:chat_scroll_view_example/src/common/lab_net.dart';
+import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
@@ -245,11 +246,28 @@ final class AppServices {
       // follows it, and it must exist before the decoder does, which is
       // before the scope.
       final clock = owned(PlaybackClock(), (clock) => clock.dispose());
+      // The platform's texture host (ADR 043), behind its switch: off, or
+      // where the platform has none, there is no pool and every playing
+      // asset keeps its page slot. The decoders write into its textures, so
+      // it exists before them; it outlives the scope (it is disposed after
+      // it) and gives its idle textures back on memory pressure, through the
+      // scope.
+      final textureHost = DemoConfig.frameTextures
+          ? createPlatformFrameTextureHost()
+          : null;
+      final textures = textureHost == null
+          ? null
+          : owned(
+              FrameTexturePool(host: textureHost),
+              (pool) => pool.dispose(),
+            );
+      if (DemoConfig.scrollLab) ScrollLab.texturePool = textures;
       // The Lottie playback is probed by starting its engine. None (no
       // library here) leaves vector animations at their placeholder.
       final lottiePlayback = await startLottie(
         clock: clock,
         memoryPressure: memoryPressure,
+        textures: textures,
         cacheDirectory: lottieCacheDirectory,
       );
       if (lottiePlayback != null) {
@@ -260,6 +278,7 @@ final class AppServices {
       final videoPlayback = await startVideo(
         clock: clock,
         memoryPressure: memoryPressure,
+        textures: textures,
       );
       if (videoPlayback != null) {
         owned(videoPlayback, _closeVideoPlayback);
@@ -328,20 +347,6 @@ final class AppServices {
         ValueNotifier<bool>(!kIsWeb),
         (ready) => ready.dispose(),
       );
-      // The platform's texture host (ADR 043), behind its switch: off, or
-      // where the platform has none, the scope has no pool and every playing
-      // asset keeps its page slot. The pool outlives the scope (it is
-      // disposed after it) and gives its idle textures back on memory
-      // pressure, through the scope.
-      final textureHost = DemoConfig.frameTextures
-          ? createPlatformFrameTextureHost()
-          : null;
-      final textures = textureHost == null
-          ? null
-          : owned(
-              FrameTexturePool(host: textureHost),
-              (pool) => pool.dispose(),
-            );
       final assets = owned(
         PageAssets.createScope(
           producer: pipeline,
