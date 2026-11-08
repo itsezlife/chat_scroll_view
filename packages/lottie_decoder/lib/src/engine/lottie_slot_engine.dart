@@ -1,6 +1,7 @@
 import 'dart:ffi';
 import 'dart:typed_data';
 
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_native/lottie_native.dart';
 import 'package:meta/meta.dart';
@@ -27,6 +28,99 @@ abstract interface class LottieSlotEngine implements LottieEngine {
   /// an engine without a frame codec, in which case the slot is unchanged.
   /// One status per job, in job order.
   Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs);
+
+  /// Writes every job into its platform texture (ADR 043, "Writing"), on the
+  /// isolate that owns the binding: locks the texture through [entryPoints],
+  /// clears its margins, draws or restores the frame centred at the lock's
+  /// stride, swaps red and blue when [format] is not the engine's RGBA, and
+  /// posts.
+  ///
+  /// One [LottieTextureResult] per job, in job order: a texture that cannot be
+  /// locked at once is [TextureFrameOutcome.notLocked] and untouched; a job the
+  /// engine cannot draw (or bytes it cannot restore) is
+  /// [TextureFrameOutcome.failed], its texture posted all the same, since a
+  /// post is what ends a lock. A captured render carries its compressed
+  /// pixels, in the engine's order, for the frame cache.
+  Future<List<LottieTextureResult>> writeTextures(
+    FrameTextureEntryPoints entryPoints,
+    FrameTextureFormat format,
+    List<LottieTextureJob> jobs,
+  );
+}
+
+/// One frame to write into a platform texture by its id; the render isolate
+/// locks it.
+@immutable
+final class LottieTextureJob {
+  /// Creates a job that does [work] into [texture], the frame [width] x
+  /// [height] pixels.
+  const LottieTextureJob({
+    required this.texture,
+    required this.width,
+    required this.height,
+    required this.work,
+  });
+
+  /// The texture: its id and its size.
+  final AssetTexture texture;
+
+  /// Pixels of a row of the frame, at most the texture's width.
+  final int width;
+
+  /// Rows of the frame, at most the texture's height.
+  final int height;
+
+  /// What goes into the frame.
+  final LottieTextureWork work;
+}
+
+/// What a [LottieTextureJob] puts into its frame: a closed set.
+sealed class LottieTextureWork {
+  const LottieTextureWork();
+}
+
+/// Draws [frame] of [handle]; with [capture] the result also carries the
+/// frame compressed for the cache.
+final class LottieTextureRender extends LottieTextureWork {
+  /// Creates the work.
+  const LottieTextureRender(
+    this.handle, {
+    required this.frame,
+    this.capture = false,
+  });
+
+  /// The animation to draw.
+  final LottieHandle handle;
+
+  /// The frame; fractions are allowed.
+  final double frame;
+
+  /// Whether to compress what was drawn.
+  final bool capture;
+}
+
+/// Writes a frame [LottieSlotEngine.renderCapturing] (or a capturing texture
+/// render) compressed.
+final class LottieTextureRestore extends LottieTextureWork {
+  /// Creates the work.
+  const LottieTextureRestore(this.compressed);
+
+  /// The compressed frame.
+  final Uint8List compressed;
+}
+
+/// How one [LottieTextureJob] ended.
+@immutable
+final class LottieTextureResult {
+  /// Creates a result.
+  const LottieTextureResult(this.outcome, [this.compressed]);
+
+  /// Whether the frame was posted, skipped or failed.
+  final TextureFrameOutcome outcome;
+
+  /// The drawn frame compressed, for a posted capturing render with a codec;
+  /// else null.
+  final Uint8List? compressed;
 }
 
 /// One frame to draw: a [LottieRenderJob] whose target is a raw address, an

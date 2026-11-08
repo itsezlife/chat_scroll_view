@@ -15,12 +15,17 @@ import 'isolate_lottie_engine_test.dart' as isolate_lottie_engine_test;
 import 'lottie_decoder_pixel_engine_test.dart'
     as lottie_decoder_pixel_engine_test;
 import 'lottie_decoder_test.dart' as lottie_decoder_test;
+import 'lottie_engine_texture_test.dart' as lottie_engine_texture_test;
 import 'lottie_frame_renderer_test.dart' as lottie_frame_renderer_test;
 import 'lottie_frame_size_test.dart' as lottie_frame_size_test;
 import 'native_frame_page_memory_test.dart' as native_frame_page_memory_test;
 import 'paint/lottie_paintable_test.dart' as lottie_paintable_test;
 import 'playback/lottie_frame_scheduler_test.dart'
     as lottie_frame_scheduler_test;
+import 'playback/lottie_frame_scheduler_texture_test.dart'
+    as lottie_frame_scheduler_texture_test;
+import 'renderer/lottie_frame_renderer_texture_test.dart'
+    as lottie_frame_renderer_texture_test;
 import 'renderer/lottie_source_test.dart' as lottie_source_test;
 import 'renderer/pixel_copy_frame_renderer_test.dart'
     as pixel_copy_frame_renderer_test;
@@ -45,6 +50,14 @@ void main() {
     'playback/lottie_frame_scheduler_test.dart',
     lottie_frame_scheduler_test.main,
   );
+  group(
+    'playback/lottie_frame_scheduler_texture_test.dart',
+    lottie_frame_scheduler_texture_test.main,
+  );
+  group(
+    'renderer/lottie_frame_renderer_texture_test.dart',
+    lottie_frame_renderer_texture_test.main,
+  );
   group('renderer/lottie_source_test.dart', lottie_source_test.main);
   group(
     'renderer/pixel_copy_frame_renderer_test.dart',
@@ -64,6 +77,7 @@ void main() {
     lottie_decoder_pixel_engine_test.main,
   );
   group('lottie_decoder_test.dart', lottie_decoder_test.main);
+  group('lottie_engine_texture_test.dart', lottie_engine_texture_test.main);
   group('lottie_frame_renderer_test.dart', lottie_frame_renderer_test.main);
   group('lottie_frame_size_test.dart', lottie_frame_size_test.main);
   group(

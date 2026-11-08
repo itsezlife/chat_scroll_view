@@ -524,6 +524,84 @@ void main() {
       expect(scheduler.leaseCount, 0);
       expect(still.debugDisposed, isTrue);
     });
+
+    group('texture', () {
+      late FakeFrameTextureHost host;
+      late FrameTexturePool pool;
+
+      setUp(() async {
+        scheduler.dispose();
+        host = FakeFrameTextureHost();
+        pool = FrameTexturePool(host: host, sizeClasses: const [64]);
+        await pool.warm(64, 1);
+        scheduler = LottieFrameScheduler(
+          atlas: FrameAtlas<Object>(
+            renderer: renderer,
+            memory: ListFramePageMemory(),
+            budgetBytes: _budget,
+            sizeClasses: const [64],
+            upload: _upload,
+          ),
+          clock: clock,
+          textures: pool,
+          textureWriter: FakeTextureFrameWriter(),
+          startTimer: timers.start,
+        );
+      });
+      tearDown(() => pool.dispose());
+
+      Future<void> advanceAndSettle(
+        LottieAnimationPaintable p,
+        AssetPaintContext context,
+      ) async {
+        p.advancePlayback(context);
+        tick();
+        await pumpEventQueue();
+      }
+
+      test('is null before the first advance and until a frame is posted', () {
+        final p = make();
+        expect(p.texture, isNull);
+
+        p.advancePlayback(at(0));
+
+        expect(p.texture, isNull);
+      });
+
+      test('is the leased texture once a frame was posted, and the still is '
+          'not drawn over it', () async {
+        final p = make();
+        await advanceAndSettle(p, at(0));
+
+        expect(
+          p.texture,
+          AssetTexture(id: host.liveIds.single, width: 64, height: 64),
+        );
+        expect(p.sprite, isNull);
+        expect(renderer.batches, isEmpty, reason: 'no page for it');
+      });
+
+      test('a surface that only paints keeps drawing sprites', () async {
+        final p = make();
+        final canvas = await paintAndSettle(p, at(0));
+        expect(canvas.draws.single.image.width, 8, reason: 'the still');
+
+        final next = await paintAndSettle(p, at(33));
+
+        expect(p.texture, isNull);
+        expect(next.draws.single.src.width, 48, reason: 'a sprite');
+      });
+
+      test('goes with the lease on dispose', () async {
+        final p = make();
+        await advanceAndSettle(p, at(0));
+
+        p.dispose();
+
+        expect(p.texture, isNull);
+        expect(pool.idleTextures, 1);
+      });
+    });
   });
 
   group('over the in-process engine', () {

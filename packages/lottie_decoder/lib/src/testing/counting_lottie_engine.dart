@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
 import 'package:lottie_native/lottie_native.dart';
@@ -18,6 +19,12 @@ final class CountingLottieEngine implements LottieSlotEngine {
 
   /// Jobs sent to [restore] so far.
   int restored = 0;
+
+  /// Renders sent to [writeTextures] so far.
+  int texturesRendered = 0;
+
+  /// Restores sent to [writeTextures] so far.
+  int texturesRestored = 0;
 
   @override
   Future<LottieLoadResult> load(Uint8List bytes) => _inner.load(bytes);
@@ -44,6 +51,23 @@ final class CountingLottieEngine implements LottieSlotEngine {
   Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) {
     restored += jobs.length;
     return _inner.restore(jobs);
+  }
+
+  @override
+  Future<List<LottieTextureResult>> writeTextures(
+    FrameTextureEntryPoints entryPoints,
+    FrameTextureFormat format,
+    List<LottieTextureJob> jobs,
+  ) {
+    for (final job in jobs) {
+      switch (job.work) {
+        case LottieTextureRender():
+          texturesRendered++;
+        case LottieTextureRestore():
+          texturesRestored++;
+      }
+    }
+    return _inner.writeTextures(entryPoints, format, jobs);
   }
 
   @override

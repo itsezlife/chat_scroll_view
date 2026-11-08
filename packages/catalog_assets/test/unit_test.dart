@@ -92,6 +92,7 @@ import 'texture/fake_frame_texture_host_contract_test.dart'
     as fake_frame_texture_host_contract_test;
 import 'texture/frame_texture_pool_test.dart' as frame_texture_pool_test;
 import 'texture/frame_texture_scope_test.dart' as frame_texture_scope_test;
+import 'texture/texture_frame_region_test.dart' as texture_frame_region_test;
 import 'widget/asset_cache_provider_test.dart' as asset_cache_provider_test;
 import 'widget/content_view_test.dart' as content_view_test;
 
@@ -230,6 +231,10 @@ void main() {
   );
   group('texture/frame_texture_pool_test.dart', frame_texture_pool_test.main);
   group('texture/frame_texture_scope_test.dart', frame_texture_scope_test.main);
+  group(
+    'texture/texture_frame_region_test.dart',
+    texture_frame_region_test.main,
+  );
   group(
     'widget/asset_cache_provider_test.dart',
     asset_cache_provider_test.main,

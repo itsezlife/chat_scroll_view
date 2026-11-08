@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine_work.dart';
 import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
@@ -57,6 +58,22 @@ final class InProcessLottieEngine implements LottieSlotEngine {
   Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) async {
     _requireOpen();
     return LottieEngineWork.restore(_codec, jobs);
+  }
+
+  @override
+  Future<List<LottieTextureResult>> writeTextures(
+    FrameTextureEntryPoints entryPoints,
+    FrameTextureFormat format,
+    List<LottieTextureJob> jobs,
+  ) async {
+    _requireOpen();
+    return LottieEngineWork.writeTextures(
+      _binding,
+      _codec,
+      entryPoints,
+      format,
+      jobs,
+    );
   }
 
   @override
