@@ -1,5 +1,6 @@
 import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_cache_scope.dart';
+import 'package:catalog_assets/src/asset/asset_paintable.dart';
 import 'package:catalog_assets/src/asset/asset_preset.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
 import 'package:catalog_assets/src/asset/asset_texture_layer.dart';
@@ -43,6 +44,16 @@ import 'package:flutter/widgets.dart';
 /// paintable before it reads the texture, which is what tells the paintable
 /// that a surface that composites shows it.
 ///
+/// ## Placeholder
+///
+/// Until the content has anything to show (`AssetStage.none`) the view
+/// paints the scope's placeholder, which every surface of the scope shares
+/// whatever its content is. A view given its own [placeholder] paints that
+/// instead, as `ContentEmbed.placeholder` does: the surface knows what its
+/// content is (a sticker, a pack's cover) and the colour its stand-in takes
+/// from the theme around it, the scope knows neither. A thumbnail is the
+/// binding's to paint.
+///
 /// ## Scope
 ///
 /// [scope] if given, otherwise the closest [AssetCacheProvider]; a view with
@@ -57,6 +68,8 @@ class ContentView extends StatefulWidget {
     this.semanticLabel,
     this.scope,
     this.loadingRadius,
+    this.placeholder,
+    this.placeholderTint,
     super.key,
   }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
 
@@ -92,6 +105,13 @@ class ContentView extends StatefulWidget {
   /// exists or a [TickerMode] above it is off. A grid GIF cell uses 12
   /// (`ContextLinkCell.onMeasure`).
   final double? loadingRadius;
+
+  /// What the view paints before the content has a stage, instead of the
+  /// scope's placeholder; null paints the scope's.
+  final AssetPaintable? placeholder;
+
+  /// The colour [placeholder] is drawn in, or null for [tint].
+  final Color? placeholderTint;
 
   @override
   State<ContentView> createState() => _ContentViewState();
@@ -158,6 +178,8 @@ class _ContentViewState extends State<ContentView> {
       opacity: widget.opacity,
       loadingRadius: widget.loadingRadius,
       ticking: _shown,
+      placeholder: widget.placeholder,
+      placeholderTint: widget.placeholderTint,
     );
     if (preset.profile.animate) view = RepaintBoundary(child: view);
     final label = widget.semanticLabel;
@@ -174,6 +196,8 @@ class _ContentLeaf extends LeafRenderObjectWidget {
     required this.opacity,
     required this.loadingRadius,
     required this.ticking,
+    required this.placeholder,
+    required this.placeholderTint,
   });
 
   final AssetBinding binding;
@@ -182,6 +206,8 @@ class _ContentLeaf extends LeafRenderObjectWidget {
   final double opacity;
   final double? loadingRadius;
   final bool ticking;
+  final AssetPaintable? placeholder;
+  final Color? placeholderTint;
 
   @override
   RenderObject createRenderObject(BuildContext context) => _RenderContent(
@@ -191,6 +217,8 @@ class _ContentLeaf extends LeafRenderObjectWidget {
     opacity: opacity,
     loadingRadius: loadingRadius,
     ticking: ticking,
+    placeholder: placeholder,
+    placeholderTint: placeholderTint,
   );
 
   @override
@@ -201,7 +229,9 @@ class _ContentLeaf extends LeafRenderObjectWidget {
       ..tint = tint
       ..opacity = opacity
       ..loadingRadius = loadingRadius
-      ..ticking = ticking;
+      ..ticking = ticking
+      ..placeholder = placeholder
+      ..placeholderTint = placeholderTint;
   }
 }
 
@@ -213,12 +243,16 @@ class _RenderContent extends RenderBox {
     required double opacity,
     required double? loadingRadius,
     required bool ticking,
+    required AssetPaintable? placeholder,
+    required Color? placeholderTint,
   }) : _binding = binding,
        _preferredSize = preferredSize,
        _tint = tint,
        _opacity = opacity,
        _loadingRadius = loadingRadius,
-       _ticking = ticking;
+       _ticking = ticking,
+       _placeholder = placeholder,
+       _placeholderTint = placeholderTint;
 
   AssetBinding _binding;
   // Whether the paintable plays, so that it may come as a texture layer: the
@@ -230,6 +264,8 @@ class _RenderContent extends RenderBox {
   double _opacity;
   double? _loadingRadius;
   bool _ticking;
+  AssetPaintable? _placeholder;
+  Color? _placeholderTint;
 
   set binding(AssetBinding value) {
     if (identical(_binding, value)) return;
@@ -271,6 +307,18 @@ class _RenderContent extends RenderBox {
     if (_loadingRadius != null) markNeedsPaint();
   }
 
+  set placeholder(AssetPaintable? value) {
+    if (identical(_placeholder, value)) return;
+    _placeholder = value;
+    markNeedsPaint();
+  }
+
+  set placeholderTint(Color? value) {
+    if (_placeholderTint == value) return;
+    _placeholderTint = value;
+    markNeedsPaint();
+  }
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
@@ -307,6 +355,18 @@ class _RenderContent extends RenderBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     final box = offset & size;
+    // Before anything exists the view's own placeholder replaces the scope's;
+    // nothing plays yet, so there is no texture to composite either.
+    if (_placeholder case final placeholder?
+        when _binding.readiness.stage == AssetStage.none) {
+      placeholder.paint(
+        context.canvas,
+        box,
+        AssetPaintContext(tint: _placeholderTint ?? _tint, opacity: _opacity),
+      );
+      _paintLoading(context.canvas, box);
+      return;
+    }
     if (AssetTextureLayer.composite(
       context,
       _binding,
