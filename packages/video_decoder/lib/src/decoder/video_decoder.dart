@@ -62,7 +62,7 @@ final class VideoDecodeRejected implements Exception {
 /// ## The size
 ///
 /// Frames are decoded at the display size: the spec's longer side snapped up
-/// to a size class of the video pool (64, 128, 256, 512; never above the
+/// to a size class of the video pool (64, 128, 256, 384, 512; never above the
 /// largest), the clip's aspect kept. The engine scales to an exact size and
 /// the aspect is known only after opening, so a clip is opened once at a
 /// square of that edge, and again at the fitted size when it is not square

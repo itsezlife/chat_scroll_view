@@ -217,7 +217,7 @@ final class FrameAtlas<K extends Object> {
 
   /// Default cell edges: the display sizes animated assets come in, capped at
   /// 512 px like the reference clients' render size.
-  static const List<int> defaultSizeClasses = [64, 128, 256, 512];
+  static const List<int> defaultSizeClasses = [64, 128, 256, 384, 512];
 
   /// Draws the frames.
   final FrameRenderer renderer;

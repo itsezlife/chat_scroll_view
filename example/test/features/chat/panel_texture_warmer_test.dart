@@ -62,9 +62,9 @@ void main() {
     shell.selectPage(MediaPanelPages.gifId);
     await pumpEventQueue();
 
-    // A GIF row is 100 points tall: 300 px at 3x, in the 512 class.
+    // A GIF row is 100 points tall: 300 px at 3x, in the 384 class.
     expect(host.created, hasLength(8));
-    expect(host.created.toSet(), {(width: 512, height: 512)});
+    expect(host.created.toSet(), {(width: 384, height: 384)});
   });
 
   test('warms nothing while the panel is hidden', () async {

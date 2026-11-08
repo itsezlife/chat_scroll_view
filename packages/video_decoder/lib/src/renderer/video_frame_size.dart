@@ -23,7 +23,7 @@ final class VideoFrameSize {
   }
 
   /// The cell edges of the video pool, the display sizes clips are decoded at.
-  static const List<int> defaultClasses = [64, 128, 256, 512];
+  static const List<int> defaultClasses = [64, 128, 256, 384, 512];
 
   /// The smallest of [classes] that holds [requested] pixels, or the largest
   /// when none does: a clip is never decoded above the biggest cell.

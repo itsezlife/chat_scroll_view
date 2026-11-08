@@ -93,7 +93,7 @@ final class FrameTexturePool {
   FrameTexturePool({
     required this.host,
     this.scrolling,
-    this.sizeClasses = const [64, 128, 256, 512],
+    this.sizeClasses = const [64, 128, 256, 384, 512],
     this.budgetBytes = defaultBudgetBytes,
     this.idleLimit = defaultIdleLimit,
     this.reuseDelay = defaultReuseDelay,
