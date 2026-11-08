@@ -293,18 +293,47 @@ void main() {
       RenderObject box(WidgetTester tester) =>
           tester.renderObject(find.byType(ContentView));
 
-      testWidgets('is the reference radial progress over the centre until '
-          'the first frame exists', (tester) async {
+      testWidgets('is absent while nothing downloads, as for a cache hit', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           host(
             ContentView(content: _sticker, preset: _still, loadingRadius: 12),
           ),
         );
 
-        // The disc of the indicator, centred in the 20 x 20 box.
-        expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+        expect(box(tester), isNot(paints..circle(radius: 12)));
 
         producer.last.advance(AssetStage.placeholder);
+        await tester.pump();
+        expect(box(tester), isNot(paints..circle(radius: 12)));
+      });
+
+      testWidgets('is the reference radial progress over the centre while '
+          'the content downloads, until the first frame exists', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          host(
+            ContentView(content: _sticker, preset: _still, loadingRadius: 12),
+          ),
+        );
+
+        producer.last.download(0);
+        await tester.pump();
+        // The disc of the indicator, centred in the 20 x 20 box, and its arc.
+        expect(
+          box(tester),
+          paints
+            ..circle(x: 10, y: 10, radius: 12)
+            ..arc(
+              rect: Rect.fromCircle(center: const Offset(10, 10), radius: 8),
+            ),
+        );
+
+        producer.last
+          ..download(1)
+          ..advance(AssetStage.placeholder);
         await tester.pump();
         expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
 
@@ -313,10 +342,29 @@ void main() {
         expect(box(tester), isNot(paints..circle(radius: 12)));
       });
 
+      testWidgets('goes when the download ends without content', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          host(
+            ContentView(content: _sticker, preset: _still, loadingRadius: 12),
+          ),
+        );
+        producer.last.download(0.3);
+        await tester.pump();
+
+        producer.last.fail(StateError('offline'));
+        await tester.pump();
+
+        expect(box(tester), isNot(paints..circle(radius: 12)));
+      });
+
       testWidgets('is absent unless asked for', (tester) async {
         await tester.pumpWidget(
           host(ContentView(content: _sticker, preset: _still)),
         );
+        producer.last.download(0.5);
+        await tester.pump();
 
         expect(box(tester), isNot(paints..circle(radius: 12)));
       });
@@ -327,7 +375,11 @@ void main() {
             ContentView(content: _sticker, preset: _still, loadingRadius: 12),
           ),
         );
+        await tester.pump();
+        expect(tester.binding.hasScheduledFrame, isFalse);
 
+        producer.last.download(0.5);
+        await tester.pump();
         expect(
           tester.hasRunningAnimations || tester.binding.hasScheduledFrame,
           isTrue,

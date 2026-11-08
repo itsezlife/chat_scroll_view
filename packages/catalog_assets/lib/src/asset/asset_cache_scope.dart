@@ -458,6 +458,7 @@ final class AssetCacheScope {
     if (entry.isFinal) {
       entry.attempt?.ended = true;
       entry.attempt = null;
+      entry.download = null;
     }
     for (final binding in List<_EntryBinding>.of(entry.bindings)) {
       binding.entryChanged();
@@ -535,6 +536,8 @@ final class _Entry {
   Object? lastError;
   AssetFailureKind? failureKind;
   _Attempt? attempt;
+  // The running attempt's download, 0 to 1, or null when it reported none.
+  double? download;
   // Bindings of sibling entries that show this entry's stage.
   int borrowers = 0;
 
@@ -543,6 +546,13 @@ final class _Entry {
   // Whether the paintable keeps its frame: some binding holds it on screen.
   void syncKeep() =>
       paintable?.keepFrame(keep: bindings.any((binding) => binding.held));
+
+  // Tells the bindings their download changed.
+  void signalDownload() {
+    for (final binding in List<_EntryBinding>.of(bindings)) {
+      binding.downloadChanged();
+    }
+  }
 
   void disposeStandIn() {
     standIn?.dispose();
@@ -592,16 +602,25 @@ final class _Attempt implements AssetProgress {
   }
 
   @override
+  void download(double fraction) {
+    if (!_live || _scope._disposed) return;
+    final value = fraction.clamp(0.0, 1.0);
+    if (_entry.download == value) return;
+    _entry.download = value;
+    _entry.signalDownload();
+  }
+
+  @override
   void fail(
     Object error, [
     StackTrace? stackTrace,
     AssetFailureKind kind = AssetFailureKind.transient,
   ]) {
     if (!_live) return;
-    _end();
     _entry
       ..lastError = error
       ..failureKind = kind;
+    _end();
   }
 
   @override
@@ -620,7 +639,13 @@ final class _Attempt implements AssetProgress {
 
   void _end() {
     ended = true;
-    if (identical(_entry.attempt, this)) _entry.attempt = null;
+    if (!identical(_entry.attempt, this)) return;
+    _entry.attempt = null;
+    // The surfaces drawing the download stop with the attempt; nothing else
+    // changed for them, so only a download that showed is signalled.
+    if (_entry.download == null) return;
+    _entry.download = null;
+    if (!_scope._disposed) _entry.signalDownload();
   }
 }
 
@@ -655,6 +680,12 @@ final class _EntryBinding extends AssetBindingBase {
     clock.policy.frameIntervalFor(spec),
     _onTick,
   );
+
+  /// Called by the scope when the entry's download changed.
+  void downloadChanged() => signal();
+
+  @override
+  double? get downloadProgress => isDetached ? null : entry.download;
 
   /// Called by the scope when the entry gained a stage.
   void entryChanged() {

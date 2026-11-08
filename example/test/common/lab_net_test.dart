@@ -11,6 +11,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:chat_scroll_view_example/src/common/lab_net.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -173,6 +174,30 @@ void main() {
     ).get(Uri.parse('https://media.example/clip.mp4'));
     expect(back.bodyBytes, bytes);
     expect(back.headers['content-type'], 'video/mp4');
+  });
+
+  test('a download recorded and replayed reports its progress, in one step '
+      'when replayed', () async {
+    final bytes = Uint8List.fromList(List.filled(300, 7));
+    final url = Uri.parse('https://media.example/clip.mp4');
+    GiphyClient giphy(http.Client inner) =>
+        GiphyClient(apiKey: 'SECRETKEY', client: LabNetClient(inner, net));
+    final recorded = <(int, int?)>[];
+    final replayed = <(int, int?)>[];
+
+    await net.select(LabNetMode.record, 't');
+    await giphy(
+      origin({'/clip.mp4': http.Response.bytes(bytes, 200)}),
+    ).download(url, onProgress: (r, t) => recorded.add((r, t)));
+    await net.select(LabNetMode.replay, 't');
+    final back = await giphy(
+      origin({}),
+    ).download(url, onProgress: (r, t) => replayed.add((r, t)));
+
+    expect(back, bytes);
+    expect(recorded.last, (300, 300));
+    expect(replayed, [(0, 300), (300, 300)]);
+    expect(inner, hasLength(1), reason: 'the replay asked nobody');
   });
 
   test('logs the replay summary line', () async {

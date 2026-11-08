@@ -13,6 +13,8 @@ import 'asset/asset_cache_demand_test.dart' as asset_cache_demand_test;
 import 'asset/asset_cache_failure_test.dart' as asset_cache_failure_test;
 import 'asset/asset_cache_playback_test.dart' as asset_cache_playback_test;
 import 'asset/asset_cache_scope_test.dart' as asset_cache_scope_test;
+import 'asset/asset_download_progress_test.dart'
+    as asset_download_progress_test;
 import 'asset/asset_fit_test.dart' as asset_fit_test;
 import 'asset/asset_playback_test.dart' as asset_playback_test;
 import 'asset/asset_sibling_stage_test.dart' as asset_sibling_stage_test;
@@ -64,6 +66,7 @@ import 'pipeline/cancellation_token_test.dart' as cancellation_token_test;
 import 'pipeline/decoder_registry_test.dart' as decoder_registry_test;
 import 'pipeline/fake_adapters_contract_test.dart'
     as fake_adapters_contract_test;
+import 'pipeline/pipeline_download_test.dart' as pipeline_download_test;
 import 'pipeline/pipeline_flow_test.dart' as pipeline_flow_test;
 import 'pipeline/pipeline_offline_test.dart' as pipeline_offline_test;
 import 'pipeline/pipeline_orchestration_test.dart'
@@ -106,6 +109,10 @@ void main() {
   group('asset/asset_playback_test.dart', asset_playback_test.main);
   group('asset/asset_sibling_stage_test.dart', asset_sibling_stage_test.main);
   group('asset/asset_spec_test.dart', asset_spec_test.main);
+  group(
+    'asset/asset_download_progress_test.dart',
+    asset_download_progress_test.main,
+  );
   group('asset/asset_fit_test.dart', asset_fit_test.main);
   group('asset/asset_stand_in_test.dart', asset_stand_in_test.main);
   group('atlas/bake_governor_test.dart', bake_governor_test.main);
@@ -188,6 +195,7 @@ void main() {
     'pipeline/fake_adapters_contract_test.dart',
     fake_adapters_contract_test.main,
   );
+  group('pipeline/pipeline_download_test.dart', pipeline_download_test.main);
   group('pipeline/pipeline_flow_test.dart', pipeline_flow_test.main);
   group('pipeline/pipeline_offline_test.dart', pipeline_offline_test.main);
   group(

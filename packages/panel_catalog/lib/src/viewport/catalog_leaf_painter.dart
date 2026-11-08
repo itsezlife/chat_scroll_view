@@ -114,12 +114,14 @@ const double _kProgressRadius = 12;
 ///
 /// ## Loading GIFs
 ///
-/// A GIF leaf that is not drawn yet (no stage, or its thumbnail) also gets the
-/// reference client's radial progress ([RadialProgress]) over its centre, and
-/// it fades out with the content's fade. The arc turns with the pass's frame
-/// time: the pass asks for frames only while one shows, and not while the
-/// host paused playback, when the arc rests. The cache reports stages and no
-/// fractions, so the arc sweeps `RadialProgress.indeterminateProgress`.
+/// A GIF leaf that is not drawn yet (no stage, or its thumbnail) and whose
+/// binding downloads its content (`AssetBinding.downloadProgress`) also gets
+/// the reference client's download indicator ([RadialProgress]) over its
+/// centre, and it fades out with the content's fade. A leaf served from a
+/// cache shows none. Each binding has its own indicator, kept beside it for
+/// as long as its download runs; the arc steps with the pass's frame time:
+/// the pass asks for frames only while one shows, and not while the host
+/// paused playback, when the arc rests.
 ///
 /// ## Press highlight
 ///
@@ -183,6 +185,10 @@ final class CatalogLeafPainter {
       'pageIndex=${sprite?.pageIndex}',
     );
   }
+
+  // The download indicator of each binding whose download shows, dropped
+  // with the binding or when its download ends.
+  final Expando<RadialProgress> _indicators = Expando('download indicator');
 
   // State of the open pass.
   Duration _frameTime = Duration.zero;
@@ -650,14 +656,14 @@ final class CatalogLeafPainter {
     switch (binding?.readiness.stage) {
       case null || AssetStage.none:
         _paintStandIn(canvas, style, glyphRect);
-        _paintLoadingProgress(canvas, slot, glyphRect);
+        _paintLoadingProgress(canvas, binding, slot, glyphRect);
       case AssetStage.placeholder:
         if (style == CatalogPlaceholderStyle.circle) {
           _paintStandIn(canvas, style, glyphRect);
         } else {
           binding!.paint(canvas, glyphRect);
         }
-        _paintLoadingProgress(canvas, slot, glyphRect);
+        _paintLoadingProgress(canvas, binding, slot, glyphRect);
       case AssetStage.firstFrame || AssetStage.full:
         final opacity = bound!.opacityAt(_frameTime);
         if (opacity < 1) {
@@ -668,7 +674,13 @@ final class CatalogLeafPainter {
           PanelCatalogDiagnostics.glyphParagraphDraws++;
         }
         binding!.paint(canvas, glyphRect, opacity: opacity);
-        _paintLoadingProgress(canvas, slot, glyphRect, opacity: 1 - opacity);
+        _paintLoadingProgress(
+          canvas,
+          binding,
+          slot,
+          glyphRect,
+          opacity: 1 - opacity,
+        );
     }
 
     if (scaled) {
@@ -740,21 +752,35 @@ final class CatalogLeafPainter {
     _paintStandIn(canvas, slot.placeholderStyle, rect, alpha: 1 - opacity);
   }
 
-  /// The radial progress of a loading GIF, centred in [box] at [opacity];
-  /// nothing for other content. See the class doc.
+  /// The download indicator of a GIF whose [binding] downloads, centred in
+  /// [box] at [opacity]; nothing for other content or no download. See the
+  /// class doc.
   void _paintLoadingProgress(
     Canvas canvas,
+    AssetBinding? binding,
     CatalogLeafSlot slot,
     Rect box, {
     double opacity = 1,
   }) {
-    if (slot.leaf.semanticKind != SemanticKind.gif || opacity <= 0) return;
-    if (_animateWash) _needsFrame = true;
-    RadialProgress.paint(
+    if (binding == null || slot.leaf.semanticKind != SemanticKind.gif) return;
+    final downloaded = binding.downloadProgress;
+    if (downloaded == null) {
+      _indicators[binding] = null;
+      return;
+    }
+    if (opacity <= 0) return;
+    final indicator = switch (_indicators[binding]) {
+      final shown? => shown..setProgress(downloaded),
+      null => _indicators[binding] = RadialProgress(progress: downloaded),
+    };
+    if (_animateWash) {
+      _needsFrame = true;
+      indicator.advance(_frameTime);
+    }
+    indicator.paint(
       canvas,
       box.center,
       radius: _kProgressRadius,
-      time: _animateWash ? _frameTime : Duration.zero,
       opacity: opacity,
     );
   }

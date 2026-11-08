@@ -36,6 +36,13 @@ final class FakeFetch {
     _completer.complete(served);
   }
 
+  /// Reports [received] bytes of [total] (null when unknown) arrived, as a
+  /// fetcher that downloads does. Does nothing once settled.
+  void receive(int received, int? total) {
+    if (isSettled) return;
+    request.onProgress(received, total);
+  }
+
   /// Fails with [failure]. Does nothing once settled.
   void fail(FetchFailure failure) => failWith(failure);
 

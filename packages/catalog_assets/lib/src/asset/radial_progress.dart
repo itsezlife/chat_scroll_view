@@ -1,69 +1,91 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-/// The reference client's loading indicator for media: a translucent dark disc
-/// holding a white arc that turns while the content downloads, with a cross
-/// (cancel) in the middle.
+import 'package:flutter/animation.dart';
+
+/// The reference client's download indicator for media: a translucent dark
+/// disc holding a white arc that turns and grows with the fraction of the
+/// content downloaded.
 ///
-/// A surface paints it over the content's thumbnail for as long as the content
-/// is not there, and passes the frame time of its pass: the arc is a function
-/// of time, so a pass that already runs for another reason (the viewport's
-/// loading wash) animates every indicator on screen from one clock, with no
-/// controller of its own per cell.
+/// One indicator is one download on one surface, and it is stateful, as the
+/// reference's drawable is: the arc's start angle turns frame by frame, and a
+/// new fraction eases in from the arc the surface is showing. A surface makes
+/// one when a download starts for what it shows (`AssetBinding.
+/// downloadProgress` turns non-null), gives it each fraction with
+/// [setProgress], steps it once per frame it paints with [advance] and drops
+/// it when the download ends. A surface shows none for content that needs no
+/// download.
 ///
 /// | Measure | Value | Reference |
 /// | ------- | ----- | --------- |
-/// | disc radius | the caller's: 12 in a panel cell, 22 in a message | `ContextLinkCell` / `RadialProgress2` |
+/// | disc radius | the caller's: 12 in a panel cell | `ContextLinkCell.onMeasure` |
 /// | arc radius | disc radius less [arcInset] | `MediaActionDrawable.draw` |
 /// | stroke | [strokeWidth], [thinStrokeWidth] below 0.7 of [referenceDiameter] | `MediaActionDrawable.setBounds` |
-/// | turn | one circle per [turnPeriod], linear | `downloadRadOffset` |
-/// | sweep | `max(4°, 360° * progress)` | `MediaActionDrawable.draw` |
-/// | cross | 7 * disc diameter / 48 from the centre | `ICON_CANCEL` |
+/// | start | [initialDegrees] for a new indicator | `setIcon`, `downloadRadOffset = 112` |
+/// | turn | 360 degrees per [turnPeriod], a frame counting at most [maxFrameStep] | `MediaActionDrawable.draw` |
+/// | sweep | `max(4°, 360° * shownProgress)` | `MediaActionDrawable.draw` |
+/// | a higher fraction | eases from the arc shown over [easeDuration], [easeCurve] | `MediaActionDrawable.draw` |
+/// | a lower fraction | shown at once | `setProgress` |
+///
+/// The indicator of a loading grid cell is the reference's `ICON_EMPTY`: a
+/// bare arc, without the cross of a message's cancel button.
 ///
 /// ## What it leaves out
 ///
-/// The reference eases a progress change over 200 ms and fades the cross and
-/// the disc over 400 ms when the download ends; this package knows no byte
-/// progress (the cache reports stages, not fractions) and the surface's own
-/// content fade ends the indicator, so [paint] takes the `opacity` the surface
-/// fades it with instead. When no fraction is known it sweeps
-/// [indeterminateProgress], which the reference never needs: it always knows
-/// how much arrived.
-abstract final class RadialProgress {
+/// The reference fades the disc out over 400 ms when the download ends; the
+/// surface's own content fade ends the indicator here, so [paint] takes the
+/// `opacity` the surface fades it with.
+final class RadialProgress {
+  /// Creates the indicator of a download that has [progress] done, shown at
+  /// once: the reference starts a cell's arc from the file's known progress,
+  /// not animated (`ContextLinkCell.updateButtonState`).
+  RadialProgress({double progress = 0}) {
+    setProgress(progress, animated: false);
+  }
+
   /// The disc: `key_chat_mediaLoaderPhoto`.
   static const Color discColor = Color(0x66000000);
 
-  /// The arc and the cross: `key_chat_mediaLoaderPhotoIcon`.
+  /// The arc: `key_chat_mediaLoaderPhotoIcon`.
   static const Color inkColor = Color(0xFFFFFFFF);
 
   /// The disc's box is inset this much (logical pixels) for the arc.
   static const double arcInset = 4;
 
-  /// The stroke of the arc and the cross.
+  /// The stroke of the arc.
   static const double strokeWidth = 3;
 
   /// The stroke below [thinThreshold] of the reference size.
   static const double thinStrokeWidth = 2;
 
   /// The reference icon box (`MediaActionDrawable.getIntrinsicWidth`), the
-  /// size the cross and the thin stroke scale against.
+  /// size the thin stroke scales against.
   static const double referenceDiameter = 48;
 
   /// A disc narrower than this fraction of [referenceDiameter] draws the thin
   /// stroke.
   static const double thinThreshold = 0.7;
 
-  /// How far the cross reaches from the centre at [referenceDiameter].
-  static const double crossReach = 7;
+  /// Where the arc of a new indicator starts, in degrees clockwise from three
+  /// o'clock.
+  static const double initialDegrees = 112;
 
   /// One full turn of the arc.
   static const Duration turnPeriod = Duration(milliseconds: 2500);
 
+  /// The most one frame advances the turn and the ease: a frame after a
+  /// pause (a hidden surface, a jank) moves the arc one frame on, not by the
+  /// whole gap.
+  static const Duration maxFrameStep = Duration(milliseconds: 17);
+
+  /// How long a higher fraction takes to reach the arc.
+  static const Duration easeDuration = Duration(milliseconds: 200);
+
+  /// How a higher fraction eases in: decelerating, `1 - (1 - t)^2`.
+  static const Curve easeCurve = Curves.decelerate;
+
   /// The shortest the arc gets, in degrees: a dot that is already turning.
   static const double minSweepDegrees = 4;
-
-  /// The fraction the arc sweeps when none is known.
-  static const double indeterminateProgress = 0.25;
 
   // Painting is single-threaded and the paint is set fully on every call, so
   // one shared object saves an allocation per indicator per frame.
@@ -71,20 +93,76 @@ abstract final class RadialProgress {
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round;
 
-  /// Paints the indicator of a disc of [radius] around [center] at [time] on
-  /// [canvas]. [progress] is the fraction done from 0 to 1, or null when not
-  /// known; [opacity] fades the whole indicator.
-  static void paint(
+  double _progress = 0;
+  double _shown = 0;
+  // Where the running ease started, and how long it has run.
+  double _easeFrom = 0;
+  Duration _eased = Duration.zero;
+  double _startDegrees = initialDegrees;
+  Duration? _lastFrame;
+
+  /// The fraction downloaded, 0 to 1, as last set.
+  double get progress => _progress;
+
+  /// The fraction the arc sweeps now: [progress], or on its way to it.
+  double get shownProgress => _shown;
+
+  /// Where the arc starts now, in degrees from 0 to 360 clockwise from three
+  /// o'clock.
+  double get startDegrees => _startDegrees;
+
+  /// Sets the fraction downloaded to [value] (clamped to 0..1).
+  ///
+  /// Animated, a higher value eases in from the arc shown and a lower one
+  /// (a download that started again) is shown at once; not animated, the arc
+  /// shows [value] at once.
+  void setProgress(double value, {bool animated = true}) {
+    final next = value.clamp(0.0, 1.0);
+    if (next == _progress) return;
+    if (!animated || _shown > next) _shown = next;
+    _easeFrom = _shown;
+    _progress = next;
+    _eased = Duration.zero;
+  }
+
+  /// Steps the turn and the ease to the frame at [frameTime]: by the time
+  /// since the previous call, at most [maxFrameStep]. The first call only
+  /// sets the clock, and a time before the previous one steps nothing.
+  void advance(Duration frameTime) {
+    final last = _lastFrame;
+    _lastFrame = frameTime;
+    if (last == null || frameTime <= last) return;
+    final step = frameTime - last;
+    final dt = step > maxFrameStep ? maxFrameStep : step;
+    _startDegrees =
+        (_startDegrees + 360 * dt.inMicroseconds / turnPeriod.inMicroseconds) %
+        360;
+    final gap = _progress - _easeFrom;
+    if (gap <= 0) return;
+    _eased += dt;
+    if (_eased >= easeDuration) {
+      _shown = _easeFrom = _progress;
+      _eased = Duration.zero;
+    } else {
+      _shown =
+          _easeFrom +
+          gap *
+              easeCurve.transform(
+                _eased.inMicroseconds / easeDuration.inMicroseconds,
+              );
+    }
+  }
+
+  /// Paints the indicator, a disc of [radius] around [center], on [canvas];
+  /// [opacity] fades the whole of it.
+  void paint(
     Canvas canvas,
     Offset center, {
     required double radius,
-    required Duration time,
-    double? progress,
     double opacity = 1,
   }) {
     if (opacity <= 0 || radius <= 0) return;
     final scale = 2 * radius / referenceDiameter;
-    final stroke = scale < thinThreshold ? thinStrokeWidth : strokeWidth;
     canvas.drawCircle(
       center,
       radius,
@@ -92,33 +170,15 @@ abstract final class RadialProgress {
     );
     _paint
       ..color = _faded(inkColor, opacity)
-      ..strokeWidth = stroke;
-    final turn =
-        (time.inMicroseconds % turnPeriod.inMicroseconds) /
-        turnPeriod.inMicroseconds;
-    final sweep = math.max(
-      minSweepDegrees,
-      360 * (progress ?? indeterminateProgress).clamp(0.0, 1.0),
-    );
+      ..strokeWidth = scale < thinThreshold ? thinStrokeWidth : strokeWidth;
+    final sweep = math.max(minSweepDegrees, 360 * _shown);
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius - arcInset),
-      turn * 2 * math.pi,
+      _startDegrees * math.pi / 180,
       sweep * math.pi / 180,
       false,
       _paint,
     );
-    final reach = crossReach * scale;
-    canvas
-      ..drawLine(
-        center - Offset(reach, reach),
-        center + Offset(reach, reach),
-        _paint,
-      )
-      ..drawLine(
-        center + Offset(reach, -reach),
-        center + Offset(-reach, reach),
-        _paint,
-      );
   }
 
   static Color _faded(Color color, double opacity) => opacity >= 1
