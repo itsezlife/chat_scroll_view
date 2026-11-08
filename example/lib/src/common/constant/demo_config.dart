@@ -83,6 +83,17 @@ abstract final class DemoConfig {
   /// its tests run without them.
   static const bool scrollLab = bool.fromEnvironment('SCROLL_LAB');
 
+  /// Whether what the app fetches or renders is kept on disk between
+  /// launches (the baked glyph pages, the rendered Lottie frames, Giphy's
+  /// stills and clips), from `--dart-define=DISK_CACHE=false`. On by
+  /// default, as in a shipped client. Off, every launch starts cold and
+  /// leaves no file behind: what a test, a measured run or a recorded net
+  /// tape needs, since a file found on disk is a request never sent.
+  static const bool diskCache = bool.fromEnvironment(
+    'DISK_CACHE',
+    defaultValue: true,
+  );
+
   /// Whether the Supabase publishable key is set.
   static bool get hasSupabasePublishableKey =>
       supabasePublishableKey.isNotEmpty;

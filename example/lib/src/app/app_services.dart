@@ -188,6 +188,11 @@ final class AppServices {
   /// clips' stills are kept in between launches, up to [giphyStillDiskBytes]
   /// (null: in memory only, as in a test). [corpus] is the local sticker corpus; null
   /// looks for one in the app bundle and in the `CHAT_CORPUS_DIR` directory.
+  ///
+  /// [diskCache] is the one switch over every disk tier (see
+  /// [DemoConfig.diskCache]): false ignores [glyphCache],
+  /// [lottieCacheDirectory] and [giphyStillDirectory], and everything is
+  /// kept in memory for this launch only.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -202,7 +207,17 @@ final class AppServices {
     http.Client? giphyHttpClient,
     Future<String?>? giphyStillDirectory,
     CorpusStickerPack? corpus,
+    bool diskCache = DemoConfig.diskCache,
   }) async {
+    if (!diskCache) {
+      l.i(
+        'Disk caches are off (--dart-define=DISK_CACHE=false): glyph pages, '
+        'Lottie frames and Giphy files are kept in memory only',
+      );
+    }
+    final glyphDisk = diskCache ? glyphCache : null;
+    final lottieDisk = diskCache ? lottieCacheDirectory : null;
+    final stillDisk = diskCache ? giphyStillDirectory : null;
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
     final unwind = <void Function()>[];
@@ -288,7 +303,7 @@ final class AppServices {
         clock: clock,
         memoryPressure: memoryPressure,
         textures: textures,
-        cacheDirectory: lottieCacheDirectory,
+        cacheDirectory: lottieDisk,
       );
       if (lottiePlayback != null) {
         owned(lottiePlayback, _closePlayback);
@@ -341,7 +356,7 @@ final class AppServices {
         // The stills' disk tier is the fetcher's (ADR 022). It sits under
         // the transport, not over it: a still found on disk is no request,
         // so the lab's tape neither records nor replays it.
-        final stillDirectory = await giphyStillDirectory;
+        final stillDirectory = await stillDisk;
         giphy = GiphyContent(
           GiphyClient(apiKey: giphyApiKey, client: transport),
           stillDisk: stillDirectory == null
@@ -560,7 +575,7 @@ final class AppServices {
         glyphProbe: probe.probe,
         glyphArtVersion: glyphArtVersion ?? probe.artVersion,
         glyphBakeObserver: probe.bakeObserver,
-        glyphCache: glyphCache,
+        glyphCache: glyphDisk,
         lifecycleSource: lifecycleSource,
         reducedMotion: reducedMotion,
         webProbePass: kIsWeb
