@@ -5,17 +5,37 @@ import 'package:flutter/services.dart';
 const _paths = MethodChannel('chat_scroll_view_example/paths');
 
 /// The VM hook: the folder [name] in the app's cache folder, on Android the
-/// one the activity names (`Context.getCacheDir`), elsewhere
-/// [$userCacheDirectory]; null where the platform does not say.
-Future<String?> $appCacheDirectory(String name) async {
-  if (!Platform.isAndroid) return $userCacheDirectory(name);
-  try {
-    final base = await _paths.invokeMethod<String>('cacheDir');
-    return base == null ? null : '$base/$name';
-  } on MissingPluginException {
-    return null;
-  } on PlatformException {
-    return null;
+/// one the activity names (`Context.getCacheDir`), on iOS the app
+/// container's `Library/Caches` (`NSCachesDirectory`, under the container's
+/// `HOME`), elsewhere [$userCacheDirectory]; null where the platform does not
+/// say. [operatingSystem] and [environment] default to the running
+/// process's.
+Future<String?> $appCacheDirectory(
+  String name, {
+  String? operatingSystem,
+  Map<String, String>? environment,
+}) async {
+  switch (operatingSystem ?? Platform.operatingSystem) {
+    case 'android':
+      try {
+        final base = await _paths.invokeMethod<String>('cacheDir');
+        return base == null ? null : '$base/$name';
+      } on MissingPluginException {
+        return null;
+      } on PlatformException {
+        return null;
+      }
+    case 'ios':
+      return switch ((environment ?? Platform.environment)['HOME']) {
+        final home? => '$home/Library/Caches/$name',
+        null => null,
+      };
+    case final os:
+      return $userCacheDirectory(
+        name,
+        operatingSystem: os,
+        environment: environment,
+      );
   }
 }
 
@@ -23,7 +43,7 @@ Future<String?> $appCacheDirectory(String name) async {
 /// folder, read from the environment: macOS `~/Library/Caches`, Linux
 /// `$XDG_CACHE_HOME` else `~/.cache`, Windows `%LOCALAPPDATA%`; null where
 /// there is no known folder (Android and iOS name theirs through the
-/// platform, not the environment). [operatingSystem] and [environment]
+/// platform, see [$appCacheDirectory]). [operatingSystem] and [environment]
 /// default to the running process's.
 String? $userCacheDirectory(
   String name, {

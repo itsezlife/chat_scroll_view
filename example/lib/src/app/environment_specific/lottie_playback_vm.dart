@@ -1,6 +1,5 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
-import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory_vm.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
@@ -84,20 +83,3 @@ Future<LottiePlayback?> $startLottiePlayback({
     ],
   );
 }
-
-/// The VM hook behind [LottiePlayback.defaultCacheDirectory]: where this
-/// platform keeps the cache of rendered frames, or null where there is no
-/// known folder (the frames are then kept in memory only).
-///
-/// The `lottie_frames` folder of [$userCacheDirectory]. The example does not
-/// depend on `path_provider`, so Android and iOS keep memory only; a host
-/// that does passes its own folder. [operatingSystem] and [environment]
-/// default to the running process's.
-String? $defaultLottieCacheDirectory({
-  String? operatingSystem,
-  Map<String, String>? environment,
-}) => $userCacheDirectory(
-  'lottie_frames',
-  operatingSystem: operatingSystem,
-  environment: environment,
-);

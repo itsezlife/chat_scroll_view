@@ -3,8 +3,9 @@
 ///
 /// **Seam:** [GifPage] mounted under the chrome scopes with fake sources and
 /// a fake page host, observed through the text the user reads, the clips that
-/// can be tapped and the reports the host received. Geometry as in
-/// `gif_page_test.dart`: a 400 x 480 page, square clips 100 px each.
+/// can be tapped, where the search field sits and the reports the host
+/// received. Geometry as in `gif_page_test.dart`: a 400 x 480 page, square
+/// clips 100 px each, under the field's 50 px band on a page that searches.
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -32,10 +33,10 @@ FakePages _pages(String prefix, {int count = 4}) => FakePages([
   [for (var i = 0; i < count; i++) _gif('$prefix-$i')],
 ]);
 
-FakeCollectionSpec _trending() => FakeCollectionSpec(
+FakeCollectionSpec _trending({int count = 4}) => FakeCollectionSpec(
   const CollectionId.query(''),
   metadata: const CollectionMetadata(title: 'Trending'),
-  pages: _pages('t'),
+  pages: _pages('t', count: count),
 );
 
 Future<void> settle(WidgetTester tester) async {
@@ -49,6 +50,8 @@ void main() {
   late AssetCacheScope assets;
   late FakeCollectionSource source;
   late FakeSearchSource search;
+  // How far down the field's band puts the clips of the page last pumped.
+  var band = 0.0;
 
   setUp(() {
     host = FakePanelPageHost(pageId: 'gif');
@@ -70,26 +73,29 @@ void main() {
   }) async {
     await tester.pumpWidget(
       PanelShellTestScope(
-        child: Center(
-          child: SizedBox(
-            width: 400,
-            height: 480,
-            child: GifPage(
-              host: host,
-              source: source,
-              assets: assets,
-              searchSource: searchable ? search : null,
-              attribution: attribution,
+        child: FakeSearchFieldScope(
+          child: Center(
+            child: SizedBox(
+              width: 400,
+              height: 480,
+              child: GifPage(
+                host: host,
+                source: source,
+                assets: assets,
+                searchSource: searchable ? search : null,
+                attribution: attribution,
+              ),
             ),
           ),
         ),
       ),
     );
     await settle(tester);
+    band = searchable ? PanelSearchField.height : 0;
   }
 
   Offset firstCell(WidgetTester tester) =>
-      tester.getTopLeft(find.byType(GifPage)) + const Offset(49, 52);
+      tester.getTopLeft(find.byType(GifPage)) + Offset(49, band + 52);
 
   Future<void> typeQuery(WidgetTester tester, String query) async {
     host.searchState = PanelSearchState(isOpen: true, query: query);
@@ -198,6 +204,58 @@ void main() {
       await tester.tapAt(firstCell(tester));
 
       expect(host.picks.single.key, const ContentKey.document('t-0'));
+    });
+  });
+
+  group('the field', () {
+    Offset fieldTop(WidgetTester tester) =>
+        tester.getTopLeft(find.byType(PanelSearchField)) -
+        tester.getTopLeft(find.byType(GifPage));
+
+    bool hairline(WidgetTester tester) => tester
+        .widget<PanelSearchField>(find.byType(PanelSearchField))
+        .shadow!
+        .value;
+
+    Future<void> pumpLong(WidgetTester tester) async {
+      source.dispose();
+      source = FakeCollectionSource([_trending(count: 80)]);
+      await pumpPage(tester);
+    }
+
+    testWidgets('heads the page and stays there while the clips scroll', (
+      tester,
+    ) async {
+      await pumpLong(tester);
+      expect(fieldTop(tester), Offset.zero);
+
+      await tester.drag(find.byType(GifPage), const Offset(0, -300));
+      await settle(tester);
+
+      expect(fieldTop(tester), Offset.zero);
+    });
+
+    testWidgets('is not there on a page given no search source', (
+      tester,
+    ) async {
+      await pumpPage(tester, searchable: false);
+
+      expect(find.byType(PanelSearchField), findsNothing);
+    });
+
+    testWidgets('shows its hairline unless search is open at the start', (
+      tester,
+    ) async {
+      await pumpLong(tester);
+      expect(hairline(tester), isTrue);
+
+      host.searchState = const PanelSearchState(isOpen: true);
+      await tester.pump();
+      expect(hairline(tester), isFalse);
+
+      await tester.drag(find.byType(GifPage), const Offset(0, -300));
+      await settle(tester);
+      expect(hairline(tester), isTrue);
     });
   });
 }

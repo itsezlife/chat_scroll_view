@@ -85,6 +85,17 @@ search); a clip listed only in the recents stays out until then.
 Offline or with a busy server the page shows "Couldn't load GIFs" with a
 retry button under the recent GIFs; there are no demo clips beneath it.
 
+## Disk caches
+
+What the app fetches or renders is kept on disk between launches, as in a
+shipped client: Giphy's stills (16 MB) and clips (64 MB) under their Giphy
+id, the rendered Lottie frames (128 MB) and the baked emoji glyph pages. They
+live in the app's cache folder (`Context.getCacheDir` on Android, the
+container's `Library/Caches` on iOS, the user cache folder on a desktop; the
+glyph pages in the system temp folder); the web keeps everything in memory.
+`--dart-define=DISK_CACHE=false` turns them all off for a launch that must
+start cold and leave no file: a test, a measured run, a recorded net tape.
+
 ## Local Telegram stickers (not in the repository)
 
 A maintainer's local corpus of Lottie stickers (one folder per pack) can be

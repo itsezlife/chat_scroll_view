@@ -45,12 +45,6 @@ final class LottiePlayback {
     cacheDirectory: cacheDirectory,
   );
 
-  /// Where this platform keeps the cache of rendered frames, or null for none
-  /// (see `$defaultLottieCacheDirectory` in the VM file). Only `main` asks: a
-  /// test passes no folder and keeps the frames in memory.
-  static String? defaultCacheDirectory() =>
-      environment_specific.$defaultLottieCacheDirectory();
-
   /// Starts the Lottie decoder over a pixel-returning [LottieEngine], the form
   /// of every host without native memory (the web), or answers null.
   ///
