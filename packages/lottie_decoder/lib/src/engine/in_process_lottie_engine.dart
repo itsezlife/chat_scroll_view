@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:lottie_decoder/src/cache/frame_file_reader.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine_work.dart';
 import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
@@ -20,6 +21,8 @@ final class InProcessLottieEngine implements LottieSlotEngine {
 
   final LottieBinding _binding;
   final LottieFrameCodec? _codec;
+  // Frames of cache files are read here, on the calling isolate.
+  final FrameFileReader _reader = FrameFileReader();
   bool _closed = false;
 
   void _requireOpen() {
@@ -57,7 +60,7 @@ final class InProcessLottieEngine implements LottieSlotEngine {
   @override
   Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) async {
     _requireOpen();
-    return LottieEngineWork.restore(_codec, jobs);
+    return LottieEngineWork.restore(_codec, _reader, jobs);
   }
 
   @override
@@ -70,6 +73,7 @@ final class InProcessLottieEngine implements LottieSlotEngine {
     return LottieEngineWork.writeTextures(
       _binding,
       _codec,
+      _reader,
       entryPoints,
       format,
       jobs,
@@ -86,6 +90,7 @@ final class InProcessLottieEngine implements LottieSlotEngine {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
+    _reader.close();
     _binding.close();
   }
 }

@@ -13,6 +13,22 @@ package is pre-1.0.
 - `LottieAnimationPaintable.firstFrame` is its first-frame still, which a
   sibling binding borrows instead of the frame the loop is at.
 
+### Changed (frames read from the file, ticket 98)
+
+- A persisted animation's frames are read one at a time from its file by the
+  engine that restores them (`FrameFileReader` on the render isolate);
+  `FrameCache` keeps no bytes for it. `FrameCache.frame` returns a
+  `CachedFrame` (`CachedFrameBytes` or `CachedFrameFile`) instead of bytes,
+  `open` returns a `bool` and reads no frame, and `LottieRestoreJob.frame` /
+  `LottieTextureRestore.frame` carry a `CachedFrame`.
+- The RAM tier never evicts an animation used within `playingFor` while an
+  idle one can go; when all play it drops the fill that started last. Complete
+  animations leave RAM once written. `FrameCache.residentBytes` reports what
+  it holds.
+- `FrameCacheFiles.read` is gone; `pathOf` names an entry's file and `write`
+  takes the entry as chunks. The file format is version 2 (no payload CRC);
+  version 1 files serve nothing and are deleted on first use.
+
 ### Added (half frame rate)
 
 - `LottieAnimationPaintable` honours `AssetPaintContext.halfFrameRate`: an

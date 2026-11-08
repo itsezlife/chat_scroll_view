@@ -380,7 +380,11 @@ void main() {
       );
       expect(
         cache.frame(key, 3),
-        isNot(Uint8List.fromList([9, 9, 9])),
+        isA<CachedFrameBytes>().having(
+          (frame) => frame.bytes,
+          'bytes',
+          isNot(Uint8List.fromList([9, 9, 9])),
+        ),
         reason: 'the rendered frame replaced the garbage',
       );
     });
@@ -447,7 +451,7 @@ void main() {
       ).render(jobs([info.frameCount + 5], source(cacheKey: key)), memory);
 
       expect(held, [0]);
-      expect(await cache.open(key), isNull);
+      expect(await cache.open(key), isFalse);
     });
 
     test('an engine without a codec renders, and stores nothing', () async {
@@ -511,8 +515,8 @@ void main() {
       );
     });
 
-    test('a batch that meets a key whose open is still reading does not '
-        'wait for the disk', () async {
+    test('a batch that meets a key whose open is still listing the '
+        'directory does not wait for the disk', () async {
       final dir = tempDir();
       final slots = slotsForAnimation();
       final before = FrameCache(directoryPath: dir.path);
@@ -522,23 +526,23 @@ void main() {
       final after = FrameCache(directoryPath: dir.path, files: files);
       addTearDown(after.dispose);
       final r = renderer(after);
-      files.holdReads();
+      files.holdScans();
 
       final first = r.render(pass(slots, key), memory);
-      await files.readStarted;
+      await files.scanStarted;
       try {
         final second = await r
             .render(pass(slots, key), memory)
             .timeout(const Duration(seconds: 2));
         expect(second, hasLength(info.frameCount), reason: 'rendered, a miss');
       } finally {
-        files.releaseReads();
+        files.releaseScans();
       }
       await first;
     });
 
-    test('an animation evicted from RAM is read from its file again, and '
-        'the file is not rewritten', () async {
+    test('two animations playing over the RAM budget are restored from '
+        'their files without reloading them', () async {
       final dir = tempDir();
       final files = _GatedFiles(dir.path);
       final cache = FrameCache(
@@ -555,19 +559,30 @@ void main() {
       );
       final slots = slotsForAnimation();
       final r = renderer(cache);
+      // The budget holds one fill at a time: the second fills once the first
+      // is on disk and has left RAM.
       await r.render(pass(slots, key), memory);
+      await files.writes(1);
       await r.render(pass(slots, other), memory);
       await files.writes(2);
-      expect(cache.has(key, 0), isFalse, reason: 'the first one was evicted');
+      expect(cache.residentBytes, 0, reason: 'both live in their files');
       engine
         ..rendered = 0
         ..restored = 0;
 
-      final held = await r.render(pass(slots, key), memory);
+      // Both play: each tick asks a frame of each.
+      for (var round = 0; round < 5; round++) {
+        expect(await r.render(pass(slots, key), memory), hasLength(10));
+        expect(await r.render(pass(slots, other), memory), hasLength(10));
+      }
 
-      expect(held, hasLength(info.frameCount));
-      expect(engine.rendered, 0, reason: 'the file refilled RAM');
-      expect(engine.restored, info.frameCount);
+      expect(engine.rendered, 0, reason: 'every frame came from a file');
+      expect(engine.restored, 5 * 2 * info.frameCount);
+      expect(
+        cache.residentBytes,
+        0,
+        reason: 'no frame was loaded into this isolate',
+      );
       expect(files.written, hasLength(2), reason: 'nothing rewritten');
     });
 
@@ -683,22 +698,22 @@ void main() {
   });
 }
 
-/// The files of a directory, counting what is written, and able to hold a read
-/// until a test lets it go.
+/// The files of a directory, counting what is written, and able to hold the
+/// directory listing until a test lets it go.
 class _GatedFiles extends DirectoryFrameCacheFiles {
   _GatedFiles(super.path);
 
   final List<String> written = [];
   final List<(int, Completer<void>)> _waiters = [];
   Completer<void>? _gate;
-  final Completer<void> _readStarted = Completer<void>();
+  final Completer<void> _scanStarted = Completer<void>();
 
-  /// Completes when a read has reached the file system layer.
-  Future<void> get readStarted => _readStarted.future;
+  /// Completes when a scan has reached the file system layer.
+  Future<void> get scanStarted => _scanStarted.future;
 
-  void holdReads() => _gate = Completer<void>();
+  void holdScans() => _gate = Completer<void>();
 
-  void releaseReads() => _gate?.complete();
+  void releaseScans() => _gate?.complete();
 
   /// Completes once [count] writes have finished.
   Future<void> writes(int count) {
@@ -709,19 +724,19 @@ class _GatedFiles extends DirectoryFrameCacheFiles {
   }
 
   @override
-  Future<Uint8List?> read(String stem, {required int maxBytes}) async {
-    if (!_readStarted.isCompleted) _readStarted.complete();
+  Future<List<FrameCacheFileInfo>> scan() async {
+    if (!_scanStarted.isCompleted) _scanStarted.complete();
     await _gate?.future;
-    return super.read(stem, maxBytes: maxBytes);
+    return super.scan();
   }
 
   @override
   Future<FileSystemException?> write(
     String stem,
-    Uint8List bytes, {
+    List<Uint8List> chunks, {
     required DateTime modified,
   }) async {
-    final result = await super.write(stem, bytes, modified: modified);
+    final result = await super.write(stem, chunks, modified: modified);
     written.add(stem);
     for (final (count, waiter) in _waiters.toList()) {
       if (written.length >= count && !waiter.isCompleted) waiter.complete();

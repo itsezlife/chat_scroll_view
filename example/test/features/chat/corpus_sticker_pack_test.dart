@@ -78,6 +78,22 @@ void main() {
     );
 
     test(
+      'takes compressed stickers (.tgs) like plain ones, by file name',
+      () async {
+        final pack = await CorpusStickerPack.load(
+          bundle: _FakeBundle({
+            '$_dir/utya--1.tgs': 'x',
+            '$_dir/utya--0.tgs': 'y',
+            '$_dir/duck--0.json': '{}',
+          }),
+        );
+
+        expect(_titles(pack), ['duck', 'utya']);
+        expect([for (final s in pack.packs.last.stickers) s.name], ['0', '1']);
+      },
+    );
+
+    test(
       'ignores the folder README, the git rules and anything not a pack file',
       () async {
         final pack = await CorpusStickerPack.load(
@@ -129,6 +145,19 @@ void main() {
       }
       File('${dir.path}/fox/notes.txt').writeAsStringSync('x');
       File('${dir.path}/stray.json').writeAsStringSync('{}');
+    });
+
+    test('takes compressed stickers (.tgs) in a folder too', () async {
+      Directory('${dir.path}/utya').createSync();
+      File('${dir.path}/utya/0.tgs').writeAsBytesSync([0x1f, 0x8b]);
+
+      final pack = await CorpusStickerPack.load(
+        bundle: _FakeBundle({}),
+        directory: dir.path,
+      );
+
+      expect(_titles(pack), ['fox', 'owl', 'utya']);
+      expect([for (final s in pack.packs.last.stickers) s.name], ['0']);
     });
 
     test('makes one pack per folder with Lottie files', () async {

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:lottie_decoder/src/cache/cached_frame.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_codec.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_files.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
@@ -24,8 +25,9 @@ void _reportToFlutter(Object error, StackTrace stack) {
   );
 }
 
-/// Compressed frames of rendered animations, kept in memory and, when the host
-/// gives it a directory, on disk.
+/// Compressed frames of rendered animations, kept in memory while an
+/// animation is being filled and, when the host gives it a directory, in one
+/// file per animation once it is complete.
 ///
 /// The cache holds **opaque** bytes: it knows nothing of the codec, the engine
 /// or pixels, so the same store serves any renderer that can encode a frame
@@ -33,18 +35,31 @@ void _reportToFlutter(Object error, StackTrace stack) {
 ///
 /// ## Use
 ///
-/// A renderer calls [open] once per animation, then reads [frame] and tests
-/// [has] synchronously, and [put]s a frame after rendering one. A frame is
-/// served from RAM only; [open] is what makes a file's frames resident.
+/// A renderer calls [open] once per animation (it learns what the directory
+/// holds), then asks [frame] synchronously and [put]s a frame after rendering
+/// one. [frame] answers where the frame can be restored from: its bytes while
+/// the animation is in memory, or a reference into its file once it is on
+/// disk, which the isolate that restores it reads one frame at a time
+/// (`FrameFileReader`). The cache never reads a file's frames itself, so a
+/// persisted animation costs this isolate no bytes and no work per frame.
 ///
 /// ## Tiers
 ///
-/// The RAM tier evicts whole animations, least recently used first: a
-/// half-resident animation would serve some frames and re-render others, which
-/// costs the same render as having none. The disk tier writes an animation
-/// once, when its last frame arrives, and evicts files least recently used
-/// past [diskBudgetBytes]; with no budget it evicts none, and the host's store
-/// keeps the directory.
+/// The RAM tier holds the animations being filled, and with no directory the
+/// complete ones too. It evicts whole animations: a half-resident animation
+/// would serve some frames and re-render others, which costs the same render
+/// as having none. Over [ramBudgetBytes] it first evicts the animations not
+/// used for [playingFor], least recently used first; if every one left plays,
+/// it drops the one that started filling last, never the oldest, so one fill
+/// always completes (and leaves RAM for its file). A dropped animation that
+/// plays renders as without a cache until there is room: the budget degrades
+/// by not keeping, never by reloading in a loop.
+///
+/// The disk tier writes an animation once, when its last frame arrives, and
+/// evicts files least recently used past [diskBudgetBytes]; with no budget it
+/// evicts none, and the host's store keeps the directory. A file in use is
+/// stamped when it is opened and at most every 30 seconds while it serves
+/// frames, so such a store sees it as in use.
 final class FrameCache {
   /// Creates a cache keeping files in the directory at [directoryPath]; null
   /// keeps memory only, which is all the web can do (a path there is an
@@ -53,6 +68,7 @@ final class FrameCache {
     required String? directoryPath,
     this.ramBudgetBytes = 32 * 1024 * 1024,
     this.diskBudgetBytes = 128 * 1024 * 1024,
+    this.playingFor = const Duration(seconds: 2),
     FrameCacheClock clock = _systemClock,
     FrameCacheErrorHandler onError = _reportToFlutter,
     @visibleForTesting FrameCacheFiles? files,
@@ -68,8 +84,8 @@ final class FrameCache {
        _clock = clock,
        _onError = onError;
 
-  /// The most compressed bytes the RAM tier keeps (a single animation larger
-  /// than this stays while it is the only one).
+  /// The most compressed bytes the RAM tier keeps (the animation that started
+  /// filling first stays even when it alone is larger).
   final int ramBudgetBytes;
 
   /// The most bytes the disk tier keeps, or null for no budget of its own:
@@ -78,10 +94,16 @@ final class FrameCache {
   /// store removed is a miss like any other.
   final int? diskBudgetBytes;
 
-  /// The largest file read when there is no [diskBudgetBytes] to bound it: a
-  /// file this large is no animation this cache wrote (an admitted animation
-  /// of a few hundred frames is tens of megabytes), so it is a miss.
-  static const int _unboundedReadBytes = 1 << 30;
+  /// How recently an animation must have been used to count as playing, which
+  /// the RAM tier evicts last. The default is the frame scheduler's longest
+  /// unpainted lease (twice its idle period of one second): an animation used
+  /// within it may still be on screen.
+  final Duration playingFor;
+
+  /// How often a file that serves frames is stamped used: well inside the
+  /// grace a host's store gives files in use (a minute), so a file that plays
+  /// is never the least recently used one there.
+  static const Duration _restampEvery = Duration(seconds: 30);
 
   final FrameCacheFiles? _files;
   final FrameCacheClock _clock;
@@ -89,6 +111,8 @@ final class FrameCache {
 
   final Map<FrameCacheKey, _Animation> _animations = {};
   int _ramBytes = 0;
+  // Orders fills by when they started: the youngest is dropped first.
+  int _nextFill = 0;
   bool _disposed = false;
 
   // The disk tier, as this cache last saw it. Filled by one scan, lazily: a
@@ -96,60 +120,76 @@ final class FrameCache {
   final Map<String, _DiskFile> _disk = {};
   Future<void>? _scanned;
   final Set<Future<void>> _pending = {};
-  final Map<FrameCacheKey, Future<int?>> _reads = {};
   // Writes stop after the first failure: a directory that refused one write
   // (read-only, full, gone) will refuse the next, and each attempt would only
-  // allocate and fail. Reads keep trying; a miss is all they cost.
+  // allocate and fail. Stamps keep trying; they are cheap.
   bool _writable = true;
   bool _reported = false;
 
-  /// Makes the animation's frames resident and returns its frame count, or
-  /// null when nothing is cached for [key] (or [key] is not admitted).
-  Future<int?> open(FrameCacheKey key) async {
+  /// The compressed bytes held in memory now: the animations being filled
+  /// (and, without files, the complete ones). A persisted animation adds none.
+  int get residentBytes => _ramBytes;
+
+  /// Learns whether anything is cached for [key] (listing the directory the
+  /// first time) and marks it used; false when nothing is, or when [key] is
+  /// not admitted. Reads no frame.
+  Future<bool> open(FrameCacheKey key) async {
     _checkAlive();
-    if (!key.admitted()) return null;
-    final animation = _animations[key];
-    if (animation != null) {
+    if (!key.admitted()) return false;
+    if (_animations[key] case final animation?) {
       _touch(animation);
-      return animation.frames.length;
+      return true;
     }
-    if (_files == null) return null;
-    // Concurrent opens of one key share one read: the second would only read
-    // and decode the same file again, then lose the race to install it.
-    // The callback is a block: `whenComplete` waits for a Future it returns,
-    // and `remove` returns this very future.
-    return _reads[key] ??= _load(key).whenComplete(() {
-      _reads.remove(key);
-    });
+    if (_files == null) return false;
+    await _ensureScanned();
+    final stem = key.toFileStem();
+    if (!_disk.containsKey(stem)) return false;
+    _useFile(stem, opened: true);
+    return true;
   }
 
-  /// Whether frame [index] of [key] is resident.
-  bool has(FrameCacheKey key, int index) {
-    final frames = _animations[key]?.frames;
-    return frames != null &&
-        index >= 0 &&
-        index < frames.length &&
-        frames[index] != null;
-  }
+  /// Whether frame [index] of [key] is cached, in memory or in a file.
+  bool has(FrameCacheKey key, int index) => _lookup(key, index) != null;
 
-  /// The resident bytes of frame [index] of [key], or null; marks the
+  /// Where frame [index] of [key] can be restored from, or null; marks the
   /// animation recently used.
-  Uint8List? frame(FrameCacheKey key, int index) {
-    final animation = _animations[key];
-    if (animation == null || index < 0 || index >= animation.frames.length) {
-      return null;
+  ///
+  /// A frame of a file is answered for any index that is not negative: the
+  /// reader checks the file's own table, and a frame it cannot serve is a
+  /// restore that fails (see [invalidate]).
+  CachedFrame? frame(FrameCacheKey key, int index) {
+    final found = _lookup(key, index);
+    switch (found) {
+      case CachedFrameBytes():
+        _touch(_animations[key]!);
+      case CachedFrameFile():
+        _useFile(key.toFileStem());
+      case null:
+        break;
     }
-    _touch(animation);
-    return animation.frames[index];
+    return found;
+  }
+
+  CachedFrame? _lookup(FrameCacheKey key, int index) {
+    if (index < 0) return null;
+    if (_animations[key] case final animation?
+        when index < animation.frames.length) {
+      if (animation.frames[index] case final bytes?) {
+        return CachedFrame.bytes(bytes);
+      }
+    }
+    final stem = key.toFileStem();
+    if (!_disk.containsKey(stem)) return null;
+    return CachedFrame.file(_files!.pathOf(stem), key, index);
   }
 
   /// Stores one compressed frame of an animation of [frameCount] frames.
   ///
-  /// A frame already stored is kept (the first write wins). Throws
-  /// [ArgumentError] when [key] is not admitted or [frameCount] is not
-  /// positive, [RangeError] when [index] is outside the animation, and
-  /// [StateError] when [frameCount] disagrees with an earlier put or the cache
-  /// is disposed.
+  /// A frame already stored is kept (the first write wins), and so is an
+  /// animation already on disk (its file serves it). Throws [ArgumentError]
+  /// when [key] is not admitted or [frameCount] is not positive, [RangeError]
+  /// when [index] is outside the animation, and [StateError] when
+  /// [frameCount] disagrees with an earlier put or the cache is disposed.
   void put(
     FrameCacheKey key,
     int index,
@@ -164,9 +204,11 @@ final class FrameCache {
       throw ArgumentError.value(frameCount, 'frameCount', 'must be positive');
     }
     RangeError.checkValueInInterval(index, 0, frameCount - 1, 'index');
+    final stem = key.toFileStem();
+    if (_disk.containsKey(stem) && !_animations.containsKey(key)) return;
     final animation = _animations.putIfAbsent(
       key,
-      () => _Animation(key.toFileStem(), frameCount, lastUsed: _clock()),
+      () => _Animation(stem, frameCount, _nextFill++, lastUsed: _clock()),
     );
     if (animation.frames.length != frameCount) {
       throw StateError(
@@ -181,35 +223,51 @@ final class FrameCache {
     _ramBytes += compressed.length;
     if (_files != null && animation.complete && !animation.persisted) {
       animation.persisted = true;
-      // The frames are copied out now: the animation may be evicted from RAM
-      // before the write runs.
-      _track(_persist(key, List<Uint8List>.of(animation.frames.cast())));
+      _track(_persist(key, animation));
     }
-    _evictRam(keep: key);
+    _evictRam();
   }
 
-  /// Drops one animation from both tiers: the resident frames at once, the
-  /// file once a write under way has finished. For an entry a renderer found
-  /// damaged (its bytes decoded to nothing), which would otherwise be served
-  /// again on every launch. Unknown keys are fine.
+  /// Drops one animation from both tiers: the resident frames and the file's
+  /// entry at once (so [frame] stops answering it), the file itself once a
+  /// write under way has finished. For an entry a renderer found damaged (its
+  /// bytes decoded to nothing), which would otherwise be served again on
+  /// every launch. Unknown keys are fine.
   ///
-  /// The RAM entry goes before the first `await`, so a caller that renders on
-  /// and [put]s again need not wait: the new frames build a fresh animation.
-  /// A file-system failure is reported like any other, never thrown. An
-  /// animation put again meanwhile and written keeps its file.
-  Future<void> invalidate(FrameCacheKey key) async {
+  /// A caller that renders on and [put]s again need not wait: the new frames
+  /// build a fresh animation. A file-system failure is reported like any
+  /// other, never thrown. An animation put again meanwhile and written keeps
+  /// its file.
+  Future<void> invalidate(FrameCacheKey key) {
     _checkAlive();
-    final dropped = _animations.remove(key);
-    if (dropped != null) _ramBytes -= dropped.bytes;
-    final files = _files;
-    if (files == null) return;
-    await _settle();
+    if (_animations.remove(key) case final dropped?) {
+      _ramBytes -= dropped.bytes;
+      dropped.invalidated = true;
+    }
+    if (_files == null) return Future.value();
+    final stem = key.toFileStem();
+    _disk.remove(stem);
+    // Tracked like a write, so that [dispose] and [clear] wait for it too.
+    final deletion = _deleteDamaged(key, stem, List.of(_pending));
+    _track(deletion);
+    return deletion;
+  }
+
+  /// Deletes the file [stem] once the writes in [before] have finished,
+  /// unless [key] was put again and written meanwhile.
+  Future<void> _deleteDamaged(
+    FrameCacheKey key,
+    String stem,
+    List<Future<void>> before,
+  ) async {
+    await Future.wait(before);
     // Frames put again while this waited built a new animation and, once
     // complete, a new file under the same name: it is not the damaged one.
-    if (_animations[key]?.persisted ?? false) return;
+    if (_disk.containsKey(stem) || (_animations[key]?.persisted ?? false)) {
+      return;
+    }
     try {
-      _disk.remove(key.toFileStem());
-      await files.delete(key.toFileStem());
+      await _files!.delete(stem);
     } on Object catch (error, stack) {
       _report(error, stack);
     }
@@ -217,6 +275,10 @@ final class FrameCache {
 
   /// Drops both tiers.
   Future<void> clear() async {
+    final cleared = {
+      for (final animation in _animations.values)
+        (animation..invalidated = true).stem,
+    };
     _animations.clear();
     _ramBytes = 0;
     // A write already under way finishes first, so that its file is among
@@ -226,7 +288,9 @@ final class FrameCache {
     if (files == null) return;
     try {
       await _ensureScanned();
-      for (final stem in _disk.keys.toList()) {
+      // A write under way of a cleared animation published a file the disk
+      // tier never listed: it goes too.
+      for (final stem in {..._disk.keys, ...cleared}) {
         await files.delete(stem);
       }
       _disk.clear();
@@ -238,16 +302,16 @@ final class FrameCache {
   /// Whether [dispose] was called: [open], [put] and [invalidate] then throw.
   bool get isDisposed => _disposed;
 
-  /// Finishes pending reads and writes, then stops; idempotent.
+  /// Finishes pending writes, then stops; idempotent.
   Future<void> dispose() async {
     _disposed = true;
     await _settle();
   }
 
-  /// Waits until no read or write is under way.
+  /// Waits until no write or stamp is under way.
   Future<void> _settle() async {
-    while (_pending.isNotEmpty || _reads.isNotEmpty) {
-      await Future.wait<Object?>([..._pending, ..._reads.values]);
+    while (_pending.isNotEmpty) {
+      await Future.wait<void>(List.of(_pending));
     }
   }
 
@@ -300,57 +364,59 @@ final class FrameCache {
     }
   }
 
-  Future<int?> _load(FrameCacheKey key) async {
-    final stem = key.toFileStem();
-    try {
-      await _ensureScanned();
-      if (!_disk.containsKey(stem)) return null;
-      // A file above the whole budget would have been evicted by the scan
-      // that listed it; one that grew since is a miss like any damage.
-      final bytes = await _files!.read(
-        stem,
-        maxBytes: diskBudgetBytes ?? _unboundedReadBytes,
-      );
-      final frames = bytes == null ? null : FrameCacheCodec.decode(key, bytes);
-      if (frames == null) {
-        // Damage is a miss, and the file goes: left in place it would be
-        // read, rejected and re-rendered over on every launch.
-        _disk.remove(stem);
-        await _files.delete(stem);
-        return null;
-      }
-      final raced = _animations[key];
-      if (raced != null) return raced.frames.length;
-      final now = _clock();
-      final animation = _Animation.complete(stem, frames, lastUsed: now)
-        ..persisted = true;
-      _animations[key] = animation;
-      _ramBytes += animation.bytes;
-      _disk[stem]?.lastUsed = now;
-      await _files.touch(stem, now);
-      _evictRam(keep: key);
-      return frames.length;
-    } on Object catch (error, stack) {
-      _report(error, stack);
-      return null;
-    }
-  }
-
-  Future<void> _persist(FrameCacheKey key, List<Uint8List> frames) async {
+  /// Writes [animation], complete, as its file: the header, then the frames
+  /// as they are, handed to the file system one by one. Once it is on disk
+  /// its frames leave RAM.
+  Future<void> _persist(FrameCacheKey key, _Animation animation) async {
     if (!_writable) return;
-    final stem = key.toFileStem();
+    final stem = animation.stem;
+    // Copied out now: the animation may leave RAM before the write runs.
+    final frames = List<Uint8List>.of(animation.frames.cast());
     try {
       await _ensureScanned();
-      final bytes = FrameCacheCodec.encode(key, frames);
+      final header = FrameCacheCodec.header(key, [
+        for (final frame in frames) frame.length,
+      ]);
       final now = _clock();
-      final unstamped = await _files!.write(stem, bytes, modified: now);
+      final unstamped = await _files!.write(stem, [
+        header,
+        ...frames,
+      ], modified: now);
+      // Invalidated (or cleared) while it was written: these are the damaged
+      // frames, and invalidate deletes the file once this write settles.
+      if (animation.invalidated) return;
+      _disk[stem] = _DiskFile(header.length + animation.bytes, now);
+      if (identical(_animations[key], animation)) {
+        _animations.remove(key);
+        _ramBytes -= animation.bytes;
+      }
       // The entry is on disk: track it for eviction, keep writing, and only
       // tell the host that its timestamps do not stick.
-      _disk[stem] = _DiskFile(bytes.length, now);
       if (unstamped != null) _report(unstamped, StackTrace.current);
       await _evictDisk();
     } on Object catch (error, stack) {
       _writable = false;
+      _report(error, stack);
+    }
+  }
+
+  /// Marks the file [stem] used now and stamps it when it was just [opened]
+  /// or its stamp is older than [_restampEvery] (not awaited: a stamp is
+  /// bookkeeping).
+  void _useFile(String stem, {bool opened = false}) {
+    final file = _disk[stem];
+    if (file == null) return;
+    final now = _clock();
+    file.lastUsed = now;
+    if (!opened && now.difference(file.stamped) < _restampEvery) return;
+    file.stamped = now;
+    _track(_stamp(stem, now));
+  }
+
+  Future<void> _stamp(String stem, DateTime now) async {
+    try {
+      await _files!.touch(stem, now);
+    } on Object catch (error, stack) {
       _report(error, stack);
     }
   }
@@ -363,66 +429,71 @@ final class FrameCache {
     _onError(error, stack);
   }
 
-  /// Marks [animation] used now, in both tiers. The file's time on disk is
-  /// stamped when it is read or written, not per frame: a stat per painted
-  /// frame would cost more than the recency it buys.
-  void _touch(_Animation animation) {
-    final now = _clock();
-    animation.lastUsed = now;
-    _disk[animation.stem]?.lastUsed = now;
-  }
+  /// Marks [animation] used now.
+  void _touch(_Animation animation) => animation.lastUsed = _clock();
 
   void _checkAlive() {
     if (_disposed) throw StateError('FrameCache is disposed');
   }
 
-  void _evictRam({required FrameCacheKey keep}) {
-    while (_ramBytes > ramBudgetBytes) {
-      FrameCacheKey? oldest;
-      DateTime? oldestUsed;
+  /// Evicts until RAM fits the budget, keeping at least one animation: the
+  /// idle ones first, least recently used first; then, when all that are
+  /// left play, the one that started filling last.
+  void _evictRam() {
+    while (_ramBytes > ramBudgetBytes && _animations.length > 1) {
+      final now = _clock();
+      MapEntry<FrameCacheKey, _Animation>? idle;
+      MapEntry<FrameCacheKey, _Animation>? youngest;
       for (final entry in _animations.entries) {
-        if (entry.key == keep) continue;
-        final used = entry.value.lastUsed;
-        if (oldestUsed == null || used.isBefore(oldestUsed)) {
-          oldest = entry.key;
-          oldestUsed = used;
+        final animation = entry.value;
+        if (now.difference(animation.lastUsed) >= playingFor &&
+            (idle == null ||
+                animation.lastUsed.isBefore(idle.value.lastUsed))) {
+          idle = entry;
+        }
+        if (youngest == null || animation.fill > youngest.value.fill) {
+          youngest = entry;
         }
       }
-      if (oldest == null) return;
-      _ramBytes -= _animations.remove(oldest)!.bytes;
+      final victim = (idle ?? youngest)!;
+      _animations.remove(victim.key);
+      _ramBytes -= victim.value.bytes;
     }
   }
 }
 
 /// One animation's resident frames; a slot is null until its frame arrives.
 final class _Animation {
-  _Animation(this.stem, int frameCount, {required this.lastUsed})
-    : frames = List<Uint8List?>.filled(frameCount, null),
-      filled = 0;
+  _Animation(this.stem, int frameCount, this.fill, {required this.lastUsed})
+    : frames = List<Uint8List?>.filled(frameCount, null);
 
-  /// An animation read whole from a file.
-  _Animation.complete(this.stem, List<Uint8List> read, {required this.lastUsed})
-    : frames = List<Uint8List?>.of(read),
-      filled = read.length,
-      bytes = read.fold<int>(0, (sum, f) => sum + f.length);
-
-  /// The file this animation lives in, spelled once: reads are per frame.
+  /// The file this animation lives in, spelled once: lookups are per frame.
   final String stem;
   final List<Uint8List?> frames;
-  int filled;
+
+  /// When the fill started, as an order: larger is younger.
+  final int fill;
+  int filled = 0;
   int bytes = 0;
   DateTime lastUsed;
 
-  /// Whether a file holds exactly these frames (read from one, or written).
+  /// Whether its file was (or is being) written.
   bool persisted = false;
+
+  /// Whether it was found damaged (or cleared): a write under way of its
+  /// frames does not count as a file.
+  bool invalidated = false;
 
   bool get complete => filled == frames.length;
 }
 
 /// What the cache knows of one file in the directory.
 final class _DiskFile {
-  _DiskFile(this.bytes, this.lastUsed);
+  _DiskFile(this.bytes, this.lastUsed) : stamped = lastUsed;
 
   final int bytes;
   DateTime lastUsed;
+
+  /// The time last written to the file's stamp.
+  DateTime stamped;
 }

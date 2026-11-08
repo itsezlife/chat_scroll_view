@@ -1,7 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
+import 'package:lottie_decoder/src/cache/cached_frame.dart';
 import 'package:lottie_decoder/src/cache/frame_cache.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
 import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
@@ -20,14 +19,15 @@ import 'package:lottie_native/lottie_native.dart';
 ///
 /// A job whose source has a [FrameCacheKey] that the cache admits, and whose
 /// frame is inside the animation, is **cacheable**. The batch asks the cache
-/// to `open` each key the first time the renderer sees it, and again once its
-/// frames have left RAM (that is what makes the frames of an earlier launch,
-/// or of an eviction, resident). Only the batch that starts an open waits for
-/// it; a batch that meets one still reading treats the key as a miss and
+/// to `open` each key the first time the renderer sees it, and again while
+/// the cache has nothing for it (that is what finds the file of an earlier
+/// launch). Only the batch that starts an open waits for it; a batch that
+/// meets one still listing the directory treats the key as a miss and
 /// renders. A cache that cannot open a key is not used for that batch. Then:
 ///
-/// - a cacheable job whose frame is resident is **restored**: the engine
-///   decompresses the cached bytes into the slot;
+/// - a cacheable job whose frame is cached is **restored**: the engine
+///   decompresses it into the slot, reading a persisted frame from its file
+///   on its own isolate (only the file's name crosses);
 /// - every other job renders, and a cacheable one also hands its compressed
 ///   pixels back, which go into the cache;
 /// - a restore that fails (the entry is corrupt, or of another size) is
@@ -46,7 +46,7 @@ import 'package:lottie_native/lottie_native.dart';
 /// scheduler (ADR 043): each batch is one engine call that locks the
 /// textures on the render isolate through the host's C entry points, draws
 /// or restores each frame there and posts. The cache works as for slots: a
-/// resident frame is restored into the texture, any other cacheable frame is
+/// cached frame is restored into the texture, any other cacheable frame is
 /// drawn and captured, and a restore that fails invalidates its animation and
 /// is drawn in a second call.
 final class LottieFrameRenderer implements FrameRenderer, TextureFrameWriter {
@@ -128,9 +128,9 @@ final class LottieFrameRenderer implements FrameRenderer, TextureFrameWriter {
     final plain = <_Entry>[];
     for (final entry in entries) {
       final key = entry.key;
-      final bytes = key == null ? null : cache.frame(key, entry.frame);
-      if (bytes != null) {
-        restores.add(entry.withCached(bytes));
+      final cached = key == null ? null : cache.frame(key, entry.frame);
+      if (cached != null) {
+        restores.add(entry.withCached(cached));
       } else if (key != null) {
         captures.add(entry);
       } else {
@@ -180,8 +180,7 @@ final class LottieFrameRenderer implements FrameRenderer, TextureFrameWriter {
   /// this batch (an open failed, or it was disposed while the disk was read).
   ///
   /// Only a batch that starts an open waits for it. A done open is started
-  /// again once RAM has let the animation go, so that its file refills RAM
-  /// instead of the frames being rendered over; a pending one is a miss.
+  /// again while the cache has nothing for the key; a pending one is a miss.
   Future<bool> _openAll(FrameCache cache, Set<FrameCacheKey> keys) async {
     final starts = <Future<bool>>[];
     for (final key in keys) {
@@ -214,7 +213,7 @@ final class LottieFrameRenderer implements FrameRenderer, TextureFrameWriter {
         !cache.isDisposed &&
         keys.any((key) => key != null) &&
         await _openAll(cache, {...keys.nonNulls});
-    final restores = List<Uint8List?>.filled(jobs.length, null);
+    final restores = List<CachedFrame?>.filled(jobs.length, null);
     if (cached) {
       for (var i = 0; i < jobs.length; i++) {
         final key = keys[i];
@@ -302,7 +301,7 @@ final class LottieFrameRenderer implements FrameRenderer, TextureFrameWriter {
     return _engine.restore([
       for (final entry in entries)
         LottieRestoreJob(
-          compressed: entry.cached!,
+          frame: entry.cached!,
           width: entry.job.width,
           height: entry.job.height,
           address: entry.job.address,
@@ -390,11 +389,11 @@ final class _Entry {
   final FrameCacheKey? key;
   final LottieEngineJob job;
 
-  /// The cached bytes, once the cache has them.
-  final Uint8List? cached;
+  /// Where the cached frame is, once the cache has it.
+  final CachedFrame? cached;
 
-  _Entry withCached(Uint8List bytes) =>
-      _Entry._(index, frame, frameCount, key, job, bytes);
+  _Entry withCached(CachedFrame cached) =>
+      _Entry._(index, frame, frameCount, key, job, cached);
 }
 
 LottieSource _lottieSourceOf(Object source) => switch (source) {

@@ -3,6 +3,8 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:lottie_decoder/src/cache/cached_frame.dart';
+import 'package:lottie_decoder/src/cache/frame_file_reader.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine_work.dart';
 import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
@@ -144,7 +146,7 @@ final class IsolateLottieEngine implements LottieSlotEngine {
     final wire = [
       for (final job in jobs)
         _RestoreWire(
-          TransferableTypedData.fromList([job.compressed]),
+          _toWire(job.frame),
           job.width,
           job.height,
           job.address,
@@ -170,8 +172,7 @@ final class IsolateLottieEngine implements LottieSlotEngine {
                 job.height,
                 switch (job.work) {
                   final LottieTextureRender render => render,
-                  LottieTextureRestore(:final compressed) =>
-                    TransferableTypedData.fromList([compressed]),
+                  LottieTextureRestore(:final frame) => _toWire(frame),
                 },
               ),
           ]),
@@ -275,6 +276,23 @@ final class IsolateLottieEngine implements LottieSlotEngine {
 
 // --- Protocol (data, not control flow) ---
 
+/// A cached frame as it crosses to the isolate: bytes as a transferable (no
+/// copy through the port), a file reference as itself (a path and a key,
+/// read on the far side).
+Object _toWire(CachedFrame frame) => switch (frame) {
+  CachedFrameBytes(:final bytes) => TransferableTypedData.fromList([bytes]),
+  final CachedFrameFile file => file,
+};
+
+/// The cached frame [wire] stands for, on the isolate.
+CachedFrame _fromWire(Object wire) => switch (wire) {
+  final TransferableTypedData bytes => CachedFrame.bytes(
+    bytes.materialize().asUint8List(),
+  ),
+  final CachedFrameFile file => file,
+  _ => throw ArgumentError.value(wire, 'frame'),
+};
+
 /// What the isolate is started with.
 final class _Boot {
   const _Boot(this.replies, this.bindingFactory, this.codecFactory);
@@ -341,7 +359,9 @@ final class _RestoreWire {
     this.address,
     this.strideBytes,
   );
-  final TransferableTypedData data;
+
+  /// See [_toWire].
+  final Object data;
   final int width;
   final int height;
   final int address;
@@ -354,8 +374,8 @@ final class _Restore extends _Request {
   final List<_RestoreWire> jobs;
 }
 
-/// Texture jobs on the wire: a render as itself, a restore's bytes as a
-/// transferable.
+/// Texture jobs on the wire: a render as itself, a restore's frame as
+/// [_toWire] spells it.
 final class _WriteTextures extends _Request {
   const _WriteTextures(this.id, this.entryPoints, this.format, this.jobs);
   final int id;
@@ -405,6 +425,9 @@ void _renderIsolateMain(_Boot boot) {
     (boot.codecFactory ?? NativeLottieFrameCodec.probe)(),
   );
 
+  // Frames of cache files are read here, where they are decompressed: the UI
+  // isolate sends only where a frame is (ADR 022, frames read from the file).
+  final reader = FrameFileReader();
   final commands = ReceivePort();
   void answer(int id, Object? Function() work) {
     try {
@@ -458,10 +481,10 @@ void _renderIsolateMain(_Boot boot) {
       case _Restore(:final id, :final jobs):
         answer(
           id,
-          () => LottieEngineWork.restore(codec, [
+          () => LottieEngineWork.restore(codec, reader, [
             for (final job in jobs)
               LottieRestoreJob(
-                compressed: job.data.materialize().asUint8List(),
+                frame: _fromWire(job.data),
                 width: job.width,
                 height: job.height,
                 address: job.address,
@@ -482,6 +505,7 @@ void _renderIsolateMain(_Boot boot) {
             for (final result in LottieEngineWork.writeTextures(
               binding,
               codec,
+              reader,
               entryPoints,
               format,
               [
@@ -492,10 +516,7 @@ void _renderIsolateMain(_Boot boot) {
                     height: height,
                     work: switch (work) {
                       final LottieTextureRender render => render,
-                      final TransferableTypedData bytes => LottieTextureRestore(
-                        bytes.materialize().asUint8List(),
-                      ),
-                      _ => throw ArgumentError.value(work, 'work'),
+                      _ => LottieTextureRestore(_fromWire(work)),
                     },
                   ),
               ],
@@ -514,6 +535,7 @@ void _renderIsolateMain(_Boot boot) {
         // Closing the port is what ends the isolate, even if the binding
         // throws while closing.
         try {
+          reader.close();
           binding.close();
         } finally {
           commands.close();

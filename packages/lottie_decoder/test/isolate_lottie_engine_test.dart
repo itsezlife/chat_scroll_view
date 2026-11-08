@@ -236,7 +236,7 @@ void main() {
 
       final statuses = await engine.restore([
         LottieRestoreJob(
-          compressed: Uint8List.fromList([1, 2, 3]),
+          frame: CachedFrame.bytes(Uint8List.fromList([1, 2, 3])),
           width: 64,
           height: 64,
           address: page.address,
