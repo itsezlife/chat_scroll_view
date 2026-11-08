@@ -61,7 +61,7 @@ void main() {
   // A tall window, so that every message of the showcase is mounted.
   Future<ChatSelectionController> openChat(WidgetTester tester) async {
     tester.view
-      ..physicalSize = const Size(500, 6000)
+      ..physicalSize = const Size(500, 12000)
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     services = (await tester.runAsync(createTestServices))!;
