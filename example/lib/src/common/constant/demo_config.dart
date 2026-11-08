@@ -72,6 +72,12 @@ abstract final class DemoConfig {
   /// glass's share of a frame from the wallpaper's.
   static const bool glassLite = bool.fromEnvironment('GLASS_LITE');
 
+  /// Whether playing assets may take platform textures (ADR 043) where the
+  /// platform has a texture host (Android), from
+  /// `--dart-define=FRAME_TEXTURES=true`. Off by default: no host is made and
+  /// every playing asset keeps its slot on a dynamic page.
+  static const bool frameTextures = bool.fromEnvironment('FRAME_TEXTURES');
+
   /// Whether the scroll lab is mounted: the LAB switches, the frame log and
   /// the pointer tape, from `--dart-define=SCROLL_LAB=true`. Off, the app and
   /// its tests run without them.

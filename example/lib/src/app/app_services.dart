@@ -25,6 +25,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:frame_texture/frame_texture.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_decoder/image_decoder.dart';
 import 'package:kv_shared_preferences/kv_shared_preferences.dart';
@@ -327,6 +328,20 @@ final class AppServices {
         ValueNotifier<bool>(!kIsWeb),
         (ready) => ready.dispose(),
       );
+      // The platform's texture host (ADR 043), behind its switch: off, or
+      // where the platform has none, the scope has no pool and every playing
+      // asset keeps its page slot. The pool outlives the scope (it is
+      // disposed after it) and gives its idle textures back on memory
+      // pressure, through the scope.
+      final textureHost = DemoConfig.frameTextures
+          ? createPlatformFrameTextureHost()
+          : null;
+      final textures = textureHost == null
+          ? null
+          : owned(
+              FrameTexturePool(host: textureHost),
+              (pool) => pool.dispose(),
+            );
       final assets = owned(
         PageAssets.createScope(
           producer: pipeline,
@@ -334,6 +349,7 @@ final class AppServices {
           memoryPressure: memoryPressure,
           systemFonts: PaintingBinding.instance.systemFonts,
           textGlyphsReady: glyphFontsReady,
+          textures: textures,
         ),
         (scope) => scope.dispose(),
       );
@@ -747,6 +763,8 @@ final class AppServices {
     lowPower.dispose();
     _lifecycleSource.dispose();
     assets.dispose();
+    // The scope leaves its texture pool to its owner.
+    assets.textures?.dispose();
     _glyphFontsReady.dispose();
     _pipeline.dispose();
     // After the scope and the pipeline: dropping their entries frees the
