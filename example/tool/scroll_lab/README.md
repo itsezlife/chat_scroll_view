@@ -27,6 +27,7 @@ A typical round:
 
 ```shell
 flutter run --profile --dart-define=SCROLL_LAB=true \
+  --dart-define=DISK_CACHE=false \
   --dart-define-from-file=../config/development.json
 tool/scroll_lab/watch.sh start s1                # the user scrolls
 tool/scroll_lab/watch.sh stop s1
@@ -34,6 +35,14 @@ tool/scroll_lab/ab.sh base s1                    # arm A
 LAB_ON=snap tool/scroll_lab/ab.sh snap s1        # arm B; alternate A B A B
 python3 tool/scroll_lab/seen.py perf/lab/base-1/trace.pftrace perf/lab/s1/tape.json
 ```
+
+A lab build turns the disk caches off with `--dart-define=DISK_CACHE=false`
+(`ab.sh` passes it): the baked glyph pages, the Lottie frames and Giphy's
+stills and clips are then kept in memory only, so every run starts as cold as
+the last and leaves no file behind. With them on, a run after the first meets
+warm caches, and a Giphy file found on disk is a request never sent: a net
+tape recorded then lacks it, and a replay of it never reaches the tape. A
+build without the define keeps them on, as a shipped client does.
 
 Before trusting a number:
 
