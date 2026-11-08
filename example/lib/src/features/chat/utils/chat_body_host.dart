@@ -8,6 +8,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_pol
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:listen/listen.dart' as listen;
 
 /// What a message body needs from the chat screen besides the message: the
 /// seams that connect the two bodies of the viewport (`ChatMarkdownBody`,
@@ -29,6 +30,10 @@ final class ChatBodyHost {
   /// [describe] says what the host knows of a document: a GIF waits behind
   /// the whole rectangle, as in the panel's grid, a sticker or custom emoji
   /// behind a quiet rounded square. Without it every document is the latter.
+  ///
+  /// [held] is the hold on the chat's playback (a popup panel over it): every
+  /// embed the bodies make, inline or emoji-only, follows it
+  /// (`ContentEmbed.held`), so the chat shows its frames and keeps them.
   ChatBodyHost({
     required AssetCacheScope assets,
     required this.policy,
@@ -37,11 +42,13 @@ final class ChatBodyHost {
     StickerPlayMemory? plays,
     this.playbackFor = ChatStickerPlayback.defaultFor,
     DescribeContent? describe,
-  }) : embedResolver = ContentEmbedResolver(scope: assets),
+    listen.ValueListenable<bool>? held,
+  }) : embedResolver = ContentEmbedResolver(scope: assets, held: held),
        embedFactory = ((content, preset) => ContentEmbed(
          scope: assets,
          content: content,
          preset: preset,
+         held: held,
          // A document here is a sticker, a custom emoji drawn large or a GIF;
          // the scope's circle is the stand-in of a glyph.
          placeholder: switch (content) {

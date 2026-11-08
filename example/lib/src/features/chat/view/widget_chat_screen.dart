@@ -200,11 +200,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _emojiPolicy = ValueNotifier(_currentEmojiPolicy());
     widget.services.largeEmoji.enabled.addListener(_refreshEmojiPolicy);
     widget.services.largeEmoji.desktopLimit.addListener(_refreshEmojiPolicy);
-    _bodies = ChatBodyHost(
-      assets: widget.services.assets,
-      policy: _emojiPolicy,
-      describe: widget.services.describe,
-    );
     _stickerInteractions = StickerInteractionStub(
       onBroadcast: (broadcast) => _showDemoSnack('Would broadcast $broadcast'),
       // A real host counts the effects the animated-emoji set holds for the
@@ -251,6 +246,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       onPastedMedia: _onPastedMedia,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
+    // Made with the input set: the chat's embeds hold while its popup panel
+    // is over the chat.
+    if (fresh) {
+      _bodies = ChatBodyHost(
+        assets: widget.services.assets,
+        policy: _emojiPolicy,
+        describe: widget.services.describe,
+        held: input.chatPlaybackHeld,
+      );
+    }
     // The chat's stickers and GIFs composite as texture layers: the pool is
     // warmed for them once, as the screen opens (ADR 043, "Pool").
     if (fresh) {
