@@ -206,6 +206,9 @@ abstract final class PointerTape {
     if (rows.isEmpty) return 0;
     final t0 = rows.first.time;
     final base = Timeline.now;
+    // The tape's time zero on the trace clock: `seen.py` places every row
+    // from it.
+    Timeline.timeSync('LABtape0', () {});
     final clock = Stopwatch()..start();
     var i = 0;
     while (i < rows.length) {

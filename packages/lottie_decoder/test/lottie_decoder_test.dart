@@ -75,6 +75,7 @@ final class _Rig {
     LottiePixelUploader? upload,
     FrameRenderer? renderer,
     FrameCache? cache,
+    LottieContentHasher? hashContent,
   }) : binding = FakeLottieBinding()..accept(_fakeBytes, _info) {
     this.engine = engine ?? InProcessLottieEngine(binding);
     ticks = ManualPlaybackTickSource();
@@ -93,6 +94,7 @@ final class _Rig {
       engine: this.engine,
       scheduler: scheduler,
       cache: cache,
+      hashContent: hashContent,
       decodeImage: decodeImage ?? (bytes) async => _image(),
       uploadPixels:
           upload ??
@@ -178,7 +180,10 @@ void main() {
     Future<void> paintOnce(_Rig rig, Uint8List bytes, AssetSpec spec) async {
       final report = _Report();
       rig.decoder.decode(_request(bytes, spec: spec), report);
-      await pumpEventQueue();
+      // The default hasher runs on another isolate, which takes real time.
+      while (report.advances.length < 2 && report.failures.isEmpty) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
       final pictures = ui.PictureRecorder();
       report.advances.last.paintable.paint(
         ui.Canvas(pictures),
@@ -221,6 +226,93 @@ void main() {
         ),
       );
       expect(source.frameCount, _info.frameCount);
+    });
+
+    test('the content hash comes from the hasher, which the decode awaits '
+        '(the calling isolate never hashes the file itself)', () async {
+      final hashed = <Uint8List>[];
+      final hash = Completer<String>();
+      final rig = _Rig(
+        renderer: recorder,
+        cache: cache,
+        hashContent: (bytes) {
+          hashed.add(bytes);
+          return hash.future;
+        },
+      );
+      addTearDown(rig.close);
+      final report = _Report();
+
+      rig.decoder.decode(
+        _request(
+          _fakeBytes,
+          spec: const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+        ),
+        report,
+      );
+      await pumpEventQueue();
+
+      expect(hashed.single, _fakeBytes);
+      expect(
+        report.advances.map((a) => a.stage),
+        isNot(contains(AssetStage.full)),
+        reason: 'the animation is named by the hash, so it waits for it',
+      );
+
+      hash.complete('cafe-01');
+      await paintOnce(
+        rig,
+        _fakeBytes,
+        const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+      );
+      expect(
+        (recorder.jobs.first.source as LottieSource).cacheKey!.contentHash,
+        'cafe-01',
+      );
+    });
+
+    test('a hasher that fails fails the decode permanently, holding '
+        'nothing', () async {
+      final rig = _Rig(
+        renderer: recorder,
+        cache: cache,
+        hashContent: (bytes) async => throw StateError('hash'),
+      );
+      addTearDown(rig.close);
+      final report = _Report();
+
+      rig.decoder.decode(
+        _request(
+          _fakeBytes,
+          spec: const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+        ),
+        report,
+      );
+      await pumpEventQueue();
+
+      expect(report.failures, [AssetFailureKind.permanent]);
+      expect(report.advances, isEmpty);
+      expect(rig.binding.liveHandles, 0);
+    });
+
+    test('without a cache nothing is hashed', () async {
+      var calls = 0;
+      final rig = _Rig(
+        renderer: recorder,
+        hashContent: (bytes) async {
+          calls++;
+          return 'x';
+        },
+      );
+      addTearDown(rig.close);
+
+      await paintOnce(
+        rig,
+        _fakeBytes,
+        const AssetSpec(pixelWidth: 64, pixelHeight: 64),
+      );
+
+      expect(calls, 0);
     });
 
     test('the key carries the size the frames are rendered at', () async {

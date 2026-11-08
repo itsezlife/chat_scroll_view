@@ -1,4 +1,6 @@
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -47,10 +49,18 @@ abstract final class MediaPanelPages {
     id: stickersId,
     tab: const PanelTab(icon: ChromeIconId.stickers, labelKey: stickersId),
     capabilities: StickersPagePolicy.pageCapabilities,
-    builder: (context, host) => StickersPage(
-      host: host,
-      source: services.stickerPageSource,
-      assets: services.assets,
-    ),
+    builder: (context, host) {
+      if (DemoConfig.scrollLab) {
+        // The same controller the page obtains, so the lab marks its offset.
+        ScrollLab.watchCatalog(
+          host.controllers.obtain(host.pageId, CatalogPageController.new),
+        );
+      }
+      return StickersPage(
+        host: host,
+        source: services.stickerPageSource,
+        assets: services.assets,
+      );
+    },
   );
 }

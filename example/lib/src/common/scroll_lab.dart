@@ -12,6 +12,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:panel_pages/panel_pages.dart' show CatalogPageController;
 import 'package:video_decoder/video_decoder.dart' show VideoFrameScheduler;
 
 /// Scroll-smoothness lab: runtime switches to A/B on a device, and a frame
@@ -272,6 +273,25 @@ abstract final class ScrollLab {
       _scrolled += delta;
       Timeline.timeSync('LABy ${_scrolled.toStringAsFixed(2)}', () {});
     }
+  }
+
+  static Object? _watchedCatalog;
+
+  /// Marks the offset of a panel page's catalogue on every frame it moves,
+  /// as a `LABp <px>` timeline slice, the panel's counterpart of the chat's
+  /// `LABy` (`seen.py --mark LABp`). Watches one catalogue at a time; the
+  /// same one again is a no-op. No-op unless installed.
+  static void watchCatalog(CatalogPageController page) {
+    final catalog = page.catalog;
+    if (!_installed || identical(_watchedCatalog, catalog)) return;
+    _watchedCatalog = catalog;
+    var last = catalog.offset;
+    catalog.events.listen((_) {
+      final offset = catalog.offset;
+      if (offset == last || !identical(_watchedCatalog, catalog)) return;
+      last = offset;
+      Timeline.timeSync('LABp ${offset.toStringAsFixed(2)}', () {});
+    });
   }
 }
 
