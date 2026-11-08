@@ -16,9 +16,11 @@ void main() {
     addTearDown(() => dir.deleteSync(recursive: true));
   });
 
-  /// Writes a file for [key] whose frame i is [length] bytes of [fill] + i.
+  /// Writes a file of the [parity] frames of [key] whose frame i (of the
+  /// parity) is [length] bytes of [fill] + i.
   String write(
     FrameCacheKey key, {
+    FrameParity parity = FrameParity.even,
     int count = 3,
     int length = 4,
     int fill = 1,
@@ -27,9 +29,11 @@ void main() {
       for (var i = 0; i < count; i++)
         Uint8List(length)..fillRange(0, length, fill + i),
     ];
-    final path = '${dir.path}/${key.contentHash}.frames';
+    final path = '${dir.path}/${key.toFileStem(parity)}.frames';
     File(path).writeAsBytesSync([
-      ...FrameCacheCodec.header(key, [for (final f in frames) f.length]),
+      ...FrameCacheCodec.header(key, parity, [
+        for (final f in frames) f.length,
+      ]),
       for (final frame in frames) ...frame,
     ]);
     return path;
@@ -40,8 +44,20 @@ void main() {
     addTearDown(reader.close);
     final path = write(_key('a'));
 
-    expect(reader.read(CachedFrameFile(path, _key('a'), 2)), [3, 3, 3, 3]);
+    expect(reader.read(CachedFrameFile(path, _key('a'), 4)), [3, 3, 3, 3]);
     expect(reader.read(CachedFrameFile(path, _key('a'), 0)), [1, 1, 1, 1]);
+  });
+
+  test('a file of the odd frames serves those, and never a frame of the '
+      'other parity', () {
+    final reader = FrameFileReader();
+    addTearDown(reader.close);
+    final path = write(_key('a'), parity: FrameParity.odd);
+
+    expect(reader.read(CachedFrameFile(path, _key('a'), 1)), [1, 1, 1, 1]);
+    expect(reader.read(CachedFrameFile(path, _key('a'), 5)), [3, 3, 3, 3]);
+    expect(reader.read(CachedFrameFile(path, _key('a'), 2)), isNull);
+    expect(reader.read(CachedFrameFile(path, _key('a'), 7)), isNull);
   });
 
   test('more animations than open files still read correctly', () {
@@ -51,8 +67,8 @@ void main() {
     final b = write(_key('b'), fill: 7);
 
     for (var round = 0; round < 3; round++) {
-      expect(reader.read(CachedFrameFile(a, _key('a'), 1)), [2, 2, 2, 2]);
-      expect(reader.read(CachedFrameFile(b, _key('b'), 1)), [8, 8, 8, 8]);
+      expect(reader.read(CachedFrameFile(a, _key('a'), 2)), [2, 2, 2, 2]);
+      expect(reader.read(CachedFrameFile(b, _key('b'), 2)), [8, 8, 8, 8]);
     }
   });
 
