@@ -7,8 +7,11 @@
 // ignore_for_file: public_member_api_docs
 import 'dart:ffi';
 
-/// The ABI version of `chat_lottie.h` the bindings were written against.
-const chatLottieExpectedAbiVersion = 1;
+/// The ABI of `chat_lottie.h` the bindings were written against.
+abstract final class ChatLottieAbi {
+  /// The version a library must answer from its ABI probe.
+  static const expectedVersion = 1;
+}
 
 /// The status numbers of `chat_lottie.h`, in one place so no other file
 /// carries a bare literal.

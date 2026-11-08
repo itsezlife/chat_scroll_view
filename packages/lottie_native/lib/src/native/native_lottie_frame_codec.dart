@@ -26,7 +26,7 @@ final class NativeLottieFrameCodec implements LottieFrameCodec {
 
   static bool _probe(int Function() abiVersion, int Function(int, int) bound) {
     try {
-      return abiVersion() == chatLottieExpectedAbiVersion && bound(1, 1) >= 0;
+      return abiVersion() == ChatLottieAbi.expectedVersion && bound(1, 1) >= 0;
       // A symbol the library lacks surfaces as exactly this Error: it is the
       // dynamic-linking answer being probed for, not a bug to propagate.
       // ignore: avoid_catching_errors

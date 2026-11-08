@@ -36,7 +36,7 @@ final class NativeLottieBinding implements LottieBinding {
 
   static LottieAvailability _probe(int Function() abiVersion) {
     try {
-      return abiVersion() == chatLottieExpectedAbiVersion
+      return abiVersion() == ChatLottieAbi.expectedVersion
           ? LottieAvailability.available
           : LottieAvailability.abiMismatch;
       // A symbol the library lacks surfaces as exactly this Error: it is the

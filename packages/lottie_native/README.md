@@ -318,9 +318,10 @@ file changes the manifest's `sourceHash` (`dart native/tool/source_hash.dart
 
 `package:lottie_native/lottie_native.dart` compiles on the web: the value
 types are exported everywhere, and everything that needs `dart:ffi` is
-exported only where the VM is (a conditional export: the native file is the
-default, and `dart.library.js_interop` swaps in an empty stub; the analyzer
-reads only the default, so the stub cannot be the default). The test
+exported only where the VM is (a conditional export: `native_exports_vm.dart`
+is the default, and `dart.library.js_interop` swaps in the empty
+`native_exports_js.dart`; the analyzer reads only the default, so the VM half
+must be it). The test
 `web_compile_test.dart` runs `dart compile js` on a small entry to hold this.
 `package:lottie_native/testing.dart` is native-only: the fakes and contracts
 use `dart:ffi`.
