@@ -44,7 +44,7 @@ abstract final class MediaPanelPages {
       tab: const PanelTab(icon: ChromeIconId.gif, labelKey: gifId),
       capabilities: search == null
           ? PageCapabilities.none
-          : const PageCapabilities(search: true),
+          : GifPage.searchCapabilities,
       builder: (context, host) => GifPage(
         host: host,
         source: services.gifPageSource,

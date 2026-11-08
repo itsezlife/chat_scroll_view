@@ -30,18 +30,26 @@ import 'package:content_model/content_model.dart';
 /// a per-answer tag, so the same still comes back under a new URL.
 /// [prepareStills] fetches the stills of clips about to be listed.
 ///
+/// Each clip's file is kept in [clipDisk] when the host gives one, also under
+/// its id, so a clip a later session plays (a sent GIF, a recent one) is
+/// found there without asking Giphy for the clip or its file. There is no
+/// memory tier of files: the asset cache keeps what it decoded.
+///
 /// Not a global: the host makes one over its client and disposes nothing,
 /// since it holds no resource but the maps.
 final class GiphyContent {
-  /// Creates the content over [client], remembering up to [capacity] clips
-  /// and keeping their stills in memory and in [stillDisk].
+  /// Creates the content over [client], remembering up to [capacity] clips,
+  /// keeping their stills in memory and in [stillDisk] and their files in
+  /// [clipDisk].
   GiphyContent(
     this.client, {
     this.capacity = 2048,
     this.stillMemoryBytes = 4 << 20,
     ByteCache? stillDisk,
+    ByteCache? clipDisk,
   }) : assert(capacity > 0, 'remembers at least one clip'),
-       _stills = _Stills(client, stillDisk, stillMemoryBytes);
+       _stills = _Stills(client, stillDisk, stillMemoryBytes),
+       _clipDisk = clipDisk;
 
   static const String _prefix = 'giphy:';
 
@@ -70,6 +78,13 @@ final class GiphyContent {
 
   final LinkedHashMap<String, GiphyClip> _clips = LinkedHashMap();
   final _Stills _stills;
+  final ByteCache? _clipDisk;
+
+  // The name a file of the clip [id] is kept under on a disk: [kind] apart
+  // (a host may give one disk for stills and clips), and only characters
+  // every file system takes.
+  static String _diskName(String kind, String id) =>
+      '${kind}_${id.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_')}';
 
   /// What the pipeline needs to play [clip]: a GIF, a video-coded file of the
   /// size the API gave, so the justified rows have its proportions before it
@@ -187,7 +202,7 @@ final class _Stills {
 
   Future<Uint8List> _fetch(String id, Uri url) async {
     try {
-      final name = 'still_${id.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_')}';
+      final name = GiphyContent._diskName('still', id);
       final disk = _disk;
       var bytes = await disk?.read(name);
       if (bytes == null) {
@@ -263,14 +278,21 @@ final class _GiphyFetcher implements ContentFetcher {
     }
   }
 
+  // The disk first: a clip found there needs neither its file nor, for one
+  // this session never listed, its description. A download is kept there.
   Future<Uint8List> _download(ContentKey key) async {
     try {
+      final disk = _content._clipDisk;
+      final name = GiphyContent._diskName('clip', GiphyContent.idOf(key)!);
+      if (await disk?.read(name) case final kept?) return kept;
       await _content._learn([key]);
       final clip = _content.clipOf(key);
       if (clip == null) {
         throw GiphyFailure('no such GIF: $key', transient: false);
       }
-      return await _content.client.download(clip.url);
+      final bytes = await _content.client.download(clip.url);
+      if (disk != null) unawaited(disk.write(name, bytes));
+      return bytes;
     } finally {
       // Not before the caller stored the future: this body suspends at its
       // first await, so it cannot get here earlier.

@@ -165,6 +165,28 @@ void main() {
       expect(thumbnail.paints.single.rect, _rect);
     });
 
+    // Ticket 85: a GIF sent from a panel cell is decoded again at the
+    // message's size; its first paint is the cell's picture, not a rectangle.
+    for (final stage in [AssetStage.firstFrame, AssetStage.full]) {
+      test('a sent asset draws the ${stage.name} its panel cell has', () {
+        final cell = scope.attach(
+          _sticker,
+          const AssetSpec(pixelWidth: 300, pixelHeight: 200),
+          const AssetProfile(animate: true, fit: AssetFit.cover),
+        );
+        final picked = producer.last.advance(stage, animated: true);
+        final own = FakeAssetPaintable(label: 'own');
+        final embed = embedWith(own);
+        cell.detach();
+
+        embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+        expect(own.paints, isEmpty);
+        expect(picked.paints.single.rect, _rect);
+        expect(embed.needsCompositing, isTrue);
+      });
+    }
+
     test('passes the text colour and opacity as tint and opacity', () {
       final embed = embedOf(_sticker);
       final painted = producer.last.advance(AssetStage.full);

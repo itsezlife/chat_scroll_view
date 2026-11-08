@@ -9,7 +9,8 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Date**: 2026-10-16  
 **Amended**: 2026-10-18 (chat-polish-3, ticket 10): the pause policies of the reference desktop client reach the shared clock through one lifecycle seam (section *Amendment: pause policies*); `PlaybackPauseLayer` gains three values and the default pausing set is spelled out  
 **Amended**: 2026-11-06: the dynamic page pool, the renderer seam and the frame cache for native animated media ([ADR 042](042-native-media-decoding.md); section *Amendment: dynamic frame pages*)  
-**Amended**: 2026-11-08: a playing asset may be shown through a platform texture, a third paint capability next to `paint` and the sprite, with the dynamic pages as the fallback ([ADR 043](043-platform-texture-frames.md))
+**Amended**: 2026-11-08: a playing asset may be shown through a platform texture, a third paint capability next to `paint` and the sprite, with the dynamic pages as the fallback ([ADR 043](043-platform-texture-frames.md))  
+**Amended**: 2026-11-09 (native-media-ffi, ticket 85): an entry below its first frame shows the best stage of a sibling entry, the same content at another spec (section *Amendment: sibling stages*)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -28,7 +29,7 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 | Attach | `attach(key, spec, profile)`. An unknown descriptor sends the core to the host `ContentResolver`; readiness stays `none` until it resolves. |
 | Readiness | Staged `none`, `placeholder`, `firstFrame`, `full`, each with `isFinal`. There is no visible failed stage. A failed fetch or decode clears the in-flight record and leaves readiness where it was, so the cell keeps its placeholder, including offline, until it detaches. Retry happens on the next attach, on the host's connectivity-restored signal for still-attached bindings, and through explicit `retry()`. The fetcher reports a failure class (transient or permanent) so the core knows whether connectivity-restored is relevant; neither class is shown as failed. Cancellation is not a failure. The last error is exposed for logging only. The paintable draws the best stage available; painters use the stage only for crossfade, and an instant memory hit has none. A thumbnail (the `placeholder` stage) that a better stage replaces is kept by the entry for the bindings that were attached while it showed: the surface fades the content in over it (`AssetBinding.paintStandIn`), and it is disposed when every such binding released it (`releaseStandIn`, or a paint of the content at full opacity, or a detach). The thumbnail is decoded small and blurred once (`MiniThumbnail`), never blurred per frame. |
 | Orchestration | The core owns in-flight dedupe by entry identity, cancel when the last binding leaves, priority classes (placeholder, visible, preload) and concurrency caps. |
-| Seams | A host `ContentFetcher` (descriptor to bytes or file) owns network, provenance refresh and the disk tier. Decoders are registered per media form (still, animated image, vector animation, video, glyph) from adapter packages: fetched data plus spec to paintable with stages. |
+| Seams | A host `ContentFetcher` (descriptor to bytes or file) owns network, provenance refresh and the disk tier (a fetched file kept under its content identity, not its URL, so a later launch finds it without asking the network; the host budgets it). A host may turn every disk tier off at once (its fetchers' files, the frame cache's folder, the glyph atlas cache), for tests and measured runs: each then keeps memory only, as on the web. Decoders are registered per media form (still, animated image, vector animation, video, glyph) from adapter packages: fetched data plus spec to paintable with stages. |
 | Playback | One shared clock in the core. Per-binding animate gating combines with global pause layers (route moving, fast scroll, low power, surface hidden, app inactive, reduced motion, overlay shown) under a default policy; the fps cap derives from spec size. The app-level layers come from one `PlaybackActivity` (amendment below), not from per-widget flags. The host feeds a connectivity-restored signal; the core never touches the network. Paintables never schedule timers. |
 | Budgets | Byte-accounted tiered LRU with host-configurable budgets and defaults. Entries with live bindings are pinned. Unattached ready entries stay until pressure. `clearAll` and a memory-pressure hook exist. Eviction never invalidates a live binding. Releasing by distance is the surface's job, through detach. |
 | Scope | One host-created instance provided through a widget scope and by explicit injection. No static singleton. |
@@ -137,3 +138,20 @@ Evidence and open items are in that ADR.
 | Rest | `loop` false holds the rest frame and `restart()` replays from frame 0; `animate` false uses the first-frame stage only: the existing paintable contract, unchanged. |
 | Size cap | An animation whose spec is larger than the largest size class (512 px on the longer side) shows its still: the decoder reports the first frame, rendered at the cap, as `firstFrame` and again as `full`, and frees the native handle. The reference clients skip the frame cache and cap the render at 512 likewise. |
 | Failure | A native library that fails its start-up probe leaves its media form without a decoder; the entry stays at its placeholder. An input the engine's checks reject ends in `AssetProgress.fail`. Both follow the failure rule above. |
+
+## Amendment: sibling stages
+
+Entries stay keyed by content and spec, so the same content at two sizes is
+two decodes. A GIF picked from a panel cell was attached again at the
+message's size, a new entry at `none`, and the message drew the placeholder
+rectangle for a frame or more before the GIF it had just shown in the cell.
+The rule "the paintable draws the best stage available" now reaches across
+specs.
+
+| Area | Decision |
+| ---- | -------- |
+| Sibling | An entry of the same key and decode mode at another pixel size or variant. A template decode is alpha only, so it is never a sibling of an original one. |
+| Borrow | While a binding's entry is below `firstFrame` (as its profile shows it), the binding paints the sibling with the best stage above its own, the larger decode on a tie, into its own rectangle with its own profile (fit, corner radius, playback). Its readiness is that stage, never final. It borrows anew when its entry or a sibling advances, and gives the sibling back once its entry reaches `firstFrame` or it detaches. The switch to its own picture is instant: there was no placeholder to fade over, so the entry's thumbnail is not kept as a stand-in for a binding that was borrowing. |
+| Pinning | A borrowed sibling is pinned like a bound entry, so the budget, `clearAll` and memory pressure never dispose a paintable on screen. Given back, it returns to the budget, or is dropped at once if it has no stage worth keeping. |
+| Playback | A borrowed paintable that plays is advanced by the borrowing binding as its own, sharing one playback with the sibling's bindings (the rule for bindings of one entry), and keeps its page slot or texture leased while it is painted; the lease ends by the usual idle sweep once the binding draws its own entry. |
+| Not decided | A synchronous first stage from a decoded sibling (scaling its pixels into the new entry) is not done: the borrow already removes the placeholder, and a rescale would cost a decode-sized copy on the UI isolate. |

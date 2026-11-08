@@ -259,9 +259,13 @@ of rendering; a frame it cannot restore is rendered after all and its
 animation is dropped from the cache. The decoder names an animation in the
 cache by the SHA-256 of the file, the pixel size it renders at and
 `LottieNativeVersion.engine`. Pick the folder from the platform's user cache
-location (the example reads it from the environment and keeps memory only on
-Android and iOS, since it does not depend on `path_provider`; a host that does
-passes `getApplicationCacheDirectory()`), and give it to one cache at a time.
+location (the example, which does not depend on `path_provider`, asks its
+activity for `Context.getCacheDir` on Android, takes the app container's
+`Library/Caches` on iOS and reads the environment on a desktop; a host that
+does depend on it passes `getApplicationCacheDirectory()`), and give it to one
+cache at a time. A host may turn every disk tier off at once, as the example's
+`DISK_CACHE=false` does for tests and measured runs: the frames are then kept
+in memory only.
 
 Dispose in this order: the scope and the pipeline (dropping an entry frees the
 animation it holds, through the engine), then the scheduler (which disposes the

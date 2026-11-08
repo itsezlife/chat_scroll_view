@@ -24,7 +24,3 @@ Future<LottiePlayback?> $startLottiePlayback({
     wasmNoSimdUrl: Uri.parse('lottie/chat_lottie.nosimd.wasm'),
   ),
 );
-
-/// The web hook behind [LottiePlayback.defaultCacheDirectory]: there is no
-/// folder to keep frames in.
-String? $defaultLottieCacheDirectory() => null;
