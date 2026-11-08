@@ -9,7 +9,8 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Date**: 2026-10-16  
 **Amended**: 2026-10-18 (chat-polish-3, ticket 10): the pause policies of the reference desktop client reach the shared clock through one lifecycle seam (section *Amendment: pause policies*); `PlaybackPauseLayer` gains three values and the default pausing set is spelled out  
 **Amended**: 2026-11-06: the dynamic page pool, the renderer seam and the frame cache for native animated media ([ADR 042](042-native-media-decoding.md); section *Amendment: dynamic frame pages*)  
-**Amended**: 2026-11-08: a playing asset may be shown through a platform texture, a third paint capability next to `paint` and the sprite, with the dynamic pages as the fallback ([ADR 043](043-platform-texture-frames.md))
+**Amended**: 2026-11-08: a playing asset may be shown through a platform texture, a third paint capability next to `paint` and the sprite, with the dynamic pages as the fallback ([ADR 043](043-platform-texture-frames.md))  
+**Amended**: 2026-11-09 (native-media-ffi, ticket 85): an entry below its first frame shows the best stage of a sibling entry, the same content at another spec (section *Amendment: sibling stages*)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -137,3 +138,20 @@ Evidence and open items are in that ADR.
 | Rest | `loop` false holds the rest frame and `restart()` replays from frame 0; `animate` false uses the first-frame stage only: the existing paintable contract, unchanged. |
 | Size cap | An animation whose spec is larger than the largest size class (512 px on the longer side) shows its still: the decoder reports the first frame, rendered at the cap, as `firstFrame` and again as `full`, and frees the native handle. The reference clients skip the frame cache and cap the render at 512 likewise. |
 | Failure | A native library that fails its start-up probe leaves its media form without a decoder; the entry stays at its placeholder. An input the engine's checks reject ends in `AssetProgress.fail`. Both follow the failure rule above. |
+
+## Amendment: sibling stages
+
+Entries stay keyed by content and spec, so the same content at two sizes is
+two decodes. A GIF picked from a panel cell was attached again at the
+message's size, a new entry at `none`, and the message drew the placeholder
+rectangle for a frame or more before the GIF it had just shown in the cell.
+The rule "the paintable draws the best stage available" now reaches across
+specs.
+
+| Area | Decision |
+| ---- | -------- |
+| Sibling | An entry of the same key and decode mode at another pixel size or variant. A template decode is alpha only, so it is never a sibling of an original one. |
+| Borrow | While a binding's entry is below `firstFrame` (as its profile shows it), the binding paints the sibling with the best stage above its own, the larger decode on a tie, into its own rectangle with its own profile (fit, corner radius, playback). Its readiness is that stage, never final. It borrows anew when its entry or a sibling advances, and gives the sibling back once its entry reaches `firstFrame` or it detaches. The switch to its own picture is instant: there was no placeholder to fade over, so the entry's thumbnail is not kept as a stand-in for a binding that was borrowing. |
+| Pinning | A borrowed sibling is pinned like a bound entry, so the budget, `clearAll` and memory pressure never dispose a paintable on screen. Given back, it returns to the budget, or is dropped at once if it has no stage worth keeping. |
+| Playback | A borrowed paintable that plays is advanced by the borrowing binding as its own, sharing one playback with the sibling's bindings (the rule for bindings of one entry), and keeps its page slot or texture leased while it is painted; the lease ends by the usual idle sweep once the binding draws its own entry. |
+| Not decided | A synchronous first stage from a decoded sibling (scaling its pixels into the new entry) is not done: the borrow already removes the placeholder, and a rescale would cost a decode-sized copy on the UI isolate. |
