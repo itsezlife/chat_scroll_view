@@ -85,7 +85,7 @@ final class FrameSlotAllocator {
   FrameSlotAllocator({
     required this.pageSideFor,
     required this.budgetBytes,
-    this.sizeClasses = const [64, 128, 256, 512],
+    this.sizeClasses = const [64, 128, 256, 384, 512],
     this.onPageReleased,
   }) {
     if (sizeClasses.isEmpty) {

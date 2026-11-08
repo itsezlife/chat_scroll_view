@@ -66,6 +66,12 @@ void main() {
       expect(pool.lease(200, 200), isNotNull);
     });
 
+    test('a chat sticker at 3x leases the 384 class, not 512', () {
+      expect(pool.classOf(336, 336), 384);
+      expect(pool.classOf(300, 169), 384);
+      expect(pool.classOf(385, 100), 512);
+    });
+
     test('finds nothing above the largest class', () async {
       await pool.warm(512, 1);
 

@@ -67,7 +67,7 @@ final class FramePool<K extends Object> {
   FramePool({
     required int Function(int sizeClass) pageSideFor,
     required this.budgetBytes,
-    List<int> sizeClasses = const [64, 128, 256, 512],
+    List<int> sizeClasses = const [64, 128, 256, 384, 512],
     this.onEvict,
     ValueChanged<int>? onPageReleased,
   }) : _allocator = FrameSlotAllocator(
