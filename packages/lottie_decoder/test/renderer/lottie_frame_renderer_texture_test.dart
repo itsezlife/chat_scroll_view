@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -56,13 +57,15 @@ void main() {
     await engine.close();
   });
 
-  LottieFrameRenderer renderer({FrameTextureHost? textureHost}) =>
-      LottieFrameRenderer(
-        engine: engine,
-        memory: memory,
-        cache: cache,
-        textureHost: textureHost ?? host,
-      );
+  LottieFrameRenderer renderer({
+    FrameTextureHost? textureHost,
+    FrameCache? cacheOf,
+  }) => LottieFrameRenderer(
+    engine: engine,
+    memory: memory,
+    cache: cacheOf ?? cache,
+    textureHost: textureHost ?? host,
+  );
 
   Future<TextureFrameJob> job(int frame, {Object? from}) async =>
       TextureFrameJob(
@@ -129,6 +132,50 @@ void main() {
       expect(engine.texturesRendered, 1, reason: 'and drawn after it');
       expect(table.pixelAt(again.texture.id, 0, 1), [80, 40, 0, 200]);
       expect(cache.has(key, 4), isFalse, reason: 'the garbage went');
+    });
+
+    test('restores a persisted frame from its file, and draws and deletes '
+        'a file whose frame does not decode', () async {
+      final dir = Directory.systemTemp.createTempSync('texture_cache_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final writer = FrameCache(directoryPath: dir.path);
+      final fill = renderer(cacheOf: writer);
+      for (var i = 0; i < info.frameCount; i++) {
+        await fill.write([await job(i)]);
+      }
+      await writer.dispose();
+      final reader = FrameCache(directoryPath: dir.path);
+      addTearDown(reader.dispose);
+      final r = renderer(cacheOf: reader);
+      engine
+        ..texturesRendered = 0
+        ..texturesRestored = 0;
+
+      final restored = await job(3);
+      expect(await r.write([restored]), [TextureFrameOutcome.posted]);
+      expect(engine.texturesRendered, 0, reason: 'read from the file');
+      expect(table.pixelAt(restored.texture.id, 0, 1), [48, 24, 0, 200]);
+      expect(reader.residentBytes, 0);
+
+      // Garble frame 5's codec header in place: the table is intact, the
+      // frame does not decode.
+      final file = File(dir.listSync().single.path);
+      final bytes = file.readAsBytesSync();
+      final frameBytes = (bytes.length - 32 - 5 - 6 - 80) ~/ 10;
+      final at = bytes.length - (info.frameCount - 5) * frameBytes;
+      bytes[at] ^= 0xFF;
+      file.writeAsBytesSync(bytes);
+      final reopened = FrameCache(directoryPath: dir.path);
+      addTearDown(reopened.dispose);
+      final again = await job(5);
+
+      expect(await renderer(cacheOf: reopened).write([again]), [
+        TextureFrameOutcome.posted,
+      ]);
+      expect(engine.texturesRendered, 1, reason: 'drawn after the restore');
+      expect(table.pixelAt(again.texture.id, 0, 1), [80, 40, 0, 200]);
+      await reopened.dispose();
+      expect(file.existsSync(), isFalse, reason: 'the damaged file went');
     });
 
     test('a texture that cannot be locked is skipped', () async {

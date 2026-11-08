@@ -10,6 +10,7 @@ import 'benchmark/lottie_playback_bench_test.dart'
     as lottie_playback_bench_test;
 import 'cache/frame_cache_key_test.dart' as frame_cache_key_test;
 import 'cache/frame_cache_test.dart' as frame_cache_test;
+import 'cache/frame_file_reader_test.dart' as frame_file_reader_test;
 import 'in_process_lottie_engine_test.dart' as in_process_lottie_engine_test;
 import 'isolate_lottie_engine_test.dart' as isolate_lottie_engine_test;
 import 'lottie_decoder_pixel_engine_test.dart'
@@ -45,6 +46,7 @@ void main() {
   );
   group('cache/frame_cache_key_test.dart', frame_cache_key_test.main);
   group('cache/frame_cache_test.dart', frame_cache_test.main);
+  group('cache/frame_file_reader_test.dart', frame_file_reader_test.main);
   group('paint/lottie_paintable_test.dart', lottie_paintable_test.main);
   group(
     'playback/lottie_frame_scheduler_test.dart',

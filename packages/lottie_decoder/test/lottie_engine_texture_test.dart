@@ -156,7 +156,7 @@ void main() {
                   texture: AssetTexture(id: second, width: 4, height: 4),
                   width: 4,
                   height: 2,
-                  work: LottieTextureRestore(bytes),
+                  work: LottieTextureRestore(CachedFrame.bytes(bytes)),
                 ),
               ]);
 
@@ -181,7 +181,9 @@ void main() {
               texture: AssetTexture(id: id, width: 4, height: 4),
               width: 4,
               height: 2,
-              work: LottieTextureRestore(Uint8List.fromList([1, 2, 3])),
+              work: LottieTextureRestore(
+                CachedFrame.bytes(Uint8List.fromList([1, 2, 3])),
+              ),
             ),
           ],
         );

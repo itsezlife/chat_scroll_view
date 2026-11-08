@@ -9,6 +9,7 @@
 /// `package:lottie_decoder/web.dart`, which only a web build imports.
 library;
 
+export 'src/cache/cached_frame.dart';
 export 'src/cache/frame_cache.dart';
 export 'src/cache/frame_cache_files.dart';
 export 'src/cache/frame_cache_key.dart';

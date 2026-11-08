@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:ffi/ffi.dart';
+import 'package:lottie_decoder/src/cache/cached_frame.dart';
+import 'package:lottie_decoder/src/cache/frame_file_reader.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
 import 'package:lottie_decoder/src/engine/texture_calls.dart';
@@ -79,16 +81,40 @@ abstract final class LottieEngineWork {
     return pixels;
   }
 
-  /// Decompresses each job into its slot.
+  /// Decompresses each job into its slot, reading a frame of a cache file
+  /// through [reader].
   static List<LottieRenderStatus> restore(
     LottieFrameCodec? codec,
+    FrameFileReader reader,
     List<LottieRestoreJob> jobs,
   ) => [
     for (final job in jobs)
-      codec != null && codec.decompress(job.compressed, job.toRegion())
+      _decompress(codec, reader, job.frame, job.toRegion())
           ? LottieRenderStatus.ok
           : LottieRenderStatus.failed,
   ];
+
+  /// Writes [frame] into [region]; false when its bytes cannot be had or do
+  /// not decode. A frame of a file that does not decode closes the file in
+  /// [reader]: the renderer deletes it, and a file written again under the
+  /// name must be opened afresh.
+  static bool _decompress(
+    LottieFrameCodec? codec,
+    FrameFileReader reader,
+    CachedFrame frame,
+    LottieFrameRegion region,
+  ) {
+    if (codec == null) return false;
+    switch (frame) {
+      case CachedFrameBytes(:final bytes):
+        return codec.decompress(bytes, region);
+      case CachedFrameFile(:final path):
+        final bytes = reader.read(frame);
+        if (bytes != null && codec.decompress(bytes, region)) return true;
+        reader.forget(path);
+        return false;
+    }
+  }
 
   /// Writes [jobs] into their textures through [points]: lock each, draw the
   /// renders in one batch, restore the rest, compress what a capture asks,
@@ -96,6 +122,7 @@ abstract final class LottieEngineWork {
   static List<LottieTextureResult> writeTextures(
     LottieBinding binding,
     LottieFrameCodec? codec,
+    FrameFileReader reader,
     FrameTextureEntryPoints points,
     FrameTextureFormat format,
     List<LottieTextureJob> jobs,
@@ -133,10 +160,8 @@ abstract final class LottieEngineWork {
       for (var i = 0; i < jobs.length; i++) {
         final lock = locks[i];
         if (lock == null) continue;
-        if (jobs[i].work case LottieTextureRestore(compressed: final bytes)) {
-          ok[i] =
-              codec != null &&
-              codec.decompress(bytes, _regionOf(jobs[i], lock));
+        if (jobs[i].work case LottieTextureRestore(:final frame)) {
+          ok[i] = _decompress(codec, reader, frame, _regionOf(jobs[i], lock));
         }
         if (ok[i] && format != FrameTextureFormat.rgba8888) {
           lock.region.swapRedBlue(lock.view);

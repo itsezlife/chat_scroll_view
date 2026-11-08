@@ -72,27 +72,27 @@ class DirectoryFrameCacheFiles implements FrameCacheFiles {
   }
 
   @override
-  Future<Uint8List?> read(String stem, {required int maxBytes}) async {
-    final file = _entry(stem);
-    try {
-      if (await file.length() > maxBytes) return null;
-      return await file.readAsBytes();
-    } on PathNotFoundException {
-      return null;
-    }
-  }
+  String pathOf(String stem) => _entry(stem).path;
 
   @override
   Future<FileSystemException?> write(
     String stem,
-    Uint8List bytes, {
+    List<Uint8List> chunks, {
     required DateTime modified,
   }) async {
     await directory.create(recursive: true);
     final target = _entry(stem);
     final temp = File('${target.path}${_tempSuffix()}');
     try {
-      await temp.writeAsBytes(bytes, flush: true);
+      final sink = await temp.open(mode: FileMode.writeOnly);
+      try {
+        for (final chunk in chunks) {
+          await sink.writeFrom(chunk);
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
       await publish(temp, target);
     } on Object {
       await discardTemp(temp);
