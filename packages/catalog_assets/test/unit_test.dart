@@ -88,6 +88,10 @@ import 'pool/frame_slot_allocator_test.dart' as frame_slot_allocator_test;
 import 'pool/list_frame_page_memory_test.dart' as list_frame_page_memory_test;
 import 'pool/pixel_upload_test.dart' as pixel_upload_test;
 import 'preset/asset_presets_test.dart' as asset_presets_test;
+import 'texture/fake_frame_texture_host_contract_test.dart'
+    as fake_frame_texture_host_contract_test;
+import 'texture/frame_texture_pool_test.dart' as frame_texture_pool_test;
+import 'texture/frame_texture_scope_test.dart' as frame_texture_scope_test;
 import 'widget/asset_cache_provider_test.dart' as asset_cache_provider_test;
 import 'widget/content_view_test.dart' as content_view_test;
 
@@ -220,6 +224,12 @@ void main() {
   );
   group('pool/pixel_upload_test.dart', pixel_upload_test.main);
   group('preset/asset_presets_test.dart', asset_presets_test.main);
+  group(
+    'texture/fake_frame_texture_host_contract_test.dart',
+    fake_frame_texture_host_contract_test.main,
+  );
+  group('texture/frame_texture_pool_test.dart', frame_texture_pool_test.main);
+  group('texture/frame_texture_scope_test.dart', frame_texture_scope_test.main);
   group(
     'widget/asset_cache_provider_test.dart',
     asset_cache_provider_test.main,

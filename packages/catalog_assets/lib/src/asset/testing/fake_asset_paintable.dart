@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:catalog_assets/src/asset/asset_paintable.dart';
 import 'package:catalog_assets/src/asset/asset_profile.dart';
+import 'package:catalog_assets/src/asset/asset_texture.dart';
 import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 
 /// An [AssetPaintable] that records what is done to it.
@@ -18,6 +19,7 @@ final class FakeAssetPaintable extends AssetPaintable {
     this.label = 'paintable',
     bool? isAnimated,
     this.sprite,
+    this.texture,
     this.frameDurations = const [],
   }) : isAnimated = isAnimated ?? frameDurations.isNotEmpty;
 
@@ -31,6 +33,16 @@ final class FakeAssetPaintable extends AssetPaintable {
   /// arrives after it was advanced.
   @override
   AtlasSprite? sprite;
+
+  /// The texture it exposes; a test sets it to play a paintable that
+  /// composites as a texture layer.
+  @override
+  AssetTexture? texture;
+
+  /// What [texture] becomes at the first [advancePlayback], like an animation
+  /// whose first frame was posted once it was asked for. Null leaves
+  /// [texture] alone.
+  AssetTexture? textureOnAdvance;
 
   /// How long each frame of the sequence it plays lasts; empty for a
   /// paintable that only records.
@@ -84,6 +96,8 @@ final class FakeAssetPaintable extends AssetPaintable {
     advances.add(context);
     final arrived = spriteOnAdvance;
     if (arrived != null) sprite = arrived;
+    final posted = textureOnAdvance;
+    if (posted != null) texture = posted;
     _play(context);
   }
 

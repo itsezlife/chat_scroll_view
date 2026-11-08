@@ -16,6 +16,7 @@ import 'package:catalog_assets/src/glyph/glyph_binding.dart';
 import 'package:catalog_assets/src/glyph/glyph_sprite_source.dart';
 import 'package:catalog_assets/src/glyph/text_glyph_paintable.dart';
 import 'package:catalog_assets/src/playback/playback_clock.dart';
+import 'package:catalog_assets/src/texture/frame_texture_pool.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 
@@ -26,7 +27,8 @@ import 'package:flutter/foundation.dart';
 /// Created by the host and handed to the surfaces that attach; there is no
 /// static instance. It owns what it made (entries, the default clock, the
 /// default placeholder) and nothing it was handed (a producer, a glyph source,
-/// a clock, the memory-pressure signal): [dispose] leaves those alone.
+/// a clock, the texture pool, the memory-pressure signal): [dispose] leaves
+/// those alone.
 ///
 /// ## Entries
 ///
@@ -54,6 +56,13 @@ import 'package:flutter/foundation.dart';
 /// attach: registering or removing the source moves the bindings already
 /// attached.
 ///
+/// ## Textures
+///
+/// A platform with a texture host registers its [FrameTexturePool] as
+/// [textures]; decoders whose assets play take textures from it, and fall back
+/// to their dynamic page slots without one (ADR 043). The memory-pressure
+/// signal releases its idle textures along with the unpinned entries.
+///
 /// ## Threading
 ///
 /// Single-threaded: every call, every producer report, every listener and all
@@ -73,7 +82,8 @@ final class AssetCacheScope {
   /// was laid out before drew the missing-glyph box. [placeholder] is what a
   /// glyph binding paints before any stage exists (a circle by default);
   /// [mediaPlaceholder] is what any other binding paints (the whole rectangle
-  /// in a quiet colour by default, `RectPlaceholder`).
+  /// in a quiet colour by default, `RectPlaceholder`). [textures] is the
+  /// pool of the platform's texture host, or null where there is none.
   AssetCacheScope({
     AssetProducer? producer,
     GlyphSpriteSource? glyphSource,
@@ -83,6 +93,7 @@ final class AssetCacheScope {
     Listenable? systemFonts,
     AssetPaintable? placeholder,
     AssetPaintable? mediaPlaceholder,
+    this.textures,
   }) : _producer = producer,
        _glyphSource = glyphSource,
        _budgets = budgets,
@@ -92,7 +103,7 @@ final class AssetCacheScope {
        _systemFonts = systemFonts,
        placeholder = placeholder ?? const CirclePlaceholder(),
        mediaPlaceholder = mediaPlaceholder ?? const RectPlaceholder() {
-    memoryPressure?.addListener(clearAll);
+    memoryPressure?.addListener(_onMemoryPressure);
     systemFonts?.addListener(_onSystemFonts);
     glyphSource?.addPageListener(_onGlyphPage);
   }
@@ -127,6 +138,16 @@ final class AssetCacheScope {
   // glyph: its stand-in is the circle, whatever the media default is.
   AssetPaintable _placeholderOf(ContentKey key) =>
       key is ContentKey$Unicode ? placeholder : mediaPlaceholder;
+
+  /// The textures playing assets may take instead of a page slot, or null
+  /// where the platform has no texture host.
+  final FrameTexturePool? textures;
+
+  // The idle textures go with the unpinned entries; what is on screen stays.
+  void _onMemoryPressure() {
+    clearAll();
+    if (!_disposed) textures?.releaseIdle();
+  }
 
   /// The clock every animated binding of this scope advances by. Hosts set
   /// its pause layers.
@@ -273,7 +294,7 @@ final class AssetCacheScope {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _memoryPressure?.removeListener(clearAll);
+    _memoryPressure?.removeListener(_onMemoryPressure);
     _systemFonts?.removeListener(_onSystemFonts);
     _glyphSource?.removePageListener(_onGlyphPage);
     for (final entry in List<_Entry>.of(_entries.values)) {
