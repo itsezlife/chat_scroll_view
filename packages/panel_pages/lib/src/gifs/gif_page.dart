@@ -75,9 +75,10 @@ import 'package:panel_shell/panel_shell.dart';
 /// search lists the [searchSuggestions] the host gives (the reference lists
 /// its trending clips there), or the collections when it gives none.
 ///
-/// Such a page places the shell's search field itself, pinned over the top of
-/// its list on the shell's background: the clips start under it and scroll
-/// beneath it, and the field moves with the page when the pager swipes. Its
+/// Such a page places the shell's search field itself, pinned above its list
+/// on the shell's background: the clips start under it and are clipped at its
+/// edge (the background may be see-through, so nothing scrolls behind it), and
+/// the field moves with the page when the pager swipes. Its
 /// hairline shows except while search is open with the list at its start, as
 /// the reference client's GIF field draws its shadow (`EmojiView`
 /// `checkGifSearchFieldScroll`). The field needs the `PanelSearchFieldScope`
@@ -597,10 +598,7 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
           );
           return ListView.builder(
             controller: _scroll,
-            padding: EdgeInsets.only(
-              top: searches ? PanelSearchField.height : 0,
-              bottom: bottom,
-            ),
+            padding: EdgeInsets.only(bottom: bottom),
             cacheExtent: 0,
             itemCount: lines.length,
             itemExtentBuilder: (index, _) => lines[index].height,
@@ -630,9 +628,12 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
       ),
     );
     if (!searches) return list;
+    // The clips start under the field and are clipped at its edge, never
+    // scrolled behind it: the panel's background may be see-through (glass),
+    // so a field over them would show them through it.
     return Stack(
       children: [
-        Positioned.fill(child: list),
+        Positioned.fill(top: PanelSearchField.height, child: list),
         PositionedDirectional(
           start: 0,
           end: 0,
