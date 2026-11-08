@@ -140,6 +140,20 @@ abstract class AssetPaintable {
   /// default, which is right for every paintable that does not play.
   AssetTexture? get texture => null;
 
+  /// Keeps the frame on show while [keep] is true, though no surface paints
+  /// or advances this paintable: a surface that holds its playback
+  /// (`AssetBinding.held`) still shows that frame.
+  ///
+  /// A paintable that leases where its frame lives (a page slot, a platform
+  /// texture) gives an unpainted lease back after an idle period, because a
+  /// paint is its only sign of being on screen. A held surface paints nothing
+  /// new, yet the frame it last composited is on screen: given back, a texture
+  /// would be written by its next holder under that surface's layer. While
+  /// kept, the lease stays. The binding sets it from the holds of every
+  /// binding of the entry. Does nothing by default, which is right for a
+  /// paintable that holds its own pixels.
+  void keepFrame({required bool keep}) {}
+
   /// Paints into [rect] of [canvas].
   void paint(Canvas canvas, Rect rect, AssetPaintContext context);
 

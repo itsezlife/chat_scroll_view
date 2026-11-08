@@ -139,6 +139,97 @@ void main() {
     });
   });
 
+  group('a held binding', () {
+    void paint(AssetBinding binding) {
+      final recorder = PictureRecorder();
+      binding.paint(Canvas(recorder), const Rect.fromLTWH(0, 0, 8, 8));
+      recorder.endRecording().dispose();
+    }
+
+    test('leaves the clock but stays shown, and keeps its frame', () {
+      final binding = animated();
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      binding.held = true;
+
+      expect(binding.isPlaying, isFalse);
+      expect(ticks.isRunning, isFalse);
+      expect(binding.visible, isTrue);
+      expect(paintable.keepsFrame, isTrue);
+
+      binding.held = false;
+
+      expect(binding.isPlaying, isTrue);
+      expect(ticks.isRunning, isTrue);
+      expect(paintable.keepsFrame, isFalse);
+    });
+
+    test('paints at the time it was held, while the clock moves on', () {
+      final binding = animated();
+      final other = animated(key: const ContentKey.document('anim-2'));
+      final paintable = binding.paintable as FakeAssetPaintable;
+      ticks.tick(_ms(16));
+
+      binding.held = true;
+      ticks.tick(_ms(400));
+      paint(binding);
+
+      expect(other.isPlaying, isTrue);
+      expect(paintable.paints.single.context.time, _ms(16));
+      // It still animates: a paintable keeps asking for the frame it is on.
+      expect(paintable.paints.single.context.animate, isTrue);
+
+      binding.held = false;
+      paint(binding);
+      expect(paintable.paints.last.context.time, _ms(400));
+    });
+
+    test('the paintable of an entry is kept while any of its bindings is '
+        'held', () {
+      final a = animated();
+      final b = scope.attach(_key, _large, _plays);
+      final paintable = a.paintable as FakeAssetPaintable;
+
+      a.held = true;
+      b.held = true;
+      a.held = false;
+      expect(paintable.keepsFrame, isTrue);
+
+      b.held = false;
+      expect(paintable.keepsFrame, isFalse);
+    });
+
+    test('a better stage that lands while held is kept in its place', () {
+      final binding = scope.attach(_key, _large, _plays);
+      final first = producer.last.advance(
+        AssetStage.firstFrame,
+        tier: AssetTier.animated,
+        animated: true,
+      );
+      binding.held = true;
+      expect(first.keepsFrame, isTrue);
+
+      final full = producer.last.advance(
+        AssetStage.full,
+        tier: AssetTier.animated,
+        animated: true,
+      );
+
+      expect(full.keepsFrame, isTrue);
+      expect(binding.isPlaying, isFalse);
+    });
+
+    test('detaching a held binding lets go of its frame', () {
+      final binding = animated();
+      final paintable = binding.paintable as FakeAssetPaintable;
+      binding.held = true;
+
+      binding.detach();
+
+      expect(paintable.keepsFrame, isFalse);
+    });
+  });
+
   group('the shared clock', () {
     test('a tick signals every playing binding, once per frame', () {
       final a = animated();

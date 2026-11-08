@@ -424,6 +424,7 @@ final class AssetCacheScope {
     final entry = binding.entry;
     entry.bindings.remove(binding);
     entry.demand.refresh(entry.bindings);
+    if (binding.held) entry.syncKeep();
     if (entry.bindings.isNotEmpty) return;
     entry.attempt?.cancel();
     if (entry.stage.index <= AssetStage.placeholder.index) {
@@ -454,6 +455,10 @@ final class _Entry {
   Object? lastError;
   AssetFailureKind? failureKind;
   _Attempt? attempt;
+
+  // Whether the paintable keeps its frame: some binding holds it on screen.
+  void syncKeep() =>
+      paintable?.keepFrame(keep: bindings.any((binding) => binding.held));
 
   void disposeStandIn() {
     standIn?.dispose();
@@ -683,12 +688,17 @@ final class _EntryBinding extends AssetBindingBase {
     syncPlayback();
   }
 
+  @override
+  void onHeldChanged() => syncPlayback();
+
   /// Registers with or leaves the playback clock to match what the binding
   /// wants now.
   void syncPlayback() {
+    entry.syncKeep();
     final wanted =
         !isDetached &&
         visible &&
+        !held &&
         animates &&
         !_ended &&
         (entry.paintable?.isAnimated ?? false);
