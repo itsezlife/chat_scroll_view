@@ -13,6 +13,7 @@ top strip. This supersedes the controller and widget-API parts of
 **Amended**: 2026-10-16 — cell interactions under a mouse: the recents context menu, the variant picker rules and the hold seam ([Amendment](#amendment-cell-interactions-under-a-mouse))  
 **Amended**: 2026-10-16 — under `touch` a page may place the search field itself and draw a sticky header ([Amendment](#amendment-where-the-field-sits)); the arrangement selects between the two  
 **Amended**: 2026-10-17 — the touch strip with packs is the reference mobile client's ([Amendment](#amendment-the-touch-strip-with-packs))  
+**Amended**: 2026-11-09 — a family without a back press leaves search by a Cancel button beside the field ([Amendment](#amendment-leaving-search-without-a-back-press))  
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 020](020-package-topology.md), [ADR 023](023-data-layering-and-persistence.md), [ADR 024](024-panel-catalog-seams.md), [ADR 028](028-panel-presentation.md)
 
 ## Decided
@@ -195,3 +196,17 @@ Grouped is the reference mobile client's `EmojiTabsStrip` with custom emoji
 Metrics and traces: the `telegram-java-to-flutter` skill's
 `emoji-tabs-strip.md`.
 
+## Amendment: leaving search without a back press
+
+Amends *Search is left by Escape or the controller, never by a control of
+the field* (*Panel arrangement*, `pointer`, search) and *Field chrome*
+(*Where the field sits*). While search is open the bottom bar with the type
+tabs is hidden, so a platform with no back press had no way out of search
+and no way to another page.
+
+| Area | Decision |
+| ---- | -------- |
+| Search exit | `PanelSearchExit`, given to the shell (`PanelShell.searchExit`) and through `PanelSearchFieldScope` to a field a page places itself (`PanelSearchField.exit` overrides it). `back`: a back press or Escape closes search and the field has no control that does; the leading back chevron and the trailing cross only empty the query (the reference Android client's `SearchStateDrawable` back state and clear button, the reference desktop client's back icon, cross and Escape). `cancel`: the same, plus a Cancel text button at the end of the field while search is open, with or without a query or focus, which closes search (the query empties, the field lets go of focus and with it the soft keyboard); the reference iOS client's `cancelPressed`. |
+| Default | Null takes `PanelSearchExit.forPlatform(defaultTargetPlatform)`: `cancel` on iOS, `back` on every other platform. The shell reads the platform for this and for nothing else: the arrangement still does not. An enum, not a `$Mobile` / `$Desktop` policy: the variants carry no data and differ by one control. |
+| Cancel | Regular 17 px text (`PanelSearchField.cancelFontSize`) in the palette's accent, 8 px after the pill (`cancelSpacing`), the pill keeping its 10 px margin at the far end; the pill narrows over the `search` motion role and the text is uncovered from the pill's end as it does, as the reference's button sits past the pill and is revealed by its shrinking. Pressed it dims to 0.4 at once and returns over the `fade` role (the reference's 0.2 s). Spoken and labelled with `PanelStrings.cancelAction`, the reference's `Common_Cancel`. |
+| Not ported | The reference iOS client's arrow in the leading icon does not clear text (a tap there focuses the field, or clears a chosen category); ours clears under both exits. The reference Android client's back state also shows while a category of its strip is chosen or scrolled: the strip is the page's, and the shell's icon follows the query only. |

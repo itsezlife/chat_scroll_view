@@ -33,7 +33,8 @@ import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 /// the bar keeps the selected page's actions at the end side, never slides away
 /// for scrolling, and rises by the extent of the strip the page pins at the
 /// bottom ([PanelPageHost.reportBottomExtent]) so it does not cover it. The
-/// bar is gone while search is open in both.
+/// bar is gone while search is open in both, which is why a family without a
+/// back press gets a Cancel button beside the field ([searchExit]).
 ///
 /// A projection of [controller]; it keeps no selection or search state of its
 /// own, so unmounting it (a presentation switch) and mounting another shell
@@ -74,8 +75,14 @@ class PanelShell extends StatefulWidget {
     this.deferSearchField = false,
     this.background,
     this.sectionTabsBar = PanelSectionTabsBar.label,
+    this.searchExit,
     super.key,
   });
+
+  /// How search is left from the field, the shell's and one a page places
+  /// itself; null takes the platform's ([PanelSearchExit.forPlatform]): a
+  /// Cancel button beside the field on iOS, the back press elsewhere.
+  final PanelSearchExit? searchExit;
 
   /// What the shell paints behind its column, or null for the panel tokens'
   /// background. A presentation that puts the shell on glass passes a
@@ -268,6 +275,7 @@ class _PanelShellState extends State<PanelShell> {
       child: PanelSearchFieldScope(
         controller: _shell,
         contextMenuBuilder: widget.searchContextMenuBuilder,
+        exit: widget.searchExit,
         child: PanelPager(
           controller: _shell,
           position: _position,
@@ -415,6 +423,7 @@ class _PanelShellState extends State<PanelShell> {
             child: PanelSearchField(
               controller: _shell,
               contextMenuBuilder: widget.searchContextMenuBuilder,
+              exit: widget.searchExit,
             ),
           )
         : const SizedBox(width: double.infinity);
