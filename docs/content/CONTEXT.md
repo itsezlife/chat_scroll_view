@@ -164,8 +164,8 @@ The engine-agnostic seam in `catalog_assets`: given slots, frame times and sizes
 _Avoid_: The pool calling an engine, a decoder owning pages
 
 **Frame cache**:
-Compressed rendered frames of an animation, keyed by content, display size and engine version, replayed instead of re-rendering. Skipped above 512 x 512 display size; disk and memory tiers on native, memory only on web.
-_Avoid_: Keying by source size, a cache that is a visible stage
+Compressed rendered frames of an animation, keyed by content, display size and engine version, replayed instead of re-rendering. An animation is two fills, its even frames and its odd frames, each complete (and written) on its own, so a playback at half rate, which asks only for the even ones, completes one. Skipped above 512 x 512 display size; disk and memory tiers on native, memory only on web.
+_Avoid_: Keying by source size or by frame step, a cache that is a visible stage
 
 **Native binding**:
 The leaf package that owns the native library, its build hook, its `dart:ffi` or web-worker bindings and a guarded load probe. A decoder adapter depends on it; a failed probe means the decoder is never registered.

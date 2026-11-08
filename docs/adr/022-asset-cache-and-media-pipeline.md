@@ -17,6 +17,7 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Amended**: 2026-11-09 (native-media ticket 94): the fetcher reports the bytes of a download and a binding exposes the fraction, null when nothing downloads; the download indicator shows only then (section *Amendment: download progress*)  
 **Amended**: 2026-11-09 (native-media ticket 96): a small playing cell plays at half rate and decodes at most 160 px (section *Amendment: half frame rate*)  
 **Amended**: 2026-11-09 (native-media ticket 98): a persisted animation's frames are read one at a time from its file by the render isolate; the RAM tier holds only animations being filled and never evicts one that plays (section *Amendment: frames read from the file*)
+**Amended**: 2026-11-09 (native-media ticket 102): the frame cache keeps an animation as two fills, its even and its odd frames, so a half-rate playback completes and persists one (section *Amendment: a fill per parity*)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -264,3 +265,21 @@ file on the thread that draws it; nothing holds a whole animation in memory.
 | Writing | The file is written when the last frame arrives, as the header (with the table) followed by the frames themselves, chunk by chunk through asynchronous file writes: no whole-file buffer and no checksum pass on the UI isolate, whose part is handing each frame to the I/O thread. Atomic as before (temp file, rename). |
 | Recency | The cache stamps a file's time when it opens it and, while it serves its frames, at most every 30 seconds, so the host's store (*Amendment: one media disk store*) sees a playing file as in use. A file the store removes under an open reader still reads until the reader lets it go; after that it is a miss and is rendered and written again. |
 | Format | Version 2 (no checksum field). A version 1 file is a miss at its first read and deleted, like any damage: the cache is rebuilt by rendering, never converted. |
+
+## Amendment: a fill per parity
+
+A playback at half rate (*Amendment: half frame rate*) asks only for the even
+frames of a pass, but the cache counted an animation complete when every frame
+was in: a small cell's fill never completed, never reached the disk, held RAM
+in the budget, and rendered again once dropped (ticket 102). A full-rate
+playback could miss frames too, when renders lag the clock.
+
+| Area | Decision |
+| ---- | -------- |
+| Rule | Completeness counts the frames a playback asks for, split by **parity**: an animation is two fills, its even frames and its odd frames (`FrameParity`), each completed, written as its own file, read and evicted on its own. A half-rate pass completes the even fill; a full-rate pass completes both. A later full-rate playback restores the even frames from the half-rate pass's file and fills the odd ones; a later half-rate playback restores from either rate's even file. No file claims a frame it does not hold, so a half-rate fill never stands in for a full one. |
+| Not the key | The step is not part of `FrameCacheKey`. A key per step would store the even frames twice, and the step would have to travel with every frame job, which carries only its source and index: a paintable shared by a surface at half rate and one at full rate (*Amendment: half frame rate*, shared entries) would switch keys, and so leases, at every paint. Parity needs nothing from the playback: the frame index says which fill it is. |
+| RAM tier | Its unit is the fill, one parity of an animation, with the rules of *Amendment: frames read from the file*. Over a budget that holds one fill, a full-rate pass keeps the even fill (it started first) and drops the odd one, which fills on the next pass once the even one is on disk. |
+| Files | The stem is the key's followed by `_even` or `_odd`. Format version 3 adds the parity to the header (after the hash length), checked on open like the key's parts, so a file renamed onto the other parity serves nothing. A frame reference (`CachedFrameFile`) still names the animation's frame; the reader takes the file of its parity and its place among them. The reader keeps 64 files open (two per animation at full rate). |
+| Damage | Invalidating an animation drops both fills and deletes both files: the renderer does not know which one a failed restore came from, and one damaged frame says nothing of the rest. |
+| Migration | A version 2 file has no parity in its name, so no key asks for it: it is never opened and ages out through the disk budget or the host's store. |
+| Exception | Parity covers the steps a playback has (1 and 2). A step of 3 would need a split by that step instead. |
