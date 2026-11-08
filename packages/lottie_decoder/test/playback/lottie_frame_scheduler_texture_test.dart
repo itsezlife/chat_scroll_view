@@ -33,10 +33,13 @@ void main() {
     await pumpEventQueue();
   }
 
-  // The two ticks a posted texture waits before it is shown.
-  Future<void> untilShown() async {
-    await tick();
-    await tick();
+  // Posts frames [from] to [from] + 2, one a tick: a texture is shown after
+  // three posts of its lease.
+  Future<void> postThree(LottieFrameLease lease, int from) async {
+    for (var frame = from; frame < from + 3; frame++) {
+      scheduler.want(lease, frame);
+      await tick();
+    }
   }
 
   setUp(() {
@@ -106,7 +109,7 @@ void main() {
       },
     );
 
-    test('exposes the texture only two ticks after its first post', () async {
+    test('exposes the texture only once three frames were posted', () async {
       await pool.warm(64, 1);
       final a = lease('a');
       expect(a.texture, isNull);
@@ -119,12 +122,13 @@ void main() {
 
       writer.resume();
       await pumpEventQueue();
-      // A texture another asset held shows that asset's frame until the
-      // engine takes the post.
-      expect(a.texture, isNull, reason: 'posted, not taken yet');
-
+      // The texture may still queue frames of the asset that held it, which
+      // the engine would show first.
+      expect(a.texture, isNull, reason: 'one post');
+      scheduler.want(a, 2);
       await tick();
-      expect(a.texture, isNull, reason: 'one tick after the post');
+      expect(a.texture, isNull, reason: 'two posts');
+      scheduler.want(a, 3);
       await tick();
       expect(a.texture?.id, host.liveIds.single);
       expect(a.sprite, isNull);
@@ -181,7 +185,7 @@ void main() {
       expect(a.texture, isNull);
       expect(a.sprite, isNotNull, reason: 'the slot shows until it is shown');
 
-      await untilShown();
+      await postThree(a, 3);
       expect(a.texture, isNotNull);
       expect(a.sprite, isNull);
     });
@@ -214,12 +218,10 @@ void main() {
       await pool.warm(64, 1);
       final a = lease('a');
       final id = host.liveIds.single;
-      scheduler.want(a, 1);
-      await tick();
-      await untilShown();
+      await postThree(a, 1);
 
       writer.outcomeOf[id] = TextureFrameOutcome.notLocked;
-      scheduler.want(a, 2);
+      scheduler.want(a, 4);
       await tick();
       expect(a.texture?.id, id, reason: 'it keeps its previous frame');
 
@@ -227,7 +229,7 @@ void main() {
       await tick();
       expect(
         [for (final batch in writer.batches) batch.single.frame],
-        [1, 2, 2],
+        [1, 2, 3, 4, 4],
       );
     });
 
@@ -329,9 +331,7 @@ void main() {
         'passes without one', () async {
       await pool.warm(64, 1);
       final a = lease('a');
-      scheduler.want(a, 1);
-      await tick();
-      await untilShown();
+      await postThree(a, 1);
       expect(a.texture, isNotNull);
 
       scheduler.want(a, 2, onCanvas: true);
@@ -347,9 +347,7 @@ void main() {
       expect(a.sprite, isNotNull, reason: 'painted on a canvas this period');
 
       timers.elapse(const Duration(seconds: 1));
-      scheduler.want(a, 4);
-      await tick();
-      await untilShown();
+      await postThree(a, 4);
       expect(a.texture, isNotNull);
     });
 
@@ -357,9 +355,7 @@ void main() {
         'to idle textures', () async {
       await pool.warm(64, 1);
       final a = lease('a');
-      scheduler.want(a, 1);
-      await tick();
-      await untilShown();
+      await postThree(a, 1);
       expect(a.texture, isNotNull);
 
       scheduler.texturesEnabled = false;
@@ -370,9 +366,7 @@ void main() {
       expect(pool.idleTextures, 1);
 
       scheduler.texturesEnabled = true;
-      scheduler.want(a, 3);
-      await tick();
-      await untilShown();
+      await postThree(a, 3);
       expect(a.texture, isNotNull);
     });
 

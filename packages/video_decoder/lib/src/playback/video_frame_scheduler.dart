@@ -32,12 +32,13 @@ final class VideoFrameLease {
   // its slot to a texture (the slot shows until the texture is shown).
   FrameHandle<Object>? _slot;
   FrameTextureLease? _texture;
-  bool _posted = false;
-  // Ticks seen since the first post. A texture that held another asset shows
-  // that asset's last frame until the engine takes the post (on Android the
-  // image comes through the main looper), so the texture is shown only from
-  // the second tick after the post; until then the slot, or the still, shows.
-  int _ticksSincePost = 0;
+  // Frames posted to the texture since the lease took it. A texture keeps
+  // frames of the asset that held it that the engine never showed (on Android
+  // the surface producer queues up to two and shows them oldest first, one a
+  // frame, only while the texture is on screen), so the texture is shown only
+  // once this lease's posts pushed them out; until then the slot, or the
+  // still, shows.
+  int _posts = 0;
   int _missedLocks = 0;
   bool _writing = false;
   // Whether a surface that only has a canvas painted it since the last sweep
@@ -82,8 +83,7 @@ final class VideoFrameLease {
   /// and never keep it.
   AssetTexture? get texture => _released || !_shown ? null : _texture?.texture;
 
-  bool get _shown =>
-      _posted && _ticksSincePost >= VideoFrameScheduler._ticksBeforeShown;
+  bool get _shown => _posts >= VideoFrameScheduler._postsBeforeShown;
 
   /// Stops decoding and keeps the frame on show: a pass that does not loop
   /// ended on its last frame. The slot stays leased until [release].
@@ -259,9 +259,10 @@ final class VideoFrameScheduler {
   /// Shortest time between two ticks of the follow subscription.
   final Duration tickInterval;
 
-  // Ticks after a texture's first post before it is shown: the engine has
-  // taken the post by then (see `_ticksSincePost`).
-  static const _ticksBeforeShown = 2;
+  // Posts of a lease before its texture is shown (see `_posts`): two push
+  // the previous holder's queued frames out, the third makes sure the second
+  // reached the queue.
+  static const _postsBeforeShown = 3;
 
   final VideoEngine _engine;
   final FrameAtlas<Object> _atlas;
@@ -457,26 +458,13 @@ final class VideoFrameScheduler {
       if (texture == null) continue;
       lease
         .._texture = texture
-        .._posted = false
-        .._ticksSincePost = 0
+        .._posts = 0
         .._missedLocks = 0;
       if (pool.idleTextures == 0) return;
     }
   }
 
   void _giveBack(FrameTextureLease texture) => texture.release();
-
-  // Counts a tick for every lease whose texture waits to be shown; one that
-  // is shown now lets go of the slot it came from.
-  void _showPosted() {
-    for (final lease in _leases.values) {
-      if (!lease._posted || lease._shown) continue;
-      lease._ticksSincePost++;
-      if (!lease._shown) continue;
-      lease._slot?.release();
-      lease._slot = null;
-    }
-  }
 
   // A surface that cannot show the texture paints the lease: its frames go
   // to a slot again. Without a slot to take it keeps the texture, and the
@@ -491,8 +479,7 @@ final class VideoFrameScheduler {
     final texture = lease._texture!;
     lease
       .._texture = null
-      .._posted = false
-      .._ticksSincePost = 0;
+      .._posts = 0;
     if (discard) {
       texture.discard();
     } else if (lease._writing) {
@@ -526,7 +513,6 @@ final class VideoFrameScheduler {
 
   void _onTick(Duration now) {
     _now = now;
-    _showPosted();
     if (!_inFlight) _moveToTextures();
     final advancing = _chooseAdvancing(now);
     final onSlots = <VideoFrameLease>[];
@@ -597,8 +583,13 @@ final class VideoFrameScheduler {
         switch (outcomes[i]) {
           case TextureFrameOutcome.posted:
             lease
-              .._posted = true
+              .._posts += 1
               .._missedLocks = 0;
+            // Shown now: the slot it came from goes.
+            if (lease._shown) {
+              lease._slot?.release();
+              lease._slot = null;
+            }
           case TextureFrameOutcome.notLocked:
             // The frame is dropped: the texture keeps the one before, and the
             // ring has the next.
