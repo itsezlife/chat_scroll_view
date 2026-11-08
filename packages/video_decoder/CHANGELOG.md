@@ -6,6 +6,11 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the panel keeps its animations)
+
+- `VideoAnimationPaintable.firstFrame` is its first-frame still, which a
+  sibling binding borrows instead of the frame the clip is at.
+
 ### Added (half frame rate)
 
 - `VideoFrameScheduler.want` takes `frameStep`: with 2 the clip keeps only the

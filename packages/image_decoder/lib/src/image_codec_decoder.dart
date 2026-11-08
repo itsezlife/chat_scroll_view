@@ -129,10 +129,11 @@ final class _DecodeTask implements AssetTask {
       _progress.advance(
         stage,
         PlayingImagePaintable(codec, first, template: template),
-        // The frame shown, the one decoded ahead and the encoded data the
-        // codec keeps to decode the next from. Whatever else the engine's
-        // codec holds (a frame kept for blending) is not visible here.
-        bytes: frameBytes * 2 + encodedBytes,
+        // The frame shown, the one decoded ahead, the first frame kept as a
+        // still (`firstFrame`) and the encoded data the codec keeps to decode
+        // the next from. Whatever else the engine's codec holds (a frame kept
+        // for blending) is not visible here.
+        bytes: frameBytes * 3 + encodedBytes,
         tier: AssetTier.animated,
       );
       return;

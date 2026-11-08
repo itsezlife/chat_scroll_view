@@ -28,10 +28,15 @@ abstract interface class PanelPresentationStrategy {
   /// the keyboard a second time.
   listen.ValueListenable<PanelOccupancy> get occupancy;
 
-  /// Builds the panel for [view.visibility], which is never hidden.
+  /// Builds the panel for [view.visibility].
   ///
   /// Called again on every change of the visibility state, with the same
-  /// kind; the returned widget keeps its own state across those calls.
+  /// kind; the returned widget keeps its own state across those calls. Hidden
+  /// is passed once the motion out has settled: the view keeps the subtree
+  /// mounted offstage, so the strategy runs no motion for it and keeps its
+  /// state; its own tickers stay on. A strategy puts the shell under
+  /// `TickerMode(enabled: visibility is PanelVisibility$Shown)`, so the
+  /// panel's content holds while it moves and while it is hidden.
   Widget build(BuildContext context, PanelStrategyContext view);
 }
 
@@ -48,7 +53,8 @@ final class PanelStrategyContext {
   /// The controller being projected. Its `shell` is what to mount.
   final PanelPresentationController controller;
 
-  /// The visibility being projected; never `hidden`.
+  /// The visibility being projected; `hidden` while the view keeps the panel
+  /// mounted offstage.
   final PanelVisibility visibility;
 
   /// The reporting channel behind [motionSettled].

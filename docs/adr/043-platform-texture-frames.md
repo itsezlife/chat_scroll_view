@@ -103,3 +103,14 @@ thread, and the UI isolate only places a layer.
 - The measurements above come from the scroll lab's tape replays
   (`example/tool/scroll_lab/`), judged by visible hitches per second of motion.
 - Glossary: [Content and assets](../content/CONTEXT.md).
+
+## Amendment: leases of a kept panel
+
+Native-media ticket 100. A hidden panel and an off-screen page hold their
+catalogue's bindings ([ADR 025](025-panel-shell-and-pages.md) *the pager
+keeps its pages*), so their leases are kept through the sweep where they are,
+on a slot or a texture, and show their frame at once when the panel shows
+again. A cell that leaves the attach window gives its lease back as before;
+its entry and its position stay in the cache. Kept leases count against the
+texture and page budgets like painted ones: a kept panel can leave fewer
+textures for the chat, which then plays on page slots.

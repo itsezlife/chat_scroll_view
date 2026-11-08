@@ -119,6 +119,7 @@ final class PlayingImagePaintable extends AssetPaintable {
     ui.FrameInfo first, {
     required bool template,
   }) : _shown = first.image,
+       _first = StillImagePaintable(first.image.clone(), template: template),
        _shownFor = _durationOf(first),
        _template = template;
 
@@ -131,6 +132,9 @@ final class PlayingImagePaintable extends AssetPaintable {
   final ui.Codec _codec;
   final bool _template;
   ui.Image _shown;
+  // A second reference to the first frame's pixels, kept for [firstFrame]
+  // after the playback moved on: one frame more than playing needs.
+  final StillImagePaintable _first;
   // Null until the first paint that animates, so the first frame lasts its
   // full duration from the moment it plays.
   Duration? _shownSince;
@@ -153,6 +157,11 @@ final class PlayingImagePaintable extends AssetPaintable {
 
   @override
   bool get isHolding => _holding;
+
+  /// The first frame, kept as a still for a sibling binding that borrows
+  /// this entry: it never shows the frame the loop is at.
+  @override
+  AssetPaintable get firstFrame => _first;
 
   @override
   bool restart() {
@@ -266,6 +275,7 @@ final class PlayingImagePaintable extends AssetPaintable {
     if (_disposed) return;
     _disposed = true;
     _shown.dispose();
+    _first.dispose();
     _ahead?.image.dispose();
     _ahead = null;
     _codec.dispose();

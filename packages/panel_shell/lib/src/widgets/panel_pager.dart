@@ -11,8 +11,16 @@ import 'package:panel_shell/src/controller/panel_shell_controller.dart';
 /// tab tap or a host uses; a selection made any other way moves the pager
 /// with a jump (no scroll animation, because the tabs' capsule has its own
 /// settle), or, given a [selectSlide], slides there from the neighbouring
-/// page over it, as the reference desktop client slides its sections. Pages are built lazily and dropped when off screen: what a page
-/// must keep lives in the controller's registry, not in the pager.
+/// page over it, as the reference desktop client slides its sections.
+///
+/// Pages are built lazily and, once built, kept alive for the life of the
+/// pager, so at most the registered pages are kept: a type tab switched away
+/// from keeps its page, with its cells, their frames and their positions, as
+/// the reference mobile client keeps every page of its pager. A page that is
+/// not on screen (a page or more from the pager's position) is under
+/// `TickerMode(enabled: false)`: its animations hold and a catalogue in it
+/// holds its bindings. What a page must restore after the shell itself is
+/// rebuilt still lives in the controller's registry.
 ///
 /// Swiping direction follows the reading direction, so in a right-to-left
 /// layout the first page sits at the right and swipes mirror.
@@ -134,11 +142,52 @@ class _PanelPagerState extends State<PanelPager> {
       onPageChanged: _onPageChanged,
       itemBuilder: (context, index) {
         final page = pages[index];
-        return KeyedSubtree(
+        return _KeptPage(
           key: ValueKey<String>(page.id),
+          index: index,
+          position: widget.position,
           child: page.builder(context, widget.controller.hostFor(page.id)),
         );
       },
+    );
+  }
+}
+
+/// One page of the pager: kept alive once built, and under
+/// `TickerMode(enabled: false)` while it is not on screen.
+class _KeptPage extends StatefulWidget {
+  const _KeptPage({
+    required this.index,
+    required this.position,
+    required this.child,
+    super.key,
+  });
+
+  final int index;
+  final ValueNotifier<double> position;
+  final Widget child;
+
+  @override
+  State<_KeptPage> createState() => _KeptPageState();
+}
+
+class _KeptPageState extends State<_KeptPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    // Rebuilt on every step of a swipe, but only the bool reaches the
+    // subtree, and a TickerMode of the same value notifies nobody.
+    return ValueListenableBuilder<double>(
+      valueListenable: widget.position,
+      child: widget.child,
+      builder: (context, position, child) => TickerMode(
+        enabled: (widget.index - position).abs() < 1,
+        child: child!,
+      ),
     );
   }
 }

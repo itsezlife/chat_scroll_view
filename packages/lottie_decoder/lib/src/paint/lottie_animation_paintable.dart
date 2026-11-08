@@ -130,6 +130,10 @@ final class LottieAnimationPaintable extends AssetPaintable {
   @override
   bool get isHolding => _holding;
 
+  /// The first-frame still this paintable draws while it has no frame.
+  @override
+  AssetPaintable get firstFrame => _still;
+
   // Whether a held surface shows the current frame; carried to every lease.
   bool _keep = false;
 

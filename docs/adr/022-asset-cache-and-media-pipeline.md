@@ -18,6 +18,7 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Amended**: 2026-11-09 (native-media ticket 103): the fetcher says at once whether content is missing, so the download shows from the attach, before the thumbnail, and it outlasts a failed attempt while the content is missing (section *Amendment: download progress*, rows *Missing* and *Binding*)  
 **Amended**: 2026-11-09 (native-media ticket 96): a small playing cell plays at half rate and decodes at most 160 px (section *Amendment: half frame rate*)  
 **Amended**: 2026-11-09 (native-media ticket 98): a persisted animation's frames are read one at a time from its file by the render isolate; the RAM tier holds only animations being filled and never evicts one that plays (section *Amendment: frames read from the file*)
+**Amended**: 2026-11-09 (native-media ticket 102): the frame cache keeps an animation as two fills, its even and its odd frames, so a half-rate playback completes and persists one (section *Amendment: a fill per parity*)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -248,6 +249,29 @@ every second frame (`limitFps`; an animation below 60 fps is not limited).
 | Shared entries | One paintable serves every binding of an entry. A surface at half rate and one at full rate on the same entry ask for frames in turn, so the entry shows the frames of the last paint. Accepted: a small cell and the chat rarely share a spec, and the cap at 160 px makes a small playing cell an entry of its own in most cases. |
 | Not replicated | The reference client's exact threshold (half rate only from 60 fps): here a 31 to 59 fps Lottie also halves, so one rule covers Lottie and video. Its `nolimit` filter, which exempts a surface: a host that wants full rate in a small cell builds its own preset with `halfFrameRate` false. |
 
+
+## Amendment: the panel keeps its animations
+
+Native-media ticket 100. Closing and reopening the panel reloaded every
+sticker and played it from the start; switching type tabs or scrolling a
+cell away did the same; an animated emoji opened on a frame that was not its
+first. The reference mobile client keeps its emoji view, its pagers and their
+lists mounted while hidden, keeps each animation in a memory cache that
+recycles only what no cell uses (`lottieMemCache`, 10 MiB, an animation
+charged two frame buffers), and continues each from its current frame when a
+cell shows it again. The panel side of this is in
+[ADR 025](025-panel-shell-and-pages.md) and
+[ADR 028](028-panel-presentation.md).
+
+| Area | Decision |
+| ---- | -------- |
+| Lottie charge | The `full` stage of a Lottie entry counts its first-frame still (`width * height * 4`) plus the encoded size once, for the parsed model, instead of four times the encoded size. The handle's footprint is in the native library and not visible; once the file's size is the estimate, and keeps a 160 px cell of a 181 KB sticker at about 0.28 MiB instead of 0.8 MiB. |
+| Playing image charge | An image that plays keeps its first frame as a still (below), so it counts three frames (shown, decoded ahead, first) plus the encoded data. |
+| Animated budget | 32 MiB by default instead of 12. Pinned entries come out of it first, and a kept panel pins the attach windows of its kept pages: about 35 sticker cells (10 MiB at the charge above) and the custom emoji of the emoji page. What is left keeps about two more sticker screens for scrolling back. Eviction is unchanged: least recently released first, and only entries no binding uses or borrows. |
+| Position | An unpinned entry keeps its paintable, so its playback position survives with it; a binding that attaches again continues from there. The lease where its frames live is given back by the idle sweep as before ([ADR 043](043-platform-texture-frames.md)), so the frame is rendered again on return. |
+| First-frame still | `AssetPaintable.firstFrame`: the first frame of an animated paintable as a still it owns, null by default. The Lottie and video paintables return the still they already keep; a playing image keeps a reference to its first decoded frame for it. |
+| Borrow | Amends *sibling stages*. A sibling whose paintable plays is borrowed as its first-frame still, never as the paintable itself: the borrowing binding shows frame 0, at `firstFrame` readiness, and plays nothing, so the switch to its own entry (which starts from frame 0) is not a jump back from the middle of a loop. A playing sibling with no still is not borrowed. A sent GIF still draws content, not the placeholder, at once. |
+
 ## Amendment: frames read from the file
 
 With 512 px chat stickers (tens of megabytes of compressed frames each) the
@@ -266,3 +290,21 @@ file on the thread that draws it; nothing holds a whole animation in memory.
 | Writing | The file is written when the last frame arrives, as the header (with the table) followed by the frames themselves, chunk by chunk through asynchronous file writes: no whole-file buffer and no checksum pass on the UI isolate, whose part is handing each frame to the I/O thread. Atomic as before (temp file, rename). |
 | Recency | The cache stamps a file's time when it opens it and, while it serves its frames, at most every 30 seconds, so the host's store (*Amendment: one media disk store*) sees a playing file as in use. A file the store removes under an open reader still reads until the reader lets it go; after that it is a miss and is rendered and written again. |
 | Format | Version 2 (no checksum field). A version 1 file is a miss at its first read and deleted, like any damage: the cache is rebuilt by rendering, never converted. |
+
+## Amendment: a fill per parity
+
+A playback at half rate (*Amendment: half frame rate*) asks only for the even
+frames of a pass, but the cache counted an animation complete when every frame
+was in: a small cell's fill never completed, never reached the disk, held RAM
+in the budget, and rendered again once dropped (ticket 102). A full-rate
+playback could miss frames too, when renders lag the clock.
+
+| Area | Decision |
+| ---- | -------- |
+| Rule | Completeness counts the frames a playback asks for, split by **parity**: an animation is two fills, its even frames and its odd frames (`FrameParity`), each completed, written as its own file, read and evicted on its own. A half-rate pass completes the even fill; a full-rate pass completes both. A later full-rate playback restores the even frames from the half-rate pass's file and fills the odd ones; a later half-rate playback restores from either rate's even file. No file claims a frame it does not hold, so a half-rate fill never stands in for a full one. |
+| Not the key | The step is not part of `FrameCacheKey`. A key per step would store the even frames twice, and the step would have to travel with every frame job, which carries only its source and index: a paintable shared by a surface at half rate and one at full rate (*Amendment: half frame rate*, shared entries) would switch keys, and so leases, at every paint. Parity needs nothing from the playback: the frame index says which fill it is. |
+| RAM tier | Its unit is the fill, one parity of an animation, with the rules of *Amendment: frames read from the file*. Over a budget that holds one fill, a full-rate pass keeps the even fill (it started first) and drops the odd one, which fills on the next pass once the even one is on disk. |
+| Files | The stem is the key's followed by `_even` or `_odd`. Format version 3 adds the parity to the header (after the hash length), checked on open like the key's parts, so a file renamed onto the other parity serves nothing. A frame reference (`CachedFrameFile`) still names the animation's frame; the reader takes the file of its parity and its place among them. The reader keeps 64 files open (two per animation at full rate). |
+| Damage | Invalidating an animation drops both fills and deletes both files: the renderer does not know which one a failed restore came from, and one damaged frame says nothing of the rest. |
+| Migration | A version 2 file has no parity in its name, so no key asks for it: it is never opened and ages out through the disk budget or the host's store. |
+| Exception | Parity covers the steps a playback has (1 and 2). A step of 3 would need a split by that step instead. |

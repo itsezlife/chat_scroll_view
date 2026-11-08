@@ -109,12 +109,15 @@ costs two frame buffers, as the Android client counts a Lottie drawable.
 | Animated stickers, down 2 screens and back | 0% | 13% | 50% | 75% | 100% | 100% |
 | Animated stickers, down 4 screens and back | 0% | 6% | 25% | 38% | 75% | 100% |
 
-- **`AssetCacheBudgets.defaults`: 24 MiB of stills, 12 MiB of animations.**
+- **`AssetCacheBudgets.defaults`: 24 MiB of stills, 32 MiB of animations.**
   24 MiB keeps all of the last four screens of stickers and of custom emoji
-  (pager keep-alive and scroll-back); 12 MiB of animations keeps the one screen
-  just scrolled past. Both are within the Android client's own figures (a 15
-  to 30 MB bitmap cache, a 10 MiB animation cache). Pinned bytes come out of
-  the budget first.
+  (pager keep-alive and scroll-back). 32 MiB of animations holds a kept
+  panel's pinned attach windows (about 35 sticker cells, 10 MiB, and the emoji
+  page's playing emoji, 8 MiB) and about two more sticker screens for
+  scrolling back. The still figure is within the Android client's own (a 15 to
+  30 MB bitmap cache); its 10 MiB animation cache charges only two frame
+  buffers an animation and never recycles one a cell uses. Pinned bytes come
+  out of the budget first.
 - **`PlaybackPolicy` fps caps: 30 fps up to 270 px on the longer edge (90 dp at
   density 3, Android's rule for emoji; Desktop repaints no faster than every
   33 ms), 60 fps above.** A cap is a ceiling, not a target: on a 120 Hz display

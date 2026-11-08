@@ -136,6 +136,30 @@ void main() {
       expect(reselected, 0, reason: 'the pager echoes its own jump');
     });
 
+    // Ticket 100: a type tab switched away from keeps its page, and with it
+    // the page's cells, their frames and positions.
+    testWidgets('a page switched away from stays mounted with its tickers '
+        'off, and comes back as it was', (tester) async {
+      build();
+      await pump(tester);
+      expect(emoji.tickersEnabled, isTrue);
+
+      await tester.tap(find.text('Stickers'));
+      await tester.pumpAndSettle();
+
+      expect(emoji.disposals, 0);
+      expect(emoji.tickersEnabled, isFalse);
+      expect(stickers.tickersEnabled, isTrue);
+
+      await tester.tap(find.text('Emoji'));
+      await tester.pumpAndSettle();
+
+      expect(emoji.mounts, 1);
+      expect(emoji.tickersEnabled, isTrue);
+      expect(stickers.disposals, 0);
+      expect(stickers.tickersEnabled, isFalse);
+    });
+
     testWidgets('selecting the selected tab again signals reselection only', (
       tester,
     ) async {

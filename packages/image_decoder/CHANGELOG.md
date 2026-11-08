@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the panel keeps its animations)
+
+- `PlayingImagePaintable` keeps its first frame as a still
+  (`AssetPaintable.firstFrame`), which a sibling binding borrows instead of
+  the frame the loop is at; a playing entry charges one frame more (three
+  frames plus the encoded data).
+
 ### Changed
 
 - A decoded image is placed by `AssetPaintContext.fit` (contain by default).

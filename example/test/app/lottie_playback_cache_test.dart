@@ -177,8 +177,8 @@ void main() {
     await earlier.close();
     expect(
       dir.listSync().where((e) => e.path.endsWith('.frames')),
-      hasLength(1),
-      reason: 'close flushed the animation to disk',
+      hasLength(2),
+      reason: 'close flushed the animation to disk, a file per parity',
     );
 
     final second = newEngine();
@@ -199,7 +199,8 @@ void main() {
 
     expect(
       dir.listSync().where((e) => e.path.endsWith('.frames')),
-      hasLength(1),
+      hasLength(2),
+      reason: 'a file per parity',
     );
     await expectLater(engine.load(_bytes), throwsStateError);
   });

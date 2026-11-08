@@ -530,10 +530,15 @@ class _PopupBodyState extends State<_PopupBody>
                   controller: _controller,
                   child: FocusScope(
                     node: _scope,
-                    child: PanelShell(
-                      controller: _controller.shell,
-                      arrangement: PanelArrangement.pointer,
-                      background: const Color(0x00000000),
+                    // Only at rest: while the popup moves or is hidden the
+                    // panel's content holds.
+                    child: TickerMode(
+                      enabled: widget.view.visibility is PanelVisibility$Shown,
+                      child: PanelShell(
+                        controller: _controller.shell,
+                        arrangement: PanelArrangement.pointer,
+                        background: const Color(0x00000000),
+                      ),
                     ),
                   ),
                 ),

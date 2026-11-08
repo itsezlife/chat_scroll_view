@@ -403,9 +403,9 @@ void main() {
       ]);
       expect(report.advances.first.paintable.isAnimated, isFalse);
       expect(report.advances.last.paintable.isAnimated, isTrue);
-      // 64 x 64 frame, plus four times the three encoded bytes.
+      // 64 x 64 frame, plus the three encoded bytes once for the model.
       expect(report.advances.first.bytes, 64 * 64 * 4);
-      expect(report.advances.last.bytes, 64 * 64 * 4 + 4 * 3);
+      expect(report.advances.last.bytes, 64 * 64 * 4 + 3);
     });
 
     test('draws frame 0 at the spec size, keeping the aspect ratio', () async {

@@ -20,6 +20,22 @@ is pre-1.0.
   sees the last fraction. `FakeFetcher.missing` names the keys it reports
   missing.
 
+### Changed (the panel keeps its animations)
+
+- `AssetCacheBudgets.defaults` keeps 32 MiB of animations instead of 12: a
+  panel kept mounted pins its pages' attach windows, and a screen scrolled
+  out must still find its entries and positions. A host that relied on the
+  12 MiB figure sets it explicitly.
+- A binding that borrows a sibling entry whose paintable plays shows that
+  paintable's `AssetPaintable.firstFrame`, at `firstFrame` readiness, and does
+  not play it; a playing sibling with no still is not borrowed. Code that
+  expected a borrowed animation to play (the 85 behaviour) now sees a still.
+
+### Added (the panel keeps its animations)
+
+- `AssetPaintable.firstFrame`: the first frame of an animation as a still the
+  paintable owns, null by default.
+
 ### Added (small cells at half rate)
 
 - `AssetProfile.halfFrameRate`, carried by `AssetPaintContext.halfFrameRate`:
@@ -70,7 +86,6 @@ is pre-1.0.
 - `SoftPlaceholder` and `ContentEmbed(placeholder:)`: an embed can draw a
   quiet rounded square instead of the scope's circle until its content has a
   thumbnail.
-
 
 ### Changed (dynamic frame pages sized by class, breaking)
 

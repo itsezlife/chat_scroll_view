@@ -183,9 +183,9 @@ void main() {
       expect(advance.stage, AssetStage.full);
       expect(advance.tier, AssetTier.animated);
       expect(advance.paintable.isAnimated, isTrue);
-      // The frame shown and the one decoded ahead, at 16 x 16, and the
-      // encoded data the codec keeps to decode them from.
-      expect(advance.bytes, 2 * 16 * 16 * 4 + _threeFrames.length);
+      // The frame shown, the one decoded ahead and the first frame kept as
+      // a still, at 16 x 16, and the encoded data the codec decodes from.
+      expect(advance.bytes, 3 * 16 * 16 * 4 + _threeFrames.length);
       advance.paintable.dispose();
     });
 
@@ -286,6 +286,22 @@ void main() {
     });
 
     tearDown(() => paintable.dispose());
+
+    // Ticket 100: an emoji borrowed by a sibling binding shows its first
+    // frame, never the frame the loop is at.
+    test('lends its first frame as a still, mid-loop too', () async {
+      const start = Duration(seconds: 1);
+      await _settledAt(paintable, start);
+      expect(
+        await _settledAt(paintable, start + const Duration(milliseconds: 40)),
+        _blue,
+      );
+
+      final lent = paintable.firstFrame!;
+
+      expect(lent.isAnimated, isFalse);
+      expect(await _settledAt(lent, start), _red);
+    });
 
     test('shows each frame for its own duration', () async {
       // The clock is at 1 s when the image is first seen.

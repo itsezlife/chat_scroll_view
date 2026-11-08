@@ -4,31 +4,34 @@ import 'dart:typed_data';
 import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
 import 'package:meta/meta.dart';
 
-/// The file layout of one cached animation, all integers little-endian
-/// unsigned 32-bit:
+/// The file layout of the frames of one parity of a cached animation
+/// ([FrameParity]), all integers little-endian unsigned 32-bit:
 ///
 /// ```text
 ///  0  magic            0x434D5246, the bytes "FRMC"
-///  4  format version   2
+///  4  format version   3
 ///  8  width            display pixels
 /// 12  height
-/// 16  frame count      N, at least 1
+/// 16  frame count      N, at least 1: the frames of this parity
 /// 20  payload length   the sum of the frame lengths
 /// 24  engine length    E
 /// 28  hash length      H
-/// 32  engine version   E bytes of ASCII
+/// 32  parity           0 for the even frames, 1 for the odd ones
+/// 36  engine version   E bytes of ASCII
 ///     content hash     H bytes of ASCII
-///     offsets          N values: where frame i starts in the payload
+///     offsets          N values: where frame i of the parity starts in the
+///                      payload (frame 2i or 2i + 1 of the animation)
 ///     lengths          N values: how long frame i is
 ///     payload          the frames, back to back
 /// ```
 ///
 /// The header is everything before the payload: a reader reads it once and
 /// then one frame at a time, at its offset, never the whole file. The key's
-/// parts repeat what the file name says, on purpose: a file copied or renamed
-/// onto another key's name is caught here rather than served as that key's
-/// frames. The offsets and the lengths say the same thing twice; a reader
-/// checks that they agree, which catches a damaged table.
+/// parts and the parity repeat what the file name says, on purpose: a file
+/// copied or renamed onto another key's name, or the other parity's, is caught
+/// here rather than served as those frames. The offsets and the lengths say
+/// the same thing twice; a reader checks that they agree, which catches a
+/// damaged table.
 ///
 /// There is no payload checksum (version 1 had a CRC-32): checking it meant a
 /// pass over every byte of the animation, which on the UI isolate was the
@@ -37,20 +40,27 @@ import 'package:meta/meta.dart';
 ///
 /// Bumping the format version makes every older file a miss that is deleted,
 /// which is the migration: a cache is rebuilt by rendering, never converted.
+/// A version 2 file is not even opened: its name has no parity, so no key
+/// asks for it, and it ages out through the disk budget or the host's store.
 abstract final class FrameCacheCodec {
   /// The magic number: "FRMC" read little-endian.
   static const int magic = 0x434D5246;
 
-  /// The layout version [header] writes.
-  static const int formatVersion = 2;
+  /// The layout version [header] writes. Version 3 split an animation into
+  /// its two parities; version 2 held every frame in one file.
+  static const int formatVersion = 3;
 
   /// The bytes before the engine version: what a reader reads first to learn
   /// how long the rest of the header is.
-  static const int fixedHeaderBytes = 32;
+  static const int fixedHeaderBytes = 36;
 
-  /// The header for an animation of [key] whose frames are [lengths] bytes
-  /// long, in order: the file is this followed by the frames.
-  static Uint8List header(FrameCacheKey key, List<int> lengths) {
+  /// The header for the [parity] frames of an animation of [key], which are
+  /// [lengths] bytes long, in order: the file is this followed by the frames.
+  static Uint8List header(
+    FrameCacheKey key,
+    FrameParity parity,
+    List<int> lengths,
+  ) {
     final engine = ascii.encode(key.engineVersion);
     final hash = ascii.encode(key.contentHash);
     final count = lengths.length;
@@ -72,7 +82,8 @@ abstract final class FrameCacheCodec {
       ..setUint32(16, count, Endian.little)
       ..setUint32(20, offset, Endian.little)
       ..setUint32(24, engine.length, Endian.little)
-      ..setUint32(28, hash.length, Endian.little);
+      ..setUint32(28, hash.length, Endian.little)
+      ..setUint32(32, parity.index, Endian.little);
     out
       ..setRange(fixedHeaderBytes, fixedHeaderBytes + engine.length, engine)
       ..setRange(fixedHeaderBytes + engine.length, tablesStart, hash);
@@ -81,13 +92,19 @@ abstract final class FrameCacheCodec {
 
   /// The length of the whole header, read from its first [fixedHeaderBytes]
   /// bytes [fixed], or null when they are not the start of a file of this
-  /// version for [key] that fits in [fileLength] bytes.
-  static int? headerLength(FrameCacheKey key, Uint8List fixed, int fileLength) {
+  /// version for the [parity] frames of [key] that fits in [fileLength] bytes.
+  static int? headerLength(
+    FrameCacheKey key,
+    FrameParity parity,
+    Uint8List fixed,
+    int fileLength,
+  ) {
     if (fixed.length < fixedHeaderBytes) return null;
     final data = ByteData.sublistView(fixed);
     int u32(int at) => data.getUint32(at, Endian.little);
     if (u32(0) != magic || u32(4) != formatVersion) return null;
     if (u32(8) != key.width || u32(12) != key.height) return null;
+    if (u32(32) != parity.index) return null;
     final count = u32(16);
     final engineLength = u32(24);
     final hashLength = u32(28);
@@ -104,16 +121,17 @@ abstract final class FrameCacheCodec {
   }
 
   /// The frame table of a file of [fileLength] bytes whose header is
-  /// [header], or null when the header is not a well-formed one for [key]
-  /// whose frames tile the rest of the file and are each at most
-  /// [maxFrameBytes] long. Never throws for damaged input.
+  /// [header], or null when the header is not a well-formed one for the
+  /// [parity] frames of [key] whose frames tile the rest of the file and are
+  /// each at most [maxFrameBytes] long. Never throws for damaged input.
   static FrameFileTable? table(
     FrameCacheKey key,
+    FrameParity parity,
     Uint8List header,
     int fileLength, {
     required int maxFrameBytes,
   }) {
-    final length = headerLength(key, header, fileLength);
+    final length = headerLength(key, parity, header, fileLength);
     if (length == null || header.length != length) return null;
     final data = ByteData.sublistView(header);
     int u32(int at) => data.getUint32(at, Endian.little);
