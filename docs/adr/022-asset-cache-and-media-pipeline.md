@@ -245,3 +245,25 @@ every second frame (`limitFps`; an animation below 60 fps is not limited).
 | Shared entries | One paintable serves every binding of an entry. A surface at half rate and one at full rate on the same entry ask for frames in turn, so the entry shows the frames of the last paint. Accepted: a small cell and the chat rarely share a spec, and the cap at 160 px makes a small playing cell an entry of its own in most cases. |
 | Not replicated | The reference client's exact threshold (half rate only from 60 fps): here a 31 to 59 fps Lottie also halves, so one rule covers Lottie and video. Its `nolimit` filter, which exempts a surface: a host that wants full rate in a small cell builds its own preset with `halfFrameRate` false. |
 
+
+## Amendment: the panel keeps its animations
+
+Native-media ticket 100. Closing and reopening the panel reloaded every
+sticker and played it from the start; switching type tabs or scrolling a
+cell away did the same; an animated emoji opened on a frame that was not its
+first. The reference mobile client keeps its emoji view, its pagers and their
+lists mounted while hidden, keeps each animation in a memory cache that
+recycles only what no cell uses (`lottieMemCache`, 10 MiB, an animation
+charged two frame buffers), and continues each from its current frame when a
+cell shows it again. The panel side of this is in
+[ADR 025](025-panel-shell-and-pages.md) and
+[ADR 028](028-panel-presentation.md).
+
+| Area | Decision |
+| ---- | -------- |
+| Lottie charge | The `full` stage of a Lottie entry counts its first-frame still (`width * height * 4`) plus the encoded size once, for the parsed model, instead of four times the encoded size. The handle's footprint is in the native library and not visible; once the file's size is the estimate, and keeps a 160 px cell of a 181 KB sticker at about 0.28 MiB instead of 0.8 MiB. |
+| Playing image charge | An image that plays keeps its first frame as a still (below), so it counts three frames (shown, decoded ahead, first) plus the encoded data. |
+| Animated budget | 32 MiB by default instead of 12. Pinned entries come out of it first, and a kept panel pins the attach windows of its kept pages: about 35 sticker cells (10 MiB at the charge above) and the custom emoji of the emoji page. What is left keeps about two more sticker screens for scrolling back. Eviction is unchanged: least recently released first, and only entries no binding uses or borrows. |
+| Position | An unpinned entry keeps its paintable, so its playback position survives with it; a binding that attaches again continues from there. The lease where its frames live is given back by the idle sweep as before ([ADR 043](043-platform-texture-frames.md)), so the frame is rendered again on return. |
+| First-frame still | `AssetPaintable.firstFrame`: the first frame of an animated paintable as a still it owns, null by default. The Lottie and video paintables return the still they already keep; a playing image keeps a reference to its first decoded frame for it. |
+| Borrow | Amends *sibling stages*. A sibling whose paintable plays is borrowed as its first-frame still, never as the paintable itself: the borrowing binding shows frame 0, at `firstFrame` readiness, and plays nothing, so the switch to its own entry (which starts from frame 0) is not a jump back from the middle of a loop. A playing sibling with no still is not borrowed. A sent GIF still draws content, not the placeholder, at once. |
