@@ -18,6 +18,7 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_format_off
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/media_panel_pages.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/panel_texture_warmer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
@@ -209,6 +210,23 @@ final class ChatInputSet {
         ),
         (shell) => shell.dispose(),
       );
+      // The texture pool creates nothing while the panel's page moves, and
+      // is warmed for the page that plays when it opens (ADR 043, "Pool").
+      final stopScrollReport = owned(
+        services.scrolling.followPanel(shell),
+        (stop) => stop(),
+      );
+      final textureWarmer = switch (services.assets.textures) {
+        final pool? => owned(
+          PanelTextureWarmer(
+            shell: shell,
+            pool: pool,
+            devicePixelRatio: view.devicePixelRatio,
+          ),
+          (warmer) => warmer.dispose(),
+        ),
+        null => null,
+      };
       final presentation = owned(
         PanelPresentationController(
           shell: shell,
@@ -243,6 +261,8 @@ final class ChatInputSet {
         popup: popup,
         docked: docked,
         shell: shell,
+        stopScrollReport: stopScrollReport,
+        textureWarmer: textureWarmer,
         presentation: presentation,
         insets: insets,
       );
@@ -270,9 +290,13 @@ final class ChatInputSet {
     required this.popup,
     required this.docked,
     required this.shell,
+    required VoidCallback stopScrollReport,
+    required PanelTextureWarmer? textureWarmer,
     required this.presentation,
     required this.insets,
   }) : _frames = frames,
+       _stopScrollReport = stopScrollReport,
+       _textureWarmer = textureWarmer,
        _keyboardPort = keyboardPort,
        _send = send,
        _edit = edit,
@@ -371,6 +395,12 @@ final class ChatInputSet {
   final ChatViewportInsets insets;
 
   final SchedulerBakeFrameSource _frames;
+
+  /// Stops reporting the panel's motion to the app's scrolling surfaces.
+  final VoidCallback _stopScrollReport;
+
+  /// Warms the texture pool for the page that plays; null without a pool.
+  final PanelTextureWarmer? _textureWarmer;
   final SoftKeyboardPort _keyboardPort;
   final ChatBodySender _send;
   final ChatBodyEditor _edit;
@@ -1110,6 +1140,8 @@ final class ChatInputSet {
     keyboardStrategy.dispose();
     popup.dispose();
     docked.dispose();
+    _textureWarmer?.dispose();
+    _stopScrollReport();
     shell.dispose();
     ime.dispose();
     _window.dispose();

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
+import 'package:chat_scroll_view_example/src/app/scrolling_surfaces.dart';
 import 'package:chat_scroll_view_example/src/app/system_reduced_motion.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
@@ -112,6 +113,7 @@ final class AppServices {
     required this.giphy,
     required this.corpus,
     required this.describe,
+    required this.scrolling,
     required List<CollectionSource> pageParts,
     required CollectionSource animatedEmoji,
     required PlaybackClock clock,
@@ -246,19 +248,33 @@ final class AppServices {
       // follows it, and it must exist before the decoder does, which is
       // before the scope.
       final clock = owned(PlaybackClock(), (clock) => clock.dispose());
+      // Whether the chat list or the panel scrolls: the pool creates no
+      // texture while one does. The chat screen and the input set report
+      // into it.
+      final scrolling = owned(
+        ScrollingSurfaces(),
+        (scrolling) => scrolling.dispose(),
+      );
       // The platform's texture host (ADR 043), behind its switch: off, or
       // where the platform has none, there is no pool and every playing
       // asset keeps its page slot. The decoders write into its textures, so
       // it exists before them; it outlives the scope (it is disposed after
       // it) and gives its idle textures back on memory pressure, through the
       // scope.
-      final textureHost = DemoConfig.frameTextures
+      final platformTextureHost = DemoConfig.frameTextures
           ? createPlatformFrameTextureHost()
           : null;
+      // The lab counts the textures made while a surface scrolls.
+      final textureHost = DemoConfig.scrollLab && platformTextureHost != null
+          ? ScrollLab.textureHost = LabTextureHost(
+              platformTextureHost,
+              scrolling,
+            )
+          : platformTextureHost;
       final textures = textureHost == null
           ? null
           : owned(
-              FrameTexturePool(host: textureHost),
+              FrameTexturePool(host: textureHost, scrolling: scrolling),
               (pool) => pool.dispose(),
             );
       if (DemoConfig.scrollLab) ScrollLab.texturePool = textures;
@@ -516,6 +532,7 @@ final class AppServices {
         giphy: giphy,
         corpus: corpusPacks,
         describe: describe,
+        scrolling: scrolling,
         pageParts: [
           recentStickers,
           recentGifs,
@@ -635,6 +652,11 @@ final class AppServices {
 
   /// Search of Giphy for the GIF page, or null without a key.
   final SearchSource? gifSearch;
+
+  /// Whether the chat list or the panel scrolls now, as the chat screen and
+  /// its input set report it: the texture pool of [assets] waits with its
+  /// creations while it does (ADR 043, "Pool").
+  final ScrollingSurfaces scrolling;
 
   /// The Giphy clips this session lists and plays, or null without a key.
   final GiphyContent? giphy;
@@ -770,6 +792,7 @@ final class AppServices {
     assets.dispose();
     // The scope leaves its texture pool to its owner.
     assets.textures?.dispose();
+    scrolling.dispose();
     _glyphFontsReady.dispose();
     _pipeline.dispose();
     // After the scope and the pipeline: dropping their entries frees the

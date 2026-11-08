@@ -100,6 +100,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   ChatDataSource? _dataSource;
   late final ChatScrollController _controller;
 
+  /// Stops reporting [_controller]'s motion to the app's scrolling surfaces.
+  late final VoidCallback _stopScrollReport;
+
   /// Laid-out message bodies that scrolled away, for when they scroll back: a
   /// little more than a screen of rows each way.
   final MarkdownPainterCache _bodyPainters = MarkdownPainterCache(capacity: 96);
@@ -180,6 +183,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   void initState() {
     super.initState();
     _controller = ChatScrollController();
+    // The texture pool creates nothing while the list moves.
+    _stopScrollReport = widget.services.scrolling.followChat(_controller);
     if (DemoConfig.scrollLab) ScrollLab.watch(_controller);
     _selection = ChatSelectionController(
       onInteraction: _onSelectionInteraction,
@@ -391,6 +396,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _pageDownChromeVisible.dispose();
     _unreadBoundary?.dispose();
     _search?.dispose();
+    _stopScrollReport();
     _controller.dispose();
     _bodyPainters.clear();
     _selection.dispose();
