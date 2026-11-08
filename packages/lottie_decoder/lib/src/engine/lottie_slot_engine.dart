@@ -2,6 +2,7 @@ import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:lottie_decoder/src/cache/cached_frame.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_native/lottie_native.dart';
 import 'package:meta/meta.dart';
@@ -24,8 +25,9 @@ abstract interface class LottieSlotEngine implements LottieEngine {
   Future<List<LottieCapture>> renderCapturing(List<LottieEngineJob> jobs);
 
   /// Writes each job's compressed frame into its slot: [LottieRenderStatus.ok],
-  /// or [LottieRenderStatus.failed] for corrupt data, data of another size or
-  /// an engine without a frame codec, in which case the slot is unchanged.
+  /// or [LottieRenderStatus.failed] for corrupt data, data of another size, a
+  /// cache file that is missing or not that key's, or an engine without a
+  /// frame codec, in which case the slot is unchanged.
   /// One status per job, in job order.
   Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs);
 
@@ -100,13 +102,14 @@ final class LottieTextureRender extends LottieTextureWork {
 }
 
 /// Writes a frame [LottieSlotEngine.renderCapturing] (or a capturing texture
-/// render) compressed.
+/// render) compressed: its bytes, or its place in a cache file, which the
+/// engine reads on the isolate that restores it.
 final class LottieTextureRestore extends LottieTextureWork {
   /// Creates the work.
-  const LottieTextureRestore(this.compressed);
+  const LottieTextureRestore(this.frame);
 
   /// The compressed frame.
-  final Uint8List compressed;
+  final CachedFrame frame;
 }
 
 /// How one [LottieTextureJob] ended.
@@ -194,15 +197,17 @@ final class LottieCapture {
 final class LottieRestoreJob {
   /// Creates a job.
   const LottieRestoreJob({
-    required this.compressed,
+    required this.frame,
     required this.width,
     required this.height,
     required this.address,
     required this.strideBytes,
   });
 
-  /// What [LottieSlotEngine.renderCapturing] returned for the frame.
-  final Uint8List compressed;
+  /// What [LottieSlotEngine.renderCapturing] returned for the frame: its
+  /// bytes, or its place in a cache file, read on the isolate that restores
+  /// it.
+  final CachedFrame frame;
 
   /// The slot width in pixels.
   final int width;

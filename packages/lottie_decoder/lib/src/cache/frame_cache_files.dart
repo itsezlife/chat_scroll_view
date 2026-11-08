@@ -38,12 +38,13 @@ abstract interface class FrameCacheFiles {
   /// absent store holds nothing.
   Future<List<FrameCacheFileInfo>> scan();
 
-  /// The bytes of the entry [stem], or null when there is none or when it is
-  /// longer than [maxBytes]: the size is asked first, so an entry that grew
-  /// since the scan (or was swapped for a huge one) is never read whole.
-  Future<Uint8List?> read(String stem, {required int maxBytes});
+  /// Where the entry [stem] is, for a reader on another isolate that reads
+  /// its frames one at a time (`CachedFrameFile`); the entry need not exist.
+  String pathOf(String stem);
 
-  /// Writes the entry [stem] atomically and stamps it [modified].
+  /// Writes the entry [stem] atomically, as [chunks] one after another, and
+  /// stamps it [modified]. The chunks are written as they are, never joined
+  /// into one buffer first: an entry is tens of megabytes.
   ///
   /// Returns why the stamp failed, or null. The entry is published before it
   /// is stamped, so a stamp that fails (a file system without timestamps) is
@@ -51,7 +52,7 @@ abstract interface class FrameCacheFiles {
   /// caller decides whether to tell anyone.
   Future<Object?> write(
     String stem,
-    Uint8List bytes, {
+    List<Uint8List> chunks, {
     required DateTime modified,
   });
 

@@ -123,24 +123,31 @@ or pixels.
 | Type | Role |
 | --- | --- |
 | `FrameCacheKey` | Content hash, DISPLAY size and engine version. Validated and lower-cased in the constructor (`ArgumentError` for a hash or version with path characters); `toFileStem()` is the file name; `admitted([maxEdge = 512])` tells whether the size is cacheable. |
-| `FrameCache` | `open(key)` makes an animation resident and returns its frame count (null: nothing cached; an unadmitted key is always null). `frame` and `has` are synchronous and RAM only. `put(key, index, bytes, frameCount:)` stores one frame, first write wins; when every frame is present the animation is written to disk once, asynchronously. `clear`, `dispose` (finishes pending reads and writes; idempotent). |
+| `FrameCache` | `open(key)` lists the directory once and answers whether anything is cached for the key (false for an unadmitted key); it reads no frame. `frame` answers synchronously where a frame is: a `CachedFrameBytes` while its animation is in RAM, a `CachedFrameFile` (path, key, index) once it is on disk, which the engine reads on its own isolate. `put(key, index, bytes, frameCount:)` stores one frame, first write wins; when every frame is present the animation is written to disk once, asynchronously, and then leaves RAM. `residentBytes`, `invalidate`, `clear`, `dispose` (finishes pending writes; idempotent). |
 | `FrameCacheFiles` | The interface of the one place that touches the file system. `DirectoryFrameCacheFiles` (native) is the implementation `FrameCache(directoryPath:)` opens through the `$openFrameCacheFiles` hook of `src/environment_specific/` (the VM file by default, the JS file on the web); tests pass a subclass to count or break writes. The web's hook refuses a path with an `ArgumentError`. |
 
-**Tiers.** The RAM tier (default 32 MiB) evicts whole animations, least
-recently used first, and never the one being filled when it is the only one.
-The disk tier (default 128 MiB) evicts least recently used files after each
-write and on the first scan of the directory. Recency is the injected clock;
-on disk it is the file's modified time, stamped when the file is written or
-opened. `directoryPath: null` keeps memory only.
+**Tiers.** The RAM tier (default 32 MiB) holds the animations being filled
+(with no directory, the complete ones too) and evicts whole animations: first
+those unused for `playingFor` (default 2 s), least recently used first, then,
+when all left play, the one that started filling last, never the oldest. A
+dropped animation renders as without a cache until there is room; nothing is
+reloaded. The disk tier (default 128 MiB, or none) evicts least recently used
+files after each write and on the first scan of the directory. Recency is the
+injected clock; on disk it is the file's modified time, stamped when the file
+is written or opened and at most every 30 s while it serves frames.
+`directoryPath: null` keeps memory only.
 
-**File.** `<stem>.frames`, little-endian: magic `FRMC`, format version 1, width,
-height, frame count, payload length, payload CRC-32, engine and hash lengths,
-the engine version and hash, an offsets table, a lengths table, then the
-frames. It is written to `<stem>.<n>.tmp` and renamed, so a crash leaves a temp
-file, never a partial entry; the first scan deletes temp files. A file that is
-truncated, of another format version or key, with offsets that do not tile the
-payload or a wrong CRC is a miss and is deleted, never an exception. The full
-layout is documented on `FrameCacheCodec`.
+**File.** `<stem>.frames`, little-endian: magic `FRMC`, format version 2, width,
+height, frame count, payload length, engine and hash lengths, the engine
+version and hash, an offsets table, a lengths table, then the frames (no
+checksum: the frame codec's exact-size decode catches a damaged frame). It is
+written as the header and then the frames, to `<stem>.<n>.tmp`, and renamed, so
+a crash leaves a temp file, never a partial entry; the first scan deletes temp
+files. The engine's `FrameFileReader` reads the header once per open file and
+then one frame at a time; a file that is missing, truncated, of another format
+version (version 1 included) or key, or whose offsets do not tile the payload
+serves no frame, and the renderer's invalidate deletes it. The full layout is
+documented on `FrameCacheCodec`.
 
 **Failures.** A file-system error (read-only or missing directory, unreadable
 file) never fails a render: the first is passed to `onError` (default
@@ -155,8 +162,9 @@ cache at a time. The web keeps memory only: `directoryPath` must be null there.
 animation. For the cacheable jobs of a batch the renderer `open`s each key the
 first time it sees it (later batches never wait for the disk), then:
 
-- a frame the cache has is **restored** (`LottieSlotEngine.restore`) and nothing is
-  rendered for it;
+- a frame the cache has is **restored** (`LottieSlotEngine.restore`, or a
+  restore into a texture) and nothing is rendered for it; a persisted frame is
+  read from its file on the engine's isolate, so only its name crosses;
 - every other frame renders through `renderCapturing`, and its compressed
   bytes are `put`;
 - a restore that fails (corrupt or wrong-size entry) is rendered after all in
@@ -166,8 +174,10 @@ first time it sees it (later batches never wait for the disk), then:
 The answer lists every job that holds its frame, in job order. Without a cache,
 for an uncacheable job, with an engine that has no codec, or with a cache that
 was disposed meanwhile, the frame renders as before. There is no cache isolate
-([ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md)): the render
-isolate owns the codec and the file work is asynchronous `dart:io`.
+([ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md), *frames read
+from the file*): the render isolate owns the codec and reads the cached frames
+it restores; the UI isolate keeps the index and hands a finished animation's
+frames to asynchronous `dart:io` writes.
 
 `LottieDecoder(cache:)` names each animation: `FrameCacheKey(contentHash:` the
 SHA-256 of the file, `width`/`height:` the size the frames render at,

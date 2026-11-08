@@ -1,8 +1,12 @@
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lottie_decoder/src/cache/cached_frame.dart';
+import 'package:lottie_decoder/src/cache/frame_cache_codec.dart';
+import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
 import 'package:lottie_native/lottie_native.dart';
@@ -332,6 +336,50 @@ abstract final class LottieSlotEngineContract {
           expect(page.slot(), before);
         });
 
+        test('a frame of a cache file is read and restored by the engine, '
+            'and a file it cannot serve is failed', () async {
+          final handle = await load();
+          final source = _Page();
+          final target = _Page();
+          final untouched = _Page()..fill(0x5A);
+          addTearDown(source.free);
+          addTearDown(target.free);
+          addTearDown(untouched.free);
+          final dir = Directory.systemTemp.createTempSync('engine_contract_');
+          addTearDown(() => dir.deleteSync(recursive: true));
+          final key = FrameCacheKey(
+            contentHash: 'contract',
+            width: LottieSlotEngineContract._side,
+            height: LottieSlotEngineContract._side,
+            engineVersion: '1',
+          );
+          final captures = await engine.renderCapturing([
+            source.job(handle, harness.frame),
+            source.job(handle, harness.frame),
+          ]);
+          final frames = [for (final c in captures) c.compressed!];
+          final path = '${dir.path}/contract.frames';
+          File(path).writeAsBytesSync([
+            ...FrameCacheCodec.header(key, [for (final f in frames) f.length]),
+            for (final frame in frames) ...frame,
+          ]);
+          final before = untouched.slot();
+
+          final statuses = await engine.restore([
+            target.restoreFrame(CachedFrame.file(path, key, 1)),
+            untouched.restoreFrame(CachedFrame.file('$path.gone', key, 0)),
+            untouched.restoreFrame(CachedFrame.file(path, key, 2)),
+          ]);
+
+          expect(statuses, [
+            LottieRenderStatus.ok,
+            LottieRenderStatus.failed,
+            LottieRenderStatus.failed,
+          ]);
+          expect(target.slot(), source.slot());
+          expect(untouched.slot(), before);
+        });
+
         test('data of another size is failed, not written', () async {
           final handle = await load();
           final source = _Page();
@@ -388,10 +436,14 @@ final class _Page {
       );
 
   /// A restore of [compressed] into the slot; [width] overrides the slot's.
-  LottieRestoreJob restoreJob(Uint8List compressed, {int? width}) {
+  LottieRestoreJob restoreJob(Uint8List compressed, {int? width}) =>
+      restoreFrame(CachedFrame.bytes(compressed), width: width);
+
+  /// A restore of [frame] into the slot; [width] overrides the slot's.
+  LottieRestoreJob restoreFrame(CachedFrame frame, {int? width}) {
     final sized = job(const LottieHandle(0), 0, width: width);
     return LottieRestoreJob(
-      compressed: compressed,
+      frame: frame,
       width: sized.width,
       height: sized.height,
       address: sized.address,
