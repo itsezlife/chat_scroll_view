@@ -126,12 +126,14 @@ void main() {
           ),
         ),
       );
-      final disc = tester.widgetList<Container>(
-        find.descendant(
-          of: find.byType(ComposerButton),
-          matching: find.byType(Container),
-        ),
-      ).single;
+      final disc = tester
+          .widgetList<Container>(
+            find.descendant(
+              of: find.byType(ComposerButton),
+              matching: find.byType(Container),
+            ),
+          )
+          .single;
       expect(tester.getSize(find.byWidget(disc)), const Size(36, 36));
       expect((disc.decoration! as BoxDecoration).color, fill);
     });

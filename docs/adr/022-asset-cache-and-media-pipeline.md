@@ -308,3 +308,7 @@ playback could miss frames too, when renders lag the clock.
 | Damage | Invalidating an animation drops both fills and deletes both files: the renderer does not know which one a failed restore came from, and one damaged frame says nothing of the rest. |
 | Migration | A version 2 file has no parity in its name, so no key asks for it: it is never opened and ages out through the disk budget or the host's store. |
 | Exception | Parity covers the steps a playback has (1 and 2). A step of 3 would need a split by that step instead. |
+
+## Amendment: the clock's time leaves out its pauses (2026-11-09)
+
+`PlaybackClock.now` is playback time: the first frame after a pause or an idle stretch advances it by one display frame (the last frame-to-frame step), not by the pause, and every target ticks on that frame. Before, `now` jumped by the pause and each paintable dropped a step longer than its `resumeGap` (500 ms); a shorter pause (the panel sliding in, ~300 ms) passed as a jump of every animation by that much, seen as a stutter when a reopened panel resumed. `resumeGap` stays for surfaces that stopped painting an animation without the clock pausing.

@@ -521,8 +521,7 @@ void main() {
       await settle();
 
       expect(
-        (throwing.collections.value.first.contents
-                as CollectionContents$Loaded)
+        (throwing.collections.value.first.contents as CollectionContents$Loaded)
             .items,
         [const CollectionItem.bare(party)],
       );
