@@ -44,6 +44,14 @@ import 'package:lottie_native/lottie_native.dart';
 /// nothing: the clock stood still while paused and then jumped by the pause
 /// ("freeze and continue"), and the animation goes on from where it stopped.
 ///
+/// ## Half frame rate
+///
+/// A paint whose context plays at half rate (`AssetPaintContext.frameStepFor`
+/// is 2 for this animation's rate) asks only for the even frames of a pass,
+/// so the scheduler renders, and posts to a texture, every second frame. A
+/// surface that repaints every clock frame asks again for the frame it asked
+/// for, which costs nothing.
+///
 /// ## One pass, then a rest frame
 ///
 /// A paint that does not loop plays the animation once. When the last frame's
@@ -208,13 +216,22 @@ final class LottieAnimationPaintable extends AssetPaintable {
       if (!step.isNegative && step <= resumeGap) _played += step;
     }
     final index = _played.inMicroseconds * _info.frameRate ~/ 1000000;
-    if (context.loop) return (index % count + 1) % count;
+    final step = context.frameStepFor(_info.frameRate);
+    if (context.loop) return _onStep((index % count + 1) % count, step);
     if (index >= count) {
       _holding = true;
       return _restFrame(context.restFrame);
     }
-    return math.min(index + 1, count - 1);
+    return _onStep(math.min(index + 1, count - 1), step);
   }
+
+  // At half rate only every second frame is asked for, counted from the
+  // first of the pass, so a want changes at most every second frame of the
+  // source and the scheduler renders and posts half as many (`limitFps` of
+  // the reference client, which advances its frame by two). Rounding the
+  // frame ahead down keeps the frame shown within one source frame of the
+  // time, on either side.
+  static int _onStep(int frame, int step) => frame - frame % step;
 
   int _restFrame(AssetRestFrame rest) =>
       rest == AssetRestFrame.last ? _info.frameCount - 1 : 0;

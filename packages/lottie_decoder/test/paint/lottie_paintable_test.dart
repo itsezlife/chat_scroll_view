@@ -12,6 +12,22 @@ import 'package:lottie_native/testing.dart';
 
 const _budget = 2 * 128 * 128 * 4;
 
+const _info30 = LottieInfo(
+  width: 64,
+  height: 64,
+  frameCount: 10,
+  frameRate: 30,
+  features: LottieFeatures.none,
+);
+
+const _info60 = LottieInfo(
+  width: 64,
+  height: 64,
+  frameCount: 10,
+  frameRate: 60,
+  features: LottieFeatures.none,
+);
+
 ui.Image _image([int side = 4]) {
   final recorder = ui.PictureRecorder();
   ui.Canvas(recorder).drawRect(const ui.Rect.fromLTWH(0, 0, 2, 2), ui.Paint());
@@ -59,13 +75,7 @@ final class _SourceRecordingRenderer implements FrameRenderer {
 }
 
 void main() {
-  const info = LottieInfo(
-    width: 64,
-    height: 64,
-    frameCount: 10,
-    frameRate: 30,
-    features: LottieFeatures.none,
-  );
+  const info = _info30;
   const handle = LottieHandle(1);
   const frame = Duration(milliseconds: 33); // a little over one frame at 30
 
@@ -99,11 +109,12 @@ void main() {
     ui.Image? still,
     VoidCallback? onDispose,
     FrameCacheKey? cacheKey,
+    LottieInfo? info,
   }) => LottieAnimationPaintable(
     key: key,
     handle: handle,
     cacheKey: cacheKey,
-    info: info,
+    info: info ?? _info30,
     firstFrame: still ?? _image(8),
     scheduler: scheduler,
     renderEdge: 48,
@@ -116,7 +127,9 @@ void main() {
     AssetRestFrame rest = AssetRestFrame.first,
     bool animate = true,
     double opacity = 1,
+    bool halfFrameRate = false,
   }) => AssetPaintContext(
+    halfFrameRate: halfFrameRate,
     time: Duration(milliseconds: ms),
     loop: loop,
     restFrame: rest,
@@ -202,6 +215,64 @@ void main() {
         [1],
         [7],
       ]);
+    });
+
+    group('at half frame rate', () {
+      test(
+        'asks only for every second frame of a 60 fps animation, so it '
+        'renders half as many though it is painted every clock frame',
+        () async {
+          final p = make(info: _info60);
+          for (var ms = 0; ms < 160; ms += 16) {
+            await paintAndSettle(p, at(ms, halfFrameRate: true));
+          }
+
+          expect(renderer.batches, [
+            [0],
+            [2],
+            [4],
+            [6],
+            [8],
+          ]);
+        },
+      );
+
+      test('at full rate the same paints ask for every frame', () async {
+        final p = make(info: _info60);
+        for (var ms = 0; ms < 160; ms += 16) {
+          await paintAndSettle(p, at(ms));
+        }
+
+        expect(renderer.batches, [
+          for (var frame = 1; frame < 10; frame++) [frame],
+        ]);
+      });
+
+      test('plays every frame of a 30 fps animation', () async {
+        final p = make();
+        await paintAndSettle(p, at(5000, halfFrameRate: true));
+        await paintAndSettle(p, at(5000 + 200, halfFrameRate: true));
+
+        expect(renderer.batches, [
+          [1],
+          [7],
+        ]);
+      });
+
+      test('wraps to the first frame after the last even one', () async {
+        final p = make(info: _info60);
+        await paintAndSettle(p, at(0, halfFrameRate: true));
+        // 120 ms is frame 7, so 8 is asked; 150 ms is frame 9, the last, and
+        // the frame after it is 0 of the next pass.
+        await paintAndSettle(p, at(120, halfFrameRate: true));
+        await paintAndSettle(p, at(150, halfFrameRate: true));
+
+        expect(renderer.batches, [
+          [0],
+          [8],
+          [0],
+        ]);
+      });
     });
 
     test('renders through a source carrying its handle, key and frame '
