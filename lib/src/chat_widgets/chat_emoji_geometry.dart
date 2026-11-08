@@ -34,7 +34,8 @@ final class ChatEmojiLayoutSpec {
   final double box;
 
   /// The height of the art of a sticker or GIF of its own proportion, or null
-  /// for square items.
+  /// for square items. Such art is scaled down, proportion kept, to a row
+  /// narrower than [box].
   final double? boxHeight;
 
   /// The gap between two items of a line.
@@ -109,10 +110,19 @@ final class ChatEmojiGeometry {
     ChatEmojiLayoutSpec spec, {
     required double maxWidth,
   }) {
+    // Art of its own proportion wider than the row is scaled down to it.
+    final room = maxWidth - 2 * spec.inset;
+    final scale = switch (spec.boxHeight) {
+      _? when spec.box > room => room / spec.box,
+      _ => 1.0,
+    };
     final flow = ChatEmojiFlow.of(
       lineBreaksBefore: spec.lineBreaksBefore,
-      box: spec.box,
-      boxHeight: spec.boxHeight,
+      box: spec.box * scale,
+      boxHeight: switch (spec.boxHeight) {
+        final height? => height * scale,
+        null => null,
+      },
       maxWidth: spec.wrap.of(maxWidth),
       direction: spec.direction,
       inset: spec.inset,

@@ -530,6 +530,26 @@ void main() {
       expect(embeds.asked.single.$2.size, const Size(288, 162));
     });
 
+    testWidgets('a row narrower than the art scales it down to the row, its '
+        'proportion kept', (tester) async {
+      view(tester, const Size(412, 915));
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        maxWidth: 216,
+      );
+
+      expect(bodySize(tester), const Size(216, 121.5));
+      expect(
+        embeds.made.single.paints.last.rect,
+        const Rect.fromLTWH(0, 0, 216, 121.5),
+      );
+    });
+
     testWidgets('the policy is told the parent width the host gave', (
       tester,
     ) async {
