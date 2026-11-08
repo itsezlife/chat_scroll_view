@@ -17,7 +17,7 @@ DateTime _systemClock() => DateTime.now();
 /// A tier writes and reads its own files and stamps a file's time when it
 /// uses one; the store only removes. A [sweep] removes every file no tier
 /// used for [keepFor] and then, when the host sets [limitBytes], the least
-/// recently used of the rest, across the tiers, until they fit. Telegram's
+/// recently used of the rest, across the tiers, until they fit. The reference
 /// clients keep media the same way: no size limit by default, media unused
 /// for a month deleted.
 ///
@@ -28,14 +28,23 @@ DateTime _systemClock() => DateTime.now();
 final class MediaDiskCache {
   /// Creates the store at [root]. [keepFor] is how long an unused file stays
   /// ([defaultKeepFor]); [limitBytes] the most the files may take together
-  /// (null: no limit, the default).
+  /// (null: no limit, the default). [retiredFolders] are folders outside
+  /// [root] an older layout kept media in: the first sweep deletes them
+  /// (absent ones are fine) and no later one looks again.
   MediaDiskCache(
     this.root, {
+    this.retiredFolders = const [],
     this.keepFor = defaultKeepFor,
     this.limitBytes,
     this.sweepEvery = defaultSweepEvery,
     MediaDiskClock clock = _systemClock,
   }) : assert(limitBytes == null || limitBytes > 0, 'a limit keeps something'),
+       assert(
+         !retiredFolders.any(
+           (path) => path == root || path.startsWith('$root/'),
+         ),
+         'a retired folder is outside the store',
+       ),
        _clock = clock;
 
   /// How long a file no tier uses is kept: one month.
@@ -52,6 +61,9 @@ final class MediaDiskCache {
   /// The folder the tiers' folders are in.
   final String root;
 
+  /// The folders of an older layout the first sweep deletes.
+  final List<String> retiredFolders;
+
   /// How long a file is kept after its last use.
   final Duration keepFor;
 
@@ -64,6 +76,7 @@ final class MediaDiskCache {
   final MediaDiskClock _clock;
   Timer? _$timer;
   Future<void>? _$sweeping;
+  bool _$retiredGone = false;
 
   /// The folder of the tier [tier].
   String folder(String tier) => '$root/$tier';
@@ -76,8 +89,11 @@ final class MediaDiskCache {
 
   Future<void> _sweep() async {
     try {
+      final retire = _$retiredGone ? const <String>[] : retiredFolders;
+      _$retiredGone = true;
       await environment_specific.$sweepMediaFolder(
         root,
+        retire: retire,
         now: _clock(),
         keepFor: keepFor,
         limitBytes: limitBytes,

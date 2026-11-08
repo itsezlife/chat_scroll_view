@@ -1,13 +1,13 @@
 /// What a copy of selected messages puts on the clipboard, per platform
 /// family, after the reference clients:
 ///
-/// * `$Desktop`: Telegram Desktop, `HistoryInner::getSelectedText` ->
-///   `HistorySelectedItemsText` (`history_item_text.cpp`): one message is its
-///   text alone; several are `[time] Name: text` lines, a newline apart.
-/// * `$Mobile`: Telegram Android, `ChatActivity` copy action and
+/// * `$Desktop`: the reference desktop client, `HistoryInner::getSelectedText`
+///   -> `HistorySelectedItemsText` (`history_item_text.cpp`): one message is
+///   its text alone; several are `[time] Name: text` lines, a newline apart.
+/// * `$Mobile`: the reference Android client, `ChatActivity` copy action and
 ///   `getMessageContent`: messages a blank line apart, a `Name:` line before
 ///   the first and wherever the sender changes, none for a single message.
-///   (Telegram iOS has no Copy on a selection of several messages.)
+///   (The reference iOS client has no Copy on a selection of several messages.)
 ///
 /// **Seam:** `ChatMessagesCopyFormat.compose` (rich text out), plus the
 /// policy that picks the format. The date and time of the desktop header are

@@ -28,8 +28,8 @@ abstract final class DemoConfig {
   );
 
   /// The most code points of plain text a message may have: the demo
-  /// backend's `message_length_max` (Telegram's default is 4096), from
-  /// `--dart-define=MESSAGE_LENGTH_MAX`.
+  /// backend's `message_length_max` (the reference client's default is 4096),
+  /// from `--dart-define=MESSAGE_LENGTH_MAX`.
   ///
   /// The unit is the plain text, not the markdown body: delimiters and
   /// formatting cost nothing, and nothing is truncated to fit. The composer

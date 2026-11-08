@@ -7,7 +7,8 @@ import 'package:content_model/content_model.dart' show ContentSize;
 import 'package:flutter/foundation.dart';
 
 /// The example's media size policy: how large a sticker or GIF sent on its
-/// own is drawn in the chat, as Telegram draws it, per platform family.
+/// own is drawn in the chat, as the reference client draws it, per platform
+/// family.
 ///
 /// - [$Mobile] (Android, iOS; `ChatMessageCell.java`, the sticker and GIF
 ///   branches of `setMessageContent`): a sticker fitted in a square of half
@@ -22,9 +23,9 @@ import 'package:flutter/foundation.dart';
 /// Both decode at most 512 px on the longer side, the reference render cap
 /// (`ImageLoader.java`).
 ///
-/// It sizes a message of a private chat: Telegram takes 52 dp more off a
-/// GIF for the sender's avatar in a group and 10 dp for the share button of a
-/// channel post, which the demo chat has neither of.
+/// It sizes a message of a private chat: the reference client takes 52 dp more
+/// off a GIF for the sender's avatar in a group and 10 dp for the share button
+/// of a channel post, which the demo chat has neither of.
 @immutable
 sealed class ReferenceMediaSizes implements ChatMediaSizePolicy {
   const ReferenceMediaSizes();

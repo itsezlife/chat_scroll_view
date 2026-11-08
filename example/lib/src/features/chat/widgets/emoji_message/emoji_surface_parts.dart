@@ -13,7 +13,7 @@ import 'package:flutter/painting.dart'
 /// drawing the message again above a flat dim, so the glyphs or the sticker's
 /// art, the time pill, the reply panel and each reaction chip stay bright and
 /// what lies between them (the gap under a reply, the strip beside a short
-/// pill, the corners of the row) stays dimmed (`Telegram`
+/// pill, the corners of the row) stays dimmed (the reference Android client's
 /// `ChatActivity.java` 17630-17700; iOS lifts the same node, in
 /// `ChatMessageAnimatedStickerItemNode`). One rounded rectangle around the lot
 /// would read as a bubble.

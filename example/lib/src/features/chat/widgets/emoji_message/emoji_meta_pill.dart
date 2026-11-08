@@ -73,9 +73,9 @@ EmojiMetaMetrics measureEmojiMeta({
 /// A mouse press on it is not a message press ([ChatMessageTapBarrier]): the
 /// pill is the status of the message, not the message, so no drag-select, no
 /// text selection and no sticker tap starts under it. What a primary click on
-/// it does instead is the host's, [onClick] (Telegram Desktop selects the
-/// message). A secondary click still opens the message's menu, and touch never
-/// reaches the pill's own handling: a tap on it is a message tap.
+/// it does instead is the host's, [onClick] (the reference desktop client
+/// selects the message). A secondary click still opens the message's menu, and
+/// touch never reaches the pill's own handling: a tap on it is a message tap.
 class EmojiMetaPill extends StatelessWidget {
   /// Draws [time] (and [views]) in a pill shaped by [layout].
   const EmojiMetaPill({

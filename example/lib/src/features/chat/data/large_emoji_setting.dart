@@ -6,7 +6,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 
 /// Whether the user wants a message of nothing but emoji shown large and
-/// without a bubble (Telegram's "Large Emoji"), kept in the host's
+/// without a bubble (the reference client's "Large Emoji"), kept in the host's
 /// [KeyValueStore] across launches (ADR 023: the host owns persistence).
 ///
 /// On until the user turns it off, as on every reference client. It is only

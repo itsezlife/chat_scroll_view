@@ -114,4 +114,57 @@ void main() {
 
     expect(left(), ['giphy/clip_b']);
   });
+
+  group('retired folders', () {
+    late Directory cache;
+
+    setUp(() {
+      cache = Directory.systemTemp.createTempSync('app_cache_');
+      for (final path in [
+        'giphy_stills/a',
+        'giphy_clips/b',
+        'lottie_frames/c',
+        'media/lottie_frames/d',
+        'media/giphy/e',
+      ]) {
+        File('${cache.path}/$path')
+          ..createSync(recursive: true)
+          ..setLastModifiedSync(now);
+      }
+    });
+    tearDown(() => cache.deleteSync(recursive: true));
+
+    MediaDiskCache store() => MediaDiskCache(
+      '${cache.path}/media',
+      retiredFolders: [
+        for (final name in ['giphy_stills', 'giphy_clips', 'lottie_frames'])
+          '${cache.path}/$name',
+      ],
+      clock: () => now,
+    );
+
+    List<String> entries() => [
+      for (final entry in cache.listSync(recursive: true))
+        entry.path.substring(cache.path.length + 1),
+    ]..sort();
+
+    test('the first sweep deletes them and leaves the store alone', () async {
+      await store().sweep();
+
+      expect(entries(), [
+        'media',
+        'media/giphy',
+        'media/giphy/e',
+        'media/lottie_frames',
+        'media/lottie_frames/d',
+      ]);
+    });
+
+    test('a sweep when they are already gone is fine', () async {
+      await store().sweep();
+      await store().sweep();
+
+      expect(entries(), hasLength(5));
+    });
+  });
 }
