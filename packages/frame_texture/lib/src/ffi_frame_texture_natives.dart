@@ -13,8 +13,8 @@ typedef _Post = void Function(int id);
 /// [FrameTextureNatives] over the C library (`native/include/frame_texture.h`).
 ///
 /// Neither call is a leaf: `ANativeWindow_lock` may wait for a buffer of the
-/// queue, and a leaf call would hold every isolate of the group at a
-/// safepoint meanwhile.
+/// queue, an Apple lock may allocate a pixel buffer, and a leaf call would
+/// hold every isolate of the group at a safepoint meanwhile.
 final class FfiFrameTextureNatives implements FrameTextureNatives {
   /// Binds the functions of [library].
   FfiFrameTextureNatives(DynamicLibrary library)
@@ -45,6 +45,20 @@ final class FfiFrameTextureNatives implements FrameTextureNatives {
       return FfiFrameTextureNatives(DynamicLibrary.open(androidLibrary));
     } on Object {
       // ArgumentError (no such file) or a missing symbol.
+      return null;
+    }
+  }
+
+  /// The table of the Apple plugin (`darwin/Classes/FrameTexturePlugin.m`),
+  /// or null where it is not linked (not iOS or macOS, or an app built
+  /// without the plugin). The plugin's framework is loaded with the app, so
+  /// its exported functions are found in the process.
+  static FfiFrameTextureNatives? openApple() {
+    if (!Platform.isIOS && !Platform.isMacOS) return null;
+    try {
+      return FfiFrameTextureNatives(DynamicLibrary.process());
+    } on Object {
+      // ArgumentError: a missing symbol (no plugin in this process).
       return null;
     }
   }

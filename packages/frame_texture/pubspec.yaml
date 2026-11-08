@@ -1,10 +1,11 @@
 name: frame_texture
 description: >
   The platform texture hosts of ADR 043: textures a render worker writes
-  frames into, made by the platform (an Android SurfaceProducer), with C lock
-  and post entry points by texture id for the workers, and the implementation
-  of the FrameTextureHost seam of catalog_assets. Android only so far; on
-  every other platform there is no host and assets keep their page slots.
+  frames into, made by the platform (an Android SurfaceProducer, an Apple
+  ring of CVPixelBuffers), with C lock and post entry points by texture id for
+  the workers, and the implementation of the FrameTextureHost seam of
+  catalog_assets. Android, iOS and macOS; on every other platform there is no
+  host and assets keep their page slots.
 version: 0.1.0
 publish_to: none
 
@@ -33,3 +34,9 @@ flutter:
       android:
         package: dev.chatscrollview.frame_texture
         pluginClass: FrameTexturePlugin
+      ios:
+        pluginClass: FrameTexturePlugin
+        sharedDarwinSource: true
+      macos:
+        pluginClass: FrameTexturePlugin
+        sharedDarwinSource: true

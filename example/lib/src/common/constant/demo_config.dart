@@ -73,7 +73,7 @@ abstract final class DemoConfig {
   static const bool glassLite = bool.fromEnvironment('GLASS_LITE');
 
   /// Whether playing assets may take platform textures (ADR 043) where the
-  /// platform has a texture host (Android), from
+  /// platform has a texture host (Android, iOS, macOS), from
   /// `--dart-define=FRAME_TEXTURES=true`. Off by default: no host is made and
   /// every playing asset keeps its slot on a dynamic page.
   static const bool frameTextures = bool.fromEnvironment('FRAME_TEXTURES');
