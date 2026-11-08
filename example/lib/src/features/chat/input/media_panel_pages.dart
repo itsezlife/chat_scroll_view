@@ -50,6 +50,7 @@ abstract final class MediaPanelPages {
         source: services.gifPageSource,
         assets: services.assets,
         searchSource: search,
+        searchSuggestions: services.gifSuggestions,
         attribution: services.giphy == null
             ? null
             : AppServices.giphyAttribution,
