@@ -490,6 +490,28 @@ void main() {
       expect(context.restFrame, AssetRestFrame.last);
     });
 
+    test('it paints and advances with the profile\'s half frame rate', () {
+      final binding = playing(
+        profile: const AssetProfile(animate: true, halfFrameRate: true),
+      );
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      frame(binding, 1000);
+      binding.advancePlayback();
+
+      expect(paintable.paints.single.context.halfFrameRate, isTrue);
+      expect(paintable.advances.last.halfFrameRate, isTrue);
+    });
+
+    test('a profile plays every frame unless it asks for half', () {
+      final binding = playing(profile: const AssetProfile(animate: true));
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      frame(binding, 1000);
+
+      expect(paintable.paints.single.context.halfFrameRate, isFalse);
+    });
+
     test('replay refuses while a pass runs, then plays another once it '
         'ended', () {
       final binding = playing();

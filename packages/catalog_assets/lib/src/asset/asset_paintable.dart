@@ -19,6 +19,7 @@ final class AssetPaintContext {
     this.loop = true,
     this.restFrame = AssetRestFrame.first,
     this.fit = AssetFit.contain,
+    this.halfFrameRate = false,
   }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
 
   /// Colour a template asset (`AssetDecodeMode.template`) is drawn in, and the
@@ -52,6 +53,19 @@ final class AssetPaintContext {
   /// draws a picture places it with [AssetFit.place]; one that has no
   /// proportions of its own (a placeholder) ignores it.
   final AssetFit fit;
+
+  /// Whether the surface plays at half rate (`AssetProfile.halfFrameRate`).
+  /// A paintable that plays a frame sequence reads it through [frameStepFor].
+  final bool halfFrameRate;
+
+  /// How many source frames a playing paintable moves by between the frames
+  /// it shows, for a source authored at [sourceFrameRate] fps: 2 at half rate
+  /// above `AssetProfile.halfFrameRateAbove`, else 1. An unknown rate (0)
+  /// plays every frame.
+  int frameStepFor(double sourceFrameRate) =>
+      halfFrameRate && sourceFrameRate > AssetProfile.halfFrameRateAbove
+      ? 2
+      : 1;
 }
 
 /// The thing a surface paints for an asset: the best stage the entry has

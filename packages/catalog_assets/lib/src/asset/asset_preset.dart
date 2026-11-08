@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:catalog_assets/src/asset/asset_fit.dart';
 import 'package:catalog_assets/src/asset/asset_profile.dart';
 import 'package:catalog_assets/src/asset/asset_spec.dart';
 import 'package:meta/meta.dart';
@@ -53,19 +54,53 @@ final class AssetPreset {
 /// message.
 abstract final class AssetPresets {
   /// A cell of a content grid or strip: a square of [extent] logical pixels,
-  /// decoded at [devicePixelRatio].
+  /// decoded at [devicePixelRatio] as [decodeMode] and filled as [fit].
   ///
   /// Plays and loops while visible unless [animate] is false (a grid that
   /// should show stills).
+  ///
+  /// A playing cell of at most [smallCellExtent] logical pixels is small: it
+  /// plays at half rate (`AssetProfile.halfFrameRate`) and decodes at most
+  /// [smallCellPixels] on a side, however dense the screen. This is the
+  /// reference client's rule for a sticker drawn at up to 90 dp (rendered at
+  /// 160 px at most, every second frame): a grid of small playing cells is
+  /// what a content panel shows most of, and at full rate and size it costs
+  /// a render and a post per cell every frame. A still cell keeps its full
+  /// pixels: it is drawn once.
   static AssetPreset keyboardCell({
     required double extent,
     required double devicePixelRatio,
     bool animate = true,
-  }) => square(
-    extent: extent,
-    devicePixelRatio: devicePixelRatio,
-    profile: AssetProfile(animate: animate),
-  );
+    AssetDecodeMode decodeMode = AssetDecodeMode.original,
+    AssetFit fit = AssetFit.contain,
+  }) {
+    final small = animate && extent <= smallCellExtent;
+    final full = AssetSpec.atDensity(
+      logicalWidth: extent,
+      logicalHeight: extent,
+      devicePixelRatio: devicePixelRatio,
+      decodeMode: decodeMode,
+    );
+    final pixels = small
+        ? math.min(full.pixelWidth, smallCellPixels)
+        : full.pixelWidth;
+    return AssetPreset(
+      size: Size.square(extent),
+      spec: AssetSpec(
+        pixelWidth: pixels,
+        pixelHeight: pixels,
+        decodeMode: decodeMode,
+      ),
+      profile: AssetProfile(animate: animate, fit: fit, halfFrameRate: small),
+    );
+  }
+
+  /// The largest extent, in logical pixels, of a [keyboardCell] that plays
+  /// as a small one.
+  static const double smallCellExtent = 90;
+
+  /// The most pixels on a side a small playing [keyboardCell] decodes at.
+  static const int smallCellPixels = 160;
 
   /// Content set inline in text whose line is [ascent] + [descent] tall: a
   /// square of 1.2 times that, rounded to whole device pixels at

@@ -138,6 +138,7 @@ abstract base class AssetBindingBase
         loop: profile.loop,
         restFrame: profile.restFrame,
         fit: profile.fit,
+        halfFrameRate: profile.halfFrameRate,
       );
 
   @override
