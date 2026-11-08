@@ -29,6 +29,7 @@ import 'panel_catalog_baked_sprites_test.dart'
 import 'panel_catalog_controller_test.dart' as panel_catalog_controller_test;
 import 'panel_catalog_cursor_test.dart' as panel_catalog_cursor_test;
 import 'panel_catalog_focus_test.dart' as panel_catalog_focus_test;
+import 'panel_catalog_held_test.dart' as panel_catalog_held_test;
 import 'panel_catalog_hover_test.dart' as panel_catalog_hover_test;
 import 'panel_catalog_loading_gif_test.dart' as panel_catalog_loading_gif_test;
 import 'panel_catalog_pointer_seams_test.dart'
@@ -95,6 +96,7 @@ void main() {
   );
   group('panel_catalog_cursor_test.dart', panel_catalog_cursor_test.main);
   group('panel_catalog_focus_test.dart', panel_catalog_focus_test.main);
+  group('panel_catalog_held_test.dart', panel_catalog_held_test.main);
   group('panel_catalog_hover_test.dart', panel_catalog_hover_test.main);
   group(
     'panel_catalog_loading_gif_test.dart',

@@ -6,6 +6,17 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the panel keeps its animations)
+
+- A `PanelCatalogViewport` whose tickers are off (`TickerMode`) holds its
+  playback: every binding is `held`, so it keeps its frame and its lease, and
+  no binding is detached until the tickers are on again, however the layout
+  changes meanwhile. A hidden panel kept mounted, a page of a pager off screen
+  and a panel moving in or out all show their cells as they left them.
+- The render object keeps its bindings through a detach followed by an
+  attach in the same frame (a sliver's keep-alive bucket); a detach that
+  stays, and a dispose, give them back as before.
+
 ### Changed (small cells at half rate)
 
 - A leaf is attached as `AssetPresets.keyboardCell` of its content box: a

@@ -94,6 +94,17 @@ final class CatalogBoundLeaf {
 /// cell of overscan, so short drags do not thrash attach and detach; this pool
 /// trusts the range it is given.
 ///
+/// ## Held
+///
+/// While [held] (the viewport's tickers are off: a hidden panel kept mounted,
+/// a page of a pager off screen, a panel moving in or out) every binding is
+/// [AssetBinding.held]: it keeps its frame, and the lease where that frame
+/// lives, and plays nothing. The set only grows then: a leaf that leaves the
+/// window keeps its binding, so a layout at another size (a panel that
+/// shrinks as it closes) detaches nothing and a show finds every cell as it
+/// was. Let go, the next [syncVisible] detaches what is outside the window.
+/// The set stays bounded by the largest window synced while held.
+///
 /// ## Lifecycle
 ///
 /// [detachAll] MUST run when the owning render object detaches or disposes so
@@ -142,6 +153,18 @@ final class CatalogLeafBindingPool {
   /// stale; the next [syncVisible] swaps the bindings for ones at the new
   /// size.
   set devicePixelRatio(double value) => _devicePixelRatio = value;
+
+  /// Whether every binding holds its frame and none is detached; see the
+  /// class documentation.
+  bool get held => _held;
+  bool _held = false;
+  set held(bool value) {
+    if (_held == value) return;
+    _held = value;
+    for (final bound in _all) {
+      bound.binding.held = value;
+    }
+  }
 
   /// Number of bindings currently attached.
   ///
@@ -200,10 +223,10 @@ final class CatalogLeafBindingPool {
     var detached = 0;
     for (var i = _all.length - 1; i >= 0; i--) {
       final bound = _all[i];
-      if (!bound._seen) {
+      if (!bound._seen && !_held) {
         _remove(bound, at: i);
         detached++;
-      } else {
+      } else if (bound._seen) {
         bound.binding.visible = bound._shown;
       }
     }
@@ -276,7 +299,7 @@ final class CatalogLeafBindingPool {
         if (bound.spec == spec) return bound;
       }
     }
-    final binding = _scope.attach(leaf.key, spec, preset.profile);
+    final binding = _scope.attach(leaf.key, spec, preset.profile)..held = _held;
     binding.addListener(_onChanged);
     final bound = CatalogBoundLeaf._(binding, spec);
     (_byKey[leaf.key] ??= []).add(bound);
