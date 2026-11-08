@@ -358,6 +358,13 @@ final class _Work implements LaneWork {
       ? AssetPriority.placeholder
       : job.demand.priority;
 
+  /// Relays the download of the content to the entry; a thumbnail is a stand
+  /// in, not the download a surface shows.
+  void reportDownload(double fraction) {
+    if (_cancelled || part != FetchPart.content) return;
+    job.progress.download(fraction);
+  }
+
   void fetched(FetchedContent fetchedContent) {
     if (_cancelled) return;
     content = fetchedContent;
@@ -439,6 +446,13 @@ final class _DecodeProgress implements AssetProgress {
     if (!isFinal) return;
     _end();
     if (_work.part == FetchPart.content) job.contentDone();
+  }
+
+  // A decoder that reads its content from the network (a stream it opens
+  // itself) reports the download as a fetcher would.
+  @override
+  void download(double fraction) {
+    if (_live) _work.reportDownload(fraction);
   }
 
   @override

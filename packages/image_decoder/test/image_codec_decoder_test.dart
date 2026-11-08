@@ -73,6 +73,9 @@ final class _Progress implements AssetProgress {
   }
 
   @override
+  void download(double fraction) {}
+
+  @override
   void cancelled() {}
 }
 
@@ -98,6 +101,9 @@ final class _ThrowingProgress implements AssetProgress {
     StackTrace? stackTrace,
     AssetFailureKind kind = AssetFailureKind.transient,
   ]) => failures.add(error);
+
+  @override
+  void download(double fraction) {}
 
   @override
   void cancelled() {}

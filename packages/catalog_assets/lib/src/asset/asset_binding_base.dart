@@ -75,6 +75,9 @@ abstract base class AssetBindingBase
   AssetPlayback get playback => AssetPlayback.idle;
 
   @override
+  double? get downloadProgress => null;
+
+  @override
   bool replay() => false;
 
   /// Called after [visible] changed while attached.
