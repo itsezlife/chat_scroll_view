@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/src/pool/frame_renderer.dart';
+import 'package:catalog_assets/src/pool/pixel_upload.dart';
 
 /// Turns the bytes of one page into a GPU image. [pixels] is premultiplied
 /// RGBA, [side] pixels wide and as many rows from the top of the page as
@@ -13,19 +14,20 @@ import 'package:catalog_assets/src/pool/frame_renderer.dart';
 typedef FramePageUploader =
     Future<ui.Image> Function(Uint8List pixels, int side);
 
-/// The engine's upload: `decodeImageFromPixels`, which copies the bytes into
-/// its own buffer when called.
-Future<ui.Image> uploadFramePage(Uint8List pixels, int side) {
-  final completer = Completer<ui.Image>();
-  ui.decodeImageFromPixels(
-    pixels,
-    side,
-    pixels.length ~/ (side * FramePageMemory.bytesPerPixel),
-    ui.PixelFormat.rgba8888,
-    completer.complete,
-  );
-  return completer.future;
-}
+/// The engine's upload of a page of [format] pixels (RGBA unless told
+/// otherwise), through [PixelUpload], which copies the bytes when called.
+Future<ui.Image> uploadFramePage(
+  Uint8List pixels,
+  int side, {
+  ui.PixelFormat format = ui.PixelFormat.rgba8888,
+}) => _engineUpload(
+  pixels,
+  side,
+  pixels.length ~/ (side * FramePageMemory.bytesPerPixel),
+  format,
+);
+
+final _engineUpload = PixelUpload();
 
 /// The images of the dynamic pages, made from their bytes when they change.
 ///
