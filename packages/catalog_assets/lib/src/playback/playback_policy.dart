@@ -9,7 +9,8 @@ import 'package:meta/meta.dart';
 /// [overlayShown]) are set by it from its inputs; [routeMoving] and
 /// [fastScroll] belong to the host (a route transition, the scroll physics).
 enum PlaybackPauseLayer {
-  /// A route or sheet is moving; the frames are better spent on the motion.
+  /// A route, a sheet or the panel's presentation is moving in or out; the
+  /// frames are better spent on the motion.
   routeMoving,
 
   /// A list is scrolling fast.

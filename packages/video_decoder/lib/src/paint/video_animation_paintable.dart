@@ -98,6 +98,15 @@ final class VideoAnimationPaintable extends AssetPaintable {
   @override
   bool get isHolding => _holding;
 
+  // Whether a held surface shows the current frame; carried to every lease.
+  bool _keep = false;
+
+  @override
+  void keepFrame({required bool keep}) {
+    _keep = keep;
+    _lease?.kept = keep;
+  }
+
   @override
   bool restart() {
     if (!_holding) return false;
@@ -154,6 +163,7 @@ final class VideoAnimationPaintable extends AssetPaintable {
     if (lease == null || lease.isReleased) {
       lease = _lease = _scheduler.acquire(_key, _clip, onCanvas: onCanvas);
       if (lease == null) return;
+      lease.kept = _keep;
     }
     _scheduler.want(lease, _playedAt(context.time), onCanvas: onCanvas);
     if (!context.loop && lease.isPassComplete) {

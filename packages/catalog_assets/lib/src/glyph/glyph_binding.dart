@@ -78,6 +78,7 @@ final class GlyphBinding extends AssetBindingBase {
       if (_entry != null) return;
       _entry = _openEntry()
         ..visible = visible
+        ..held = held
         ..addListener(signal);
       return;
     }
@@ -152,6 +153,9 @@ final class GlyphBinding extends AssetBindingBase {
 
   @override
   void onVisibleChanged() => _entry?.visible = visible;
+
+  @override
+  void onHeldChanged() => _entry?.held = held;
 
   @override
   void releaseResources() {

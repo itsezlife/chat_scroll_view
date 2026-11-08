@@ -367,6 +367,31 @@ void main() {
       expect(scheduler.leaseCount, 1);
     });
 
+    test('a kept frame keeps its lease through the sweeps, and so does a '
+        'lease taken while kept', () async {
+      final p = make();
+      await paintAndSettle(p, at(0));
+
+      p.keepFrame(keep: true);
+      timers
+        ..elapse(const Duration(seconds: 1))
+        ..elapse(const Duration(seconds: 1));
+      expect(scheduler.leaseCount, 1);
+
+      p.keepFrame(keep: false);
+      timers
+        ..elapse(const Duration(seconds: 1))
+        ..elapse(const Duration(seconds: 1));
+      expect(scheduler.leaseCount, 0);
+
+      p.keepFrame(keep: true);
+      await paintAndSettle(p, at(100));
+      timers
+        ..elapse(const Duration(seconds: 1))
+        ..elapse(const Duration(seconds: 1));
+      expect(scheduler.leaseCount, 1);
+    });
+
     test(
       'a repaint in a pause longer than the idle period keeps the frame',
       () async {

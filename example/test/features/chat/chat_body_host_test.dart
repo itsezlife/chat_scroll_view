@@ -14,6 +14,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 
 final class _Counting implements Canvas {
   int rrects = 0;
@@ -153,6 +154,50 @@ void main() {
 
         expect(drawnBefore(embed), (rrects: 0, circles: 1));
       });
+    });
+
+    test('every embed the bodies make holds while the chat is held', () {
+      final held = listen.ValueNotifier<bool>(false);
+      addTearDown(held.dispose);
+      final ticking = AssetCacheScope(
+        producer: producer,
+        clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
+      );
+      addTearDown(ticking.dispose);
+      final holding = ChatBodyHost(assets: ticking, policy: policy, held: held);
+      final item = holding.embedFactory(
+        const ContentKey.document('1'),
+        AssetPresets.emojiOnly(step: 40, devicePixelRatio: 2),
+      )!;
+      addTearDown(item.dispose);
+      final itemPaintable = producer.last.advance(
+        AssetStage.full,
+        animated: true,
+      );
+      final inline = holding.embedResolver.resolve(
+        const InlineEmbedTarget(scheme: 'document', id: '2', alt: 'x'),
+        const InlineEmbedMetrics(
+          fontSize: 15,
+          ascent: 14,
+          descent: 4,
+          devicePixelRatio: 2,
+        ),
+      )!;
+      addTearDown(inline.dispose);
+      final inlinePaintable = producer.last.advance(
+        AssetStage.full,
+        animated: true,
+      );
+
+      held.value = true;
+
+      expect(itemPaintable.keepsFrame, isTrue);
+      expect(inlinePaintable.keepsFrame, isTrue);
+
+      held.value = false;
+
+      expect(itemPaintable.keepsFrame, isFalse);
+      expect(inlinePaintable.keepsFrame, isFalse);
     });
 
     test('resolves a document target of an image span to an embed', () {

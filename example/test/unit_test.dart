@@ -87,6 +87,8 @@ import 'features/chat/lottie_sticker_pipeline_test.dart'
     as lottie_sticker_pipeline_test;
 import 'features/chat/message_editability_test.dart'
     as message_editability_test;
+import 'features/chat/panel_playback_hold_test.dart'
+    as panel_playback_hold_test;
 import 'features/chat/panel_texture_warmer_test.dart'
     as panel_texture_warmer_test;
 import 'features/chat/recent_content_source_test.dart'
@@ -296,6 +298,10 @@ void main() {
   group(
     'features/chat/chat_texture_warmer_test.dart',
     chat_texture_warmer_test.main,
+  );
+  group(
+    'features/chat/panel_playback_hold_test.dart',
+    panel_playback_hold_test.main,
   );
   group(
     'features/chat/panel_texture_warmer_test.dart',

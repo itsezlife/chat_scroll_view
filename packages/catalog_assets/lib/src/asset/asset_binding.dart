@@ -99,6 +99,18 @@ abstract interface class AssetBinding implements Listenable {
   bool get visible;
   set visible(bool value);
 
+  /// Whether the surface holds this binding's playback: it shows the binding
+  /// but wants it still. Defaults to false.
+  ///
+  /// A held binding is not advanced, as an invisible one is, but it stays
+  /// shown: it paints at the time it was held, so a repaint shows the same
+  /// frame, and its paintable keeps that frame where it lives
+  /// ([AssetPaintable.keepFrame]) however long the hold lasts. Releasing the
+  /// hold plays on from that frame. It is the hold of one surface, where a
+  /// pause layer of the clock holds every surface of the scope.
+  bool get held;
+  set held(bool value);
+
   /// Advances the asset's playback for this frame without painting, for a
   /// surface that draws the paintable's sprite itself (see
   /// [AssetPaintable.advancePlayback]).

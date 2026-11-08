@@ -250,5 +250,32 @@ void main() {
       expect(pool.leasedTextures, 0);
       expect(pool.idleTextures, 1);
     });
+
+    test('a kept clip keeps its texture through the sweeps and posts '
+        'nothing, and is swept once it is let go', () async {
+      await pool.warm(64, 1);
+      final lease = scheduler.acquire('a', await openClip())!;
+      await playThree(lease);
+      final shown = lease.texture;
+      expect(shown, isNotNull);
+      final writes = writer.inner.batches.length;
+
+      lease.kept = true;
+      for (var i = 0; i < 3; i++) {
+        timers.elapse(const Duration(seconds: 1));
+        await settle();
+      }
+
+      expect(lease.isReleased, isFalse);
+      expect(lease.texture, shown);
+      expect(writer.inner.batches, hasLength(writes));
+
+      lease.kept = false;
+      timers
+        ..elapse(const Duration(seconds: 1))
+        ..elapse(const Duration(seconds: 1));
+      await pumpEventQueue();
+      expect(lease.isReleased, isTrue);
+    });
   });
 }
