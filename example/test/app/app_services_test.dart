@@ -8,6 +8,7 @@ import 'package:catalog_assets/glyph_atlas.dart' show GlyphCacheStore;
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
+import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
@@ -177,14 +178,17 @@ void main() {
 
     Future<AppServices> create({
       LottiePlaybackStarter? startLottie,
-      String? lottieCacheDirectory,
+      String? mediaRoot,
       bool diskCache = true,
     }) => AppServices.create(
       keyValueStore: FakeKeyValueStore(),
       assetLoader: rootBundle.loadString,
       clipboard: FakeRichClipboard(),
       startLottie: startLottie ?? start,
-      lottieCacheDirectory: Future.value(lottieCacheDirectory),
+      mediaCache: Future.value(switch (mediaRoot) {
+        final root? => MediaDiskCache(root),
+        null => null,
+      }),
       diskCache: diskCache,
     );
 
@@ -209,19 +213,20 @@ void main() {
       expect(decoder.decodes.first.request.descriptor, sticker.descriptor);
     });
 
-    test('is given the cache directory the host chose, else none', () async {
+    test("keeps its frames in the media store's folder for them, else in "
+        'memory', () async {
       final without = await create();
       addTearDown(without.dispose);
       expect(givenCacheDirectory, isNull);
 
-      final with_ = await create(lottieCacheDirectory: '/cache/lottie');
+      final with_ = await create(mediaRoot: '/cache/media');
       addTearDown(with_.dispose);
-      expect(givenCacheDirectory, '/cache/lottie');
+      expect(givenCacheDirectory, '/cache/media/lottie_frames');
     });
 
     test('is given no cache directory when the disk caches are off', () async {
       final services = await create(
-        lottieCacheDirectory: '/cache/lottie',
+        mediaRoot: '/cache/media',
         diskCache: false,
       );
       addTearDown(services.dispose);
@@ -680,8 +685,7 @@ void main() {
         glyphCache: GlyphCacheStore.forPlatform('${dir.path}/glyphs'),
         giphyApiKey: 'test-key',
         giphyHttpClient: MockClient((_) async => http.Response.bytes([1], 200)),
-        giphyStillDirectory: Future.value('${dir.path}/stills'),
-        giphyClipDirectory: Future.value('${dir.path}/clips'),
+        mediaCache: Future.value(MediaDiskCache('${dir.path}/media')),
         diskCache: diskCache,
       );
       addTearDown(services.dispose);
@@ -728,7 +732,26 @@ void main() {
       await fetch(services);
 
       expect(services.glyphCache, isNotNull);
-      expect(await files(), containsAll(['/stills/still_a', '/clips/clip_a']));
+      expect(
+        await files(),
+        containsAll(['/media/giphy/still_a', '/media/giphy/clip_a']),
+      );
+    });
+
+    test('sweep the media store at start when on: a file unused for a month '
+        'goes', () async {
+      final old = File('${dir.path}/media/giphy/clip_old')
+        ..createSync(recursive: true)
+        ..setLastModifiedSync(
+          DateTime.now().subtract(const Duration(days: 40)),
+        );
+
+      await create(diskCache: true);
+
+      for (var i = 0; i < 100 && old.existsSync(); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(old.existsSync(), isFalse);
     });
 
     test(

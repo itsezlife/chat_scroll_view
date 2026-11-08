@@ -8,6 +8,7 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart'
     as environment_specific;
+import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
@@ -114,13 +115,17 @@ Future<AppServices> _createServices() async {
   final services = AppServices.create(
     glyphCache: glyphCache.cache,
     glyphArtVersion: glyphCache.artVersion,
-    lottieCacheDirectory: environment_specific.$appCacheDirectory(
-      'lottie_frames',
-    ),
-    giphyStillDirectory: environment_specific.$appCacheDirectory(
-      'giphy_stills',
-    ),
-    giphyClipDirectory: environment_specific.$appCacheDirectory('giphy_clips'),
+    // One folder for every kind of animated media, kept a month after its
+    // last use and with no size limit, as the reference client keeps its
+    // media; pass MediaDiskCache(keepFor:, limitBytes:) to keep it otherwise.
+    mediaCache: environment_specific
+        .$appCacheDirectory('media')
+        .then(
+          (root) => switch (root) {
+            final root? => MediaDiskCache(root),
+            null => null,
+          },
+        ),
   );
   // Its own failure is awaited below; until then it is not an unhandled one.
   services.ignore();

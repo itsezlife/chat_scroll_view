@@ -5,6 +5,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (disk budget optional)
+
+- `FrameCache.diskBudgetBytes` may be null: the disk tier then evicts
+  nothing, for a host that keeps the directory in a store of its own (one
+  folder for all media, kept by last use). The default stays 128 MB, so a
+  host that passes nothing sees no change; a file the host's store removed is
+  a miss, rendered and written again.
+
 ### Changed (vm/js forks, no public top-level functions)
 
 - The default content hasher is `LottieDecoder.sha256OffIsolate`, no longer

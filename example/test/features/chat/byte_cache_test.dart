@@ -1,5 +1,5 @@
 /// The disk tier of the host's fetcher: bytes kept in a folder between
-/// launches, under a budget.
+/// launches; what is removed, and when, is the media store's.
 ///
 /// **Seam:** [ByteCache.directory] over a temporary folder; a later launch is
 /// a second cache over the same folder.
@@ -17,8 +17,7 @@ void main() {
   setUp(() => folder = Directory.systemTemp.createTempSync('byte_cache_'));
   tearDown(() => folder.deleteSync(recursive: true));
 
-  ByteCache open({int budgetBytes = 1024}) =>
-      ByteCache.directory('${folder.path}/stills', budgetBytes: budgetBytes)!;
+  ByteCache open() => ByteCache.directory('${folder.path}/stills')!;
 
   Uint8List bytes(int length, int value) =>
       Uint8List.fromList(List.filled(length, value));
@@ -41,28 +40,20 @@ void main() {
     expect(await cache.read('a'), [2, 2]);
   });
 
-  test('drops the least recently used past its budget', () async {
-    final cache = open(budgetBytes: 10);
-    await cache.write('a', bytes(4, 1));
-    await cache.write('b', bytes(4, 2));
-    await cache.read('a');
+  test(
+    'marks a file used when it is read: the store keeps it by that',
+    () async {
+      final cache = open();
+      await cache.write('a', bytes(1, 1));
+      final file = File('${folder.path}/stills/a')
+        ..setLastModifiedSync(DateTime(2020));
 
-    await cache.write('c', bytes(4, 3));
+      await cache.read('a');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
-    expect(await cache.read('b'), isNull);
-    expect(await cache.read('a'), isNotNull);
-    expect(await cache.read('c'), isNotNull);
-  });
-
-  test('counts what an earlier launch left against the budget', () async {
-    await open(budgetBytes: 10).write('a', bytes(6, 1));
-
-    await open(budgetBytes: 10).write('b', bytes(6, 2));
-
-    final later = open(budgetBytes: 10);
-    expect(await later.read('a'), isNull);
-    expect(await later.read('b'), [2, 2, 2, 2, 2, 2]);
-  });
+      expect(file.lastModifiedSync().year, greaterThan(2020));
+    },
+  );
 
   test('keeps nothing, and never throws, where the folder cannot be', () async {
     File('${folder.path}/stills').writeAsStringSync('a file in the way');

@@ -37,8 +37,9 @@ python3 tool/scroll_lab/seen.py perf/lab/base-1/trace.pftrace perf/lab/s1/tape.j
 ```
 
 A lab build turns the disk caches off with `--dart-define=DISK_CACHE=false`
-(`ab.sh` passes it): the baked glyph pages, the Lottie frames and Giphy's
-stills and clips are then kept in memory only, so every run starts as cold as
+(`ab.sh` passes it): the baked glyph pages and the media store (the Lottie
+frames, Giphy's stills and clips) are then kept in memory only, and the store
+is not swept, so every run starts as cold as
 the last and leaves no file behind. With them on, a run after the first meets
 warm caches, and a Giphy file found on disk is a request never sent: a net
 tape recorded then lacks it, and a replay of it never reaches the tape. A

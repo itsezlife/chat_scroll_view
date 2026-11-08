@@ -7,7 +7,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/environment_spec
 /// `ContentFetcher` owns (ADR 022).
 ///
 /// A cache, not a store: [read] may answer null for a name once written (the
-/// budget evicted it, or the platform cleared the folder), and a failed
+/// media store removed it, or the platform cleared the folder), and a failed
 /// [write] is lost without a word. Neither ever throws.
 abstract interface class ByteCache {
   /// The bytes kept under [name], or null.
@@ -16,12 +16,9 @@ abstract interface class ByteCache {
   /// Keeps [bytes] under [name], replacing what was there.
   Future<void> write(String name, Uint8List bytes);
 
-  /// A cache in the folder [directory] that keeps at most [budgetBytes],
-  /// least recently used out first, or null where there are no files (the
-  /// web).
-  static ByteCache? directory(String directory, {required int budgetBytes}) =>
-      environment_specific.$directoryByteCache(
-        directory,
-        budgetBytes: budgetBytes,
-      );
+  /// A cache in the folder [directory], or null where there are no files (the
+  /// web). It keeps no budget: the folder is a tier of a `MediaDiskCache`,
+  /// which removes what goes unused, and a read marks its file used.
+  static ByteCache? directory(String directory) =>
+      environment_specific.$directoryByteCache(directory);
 }

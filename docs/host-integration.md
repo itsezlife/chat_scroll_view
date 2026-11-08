@@ -263,7 +263,10 @@ location (the example, which does not depend on `path_provider`, asks its
 activity for `Context.getCacheDir` on Android, takes the app container's
 `Library/Caches` on iOS and reads the environment on a desktop; a host that
 does depend on it passes `getApplicationCacheDirectory()`), and give it to one
-cache at a time. A host may turn every disk tier off at once, as the example's
+cache at a time. A host that keeps all its media in one store, removing files
+by last use (as the example's `MediaDiskCache` does), gives the cache a folder
+of that store and `diskBudgetBytes: null`, so the store alone decides what
+goes; a file it removes is rendered again. A host may turn every disk tier off at once, as the example's
 `DISK_CACHE=false` does for tests and measured runs: the frames are then kept
 in memory only.
 
