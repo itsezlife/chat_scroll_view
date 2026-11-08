@@ -8,7 +8,7 @@ import 'package:meta/meta.dart';
 /// a frame drawn for one is the wrong scale for the other. The engine version
 /// is part of the key so an engine update, which may change pixels, never
 /// serves frames the old engine drew; the old files age out through the disk
-/// budget.
+/// budget, or through the host's store when the cache has none.
 ///
 /// Every part is validated and normalised here, once, because the key names a
 /// file: [contentHash] and [engineVersion] are lower-cased (a case-insensitive

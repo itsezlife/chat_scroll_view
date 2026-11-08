@@ -568,6 +568,57 @@ void main() {
     });
   });
 
+  group('no disk budget', () {
+    late Directory dir;
+    late _CountingFiles files;
+
+    FrameCache build() {
+      files = _CountingFiles(dir.path);
+      final cache = FrameCache(
+        directoryPath: dir.path,
+        files: files,
+        diskBudgetBytes: null,
+        clock: clock,
+      );
+      addTearDown(cache.dispose);
+      return cache;
+    }
+
+    setUp(() => dir = _tempDir());
+
+    test("keeps every file: the host's store decides what goes", () async {
+      final writer = build();
+      for (final name in ['a', 'b', 'c']) {
+        putAll(writer, _key(name), 3, 400);
+        await files.writes(files.written.length + 1);
+        advance();
+      }
+      await writer.dispose();
+
+      final restarted = build();
+      for (final name in ['a', 'b', 'c']) {
+        expect(await restarted.open(_key(name)), 3);
+      }
+      expect(_names(dir, '.frames'), hasLength(3));
+    });
+
+    test("a file the host's store removed after the scan is a miss, and "
+        'is written again', () async {
+      final writer = build();
+      putAll(writer, _key('a'), 3, 10);
+      await writer.dispose();
+      final reader = build();
+      expect(await reader.open(_key('other')), isNull); // the scan
+      File('${dir.path}/${_key('a').toFileStem()}.frames').deleteSync();
+
+      expect(await reader.open(_key('a')), isNull);
+      putAll(reader, _key('a'), 3, 10);
+      await files.writes(1);
+
+      expect(_names(dir, '.frames'), ['${_key('a').toFileStem()}.frames']);
+    });
+  });
+
   group('a file larger than the disk budget', () {
     test('is a miss and deleted, not read whole', () async {
       final dir = _tempDir();
