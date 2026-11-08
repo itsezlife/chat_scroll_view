@@ -6,6 +6,19 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the swipe pager)
+
+- `PanelPager` is a `SwipePager` (package `swipe_pager`) instead of a
+  `PageView`. A drag swipes only once it moved about 18.9 px sideways before
+  8 px up or down, so a drag more than about 23 degrees off the horizontal
+  scrolls the page's catalogue instead of changing the page; a strip that
+  scrolls sideways keeps its drags; a quick flick still swipes. A release
+  goes on from a third of a page or a fast fling and settles in 150..600 ms.
+  A slide to a far page brings it in next to the current one without the
+  pager passing over the pages between, so the slide no longer jumps to the
+  neighbouring page first. Tests that read the pager through `PageView` read
+  `SwipePager.controller` instead.
+
 ### Changed (the panel keeps its animations)
 
 - The pager keeps every page it built alive for its own life (at most the

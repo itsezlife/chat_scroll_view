@@ -15,6 +15,7 @@ API.
 **Amended**: 2026-11-05 — a `golden_baseline` leaf: test support for golden tests ([ADR 030](030-testing-policy.md) Amendment), declared by any member under `dev_dependencies:` only; such a dev dependency does not make a leaf stop being one (rule 7)  
 **Amended**: 2026-11-06 — `lottie_native`, `lottie_decoder`, `video_native` and `video_decoder` ([ADR 042](042-native-media-decoding.md)); the native packages are leaves, rule 8 added  
 **Amended**: 2026-11-08 — `frame_texture` ([ADR 043](043-platform-texture-frames.md))  
+**Amended**: 2026-11-09 — a `swipe_pager` leaf: the horizontal pager with the reference mobile client's swipe rules, depended on by `panel_shell`; held by convention (the dependency lint is not extended for it)  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (package list in its Decided table is replaced by this one), [ADR 007](007-keyboard-panel-controller.md), [ADR 012](012-cross-platform-selection-policies.md)
 
 ## Decided
@@ -35,7 +36,8 @@ API.
 | `frame_texture` | Plugin. The platform texture hosts (Android `SurfaceProducer`, Apple `FlutterTexture` over `CVPixelBuffer`), their C lock / post entry points for the render workers, and the implementation of the texture host seam ([ADR 043](043-platform-texture-frames.md)) | `catalog_assets` |
 | `chat_wallpaper` | Leaf. The chat wallpaper: value model and codec, freeform renderer and keyframes, motion, view, warm-up, service fills ([ADR 040](040-chat-wallpaper.md)). Pattern artwork is the host's | none (`flutter`, `vector_graphics`) |
 | `rich_clipboard` | `RichClipboard` adapter: the HTML codec and the platform clipboard code, the workspace's one Flutter plugin package ([ADR 032](032-rich-clipboard.md)) | `content_model` |
-| `panel_shell` | Host-independent panel: page registry, shell controller, pager, type tabs, bottom bar, search field, panel events, page scroll activity, focus and shortcuts | `chrome_foundation`, `content_model` |
+| `swipe_pager` | Leaf. A horizontal pager whose swipe is claimed past a slop and a direction rule so page scrollables keep their drags; controller, settle physics, keep-alive policy, right-to-left, semantics and keyboard paging. Nothing panel-specific | none (`flutter` only) |
+| `panel_shell` | Host-independent panel: page registry, shell controller, pager, type tabs, bottom bar, search field, panel events, page scroll activity, focus and shortcuts | `chrome_foundation`, `content_model`, `swipe_pager` |
 | `panel_pages` | Catalog page scaffold and per-kind policies. Emoji page now; sticker and GIF pages later | `panel_shell`, `panel_catalog`, `catalog_assets`, `content_model`, `chrome_foundation` |
 | `panel_presentation` | Sealed presentation kinds, the `$Mobile` / `$Desktop` policy, the presentation controller, occupancy, IME arbitration | `panel_shell`, `chrome_foundation` |
 | `composer_editable` | Leaf. The composer's one editable: a renamed, patched copy of the Flutter framework's text field, editable text and selection overlay, with the touch gesture matrix, handle and magnifier motion and the toolbar fade ([ADR 038](038-composer-editable-fork.md)). Nothing chat-specific | none (`flutter` and `characters` only) |
