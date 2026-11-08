@@ -60,7 +60,8 @@ final class PanelStrings {
   /// Confirming action of the clear-recents confirmation.
   final String clearAction;
 
-  /// Dismissing action of the clear-recents confirmation.
+  /// Dismissing action: of the clear-recents confirmation, and the button
+  /// beside the search field that leaves search where there is no back press.
   final String cancelAction;
 
   /// Menu item that copies the content under the pointer to the clipboard.

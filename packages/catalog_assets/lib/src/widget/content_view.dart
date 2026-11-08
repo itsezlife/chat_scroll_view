@@ -35,7 +35,8 @@ import 'package:flutter/widgets.dart';
 /// Content that arrives after the view attached (fetched or decoded, not a
 /// memory hit) fades in over 150 ms, over the thumbnail the binding kept
 /// (`AssetBinding.paintStandIn`), which stays opaque beneath, or else over the
-/// scope's placeholder, which fades out as the content rises. Content there at
+/// placeholder (the view's own, or else the scope's), which fades out as the
+/// content rises. Content there at
 /// the attach shows at once, so a view built again over loaded content does
 /// not flicker. A glyph is never faded.
 ///
@@ -54,6 +55,16 @@ import 'package:flutter/widgets.dart';
 /// paintable before it reads the texture, which is what tells the paintable
 /// that a surface that composites shows it.
 ///
+/// ## Placeholder
+///
+/// Until the content has anything to show (`AssetStage.none`) the view
+/// paints the scope's placeholder, which every surface of the scope shares
+/// whatever its content is. A view given its own [placeholder] paints that
+/// instead, as `ContentEmbed.placeholder` does: the surface knows what its
+/// content is (a sticker, a pack's cover) and the colour its stand-in takes
+/// from the theme around it, the scope knows neither. A thumbnail is the
+/// binding's to paint.
+///
 /// ## Scope
 ///
 /// [scope] if given, otherwise the closest [AssetCacheProvider]; a view with
@@ -68,6 +79,8 @@ class ContentView extends StatefulWidget {
     this.semanticLabel,
     this.scope,
     this.loadingRadius,
+    this.placeholder,
+    this.placeholderTint,
     super.key,
   }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
 
@@ -105,6 +118,14 @@ class ContentView extends StatefulWidget {
   /// frame exists, the download ends or a [TickerMode] above it is off. A
   /// grid GIF cell uses 12 (`ContextLinkCell.onMeasure`).
   final double? loadingRadius;
+
+  /// What the view paints before the content has a stage, and fades out
+  /// under arriving content, instead of the scope's placeholder; null paints
+  /// the scope's.
+  final AssetPaintable? placeholder;
+
+  /// The colour [placeholder] is drawn in, or null for [tint].
+  final Color? placeholderTint;
 
   @override
   State<ContentView> createState() => _ContentViewState();
@@ -166,7 +187,9 @@ class _ContentViewState extends State<ContentView> {
     final preset = widget.preset;
     Widget view = _ContentLeaf(
       binding: _binding!,
-      placeholder: _attachedScope!.mediaPlaceholder,
+      placeholder: widget.placeholder ?? _attachedScope!.mediaPlaceholder,
+      standsIn: widget.placeholder != null,
+      placeholderTint: widget.placeholderTint,
       size: preset.size,
       tint: widget.tint,
       opacity: widget.opacity,
@@ -184,6 +207,8 @@ class _ContentLeaf extends LeafRenderObjectWidget {
   const _ContentLeaf({
     required this.binding,
     required this.placeholder,
+    required this.standsIn,
+    required this.placeholderTint,
     required this.size,
     required this.tint,
     required this.opacity,
@@ -193,6 +218,8 @@ class _ContentLeaf extends LeafRenderObjectWidget {
 
   final AssetBinding binding;
   final AssetPaintable placeholder;
+  final bool standsIn;
+  final Color? placeholderTint;
   final Size size;
   final Color? tint;
   final double opacity;
@@ -203,6 +230,8 @@ class _ContentLeaf extends LeafRenderObjectWidget {
   RenderObject createRenderObject(BuildContext context) => _RenderContent(
     binding: binding,
     placeholder: placeholder,
+    standsIn: standsIn,
+    placeholderTint: placeholderTint,
     preferredSize: size,
     tint: tint,
     opacity: opacity,
@@ -215,6 +244,8 @@ class _ContentLeaf extends LeafRenderObjectWidget {
     renderObject
       ..binding = binding
       ..placeholder = placeholder
+      ..standsIn = standsIn
+      ..placeholderTint = placeholderTint
       ..preferredSize = size
       ..tint = tint
       ..opacity = opacity
@@ -227,6 +258,8 @@ class _RenderContent extends RenderBox {
   _RenderContent({
     required AssetBinding binding,
     required AssetPaintable placeholder,
+    required bool standsIn,
+    required Color? placeholderTint,
     required Size preferredSize,
     required Color? tint,
     required double opacity,
@@ -235,6 +268,8 @@ class _RenderContent extends RenderBox {
   }) : _binding = binding,
        _fade = AssetFade(binding),
        _placeholder = placeholder,
+       _standsIn = standsIn,
+       _placeholderTint = placeholderTint,
        _preferredSize = preferredSize,
        _tint = tint,
        _opacity = opacity,
@@ -245,6 +280,10 @@ class _RenderContent extends RenderBox {
   AssetFade _fade;
   // What the content fades in over when the binding kept no thumbnail.
   AssetPaintable _placeholder;
+  // Whether [_placeholder] is the view's own, painted before any stage in
+  // place of the scope's, in [_placeholderTint].
+  bool _standsIn;
+  Color? _placeholderTint;
   // Whether the paintable plays, so that it may come as a texture layer: the
   // view then needs compositing, so a clip or an opacity above it applies to
   // the layer.
@@ -273,6 +312,20 @@ class _RenderContent extends RenderBox {
     _placeholder = value;
     markNeedsPaint();
   }
+
+  set standsIn(bool value) {
+    if (_standsIn == value) return;
+    _standsIn = value;
+    markNeedsPaint();
+  }
+
+  set placeholderTint(Color? value) {
+    if (_placeholderTint == value) return;
+    _placeholderTint = value;
+    markNeedsPaint();
+  }
+
+  Color? get _placeholderColor => _standsIn ? _placeholderTint ?? _tint : _tint;
 
   set preferredSize(Size value) {
     if (_preferredSize == value) return;
@@ -342,6 +395,17 @@ class _RenderContent extends RenderBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     final box = offset & size;
+    // Before anything exists the view's own placeholder replaces the scope's;
+    // nothing plays yet, so there is no texture to composite either.
+    if (_standsIn && _binding.readiness.stage == AssetStage.none) {
+      _placeholder.paint(
+        context.canvas,
+        box,
+        AssetPaintContext(tint: _placeholderColor, opacity: _opacity),
+      );
+      _paintLoading(context.canvas, box);
+      return;
+    }
     final fade = _fade.opacityAt(_frameTime);
     if (fade < 1) _paintUnderContent(context.canvas, box, fade);
     final opacity = _opacity * fade;
@@ -368,7 +432,7 @@ class _RenderContent extends RenderBox {
         canvas,
         box,
         AssetPaintContext(
-          tint: _tint,
+          tint: _placeholderColor,
           opacity: _opacity * (1 - fade),
           fit: _binding.profile.fit,
         ),

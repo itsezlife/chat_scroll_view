@@ -42,7 +42,9 @@ void _reportToFlutter(Object error, StackTrace stack) {
 /// The RAM tier evicts whole animations, least recently used first: a
 /// half-resident animation would serve some frames and re-render others, which
 /// costs the same render as having none. The disk tier writes an animation
-/// once, when its last frame arrives, and evicts files least recently used.
+/// once, when its last frame arrives, and evicts files least recently used
+/// past [diskBudgetBytes]; with no budget it evicts none, and the host's store
+/// keeps the directory.
 final class FrameCache {
   /// Creates a cache keeping files in the directory at [directoryPath]; null
   /// keeps memory only, which is all the web can do (a path there is an
@@ -70,8 +72,16 @@ final class FrameCache {
   /// than this stays while it is the only one).
   final int ramBudgetBytes;
 
-  /// The most bytes the disk tier keeps.
-  final int diskBudgetBytes;
+  /// The most bytes the disk tier keeps, or null for no budget of its own:
+  /// the directory is then a tier of a store the host keeps (one folder for
+  /// all its media, say, removing files unused for a while), and a file the
+  /// store removed is a miss like any other.
+  final int? diskBudgetBytes;
+
+  /// The largest file read when there is no [diskBudgetBytes] to bound it: a
+  /// file this large is no animation this cache wrote (an admitted animation
+  /// of a few hundred frames is tens of megabytes), so it is a miss.
+  static const int _unboundedReadBytes = 1 << 30;
 
   final FrameCacheFiles? _files;
   final FrameCacheClock _clock;
@@ -269,8 +279,10 @@ final class FrameCache {
   /// budget. A file larger than the whole budget goes too: the budget is the
   /// host's, and a tier that exceeded it would be a leak with extra steps.
   Future<void> _evictDisk() async {
+    final budget = diskBudgetBytes;
+    if (budget == null) return;
     var total = _disk.values.fold<int>(0, (sum, f) => sum + f.bytes);
-    while (total > diskBudgetBytes && _disk.isNotEmpty) {
+    while (total > budget && _disk.isNotEmpty) {
       MapEntry<String, _DiskFile>? oldest;
       for (final entry in _disk.entries) {
         if (oldest == null ||
@@ -295,7 +307,10 @@ final class FrameCache {
       if (!_disk.containsKey(stem)) return null;
       // A file above the whole budget would have been evicted by the scan
       // that listed it; one that grew since is a miss like any damage.
-      final bytes = await _files!.read(stem, maxBytes: diskBudgetBytes);
+      final bytes = await _files!.read(
+        stem,
+        maxBytes: diskBudgetBytes ?? _unboundedReadBytes,
+      );
       final frames = bytes == null ? null : FrameCacheCodec.decode(key, bytes);
       if (frames == null) {
         // Damage is a miss, and the file goes: left in place it would be

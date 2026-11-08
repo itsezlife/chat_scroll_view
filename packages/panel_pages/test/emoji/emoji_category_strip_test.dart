@@ -10,6 +10,8 @@ library;
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
+import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
@@ -87,9 +89,12 @@ void main() {
     PanelArrangement arrangement = PanelArrangement.touch,
     bool disableAnimations = false,
     EmojiStripLayout layout = EmojiStripLayout.automatic,
+    Brightness brightness = Brightness.light,
+    AssetCacheScope? assets,
   }) => tester.pumpWidget(
     PanelShellTestScope(
       speed: speed,
+      brightness: brightness,
       child: MediaQuery(
         data: MediaQueryData(disableAnimations: disableAnimations),
         child: PanelArrangementScope(
@@ -98,7 +103,11 @@ void main() {
             alignment: Alignment.topLeft,
             child: SizedBox(
               width: width,
-              child: EmojiCategoryStrip(handle: handle, layout: layout),
+              child: EmojiCategoryStrip(
+                handle: handle,
+                layout: layout,
+                assets: assets,
+              ),
             ),
           ),
         ),
@@ -518,6 +527,56 @@ void main() {
       expect(groupWidth(tester), moreOrLessEquals(openWidth));
       semantics.dispose();
     });
+
+    // Until a pack's cover has anything to show its tab draws the reference's
+    // stand-in, a faint rounded square in the idle icon colour at 25 of 255
+    // (`key_emptyListPlaceholder` at 0.2 of half alpha), never the scope's
+    // media fill (`0xFFEDF3F7`, a light grey square in either theme). The
+    // pointer arrangement's footer draws its covers the same way.
+    for (final arrangement in PanelArrangement.values) {
+      for (final (brightness, standIn) in [
+        (Brightness.light, const Color(0x197A8189)),
+        (
+          Brightness.dark,
+          const Color(0x80FFFFFF).withValues(alpha: 128 / 255 * (25 / 255)),
+        ),
+      ]) {
+        testWidgets('a cover with no stage yet is the themed stand-in, '
+            '${arrangement.name}, ${brightness.name}', (tester) async {
+          final scope = AssetCacheScope(
+            producer: FakeAssetProducer(),
+            clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
+          );
+          addTearDown(scope.dispose);
+          handle.entries.value = [
+            ..._entries([_recents, ...categories]),
+            const CatalogStripEntry(
+              sectionId: 'pack',
+              collection: Collection(
+                id: CollectionId.set('pack'),
+                metadata: CollectionMetadata(
+                  title: 'Pack',
+                  cover: ContentKey.document('cover'),
+                ),
+              ),
+            ),
+          ];
+          await pump(
+            tester,
+            arrangement: arrangement,
+            brightness: brightness,
+            assets: scope,
+          );
+
+          final cover = tester.renderObject(find.byType(ContentView));
+          expect(cover, paints..rrect(color: standIn));
+          expect(
+            cover,
+            isNot(paints..rect(color: RectPlaceholder.fallbackColor)),
+          );
+        });
+      }
+    }
 
     testWidgets('opens at once when animations are disabled', (tester) async {
       withPack();

@@ -6,6 +6,16 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `PanelSearchExit` and `PanelShell.searchExit`: how search is left. Under
+  `cancel`, the iOS default, the field shows a Cancel text button at its end
+  while search is open and the pill narrows for it; it closes search and
+  lowers the keyboard. Before, a platform with no back press had no way out of
+  search: the bottom bar with the tabs is hidden while it is open. `back`, the
+  default elsewhere, is the field as it was. `PanelSearchField.exit` and
+  `PanelSearchFieldScope.exit` carry it to a field a page places itself.
+
 ### Changed
 
 - `ContentPicked` says what the content is and which recents list it is

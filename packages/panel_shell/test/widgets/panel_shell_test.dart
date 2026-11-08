@@ -1,6 +1,7 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,12 +24,14 @@ void main() {
     WidgetTester tester, {
     TextDirection direction = TextDirection.ltr,
     PanelFocusPolicy focusPolicy = PanelFocusPolicy.none,
+    PanelSearchExit? searchExit,
     Widget Function(Widget shell)? wrap,
   }) async {
     Widget shell = PanelShell(
       controller: controller,
       announcer: announcer,
       focusPolicy: focusPolicy,
+      searchExit: searchExit,
     );
     if (wrap != null) shell = wrap(shell);
     await tester.pumpWidget(
@@ -506,6 +509,118 @@ void main() {
 
         expect(state(tester), PanelSearchIconState.progress);
         await tester.pumpAndSettle();
+      });
+    });
+
+    group('leaving search', () {
+      bool fieldFocused(WidgetTester tester) => tester
+          .widget<EditableText>(find.byType(EditableText))
+          .focusNode
+          .hasFocus;
+
+      testWidgets('under the cancel exit a Cancel control beside the field '
+          'closes search, empties it and lets go of the keyboard', (
+        tester,
+      ) async {
+        build();
+        await pump(tester, searchExit: PanelSearchExit.cancel);
+        expect(find.bySemanticsLabel('Cancel'), findsNothing);
+
+        await tester.tap(find.byType(EditableText));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(EditableText), 'cat');
+        await tester.pumpAndSettle();
+        expect(find.bySemanticsLabel('Cancel'), findsOneWidget);
+
+        await tester.tap(find.bySemanticsLabel('Cancel'));
+        await tester.pumpAndSettle();
+
+        expect(controller.search.value, PanelSearchState.closed);
+        expect(events.last, const SearchClosed());
+        expect(fieldFocused(tester), isFalse);
+        expect(find.bySemanticsLabel('Cancel'), findsNothing);
+      });
+
+      testWidgets('the Cancel control shows while search is open, with or '
+          'without a query or focus', (tester) async {
+        build();
+        await pump(tester, searchExit: PanelSearchExit.cancel);
+        controller.openSearch(focus: false);
+        await tester.pumpAndSettle();
+
+        expect(find.bySemanticsLabel('Cancel'), findsOneWidget);
+      });
+
+      testWidgets('the cancel exit narrows the pill to make room for Cancel', (
+        tester,
+      ) async {
+        build();
+        await pump(tester, searchExit: PanelSearchExit.cancel);
+        final field = tester.getRect(find.byType(PanelSearchField));
+        final closed = tester.getRect(find.byType(EditableText));
+        controller.openSearch();
+        await tester.pumpAndSettle();
+
+        final open = tester.getRect(find.byType(EditableText));
+        final cancel = tester.getRect(find.bySemanticsLabel('Cancel'));
+        expect(open.right, lessThan(closed.right));
+        expect(cancel.left, greaterThanOrEqualTo(open.right));
+        expect(
+          cancel.right,
+          moreOrLessEquals(field.right - PanelSearchField.pillMargin),
+        );
+      });
+
+      testWidgets('under the back exit the field has no control that closes '
+          'search: the back press does', (tester) async {
+        build();
+        await pump(tester, searchExit: PanelSearchExit.back);
+        controller
+          ..openSearch()
+          ..setQuery('cat');
+        await tester.pumpAndSettle();
+
+        expect(find.bySemanticsLabel('Cancel'), findsNothing);
+        expect(controller.handleBack(), isTrue);
+        await tester.pumpAndSettle();
+        expect(controller.search.value.isOpen, isFalse);
+      });
+
+      testWidgets('the exit defaults to the platform: Cancel on iOS only', (
+        tester,
+      ) async {
+        build();
+        for (final platform in TargetPlatform.values) {
+          debugDefaultTargetPlatformOverride = platform;
+          await pump(tester);
+          controller.openSearch(focus: false);
+          await tester.pumpAndSettle();
+          expect(
+            find.bySemanticsLabel('Cancel'),
+            platform == TargetPlatform.iOS ? findsOneWidget : findsNothing,
+            reason: '$platform',
+          );
+          controller.closeSearch();
+          await tester.pumpAndSettle();
+        }
+        debugDefaultTargetPlatformOverride = null;
+      });
+
+      testWidgets('a page that places the field itself gets the exit of the '
+          'shell', (tester) async {
+        final inline = FakePanelPage(
+          'inline',
+          search: true,
+          searchPlacement: SearchPlacement.inline,
+        );
+        build(pages: [inline]);
+        await pump(tester, searchExit: PanelSearchExit.cancel);
+        controller.openSearch(focus: false);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(controller.search.value.isOpen, isFalse);
       });
     });
 
@@ -1090,7 +1205,12 @@ void main() {
               size: Size(400, 600),
               textScaler: TextScaler.linear(2),
             ),
-            child: PanelShell(controller: controller, announcer: announcer),
+            child: PanelShell(
+              controller: controller,
+              announcer: announcer,
+              // The Cancel text is the widest thing in the field row.
+              searchExit: PanelSearchExit.cancel,
+            ),
           ),
         ),
       );

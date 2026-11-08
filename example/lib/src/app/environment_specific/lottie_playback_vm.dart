@@ -17,7 +17,9 @@ import 'package:lottie_decoder/lottie_decoder.dart';
 ///
 /// The rendered frames are kept in a `FrameCache`: on disk under
 /// [cacheDirectory] when there is one, in memory only when it is null. The
-/// playback owns the cache and disposes it on close.
+/// directory is the media store's (`MediaDiskCache`), which removes what goes
+/// unused, so the cache keeps no disk budget of its own. The playback owns
+/// the cache and disposes it on close.
 ///
 /// With [textures] (ADR 043) the render isolate also writes playing
 /// animations into the pool's platform textures; the scroll lab's `textures`
@@ -43,6 +45,7 @@ Future<LottiePlayback?> $startLottiePlayback({
   final memory = NativeFramePageMemory();
   final cache = FrameCache(
     directoryPath: cacheDirectory,
+    diskBudgetBytes: null,
     // A cache that cannot touch its folder serves from memory; saying so once
     // is enough (the cache reports only the first failure).
     onError: (error, stackTrace) =>
