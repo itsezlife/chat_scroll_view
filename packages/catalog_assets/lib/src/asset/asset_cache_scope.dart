@@ -40,6 +40,15 @@ import 'package:flutter/foundation.dart';
 /// until the budget or [clearAll] drops it; one that has produced nothing
 /// beyond a placeholder is dropped at once.
 ///
+/// The same content at another spec is another entry, but not another
+/// picture to wait for: while an entry is below its first frame, a binding
+/// shows the best stage a **sibling** (an entry of the same key and decode
+/// mode at another size) has reached, placed by the binding's own profile,
+/// instead of a placeholder (see [AssetBinding.paintable]). It borrows that
+/// sibling, which pins it like a binding would, until its own entry catches
+/// up or it detaches. A GIF picked from a panel cell is drawn in the message
+/// at once, at the cell's pixels, until the message's own decode arrives.
+///
 /// An entry with a live binding is pinned: neither the budget, [clearAll] nor
 /// the memory-pressure signal evicts it, so eviction can never invalidate a
 /// binding. A binding gives back exactly what it took, once, and never looks
@@ -125,6 +134,9 @@ final class AssetCacheScope {
   final AssetPaintable mediaPlaceholder;
 
   final Map<(ContentKey, AssetSpec), _Entry> _entries = {};
+  // Every entry of a key, whatever its spec: the siblings a binding below its
+  // first frame borrows a stage from.
+  final Map<ContentKey, Set<_Entry>> _byKey = {};
   // Entries nobody is bound to, per tier, least recently used first.
   final Map<AssetTier, LinkedHashSet<_Entry>> _unpinned = {
     for (final tier in AssetTier.values) tier: LinkedHashSet<_Entry>.identity(),
@@ -250,14 +262,69 @@ final class AssetCacheScope {
     AssetSpec spec,
     AssetProfile profile,
   ) {
-    final entry = _entries.putIfAbsent((key, spec), () => _Entry(key, spec));
+    final entry = _entries.putIfAbsent((key, spec), () {
+      final created = _Entry(key, spec);
+      (_byKey[key] ??= Set<_Entry>.identity()).add(created);
+      return created;
+    });
     final binding = _EntryBinding(scope: this, entry: entry, profile: profile);
     _unpinned[entry.tier]!.remove(entry);
     entry.bindings.add(binding);
     entry.demand.refresh(entry.bindings);
-    binding.syncPlayback();
     if (entry.attempt == null && !entry.isFinal) _start(entry);
+    // After the start: a memory hit answered inside it needs no sibling.
+    binding
+      ..reborrow()
+      ..syncPlayback();
     return binding;
+  }
+
+  // The sibling of [entry] with the best stage beyond [above], the larger
+  // decode on a tie, or null. A template decode is alpha only, so only an
+  // entry of the same decode mode draws the same picture.
+  _Entry? _siblingOf(_Entry entry, AssetStage above) {
+    _Entry? best;
+    for (final sibling in _byKey[entry.key] ?? const <_Entry>{}) {
+      if (identical(sibling, entry) ||
+          sibling.paintable == null ||
+          sibling.spec.decodeMode != entry.spec.decodeMode ||
+          sibling.stage.index <= above.index) {
+        continue;
+      }
+      if (best == null ||
+          sibling.stage.index > best.stage.index ||
+          (sibling.stage == best.stage && _area(sibling) > _area(best))) {
+        best = sibling;
+      }
+    }
+    return best;
+  }
+
+  static int _area(_Entry entry) =>
+      entry.spec.pixelWidth * entry.spec.pixelHeight;
+
+  // A borrowed sibling is pinned like a bound entry: what a binding shows is
+  // never evicted under it.
+  void _borrow(_Entry sibling) {
+    sibling.borrowers++;
+    _unpinned[sibling.tier]!.remove(sibling);
+  }
+
+  void _giveBack(_Entry sibling) {
+    sibling.borrowers--;
+    _release(sibling);
+    _trim();
+  }
+
+  // An entry nobody binds or borrows any more: what has a stage worth keeping
+  // waits in the budget, the rest goes at once.
+  void _release(_Entry entry) {
+    if (entry.isPinned) return;
+    if (entry.stage.index <= AssetStage.placeholder.index) {
+      _evict(entry);
+    } else {
+      _unpinned[entry.tier]!.add(entry);
+    }
   }
 
   /// Drops every entry nobody is bound to, disposing their paintables. Pinned
@@ -357,16 +424,21 @@ final class AssetCacheScope {
     // showing it: they fade the content in over it (a bitmap thumbnail stays
     // opaque beneath, as in the reference client) and release it when the
     // content is opaque. Without a waiting binding there is nobody to keep it
-    // for.
+    // for; one that shows a sibling's content was not showing the thumbnail
+    // and has nothing to fade over.
+    final waiting = [
+      for (final binding in entry.bindings)
+        if (binding._borrowed == null) binding,
+    ];
     final keep =
         previous != null &&
         entry.stage == AssetStage.placeholder &&
         stage.index > AssetStage.placeholder.index &&
-        entry.bindings.isNotEmpty;
+        waiting.isNotEmpty;
     if (keep) {
       entry.disposeStandIn();
       entry.standIn = previous;
-      for (final binding in entry.bindings) {
+      for (final binding in waiting) {
         binding._holdsStandIn = true;
         entry.standInHolders++;
       }
@@ -390,6 +462,14 @@ final class AssetCacheScope {
     for (final binding in List<_EntryBinding>.of(entry.bindings)) {
       binding.entryChanged();
     }
+    // A sibling waiting below its first frame may draw this stage now (or a
+    // better one of the entry it borrows from).
+    for (final sibling in List<_Entry>.of(_byKey[entry.key] ?? const {})) {
+      if (identical(sibling, entry)) continue;
+      for (final binding in List<_EntryBinding>.of(sibling.bindings)) {
+        binding.siblingChanged(entry);
+      }
+    }
     _trim();
   }
 
@@ -410,6 +490,10 @@ final class AssetCacheScope {
     if (identical(_entries[(entry.key, entry.spec)], entry)) {
       _entries.remove((entry.key, entry.spec));
     }
+    final siblings = _byKey[entry.key];
+    if (siblings != null && siblings.remove(entry) && siblings.isEmpty) {
+      _byKey.remove(entry.key);
+    }
     if (entry.paintable != null) {
       _bytes[entry.tier] = _bytes[entry.tier]! - entry.bytes;
     }
@@ -426,11 +510,7 @@ final class AssetCacheScope {
     entry.demand.refresh(entry.bindings);
     if (entry.bindings.isNotEmpty) return;
     entry.attempt?.cancel();
-    if (entry.stage.index <= AssetStage.placeholder.index) {
-      _evict(entry);
-    } else {
-      _unpinned[entry.tier]!.add(entry);
-    }
+    _release(entry);
     _trim();
   }
 }
@@ -454,6 +534,10 @@ final class _Entry {
   Object? lastError;
   AssetFailureKind? failureKind;
   _Attempt? attempt;
+  // Bindings of sibling entries that show this entry's stage.
+  int borrowers = 0;
+
+  bool get isPinned => bindings.isNotEmpty || borrowers > 0;
 
   void disposeStandIn() {
     standIn?.dispose();
@@ -553,6 +637,9 @@ final class _EntryBinding extends AssetBindingBase {
   bool _registered = false;
   // Waiting to release the entry's stand-in.
   bool _holdsStandIn = false;
+  // The sibling whose stage this binding shows while its entry is below that
+  // stage and below its first frame, or null.
+  _Entry? _borrowed;
   // A replay turns a profile that does not animate into one that does, for
   // this binding.
   bool _replayed = false;
@@ -566,14 +653,54 @@ final class _EntryBinding extends AssetBindingBase {
 
   /// Called by the scope when the entry gained a stage.
   void entryChanged() {
+    reborrow();
     syncPlayback();
     signal();
   }
 
+  /// Called by the scope when [sibling], another entry of this key, gained a
+  /// stage: what this binding shows changes when it borrows from it or may
+  /// borrow it now.
+  void siblingChanged(_Entry sibling) {
+    if (_borrowed == null && _ownStage.index >= AssetStage.firstFrame.index) {
+      return;
+    }
+    final before = _borrowed;
+    reborrow();
+    if (identical(before, sibling) || identical(_borrowed, sibling)) {
+      syncPlayback();
+      signal();
+    }
+  }
+
+  /// Borrows the best sibling stage while the entry's own, as this binding
+  /// shows it, is below that stage and below its first frame; gives the
+  /// sibling back otherwise.
+  void reborrow() {
+    final own = _ownStage;
+    _Entry? next;
+    // The sibling's stage as this binding would show it (a profile that does
+    // not autoplay waits for the full asset there too) must beat its own.
+    if (!isDetached && own.index < AssetStage.firstFrame.index) {
+      if (_scope._siblingOf(entry, own) case final sibling?
+          when _stageOf(sibling).index > own.index) {
+        next = sibling;
+      }
+    }
+    final previous = _borrowed;
+    if (identical(next, previous)) return;
+    _borrowed = next;
+    if (next != null) _scope._borrow(next);
+    if (previous != null) _scope._giveBack(previous);
+  }
+
+  // What this binding paints: its entry's paintable, or the borrowed one.
+  AssetPaintable? get _shown => (_borrowed ?? entry).paintable;
+
   // The paint that follows a tick is what steps the paintable, so a pass that
   // ended is seen on the tick after: here, the frame after the one that held.
   void _onTick() {
-    if (!profile.loop && !_ended && (entry.paintable?.isHolding ?? false)) {
+    if (!profile.loop && !_ended && (_shown?.isHolding ?? false)) {
       _ended = true;
       syncPlayback();
     }
@@ -596,7 +723,7 @@ final class _EntryBinding extends AssetBindingBase {
     final paintable = entry.paintable;
     if (paintable == null ||
         !paintable.isAnimated ||
-        _effectiveStage != entry.stage) {
+        _ownStage != entry.stage) {
       return false;
     }
     if (_ended) {
@@ -612,7 +739,11 @@ final class _EntryBinding extends AssetBindingBase {
 
   @override
   AssetReadiness get liveReadiness {
-    final stage = _effectiveStage;
+    if (_borrowed case final sibling?) {
+      // Shown, not final: the entry's own decode is still to come.
+      return AssetReadiness(_stageOf(sibling));
+    }
+    final stage = _ownStage;
     return AssetReadiness(
       stage,
       isFinal: entry.isFinal && stage == entry.stage,
@@ -621,17 +752,21 @@ final class _EntryBinding extends AssetBindingBase {
 
   // A profile that does not autoplay shows its placeholder until the full
   // asset exists; a first-frame-only spec has nothing later to wait for.
-  AssetStage get _effectiveStage =>
-      entry.stage == AssetStage.firstFrame &&
+  AssetStage _stageOf(_Entry of) =>
+      of.stage == AssetStage.firstFrame &&
           !profile.autoplayFirstFrame &&
-          spec.variant == AssetVariant.full
+          of.spec.variant == AssetVariant.full
       ? AssetStage.placeholder
-      : entry.stage;
+      : of.stage;
+
+  // The entry's own stage as this binding paints it, borrowing aside.
+  AssetStage get _ownStage => _stageOf(entry);
 
   @override
   AssetPaintable get livePaintable {
+    if (_borrowed case _Entry(:final paintable?)) return paintable;
     final paintable = entry.paintable;
-    if (paintable == null || _effectiveStage != entry.stage) {
+    if (paintable == null || _ownStage != entry.stage) {
       return _scope._placeholderOf(entry.key);
     }
     return paintable;
@@ -645,7 +780,7 @@ final class _EntryBinding extends AssetBindingBase {
     super.paint(canvas, rect, tint: tint, opacity: opacity);
     if (opacity >= 1 &&
         _holdsStandIn &&
-        _effectiveStage.index > AssetStage.placeholder.index) {
+        _ownStage.index > AssetStage.placeholder.index) {
       releaseStandIn();
     }
   }
@@ -691,13 +826,13 @@ final class _EntryBinding extends AssetBindingBase {
         visible &&
         animates &&
         !_ended &&
-        (entry.paintable?.isAnimated ?? false);
+        (_shown?.isAnimated ?? false);
     if (wanted == _registered) return;
     _registered = wanted;
     if (wanted) {
       // A binding that starts to play wakes a playback another binding of
       // the entry left holding its rest frame; a running one is left alone.
-      entry.paintable?.restart();
+      _shown?.restart();
       clock.register(_target);
     } else {
       clock.unregister(_target);
@@ -707,6 +842,10 @@ final class _EntryBinding extends AssetBindingBase {
   @override
   void releaseResources() {
     releaseStandIn();
+    if (_borrowed case final sibling?) {
+      _borrowed = null;
+      _scope._giveBack(sibling);
+    }
     if (_registered) {
       _registered = false;
       clock.unregister(_target);
