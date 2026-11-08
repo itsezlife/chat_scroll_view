@@ -15,6 +15,7 @@ import 'app/lottie_playback_cache_test.dart' as lottie_playback_cache_test;
 import 'app/lottie_playback_pixel_test.dart' as lottie_playback_pixel_test;
 import 'app/lottie_playback_test.dart' as lottie_playback_test;
 import 'app/overlay_pause_observer_test.dart' as overlay_pause_observer_test;
+import 'app/scrolling_surfaces_test.dart' as scrolling_surfaces_test;
 import 'app/system_reduced_motion_test.dart' as system_reduced_motion_test;
 import 'app/video_playback_pixel_test.dart' as video_playback_pixel_test;
 import 'app/video_playback_test.dart' as video_playback_test;
@@ -49,6 +50,7 @@ import 'chat_perf/trace_counts_test.dart' as chat_perf_trace_counts_test;
 import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
 import 'common/lab_net_test.dart' as lab_net_test;
+import 'common/lab_texture_host_test.dart' as lab_texture_host_test;
 import 'common/mouse_back_button_test.dart' as mouse_back_button_test;
 import 'common/pointer_tape_test.dart' as pointer_tape_test;
 import 'features/chat/animated_emoji_pack_test.dart'
@@ -81,6 +83,8 @@ import 'features/chat/lottie_sticker_pipeline_test.dart'
     as lottie_sticker_pipeline_test;
 import 'features/chat/message_editability_test.dart'
     as message_editability_test;
+import 'features/chat/panel_texture_warmer_test.dart'
+    as panel_texture_warmer_test;
 import 'features/chat/recent_content_source_test.dart'
     as recent_content_source_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
@@ -196,6 +200,7 @@ void main() {
     'app/overlay_pause_observer_test.dart',
     overlay_pause_observer_test.main,
   );
+  group('app/scrolling_surfaces_test.dart', scrolling_surfaces_test.main);
   group('app/system_reduced_motion_test.dart', system_reduced_motion_test.main);
   group('app/video_playback_pixel_test.dart', video_playback_pixel_test.main);
   group('app/video_playback_test.dart', video_playback_test.main);
@@ -266,6 +271,7 @@ void main() {
     chat_message_markdown_test.main,
   );
   group('common/lab_net_test.dart', lab_net_test.main);
+  group('common/lab_texture_host_test.dart', lab_texture_host_test.main);
   group('common/pointer_tape_test.dart', pointer_tape_test.main);
   group('common/mouse_back_button_test.dart', mouse_back_button_test.main);
   group(
@@ -282,6 +288,10 @@ void main() {
     chat_composer_spec_test.main,
   );
   group('features/chat/chat_copy_test.dart', chat_copy_test.main);
+  group(
+    'features/chat/panel_texture_warmer_test.dart',
+    panel_texture_warmer_test.main,
+  );
   group(
     'features/chat/chat_data_source_bodies_test.dart',
     chat_data_source_bodies_test.main,

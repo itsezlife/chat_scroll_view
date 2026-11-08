@@ -20,6 +20,19 @@ abstract final class MediaPanelPages {
   /// Id of the stickers page in the shell.
   static const String stickersId = 'stickers';
 
+  /// What each page plays, by page id, for the texture pool to warm when the
+  /// page opens: the longer side its playing leaves are drawn at, in logical
+  /// pixels, and about how many a screen of it shows.
+  ///
+  /// A sticker is drawn [StickersPagePolicy.stickerExtent] square, about five
+  /// columns by four rows on a phone; a GIF fills a row
+  /// [GifRowLayout.rowExtent] tall (a wider clip is longer, mostly in the
+  /// same class), about three rows of two or three.
+  static const Map<String, ({double extent, int perScreen})> playingLeaves = {
+    stickersId: (extent: StickersPagePolicy.stickerExtent, perScreen: 20),
+    gifId: (extent: GifRowLayout.rowExtent, perScreen: 8),
+  };
+
   /// The GIF [PanelPage]. With Giphy (an API key was given) it declares
   /// search and shows Giphy's attribution; without, it declares nothing: no
   /// search, no strip, no actions, so the bottom bar shows the type tabs

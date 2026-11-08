@@ -2,13 +2,20 @@ import 'dart:async';
 import 'dart:developer' show Timeline;
 import 'dart:ui' show FramePhase, FrameTiming;
 
-import 'package:catalog_assets/catalog_assets.dart' show FrameTexturePool;
+import 'package:catalog_assets/catalog_assets.dart'
+    show
+        FrameTextureEntryPoints,
+        FrameTextureFormat,
+        FrameTextureHost,
+        FrameTexturePool,
+        FrameTextureTarget;
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatScrollController, ChatScrollEvent, ChatViewportScrolled;
 import 'package:chat_scroll_view/experiments.dart';
 import 'package:chat_scroll_view_example/src/common/lab_net.dart';
 import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:chat_scroll_view_example/src/common/tape_system_events.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -50,6 +57,10 @@ abstract final class ScrollLab {
   /// The texture pool of the build, for the replay summary; null without a
   /// texture host.
   static FrameTexturePool? texturePool;
+
+  /// The texture host of the build, counting creations for the replay
+  /// summary; null without a texture host.
+  static LabTextureHost? textureHost;
 
   static const _channel = MethodChannel('chat_scroll_view_example/lab');
 
@@ -138,6 +149,8 @@ abstract final class ScrollLab {
           await net.select(LabNetMode.replay, name);
           _log('tape replay start $name');
           _replayFrames = [];
+          final created = textureHost?.created ?? 0;
+          final createdWhileScrolling = textureHost?.createdWhileScrolling ?? 0;
           final n = await PointerTape.replay(
             dir!,
             name,
@@ -152,6 +165,15 @@ abstract final class ScrollLab {
             _log(
               'textures on=${textures.value} leased=${pool.leasedTextures} '
               'idle=${pool.idleTextures} bytes=${pool.bytes}',
+            );
+          }
+          if (textureHost case final host?) {
+            // The pool waits with its creations while a surface scrolls:
+            // whileScrolling is 0 when it does (ADR 043, "Pool").
+            _log(
+              'textures created=${host.created - created} '
+              'whileScrolling='
+              '${host.createdWhileScrolling - createdWhileScrolling}',
             );
           }
           _log('tape replay done $name events=$n');
@@ -394,4 +416,51 @@ class _ScrollLabOverlayState extends State<ScrollLabOverlay> {
           onChanged: (v) => value.value = v,
         ),
       );
+}
+
+/// A [FrameTextureHost] that counts the textures created, and those created
+/// while [scrolling] is true, for the lab's replay summary; a creation while
+/// scrolling also prints a `LAB texture created while scrolling` line.
+final class LabTextureHost implements FrameTextureHost {
+  /// Counts the creations of [host].
+  LabTextureHost(this._host, this._scrolling);
+
+  final FrameTextureHost _host;
+  final ValueListenable<bool> _scrolling;
+
+  /// Textures asked of the host so far.
+  int get created => _created;
+  int _created = 0;
+
+  /// Textures asked of the host while a surface scrolled.
+  int get createdWhileScrolling => _createdWhileScrolling;
+  int _createdWhileScrolling = 0;
+
+  @override
+  FrameTextureFormat get format => _host.format;
+
+  @override
+  int get buffersPerTexture => _host.buffersPerTexture;
+
+  @override
+  FrameTextureEntryPoints? get entryPoints => _host.entryPoints;
+
+  @override
+  Future<int?> create(int width, int height) {
+    _created++;
+    if (_scrolling.value) {
+      _createdWhileScrolling++;
+      ScrollLab._log('texture created while scrolling ${width}x$height');
+    }
+    return _host.create(width, height);
+  }
+
+  @override
+  FrameTextureTarget? lock(int id) => _host.lock(id);
+
+  @override
+  void post(int id) => _host.post(id);
+
+  @override
+  void destroy(int id) => _host.destroy(id);
 }
