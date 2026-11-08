@@ -36,12 +36,18 @@ final class LottieFrameLease {
   final int _height;
 
   // Where frames go. A lease holds a slot, a texture, or both while it moves
-  // from its slot to a texture (the slot shows until the texture's first
+  // from its slot to a texture (the slot shows until the texture is
   // post); with neither (a full pool after a texture failed) it shows its
   // still.
   FrameHandle<Object>? _slot;
   FrameTextureLease? _texture;
-  bool _posted = false;
+  // Frames posted to the texture since the lease took it. A texture keeps
+  // frames of the asset that held it that the engine never showed (on Android
+  // the surface producer queues up to two and shows them oldest first, one a
+  // frame, only while the texture is on screen), so the texture is shown only
+  // once this lease's posts pushed them out; until then the slot, or the
+  // still, shows.
+  int _posts = 0;
   int _missedLocks = 0;
   // Whether a batch in flight names the texture: it goes back to the pool
   // only when that batch ends, so no other asset's write races it.
@@ -68,12 +74,14 @@ final class LottieFrameLease {
 
   /// Where the current frame is, or null while there is nothing to draw. Read
   /// it when painting and never keep it, as [FrameHandle.sprite] says.
-  AtlasSprite? get sprite => _released || _posted ? null : _slot?.sprite;
+  AtlasSprite? get sprite => _released || _shown ? null : _slot?.sprite;
 
   /// The texture that holds the current frame, or null until a first frame
   /// was posted to it (and for a lease on a slot). Read it when compositing
   /// and never keep it.
-  AssetTexture? get texture => _released || !_posted ? null : _texture?.texture;
+  AssetTexture? get texture => _released || !_shown ? null : _texture?.texture;
+
+  bool get _shown => _posts >= LottieFrameScheduler._postsBeforeShown;
 
   bool get _needsRender =>
       !_released &&
@@ -127,7 +135,7 @@ final class LottieFrameLease {
 /// lease. A lease that found none asks the pool to warm its class (the pool
 /// creates off the frame path, and waits while a surface scrolls), and on a
 /// later tick a lease on a slot moves to a texture that is idle then, keeping
-/// its slot until the texture's first post so nothing flashes.
+/// its slot until the texture is shown so nothing flashes.
 ///
 /// Textures are asked like slots: the same wants, the same pause layers, the
 /// same sweep. A tick sends one batch to the writer next to the one to the
@@ -170,6 +178,11 @@ final class LottieFrameScheduler {
 
   /// Shortest time between two ticks of the follow subscription.
   final Duration tickInterval;
+
+  // Posts of a lease before its texture is shown (see `_posts`): two push
+  // the previous holder's queued frames out, the third makes sure the second
+  // reached the queue.
+  static const _postsBeforeShown = 3;
 
   final FrameAtlas<Object> _atlas;
   final PlaybackClock _clock;
@@ -339,7 +352,7 @@ final class LottieFrameScheduler {
       if (texture == null) continue;
       lease
         .._texture = texture
-        .._posted = false
+        .._posts = 0
         .._missedLocks = 0
         // The texture is blank: the frame on the slot is asked again.
         .._requested = null;
@@ -367,7 +380,7 @@ final class LottieFrameScheduler {
     final texture = lease._texture!;
     lease
       .._texture = null
-      .._posted = false
+      .._posts = 0
       .._requested = null;
     if (discard) {
       texture.discard();
@@ -484,11 +497,13 @@ final class LottieFrameScheduler {
         switch (outcomes[i]) {
           case TextureFrameOutcome.posted:
             lease
-              .._posted = true
+              .._posts += 1
               .._missedLocks = 0;
-            // The texture shows the asset now: the slot it came from goes.
-            lease._slot?.release();
-            lease._slot = null;
+            // Shown now: the slot it came from goes.
+            if (lease._shown) {
+              lease._slot?.release();
+              lease._slot = null;
+            }
           case TextureFrameOutcome.notLocked:
             // Skipped: the texture keeps its previous frame and the want is
             // asked again on the next tick.

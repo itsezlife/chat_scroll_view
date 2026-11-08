@@ -571,7 +571,11 @@ void main() {
       test('is the leased texture once a frame was posted, and the still is '
           'not drawn over it', () async {
         final p = make();
-        await advanceAndSettle(p, at(0));
+        // The first advance takes the lease; the texture is shown after three
+        // posts.
+        for (final ms in const [0, 34, 67, 100]) {
+          await advanceAndSettle(p, at(ms));
+        }
 
         expect(
           p.texture,

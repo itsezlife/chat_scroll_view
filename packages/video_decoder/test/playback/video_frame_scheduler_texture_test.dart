@@ -72,6 +72,18 @@ void main() {
     }
   }
 
+  // Wants the clip's next three frames from [from]: a texture is shown after
+  // three posts of its lease.
+  Future<void> playThree(
+    VideoFrameLease lease, {
+    Duration from = Duration.zero,
+  }) async {
+    for (final ms in const [0, 34, 67]) {
+      scheduler.want(lease, from + Duration(milliseconds: ms));
+      await settle();
+    }
+  }
+
   setUp(() {
     time = Duration.zero;
     engine = FakeVideoEngine()..accept(bytes, _info, frameCount: 3);
@@ -104,8 +116,7 @@ void main() {
         await pool.warm(64, 1);
         final lease = scheduler.acquire('a', await openClip())!;
 
-        scheduler.want(lease, Duration.zero);
-        await settle();
+        await playThree(lease);
 
         final job = writer.inner.batches.first.single;
         expect(
@@ -124,9 +135,7 @@ void main() {
         expect(lease.texture?.id, host.liveIds.single);
         expect(lease.sprite, isNull);
 
-        scheduler.want(lease, const Duration(milliseconds: 34));
-        await settle();
-        expect(writer.firstPixels.last, [16, 8, 0, 200]);
+        expect(writer.firstPixels[1], [16, 8, 0, 200]);
       },
     );
 
@@ -134,15 +143,14 @@ void main() {
       await pool.warm(64, 1);
       final lease = scheduler.acquire('a', await openClip())!;
 
-      scheduler.want(lease, Duration.zero);
-      await settle();
+      await playThree(lease);
 
       final texture = lease.texture!;
       expect((texture.width, texture.height), (64, 64));
       expect((texture.frameWidth, texture.frameHeight), (16, 8));
     });
 
-    test('the texture shows only after its first post', () async {
+    test('the texture shows only after three posts', () async {
       await pool.warm(64, 1);
       final lease = scheduler.acquire('a', await openClip())!;
       writer.inner.pause();
@@ -153,6 +161,14 @@ void main() {
 
       writer.inner.resume();
       await pumpEventQueue();
+      // The texture may still queue frames of the clip that held it, which
+      // the engine would show first.
+      expect(lease.texture, isNull, reason: 'one post');
+      scheduler.want(lease, const Duration(milliseconds: 34));
+      await settle();
+      expect(lease.texture, isNull, reason: 'two posts');
+      scheduler.want(lease, const Duration(milliseconds: 67));
+      await settle();
       expect(lease.texture, isNotNull);
     });
 
@@ -166,8 +182,7 @@ void main() {
         await pumpEventQueue();
         expect(host.created, hasLength(1));
 
-        scheduler.want(lease, const Duration(milliseconds: 34));
-        await settle();
+        await playThree(lease, from: const Duration(milliseconds: 34));
         expect(lease.texture, isNotNull, reason: 'moved to the warmed one');
         expect(lease.sprite, isNull);
       },
@@ -208,12 +223,11 @@ void main() {
     test('textures switched off send the clip to a slot', () async {
       await pool.warm(64, 1);
       final lease = scheduler.acquire('a', await openClip())!;
-      scheduler.want(lease, Duration.zero);
-      await settle();
+      await playThree(lease);
       expect(lease.texture, isNotNull);
 
       scheduler.texturesEnabled = false;
-      scheduler.want(lease, const Duration(milliseconds: 34));
+      scheduler.want(lease, const Duration(milliseconds: 134));
       await settle();
 
       expect(lease.texture, isNull);
