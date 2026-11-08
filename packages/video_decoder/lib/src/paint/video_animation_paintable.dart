@@ -22,6 +22,12 @@ import 'package:video_decoder/src/playback/video_frame_scheduler.dart';
 /// and then draws [sprite] itself, falling back to [paint] for the still while
 /// it is null.
 ///
+/// When the scheduler gave the lease a platform texture (ADR 043), [texture]
+/// is it once a first frame was posted, and [sprite] is null: a surface that
+/// composites adds a texture layer. A [paint] that no [advancePlayback] of the
+/// same time came before is a surface that only has a canvas: it asks the
+/// scheduler for a slot, so the frames go back to a page it can draw.
+///
 /// ## Played time
 ///
 /// The same rule as the Lottie animation: each paint adds how far the clock
@@ -73,12 +79,18 @@ final class VideoAnimationPaintable extends AssetPaintable {
   VideoFrameLease? _lease;
   Duration _played = Duration.zero;
   Duration? _lastTime;
+  // The time of the last advancePlayback: a paint at the same time comes from
+  // a surface that composites.
+  Duration? _advancedAt;
   bool _holding = false;
   bool _failed = false;
   bool _disposed = false;
 
   @override
   AtlasSprite? get sprite => _lease?.sprite;
+
+  @override
+  AssetTexture? get texture => _lease?.texture;
 
   @override
   bool get isAnimated => true;
@@ -104,12 +116,17 @@ final class VideoAnimationPaintable extends AssetPaintable {
 
   @override
   void advancePlayback(AssetPaintContext context) {
-    if (context.animate && !_failed) _ask(context);
+    _advancedAt = context.time;
+    if (context.animate && !_failed) _ask(context, onCanvas: false);
   }
 
   @override
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
-    advancePlayback(context);
+    // A surface that advanced this pass composites, and paints only for the
+    // still; one that did not only has a canvas and needs the sprite.
+    if (_advancedAt != context.time && context.animate && !_failed) {
+      _ask(context, onCanvas: true);
+    }
     final sprite = this.sprite;
     if (sprite == null) {
       _still.paint(canvas, rect, context);
@@ -126,7 +143,7 @@ final class VideoAnimationPaintable extends AssetPaintable {
     );
   }
 
-  void _ask(AssetPaintContext context) {
+  void _ask(AssetPaintContext context, {required bool onCanvas}) {
     if (_holding && context.loop) _beginPass();
     if (_holding) return;
     var lease = _lease;
@@ -135,10 +152,10 @@ final class VideoAnimationPaintable extends AssetPaintable {
       return;
     }
     if (lease == null || lease.isReleased) {
-      lease = _lease = _scheduler.acquire(_key, _clip);
+      lease = _lease = _scheduler.acquire(_key, _clip, onCanvas: onCanvas);
       if (lease == null) return;
     }
-    _scheduler.want(lease, _playedAt(context.time));
+    _scheduler.want(lease, _playedAt(context.time), onCanvas: onCanvas);
     if (!context.loop && lease.isPassComplete) {
       _holding = true;
       if (context.restFrame == AssetRestFrame.last) {

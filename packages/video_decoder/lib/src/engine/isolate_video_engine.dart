@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:meta/meta.dart';
+import 'package:video_decoder/src/engine/texture_calls.dart';
 import 'package:video_decoder/src/engine/video_decode_core.dart';
 import 'package:video_decoder/src/engine/video_engine.dart';
+import 'package:video_decoder/src/engine/video_texture_engine.dart';
 import 'package:video_native/video_native.dart';
 
 /// A [VideoEngine] that decodes on a pool of long-lived worker isolates, so
@@ -42,7 +45,7 @@ import 'package:video_native/video_native.dart';
 /// engine go on). An ended worker is not respawned: the pool shrinks, and the
 /// engine is closed for [open] when none is left. Respawning is the growth
 /// point if workers prove to die in practice.
-final class IsolateVideoEngine implements VideoEngine {
+final class IsolateVideoEngine implements VideoTextureEngine {
   IsolateVideoEngine._(this._workers);
 
   /// Starts [workers] decode isolates, 1 to 4 (a [RangeError] otherwise).
@@ -175,6 +178,53 @@ final class IsolateVideoEngine implements VideoEngine {
     return placement.worker.request<bool>(
       (id) => _Rewind(id, placement.localId),
     );
+  }
+
+  /// Each frame goes to the worker that decodes its clip, in one request per
+  /// worker; the bytes cross as a transferable, the one copy on this isolate
+  /// (the copy into a page it replaces cost the same). A clip that is not
+  /// open here fails.
+  @override
+  Future<List<TextureFrameOutcome>> writeTextures(
+    FrameTextureEntryPoints entryPoints,
+    FrameTextureFormat format,
+    List<VideoTextureJob> jobs,
+  ) async {
+    _requireOpen();
+    final outcomes = List.filled(jobs.length, TextureFrameOutcome.failed);
+    final byWorker = <_Worker, List<int>>{};
+    for (var i = 0; i < jobs.length; i++) {
+      final placement = _placements[jobs[i].clip.id];
+      if (placement == null || placement.worker.ended) continue;
+      (byWorker[placement.worker] ??= []).add(i);
+    }
+    await Future.wait([
+      for (final MapEntry(key: worker, value: indices) in byWorker.entries)
+        worker
+            .request<List<TextureFrameOutcome>>(
+              (id) => _WriteTextures(id, entryPoints, format, [
+                for (final i in indices)
+                  (
+                    jobs[i].texture,
+                    jobs[i].clip.width,
+                    jobs[i].clip.height,
+                    TransferableTypedData.fromList([jobs[i].pixels]),
+                  ),
+              ]),
+            )
+            .then(
+              (written) {
+                for (var k = 0; k < indices.length; k++) {
+                  outcomes[indices[k]] = written[k];
+                }
+              },
+              onError: (Object _) {
+                // A worker that ended took its clips with it: those frames
+                // fail, the others are written.
+              },
+            ),
+    ]);
+    return outcomes;
   }
 
   @override
@@ -413,6 +463,15 @@ final class _Rewind extends _Request {
   final int localId;
 }
 
+/// Frames to write into textures: each its texture, size and bytes.
+final class _WriteTextures extends _Request {
+  const _WriteTextures(this.id, this.entryPoints, this.format, this.jobs);
+  final int id;
+  final FrameTextureEntryPoints entryPoints;
+  final FrameTextureFormat format;
+  final List<(AssetTexture, int, int, TransferableTypedData)> jobs;
+}
+
 final class _CloseClip extends _Request {
   const _CloseClip(this.id, this.localId);
   final int id;
@@ -471,6 +530,26 @@ void _workerMain(_Boot boot) {
         });
       case _Rewind(:final id, :final localId):
         answer(id, () => core.rewind(localId));
+      case _WriteTextures(
+        :final id,
+        :final entryPoints,
+        :final format,
+        :final jobs,
+      ):
+        answer(id, () {
+          final calls = TextureCalls.of(entryPoints);
+          return [
+            for (final (texture, width, height, pixels) in jobs)
+              VideoTextureWork.write(
+                calls,
+                format,
+                texture,
+                width,
+                height,
+                pixels.materialize().asUint8List(),
+              ),
+          ];
+        });
       case _CloseClip(:final id, :final localId):
         answer(id, () => core.close(localId));
       case _Shutdown():
