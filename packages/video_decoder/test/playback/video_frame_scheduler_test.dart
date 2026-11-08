@@ -418,6 +418,51 @@ void main() {
       expect(uploadedBytes.toSet(), {64 * 16 * 4});
     });
 
+    group('frame step', () {
+      // 60 fps, 8 frames: pts 0, 17, 33, ... 117 ms; the fake's blue is 16
+      // times the frame index.
+      final bytes60 = Uint8List.fromList([6, 0]);
+      const info60 = VideoInfo(
+        width: 16,
+        height: 16,
+        duration: Duration(milliseconds: 133),
+        frameRate: 60,
+        hasAlpha: true,
+      );
+
+      /// The frame indices shown over two passes, painted every clock frame.
+      Future<Set<int>> shownFrames({required int frameStep}) async {
+        fake.accept(bytes60, info60, frameCount: 8);
+        final opened = await engine.open(bytes60, width: 16, height: 16);
+        final lease = scheduler.acquire('a', (opened as VideoClipOpened).clip)!;
+        final shown = <int>{};
+        for (var ms = 0; ms <= 260; ms += 16) {
+          scheduler.want(
+            lease,
+            Duration(milliseconds: ms),
+            frameStep: frameStep,
+          );
+          await tick();
+          if (lease.sprite != null) shown.add(pixelOf(lease).first ~/ 16);
+        }
+        return shown;
+      }
+
+      test('a step of two shows only every second decoded frame', () async {
+        final shown = await shownFrames(frameStep: 2);
+
+        expect(shown, isNotEmpty);
+        expect(shown.where((frame) => frame.isOdd), isEmpty);
+        expect(shown, containsAll([0, 2, 4, 6]));
+      });
+
+      test('a step of one shows the odd frames too', () async {
+        final shown = await shownFrames(frameStep: 1);
+
+        expect(shown.where((frame) => frame.isOdd), isNotEmpty);
+      });
+    });
+
     test('a tick uploads the cells that moved, not their neighbours', () async {
       scheduler.dispose();
       scheduler = build(maxAdvancing: 1);
