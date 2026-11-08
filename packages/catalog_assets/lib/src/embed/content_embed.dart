@@ -6,8 +6,10 @@ import 'package:catalog_assets/src/asset/asset_paintable.dart';
 import 'package:catalog_assets/src/asset/asset_playback.dart';
 import 'package:catalog_assets/src/asset/asset_preset.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
+import 'package:catalog_assets/src/asset/asset_texture_layer.dart';
 import 'package:catalog_assets/src/embed/inline_embed.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/rendering.dart' show PaintingContext;
 import 'package:listen/listen.dart';
 
 /// An [InlineEmbed] that draws cache content: it attaches `(content, spec,
@@ -24,13 +26,18 @@ import 'package:listen/listen.dart';
 /// It is a [PlayableEmbed]: [replay] asks the binding for another pass of a
 /// profile that does not loop.
 ///
+/// It is a [CompositingEmbed]: [composite] shows a playing asset whose frames
+/// go to a platform texture as a texture layer (ADR 043), through the same
+/// path as `ContentView`. [paint] stays canvas-only, so a body that has only
+/// a canvas draws the asset from its page slots.
+///
 /// Which placeholder shows until the content has a thumbnail is the scope's
 /// (a circle) unless the embed is given its own: the host knows that this
 /// content is a sticker, the scope shared by all embeds does not.
 ///
 /// The embed does not own the scope. Its signal is the binding's: a better
 /// stage, a baked page that landed, an animation frame.
-final class ContentEmbed implements PlayableEmbed {
+final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
   /// Attaches [content] to [scope] as [preset] says.
   ContentEmbed({
     required AssetCacheScope scope,
@@ -67,6 +74,28 @@ final class ContentEmbed implements PlayableEmbed {
   @override
   void removeListener(VoidCallback listener) =>
       _binding.removeListener(listener);
+
+  @override
+  bool get needsCompositing => !_disposed && _binding.paintable.isAnimated;
+
+  @override
+  void composite(
+    PaintingContext context,
+    Rect rect,
+    InlineEmbedPaintContext paint,
+  ) {
+    if (_disposed) return;
+    if (_binding.readiness.stage != AssetStage.none &&
+        AssetTextureLayer.composite(
+          context,
+          _binding,
+          rect,
+          opacity: paint.opacity,
+        )) {
+      return;
+    }
+    this.paint(context.canvas, rect, paint);
+  }
 
   @override
   void paint(Canvas canvas, Rect rect, InlineEmbedPaintContext context) {

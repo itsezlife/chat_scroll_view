@@ -2,7 +2,7 @@ import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_cache_scope.dart';
 import 'package:catalog_assets/src/asset/asset_preset.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
-import 'package:catalog_assets/src/asset/asset_texture.dart';
+import 'package:catalog_assets/src/asset/asset_texture_layer.dart';
 import 'package:catalog_assets/src/asset/radial_progress.dart';
 import 'package:catalog_assets/src/widget/asset_cache_provider.dart';
 import 'package:content_model/content_model.dart';
@@ -307,57 +307,16 @@ class _RenderContent extends RenderBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     final box = offset & size;
-    final paintable = _binding.paintable;
-    if (paintable.isAnimated) {
-      // The texture is taken or given back by the advance, so it is read
-      // after it; the paint below, at the same time, adds nothing played.
-      _binding.advancePlayback();
-      final texture = paintable.texture;
-      if (texture != null) {
-        _composite(context, texture, box);
-        return;
-      }
+    if (AssetTextureLayer.composite(
+      context,
+      _binding,
+      box,
+      opacity: _opacity,
+    )) {
+      return;
     }
     _binding.paint(context.canvas, box, tint: _tint, opacity: _opacity);
     _paintLoading(context.canvas, box);
-  }
-
-  // The texture as a layer of its own, after what was painted before it. A
-  // texture layer cannot crop or fade, so a cover fit or a corner radius
-  // gets a clip layer and an opacity below one an opacity layer.
-  void _composite(PaintingContext context, AssetTexture texture, Rect box) {
-    final profile = _binding.profile;
-    final placed = profile.fit.placeTexture(texture, box);
-    void layer(PaintingContext context, Offset _) => context.addLayer(
-      TextureLayer(rect: placed.rect, textureId: texture.id),
-    );
-
-    void faded(PaintingContext context, Offset offset) {
-      if (_opacity >= 1) return layer(context, offset);
-      context.pushOpacity(Offset.zero, (_opacity * 255).round(), layer);
-    }
-
-    void clipped(PaintingContext context, Offset offset) {
-      final clip = placed.clip;
-      if (clip == null) return faded(context, offset);
-      context.pushClipRect(true, Offset.zero, clip, faded);
-    }
-
-    final radius = profile.cornerRadius;
-    if (radius > 0) {
-      context.pushClipRRect(
-        true,
-        Offset.zero,
-        box,
-        RRect.fromRectXY(box, radius, radius),
-        clipped,
-      );
-    } else {
-      clipped(context, Offset.zero);
-    }
-    // Nothing fades in over the thumbnail here: content painted opaque lets
-    // go of it, as a paint would.
-    if (_opacity >= 1) _binding.releaseStandIn();
   }
 
   // Over the stand-in and the thumbnail, until a frame of the content exists.

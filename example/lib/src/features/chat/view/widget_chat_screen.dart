@@ -23,6 +23,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart'
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_texture_warmer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
@@ -250,6 +251,19 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       onPastedMedia: _onPastedMedia,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
+    // The chat's stickers and GIFs composite as texture layers: the pool is
+    // warmed for them once, as the screen opens (ADR 043, "Pool").
+    if (fresh) {
+      if (widget.services.assets.textures case final pool?) {
+        ChatTextureWarmer.warm(
+          pool,
+          stickerExtent: _emojiPolicy.value.family().stickerExtentFor(
+            MediaQuery.sizeOf(context),
+          ),
+          devicePixelRatio: View.of(context).devicePixelRatio,
+        );
+      }
+    }
     // The spoiler token's particles: no tick (reduce motion, lite mode) leaves
     // the dust still. The particle colour follows the hidden text; the
     // engine takes no other.

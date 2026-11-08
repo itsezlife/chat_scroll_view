@@ -62,6 +62,25 @@ void main() {
 
   InlineEmbedContract.run(() => embedOf(_sticker));
 
+  // ADR 043, "Paint capability": a body that pushes layers composites the
+  // embed, so a playing asset on a texture is a texture layer.
+  CompositingEmbedContract.run(() {
+    final embed = embedOf(
+      _sticker,
+      preset: AssetPresets.square(
+        extent: 40,
+        devicePixelRatio: 2,
+        profile: const AssetProfile(animate: true),
+      ),
+    );
+    return CompositingEmbedHarness(
+      embed: embed,
+      play: () => producer.last.advance(AssetStage.full, animated: true)
+        ..textureOnAdvance = const AssetTexture(id: 7, width: 80, height: 80),
+      textureId: 7,
+    );
+  });
+
   group('attach', () {
     test('attaches the key with the preset spec on creation', () {
       embedOf(_sticker);
