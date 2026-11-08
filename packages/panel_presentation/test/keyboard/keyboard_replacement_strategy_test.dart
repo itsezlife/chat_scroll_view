@@ -141,20 +141,20 @@ void main() {
     await startOpen(tester);
     await finishMotion(tester);
 
-      final glass = find.ancestor(
-        of: find.byType(PanelShell),
-        matching: find.byType(GlassSurface),
-      );
-      expect(glass, findsOneWidget);
-      expect(
-        tester.widget<GlassSurface>(glass).material,
-        GlassMaterial.composerIsland,
-      );
-      expect(
-        tester.widget<PanelShell>(find.byType(PanelShell)).background,
-        const Color(0x00000000),
-        reason: 'the glass shows through the shell',
-      );
+    final glass = find.ancestor(
+      of: find.byType(PanelShell),
+      matching: find.byType(GlassSurface),
+    );
+    expect(glass, findsOneWidget);
+    expect(
+      tester.widget<GlassSurface>(glass).material,
+      GlassMaterial.composerIsland,
+    );
+    expect(
+      tester.widget<PanelShell>(find.byType(PanelShell)).background,
+      const Color(0x00000000),
+      reason: 'the glass shows through the shell',
+    );
     await tearDownTree(tester);
   });
 
@@ -306,7 +306,9 @@ void main() {
   });
 
   group('cold close', () {
-    testWidgets('shrinks the slot, then unmounts the panel', (tester) async {
+    testWidgets('shrinks the slot, then keeps the panel offstage', (
+      tester,
+    ) async {
       await mount(tester);
       await startOpen(tester);
       await finishMotion(tester);
@@ -323,7 +325,37 @@ void main() {
       expect(bottom(), 0);
       expect(controller.state.value, PanelVisibility.hidden);
       expect(find.byType(PanelShell), findsNothing);
+      expect(find.byType(PanelShell, skipOffstage: false), findsOneWidget);
       expect(shell.visible.value, isFalse);
+      await tearDownTree(tester);
+    });
+
+    // Ticket 100: nothing in the panel advances while it moves or is
+    // hidden, and its catalogues hold their cells.
+    testWidgets('the shell\'s tickers are on only while the panel rests', (
+      tester,
+    ) async {
+      bool shellTickers() => TickerMode.valuesOf(
+        tester.element(find.byType(PanelShell, skipOffstage: false)),
+      ).enabled;
+      await mount(tester);
+      await startOpen(tester);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(shellTickers(), isFalse, reason: 'showing');
+
+      await finishMotion(tester);
+      expect(shellTickers(), isTrue, reason: 'shown');
+
+      controller.hide();
+      await tester.pump();
+      await tester.pump();
+      expect(shellTickers(), isFalse, reason: 'hiding');
+
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      expect(controller.state.value, PanelVisibility.hidden);
+      expect(shellTickers(), isFalse, reason: 'hidden');
       await tearDownTree(tester);
     });
   });
@@ -356,7 +388,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 80));
       expect(controller.state.value, PanelVisibility.hidden);
       expect(bottom(), 310, reason: 'the keyboard holds the slot');
-      expect(find.byType(PanelShell, skipOffstage: false), findsNothing);
+      expect(find.byType(PanelShell), findsNothing);
+      expect(
+        find.byType(PanelShell, skipOffstage: false),
+        findsOneWidget,
+        reason: 'kept mounted, offstage',
+      );
       await tearDownTree(tester);
     });
 
