@@ -5,7 +5,7 @@ present it: no bubble, enlarged, a single emoji as a sticker-sized animation.
 The host classifies the body with a pure function in `content_model` and passes
 the viewport a body kind; the viewport never re-detects.
 
-**Status**: Accepted, amended for sticker playback and the tap-interaction seams, for per-platform presentation, for the size of a unicode emoji in a bubble and the configurable desktop cap, for the message menu's scrim on a message without a bubble, for text selection of the text layout, and (2026-10-18, chat-polish-3 ticket 10) for the visibility row  
+**Status**: Accepted, amended for sticker playback and the tap-interaction seams, for per-platform presentation, for the size of a unicode emoji in a bubble and the configurable desktop cap, for the message menu's scrim on a message without a bubble, for text selection of the text layout, (2026-10-18, chat-polish-3 ticket 10) for the visibility row, and (2026-11-09, native-media-ffi ticket 84) for the size of a lone sticker or GIF  
 **Date**: 2026-10-18  
 **Relates to**: [ADR 012](012-cross-platform-selection-policies.md), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 029](029-host-integration.md)
 
@@ -312,6 +312,42 @@ press was message selection.
 | Android selects over spaces between emoji | Spaces and tabs are not in the text | `EmojiOnly` drops them before the body sees them; a copy holds the emoji and the line breaks |
 | Android's word selection on a non-emoji falls back to word breaks | Not applicable | Every item is an emoji |
 | A selection inside a custom emoji's alt text | Never made | The surface answers item edges only |
+
+## Amendment: the size of a lone sticker or GIF
+
+A sticker or GIF sent on its own is an emoji-only body of one document and
+took the sticker layout at the lone emoji's extent (112 dp): one square for
+every sticker and every GIF. The reference clients draw a sticker much larger
+and a GIF by its proportion, and they differ by platform in kind, not only in
+numbers.
+
+### What the references do
+
+| | Android (`ChatMessageCell.java`, `setMessageContent`) | Desktop (`history_view_sticker.cpp`, `history_view_gif.cpp`) |
+| --- | --- | --- |
+| Sticker | fitted, proportion kept and enlarged when small, in a square of `min(chat width, screen height) × 0.5` (206 dp on a 412 dp phone), `min tablet side × 0.4` on a tablet; 512 px square when its size is unknown | `DownscaledSize` into 224 px (`maxStickerSize`): never enlarged, whatever the window |
+| GIF | as wide as `min(chat width, screen height)` less 64 dp when landscape (`getMessageSize`), 70 % of it when portrait, by its proportion high, held to the width plus 100 dp and raised to 120 dp; 150 dp square when its size is unknown; 52 dp less beside a group's avatar | `DownscaledSize` into 320 px (`maxGifSize`), at least 100 px each way (`minPhotoSize`) |
+| Lone animated emoji | `(dim / 512) × box × animatedEmojisZoom`: the emoji-only policy's rule, unchanged | `maxAnimatedEmojiSize` 112 px, unchanged |
+| Render | at most 512 px (`ImageLoader`) | |
+
+### Decided
+
+| Concern | Decision |
+| ------- | -------- |
+| Seam | A host policy, `ChatMediaSizePolicy` (pure Dart, one strategy per platform family, like the emoji-only policy), not a table of the viewport: `sizeFor(ChatMediaItem, viewport:, parentWidth:)` and `maxDecodeExtent`. The viewport ships the contract only; the example's `ReferenceMediaSizes` (`$Mobile`, `$Desktop`) holds the reference formulas |
+| What the host says | `ChatEmojiBody.media` (`ChatMediaItem`: `sticker` or `gif`, and the source size the host's descriptor holds, null when unknown) and `mediaSizes`, also given to `geometryFor`. A lone custom emoji is not media: the host tells them apart from what it knows of the document, the viewport never looks it up |
+| Layout | The sticker layout is the art at the answered size, of the media's proportion, with no inset (the iOS inset is the lone emoji's). Art wider than the row is scaled down to it, proportion kept: a host's row may be narrower than the share of the screen the policy took (an avatar gutter) |
+| Decode | `AssetPresets.media`: the box at the density, its longer side capped at `maxDecodeExtent` (512 px in the example, the reference render size), the shorter scaled with it. A 206 dp sticker at 3x is decoded at 512 px, in the frame pool's 512 class, and the chat's texture warmer warms that class |
+| Unknown size | The policy's fallback: the example takes a sticker as 512 px square and a GIF as Android's 150 dp square, desktop's 320 px square |
+
+### Divergences from the reference, with their reasons
+
+| Divergence | Value taken | Why |
+| ---------- | ----------- | --- |
+| Android's 52 dp avatar and 10 or 20 dp share-button reductions of a GIF | Not in the example's policy; the row's own width scales the art down instead | They depend on the chat kind and the sender, which the per-chat policy does not see; the demo's row already leaves the avatar gutter |
+| Android's `getPhotoSize()` clamp (1280 px) | Not applied | The policy has no density; on a phone the clamp does not bind (448 dp is under 487 dp at 2.625x) |
+| Desktop's GIF width floor from the message's text and status width | Not applied | A lone GIF has no text; the status pill is the host's chrome |
+| Tablet detection | `shortestSide >= 600` (Android's `values-sw600dp`) | The resource flag is not readable here |
 
 ## Rejected
 
