@@ -148,7 +148,7 @@ void main() {
       );
       await tester.tap(find.text('first'));
       await tester.pumpAndSettle();
-      await dispatchTapeSystemEvent(TapeSystemEvent.back);
+      await TapeSystemRecorder.dispatch(TapeSystemEvent.back);
       await tester.pumpAndSettle();
       expect(find.text('second'), findsNothing);
     });
@@ -180,7 +180,7 @@ void main() {
       node.requestFocus();
       await tester.pump();
       expect(node.hasPrimaryFocus, isTrue);
-      await dispatchTapeSystemEvent(TapeSystemEvent.imeHidden);
+      await TapeSystemRecorder.dispatch(TapeSystemEvent.imeHidden);
       await tester.pump();
       expect(calls, contains('TextInput.hide'));
       expect(node.hasFocus, isFalse);

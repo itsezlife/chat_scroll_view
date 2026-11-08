@@ -154,7 +154,7 @@ abstract final class ScrollLab {
           final n = await PointerTape.replay(
             dir!,
             name,
-            system: dispatchTapeSystemEvent,
+            system: TapeSystemRecorder.dispatch,
           );
           // Timings arrive in batches; let the last one land.
           await Future<void>.delayed(const Duration(milliseconds: 1500));
