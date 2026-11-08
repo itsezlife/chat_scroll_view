@@ -66,6 +66,8 @@ import 'features/chat/chat_data_source_bodies_test.dart'
 import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
 import 'features/chat/chat_messages_copy_format_test.dart'
     as chat_messages_copy_format_test;
+import 'features/chat/chat_texture_warmer_test.dart'
+    as chat_texture_warmer_test;
 import 'features/chat/corpus_sticker_pack_test.dart'
     as corpus_sticker_pack_test;
 import 'features/chat/emoji_chrome_test.dart' as emoji_chrome_test;
@@ -289,6 +291,10 @@ void main() {
     chat_composer_spec_test.main,
   );
   group('features/chat/chat_copy_test.dart', chat_copy_test.main);
+  group(
+    'features/chat/chat_texture_warmer_test.dart',
+    chat_texture_warmer_test.main,
+  );
   group(
     'features/chat/panel_texture_warmer_test.dart',
     panel_texture_warmer_test.main,
