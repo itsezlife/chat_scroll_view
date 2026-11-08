@@ -100,9 +100,11 @@ void main() {
     TextDirection textDirection = TextDirection.ltr,
     AssetCacheScope? assets,
     double devicePixelRatio = 1,
+    Brightness brightness = Brightness.light,
   }) => tester.pumpWidget(
     PanelShellTestScope(
       speed: speed,
+      brightness: brightness,
       textDirection: textDirection,
       child: PanelArrangementScope(
         arrangement: PanelArrangement.touch,
@@ -363,6 +365,30 @@ void main() {
     Future<void> tick(WidgetTester tester, int ms) async {
       ticks.tick(Duration(milliseconds: ms));
       await tester.pump();
+    }
+
+    // Until a cover has anything to show its tab draws the reference's
+    // stand-in, a faint rounded square in the idle icon colour at 25 of 255
+    // (`key_emptyListPlaceholder` at 0.2 of half alpha), never the scope's
+    // media fill (`0xFFEDF3F7`, a light grey square in either theme).
+    for (final (brightness, standIn) in [
+      (Brightness.light, const Color(0x197A8189)),
+      (
+        Brightness.dark,
+        const Color(0x80FFFFFF).withValues(alpha: 128 / 255 * (25 / 255)),
+      ),
+    ]) {
+      testWidgets('draws the themed stand-in before a cover has a stage, '
+          '${brightness.name}', (tester) async {
+        await pump(tester, assets: scope, brightness: brightness);
+
+        final cover = tester.renderObject(find.byType(ContentView).first);
+        expect(cover, paints..rrect(color: standIn));
+        expect(
+          cover,
+          isNot(paints..rect(color: RectPlaceholder.fallbackColor)),
+        );
+      });
     }
 
     testWidgets('plays an animated cover, looping, on the clock', (

@@ -7,6 +7,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/src/emoji/emoji_category_strip.dart';
 import 'package:panel_pages/src/emoji/emoji_strip_footer.dart';
+import 'package:panel_pages/src/strip/panel_strip.dart';
 
 /// The emoji strip under the touch arrangement once there are packs: the
 /// reference mobile client's strip as it is with custom emoji.
@@ -81,39 +82,40 @@ class EmojiStripTabs extends StatefulWidget {
   State<EmojiStripTabs> createState() => _EmojiStripTabsState();
 }
 
+// What the reference's `EmojiTabsStrip` measures differently from the
+// stickers strip: 30 px tabs 3 px apart from 11 px in, pictures 24 px, the
+// pill swelling as `EmojiTabsStrip.dispatchDraw` draws it, and a pack's cover
+// a still of its first frame.
+const PanelStripMetrics _metrics = PanelStripMetrics(
+  tabWidth: EmojiCategoryStrip.cell,
+  tabHeight: EmojiCategoryStrip.cell,
+  gap: EmojiCategoryStrip.gap,
+  padH: EmojiCategoryStrip.padH,
+  iconSize: EmojiCategoryStrip.iconSize,
+  coverSize: EmojiCategoryStrip.iconSize,
+  swell: PanelStripSwell.emoji,
+  coverPlays: false,
+);
+
 class _EmojiStripTabsState extends State<EmojiStripTabs>
     with TickerProviderStateMixin {
-  // The reference mobile client's motion: the pill 350 ms, the group 475 ms,
-  // the scrolls 250 ms, all ease-out quint.
-  static const Duration _selectDuration = Duration(milliseconds: 350);
+  // The reference mobile client's motion past the pill's (the strip's own):
+  // the group 475 ms, ease-out quint.
   static const Duration _groupDuration = Duration(milliseconds: 475);
-  static const Duration _scrollDuration = Duration(milliseconds: 250);
-  static const Curve _curve = Curves.easeOutQuint;
+  static const Curve _curve = PanelStripMetrics.curve;
 
   // How far from an edge a tab revealed by a scroll lands.
   static const double _revealMargin = 50;
 
   static const double _cell = EmojiCategoryStrip.cell;
-  static const double _gap = EmojiCategoryStrip.gap;
-  static const double _padH = EmojiCategoryStrip.padH;
-  static const double _top = (EmojiCategoryStrip.height - _cell) / 2;
 
-  late final AnimationController _select = AnimationController(
-    vsync: this,
-    duration: _selectDuration,
-  );
+  late final PanelStripSlide _slide = PanelStripSlide(vsync: this);
   late final AnimationController _group = AnimationController(
     vsync: this,
     duration: _groupDuration,
   );
   final _row = ScrollController();
   final _inside = ScrollController();
-
-  // The pill's position in tab indices (a fraction while it slides) and where
-  // the slide started and ends.
-  double _from = 0;
-  double _to = 0;
-  bool _placed = false;
 
   // How open the group is (0 closed, 1 open) where its motion started and
   // where it ends. Both motions run their controller from 0 and ease the
@@ -138,24 +140,14 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
       EmojiStripTabs.groupPitch *
       math.min(EmojiStripTabs.groupShownMax, widget.categories.length);
 
-  double _groupWidthAt(double open) =>
-      lerpDouble(_cell, _groupOpenWidth, open)!;
-
-  double _widthOf(int index, double open) =>
-      index == _groupIndex ? _groupWidthAt(open) : _cell;
-
-  Rect _boundsOf(int index, double open) {
-    var x = _padH;
-    for (var i = 0; i < index; i++) {
-      x += _widthOf(i, open) + _gap;
-    }
-    return Rect.fromLTWH(x, _top, _widthOf(index, open), _cell);
-  }
-
-  double _rowWidth(double open) {
-    final last = _boundsOf(_tabCount - 1, open);
-    return last.right + _padH;
-  }
+  // The row with the group [open] that far: every tab a cell but the group.
+  PanelStripRow _rowAt(double open) => PanelStripRow(
+    _metrics,
+    _tabCount,
+    widthOf: (index) => index == _groupIndex
+        ? lerpDouble(_cell, _groupOpenWidth, open)!
+        : _cell,
+  );
 
   // The tab [id] is in, or null when no tab has it.
   int? _indexOf(String? id) {
@@ -164,26 +156,6 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
     if (widget.categories.any((icon) => icon.id == id)) return _groupIndex;
     final pack = widget.packs.indexWhere((icon) => icon.id == id);
     return pack < 0 ? null : _groupIndex + 1 + pack;
-  }
-
-  // The pill now: between the tabs it slides through, widening at the middle
-  // of its way and a little flatter, as the reference client draws it.
-  Rect _pillAt(double open) {
-    final a = _curve.transform(_select.value);
-    final at = lerpDouble(_from, _to, a)!;
-    final low = at.floor().clamp(0, _tabCount - 1);
-    final high = at.ceil().clamp(0, _tabCount - 1);
-    final rect = Rect.lerp(
-      _boundsOf(low, open),
-      _boundsOf(high, open),
-      at - at.floor(),
-    )!;
-    final middle = 4 * a * (1 - a);
-    return Rect.fromCenter(
-      center: rect.center,
-      width: rect.width * (1 + middle * .3),
-      height: rect.height * (1 - middle * .05),
-    );
   }
 
   // --- Following the active tab ---------------------------------------------
@@ -201,23 +173,19 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
         oldWidget.active != widget.active ||
         oldWidget.recents?.id != widget.recents?.id ||
         oldWidget.packs.length != widget.packs.length;
-    if (moved) _aim(animate: _placed);
+    if (moved) _aim(animate: _slide.placed);
   }
 
   @override
   void dispose() {
-    _select.dispose();
+    _slide.dispose();
     _group.dispose();
     _row.dispose();
     _inside.dispose();
     super.dispose();
   }
 
-  bool get _still {
-    final motion = ChromeMotionScope.maybeOf(context);
-    return MediaQuery.maybeDisableAnimationsOf(context) == true ||
-        motion?.specOf(MotionRole.selectionSlide).duration == Duration.zero;
-  }
+  bool get _still => PanelStripSlide.isStill(context);
 
   // Points the pill and the group at the active tab, and scrolls them to it.
   void _aim({required bool animate}) {
@@ -225,28 +193,21 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
     if (index == null) return;
     final moving = animate && !_still;
     final open = index == _groupIndex;
-    // Another category of the open group leaves the pill where it is, as the
-    // reference client starts its slide only when the tab changes: a slide
-    // from a tab to itself would still swell it at the middle of its way.
-    final slides = !_placed || index.toDouble() != _to;
-    if (slides) {
-      final now = lerpDouble(_from, _to, _curve.transform(_select.value))!;
-      _from = moving ? now : index.toDouble();
-      _to = index.toDouble();
+    // Another category of the open group leaves the pill (and the group)
+    // where it is, as the reference client starts its slide only when the
+    // tab changes.
+    if (_slide.aim(index, moving: moving)) {
       final openNow = _openNow;
       _openFrom = moving ? openNow : (open ? 1 : 0);
       _openTo = open ? 1 : 0;
       if (moving) {
-        unawaited(_select.forward(from: 0));
         // The whole 475 ms from wherever it is, as the reference client
         // restarts it.
         unawaited(_group.forward(from: 0));
       } else {
-        _select.value = 1;
         _group.value = 1;
       }
     }
-    _placed = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _revealRow(index, open: open, animate: moving);
@@ -263,7 +224,7 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
     if (index <= _groupIndex) {
       to = 0;
     } else {
-      final bounds = _boundsOf(index, open ? 1 : 0);
+      final bounds = _rowAt(open ? 1 : 0).boundsOf(index);
       to = _revealTarget(
         bounds.left,
         bounds.right,
@@ -272,7 +233,11 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
       );
     }
     if (to == null) return;
-    _scroll(_row, to.clamp(0, position.maxScrollExtent), animate: animate);
+    PanelStripSlide.scroll(
+      _row,
+      to.clamp(0, position.maxScrollExtent),
+      animate: animate,
+    );
   }
 
   // An open group keeps its active category in view; a closed one goes back
@@ -284,7 +249,7 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
       (icon) => icon.id == widget.active,
     );
     if (category < 0) {
-      _scroll(_inside, 0, animate: animate);
+      PanelStripSlide.scroll(_inside, 0, animate: animate);
       return;
     }
     final left = category * EmojiStripTabs.groupPitch;
@@ -299,7 +264,7 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
       0,
       widget.categories.length * EmojiStripTabs.groupPitch - _groupOpenWidth,
     );
-    _scroll(_inside, to.clamp(0, max), animate: animate);
+    PanelStripSlide.scroll(_inside, to.clamp(0, max), animate: animate);
   }
 
   // Where to scroll so [left]..[right] is at least [_revealMargin] in from
@@ -317,27 +282,14 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
     return null;
   }
 
-  void _scroll(
-    ScrollController controller,
-    double to, {
-    required bool animate,
-  }) {
-    if ((controller.offset - to).abs() < .5) return;
-    if (animate) {
-      unawaited(
-        controller.animateTo(to, duration: _scrollDuration, curve: _curve),
-      );
-    } else {
-      controller.jumpTo(to);
-    }
-  }
-
   // --- Build ----------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final tokens = ChromeThemeScope.panelOf(context);
-    final colorDuration = _still ? Duration.zero : _selectDuration;
+    final colorDuration = _still
+        ? Duration.zero
+        : PanelStripMetrics.slideDuration;
     Widget tab(EmojiFooterIcon icon) => _Tab(
       icon: icon,
       selected: icon.id == widget.active,
@@ -351,66 +303,58 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
       controller: _row,
       scrollDirection: Axis.horizontal,
       child: AnimatedBuilder(
-        animation: Listenable.merge([_select, _group]),
+        animation: Listenable.merge([_slide.controller, _group]),
         builder: (context, _) {
           final open = _openNow;
-          final pill = _pillAt(open);
-          final group = _boundsOf(_groupIndex, open);
-          return CustomPaint(
-            painter: _PillPainter(
-              pill: pill,
-              // The idle icon colour at a low alpha: the wash is a tint of
-              // the icon, as the touch strip's has always been.
-              color: tokens.categoryIcon.withValues(
-                alpha: tokens.categoryIcon.a * 0.18,
-              ),
-            ),
-            child: SizedBox(
-              width: _rowWidth(open),
-              height: EmojiCategoryStrip.height,
-              child: Stack(
-                children: [
-                  if (widget.recents case final recents?)
-                    Positioned.fromRect(
-                      rect: _boundsOf(0, open),
-                      child: tab(recents),
-                    ),
+          final row = _rowAt(open);
+          final pill = row.pillAt(_slide);
+          final group = row.boundsOf(_groupIndex);
+          return SizedBox(
+            width: row.width,
+            height: EmojiCategoryStrip.height,
+            child: Stack(
+              children: [
+                Positioned.fromRect(
+                  rect: pill,
+                  child: PanelStripPill(tokens: tokens, height: pill.height),
+                ),
+                if (widget.recents case final recents?)
                   Positioned.fromRect(
-                    rect: group,
-                    child: ClipPath(
-                      key: EmojiStripTabs.groupKey,
-                      clipper: _GroupClip(pill: pill.shift(-group.topLeft)),
-                      child: SingleChildScrollView(
-                        controller: _inside,
-                        scrollDirection: Axis.horizontal,
-                        physics: open >= 1
-                            ? null
-                            : const NeverScrollableScrollPhysics(),
-                        child: Row(
-                          children: [
-                            for (final (i, icon)
-                                in widget.categories.indexed) ...[
-                              if (i > 0)
-                                const SizedBox(
-                                  width: EmojiStripTabs.groupPitch - _cell,
-                                ),
-                              SizedBox.square(
-                                dimension: _cell,
-                                child: tab(icon),
+                    rect: row.boundsOf(0),
+                    child: tab(recents),
+                  ),
+                Positioned.fromRect(
+                  rect: group,
+                  child: ClipPath(
+                    key: EmojiStripTabs.groupKey,
+                    clipper: _GroupClip(pill: pill.shift(-group.topLeft)),
+                    child: SingleChildScrollView(
+                      controller: _inside,
+                      scrollDirection: Axis.horizontal,
+                      physics: open >= 1
+                          ? null
+                          : const NeverScrollableScrollPhysics(),
+                      child: Row(
+                        children: [
+                          for (final (i, icon)
+                              in widget.categories.indexed) ...[
+                            if (i > 0)
+                              const SizedBox(
+                                width: EmojiStripTabs.groupPitch - _cell,
                               ),
-                            ],
+                            SizedBox.square(dimension: _cell, child: tab(icon)),
                           ],
-                        ),
+                        ],
                       ),
                     ),
                   ),
-                  for (final (i, pack) in widget.packs.indexed)
-                    Positioned.fromRect(
-                      rect: _boundsOf(_groupIndex + 1 + i, open),
-                      child: tab(pack),
-                    ),
-                ],
-              ),
+                ),
+                for (final (i, pack) in widget.packs.indexed)
+                  Positioned.fromRect(
+                    rect: row.boundsOf(_groupIndex + 1 + i),
+                    child: tab(pack),
+                  ),
+              ],
             ),
           );
         },
@@ -438,23 +382,6 @@ final class _GroupClip extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(_GroupClip oldClipper) => oldClipper.pill != pill;
-}
-
-final class _PillPainter extends CustomPainter {
-  const _PillPainter({required this.pill, required this.color});
-
-  final Rect pill;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) => canvas.drawRRect(
-    RRect.fromRectAndRadius(pill, Radius.circular(pill.height / 2)),
-    Paint()..color = color,
-  );
-
-  @override
-  bool shouldRepaint(_PillPainter oldDelegate) =>
-      oldDelegate.pill != pill || oldDelegate.color != color;
 }
 
 /// One tab: a chrome icon in the idle or selected colour, or a pack's cover.
@@ -487,38 +414,21 @@ class _Tab extends StatelessWidget {
         onTap: onTap,
         child: Center(
           child: switch ((icon.icon, icon.cover, assets)) {
-            (final chrome?, _, _) => TweenAnimationBuilder<double>(
-              tween: Tween<double>(end: selected ? 1 : 0),
+            (final chrome?, _, _) => PanelStripIcon(
+              icon: chrome,
+              size: _metrics.iconSize,
+              selected: selected,
+              tokens: tokens,
               duration: duration,
-              curve: Curves.easeOutQuint,
-              builder: (context, t, _) => ChromeIcon(
-                chrome,
-                size: EmojiCategoryStrip.iconSize,
-                color: Color.lerp(
-                  tokens.categoryIcon,
-                  tokens.categoryIconSelected,
-                  t,
-                ),
-              ),
             ),
             // The cover's first frame, as a still of its own: the reference
             // client's tab is static, and a still entry holds no decoder.
-            (null, final cover?, final scope?) => SizedBox.square(
-              dimension: EmojiCategoryStrip.iconSize,
-              child: ContentView(
-                content: cover,
-                scope: scope,
-                preset: AssetPreset(
-                  size: const Size.square(EmojiCategoryStrip.iconSize),
-                  spec: AssetSpec.atDensity(
-                    logicalWidth: EmojiCategoryStrip.iconSize,
-                    logicalHeight: EmojiCategoryStrip.iconSize,
-                    devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-                    variant: AssetVariant.firstFrame,
-                  ),
-                  profile: const AssetProfile(),
-                ),
-              ),
+            (null, final cover?, final scope?) => PanelStripCover(
+              content: cover,
+              scope: scope,
+              size: _metrics.coverSize,
+              plays: _metrics.coverPlays,
+              tokens: tokens,
             ),
             _ => const SizedBox.shrink(),
           },
