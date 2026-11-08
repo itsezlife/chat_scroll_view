@@ -13,6 +13,8 @@ final _still = AssetPresets.keyboardCell(
   devicePixelRatio: 2,
   animate: false,
 );
+// Long enough for content that arrived after the attach to have faded in.
+const _pastFade = Duration(milliseconds: 160);
 
 void main() {
   late FakeAssetProducer producer;
@@ -239,6 +241,7 @@ void main() {
 
         producer.last.advance(AssetStage.full);
         await tester.pump();
+        await tester.pump(_pastFade);
         await tester.pump();
         expect(tester.binding.hasScheduledFrame, isFalse);
       });
@@ -269,9 +272,14 @@ void main() {
 
       final full = producer.last.advance(AssetStage.full);
       await tester.pump();
+      await tester.pump(_pastFade);
+      final painted = full.paints.length;
+      await tester.pump();
+      await tester.pump();
 
-      expect(full.paints, hasLength(1));
-      expect(thumbnail.paints, hasLength(1));
+      expect(painted, greaterThan(0));
+      expect(full.paints, hasLength(painted));
+      expect(thumbnail.isDisposed, isTrue);
     });
 
     testWidgets('passes the tint and opacity on', (tester) async {
@@ -288,6 +296,7 @@ void main() {
 
       final painted = producer.last.advance(AssetStage.full);
       await tester.pump();
+      await tester.pump(_pastFade);
 
       final context = painted.paints.last.context;
       expect(context.tint, const Color(0xFF112233));
@@ -323,6 +332,116 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(producer.attempts, isEmpty);
+    });
+  });
+
+  // ADR 022, "Readiness": content that arrives after the attach fades in over
+  // what stood in for it, as `ImageReceiver` does for a bitmap that is not a
+  // memory hit (`DEFAULT_CROSSFADE_DURATION`, 150 ms).
+  group('fade', () {
+    testWidgets('content that arrives after the attach rises from nothing to '
+        'opaque over 150 ms', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _still)),
+      );
+      final painted = producer.last.advance(AssetStage.full);
+
+      await tester.pump();
+      expect(painted.paints.last.context.opacity, 0);
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(painted.paints.last.context.opacity, closeTo(0.5, 0.01));
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(painted.paints.last.context.opacity, 1);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(tester.binding.hasScheduledFrame, isFalse);
+    });
+
+    testWidgets('content there at the attach shows at once', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _still)),
+      );
+      final painted = producer.last.advance(AssetStage.full);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpWidget(host(const SizedBox()));
+
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _still)),
+      );
+
+      expect(painted.paints.last.context.opacity, 1);
+    });
+
+    testWidgets('scales the opacity the view is given', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _still, opacity: 0.5)),
+      );
+      final painted = producer.last.advance(AssetStage.full);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+
+      expect(painted.paints.last.context.opacity, closeTo(0.25, 0.01));
+    });
+
+    testWidgets('rises over the thumbnail, which stays opaque beneath until '
+        'the content is', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _still)),
+      );
+      final thumbnail = producer.last.advance(AssetStage.placeholder);
+      await tester.pump();
+      producer.last.advance(AssetStage.full);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(thumbnail.paints.last.context.opacity, 1);
+      expect(thumbnail.isDisposed, isFalse);
+
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(thumbnail.isDisposed, isTrue);
+    });
+
+    testWidgets('with no thumbnail, the placeholder fades out beneath', (
+      tester,
+    ) async {
+      final placeholder = FakeAssetPaintable(label: 'placeholder');
+      final withPlaceholder = AssetCacheScope(
+        producer: producer,
+        clock: PlaybackClock(ticks: ticks),
+        mediaPlaceholder: placeholder,
+      );
+      addTearDown(withPlaceholder.dispose);
+      await tester.pumpWidget(
+        host(
+          ContentView(content: _sticker, preset: _still),
+          provided: withPlaceholder,
+        ),
+      );
+      producer.last.advance(AssetStage.full);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(placeholder.paints.last.context.opacity, closeTo(0.5, 0.01));
+
+      final before = placeholder.paints.length;
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(placeholder.paints, hasLength(before));
+    });
+
+    testWidgets('a texture rises under an opacity layer', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _preset)),
+      );
+      producer.last.advance(AssetStage.full, animated: true).textureOnAdvance =
+          const AssetTexture(id: 9, width: 64, height: 64);
+      await tester.pump();
+      ticks.tick(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 75));
+
+      final layer = _find<TextureLayer>(
+        tester.binding.renderViews.first.debugLayer!,
+      ).single;
+      final fade = _ancestors(layer).whereType<OpacityLayer>().first;
+      expect(fade.alpha, closeTo(128, 3));
     });
   });
 
@@ -479,6 +598,7 @@ void main() {
       );
       final painted = producer.last.advance(AssetStage.full, animated: true);
       await tester.pump();
+      await tester.pump(_pastFade);
       final before = painted.paints.length;
 
       ticks.tick(const Duration(milliseconds: 100));
@@ -493,6 +613,7 @@ void main() {
       );
       final painted = producer.last.advance(AssetStage.full, animated: true);
       await tester.pump();
+      await tester.pump(_pastFade);
       final before = painted.paints.length;
 
       ticks.tick(const Duration(milliseconds: 100));
@@ -509,6 +630,7 @@ void main() {
       );
       final painted = producer.last.advance(AssetStage.full, animated: true);
       await tester.pump();
+      await tester.pump(_pastFade);
       final before = painted.paints.length;
 
       scope.clock.setPaused(PlaybackPauseLayer.routeMoving, paused: true);
@@ -534,6 +656,7 @@ void main() {
       await tester.pumpWidget(view(enabled: true));
       final painted = producer.last.advance(AssetStage.full, animated: true);
       await tester.pump();
+      await tester.pump(_pastFade);
       final before = painted.paints.length;
 
       await tester.pumpWidget(view(enabled: false));
