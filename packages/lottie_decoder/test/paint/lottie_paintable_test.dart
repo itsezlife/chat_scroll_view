@@ -575,7 +575,13 @@ void main() {
 
         expect(
           p.texture,
-          AssetTexture(id: host.liveIds.single, width: 64, height: 64),
+          AssetTexture(
+            id: host.liveIds.single,
+            width: 64,
+            height: 64,
+            frameWidth: 48,
+            frameHeight: 48,
+          ),
         );
         expect(p.sprite, isNull);
         expect(renderer.batches, isEmpty, reason: 'no page for it');

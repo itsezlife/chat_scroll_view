@@ -1,6 +1,7 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -559,7 +560,108 @@ void main() {
       expect(ticks.isRunning, isFalse);
     });
   });
+
+  // ADR 043, "Paint capability": the view is a render object that pushes
+  // layers, so a playing asset on a platform texture is a texture layer.
+  group('texture', () {
+    List<TextureLayer> textures(WidgetTester tester) =>
+        _find<TextureLayer>(tester.binding.renderViews.first.debugLayer!);
+
+    testWidgets('a playing asset whose frames go to a texture is a texture '
+        'layer at its box, and the view never paints it', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _preset)),
+      );
+      final playing = producer.last.advance(AssetStage.full, animated: true)
+        ..textureOnAdvance = const AssetTexture(id: 9, width: 64, height: 64);
+      await tester.pump();
+      ticks.tick(const Duration(milliseconds: 16));
+      await tester.pump();
+      final paintsWithTexture = playing.paints.length;
+      ticks.tick(const Duration(milliseconds: 32));
+      await tester.pump();
+
+      final layer = textures(tester).single;
+      // In the coordinates of the view's own repaint boundary.
+      final box = Offset.zero & _preset.size;
+      expect(layer.textureId, 9);
+      expect(layer.rect, box);
+      expect(playing.advances, isNotEmpty);
+      expect(playing.paints, hasLength(paintsWithTexture));
+    });
+
+    testWidgets('a cover preset fills its box with the frame and is clipped '
+        'to the box', (tester) async {
+      const size = Size(40, 20);
+      final cover = AssetPreset(
+        size: size,
+        spec: AssetSpec.atDensity(
+          logicalWidth: size.width,
+          logicalHeight: size.height,
+          devicePixelRatio: 2,
+        ),
+        profile: const AssetProfile(animate: true, fit: AssetFit.cover),
+      );
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: cover)),
+      );
+      // A portrait frame of 32 x 64 centred in a square texture of 64.
+      producer.last
+          .advance(AssetStage.full, animated: true)
+          .textureOnAdvance = const AssetTexture(
+        id: 9,
+        width: 64,
+        height: 64,
+        frameWidth: 32,
+        frameHeight: 64,
+      );
+      await tester.pump();
+      ticks.tick(const Duration(milliseconds: 16));
+      await tester.pump();
+
+      final box = Offset.zero & size;
+      final layer = textures(tester).single;
+      // The frame covers the 40 x 20 box at the scale 40 / 32: the whole
+      // texture is then 80 x 80, centred on the box.
+      expect(
+        layer.rect,
+        Rect.fromCenter(center: box.center, width: 80, height: 80),
+      );
+      final clip = _ancestors(layer).whereType<ClipRectLayer>().first;
+      expect(clip.clipRect, box);
+    });
+
+    testWidgets('a canvas paint is all a still or a texture-less asset gets', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _preset)),
+      );
+      final playing = producer.last.advance(AssetStage.full, animated: true);
+      await tester.pump();
+
+      expect(textures(tester), isEmpty);
+      expect(playing.paints, isNotEmpty);
+    });
+  });
 }
+
+// The layers of type [T] under [layer], depth first.
+List<T> _find<T extends Layer>(Layer layer) => [
+  if (layer is T) layer,
+  if (layer is ContainerLayer)
+    for (
+      Layer? child = layer.firstChild;
+      child != null;
+      child = child.nextSibling
+    )
+      ..._find<T>(child),
+];
+
+// The ancestors of [layer], nearest first.
+List<Layer> _ancestors(Layer layer) => [
+  for (Layer? up = layer.parent; up != null; up = up.parent) up,
+];
 
 List<String> _drawCalls(WidgetTester tester) {
   final canvas = TestRecordingCanvas();

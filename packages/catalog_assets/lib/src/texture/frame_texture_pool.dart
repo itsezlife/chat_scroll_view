@@ -15,7 +15,8 @@ import 'package:flutter/foundation.dart';
 final class FrameTextureLease {
   FrameTextureLease._(this.texture, this._onEnd);
 
-  /// The texture claimed: its id and its pixel size, the whole size class.
+  /// The texture claimed: its id, its pixel size (the whole size class) and
+  /// the size of the frame it holds.
   final AssetTexture texture;
 
   void Function({required bool discard})? _onEnd;
@@ -169,6 +170,9 @@ final class FrameTexturePool {
   /// An idle texture for an asset of [width] x [height] pixels, or null when
   /// its class has none (or it is above the largest class, or the pool is
   /// disposed): the asset then keeps its page slot. Never creates one.
+  ///
+  /// The lease's texture names the frame it holds ([width] x [height],
+  /// centred), so a surface places the frame, not the square around it.
   FrameTextureLease? lease(int width, int height) {
     if (_disposed) return null;
     final sizeClass = classOf(width, height);
@@ -184,7 +188,13 @@ final class FrameTexturePool {
     _idle.remove(leased);
     _leased[leased] = sizeClass;
     return FrameTextureLease._(
-      AssetTexture(id: leased, width: sizeClass, height: sizeClass),
+      AssetTexture(
+        id: leased,
+        width: sizeClass,
+        height: sizeClass,
+        frameWidth: width,
+        frameHeight: height,
+      ),
       ({required discard}) => _ended(leased, discard: discard),
     );
   }

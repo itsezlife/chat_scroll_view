@@ -82,7 +82,13 @@ void main() {
         expect((job.width, job.height), (48, 32));
         expect(
           job.texture,
-          AssetTexture(id: host.liveIds.single, width: 64, height: 64),
+          AssetTexture(
+            id: host.liveIds.single,
+            width: 64,
+            height: 64,
+            frameWidth: 48,
+            frameHeight: 32,
+          ),
         );
         expect(job.source, 'src');
       },

@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:catalog_assets/src/asset/asset_texture.dart';
+
 /// How content of one proportion fills a rectangle of another.
 ///
 /// A surface chooses it per attach (`AssetProfile.fit`), because the same
@@ -67,6 +69,44 @@ enum AssetFit {
     return (
       source: placed.source.shift(region.topLeft),
       destination: placed.destination,
+    );
+  }
+
+  /// Where a texture layer of [texture] goes so that its frame fills
+  /// [destination] as this fit says, and the clip it needs.
+  ///
+  /// A texture layer always shows its whole texture, and the frame sits
+  /// centred in it with transparent margins, so the layer's rectangle is the
+  /// texture at the scale that places the frame, centred on [destination].
+  /// [cover] overflows [destination] and so needs [destination] as a clip;
+  /// [contain] needs none.
+  ({Rect rect, Rect? clip}) placeTexture(
+    AssetTexture texture,
+    Rect destination,
+  ) {
+    final frame = Size(
+      texture.frameWidth.toDouble(),
+      texture.frameHeight.toDouble(),
+    );
+    final scale = frame.isEmpty || destination.isEmpty
+        ? 0.0
+        : switch (this) {
+            contain => math.min(
+              destination.width / frame.width,
+              destination.height / frame.height,
+            ),
+            cover => math.max(
+              destination.width / frame.width,
+              destination.height / frame.height,
+            ),
+          };
+    return (
+      rect: Rect.fromCenter(
+        center: destination.center,
+        width: texture.width * scale,
+        height: texture.height * scale,
+      ),
+      clip: this == cover ? destination : null,
     );
   }
 }

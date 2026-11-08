@@ -225,6 +225,29 @@ void main() {
       expect(clips.single.clipRect, _box(0));
     });
 
+    testWidgets('a cover leaf fills its box with the frame, not with the '
+        'square texture around it', (tester) async {
+      // A portrait frame, half as wide as tall, centred in a square texture.
+      producer.onProduce = (attempt) =>
+          attempt
+              .advance(AssetStage.full, animated: true)
+              .textureOnAdvance = const AssetTexture(
+            id: 7,
+            width: 128,
+            height: 128,
+            frameWidth: 64,
+            frameHeight: 128,
+          );
+      await pumpViewport(tester, [_leaf(0, kind: SemanticKind.gif)]);
+
+      final texture = _textures(layer(tester)).single;
+
+      // The frame's width is the box's: the square is twice that.
+      expect(texture.rect.width, _box(0).width * 2);
+      expect(texture.rect.height, _box(0).width * 2);
+      expect(texture.rect.center, _box(0).center);
+    });
+
     testWidgets('no texture, no layer: the viewport stays one picture', (
       tester,
     ) async {
