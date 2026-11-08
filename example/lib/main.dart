@@ -8,7 +8,6 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart'
     as environment_specific;
-import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
@@ -115,7 +114,9 @@ Future<AppServices> _createServices() async {
   final services = AppServices.create(
     glyphCache: glyphCache.cache,
     glyphArtVersion: glyphCache.artVersion,
-    lottieCacheDirectory: LottiePlayback.defaultCacheDirectory(),
+    lottieCacheDirectory: environment_specific.$appCacheDirectory(
+      'lottie_frames',
+    ),
     giphyStillDirectory: environment_specific.$appCacheDirectory(
       'giphy_stills',
     ),

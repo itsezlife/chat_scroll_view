@@ -192,9 +192,8 @@ final class AppServices {
   ///
   /// [diskCache] is the one switch over every disk tier (see
   /// [DemoConfig.diskCache]): false ignores [glyphCache],
-  /// [lottieCacheDirectory], [giphyStillDirectory] and
-  /// [giphyClipDirectory], and everything is
-  /// kept in memory for this launch only.
+  /// [lottieCacheDirectory], [giphyStillDirectory] and [giphyClipDirectory],
+  /// and everything is kept in memory for this launch only.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -203,7 +202,7 @@ final class AppServices {
     List<String> languages = const <String>['ru', 'en'],
     RichClipboard clipboard = const SystemRichClipboard(),
     LottiePlaybackStarter startLottie = LottiePlayback.start,
-    String? lottieCacheDirectory,
+    Future<String?>? lottieCacheDirectory,
     VideoPlaybackStarter startVideo = VideoPlayback.start,
     String giphyApiKey = giphyApiKeyDefine,
     http.Client? giphyHttpClient,
@@ -307,7 +306,7 @@ final class AppServices {
         clock: clock,
         memoryPressure: memoryPressure,
         textures: textures,
-        cacheDirectory: lottieDisk,
+        cacheDirectory: await lottieDisk,
       );
       if (lottiePlayback != null) {
         owned(lottiePlayback, _closePlayback);

@@ -184,7 +184,7 @@ void main() {
       assetLoader: rootBundle.loadString,
       clipboard: FakeRichClipboard(),
       startLottie: startLottie ?? start,
-      lottieCacheDirectory: lottieCacheDirectory,
+      lottieCacheDirectory: Future.value(lottieCacheDirectory),
       diskCache: diskCache,
     );
 
