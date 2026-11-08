@@ -379,8 +379,8 @@ final class _Work implements LaneWork {
 
   void fetched(FetchedContent fetchedContent) {
     if (_cancelled) return;
-    // All of it arrived, which a fetcher's last report need not say (the
-    // reference sets the full circle on success too).
+    // All of it arrived, which a fetcher's last report need not say: a
+    // surface that drew the download shows it complete until the decode.
     if (_transferred) reportDownload(1);
     content = fetchedContent;
     phase = _Phase.queuedDecode;

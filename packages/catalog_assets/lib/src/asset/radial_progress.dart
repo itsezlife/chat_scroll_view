@@ -24,7 +24,7 @@ import 'package:flutter/animation.dart';
 /// | start | [initialDegrees] for a new indicator | `setIcon`, `downloadRadOffset = 112` |
 /// | turn | 360 degrees per [turnPeriod], a frame counting at most [maxFrameStep] | `MediaActionDrawable.draw` |
 /// | sweep | `max(4°, 360° * shownProgress)` | `MediaActionDrawable.draw` |
-/// | a higher fraction | eases from the arc shown over [easeDuration], [easeCurve] | `DecelerateInterpolator` |
+/// | a higher fraction | eases from the arc shown over [easeDuration], [easeCurve] | `MediaActionDrawable.draw` |
 /// | a lower fraction | shown at once | `setProgress` |
 ///
 /// The indicator of a loading grid cell is the reference's `ICON_EMPTY`: a
@@ -81,8 +81,7 @@ final class RadialProgress {
   /// How long a higher fraction takes to reach the arc.
   static const Duration easeDuration = Duration(milliseconds: 200);
 
-  /// How a higher fraction eases in: Android's `DecelerateInterpolator`,
-  /// `1 - (1 - t)^2`.
+  /// How a higher fraction eases in: decelerating, `1 - (1 - t)^2`.
   static const Curve easeCurve = Curves.decelerate;
 
   /// The shortest the arc gets, in degrees: a dot that is already turning.

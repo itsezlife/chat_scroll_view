@@ -12,7 +12,8 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Amended**: 2026-11-08: a playing asset may be shown through a platform texture, a third paint capability next to `paint` and the sprite, with the dynamic pages as the fallback ([ADR 043](043-platform-texture-frames.md))  
 **Amended**: 2026-11-09 (native-media-ffi, ticket 85): an entry below its first frame shows the best stage of a sibling entry, the same content at another spec (section *Amendment: sibling stages*)  
 **Amended**: 2026-11-09 (native-media ticket 87): a binding can be **held** by its surface, and nothing plays while the panel moves (section *Amendment: held surfaces and the panel's motion*)  
-**Amended**: 2026-11-09 (native-media ticket 90): content that arrives after the attach fades in on every surface, a texture included (section *Amendment: arrival fade*)
+**Amended**: 2026-11-09 (native-media ticket 90): content that arrives after the attach fades in on every surface, a texture included (section *Amendment: arrival fade*)  
+**Amended**: 2026-11-09 (native-media ticket 94): the fetcher reports the bytes of a download and a binding exposes the fraction, null when nothing downloads; the download indicator shows only then (section *Amendment: download progress*)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -190,3 +191,21 @@ so this is now one rule for every surface.
 | Beneath | The kept thumbnail (`paintStandIn`) stays opaque under the rising content and is released once the content is opaque, as before; with no thumbnail the scope's placeholder fades out as the content rises. |
 | Texture | A texture layer cannot fade itself, so during the fade it is pushed under an opacity layer (`AssetTextureLayer.composite` with the fade's opacity); the stand-in is drawn on the canvas first, beneath it. |
 | Where | The fade is the surface's paint over its binding, read through one internal rule (`AssetFade`, the clock being the frame time): `ContentView` and the catalogue viewport (`CatalogBoundLeaf`, same 150 ms) apply it. `ContentEmbed` (glyphs and stickers inside text) does not yet. A surface's own entrance (the GIF page's cells fading in as a page arrives) is separate and composes with it. |
+
+## Amendment: download progress
+
+The readiness row reported stages and no fractions, so a loading GIF cell drew
+an arc of a fixed quarter turning from wherever the clock stood, for any
+content without a frame, including content read from the disk tier. The
+reference client draws its loader only while the file downloads
+(`isLoading || !fileExist`), from the file's known progress, and nothing for a
+cached file.
+
+| Area | Decision |
+| ---- | -------- |
+| Fetcher | `FetchRequest.onProgress(received, total)` (total null when the source announces none). A fetch that transfers its part reports once when the transfer starts and as bytes arrive; a part served from a cache the host keeps (memory or disk) is not a transfer and is never reported. A transfer shared by several requests reports to each, a late one first hearing where it stands. A response that comes whole (a replayed recording) may report in one step. |
+| Pipeline | Relays the **content** part's fraction to the entry (`AssetProgress.download`), received over total, 0 while the total is unknown, and 1 once the fetch completes after a reported transfer. A thumbnail's transfer is not relayed: it is a stand-in, not the download a surface shows. A decoder that opens its own stream may report through the same call. |
+| Binding | `AssetBinding.downloadProgress`: the entry's fraction from the first report until the attempt ends (its final stage, a failure or a cancel), signalled on change; null otherwise, so a memory hit, a disk hit, a glyph and a detached binding read null. A borrowed sibling stage (*Amendment: sibling stages*) does not bring the sibling's download along. A failed download clears it: the cell keeps its placeholder with no loader, as for any failure. |
+| Indicator | `RadialProgress` is one stateful indicator per download, a port of the reference's `MediaActionDrawable` in its `ICON_EMPTY` state (a bare arc in the disc, no cross): it starts at 112 degrees with the progress first seen shown at once, sweeps `max(4, 360 * shown)` degrees, turns 360 degrees per 2500 ms with a frame counting at most 17 ms, eases a higher fraction from the arc shown over 200 ms with a decelerate curve, and shows a lower one at once. |
+| Where | `ContentView` (`loadingRadius`) and the catalogue viewport's GIF leaves draw it only while the binding's download is non-null and the content has no frame; each keeps its own indicator (the viewport beside each binding) and drops it when the download ends. |
+
