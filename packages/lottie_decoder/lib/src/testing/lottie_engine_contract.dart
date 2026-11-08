@@ -358,16 +358,20 @@ abstract final class LottieSlotEngineContract {
             source.job(handle, harness.frame),
           ]);
           final frames = [for (final c in captures) c.compressed!];
+          // The odd frames of the animation: frames 1 and 3.
           final path = '${dir.path}/contract.frames';
           File(path).writeAsBytesSync([
-            ...FrameCacheCodec.header(key, [for (final f in frames) f.length]),
+            ...FrameCacheCodec.header(key, FrameParity.odd, [
+              for (final f in frames) f.length,
+            ]),
             for (final frame in frames) ...frame,
           ]);
           final before = untouched.slot();
 
           final statuses = await engine.restore([
-            target.restoreFrame(CachedFrame.file(path, key, 1)),
-            untouched.restoreFrame(CachedFrame.file('$path.gone', key, 0)),
+            target.restoreFrame(CachedFrame.file(path, key, 3)),
+            untouched.restoreFrame(CachedFrame.file('$path.gone', key, 1)),
+            untouched.restoreFrame(CachedFrame.file(path, key, 5)),
             untouched.restoreFrame(CachedFrame.file(path, key, 2)),
           ]);
 
@@ -375,7 +379,8 @@ abstract final class LottieSlotEngineContract {
             LottieRenderStatus.ok,
             LottieRenderStatus.failed,
             LottieRenderStatus.failed,
-          ]);
+            LottieRenderStatus.failed,
+          ], reason: 'a missing file, past its table, the other parity');
           expect(target.slot(), source.slot());
           expect(untouched.slot(), before);
         });
