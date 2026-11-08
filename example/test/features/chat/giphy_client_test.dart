@@ -306,6 +306,67 @@ void main() {
       expect(bytes, Uint8List.fromList([1, 2, 3]));
       expect(seen.url.queryParameters.containsKey('api_key'), isFalse);
     });
+
+    test('reports the bytes as they arrive, of the announced total', () async {
+      final client = GiphyClient(
+        apiKey: 'secret-key',
+        client: MockClient.streaming(
+          (request, _) async => http.StreamedResponse(
+            Stream.fromIterable([
+              [1, 2, 3],
+              [4, 5],
+            ]),
+            200,
+            contentLength: 5,
+          ),
+        ),
+      );
+      final reports = <(int, int?)>[];
+
+      final bytes = await client.download(
+        Uri.parse('https://media.example/a.mp4'),
+        onProgress: (received, total) => reports.add((received, total)),
+      );
+
+      expect(bytes, Uint8List.fromList([1, 2, 3, 4, 5]));
+      expect(reports, [(0, 5), (3, 5), (5, 5)]);
+    });
+
+    test('reports no total when the server announces none', () async {
+      final client = GiphyClient(
+        apiKey: 'secret-key',
+        client: MockClient.streaming(
+          (request, _) async => http.StreamedResponse(
+            Stream.fromIterable([
+              [1, 2],
+            ]),
+            200,
+          ),
+        ),
+      );
+      final reports = <(int, int?)>[];
+
+      await client.download(
+        Uri.parse('https://media.example/a.mp4'),
+        onProgress: (received, total) => reports.add((received, total)),
+      );
+
+      expect(reports, [(0, null), (2, null)]);
+    });
+
+    test('reports nothing for an answer that is not the file', () async {
+      final client = _client((_) async => http.Response('', 404));
+      final reports = <(int, int?)>[];
+
+      await expectLater(
+        client.download(
+          Uri.parse('https://media.example/a.mp4'),
+          onProgress: (received, total) => reports.add((received, total)),
+        ),
+        throwsA(isA<GiphyFailure>()),
+      );
+      expect(reports, isEmpty);
+    });
   });
 
   group('failures', () {

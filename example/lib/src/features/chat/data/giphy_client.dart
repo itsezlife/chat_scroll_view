@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -202,9 +203,42 @@ final class GiphyClient {
   }
 
   /// The bytes of the file at [url], which is not Giphy's API and gets no key.
-  Future<Uint8List> download(Uri url) async {
-    final response = await _send(() => _client.get(url), 'download');
+  ///
+  /// [onProgress] hears the bytes received of the total the server announced
+  /// (null when it announced none): once when the file's answer starts, then
+  /// after each chunk. An answer that is not the file reports nothing. An
+  /// answer that comes whole (a replayed recording) reports in one step.
+  Future<Uint8List> download(
+    Uri url, {
+    void Function(int received, int? total)? onProgress,
+  }) async {
+    final response = await _send(() => _receive(url, onProgress), 'download');
     return response.bodyBytes;
+  }
+
+  // A GET that reads the body chunk by chunk, telling [onProgress] as it goes.
+  Future<http.Response> _receive(
+    Uri url,
+    void Function(int received, int? total)? onProgress,
+  ) async {
+    final streamed = await _client.send(http.Request('GET', url));
+    final status = streamed.statusCode;
+    if (onProgress == null || status < 200 || status >= 300) {
+      return http.Response.fromStream(streamed);
+    }
+    final total = streamed.contentLength;
+    final body = BytesBuilder(copy: false);
+    onProgress(0, total);
+    await for (final chunk in streamed.stream) {
+      body.add(chunk);
+      onProgress(body.length, total);
+    }
+    return http.Response.bytes(
+      body.takeBytes(),
+      status,
+      headers: streamed.headers,
+      request: streamed.request,
+    );
   }
 
   Future<GiphyPage> _page(
