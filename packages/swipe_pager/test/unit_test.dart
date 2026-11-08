@@ -10,8 +10,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'swipe_pager_gesture_test.dart' as swipe_pager_gesture_test;
 import 'swipe_pager_physics_test.dart' as swipe_pager_physics_test;
+import 'swipe_pager_test.dart' as swipe_pager_test;
 
 void main() {
   group('swipe_pager_gesture_test', swipe_pager_gesture_test.main);
   group('swipe_pager_physics_test', swipe_pager_physics_test.main);
+  group('swipe_pager_test', swipe_pager_test.main);
 }

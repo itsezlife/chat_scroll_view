@@ -164,7 +164,9 @@ class SwipePagerController {
   void _attach(_SwipePagerState host) {
     assert(_host == null, 'a SwipePagerController serves one pager at a time');
     _host = host;
-    _ticker = AnimationController(vsync: host)..addListener(_onTick);
+    _ticker = AnimationController(vsync: host)
+      ..addListener(_onTick)
+      ..addStatusListener(_onStatus);
     final clamped = _clampPage(_page);
     if (clamped != null && clamped != _page) jumpTo(clamped);
   }
@@ -298,9 +300,7 @@ class SwipePagerController {
     _settleCurve = curve;
     ticker
       ..duration = duration
-      ..forward(from: 0).whenCompleteOrCancel(() {
-        if (_phase == phase && identical(_settled, settled)) _finishSettle();
-      });
+      ..forward(from: 0);
     return settled.future;
   }
 
@@ -311,6 +311,13 @@ class SwipePagerController {
     final t = _settleCurve.transform(ticker.value);
     final fraction = _settleFrom + (_settleTo - _settleFrom) * t;
     _setView(_view.withFraction(fraction));
+  }
+
+  void _onStatus(AnimationStatus status) {
+    if (status.isCompleted &&
+        (_phase == _Phase.settling || _phase == _Phase.sliding)) {
+      _finishSettle();
+    }
   }
 
   void _finishSettle() {
