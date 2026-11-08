@@ -9,7 +9,7 @@ points.
 ## Use
 
 ```dart
-final host = createPlatformFrameTextureHost(); // null where there is none
+final host = PlatformFrameTextureHost.forPlatform(); // null where there is none
 final pool = host == null ? null : FrameTexturePool(host: host);
 // AssetCacheScope(textures: pool, ...); dispose the pool after the scope.
 ```
@@ -32,7 +32,7 @@ final pool = host == null ? null : FrameTexturePool(host: host);
 | `native/test/fake_window.c` | A fake `ANativeWindow`, so the tests run the real table on the host |
 | `android/` | The Kotlin plugin and the CMake build of `libframe_texture.so` |
 | `darwin/` | The iOS and macOS plugin (one source, `sharedDarwinSource`): the texture ring, its table and the same C ABI |
-| `lib/` | `PlatformFrameTextureHost` (channel + FFI) and the factory |
+| `lib/` | `PlatformFrameTextureHost` (channel + FFI) and `PlatformFrameTextureHost.forPlatform` |
 
 ## The C ABI
 

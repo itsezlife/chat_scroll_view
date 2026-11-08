@@ -57,7 +57,8 @@ final class ImeHideDetector {
 /// (button, 3-button bar, and gesture without predictive back) first, notes
 /// it and answers false so the navigators still run. Back claimed before the
 /// IME is noted by [PointerTape.note] from the host's native adapter, and the
-/// keyboard hiding by [didChangeMetrics].
+/// keyboard hiding by [didChangeMetrics]. On replay, [dispatch] plays each
+/// noted event back.
 final class TapeSystemRecorder with WidgetsBindingObserver {
   TapeSystemRecorder._();
 
@@ -69,6 +70,36 @@ final class TapeSystemRecorder with WidgetsBindingObserver {
     if (_instance != null) return;
     final recorder = _instance = TapeSystemRecorder._();
     WidgetsBinding.instance.addObserver(recorder);
+  }
+
+  /// Plays [event] the way the platform delivers it.
+  ///
+  /// Back goes through the `popRoute` message the engine sends, or through
+  /// the host's pre-IME claim. The keyboard hiding does what the framework does
+  /// when the system closes the connection (`EditableText.connectionClosed`):
+  /// hides the input and drops the primary focus.
+  static Future<void> dispatch(TapeSystemEvent event) async {
+    switch (event) {
+      case TapeSystemEvent.back:
+        // The message the engine sends for a system Back, so the binding runs
+        // its own `handlePopRoute` (observers, then the navigators).
+        // The deprecation points at `channelBuffers.push`, which queues the
+        // message without reaching a handler under the test binding; this
+        // calls the binding's own dispatcher directly.
+        final messenger = ServicesBinding.instance.defaultBinaryMessenger;
+        final call = SystemChannels.navigation.codec.encodeMethodCall(
+          const MethodCall('popRoute'),
+        );
+        // ignore: deprecated_member_use
+        await messenger.handlePlatformMessage('flutter/navigation', call, null);
+      case TapeSystemEvent.backPreIme:
+        await ChatPreImeBackBinding.handleNativeBack();
+      case TapeSystemEvent.imeHidden:
+        await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+        FocusManager.instance.primaryFocus?.unfocus();
+      case TapeSystemEvent.imeShown:
+        break;
+    }
   }
 
   @override
@@ -88,35 +119,5 @@ final class TapeSystemRecorder with WidgetsBindingObserver {
       sinceInputMicros: PointerTape.sinceInputMicros,
     );
     if (found case (final event, final at)) PointerTape.note(event, at: at);
-  }
-}
-
-/// Plays [event] the way the platform delivers it.
-///
-/// Back goes through the `popRoute` message the engine sends, or through
-/// the host's pre-IME claim. The keyboard hiding does what the framework does
-/// when the system closes the connection (`EditableText.connectionClosed`):
-/// hides the input and drops the primary focus.
-Future<void> dispatchTapeSystemEvent(TapeSystemEvent event) async {
-  switch (event) {
-    case TapeSystemEvent.back:
-      // The message the engine sends for a system Back, so the binding runs
-      // its own `handlePopRoute` (observers, then the navigators).
-      // The deprecation points at `channelBuffers.push`, which queues the
-      // message without reaching a handler under the test binding; this
-      // calls the binding's own dispatcher directly.
-      final messenger = ServicesBinding.instance.defaultBinaryMessenger;
-      final call = SystemChannels.navigation.codec.encodeMethodCall(
-        const MethodCall('popRoute'),
-      );
-      // ignore: deprecated_member_use
-      await messenger.handlePlatformMessage('flutter/navigation', call, null);
-    case TapeSystemEvent.backPreIme:
-      await ChatPreImeBackBinding.handleNativeBack();
-    case TapeSystemEvent.imeHidden:
-      await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
-      FocusManager.instance.primaryFocus?.unfocus();
-    case TapeSystemEvent.imeShown:
-      break;
   }
 }

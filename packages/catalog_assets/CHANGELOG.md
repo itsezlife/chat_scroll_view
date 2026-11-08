@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (no public top-level functions)
+
+- The engine's page upload is `FramePageImages.engineUpload`, no longer the
+  top-level `uploadFramePage`; `paintOnce` of `testing.dart` is
+  `AssetPlaybackContract.paintOnce`. Same behaviour; code that named the old
+  functions renames the call.
+
 ### Added (GIF cells: rectangle stand-in and cover)
 
 - `AssetFit` (`contain`, `cover`) with `place` / `placeRegion`, carried by

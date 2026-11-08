@@ -163,7 +163,7 @@ final class FrameAtlas<K extends Object> {
     int budgetBytes = defaultBudgetBytes,
     int Function(int sizeClass) pageSideFor = FrameAtlas.pageSideFor,
     List<int> sizeClasses = defaultSizeClasses,
-    FramePageUploader upload = uploadFramePage,
+    FramePageUploader upload = FramePageImages.engineUpload,
     Listenable? memoryPressure,
     bool forgetIdleFrames = false,
   }) {

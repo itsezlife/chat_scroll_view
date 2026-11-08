@@ -124,7 +124,7 @@ or pixels.
 | --- | --- |
 | `FrameCacheKey` | Content hash, DISPLAY size and engine version. Validated and lower-cased in the constructor (`ArgumentError` for a hash or version with path characters); `toFileStem()` is the file name; `admitted([maxEdge = 512])` tells whether the size is cacheable. |
 | `FrameCache` | `open(key)` makes an animation resident and returns its frame count (null: nothing cached; an unadmitted key is always null). `frame` and `has` are synchronous and RAM only. `put(key, index, bytes, frameCount:)` stores one frame, first write wins; when every frame is present the animation is written to disk once, asynchronously. `clear`, `dispose` (finishes pending reads and writes; idempotent). |
-| `FrameCacheFiles` | The interface of the one place that touches the file system. `DirectoryFrameCacheFiles` (native) is the implementation `FrameCache(directoryPath:)` opens through a conditional import; tests pass a subclass to count or break writes. The web's stub refuses a path with an `ArgumentError`. |
+| `FrameCacheFiles` | The interface of the one place that touches the file system. `DirectoryFrameCacheFiles` (native) is the implementation `FrameCache(directoryPath:)` opens through the `$openFrameCacheFiles` hook of `src/environment_specific/` (the VM file by default, the JS file on the web); tests pass a subclass to count or break writes. The web's hook refuses a path with an `ArgumentError`. |
 
 **Tiers.** The RAM tier (default 32 MiB) evicts whole animations, least
 recently used first, and never the one being filled when it is the only one.

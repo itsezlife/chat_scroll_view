@@ -53,7 +53,7 @@ void main() {
   });
 
   test('the engine upload makes an image wherever the test runs', () async {
-    final image = await uploadFramePage(pixels, 2);
+    final image = await FramePageImages.engineUpload(pixels, 2);
     expect((image.width, image.height), (2, 2));
     image.dispose();
   });

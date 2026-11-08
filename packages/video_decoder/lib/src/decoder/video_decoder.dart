@@ -4,8 +4,9 @@ import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/foundation.dart';
-import 'package:video_decoder/src/decoder/read_file_bytes.dart';
 import 'package:video_decoder/src/engine/video_engine.dart';
+import 'package:video_decoder/src/environment_specific/read_file_bytes.dart'
+    as environment_specific;
 import 'package:video_decoder/src/paint/video_animation_paintable.dart';
 import 'package:video_decoder/src/paint/video_still_paintable.dart';
 import 'package:video_decoder/src/playback/video_frame_scheduler.dart';
@@ -141,7 +142,7 @@ final class _VideoDecode implements AssetTask {
 
   Future<Uint8List> _bytes() => switch (_request.content) {
     FetchedBytes(:final bytes) => Future.value(bytes),
-    FetchedFile(:final path) => readFileBytes(path),
+    FetchedFile(:final path) => environment_specific.$readFileBytes(path),
   };
 
   void _fail(Object error, StackTrace stackTrace) {

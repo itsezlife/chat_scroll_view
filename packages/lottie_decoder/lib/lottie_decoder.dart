@@ -17,14 +17,12 @@ export 'src/engine/lottie_engine.dart';
 export 'src/engine/lottie_worker_port.dart';
 export 'src/engine/web_worker_lottie_engine.dart'
     show LottieWorkerError, WebWorkerLottieEngine;
-// The native file is the default and the stub the exception because the
-// analyzer resolves a conditional export to its default URI and ignores
-// `dart.library.js_interop`: written the other way round, the analyzer sees no
-// native API at all. `dart.library.js_interop` is true on every web compiler
-// (dart2js and dart2wasm) and false on the VM, so the choice is the same as
-// `dart.library.ffi` would make.
-export 'src/native_exports.dart'
-    if (dart.library.js_interop) 'src/native_exports_stub.dart';
+// The VM half is the default and the JS half the exception: the analyzer
+// resolves a conditional export to its default URI, so the default must be
+// the file that holds the native API. `dart.library.js_interop` is true on
+// every web compiler (dart2js and dart2wasm) and false on the VM.
+export 'src/environment_specific/native_exports_vm.dart'
+    if (dart.library.js_interop) 'src/environment_specific/native_exports_js.dart';
 export 'src/paint/lottie_animation_paintable.dart';
 export 'src/paint/lottie_still_paintable.dart';
 export 'src/playback/lottie_frame_scheduler.dart';

@@ -26,12 +26,12 @@ void main() {
   final android = Platform.isAndroid;
 
   group('on Android', skip: android ? false : 'Android only', () {
-    FrameTextureHostContract.run(() => createPlatformFrameTextureHost()!);
+    FrameTextureHostContract.run(() => PlatformFrameTextureHost.forPlatform()!);
 
     testWidgets('a test pattern shows upright, in colour and alpha', (
       tester,
     ) async {
-      final host = createPlatformFrameTextureHost()!;
+      final host = PlatformFrameTextureHost.forPlatform()!;
       const edge = 256;
       final created = await tester.runAsync(() => host.create(edge, edge));
       expect(created, isNotNull, reason: 'the platform refused a texture');

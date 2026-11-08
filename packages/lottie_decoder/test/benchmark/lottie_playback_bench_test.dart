@@ -156,7 +156,7 @@ final class _MeteredUploader {
     started++;
     bytes += pixels.lengthInBytes;
     _firstStartUs ??= _timeline.elapsedMicroseconds;
-    final image = await uploadFramePage(pixels, side);
+    final image = await FramePageImages.engineUpload(pixels, side);
     completed++;
     _lastEndUs = _timeline.elapsedMicroseconds;
     return image;

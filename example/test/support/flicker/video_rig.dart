@@ -24,7 +24,7 @@ import 'package:video_decoder/video_decoder.dart';
 import 'package:video_native/video_native.dart';
 
 /// The size of every clip: the smallest pool class, four cells a page.
-const int clipEdge = 64;
+const int _clipEdge = 64;
 
 /// What a drawn pixel of a page says.
 typedef PixelProbe = ({int alpha, int tag, int frame});
@@ -253,8 +253,8 @@ final class VideoRig {
   Future<VideoAnimationPaintable> clip(int tag) async {
     final opened = await engine.open(
       Uint8List.fromList([tag]),
-      width: clipEdge,
-      height: clipEdge,
+      width: _clipEdge,
+      height: _clipEdge,
     );
     return VideoAnimationPaintable(
       key: Object(),

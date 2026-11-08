@@ -6,9 +6,9 @@ import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatDataSource;
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
-import 'package:chat_scroll_view_example/src/app/cache_directory.dart';
-import 'package:chat_scroll_view_example/src/app/lottie_playback.dart'
-    show defaultLottieCacheDirectory;
+import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart'
+    as environment_specific;
+import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
@@ -115,8 +115,10 @@ Future<AppServices> _createServices() async {
   final services = AppServices.create(
     glyphCache: glyphCache.cache,
     glyphArtVersion: glyphCache.artVersion,
-    lottieCacheDirectory: defaultLottieCacheDirectory(),
-    giphyStillDirectory: appCacheDirectory('giphy_stills'),
+    lottieCacheDirectory: LottiePlayback.defaultCacheDirectory(),
+    giphyStillDirectory: environment_specific.$appCacheDirectory(
+      'giphy_stills',
+    ),
   );
   // Its own failure is awaited below; until then it is not an unhandled one.
   services.ignore();

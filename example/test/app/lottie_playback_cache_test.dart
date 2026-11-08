@@ -7,9 +7,9 @@ import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:chat_scroll_view_example/src/app/environment_specific/lottie_playback_vm.dart'
+    as vm;
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
-import 'package:chat_scroll_view_example/src/app/lottie_playback_native.dart'
-    as native;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,7 +90,7 @@ void main() {
     CountingLottieEngine engine, {
     String? cacheDirectory,
   }) async {
-    final playback = await native.start(
+    final playback = await vm.$startLottiePlayback(
       clock: clock,
       memoryPressure: pressure,
       cacheDirectory: cacheDirectory,

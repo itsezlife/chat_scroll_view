@@ -40,6 +40,6 @@ void main() {
   });
 
   test('the ABI version is the one the binding expects', () {
-    expect(chatVideoExpectedAbiVersion, headerValue('ABI_VERSION'));
+    expect(ChatVideoAbi.expectedVersion, headerValue('ABI_VERSION'));
   });
 }

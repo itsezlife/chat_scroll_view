@@ -3,18 +3,6 @@ import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.da
 import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart' as listen;
 
-/// How long a page of clips waits for its stills before its rows are added
-/// anyway.
-///
-/// A still is a few KB from Giphy's media host, which a phone fetches in one
-/// or two hundred milliseconds once connected and in about twice that on the
-/// first request of a session (a new connection). 500 ms lets that first
-/// request finish, so a cold first page shows its blurred stills rather than
-/// boxes, while keeping the page's whole wait (the API's answer, then this)
-/// under a second. A still later than this shows the box until it arrives,
-/// as before. Pages read ahead wait the same, out of sight.
-const Duration giphyStillWait = Duration(milliseconds: 500);
-
 // One list of Giphy clips that is loaded a page at a time: the part trending
 // and search share. It owns no timer and no listener; [onChange] says that
 // [contents] changed.
@@ -161,13 +149,13 @@ final class _Feed {
 /// Each clip it lists is remembered in [content], which the asset pipeline's
 /// fetcher and resolver read. A page's rows are added with their stills
 /// fetched, waiting up to [stillWait] for them, and with [readAhead] the next
-/// page is fetched while the current one shows (see [giphyStillWait]).
+/// page is fetched while the current one shows (see [defaultStillWait]).
 final class GiphyGifSource implements CollectionSource {
   /// Lists the trending clips of [client], remembering them in [content].
   GiphyGifSource({
     required GiphyClient client,
     required GiphyContent content,
-    Duration stillWait = giphyStillWait,
+    Duration stillWait = GiphyGifSource.defaultStillWait,
     bool readAhead = true,
   }) : _collections = listen.ValueNotifier(const []) {
     _feed = _Feed(
@@ -179,6 +167,18 @@ final class GiphyGifSource implements CollectionSource {
     );
     _publish();
   }
+
+  /// How long a page of clips waits for its stills before its rows are added
+  /// anyway.
+  ///
+  /// A still is a few KB from Giphy's media host, which a phone fetches in one
+  /// or two hundred milliseconds once connected and in about twice that on the
+  /// first request of a session (a new connection). 500 ms lets that first
+  /// request finish, so a cold first page shows its blurred stills rather than
+  /// boxes, while keeping the page's whole wait (the API's answer, then this)
+  /// under a second. A still later than this shows the box until it arrives,
+  /// as before. Pages read ahead wait the same, out of sight.
+  static const Duration defaultStillWait = Duration(milliseconds: 500);
 
   /// The collection the trending clips are listed as.
   static const CollectionId id = CollectionId.set('giphy_trending');
@@ -232,7 +232,7 @@ final class GiphyGifSearch implements SearchSource {
   GiphyGifSearch({
     required GiphyClient client,
     required GiphyContent content,
-    Duration stillWait = giphyStillWait,
+    Duration stillWait = GiphyGifSource.defaultStillWait,
     bool readAhead = true,
   }) : _client = client,
        _content = content,

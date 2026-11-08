@@ -7,9 +7,9 @@ import 'dart:io';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:chat_scroll_view_example/src/app/environment_specific/video_playback_vm.dart'
+    as vm;
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
-import 'package:chat_scroll_view_example/src/app/video_playback_native.dart'
-    as native;
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
@@ -57,7 +57,7 @@ void main() {
     test(
       'an unavailable library gives no playback, and says so once',
       () async {
-        final playback = await native.start(
+        final playback = await vm.$startVideoPlayback(
           clock: clock,
           memoryPressure: pressure,
           spawn: () async =>
@@ -73,7 +73,7 @@ void main() {
 
     test('any failure to start gives no playback, and says so once, with its '
         'type', () async {
-      final playback = await native.start(
+      final playback = await vm.$startVideoPlayback(
         clock: clock,
         memoryPressure: pressure,
         spawn: () async => throw const FormatException('not a state error'),
@@ -103,7 +103,7 @@ void main() {
         frameCount: 40,
       );
 
-    final playback = await native.start(
+    final playback = await vm.$startVideoPlayback(
       clock: clock,
       memoryPressure: pressure,
       spawn: () async => engine,

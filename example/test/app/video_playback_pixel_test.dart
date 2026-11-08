@@ -9,7 +9,7 @@ import 'dart:io';
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
-import 'package:chat_scroll_view_example/src/app/video_playback_pixel.dart';
+import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
@@ -48,7 +48,7 @@ void main() {
     );
     addTearDown(subscription.cancel);
 
-    final playback = await startPixelVideoPlayback(
+    final playback = await VideoPlayback.startPixel(
       clock: clock,
       memoryPressure: pressure,
       engineFactory: () async => throw const FormatException('no element'),
@@ -76,7 +76,7 @@ void main() {
         frameCount: 40,
       );
 
-    final playback = await startPixelVideoPlayback(
+    final playback = await VideoPlayback.startPixel(
       clock: clock,
       memoryPressure: pressure,
       engineFactory: () async => WebVideoEngine(createPort: elements.create),

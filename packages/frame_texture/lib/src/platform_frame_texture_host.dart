@@ -4,6 +4,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:frame_texture/src/frame_texture_natives.dart';
+import 'package:frame_texture/src/platform_host.dart' as environment_specific;
 
 /// The [FrameTextureHost] of a platform plugin (ADR 043): the platform makes
 /// and destroys textures over a method channel, and every lock and post goes
@@ -14,9 +15,9 @@ import 'package:frame_texture/src/frame_texture_natives.dart';
 /// (`ANativeWindow_lock`) and posts (`ANativeWindow_unlockAndPost`), in
 /// premultiplied RGBA. On iOS and macOS it is a `FlutterTexture` over a ring
 /// of IOSurface-backed `CVPixelBuffer`s, in premultiplied BGRA.
-/// `createPlatformFrameTextureHost` builds the host where
-/// the platform has one; the constructor is for a test, which passes a
-/// channel it answers and a table of its own.
+/// [PlatformFrameTextureHost.forPlatform] builds the host where the platform
+/// has one; the constructor is for a test, which passes a channel it answers
+/// and a table of its own.
 ///
 /// The host remembers the size of each texture it made, since a lock gives
 /// the size the texture was asked at (the table checks the buffer is at least
@@ -31,6 +32,16 @@ final class PlatformFrameTextureHost implements FrameTextureHost {
     this.buffersPerTexture = androidBuffersPerTexture,
   }) : _channel = channel,
        _natives = natives;
+
+  /// The texture host of this platform, or null where there is none.
+  ///
+  /// Android, iOS and macOS answer a [PlatformFrameTextureHost] once the
+  /// plugin's native side is in the app; every other platform answers null,
+  /// and so does the web. Decided by which file the build picks, so
+  /// `dart:ffi` never reaches a web build. Call it once: each call makes a new
+  /// host.
+  static FrameTextureHost? forPlatform() =>
+      environment_specific.$createPlatformFrameTextureHost();
 
   /// The channel the platform side answers on.
   static const String channelName = 'dev.chatscrollview.frame_texture';

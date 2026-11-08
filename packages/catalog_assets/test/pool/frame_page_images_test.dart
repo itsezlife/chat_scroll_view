@@ -350,7 +350,7 @@ void main() {
     final pixels = Uint8List(_side * _side * 4)..fillRange(0, _side * 4, 255);
 
     final image = (await tester.runAsync(
-      () => uploadFramePage(pixels, _side),
+      () => FramePageImages.engineUpload(pixels, _side),
     ))!;
     addTearDown(image.dispose);
 
@@ -364,7 +364,7 @@ void main() {
     final pixels = Uint8List(_side * 3 * 4);
 
     final image = (await tester.runAsync(
-      () => uploadFramePage(pixels, _side),
+      () => FramePageImages.engineUpload(pixels, _side),
     ))!;
     addTearDown(image.dispose);
 

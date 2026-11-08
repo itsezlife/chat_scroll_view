@@ -195,9 +195,9 @@ final class AppServices {
     GlyphArtVersionSource? glyphArtVersion,
     List<String> languages = const <String>['ru', 'en'],
     RichClipboard clipboard = const SystemRichClipboard(),
-    LottiePlaybackStarter startLottie = startLottiePlayback,
+    LottiePlaybackStarter startLottie = LottiePlayback.start,
     String? lottieCacheDirectory,
-    VideoPlaybackStarter startVideo = startVideoPlayback,
+    VideoPlaybackStarter startVideo = VideoPlayback.start,
     String giphyApiKey = giphyApiKeyDefine,
     http.Client? giphyHttpClient,
     Future<String?>? giphyStillDirectory,
@@ -266,7 +266,7 @@ final class AppServices {
       // it) and gives its idle textures back on memory pressure, through the
       // scope.
       final platformTextureHost = DemoConfig.frameTextures
-          ? createPlatformFrameTextureHost()
+          ? PlatformFrameTextureHost.forPlatform()
           : null;
       // The lab counts the textures made while a surface scrolls.
       final textureHost = DemoConfig.scrollLab && platformTextureHost != null

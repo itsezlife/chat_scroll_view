@@ -64,9 +64,13 @@ abstract final class VideoFrameAtlas {
     forgetIdleFrames: true,
   );
 
-  /// The upload of a BGRA page: [uploadFramePage] as `bgra8888`, which
-  /// copies the bytes when called. [pixels] holds the top rows of the page,
-  /// as many as its length says.
+  /// The upload of a BGRA page: [FramePageImages.engineUpload] as
+  /// `bgra8888`, which copies the bytes when called. [pixels] holds the top
+  /// rows of the page, as many as its length says.
   static Future<ui.Image> uploadBgraFramePage(Uint8List pixels, int side) =>
-      uploadFramePage(pixels, side, format: ui.PixelFormat.bgra8888);
+      FramePageImages.engineUpload(
+        pixels,
+        side,
+        format: ui.PixelFormat.bgra8888,
+      );
 }

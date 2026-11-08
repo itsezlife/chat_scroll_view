@@ -10,7 +10,6 @@ import 'dart:io';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
-import 'package:chat_scroll_view_example/src/app/lottie_playback_pixel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
@@ -68,7 +67,7 @@ void main() {
           ),
         );
 
-      final playback = await startPixelLottiePlayback(
+      final playback = await LottiePlayback.startPixel(
         clock: clock,
         memoryPressure: pressure,
         engineFactory: () => spawnOver(worker),
@@ -128,7 +127,7 @@ void main() {
         'once', () async {
       final worker = FakeLottieWorker(unavailableReason: 'no wasm here');
 
-      final playback = await startPixelLottiePlayback(
+      final playback = await LottiePlayback.startPixel(
         clock: clock,
         memoryPressure: pressure,
         engineFactory: () => spawnOver(worker),
@@ -147,7 +146,7 @@ void main() {
       var done = false;
       LottiePlayback? result;
       unawaited(
-        startPixelLottiePlayback(
+        LottiePlayback.startPixel(
           clock: clock,
           memoryPressure: pressure,
           engineFactory: () => spawnOver(worker),
