@@ -186,12 +186,14 @@ final class AppServices {
   /// [giphyHttpClient] is the transport it sends through, closed by the
   /// services only if they made it. [giphyStillDirectory] is the folder the
   /// clips' stills are kept in between launches, up to [giphyStillDiskBytes]
-  /// (null: in memory only, as in a test). [corpus] is the local sticker corpus; null
+  /// (null: in memory only, as in a test); [giphyClipDirectory] the same for
+  /// the clips' files, up to [giphyClipDiskBytes] (null: none kept). [corpus] is the local sticker corpus; null
   /// looks for one in the app bundle and in the `CHAT_CORPUS_DIR` directory.
   ///
   /// [diskCache] is the one switch over every disk tier (see
   /// [DemoConfig.diskCache]): false ignores [glyphCache],
-  /// [lottieCacheDirectory] and [giphyStillDirectory], and everything is
+  /// [lottieCacheDirectory], [giphyStillDirectory] and
+  /// [giphyClipDirectory], and everything is
   /// kept in memory for this launch only.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
@@ -206,6 +208,7 @@ final class AppServices {
     String giphyApiKey = giphyApiKeyDefine,
     http.Client? giphyHttpClient,
     Future<String?>? giphyStillDirectory,
+    Future<String?>? giphyClipDirectory,
     CorpusStickerPack? corpus,
     bool diskCache = DemoConfig.diskCache,
   }) async {
@@ -218,6 +221,7 @@ final class AppServices {
     final glyphDisk = diskCache ? glyphCache : null;
     final lottieDisk = diskCache ? lottieCacheDirectory : null;
     final stillDisk = diskCache ? giphyStillDirectory : null;
+    final clipDisk = diskCache ? giphyClipDirectory : null;
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
     final unwind = <void Function()>[];
@@ -353,10 +357,14 @@ final class AppServices {
         // this one client.
         final labNet = DemoConfig.scrollLab ? LabNet.instance : null;
         final transport = labNet == null ? live : LabNetClient(live, labNet);
-        // The stills' disk tier is the fetcher's (ADR 022). It sits under
-        // the transport, not over it: a still found on disk is no request,
-        // so the lab's tape neither records nor replays it.
-        final stillDirectory = await stillDisk;
+        // The disk tiers of the stills and the clips are the fetcher's (ADR
+        // 022). They sit under the transport, not over it: a file found on
+        // disk is no request, so the lab's tape neither records nor replays
+        // it (lab builds turn them off, see DemoConfig.diskCache).
+        final (stillDirectory, clipDirectory) = await (
+          stillDisk ?? Future.value(),
+          clipDisk ?? Future.value(),
+        ).wait;
         giphy = GiphyContent(
           GiphyClient(apiKey: giphyApiKey, client: transport),
           stillDisk: stillDirectory == null
@@ -364,6 +372,12 @@ final class AppServices {
               : ByteCache.directory(
                   stillDirectory,
                   budgetBytes: giphyStillDiskBytes,
+                ),
+          clipDisk: clipDirectory == null
+              ? null
+              : ByteCache.directory(
+                  clipDirectory,
+                  budgetBytes: giphyClipDiskBytes,
                 ),
         );
       }
@@ -712,6 +726,11 @@ final class AppServices {
   /// clip's 100 px wide frame, a few KB, so this keeps a few thousand: more
   /// than a long scroll of trending and searches, little next to the clips.
   static const int giphyStillDiskBytes = 16 << 20;
+
+  /// How much of the disk Giphy's clips may take: 64 MB. A clip is a
+  /// 200 px wide MP4 of a few hundred KB, so this keeps a few hundred: the
+  /// recent GIFs and those a chat sent, played again without the network.
+  static const int giphyClipDiskBytes = 64 << 20;
 
   static ContentFetcher _contentFetcher(
     GiphyContent? giphy,

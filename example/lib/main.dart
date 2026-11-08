@@ -119,6 +119,7 @@ Future<AppServices> _createServices() async {
     giphyStillDirectory: environment_specific.$appCacheDirectory(
       'giphy_stills',
     ),
+    giphyClipDirectory: environment_specific.$appCacheDirectory('giphy_clips'),
   );
   // Its own failure is awaited below; until then it is not an unhandled one.
   services.ignore();

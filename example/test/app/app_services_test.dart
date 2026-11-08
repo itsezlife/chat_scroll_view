@@ -681,6 +681,7 @@ void main() {
         giphyApiKey: 'test-key',
         giphyHttpClient: MockClient((_) async => http.Response.bytes([1], 200)),
         giphyStillDirectory: Future.value('${dir.path}/stills'),
+        giphyClipDirectory: Future.value('${dir.path}/clips'),
         diskCache: diskCache,
       );
       addTearDown(services.dispose);
@@ -696,6 +697,22 @@ void main() {
       thumbnailUrl: Uri.parse('https://media.example/a.still.gif'),
     );
 
+    // Fetches the still and the file of [clip], as the pipeline would.
+    Future<void> fetch(AppServices services) async {
+      final giphy = services.giphy!..remember([clip]);
+      await giphy.prepareStills([clip], within: const Duration(seconds: 1));
+      await giphy
+          .fetcher(otherwise: const _NoFetcher())
+          .fetch(
+            FetchRequest(
+              descriptor: giphy.describe(clip),
+              part: FetchPart.content,
+              priority: AssetPriority.visible,
+              cancellation: CancellationToken(),
+            ),
+          );
+    }
+
     // The files under [dir] once the writes under way have landed.
     Future<List<String>> files() async {
       await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -708,12 +725,10 @@ void main() {
     test('keep what was fetched when on', () async {
       final services = await create(diskCache: true);
 
-      await services.giphy!.prepareStills([
-        clip,
-      ], within: const Duration(seconds: 1));
+      await fetch(services);
 
       expect(services.glyphCache, isNotNull);
-      expect(await files(), contains('/stills/still_a'));
+      expect(await files(), containsAll(['/stills/still_a', '/clips/clip_a']));
     });
 
     test(
@@ -721,9 +736,7 @@ void main() {
       () async {
         final services = await create(diskCache: false);
 
-        await services.giphy!.prepareStills([
-          clip,
-        ], within: const Duration(seconds: 1));
+        await fetch(services);
 
         expect(services.glyphCache, isNull);
         expect(await files(), isEmpty);
@@ -927,4 +940,13 @@ void main() {
       );
     });
   });
+}
+
+/// A fetcher for content nothing in the test asks it for.
+final class _NoFetcher implements ContentFetcher {
+  const _NoFetcher();
+
+  @override
+  Future<FetchedContent> fetch(FetchRequest request) =>
+      Future.error(StateError('not asked for: ${request.descriptor.key}'));
 }
