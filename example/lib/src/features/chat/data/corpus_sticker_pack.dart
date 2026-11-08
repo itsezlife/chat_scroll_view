@@ -75,7 +75,8 @@ final class CorpusPack {
 ///
 /// ## Where the packs come from
 ///
-/// - The app bundle: `assets/sticker_corpus/<pack>--<n>.json`, put there by
+/// - The app bundle: `assets/sticker_corpus/<pack>--<n>.json` (or `.tgs`, the
+///   gzipped form the engine also reads), put there by
 ///   `tool/link_corpus_assets.sh`. The folder is listed in the pubspec, but
 ///   its files are git-ignored, so a checkout without them builds and lists
 ///   no pack. Files are flat because a pubspec asset folder is not recursive
@@ -99,7 +100,7 @@ final class CorpusStickerPack {
   );
 
   static const String _assetDirectory = 'assets/sticker_corpus/';
-  static final RegExp _assetName = RegExp(r'^(.+)--([^/]+)\.json$');
+  static final RegExp _assetName = RegExp(r'^(.+)--([^/]+)\.(?:json|tgs)$');
   static const String _keyPrefix = 'corpus:';
 
   /// No pack at all.
@@ -162,7 +163,7 @@ final class CorpusStickerPack {
 
   static String _stem(String path) {
     final name = path.split(RegExp(r'[/\\]')).last;
-    return name.substring(0, name.length - '.json'.length);
+    return name.substring(0, name.lastIndexOf('.'));
   }
 
   // Number order where both names are numbers ("2" before "10"), else text.

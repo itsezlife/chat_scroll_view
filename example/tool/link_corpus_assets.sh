@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Copies a local corpus of Lottie stickers into the example's asset folder as
-# `<pack>--<n>.json`, where CorpusStickerPack finds them. The files stay out of
+# `<pack>--<n>.json` or `<pack>--<n>.tgs` (gzipped), where CorpusStickerPack
+# finds them. The files stay out of
 # git (assets/sticker_corpus/.gitignore): they are third-party property.
 #
 #   example/tool/link_corpus_assets.sh /path/to/sticker-corpus
 #
 # The argument: a folder with one subfolder per pack, each holding
-# `*.json` Lottie files. Run it again to refresh; it replaces earlier copies.
+# `*.json` or `*.tgs` Lottie files. Run it again to refresh; it replaces earlier copies.
 set -euo pipefail
 
 if [[ $# -ne 1 || ! -d "$1" ]]; then
@@ -18,12 +19,12 @@ corpus="$1"
 dest="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/assets/sticker_corpus"
 
 # Only copies made by an earlier run are removed.
-find "$dest" -maxdepth 1 -name '*--*.json' -delete
+find "$dest" -maxdepth 1 \( -name '*--*.json' -o -name '*--*.tgs' \) -delete
 
 count=0
 for pack in "$corpus"/*/; do
   name="$(basename "$pack")"
-  for file in "$pack"*.json; do
+  for file in "$pack"*.json "$pack"*.tgs; do
     [[ -e "$file" ]] || continue
     cp "$file" "$dest/${name}--$(basename "$file")"
     count=$((count + 1))
