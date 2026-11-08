@@ -177,6 +177,7 @@ final class AssetPipeline implements AssetProducer {
           part: work.part,
           priority: work.priority,
           cancellation: token,
+          onProgress: work.received,
         ),
       );
     } on Object catch (error, stackTrace) {
@@ -358,6 +359,17 @@ final class _Work implements LaneWork {
       ? AssetPriority.placeholder
       : job.demand.priority;
 
+  // Whether the fetch of this part reported a transfer.
+  bool _transferred = false;
+
+  /// The fetcher's report of the bytes of this part's transfer. An unknown
+  /// total is a download at its start: the arc turns without growing.
+  void received(int received, int? total) {
+    if (phase != _Phase.fetching) return;
+    _transferred = true;
+    reportDownload(total == null || total <= 0 ? 0 : received / total);
+  }
+
   /// Relays the download of the content to the entry; a thumbnail is a stand
   /// in, not the download a surface shows.
   void reportDownload(double fraction) {
@@ -367,6 +379,9 @@ final class _Work implements LaneWork {
 
   void fetched(FetchedContent fetchedContent) {
     if (_cancelled) return;
+    // All of it arrived, which a fetcher's last report need not say (the
+    // reference sets the full circle on success too).
+    if (_transferred) reportDownload(1);
     content = fetchedContent;
     phase = _Phase.queuedDecode;
     _pipeline._decodeLane.enqueue(this);
