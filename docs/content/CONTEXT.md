@@ -104,8 +104,12 @@ The decode-affecting part of a request: pixel size at DPR, template or tint deco
 _Avoid_: Surface class, `keyboard` / `messages` enum
 
 **Asset profile**:
-Per-attach behaviour: animate, loop, autoplay first frame, corner radius. Does not split cache entries.
+Per-attach behaviour: animate, loop, autoplay first frame, corner radius, fit, half frame rate. Does not split cache entries.
 _Avoid_: Putting behaviour into the entry identity
+
+**Half frame rate**:
+A playing asset that shows only every second frame of a source above 30 fps (`AssetProfile.halfFrameRate`): a 60 fps sticker at 30. Set by the presets of small cells (`AssetPresets.keyboardCell` up to 90 logical px, which also caps the decode at 160 px), never by the chat's presets. It changes the frames a paintable asks for, so a surface that repaints every clock frame still renders and posts half of them; the playback policy's fps cap only spaces a binding's own repaints.
+_Avoid_: A second clock, a per-surface timer, skipping repaints to save frames
 
 **Asset paintable**:
 What a binding yields. Draws itself into a canvas rect. May expose an optional sprite (atlas page plus source rectangle) for consumers that batch; the unicode glyph form is a baked sprite ([Panel Catalog glossary](../panel-catalog/CONTEXT.md): Glyph atlas page, Bake, Baked glyph).
