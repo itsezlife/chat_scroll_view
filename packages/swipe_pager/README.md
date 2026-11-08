@@ -37,10 +37,10 @@ The defaults port the reference mobile client's own pager
 | --- | --- | --- |
 | Claim slop 0.3 cm | `touchSlop = getPixelsInCM(0.3f, true)` (181); claim when `abs(dx) >= touchSlop && abs(dx) > dy` (656-659) | `claimSlop`, 18.9 logical px at 160 per inch |
 | Vertical list wins | the page's `RecyclerView` starts dragging past the 8 dp touch slop (`RecyclerView.java` 3249) and calls `requestDisallowInterceptTouchEvent` (3393), which drops the pager's pending claim (`ViewPagerFixed` 575-579) | `crossAxisSlop` 8, decided on the straight line from the down |
-| Nested horizontal scroller | a child that scrolls horizontally under the finger keeps the gesture (626-631, `findScrollingChild` 2323-2344) | the claim slop is never under the platform drag slop |
-| Edges | `prepareForMoving` refuses past the first and last page (513-515) | no claim outward, no overscroll |
-| Fling under the slop | `abs(velX) >= 3000 && abs(velX) > abs(velY)` (690-693) | `flingStartVelocity`, physical px/s |
-| Release | back when `abs(x) < width / 3 && (abs(velX) < 3500 \|\| abs(velX) < abs(velY))` (720); after catching a settle, `abs(velX) > 1500` goes the way of the fling, else the nearer page (707-718) | `commits` |
-| Settle | quintic `t^5 + 1` on `t - 1` (86-89); duration rule and 150..600 ms clamp (760-772, `distanceInfluenceForSnapDuration` 874-878) | `settleCurve`, `settleDuration` |
-| Catch a settle | a down during the settle takes it over (597-622, `checkTabsAnimationInProgress` 845-872) | `catchesOnDown` |
-| Programmatic | `scrollToPosition`: the target slides in next to the current page, 540 ms `EASE_OUT_QUINT` (220-289, 291-293); swipes refused meanwhile (`manualScrolling`, 513) | `animateTo` |
+| Nested horizontal scroller | a child that scrolls horizontally under the finger keeps the gesture (626-631, `findScrollingChild` 2324-2344) | the claim slop is never under the platform drag slop |
+| Edges | `prepareForMoving` refuses past the first and last page (517-520) | no claim outward, no overscroll |
+| Fling under the slop | `abs(velX) >= 3000 && abs(velX) > abs(velY)` (691) | `flingStartVelocity`, physical px/s |
+| Release | back when `abs(x) < width / 3 && (abs(velX) < 3500 \|\| abs(velX) < abs(velY))` (717); after catching a settle, `abs(velX) > 1500` goes the way of the fling, else the nearer page (702-716) | `commits` |
+| Settle | quintic `t^5 + 1` on `t - 1` (86-89); duration rule and 150..600 ms clamp (759-772, `distanceInfluenceForSnapDuration` 874-878) | `settleCurve`, `settleDuration` |
+| Catch a settle | a down during the settle takes it over (597-622, `checkTabsAnimationInProgress` 842-872) | `catchesOnDown` |
+| Programmatic | `scrollToPosition`: the target slides in next to the current page, 540 ms `EASE_OUT_QUINT` (221-289, 291-293); swipes refused meanwhile (`manualScrolling`, 518) | `animateTo` |
