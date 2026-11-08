@@ -61,6 +61,9 @@ final class FakeAssetPaintable extends AssetPaintable {
   /// How many times [dispose] was called.
   int disposals = 0;
 
+  /// Whether [keepFrame] last asked it to keep its frame.
+  bool keepsFrame = false;
+
   /// How many times [restart] rewound a holding playback.
   int restarts = 0;
 
@@ -135,6 +138,9 @@ final class FakeAssetPaintable extends AssetPaintable {
       _frame++;
     }
   }
+
+  @override
+  void keepFrame({required bool keep}) => keepsFrame = keep;
 
   @override
   void dispose() => disposals++;

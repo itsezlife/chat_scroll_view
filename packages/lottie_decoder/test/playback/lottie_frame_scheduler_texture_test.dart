@@ -294,6 +294,63 @@ void main() {
       },
     );
 
+    test('a kept lease keeps its texture and frame through the sweeps, '
+        'renders nothing, and is swept once it is let go', () async {
+      await pool.warm(64, 2);
+      final a = lease('a');
+      await postThree(a, 1);
+      final shown = a.texture;
+      expect(shown, isNotNull);
+      final writes = writer.batches.length;
+
+      a.kept = true;
+      final b = lease('b');
+      for (var i = 0; i < 3; i++) {
+        timers.elapse(const Duration(seconds: 1));
+        scheduler.want(b, i);
+        await tick();
+      }
+
+      expect(a.isReleased, isFalse);
+      expect(a.texture, shown);
+      expect(
+        writer.batches.skip(writes).expand((batch) => batch),
+        everyElement(
+          isA<TextureFrameJob>().having(
+            (job) => job.texture,
+            'texture',
+            isNot(shown),
+          ),
+        ),
+      );
+
+      a.kept = false;
+      timers
+        ..elapse(const Duration(seconds: 1))
+        ..elapse(const Duration(seconds: 1));
+      expect(a.isReleased, isTrue);
+    });
+
+    test(
+      'a kept lease on a slot stays there while textures are free',
+      () async {
+        final a = lease('a');
+        scheduler.want(a, 1);
+        await tick();
+        expect(a.sprite, isNotNull);
+        final renders = renderer.batches.length;
+
+        a.kept = true;
+        await pool.warm(64, 1);
+        await tick();
+        await tick();
+
+        expect(a.sprite, isNotNull);
+        expect(renderer.batches, hasLength(renders));
+        expect(writer.batches, isEmpty);
+      },
+    );
+
     test(
       'a texture released during a write idles once the write ends',
       () async {

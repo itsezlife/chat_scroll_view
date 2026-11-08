@@ -35,6 +35,12 @@ import 'package:listen/listen.dart';
 /// (a circle) unless the embed is given its own: the host knows that this
 /// content is a sticker, the scope shared by all embeds does not.
 ///
+/// [held] is the host's hold on the surface the embed is shown on: while it
+/// is true the binding is held (`AssetBinding.held`), so the embed shows the
+/// frame it is on and keeps it, while the scope's other surfaces play. The
+/// host feeds one listenable to every embed of that surface; the embed reads
+/// it now, follows it, and never disposes it.
+///
 /// The embed does not own the scope. Its signal is the binding's: a better
 /// stage, a baked page that landed, an animation frame.
 final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
@@ -44,13 +50,23 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
     required ContentKey content,
     required AssetPreset preset,
     AssetPaintable? placeholder,
+    ValueListenable<bool>? held,
   }) : sizeHint = preset.size,
        _placeholder = placeholder,
-       _binding = scope.attach(content, preset.spec, preset.profile);
+       _held = held,
+       _binding = scope.attach(content, preset.spec, preset.profile) {
+    held?.addListener(_onHeld);
+    _onHeld();
+  }
 
   final AssetBinding _binding;
   final AssetPaintable? _placeholder;
+  final ValueListenable<bool>? _held;
   bool _disposed = false;
+
+  void _onHeld() {
+    if (_held case final held? when !_disposed) _binding.held = held.value;
+  }
 
   @override
   final Size sizeHint;
@@ -120,6 +136,7 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _held?.removeListener(_onHeld);
     _binding.detach();
   }
 }

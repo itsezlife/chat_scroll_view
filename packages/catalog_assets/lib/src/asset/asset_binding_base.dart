@@ -43,6 +43,9 @@ abstract base class AssetBindingBase
   final AssetPaintable _placeholder;
   final PlaybackClock _clock;
   bool _visible = true;
+  bool _held = false;
+  // The clock's time when the hold began: what a held binding paints at.
+  Duration? _heldAt;
   bool _detached = false;
 
   /// Whether [detach] was called.
@@ -78,6 +81,10 @@ abstract base class AssetBindingBase
   @protected
   void onVisibleChanged() {}
 
+  /// Called after [held] changed while attached.
+  @protected
+  void onHeldChanged() {}
+
   /// Tells the listeners something this binding paints changed.
   @protected
   void signal() {
@@ -101,6 +108,17 @@ abstract base class AssetBindingBase
     if (!_detached) onVisibleChanged();
   }
 
+  @override
+  bool get held => _held;
+
+  @override
+  set held(bool value) {
+    if (_held == value) return;
+    _held = value;
+    _heldAt = value ? _clock.now : null;
+    if (!_detached) onHeldChanged();
+  }
+
   // The time a binding whose profile does not animate paints at: the clock's
   // at its first paint, kept. The clock runs for every animated binding of
   // the scope, so painting at its live time would step an animated
@@ -112,7 +130,7 @@ abstract base class AssetBindingBase
       AssetPaintContext(
         tint: tint,
         opacity: opacity,
-        time: animates ? _clock.now : _stillTime ??= _clock.now,
+        time: animates ? _heldAt ?? _clock.now : _stillTime ??= _clock.now,
         animate: animates,
         loop: profile.loop,
         restFrame: profile.restFrame,

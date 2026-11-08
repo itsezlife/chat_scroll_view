@@ -43,6 +43,10 @@ abstract interface class AssetBinding implements Listenable {
 
   /// How far the asset has come, as this binding would paint it.
   ///
+  /// While the entry is below its first frame and another spec of the same
+  /// content is further, this is that entry's stage, never final (see
+  /// [paintable]).
+  ///
   /// For a glyph on a platform that bakes this asks the atlas for its sprite,
   /// which may queue a page to be loaded again, so it is not a pure read.
   AssetReadiness get readiness;
@@ -50,6 +54,12 @@ abstract interface class AssetBinding implements Listenable {
   /// The best paintable available now, never null: before anything is
   /// produced it is the scope's placeholder. Read it when painting; do not
   /// keep it, a better stage replaces it.
+  ///
+  /// The same content decoded at another spec counts: while the entry is
+  /// below its first frame, this is the paintable of the entry of the same
+  /// key and decode mode with the best stage (the larger decode on a tie),
+  /// drawn into this binding's rectangle with its own profile, until the
+  /// entry's own stage catches up.
   AssetPaintable get paintable;
 
   /// The error of the latest failed attempt for this entry, or null. Cleared
@@ -88,6 +98,18 @@ abstract interface class AssetBinding implements Listenable {
   /// scrolled out of view costs no ticks.
   bool get visible;
   set visible(bool value);
+
+  /// Whether the surface holds this binding's playback: it shows the binding
+  /// but wants it still. Defaults to false.
+  ///
+  /// A held binding is not advanced, as an invisible one is, but it stays
+  /// shown: it paints at the time it was held, so a repaint shows the same
+  /// frame, and its paintable keeps that frame where it lives
+  /// ([AssetPaintable.keepFrame]) however long the hold lasts. Releasing the
+  /// hold plays on from that frame. It is the hold of one surface, where a
+  /// pause layer of the clock holds every surface of the scope.
+  bool get held;
+  set held(bool value);
 
   /// Advances the asset's playback for this frame without painting, for a
   /// surface that draws the paintable's sprite itself (see

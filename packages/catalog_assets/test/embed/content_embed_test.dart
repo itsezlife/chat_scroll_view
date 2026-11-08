@@ -4,6 +4,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 
 const _sticker = ContentKey.document('42');
 final _preset = AssetPresets.inlineMessage(
@@ -165,6 +166,28 @@ void main() {
       expect(thumbnail.paints.single.rect, _rect);
     });
 
+    // Ticket 85: a GIF sent from a panel cell is decoded again at the
+    // message's size; its first paint is the cell's picture, not a rectangle.
+    for (final stage in [AssetStage.firstFrame, AssetStage.full]) {
+      test('a sent asset draws the ${stage.name} its panel cell has', () {
+        final cell = scope.attach(
+          _sticker,
+          const AssetSpec(pixelWidth: 300, pixelHeight: 200),
+          const AssetProfile(animate: true, fit: AssetFit.cover),
+        );
+        final picked = producer.last.advance(stage, animated: true);
+        final own = FakeAssetPaintable(label: 'own');
+        final embed = embedWith(own);
+        cell.detach();
+
+        embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+        expect(own.paints, isEmpty);
+        expect(picked.paints.single.rect, _rect);
+        expect(embed.needsCompositing, isTrue);
+      });
+    }
+
     test('passes the text colour and opacity as tint and opacity', () {
       final embed = embedOf(_sticker);
       final painted = producer.last.advance(AssetStage.full);
@@ -325,6 +348,44 @@ void main() {
       expect(heard, 1);
     });
 
+    test('holds while the host holds its surface, and plays on after', () {
+      final hold = listen.ValueNotifier<bool>(true);
+      addTearDown(hold.dispose);
+      final embed = ContentEmbed(
+        scope: scope,
+        content: _sticker,
+        preset: animated,
+        held: hold,
+      );
+      addTearDown(embed.dispose);
+      final paintable = producer.last.advance(AssetStage.full, animated: true);
+      var heard = 0;
+      embed.addListener(() => heard++);
+
+      ticks.tick(const Duration(milliseconds: 100));
+      expect(heard, 0);
+      expect(embed.visible, isTrue);
+      expect(paintable.keepsFrame, isTrue);
+
+      hold.value = false;
+      ticks.tick(const Duration(milliseconds: 200));
+      expect(heard, 1);
+      expect(paintable.keepsFrame, isFalse);
+    });
+
+    test('a disposed embed stops following the hold', () {
+      final hold = _Counted();
+      addTearDown(hold.dispose);
+      ContentEmbed(
+        scope: scope,
+        content: _sticker,
+        preset: animated,
+        held: hold,
+      ).dispose();
+
+      expect(hold.listeners, 0);
+    });
+
     test('stops while the host pauses the clock', () {
       final embed = embedOf(_sticker, preset: animated);
       producer.last.advance(AssetStage.full, animated: true);
@@ -458,4 +519,23 @@ void main() {
       expect(embed.replay(), isFalse);
     });
   });
+}
+
+// Counts its listeners, so a test sees an embed let go of it.
+final class _Counted extends listen.ValueNotifier<bool> {
+  _Counted() : super(false);
+
+  int listeners = 0;
+
+  @override
+  void addListener(listen.VoidCallback listener) {
+    listeners++;
+    super.addListener(listener);
+  }
+
+  @override
+  void removeListener(listen.VoidCallback listener) {
+    listeners--;
+    super.removeListener(listener);
+  }
 }

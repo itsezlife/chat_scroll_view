@@ -18,6 +18,7 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_format_off
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/media_panel_pages.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/panel_playback_hold.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/panel_texture_warmer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
@@ -110,6 +111,9 @@ final class ChatEditTarget {
 /// - **Paced mount.** A panel that grows into a free slot mounts its page over
 ///   three frames (grid, search field, strip); one that replaces the keyboard
 ///   mounts at once.
+/// - **Playback.** Nothing plays while the panel moves in or out, and the
+///   chat's animations hold while a popup panel is over it
+///   ([chatPlaybackHeld]); see `PanelPlaybackHold`.
 /// - **Back.** While the panel is on screen the set holds a pre-IME back claim
 ///   so back closes search, then the panel.
 final class ChatInputSet {
@@ -238,6 +242,13 @@ final class ChatInputSet {
         ),
         (presentation) => presentation.dispose(),
       );
+      final playbackHold = owned(
+        PanelPlaybackHold(
+          presentation: presentation.state,
+          clock: services.assets.clock,
+        ),
+        (hold) => hold.dispose(),
+      );
       final insets = owned(
         ChatViewportInsets(
           composerExtent: composer.extent,
@@ -264,6 +275,7 @@ final class ChatInputSet {
         stopScrollReport: stopScrollReport,
         textureWarmer: textureWarmer,
         presentation: presentation,
+        playbackHold: playbackHold,
         insets: insets,
       );
     } on Object {
@@ -293,8 +305,10 @@ final class ChatInputSet {
     required VoidCallback stopScrollReport,
     required PanelTextureWarmer? textureWarmer,
     required this.presentation,
+    required PanelPlaybackHold playbackHold,
     required this.insets,
   }) : _frames = frames,
+       _playbackHold = playbackHold,
        _stopScrollReport = stopScrollReport,
        _textureWarmer = textureWarmer,
        _keyboardPort = keyboardPort,
@@ -393,6 +407,12 @@ final class ChatInputSet {
 
   /// What the viewport reserves for the composer and the panel.
   final ChatViewportInsets insets;
+
+  final PanelPlaybackHold _playbackHold;
+
+  /// Whether the chat's playback is held because a popup panel is over it;
+  /// the chat's embeds follow it (`ChatBodyHost.held`).
+  listen.ValueListenable<bool> get chatPlaybackHeld => _playbackHold.chatHeld;
 
   final SchedulerBakeFrameSource _frames;
 
@@ -1136,6 +1156,7 @@ final class ChatInputSet {
     _autoHideHold?.release();
     _autoHideHold = null;
     insets.dispose();
+    _playbackHold.dispose();
     presentation.dispose();
     keyboardStrategy.dispose();
     popup.dispose();

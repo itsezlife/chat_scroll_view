@@ -10,6 +10,7 @@ carry the frames as before.
 
 **Status**: Accepted  
 **Date**: 2026-11-08  
+**Amended**: 2026-11-09 (native-media ticket 87): a held texture keeps its last frame (row *Kept leases*)
 **Relates to**: [ADR 022](022-asset-cache-and-media-pipeline.md) (paint surface, dynamic frame pages), [ADR 042](042-native-media-decoding.md) (engines, workers), [ADR 020](020-package-topology.md), [ADR 024](024-panel-catalog-seams.md), [ADR 030](030-testing-policy.md)
 
 ## Context
@@ -55,6 +56,7 @@ thread, and the UI isolate only places a layer.
 | Platforms | Android: a texture is a `SurfaceProducer` and its window (`ANativeWindow_lock` / `unlockAndPost`). iOS and macOS: a `FlutterTexture` over a small ring of IOSurface-backed `CVPixelBuffer`s (a `CVPixelBufferPool` with at most three out: the newest, the engine's previous frame, the one being written), premultiplied BGRA; the post signals `textureFrameAvailable` on the main thread. Windows and Linux: no texture host in the first build (pages with the synchronous upload where the engine has it). Web: no texture host; the worker path of ADR 042 stays. |
 | Package | One new plugin package, `frame_texture`: the Android and Apple hosts, their C entry points for the worker (`lock` / `post` by texture id), and the Dart implementation of the seam. It depends on `catalog_assets` for the seam only; the decoders do not depend on it, they see the seam. |
 | Consumers | The catalogue viewport (sticker grids), `ContentView` (the GIF grid, the pack strip, composer emoji) and the chat's emoji-only body (sticker and GIF messages, custom emoji drawn large). Both of the last two composite through one path in `catalog_assets`; an inline embed reaches it as a `CompositingEmbed`, which the emoji-only body composites while one of its embeds plays. The markdown body's inline emoji stay on the canvas: the engine that lays the text out hands the embed a canvas only. A surface signals that it composites by advancing the paintable before it paints; a `paint` with no advance at the same clock time is a surface that only has a canvas, which keeps the asset on pages. |
+| Kept leases | A surface that holds its playback (`AssetBinding.held`, [ADR 022](022-asset-cache-and-media-pipeline.md)) still composites the texture it last showed, and paints nothing new. A paint is the sweep's only sign of a lease on screen, so the paintable keeps its lease while kept (`AssetPaintable.keepFrame`): the sweep passes it, it does not move from its slot to a texture, and it renders nothing until a paint asks for a new frame. Let go, it counts as painted then and lives one more idle period. Without it the texture would idle, be leased by another asset after the reuse delay and show that asset's frames under the held surface's layer. |
 | Failure | A host that cannot create a texture, or a lock that fails repeatedly, sends that asset back to a page slot: never a visible failed stage, per ADR 022. |
 
 ## Why

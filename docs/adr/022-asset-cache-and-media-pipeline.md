@@ -10,7 +10,9 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Amended**: 2026-10-18 (chat-polish-3, ticket 10): the pause policies of the reference desktop client reach the shared clock through one lifecycle seam (section *Amendment: pause policies*); `PlaybackPauseLayer` gains three values and the default pausing set is spelled out  
 **Amended**: 2026-11-06: the dynamic page pool, the renderer seam and the frame cache for native animated media ([ADR 042](042-native-media-decoding.md); section *Amendment: dynamic frame pages*)  
 **Amended**: 2026-11-08: a playing asset may be shown through a platform texture, a third paint capability next to `paint` and the sprite, with the dynamic pages as the fallback ([ADR 043](043-platform-texture-frames.md))  
-**Amended**: 2026-11-09: content that arrives after the attach fades in on every surface, a texture included (section *Amendment: arrival fade*)
+**Amended**: 2026-11-09 (native-media-ffi, ticket 85): an entry below its first frame shows the best stage of a sibling entry, the same content at another spec (section *Amendment: sibling stages*)  
+**Amended**: 2026-11-09 (native-media ticket 87): a binding can be **held** by its surface, and nothing plays while the panel moves (section *Amendment: held surfaces and the panel's motion*)  
+**Amended**: 2026-11-09 (native-media ticket 90): content that arrives after the attach fades in on every surface, a texture included (section *Amendment: arrival fade*)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -29,7 +31,7 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 | Attach | `attach(key, spec, profile)`. An unknown descriptor sends the core to the host `ContentResolver`; readiness stays `none` until it resolves. |
 | Readiness | Staged `none`, `placeholder`, `firstFrame`, `full`, each with `isFinal`. There is no visible failed stage. A failed fetch or decode clears the in-flight record and leaves readiness where it was, so the cell keeps its placeholder, including offline, until it detaches. Retry happens on the next attach, on the host's connectivity-restored signal for still-attached bindings, and through explicit `retry()`. The fetcher reports a failure class (transient or permanent) so the core knows whether connectivity-restored is relevant; neither class is shown as failed. Cancellation is not a failure. The last error is exposed for logging only. The paintable draws the best stage available; painters use the stage only for crossfade, and an instant memory hit has none (*Amendment: arrival fade*). A thumbnail (the `placeholder` stage) that a better stage replaces is kept by the entry for the bindings that were attached while it showed: the surface fades the content in over it (`AssetBinding.paintStandIn`), and it is disposed when every such binding released it (`releaseStandIn`, or a paint of the content at full opacity, or a detach). The thumbnail is decoded small and blurred once (`MiniThumbnail`), never blurred per frame. |
 | Orchestration | The core owns in-flight dedupe by entry identity, cancel when the last binding leaves, priority classes (placeholder, visible, preload) and concurrency caps. |
-| Seams | A host `ContentFetcher` (descriptor to bytes or file) owns network, provenance refresh and the disk tier. Decoders are registered per media form (still, animated image, vector animation, video, glyph) from adapter packages: fetched data plus spec to paintable with stages. |
+| Seams | A host `ContentFetcher` (descriptor to bytes or file) owns network, provenance refresh and the disk tier (a fetched file kept under its content identity, not its URL, so a later launch finds it without asking the network; the host budgets it). A host may turn every disk tier off at once (its fetchers' files, the frame cache's folder, the glyph atlas cache), for tests and measured runs: each then keeps memory only, as on the web. Decoders are registered per media form (still, animated image, vector animation, video, glyph) from adapter packages: fetched data plus spec to paintable with stages. |
 | Playback | One shared clock in the core. Per-binding animate gating combines with global pause layers (route moving, fast scroll, low power, surface hidden, app inactive, reduced motion, overlay shown) under a default policy; the fps cap derives from spec size. The app-level layers come from one `PlaybackActivity` (amendment below), not from per-widget flags. The host feeds a connectivity-restored signal; the core never touches the network. Paintables never schedule timers. |
 | Budgets | Byte-accounted tiered LRU with host-configurable budgets and defaults. Entries with live bindings are pinned. Unattached ready entries stay until pressure. `clearAll` and a memory-pressure hook exist. Eviction never invalidates a live binding. Releasing by distance is the surface's job, through detach. |
 | Scope | One host-created instance provided through a widget scope and by explicit injection. No static singleton. |
@@ -105,7 +107,7 @@ painted. The workspace had the sink (the shared clock and its layers) but only
 
 | Reference behaviour | Here | Why |
 | ------------------- | ---- | --- |
-| Six-level reason hierarchy (`Any`, `InlineResults`, `TabbedPanel`, `Layer`, `RoundPlaying`, `MediaPreview`): a surface pauses under a reason above its own, so the open panel keeps playing while the chat behind it stops | Only the `Any` and `Layer` equivalents: app inactive/hidden, and a host overlay. An open emoji panel, a sticker preview or a playing round video do not pause the chat | Chat and panel share one clock, so a global layer cannot say "the chat but not the panel"; a host that wants it feeds `ChatEmojiBody.isActive` |
+| Six-level reason hierarchy (`Any`, `InlineResults`, `TabbedPanel`, `Layer`, `RoundPlaying`, `MediaPreview`): a surface pauses under a reason above its own, so the open panel keeps playing while the chat behind it stops | The `Any` and `Layer` equivalents (app inactive/hidden, a host overlay) as clock layers, and `TabbedPanel` as a hold of the chat's bindings (amendment of 2026-11-09). A sticker preview or a playing round video do not pause the chat | Chat and panel share one clock, so a global layer cannot say "the chat but not the panel"; a surface's own hold can |
 | Round video message exempt from the window-inactive pause | None | No round video in the library |
 | Eleven `PowerSaving` flags, the "Power usage" screen, per-feature autoplay and loop settings | One `lowPower` layer; the host maps its settings to `AssetProfile`, `ChatStickerPlayback`, `MarkdownSpoilerController.animate` and `ChromeMotionSpeed` | Product settings, not a contract |
 | Spoiler reveal hidden again by a jump to a message in the same section (`hideShownSpoilers`) | Not replicated; a chat switch still re-hides, because the controller lives with the chat screen | An explicit re-hide rule is a product choice; nothing here reveals or hides on a pause |
@@ -118,6 +120,24 @@ painted. The workspace had the sink (the shared clock and its layers) but only
 Not verified on a device: the pause behaviour on a real desktop (the tests use
 fake lifecycle sources and a manual frame source), including whether the
 embedder delivers `inactive` and `hidden` as the engine sources say.
+
+## Amendment: held surfaces and the panel's motion
+
+Native-media ticket 87. The reference desktop client paints its emoji panel
+from a snapshot while it shows or hides (`TabbedPanel::grabForAnimation`,
+children hidden until `_a_show` ends) and, while the panel is shown, sets
+`GifPauseReason::TabbedPanel`, which pauses the chat's animations below it.
+The reference mobile client locks notifications during the panel's animation
+(`AnimationNotificationsLocker` in `ChatActivityEnterView`).
+
+| Area | Decision |
+| ---- | -------- |
+| Held binding | `AssetBinding.held` (default false) is one surface's hold: the binding leaves the clock as an invisible one does, but stays shown (its demand stays visible) and paints at the clock's time when the hold began, so a repaint shows the same frame. Releasing it plays on from there. `visible` stays "not on screen", which lets leases go; `held` is "on screen, still". |
+| Keeping the frame | `AssetPaintable.keepFrame(keep:)`, a no-op by default, is set by the entry while any of its bindings is held, and carried to a paintable that replaces the stage. A paintable that leases where its frame lives keeps that lease through the idle sweep, where it is, rendering nothing; see [ADR 043](043-platform-texture-frames.md). Without it a texture given back after an idle period would be written by its next holder under the held surface's layer. |
+| Host input | `ContentEmbed` and `ContentEmbedResolver` take `held:`, a listenable the host feeds to every embed of one surface; the embed follows it and never disposes it. |
+| Panel motion | Hosts set `PlaybackPauseLayer.routeMoving` while the panel presentation moves in or out (`PanelVisibility.isMoving`, every kind), so the panel's content and the chat hold: no tick, no decode, no upload; every surface keeps its frame. The example's `PanelPlaybackHold` does it from the presentation's state and clears only what it set. |
+| Popup | While an anchored popup is on screen (showing to hidden), the host holds the chat's embeds; the panel's own content plays. A dock and a keyboard panel at rest hold nothing. |
+| Shared entries | A held surface and a playing one that show the same entry share one paintable: the held one keeps its frame on pages (its picture keeps the image) but shows the live frame through a shared texture. Accepted: the panel and the chat rarely show one entry at one size. |
 
 ## Amendment: dynamic frame pages
 
@@ -139,6 +159,23 @@ Evidence and open items are in that ADR.
 | Size cap | An animation whose spec is larger than the largest size class (512 px on the longer side) shows its still: the decoder reports the first frame, rendered at the cap, as `firstFrame` and again as `full`, and frees the native handle. The reference clients skip the frame cache and cap the render at 512 likewise. |
 | Failure | A native library that fails its start-up probe leaves its media form without a decoder; the entry stays at its placeholder. An input the engine's checks reject ends in `AssetProgress.fail`. Both follow the failure rule above. |
 
+## Amendment: sibling stages
+
+Entries stay keyed by content and spec, so the same content at two sizes is
+two decodes. A GIF picked from a panel cell was attached again at the
+message's size, a new entry at `none`, and the message drew the placeholder
+rectangle for a frame or more before the GIF it had just shown in the cell.
+The rule "the paintable draws the best stage available" now reaches across
+specs.
+
+| Area | Decision |
+| ---- | -------- |
+| Sibling | An entry of the same key and decode mode at another pixel size or variant. A template decode is alpha only, so it is never a sibling of an original one. |
+| Borrow | While a binding's entry is below `firstFrame` (as its profile shows it), the binding paints the sibling with the best stage above its own, the larger decode on a tie, into its own rectangle with its own profile (fit, corner radius, playback). Its readiness is that stage, never final. It borrows anew when its entry or a sibling advances, and gives the sibling back once its entry reaches `firstFrame` or it detaches. The switch to its own picture is instant: there was no placeholder to fade over, so the entry's thumbnail is not kept as a stand-in for a binding that was borrowing. |
+| Pinning | A borrowed sibling is pinned like a bound entry, so the budget, `clearAll` and memory pressure never dispose a paintable on screen. Given back, it returns to the budget, or is dropped at once if it has no stage worth keeping. |
+| Playback | A borrowed paintable that plays is advanced by the borrowing binding as its own, sharing one playback with the sibling's bindings (the rule for bindings of one entry), and keeps its page slot or texture leased while it is painted; the lease ends by the usual idle sweep once the binding draws its own entry. |
+| Not decided | A synchronous first stage from a decoded sibling (scaling its pixels into the new entry) is not done: the borrow already removes the placeholder, and a rescale would cost a decode-sized copy on the UI isolate. |
+
 ## Amendment: arrival fade
 
 The readiness row left the crossfade to each painter, and only the catalogue
@@ -149,8 +186,7 @@ so this is now one rule for every surface.
 
 | Area | Decision |
 | ---- | -------- |
-| When | A content stage (`firstFrame` or `full`) that reaches a binding after its attach, fetched or decoded, fades in from transparent to opaque over 150 ms, linear, from the first frame that draws it. A binding whose entry had content at the attach (a memory hit, including one a producer serves synchronously inside the attach) shows it at once, so a surface built again over loaded content, such as a cell scrolled back into view or a page shown again, never fades. A glyph never fades: it is text, not an image that arrives. |
+| When | A content stage (`firstFrame` or `full`) that reaches a binding after its attach, fetched or decoded, fades in from transparent to opaque over 150 ms, linear, from the first frame that draws it. A binding whose entry had content at the attach (a memory hit, including one a producer serves synchronously inside the attach, and a sibling's stage borrowed at the attach, *Amendment: sibling stages*) shows it at once, so a surface built again over loaded content, such as a cell scrolled back into view or a page shown again, never fades. A glyph never fades: it is text, not an image that arrives. |
 | Beneath | The kept thumbnail (`paintStandIn`) stays opaque under the rising content and is released once the content is opaque, as before; with no thumbnail the scope's placeholder fades out as the content rises. |
 | Texture | A texture layer cannot fade itself, so during the fade it is pushed under an opacity layer (`AssetTextureLayer.composite` with the fade's opacity); the stand-in is drawn on the canvas first, beneath it. |
 | Where | The fade is the surface's paint over its binding, read through one internal rule (`AssetFade`, the clock being the frame time): `ContentView` and the catalogue viewport (`CatalogBoundLeaf`, same 150 ms) apply it. `ContentEmbed` (glyphs and stickers inside text) does not yet. A surface's own entrance (the GIF page's cells fading in as a page arrives) is separate and composes with it. |
-
