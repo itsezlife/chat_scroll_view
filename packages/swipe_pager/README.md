@@ -22,6 +22,14 @@ Decisions: [ADR 020](../../docs/adr/020-package-topology.md) (where it sits).
   it moves `claimSlop` along the axis before `crossAxisSlop` across; it lets
   the drag go otherwise. The claim slop is never under the platform drag
   slop, so a nested scroller along the same axis claims its own drags first.
+- A nested horizontal scroller at its edge in the drag's direction (start
+  edge dragged toward the start, end edge toward the end, as it is laid out,
+  so mirrored right to left) does not keep the drag: on the move it would
+  claim on, the pager takes the arena when none of the scrollers under the
+  down can scroll that way and the pager can move, then swipes by the rule
+  above. Scrollers are found by their sliver viewport in a hit test of the
+  page; a `SingleChildScrollView` is not seen and keeps its drags, as does
+  a scroller when the pager cannot move that way.
 - There is no overscroll: the first and last page do not swipe outward. A
   drag moves at most one page; a touch on a settling pager catches it. A
   slide from `animateTo` is not interrupted by a swipe.
@@ -37,7 +45,7 @@ The defaults port the reference mobile client's own pager
 | --- | --- | --- |
 | Claim slop 0.3 cm | `touchSlop = getPixelsInCM(0.3f, true)` (181); claim when `abs(dx) >= touchSlop && abs(dx) > dy` (656-659) | `claimSlop`, 18.9 logical px at 160 per inch |
 | Vertical list wins | the page's `RecyclerView` starts dragging past the 8 dp touch slop (`RecyclerView.java` 3249) and calls `requestDisallowInterceptTouchEvent` (3393), which drops the pager's pending claim (`ViewPagerFixed` 575-579) | `crossAxisSlop` 8, decided on the straight line from the down |
-| Nested horizontal scroller | a child that scrolls horizontally under the finger keeps the gesture (626-631, `findScrollingChild` 2324-2344) | the claim slop is never under the platform drag slop |
+| Nested horizontal scroller | a child that scrolls horizontally under the finger keeps the gesture (626-631, `findScrollingChild` 2324-2344); one at its edge consumes nothing and the pager takes the drag | the claim slop is never under the platform drag slop; one that cannot scroll the drag's way loses the arena to the pager on the move it would claim on |
 | Edges | `prepareForMoving` refuses past the first and last page (517-520) | no claim outward, no overscroll |
 | Fling under the slop | `abs(velX) >= 3000 && abs(velX) > abs(velY)` (691) | `flingStartVelocity`, physical px/s |
 | Release | back when `abs(x) < width / 3 && (abs(velX) < 3500 \|\| abs(velX) < abs(velY))` (717); after catching a settle, `abs(velX) > 1500` goes the way of the fling, else the nearer page (702-716) | `commits` |

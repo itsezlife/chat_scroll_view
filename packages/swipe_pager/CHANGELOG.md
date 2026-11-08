@@ -14,3 +14,11 @@ package is pre-1.0.
 - `SwipePagerController`: `page`, `position`, `animateTo`, `jumpTo`, typed
   page and position listeners.
 - `SwipePagerKeepAlive`: `all`, `none` and `recent(n)`.
+
+### Changed
+
+- A nested horizontal scroller at its edge in the drag's direction no longer
+  keeps the drag to overscroll: the pager takes it and swipes under its usual
+  slop and direction rule. A scroller that can scroll that way keeps the drag
+  as before. The pager now routes its own pointers instead of through a
+  `RawGestureDetector`, and reads the platform drag slop from `MediaQuery`.
