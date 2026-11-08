@@ -83,8 +83,7 @@ void main() {
       // Scrolling back four screens of stickers or custom emoji, or the
       // screen of animations just scrolled past, is the pager keep-alive and
       // scroll-back case the budget exists for. Further back, decoding again
-      // is the expected price: an animation costs half a MiB, so 12 MiB is
-      // one screen of them behind the visible one.
+      // is the expected price.
       final stickers = scrollDownAndBack(
         stickersWorkload,
         AssetCacheBudgets.defaults.stillBytes,
