@@ -124,7 +124,9 @@ final class LottieFrameLease {
 /// [FrameAtlas.render] goes out with the latest want of each. A want made while
 /// a batch runs replaces the one before it and waits for the next tick: a slow
 /// renderer coalesces, it never queues. A want for the frame already sent is
-/// free, so a paused animation costs nothing.
+/// free, so a paused animation costs nothing. A paintable at half frame rate
+/// (`AssetProfile.halfFrameRate`) wants only every second frame, so its slot
+/// or texture is rendered and posted half as often, by the same rule.
 ///
 /// The bindings of the animated paintables are targets of the same clock and
 /// repaint on their own, so no repaint signal goes out from here. The follow

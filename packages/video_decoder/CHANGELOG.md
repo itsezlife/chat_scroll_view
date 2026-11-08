@@ -6,6 +6,15 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (half frame rate)
+
+- `VideoFrameScheduler.want` takes `frameStep`: with 2 the clip keeps only the
+  first decoded frame of a pass and every second one after it, so it draws or
+  posts half as many. `VideoAnimationPaintable` passes
+  `AssetPaintContext.frameStepFor` of the clip's rate, so a surface at half
+  rate (`AssetProfile.halfFrameRate`) shows a 60 fps clip at 30. The default
+  step of 1 plays as before.
+
 ### Changed
 
 - The still and the playing sprite are placed by `AssetPaintContext.fit`

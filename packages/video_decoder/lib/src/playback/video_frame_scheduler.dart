@@ -142,6 +142,14 @@ final class VideoFrameLease {
 /// stops where it was. A clip the cap passed over this tick still keeps its
 /// time: its frame is chosen by its own clock, it only updates less often.
 ///
+/// ## Half frame rate
+///
+/// A paintable at half rate wants with a frame step of 2 ([want]): the clip
+/// keeps the first decoded frame of each pass and every second one after it,
+/// so it draws or posts half as many frames, as a playing asset drawn small
+/// asks (`AssetProfile.halfFrameRate`). The dropped frames are decoded, as
+/// decoding is sequential, but never reach the ring.
+///
 /// ## The cap: time-slicing, never freezing
 ///
 /// A visible clip keeps playing. At most [maxAdvancing] clips get a slot per
@@ -363,11 +371,24 @@ final class VideoFrameScheduler {
   /// [onCanvas] says a surface that only has a canvas asks: it cannot show a
   /// texture, so a lease on one goes back to a slot, and the lease takes no
   /// texture until a whole sweep period passes without such a want.
-  void want(VideoFrameLease lease, Duration played, {bool onCanvas = false}) {
+  ///
+  /// [frameStep] is how many decoded frames the clip moves by between the
+  /// ones it shows (`AssetPaintContext.frameStepFor`): 2 at half rate, so only
+  /// every second decoded frame of a pass is drawn or posted. Decoding is
+  /// sequential, so the frames between are still decoded, and dropped unseen.
+  void want(
+    VideoFrameLease lease,
+    Duration played, {
+    bool onCanvas = false,
+    int frameStep = 1,
+  }) {
+    assert(frameStep > 0, 'a clip moves by at least one frame');
     if (lease._released) return;
     lease._touched = true;
     lease._wantedAt = _now;
-    lease._player.note(played);
+    lease._player
+      ..frameStep = frameStep
+      ..note(played);
     if (!onCanvas) return;
     lease
       .._onCanvas = true
@@ -755,6 +776,9 @@ final class _ClipPlayer implements VideoFrameSource {
   /// Whether the clip had a slot at the last tick: only a slotted clip
   /// starts decodes.
   bool slotted = true;
+
+  /// Decoded frames of a pass the clip moves by between the ones it keeps.
+  int frameStep = 1;
   bool failed = false;
   bool _dead = false;
   bool _inFlight = false;
@@ -870,8 +894,12 @@ final class _ClipPlayer implements VideoFrameSource {
       switch (result.status) {
         case VideoFrameStatus.frame:
           final pts = Duration(milliseconds: result.ptsMs);
-          _ring.add(_Frame(_number++, _passBase + pts, buffer));
-          buffer = null;
+          // A frame between two kept ones is dropped unseen: its buffer goes
+          // back in `finally`. It still counts for the pass length.
+          if (_framesInPass % frameStep == 0) {
+            _ring.add(_Frame(_number++, _passBase + pts, buffer));
+            buffer = null;
+          }
           _lastPts = pts;
           _framesInPass++;
         case VideoFrameStatus.endOfStream:

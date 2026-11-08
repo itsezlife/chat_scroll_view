@@ -6,6 +6,18 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (small cells at half rate)
+
+- `AssetProfile.halfFrameRate`, carried by `AssetPaintContext.halfFrameRate`:
+  a playing asset shows only every second frame of a source above 30 fps
+  (`AssetPaintContext.frameStepFor`). Off by default, so existing surfaces
+  play as before.
+- `AssetPresets.keyboardCell` takes `decodeMode` and `fit`. A playing cell of
+  at most 90 logical px (`smallCellExtent`) now plays at half rate and decodes
+  at most 160 px on a side (`smallCellPixels`), the reference client's rule
+  for small stickers. Code that read 198 px from a 66 px cell at 3x now reads
+  160; a still cell keeps its full pixels.
+
 ### Changed (no public top-level functions)
 
 - The engine's page upload is `FramePageImages.engineUpload`, no longer the

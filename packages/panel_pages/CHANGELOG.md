@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (small covers at half rate)
+
+- A pack strip's playing cover comes from `AssetPresets.keyboardCell`, which
+  now plays a cell of up to 90 logical px at half rate and decodes it at most
+  160 px on a side; the strip's code is unchanged.
+
 ### Changed (pack strip covers)
 
 - `StickerPackStrip` plays a pack's animated cover in its tab, looping, as the
