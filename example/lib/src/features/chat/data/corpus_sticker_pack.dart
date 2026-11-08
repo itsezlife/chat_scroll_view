@@ -70,12 +70,12 @@ final class CorpusPack {
 }
 
 /// A local corpus of Lottie stickers, for trying the Lottie pipeline on real
-/// artwork. **The files are Telegram's property**: they are never committed,
-/// and the repository holds none (see `assets/telegram_stickers/README.md`).
+/// artwork. **The files are third-party property**: they are never committed,
+/// and the repository holds none (see `assets/sticker_corpus/README.md`).
 ///
 /// ## Where the packs come from
 ///
-/// - The app bundle: `assets/telegram_stickers/<pack>--<n>.json`, put there by
+/// - The app bundle: `assets/sticker_corpus/<pack>--<n>.json`, put there by
 ///   `tool/link_corpus_assets.sh`. The folder is listed in the pubspec, but
 ///   its files are git-ignored, so a checkout without them builds and lists
 ///   no pack. Files are flat because a pubspec asset folder is not recursive
@@ -98,7 +98,7 @@ final class CorpusStickerPack {
     'CHAT_CORPUS_DIR',
   );
 
-  static const String _assetDirectory = 'assets/telegram_stickers/';
+  static const String _assetDirectory = 'assets/sticker_corpus/';
   static final RegExp _assetName = RegExp(r'^(.+)--([^/]+)\.json$');
   static const String _keyPrefix = 'corpus:';
 

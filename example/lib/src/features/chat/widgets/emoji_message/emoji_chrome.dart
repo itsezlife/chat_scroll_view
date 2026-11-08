@@ -741,11 +741,11 @@ final class EmojiChrome$Ios extends EmojiChrome {
   /// An incoming header's end, from the row's right: `edgeInset + 9` (2.5).
   static const double incomingHeaderRight = 12;
 
-  /// The bubble's edge inset of the Telegram-iOS chat layout
+  /// The bubble's edge inset of the reference iOS client's chat layout
   /// (`ChatMessageItemCommon.swift`, the bubble constants).
   static const double bubbleEdgeInset = 3;
 
-  /// The bubble's left content inset of the Telegram-iOS chat layout.
+  /// The bubble's left content inset of the reference iOS client's chat layout.
   static const double bubbleContentInsetLeft = 6;
 
   /// The reply's room beside the content, as `ChatMessageStickerItemNode`
@@ -787,7 +787,7 @@ final class EmojiChrome$Ios extends EmojiChrome {
 
   /// The least room beside the emoji text a reply may have. Under it the reply
   /// goes above the text: with no room left, a panel beside would overlap the
-  /// emoji. A placement of ours, not Telegram's.
+  /// emoji. A placement of ours, not the reference client's.
   static const double minimumBesideText = 40;
 
   /// The gap between an above reply and the text.

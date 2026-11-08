@@ -116,8 +116,8 @@ class DemoEmojiMessage extends StatefulWidget {
 
 class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
   /// A primary mouse click on the pill, which the pill's tap barrier keeps from
-  /// the viewport: what Telegram Desktop does for a click on the date
-  /// (`CursorState::Date` in `ListWidget::mouseActionFinish`): select the
+  /// the viewport: what the reference desktop client does for a click on the
+  /// date (`CursorState::Date` in `ListWidget::mouseActionFinish`): select the
   /// message when nothing is selected, toggle it in message selection. The
   /// facade's toggle does both, and drops a live text selection as a click on
   /// the row would.
@@ -282,9 +282,10 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
           pillColors = colors.tinted(tint);
         }
 
-        // Telegram Desktop's click on the date selects the message. A mobile
-        // selection policy has no such click: a tap on the row is the idle
-        // chrome, and the viewport already toggles it in message selection.
+        // The reference desktop client's click on the date selects the message.
+        // A mobile selection policy has no such click: a tap on the row is the
+        // idle chrome, and the viewport already toggles it in message
+        // selection.
         final selectsOnStatusClick =
             !widget.selection.selectionPolicy.routesPrimaryTapToIdleMessage;
 

@@ -1,12 +1,12 @@
 /// The status of a message (its time, its delivery state) against the real
 /// `ChatScrollView` and the demo's real rows, with a mouse.
 ///
-/// Telegram Desktop shows the status of an emoji-only message while the
-/// pointer is anywhere on the message's row, not only over the emoji box
+/// The reference desktop client shows the status of an emoji-only message while
+/// the pointer is anywhere on the message's row, not only over the emoji box
 /// (`ListWidget::mouseActionUpdate` finds the element under the cursor by `y`
 /// alone and clamps `x` to the list; `UnwrappedMedia::needInfoDisplay` asks
-/// `isUnderCursor`). A click on that status selects the message when nothing
-/// is selected and toggles it in message selection
+/// `isUnderCursor`). A click on that status selects the message when nothing is
+/// selected and toggles it in message selection
 /// (`ListWidget::mouseActionFinish`, `CursorState::Date`); a right click opens
 /// the message's menu. The time of an ordinary bubble keeps the tap barrier: a
 /// mouse click on it is not a message tap.
@@ -307,7 +307,8 @@ void main() {
     });
 
     chatTest('is tinted with the selection while its message is selected, as '
-        'Telegram Desktop paints the selected service colour', (tester) async {
+        'the reference desktop client paints the selected service '
+        'colour', (tester) async {
       final rig = await mount(tester, [
         for (var i = 0; i < 3; i++)
           _message(i, content: _glyphs, sender: _outgoing),

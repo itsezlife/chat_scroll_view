@@ -114,8 +114,8 @@ void main() {
   });
 
   group('an emoji-only draft is sent as typed', () {
-    // Telegram Android skips the trim for it (research 05 section 3.6), so a
-    // multi-line arrangement of emoji survives.
+    // The reference Android client skips the trim for it (research 05 section
+    // 3.6), so a multi-line arrangement of emoji survives.
     test('its blank lines and trailing space are not trimmed', () {
       expect(
         ChatBodyMarkdown.send(const _Rich.plain('$_thumbsUp\n\n$_thumbsUp ')),

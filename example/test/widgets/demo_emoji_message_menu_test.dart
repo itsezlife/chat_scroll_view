@@ -4,10 +4,10 @@
 /// An emoji-only message has no bubble. The reference client redraws the
 /// message above a flat black dim, so the glyphs or the sticker's art, the
 /// time pill, the reply panel and the reactions stay bright, each in its own
-/// shape, and what lies between them stays dimmed (`Telegram`
-/// `ChatActivity.java` 17630-17700: the `scrimPaint` rect, then the cell drawn
-/// again). The expected points here are worked from where the widgets are laid
-/// out, not read back from the code under test.
+/// shape, and what lies between them stays dimmed (the reference Android
+/// client's `ChatActivity.java` 17630-17700: the `scrimPaint` rect, then the
+/// cell drawn again). The expected points here are worked from where the
+/// widgets are laid out, not read back from the code under test.
 library;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';

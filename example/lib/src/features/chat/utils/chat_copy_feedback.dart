@@ -44,7 +44,8 @@ enum ChatCopyKind {
 ///   (`ChatController.swift:4318`, `TextSelectionNode.swift:773-774`), so the
 ///   toast below is the Android client's. iOS has no Copy for several
 ///   messages.
-/// * Desktop (`tdesktop/Telegram/SourceFiles`): `HistoryInner::copySelectedText`
+/// * Desktop (the reference desktop client's `SourceFiles`):
+///   `HistoryInner::copySelectedText`
 ///   (`history/history_inner_widget.cpp:3952`), `ListWidget::copySelectedText`
 ///   (`history/view/history_view_list_widget.cpp:3566`), `copyContextText`
 ///   (`history_inner_widget.cpp:4058`) and `AddCopyLinkAction`

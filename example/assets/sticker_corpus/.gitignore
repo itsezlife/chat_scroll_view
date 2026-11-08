@@ -1,4 +1,4 @@
-# Telegram's stickers are Telegram's property: they stay on this machine and
+# The corpus stickers are third-party property: they stay on this machine and
 # are never committed. Only this rule and the README are tracked.
 *
 !.gitignore
