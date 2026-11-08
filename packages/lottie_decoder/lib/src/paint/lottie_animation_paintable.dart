@@ -40,9 +40,10 @@ import 'package:lottie_native/lottie_native.dart';
 /// time: a pass starts at the first paint that animates, so a sticker that
 /// appears at minute five does not start at its middle, and a pass that does
 /// not loop has a start to end from. Each paint adds how far the clock moved
-/// since the previous one. A step larger than [resumeGap], or backwards, adds
-/// nothing: the clock stood still while paused and then jumped by the pause
-/// ("freeze and continue"), and the animation goes on from where it stopped.
+/// since the previous one. The clock's time leaves out its pauses, so a pause
+/// costs nothing ("freeze and continue"); a step larger than [resumeGap], or
+/// backwards, adds nothing either: the surface did not paint the animation for
+/// that long (it was off screen), and it goes on from where it stopped.
 ///
 /// ## Half frame rate
 ///

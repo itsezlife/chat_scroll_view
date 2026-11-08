@@ -667,7 +667,9 @@ class _ComposerFieldState extends State<ComposerField> {
             // Keeps the line box of the field's own line, so the smaller hint
             // sits on the caret's line instead of riding at the top of it.
             height: fontSize * lineHeight / hintSize,
-            overflow: widget.hintMaxLines == null ? null : TextOverflow.ellipsis,
+            overflow: widget.hintMaxLines == null
+                ? null
+                : TextOverflow.ellipsis,
           ),
         );
       case ComposerFieldLayout$Form(:final style):

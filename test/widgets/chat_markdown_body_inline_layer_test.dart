@@ -953,8 +953,9 @@ void main() {
       ticks.tick(const Duration(seconds: 11));
       expect(selection.spoilers.fillFrame, inInclusiveRange(30, 31));
 
-      // And from there it moves at its own pace again.
-      ticks.tick(const Duration(milliseconds: 11034));
+      // And from there it moves at its own pace again (the clock counted one
+      // display frame for the pause, then 50 ms).
+      ticks.tick(const Duration(milliseconds: 11067));
       expect(selection.spoilers.fillFrame, 32);
     });
 

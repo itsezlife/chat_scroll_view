@@ -522,7 +522,7 @@ void main() {
 
   group('what the pause does to the animations', () {
     test('losing focus for ten seconds costs one tick on the first frame '
-        'back, stamped with that frame', () {
+        'back, and the ten seconds do not count', () {
       activity();
       final target = _Target();
       clock.register(target);
@@ -534,8 +534,9 @@ void main() {
       lifecycle.emit(AppLifecycleState.resumed);
       frames.tick(_ms(10016));
 
-      expect(target.ticks, [_ms(16), _ms(10016)]);
-      expect(clock.now, _ms(10016));
+      const back = Duration(milliseconds: 16, microseconds: 16667);
+      expect(target.ticks, [_ms(16), back]);
+      expect(clock.now, back);
     });
 
     test('a follower of the clock (the spoiler dust) stands still while the '
@@ -551,7 +552,7 @@ void main() {
       lifecycle.emit(AppLifecycleState.resumed);
       frames.tick(_ms(120));
 
-      expect(seen, [_ms(40), _ms(120)]);
+      expect(seen, [_ms(40), _ms(40) + const Duration(microseconds: 16667)]);
     });
   });
 }

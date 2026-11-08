@@ -376,7 +376,11 @@ void main() {
       recorder.endRecording().dispose();
 
       expect(signals, 2, reason: 'one tick before the pause, one after');
-      expect(paintable.paints.single.context.time, _ms(10016));
+      // The pause does not count: one display frame after the last.
+      expect(
+        paintable.paints.single.context.time,
+        _ms(16) + const Duration(microseconds: 16667),
+      );
       expect(scope.isAttached(_key, _large), isTrue);
     });
 
@@ -616,10 +620,14 @@ void main() {
       expect(binding.playback, AssetPlayback.playing);
 
       scope.clock.setPaused(PlaybackPauseLayer.lowPower, paused: false);
-      frame(binding, 1040);
-      frame(binding, 1100);
-      frame(binding, 1180);
-      ticks.tick(_ms(1196));
+      // The pause does not count, so the pass goes on from where it was and
+      // ends a whole pass of playback time later, not at once.
+      frame(binding, 5000);
+      expect(binding.playback, AssetPlayback.playing);
+      for (var ms = 5040; ms <= 5400; ms += 40) {
+        frame(binding, ms);
+      }
+      ticks.tick(_ms(5416));
 
       expect(binding.playback, AssetPlayback.ended);
     });

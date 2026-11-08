@@ -31,9 +31,9 @@ import 'package:video_decoder/src/playback/video_frame_scheduler.dart';
 /// ## Played time
 ///
 /// The same rule as the Lottie animation: each paint adds how far the clock
-/// moved since the previous one, and a step larger than [resumeGap], or
-/// backwards, adds nothing, because the clock stood still while paused and then
-/// jumped by the pause ("freeze and continue").
+/// moved since the previous one (the clock's time leaves out its pauses), and a
+/// step larger than [resumeGap], or backwards, adds nothing: the surface did
+/// not paint it for that long ("freeze and continue").
 ///
 /// ## Half frame rate
 ///
