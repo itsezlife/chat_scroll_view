@@ -273,7 +273,12 @@ final class VideoRig {
 
   /// One display frame: the clock ticks (the scheduler follows it), then the
   /// surfaces paint [painted] (each asks its paintable to advance), then the
-  /// futures that were waiting run.
+  /// futures that were waiting run. A flush starts each page's upload in an
+  /// event-loop turn of its own, and a device runs many turns between two
+  /// vsyncs, so a step gives the loop [_turnsPerFrame] turns, enough for a
+  /// flush of every page the scenes here hold.
+  static const _turnsPerFrame = 32;
+
   Future<void> step({
     Iterable<AssetPaintable> painted = const [],
     Duration by = const Duration(milliseconds: 16),
@@ -284,7 +289,13 @@ final class VideoRig {
     for (final paintable in painted) {
       paintable.advancePlayback(context);
     }
-    await (flush?.call() ?? Future<void>.delayed(Duration.zero));
+    if (flush != null) {
+      await flush();
+    } else {
+      for (var i = 0; i < _turnsPerFrame; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
     uploads.endStep();
     timers.elapse(by);
   }
