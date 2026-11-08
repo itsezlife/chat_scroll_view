@@ -18,7 +18,13 @@ void main() {
             loop = false,
             rest = AssetRestFrame.first,
           }) async {
-            paintOnce(fake, time, animate: animate, loop: loop, rest: rest);
+            AssetPlaybackContract.paintOnce(
+              fake,
+              time,
+              animate: animate,
+              loop: loop,
+              rest: rest,
+            );
             return fake.frameShown;
           },
     );

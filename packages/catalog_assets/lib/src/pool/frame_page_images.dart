@@ -14,21 +14,6 @@ import 'package:catalog_assets/src/pool/pixel_upload.dart';
 typedef FramePageUploader =
     Future<ui.Image> Function(Uint8List pixels, int side);
 
-/// The engine's upload of a page of [format] pixels (RGBA unless told
-/// otherwise), through [PixelUpload], which copies the bytes when called.
-Future<ui.Image> uploadFramePage(
-  Uint8List pixels,
-  int side, {
-  ui.PixelFormat format = ui.PixelFormat.rgba8888,
-}) => _engineUpload(
-  pixels,
-  side,
-  pixels.length ~/ (side * FramePageMemory.bytesPerPixel),
-  format,
-);
-
-final _engineUpload = PixelUpload();
-
 /// The images of the dynamic pages, made from their bytes when they change.
 ///
 /// A renderer writes into [FramePageMemory]; nothing is drawable until the
@@ -77,8 +62,26 @@ final class FramePageImages {
   /// Creates images over [memory], uploading with [upload].
   FramePageImages({
     required this.memory,
-    FramePageUploader upload = uploadFramePage,
+    FramePageUploader upload = engineUpload,
   }) : _upload = upload;
+
+  /// The engine's upload of a page of [format] pixels (RGBA unless told
+  /// otherwise), through [PixelUpload], which copies the bytes when called:
+  /// the default `upload` of every owner.
+  static Future<ui.Image> engineUpload(
+    Uint8List pixels,
+    int side, {
+    ui.PixelFormat format = ui.PixelFormat.rgba8888,
+  }) => _engineUpload(
+    pixels,
+    side,
+    pixels.length ~/ (side * FramePageMemory.bytesPerPixel),
+    format,
+  );
+
+  // One for the process, so the first engine without the synchronous form
+  // switches every page upload at once.
+  static final PixelUpload _engineUpload = PixelUpload();
 
   /// The bytes the images are made from.
   final FramePageMemory memory;
