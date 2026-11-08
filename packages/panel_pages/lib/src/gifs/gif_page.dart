@@ -51,13 +51,29 @@ import 'package:panel_shell/panel_shell.dart';
 /// `catalog_assets`) are the only playback policy: a clip that is scrolled out
 /// of view detaches and stops. A clip's stand-in is the cache's.
 ///
+/// ## Arrivals
+///
+/// What a change lists that was not listed before fades in
+/// (`DefaultItemAnimator`'s add, 120 ms), and the cells that stay move and
+/// resize to their new places in the row they are in (its move, the
+/// `listTransition` motion role), never cross-faded: a page that arrives
+/// reflows the last row and fades the clips it adds in, and results that
+/// replace others fade theirs in. What a page lists when it is built shows at
+/// once.
+///
 /// ## Search
 ///
 /// A page given a [searchSource] follows the shell's search (the host's
 /// `PanelPage` declares [searchCapabilities]): once the typed text has paused
 /// ([searchDebounce]) the source is asked for it, and its results are listed
-/// in place of the collections until search closes or the text is cleared.
-/// Results are paged as the end comes near, like a collection.
+/// in place of the collections until search closes. Results are paged as the
+/// end comes near, like a collection.
+///
+/// What is listed stays until the results of the new text arrive, while the
+/// field shows progress; they then replace it at once, from the start of the
+/// list, as the reference clients swap their results. Open with no text,
+/// search lists the [searchSuggestions] the host gives (the reference lists
+/// its trending clips there), or the collections when it gives none.
 ///
 /// Such a page places the shell's search field itself, pinned over the top of
 /// its list on the shell's background: the clips start under it and scroll
@@ -77,8 +93,7 @@ import 'package:panel_shell/panel_shell.dart';
 /// provider's terms may require its name on the content it supplies, and the
 /// page knows no provider.
 ///
-/// Not ported: the category chips, trending from a bot, and the preview a long
-/// press opens.
+/// Not ported: the category chips and the preview a long press opens.
 ///
 /// Requires the chrome theme, strings and motion scopes.
 class GifPage extends StatefulWidget {
@@ -89,6 +104,7 @@ class GifPage extends StatefulWidget {
     required this.source,
     required this.assets,
     this.searchSource,
+    this.searchSuggestions,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
     this.attribution,
     super.key,
@@ -113,6 +129,10 @@ class GifPage extends StatefulWidget {
 
   /// Where search results come from, or null for a page that does not search.
   final SearchSource? searchSource;
+
+  /// What search lists while it is open with no text, loaded once it is
+  /// first listed, or null to list the collections of [source] there too.
+  final CollectionSource? searchSuggestions;
 
   /// How long typing must pause before a search runs.
   final Duration searchDebounce;
@@ -156,6 +176,10 @@ final class _RowLine extends _Line {
   final GifRow row;
 }
 
+// Which of its lists the page shows, unless it shows the results of a query
+// (their collection id).
+enum _Listed { collections, suggestions }
+
 // What the page keeps across being unmounted: the offset it was left at.
 final class _GifPageKept implements PanelPageController {
   double offset = 0;
@@ -164,7 +188,10 @@ final class _GifPageKept implements PanelPageController {
   void dispose() {}
 }
 
-class _GifPageState extends State<GifPage> {
+class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
+  // `DefaultItemAnimator`'s add duration: how long an added cell fades in.
+  static const _appearDuration = Duration(milliseconds: 120);
+
   late final _GifPageKept _kept = _host.controllers.obtain(
     _host.pageId,
     _GifPageKept.new,
@@ -173,6 +200,17 @@ class _GifPageState extends State<GifPage> {
   final _hairline = listen.ValueNotifier<bool>(true);
   var _lines = const <_Line>[];
   var _lineKey = (<Collection>[], 0.0, null as PanelStrings?, null as String?);
+  Object? _lineListed;
+  // What is listed (which list, and its collections); null before the first
+  // listing.
+  ({Object id, List<Collection> collections})? _listed;
+  // The clips the last change listed that were not listed before: they fade
+  // in on [_appear].
+  var _fresh = const <ContentKey>{};
+  late final AnimationController _appear;
+  // Whether the cells of the lines last laid out move to their places: not
+  // when the width changed or another list replaced the one shown.
+  var _moveCells = false;
   late DebouncedSearch<void> _debounced;
   var _query = '';
   String? _announced;
@@ -180,11 +218,18 @@ class _GifPageState extends State<GifPage> {
   PanelPageHost get _host => widget.host;
   CollectionSource get _source => widget.source;
   SearchSource? get _search => widget.searchSource;
+  CollectionSource? get _suggestions => widget.searchSuggestions;
 
   @override
   void initState() {
     super.initState();
+    _appear = AnimationController(
+      vsync: this,
+      duration: _appearDuration,
+      value: 1,
+    );
     _source.collections.addListener(_onCollections);
+    _suggestions?.collections.addListener(_onCollections);
     _host.reselected.addListener(_onReselected);
     _startSearch();
     _onCollections();
@@ -220,6 +265,11 @@ class _GifPageState extends State<GifPage> {
       widget.source.collections.addListener(_onCollections);
       _onCollections();
     }
+    if (!identical(oldWidget.searchSuggestions, widget.searchSuggestions)) {
+      oldWidget.searchSuggestions?.collections.removeListener(_onCollections);
+      widget.searchSuggestions?.collections.addListener(_onCollections);
+      _onCollections();
+    }
     if (!identical(oldWidget.searchSource, widget.searchSource)) {
       oldWidget.searchSource?.results.removeListener(_onResults);
       _host.search.removeListener(_onSearchState);
@@ -234,7 +284,9 @@ class _GifPageState extends State<GifPage> {
   void dispose() {
     _stopSearch();
     _source.collections.removeListener(_onCollections);
+    _suggestions?.collections.removeListener(_onCollections);
     _host.reselected.removeListener(_onReselected);
+    _appear.dispose();
     _scroll.dispose();
     _hairline.dispose();
     super.dispose();
@@ -242,14 +294,25 @@ class _GifPageState extends State<GifPage> {
 
   // --- Loading --------------------------------------------------------------
 
+  // Loads what the page lists and has not loaded: the collections from the
+  // start, the suggestions once search lists them.
   void _onCollections() {
-    for (final collection in _source.collections.value) {
-      if (collection.contents is CollectionContents$Idle) {
-        unawaited(_source.load(collection.id));
+    for (final source in [_source, if (_suggesting) ?_suggestions]) {
+      for (final collection in source.collections.value) {
+        if (collection.contents is CollectionContents$Idle) {
+          unawaited(source.load(collection.id));
+        }
       }
     }
-    if (mounted) setState(() {});
+    _relist();
   }
+
+  // The source of what is listed, unless it is search results.
+  CollectionSource? get _listedSource => switch (_listed?.id) {
+    _Listed.collections => _source,
+    _Listed.suggestions => _suggestions,
+    _ => null,
+  };
 
   // --- Search ---------------------------------------------------------------
 
@@ -265,20 +328,31 @@ class _GifPageState extends State<GifPage> {
 
   void _onSearchState() {
     _syncHairline();
-    if (!_syncQuery()) return;
-    _debounced.update(_query);
-    setState(() {});
+    if (_syncQuery()) _debounced.update(_query);
+    // Opening search lists the suggestions, which may need loading.
+    _onCollections();
   }
+
+  // Whether search is open with no text, for a page given suggestions.
+  bool get _suggesting =>
+      _suggestions != null &&
+      _search != null &&
+      _host.search.value.isOpen &&
+      _query.isEmpty;
 
   void _reportBusy() => _host.reportSearchProgress(busy: _debounced.busy.value);
 
-  // The results are what the page lists only once they are those of the text
-  // in the field: between a keystroke and the reply they are the last
-  // query's, and not shown.
+  // The results, once they are those of the text in the field and have
+  // arrived: between a keystroke and the reply they are the last query's, or
+  // the new one's still loading, and what was listed stays.
   Collection? get _results {
     final results = _search?.results.value;
     if (_query.isEmpty || results == null) return null;
-    return results.id == CollectionId.query(_query) ? results : null;
+    if (results.id != CollectionId.query(_query)) return null;
+    return switch (results.contents) {
+      CollectionContents$Loaded() || CollectionContents$Failed() => results,
+      _ => null,
+    };
   }
 
   void _onResults() {
@@ -288,21 +362,74 @@ class _GifPageState extends State<GifPage> {
       _announced = _query;
       _host.reportSearchResultCount(items.length);
     }
-    if (mounted) setState(() {});
+    _relist();
+  }
+
+  // --- Listing --------------------------------------------------------------
+
+  // Works out what the page lists now. Another list than before starts at the
+  // top at once; clips no list showed before fade in, unless this is the
+  // first listing (a page built again shows what it had at once).
+  void _relist() {
+    if (!mounted) return;
+    final listed = _listing();
+    final previous = _listed;
+    _listed = listed;
+    if (previous != null) {
+      final before = {
+        for (final collection in previous.collections)
+          for (final item in _itemsOf(collection)) item.key,
+      };
+      final fresh = {
+        for (final collection in listed.collections)
+          for (final item in _itemsOf(collection))
+            if (!before.contains(item.key)) item.key,
+      };
+      if (fresh.isNotEmpty) {
+        _fresh = fresh;
+        unawaited(_appear.forward(from: 0));
+      }
+      if (previous.id != listed.id && _scroll.hasClients) _scroll.jumpTo(0);
+    }
+    setState(() {});
+  }
+
+  ({Object id, List<Collection> collections}) _listing() {
+    if (_query.isNotEmpty) {
+      if (_results case final results?) {
+        return (id: results.id, collections: [results]);
+      }
+      return _listed ??
+          (id: CollectionId.query(_query), collections: const <Collection>[]);
+    }
+    if (_suggestions case final suggestions? when _suggesting) {
+      return (
+        id: _Listed.suggestions,
+        collections: suggestions.collections.value,
+      );
+    }
+    return (
+      id: _Listed.collections,
+      collections: [
+        for (final collection in _source.collections.value)
+          if (!_isEmptyRecents(collection)) collection,
+      ],
+    );
   }
 
   void _retry() {
-    if (_query.isNotEmpty) {
+    if (_listed?.id case CollectionId$Query(:final text)) {
       // A search is not retried by asking for the same text again, which the
       // source ignores: clearing it first makes the text new.
-      final query = _query;
       _announced = null;
-      unawaited(_search!.search('').then((_) => _search?.search(query)));
+      unawaited(_search!.search('').then((_) => _search?.search(text)));
       return;
     }
-    for (final collection in _source.collections.value) {
+    final source = _listedSource;
+    if (source == null) return;
+    for (final collection in source.collections.value) {
       if (collection.contents is CollectionContents$Failed) {
-        unawaited(_source.load(collection.id));
+        unawaited(source.load(collection.id));
       }
     }
   }
@@ -312,7 +439,8 @@ class _GifPageState extends State<GifPage> {
     if (!_scroll.hasClients) return;
     final position = _scroll.position;
     if (position.extentAfter > position.viewportDimension) return;
-    if (_query.isNotEmpty) {
+    final source = _listedSource;
+    if (source == null) {
       if (_results?.contents case CollectionContents$Loaded(
         :final nextPageToken,
       ) when nextPageToken != null) {
@@ -320,11 +448,11 @@ class _GifPageState extends State<GifPage> {
       }
       return;
     }
-    for (final collection in _source.collections.value) {
+    for (final collection in source.collections.value) {
       if (collection.contents case CollectionContents$Loaded(
         :final nextPageToken,
       ) when nextPageToken != null) {
-        unawaited(_source.loadMore(collection.id));
+        unawaited(source.loadMore(collection.id));
       }
     }
   }
@@ -385,19 +513,18 @@ class _GifPageState extends State<GifPage> {
   // changes: the collections listed, the width, the strings and the
   // attribution.
   List<_Line> _linesFor(double width, PanelStrings strings) {
-    final results = _results;
-    final collections = _query.isNotEmpty
-        ? [?results]
-        : [
-            for (final collection in _source.collections.value)
-              if (!_isEmptyRecents(collection)) collection,
-          ];
+    final listed = _listed!;
+    final collections = listed.collections;
     final stale =
         _lineKey.$2 != width ||
         !identical(_lineKey.$3, strings) ||
         _lineKey.$4 != widget.attribution ||
         !_sameCollections(_lineKey.$1, collections);
     if (!stale) return _lines;
+    // Cells move to their places for a change of what one list holds; a new
+    // width or another list puts them there at once.
+    _moveCells = _lineKey.$2 == width && _lineListed == listed.id;
+    _lineListed = listed.id;
     _lineKey = (collections, width, strings, widget.attribution);
     // A collection that failed ends its own rows with the failure, so it is
     // read where the clips would have been, not after the ones that follow.
@@ -411,17 +538,13 @@ class _GifPageState extends State<GifPage> {
           _NoticeLine(strings.gifsFailed, onRetry: _retry),
       ],
     ];
-    final foundNothing = switch (results?.contents) {
-      CollectionContents$Loaded(:final items) => items.isEmpty,
-      _ => false,
-    };
-    // Nothing to list at all, as for a host with no provider and no recents:
-    // said only once every collection has loaded, so neither a page still
-    // loading nor one whose load failed (it has its own line) says it.
+    // Nothing to list at all, as for a search that found nothing or a host
+    // with no provider and no recents: said only once every collection has
+    // loaded, so neither a page still loading nor one whose load failed (it
+    // has its own line) says it.
     final listsNothing =
-        _query.isEmpty &&
         rows.isEmpty &&
-        _source.collections.value.every(
+        collections.every(
           (collection) => collection.contents is CollectionContents$Loaded,
         );
     return _lines = [
@@ -429,7 +552,7 @@ class _GifPageState extends State<GifPage> {
           when rows.any((line) => line is _RowLine))
         _AttributionLine(attribution),
       ...rows,
-      if (foundNothing || listsNothing) _NoticeLine(strings.gifsEmpty),
+      if (listsNothing) _NoticeLine(strings.gifsEmpty),
     ];
   }
 
@@ -493,6 +616,13 @@ class _GifPageState extends State<GifPage> {
                 collection: collection,
                 host: _host,
                 assets: widget.assets,
+                fresh: _fresh,
+                appear: _appear,
+                move: _moveCells
+                    ? ChromeMotionScope.of(
+                        context,
+                      ).specOf(MotionRole.listTransition)
+                    : null,
               ),
             },
           );
@@ -619,6 +749,9 @@ class _Row extends StatelessWidget {
     required this.collection,
     required this.host,
     required this.assets,
+    required this.fresh,
+    required this.appear,
+    required this.move,
   });
 
   final GifRow row;
@@ -626,30 +759,50 @@ class _Row extends StatelessWidget {
   final PanelPageHost host;
   final AssetCacheScope assets;
 
+  // The clips that fade in on [appear]; the others show as they are.
+  final Set<ContentKey> fresh;
+  final Animation<double> appear;
+
+  // How a cell that stays in this row moves to its new place, or null to put
+  // it there at once.
+  final MotionSpec? move;
+
   @override
   Widget build(BuildContext context) {
     final items = _GifPageState._itemsOf(collection);
+    final move = this.move;
     return Padding(
       padding: const EdgeInsets.only(top: GifRowLayout.gap),
       child: Stack(
         children: [
           for (final cell in row.cells)
-            PositionedDirectional(
+            AnimatedPositionedDirectional(
+              // Keyed by the clip, so a cell that stays in the row is the same
+              // cell, moved: its attach and its fade go on.
+              key: ValueKey(items[cell.index].key),
+              duration: move?.duration ?? Duration.zero,
+              curve: move?.curve ?? Curves.linear,
               start: cell.left,
               width: cell.width,
               top: 0,
               height: GifRowLayout.rowExtent,
-              child: _Cell(
-                item: items[cell.index],
-                size: Size(cell.width, GifRowLayout.rowExtent),
-                onTap: () => _pick(items[cell.index]),
-                assets: assets,
+              child: _appearing(
+                items[cell.index].key,
+                _Cell(
+                  item: items[cell.index],
+                  size: Size(cell.width, GifRowLayout.rowExtent),
+                  onTap: () => _pick(items[cell.index]),
+                  assets: assets,
+                ),
               ),
             ),
         ],
       ),
     );
   }
+
+  Widget _appearing(ContentKey key, Widget cell) =>
+      fresh.contains(key) ? FadeTransition(opacity: appear, child: cell) : cell;
 
   void _pick(CollectionItem item) {
     final kind = switch (item.descriptor?.semanticKind) {

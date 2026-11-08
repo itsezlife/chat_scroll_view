@@ -50,6 +50,7 @@ void main() {
   late AssetCacheScope assets;
   late FakeCollectionSource source;
   late FakeSearchSource search;
+  late FakeCollectionSource suggestions;
   // How far down the field's band puts the clips of the page last pumped.
   var band = 0.0;
 
@@ -57,10 +58,24 @@ void main() {
     host = FakePanelPageHost(pageId: 'gif');
     assets = PageAssets.createScope();
     source = FakeCollectionSource([_trending()]);
-    search = FakeSearchSource({'cat': _pages('c'), 'none': FakePages.none});
+    search = FakeSearchSource({
+      'cat': _pages('c'),
+      'dog': _pages('d'),
+      'many': _pages('m', count: 80),
+      'more': _pages('o', count: 80),
+      'none': FakePages.none,
+    });
+    suggestions = FakeCollectionSource([
+      FakeCollectionSpec(
+        const CollectionId.set('suggested'),
+        metadata: const CollectionMetadata(title: 'Trending'),
+        pages: _pages('s'),
+      ),
+    ]);
     addTearDown(() {
       source.dispose();
       search.dispose();
+      suggestions.dispose();
       host.dispose();
       assets.dispose();
     });
@@ -69,6 +84,7 @@ void main() {
   Future<void> pumpPage(
     WidgetTester tester, {
     bool searchable = true,
+    bool suggesting = false,
     String? attribution,
   }) async {
     await tester.pumpWidget(
@@ -83,6 +99,7 @@ void main() {
                 source: source,
                 assets: assets,
                 searchSource: searchable ? search : null,
+                searchSuggestions: suggesting ? suggestions : null,
                 attribution: attribution,
               ),
             ),
@@ -204,6 +221,141 @@ void main() {
       await tester.tapAt(firstCell(tester));
 
       expect(host.picks.single.key, const ContentKey.document('t-0'));
+    });
+  });
+
+  group('while a search is in flight', () {
+    testWidgets('the clips shown stay until its results arrive', (
+      tester,
+    ) async {
+      await pumpPage(tester);
+      search.pause();
+
+      await typeQuery(tester, 'cat');
+      await tester.tapAt(firstCell(tester));
+      expect(host.picks.last.key, const ContentKey.document('t-0'));
+
+      search.resume();
+      await settle(tester);
+      await tester.tapAt(firstCell(tester));
+      expect(host.picks.last.key, const ContentKey.document('c-0'));
+    });
+
+    testWidgets('the results of the text before stay until the new ones '
+        'arrive', (tester) async {
+      await pumpPage(tester);
+      await typeQuery(tester, 'cat');
+      search.pause();
+
+      await typeQuery(tester, 'dog');
+      await tester.tapAt(firstCell(tester));
+      expect(host.picks.last.key, const ContentKey.document('c-0'));
+
+      search.resume();
+      await settle(tester);
+      await tester.tapAt(firstCell(tester));
+      expect(host.picks.last.key, const ContentKey.document('d-0'));
+    });
+
+    testWidgets('the field shows progress, until the results arrive', (
+      tester,
+    ) async {
+      await pumpPage(tester);
+      search.pause();
+
+      await typeQuery(tester, 'cat');
+      expect(host.searchProgress, [true]);
+
+      search.resume();
+      await settle(tester);
+      expect(host.searchProgress, [true, false]);
+    });
+  });
+
+  group('the results that arrive', () {
+    Finder viewOf(String id) => find.byWidgetPredicate(
+      (w) => w is ContentView && w.content == ContentKey.document(id),
+    );
+
+    double opacityOf(WidgetTester tester, String id) {
+      var opacity = 1.0;
+      for (final fade in tester.widgetList<FadeTransition>(
+        find.ancestor(of: viewOf(id), matching: find.byType(FadeTransition)),
+      )) {
+        opacity *= fade.opacity.value;
+      }
+      return opacity;
+    }
+
+    testWidgets('are shown from their start', (tester) async {
+      await pumpPage(tester);
+      await typeQuery(tester, 'many');
+      await tester.drag(find.byType(GifPage), const Offset(0, -300));
+      await settle(tester);
+
+      await typeQuery(tester, 'more');
+      await tester.tapAt(firstCell(tester));
+
+      expect(host.picks.single.key, const ContentKey.document('o-0'));
+    });
+
+    testWidgets('fade their cells in', (tester) async {
+      await pumpPage(tester);
+      search.pause();
+      await typeQuery(tester, 'cat');
+
+      search.resume();
+      await tester.pump();
+      await tester.pump();
+      expect(opacityOf(tester, 'c-0'), lessThan(1));
+
+      await settle(tester);
+      expect(opacityOf(tester, 'c-0'), 1);
+    });
+  });
+
+  group('with no text yet', () {
+    testWidgets('lists the suggestions the host gives in place of the clips', (
+      tester,
+    ) async {
+      await pumpPage(tester, suggesting: true);
+
+      await typeQuery(tester, '');
+      await tester.tapAt(firstCell(tester));
+
+      expect(host.picks.single.key, const ContentKey.document('s-0'));
+    });
+
+    testWidgets('lists the clips once search closes', (tester) async {
+      await pumpPage(tester, suggesting: true);
+      await typeQuery(tester, '');
+
+      host.searchState = PanelSearchState.closed;
+      await tester.pump();
+      await settle(tester);
+      await tester.tapAt(firstCell(tester));
+
+      expect(host.picks.single.key, const ContentKey.document('t-0'));
+    });
+
+    testWidgets('lists the clips when the host gives no suggestions', (
+      tester,
+    ) async {
+      await pumpPage(tester);
+
+      await typeQuery(tester, '');
+      await tester.tapAt(firstCell(tester));
+
+      expect(host.picks.single.key, const ContentKey.document('t-0'));
+    });
+
+    testWidgets('asks for no suggestions before search opens', (tester) async {
+      await pumpPage(tester, suggesting: true);
+
+      expect(
+        suggestions.collections.value.single.contents,
+        CollectionContents.idle,
+      );
     });
   });
 

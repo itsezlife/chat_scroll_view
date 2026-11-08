@@ -407,6 +407,94 @@ void main() {
     });
   });
 
+  // The reference grid appends a page with its change animations off: the
+  // reflowed row's cells move to their new places (`DefaultItemAnimator`,
+  // move 250 ms) and the added ones fade in (add 120 ms).
+  group('a page that arrives', () {
+    Finder viewOf(String id) => find.byWidgetPredicate(
+      (w) => w is ContentView && w.content == ContentKey.document(id),
+    );
+
+    // The opacity the page draws the cell of [id] at.
+    double opacityOf(WidgetTester tester, String id) {
+      var opacity = 1.0;
+      for (final fade in tester.widgetList<FadeTransition>(
+        find.ancestor(of: viewOf(id), matching: find.byType(FadeTransition)),
+      )) {
+        opacity *= fade.opacity.value;
+      }
+      return opacity;
+    }
+
+    // Six square clips (a row of four and a row of two), then two more that
+    // fill the second row.
+    Future<void> pumpPaged(WidgetTester tester) async {
+      source.dispose();
+      source = FakeCollectionSource([
+        FakeCollectionSpec(
+          const CollectionId.set('a'),
+          pages: FakePages([
+            [for (var i = 0; i < 6; i++) _gif('a-$i')],
+            [for (var i = 6; i < 8; i++) _gif('a-$i')],
+          ]),
+        ),
+      ]);
+      await pumpPage(tester);
+    }
+
+    Future<void> arrive(WidgetTester tester) async {
+      await source.loadMore(const CollectionId.set('a'));
+      await tester.pump();
+    }
+
+    pageTest('fades its cells in over 120 ms', (tester) async {
+      await pumpPaged(tester);
+
+      await arrive(tester);
+      expect(opacityOf(tester, 'a-6'), 0);
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(opacityOf(tester, 'a-6'), inExclusiveRange(0, 1));
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(opacityOf(tester, 'a-6'), 1);
+    });
+
+    pageTest('leaves the cells already shown as they were', (tester) async {
+      await pumpPaged(tester);
+
+      await arrive(tester);
+
+      expect(opacityOf(tester, 'a-0'), 1);
+      expect(opacityOf(tester, 'a-4'), 1);
+    });
+
+    pageTest('moves the cells of the row it joins to their new places over '
+        '250 ms', (tester) async {
+      await pumpPaged(tester);
+      final before = tester.getSize(viewOf('a-5')).width;
+
+      await arrive(tester);
+      await tester.pump(const Duration(milliseconds: 125));
+      final midway = tester.getSize(viewOf('a-5')).width;
+      await tester.pump(const Duration(milliseconds: 125));
+      final after = tester.getSize(viewOf('a-5')).width;
+
+      // The last of a row of two, then the second of a row of four.
+      expect(before, 200);
+      expect(after, 98);
+      expect(midway, inExclusiveRange(after, before));
+      expect(opacityOf(tester, 'a-5'), 1);
+    });
+
+    pageTest('a page shown again does not fade what it lists', (tester) async {
+      await pumpPage(tester);
+      await tester.pumpWidget(const SizedBox());
+
+      await tester.pumpWidget(page());
+
+      expect(opacityOf(tester, 'a-0'), 1);
+    });
+  });
+
   group('a cell that waits for its clip', () {
     // The painting box inside the view's repaint boundary.
     RenderObject boxOf(WidgetTester tester) => tester.renderObject(
