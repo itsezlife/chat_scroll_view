@@ -1,6 +1,7 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
-import 'package:chat_scroll_view_example/src/features/chat/data/corpus_files.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/environment_specific/corpus_files.dart'
+    as environment_specific;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -118,7 +119,7 @@ final class CorpusStickerPack {
       (files[pack] ??= []).add((name, path, false));
     }
     if (directory.isNotEmpty) {
-      final onDisk = await listCorpusFiles(directory);
+      final onDisk = await environment_specific.$listCorpusFiles(directory);
       for (final MapEntry(key: pack, value: paths) in onDisk.entries) {
         files[pack] = [for (final path in paths) (_stem(path), path, true)];
       }
@@ -232,7 +233,7 @@ final class _CorpusFetcher implements ContentFetcher {
     final Uint8List bytes;
     try {
       bytes = sticker.onDisk
-          ? await readCorpusFile(sticker.path)
+          ? await environment_specific.$readCorpusFile(sticker.path)
           : (await _corpus._bundle!.load(sticker.path)).buffer.asUint8List();
       // A bundle reports a file it lacks as a FlutterError; a file that went
       // away is an I/O error. Neither comes back by retrying.

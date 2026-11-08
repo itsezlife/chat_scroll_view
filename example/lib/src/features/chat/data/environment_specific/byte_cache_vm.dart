@@ -5,8 +5,9 @@ import 'dart:typed_data';
 
 import 'package:chat_scroll_view_example/src/features/chat/data/byte_cache.dart';
 
-/// A [ByteCache] of one file per name in [directory].
-ByteCache? directoryByteCache(String directory, {required int budgetBytes}) =>
+/// The VM hook behind [ByteCache.directory]: a [ByteCache] of one file per
+/// name in [directory].
+ByteCache? $directoryByteCache(String directory, {required int budgetBytes}) =>
     _DirectoryByteCache(Directory(directory), budgetBytes);
 
 // The files' sizes are indexed once, on first use, oldest modified first; a

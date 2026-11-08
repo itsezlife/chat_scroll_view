@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-/// The `*.json` files of each folder directly under [directory], by folder
-/// name, each list in path order. A directory that is not there, or holds no
+/// The VM hook: the `*.json` files of each folder directly under [directory],
+/// by folder name, each list in path order. A directory that is not there, or holds no
 /// folder with a Lottie file, lists nothing.
-Future<Map<String, List<String>>> listCorpusFiles(String directory) async {
+Future<Map<String, List<String>>> $listCorpusFiles(String directory) async {
   final root = Directory(directory);
   if (!root.existsSync()) return const {};
   final packs = <String, List<String>>{};
@@ -21,5 +21,5 @@ Future<Map<String, List<String>>> listCorpusFiles(String directory) async {
   return packs;
 }
 
-/// The bytes of the file at [path].
-Future<Uint8List> readCorpusFile(String path) => File(path).readAsBytes();
+/// The VM hook: the bytes of the file at [path].
+Future<Uint8List> $readCorpusFile(String path) => File(path).readAsBytes();
