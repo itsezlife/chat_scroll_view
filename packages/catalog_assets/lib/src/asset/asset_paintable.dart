@@ -179,6 +179,18 @@ abstract class AssetPaintable {
   /// paintable that holds its own pixels.
   void keepFrame({required bool keep}) {}
 
+  /// Says that no surface played this paintable for a while (held, hidden,
+  /// off screen) and one plays it again now.
+  ///
+  /// The shared clock keeps running for other surfaces meanwhile, so a
+  /// paintable that adds up the time between paints would add the whole stop
+  /// at its next paint and jump ahead by it: a sticker panel shut for 300 ms
+  /// came back 20 frames on. One that keeps its playback takes the next paint
+  /// as the start of its timing instead, and goes on from the frame it is at
+  /// ("freeze and continue"). Does nothing by default, which is right for a
+  /// still or a paintable whose frame follows the time alone.
+  void playbackResumed() {}
+
   /// Paints into [rect] of [canvas].
   void paint(Canvas canvas, Rect rect, AssetPaintContext context);
 

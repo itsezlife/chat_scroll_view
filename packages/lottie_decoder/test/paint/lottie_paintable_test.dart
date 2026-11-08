@@ -419,6 +419,22 @@ void main() {
       expect(renderer.batches.last, [7]);
     });
 
+    test('after a stop shorter than the resume gap, goes on from its frame, '
+        'not ahead by the stop', () async {
+      final p = make();
+      await paintAndSettle(p, at(1000));
+      await paintAndSettle(p, at(1100)); // frame 3, ahead 4
+      expect(renderer.batches.last, [4]);
+
+      // Held 300 ms while the clock ran on for others, then played again.
+      p.playbackResumed();
+      await paintAndSettle(p, at(1400));
+      expect(renderer.batches, hasLength(2), reason: 'same frame as before');
+
+      await paintAndSettle(p, at(1500)); // 100 ms on: frame 6
+      expect(renderer.batches.last, [7]);
+    });
+
     test('a paint that does not animate asks for nothing', () async {
       final still = _image(8);
       final p = make(still: still);

@@ -170,6 +170,11 @@ final class PlayingImagePaintable extends AssetPaintable {
     return true;
   }
 
+  /// The frame on show lasts its whole duration again from the next paint:
+  /// the time the clock ran while nothing played this image is not shown.
+  @override
+  void playbackResumed() => _shownSince = null;
+
   // Plays another pass: from the held first frame, or from the first frame
   // that was kept decoded behind the held last one. The first frame lasts
   // its duration from the next paint that animates.

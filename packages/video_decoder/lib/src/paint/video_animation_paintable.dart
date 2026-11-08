@@ -124,6 +124,9 @@ final class VideoAnimationPaintable extends AssetPaintable {
     return true;
   }
 
+  @override
+  void playbackResumed() => _lastTime = null;
+
   void _beginPass() {
     _holding = false;
     _played = Duration.zero;

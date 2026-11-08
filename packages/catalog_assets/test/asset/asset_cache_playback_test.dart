@@ -184,6 +184,33 @@ void main() {
       expect(paintable.paints.last.context.time, _ms(400));
     });
 
+    test('tells the paintable its playback resumed when the hold ends, so '
+        'the time the clock ran meanwhile is not played', () {
+      final binding = animated();
+      final other = animated(key: const ContentKey.document('anim-2'));
+      final paintable = binding.paintable as FakeAssetPaintable;
+      ticks.tick(_ms(16));
+      final before = paintable.resumes;
+
+      binding.held = true;
+      ticks.tick(_ms(316)); // the clock runs on for the other binding
+      expect(other.isPlaying, isTrue);
+      expect(paintable.resumes, before, reason: 'not while held');
+
+      binding.held = false;
+      expect(paintable.resumes, before + 1);
+    });
+
+    test('a second binding that starts while one plays is no resume', () {
+      final a = animated();
+      final paintable = a.paintable as FakeAssetPaintable;
+      final before = paintable.resumes;
+
+      scope.attach(_key, _large, _plays);
+
+      expect(paintable.resumes, before);
+    });
+
     test('the paintable of an entry is kept while any of its bindings is '
         'held', () {
       final a = animated();

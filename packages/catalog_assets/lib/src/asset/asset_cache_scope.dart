@@ -576,6 +576,18 @@ final class _Entry {
   void syncKeep() =>
       paintable?.keepFrame(keep: bindings.any((binding) => binding.held));
 
+  // Whether a binding plays the paintable now (is on the clock).
+  bool _playing = false;
+
+  // Tells the paintable when its playback goes on after a stop: the first
+  // binding that plays again after none did.
+  void syncPlaying() {
+    final playing = bindings.any((binding) => binding._registered);
+    if (playing == _playing) return;
+    _playing = playing;
+    if (playing) paintable?.playbackResumed();
+  }
+
   // Tells the bindings their download changed.
   void signalDownload() {
     for (final binding in List<_EntryBinding>.of(bindings)) {
@@ -916,6 +928,7 @@ final class _EntryBinding extends AssetBindingBase {
     } else {
       clock.unregister(_target);
     }
+    entry.syncPlaying();
   }
 
   @override
@@ -928,6 +941,7 @@ final class _EntryBinding extends AssetBindingBase {
     if (_registered) {
       _registered = false;
       clock.unregister(_target);
+      entry.syncPlaying();
     }
     _scope._detached(this);
   }

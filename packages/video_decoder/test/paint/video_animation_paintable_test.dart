@@ -367,6 +367,22 @@ void main() {
       expect(p.isHolding, isFalse);
     });
 
+    test('after a resume, a stop shorter than the resume gap adds no played '
+        'time', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+      for (var ms = 0; ms <= 40; ms += 20) {
+        await paintAt(p, ms, loop: false);
+      }
+      // Held 300 ms while the clock ran on for others, then played again.
+      p.playbackResumed();
+      await paintAt(p, 340, loop: false);
+      await paintAt(p, 360, loop: false);
+
+      // 60 ms played of a 100 ms clip: the pass is not over.
+      expect(p.isHolding, isFalse);
+    });
+
     test(
       'a pass that does not loop holds the rest frame, and restarts',
       () async {
