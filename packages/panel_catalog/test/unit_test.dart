@@ -38,6 +38,8 @@ import 'panel_catalog_scroll_events_test.dart'
 import 'panel_catalog_scroll_hardening_test.dart'
     as panel_catalog_scroll_hardening_test;
 import 'panel_catalog_semantics_test.dart' as panel_catalog_semantics_test;
+import 'panel_catalog_texture_layers_test.dart'
+    as panel_catalog_texture_layers_test;
 import 'panel_catalog_theme_test.dart' as panel_catalog_theme_test;
 import 'panel_catalog_viewport_test.dart' as panel_catalog_viewport_test;
 import 'section_actions_test.dart' as section_actions_test;
@@ -111,6 +113,10 @@ void main() {
     panel_catalog_scroll_hardening_test.main,
   );
   group('panel_catalog_semantics_test.dart', panel_catalog_semantics_test.main);
+  group(
+    'panel_catalog_texture_layers_test.dart',
+    panel_catalog_texture_layers_test.main,
+  );
   group('panel_catalog_theme_test.dart', panel_catalog_theme_test.main);
   group('panel_catalog_viewport_test.dart', panel_catalog_viewport_test.main);
   group('section_actions_test.dart', section_actions_test.main);
