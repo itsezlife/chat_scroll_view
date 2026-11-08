@@ -15,6 +15,12 @@ enum FetchPart {
   content,
 }
 
+/// Where a [ContentFetcher] reports the bytes of a transfer: [received] so
+/// far, of [total], or null when the source does not say how many will come.
+typedef FetchProgress = void Function(int received, int? total);
+
+void _ignoreProgress(int received, int? total) {}
+
 /// What a [ContentFetcher] is asked for.
 @immutable
 final class FetchRequest {
@@ -24,6 +30,7 @@ final class FetchRequest {
     required this.part,
     required this.priority,
     required this.cancellation,
+    this.onProgress = _ignoreProgress,
   });
 
   /// What is known about the content. For [FetchPart.thumbnail] its
@@ -39,6 +46,10 @@ final class FetchRequest {
 
   /// Cancelled when nobody wants the result any more.
   final CancellationToken cancellation;
+
+  /// Told the bytes received while the fetcher transfers the part; see the
+  /// contract of [ContentFetcher]. Ignores every call by default.
+  final FetchProgress onProgress;
 }
 
 /// What a fetch produced.
@@ -127,6 +138,15 @@ final class FetchFailure implements Exception {
 /// - When `FetchRequest.cancellation` is cancelled the fetcher stops its work
 ///   as soon as it can and settles the future: with whatever it already has,
 ///   or with a failure. It never leaves the future pending.
+/// - A fetch that transfers the bytes (a download) reports them through
+///   `FetchRequest.onProgress`: once when the transfer starts, with what has
+///   arrived (0 for a fresh one) and the total the source announced, then as
+///   bytes arrive. A part served from a cache the host keeps (memory or the
+///   disk tier) is not a transfer and is never reported, so the surfaces show
+///   no download for it. A transfer that several requests share reports to
+///   each of them. Reports are on the UI isolate, before the future settles;
+///   one transfer answered at once (a replayed recording) may report once,
+///   with everything.
 /// - It may run many fetches at once; the pipeline's caps bound how many it is
 ///   given.
 abstract interface class ContentFetcher {

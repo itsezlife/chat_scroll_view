@@ -106,15 +106,17 @@ class ContentView extends StatefulWidget {
   /// provides.
   final AssetCacheScope? scope;
 
-  /// Radius of the reference client's radial progress (`RadialProgress`) drawn
-  /// over the centre of the view while the content has no frame to show, or
-  /// null for none.
+  /// Radius of the reference client's download indicator (`RadialProgress`)
+  /// drawn over the centre of the view while the content downloads and has
+  /// no frame to show, or null for none.
   ///
-  /// The cache reports stages and no fractions, so the arc sweeps
-  /// `RadialProgress.indeterminateProgress`. The view asks for a frame after
-  /// each one it paints the indicator in, and stops when the first frame
-  /// exists or a [TickerMode] above it is off. A grid GIF cell uses 12
-  /// (`ContextLinkCell.onMeasure`).
+  /// It shows only while the binding reports a download
+  /// (`AssetBinding.downloadProgress`), so content served from a cache
+  /// (memory or disk) never shows it, and its arc follows the fraction
+  /// downloaded from where the view first saw it. The view asks for a frame
+  /// after each one it paints the indicator in, and stops when the first
+  /// frame exists, the download ends or a [TickerMode] above it is off. A
+  /// grid GIF cell uses 12 (`ContextLinkCell.onMeasure`).
   final double? loadingRadius;
 
   /// What the view paints before the content has a stage, and fades out
@@ -291,9 +293,13 @@ class _RenderContent extends RenderBox {
   double _opacity;
   double? _loadingRadius;
   bool _ticking;
+  // The download indicator while one shows: made when the binding's download
+  // starts, dropped when it ends or the first frame exists.
+  RadialProgress? _indicator;
 
   set binding(AssetBinding value) {
     if (identical(_binding, value)) return;
+    _indicator = null;
     if (attached) _binding.removeListener(_bindingChanged);
     _binding = value;
     _fade = AssetFade(value);
@@ -437,26 +443,29 @@ class _RenderContent extends RenderBox {
     });
   }
 
-  // Over the stand-in and the thumbnail, until a frame of the content exists.
-  // The arc is a function of the frame time, so it turns by being painted in
-  // every frame: the next one is asked for after this one is done (a paint
-  // may not mark itself dirty).
+  // Over the stand-in and the thumbnail, while the content downloads and has
+  // no frame. The indicator steps once per frame it is painted in, so it
+  // turns by being painted in every frame: the next one is asked for after
+  // this one is done (a paint may not mark itself dirty). A view whose ticker
+  // mode is off holds the arc where it is.
   void _paintLoading(Canvas canvas, Rect box) {
     final radius = _loadingRadius;
+    final downloaded = _binding.downloadProgress;
     if (radius == null ||
+        downloaded == null ||
         _binding.readiness.stage.index >= AssetStage.firstFrame.index) {
+      _indicator = null;
       return;
     }
+    final indicator = switch (_indicator) {
+      final shown? => shown..setProgress(downloaded),
+      null => _indicator = RadialProgress(progress: downloaded),
+    };
     final scheduler = SchedulerBinding.instance;
-    RadialProgress.paint(
-      canvas,
-      box.center,
-      radius: radius,
-      time: _ticking && scheduler.schedulerPhase != SchedulerPhase.idle
-          ? scheduler.currentFrameTimeStamp
-          : Duration.zero,
-      opacity: _opacity,
-    );
+    if (_ticking && scheduler.schedulerPhase != SchedulerPhase.idle) {
+      indicator.advance(scheduler.currentFrameTimeStamp);
+    }
+    indicator.paint(canvas, box.center, radius: radius, opacity: _opacity);
     if (_ticking) {
       scheduler.addPostFrameCallback((_) {
         if (attached) markNeedsPaint();

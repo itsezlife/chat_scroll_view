@@ -62,6 +62,18 @@ abstract interface class AssetBinding implements Listenable {
   /// entry's own stage catches up.
   AssetPaintable get paintable;
 
+  /// How much of the content's download has arrived, 0 to 1, while the
+  /// attempt for this entry transfers it; null when nothing is downloading.
+  ///
+  /// It is set by the producer's reports (`AssetProgress.download`), from the
+  /// start of the transfer until the attempt ends (its final stage, a failure
+  /// or a cancel). Content the producer served from a cache, a memory hit, a
+  /// glyph and a detached binding read null, so a surface that draws a
+  /// download indicator draws none for them. A change is signalled to the
+  /// listeners. It is the entry's own download: a sibling's stage this binding
+  /// borrows does not bring its download along.
+  double? get downloadProgress;
+
   /// The error of the latest failed attempt for this entry, or null. Cleared
   /// when an attempt advances. Diagnostics only.
   Object? get lastError;

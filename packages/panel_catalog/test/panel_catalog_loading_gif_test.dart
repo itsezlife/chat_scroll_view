@@ -5,8 +5,8 @@
 /// [FakeAssetProducer] the test plays by hand; what is observed is what the
 /// viewport asks a recording canvas to draw and what it paints into the fake
 /// paintables, never render-object fields. The reference client draws a GIF
-/// that is loading as its blurred thumbnail with a turning arc in a dark disc
-/// over it, and keeps a bitmap thumbnail opaque under the content that fades
+/// that is downloading as its blurred thumbnail with a turning arc in a dark
+/// disc over it, none for one it has on disk, and keeps a bitmap thumbnail opaque under the content that fades
 /// in (`ImageReceiver.draw`).
 library;
 
@@ -110,6 +110,8 @@ void main() {
       tester,
     ) async {
       await pump(tester, [_gif(0)]);
+      producer.last.download(0);
+      await tester.pump();
 
       final canvas = paintOnce(tester);
 
@@ -143,6 +145,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, [_gif(0)]);
+      producer.last.download(0.5);
 
       final thumb = producer.last.advance(AssetStage.placeholder);
       await tester.pump();
@@ -154,24 +157,50 @@ void main() {
       expect(canvas.arcs, hasLength(1));
     });
 
-    testWidgets('the arc turns with the frame time of the pass', (
-      tester,
-    ) async {
+    testWidgets('the arc starts at 112 degrees and turns with the frame time '
+        'of the pass', (tester) async {
       await pump(tester, [_gif(0)]);
+      producer.last.download(0);
+      await tester.pump();
       var now = const Duration(seconds: 10);
       render(tester).debugFrameTime = () => now;
 
       final first = paintOnce(tester).arcs.single.start;
-      now += const Duration(milliseconds: 625);
-      final quarter = paintOnce(tester).arcs.single.start;
+      // 25 frames of 17 ms: 425 ms of a 2500 ms turn.
+      for (var i = 0; i < 25; i++) {
+        now += const Duration(milliseconds: 17);
+        paintOnce(tester);
+      }
+      final turned = paintOnce(tester).arcs.single.start;
 
-      expect(quarter - first, closeTo(math.pi / 2, 1e-6));
+      expect(first, closeTo(112 * math.pi / 180, 1e-6));
+      expect(turned - first, closeTo(2 * math.pi * 425 / 2500, 1e-6));
+    });
+
+    testWidgets('the arc grows with the download', (tester) async {
+      await pump(tester, [_gif(0)]);
+      producer.last.download(0.5);
+      await tester.pump();
+
+      expect(paintOnce(tester).arcs.single.sweep, closeTo(math.pi, 1e-6));
+    });
+
+    testWidgets('a GIF served from a cache gets no progress', (tester) async {
+      await pump(tester, [_gif(0)]);
+
+      producer.last.advance(AssetStage.placeholder);
+      await tester.pump();
+      final canvas = paintOnce(tester);
+
+      expect(canvas.arcs, isEmpty);
+      expect(discs(canvas), isEmpty);
     });
 
     testWidgets('keeps frames coming, and stops while playback is paused', (
       tester,
     ) async {
       await pump(tester, [_gif(0)]);
+      producer.last.download(0);
       await tester.pump(const Duration(milliseconds: 16));
       expect(tester.binding.hasScheduledFrame, isTrue);
 
@@ -181,7 +210,8 @@ void main() {
       await tester.pump();
 
       expect(tester.binding.hasScheduledFrame, isFalse);
-      expect(paintOnce(tester).arcs.single.start, 0);
+      final rest = paintOnce(tester).arcs.single.start;
+      expect(paintOnce(tester).arcs.single.start, rest);
     });
 
     testWidgets('a sticker and a custom emoji get no progress', (tester) async {
@@ -193,6 +223,10 @@ void main() {
           mediaForm: MediaForm.still,
         ),
       ]);
+      for (final attempt in producer.attempts) {
+        attempt.download(0.5);
+      }
+      await tester.pump();
 
       final canvas = paintOnce(tester);
 
@@ -208,6 +242,7 @@ void main() {
       await pump(tester, [_gif(0)]);
       var now = const Duration(seconds: 10);
       render(tester).debugFrameTime = () => now;
+      producer.last.download(1);
       final thumb = producer.last.advance(AssetStage.placeholder);
       await tester.pump();
       final content = producer.last.advance(AssetStage.firstFrame);
@@ -238,7 +273,9 @@ void main() {
       await pump(tester, [_gif(0)]);
       var now = const Duration(seconds: 10);
       render(tester).debugFrameTime = () => now;
-      producer.last.advance(AssetStage.placeholder);
+      producer.last
+        ..download(1)
+        ..advance(AssetStage.placeholder);
       await tester.pump();
       producer.last.advance(AssetStage.firstFrame);
       await tester.pump();

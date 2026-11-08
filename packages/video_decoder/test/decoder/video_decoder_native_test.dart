@@ -32,6 +32,9 @@ final class _Report implements AssetProgress {
   ]) => failures.add(error);
 
   @override
+  void download(double fraction) {}
+
+  @override
   void cancelled() {}
 }
 

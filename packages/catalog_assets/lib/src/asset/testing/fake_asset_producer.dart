@@ -41,6 +41,9 @@ final class FakeAssetAttempt implements AssetTask {
     return paintable;
   }
 
+  /// Reports that [fraction] of the content's download has arrived.
+  void download(double fraction) => _progress.download(fraction);
+
   /// Reports a failed attempt.
   void fail(
     Object error, {

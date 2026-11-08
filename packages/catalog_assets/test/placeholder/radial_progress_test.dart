@@ -5,13 +5,12 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 typedef _Arc = ({Rect rect, double start, double sweep, Paint paint});
-typedef _Line = ({Offset from, Offset to, Paint paint});
 
 /// What one paint asks of the canvas, copied at the call as the engine does.
 final class _Recording implements Canvas {
   final List<({Offset center, double radius, Color color})> discs = [];
   final List<_Arc> arcs = [];
-  final List<_Line> lines = [];
+  int lines = 0;
 
   @override
   void drawCircle(Offset c, double radius, Paint paint) =>
@@ -36,13 +35,7 @@ final class _Recording implements Canvas {
   ));
 
   @override
-  void drawLine(Offset p1, Offset p2, Paint paint) => lines.add((
-    from: p1,
-    to: p2,
-    paint: Paint()
-      ..color = paint.color
-      ..strokeWidth = paint.strokeWidth,
-  ));
+  void drawLine(Offset p1, Offset p2, Paint paint) => lines++;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
@@ -50,31 +43,32 @@ final class _Recording implements Canvas {
 
 double _rad(double degrees) => degrees * math.pi / 180;
 
+const _frame = Duration(milliseconds: 17);
+
 void main() {
   const center = Offset(50, 60);
 
-  _Recording paint({
-    required double radius,
-    Duration time = Duration.zero,
-    double? progress,
+  _Recording paint(
+    RadialProgress indicator, {
+    double radius = 12,
     double opacity = 1,
   }) {
     final canvas = _Recording();
-    RadialProgress.paint(
-      canvas,
-      center,
-      radius: radius,
-      time: time,
-      progress: progress,
-      opacity: opacity,
-    );
+    indicator.paint(canvas, center, radius: radius, opacity: opacity);
     return canvas;
+  }
+
+  // Advances [indicator] [frames] frames of 17 ms after a first one at zero.
+  void run(RadialProgress indicator, int frames, {Duration from = .zero}) {
+    for (var i = 0; i <= frames; i++) {
+      indicator.advance(from + _frame * i);
+    }
   }
 
   // The panel's GIF cell: a 24 dp box, so radius 12 (ContextLinkCell).
   group('the panel size, radius 12', () {
-    test('a translucent black disc, the arc inside it, a cross in the arc', () {
-      final canvas = paint(radius: 12);
+    test('a translucent black disc and a bare arc inside it', () {
+      final canvas = paint(RadialProgress());
 
       expect(canvas.discs.single.center, center);
       expect(canvas.discs.single.radius, 12);
@@ -89,19 +83,14 @@ void main() {
       expect(canvas.arcs.single.paint.strokeCap, StrokeCap.round);
       expect(canvas.arcs.single.paint.style, PaintingStyle.stroke);
       expect(canvas.arcs.single.paint.color.toARGB32(), 0xFFFFFFFF);
-      // The cross reaches 7 * (24 / 48) = 3.5 from the centre.
-      expect(canvas.lines, hasLength(2));
-      expect(canvas.lines[0].from, center + const Offset(-3.5, -3.5));
-      expect(canvas.lines[0].to, center + const Offset(3.5, 3.5));
-      expect(canvas.lines[1].from, center + const Offset(3.5, -3.5));
-      expect(canvas.lines[1].to, center + const Offset(-3.5, 3.5));
-      expect(canvas.lines[0].paint.strokeWidth, 2);
+      // The loading state of a grid cell (ICON_EMPTY) has no cross.
+      expect(canvas.lines, 0);
     });
   });
 
   group('the message size, radius 22', () {
     test('the stroke is 3 and the arc sits at radius 18', () {
-      final canvas = paint(radius: 22);
+      final canvas = paint(RadialProgress(), radius: 22);
 
       expect(canvas.discs.single.radius, 22);
       expect(
@@ -109,81 +98,123 @@ void main() {
         Rect.fromCircle(center: center, radius: 18),
       );
       expect(canvas.arcs.single.paint.strokeWidth, 3);
-      // 7 * (44 / 48) = 6.41666...
-      expect(canvas.lines[0].to.dx - center.dx, closeTo(6.4166, 0.001));
     });
   });
 
-  group('the arc', () {
-    test('turns a full circle every 2.5 seconds, linearly', () {
-      expect(paint(radius: 22).arcs.single.start, 0);
-      expect(
-        paint(
-          radius: 22,
-          time: const Duration(milliseconds: 625),
-        ).arcs.single.start,
-        closeTo(_rad(90), 1e-9),
-      );
-      expect(
-        paint(
-          radius: 22,
-          time: const Duration(milliseconds: 1250),
-        ).arcs.single.start,
-        closeTo(_rad(180), 1e-9),
-      );
-      expect(
-        paint(
-          radius: 22,
-          time: const Duration(milliseconds: 2500),
-        ).arcs.single.start,
-        closeTo(0, 1e-9),
-      );
-      expect(
-        paint(
-          radius: 22,
-          time: const Duration(milliseconds: 3125),
-        ).arcs.single.start,
-        closeTo(_rad(90), 1e-9),
-      );
+  group('a new indicator', () {
+    test('starts at 112 degrees with a 4 degree dot', () {
+      final arc = paint(RadialProgress()).arcs.single;
+
+      expect(arc.start, closeTo(_rad(112), 1e-9));
+      expect(arc.sweep, closeTo(_rad(4), 1e-9));
     });
 
-    test('sweeps the fraction done, never less than 4 degrees', () {
-      expect(
-        paint(radius: 22, progress: 0.5).arcs.single.sweep,
-        closeTo(_rad(180), 1e-9),
-      );
-      expect(
-        paint(radius: 22, progress: 1).arcs.single.sweep,
-        closeTo(_rad(360), 1e-9),
-      );
-      expect(
-        paint(radius: 22, progress: 0).arcs.single.sweep,
-        closeTo(_rad(4), 1e-9),
-      );
-      expect(
-        paint(radius: 22, progress: 0.005).arcs.single.sweep,
-        closeTo(_rad(4), 1e-9),
-      );
-    });
+    test('shows the progress it starts with at once', () {
+      final indicator = RadialProgress(progress: 0.5);
 
-    test('with no progress known it sweeps a quarter', () {
-      expect(paint(radius: 22).arcs.single.sweep, closeTo(_rad(90), 1e-9));
+      expect(indicator.shownProgress, 0.5);
+      expect(paint(indicator).arcs.single.sweep, closeTo(_rad(180), 1e-9));
     });
   });
 
-  test('opacity scales the disc, the arc and the cross together', () {
-    final canvas = paint(radius: 22, opacity: 0.5);
+  group('the turn', () {
+    test('is 360 degrees per 2500 ms, stepped by the frames', () {
+      final indicator = RadialProgress();
+
+      run(indicator, 1);
+
+      // 112 + 360 * 17 / 2500.
+      expect(indicator.startDegrees, closeTo(114.448, 1e-9));
+    });
+
+    test('a long gap between frames counts as 17 ms', () {
+      final indicator = RadialProgress()
+        ..advance(Duration.zero)
+        ..advance(const Duration(seconds: 1));
+
+      expect(indicator.startDegrees, closeTo(114.448, 1e-9));
+    });
+
+    test('the first frame only sets the clock', () {
+      final indicator = RadialProgress()..advance(const Duration(seconds: 7));
+
+      expect(indicator.startDegrees, 112);
+    });
+
+    test('wraps past a full circle', () {
+      final indicator = RadialProgress();
+
+      run(indicator, 150);
+
+      // 112 + 360 * 2550 / 2500 = 479.2, less a turn.
+      expect(indicator.startDegrees, closeTo(119.2, 1e-6));
+    });
+
+    test('a frame time that goes back does not turn it', () {
+      final indicator = RadialProgress()
+        ..advance(const Duration(seconds: 1))
+        ..advance(Duration.zero);
+
+      expect(indicator.startDegrees, 112);
+    });
+  });
+
+  group('a new fraction', () {
+    test('eases in over 200 ms, decelerating', () {
+      final indicator = RadialProgress()..setProgress(0.5);
+
+      run(indicator, 6);
+      // 102 ms of 200: 0.5 * (1 - (1 - 0.51)^2).
+      expect(indicator.shownProgress, closeTo(0.37995, 1e-9));
+
+      run(indicator, 6, from: _frame * 7);
+      expect(indicator.shownProgress, 0.5);
+      expect(indicator.progress, 0.5);
+    });
+
+    test('mid-ease eases on from where the arc is', () {
+      final indicator = RadialProgress()..setProgress(0.5);
+      run(indicator, 6);
+
+      indicator.setProgress(1);
+      expect(indicator.shownProgress, closeTo(0.37995, 1e-9));
+
+      // Six more frames: another 102 ms. 0.37995 + 0.62005 * 0.7599.
+      run(indicator, 5, from: _frame * 7);
+      expect(indicator.shownProgress, closeTo(0.851126, 1e-6));
+    });
+
+    test('a lower one shows at once', () {
+      final indicator = RadialProgress(progress: 0.8)..setProgress(0.2);
+
+      expect(indicator.shownProgress, 0.2);
+    });
+
+    test('without animation shows at once', () {
+      final indicator = RadialProgress()..setProgress(0.6, animated: false);
+
+      expect(indicator.shownProgress, 0.6);
+      expect(paint(indicator).arcs.single.sweep, closeTo(_rad(216), 1e-9));
+    });
+
+    test('is clamped to 0..1', () {
+      final indicator = RadialProgress()..setProgress(3, animated: false);
+
+      expect(indicator.shownProgress, 1);
+    });
+  });
+
+  test('opacity scales the disc and the arc together', () {
+    final canvas = paint(RadialProgress(), radius: 22, opacity: 0.5);
 
     expect(canvas.discs.single.color.a, closeTo(0x66 / 255 * 0.5, 0.005));
     expect(canvas.arcs.single.paint.color.a, closeTo(0.5, 0.005));
-    expect(canvas.lines[0].paint.color.a, closeTo(0.5, 0.005));
   });
 
   test('nothing is drawn at opacity 0', () {
-    final canvas = paint(radius: 22, opacity: 0);
+    final canvas = paint(RadialProgress(), radius: 22, opacity: 0);
 
     expect(canvas.discs, isEmpty);
     expect(canvas.arcs, isEmpty);
-    expect(canvas.lines, isEmpty);
   });
 }

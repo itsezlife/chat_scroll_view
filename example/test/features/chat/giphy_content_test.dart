@@ -30,13 +30,17 @@ GiphyClip _clip(String id, {String title = 'a cat', bool still = false}) =>
           : null,
     );
 
-FetchRequest _request(ContentKey key, {FetchPart part = FetchPart.content}) =>
-    FetchRequest(
-      descriptor: ContentDescriptor(key: key),
-      part: part,
-      priority: AssetPriority.visible,
-      cancellation: CancellationToken(),
-    );
+FetchRequest _request(
+  ContentKey key, {
+  FetchPart part = FetchPart.content,
+  FetchProgress? onProgress,
+}) => FetchRequest(
+  descriptor: ContentDescriptor(key: key),
+  part: part,
+  priority: AssetPriority.visible,
+  cancellation: CancellationToken(),
+  onProgress: onProgress ?? (_, _) {},
+);
 
 final class _Other implements ContentFetcher, ContentResolver {
   final fetched = <ContentKey>[];
@@ -238,6 +242,82 @@ void main() {
       );
     });
 
+    test('reports the download of the clip to the fetch', () async {
+      files['/a.mp4'] = Uint8List.fromList([1, 2, 3]);
+      content.remember([_clip('a')]);
+      final reports = <(int, int?)>[];
+
+      await content
+          .fetcher(otherwise: other)
+          .fetch(
+            _request(
+              GiphyContent.keyOf('a'),
+              onProgress: (received, total) => reports.add((received, total)),
+            ),
+          );
+
+      expect(reports.first, (0, 3));
+      expect(reports.last, (3, 3));
+    });
+
+    test('reports one download to every fetch that shares it', () async {
+      files['/a.mp4'] = Uint8List.fromList([1, 2]);
+      content.remember([_clip('a')]);
+      gate = Completer<void>();
+      final fetcher = content.fetcher(otherwise: other);
+      final first = <(int, int?)>[];
+      final second = <(int, int?)>[];
+
+      final one = fetcher.fetch(
+        _request(
+          GiphyContent.keyOf('a'),
+          onProgress: (received, total) => first.add((received, total)),
+        ),
+      );
+      final two = fetcher.fetch(
+        _request(
+          GiphyContent.keyOf('a'),
+          onProgress: (received, total) => second.add((received, total)),
+        ),
+      );
+      await pumpEventQueue();
+      gate!.complete();
+      await Future.wait([one, two]);
+
+      expect(first.last, (2, 2));
+      expect(second.last, (2, 2));
+    });
+
+    test('a fetch that joins a running download hears where it is', () async {
+      final body = StreamController<List<int>>();
+      final streaming = GiphyContent(
+        GiphyClient(
+          apiKey: 'k',
+          client: MockClient.streaming(
+            (_, _) async =>
+                http.StreamedResponse(body.stream, 200, contentLength: 4),
+          ),
+        ),
+      )..remember([_clip('a')]);
+      final fetcher = streaming.fetcher(otherwise: other);
+      final one = fetcher.fetch(_request(GiphyContent.keyOf('a')));
+      body.add([1, 2]);
+      await pumpEventQueue();
+      final late = <(int, int?)>[];
+
+      final two = fetcher.fetch(
+        _request(
+          GiphyContent.keyOf('a'),
+          onProgress: (received, total) => late.add((received, total)),
+        ),
+      );
+      body.add([3, 4]);
+      await body.close();
+      await Future.wait([one, two]);
+
+      expect(late, [(2, 4), (4, 4)]);
+    });
+
     test('downloads again once the first has finished', () async {
       files['/a.mp4'] = Uint8List.fromList([1]);
       content.remember([_clip('a')]);
@@ -313,12 +393,43 @@ void main() {
   });
 
   group('the stills', () {
-    FetchRequest still(GiphyContent from, GiphyClip clip) => FetchRequest(
+    FetchRequest still(
+      GiphyContent from,
+      GiphyClip clip, {
+      FetchProgress? onProgress,
+    }) => FetchRequest(
       descriptor: from.describe(clip),
       part: FetchPart.thumbnail,
       priority: AssetPriority.placeholder,
       cancellation: CancellationToken(),
+      onProgress: onProgress ?? (_, _) {},
     );
+
+    test('report their download, and none from memory', () async {
+      final clip = _clip('a', still: true);
+      files['/a.still.gif'] = Uint8List.fromList([7, 7]);
+      final fetcher = content.fetcher(otherwise: other);
+      final first = <(int, int?)>[];
+      final again = <(int, int?)>[];
+
+      await fetcher.fetch(
+        still(
+          content,
+          clip,
+          onProgress: (received, total) => first.add((received, total)),
+        ),
+      );
+      await fetcher.fetch(
+        still(
+          content,
+          clip,
+          onProgress: (received, total) => again.add((received, total)),
+        ),
+      );
+
+      expect(first, [(0, 2), (2, 2)]);
+      expect(again, isEmpty);
+    });
 
     test('are given again from memory without a request', () async {
       final clip = _clip('a', still: true);
@@ -417,6 +528,24 @@ void main() {
 
       expect((fetched as FetchedBytes).bytes, [1, 2]);
       expect(requests, isEmpty);
+    });
+
+    test('found on disk report no download', () async {
+      final disk = _MemoryDisk();
+      await disk.write('clip_a', Uint8List.fromList([1, 2]));
+      final content = GiphyContent(client, clipDisk: disk);
+      final reports = <(int, int?)>[];
+
+      await content
+          .fetcher(otherwise: other)
+          .fetch(
+            _request(
+              GiphyContent.keyOf('a'),
+              onProgress: (received, total) => reports.add((received, total)),
+            ),
+          );
+
+      expect(reports, isEmpty);
     });
 
     test('are downloaded and kept when the disk has none', () async {

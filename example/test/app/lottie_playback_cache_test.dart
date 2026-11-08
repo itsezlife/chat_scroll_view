@@ -56,6 +56,9 @@ final class _Report implements AssetProgress {
   ]) => throw StateError('the decode failed: $error');
 
   @override
+  void download(double fraction) {}
+
+  @override
   void cancelled() {}
 }
 

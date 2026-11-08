@@ -173,15 +173,21 @@ final class _Stills {
   final int _memoryBudget;
   final LinkedHashMap<String, Uint8List> _memory = LinkedHashMap();
   var _memoryBytes = 0;
-  final Map<String, Future<Uint8List>> _inFlight = {};
+  final Map<String, _Transfer> _inFlight = {};
 
-  Future<Uint8List> bytesOf(String id, Uri url) {
+  /// The still [id] at [url]; [onProgress] hears its download, if it takes
+  /// one.
+  Future<Uint8List> bytesOf(String id, Uri url, {FetchProgress? onProgress}) {
     final kept = _memory.remove(id);
     if (kept != null) {
       _memory[id] = kept;
       return Future.value(kept);
     }
-    return _inFlight[id] ??= _fetch(id, url);
+    final transfer = _inFlight[id] ??= _Transfer(
+      (transfer) => _fetch(id, url, transfer),
+    );
+    if (onProgress != null) transfer.listen(onProgress);
+    return transfer.bytes;
   }
 
   Future<void> prepare(List<(String, Uri)> stills, {required Duration within}) {
@@ -200,21 +206,21 @@ final class _Stills {
     return done.future;
   }
 
-  Future<Uint8List> _fetch(String id, Uri url) async {
+  Future<Uint8List> _fetch(String id, Uri url, _Transfer transfer) async {
     try {
       final name = GiphyContent._diskName('still', id);
       final disk = _disk;
       var bytes = await disk?.read(name);
       if (bytes == null) {
-        bytes = await _client.download(url);
+        bytes = await _client.download(url, onProgress: transfer.report);
         if (disk != null) unawaited(disk.write(name, bytes));
       }
       _keep(id, bytes);
       return bytes;
     } finally {
-      // Not before the caller stored the future: this body suspends at its
+      // Not before the caller stored the transfer: this body suspends at its
       // first await, so it cannot get here earlier.
-      unawaited(_inFlight.remove(id)?.then((_) {}, onError: (_) {}));
+      _inFlight.remove(id);
     }
   }
 
@@ -236,19 +242,23 @@ final class _GiphyFetcher implements ContentFetcher {
   // The downloads under way. The asset cache already runs one attempt per
   // entry, but the chat and the panel draw one clip at different sizes, which
   // are two entries and would be two downloads of the same file.
-  final Map<ContentKey, Future<Uint8List>> _inFlight = {};
+  final Map<ContentKey, _Transfer> _inFlight = {};
 
   @override
   Future<FetchedContent> fetch(FetchRequest request) async {
     final key = request.descriptor.key;
     if (!GiphyContent.isKey(key)) return _otherwise.fetch(request);
     if (request.part == FetchPart.thumbnail) {
-      return _thumbnail(request.descriptor);
+      return _thumbnail(request.descriptor, request.onProgress);
     }
     try {
       // Cancelling does not stop a download others may be waiting on: the
       // bytes arrive and the pipeline drops them.
-      return FetchedContent.bytes(await (_inFlight[key] ??= _download(key)));
+      final transfer = _inFlight[key] ??= _Transfer(
+        (transfer) => _download(key, transfer),
+      );
+      transfer.listen(request.onProgress);
+      return FetchedContent.bytes(await transfer.bytes);
     } on GiphyFailure catch (failure) {
       throw failure.transient
           ? FetchFailure.transient(failure.message, failure)
@@ -258,7 +268,10 @@ final class _GiphyFetcher implements ContentFetcher {
 
   // The still the descriptor names, a few KB. Its failure is the thumbnail's
   // own: the pipeline keeps waiting for the clip.
-  Future<FetchedContent> _thumbnail(ContentDescriptor descriptor) async {
+  Future<FetchedContent> _thumbnail(
+    ContentDescriptor descriptor,
+    FetchProgress onProgress,
+  ) async {
     final url = switch (descriptor.thumbnail) {
       final ref? => Uri.tryParse(ref.value),
       null => null,
@@ -270,7 +283,9 @@ final class _GiphyFetcher implements ContentFetcher {
     }
     final id = GiphyContent.idOf(descriptor.key)!;
     try {
-      return FetchedContent.bytes(await _content._stills.bytesOf(id, url));
+      return FetchedContent.bytes(
+        await _content._stills.bytesOf(id, url, onProgress: onProgress),
+      );
     } on GiphyFailure catch (failure) {
       throw failure.transient
           ? FetchFailure.transient(failure.message, failure)
@@ -279,8 +294,9 @@ final class _GiphyFetcher implements ContentFetcher {
   }
 
   // The disk first: a clip found there needs neither its file nor, for one
-  // this session never listed, its description. A download is kept there.
-  Future<Uint8List> _download(ContentKey key) async {
+  // this session never listed, its description, and is no download to
+  // report. A download is kept there.
+  Future<Uint8List> _download(ContentKey key, _Transfer transfer) async {
     try {
       final disk = _content._clipDisk;
       final name = GiphyContent._diskName('clip', GiphyContent.idOf(key)!);
@@ -290,13 +306,16 @@ final class _GiphyFetcher implements ContentFetcher {
       if (clip == null) {
         throw GiphyFailure('no such GIF: $key', transient: false);
       }
-      final bytes = await _content.client.download(clip.url);
+      final bytes = await _content.client.download(
+        clip.url,
+        onProgress: transfer.report,
+      );
       if (disk != null) unawaited(disk.write(name, bytes));
       return bytes;
     } finally {
-      // Not before the caller stored the future: this body suspends at its
+      // Not before the caller stored the transfer: this body suspends at its
       // first await, so it cannot get here earlier.
-      unawaited(_inFlight.remove(key) ?? Future<void>.value());
+      _inFlight.remove(key);
     }
   }
 }
@@ -323,5 +342,30 @@ final class _GiphyResolver implements ContentResolver {
       }
     }
     return found;
+  }
+}
+
+// One download that several fetches share: each hears its progress, and one
+// that joins late hears at once where it has come. A file served from a cache
+// reports nothing, so its fetches show no download.
+final class _Transfer {
+  _Transfer(Future<Uint8List> Function(_Transfer transfer) start) {
+    bytes = start(this);
+  }
+
+  late final Future<Uint8List> bytes;
+  final List<FetchProgress> _listeners = [];
+  (int, int?)? _last;
+
+  void listen(FetchProgress listener) {
+    _listeners.add(listener);
+    if (_last case (final received, final total)) listener(received, total);
+  }
+
+  void report(int received, int? total) {
+    _last = (received, total);
+    for (final listener in List.of(_listeners)) {
+      listener(received, total);
+    }
   }
 }
