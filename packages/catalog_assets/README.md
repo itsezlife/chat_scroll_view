@@ -145,9 +145,12 @@ nightly job tracks against committed baselines; see
 | One `PlaybackActivity` per scope, fed a `WidgetsPlaybackLifecycleSource`, its own `lowPower` detection (and `reducedMotion` where the engine does not report it), and a `holdOverlay()` per dialog, sheet or route over the chat; `routeMoving` and `fastScroll` set directly on the clock | Set `appInactive`, `surfaceHidden`, `lowPower`, `reducedMotion` or `overlayShown` by hand next to an activity (it owns them), run a timer per animation, or call a paintable's `paint` outside a paint |
 | A custom `AssetPaintable` that goes on from where it stopped after a pause | Derive its frame from `clock.now` alone: `now` jumps by the whole pause on the first frame after |
 | `detach()` for every binding it attached, `visible` set to what it shows | Keep a `paintable` or a `sprite` across frames: a better stage replaces one, a page release can end the other |
+| On a platform with a texture host, one `FrameTexturePool` over it registered as `textures:`, fed the scroll signal (`scrolling:`), and `warm(sizeClass, count)` when a surface that plays opens; the host implementation passes `FrameTextureHostContract.run` | Create textures from a frame callback or during a scroll, reach the pool or host through a static, or keep an `AssetTexture` across frames |
 
 Decisions: [ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md)
-(cache core, staged readiness, producer seam, page residency) and
+(cache core, staged readiness, producer seam, page residency),
+[ADR 043](../../docs/adr/043-platform-texture-frames.md) (platform texture
+frames, the texture host seam and its pool) and
 [ADR 006](../../docs/adr/006-panel-catalog-viewport.md) (the amendment on baked
 glyphs). Glossary: [Content and Assets](../../docs/content/CONTEXT.md),
 [Panel Catalog](../../docs/panel-catalog/CONTEXT.md) (glyph atlas terms).

@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:catalog_assets/src/asset/asset_fit.dart';
 import 'package:catalog_assets/src/asset/asset_profile.dart';
+import 'package:catalog_assets/src/asset/asset_texture.dart';
 import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 import 'package:meta/meta.dart';
 
@@ -71,6 +72,17 @@ final class AssetPaintContext {
 /// been advanced (an animation) is advanced through [advancePlayback] before
 /// [sprite] is read.
 ///
+/// ## Texture capability
+///
+/// A paintable that plays may expose [texture], a platform texture its
+/// render worker writes each frame into (ADR 043). A surface that composites
+/// (a render object that pushes layers) adds a texture layer for it instead
+/// of drawing the sprite or calling [paint]; a surface that only has a
+/// canvas ignores it and calls [paint], which keeps drawing through the
+/// pages. A paintable exposes it only after [advancePlayback] and only once a
+/// first frame was posted to it; until then it exposes its sprite or paints
+/// its still. No surface is required to support textures.
+///
 /// ## Ownership
 ///
 /// The cache owns a paintable it was handed through `AssetProgress.advance`
@@ -118,6 +130,15 @@ abstract class AssetPaintable {
   /// played. Does nothing by default, which is right for a still and for a
   /// baked glyph.
   void advancePlayback(AssetPaintContext context) {}
+
+  /// The platform texture that holds the current frame, or null when this
+  /// paintable draws through [sprite] or [paint].
+  ///
+  /// Read it after [advancePlayback], when compositing, and never keep it: a
+  /// paintable can give its texture back between two frames (it stopped
+  /// playing, or its locks failed) and draw through its pages again. Null by
+  /// default, which is right for every paintable that does not play.
+  AssetTexture? get texture => null;
 
   /// Paints into [rect] of [canvas].
   void paint(Canvas canvas, Rect rect, AssetPaintContext context);

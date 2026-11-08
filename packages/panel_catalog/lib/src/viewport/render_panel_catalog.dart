@@ -2108,8 +2108,22 @@ class RenderPanelCatalog extends RenderBox
   /// The cell under [pressedSlotKey] is drawn with [CatalogLeafPress.scale].
   ///
   /// Records [debugLastPaintDuration] each pass.
+  ///
+  /// A leaf whose asset exposes a platform texture is a texture layer added
+  /// after the pass's picture, inside the same viewport clip (ADR 043): the
+  /// viewport is a repaint boundary, so it always composites.
   @override
   void paint(PaintingContext context, Offset offset) {
+    _paintCanvas(context, offset);
+    _painter.compositeTextures(
+      context,
+      offset,
+      Offset.zero & size,
+      needsCompositing: needsCompositing,
+    );
+  }
+
+  void _paintCanvas(PaintingContext context, Offset offset) {
     final sw = Stopwatch()..start();
     final canvas = context.canvas;
     canvas.save();

@@ -40,3 +40,5 @@ export 'src/playback/testing/playback_lifecycle_source_contract.dart';
 export 'src/playback/testing/playback_tick_source_contract.dart';
 export 'src/pool/testing/fake_frame_renderer.dart';
 export 'src/pool/testing/frame_renderer_contract.dart';
+export 'src/texture/testing/fake_frame_texture_host.dart';
+export 'src/texture/testing/frame_texture_host_contract.dart';

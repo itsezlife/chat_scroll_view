@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/rendering.dart';
 import 'package:meta/meta.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart'
@@ -16,6 +16,7 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_paragraph_cache.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
+import 'package:panel_catalog/src/viewport/catalog_texture_layers.dart';
 
 // [DEBUG-fl01] ticket 55 diagnosis probe; remove with `grep -rn DEBUG-fl01`.
 const bool _fl01 = bool.fromEnvironment('DEBUG_FL01');
@@ -88,6 +89,7 @@ const double _kProgressRadius = 12;
 ///
 /// | The binding | Paint |
 /// | ----------- | ----- |
+/// | has a playing paintable with a **texture** (a platform texture its worker writes frames into, ADR 043) | queued; [compositeTextures] adds one texture layer per queued cell after the pass's picture, inside the viewport clip, wrapped in an opacity layer while it fades in. What the cell painted under its content (washes, the placeholder under a fade) stays under it. Never painted, and its sprite is not read |
 /// | has a paintable with a **sprite** (a baked glyph, or the frame an animation was advanced to, on a page) | queued; [endPass] draws every queued sprite of one page with one batched atlas draw. The pressed cell is queued scaled about its centre, so it needs no canvas transform and stays in its page's batch |
 /// | none, or stage `none` | the placeholder of the leaf's style |
 /// | stage `placeholder` of a glyph (a glyph not baked yet) | the circle |
@@ -156,6 +158,7 @@ final class CatalogLeafPainter {
   final CatalogParagraphCache<_TextPaintKey> _textParagraphs =
       CatalogParagraphCache(limit: _kHeaderParagraphCacheLimit);
   final CatalogGlyphSpriteBatch _glyphSprites = CatalogGlyphSpriteBatch();
+  final CatalogTextureLayers _textures = CatalogTextureLayers();
 
   // [DEBUG-fl01] the last signature printed per leaf.
   final Map<Object, String> _fl01Seen = {};
@@ -233,17 +236,37 @@ final class CatalogLeafPainter {
     _viewport = viewport;
     _animateWash = animateWash;
     _needsFrame = false;
+    _textures.clear();
   }
 
   /// Closes the pass: draws the glyph sprites queued by [paintLeaf], one
   /// batched atlas draw per page, with the same clip and transform as the
   /// pass. Returns whether something drawn moves with time, so another frame
   /// is needed.
+  ///
+  /// The textures [paintLeaf] queued wait for [compositeTextures], once the
+  /// pass's canvas is closed.
   bool endPass(Canvas canvas) {
     _glyphSprites.flush(canvas);
     _releaseWashShader();
     return _needsFrame;
   }
+
+  /// Adds a texture layer for each leaf of the closed pass whose asset
+  /// exposed a texture, in paint order, inside [clipRect] (the viewport, in
+  /// the coordinates of [offset]): after the pass's picture, so what the
+  /// leaves painted under their content stays under it.
+  void compositeTextures(
+    PaintingContext context,
+    Offset offset,
+    Rect clipRect, {
+    required bool needsCompositing,
+  }) => _textures.composite(
+    context,
+    offset,
+    clipRect,
+    needsCompositing: needsCompositing,
+  );
 
   void _releaseWashShader() {
     _washShader?.dispose();
@@ -554,7 +577,12 @@ final class CatalogLeafPainter {
     // that takes the sprite path never paints, so it advances here first.
     final animated = paintable != null && paintable.isAnimated;
     if (animated) binding!.advancePlayback();
-    final sprite = paintable?.sprite;
+    // A playing asset whose worker writes into a platform texture is a layer
+    // of its own (ADR 043); it is read after the advance, which is when a
+    // paintable takes or gives back its texture. Its sprite is not read: the
+    // texture replaces it.
+    final texture = animated ? paintable.texture : null;
+    final sprite = texture == null ? paintable?.sprite : null;
     if (_fl01 && animated) {
       _fl01Leaf(
         slot,
@@ -564,7 +592,7 @@ final class CatalogLeafPainter {
         fading: bound!.isFadingAt(_frameTime),
       );
     }
-    if (sprite != null) {
+    if (sprite != null || texture != null) {
       // A queued sprite carries the press scale in its own transform, so it
       // needs no canvas save and restore and stays in its page's batch.
       // Placed like the paintable places itself: as the leaf's fit says,
@@ -587,8 +615,19 @@ final class CatalogLeafPainter {
           binding!.releaseStandIn();
         }
       }
+      if (texture != null) {
+        _textures.add(
+          texture,
+          box: glyphRect,
+          fit: slot.leaf.contentFit,
+          anchor: cellRect.center,
+          pressScale: pressScale,
+          opacity: opacity,
+        );
+        return;
+      }
       _glyphSprites.add(
-        sprite,
+        sprite!,
         box: glyphRect,
         fit: slot.leaf.contentFit,
         anchor: cellRect.center,
