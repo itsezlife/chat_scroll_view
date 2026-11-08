@@ -19,7 +19,7 @@ final pool = host == null ? null : FrameTexturePool(host: host);
 | Platform | Texture | Verified |
 | --- | --- | --- |
 | Android | a `SurfaceProducer`; its window locked with `ANativeWindow_lock` and posted with `unlockAndPost`, premultiplied RGBA | the table on the host (fake window); the device smoke check is pending |
-| iOS, macOS | none yet (a later ticket: `FlutterTexture` over `CVPixelBuffer`s) | |
+| iOS, macOS | a `FlutterTexture` over a `CVPixelBufferPool` of IOSurface-backed buffers, at most three out (the ring), premultiplied BGRA | macOS: the example with `FRAME_TEXTURES=true` (orientation, colours, alpha, cover clip); iOS: builds, not run on a device |
 | Windows, Linux, web | none | |
 
 ## Layout
@@ -31,6 +31,7 @@ final pool = host == null ? null : FrameTexturePool(host: host);
 | `native/src/frame_texture_jni.c` | The JNI side the Kotlin plugin calls |
 | `native/test/fake_window.c` | A fake `ANativeWindow`, so the tests run the real table on the host |
 | `android/` | The Kotlin plugin and the CMake build of `libframe_texture.so` |
+| `darwin/` | The iOS and macOS plugin (one source, `sharedDarwinSource`): the texture ring, its table and the same C ABI |
 | `lib/` | `PlatformFrameTextureHost` (channel + FFI) and the factory |
 
 ## The C ABI
@@ -42,10 +43,25 @@ void  frame_texture_post(int64_t texture_id);
 
 `lock` answers NULL at once for a texture that is unknown, destroyed, without
 a surface now, or locked or being posted by another caller; it never waits on
-another caller. Every function may be called from any thread.
+another caller. On iOS and macOS it also answers NULL when all three buffers
+of the ring are out (the newest, the engine's previous frame, a write). Every
+function may be called from any thread.
 `FrameTextureHost.entryPoints` gives their addresses to a render isolate.
 
+On iOS and macOS a post signals the engine with `textureFrameAvailable` on
+the main thread: both embedders end in
+`Shell::OnPlatformViewMarkTextureFrameAvailable`, which checks that it runs on
+the platform task runner. The post dispatches the signal to the main queue,
+one pending signal per texture, so posts made before the main thread runs it
+share it.
+
 ## How the library loads
+
+On iOS and macOS the plugin's pod is linked into the app, and its C functions
+are exported from it; the Dart side finds them in the process
+(`DynamicLibrary.process()`).
+
+On Android:
 
 The Android Gradle Plugin builds `libframe_texture.so` from
 `android/CMakeLists.txt` with the app's NDK (16 KB page aligned), so it ships

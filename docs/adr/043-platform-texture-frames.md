@@ -52,7 +52,7 @@ thread, and the UI isolate only places a layer.
 | Writing | The render worker writes the frame straight into the locked target at its stride, then posts: no page memory, no copy on the UI isolate. An asset that is not square is written at its fitted size with transparent margins, as on a page slot. The Lottie wrapper and the video wrapper already render into a caller buffer with a stride, so the engines do not change; the frame cache restores into the locked target the same way. A target that cannot be locked at once is skipped for that frame (the texture keeps its previous frame); the worker never waits for the compositor. |
 | Pacing | The scheduler that asks frames for slots asks them for textures: the same fps cap by size, the same pause layers and the same idle release. A texture is posted at most once per frame of the clock. |
 | Compositing | A consumer adds texture layers inside its own clip and in paint order: anything it paints under a cell (a press wash) stays in the picture before the layer, anything over a cell goes in a picture after it. A texture layer cannot crop, so a cover fit (a GIF cell) gets a clip layer of its own; an opacity below one wraps the texture layer in an opacity layer. Stills and glyphs stay in the batched atlas draw; only playing assets become layers. |
-| Platforms | Android: a texture is a `SurfaceProducer` and its window (`ANativeWindow_lock` / `unlockAndPost`). iOS and macOS: a `FlutterTexture` over a small ring of IOSurface-backed `CVPixelBuffer`s. Windows and Linux: no texture host in the first build (pages with the synchronous upload where the engine has it). Web: no texture host; the worker path of ADR 042 stays. |
+| Platforms | Android: a texture is a `SurfaceProducer` and its window (`ANativeWindow_lock` / `unlockAndPost`). iOS and macOS: a `FlutterTexture` over a small ring of IOSurface-backed `CVPixelBuffer`s (a `CVPixelBufferPool` with at most three out: the newest, the engine's previous frame, the one being written), premultiplied BGRA; the post signals `textureFrameAvailable` on the main thread. Windows and Linux: no texture host in the first build (pages with the synchronous upload where the engine has it). Web: no texture host; the worker path of ADR 042 stays. |
 | Package | One new plugin package, `frame_texture`: the Android and Apple hosts, their C entry points for the worker (`lock` / `post` by texture id), and the Dart implementation of the seam. It depends on `catalog_assets` for the seam only; the decoders do not depend on it, they see the seam. |
 | Consumers | First the catalogue viewport (sticker and GIF grids, the pack strip), then the chat's sticker and GIF bodies. |
 | Failure | A host that cannot create a texture, or a lock that fails repeatedly, sends that asset back to a page slot: never a visible failed stage, per ADR 022. |
@@ -85,8 +85,12 @@ thread, and the UI isolate only places a layer.
 - Whether every Android producer accepts CPU writes into its window; verified
   on one device (Samsung SM-S938B, Impeller, Vulkan). The failure rule covers a
   refusal, but how often it happens is unknown.
-- iOS and macOS: whether `textureFrameAvailable` may be called from the worker's
-  thread, and the cost of a texture layer per asset under Metal. Not measured.
+- iOS and macOS: the cost of a texture layer per asset under Metal. Not
+  measured. (Resolved: `textureFrameAvailable` may not be called from the
+  worker's thread. On both platforms it ends in
+  `Shell::OnPlatformViewMarkTextureFrameAvailable`, which checks that it runs on
+  the platform task runner, the main thread; the Apple host's post dispatches
+  the signal to the main queue, coalesced per texture.)
 - Whether the glass blur behind floating chrome samples texture layers the way
   it samples pictures. Not checked.
 - The raster cost of many texture layers in a chat with dozens of playing

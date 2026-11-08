@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frame_texture/frame_texture.dart';
+
+import 'support/host_table.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -113,8 +117,24 @@ void main() {
     expect(host(natives).entryPoints, same(natives.entryPoints));
   });
 
-  test('no texture host off Android', () {
-    expect(createPlatformFrameTextureHost(), isNull);
+  test('an Apple process with the C table gets a BGRA host', () {
+    // The compiled table exports the worker's ABI into this process, as the
+    // Apple plugin's framework does in an app; elsewhere (or without a
+    // compiler) there is no host off Android.
+    final table = HostTable.compile();
+    final textures = createPlatformFrameTextureHost();
+    if (!Platform.isMacOS || table == null) {
+      expect(textures, isNull);
+      return;
+    }
+
+    expect(textures, isA<PlatformFrameTextureHost>());
+    expect(textures!.format, FrameTextureFormat.bgra8888);
+    expect(
+      textures.buffersPerTexture,
+      PlatformFrameTextureHost.appleBuffersPerTexture,
+    );
+    expect(textures.entryPoints!.lock, table.natives.entryPoints.lock);
   });
 }
 

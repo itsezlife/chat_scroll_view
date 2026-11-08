@@ -5,15 +5,21 @@ import 'package:frame_texture/src/platform_frame_texture_host.dart';
 
 /// The texture host of this platform, or null where there is none.
 ///
-/// Android answers a [PlatformFrameTextureHost] once the plugin's library is
-/// in the app; every other platform answers null for now (the Apple host is
-/// a later ticket), and so does the web. Call it once: each call makes a new
-/// host.
+/// Android, iOS and macOS answer a [PlatformFrameTextureHost] once the
+/// plugin's native side is in the app; every other platform answers null,
+/// and so does the web. Call it once: each call makes a new host.
 FrameTextureHost? createPlatformFrameTextureHost() {
-  final natives = FfiFrameTextureNatives.openAndroid();
-  if (natives == null) return null;
-  return PlatformFrameTextureHost(
-    channel: const MethodChannel(PlatformFrameTextureHost.channelName),
-    natives: natives,
-  );
+  const channel = MethodChannel(PlatformFrameTextureHost.channelName);
+  if (FfiFrameTextureNatives.openAndroid() case final natives?) {
+    return PlatformFrameTextureHost(channel: channel, natives: natives);
+  }
+  if (FfiFrameTextureNatives.openApple() case final natives?) {
+    return PlatformFrameTextureHost(
+      channel: channel,
+      natives: natives,
+      format: FrameTextureFormat.bgra8888,
+      buffersPerTexture: PlatformFrameTextureHost.appleBuffersPerTexture,
+    );
+  }
+  return null;
 }

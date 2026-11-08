@@ -12,7 +12,9 @@ import 'package:frame_texture/src/frame_texture_natives.dart';
 ///
 /// On Android a texture is a `SurfaceProducer` whose window the table locks
 /// (`ANativeWindow_lock`) and posts (`ANativeWindow_unlockAndPost`), in
-/// premultiplied RGBA. `createPlatformFrameTextureHost` builds the host where
+/// premultiplied RGBA. On iOS and macOS it is a `FlutterTexture` over a ring
+/// of IOSurface-backed `CVPixelBuffer`s, in premultiplied BGRA.
+/// `createPlatformFrameTextureHost` builds the host where
 /// the platform has one; the constructor is for a test, which passes a
 /// channel it answers and a table of its own.
 ///
@@ -39,6 +41,13 @@ final class PlatformFrameTextureHost implements FrameTextureHost {
   /// may allocate up to seven when the platform thread falls behind; the
   /// pool's budget counts the steady state.
   static const int androidBuffersPerTexture = 4;
+
+  /// The buffers one Apple texture holds at most, its pool's allocation
+  /// threshold: the newest posted one (which the engine may hold as its last
+  /// frame), the one the engine drew before it while the GPU may still read
+  /// it, and the one the worker writes. A lock with all three out answers
+  /// null.
+  static const int appleBuffersPerTexture = 3;
 
   final MethodChannel _channel;
   final FrameTextureNatives _natives;
