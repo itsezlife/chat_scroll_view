@@ -6,4 +6,6 @@
 /// Depends on the Flutter SDK only.
 library;
 
+export 'src/swipe_pager.dart';
+export 'src/swipe_pager_keep_alive.dart';
 export 'src/swipe_pager_physics.dart';
