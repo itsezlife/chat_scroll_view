@@ -190,6 +190,37 @@ abstract final class AssetPresets {
     profile: profile,
   );
 
+  /// A sticker or a GIF shown on its own: a box of [size] logical pixels, of
+  /// the media's own proportion, decoded at [devicePixelRatio] and used as
+  /// [profile] says.
+  ///
+  /// [maxPixelExtent] caps the decode's longer side, the shorter scaled with
+  /// it: a large box on a dense screen draws a decode smaller than its pixels
+  /// rather than one larger than the media holds (the reference clients render
+  /// a sticker at 512 px at most). Under the cap the decode is the box at the
+  /// density, rounded up like [square].
+  static AssetPreset media({
+    required Size size,
+    required double devicePixelRatio,
+    required AssetProfile profile,
+    int? maxPixelExtent,
+  }) {
+    final full = AssetSpec.atDensity(
+      logicalWidth: size.width,
+      logicalHeight: size.height,
+      devicePixelRatio: devicePixelRatio,
+    );
+    final longer = math.max(full.pixelWidth, full.pixelHeight);
+    final spec = switch (maxPixelExtent) {
+      final cap? when longer > cap => AssetSpec(
+        pixelWidth: math.max(1, (full.pixelWidth * cap / longer).round()),
+        pixelHeight: math.max(1, (full.pixelHeight * cap / longer).round()),
+      ),
+      _ => full,
+    };
+    return AssetPreset(size: size, spec: spec, profile: profile);
+  }
+
   /// Logical pixels an emoji-only item's box adds to its font size (the
   /// reference client's `font + 4 dp`).
   static const double emojiOnlyBoxPadding = 4;

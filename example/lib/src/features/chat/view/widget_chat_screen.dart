@@ -257,15 +257,23 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       );
     }
     // The chat's stickers and GIFs composite as texture layers: the pool is
-    // warmed for them once, as the screen opens (ADR 043, "Pool").
+    // warmed for them once, as the screen opens (ADR 043, "Pool"), in the
+    // class of a sticker as the media size policy draws one.
     if (fresh) {
       if (widget.services.assets.textures case final pool?) {
+        final viewport = MediaQuery.sizeOf(context);
+        final sizes = _bodies.mediaSizes;
         ChatTextureWarmer.warm(
           pool,
-          stickerExtent: _emojiPolicy.value.family().stickerExtentFor(
-            MediaQuery.sizeOf(context),
-          ),
+          stickerExtent: sizes
+              .sizeFor(
+                const ChatMediaItem(kind: ChatMediaKind.sticker),
+                viewport: viewport,
+                parentWidth: viewport.width,
+              )
+              .longestSide,
           devicePixelRatio: View.of(context).devicePixelRatio,
+          maxPixelExtent: sizes.maxDecodeExtent,
         );
       }
     }

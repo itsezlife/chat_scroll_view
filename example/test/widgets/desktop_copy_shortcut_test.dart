@@ -40,7 +40,7 @@ void main() {
     debugDefaultTargetPlatformOverride = platform;
     try {
       tester.view
-        ..physicalSize = const Size(900, 4000)
+        ..physicalSize = const Size(900, 8000)
         ..devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       services = (await tester.runAsync(createTestServices))!;

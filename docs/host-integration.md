@@ -973,6 +973,13 @@ A message of nothing but emoji is shown without a bubble, large
    - `sticker`: for a lone emoji, the document it is shown as, from the host's
      own `unicode` to `document` map (an animated-emoji pack's) or the custom
      emoji's own document; none gives the text layout;
+   - `media` and `mediaSizes`: for a message that is one sticker or GIF of its
+     own, what it is (`ChatMediaItem`: the kind and the source size the host's
+     descriptor holds, null when unknown) and the host's
+     `ChatMediaSizePolicy`, one per platform family, which answers the art's
+     size from the screen and the chat's width and caps the decode. Without
+     them the document is drawn as a lone emoji's sticker. Pass the same pair to
+     `geometryFor`;
    - `playback` (`ChatStickerPlayback`): how the sticker plays, from the asset
      kind and the user's animation settings. Null is the reference default (a
      lone unicode emoji plays once and rests on the first frame, a custom emoji

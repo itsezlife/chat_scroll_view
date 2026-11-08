@@ -93,6 +93,8 @@ import 'features/chat/panel_texture_warmer_test.dart'
     as panel_texture_warmer_test;
 import 'features/chat/recent_content_source_test.dart'
     as recent_content_source_test;
+import 'features/chat/reference_media_sizes_test.dart'
+    as reference_media_sizes_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/static_sticker_pack_test.dart'
     as static_sticker_pack_test;
@@ -185,6 +187,10 @@ void main() {
   group(
     'features/chat/recent_content_source_test.dart',
     recent_content_source_test.main,
+  );
+  group(
+    'features/chat/reference_media_sizes_test.dart',
+    reference_media_sizes_test.main,
   );
   group(
     'features/streaming/streaming_screen_test.dart',

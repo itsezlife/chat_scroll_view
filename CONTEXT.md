@@ -380,6 +380,10 @@ _Avoid_: Big emoji bubble, emoji message type, sticker message (a single-item em
 The pure-Dart strategy of a platform family (Android, iOS, desktop; web follows desktop) holding what an **emoji-only body** lays out with and what the host's chrome reads: font tables, the sticker's extent and inset, the count cap, the wrap under a header, where a header goes, and whether a right-to-left chat mirrors. The host picks it once from the platform ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
 _Avoid_: Emoji theme, emoji mode, mobile/desktop flag
 
+**Media size policy**:
+The host's strategy, one per platform family, for how large a message that is one sticker or one GIF of its own is drawn (`ChatMediaSizePolicy`): a size from the media's kind and source size, the screen and the chat's width, and a cap on the decode. The viewport holds no rule; the **emoji-only body**'s sticker layout lays out at the answer, scaled down to a narrower row. A lone emoji (unicode or custom) is the **emoji-only policy**'s ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
+_Avoid_: Sticker size setting, GIF size, media extent
+
 **Sticker playback**:
 The host's policy for how the sticker of an **emoji-only body** plays: loop, play once then rest on the first or the last frame, or stay still. The body reads no animation setting; the host maps its settings and power policy to a mode. A sticker that plays once does so the first time the open chat shows it, which the **play ledger** remembers ([ADR 036](docs/adr/036-emoji-only-message-presentation.md)).
 _Avoid_: Autoplay flag, GIF mode, loop setting (in the body)

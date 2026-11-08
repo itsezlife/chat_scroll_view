@@ -15,6 +15,7 @@ import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/reference_media_sizes.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -390,6 +391,48 @@ void main() {
 
       final body = tester.widget<ChatEmojiBody>(find.byType(ChatEmojiBody));
       expect(body.sticker, const ContentKey.document('5368'));
+    });
+
+    bodyTest('a lone sticker or GIF is drawn at the reference client\'s '
+        'size, its own proportion kept', (tester) async {
+      const sticker = ContentKey.document('sticker');
+      const gif = ContentKey.document('giphy:abc');
+      final own = ChatBodyHost(
+        assets: scope,
+        policy: policy,
+        mediaSizes: const ReferenceMediaSizes.mobile(),
+        describe: (key) => switch (key) {
+          sticker => const ContentDescriptor(
+            key: sticker,
+            semanticKind: SemanticKind.sticker,
+            size: ContentSize(512, 512),
+          ),
+          gif => const ContentDescriptor(
+            key: gif,
+            semanticKind: SemanticKind.gif,
+            size: ContentSize(480, 270),
+          ),
+          _ => null,
+        },
+      );
+
+      await pump(tester, newSelection(), [
+        _message(1, '![cat](document:sticker)'),
+        _message(2, '![dance](document:giphy:abc)'),
+      ], bodies: own);
+
+      // A 400 x 800 screen: half of 400 for the sticker; 400 - 64 = 336 for
+      // a landscape GIF, 270 x 336 / 480 = 189 high, scaled down to the
+      // 274 the row of an incoming message leaves beside the avatar.
+      Size sizeOf(int id) => tester.getSize(
+        find.byWidgetPredicate(
+          (widget) => widget is ChatEmojiBody && widget.messageId == id,
+        ),
+      );
+      expect(sizeOf(1), const Size.square(200));
+      final gifSize = sizeOf(2);
+      expect(gifSize.width, 274);
+      expect(gifSize.height, moreOrLessEquals(189 * 274 / 336));
     });
 
     bodyTest('is bubble-less and its text layout registers as selectable '
