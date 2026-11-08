@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
+import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
 import 'package:chat_scroll_view_example/src/app/scrolling_surfaces.dart';
 import 'package:chat_scroll_view_example/src/app/system_reduced_motion.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
@@ -131,7 +132,9 @@ final class AppServices {
     required Future<bool> Function() glyphFontsSettled,
     required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
+    required MediaDiskCache? mediaCache,
   }) : _animatedEmoji = animatedEmoji,
+       _mediaCache = mediaCache,
        _pageParts = pageParts,
        _clock = clock,
        _lottiePlayback = lottiePlayback,
@@ -177,24 +180,27 @@ final class AppServices {
   /// language set of emoji search, the app language first. [startLottie]
   /// starts the Lottie decoder (the platform's unless a test passes its own);
   /// it answers null where there is none, and then nothing is registered.
-  /// [lottieCacheDirectory] is the folder its rendered frames are kept in
-  /// between launches (null: in memory only, as in a test). [startVideo]
+  /// [startVideo]
   /// does the same for the video decoder: the platform's unless a test passes
   /// its own, and null where there is none.
   ///
   /// [giphyApiKey] turns the GIF page's Giphy source on (see
   /// [giphyApiKeyDefine]); empty leaves the page with the recent GIFs alone.
   /// [giphyHttpClient] is the transport it sends through, closed by the
-  /// services only if they made it. [giphyStillDirectory] is the folder the
-  /// clips' stills are kept in between launches, up to [giphyStillDiskBytes]
-  /// (null: in memory only, as in a test); [giphyClipDirectory] the same for
-  /// the clips' files, up to [giphyClipDiskBytes] (null: none kept). [corpus] is the local sticker corpus; null
-  /// looks for one in the app bundle and in the `CHAT_CORPUS_DIR` directory.
+  /// services only if they made it. [corpus] is the local sticker corpus;
+  /// null looks for one in the app bundle and in the `CHAT_CORPUS_DIR`
+  /// directory.
+  ///
+  /// [mediaCache] is where animated media is kept between launches: Giphy's
+  /// stills and clips in its `giphy` folder, the rendered Lottie frames in
+  /// its `lottie_frames` folder (null: in memory only, as in a test). Its
+  /// keep period and size limit are the host's, set where it is made; the
+  /// services start its sweeps and stop them on [dispose].
   ///
   /// [diskCache] is the one switch over every disk tier (see
-  /// [DemoConfig.diskCache]): false ignores [glyphCache],
-  /// [lottieCacheDirectory], [giphyStillDirectory] and [giphyClipDirectory],
-  /// and everything is kept in memory for this launch only.
+  /// [DemoConfig.diskCache]): false ignores [glyphCache] and [mediaCache],
+  /// which is then neither used nor swept, and everything is kept in memory
+  /// for this launch only.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -203,12 +209,10 @@ final class AppServices {
     List<String> languages = const <String>['ru', 'en'],
     RichClipboard clipboard = const SystemRichClipboard(),
     LottiePlaybackStarter startLottie = LottiePlayback.start,
-    Future<String?>? lottieCacheDirectory,
     VideoPlaybackStarter startVideo = VideoPlayback.start,
     String giphyApiKey = giphyApiKeyDefine,
     http.Client? giphyHttpClient,
-    Future<String?>? giphyStillDirectory,
-    Future<String?>? giphyClipDirectory,
+    Future<MediaDiskCache?>? mediaCache,
     CorpusStickerPack? corpus,
     bool diskCache = DemoConfig.diskCache,
   }) async {
@@ -219,9 +223,7 @@ final class AppServices {
       );
     }
     final glyphDisk = diskCache ? glyphCache : null;
-    final lottieDisk = diskCache ? lottieCacheDirectory : null;
-    final stillDisk = diskCache ? giphyStillDirectory : null;
-    final clipDisk = diskCache ? giphyClipDirectory : null;
+    final mediaDisk = diskCache ? mediaCache : null;
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
     final unwind = <void Function()>[];
@@ -231,6 +233,13 @@ final class AppServices {
     }
 
     try {
+      // 0. The media store, swept now (off the frame path) and hourly; a
+      // tier never waits for a sweep.
+      final media = switch (await mediaDisk) {
+        final media? => owned(media..start(), (media) => media.dispose()),
+        null => null,
+      };
+
       // 1. The adapter.
       final storage =
           keyValueStore ?? await SharedPreferencesKeyValueStore.open();
@@ -307,7 +316,7 @@ final class AppServices {
         clock: clock,
         memoryPressure: memoryPressure,
         textures: textures,
-        cacheDirectory: await lottieDisk,
+        cacheDirectory: media?.folder(lottieFramesFolder),
       );
       if (lottiePlayback != null) {
         owned(lottiePlayback, _closePlayback);
@@ -357,28 +366,19 @@ final class AppServices {
         // this one client.
         final labNet = DemoConfig.scrollLab ? LabNet.instance : null;
         final transport = labNet == null ? live : LabNetClient(live, labNet);
-        // The disk tiers of the stills and the clips are the fetcher's (ADR
-        // 022). They sit under the transport, not over it: a file found on
+        // The disk tier of the stills and the clips is the fetcher's (ADR
+        // 022): one folder of the media store for both, their names apart by
+        // kind. It sits under the transport, not over it: a file found on
         // disk is no request, so the lab's tape neither records nor replays
-        // it (lab builds turn them off, see DemoConfig.diskCache).
-        final (stillDirectory, clipDirectory) = await (
-          stillDisk ?? Future.value(),
-          clipDisk ?? Future.value(),
-        ).wait;
+        // it (lab builds turn it off, see DemoConfig.diskCache).
+        final disk = switch (media) {
+          final media? => ByteCache.directory(media.folder(giphyFolder)),
+          null => null,
+        };
         giphy = GiphyContent(
           GiphyClient(apiKey: giphyApiKey, client: transport),
-          stillDisk: stillDirectory == null
-              ? null
-              : ByteCache.directory(
-                  stillDirectory,
-                  budgetBytes: giphyStillDiskBytes,
-                ),
-          clipDisk: clipDirectory == null
-              ? null
-              : ByteCache.directory(
-                  clipDirectory,
-                  budgetBytes: giphyClipDiskBytes,
-                ),
+          stillDisk: disk,
+          clipDisk: disk,
         );
       }
       final pipeline = owned(
@@ -604,6 +604,7 @@ final class AppServices {
         glyphFontsSettled: probe.fontsSettled,
         glyphFontsReady: glyphFontsReady,
         pipeline: pipeline,
+        mediaCache: media,
         clipboard: clipboard,
       );
     } on Object {
@@ -728,15 +729,11 @@ final class AppServices {
   /// The line Giphy's terms ask to be shown with its content.
   static const String giphyAttribution = 'Powered by GIPHY';
 
-  /// How much of the disk Giphy's stills may take: 16 MB. A still is the
-  /// clip's 100 px wide frame, a few KB, so this keeps a few thousand: more
-  /// than a long scroll of trending and searches, little next to the clips.
-  static const int giphyStillDiskBytes = 16 << 20;
+  /// The media store's folder of Giphy's stills and clips.
+  static const String giphyFolder = 'giphy';
 
-  /// How much of the disk Giphy's clips may take: 64 MB. A clip is a
-  /// 200 px wide MP4 of a few hundred KB, so this keeps a few hundred: the
-  /// recent GIFs and those a chat sent, played again without the network.
-  static const int giphyClipDiskBytes = 64 << 20;
+  /// The media store's folder of the rendered Lottie frames.
+  static const String lottieFramesFolder = 'lottie_frames';
 
   static ContentFetcher _contentFetcher(
     GiphyContent? giphy,
@@ -764,6 +761,7 @@ final class AppServices {
   final List<CollectionSource> _pageParts;
   final PlaybackClock _clock;
   final LottiePlayback? _lottiePlayback;
+  final MediaDiskCache? _mediaCache;
   final VideoPlayback? _videoPlayback;
   final AssetPipeline _pipeline;
   final WidgetsPlaybackLifecycleSource _lifecycleSource;
@@ -858,6 +856,8 @@ final class AppServices {
     // animations the decoder made, through its engine.
     if (_lottiePlayback case final playback?) _closePlayback(playback);
     if (_videoPlayback case final playback?) _closeVideoPlayback(playback);
+    // Its sweeps stop; its files stay for the next launch.
+    _mediaCache?.dispose();
     _clock.dispose();
     memoryPressure.dispose();
     largeEmoji.dispose();
