@@ -266,6 +266,19 @@ final class _GiphyFetcher implements ContentFetcher {
     }
   }
 
+  // Missing unless the disk has the file; a download under way for another
+  // entry of the clip is missing too, and the fetch joins it. There is no
+  // memory tier of files to ask. One stat of the disk's file, without
+  // needing to know the clip.
+  @override
+  bool needsDownload(ContentKey key) {
+    final id = GiphyContent.idOf(key);
+    if (id == null) return _otherwise.needsDownload(key);
+    if (_inFlight.containsKey(key)) return true;
+    final disk = _content._clipDisk;
+    return disk == null || !disk.holds(GiphyContent._diskName('clip', id));
+  }
+
   // The still the descriptor names, a few KB. Its failure is the thumbnail's
   // own: the pipeline keeps waiting for the clip.
   Future<FetchedContent> _thumbnail(

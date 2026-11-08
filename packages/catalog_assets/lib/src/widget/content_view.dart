@@ -111,9 +111,11 @@ class ContentView extends StatefulWidget {
   /// no frame to show, or null for none.
   ///
   /// It shows only while the binding reports a download
-  /// (`AssetBinding.downloadProgress`), so content served from a cache
-  /// (memory or disk) never shows it, and its arc follows the fraction
-  /// downloaded from where the view first saw it. The view asks for a frame
+  /// (`AssetBinding.downloadProgress`): from the first frame for content
+  /// known to be missing, and on after a failed download, while the content
+  /// is still missing. Content served from a cache (memory or disk) never
+  /// shows it, and its arc follows the fraction downloaded from where the
+  /// view first saw it. The view asks for a frame
   /// after each one it paints the indicator in, and stops when the first
   /// frame exists, the download ends or a [TickerMode] above it is off. A
   /// grid GIF cell uses 12 (`ContextLinkCell.onMeasure`).

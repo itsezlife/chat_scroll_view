@@ -983,4 +983,7 @@ final class _NoFetcher implements ContentFetcher {
   @override
   Future<FetchedContent> fetch(FetchRequest request) =>
       Future.error(StateError('not asked for: ${request.descriptor.key}'));
+
+  @override
+  bool needsDownload(ContentKey key) => false;
 }

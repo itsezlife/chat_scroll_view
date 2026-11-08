@@ -42,6 +42,8 @@ FetchRequest _request(
   onProgress: onProgress ?? (_, _) {},
 );
 
+const _otherMissing = ContentKey.document('elsewhere');
+
 final class _Other implements ContentFetcher, ContentResolver {
   final fetched = <ContentKey>[];
   final resolved = <ContentKey>[];
@@ -51,6 +53,9 @@ final class _Other implements ContentFetcher, ContentResolver {
     fetched.add(request.descriptor.key);
     return FetchedContent.bytes(Uint8List.fromList([9]));
   }
+
+  @override
+  bool needsDownload(ContentKey key) => key == _otherMissing;
 
   @override
   Future<Map<ContentKey, ContentDescriptor>> resolve(
@@ -548,6 +553,30 @@ void main() {
       expect(reports, isEmpty);
     });
 
+    test('are known to need a download unless the disk has them', () async {
+      final disk = _MemoryDisk();
+      await disk.write('clip_a', Uint8List.fromList([1, 2]));
+      final fetcher = GiphyContent(
+        client,
+        clipDisk: disk,
+      ).fetcher(otherwise: other);
+
+      expect(fetcher.needsDownload(GiphyContent.keyOf('a')), isFalse);
+      expect(fetcher.needsDownload(GiphyContent.keyOf('b')), isTrue);
+    });
+
+    test('need a download without a disk, and for other content the fetcher '
+        'given says', () {
+      final fetcher = GiphyContent(client).fetcher(otherwise: other);
+
+      expect(fetcher.needsDownload(GiphyContent.keyOf('a')), isTrue);
+      expect(fetcher.needsDownload(_otherMissing), isTrue);
+      expect(
+        fetcher.needsDownload(const ContentKey.document('bundled')),
+        isFalse,
+      );
+    });
+
     test('are downloaded and kept when the disk has none', () async {
       final disk = _MemoryDisk();
       files['/a.mp4'] = Uint8List.fromList([3]);
@@ -647,6 +676,9 @@ final class _MemoryDisk implements ByteCache {
 
   @override
   Future<Uint8List?> read(String name) async => _files[name];
+
+  @override
+  bool holds(String name) => _files.containsKey(name);
 
   @override
   Future<void> write(String name, Uint8List bytes) async =>

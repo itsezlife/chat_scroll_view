@@ -77,8 +77,8 @@ void main() {
     });
   });
 
-  group('the download ends with the attempt', () {
-    test('at the final stage', () {
+  group('the download lasts while the content is missing', () {
+    test('until the final stage', () {
       final binding = scope.attach(_key, _spec, _profile);
       producer.last
         ..download(1)
@@ -87,7 +87,7 @@ void main() {
       expect(binding.downloadProgress, isNull);
     });
 
-    test('at a failure, and the bindings are told', () {
+    test('past a failure, which keeps the fraction', () {
       final binding = scope.attach(_key, _spec, _profile);
       producer.last.download(0.4);
       var signals = 0;
@@ -95,17 +95,17 @@ void main() {
 
       producer.last.fail(StateError('offline'));
 
-      expect(binding.downloadProgress, isNull);
-      expect(signals, 1);
+      expect(binding.downloadProgress, 0.4);
+      expect(signals, 0);
     });
 
-    test('at a cancel by the producer', () {
+    test('past a cancel by the producer', () {
       final binding = scope.attach(_key, _spec, _profile);
       producer.last
         ..download(0.4)
         ..cancelled();
 
-      expect(binding.downloadProgress, isNull);
+      expect(binding.downloadProgress, 0.4);
     });
 
     test('a report after the attempt ended is ignored', () {
@@ -117,6 +117,20 @@ void main() {
       expect(binding.downloadProgress, isNull);
     });
 
+    test('a new attempt starts without the last one, and signals that', () {
+      final binding = scope.attach(_key, _spec, _profile);
+      producer.last
+        ..download(0.4)
+        ..fail(StateError('offline'));
+      var signals = 0;
+      binding.addListener(() => signals++);
+
+      binding.retry();
+
+      expect(binding.downloadProgress, isNull);
+      expect(signals, 1);
+    });
+
     test('a detached binding reads none', () {
       final binding = scope.attach(_key, _spec, _profile);
       producer.last.download(0.4);
@@ -124,6 +138,19 @@ void main() {
       binding.detach();
 
       expect(binding.downloadProgress, isNull);
+    });
+
+    test('the last binding leaving forgets it', () {
+      final binding = scope.attach(_key, _spec, _profile);
+      producer.last
+        ..download(0.4)
+        ..advance(AssetStage.placeholder)
+        ..fail(StateError('offline'));
+      binding.detach();
+
+      final again = scope.attach(_key, _spec, _profile);
+
+      expect(again.downloadProgress, isNull);
     });
   });
 

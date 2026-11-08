@@ -117,9 +117,11 @@ const double _kProgressRadius = 12;
 /// A GIF leaf that is not drawn yet (no stage, or its thumbnail) and whose
 /// binding downloads its content (`AssetBinding.downloadProgress`) also gets
 /// the reference client's download indicator ([RadialProgress]) over its
-/// centre, and it fades out with the content's fade. A leaf served from a
-/// cache shows none. Each binding has its own indicator, kept beside it for
-/// as long as its download runs; the arc steps with the pass's frame time:
+/// centre, and it fades out with the content's fade. A leaf whose content is
+/// known to be missing shows it from its first paint, and a failed download
+/// keeps it while the content is still missing; a leaf served from a cache
+/// shows none. Each binding has its own indicator, kept beside it for as
+/// long as the binding reports a download; the arc steps with the pass's frame time:
 /// the pass asks for frames only while one shows, and not while the host
 /// paused playback, when the arc rests.
 ///

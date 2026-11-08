@@ -149,7 +149,26 @@ final class FetchFailure implements Exception {
 ///   with everything.
 /// - It may run many fetches at once; the pipeline's caps bound how many it is
 ///   given.
+/// - [needsDownload] answers at once, from what the host knows without
+///   waiting.
 abstract interface class ContentFetcher {
   /// Gets [FetchRequest.part] of [FetchRequest.descriptor].
   Future<FetchedContent> fetch(FetchRequest request);
+
+  /// Whether the content of [key] is known to be missing: in no cache the
+  /// host keeps (memory or the disk tier), so fetching its
+  /// [FetchPart.content] downloads it, or a download of it is under way.
+  ///
+  /// The pipeline asks when an attempt starts, before it resolves the key or
+  /// fetches anything, so a surface draws the download from its first frame,
+  /// over the placeholder and the thumbnail that arrives first, as the
+  /// reference client does for a file that does not exist yet (instead of
+  /// from the first byte of the content, after the thumbnail). Content held
+  /// locally is never announced, so a cached file shows no download.
+  ///
+  /// It runs on the UI isolate for every attempt and must not wait: an index
+  /// the host keeps, or a stat of the disk tier's file. A fetcher that cannot
+  /// tell answers false; the surfaces then show the download from the
+  /// transfer's first report (`FetchRequest.onProgress`).
+  bool needsDownload(ContentKey key);
 }
