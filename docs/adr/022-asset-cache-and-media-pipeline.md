@@ -312,3 +312,7 @@ playback could miss frames too, when renders lag the clock.
 ## Amendment: the clock's time leaves out its pauses (2026-11-09)
 
 `PlaybackClock.now` is playback time: the first frame after a pause or an idle stretch advances it by one display frame (the last frame-to-frame step), not by the pause, and every target ticks on that frame. Before, `now` jumped by the pause and each paintable dropped a step longer than its `resumeGap` (500 ms); a shorter pause (the panel sliding in, ~300 ms) passed as a jump of every animation by that much, seen as a stutter when a reopened panel resumed. `resumeGap` stays for surfaces that stopped painting an animation without the clock pausing.
+
+## Amendment: a playback that resumes does not catch up (2026-11-09)
+
+An entry tells its paintable `playbackResumed()` when the first of its bindings plays again after none did (held, hidden, detached, off the clock). Lottie and video paintables then take the next paint as the start of their timing; a playing image counts its shown frame's duration from that paint. Before, the clock ran on for other surfaces meanwhile and a paintable added the whole stop at its next paint unless it exceeded `resumeGap` (500 ms): a sticker panel shut for 300-480 ms came back 20-28 frames on (device log 2026-11-09, `[DBG-r1]` skips with dt 324-499 ms on every cell). Freeze and continue now holds for a stop of any length, as the reference client's drawable keeps its frame across stop and start.

@@ -72,6 +72,9 @@ final class FakeAssetPaintable extends AssetPaintable {
   /// How many times [restart] rewound a holding playback.
   int restarts = 0;
 
+  /// How many times [playbackResumed] said a stopped playback goes on.
+  int resumes = 0;
+
   /// Whether the cache disposed it.
   bool get isDisposed => disposals > 0;
 
@@ -146,6 +149,9 @@ final class FakeAssetPaintable extends AssetPaintable {
 
   @override
   void keepFrame({required bool keep}) => keepsFrame = keep;
+
+  @override
+  void playbackResumed() => resumes++;
 
   @override
   void dispose() => disposals++;
