@@ -7,8 +7,11 @@
 // ignore_for_file: public_member_api_docs
 import 'dart:ffi';
 
-/// The ABI version of `chat_video.h` the bindings were written against.
-const chatVideoExpectedAbiVersion = 1;
+/// The ABI of `chat_video.h` the bindings were written against.
+abstract final class ChatVideoAbi {
+  /// The version a library must answer from its ABI probe.
+  static const expectedVersion = 1;
+}
 
 /// The status numbers of `chat_video.h`, in one place so no other file
 /// carries a bare literal. A test compares them with the header.

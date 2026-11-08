@@ -29,7 +29,7 @@ final class NativeVideoBinding implements VideoBinding {
 
   static VideoAvailability _probe(int Function() abiVersion) {
     try {
-      return abiVersion() == chatVideoExpectedAbiVersion
+      return abiVersion() == ChatVideoAbi.expectedVersion
           ? VideoAvailability.available
           : VideoAvailability.abiMismatch;
       // A symbol the library lacks surfaces as exactly this Error: it is the
