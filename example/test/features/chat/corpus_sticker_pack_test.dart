@@ -274,6 +274,18 @@ void main() {
       expect(utf8.decode((fetched as FetchedBytes).bytes), '{"v":"duck1"}');
     });
 
+    test('never needs a download for a sticker, and asks the fetcher it was '
+        'given about other keys', () {
+      final other = _NoFetcher();
+      final fetcher = pack.fetcher(otherwise: other);
+
+      expect(
+        fetcher.needsDownload(pack.packs.single.stickers.last.descriptor.key),
+        isFalse,
+      );
+      expect(fetcher.needsDownload(const ContentKey.document('x')), isTrue);
+    });
+
     test('leaves other keys to the fetcher it was given', () async {
       final other = _NoFetcher();
       const descriptor = ContentDescriptor(key: ContentKey.document('x'));
@@ -321,6 +333,9 @@ final class _NoFetcher implements ContentFetcher {
     asked.add(request.descriptor.key);
     return FetchedContent.bytes(Uint8List(0));
   }
+
+  @override
+  bool needsDownload(ContentKey key) => true;
 }
 
 final class _BrokenBundle extends CachingAssetBundle {

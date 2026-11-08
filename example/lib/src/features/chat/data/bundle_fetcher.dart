@@ -43,4 +43,8 @@ final class BundleFetcher implements ContentFetcher {
       data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
     );
   }
+
+  // The bundle ships with the app: nothing in it is downloaded.
+  @override
+  bool needsDownload(ContentKey key) => false;
 }

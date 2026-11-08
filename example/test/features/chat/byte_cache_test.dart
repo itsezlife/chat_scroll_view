@@ -32,6 +32,16 @@ void main() {
     expect(await open().read('a'), [7, 7, 7]);
   });
 
+  test('says at once whether it holds a name, in a later launch too', () async {
+    expect(open().holds('a'), isFalse);
+
+    await open().write('a', bytes(1, 1));
+
+    expect(open().holds('a'), isTrue);
+    File('${folder.path}/stills/a').deleteSync();
+    expect(open().holds('a'), isFalse);
+  });
+
   test('replaces what a name held', () async {
     final cache = open();
     await cache.write('a', bytes(1, 1));

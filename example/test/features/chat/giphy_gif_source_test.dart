@@ -393,4 +393,7 @@ final class _Unused implements ContentFetcher {
   @override
   Future<FetchedContent> fetch(FetchRequest request) =>
       throw StateError('not a Giphy key: ${request.descriptor.key}');
+
+  @override
+  bool needsDownload(ContentKey key) => false;
 }

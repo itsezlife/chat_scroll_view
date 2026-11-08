@@ -244,4 +244,9 @@ final class _CorpusFetcher implements ContentFetcher {
     }
     return FetchedContent.bytes(bytes);
   }
+
+  // A sticker is a file of the corpus or the bundle: never downloaded.
+  @override
+  bool needsDownload(ContentKey key) =>
+      !CorpusStickerPack.isKey(key) && _otherwise.needsDownload(key);
 }
