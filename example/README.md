@@ -108,7 +108,7 @@ tape.
 A maintainer's local corpus of Lottie stickers (one folder per pack) can be
 tried on the stickers page, one pack per folder. **The files are Telegram's
 property: they are never copied into the repository, tests, goldens or docs.**
-`assets/telegram_stickers/` holds only a README and a `.gitignore` that
+`assets/sticker_corpus/` holds only a README and a `.gitignore` that
 ignores everything else; the pubspec lists that folder, so a checkout without
 the files builds and runs as before.
 
@@ -123,7 +123,7 @@ flutter run --dart-define=CHAT_CORPUS_DIR=<corpus>/telegram-stickers
 
 On Android and iOS use the first: no device file access or new dependency is
 needed since the files ship inside the app bundle. See
-`assets/telegram_stickers/README.md`.
+`assets/sticker_corpus/README.md`.
 
 ## Video stickers, clips and GIFs on macOS
 

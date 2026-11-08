@@ -2,11 +2,11 @@
 /// after the reference clients (the table is in the ticket answer and in
 /// `chat_copy_feedback.dart`):
 ///
-/// * Telegram Desktop: no copy of text or of messages shows a toast, and none
-///   clears the selection (`HistoryInner::copySelectedText`). Only a click on
-///   code does (`MonospaceClickHandler::onClick`).
-/// * Telegram Android: every copy shows the "copied" bulletin, and a copy of
-///   selected messages or of selected text ends the selection
+/// * The reference desktop client: no copy of text or of messages shows a
+///   toast, and none clears the selection (`HistoryInner::copySelectedText`).
+///   Only a click on code does (`MonospaceClickHandler::onClick`).
+/// * The reference Android client: every copy shows the "copied" bulletin, and
+///   a copy of selected messages or of selected text ends the selection
 ///   (`ChatActivity` action-mode `copy`, `TextSelectionHelper.copyText`).
 ///
 /// **Seam:** the whole screen on a given platform, driven by real key events

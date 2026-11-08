@@ -9,8 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// **Seam:** [ReferenceMediaSizes], the example's media size policy. The
 /// expectations are worked from the reference client's formulas by hand
-/// (Telegram Android `ChatMessageCell.java`, Telegram Desktop
-/// `history_view_sticker.cpp` / `history_view_gif.cpp`), not from the code.
+/// (the reference Android client's `ChatMessageCell.java`, the reference
+/// desktop client `history_view_sticker.cpp` / `history_view_gif.cpp`), not
+/// from the code.
 void main() {
   ChatMediaItem sticker([ContentSize? source]) =>
       ChatMediaItem(kind: ChatMediaKind.sticker, source: source);

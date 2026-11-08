@@ -249,8 +249,9 @@ class ChatSelectionController implements Listenable {
   /// the next membership change. The hold limit is the host's:
   /// `spoilers.tapTimeout` is 500 ms (a longer press is a long press and
   /// reveals nothing), and a desktop host whose pointer is a mouse sets it to
-  /// null, because a click has no limit. Touch needs no change; Telegram iOS
-  /// starts a long press at 0.3 s, which a host that follows it sets here.
+  /// null, because a click has no limit. Touch needs no change; the reference
+  /// iOS client starts a long press at 0.3 s, which a host that follows it sets
+  /// here.
   MarkdownSpoilerController get spoilers => _text.spoilers;
 
   ChatSpoilerDust? _spoilerDust;
