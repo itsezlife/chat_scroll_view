@@ -23,6 +23,7 @@ export 'src/atlas/testing/manual_bake_clock.dart';
 export 'src/atlas/testing/manual_memory_pressure.dart';
 export 'src/atlas/testing/manual_retention_timers.dart';
 export 'src/atlas/testing/sample_glyph_catalogue.dart';
+export 'src/embed/testing/compositing_embed_contract.dart';
 export 'src/embed/testing/fake_inline_embed.dart';
 export 'src/embed/testing/inline_embed_contract.dart';
 export 'src/embed/testing/inline_embed_resolver_contract.dart';
