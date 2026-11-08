@@ -18,7 +18,10 @@ import 'isolate_video_engine_test.dart' as isolate_video_engine_test;
 import 'paint/video_animation_paintable_test.dart'
     as video_animation_paintable_test;
 import 'playback/video_frame_scheduler_test.dart' as video_frame_scheduler_test;
+import 'playback/video_frame_scheduler_texture_test.dart'
+    as video_frame_scheduler_texture_test;
 import 'renderer/video_frame_size_test.dart' as video_frame_size_test;
+import 'video_engine_texture_test.dart' as video_engine_texture_test;
 import 'web/video_frame_pixels_test.dart' as video_frame_pixels_test;
 import 'web/web_compile_test.dart' as web_compile_test;
 import 'web/web_video_engine_test.dart' as web_video_engine_test;
@@ -37,7 +40,12 @@ void main() {
     'playback/video_frame_scheduler_test.dart',
     video_frame_scheduler_test.main,
   );
+  group(
+    'playback/video_frame_scheduler_texture_test.dart',
+    video_frame_scheduler_texture_test.main,
+  );
   group('renderer/video_frame_size_test.dart', video_frame_size_test.main);
+  group('video_engine_texture_test.dart', video_engine_texture_test.main);
   group('fake_video_engine_test.dart', fake_video_engine_test.main);
   group(
     'in_process_video_engine_native_test.dart',

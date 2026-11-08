@@ -117,6 +117,13 @@ final class _MeteredEngine implements LottieSlotEngine {
       _timed(() => _inner.restore(jobs));
 
   @override
+  Future<List<LottieTextureResult>> writeTextures(
+    FrameTextureEntryPoints entryPoints,
+    FrameTextureFormat format,
+    List<LottieTextureJob> jobs,
+  ) => _timed(() => _inner.writeTextures(entryPoints, format, jobs));
+
+  @override
   Future<void> dispose(LottieHandle handle) => _inner.dispose(handle);
 
   @override

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine_work.dart';
 import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
@@ -151,6 +152,34 @@ final class IsolateLottieEngine implements LottieSlotEngine {
         ),
     ];
     return _request((id) => _Restore(id, wire));
+  }
+
+  @override
+  Future<List<LottieTextureResult>> writeTextures(
+    FrameTextureEntryPoints entryPoints,
+    FrameTextureFormat format,
+    List<LottieTextureJob> jobs,
+  ) async {
+    final wire =
+        await _request<List<(TextureFrameOutcome, TransferableTypedData?)>>(
+          (id) => _WriteTextures(id, entryPoints, format, [
+            for (final job in jobs)
+              (
+                job.texture,
+                job.width,
+                job.height,
+                switch (job.work) {
+                  final LottieTextureRender render => render,
+                  LottieTextureRestore(:final compressed) =>
+                    TransferableTypedData.fromList([compressed]),
+                },
+              ),
+          ]),
+        );
+    return [
+      for (final (outcome, bytes) in wire)
+        LottieTextureResult(outcome, bytes?.materialize().asUint8List()),
+    ];
   }
 
   @override
@@ -325,6 +354,16 @@ final class _Restore extends _Request {
   final List<_RestoreWire> jobs;
 }
 
+/// Texture jobs on the wire: a render as itself, a restore's bytes as a
+/// transferable.
+final class _WriteTextures extends _Request {
+  const _WriteTextures(this.id, this.entryPoints, this.format, this.jobs);
+  final int id;
+  final FrameTextureEntryPoints entryPoints;
+  final FrameTextureFormat format;
+  final List<(AssetTexture, int, int, Object)> jobs;
+}
+
 final class _Dispose extends _Request {
   const _Dispose(this.id, this.handle);
   final int id;
@@ -429,6 +468,45 @@ void _renderIsolateMain(_Boot boot) {
                 strideBytes: job.strideBytes,
               ),
           ]),
+        );
+      case _WriteTextures(
+        :final id,
+        :final entryPoints,
+        :final format,
+        :final jobs,
+      ):
+        // Compressed frames leave as transferables, as from a capture.
+        answer(
+          id,
+          () => [
+            for (final result in LottieEngineWork.writeTextures(
+              binding,
+              codec,
+              entryPoints,
+              format,
+              [
+                for (final (texture, width, height, work) in jobs)
+                  LottieTextureJob(
+                    texture: texture,
+                    width: width,
+                    height: height,
+                    work: switch (work) {
+                      final LottieTextureRender render => render,
+                      final TransferableTypedData bytes => LottieTextureRestore(
+                        bytes.materialize().asUint8List(),
+                      ),
+                      _ => throw ArgumentError.value(work, 'work'),
+                    },
+                  ),
+              ],
+            ))
+              (
+                result.outcome,
+                result.compressed == null
+                    ? null
+                    : TransferableTypedData.fromList([result.compressed!]),
+              ),
+          ],
         );
       case _Dispose(:final id, :final handle):
         answer(id, () => binding.dispose(handle));

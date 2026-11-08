@@ -116,6 +116,64 @@ void main() {
     clock.dispose();
   });
 
+  group('VideoAnimationPaintable with a texture free', () {
+    late FakeFrameTextureHost host;
+    late FrameTexturePool pool;
+
+    setUp(() async {
+      scheduler.dispose();
+      host = FakeFrameTextureHost();
+      pool = FrameTexturePool(host: host, sizeClasses: const [64]);
+      await pool.warm(64, 1);
+      scheduler = VideoFrameScheduler(
+        engine: engine,
+        atlas: VideoFrameAtlas.create(
+          upload: (pixels, side) async => _solid(0xFF000000, side: 4),
+          sizeClasses: const [64],
+        ),
+        clock: clock,
+        textures: pool,
+        textureWriter: FakeTextureFrameWriter(),
+        startTimer: timers.start,
+      );
+    });
+    tearDown(() => pool.dispose());
+
+    test(
+      'a compositing surface gets the texture once a frame is posted',
+      () async {
+        final p = paintable();
+        addTearDown(p.dispose);
+
+        for (var ms = 0; ms < 100; ms += 16) {
+          p.advancePlayback(
+            AssetPaintContext(time: Duration(milliseconds: ms)),
+          );
+          expect(p.sprite, isNull);
+          await tick();
+        }
+
+        expect(
+          p.texture,
+          AssetTexture(id: host.liveIds.single, width: 64, height: 64),
+        );
+      },
+    );
+
+    test('a surface that only paints keeps drawing sprites', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+
+      for (var ms = 0; ms < 200; ms += 20) {
+        await paintAt(p, ms);
+      }
+
+      expect(p.texture, isNull);
+      expect(p.sprite, isNotNull);
+      expect(pool.idleTextures, 1);
+    });
+  });
+
   group('VideoAnimationPaintable', () {
     test('is animated and paints its first frame until one is drawn', () async {
       final p = paintable();

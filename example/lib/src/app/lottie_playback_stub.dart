@@ -7,6 +7,7 @@ import 'package:l/l.dart';
 Future<LottiePlayback?> start({
   required PlaybackClock clock,
   required Listenable memoryPressure,
+  FrameTexturePool? textures,
   String? cacheDirectory,
 }) async {
   l.i('Lottie stickers are off: this platform has no native Lottie library');

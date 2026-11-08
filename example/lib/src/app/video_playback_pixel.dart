@@ -7,6 +7,10 @@ import 'package:video_decoder/video_decoder.dart';
 /// Starts the video decoder over an engine from [engineFactory], or answers
 /// null.
 ///
+/// [textures] and [textureWriter] (which makes the writer of the engine, or
+/// null for one that cannot write textures) let playing clips take platform
+/// textures (ADR 043).
+///
 /// [engineFactory] is the probe: any failure to produce an engine (the native
 /// library missing, a browser that refuses) logs once, with the error's type,
 /// and gives no playback, so nothing is registered and video keeps its
@@ -17,6 +21,8 @@ Future<VideoPlayback?> startPixelVideoPlayback({
   required PlaybackClock clock,
   required Listenable memoryPressure,
   required Future<VideoEngine> Function() engineFactory,
+  FrameTexturePool? textures,
+  TextureFrameWriter? Function(VideoEngine engine)? textureWriter,
 }) async {
   final VideoEngine engine;
   try {
@@ -32,16 +38,22 @@ Future<VideoPlayback?> startPixelVideoPlayback({
     atlas: VideoFrameAtlas.create(memoryPressure: memoryPressure),
     clock: clock,
     maxAdvancing: ScrollLab.videoCap.value,
-  );
-  // The scroll lab's `video_cap` switch changes the cap of the live scheduler.
+    textures: textures,
+    textureWriter: textureWriter?.call(engine),
+  )..texturesEnabled = ScrollLab.textures.value;
+  // The scroll lab's `video_cap` and `textures` switches change the live
+  // scheduler.
   void applyCap() => scheduler.maxAdvancing = ScrollLab.videoCap.value;
+  void applyTextures() => scheduler.texturesEnabled = ScrollLab.textures.value;
   ScrollLab.videoCap.addListener(applyCap);
+  ScrollLab.textures.addListener(applyTextures);
   // The scheduler goes first: it may still be asking the engine for frames.
   // The engine is disposed last and frees every clip still open.
   return VideoPlayback(
     decoder: VideoDecoder(engine: engine, scheduler: scheduler),
     shutdown: [
       () => ScrollLab.videoCap.removeListener(applyCap),
+      () => ScrollLab.textures.removeListener(applyTextures),
       scheduler.dispose,
       engine.dispose,
     ],

@@ -1,6 +1,9 @@
 import 'dart:typed_data';
 
-/// What a [VideoFrameRenderer] renders: a clip's decoded frames, by number.
+import 'package:video_decoder/src/engine/video_engine.dart';
+
+/// What a [VideoFrameRenderer] renders, and a texture writer writes: a
+/// clip's decoded frames, by number.
 ///
 /// The pool never looks inside a job's source; this is the one thing the video
 /// renderer needs of it. The scheduler implements it over the frames it has
@@ -13,4 +16,8 @@ abstract interface class VideoFrameSource {
   /// Valid until the batch that asked ends; the renderer copies and keeps
   /// nothing.
   Uint8List? pixelsOf(int frame);
+
+  /// The clip the frames are of: a texture writer copies them on the worker
+  /// that decodes it.
+  VideoClip get clip;
 }

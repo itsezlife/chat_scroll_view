@@ -3,3 +3,5 @@
 // `dart.library.js_interop` is true (the web).
 export 'package:video_decoder/src/engine/in_process_video_engine.dart';
 export 'package:video_decoder/src/engine/isolate_video_engine.dart';
+export 'package:video_decoder/src/engine/video_texture_engine.dart'
+    show VideoFrameTextureWriter, VideoTextureEngine, VideoTextureJob;

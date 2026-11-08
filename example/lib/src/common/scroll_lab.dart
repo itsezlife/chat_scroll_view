@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' show Timeline;
 import 'dart:ui' show FramePhase, FrameTiming;
 
+import 'package:catalog_assets/catalog_assets.dart' show FrameTexturePool;
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatScrollController, ChatScrollEvent, ChatViewportScrolled;
 import 'package:chat_scroll_view/experiments.dart';
@@ -39,6 +40,17 @@ abstract final class ScrollLab {
     VideoFrameScheduler.defaultMaxAdvancing,
   );
 
+  /// Whether playing Lottie and video assets may take platform textures
+  /// (ADR 043) in a build that has a texture host (`FRAME_TEXTURES=true`);
+  /// off, they keep page slots. `adb shell am broadcast -a lab.SET --es key
+  /// textures --ez value false` switches it at run time, so both arms of a
+  /// comparison run one build.
+  static final textures = ValueNotifier<bool>(true);
+
+  /// The texture pool of the build, for the replay summary; null without a
+  /// texture host.
+  static FrameTexturePool? texturePool;
+
   static const _channel = MethodChannel('chat_scroll_view_example/lab');
 
   static bool _installed = false;
@@ -57,6 +69,12 @@ abstract final class ScrollLab {
     });
     plainText.addListener(() => _log('switch plainText=${plainText.value}'));
     videoCap.addListener(() => _log('switch videoCap=${videoCap.value}'));
+    textures.addListener(
+      () => _log(
+        'switch textures=${textures.value} '
+        'installed=${texturePool != null}',
+      ),
+    );
     PointerTape.install();
     TapeSystemRecorder.install();
     final net = LabNet.instance = LabNet(
@@ -130,6 +148,12 @@ abstract final class ScrollLab {
           _logReplaySummary(_replayFrames!);
           _replayFrames = null;
           net.logSummary();
+          if (texturePool case final pool?) {
+            _log(
+              'textures on=${textures.value} leased=${pool.leasedTextures} '
+              'idle=${pool.idleTextures} bytes=${pool.bytes}',
+            );
+          }
           _log('tape replay done $name events=$n');
           return;
       }
@@ -146,6 +170,7 @@ abstract final class ScrollLab {
         'resampling' => resampling,
         'snap' => pixelSnap,
         'plain' => plainText,
+        'textures' => textures,
         _ => null,
       };
       target?.value = args['value'] == true;

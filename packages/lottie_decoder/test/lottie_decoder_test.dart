@@ -753,6 +753,13 @@ final class _DeferredEngine implements LottieSlotEngine {
       (await _engine).restore(jobs);
 
   @override
+  Future<List<LottieTextureResult>> writeTextures(
+    FrameTextureEntryPoints entryPoints,
+    FrameTextureFormat format,
+    List<LottieTextureJob> jobs,
+  ) async => (await _engine).writeTextures(entryPoints, format, jobs);
+
+  @override
   Future<void> dispose(LottieHandle handle) async =>
       (await _engine).dispose(handle);
 
@@ -787,6 +794,13 @@ final class _DisposeThrows implements LottieSlotEngine {
   @override
   Future<List<LottieRenderStatus>> restore(List<LottieRestoreJob> jobs) =>
       _inner.restore(jobs);
+
+  @override
+  Future<List<LottieTextureResult>> writeTextures(
+    FrameTextureEntryPoints entryPoints,
+    FrameTextureFormat format,
+    List<LottieTextureJob> jobs,
+  ) => _inner.writeTextures(entryPoints, format, jobs);
 
   @override
   Future<void> dispose(LottieHandle handle) => Future.error(error);

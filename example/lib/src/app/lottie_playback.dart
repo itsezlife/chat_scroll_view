@@ -67,10 +67,13 @@ final class LottiePlayback {
 ///
 /// `cacheDirectory` is the folder the rendered frames are kept in between
 /// launches; null keeps them in memory only. The playback owns that cache.
+/// `textures` is the platform's texture pool (ADR 043), null where there is
+/// none; a platform whose engine cannot write textures ignores it.
 typedef LottiePlaybackStarter =
     Future<LottiePlayback?> Function({
       required PlaybackClock clock,
       required Listenable memoryPressure,
+      FrameTexturePool? textures,
       String? cacheDirectory,
     });
 
@@ -83,10 +86,12 @@ typedef LottiePlaybackStarter =
 Future<LottiePlayback?> startLottiePlayback({
   required PlaybackClock clock,
   required Listenable memoryPressure,
+  FrameTexturePool? textures,
   String? cacheDirectory,
 }) => platform.start(
   clock: clock,
   memoryPressure: memoryPressure,
+  textures: textures,
   cacheDirectory: cacheDirectory,
 );
 

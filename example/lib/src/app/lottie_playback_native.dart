@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
+import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
 import 'package:l/l.dart';
 import 'package:lottie_decoder/lottie_decoder.dart';
@@ -19,9 +20,14 @@ import 'package:lottie_decoder/lottie_decoder.dart';
 /// The rendered frames are kept in a `FrameCache`: on disk under
 /// [cacheDirectory] when there is one, in memory only when it is null. The
 /// playback owns the cache and disposes it on close.
+///
+/// With [textures] (ADR 043) the render isolate also writes playing
+/// animations into the pool's platform textures; the scroll lab's `textures`
+/// switch turns that off and on at run time.
 Future<LottiePlayback?> start({
   required PlaybackClock clock,
   required Listenable memoryPressure,
+  FrameTexturePool? textures,
   String? cacheDirectory,
   Future<LottieSlotEngine> Function() spawn = IsolateLottieEngine.spawn,
 }) async {
@@ -44,18 +50,24 @@ Future<LottiePlayback?> start({
     onError: (error, stackTrace) =>
         l.w('The Lottie frame cache is memory only: $error', stackTrace),
   );
+  final renderer = LottieFrameRenderer(
+    engine: engine,
+    memory: memory,
+    cache: cache,
+    textureHost: textures?.host,
+  );
   final scheduler = LottieFrameScheduler(
     atlas: FrameAtlas<Object>(
-      renderer: LottieFrameRenderer(
-        engine: engine,
-        memory: memory,
-        cache: cache,
-      ),
+      renderer: renderer,
       memory: memory,
       memoryPressure: memoryPressure,
     ),
     clock: clock,
-  );
+    textures: textures,
+    textureWriter: textures == null ? null : renderer,
+  )..texturesEnabled = ScrollLab.textures.value;
+  void applyTextures() => scheduler.texturesEnabled = ScrollLab.textures.value;
+  ScrollLab.textures.addListener(applyTextures);
   // The atlas goes first: its last batch may still be rendering. The cache
   // goes before the engine: it finishes the writes under way, and a render
   // still in flight then finds it disposed and stores nothing. The engine is
@@ -64,7 +76,13 @@ Future<LottiePlayback?> start({
   // creation, on purpose.
   return LottiePlayback(
     decoder: LottieDecoder(engine: engine, scheduler: scheduler, cache: cache),
-    shutdown: [scheduler.dispose, cache.dispose, engine.close, memory.dispose],
+    shutdown: [
+      () => ScrollLab.textures.removeListener(applyTextures),
+      scheduler.dispose,
+      cache.dispose,
+      engine.close,
+      memory.dispose,
+    ],
   );
 }
 

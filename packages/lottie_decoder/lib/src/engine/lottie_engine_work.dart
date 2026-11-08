@@ -1,9 +1,11 @@
 import 'dart:ffi';
 import 'dart:typed_data';
 
+import 'package:catalog_assets/catalog_assets.dart';
 import 'package:ffi/ffi.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
 import 'package:lottie_decoder/src/engine/lottie_slot_engine.dart';
+import 'package:lottie_decoder/src/engine/texture_calls.dart';
 import 'package:lottie_native/lottie_native.dart';
 
 /// What both engines do with a binding and a frame codec on the isolate that
@@ -87,6 +89,85 @@ abstract final class LottieEngineWork {
           ? LottieRenderStatus.ok
           : LottieRenderStatus.failed,
   ];
+
+  /// Writes [jobs] into their textures through [points]: lock each, draw the
+  /// renders in one batch, restore the rest, compress what a capture asks,
+  /// swap red and blue for a [format] that is not RGBA, post every lock.
+  static List<LottieTextureResult> writeTextures(
+    LottieBinding binding,
+    LottieFrameCodec? codec,
+    FrameTextureEntryPoints points,
+    FrameTextureFormat format,
+    List<LottieTextureJob> jobs,
+  ) {
+    final calls = TextureCalls.of(points);
+    final locks = <LockedTexture?>[];
+    try {
+      for (final job in jobs) {
+        locks.add(calls.lock(job.texture, job.width, job.height));
+      }
+      final ok = List<bool>.filled(jobs.length, false);
+      final compressed = List<Uint8List?>.filled(jobs.length, null);
+      final renders = [
+        for (var i = 0; i < jobs.length; i++)
+          if (locks[i] != null && jobs[i].work is LottieTextureRender) i,
+      ];
+      final statuses = binding.renderBatch([
+        for (final i in renders)
+          LottieRenderJob(
+            handle: (jobs[i].work as LottieTextureRender).handle,
+            frame: (jobs[i].work as LottieTextureRender).frame,
+            width: jobs[i].width,
+            height: jobs[i].height,
+            target: Pointer<Uint8>.fromAddress(locks[i]!.address),
+            strideBytes: locks[i]!.region.rowStride,
+          ),
+      ]);
+      for (var k = 0; k < renders.length; k++) {
+        final i = renders[k];
+        ok[i] = statuses[k] == LottieRenderStatus.ok;
+        if (ok[i] && (jobs[i].work as LottieTextureRender).capture) {
+          compressed[i] = codec?.compress(_regionOf(jobs[i], locks[i]!));
+        }
+      }
+      for (var i = 0; i < jobs.length; i++) {
+        final lock = locks[i];
+        if (lock == null) continue;
+        if (jobs[i].work case LottieTextureRestore(compressed: final bytes)) {
+          ok[i] =
+              codec != null &&
+              codec.decompress(bytes, _regionOf(jobs[i], lock));
+        }
+        if (ok[i] && format != FrameTextureFormat.rgba8888) {
+          lock.region.swapRedBlue(lock.view);
+        }
+      }
+      return [
+        for (var i = 0; i < jobs.length; i++)
+          locks[i] == null
+              ? const LottieTextureResult(TextureFrameOutcome.notLocked)
+              : ok[i]
+              ? LottieTextureResult(TextureFrameOutcome.posted, compressed[i])
+              : const LottieTextureResult(TextureFrameOutcome.failed),
+      ];
+    } finally {
+      // Whatever happened, a lock ends: a texture left locked would refuse
+      // every later frame.
+      for (var i = 0; i < locks.length; i++) {
+        if (locks[i] != null) calls.post(jobs[i].texture);
+      }
+    }
+  }
+
+  static LottieFrameRegion _regionOf(
+    LottieTextureJob job,
+    LockedTexture lock,
+  ) => LottieFrameRegion(
+    target: Pointer<Uint8>.fromAddress(lock.address),
+    width: job.width,
+    height: job.height,
+    strideBytes: lock.region.rowStride,
+  );
 
   /// [codec] when it can run, else null.
   static LottieFrameCodec? usable(LottieFrameCodec? codec) =>
