@@ -58,6 +58,21 @@ final class VideoFrameLease {
   Duration _servedAt = Duration.zero;
   bool _released = false;
   bool _holding = false;
+  bool _kept = false;
+
+  /// Whether the lease is kept through the sweep however long it goes
+  /// unpainted, where it is (on its slot or its texture): the frame it shows
+  /// is on screen under a surface that holds its playback
+  /// (`AssetPaintable.keepFrame`). Its clip time stands still, as nothing
+  /// paints it. Letting go leaves it to the sweep again, from the next one.
+  bool get kept => _kept;
+  set kept(bool value) {
+    if (_kept == value) return;
+    _kept = value;
+    // A lease let go counts as painted up to now, so a lease that was kept
+    // for minutes lives one more idle period, as a painted one does.
+    if (!value) _touched = true;
+  }
 
   // The frame number the handle was last asked to show.
   int? _requested;
@@ -451,7 +466,12 @@ final class VideoFrameScheduler {
     final pool = _textures;
     if (pool == null || pool.idleTextures == 0) return;
     for (final lease in _leases.values) {
-      if (lease._texture != null || lease._onCanvas || lease.isFailed) {
+      // A kept lease stays where its frame is on screen: a move would draw
+      // that frame again into the texture.
+      if (lease._texture != null ||
+          lease._onCanvas ||
+          lease.isFailed ||
+          lease._kept) {
         continue;
       }
       final texture = _textureFor(lease);
@@ -677,6 +697,7 @@ final class VideoFrameScheduler {
   void _onSweep() {
     _sweep = null;
     for (final lease in List.of(_leases.values)) {
+      if (lease._kept) continue;
       if (!lease._canvasTouched) lease._onCanvas = false;
       lease._canvasTouched = false;
       if (lease._touched) {
