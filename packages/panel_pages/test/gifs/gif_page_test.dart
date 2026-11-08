@@ -9,6 +9,7 @@
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
@@ -522,8 +523,24 @@ void main() {
       expect(tester.renderObject(view), isNot(paints..path()));
     });
 
-    pageTest('has the radial progress over its centre', (tester) async {
+    pageTest('has no radial progress while nothing downloads, as for a '
+        'cached clip', (tester) async {
       await pumpPage(tester);
+
+      expect(boxOf(tester), isNot(paints..circle(radius: 12)));
+    });
+
+    pageTest('has the radial progress over its centre while its clip '
+        'downloads', (tester) async {
+      final producer = FakeAssetProducer();
+      assets.dispose();
+      assets = PageAssets.createScope(producer: producer);
+      await pumpPage(tester);
+
+      for (final attempt in producer.attempts) {
+        attempt.download(0.4);
+      }
+      await tester.pump();
 
       expect(boxOf(tester), paints..circle(x: 49, y: 50, radius: 12));
     });
