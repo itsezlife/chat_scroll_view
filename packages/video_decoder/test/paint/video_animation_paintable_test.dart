@@ -270,6 +270,27 @@ void main() {
       expect(first.draws.single.image.width, 16);
     });
 
+    // Ticket 100: a sibling binding borrows the first frame, never the frame
+    // the clip is at.
+    test('lends its first frame as a still once frames are drawn', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+      for (var ms = 0; ms < 200; ms += 20) {
+        await paintAt(p, ms);
+      }
+
+      final lent = p.firstFrame;
+      final canvas = _RecordingCanvas();
+      lent.paint(
+        canvas,
+        const Rect.fromLTWH(0, 0, 16, 16),
+        const AssetPaintContext(),
+      );
+
+      expect(lent.isAnimated, isFalse);
+      expect(canvas.draws.single.image.width, 16);
+    });
+
     test('draws the lease sprite once a frame exists', () async {
       final p = paintable();
       addTearDown(p.dispose);
