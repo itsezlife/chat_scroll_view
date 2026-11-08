@@ -85,6 +85,30 @@ final class _Ledger implements ChatStickerPlayLedger {
   }
 }
 
+/// A media size policy that answers with fixed sizes and records what it was
+/// asked.
+final class _MediaSizes implements ChatMediaSizePolicy {
+  _MediaSizes({this.maxDecodeExtent});
+
+  final asked = <(ChatMediaItem, Size, double)>[];
+
+  @override
+  final int? maxDecodeExtent;
+
+  @override
+  Size sizeFor(
+    ChatMediaItem item, {
+    required Size viewport,
+    required double parentWidth,
+  }) {
+    asked.add((item, viewport, parentWidth));
+    return switch (item.kind) {
+      ChatMediaKind.sticker => const Size.square(206),
+      ChatMediaKind.gif => const Size(288, 162),
+    };
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -123,6 +147,9 @@ void main() {
     ChatEmojiPolicy policy = const ChatEmojiPolicy.android(),
     double bottomReserve = 0,
     bool selectableText = true,
+    ChatMediaItem? media,
+    ChatMediaSizePolicy? mediaSizes,
+    double? parentWidth,
   }) => tester.pumpWidget(
     MediaQuery(
       data: MediaQueryData.fromView(
@@ -149,6 +176,9 @@ void main() {
                 policy: policy,
                 bottomReserve: bottomReserve,
                 selectableText: selectableText,
+                media: media,
+                mediaSizes: mediaSizes,
+                parentWidth: parentWidth,
                 embedFactory: factory ?? embeds.call,
               ),
             ),
@@ -446,6 +476,177 @@ void main() {
 
       expect(embeds.asked.single.$2.profile.animate, isFalse);
       expect(embeds.asked.single.$2.profile.loop, isFalse);
+    });
+  });
+
+  group('media layout', () {
+    const doc = ContentKey.document('media');
+    final lone = EmojiOnly(const [EmojiOnlyItem(doc)]);
+    const gif = ChatMediaItem(
+      kind: ChatMediaKind.gif,
+      source: ContentSize(480, 270),
+    );
+
+    testWidgets('a sticker is the size the host\'s media policy gives, not '
+        'the emoji sticker\'s', (tester) async {
+      view(tester, const Size(412, 915));
+      final sizes = _MediaSizes();
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: const ChatMediaItem(kind: ChatMediaKind.sticker),
+        mediaSizes: sizes,
+      );
+
+      expect(bodySize(tester), const Size.square(206));
+      expect(sizes.asked.map((a) => a.$2).toSet(), {const Size(412, 915)});
+      expect(sizes.asked.map((a) => a.$3).toSet(), {
+        412,
+      }, reason: 'the viewport\'s width');
+      expect(embeds.asked.single.$2.size, const Size.square(206));
+    });
+
+    testWidgets('a GIF keeps the proportion the policy gives it', (
+      tester,
+    ) async {
+      view(tester, const Size(412, 915));
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        parentWidth: 300,
+      );
+
+      expect(bodySize(tester), const Size(288, 162));
+      expect(
+        embeds.made.single.paints.last.rect,
+        const Rect.fromLTWH(0, 0, 288, 162),
+      );
+      expect(embeds.asked.single.$2.size, const Size(288, 162));
+    });
+
+    testWidgets('the policy is told the parent width the host gave', (
+      tester,
+    ) async {
+      view(tester, const Size(412, 915));
+      final sizes = _MediaSizes();
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: sizes,
+        parentWidth: 300,
+      );
+
+      expect(sizes.asked.map((a) => a.$3).toSet(), {300});
+    });
+
+    testWidgets('the decode is capped at the policy\'s extent', (tester) async {
+      tester.view
+        ..physicalSize = const Size(1236, 2745)
+        ..devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: const ChatMediaItem(kind: ChatMediaKind.sticker),
+        mediaSizes: _MediaSizes(maxDecodeExtent: 512),
+      );
+
+      final spec = embeds.asked.single.$2.spec;
+      expect((spec.pixelWidth, spec.pixelHeight), (512, 512));
+    });
+
+    testWidgets('a media item loops as the playback says, or plays once', (
+      tester,
+    ) async {
+      view(tester, const Size(412, 915));
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+      );
+      expect(embeds.asked.last.$2.profile.loop, isTrue);
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        playback: ChatStickerPlayback.onceThenLastFrame,
+        messageId: 2,
+      );
+      final profile = embeds.asked.last.$2.profile;
+      expect(profile.loop, isFalse);
+      expect(profile.restFrame, AssetRestFrame.last);
+    });
+
+    testWidgets('without a media policy it is the emoji sticker\'s square', (
+      tester,
+    ) async {
+      view(tester, const Size(360, 640));
+
+      await pumpBody(tester, lone, sticker: doc, media: gif);
+
+      expect(bodySize(tester), const Size.square(112.5));
+    });
+
+    testWidgets('a text layout asks the media policy nothing', (tester) async {
+      view(tester, const Size(360, 640));
+      final sizes = _MediaSizes();
+
+      await pumpBody(
+        tester,
+        _items(2, allCustom: true),
+        media: gif,
+        mediaSizes: sizes,
+      );
+
+      expect(sizes.asked, isEmpty);
+    });
+
+    testWidgets('geometryFor gives the box the body lays out to', (
+      tester,
+    ) async {
+      view(tester, const Size(412, 915));
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        bottomReserve: 23,
+        maxWidth: 300,
+      );
+
+      final geometry = ChatEmojiBody.geometryFor(
+        emojiOnly: lone,
+        policy: const ChatEmojiPolicy.android(),
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        viewport: const Size(412, 915),
+        maxWidth: 300,
+        direction: TextDirection.ltr,
+        bottomReserve: 23,
+      );
+      expect(geometry.content, const Rect.fromLTWH(0, 0, 288, 162));
+      expect(bodySize(tester), geometry.size);
+      expect(geometry.size, const Size(288, 185));
     });
   });
 

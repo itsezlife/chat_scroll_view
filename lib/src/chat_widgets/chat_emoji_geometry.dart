@@ -20,6 +20,7 @@ final class ChatEmojiLayoutSpec {
     required this.wrap,
     required this.reserve,
     required this.direction,
+    this.boxHeight,
   });
 
   /// The layout.
@@ -28,8 +29,13 @@ final class ChatEmojiLayoutSpec {
   /// The line breaks before each item.
   final List<int> lineBreaksBefore;
 
-  /// The side of an item's square: the sticker's extent for the sticker.
+  /// The side of an item's square: the sticker's extent for the sticker, or
+  /// the art's width when [boxHeight] is given.
   final double box;
+
+  /// The height of the art of a sticker or GIF of its own proportion, or null
+  /// for square items.
+  final double? boxHeight;
 
   /// The gap between two items of a line.
   final double skip;
@@ -52,6 +58,7 @@ final class ChatEmojiLayoutSpec {
       other.kind == kind &&
       listEquals(other.lineBreaksBefore, lineBreaksBefore) &&
       other.box == box &&
+      other.boxHeight == boxHeight &&
       other.skip == skip &&
       other.inset == inset &&
       other.wrap == wrap &&
@@ -63,6 +70,7 @@ final class ChatEmojiLayoutSpec {
     kind,
     Object.hashAll(lineBreaksBefore),
     box,
+    boxHeight,
     skip,
     inset,
     wrap,
@@ -104,6 +112,7 @@ final class ChatEmojiGeometry {
     final flow = ChatEmojiFlow.of(
       lineBreaksBefore: spec.lineBreaksBefore,
       box: spec.box,
+      boxHeight: spec.boxHeight,
       maxWidth: spec.wrap.of(maxWidth),
       direction: spec.direction,
       inset: spec.inset,
