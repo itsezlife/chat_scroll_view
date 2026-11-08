@@ -392,6 +392,11 @@ final class AssetCacheScope {
     if (producer == null) return;
     final attempt = _Attempt(this, entry);
     entry.attempt = attempt;
+    // The last attempt's download is no fact about this one: the producer
+    // announces it again if the content is still missing, and a binding still
+    // drawing the old fraction hears when it does not.
+    final previousDownload = entry.download;
+    entry.download = null;
     try {
       final task = producer.produce(
         AssetRequest(entry.key, entry.spec),
@@ -404,6 +409,9 @@ final class AssetCacheScope {
       // The contract says produce reports failures; one that throws is a
       // bug, recorded for diagnostics and not retried by connectivity.
       attempt.fail(error, stackTrace, AssetFailureKind.permanent);
+    }
+    if (previousDownload != null && entry.download == null) {
+      entry.signalDownload();
     }
   }
 
@@ -512,6 +520,8 @@ final class AssetCacheScope {
     if (binding.held) entry.syncKeep();
     if (entry.bindings.isNotEmpty) return;
     entry.attempt?.cancel();
+    // Nobody draws it any more; a re-attach starts an attempt that tells.
+    entry.download = null;
     _release(entry);
     _trim();
   }
@@ -536,7 +546,9 @@ final class _Entry {
   Object? lastError;
   AssetFailureKind? failureKind;
   _Attempt? attempt;
-  // The running attempt's download, 0 to 1, or null when it reported none.
+  // The content's download, 0 to 1, as the last attempt reported it, or null
+  // when it reported none. It outlives a failed or cancelled attempt: the
+  // content is still missing.
   double? download;
   // Bindings of sibling entries that show this entry's stage.
   int borrowers = 0;
@@ -637,15 +649,14 @@ final class _Attempt implements AssetProgress {
     running?.cancel();
   }
 
+  // The download stays: a failed or cancelled one leaves the content missing,
+  // and the surfaces keep drawing it there, as the reference client keeps its
+  // arc while the file does not exist. The final stage, the last binding
+  // leaving and the next attempt clear it.
   void _end() {
     ended = true;
     if (!identical(_entry.attempt, this)) return;
     _entry.attempt = null;
-    // The surfaces drawing the download stop with the attempt; nothing else
-    // changed for them, so only a download that showed is signalled.
-    if (_entry.download == null) return;
-    _entry.download = null;
-    if (!_scope._disposed) _entry.signalDownload();
   }
 }
 

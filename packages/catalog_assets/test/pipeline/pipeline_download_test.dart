@@ -1,4 +1,5 @@
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'pipeline_harness.dart';
@@ -100,6 +101,119 @@ void main() {
 
       final again = harness.attach(item);
       expect(again.downloadProgress, isNull);
+    });
+  });
+
+  group('content known to be missing downloads from the attach', () {
+    test('the binding reads 0 before any fetch reports', () {
+      final item = sticker(1, thumbnail: true);
+      final harness = PipelineHarness(known: [item], autoFetch: false);
+      addTearDown(harness.dispose);
+      harness.fetcher.missing.add(item.key);
+
+      final binding = harness.attach(item);
+
+      expect(binding.downloadProgress, 0);
+    });
+
+    test('a key the pipeline must resolve first downloads from the attach', () {
+      final item = sticker(1);
+      final harness = PipelineHarness(
+        served: [item],
+        autoFetch: false,
+        resolver: FakeContentResolver([item]),
+      );
+      addTearDown(harness.dispose);
+      harness.fetcher.missing.add(item.key);
+
+      final binding = harness.attach(item);
+
+      expect(binding.downloadProgress, 0);
+    });
+
+    test('content the fetcher holds shows no download', () {
+      final item = sticker(1, thumbnail: true);
+      final harness = PipelineHarness(
+        known: [item],
+        autoFetch: false,
+        autoDecode: false,
+      );
+      addTearDown(harness.dispose);
+      final binding = harness.attach(item);
+
+      return Future(() async {
+        expect(binding.downloadProgress, isNull);
+        harness.fetcher
+            .fetchesOf(item.key, FetchPart.thumbnail)
+            .single
+            .complete();
+        harness.fetcher
+            .fetchesOf(item.key, FetchPart.content)
+            .single
+            .complete();
+        await harness.settle();
+
+        expect(binding.downloadProgress, isNull);
+      });
+    });
+
+    test('a fetch that reports nothing after all is complete once fetched', () {
+      final item = sticker(1);
+      final harness = PipelineHarness(
+        known: [item],
+        autoFetch: false,
+        autoDecode: false,
+      );
+      addTearDown(harness.dispose);
+      harness.fetcher.missing.add(item.key);
+      final binding = harness.attach(item);
+
+      return Future(() async {
+        harness.fetcher.fetchesOf(item.key).single.complete();
+        await harness.settle();
+
+        expect(binding.downloadProgress, 1);
+      });
+    });
+
+    test(
+      'a failed download keeps its fraction while the content is missing',
+      () {
+        final item = sticker(1);
+        final harness = PipelineHarness(known: [item], autoFetch: false);
+        addTearDown(harness.dispose);
+        harness.fetcher.missing.add(item.key);
+        final binding = harness.attach(item);
+
+        return Future(() async {
+          harness.fetcher.fetchesOf(item.key).single
+            ..receive(100, 400)
+            ..fail(const FetchFailure.transient('offline'));
+          await harness.settle();
+
+          expect(binding.lastError, isA<FetchFailure>());
+          expect(binding.downloadProgress, 0.25);
+        });
+      },
+    );
+
+    test('a retry starts the download again from 0', () {
+      final item = sticker(1);
+      final harness = PipelineHarness(known: [item], autoFetch: false);
+      addTearDown(harness.dispose);
+      harness.fetcher.missing.add(item.key);
+      final binding = harness.attach(item);
+
+      return Future(() async {
+        harness.fetcher.fetchesOf(item.key).single
+          ..receive(100, 400)
+          ..fail(const FetchFailure.transient('offline'));
+        await harness.settle();
+
+        binding.retry();
+
+        expect(binding.downloadProgress, 0);
+      });
     });
   });
 }

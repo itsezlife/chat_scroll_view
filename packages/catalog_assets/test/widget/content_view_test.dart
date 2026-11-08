@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
@@ -342,7 +344,7 @@ void main() {
         expect(box(tester), isNot(paints..circle(radius: 12)));
       });
 
-      testWidgets('goes when the download ends without content', (
+      testWidgets('stays when the download fails, the content still missing', (
         tester,
       ) async {
         await tester.pumpWidget(
@@ -356,7 +358,92 @@ void main() {
         producer.last.fail(StateError('offline'));
         await tester.pump();
 
-        expect(box(tester), isNot(paints..circle(radius: 12)));
+        expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+      });
+
+      group('over a pipeline', () {
+        const gif = ContentDescriptor(
+          key: _sticker,
+          semanticKind: SemanticKind.gif,
+          mediaForm: MediaForm.still,
+          thumbnail: ThumbnailRef('thumb'),
+        );
+        final bytes = FetchedContent.bytes(Uint8List.fromList(const [1, 2]));
+        late FakeFetcher fetcher;
+        late AssetCacheScope piped;
+
+        setUp(() {
+          fetcher = FakeFetcher(autoRespond: false)
+            ..serve(gif.key, bytes)
+            ..serveThumbnail(gif.thumbnail!, bytes);
+          final pipeline = AssetPipeline(
+            fetcher: fetcher,
+            decoders: DecoderRegistry()
+              ..register(MediaForm.still, FakeDecoder()),
+          )..know(gif);
+          piped = AssetCacheScope(
+            producer: pipeline,
+            clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
+          );
+          addTearDown(pipeline.dispose);
+          addTearDown(piped.dispose);
+        });
+
+        Widget view() => host(
+          ContentView(content: gif.key, preset: _still, loadingRadius: 12),
+          provided: piped,
+        );
+
+        Future<void> landThumbnail(WidgetTester tester) async {
+          fetcher.fetchesOf(gif.key, FetchPart.thumbnail).single.complete();
+          await tester.pump();
+          await tester.pump();
+        }
+
+        testWidgets('content known to be missing shows it on the first paint, '
+            'before the thumbnail lands and while it shows', (tester) async {
+          fetcher.missing.add(gif.key);
+
+          await tester.pumpWidget(view());
+          expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+
+          await landThumbnail(tester);
+          expect(piped.isAttached(gif.key, _still.spec), isTrue);
+          expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+
+          fetcher.fetchesOf(gif.key, FetchPart.content).single.complete();
+          await tester.pump();
+          await tester.pump();
+          await tester.pump(_pastFade);
+          expect(box(tester), isNot(paints..circle(radius: 12)));
+        });
+
+        testWidgets('content on the disk never shows it', (tester) async {
+          await tester.pumpWidget(view());
+          expect(box(tester), isNot(paints..circle(radius: 12)));
+
+          await landThumbnail(tester);
+          expect(box(tester), isNot(paints..circle(radius: 12)));
+
+          fetcher.fetchesOf(gif.key, FetchPart.content).single.complete();
+          await tester.pump();
+          await tester.pump();
+          expect(box(tester), isNot(paints..circle(radius: 12)));
+        });
+
+        testWidgets('a failed download keeps it', (tester) async {
+          fetcher.missing.add(gif.key);
+          await tester.pumpWidget(view());
+          await landThumbnail(tester);
+
+          fetcher.fetchesOf(gif.key, FetchPart.content).single
+            ..receive(50, 100)
+            ..fail(const FetchFailure.transient('offline'));
+          await tester.pump();
+          await tester.pump();
+
+          expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+        });
       });
 
       testWidgets('is absent unless asked for', (tester) async {

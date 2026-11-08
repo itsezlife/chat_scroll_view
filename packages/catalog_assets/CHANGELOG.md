@@ -6,6 +6,20 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the download shows from the start)
+
+- `ContentFetcher.needsDownload(key)` is new and every fetcher implements it:
+  whether the content is in no cache the host keeps. A fetcher that cannot
+  tell answers false and keeps the old behaviour. `AssetPipeline` asks at the
+  start of each attempt and reports a download of 0 for missing content, so
+  `AssetBinding.downloadProgress` is 0 from the attach, before the thumbnail,
+  instead of null until the content's first transferred byte.
+- A failed or cancelled attempt keeps `downloadProgress` (the content is still
+  missing) instead of clearing it; the next attempt starts without it and the
+  last binding leaving forgets it. Code that expected null after a failure
+  sees the last fraction. `FakeFetcher.missing` names the keys it reports
+  missing.
+
 ### Added (small cells at half rate)
 
 - `AssetProfile.halfFrameRate`, carried by `AssetPaintContext.halfFrameRate`:
