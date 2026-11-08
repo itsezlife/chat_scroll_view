@@ -397,6 +397,66 @@ void main() {
     });
   });
 
+  group('the clips', () {
+    test('are found on disk by a later session, without a request, even '
+        'one it never listed', () async {
+      final disk = _MemoryDisk();
+      files['/a.mp4'] = Uint8List.fromList([1, 2]);
+      final first = GiphyContent(client, clipDisk: disk)
+        ..remember([_clip('a')]);
+      await first
+          .fetcher(otherwise: other)
+          .fetch(_request(GiphyContent.keyOf('a')));
+      await pumpEventQueue();
+      requests.clear();
+
+      final later = GiphyContent(client, clipDisk: disk);
+      final fetched = await later
+          .fetcher(otherwise: other)
+          .fetch(_request(GiphyContent.keyOf('a')));
+
+      expect((fetched as FetchedBytes).bytes, [1, 2]);
+      expect(requests, isEmpty);
+    });
+
+    test('are downloaded and kept when the disk has none', () async {
+      final disk = _MemoryDisk();
+      files['/a.mp4'] = Uint8List.fromList([3]);
+      final content = GiphyContent(client, clipDisk: disk)
+        ..remember([_clip('a')]);
+
+      await content
+          .fetcher(otherwise: other)
+          .fetch(_request(GiphyContent.keyOf('a')));
+      await pumpEventQueue();
+
+      expect(requests.single.url.path, '/a.mp4');
+      expect(await disk.read('clip_a'), [3]);
+    });
+
+    test('are not mixed with the stills on one disk', () async {
+      final disk = _MemoryDisk();
+      files['/a.mp4'] = Uint8List.fromList([1]);
+      files['/a.still.gif'] = Uint8List.fromList([7]);
+      final clip = _clip('a', still: true);
+      final content = GiphyContent(client, stillDisk: disk, clipDisk: disk)
+        ..remember([clip]);
+      final fetcher = content.fetcher(otherwise: other);
+
+      await fetcher.fetch(_request(GiphyContent.keyOf('a')));
+      final still = await fetcher.fetch(
+        FetchRequest(
+          descriptor: content.describe(clip),
+          part: FetchPart.thumbnail,
+          priority: AssetPriority.placeholder,
+          cancellation: CancellationToken(),
+        ),
+      );
+
+      expect((still as FetchedBytes).bytes, [7]);
+    });
+  });
+
   group('the resolver', () {
     test('describes remembered clips without a request', () async {
       content.remember([_clip('a')]);

@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'app/app_services_test.dart' as app_services_test;
 import 'app/boot_test.dart' as boot_test;
+import 'app/cache_directory_test.dart' as cache_directory_test;
 import 'app/listener_errors_test.dart' as listener_errors_test;
 import 'app/lottie_playback_cache_test.dart' as lottie_playback_cache_test;
 import 'app/lottie_playback_pixel_test.dart' as lottie_playback_pixel_test;
@@ -195,6 +196,7 @@ void main() {
   group('flicker/thumbnail_fade_test.dart', flicker_thumbnail_fade_test.main);
   group('app/app_services_test.dart', app_services_test.main);
   group('app/boot_test.dart', boot_test.main);
+  group('app/cache_directory_test.dart', cache_directory_test.main);
   group('app/listener_errors_test.dart', listener_errors_test.main);
   group('app/lottie_playback_cache_test.dart', lottie_playback_cache_test.main);
   group('app/lottie_playback_pixel_test.dart', lottie_playback_pixel_test.main);

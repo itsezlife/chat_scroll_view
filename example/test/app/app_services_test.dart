@@ -4,12 +4,14 @@ library;
 import 'dart:io';
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/glyph_atlas.dart' show GlyphCacheStore;
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
@@ -176,12 +178,14 @@ void main() {
     Future<AppServices> create({
       LottiePlaybackStarter? startLottie,
       String? lottieCacheDirectory,
+      bool diskCache = true,
     }) => AppServices.create(
       keyValueStore: FakeKeyValueStore(),
       assetLoader: rootBundle.loadString,
       clipboard: FakeRichClipboard(),
       startLottie: startLottie ?? start,
-      lottieCacheDirectory: lottieCacheDirectory,
+      lottieCacheDirectory: Future.value(lottieCacheDirectory),
+      diskCache: diskCache,
     );
 
     test('is started on the clock and the memory pressure the app shares, '
@@ -213,6 +217,16 @@ void main() {
       final with_ = await create(lottieCacheDirectory: '/cache/lottie');
       addTearDown(with_.dispose);
       expect(givenCacheDirectory, '/cache/lottie');
+    });
+
+    test('is given no cache directory when the disk caches are off', () async {
+      final services = await create(
+        lottieCacheDirectory: '/cache/lottie',
+        diskCache: false,
+      );
+      addTearDown(services.dispose);
+
+      expect(givenCacheDirectory, isNull);
     });
 
     test('is closed once, when the services are disposed', () async {
@@ -639,6 +653,97 @@ void main() {
     });
   });
 
+  group('the disk caches', () {
+    late Directory dir;
+
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('disk_caches');
+      addTearDown(() => dir.deleteSync(recursive: true));
+    });
+
+    // Services with Giphy over a client that answers every file with one
+    // byte, every disk tier given a folder under [dir].
+    Future<AppServices> create({required bool diskCache}) async {
+      final services = await AppServices.create(
+        keyValueStore: FakeKeyValueStore(),
+        assetLoader: rootBundle.loadString,
+        clipboard: FakeRichClipboard(),
+        startLottie:
+            ({
+              required clock,
+              required memoryPressure,
+              textures,
+              cacheDirectory,
+            }) async => null,
+        startVideo:
+            ({required clock, required memoryPressure, textures}) async => null,
+        glyphCache: GlyphCacheStore.forPlatform('${dir.path}/glyphs'),
+        giphyApiKey: 'test-key',
+        giphyHttpClient: MockClient((_) async => http.Response.bytes([1], 200)),
+        giphyStillDirectory: Future.value('${dir.path}/stills'),
+        giphyClipDirectory: Future.value('${dir.path}/clips'),
+        diskCache: diskCache,
+      );
+      addTearDown(services.dispose);
+      return services;
+    }
+
+    final clip = GiphyClip(
+      id: 'a',
+      title: 'a cat',
+      url: Uri.parse('https://media.example/a.mp4'),
+      width: 200,
+      height: 100,
+      thumbnailUrl: Uri.parse('https://media.example/a.still.gif'),
+    );
+
+    // Fetches the still and the file of [clip], as the pipeline would.
+    Future<void> fetch(AppServices services) async {
+      final giphy = services.giphy!..remember([clip]);
+      await giphy.prepareStills([clip], within: const Duration(seconds: 1));
+      await giphy
+          .fetcher(otherwise: const _NoFetcher())
+          .fetch(
+            FetchRequest(
+              descriptor: giphy.describe(clip),
+              part: FetchPart.content,
+              priority: AssetPriority.visible,
+              cancellation: CancellationToken(),
+            ),
+          );
+    }
+
+    // The files under [dir] once the writes under way have landed.
+    Future<List<String>> files() async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      return [
+        for (final entry in dir.listSync(recursive: true))
+          if (entry is File) entry.path.substring(dir.path.length),
+      ];
+    }
+
+    test('keep what was fetched when on', () async {
+      final services = await create(diskCache: true);
+
+      await fetch(services);
+
+      expect(services.glyphCache, isNotNull);
+      expect(await files(), containsAll(['/stills/still_a', '/clips/clip_a']));
+    });
+
+    test(
+      'are all off with the switch: no glyph pages, no Giphy files',
+      () async {
+        final services = await create(diskCache: false);
+
+        await fetch(services);
+
+        expect(services.glyphCache, isNull);
+        expect(await files(), isEmpty);
+      },
+    );
+  });
+
   group('the stickers and GIF page sources', () {
     List<CollectionId> ids(CollectionSource source) => [
       for (final collection in source.collections.value) collection.id,
@@ -835,4 +940,13 @@ void main() {
       );
     });
   });
+}
+
+/// A fetcher for content nothing in the test asks it for.
+final class _NoFetcher implements ContentFetcher {
+  const _NoFetcher();
+
+  @override
+  Future<FetchedContent> fetch(FetchRequest request) =>
+      Future.error(StateError('not asked for: ${request.descriptor.key}'));
 }
