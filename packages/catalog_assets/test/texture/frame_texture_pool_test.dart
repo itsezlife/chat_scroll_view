@@ -11,7 +11,11 @@ void main() {
   setUp(() {
     host = FakeFrameTextureHost();
     scrolling = ValueNotifier<bool>(false);
-    pool = FrameTexturePool(host: host, scrolling: scrolling);
+    pool = FrameTexturePool(
+      host: host,
+      scrolling: scrolling,
+      reuseDelay: Duration.zero,
+    );
   });
 
   tearDown(() {
@@ -79,6 +83,46 @@ void main() {
       expect(second.texture, first.texture);
       expect(host.created, hasLength(1));
       expect(host.destroyed, isEmpty);
+    });
+
+    test('keeps a released texture from a lease for the reuse delay: a '
+        'surface may still show it', () async {
+      var now = Duration.zero;
+      final timed = FrameTexturePool(host: host, now: () => now);
+      addTearDown(timed.dispose);
+      await timed.warm(128, 1);
+      timed.lease(100, 100)!.release();
+
+      now =
+          FrameTexturePool.defaultReuseDelay - const Duration(milliseconds: 1);
+      expect(timed.lease(100, 100), isNull);
+      expect(timed.idleTextures, 1);
+
+      now = FrameTexturePool.defaultReuseDelay;
+      expect(timed.lease(100, 100), isNotNull);
+    });
+
+    test('leases the texture released longest ago first', () async {
+      var now = Duration.zero;
+      final timed = FrameTexturePool(host: host, now: () => now);
+      addTearDown(timed.dispose);
+      await timed.warm(128, 2);
+      final a = timed.lease(100, 100)!;
+      final b = timed.lease(100, 100)!;
+      a.release();
+      now += const Duration(milliseconds: 10);
+      b.release();
+      now += FrameTexturePool.defaultReuseDelay;
+
+      expect(timed.lease(100, 100)!.texture.id, a.texture.id);
+    });
+
+    test('a warmed texture is leased at once', () async {
+      final timed = FrameTexturePool(host: host, now: () => Duration.zero);
+      addTearDown(timed.dispose);
+      await timed.warm(128, 1);
+
+      expect(timed.lease(100, 100), isNotNull);
     });
 
     test('is idempotent', () async {

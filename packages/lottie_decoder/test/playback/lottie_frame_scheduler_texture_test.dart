@@ -43,7 +43,13 @@ void main() {
     time = Duration.zero;
     renderer = FakeFrameRenderer();
     host = FakeFrameTextureHost();
-    pool = FrameTexturePool(host: host, sizeClasses: const [64]);
+    // Released textures are leased again at once here; the pool's own tests
+    // cover the reuse delay.
+    pool = FrameTexturePool(
+      host: host,
+      sizeClasses: const [64],
+      reuseDelay: Duration.zero,
+    );
     writer = FakeTextureFrameWriter();
     ticks = ManualPlaybackTickSource();
     clock = PlaybackClock(ticks: ticks);

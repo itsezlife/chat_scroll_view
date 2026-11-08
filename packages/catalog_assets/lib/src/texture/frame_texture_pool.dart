@@ -70,7 +70,12 @@ final class FrameTextureLease {
 ///
 /// ## Idle textures
 ///
-/// A released texture idles for the next lease of its class. Past
+/// A released texture idles for the next lease of its class, but is not
+/// leased again for [reuseDelay]: the surface that showed it keeps its layer
+/// until it repaints (an animated one on its next playback tick), and the
+/// raster thread may not have drawn the last frame that holds it yet. A
+/// frame the next holder posted meanwhile would show there, one frame of
+/// another asset. A lease takes the texture released longest ago. Past
 /// [idleLimit] idle textures the oldest is destroyed; [releaseIdle] (memory
 /// pressure, through the scope) destroys every idle one. Leased textures
 /// stay: they are on screen.
@@ -80,7 +85,8 @@ final class FrameTextureLease {
 final class FrameTexturePool {
   /// Creates a pool over [host].
   ///
-  /// [scrolling] is the host's signal that a surface scrolls (a drag or a
+  /// [now] is the time [reuseDelay] is measured on, by default a stopwatch
+  /// started here. [scrolling] is the host's signal that a surface scrolls (a drag or a
   /// fling); null means never. Throws an [ArgumentError] for size classes
   /// that are empty or not strictly ascending, and for a budget that does not
   /// cover one texture of the smallest class.
@@ -90,7 +96,9 @@ final class FrameTexturePool {
     this.sizeClasses = const [64, 128, 256, 512],
     this.budgetBytes = defaultBudgetBytes,
     this.idleLimit = defaultIdleLimit,
-  }) {
+    this.reuseDelay = defaultReuseDelay,
+    Duration Function()? now,
+  }) : _now = now ?? _stopwatch() {
     if (sizeClasses.isEmpty ||
         sizeClasses.first <= 0 ||
         !_ascending(sizeClasses)) {
@@ -117,6 +125,10 @@ final class FrameTexturePool {
   /// a screen and coming back finds its textures.
   static const int defaultIdleLimit = 24;
 
+  /// The default of [reuseDelay]: longer than the playback tick of any
+  /// animated asset and than the raster pipeline.
+  static const Duration defaultReuseDelay = Duration(milliseconds: 150);
+
   /// The platform's maker of textures.
   final FrameTextureHost host;
 
@@ -132,8 +144,22 @@ final class FrameTexturePool {
   /// How many released textures may idle before the oldest is destroyed.
   final int idleLimit;
 
+  /// How long a released texture idles before a lease may take it.
+  final Duration reuseDelay;
+
+  // The time since some fixed point; the reuse delay is measured on it.
+  final Duration Function() _now;
+
+  static Duration Function() _stopwatch() {
+    final watch = Stopwatch()..start();
+    return () => watch.elapsed;
+  }
+
   // Idle textures, least recently released first: id to size class.
   final Map<int, int> _idle = {};
+  // When each idle texture that was leased before was released; a texture
+  // that was only warmed is not here.
+  final Map<int, Duration> _releasedAt = {};
   // Leased textures: id to size class.
   final Map<int, int> _leased = {};
   // Creations asked of the host and not answered yet, per class.
@@ -177,15 +203,21 @@ final class FrameTexturePool {
     if (_disposed) return null;
     final sizeClass = classOf(width, height);
     if (sizeClass == null) return null;
-    // The most recently released of the class: the oldest ones are the first
-    // the idle limit destroys.
+    // The released longest ago of the class (the idle map is in release
+    // order) that waited the reuse delay.
+    final now = _now();
     int? id;
     for (final MapEntry(:key, :value) in _idle.entries) {
-      if (value == sizeClass) id = key;
+      if (value != sizeClass) continue;
+      final releasedAt = _releasedAt[key];
+      if (releasedAt != null && now - releasedAt < reuseDelay) continue;
+      id = key;
+      break;
     }
     if (id == null) return null;
     final leased = id;
     _idle.remove(leased);
+    _releasedAt.remove(leased);
     _leased[leased] = sizeClass;
     return FrameTextureLease._(
       AssetTexture(
@@ -262,6 +294,7 @@ final class FrameTexturePool {
   void releaseIdle() {
     final idle = List.of(_idle.entries);
     _idle.clear();
+    _releasedAt.clear();
     for (final MapEntry(:key, :value) in idle) {
       _destroy(key, value);
     }
@@ -284,8 +317,10 @@ final class FrameTexturePool {
       return;
     }
     _idle[id] = sizeClass;
+    _releasedAt[id] = _now();
     while (_idle.length > idleLimit) {
       final oldest = _idle.keys.first;
+      _releasedAt.remove(oldest);
       _destroy(oldest, _idle.remove(oldest)!);
     }
   }
