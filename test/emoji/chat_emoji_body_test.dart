@@ -1,10 +1,12 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_emoji_body.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RendererBinding;
+import 'package:flutter/rendering.dart'
+    show Layer, ContainerLayer, PictureLayer, RendererBinding, TextureLayer;
 import 'package:flutter_test/flutter_test.dart';
 
 // Android's per-count font sizes (`Theme.java:8602-8606`,
@@ -881,6 +883,106 @@ void main() {
     });
   });
 
+  // ADR 043, "Paint capability": the body pushes layers, so an embed that
+  // plays on a platform texture is a texture layer, not a canvas paint.
+  group('textures', () {
+    final composited = <FakeCompositingEmbed>[];
+    InlineEmbed compositing(ContentKey content, AssetPreset preset) {
+      final embed = FakeCompositingEmbed(sizeHint: preset.size);
+      composited.add(embed);
+      return embed;
+    }
+
+    setUp(composited.clear);
+
+    List<Layer> layers(WidgetTester tester) =>
+        _layers(tester.binding.renderViews.first.debugLayer!);
+
+    RenderChatEmojiBody body(WidgetTester tester) => tester.renderObject(
+      find.descendant(
+        of: find.byType(ChatEmojiBody),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is LeafRenderObjectWidget,
+        ),
+      ),
+    );
+
+    testWidgets('a playing embed on a texture is a texture layer at its '
+        'square, and is not painted', (tester) async {
+      view(tester, const Size(3000, 1000));
+      await pumpBody(tester, _items(2, allCustom: true), factory: compositing);
+      final [playing, still] = composited;
+      final paintsBefore = playing.paints.length;
+
+      playing.play(textureId: 5);
+      await tester.pump();
+
+      final texture = layers(tester).whereType<TextureLayer>().single;
+      expect(texture.textureId, 5);
+      expect(texture.rect, playing.composited.last);
+      expect(texture.rect.size, const Size.square(85.6));
+      expect(playing.paints, hasLength(paintsBefore));
+      expect(still.paints, isNotEmpty, reason: 'it plays nothing');
+    });
+
+    testWidgets('the body composites only while an embed plays', (
+      tester,
+    ) async {
+      view(tester, const Size(3000, 1000));
+      await pumpBody(tester, _items(1, allCustom: true), factory: compositing);
+      expect(body(tester).needsCompositing, isFalse);
+
+      composited.single.play(textureId: 5);
+      await tester.pump();
+      expect(body(tester).needsCompositing, isTrue);
+
+      composited.single.stop();
+      await tester.pump();
+      expect(body(tester).needsCompositing, isFalse);
+      expect(layers(tester).whereType<TextureLayer>(), isEmpty);
+    });
+
+    testWidgets('new leaves that already play make the body composite', (
+      tester,
+    ) async {
+      view(tester, const Size(3000, 1000));
+      await pumpBody(tester, _items(1, allCustom: true), factory: compositing);
+      expect(body(tester).needsCompositing, isFalse);
+
+      await pumpBody(
+        tester,
+        _items(2, allCustom: true),
+        factory: (content, preset) =>
+            (compositing(content, preset) as FakeCompositingEmbed)
+              ..play(textureId: 6),
+      );
+
+      expect(body(tester).needsCompositing, isTrue);
+      expect(layers(tester).whereType<TextureLayer>(), hasLength(2));
+    });
+
+    testWidgets('a glyph after a texture is drawn on the picture that follows '
+        'the layer', (tester) async {
+      view(tester, const Size(3000, 1000));
+      await pumpBody(
+        tester,
+        EmojiOnly(const [
+          EmojiOnlyItem(ContentKey.document('d0')),
+          EmojiOnlyItem(_thumb),
+        ]),
+        factory: compositing,
+      );
+
+      composited.single.play(textureId: 5);
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      final all = layers(tester);
+      final texture = all.indexWhere((layer) => layer is TextureLayer);
+      expect(all.skip(texture + 1).whereType<PictureLayer>(), isNotEmpty);
+    });
+  });
+
   group('geometry', () {
     // The host places chrome from `geometryFor` before the body is laid out:
     // the two must give the same box, whatever the platform or the layout.
@@ -1105,3 +1207,15 @@ void main() {
     });
   });
 }
+
+// The layers under [layer], depth first.
+List<Layer> _layers(Layer layer) => [
+  layer,
+  if (layer is ContainerLayer)
+    for (
+      Layer? child = layer.firstChild;
+      child != null;
+      child = child.nextSibling
+    )
+      ..._layers(child),
+];
