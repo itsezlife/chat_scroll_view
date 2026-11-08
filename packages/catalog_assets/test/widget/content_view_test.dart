@@ -195,6 +195,100 @@ void main() {
       expect(placeholder.paints.single.rect.size, _preset.size);
     });
 
+    group('a placeholder of its own', () {
+      late FakeAssetPaintable scoped;
+      late AssetCacheScope withPlaceholder;
+
+      setUp(() {
+        scoped = FakeAssetPaintable(label: 'scope');
+        withPlaceholder = AssetCacheScope(
+          producer: producer,
+          clock: PlaybackClock(ticks: ticks),
+          mediaPlaceholder: scoped,
+        );
+        addTearDown(withPlaceholder.dispose);
+      });
+
+      testWidgets('is painted before a stage exists, instead of the '
+          "scope's, in the placeholder tint", (tester) async {
+        final own = FakeAssetPaintable(label: 'own');
+        await tester.pumpWidget(
+          host(
+            ContentView(
+              content: _sticker,
+              preset: _preset,
+              placeholder: own,
+              placeholderTint: const Color(0xFF445566),
+            ),
+            provided: withPlaceholder,
+          ),
+        );
+
+        expect(scoped.paints, isEmpty);
+        expect(own.paints, hasLength(1));
+        expect(own.paints.single.rect.size, _preset.size);
+        expect(own.paints.single.context.tint, const Color(0xFF445566));
+      });
+
+      testWidgets('takes the tint of the view without a tint of its own', (
+        tester,
+      ) async {
+        final own = FakeAssetPaintable(label: 'own');
+        await tester.pumpWidget(
+          host(
+            ContentView(
+              content: _sticker,
+              preset: _preset,
+              tint: const Color(0xFF112233),
+              placeholder: own,
+            ),
+            provided: withPlaceholder,
+          ),
+        );
+
+        expect(own.paints.single.context.tint, const Color(0xFF112233));
+      });
+
+      testWidgets('gives way to the thumbnail once one exists', (tester) async {
+        final own = FakeAssetPaintable(label: 'own');
+        await tester.pumpWidget(
+          host(
+            ContentView(content: _sticker, preset: _preset, placeholder: own),
+            provided: withPlaceholder,
+          ),
+        );
+        final thumbnail = producer.last.advance(AssetStage.placeholder);
+        await tester.pump();
+
+        expect(own.paints, hasLength(1));
+        expect(thumbnail.paints, isNotEmpty);
+      });
+
+      testWidgets('is what fades out beneath content that arrives, in the '
+          'placeholder tint', (tester) async {
+        final own = FakeAssetPaintable(label: 'own');
+        await tester.pumpWidget(
+          host(
+            ContentView(
+              content: _sticker,
+              preset: _still,
+              placeholder: own,
+              placeholderTint: const Color(0xFF445566),
+            ),
+            provided: withPlaceholder,
+          ),
+        );
+        producer.last.advance(AssetStage.full);
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 75));
+
+        expect(scoped.paints, isEmpty);
+        expect(own.paints.last.context.opacity, closeTo(0.5, 0.01));
+        expect(own.paints.last.context.tint, const Color(0xFF445566));
+      });
+    });
+
     group('loading progress', () {
       RenderObject box(WidgetTester tester) =>
           tester.renderObject(find.byType(ContentView));

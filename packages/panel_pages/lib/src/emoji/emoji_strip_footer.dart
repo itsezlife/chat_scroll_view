@@ -8,6 +8,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/src/emoji/emoji_category_strip.dart'
     show EmojiStripLayout;
+import 'package:panel_pages/src/strip/panel_strip.dart';
 
 /// One icon of the [EmojiStripFooter]: a chrome icon (the recents, a
 /// category) or a piece of content (a pack's cover).
@@ -624,16 +625,14 @@ class _FooterButton extends StatelessWidget {
                       ? tokens.categoryIconSelected
                       : tokens.categoryIcon,
                 ),
-                (null, final cover?, final scope?) => SizedBox.square(
-                  dimension: EmojiStripFooter.coverSize,
-                  child: ContentView(
-                    content: cover,
-                    scope: scope,
-                    preset: AssetPresets.keyboardCell(
-                      extent: EmojiStripFooter.coverSize,
-                      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-                    ),
-                  ),
+                // Playing, over the strips' themed stand-in until it has
+                // anything to show.
+                (null, final cover?, final scope?) => PanelStripCover(
+                  content: cover,
+                  scope: scope,
+                  size: EmojiStripFooter.coverSize,
+                  plays: true,
+                  tokens: tokens,
                 ),
                 _ => const SizedBox.shrink(),
               },
