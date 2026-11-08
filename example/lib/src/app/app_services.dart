@@ -12,6 +12,7 @@ import 'package:chat_scroll_view_example/src/common/lab_net.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/byte_cache.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
@@ -183,7 +184,9 @@ final class AppServices {
   /// [giphyApiKey] turns the GIF page's Giphy source on (see
   /// [giphyApiKeyDefine]); empty leaves the page with the recent GIFs alone.
   /// [giphyHttpClient] is the transport it sends through, closed by the
-  /// services only if they made it. [corpus] is the local sticker corpus; null
+  /// services only if they made it. [giphyStillDirectory] is the folder the
+  /// clips' stills are kept in between launches, up to [giphyStillDiskBytes]
+  /// (null: in memory only, as in a test). [corpus] is the local sticker corpus; null
   /// looks for one in the app bundle and in the `CHAT_CORPUS_DIR` directory.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
@@ -197,6 +200,7 @@ final class AppServices {
     VideoPlaybackStarter startVideo = startVideoPlayback,
     String giphyApiKey = giphyApiKeyDefine,
     http.Client? giphyHttpClient,
+    Future<String?>? giphyStillDirectory,
     CorpusStickerPack? corpus,
   }) async {
     // What each step made, to free in reverse if a later one fails: a failed
@@ -334,8 +338,18 @@ final class AppServices {
         // this one client.
         final labNet = DemoConfig.scrollLab ? LabNet.instance : null;
         final transport = labNet == null ? live : LabNetClient(live, labNet);
+        // The stills' disk tier is the fetcher's (ADR 022). It sits under
+        // the transport, not over it: a still found on disk is no request,
+        // so the lab's tape neither records nor replays it.
+        final stillDirectory = await giphyStillDirectory;
         giphy = GiphyContent(
           GiphyClient(apiKey: giphyApiKey, client: transport),
+          stillDisk: stillDirectory == null
+              ? null
+              : ByteCache.directory(
+                  stillDirectory,
+                  budgetBytes: giphyStillDiskBytes,
+                ),
         );
       }
       final pipeline = owned(
@@ -678,6 +692,11 @@ final class AppServices {
 
   /// The line Giphy's terms ask to be shown with its content.
   static const String giphyAttribution = 'Powered by GIPHY';
+
+  /// How much of the disk Giphy's stills may take: 16 MB. A still is the
+  /// clip's 100 px wide frame, a few KB, so this keeps a few thousand: more
+  /// than a long scroll of trending and searches, little next to the clips.
+  static const int giphyStillDiskBytes = 16 << 20;
 
   static ContentFetcher _contentFetcher(
     GiphyContent? giphy,

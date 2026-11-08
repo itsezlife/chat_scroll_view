@@ -64,6 +64,17 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        // The app's cache folder, for the caches the Dart side keeps on disk
+        // (the example takes no path_provider).
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            PATHS_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "cacheDir" -> result.success(cacheDir.path)
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             FRAME_RATE_CHANNEL,
@@ -232,6 +243,7 @@ class MainActivity : FlutterActivity() {
         private const val FRAME_RATE_CHANNEL = "chat_scroll_view_example/frame_rate"
         private const val HAPTIC_CHANNEL = "chat_scroll_view_example/selection_cap_haptic"
         private const val LAB_CHANNEL = "chat_scroll_view_example/lab"
+        private const val PATHS_CHANNEL = "chat_scroll_view_example/paths"
         private const val PRE_IME_BACK_CHANNEL = "chat_scroll_view_example/pre_ime_back"
     }
 }

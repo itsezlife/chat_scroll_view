@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/byte_cache.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
 import 'package:content_model/content_model.dart';
@@ -61,6 +62,7 @@ void main() {
   late Map<String, Uint8List> files;
   late Map<String, GiphyClip> known;
   late Completer<void>? gate;
+  late GiphyClient client;
   late GiphyContent content;
   late _Other other;
   var failApi = false;
@@ -72,7 +74,7 @@ void main() {
     gate = null;
     failApi = false;
     other = _Other();
-    final client = GiphyClient(
+    client = GiphyClient(
       apiKey: 'k',
       client: MockClient((request) async {
         requests.add(request);
@@ -310,6 +312,91 @@ void main() {
     });
   });
 
+  group('the stills', () {
+    FetchRequest still(GiphyContent from, GiphyClip clip) => FetchRequest(
+      descriptor: from.describe(clip),
+      part: FetchPart.thumbnail,
+      priority: AssetPriority.placeholder,
+      cancellation: CancellationToken(),
+    );
+
+    test('are given again from memory without a request', () async {
+      final clip = _clip('a', still: true);
+      files['/a.still.gif'] = Uint8List.fromList([7]);
+      final fetcher = content.fetcher(otherwise: other);
+
+      await fetcher.fetch(still(content, clip));
+      final again = await fetcher.fetch(still(content, clip));
+
+      expect((again as FetchedBytes).bytes, [7]);
+      expect(requests, hasLength(1));
+    });
+
+    test('are found on disk by a later session, without a request', () async {
+      final disk = _MemoryDisk();
+      final clip = _clip('a', still: true);
+      files['/a.still.gif'] = Uint8List.fromList([7]);
+      final first = GiphyContent(client, stillDisk: disk);
+      await first.fetcher(otherwise: other).fetch(still(first, clip));
+      requests.clear();
+
+      final later = GiphyContent(client, stillDisk: disk);
+      final fetched = await later
+          .fetcher(otherwise: other)
+          .fetch(still(later, clip));
+
+      expect((fetched as FetchedBytes).bytes, [7]);
+      expect(requests, isEmpty);
+    });
+
+    test('are kept under the clip, whatever URL Giphy gives next', () async {
+      final disk = _MemoryDisk();
+      files['/a.still.gif'] = Uint8List.fromList([7]);
+      final first = GiphyContent(client, stillDisk: disk);
+      await first
+          .fetcher(otherwise: other)
+          .fetch(still(first, _clip('a', still: true)));
+      requests.clear();
+
+      // The same still under another answer's URL.
+      final retagged = GiphyClip(
+        id: 'a',
+        title: 'a cat',
+        url: Uri.parse('https://media.example/a.mp4'),
+        width: 200,
+        height: 100,
+        thumbnailUrl: Uri.parse('https://media.example/a.still.gif?cid=2'),
+      );
+      final later = GiphyContent(client, stillDisk: disk);
+      await later.fetcher(otherwise: other).fetch(still(later, retagged));
+
+      expect(requests, isEmpty);
+    });
+
+    test('are prepared ahead, so the fetcher asks for nothing', () async {
+      final clips = [_clip('a', still: true), _clip('b', still: true)];
+      files['/a.still.gif'] = Uint8List.fromList([1]);
+      files['/b.still.gif'] = Uint8List.fromList([2]);
+
+      await content.prepareStills(clips, within: const Duration(seconds: 1));
+      requests.clear();
+      final fetcher = content.fetcher(otherwise: other);
+      for (final clip in clips) {
+        await fetcher.fetch(still(content, clip));
+      }
+
+      expect(requests, isEmpty);
+    });
+
+    test('a still that fails to prepare is no failure of the wait', () async {
+      await content.prepareStills([
+        _clip('gone', still: true),
+      ], within: const Duration(seconds: 1));
+
+      expect(requests.single.url.path, '/gone.still.gif');
+    });
+  });
+
   group('the resolver', () {
     test('describes remembered clips without a request', () async {
       content.remember([_clip('a')]);
@@ -363,4 +450,16 @@ void main() {
       );
     });
   });
+}
+
+// A disk tier in memory: what a later session over the same folder reads.
+final class _MemoryDisk implements ByteCache {
+  final Map<String, Uint8List> _files = {};
+
+  @override
+  Future<Uint8List?> read(String name) async => _files[name];
+
+  @override
+  Future<void> write(String name, Uint8List bytes) async =>
+      _files[name] = bytes;
 }

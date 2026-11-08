@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/byte_cache.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:content_model/content_model.dart';
 
@@ -22,12 +23,25 @@ import 'package:content_model/content_model.dart';
 /// scroll through trending does not grow without bound; a clip forgotten is
 /// asked for again by id.
 ///
+/// Each clip's still (the thumbnail its descriptor names) is kept once
+/// fetched: up to [stillMemoryBytes] in memory, and in [stillDisk] when the
+/// host gives one, so a reopened panel and the chat's GIF bodies have it at
+/// once. A still is kept under its clip's id, not its URL: Giphy's URLs carry
+/// a per-answer tag, so the same still comes back under a new URL.
+/// [prepareStills] fetches the stills of clips about to be listed.
+///
 /// Not a global: the host makes one over its client and disposes nothing,
-/// since it holds no resource but the map.
+/// since it holds no resource but the maps.
 final class GiphyContent {
-  /// Creates the content over [client], remembering up to [capacity] clips.
-  GiphyContent(this.client, {this.capacity = 2048})
-    : assert(capacity > 0, 'remembers at least one clip');
+  /// Creates the content over [client], remembering up to [capacity] clips
+  /// and keeping their stills in memory and in [stillDisk].
+  GiphyContent(
+    this.client, {
+    this.capacity = 2048,
+    this.stillMemoryBytes = 4 << 20,
+    ByteCache? stillDisk,
+  }) : assert(capacity > 0, 'remembers at least one clip'),
+       _stills = _Stills(client, stillDisk, stillMemoryBytes);
 
   static const String _prefix = 'giphy:';
 
@@ -51,7 +65,11 @@ final class GiphyContent {
   /// How many clips are remembered.
   final int capacity;
 
+  /// How many bytes of stills are kept in memory.
+  final int stillMemoryBytes;
+
   final LinkedHashMap<String, GiphyClip> _clips = LinkedHashMap();
+  final _Stills _stills;
 
   /// What the pipeline needs to play [clip]: a GIF, a video-coded file of the
   /// size the API gave, so the justified rows have its proportions before it
@@ -96,6 +114,18 @@ final class GiphyContent {
     return clip == null ? null : describe(clip);
   }
 
+  /// Fetches the stills of [clips] (memory, then disk, then Giphy) and
+  /// completes when they are all in memory, or after [within] if one is
+  /// later: a late still goes on arriving, and its row shows the box until it
+  /// does. Never fails; a still that fails is fetched again when asked for.
+  Future<void> prepareStills(
+    Iterable<GiphyClip> clips, {
+    required Duration within,
+  }) => _stills.prepare([
+    for (final clip in clips)
+      if (clip.thumbnailUrl case final url?) (clip.id, url),
+  ], within: within);
+
   /// A fetcher of the files of Giphy clips that leaves any other key to
   /// [otherwise].
   ContentFetcher fetcher({required ContentFetcher otherwise}) =>
@@ -114,6 +144,71 @@ final class GiphyContent {
     ];
     if (missing.isEmpty) return;
     remember(await client.byIds(missing));
+  }
+}
+
+// The stills: memory (least recently used out first, by bytes), then the
+// host's disk, then a download, which is kept in both. Two asks for one still
+// while it is fetched share the fetch.
+final class _Stills {
+  _Stills(this._client, this._disk, this._memoryBudget);
+
+  final GiphyClient _client;
+  final ByteCache? _disk;
+  final int _memoryBudget;
+  final LinkedHashMap<String, Uint8List> _memory = LinkedHashMap();
+  var _memoryBytes = 0;
+  final Map<String, Future<Uint8List>> _inFlight = {};
+
+  Future<Uint8List> bytesOf(String id, Uri url) {
+    final kept = _memory.remove(id);
+    if (kept != null) {
+      _memory[id] = kept;
+      return Future.value(kept);
+    }
+    return _inFlight[id] ??= _fetch(id, url);
+  }
+
+  Future<void> prepare(List<(String, Uri)> stills, {required Duration within}) {
+    final pending = [
+      for (final (id, url) in stills)
+        if (!_memory.containsKey(id))
+          bytesOf(id, url).then<void>((_) {}, onError: (Object _) {}),
+    ];
+    if (pending.isEmpty) return Future.value();
+    final done = Completer<void>();
+    final timer = Timer(within, done.complete);
+    Future.wait(pending).then((_) {
+      timer.cancel();
+      if (!done.isCompleted) done.complete();
+    });
+    return done.future;
+  }
+
+  Future<Uint8List> _fetch(String id, Uri url) async {
+    try {
+      final name = 'still_${id.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_')}';
+      final disk = _disk;
+      var bytes = await disk?.read(name);
+      if (bytes == null) {
+        bytes = await _client.download(url);
+        if (disk != null) unawaited(disk.write(name, bytes));
+      }
+      _keep(id, bytes);
+      return bytes;
+    } finally {
+      // Not before the caller stored the future: this body suspends at its
+      // first await, so it cannot get here earlier.
+      unawaited(_inFlight.remove(id)?.then((_) {}, onError: (_) {}));
+    }
+  }
+
+  void _keep(String id, Uint8List bytes) {
+    _memoryBytes += bytes.length - (_memory.remove(id)?.length ?? 0);
+    _memory[id] = bytes;
+    while (_memoryBytes > _memoryBudget && _memory.length > 1) {
+      _memoryBytes -= _memory.remove(_memory.keys.first)!.length;
+    }
   }
 }
 
@@ -158,8 +253,9 @@ final class _GiphyFetcher implements ContentFetcher {
         'Giphy clip has no thumbnail: ${descriptor.key}',
       );
     }
+    final id = GiphyContent.idOf(descriptor.key)!;
     try {
-      return FetchedContent.bytes(await _content.client.download(url));
+      return FetchedContent.bytes(await _content._stills.bytesOf(id, url));
     } on GiphyFailure catch (failure) {
       throw failure.transient
           ? FetchFailure.transient(failure.message, failure)
