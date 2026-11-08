@@ -66,6 +66,10 @@ _Avoid_: KeyboardPanel, catalog shell, emoji panel
 How the shell lays out its chrome for the way the user points: `touch` (tabs and page actions in one floating bottom bar that hides as the content is read; the page's strip and inline search field as a sticky header that slides away with the reading) or `pointer` (tabs above the search field; a bar of the page actions the arrangement offers (backspace is not) that never hides on scroll and rises above the strip the page pins at the bottom, absent when none is left; an inline search field scrolls with the grid and never pins; nothing else a page draws slides). It is the one switch between those two layouts. Chosen by the presentation, given to the shell, read by pages through the scope. The platform is never read for it.
 _Avoid_: Layout mode, platform layout, desktop / mobile shell
 
+**Search exit**:
+How the user leaves search mode, per platform family: `back` (a back press or Escape; the field's controls only clear the query) or `cancel` (also a Cancel text button beside the field while search is open, for a platform with no back press, where the hidden bottom bar would otherwise leave no way out). Given to the shell; defaults from the platform, `cancel` on iOS.
+_Avoid_: Close button, dismiss mode
+
 **Panel page**:
 A registry entry: id, tab descriptor, builder and declared capabilities (search, bottom actions, top strip). The registry is open.
 _Avoid_: Tab enum, allow bitset, plain widget page
