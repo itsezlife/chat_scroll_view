@@ -4,6 +4,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_pages/src/gifs/gif_row_layout.dart';
 import 'package:panel_pages/src/stickers/stickers_page_policy.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -21,6 +22,19 @@ import 'package:panel_shell/panel_shell.dart';
 /// clip's own kind, reports its scroll as the typed activity that drives the
 /// bottom bar, goes back to its start when its tab is chosen again, and names
 /// every clip for assistive technology.
+///
+/// ## Its place
+///
+/// The offset the page was left at is kept in the host's controllers, so a
+/// page the pager dropped for another tab, or a presentation switch rebuilt,
+/// opens where it was left (the reference client keeps one list per page).
+///
+/// ## The bottom bar
+///
+/// Only reading back brings the bar back: the page never reports a rest at
+/// an end of its list as one. The reference client shows its bottom tabs at
+/// rest at either end of the emoji grid alone (`EmojiGridView`
+/// `onScrollStateChanged`); over GIFs they follow the distance scrolled.
 ///
 /// ## Sections
 ///
@@ -40,10 +54,18 @@ import 'package:panel_shell/panel_shell.dart';
 /// ## Search
 ///
 /// A page given a [searchSource] follows the shell's search (the host's
-/// `PanelPage` declares `PageCapabilities(search: true)`): once the typed text
-/// has paused ([searchDebounce]) the source is asked for it, and its results
-/// are listed in place of the collections until search closes or the text is
-/// cleared. Results are paged as the end comes near, like a collection.
+/// `PanelPage` declares [searchCapabilities]): once the typed text has paused
+/// ([searchDebounce]) the source is asked for it, and its results are listed
+/// in place of the collections until search closes or the text is cleared.
+/// Results are paged as the end comes near, like a collection.
+///
+/// Such a page places the shell's search field itself, pinned over the top of
+/// its list on the shell's background: the clips start under it and scroll
+/// beneath it, and the field moves with the page when the pager swipes. Its
+/// hairline shows except while search is open with the list at its start, as
+/// the reference client's GIF field draws its shadow (`EmojiView`
+/// `checkGifSearchFieldScroll`). The field needs the `PanelSearchFieldScope`
+/// a `PanelShell` gives its pages.
 ///
 /// ## When there is nothing to show
 ///
@@ -71,6 +93,13 @@ class GifPage extends StatefulWidget {
     this.attribution,
     super.key,
   });
+
+  /// What the host's `PanelPage` declares for a page given a [searchSource]:
+  /// search, with the field the page places itself.
+  static const PageCapabilities searchCapabilities = PageCapabilities(
+    search: true,
+    searchPlacement: SearchPlacement.inline,
+  );
 
   /// The page's connection to the shell; fixed for the life of the widget.
   final PanelPageHost host;
@@ -127,8 +156,21 @@ final class _RowLine extends _Line {
   final GifRow row;
 }
 
+// What the page keeps across being unmounted: the offset it was left at.
+final class _GifPageKept implements PanelPageController {
+  double offset = 0;
+
+  @override
+  void dispose() {}
+}
+
 class _GifPageState extends State<GifPage> {
-  final _scroll = ScrollController();
+  late final _GifPageKept _kept = _host.controllers.obtain(
+    _host.pageId,
+    _GifPageKept.new,
+  );
+  late final _scroll = ScrollController(initialScrollOffset: _kept.offset);
+  final _hairline = listen.ValueNotifier<bool>(true);
   var _lines = const <_Line>[];
   var _lineKey = (<Collection>[], 0.0, null as PanelStrings?, null as String?);
   late DebouncedSearch<void> _debounced;
@@ -158,6 +200,7 @@ class _GifPageState extends State<GifPage> {
     _debounced.busy.addListener(_reportBusy);
     _search?.results.addListener(_onResults);
     _host.search.addListener(_onSearchState);
+    _syncHairline();
     _syncQuery();
     _debounced.update(_query);
   }
@@ -193,6 +236,7 @@ class _GifPageState extends State<GifPage> {
     _source.collections.removeListener(_onCollections);
     _host.reselected.removeListener(_onReselected);
     _scroll.dispose();
+    _hairline.dispose();
     super.dispose();
   }
 
@@ -220,6 +264,7 @@ class _GifPageState extends State<GifPage> {
   }
 
   void _onSearchState() {
+    _syncHairline();
     if (!_syncQuery()) return;
     _debounced.update(_query);
     setState(() {});
@@ -294,8 +339,17 @@ class _GifPageState extends State<GifPage> {
 
   // --- Reporting ------------------------------------------------------------
 
+  // The field's hairline: shown unless search is open and nothing has passed
+  // under the field.
+  void _syncHairline() {
+    final offset = _scroll.hasClients ? _scroll.offset : _kept.offset;
+    _hairline.value = !_host.search.value.isOpen || offset > 0.5;
+  }
+
   bool _onScroll(ScrollNotification notification) {
     if (notification.depth != 0) return false;
+    _kept.offset = notification.metrics.pixels;
+    _syncHairline();
     switch (notification) {
       case ScrollUpdateNotification(:final scrollDelta?, :final dragDetails):
         _host.reportScrollActivity(
@@ -304,14 +358,8 @@ class _GifPageState extends State<GifPage> {
               : PageScrollActivity.drag(scrollDelta),
         );
         _loadMoreNearEnd();
-      case ScrollEndNotification(:final metrics):
-        _host.reportScrollActivity(
-          PageScrollActivity.idle(
-            atEdge:
-                metrics.pixels <= metrics.minScrollExtent ||
-                metrics.pixels >= metrics.maxScrollExtent,
-          ),
-        );
+      case ScrollEndNotification():
+        _host.reportScrollActivity(const PageScrollActivity.idle());
       case _:
         break;
     }
@@ -415,7 +463,8 @@ class _GifPageState extends State<GifPage> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom;
-    return NotificationListener<ScrollNotification>(
+    final searches = _search != null;
+    final list = NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -425,7 +474,10 @@ class _GifPageState extends State<GifPage> {
           );
           return ListView.builder(
             controller: _scroll,
-            padding: EdgeInsets.only(bottom: bottom),
+            padding: EdgeInsets.only(
+              top: searches ? PanelSearchField.height : 0,
+              bottom: bottom,
+            ),
             cacheExtent: 0,
             itemCount: lines.length,
             itemExtentBuilder: (index, _) => lines[index].height,
@@ -446,6 +498,21 @@ class _GifPageState extends State<GifPage> {
           );
         },
       ),
+    );
+    if (!searches) return list;
+    return Stack(
+      children: [
+        Positioned.fill(child: list),
+        PositionedDirectional(
+          start: 0,
+          end: 0,
+          top: 0,
+          child: ColoredBox(
+            color: PanelBackgroundScope.of(context),
+            child: PanelSearchField(shadow: _hairline),
+          ),
+        ),
+      ],
     );
   }
 }

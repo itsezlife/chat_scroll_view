@@ -329,6 +329,51 @@ void main() {
       expect(host.scrollActivity.last, isA<PageScrollIdle>());
     });
 
+    // The reference client brings its bottom tabs back at rest at an end of
+    // the emoji grid only; over GIFs only reading back shows them.
+    pageTest('never says it rests at an end', (tester) async {
+      source.dispose();
+      source = FakeCollectionSource([_clips('a', 'Cats', count: 80)]);
+      await pumpPage(tester);
+
+      await tester.drag(find.byType(GifPage), const Offset(0, -5000));
+      await settle(tester);
+      await tester.drag(find.byType(GifPage), const Offset(0, 5000));
+      await settle(tester);
+
+      final rests = host.scrollActivity.whereType<PageScrollIdle>();
+      expect(rests, isNotEmpty);
+      expect(rests.map((rest) => rest.atEdge), everyElement(isFalse));
+    });
+  });
+
+  group('its place', () {
+    double offset(WidgetTester tester) => tester
+        .state<ScrollableState>(
+          find.descendant(
+            of: find.byType(GifPage),
+            matching: find.byType(Scrollable),
+          ),
+        )
+        .position
+        .pixels;
+
+    pageTest('is kept when the page is built again', (tester) async {
+      source.dispose();
+      source = FakeCollectionSource([_clips('a', 'Cats', count: 80)]);
+      await pumpPage(tester);
+      await tester.drag(find.byType(GifPage), const Offset(0, -300));
+      await settle(tester);
+      final left = offset(tester);
+      expect(left, greaterThan(0));
+
+      // Off screen, as the pager drops a page another tab replaced.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await pumpPage(tester);
+
+      expect(offset(tester), left);
+    });
+
     pageTest('goes back to the start when its tab is chosen again', (
       tester,
     ) async {
