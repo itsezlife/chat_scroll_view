@@ -122,7 +122,7 @@ void main() {
     // Apple plugin's framework does in an app; elsewhere (or without a
     // compiler) there is no host off Android.
     final table = HostTable.compile();
-    final textures = createPlatformFrameTextureHost();
+    final textures = PlatformFrameTextureHost.forPlatform();
     if (!Platform.isMacOS || table == null) {
       expect(textures, isNull);
       return;
