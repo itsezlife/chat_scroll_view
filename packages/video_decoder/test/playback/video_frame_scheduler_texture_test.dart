@@ -142,7 +142,7 @@ void main() {
       expect((texture.frameWidth, texture.frameHeight), (16, 8));
     });
 
-    test('the texture shows only after its first post', () async {
+    test('the texture shows only two ticks after its first post', () async {
       await pool.warm(64, 1);
       final lease = scheduler.acquire('a', await openClip())!;
       writer.inner.pause();
@@ -153,6 +153,13 @@ void main() {
 
       writer.inner.resume();
       await pumpEventQueue();
+      // A texture another clip held shows that clip's frame until the
+      // engine takes the post.
+      expect(lease.texture, isNull, reason: 'posted, not taken yet');
+
+      await tick();
+      expect(lease.texture, isNull, reason: 'one tick after the post');
+      await tick();
       expect(lease.texture, isNotNull);
     });
 

@@ -33,6 +33,12 @@ void main() {
     await pumpEventQueue();
   }
 
+  // The two ticks a posted texture waits before it is shown.
+  Future<void> untilShown() async {
+    await tick();
+    await tick();
+  }
+
   setUp(() {
     time = Duration.zero;
     renderer = FakeFrameRenderer();
@@ -94,7 +100,7 @@ void main() {
       },
     );
 
-    test('exposes the texture only once a first frame was posted', () async {
+    test('exposes the texture only two ticks after its first post', () async {
       await pool.warm(64, 1);
       final a = lease('a');
       expect(a.texture, isNull);
@@ -107,6 +113,13 @@ void main() {
 
       writer.resume();
       await pumpEventQueue();
+      // A texture another asset held shows that asset's frame until the
+      // engine takes the post.
+      expect(a.texture, isNull, reason: 'posted, not taken yet');
+
+      await tick();
+      expect(a.texture, isNull, reason: 'one tick after the post');
+      await tick();
       expect(a.texture?.id, host.liveIds.single);
       expect(a.sprite, isNull);
     });
@@ -140,8 +153,8 @@ void main() {
       expect(pool.idleTextures, 2);
     });
 
-    test('moves to a texture that comes free, keeping its slot until the first '
-        'post', () async {
+    test('moves to a texture that comes free, keeping its slot until the '
+        'texture is shown', () async {
       final a = lease('a');
       scheduler.want(a, 1);
       await tick();
@@ -159,6 +172,10 @@ void main() {
 
       writer.resume();
       await pumpEventQueue();
+      expect(a.texture, isNull);
+      expect(a.sprite, isNotNull, reason: 'the slot shows until it is shown');
+
+      await untilShown();
       expect(a.texture, isNotNull);
       expect(a.sprite, isNull);
     });
@@ -193,6 +210,7 @@ void main() {
       final id = host.liveIds.single;
       scheduler.want(a, 1);
       await tick();
+      await untilShown();
 
       writer.outcomeOf[id] = TextureFrameOutcome.notLocked;
       scheduler.want(a, 2);
@@ -307,6 +325,7 @@ void main() {
       final a = lease('a');
       scheduler.want(a, 1);
       await tick();
+      await untilShown();
       expect(a.texture, isNotNull);
 
       scheduler.want(a, 2, onCanvas: true);
@@ -324,6 +343,7 @@ void main() {
       timers.elapse(const Duration(seconds: 1));
       scheduler.want(a, 4);
       await tick();
+      await untilShown();
       expect(a.texture, isNotNull);
     });
 
@@ -333,6 +353,7 @@ void main() {
       final a = lease('a');
       scheduler.want(a, 1);
       await tick();
+      await untilShown();
       expect(a.texture, isNotNull);
 
       scheduler.texturesEnabled = false;
@@ -345,6 +366,7 @@ void main() {
       scheduler.texturesEnabled = true;
       scheduler.want(a, 3);
       await tick();
+      await untilShown();
       expect(a.texture, isNotNull);
     });
 

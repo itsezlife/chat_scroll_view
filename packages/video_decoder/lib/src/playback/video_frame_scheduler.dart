@@ -29,10 +29,15 @@ final class VideoFrameLease {
   final _ClipPlayer _player;
 
   // Where frames go: a slot, a texture, or both while the lease moves from
-  // its slot to a texture (the slot shows until the first post).
+  // its slot to a texture (the slot shows until the texture is shown).
   FrameHandle<Object>? _slot;
   FrameTextureLease? _texture;
   bool _posted = false;
+  // Ticks seen since the first post. A texture that held another asset shows
+  // that asset's last frame until the engine takes the post (on Android the
+  // image comes through the main looper), so the texture is shown only from
+  // the second tick after the post; until then the slot, or the still, shows.
+  int _ticksSincePost = 0;
   int _missedLocks = 0;
   bool _writing = false;
   // Whether a surface that only has a canvas painted it since the last sweep
@@ -70,12 +75,15 @@ final class VideoFrameLease {
 
   /// Where the current frame is, or null while there is none to draw. Read it
   /// when painting and never keep it, as [FrameHandle.sprite] says.
-  AtlasSprite? get sprite => _released || _posted ? null : _slot?.sprite;
+  AtlasSprite? get sprite => _released || _shown ? null : _slot?.sprite;
 
   /// The texture that holds the current frame, or null until a first frame
   /// was posted to it (and for a lease on a slot). Read it when compositing
   /// and never keep it.
-  AssetTexture? get texture => _released || !_posted ? null : _texture?.texture;
+  AssetTexture? get texture => _released || !_shown ? null : _texture?.texture;
+
+  bool get _shown =>
+      _posted && _ticksSincePost >= VideoFrameScheduler._ticksBeforeShown;
 
   /// Stops decoding and keeps the frame on show: a pass that does not loop
   /// ended on its last frame. The slot stays leased until [release].
@@ -250,6 +258,10 @@ final class VideoFrameScheduler {
 
   /// Shortest time between two ticks of the follow subscription.
   final Duration tickInterval;
+
+  // Ticks after a texture's first post before it is shown: the engine has
+  // taken the post by then (see `_ticksSincePost`).
+  static const _ticksBeforeShown = 2;
 
   final VideoEngine _engine;
   final FrameAtlas<Object> _atlas;
@@ -446,12 +458,25 @@ final class VideoFrameScheduler {
       lease
         .._texture = texture
         .._posted = false
+        .._ticksSincePost = 0
         .._missedLocks = 0;
       if (pool.idleTextures == 0) return;
     }
   }
 
   void _giveBack(FrameTextureLease texture) => texture.release();
+
+  // Counts a tick for every lease whose texture waits to be shown; one that
+  // is shown now lets go of the slot it came from.
+  void _showPosted() {
+    for (final lease in _leases.values) {
+      if (!lease._posted || lease._shown) continue;
+      lease._ticksSincePost++;
+      if (!lease._shown) continue;
+      lease._slot?.release();
+      lease._slot = null;
+    }
+  }
 
   // A surface that cannot show the texture paints the lease: its frames go
   // to a slot again. Without a slot to take it keeps the texture, and the
@@ -466,7 +491,8 @@ final class VideoFrameScheduler {
     final texture = lease._texture!;
     lease
       .._texture = null
-      .._posted = false;
+      .._posted = false
+      .._ticksSincePost = 0;
     if (discard) {
       texture.discard();
     } else if (lease._writing) {
@@ -500,6 +526,7 @@ final class VideoFrameScheduler {
 
   void _onTick(Duration now) {
     _now = now;
+    _showPosted();
     if (!_inFlight) _moveToTextures();
     final advancing = _chooseAdvancing(now);
     final onSlots = <VideoFrameLease>[];
@@ -572,8 +599,6 @@ final class VideoFrameScheduler {
             lease
               .._posted = true
               .._missedLocks = 0;
-            lease._slot?.release();
-            lease._slot = null;
           case TextureFrameOutcome.notLocked:
             // The frame is dropped: the texture keeps the one before, and the
             // ring has the next.

@@ -36,12 +36,17 @@ final class LottieFrameLease {
   final int _height;
 
   // Where frames go. A lease holds a slot, a texture, or both while it moves
-  // from its slot to a texture (the slot shows until the texture's first
+  // from its slot to a texture (the slot shows until the texture is
   // post); with neither (a full pool after a texture failed) it shows its
   // still.
   FrameHandle<Object>? _slot;
   FrameTextureLease? _texture;
   bool _posted = false;
+  // Ticks seen since the first post. A texture that held another asset shows
+  // that asset's last frame until the engine takes the post (on Android the
+  // image comes through the main looper), so the texture is shown only from
+  // the second tick after the post; until then the slot, or the still, shows.
+  int _ticksSincePost = 0;
   int _missedLocks = 0;
   // Whether a batch in flight names the texture: it goes back to the pool
   // only when that batch ends, so no other asset's write races it.
@@ -68,12 +73,15 @@ final class LottieFrameLease {
 
   /// Where the current frame is, or null while there is nothing to draw. Read
   /// it when painting and never keep it, as [FrameHandle.sprite] says.
-  AtlasSprite? get sprite => _released || _posted ? null : _slot?.sprite;
+  AtlasSprite? get sprite => _released || _shown ? null : _slot?.sprite;
 
   /// The texture that holds the current frame, or null until a first frame
   /// was posted to it (and for a lease on a slot). Read it when compositing
   /// and never keep it.
-  AssetTexture? get texture => _released || !_posted ? null : _texture?.texture;
+  AssetTexture? get texture => _released || !_shown ? null : _texture?.texture;
+
+  bool get _shown =>
+      _posted && _ticksSincePost >= LottieFrameScheduler._ticksBeforeShown;
 
   bool get _needsRender =>
       !_released &&
@@ -127,7 +135,7 @@ final class LottieFrameLease {
 /// lease. A lease that found none asks the pool to warm its class (the pool
 /// creates off the frame path, and waits while a surface scrolls), and on a
 /// later tick a lease on a slot moves to a texture that is idle then, keeping
-/// its slot until the texture's first post so nothing flashes.
+/// its slot until the texture is shown so nothing flashes.
 ///
 /// Textures are asked like slots: the same wants, the same pause layers, the
 /// same sweep. A tick sends one batch to the writer next to the one to the
@@ -170,6 +178,10 @@ final class LottieFrameScheduler {
 
   /// Shortest time between two ticks of the follow subscription.
   final Duration tickInterval;
+
+  // Ticks after a texture's first post before it is shown: the engine has
+  // taken the post by then (see `_ticksSincePost`).
+  static const _ticksBeforeShown = 2;
 
   final FrameAtlas<Object> _atlas;
   final PlaybackClock _clock;
@@ -340,6 +352,7 @@ final class LottieFrameScheduler {
       lease
         .._texture = texture
         .._posted = false
+        .._ticksSincePost = 0
         .._missedLocks = 0
         // The texture is blank: the frame on the slot is asked again.
         .._requested = null;
@@ -348,6 +361,18 @@ final class LottieFrameScheduler {
   }
 
   void _giveBack(FrameTextureLease texture) => texture.release();
+
+  // Counts a tick for every lease whose texture waits to be shown; one that
+  // is shown now lets go of the slot it came from.
+  void _showPosted() {
+    for (final lease in _leases.values) {
+      if (!lease._posted || lease._shown) continue;
+      lease._ticksSincePost++;
+      if (!lease._shown) continue;
+      lease._slot?.release();
+      lease._slot = null;
+    }
+  }
 
   // A surface that cannot show the texture paints the lease: its frames go
   // to a slot again. Without a slot to take it keeps the texture, and the
@@ -368,6 +393,7 @@ final class LottieFrameScheduler {
     lease
       .._texture = null
       .._posted = false
+      .._ticksSincePost = 0
       .._requested = null;
     if (discard) {
       texture.discard();
@@ -416,6 +442,7 @@ final class LottieFrameScheduler {
   // --- A tick ---
 
   void _onTick(Duration now) {
+    _showPosted();
     if (_inFlight) return;
     _moveToTextures();
     final onSlots = <LottieFrameLease>[];
@@ -483,12 +510,10 @@ final class LottieFrameScheduler {
         }
         switch (outcomes[i]) {
           case TextureFrameOutcome.posted:
+            // The slot it came from goes once the texture is shown.
             lease
               .._posted = true
               .._missedLocks = 0;
-            // The texture shows the asset now: the slot it came from goes.
-            lease._slot?.release();
-            lease._slot = null;
           case TextureFrameOutcome.notLocked:
             // Skipped: the texture keeps its previous frame and the want is
             // asked again on the next tick.

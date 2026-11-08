@@ -572,6 +572,9 @@ void main() {
           'not drawn over it', () async {
         final p = make();
         await advanceAndSettle(p, at(0));
+        // A posted texture is shown two ticks later.
+        tick();
+        tick();
 
         expect(
           p.texture,
