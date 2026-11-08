@@ -4,7 +4,8 @@ import 'dart:isolate';
 /// The VM hook behind `MediaDiskCache.sweep`: removes the files under [root]
 /// last used before [keepFor] ago, then, with [limitBytes], the least
 /// recently used of the rest until they fit, sparing any used within [inUse]
-/// of [now].
+/// of [now]. First it deletes the folders [retire] names, which lie outside
+/// [root] (an older layout's).
 ///
 /// The walk runs in an isolate of its own: listing and stating every file of
 /// a month of media is blocking calls, milliseconds to seconds of them, which
@@ -13,6 +14,7 @@ import 'dart:isolate';
 /// gone counts a miss and fetches or renders it again.
 Future<void> $sweepMediaFolder(
   String root, {
+  required List<String> retire,
   required DateTime now,
   required Duration keepFor,
   required int? limitBytes,
@@ -20,6 +22,7 @@ Future<void> $sweepMediaFolder(
 }) => Isolate.run(
   () => _sweep(
     root,
+    retire: retire,
     now: now,
     keepFor: keepFor,
     limitBytes: limitBytes,
@@ -30,11 +33,19 @@ Future<void> $sweepMediaFolder(
 
 void _sweep(
   String root, {
+  required List<String> retire,
   required DateTime now,
   required Duration keepFor,
   required int? limitBytes,
   required Duration inUse,
 }) {
+  for (final path in retire) {
+    try {
+      Directory(path).deleteSync(recursive: true);
+    } on FileSystemException {
+      // Already gone, or not removable now: nothing more to do for it.
+    }
+  }
   final List<FileSystemEntity> entries;
   try {
     entries = Directory(root).listSync(recursive: true, followLinks: false);
