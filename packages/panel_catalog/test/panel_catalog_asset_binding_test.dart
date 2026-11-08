@@ -40,10 +40,11 @@ CatalogLeaf _doc(int i, {bool animated = false, bool tintable = false}) =>
       tintable: tintable,
     );
 
-CatalogLeaf _sticker(int i) => CatalogLeaf.document(
+CatalogLeaf _sticker(int i, {bool animated = false}) => CatalogLeaf.document(
   'sticker-$i',
   semanticKind: SemanticKind.sticker,
   mediaForm: MediaForm.still,
+  animated: animated,
 );
 
 CatalogSection _section(List<CatalogLeaf> leaves) =>
@@ -282,6 +283,41 @@ void main() {
       final canvas = paintOnce(tester);
       expect(canvas.rrects, isEmpty);
       expect(canvas.circles.single.radius, closeTo(28.8 * 0.4, 1e-9));
+    });
+  });
+
+  group('a small playing cell', () {
+    testWidgets('plays at half rate and decodes at most 160 px, a still '
+        'keeps its pixels and every frame', (tester) async {
+      final playing = _sticker(0, animated: true);
+      final still = _sticker(1);
+      producer.onProduce = (attempt) =>
+          attempt.advance(AssetStage.full, animated: true);
+      snapshots.replaceSections([
+        _section([playing, still]),
+      ]);
+      // The 40 px cell is 200 physical px at 5x.
+      await pumpViewport(tester, devicePixelRatio: 5);
+      paintOnce(tester);
+
+      expect(requestOf(playing).spec.pixelWidth, 160);
+      expect(requestOf(still).spec.pixelWidth, 200);
+      FakeAssetPaintable paintableOf(CatalogLeaf leaf) =>
+          producer.attemptsFor(requestOf(leaf)).single.paintables.single;
+      final played = paintableOf(playing);
+      expect(
+        [
+          ...played.advances,
+          ...played.paints.map((paint) => paint.context),
+        ].every((context) => context.halfFrameRate),
+        isTrue,
+      );
+      expect(played.advances, isNotEmpty);
+      final shown = paintableOf(still);
+      expect(
+        shown.paints.map((paint) => paint.context.halfFrameRate),
+        everyElement(isFalse),
+      );
     });
   });
 
