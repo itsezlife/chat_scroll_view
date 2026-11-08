@@ -15,13 +15,25 @@ void main() {
 
   test('warms a handful of textures of the class the chat\'s stickers are '
       'drawn in', () async {
-    // A sticker or GIF message is 112 points square: 336 px at 3x, in the
-    // 384 class.
+    // A sticker of 112 points square is 336 px at 3x, in the 384 class.
     ChatTextureWarmer.warm(pool, stickerExtent: 112, devicePixelRatio: 3);
     await pumpEventQueue();
 
     expect(host.created, hasLength(6));
     expect(host.created.toSet(), {(width: 384, height: 384)});
+  });
+
+  test('a sticker decoded under a cap warms the class of the cap', () async {
+    // A 206 dp sticker at 3x is 618 px, decoded at 512.
+    ChatTextureWarmer.warm(
+      pool,
+      stickerExtent: 206,
+      devicePixelRatio: 3,
+      maxPixelExtent: 512,
+    );
+    await pumpEventQueue();
+
+    expect(host.created.toSet(), {(width: 512, height: 512)});
   });
 
   test('warms nothing for a sticker larger than the largest class', () async {

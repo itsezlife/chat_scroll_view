@@ -9,6 +9,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/reference_media_sizes.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
@@ -237,6 +238,85 @@ void main() {
         own.playbackFor(const ContentKey.document('5368')),
         ChatStickerPlayback.still,
       );
+    });
+
+    group('media', () {
+      const sticker = ContentKey.document('sticker');
+      const gif = ContentKey.document('giphy:abc');
+      const custom = ContentKey.document('5368');
+      ContentDescriptor? describe(ContentKey key) => switch (key) {
+        sticker => const ContentDescriptor(
+          key: sticker,
+          semanticKind: SemanticKind.sticker,
+          size: ContentSize(512, 512),
+        ),
+        gif => const ContentDescriptor(
+          key: gif,
+          semanticKind: SemanticKind.gif,
+          size: ContentSize(480, 270),
+        ),
+        custom => const ContentDescriptor(
+          key: custom,
+          semanticKind: SemanticKind.customEmoji,
+        ),
+        _ => null,
+      };
+
+      test('a lone sticker or GIF is media of its kind and source size', () {
+        final own = ChatBodyHost(
+          assets: scope,
+          policy: policy,
+          describe: describe,
+        );
+
+        expect(
+          own.mediaOf(_only([sticker])),
+          const ChatMediaItem(
+            kind: ChatMediaKind.sticker,
+            source: ContentSize(512, 512),
+          ),
+        );
+        expect(
+          own.mediaOf(_only([gif])),
+          const ChatMediaItem(
+            kind: ChatMediaKind.gif,
+            source: ContentSize(480, 270),
+          ),
+        );
+      });
+
+      test('a lone emoji, two items or an unknown document is no media', () {
+        final own = ChatBodyHost(
+          assets: scope,
+          policy: policy,
+          describe: describe,
+        );
+
+        expect(own.mediaOf(_only([custom])), isNull);
+        expect(
+          own.mediaOf(_only([const ContentKey.unicode('\u{1F44D}')])),
+          isNull,
+        );
+        expect(own.mediaOf(_only([sticker, sticker])), isNull);
+        expect(own.mediaOf(_only([const ContentKey.document('nope')])), isNull);
+        expect(host.mediaOf(_only([sticker])), isNull, reason: 'no describe');
+      });
+
+      test('sizes media by the running platform\'s reference sizes, or the '
+          'host\'s', () {
+        expect(
+          ChatBodyHost(assets: scope, policy: policy).mediaSizes,
+          ReferenceMediaSizes.forPlatform(),
+        );
+        expect(
+          ChatBodyHost(
+            assets: scope,
+            policy: policy,
+            mediaSizes: const ReferenceMediaSizes.desktop(),
+          ).mediaSizes,
+          const ReferenceMediaSizes.desktop(),
+        );
+      });
     });
 
     test('more than one emoji is text, whatever each would be alone', () {

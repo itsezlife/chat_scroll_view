@@ -30,6 +30,10 @@ const double _kSelectedOverlayAlpha = 0.45;
 /// wants under it, then places the pill, header and reactions by pure geometry
 /// ([EmojiChrome.layout]) in one box.
 ///
+/// A message that is a sticker or a GIF of its own takes the sticker layout at
+/// the size of the host's media size policy (`ChatBodyHost.mediaOf`,
+/// `ChatBodyHost.mediaSizes`).
+///
 /// The host decides what the viewport does not: how the sticker plays
 /// (`ChatBodyHost.playbackFor`) and what the open chat already played
 /// (`ChatBodyHost.plays`, the body's ledger), and whether the row is shown to
@@ -125,6 +129,8 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
     final chrome = EmojiChrome.of(policy);
     final colors = EmojiServiceColors.of(policy, wallpaper: widget.wallpaper);
     final sticker = widget.host.stickerOf(widget.emojiOnly);
+    final media = widget.host.mediaOf(widget.emojiOnly);
+    final mediaSizes = widget.host.mediaSizes;
     final direction = Directionality.of(context);
     final viewport = MediaQuery.sizeOf(context);
     // `overlayProgress`, not `selectProgress`: the viewport freezes the latter
@@ -149,6 +155,8 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
               emojiOnly: widget.emojiOnly,
               policy: policy,
               sticker: sticker,
+              media: media,
+              mediaSizes: mediaSizes,
               viewport: viewport,
               maxWidth: rowWidth,
               direction: direction,
@@ -247,6 +255,8 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
             emojiOnly: widget.emojiOnly,
             embedFactory: widget.host.embedFactory,
             sticker: sticker,
+            media: media,
+            mediaSizes: mediaSizes,
             playback: isSticker
                 ? widget.host.playbackFor(widget.emojiOnly.items.single.key)
                 : null,

@@ -1,10 +1,16 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
-    show ChatEmojiEmbedFactory, ChatStickerPlayback;
+    show
+        ChatEmojiEmbedFactory,
+        ChatMediaItem,
+        ChatMediaKind,
+        ChatMediaSizePolicy,
+        ChatStickerPlayback;
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart'
     show DescribeContent;
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/reference_media_sizes.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
@@ -29,6 +35,9 @@ final class ChatBodyHost {
   /// [describe] says what the host knows of a document: a GIF waits behind
   /// the whole rectangle, as in the panel's grid, a sticker or custom emoji
   /// behind a quiet rounded square. Without it every document is the latter.
+  /// It also says which lone document is a sticker or a GIF of its own
+  /// ([mediaOf]), drawn at the size [mediaSizes] gives it: the running
+  /// platform's reference sizes by default.
   ChatBodyHost({
     required AssetCacheScope assets,
     required this.policy,
@@ -37,6 +46,7 @@ final class ChatBodyHost {
     StickerPlayMemory? plays,
     this.playbackFor = ChatStickerPlayback.defaultFor,
     DescribeContent? describe,
+    ChatMediaSizePolicy? mediaSizes,
   }) : embedResolver = ContentEmbedResolver(scope: assets),
        embedFactory = ((content, preset) => ContentEmbed(
          scope: assets,
@@ -53,7 +63,9 @@ final class ChatBodyHost {
          },
        )),
        plays = plays ?? StickerPlayMemory(),
-       _stickerFor = stickerFor;
+       mediaSizes = mediaSizes ?? ReferenceMediaSizes.forPlatform(),
+       _stickerFor = stickerFor,
+       _describe = describe;
 
   /// Turns the image spans of a markdown body (`![alt](document:id)`) into
   /// embeds on the cache. A target that is not content (a link, a mention)
@@ -72,7 +84,12 @@ final class ChatBodyHost {
   /// Which stickers this screen already played.
   final StickerPlayMemory plays;
 
+  /// How large a lone sticker or GIF is drawn.
+  final ChatMediaSizePolicy mediaSizes;
+
   final ContentKey? Function(ContentKey key) _stickerFor;
+
+  final DescribeContent? _describe;
 
   /// How the sticker of the lone emoji [emoji] plays.
   final ChatStickerPlayback Function(ContentKey emoji) playbackFor;
@@ -88,4 +105,20 @@ final class ChatBodyHost {
       _ => null,
     };
   }
+
+  /// The sticker or GIF [emojiOnly] is, when it is one document the host
+  /// describes as either; null for an emoji (unicode or custom), more than
+  /// one item, or a document the host does not know, which the emoji-only
+  /// policy sizes.
+  ChatMediaItem? mediaOf(EmojiOnly emojiOnly) => switch (emojiOnly.items) {
+    [EmojiOnlyItem(key: final ContentKey$Document key)] => switch (_describe
+        ?.call(key)) {
+      ContentDescriptor(semanticKind: SemanticKind.sticker, :final size) =>
+        ChatMediaItem(kind: ChatMediaKind.sticker, source: size),
+      ContentDescriptor(semanticKind: SemanticKind.gif, :final size) =>
+        ChatMediaItem(kind: ChatMediaKind.gif, source: size),
+      _ => null,
+    },
+    _ => null,
+  };
 }
