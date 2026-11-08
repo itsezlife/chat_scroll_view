@@ -387,6 +387,24 @@ void main() {
       expect(fieldTop(tester), Offset.zero);
     });
 
+    testWidgets('has the clips start under it, never behind it: the panel '
+        'background may be see-through', (tester) async {
+      await pumpLong(tester);
+      final list = find.descendant(
+        of: find.byType(GifPage),
+        matching: find.byType(Scrollable),
+      );
+      double listTop() =>
+          tester.getTopLeft(list.first).dy -
+          tester.getTopLeft(find.byType(GifPage)).dy;
+      expect(listTop(), PanelSearchField.height);
+
+      await tester.drag(find.byType(GifPage), const Offset(0, -300));
+      await settle(tester);
+
+      expect(listTop(), PanelSearchField.height);
+    });
+
     testWidgets('is not there on a page given no search source', (
       tester,
     ) async {
