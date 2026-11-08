@@ -155,7 +155,13 @@ void main() {
 
         expect(
           p.texture,
-          AssetTexture(id: host.liveIds.single, width: 64, height: 64),
+          AssetTexture(
+            id: host.liveIds.single,
+            width: 64,
+            height: 64,
+            frameWidth: 16,
+            frameHeight: 16,
+          ),
         );
       },
     );

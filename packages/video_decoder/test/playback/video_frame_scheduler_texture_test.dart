@@ -110,7 +110,13 @@ void main() {
         final job = writer.inner.batches.first.single;
         expect(
           job.texture,
-          AssetTexture(id: host.liveIds.single, width: 64, height: 64),
+          AssetTexture(
+            id: host.liveIds.single,
+            width: 64,
+            height: 64,
+            frameWidth: 16,
+            frameHeight: 8,
+          ),
         );
         expect((job.width, job.height), (16, 8));
         // Frame 0 of the fake: blue 0, green 0, red 0, alpha 200.
@@ -123,6 +129,18 @@ void main() {
         expect(writer.firstPixels.last, [16, 8, 0, 200]);
       },
     );
+
+    test('the texture names the frame it holds, centred in it', () async {
+      await pool.warm(64, 1);
+      final lease = scheduler.acquire('a', await openClip())!;
+
+      scheduler.want(lease, Duration.zero);
+      await settle();
+
+      final texture = lease.texture!;
+      expect((texture.width, texture.height), (64, 64));
+      expect((texture.frameWidth, texture.frameHeight), (16, 8));
+    });
 
     test('the texture shows only after its first post', () async {
       await pool.warm(64, 1);

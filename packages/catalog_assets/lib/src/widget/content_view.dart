@@ -2,6 +2,7 @@ import 'package:catalog_assets/src/asset/asset_binding.dart';
 import 'package:catalog_assets/src/asset/asset_cache_scope.dart';
 import 'package:catalog_assets/src/asset/asset_preset.dart';
 import 'package:catalog_assets/src/asset/asset_readiness.dart';
+import 'package:catalog_assets/src/asset/asset_texture.dart';
 import 'package:catalog_assets/src/asset/radial_progress.dart';
 import 'package:catalog_assets/src/widget/asset_cache_provider.dart';
 import 'package:content_model/content_model.dart';
@@ -32,6 +33,15 @@ import 'package:flutter/widgets.dart';
 /// The view shows its binding only while a [TickerMode] above it is enabled,
 /// so a hidden route or an offstage page stops its animation. An animated
 /// preset gets its own repaint boundary, because every frame repaints it.
+///
+/// ## Texture
+///
+/// The view composites: a playing asset whose frames go to a platform
+/// texture (`AssetPaintable.texture`, ADR 043) is a texture layer at the box,
+/// placed as the profile's fit says and clipped to the box for a cover fit or
+/// a corner radius, and is not painted. The view advances an animated
+/// paintable before it reads the texture, which is what tells the paintable
+/// that a surface that composites shows it.
 ///
 /// ## Scope
 ///
@@ -211,6 +221,10 @@ class _RenderContent extends RenderBox {
        _ticking = ticking;
 
   AssetBinding _binding;
+  // Whether the paintable plays, so that it may come as a texture layer: the
+  // view then needs compositing, so a clip or an opacity above it applies to
+  // the layer.
+  bool _playing = false;
   Size _preferredSize;
   Color? _tint;
   double _opacity;
@@ -219,10 +233,10 @@ class _RenderContent extends RenderBox {
 
   set binding(AssetBinding value) {
     if (identical(_binding, value)) return;
-    if (attached) _binding.removeListener(markNeedsPaint);
+    if (attached) _binding.removeListener(_bindingChanged);
     _binding = value;
-    if (attached) _binding.addListener(markNeedsPaint);
-    markNeedsPaint();
+    if (attached) _binding.addListener(_bindingChanged);
+    _bindingChanged();
   }
 
   set preferredSize(Size value) {
@@ -260,14 +274,26 @@ class _RenderContent extends RenderBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _binding.addListener(markNeedsPaint);
+    _binding.addListener(_bindingChanged);
+    _playing = _binding.paintable.isAnimated;
   }
 
   @override
   void detach() {
-    _binding.removeListener(markNeedsPaint);
+    _binding.removeListener(_bindingChanged);
     super.detach();
   }
+
+  void _bindingChanged() {
+    markNeedsPaint();
+    final playing = _binding.paintable.isAnimated;
+    if (playing == _playing) return;
+    _playing = playing;
+    markNeedsCompositingBitsUpdate();
+  }
+
+  @override
+  bool get alwaysNeedsCompositing => _playing;
 
   @override
   Size computeDryLayout(BoxConstraints constraints) =>
@@ -280,13 +306,58 @@ class _RenderContent extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    _binding.paint(
-      context.canvas,
-      offset & size,
-      tint: _tint,
-      opacity: _opacity,
+    final box = offset & size;
+    final paintable = _binding.paintable;
+    if (paintable.isAnimated) {
+      // The texture is taken or given back by the advance, so it is read
+      // after it; the paint below, at the same time, adds nothing played.
+      _binding.advancePlayback();
+      final texture = paintable.texture;
+      if (texture != null) {
+        _composite(context, texture, box);
+        return;
+      }
+    }
+    _binding.paint(context.canvas, box, tint: _tint, opacity: _opacity);
+    _paintLoading(context.canvas, box);
+  }
+
+  // The texture as a layer of its own, after what was painted before it. A
+  // texture layer cannot crop or fade, so a cover fit or a corner radius
+  // gets a clip layer and an opacity below one an opacity layer.
+  void _composite(PaintingContext context, AssetTexture texture, Rect box) {
+    final profile = _binding.profile;
+    final placed = profile.fit.placeTexture(texture, box);
+    void layer(PaintingContext context, Offset _) => context.addLayer(
+      TextureLayer(rect: placed.rect, textureId: texture.id),
     );
-    _paintLoading(context.canvas, offset & size);
+
+    void faded(PaintingContext context, Offset offset) {
+      if (_opacity >= 1) return layer(context, offset);
+      context.pushOpacity(Offset.zero, (_opacity * 255).round(), layer);
+    }
+
+    void clipped(PaintingContext context, Offset offset) {
+      final clip = placed.clip;
+      if (clip == null) return faded(context, offset);
+      context.pushClipRect(true, Offset.zero, clip, faded);
+    }
+
+    final radius = profile.cornerRadius;
+    if (radius > 0) {
+      context.pushClipRRect(
+        true,
+        Offset.zero,
+        box,
+        RRect.fromRectXY(box, radius, radius),
+        clipped,
+      );
+    } else {
+      clipped(context, Offset.zero);
+    }
+    // Nothing fades in over the thumbnail here: content painted opaque lets
+    // go of it, as a paint would.
+    if (_opacity >= 1) _binding.releaseStandIn();
   }
 
   // Over the stand-in and the thumbnail, until a frame of the content exists.

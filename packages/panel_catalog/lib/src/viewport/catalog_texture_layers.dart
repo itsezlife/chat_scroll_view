@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/rendering.dart';
 
@@ -21,7 +19,7 @@ typedef _TextureCell = ({int id, Rect rect, Rect? clip, double opacity});
 ///
 /// Opacity below one wraps the texture layer in an opacity layer; a cover fit
 /// crops through a clip layer of the box, since a texture layer always shows
-/// its whole texture.
+/// its whole texture (`AssetFit.placeTexture`).
 final class CatalogTextureLayers {
   final List<_TextureCell> _cells = [];
 
@@ -38,30 +36,13 @@ final class CatalogTextureLayers {
     double pressScale = 1,
     double opacity = 1,
   }) {
-    final size = Size(texture.width.toDouble(), texture.height.toDouble());
-    final scaledBox = _scaled(box, anchor, pressScale);
-    final Rect rect;
-    Rect? clip;
-    switch (fit) {
-      case AssetFit.contain:
-        rect = fit.place(size, scaledBox).destination;
-      case AssetFit.cover:
-        // The whole texture at the scale that covers the box, centred on it;
-        // the box clips what overflows.
-        final scale = scaledBox.isEmpty || size.isEmpty
-            ? 0.0
-            : math.max(
-                scaledBox.width / size.width,
-                scaledBox.height / size.height,
-              );
-        rect = Rect.fromCenter(
-          center: scaledBox.center,
-          width: size.width * scale,
-          height: size.height * scale,
-        );
-        clip = scaledBox;
-    }
-    _cells.add((id: texture.id, rect: rect, clip: clip, opacity: opacity));
+    final placed = fit.placeTexture(texture, _scaled(box, anchor, pressScale));
+    _cells.add((
+      id: texture.id,
+      rect: placed.rect,
+      clip: placed.clip,
+      opacity: opacity,
+    ));
   }
 
   /// Adds the queued textures as layers to [context] inside [clipRect] (in
