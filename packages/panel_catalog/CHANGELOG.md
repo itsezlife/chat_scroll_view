@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (small cells at half rate)
+
+- A leaf is attached as `AssetPresets.keyboardCell` of its content box: a
+  playing leaf of at most 90 logical px (a sticker cell, a custom emoji) plays
+  at half rate and decodes at most 160 px on a side, so an open sticker grid
+  renders and posts half the frames it did. A still leaf, and a leaf above
+  90 px, is asked for as before.
+
 ### Changed (GIF cover)
 
 - A GIF leaf fills its content box and is cropped at the edge instead of

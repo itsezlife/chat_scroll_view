@@ -30,6 +30,7 @@ final class AssetProfile {
     this.autoplayFirstFrame = true,
     this.cornerRadius = 0,
     this.fit = AssetFit.contain,
+    this.halfFrameRate = false,
   }) : assert(cornerRadius >= 0, 'A corner radius cannot be negative.');
 
   /// Whether the surface wants the asset to play when it is visible and no
@@ -69,6 +70,25 @@ final class AssetProfile {
   /// crop when one replaces the other.
   final AssetFit fit;
 
+  /// Whether a playing asset shows only every second frame of a source
+  /// authored above [halfFrameRateAbove] fps: 30 fps for a 60 fps animation.
+  ///
+  /// For a surface that draws assets small (a cell of a content grid), where
+  /// 60 fps is not visibly smoother and each frame costs a render and a post
+  /// per asset: a grid of 25 playing stickers posts 1500 frames a second at
+  /// full rate. The reference client does the same for stickers drawn at up
+  /// to 90 dp (`limitFps`, every second frame). Unlike the fps cap of the
+  /// playback policy, which only spaces a binding's repaints, this changes
+  /// the frames asked for, so a surface that repaints every frame for other
+  /// reasons still renders half of them. A source at 30 fps or below plays
+  /// every frame. An entry shared by a surface at half rate and one at full
+  /// rate shows the frames of whichever painted last.
+  final bool halfFrameRate;
+
+  /// The source frame rate above which [halfFrameRate] skips every second
+  /// frame.
+  static const double halfFrameRateAbove = 30;
+
   @override
   bool operator ==(Object other) =>
       other is AssetProfile &&
@@ -77,7 +97,8 @@ final class AssetProfile {
       other.restFrame == restFrame &&
       other.autoplayFirstFrame == autoplayFirstFrame &&
       other.cornerRadius == cornerRadius &&
-      other.fit == fit;
+      other.fit == fit &&
+      other.halfFrameRate == halfFrameRate;
 
   @override
   int get hashCode => Object.hash(
@@ -87,10 +108,12 @@ final class AssetProfile {
     autoplayFirstFrame,
     cornerRadius,
     fit,
+    halfFrameRate,
   );
 
   @override
   String toString() =>
       'AssetProfile(animate: $animate, loop: $loop, '
-      'restFrame: ${restFrame.name}, autoplayFirstFrame: $autoplayFirstFrame, cornerRadius: $cornerRadius, fit: ${fit.name})';
+      'restFrame: ${restFrame.name}, autoplayFirstFrame: $autoplayFirstFrame, cornerRadius: $cornerRadius, fit: ${fit.name}, '
+      'halfFrameRate: $halfFrameRate)';
 }

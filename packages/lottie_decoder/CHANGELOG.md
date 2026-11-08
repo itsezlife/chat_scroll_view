@@ -5,6 +5,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (half frame rate)
+
+- `LottieAnimationPaintable` honours `AssetPaintContext.halfFrameRate`: an
+  animation above 30 fps asks only for the even frames of a pass, so a small
+  sticker in a content grid renders and posts 30 frames a second instead of
+  60, on a page slot and on a texture alike. Paints at full rate are
+  unchanged.
+
 ### Changed (disk budget optional)
 
 - `FrameCache.diskBudgetBytes` may be null: the disk tier then evicts

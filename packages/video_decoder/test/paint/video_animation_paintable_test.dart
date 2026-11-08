@@ -116,6 +116,80 @@ void main() {
     clock.dispose();
   });
 
+  group('VideoAnimationPaintable at half frame rate', () {
+    // 60 fps, 8 frames; the fake's blue is 16 times the frame index.
+    final bytes60 = Uint8List.fromList([6, 0]);
+    const info60 = VideoInfo(
+      width: 16,
+      height: 16,
+      duration: Duration(milliseconds: 133),
+      frameRate: 60,
+      hasAlpha: true,
+    );
+    late FrameTexturePool pool;
+    late _IndexRecordingWriter writer;
+
+    setUp(() async {
+      scheduler.dispose();
+      pool = FrameTexturePool(
+        host: FakeFrameTextureHost(),
+        sizeClasses: const [64],
+      );
+      await pool.warm(64, 1);
+      writer = _IndexRecordingWriter();
+      scheduler = VideoFrameScheduler(
+        engine: engine,
+        atlas: VideoFrameAtlas.create(
+          upload: (pixels, side) async => _solid(0xFF000000, side: 4),
+          sizeClasses: const [64],
+        ),
+        clock: clock,
+        textures: pool,
+        textureWriter: writer,
+        startTimer: timers.start,
+      );
+      engine.accept(bytes60, info60, frameCount: 8);
+      clip =
+          ((await engine.open(bytes60, width: 16, height: 16))
+                  as VideoClipOpened)
+              .clip;
+    });
+    tearDown(() => pool.dispose());
+
+    Future<List<int>> posted({required bool halfFrameRate}) async {
+      final p = paintable();
+      for (var ms = 0; ms <= 260; ms += 16) {
+        final context = AssetPaintContext(
+          time: Duration(milliseconds: ms),
+          halfFrameRate: halfFrameRate,
+        );
+        p
+          ..advancePlayback(context)
+          ..paint(
+            _RecordingCanvas(),
+            const Rect.fromLTWH(0, 0, 16, 16),
+            context,
+          );
+        await tick();
+      }
+      p.dispose();
+      return writer.indices;
+    }
+
+    test('posts only every second frame of a 60 fps clip', () async {
+      final indices = await posted(halfFrameRate: true);
+
+      expect(indices, isNotEmpty);
+      expect(indices.where((index) => index.isOdd), isEmpty);
+    });
+
+    test('at full rate it posts the odd frames too', () async {
+      final indices = await posted(halfFrameRate: false);
+
+      expect(indices.where((index) => index.isOdd), isNotEmpty);
+    });
+  });
+
   group('VideoAnimationPaintable with a texture free', () {
     late FakeFrameTextureHost host;
     late FrameTexturePool pool;
@@ -405,4 +479,19 @@ void main() {
       expect(pixel, [closeTo(55, 2), closeTo(71, 2), closeTo(87, 2), 255]);
     });
   });
+}
+
+/// Posts every job and keeps the index of the fake's frame it carried (its
+/// blue over 16), read from the source while the job is being written.
+final class _IndexRecordingWriter implements TextureFrameWriter {
+  final List<int> indices = [];
+
+  @override
+  Future<List<TextureFrameOutcome>> write(List<TextureFrameJob> jobs) async {
+    for (final job in jobs) {
+      final source = job.source as VideoFrameSource;
+      indices.add(source.pixelsOf(job.frame)!.first ~/ 16);
+    }
+    return [for (final _ in jobs) TextureFrameOutcome.posted];
+  }
 }

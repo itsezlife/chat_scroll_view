@@ -14,7 +14,8 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Amended**: 2026-11-09 (native-media ticket 87): a binding can be **held** by its surface, and nothing plays while the panel moves (section *Amendment: held surfaces and the panel's motion*)  
 **Amended**: 2026-11-09 (native-media ticket 90): content that arrives after the attach fades in on every surface, a texture included (section *Amendment: arrival fade*)  
 **Amended**: 2026-11-09 (native-media ticket 91): a host keeps its media disk tiers in one store, kept by last use rather than by a budget per tier (section *Amendment: one media disk store*)  
-**Amended**: 2026-11-09 (native-media ticket 94): the fetcher reports the bytes of a download and a binding exposes the fraction, null when nothing downloads; the download indicator shows only then (section *Amendment: download progress*)
+**Amended**: 2026-11-09 (native-media ticket 94): the fetcher reports the bytes of a download and a binding exposes the fraction, null when nothing downloads; the download indicator shows only then (section *Amendment: download progress*)  
+**Amended**: 2026-11-09 (native-media ticket 96): a small playing cell plays at half rate and decodes at most 160 px (section *Amendment: half frame rate*)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -224,4 +225,23 @@ cached file.
 | Binding | `AssetBinding.downloadProgress`: the entry's fraction from the first report until the attempt ends (its final stage, a failure or a cancel), signalled on change; null otherwise, so a memory hit, a disk hit, a glyph and a detached binding read null. A borrowed sibling stage (*Amendment: sibling stages*) does not bring the sibling's download along. A failed download clears it: the cell keeps its placeholder with no loader, as for any failure. |
 | Indicator | `RadialProgress` is one stateful indicator per download, a port of the reference's `MediaActionDrawable` in its `ICON_EMPTY` state (a bare arc in the disc, no cross): it starts at 112 degrees with the progress first seen shown at once, sweeps `max(4, 360 * shown)` degrees, turns 360 degrees per 2500 ms with a frame counting at most 17 ms, eases a higher fraction from the arc shown over 200 ms with a decelerate curve, and shows a lower one at once. |
 | Where | `ContentView` (`loadingRadius`) and the catalogue viewport's GIF leaves draw it only while the binding's download is non-null and the content has no frame; each keeps its own indicator (the viewport beside each binding) and drops it when the download ends. |
+
+## Amendment: half frame rate
+
+The playback row's fps cap by spec size spaces a binding's own repaints, but a
+surface that repaints for any of its bindings (the catalogue viewport repaints
+every cell when one ticks) advanced every paintable at the union of their
+cadences: an open, untouched sticker panel made about 1450 texture posts a
+second, 25 stickers at 60 fps, and heated the device until it throttled. The
+reference client renders a sticker drawn at up to 90 dp at 160 px at most and
+every second frame (`limitFps`; an animation below 60 fps is not limited).
+
+| Area | Decision |
+| ---- | -------- |
+| Knob | `AssetProfile.halfFrameRate`, per attach like the rest of the profile, carried to the paintable by `AssetPaintContext.halfFrameRate`. One rule for every frame sequence: `AssetPaintContext.frameStepFor(sourceFps)` is 2 at half rate for a source above 30 fps (`AssetProfile.halfFrameRateAbove`), else 1; an unknown rate plays every frame. It changes the frames asked for, not the repaints, so it holds however often a surface paints. |
+| Presets | `AssetPresets.keyboardCell` sets it for a playing cell of at most 90 logical px (`smallCellExtent`) and caps that cell's decode at 160 px on a side (`smallCellPixels`), whatever the density. A still cell keeps its full pixels and is unaffected. The catalogue viewport attaches every leaf as a keyboard cell of its content box (sticker cells, custom emoji, GIF leaves of a small grid), and the pack strip's covers already were one. The chat's presets (`inlineMessage`, `inlineFontSize`, `emojiOnly`, `emojiSticker`, `media`) never set it. |
+| Lottie | The paintable asks only for the even frames of a pass (the frame ahead rounded down to the step), so a want changes at most every second source frame and the scheduler renders it, into a page slot or a texture, half as often. A want repeated for the frame already sent is free, as before. A loop wraps from the last even frame to frame 0. |
+| Video | The paintable passes the step of the clip's declared rate to `VideoFrameScheduler.want(frameStep:)`. The clip keeps the first decoded frame of each pass and every second one after it; the frames between are decoded (decoding is sequential) and dropped before the ring, so they are never drawn or posted. Pass length and timing still count every frame. |
+| Shared entries | One paintable serves every binding of an entry. A surface at half rate and one at full rate on the same entry ask for frames in turn, so the entry shows the frames of the last paint. Accepted: a small cell and the chat rarely share a spec, and the cap at 160 px makes a small playing cell an entry of its own in most cases. |
+| Not replicated | The reference client's exact threshold (half rate only from 60 fps): here a 31 to 59 fps Lottie also halves, so one rule covers Lottie and video. Its `nolimit` filter, which exempts a surface: a host that wants full rate in a small cell builds its own preset with `halfFrameRate` false. |
 

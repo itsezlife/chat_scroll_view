@@ -35,6 +35,12 @@ import 'package:video_decoder/src/playback/video_frame_scheduler.dart';
 /// backwards, adds nothing, because the clock stood still while paused and then
 /// jumped by the pause ("freeze and continue").
 ///
+/// ## Half frame rate
+///
+/// A paint at half rate (`AssetPaintContext.frameStepFor` is 2 for the clip's
+/// declared rate, which is above 30 fps) tells the scheduler to show only
+/// every second decoded frame. A clip that declares no rate plays every frame.
+///
 /// ## One pass, then a rest frame
 ///
 /// A paint that does not loop plays the clip once. When it has played to its
@@ -165,7 +171,12 @@ final class VideoAnimationPaintable extends AssetPaintable {
       if (lease == null) return;
       lease.kept = _keep;
     }
-    _scheduler.want(lease, _playedAt(context.time), onCanvas: onCanvas);
+    _scheduler.want(
+      lease,
+      _playedAt(context.time),
+      onCanvas: onCanvas,
+      frameStep: context.frameStepFor(_clip.info.frameRate),
+    );
     if (!context.loop && lease.isPassComplete) {
       _holding = true;
       if (context.restFrame == AssetRestFrame.last) {
