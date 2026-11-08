@@ -205,6 +205,26 @@ void main() {
       expect(p.sprite, isNull);
     });
 
+    // Ticket 100: a sibling binding borrows the first frame, never the frame
+    // the loop is at.
+    test('lends its first frame as a still, mid-loop too', () async {
+      final still = _image(8);
+      final p = make(still: still);
+      await paintAndSettle(p, at(0));
+      await paintAndSettle(p, at(frame.inMilliseconds * 5));
+
+      final lent = p.firstFrame;
+      final canvas = _RecordingCanvas();
+      lent.paint(
+        canvas,
+        const Rect.fromLTWH(0, 0, 100, 50),
+        const AssetPaintContext(),
+      );
+
+      expect(lent.isAnimated, isFalse);
+      expect(canvas.draws.single.image, same(still));
+    });
+
     test('asks for the frame after the one its time names', () async {
       final p = make();
       await paintAndSettle(p, at(5000));
