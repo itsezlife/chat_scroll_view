@@ -10,12 +10,12 @@ import 'package:swipe_pager/swipe_pager.dart';
 void main() {
   late SwipePagerController controller;
   late List<ScrollController> lists;
-  late ScrollController strip;
+  late List<ScrollController> strips;
 
   setUp(() {
     controller = SwipePagerController();
     lists = [for (var i = 0; i < 3; i++) ScrollController()];
-    strip = ScrollController();
+    strips = [for (var i = 0; i < 3; i++) ScrollController()];
   });
 
   tearDown(() {
@@ -23,7 +23,9 @@ void main() {
     for (final list in lists) {
       list.dispose();
     }
-    strip.dispose();
+    for (final strip in strips) {
+      strip.dispose();
+    }
   });
 
   Widget page(int index) => Column(
@@ -32,7 +34,7 @@ void main() {
         height: 100,
         child: ListView(
           key: ValueKey('strip $index'),
-          controller: index == 0 ? strip : null,
+          controller: strips[index],
           scrollDirection: Axis.horizontal,
           children: [
             for (var i = 0; i < 30; i++)
@@ -245,7 +247,79 @@ void main() {
       await slowDrag(tester, 0, 300, start: const Offset(400, 50));
 
       expect(controller.page, 0);
-      expect(strip.offset, greaterThan(0));
+      expect(strips[0].offset, greaterThan(0));
+    });
+
+    testWidgets('at its start edge hands a drag toward the start to the '
+        'pager', (tester) async {
+      controller.dispose();
+      controller = SwipePagerController(initialPage: 1);
+      await pump(tester);
+      await slowDrag(tester, 0, 400, start: const Offset(400, 50), sign: 1);
+
+      expect(controller.page, 0);
+    });
+
+    testWidgets('scrolled from its start edge keeps a drag toward the start', (
+      tester,
+    ) async {
+      controller.dispose();
+      controller = SwipePagerController(initialPage: 1);
+      await pump(tester);
+      strips[1].jumpTo(600);
+      await tester.pump();
+      await slowDrag(tester, 0, 400, start: const Offset(400, 50), sign: 1);
+
+      expect(controller.page, 1);
+      expect(strips[1].offset, lessThan(600));
+    });
+
+    testWidgets('at its end edge hands a drag toward the end to the pager', (
+      tester,
+    ) async {
+      await pump(tester);
+      strips[0].jumpTo(strips[0].position.maxScrollExtent);
+      await tester.pump();
+      await slowDrag(tester, 0, 400, start: const Offset(400, 50));
+
+      expect(controller.page, 1);
+    });
+
+    testWidgets('at its end edge hands a trackpad pan toward the end to the '
+        'pager', (tester) async {
+      await pump(tester);
+      strips[0].jumpTo(strips[0].position.maxScrollExtent);
+      await tester.pump();
+      await slowDrag(
+        tester,
+        0,
+        400,
+        start: const Offset(400, 50),
+        kind: PointerDeviceKind.trackpad,
+      );
+
+      expect(controller.page, 1);
+    });
+
+    testWidgets('at its start edge right to left hands a leftward drag to '
+        'the pager', (tester) async {
+      controller.dispose();
+      controller = SwipePagerController(initialPage: 1);
+      await pump(tester, direction: TextDirection.rtl);
+      await slowDrag(tester, 0, 400, start: const Offset(400, 50));
+
+      expect(controller.page, 0);
+      expect(strips[1].offset, 0);
+    });
+
+    testWidgets('right to left keeps a rightward drag it can scroll', (
+      tester,
+    ) async {
+      await pump(tester, direction: TextDirection.rtl);
+      await slowDrag(tester, 0, 300, start: const Offset(400, 50), sign: 1);
+
+      expect(controller.page, 0);
+      expect(strips[0].offset, greaterThan(0));
     });
   });
 

@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -423,7 +425,8 @@ class _PagerView {
 /// [SwipePagerPhysics.crossAxisSlop] across: a vertical scrollable in a
 /// page keeps every drag more than about 23 degrees off the horizontal, and
 /// a nested horizontal scroller keeps the drags that start on it (its slop
-/// is never above the pager's). A quick flick under the slop still swipes
+/// is never above the pager's) unless it is at its edge that way: then the
+/// pager takes the drag. A quick flick under the slop still swipes
 /// when it is fast enough. The first and last page do not swipe outward and
 /// there is no overscroll; a drag moves at most one page. A touch on a
 /// settling pager catches it and drags it on.
@@ -518,6 +521,10 @@ class _SwipePagerState extends State<SwipePager>
     with SingleTickerProviderStateMixin {
   SwipePagerController? _own;
   late SwipePagerController _controller;
+  late final SwipeDragRecognizer _recognizer = SwipeDragRecognizer(
+    debugOwner: this,
+    supportedDevices: widget.dragDevices,
+  );
 
   /// The pages built, kept or on screen.
   final _built = <int>{};
@@ -558,6 +565,7 @@ class _SwipePagerState extends State<SwipePager>
       }
     }
     if (widget.keepAlive != oldWidget.keepAlive) _prune();
+    _recognizer.supportedDevices = widget.dragDevices;
     _showVisible();
   }
 
@@ -584,6 +592,7 @@ class _SwipePagerState extends State<SwipePager>
   void dispose() {
     _unbind();
     _own?.dispose();
+    _recognizer.dispose();
     super.dispose();
   }
 
@@ -656,6 +665,7 @@ class _SwipePagerState extends State<SwipePager>
   void _configure(SwipeDragRecognizer recognizer) {
     final controller = _controller;
     recognizer
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
       ..physics = widget.physics
       ..devicePixelRatio = devicePixelRatio
       ..canMove = ((dx) =>
@@ -699,6 +709,7 @@ class _SwipePagerState extends State<SwipePager>
     final canLeft = page + leftward >= 0 && page + leftward < pageCount;
     final canRight = page - leftward >= 0 && page - leftward < pageCount;
     final pages = [..._built]..sort();
+    _configure(_recognizer);
     return Semantics(
       container: true,
       explicitChildNodes: true,
@@ -709,18 +720,8 @@ class _SwipePagerState extends State<SwipePager>
         canRequestFocus: widget.focusable,
         skipTraversal: !widget.focusable,
         onKeyEvent: _onKey,
-        child: RawGestureDetector(
-          behavior: HitTestBehavior.opaque,
-          gestures: {
-            SwipeDragRecognizer:
-                GestureRecognizerFactoryWithHandlers<SwipeDragRecognizer>(
-                  () => SwipeDragRecognizer(
-                    debugOwner: this,
-                    supportedDevices: widget.dragDevices,
-                  ),
-                  _configure,
-                ),
-          },
+        child: _SwipeRegion(
+          recognizer: _recognizer,
           child: ClipRect(
             clipBehavior: widget.clipBehavior,
             child: Stack(
@@ -812,5 +813,96 @@ class _PageSlotState extends State<_PageSlot> {
         ),
       ),
     );
+  }
+}
+
+// --- Gesture region -----------------------------------------------------
+
+/// Where the pager's drags start: it hands each down to the recognizer, and
+/// shows it each move before any recognizer handles the move.
+///
+/// A `RawGestureDetector` would add the pointer the same way, but its
+/// recognizers see a move only through the pointer router, after every
+/// recognizer nested in the page; a nested horizontal scroller would claim
+/// at its slop before the pager could learn it sits at its edge. Hit-test
+/// targets get each event before the router, so the region looks first.
+class _SwipeRegion extends SingleChildRenderObjectWidget {
+  const _SwipeRegion({required this.recognizer, required super.child});
+
+  final SwipeDragRecognizer recognizer;
+
+  @override
+  _RenderSwipeRegion createRenderObject(BuildContext context) =>
+      _RenderSwipeRegion(recognizer);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderSwipeRegion renderObject,
+  ) => renderObject.recognizer = recognizer;
+}
+
+class _RenderSwipeRegion extends RenderProxyBoxWithHitTestBehavior {
+  _RenderSwipeRegion(this.recognizer) : super(behavior: HitTestBehavior.opaque);
+
+  SwipeDragRecognizer recognizer;
+
+  @override
+  void handleEvent(PointerEvent event, HitTestEntry entry) {
+    switch (event) {
+      case PointerDownEvent():
+        recognizer.addPointer(event);
+      case PointerPanZoomStartEvent():
+        recognizer.addPointerPanZoom(event);
+      case PointerMoveEvent() || PointerPanZoomUpdateEvent():
+        recognizer.preview(event, nestedAtEdge: _nestedAtEdge);
+      default:
+    }
+  }
+
+  /// Whether a horizontal scroller that takes drags is under the global
+  /// [position], and none of those there can scroll a drag by the
+  /// screen-space horizontal [delta]: each is at its edge that way.
+  ///
+  /// A scroller is found by its viewport in a fresh hit test of the pages,
+  /// so the scrollers need no registration; one whose content fits, or whose
+  /// physics refuse the user, takes no drags and does not count. A scroller
+  /// that is not a sliver viewport (a `SingleChildScrollView`) is not seen
+  /// and keeps its drags.
+  bool _nestedAtEdge(Offset position, double delta) {
+    final child = this.child;
+    if (child == null || !attached) return false;
+    final result = BoxHitTestResult();
+    child.hitTest(result, position: globalToLocal(position));
+    var nested = false;
+    for (final entry in result.path) {
+      if (entry.target case RenderViewportBase(
+        axis: Axis.horizontal,
+        :final axisDirection,
+        offset: final ScrollPosition scroll,
+      ) when scroll.physics.shouldAcceptUserOffset(scroll)) {
+        if (_scrolls(scroll, axisDirection, delta)) return false;
+        nested = true;
+      }
+    }
+    return nested;
+  }
+
+  /// Whether [scroll], laid out along [axisDirection], has content left to
+  /// bring in by a drag of the screen-space horizontal [delta].
+  static bool _scrolls(
+    ScrollPosition scroll,
+    AxisDirection axisDirection,
+    double delta,
+  ) {
+    // A finger moving right drags the content right: toward the start of a
+    // viewport laid out to the right, the end of one laid out to the left.
+    final toward = switch (axisDirection) {
+      AxisDirection.right => -delta,
+      AxisDirection.left => delta,
+      AxisDirection.up || AxisDirection.down => 0.0,
+    };
+    final room = toward > 0 ? scroll.extentAfter : scroll.extentBefore;
+    return room > precisionErrorTolerance;
   }
 }
