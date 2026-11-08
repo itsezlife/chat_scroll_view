@@ -64,10 +64,13 @@ Future<ui.Image> _imageFromPixels(Uint8List pixels, int width, int height) {
 ///
 /// ## What an entry costs
 ///
-/// The `full` stage reports the first frame (`width * height * 4`) plus four
-/// times the encoded size for the parsed model, the estimate the web client
-/// uses. The handle's real footprint lives in the native library and is not
-/// visible here.
+/// The `full` stage reports the first-frame still (`width * height * 4`)
+/// plus the encoded size once, for the parsed model. The handle's real
+/// footprint lives in the native library and is not visible here; the file's
+/// own size is the estimate. Four times it (the web client's figure) charged
+/// a 160 px cell of a 181 KB sticker 0.8 MiB, so a screen of them was more
+/// than the animated budget and nothing scrolled out was kept. The frames on
+/// screen live in leased slots and textures, budgeted by their pools.
 ///
 /// ## Above the largest size class
 ///
@@ -318,7 +321,7 @@ final class _LottieDecode implements AssetTask {
                 ),
           onDispose: () => _release(handle),
         ),
-        bytes: frameBytes + 4 * bytes.length,
+        bytes: frameBytes + bytes.length,
         tier: AssetTier.animated,
       );
   }

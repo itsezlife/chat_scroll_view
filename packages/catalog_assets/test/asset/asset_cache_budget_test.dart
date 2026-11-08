@@ -46,10 +46,58 @@ void main() {
   }
 
   group('defaults', () {
-    test('are 24 MiB of stills and 12 MiB of animations', () {
+    test('are 24 MiB of stills and 32 MiB of animations', () {
       expect(AssetCacheBudgets.defaults.stillBytes, 24 * 1024 * 1024);
-      expect(AssetCacheBudgets.defaults.animatedBytes, 12 * 1024 * 1024);
+      expect(AssetCacheBudgets.defaults.animatedBytes, 32 * 1024 * 1024);
       expect(AssetCacheBudgets.defaults.of(AssetTier.still), 24 * 1024 * 1024);
+    });
+  });
+
+  // Ticket 100: a kept panel pins the attach windows of its sticker page
+  // (35 cells of a 181 KB Lottie at 160 px: one still plus the file) and of
+  // its emoji page (64 playing WebP emoji at 99 px: three frames plus the
+  // file); a screen of stickers scrolled out on top of that must stay, with
+  // its position, for the scroll back.
+  group('the default animated budget', () {
+    const sticker = 160 * 160 * 4 + 181000;
+    const emoji = 99 * 99 * 4 * 3 + 8000;
+
+    test('keeps a scrolled-out sticker screen beside a kept panel', () {
+      final defaults = AssetCacheScope(
+        producer: producer,
+        clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
+      );
+      addTearDown(defaults.dispose);
+      AssetBinding cell(int n, int bytes) {
+        final binding = defaults.attach(_id(n), _spec, _profile);
+        if (!binding.readiness.isFinal) {
+          producer.last.advance(
+            AssetStage.full,
+            bytes: bytes,
+            tier: AssetTier.animated,
+            animated: true,
+          );
+        }
+        return binding;
+      }
+
+      for (var n = 0; n < 35; n++) {
+        cell(n, sticker);
+      }
+      for (var n = 100; n < 164; n++) {
+        cell(n, emoji);
+      }
+      final scrolledOut = [for (var n = 200; n < 235; n++) cell(n, sticker)];
+      final shown = [for (final b in scrolledOut) b.paintable];
+      for (final binding in scrolledOut) {
+        binding.detach();
+      }
+
+      for (var i = 0; i < 35; i++) {
+        final back = defaults.attach(_id(200 + i), _spec, _profile);
+        expect(back.paintable, same(shown[i]), reason: 'cell ${200 + i}');
+      }
+      expect(producer.attempts, hasLength(35 + 64 + 35));
     });
   });
 

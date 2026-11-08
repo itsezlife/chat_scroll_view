@@ -210,3 +210,17 @@ and no way to another page.
 | Default | Null takes `PanelSearchExit.forPlatform(defaultTargetPlatform)`: `cancel` on iOS, `back` on every other platform. The shell reads the platform for this and for nothing else: the arrangement still does not. An enum, not a `$Mobile` / `$Desktop` policy: the variants carry no data and differ by one control. |
 | Cancel | Regular 17 px text (`PanelSearchField.cancelFontSize`) in the palette's accent, 8 px after the pill (`cancelSpacing`), the pill keeping its 10 px margin at the far end; the pill narrows over the `search` motion role and the text is uncovered from the pill's end as it does, as the reference's button sits past the pill and is revealed by its shrinking. Pressed it dims to 0.4 at once and returns over the `fade` role (the reference's 0.2 s). Spoken and labelled with `PanelStrings.cancelAction`, the reference's `Common_Cancel`. |
 | Not ported | The reference iOS client's arrow in the leading icon does not clear text (a tap there focuses the field, or clears a chosen category); ours clears under both exits. The reference Android client's back state also shows while a category of its strip is chosen or scrolled: the strip is the page's, and the shell's icon follows the query only. |
+
+## Amendment: the pager keeps its pages
+
+Native-media ticket 100. The pager built pages lazily and dropped the ones off
+screen, so a type tab switched away from detached every cell, and its stickers
+reloaded and restarted on return. The reference mobile client keeps every
+page of its pager, with its list, for the life of the panel.
+
+| Area | Decision |
+| ---- | -------- |
+| Keep-alive | A page the pager has built stays alive (`AutomaticKeepAlive`) for the life of the pager, so the pages kept are at most the registered ones. The registry still holds what a page must restore after the shell itself is rebuilt. |
+| Off screen | A page that is not on screen (more than a page away from the pager's position) is under `TickerMode(enabled: false)`; a page during a swipe is on screen. The one signal a subtree has that it is not live is the framework's own. |
+| Catalogue | A catalogue viewport whose tickers are off holds its playback: every binding is `held` (its frame and its lease stay, [ADR 022](022-asset-cache-and-media-pipeline.md) *held surfaces*), and the binding set only grows: a leaf that leaves the attach window keeps its binding until the tickers are on again, so a layout at another size (a panel that shrinks while it closes) detaches nothing. Back on, the next sync plays the bindings from their frames and detaches the ones outside the window. The render object also keeps its bindings through a detach followed by an attach in the same frame (the move into the pager's keep-alive bucket); a detach that is not followed by one, or a dispose, gives them back. |
+| Memory | What a hidden panel or an off-screen page keeps is its bindings: the entries of its attach window, pinned, and their leases. Bounded by the registered pages times one attach window each. |

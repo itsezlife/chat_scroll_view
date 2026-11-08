@@ -136,14 +136,43 @@ void main() {
       );
     });
 
-    test('a borrowed animation plays for a profile that animates', () {
+    test('a playing sibling lends its first frame, never its live frame', () {
       scope.attach(_gif, _cell, _profile).visible = false;
-      producer.last.advance(AssetStage.full, animated: true);
+      final cell = producer.last.advance(AssetStage.full, animated: true);
 
       final chat = scope.attach(_gif, _chat, const AssetProfile(animate: true));
 
-      expect(chat.isPlaying, isTrue);
-      expect(chat.playback, AssetPlayback.playing);
+      expect(chat.paintable, same(cell.firstFrame));
+      expect(chat.paintable, isNot(same(cell)));
+      expect(chat.readiness, const AssetReadiness(AssetStage.firstFrame));
+      expect(chat.isPlaying, isFalse);
+    });
+
+    test('a playing sibling with no still is not borrowed', () {
+      scope.attach(_gif, _cell, _profile).visible = false;
+      producer.last.advance(
+        AssetStage.full,
+        animated: true,
+        firstFrameStill: false,
+      );
+
+      final chat = scope.attach(_gif, _chat, const AssetProfile(animate: true));
+
+      expect(chat.paintable, same(scope.mediaPlaceholder));
+      expect(chat.readiness, const AssetReadiness(AssetStage.none));
+    });
+
+    test('the borrowed still stays until the entry has its own frame', () {
+      scope.attach(_gif, _cell, _profile).visible = false;
+      final cell = producer.last.advance(AssetStage.full, animated: true);
+      final chat = scope.attach(_gif, _chat, const AssetProfile(animate: true));
+      final chatAttempt = producer.last;
+      chatAttempt.advance(AssetStage.placeholder);
+      expect(chat.paintable, same(cell.firstFrame));
+
+      final own = chatAttempt.advance(AssetStage.firstFrame);
+
+      expect(chat.paintable, same(own));
     });
 
     test('another decode mode or another content is not a sibling', () {

@@ -98,6 +98,10 @@ final class VideoAnimationPaintable extends AssetPaintable {
   @override
   AssetTexture? get texture => _lease?.texture;
 
+  /// The first-frame still this paintable draws while it has no frame.
+  @override
+  AssetPaintable get firstFrame => _still;
+
   @override
   bool get isAnimated => true;
 

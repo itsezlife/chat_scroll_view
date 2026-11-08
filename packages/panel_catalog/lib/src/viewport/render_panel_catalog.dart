@@ -1,4 +1,4 @@
-import 'dart:async' show Completer, Future, unawaited;
+import 'dart:async' show Completer, Future, scheduleMicrotask, unawaited;
 import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -366,6 +366,18 @@ class RenderPanelCatalog extends RenderBox
     _assets = value;
     _pool.replaceScope(value);
     markCatalogNeedsUpdate();
+  }
+
+  /// Whether the body holds its playback: every binding keeps its frame and
+  /// its lease and plays nothing, and none is detached until it is let go
+  /// ([CatalogLeafBindingPool.held]). The widget sets it while its tickers
+  /// are off ([TickerMode]). Let go, the next layout syncs the window again.
+  bool get held => _pool.held;
+  set held(bool value) {
+    if (_pool.held == value) return;
+    _pool.held = value;
+    if (!value) markNeedsLayout();
+    markNeedsPaint();
   }
 
   /// Density of the view this body sits in. Bindings are asked for pixels at
@@ -1351,6 +1363,7 @@ class RenderPanelCatalog extends RenderBox
     // position. A section jump committed while unbound is handed over here.
     _pixels = _controller.offset;
     _controller.attach(this);
+    _releasePending = false;
     // Keep-alive pager leave/return reattaches without a constraint change —
     // force layout so [syncVisible] re-binds before the first paint.
     markNeedsLayout();
@@ -1378,6 +1391,7 @@ class RenderPanelCatalog extends RenderBox
     _drag = null;
     _userDragging = false;
     _stopBakeActivity();
+    _releaseAfterDetach();
     // Back in a tree the same edges are near again and are announced again.
     _proximity.reset();
     _currentSection = null;
@@ -1386,10 +1400,27 @@ class RenderPanelCatalog extends RenderBox
     _press = null;
     _pressTickers?.dispose();
     _pressTickers = null;
-    // Drop every attach so cache refcounts fall when this viewport leaves
-    // the tree — even if the same cache is shared with another surface.
-    _pool.detachAll();
     super.detach();
+  }
+
+  // Whether a detach is waiting to give the bindings back.
+  bool _releasePending = false;
+
+  // Drops every attach so cache refcounts fall when this viewport leaves the
+  // tree, even if the same cache is shared with another surface; but not in
+  // the frame of the detach. A sliver that moves a child into its keep-alive
+  // bucket (a pager page off screen) detaches and attaches it again at once,
+  // and releasing then would unpin every cell and drop its held frame and
+  // lease. A detach not followed by an attach before the frame ends gives
+  // them back; a dispose gives them back at once.
+  void _releaseAfterDetach() {
+    if (_releasePending) return;
+    _releasePending = true;
+    scheduleMicrotask(() {
+      if (!_releasePending) return;
+      _releasePending = false;
+      if (!attached) _pool.detachAll();
+    });
   }
 
   @override
@@ -1417,6 +1448,7 @@ class RenderPanelCatalog extends RenderBox
     _press = null;
     _pressTickers?.dispose();
     _pressTickers = null;
+    _releasePending = false;
     _pool.detachAll();
     _painter.dispose();
     super.dispose();

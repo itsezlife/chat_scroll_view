@@ -104,3 +104,16 @@ too, so clicking one never takes the caret from the field.
 | ---- | -------- |
 | Glass | The popup, the dock and the keyboard-replacement sheet put the shell on a `GlassSurface` of the composer island's material (`GlassMaterial.composerIsland`), so the panel reads as the composer does; the shell paints no background of its own there (`PanelShell.background`). Over the chat (the popup) it blurs the messages; beside or under it (dock, sheet) it shows as the material's fill. The popup's glass takes the card's radius, the dock's is square, the sheet's clip rounds its top corners. The reference desktop client paints its panel solid: this is the product's choice. |
 | Anchor | The host reports the composer's rectangle whenever it moves, not only when the composer rebuilds: a dock that comes or goes moves a composer held at its greatest width without resizing or rebuilding it, and a popup opened later anchored to where it had been. The example reads it after every frame and reports a change (the controller ignores an equal one). |
+
+## Amendment: the panel stays mounted while hidden
+
+Native-media ticket 100. Hidden, the view built nothing, so every hide
+disposed the shell, its pages and their cells, and a reopen loaded them again.
+The reference mobile client removes its emoji view from the window and keeps
+the instance, and stops its animations for the length of the panel's motion.
+
+| Area | Decision |
+| ---- | -------- |
+| Kept | `PanelPresentationView` keeps the subtree of the last kind it showed while hidden: built by the strategy with `PanelVisibility.hidden`, offstage (no paint, no hit test, no semantics) and under `ExcludeFocus`. The tree has one shape shown or hidden, so nothing is remounted. A show as another kind replaces it, as before. |
+| Strategy | `build` may now be called with `hidden`, after the motion out settled: the strategy runs no motion for it and keeps its state. Its own tickers stay on: the keyboard strategy's slot still follows the soft keyboard. |
+| Shell motion | Each strategy puts the shell under `TickerMode(enabled: visibility is shown)`: while the panel moves in or out, or is hidden, the shell's tickers are off and its catalogues hold (*the pager keeps its pages*, [ADR 025](025-panel-shell-and-pages.md)). With the host's clock hold for the motion ([ADR 022](022-asset-cache-and-media-pipeline.md) *held surfaces*), nothing in the panel advances until the motion ends, and nothing it showed is reloaded. |

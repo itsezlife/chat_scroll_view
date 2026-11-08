@@ -6,6 +6,20 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the panel keeps its animations)
+
+- `PanelPresentationView` keeps the last kind's subtree mounted while hidden,
+  offstage and under `ExcludeFocus`, instead of building nothing: a hide and
+  a show remount nothing, so the shell, its pages and their cells keep their
+  state and frames. Before the first show it still builds nothing. Code that
+  expected a hidden panel's state to be disposed now sees it kept; a finder
+  that skips offstage widgets still finds nothing.
+- `PanelPresentationStrategy.build` is also called with
+  `PanelVisibility.hidden` once the motion out settles.
+- The keyboard-replacement, popup and dock strategies put the shell under
+  `TickerMode(enabled: visibility is shown)`: while the panel moves in or out,
+  or is hidden, its content holds.
+
 ### Changed
 
 - Source-breaking: the contract suites in `testing.dart` are statics on a

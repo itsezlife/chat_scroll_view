@@ -154,6 +154,17 @@ abstract class AssetPaintable {
   /// default, which is right for every paintable that does not play.
   AssetTexture? get texture => null;
 
+  /// The first frame of this animation as a still, or null.
+  ///
+  /// Owned by this paintable and alive until its [dispose]; whoever paints it
+  /// never disposes it. A binding that borrows a sibling entry's stage paints
+  /// it instead of the playing paintable: the sibling may be in the middle of
+  /// a loop, and the borrower's own entry starts from frame 0, so the live
+  /// frame would show a jump back when the entry's own frame arrives. Null by
+  /// default, which is right for a still and for an animation that keeps no
+  /// still of its first frame (it is then not lent at all).
+  AssetPaintable? get firstFrame => null;
+
   /// Keeps the frame on show while [keep] is true, though no surface paints
   /// or advances this paintable: a surface that holds its playback
   /// (`AssetBinding.held`) still shows that frame.

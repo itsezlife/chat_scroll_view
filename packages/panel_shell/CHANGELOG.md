@@ -6,6 +6,16 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the panel keeps its animations)
+
+- The pager keeps every page it built alive for its own life (at most the
+  registered pages) instead of dropping the ones off screen, and puts a page
+  that is not on screen under `TickerMode(enabled: false)`. A type tab
+  switched away from keeps its cells, their frames and positions. Code that
+  expected an off-screen page's state to be disposed now sees it kept.
+- `FakePanelPage` counts `mounts` and `disposals` of its body and records
+  whether its tickers were on (`tickersEnabled`).
+
 ### Added
 
 - `PanelSearchExit` and `PanelShell.searchExit`: how search is left. Under

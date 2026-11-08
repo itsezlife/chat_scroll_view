@@ -307,10 +307,17 @@ class _DockedBodyState extends State<_DockedBody>
                           cornerRadius: 0,
                           child: FocusScope(
                             node: _scope,
-                            child: PanelShell(
-                              controller: _controller.shell,
-                              arrangement: PanelArrangement.pointer,
-                              background: const Color(0x00000000),
+                            // Only at rest: while the dock moves or is
+                            // hidden the panel's content holds.
+                            child: TickerMode(
+                              enabled:
+                                  widget.view.visibility
+                                      is PanelVisibility$Shown,
+                              child: PanelShell(
+                                controller: _controller.shell,
+                                arrangement: PanelArrangement.pointer,
+                                background: const Color(0x00000000),
+                              ),
                             ),
                           ),
                         ),

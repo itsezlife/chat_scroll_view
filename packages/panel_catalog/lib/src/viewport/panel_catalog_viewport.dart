@@ -390,8 +390,14 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       pinnedLeaf: pinnedLeaf,
       onSectionAction: onSectionAction,
       sectionNearExtent: sectionNearExtent,
-    );
+    )..held = _heldIn(context);
   }
+
+  // A subtree whose tickers are off is not live: a hidden panel kept
+  // mounted, a page off screen, a panel moving in or out. The catalogue
+  // holds what it shows there instead of detaching it.
+  static bool _heldIn(BuildContext context) =>
+      !TickerMode.valuesOf(context).enabled;
 
   @override
   void updateRenderObject(
@@ -422,6 +428,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..leafLongPressDelay = leafLongPressDelay
       ..pinnedLeaf = pinnedLeaf
       ..onSectionAction = onSectionAction
-      ..sectionNearExtent = sectionNearExtent;
+      ..sectionNearExtent = sectionNearExtent
+      ..held = _heldIn(context);
   }
 }

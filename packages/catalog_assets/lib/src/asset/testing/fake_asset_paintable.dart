@@ -21,6 +21,7 @@ final class FakeAssetPaintable extends AssetPaintable {
     this.sprite,
     this.texture,
     this.frameDurations = const [],
+    this.firstFrame,
   }) : isAnimated = isAnimated ?? frameDurations.isNotEmpty;
 
   /// Names this paintable in test output.
@@ -43,6 +44,10 @@ final class FakeAssetPaintable extends AssetPaintable {
   /// whose first frame was posted once it was asked for. Null leaves
   /// [texture] alone.
   AssetTexture? textureOnAdvance;
+
+  /// The first-frame still it lends, or null.
+  @override
+  final FakeAssetPaintable? firstFrame;
 
   /// How long each frame of the sequence it plays lasts; empty for a
   /// paintable that only records.

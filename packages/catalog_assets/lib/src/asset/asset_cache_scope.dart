@@ -46,8 +46,12 @@ import 'package:flutter/foundation.dart';
 /// mode at another size) has reached, placed by the binding's own profile,
 /// instead of a placeholder (see [AssetBinding.paintable]). It borrows that
 /// sibling, which pins it like a binding would, until its own entry catches
-/// up or it detaches. A GIF picked from a panel cell is drawn in the message
-/// at once, at the cell's pixels, until the message's own decode arrives.
+/// up or it detaches. A sibling that plays lends its first-frame still
+/// ([AssetPaintable.firstFrame]), never its live frame, and one with no still
+/// lends nothing: the binding's own entry starts from frame 0, and a frame
+/// from the middle of the sibling's loop would jump back when it arrives. A
+/// GIF picked from a panel cell is drawn in the message at once, at the
+/// cell's pixels, until the message's own decode arrives.
 ///
 /// An entry with a live binding is pinned: neither the budget, [clearAll] nor
 /// the memory-pressure signal evicts it, so eviction can never invalidate a
@@ -286,14 +290,15 @@ final class AssetCacheScope {
     _Entry? best;
     for (final sibling in _byKey[entry.key] ?? const <_Entry>{}) {
       if (identical(sibling, entry) ||
-          sibling.paintable == null ||
+          sibling.lent == null ||
           sibling.spec.decodeMode != entry.spec.decodeMode ||
-          sibling.stage.index <= above.index) {
+          sibling.lentStage.index <= above.index) {
         continue;
       }
       if (best == null ||
-          sibling.stage.index > best.stage.index ||
-          (sibling.stage == best.stage && _area(sibling) > _area(best))) {
+          sibling.lentStage.index > best.lentStage.index ||
+          (sibling.lentStage == best.lentStage &&
+              _area(sibling) > _area(best))) {
         best = sibling;
       }
     }
@@ -543,6 +548,18 @@ final class _Entry {
 
   bool get isPinned => bindings.isNotEmpty || borrowers > 0;
 
+  // What a binding of a sibling entry may show of this one. A paintable that
+  // plays may be in the middle of a loop, and the borrower's own entry starts
+  // from frame 0: it is lent as its first-frame still, or not at all.
+  AssetPaintable? get lent => switch (paintable) {
+    final playing? when playing.isAnimated => playing.firstFrame,
+    final other => other,
+  };
+
+  // The stage of what is lent: a playing paintable's still is a first frame.
+  AssetStage get lentStage =>
+      (paintable?.isAnimated ?? false) ? AssetStage.firstFrame : stage;
+
   // Whether the paintable keeps its frame: some binding holds it on screen.
   void syncKeep() =>
       paintable?.keepFrame(keep: bindings.any((binding) => binding.held));
@@ -719,7 +736,7 @@ final class _EntryBinding extends AssetBindingBase {
     // not autoplay waits for the full asset there too) must beat its own.
     if (!isDetached && own.index < AssetStage.firstFrame.index) {
       if (_scope._siblingOf(entry, own) case final sibling?
-          when _stageOf(sibling).index > own.index) {
+          when _lentStageOf(sibling).index > own.index) {
         next = sibling;
       }
     }
@@ -731,7 +748,10 @@ final class _EntryBinding extends AssetBindingBase {
   }
 
   // What this binding paints: its entry's paintable, or the borrowed one.
-  AssetPaintable? get _shown => (_borrowed ?? entry).paintable;
+  AssetPaintable? get _shown => switch (_borrowed) {
+    final sibling? => sibling.lent,
+    null => entry.paintable,
+  };
 
   // The paint that follows a tick is what steps the paintable, so a pass that
   // ended is seen on the tick after: here, the frame after the one that held.
@@ -777,7 +797,7 @@ final class _EntryBinding extends AssetBindingBase {
   AssetReadiness get liveReadiness {
     if (_borrowed case final sibling?) {
       // Shown, not final: the entry's own decode is still to come.
-      return AssetReadiness(_stageOf(sibling));
+      return AssetReadiness(_lentStageOf(sibling));
     }
     final stage = _ownStage;
     return AssetReadiness(
@@ -795,12 +815,19 @@ final class _EntryBinding extends AssetBindingBase {
       ? AssetStage.placeholder
       : of.stage;
 
+  // A sibling's stage as this binding shows what it lends: a playing
+  // sibling lends a first frame.
+  AssetStage _lentStageOf(_Entry sibling) {
+    final stage = _stageOf(sibling);
+    return stage.index > sibling.lentStage.index ? sibling.lentStage : stage;
+  }
+
   // The entry's own stage as this binding paints it, borrowing aside.
   AssetStage get _ownStage => _stageOf(entry);
 
   @override
   AssetPaintable get livePaintable {
-    if (_borrowed case _Entry(:final paintable?)) return paintable;
+    if (_borrowed case _Entry(:final lent?)) return lent;
     final paintable = entry.paintable;
     if (paintable == null || _ownStage != entry.stage) {
       return _scope._placeholderOf(entry.key);

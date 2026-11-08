@@ -38,7 +38,12 @@ final class FakePanelPage {
       builder: (context, host) {
         this.host = host;
         buildCount++;
-        final body = _FakePageBody(id: id, host: host, color: color);
+        final body = _FakePageBody(
+          id: id,
+          host: host,
+          color: color,
+          owner: this,
+        );
         if (searchPlacement != SearchPlacement.inline) return body;
         // An inline page places the shell's field among its own content.
         return Column(
@@ -62,21 +67,60 @@ final class FakePanelPage {
 
   /// How many times the page's builder ran.
   int buildCount = 0;
+
+  /// How many times the page's body was mounted, and disposed: a page kept
+  /// alive across a switch is mounted once.
+  int mounts = 0;
+
+  /// How many times the page's body was disposed.
+  int disposals = 0;
+
+  /// Whether the body's tickers were on at its last build (`TickerMode`),
+  /// null before one.
+  bool? tickersEnabled;
 }
 
-class _FakePageBody extends StatelessWidget {
+class _FakePageBody extends StatefulWidget {
   const _FakePageBody({
     required this.id,
     required this.host,
     required this.color,
+    required this.owner,
   });
 
   final String id;
   final PanelPageHost host;
   final Color color;
+  final FakePanelPage owner;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
+  State<_FakePageBody> createState() => _FakePageBodyState();
+}
+
+class _FakePageBodyState extends State<_FakePageBody> {
+  String get id => widget.id;
+  PanelPageHost get host => widget.host;
+  Color get color => widget.color;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.owner.mounts++;
+  }
+
+  @override
+  void dispose() {
+    widget.owner.disposals++;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    widget.owner.tickersEnabled = TickerMode.valuesOf(context).enabled;
+    return _body(context);
+  }
+
+  Widget _body(BuildContext context) => ColoredBox(
     color: color,
     child: Center(
       child: ListenValueBuilder<PanelSearchState>(

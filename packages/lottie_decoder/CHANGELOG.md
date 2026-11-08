@@ -5,6 +5,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the panel keeps its animations)
+
+- The `full` stage charges its first-frame still plus the encoded size once
+  (was four times it): a 160 px cell of a 181 KB sticker counts about
+  0.28 MiB instead of 0.8 MiB, so the cells a panel scrolled out stay cached.
+- `LottieAnimationPaintable.firstFrame` is its first-frame still, which a
+  sibling binding borrows instead of the frame the loop is at.
+
 ### Changed (frames read from the file, ticket 98)
 
 - A persisted animation's frames are read one at a time from its file by the
