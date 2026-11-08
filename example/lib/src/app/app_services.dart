@@ -111,6 +111,7 @@ final class AppServices {
     required this.stickerPageSource,
     required this.gifPageSource,
     required this.gifSearch,
+    required this.gifSuggestions,
     required this.giphy,
     required this.corpus,
     required this.describe,
@@ -543,6 +544,7 @@ final class AppServices {
         stickerPageSource: stickerPageSource,
         gifPageSource: gifPageSource,
         gifSearch: gifSearch,
+        gifSuggestions: giphyTrending,
         giphy: giphy,
         corpus: corpusPacks,
         describe: describe,
@@ -666,6 +668,11 @@ final class AppServices {
 
   /// Search of Giphy for the GIF page, or null without a key.
   final SearchSource? gifSearch;
+
+  /// What the GIF page's search lists before anything is typed: Giphy's
+  /// trending clips alone, the list the page shows under its recents (so no
+  /// second request), or null without a key. It owns none.
+  final CollectionSource? gifSuggestions;
 
   /// Whether the chat list or the panel scrolls now, as the chat screen and
   /// its input set report it: the texture pool of [assets] waits with its

@@ -326,6 +326,57 @@ void main() {
       ]);
     });
 
+    test('answers a query it found before from memory', () async {
+      final search = GiphyGifSearch(client: client, content: content);
+      addTearDown(search.dispose);
+      await search.search('cat');
+      final found = search.results.value;
+      await search.search('dog');
+      final asked = giphy.apiRequests.length;
+
+      await search.search('cat');
+
+      expect(giphy.apiRequests, hasLength(asked));
+      expect(search.results.value.id, const CollectionId.query('cat'));
+      expect(idsOf(search.results.value), idsOf(found));
+    });
+
+    test('asks again for a query that failed', () async {
+      final search = GiphyGifSearch(client: client, content: content);
+      addTearDown(search.dispose);
+      giphy.failFirst = true;
+      await search.search('cat');
+      giphy.failFirst = false;
+      await search.search('dog');
+
+      await search.search('cat');
+
+      expect(idsOf(search.results.value), [
+        'document:giphy:c0',
+        'document:giphy:c1',
+      ]);
+    });
+
+    test(
+      'a query left before its reply is not published when it lands',
+      () async {
+        final search = GiphyGifSearch(client: client, content: content);
+        addTearDown(search.dispose);
+        giphy.gate = Completer<void>();
+        final cat = search.search('cat');
+        final dog = search.search('dog');
+
+        giphy.gate!.complete();
+        await (cat, dog).wait;
+
+        expect(search.results.value.id, const CollectionId.query('dog'));
+        expect(idsOf(search.results.value), [
+          'document:giphy:d0',
+          'document:giphy:d1',
+        ]);
+      },
+    );
+
     test('asks nothing for blank text', () async {
       final search = GiphyGifSearch(client: client, content: content);
       addTearDown(search.dispose);

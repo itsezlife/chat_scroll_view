@@ -691,6 +691,16 @@ void main() {
       expect(services.giphy, isNotNull);
     });
 
+    test('suggest Giphy\'s trending alone to a search with no text', () async {
+      final services = await createTestServices(
+        giphyApiKey: 'test-key',
+        giphyHttpClient: MockClient((_) async => http.Response('', 503)),
+      );
+      addTearDown(services.dispose);
+
+      expect(ids(services.gifSuggestions!), [GiphyGifSource.id]);
+    });
+
     test('list the recent GIFs alone without a key: no search, no bundled '
         'clips', () async {
       final services = await createTestServices();
@@ -698,6 +708,7 @@ void main() {
 
       expect(ids(services.gifPageSource), [CollectionId.recent]);
       expect(services.gifSearch, isNull);
+      expect(services.gifSuggestions, isNull);
       expect(services.giphy, isNull);
     });
 

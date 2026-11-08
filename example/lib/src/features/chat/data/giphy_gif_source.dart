@@ -227,6 +227,11 @@ final class GiphyGifSource implements CollectionSource {
 /// A new query drops the one before it: its reply, if it still comes, is not
 /// published. Blank text clears to idle without a request. Stills and the
 /// next page are fetched as [GiphyGifSource] fetches them.
+///
+/// The last [cachedQueries] queries are kept with what they found, so going
+/// back to one (deleting the letter just typed) shows its results at once and
+/// asks nothing, as the reference clients keep a result per query; one that
+/// failed is asked again.
 final class GiphyGifSearch implements SearchSource {
   /// Searches [client], remembering the clips found in [content].
   GiphyGifSearch({
@@ -234,15 +239,21 @@ final class GiphyGifSearch implements SearchSource {
     required GiphyContent content,
     Duration stillWait = GiphyGifSource.defaultStillWait,
     bool readAhead = true,
+    this.cachedQueries = 16,
   }) : _client = client,
        _content = content,
        _stillWait = stillWait,
        _readAhead = readAhead;
 
+  /// How many queries are kept with their results.
+  final int cachedQueries;
+
   final GiphyClient _client;
   final GiphyContent _content;
   final Duration _stillWait;
   final bool _readAhead;
+  // The queries kept, the least recently searched first.
+  final _feeds = <String, _Feed>{};
   final _results = listen.ValueNotifier(
     const Collection(id: CollectionId.query('')),
   );
@@ -256,19 +267,35 @@ final class GiphyGifSearch implements SearchSource {
   Future<void> search(String query) async {
     final id = CollectionId.query(query);
     if (_disposed || _results.value.id == id) return;
-    _feed?.close();
     if (query.trim().isEmpty) {
       _feed = null;
       _results.value = Collection(id: id);
       return;
     }
-    final feed = _feed = _Feed(
-      fetch: (offset) => _client.search(query, offset: offset),
-      content: _content,
-      onChange: () => _publish(id),
-      stillWait: _stillWait,
-      readAhead: _readAhead,
-    );
+    // A feed left for another query stays in the cache and goes on loading,
+    // but publishes only while it is the current one.
+    late final _Feed feed;
+    feed = _feed =
+        _feeds.remove(query) ??
+        _Feed(
+          fetch: (offset) => _client.search(query, offset: offset),
+          content: _content,
+          onChange: () {
+            if (identical(_feed, feed)) _publish(id);
+          },
+          stillWait: _stillWait,
+          readAhead: _readAhead,
+        );
+    _feeds[query] = feed;
+    while (_feeds.length > cachedQueries) {
+      _feeds.remove(_feeds.keys.first)!.close();
+    }
+    // A feed that loaded, or is loading, is shown as it is; [_Feed.first]
+    // publishes for any other.
+    if (feed.contents
+        case CollectionContents$Loaded() || CollectionContents$Loading()) {
+      _publish(id);
+    }
     await feed.first();
   }
 
@@ -279,7 +306,9 @@ final class GiphyGifSearch implements SearchSource {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _feed?.close();
+    for (final feed in _feeds.values) {
+      feed.close();
+    }
     _results.dispose();
   }
 
