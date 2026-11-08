@@ -385,6 +385,8 @@ void main() {
       await pump(tester, assets: scope);
       final cover = attemptOf(cats).advance(AssetStage.full);
       await tester.pump();
+      // Past the fade a cover that arrived after the attach rises in.
+      await tester.pump(const Duration(milliseconds: 160));
       final before = cover.paints.length;
 
       await tick(tester, 100);
@@ -432,6 +434,8 @@ void main() {
       await pump(tester, assets: scope);
       final cover = attemptOf(cats).advance(AssetStage.full, frames: _frames);
       await tester.pump();
+      // Past the fade a cover that arrived after the attach rises in.
+      await tester.pump(const Duration(milliseconds: 160));
       final before = cover.paints.length;
 
       scope.clock.setPaused(PlaybackPauseLayer.lowPower, paused: true);
@@ -471,6 +475,8 @@ void main() {
         const ContentKey.document('p15'),
       ).advance(AssetStage.full, frames: _frames);
       await tester.pump();
+      // Past the fade a cover that arrived after the attach rises in.
+      await tester.pump(const Duration(milliseconds: 160));
       final farBefore = far.paints.length;
       final firstBefore = first.paints.length;
 
