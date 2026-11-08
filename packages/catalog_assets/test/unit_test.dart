@@ -86,6 +86,7 @@ import 'pool/frame_page_images_test.dart' as frame_page_images_test;
 import 'pool/frame_pool_test.dart' as frame_pool_test;
 import 'pool/frame_slot_allocator_test.dart' as frame_slot_allocator_test;
 import 'pool/list_frame_page_memory_test.dart' as list_frame_page_memory_test;
+import 'pool/pixel_upload_test.dart' as pixel_upload_test;
 import 'preset/asset_presets_test.dart' as asset_presets_test;
 import 'widget/asset_cache_provider_test.dart' as asset_cache_provider_test;
 import 'widget/content_view_test.dart' as content_view_test;
@@ -217,6 +218,7 @@ void main() {
     'pool/list_frame_page_memory_test.dart',
     list_frame_page_memory_test.main,
   );
+  group('pool/pixel_upload_test.dart', pixel_upload_test.main);
   group('preset/asset_presets_test.dart', asset_presets_test.main);
   group(
     'widget/asset_cache_provider_test.dart',
