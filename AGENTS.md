@@ -111,6 +111,7 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 | Fakes, contracts, gates                                                                  | [ADR 030](docs/adr/030-testing-policy.md)                             |
 | Strings, RTL, semantics, shortcuts                                                       | [ADR 031](docs/adr/031-localization-accessibility-and-input.md)       |
 | Native media decoding: Lottie / TGS and video over FFI, page pool, frame cache, web      | [ADR 042](docs/adr/042-native-media-decoding.md)                      |
+| Platform texture frames: playing media through platform textures, pages as the fallback | [ADR 043](docs/adr/043-platform-texture-frames.md) |
 
 **Package invariants**
 
