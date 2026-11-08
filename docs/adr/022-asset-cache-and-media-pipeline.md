@@ -10,6 +10,7 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Amended**: 2026-10-18 (chat-polish-3, ticket 10): the pause policies of the reference desktop client reach the shared clock through one lifecycle seam (section *Amendment: pause policies*); `PlaybackPauseLayer` gains three values and the default pausing set is spelled out  
 **Amended**: 2026-11-06: the dynamic page pool, the renderer seam and the frame cache for native animated media ([ADR 042](042-native-media-decoding.md); section *Amendment: dynamic frame pages*)  
 **Amended**: 2026-11-08: a playing asset may be shown through a platform texture, a third paint capability next to `paint` and the sprite, with the dynamic pages as the fallback ([ADR 043](043-platform-texture-frames.md))
+**Amended**: 2026-11-09 (native-media ticket 87): a binding can be **held** by its surface, and nothing plays while the panel moves (section *Amendment: held surfaces and the panel's motion*)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -104,7 +105,7 @@ painted. The workspace had the sink (the shared clock and its layers) but only
 
 | Reference behaviour | Here | Why |
 | ------------------- | ---- | --- |
-| Six-level reason hierarchy (`Any`, `InlineResults`, `TabbedPanel`, `Layer`, `RoundPlaying`, `MediaPreview`): a surface pauses under a reason above its own, so the open panel keeps playing while the chat behind it stops | Only the `Any` and `Layer` equivalents: app inactive/hidden, and a host overlay. An open emoji panel, a sticker preview or a playing round video do not pause the chat | Chat and panel share one clock, so a global layer cannot say "the chat but not the panel"; a host that wants it feeds `ChatEmojiBody.isActive` |
+| Six-level reason hierarchy (`Any`, `InlineResults`, `TabbedPanel`, `Layer`, `RoundPlaying`, `MediaPreview`): a surface pauses under a reason above its own, so the open panel keeps playing while the chat behind it stops | The `Any` and `Layer` equivalents (app inactive/hidden, a host overlay) as clock layers, and `TabbedPanel` as a hold of the chat's bindings (amendment of 2026-11-09). A sticker preview or a playing round video do not pause the chat | Chat and panel share one clock, so a global layer cannot say "the chat but not the panel"; a surface's own hold can |
 | Round video message exempt from the window-inactive pause | None | No round video in the library |
 | Eleven `PowerSaving` flags, the "Power usage" screen, per-feature autoplay and loop settings | One `lowPower` layer; the host maps its settings to `AssetProfile`, `ChatStickerPlayback`, `MarkdownSpoilerController.animate` and `ChromeMotionSpeed` | Product settings, not a contract |
 | Spoiler reveal hidden again by a jump to a message in the same section (`hideShownSpoilers`) | Not replicated; a chat switch still re-hides, because the controller lives with the chat screen | An explicit re-hide rule is a product choice; nothing here reveals or hides on a pause |
@@ -117,6 +118,24 @@ painted. The workspace had the sink (the shared clock and its layers) but only
 Not verified on a device: the pause behaviour on a real desktop (the tests use
 fake lifecycle sources and a manual frame source), including whether the
 embedder delivers `inactive` and `hidden` as the engine sources say.
+
+## Amendment: held surfaces and the panel's motion
+
+Native-media ticket 87. The reference desktop client paints its emoji panel
+from a snapshot while it shows or hides (`TabbedPanel::grabForAnimation`,
+children hidden until `_a_show` ends) and, while the panel is shown, sets
+`GifPauseReason::TabbedPanel`, which pauses the chat's animations below it.
+The reference mobile client locks notifications during the panel's animation
+(`AnimationNotificationsLocker` in `ChatActivityEnterView`).
+
+| Area | Decision |
+| ---- | -------- |
+| Held binding | `AssetBinding.held` (default false) is one surface's hold: the binding leaves the clock as an invisible one does, but stays shown (its demand stays visible) and paints at the clock's time when the hold began, so a repaint shows the same frame. Releasing it plays on from there. `visible` stays "not on screen", which lets leases go; `held` is "on screen, still". |
+| Keeping the frame | `AssetPaintable.keepFrame(keep:)`, a no-op by default, is set by the entry while any of its bindings is held, and carried to a paintable that replaces the stage. A paintable that leases where its frame lives keeps that lease through the idle sweep, where it is, rendering nothing; see [ADR 043](043-platform-texture-frames.md). Without it a texture given back after an idle period would be written by its next holder under the held surface's layer. |
+| Host input | `ContentEmbed` and `ContentEmbedResolver` take `held:`, a listenable the host feeds to every embed of one surface; the embed follows it and never disposes it. |
+| Panel motion | Hosts set `PlaybackPauseLayer.routeMoving` while the panel presentation moves in or out (`PanelVisibility.isMoving`, every kind), so the panel's content and the chat hold: no tick, no decode, no upload; every surface keeps its frame. The example's `PanelPlaybackHold` does it from the presentation's state and clears only what it set. |
+| Popup | While an anchored popup is on screen (showing to hidden), the host holds the chat's embeds; the panel's own content plays. A dock and a keyboard panel at rest hold nothing. |
+| Shared entries | A held surface and a playing one that show the same entry share one paintable: the held one keeps its frame on pages (its picture keeps the image) but shows the live frame through a shared texture. Accepted: the panel and the chat rarely show one entry at one size. |
 
 ## Amendment: dynamic frame pages
 
