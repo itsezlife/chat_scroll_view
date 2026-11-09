@@ -20,8 +20,13 @@ typedef PackFeedback = ({String title, String info});
 /// The reference's bulletin durations: `Bulletin.DURATION_LONG` (2750 ms)
 /// for a removal, `DURATION_SHORT` (1500 ms) for an addition.
 abstract final class ChatPackSheets {
-  /// How long a removal or an archiving can be taken back.
+  /// How long the bulletin of a removal or an archiving stays, its Undo
+  /// with it.
   static const Duration undoWindow = Duration(milliseconds: 2750);
+
+  /// The longest a removal waits for its bulletin to close before it
+  /// commits anyway.
+  static const Duration undoHold = Duration(seconds: 10);
 
   /// How long the bulletin after an addition stays.
   static const Duration addedDuration = Duration(milliseconds: 1500);
@@ -136,6 +141,15 @@ abstract final class ChatPackSheets {
 
   /// Applies [requests] to [library] and shows their bulletin through
   /// [messenger], with Undo for a removal or an archiving.
+  ///
+  /// A removal is held for as long as its bulletin shows Undo, as the
+  /// reference runs `toggleStickerSet` as the bulletin's delayed action: the
+  /// edits commit when the bulletin closes (timed out, replaced by another,
+  /// or swiped away), and Undo takes them back while it is up. The bulletin
+  /// is up a little longer than [undoWindow] (it slides in before its timer
+  /// starts), so the library's own window is only a bound, [undoHold], for
+  /// a bulletin that never closes. With no [messenger] there is no Undo,
+  /// and the edits commit at once.
   static void apply(
     ContentLibrary library,
     List<PackEditRequest> requests,
@@ -143,45 +157,53 @@ abstract final class ChatPackSheets {
     ScaffoldMessengerState? messenger,
   ) {
     if (requests.isEmpty) return;
-    final takesAway = requests.first.edit is! LibraryEdit$InstallPack;
+    final takesAway =
+        messenger != null && requests.first.edit is! LibraryEdit$InstallPack;
     final applied = [
       for (final request in requests)
         library.apply(
           request.edit,
-          undoWindow: takesAway ? undoWindow : Duration.zero,
+          undoWindow: takesAway ? undoHold : Duration.zero,
         ),
     ];
+    if (messenger == null) return;
     final feedback = feedbackOf(requests, strings);
-    messenger
-      ?..clearSnackBars()
-      ..showSnackBar(
-        _bulletin(
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                feedback.title,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              Text(feedback.info),
-            ],
-          ),
-          duration: takesAway ? undoWindow : addedDuration,
-          action: takesAway
-              ? SnackBarAction(
-                  label: strings.undoAction,
-                  onPressed: () {
-                    // Each comes back to its own place: the library replays
-                    // the edits still in their window.
-                    for (final edit in applied.reversed) {
-                      edit.undo();
-                    }
-                  },
-                )
-              : null,
+    messenger.clearSnackBars();
+    final bulletin = messenger.showSnackBar(
+      _bulletin(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              feedback.title,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Text(feedback.info),
+          ],
         ),
-      );
+        duration: takesAway ? undoWindow : addedDuration,
+        action: takesAway
+            ? SnackBarAction(
+                label: strings.undoAction,
+                onPressed: () {
+                  // Each comes back to its own place: the library replays
+                  // the edits still in their window.
+                  for (final edit in applied.reversed) {
+                    edit.undo();
+                  }
+                },
+              )
+            : null,
+      ),
+    );
+    if (!takesAway) return;
+    // An edit already undone ignores its commit.
+    bulletin.closed.then((_) {
+      for (final edit in applied) {
+        edit.commit();
+      }
+    }).ignore();
   }
 
   /// Applies [edit] of a pack nothing describes, with no bulletin to name
@@ -264,5 +286,8 @@ abstract final class ChatPackSheets {
     behavior: SnackBarBehavior.floating,
     duration: duration,
     action: action,
+    // A bulletin with Undo hides after its time too: Undo is only good
+    // while the edit is held.
+    persist: false,
   );
 }
