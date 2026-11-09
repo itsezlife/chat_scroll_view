@@ -638,9 +638,11 @@ final class MessageMenu {
         request.membership != ChatMessageMenuMembership.idle) {
       return const [];
     }
-    final beside = request.pointState == ChatMessageMenuPointState.outside;
-    if (beside && policy case ChatSelectionPolicy$Desktop()) return const [];
-    return emojiPacks.of(request.messageId);
+    return switch ((request.pointState, policy)) {
+      (ChatMessageMenuPointState.outside, ChatSelectionPolicy$Desktop()) =>
+        const [],
+      _ => emojiPacks.of(request.messageId),
+    };
   }
 
   void _stubFeedback(ScaffoldMessengerState messenger, String label) {
