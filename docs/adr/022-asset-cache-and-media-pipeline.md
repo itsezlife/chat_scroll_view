@@ -329,7 +329,7 @@ Native-media ticket 117. On a clean start, with the panel opened on the emoji pa
 
 | Work | Raster time | Count in one cold bake |
 | ---- | ----------- | ---------------------- |
-| Strip of 16 glyphs (`SnapshotDisplayList` with `CreateGlyphAtlas`) | 3.3 ms median, 4.9 ms p90: about 0.25 ms a glyph | about 130 |
+| Strip of 16 glyphs (`SnapshotDisplayList` with `CreateGlyphAtlas`) | 3.3 ms median, 4.9 ms p90: about 0.25 ms a glyph | about 100 |
 | Page composition (one 2048 px snapshot, 676 draws) | 22-33 ms, 5 ms of it the allocation; then 10-14 ms of `EncodeImage` on the io thread for the disk cache | 3 |
 | The engine's own glyph atlas growing (`CreateGlyphAtlas` with `BulkUpdateAtlasBitmap` and `vkAllocateMemory`, 16, 32 then 64 MiB) | 22, 40, 62 ms | 3 |
 
