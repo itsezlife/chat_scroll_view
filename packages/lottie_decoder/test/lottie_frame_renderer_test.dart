@@ -744,6 +744,88 @@ void main() {
       );
     });
 
+    test('a pool of render isolates restores frames persisted by another, '
+        'read from the file', () async {
+      const side = 48;
+      const count = 30;
+      final dir = Directory.systemTemp.createTempSync('lottie_pool_cache_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final engine = CountingLottieEngine(
+        await IsolateLottieEngine.spawn(workers: 3),
+      );
+      addTearDown(engine.close);
+      final memory = NativeFramePageMemory();
+      addTearDown(memory.dispose);
+      final bytes = Uint8List.fromList(utf8.encode(_fixture));
+      // Two handles first, so this one sits on the third isolate.
+      await engine.load(bytes);
+      await engine.load(bytes);
+      final loaded = await engine.load(bytes) as LottieLoaded;
+      final key = FrameCacheKey(
+        contentHash: 'pool',
+        width: side,
+        height: side,
+        engineVersion: LottieNativeVersion.engine,
+      );
+      final allocator = FrameSlotAllocator(
+        pageSideFor: (_) => 512,
+        budgetBytes: 512 * 512 * 4,
+        sizeClasses: const [64],
+      );
+      final slots = [
+        for (var i = 0; i < count * 2; i++) allocator.allocate(side, side)!,
+      ];
+      List<FrameJob> pass(int from) => [
+        for (var i = 0; i < count; i++)
+          FrameJob(
+            slot: slots[from + i],
+            frame: i,
+            width: side,
+            height: side,
+            source: LottieSource(
+              loaded.handle,
+              frameCount: count,
+              cacheKey: key,
+            ),
+          ),
+      ];
+      List<int> pixels(FrameJob job) {
+        final page = memory.page(job.slot.pageIndex, side: job.slot.pageSide);
+        final left = job.slot.rect.left.toInt();
+        final top = job.slot.rect.top.toInt();
+        return [
+          for (var y = 0; y < side; y++)
+            for (var x = 0; x < side * 4; x++)
+              page[((top + y) * 512 + left) * 4 + x],
+        ];
+      }
+
+      final before = FrameCache(directoryPath: dir.path);
+      final rendered = pass(0);
+      await LottieFrameRenderer(
+        engine: engine,
+        memory: memory,
+        cache: before,
+      ).render(rendered, memory);
+      await before.dispose();
+      engine.rendered = 0;
+
+      final after = FrameCache(directoryPath: dir.path);
+      addTearDown(after.dispose);
+      final restored = pass(count);
+      final held = await LottieFrameRenderer(
+        engine: engine,
+        memory: memory,
+        cache: after,
+      ).render(restored, memory);
+
+      expect(held, hasLength(count));
+      expect(engine.rendered, 0, reason: 'every frame came from the file');
+      for (var i = 0; i < count; i++) {
+        expect(pixels(restored[i]), pixels(rendered[i]), reason: 'frame $i');
+      }
+    });
+
     _runContract(
       NativeLottieBinding.probe,
       Uint8List.fromList(utf8.encode(_fixture)),
