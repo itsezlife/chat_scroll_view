@@ -36,8 +36,6 @@ final class CatalogBoundLeaf {
   Duration? _fadeStart;
   bool _seen = false;
   bool _shown = false;
-  // On screen while a fling runs: an animated leaf holds its frame there.
-  bool _paused = false;
 
   /// Opacity to draw the content at on the frame at [frameTime]: `1` for
   /// content that was there at attach, otherwise rising from `0` over
@@ -80,12 +78,12 @@ final class CatalogBoundLeaf {
 ///   [AssetBinding.visible] flag says whether the leaf is in the painted
 ///   window, and nothing else: a leaf that leaves it gives back what it leased
 ///   for the screen (`AssetPaintable.leftScreen`), and one that comes back
-///   goes on from where it was. While a fling runs, an animated leaf in the
-///   window is [AssetBinding.held] instead: it stays on screen with its
-///   frame and its lease, plays nothing, and goes on from that frame when
-///   the fling ends. A sticker that stays on screen never starts over, as
-///   in the reference clients, where scrolling never touches a drawable's
-///   time. The scope's clock adds the host's pause layers.
+///   goes on from where it was. A scroll, a fling or a drag against an edge
+///   changes nothing for a leaf that stays in the window: it plays on, as in
+///   the reference mobile client, whose panel grids never stop their
+///   drawables for a scroll (only its chat list does, through
+///   `RecyclerListView.setAllowStopHeaveOperations`). The scope's clock adds
+///   the host's pause layers.
 ///
 /// ## Page level
 ///
@@ -170,7 +168,7 @@ final class CatalogLeafBindingPool {
     if (_held == value) return;
     _held = value;
     for (final bound in _all) {
-      bound.binding.held = value || bound._paused;
+      bound.binding.held = value;
     }
   }
 
@@ -188,10 +186,9 @@ final class CatalogLeafBindingPool {
   /// window.
   ///
   /// A leaf is *shown* ([AssetBinding.visible]) when its slot meets
-  /// `[paintTop, paintBottom]`. A shown leaf that animates is held while
-  /// [animate] is false (a fling runs): it keeps its frame and its lease and
-  /// is not advanced. Hidden bindings stay attached and pinned but the cache
-  /// does not advance them, and their paintables give back their leases.
+  /// `[paintTop, paintBottom]`. Hidden bindings stay attached and pinned but
+  /// the cache does not advance them, and their paintables give back their
+  /// leases.
   ///
   /// [pinnedKeys] are kept attached and shown even when outside the window,
   /// used during far-path stitch so outgoing strip bindings survive the
@@ -203,7 +200,6 @@ final class CatalogLeafBindingPool {
     required int end,
     required double paintTop,
     required double paintBottom,
-    required bool animate,
     required double top,
     required double bottom,
     Set<ContentKey>? pinnedKeys,
@@ -211,19 +207,14 @@ final class CatalogLeafBindingPool {
     for (final bound in _all) {
       bound
         .._seen = false
-        .._shown = false
-        .._paused = false;
+        .._shown = false;
     }
     for (var i = start; i < end; i++) {
       if (slots[i] case final CatalogLeafSlot slot) {
         final bound = _ensure(slot);
         bound._seen = true;
         final inPaint = slot.bottom >= paintTop && slot.top <= paintBottom;
-        if (inPaint) {
-          bound
-            .._shown = true
-            .._paused = !animate && slot.leaf.animated;
-        }
+        if (inPaint) bound._shown = true;
       }
     }
     if (pinnedKeys != null && pinnedKeys.isNotEmpty) {
@@ -231,8 +222,7 @@ final class CatalogLeafBindingPool {
         if (pinnedKeys.contains(bound.binding.key)) {
           bound
             .._seen = true
-            .._shown = true
-            .._paused = false;
+            .._shown = true;
         }
       }
     }
@@ -243,11 +233,7 @@ final class CatalogLeafBindingPool {
         _remove(bound, at: i);
         detached++;
       } else if (bound._seen) {
-        // Held first: a leaf that leaves the window during a fling lets its
-        // frame go before it leaves, so its lease goes with it.
-        bound.binding
-          ..held = _held || bound._paused
-          ..visible = bound._shown;
+        bound.binding.visible = bound._shown;
       }
     }
     if (LogCategory.binding.enabled && (_all.isNotEmpty || detached > 0)) {

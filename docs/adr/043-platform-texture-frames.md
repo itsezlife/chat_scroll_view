@@ -142,6 +142,6 @@ Native-media ticket 116. A fling through a sticker panel ended with every textur
 
 | Area | Decision |
 | ---- | -------- |
-| Leaving | A lease whose paintable left the screen gives its texture back once the frame is over, unless painted in it or kept, through the same path as any release: a texture a write still names goes back when that write ends, and the pool's reuse delay applies before another lease takes it. A cell hidden but still drawn (a panel's cells during a fling) keeps its texture, so it never falls back to its still for three posts. |
+| Leaving | A lease whose paintable left the screen gives its texture back once the frame is over, unless painted in it or kept, through the same path as any release: a texture a write still names goes back when that write ends, and the pool's reuse delay applies before another lease takes it. A cell hidden but still drawn in that frame (one at the edge of a scrolling window) keeps its texture, so it never falls back to its still for three posts. |
 | Full pool | A full pool takes page slots from stale leases, never a texture: handing a texture straight to another lease would skip the reuse delay, while the surface that last composited it may still be drawn with it. A lease that found no texture plays from the slot it got and moves to an idle texture on a later tick, as before. |
 | Kept leases | Unchanged: a kept lease is never given back on leaving, never taken, never swept. |

@@ -320,8 +320,9 @@ void main() {
       expect(made.first.paints, isEmpty);
     });
 
-    testWidgets('no fling-time ticks with batching on, and the last frame '
-        'stays drawn', (tester) async {
+    // A fling stops nothing on screen (ticket 141).
+    testWidgets('ticks go on through a fling with batching on, and the cells '
+        'stay drawn', (tester) async {
       answerAll();
       snapshots.replaceSections([
         CatalogSection(
@@ -342,7 +343,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
 
       expect(render(tester).isFlinging, isTrue);
-      expect(ticks.isRunning, isFalse);
+      expect(ticks.isRunning, isTrue);
       expect(paintOnce(tester).atlasDraws, isNotEmpty);
       await tester.pumpAndSettle();
       expect(ticks.isRunning, isTrue);

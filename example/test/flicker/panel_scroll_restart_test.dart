@@ -1,5 +1,7 @@
-/// Ticket 141: a panel sticker jumps back to its start while the panel
-/// scrolls, and on a drag past its top or bottom edge.
+/// Ticket 141: a panel sticker jumped back to its start while the panel
+/// scrolled and on a drag let go past its top or bottom edge, then stopped
+/// playing while a fling ran; it must play on through all of them, in the
+/// panel and in a pack sheet's grid.
 ///
 /// **Seam:** the real `PanelCatalogViewport` over a real `AssetCacheScope`
 /// whose stickers are real `LottieAnimationPaintable`s, played by a real
@@ -7,7 +9,8 @@
 /// clock's own scheduler frames. The pointer drives the viewport. Each frame
 /// the panel's layer is read: a cell that stays on screen must go on showing
 /// its texture (its first-frame still drawn instead is the jump to the
-/// start), and the frames written for it must never go back.
+/// start), and the frames written for it must follow the clock: never back,
+/// never stalled, never ahead of the time that passed.
 library;
 
 import 'dart:ui' as ui;
@@ -15,7 +18,9 @@ import 'dart:ui' as ui;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:content_model/content_model.dart';
+import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -25,6 +30,9 @@ import 'package:lottie_native/lottie_native.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
+import 'package:panel_pages/panel_pages.dart';
+import 'package:panel_shell/panel_shell.dart';
+import 'package:panel_shell/testing.dart';
 
 // Long enough that no loop wraps within a test: a frame written lower than
 // one before is a jump back.
@@ -105,6 +113,10 @@ List<int> _textures(Layer? layer) {
   return ids;
 }
 
+// Display frames a playing cell may go without a new frame: it writes one
+// every second display frame.
+const _stallFrames = 3;
+
 void main() {
   late PlaybackClock clock;
   late FrameTexturePool pool;
@@ -115,13 +127,16 @@ void main() {
   late FakeCatalogSnapshotSource snapshots;
   late PanelCatalogController controller;
   var elapsed = Duration.zero;
+  // Disposed by [dispose] when a test made them.
+  var cleanUps = <void Function()>[];
 
-  Future<void> pumpPanel(WidgetTester tester, {int cells = 40}) async {
+  void playback(WidgetTester tester) {
     tester.view
       ..physicalSize = const Size(800, 1600)
       ..devicePixelRatio = 2;
     addTearDown(tester.view.reset);
     elapsed = Duration.zero;
+    cleanUps = [];
     clock = PlaybackClock();
     pool = FrameTexturePool(
       host: FakeFrameTextureHost(buffersPerTexture: 4),
@@ -140,6 +155,10 @@ void main() {
     );
     producer = _LottieProducer(scheduler);
     scope = AssetCacheScope(producer: producer, clock: clock);
+  }
+
+  Future<void> pumpPanel(WidgetTester tester, {int cells = 40}) async {
+    playback(tester);
     snapshots = FakeCatalogSnapshotSource()
       ..replaceSections([
         CatalogSection(
@@ -157,6 +176,7 @@ void main() {
         ),
       ]);
     controller = PanelCatalogController();
+    cleanUps.addAll([snapshots.dispose, controller.dispose]);
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
@@ -186,14 +206,17 @@ void main() {
     scope.dispose();
     scheduler.dispose();
     pool.dispose();
-    snapshots.dispose();
-    controller.dispose();
+    for (final cleanUp in cleanUps) {
+      cleanUp();
+    }
     clock.dispose();
     await tester.pump(const Duration(seconds: 3));
   }
 
-  RenderPanelCatalog panel(WidgetTester tester) =>
-      tester.renderObject(find.byType(PanelCatalogViewport));
+  // The grid on top: the panel's, or a sheet's over it.
+  RenderPanelCatalog panel(WidgetTester tester) => tester
+      .renderObjectList<RenderPanelCatalog>(find.byType(PanelCatalogViewport))
+      .last;
 
   // The texture the first sticker's lease writes to, or null when it has
   // none on screen.
@@ -204,7 +227,7 @@ void main() {
   Future<TestGesture> press(WidgetTester tester) async {
     final gesture = await tester.createGesture();
     await gesture.down(
-      tester.getCenter(find.byType(PanelCatalogViewport)),
+      tester.getCenter(find.byType(PanelCatalogViewport).last),
       timeStamp: elapsed,
     );
     return gesture;
@@ -224,8 +247,11 @@ void main() {
   }
 
   /// Watches [key]'s cell through [run]: every frame its texture must be
-  /// composited by the panel (not its still), and the frames written to
-  /// it must not go back. Returns what went wrong, frame by frame.
+  /// composited by the panel (not its still), and the frames written to it
+  /// must follow the clock: never back, never stalled for more than
+  /// [_stallFrames] display frames (the cell plays at half rate, a new
+  /// frame every second display frame), never ahead of the time that
+  /// passed. Returns what went wrong, frame by frame.
   Future<List<String>> watch(
     WidgetTester tester,
     ContentKey key,
@@ -234,6 +260,8 @@ void main() {
     final faults = <String>[];
     var n = 0;
     var last = -1;
+    var advancedAt = 0;
+    var stalled = false;
     var written = writer.batches.length;
     final texture = textureOf(key);
     expect(texture, isNotNull, reason: '$key settled on a texture');
@@ -254,15 +282,34 @@ void main() {
             'frame $n: $key went back from frame $last to ${job.frame}',
           );
         }
-        last = job.frame;
+        // At 60 source frames a second, a 16 ms display frame is about one
+        // source frame; half rate rounds a want down to an even frame.
+        if (last >= 0 && job.frame - last > (n - advancedAt) + 3) {
+          faults.add(
+            'frame $n: $key jumped from frame $last to ${job.frame} in '
+            '${n - advancedAt} display frames',
+          );
+        }
+        if (job.frame > last) {
+          last = job.frame;
+          advancedAt = n;
+          stalled = false;
+        }
       }
       written = writer.batches.length;
+      if (!stalled && last >= 0 && n - advancedAt > _stallFrames) {
+        stalled = true;
+        faults.add(
+          'frame $n: $key stalled at frame $last since frame $advancedAt',
+        );
+      }
     }
 
     final before = [
       for (final job in writer.batches.expand((b) => b))
         if (job.texture.id == texture) job.frame,
     ].last;
+    last = before;
     await run(step);
     if (last <= before) {
       faults.add('$key did not play on: frame $last, $before before');
@@ -394,5 +441,136 @@ void main() {
     });
     await dispose(tester);
     expect(faults, isEmpty);
+  });
+
+  group('a pack sheet', () {
+    late BuildContext home;
+
+    // A sticker sheet of [count] playing stickers over an empty chat, under
+    // the app's overlay observer, open and settled.
+    Future<void> openSheet(WidgetTester tester, {int count = 20}) async {
+      playback(tester);
+      final activity = PlaybackActivity(clock: clock);
+      final observer = PlaybackOverlayPauseObserver(activity);
+      final packs = FakePackSource([
+        Pack(
+          id: const PackId('pack'),
+          kind: PackKind.stickers,
+          title: 'Pack',
+          items: [
+            for (var i = 0; i < count; i++)
+              ContentDescriptor(
+                key: ContentKey.document('sticker-$i'),
+                semanticKind: SemanticKind.sticker,
+                mediaForm: MediaForm.vectorAnimation,
+                animated: true,
+                size: const ContentSize(512, 512),
+                pack: const PackId('pack'),
+              ),
+          ],
+        ),
+      ]);
+      final library = FakeContentLibrary(
+        limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
+      );
+      cleanUps.addAll([
+        observer.dispose,
+        activity.dispose,
+        packs.dispose,
+        library.dispose,
+      ]);
+      await tester.pumpWidget(
+        PanelShellTestScope(
+          size: const Size(400, 800),
+          child: Navigator(
+            observers: [observer],
+            onGenerateRoute: (_) => PageRouteBuilder<void>(
+              pageBuilder: (context, _, _) {
+                home = context;
+                return const SizedBox.expand();
+              },
+            ),
+          ),
+        ),
+      );
+      PackSheet.show(
+        home,
+        arrangement: PanelArrangement.touch,
+        builder: (_) => StickerPackSheet(
+          pack: const PackId('pack'),
+          packs: packs,
+          library: library,
+          assets: scope,
+          onEditsRequested: (_) {},
+        ),
+      ).ignore();
+      await settle(tester);
+    }
+
+    testWidgets('a cell plays on through a drag down past the top of its '
+        'grid and its release', (tester) async {
+      await openSheet(tester);
+
+      final faults = await watch(tester, first, (frame) async {
+        final gesture = await press(tester);
+        for (var i = 0; i < 10; i++) {
+          await gesture.moveBy(const Offset(0, 4), timeStamp: elapsed);
+          await frame();
+        }
+        await gesture.up(timeStamp: elapsed);
+        for (var i = 0; i < 60; i++) {
+          await frame();
+        }
+      });
+      await dispose(tester);
+      expect(faults, isEmpty);
+    });
+
+    testWidgets('a cell plays on through a drag up past the bottom of its '
+        'grid', (tester) async {
+      await openSheet(tester);
+
+      final faults = await watch(tester, first, (frame) async {
+        final gesture = await press(tester);
+        for (var i = 0; i < 10; i++) {
+          await gesture.moveBy(const Offset(0, -12), timeStamp: elapsed);
+          await frame();
+        }
+        await gesture.up(timeStamp: elapsed);
+        for (var i = 0; i < 60; i++) {
+          await frame();
+        }
+      });
+      await dispose(tester);
+      expect(faults, isEmpty);
+    });
+
+    testWidgets('a cell plays on through a tall sheet rising with its grid, '
+        'a fling and a drag past its end', (tester) async {
+      await openSheet(tester, count: 60);
+
+      final faults = await watch(tester, first, (frame) async {
+        final gesture = await press(tester);
+        for (var i = 0; i < 4; i++) {
+          await gesture.moveBy(const Offset(0, -15), timeStamp: elapsed);
+          await frame();
+        }
+        await gesture.up(timeStamp: elapsed);
+        for (var i = 0; i < 40; i++) {
+          await frame();
+        }
+        final back = await press(tester);
+        for (var i = 0; i < 10; i++) {
+          await back.moveBy(const Offset(0, 15), timeStamp: elapsed);
+          await frame();
+        }
+        await back.up(timeStamp: elapsed);
+        for (var i = 0; i < 60; i++) {
+          await frame();
+        }
+      });
+      await dispose(tester);
+      expect(faults, isEmpty);
+    });
   });
 }

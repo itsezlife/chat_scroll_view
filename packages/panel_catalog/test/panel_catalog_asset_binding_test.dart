@@ -198,9 +198,9 @@ void main() {
       expect(overscan.demand.priority, AssetPriority.preload);
     });
 
-    testWidgets('an animated leaf plays only while no fling runs', (
-      tester,
-    ) async {
+    // The reference mobile client's panel grids never stop their drawables
+    // for a scroll (ticket 141).
+    testWidgets('an animated leaf plays on while a fling runs', (tester) async {
       producer.onProduce = (attempt) =>
           attempt.advance(AssetStage.full, animated: true);
       final leaves = [for (var i = 0; i < 400; i++) _doc(i, animated: true)];
@@ -215,7 +215,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 16));
       expect(render(tester).isFlinging, isTrue);
-      expect(ticks.isRunning, isFalse);
+      expect(ticks.isRunning, isTrue);
 
       await tester.pumpAndSettle();
       expect(render(tester).isFlinging, isFalse);

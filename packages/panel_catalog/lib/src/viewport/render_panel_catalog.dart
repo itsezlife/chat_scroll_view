@@ -1709,7 +1709,6 @@ class RenderPanelCatalog extends RenderBox
       end: _slotIndexAfter(bottom),
       paintTop: paintTop,
       paintBottom: paintBottom,
-      animate: !_physics.isFlinging,
       top: top,
       bottom: bottom,
       pinnedKeys: _stitchPinnedKeys.isEmpty ? null : _stitchPinnedKeys,
@@ -1764,8 +1763,6 @@ class RenderPanelCatalog extends RenderBox
   void _startFling(double contentVelocity) {
     _physics.startFling(contentVelocity);
     _ensureFlingTicker();
-    // Animated leaves stop playing while the coast runs.
-    _syncVisibleBindings();
   }
 
   /// Stops simulation and ticker; safe when already idle.
@@ -1773,10 +1770,7 @@ class RenderPanelCatalog extends RenderBox
     final wasFlinging = _physics.isFlinging;
     _physics.cancelFling();
     _flingTicker?.stop();
-    if (wasFlinging) {
-      _syncVisibleBindings();
-      _controller.publish(const PanelCatalogFlingEnd());
-    }
+    if (wasFlinging) _controller.publish(const PanelCatalogFlingEnd());
   }
 
   /// Lazily creates and starts [_flingTicker] on [_pressTickers].
@@ -1805,7 +1799,6 @@ class RenderPanelCatalog extends RenderBox
     if (delta == 0) {
       if (!_physics.isFlinging) {
         _flingTicker?.stop();
-        _syncVisibleBindings();
         _controller.publish(const PanelCatalogFlingEnd());
       }
       return;
