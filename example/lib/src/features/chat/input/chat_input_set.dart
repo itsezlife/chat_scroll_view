@@ -1012,12 +1012,12 @@ final class ChatInputSet {
       // A pack's edit is the host's, with its bulletin (a removal held
       // behind Undo). A favourite, a saved GIF, a recent sticker forgotten:
       // the library takes the edit at once, with no undo window (the
-      // reference offers none for these).
+      // reference offers none for these), and the open panel shows it.
       case LibraryEditRequested(edit: final LibraryPackEdit edit)
           when _onPackEditRequested != null:
         _onPackEditRequested(edit);
       case LibraryEditRequested(:final edit):
-        services.library.apply(edit);
+        services.libraryShown.apply(edit);
       case PackRequested(:final id):
         _onPackRequested?.call(id);
       case SearchClosed():
@@ -1066,9 +1066,10 @@ final class ChatInputSet {
   // Records a pick in the list the page chose ([kind]): a sticker among the
   // library's recent stickers and a GIF among its saved GIFs, whatever it
   // was found by, as the reference client does on every send
-  // (`addRecentSticker`, `addRecentGif`); anything else in the emoji
-  // recents, where the emoji page files unicode and animated emoji in one
-  // and a pick from search does not count.
+  // (`addRecentSticker`, `addRecentGif`), and listed by the open panel only
+  // when it next opens (the reference's send signals no reload); anything
+  // else in the emoji recents, where the emoji page files unicode and
+  // animated emoji in one and a pick from search does not count.
   void _record(
     ContentKey key, {
     required SemanticKind kind,
@@ -1076,23 +1077,23 @@ final class ChatInputSet {
   }) {
     switch (kind) {
       case SemanticKind.sticker:
-        services.library.apply(LibraryEdit.addRecentSticker(key));
+        services.libraryShown.record(LibraryEdit.addRecentSticker(key));
       case SemanticKind.gif:
-        services.library.apply(LibraryEdit.saveGif(key));
+        services.libraryShown.record(LibraryEdit.saveGif(key));
       default:
         unawaited(services.recents.record(key, kind: kind, source: source));
     }
   }
 
   // Forgets one recent of [kind]. The panel's lists lose it at once, and
-  // nothing else in them moves: the library's view drops what leaves the
-  // library, the emoji recents go through their view.
+  // nothing else in them moves: an edit the user asked for, through the
+  // library's view; the emoji recents through theirs.
   void _forget(ContentKey key, {required SemanticKind kind}) {
     switch (kind) {
       case SemanticKind.sticker:
-        services.library.apply(LibraryEdit.removeRecentSticker(key));
+        services.libraryShown.apply(LibraryEdit.removeRecentSticker(key));
       case SemanticKind.gif:
-        services.library.apply(LibraryEdit.unsaveGif(key));
+        services.libraryShown.apply(LibraryEdit.unsaveGif(key));
       default:
         unawaited(services.recentsShown.remove(key, kind: kind));
     }

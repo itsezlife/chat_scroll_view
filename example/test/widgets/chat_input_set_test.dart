@@ -8,6 +8,7 @@ import 'dart:ui' show Tristate;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
@@ -1222,6 +1223,68 @@ void main() {
       await tester.pump();
 
       expect(rig.services.library.favouriteStickers.value, [sun]);
+    });
+
+    // The reference reloads the panel's favourites and saved GIFs on an
+    // explicit edit while it is open (`recentDocumentsDidLoad`,
+    // `gifAddedOrDeleted`); only the record of a send waits.
+    testWidgets('a favourite shows in the open panel at once: the Favourites '
+        'section and its strip tab appear', (tester) async {
+      final rig = await _mobileRig(tester);
+      final sun = StaticStickerPack.stickers.first.key;
+      final favourites = demoChromeStrings.panel.favouriteStickersTitle;
+      await _open(tester, rig);
+      rig.set.shell.selectPage('stickers');
+      await rig.settle(tester);
+      expect(find.bySemanticsLabel(favourites), findsNothing);
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestLibraryEdit(LibraryEdit.favouriteSticker(sun));
+      await rig.settle(tester);
+
+      expect(find.bySemanticsLabel(favourites), findsWidgets);
+    });
+
+    testWidgets('a new favourite is listed first in the open panel, and '
+        'nothing else moves', (tester) async {
+      final rig = await _mobileRig(tester);
+      final star = LottieStickerPack.stickers.first.key;
+      final moon = LottieStickerPack.stickers[1].key;
+      final sun = StaticStickerPack.stickers.first.key;
+      rig.services.library.apply(LibraryEdit.favouriteSticker(star));
+      await _open(tester, rig);
+      // Sent while the panel is open: waits for the next opening.
+      rig.set.shell.hostFor('stickers').pick(moon, kind: SemanticKind.sticker);
+      await tester.pump();
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestLibraryEdit(LibraryEdit.favouriteSticker(sun));
+      await tester.pump();
+
+      expect(rig.services.libraryShown.favouriteStickers.value, [sun, star]);
+      expect(rig.services.libraryShown.recentStickers.value, isEmpty);
+    });
+
+    testWidgets('a saved GIF is listed first in the open panel at once; a '
+        'GIF sent is not until it opens again', (tester) async {
+      final rig = await _mobileRig(tester);
+      final sent = VideoStickerPack.gifs.first.key;
+      final saved = VideoStickerPack.gifs[1].key;
+      await _open(tester, rig);
+
+      rig.set.shell.hostFor('gif').pick(sent, kind: SemanticKind.gif);
+      await tester.pump();
+      expect(rig.services.libraryShown.savedGifs.value, isEmpty);
+
+      rig.set.shell
+          .hostFor('gif')
+          .requestLibraryEdit(LibraryEdit.saveGif(saved));
+      await tester.pump();
+
+      expect(rig.services.libraryShown.savedGifs.value, [saved]);
+      expect(rig.services.library.savedGifs.value, [saved, sent]);
     });
 
     testWidgets('"View pack" reaches the host\'s pack hook', (tester) async {
