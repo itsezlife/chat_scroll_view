@@ -2,7 +2,7 @@
 
 Ubiquitous language for text selection chrome and gesture entry in
 `composer_editable`: the composer's editable, a copy of Flutter's text field
-with the Telegram composer's selection behaviour.
+with the composer's selection behaviour.
 
 ## Language
 
@@ -14,7 +14,7 @@ On touch platforms, after handle drag ends the moving handle overlay animates
 **extent caret anchor** (where the moving selection end sits when the finger
 lifts), then one chrome refresh applies live handle types/orientations. Logical
 selection offsets are already final on UP; settle is visual-only.
-_Avoid_: Instant snap (strict AOSP `filterOnTouchUp`); overshoot on settle;
+_Avoid_: Instant snap on release; overshoot on settle;
 animating selection offsets on release; settling toward the fixed-base endpoint
 when the grabbed physical handle’s layer link sits on the opposite side
 
@@ -25,18 +25,17 @@ after UP), visual handle chrome is frozen: (1) the **grabbed** physical handle
 selection inverts; (2) **start/end handle types** (left/right orientation) stay
 as at drag start; (3) after settle finishes, one refresh applies live types
 and caret anchors. Logical selection offsets and highlight still update live
-during drag. Telegram composer parity: avoids inward-facing overlap when
-handles cross.
+during drag. This avoids inward-facing overlap when handles cross.
 _Avoid_: Live orientation flip on invert mid-drag; moving overlay swapping to
 the other handle widget when `extent` crosses `fixedBase`; treating invert as
 instant handle-type refresh
 
 **Finger-tracked handle**:
 On **touch platforms**, for every **`ExtendedTextField`** (the editable only,
-not read-only selectable text): during handle drag the **moving** handle overlay follows `pointer + grab offset` on **both
-axes** (finger / scrcpy touch). Grab offset is the finger→handle delta frozen
-at drag start (AOSP `mTouchToWindowOffset` / Telegram `movingOffsetX/Y`).
-Selection offsets still update by character hit-test from that same touch path.
+not read-only selectable text): during handle drag the **moving** handle overlay
+follows `pointer + grab offset` on **both axes** (finger / scrcpy touch). Grab
+offset is the finger→handle delta frozen at drag start. Selection offsets still
+update by character hit-test from that same touch path.
 While **frozen handle chrome** is active, overlay position is **extent-anchored**
 and the **fixed** handle is **fixedBase-anchored** via follower delta against
 its physical layer link (layer links may sit on the opposite end under the
@@ -48,36 +47,31 @@ _Avoid_: Caret-anchored drag on touch; line-anchored Y only during drag;
 instant snap with no settle on release; jumping overlay to raw pointer on DOWN;
 per-screen opt-in flags; bubble / read-only selection in the same pass;
 uncorrected fixed handle following the moving extent; a drag scale on the
-grabbed handle (no Telegram source)
+grabbed handle (no verified value)
 
 **Pointer-line magnifier**:
 During handle drag on touch **`ExtendedTextField`**, the magnifier
 focal **X** follows the pointer clamped to the current visual line; focal **Y**
-is the vertical center of that line (AOSP `Magnifier` / `Editor` rule). Motion
-uses **AOSP-style ~100ms settle** (`MagnifierMotionAnimator` parity):
+is the vertical center of that line. Motion uses a **~100ms unified settle**:
 continuous while dragging; **Y** gets a short interpolation mainly on line
 jump; **X** tracks with the same rate. Not caret-anchored; not free pointer Y;
-not bubble `TextSelectionHelper` 100/200ms split. The moving handle stays
+not the 100/200ms X/Y split used by message bubbles. The moving handle stays
 visible under the loupe.
 _Avoid_: Caret-anchored loupe; finger Y for loupe; desktop loupe forks; keeping
-bubble 100/200ms rates for composer parity
+bubble 100/200ms rates in the composer
 
 **Composer selection chrome**:
-Selection in the chat **composer** (`EditTextBoldCursor` → stock
-`android.widget.Editor`). Handles, magnifier, and drag physics come from
-**AOSP `Editor.HandleView` / `SelectionHandleView`**, not from
-`TextSelectionHelper`. Telegram only themes handles (`setHandlesColor`) and
-cursor (`EditTextBoldCursor`); no custom drag overlay in Telegram Java.
-_Avoid_: Assuming composer reuses `TextSelectionHelper`; porting bubble
-selection code to the composer
+Selection in the chat **composer**. The handles, magnifier and drag motion are
+defined by this package; the host themes the handle and cursor colours.
+_Avoid_: Assuming the composer reuses the bubble selection overlay; porting
+bubble selection code to the composer
 
 **Bubble selection chrome**:
-Selection in **message bubbles** (chat list, articles). Custom
-`TextSelectionHelper` overlay: appear/hide (`handleViewProgress`), magnifier
-(`lastX`, 100/200ms settle), direction settling, `movingOffsetX` grab offset.
-Handle **draw** is still caret-anchored (`getPrimaryHorizontal`); magnifier is
-finger-tracked.
-_Avoid_: Treating bubble helper as the composer reference
+Selection in **message bubbles** is owned by the chat viewport (see
+[CONTEXT.md](../../CONTEXT.md)), not by this package. Its overlay has its own
+appear/hide, magnifier rate and grab offset, and its handle draw stays
+caret-anchored.
+_Avoid_: Treating the bubble overlay as the composer contract
 
 ### Gesture entry
 
@@ -133,7 +127,7 @@ _Avoid_: Initial drag, first press selection
 Right after word enter, ignore handle extents strictly inside the selected word
 until the finger exits past `start` or `end`, then lock which end is moving.
 While settling freezes **selection offsets**, the **moving** handle overlay and
-pointer-line magnifier still follow the pointer (composer / AOSP parity).
+pointer-line magnifier still follow the pointer.
 _Avoid_: Handle settle, invert lock; freezing overlay during settling
 
 **Tap dismiss**:
