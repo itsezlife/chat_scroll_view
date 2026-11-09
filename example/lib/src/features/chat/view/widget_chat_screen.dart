@@ -5,6 +5,7 @@ import 'package:bulletins/bulletins.dart';
 import 'package:chat_composer/chat_composer.dart' show ComposerBottomFade;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/common/android_clipboard_toast.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/panel_trace.dart';
@@ -212,6 +213,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   @override
   void initState() {
     super.initState();
+    unawaited(
+      systemConfirmsCopy().then((confirms) => _systemConfirmsCopy = confirms),
+    );
     _controller = ChatScrollController();
     // The texture pool creates nothing while the list moves.
     _stopScrollReport = widget.services.scrolling.followChat(_controller);
@@ -396,12 +400,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   // Whether a copy is confirmed is the platform family's (the selection
   // policy's), not the trigger's: see [ChatCopyFeedback].
+  // Whether the system shows its own clipboard toast; read once at start.
+  bool _systemConfirmsCopy = false;
+
   void _showCopied(ChatCopyKind kind, String text) {
     if (!mounted || text.isEmpty) return;
     final feedback = ChatCopyFeedback.forPolicy(
       _selection.selectionPolicy,
-      // The Android system shows its own clipboard toast.
-      systemConfirms: defaultTargetPlatform == TargetPlatform.android,
+      systemConfirms: _systemConfirmsCopy,
     );
     if (!feedback.showsToast(kind)) return;
     _bulletins.show(ChatBulletins.copied(kind, ChatBulletinStrings.demo));
