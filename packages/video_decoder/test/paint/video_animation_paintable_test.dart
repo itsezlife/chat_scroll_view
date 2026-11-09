@@ -190,6 +190,114 @@ void main() {
     });
   });
 
+  // Ticket 144: a clip that comes back keeps its decoder's position and its
+  // frame, so it shows the frame it left on and goes on from there.
+  group('VideoAnimationPaintable that leaves the screen and comes back', () {
+    // 30 fps, 12 frames: the fake's blue is 16 times the frame index.
+    final bytes12 = Uint8List.fromList([12, 0]);
+    const info12 = VideoInfo(
+      width: 16,
+      height: 16,
+      duration: Duration(milliseconds: 400),
+      frameRate: 30,
+      hasAlpha: true,
+    );
+    late FrameTexturePool pool;
+    late _IndexRecordingWriter writer;
+
+    setUp(() async {
+      scheduler.dispose();
+      pool = FrameTexturePool(
+        host: FakeFrameTextureHost(),
+        sizeClasses: const [64],
+      );
+      await pool.warm(64, 1);
+      writer = _IndexRecordingWriter();
+      scheduler = VideoFrameScheduler(
+        engine: engine,
+        atlas: VideoFrameAtlas.create(
+          upload: (pixels, side) async => _solid(0xFF000000, side: 4),
+          sizeClasses: const [64],
+        ),
+        clock: clock,
+        textures: pool,
+        textureWriter: writer,
+        startTimer: timers.start,
+      );
+      engine.accept(bytes12, info12, frameCount: 12);
+      clip =
+          ((await engine.open(bytes12, width: 16, height: 16))
+                  as VideoClipOpened)
+              .clip;
+    });
+    tearDown(() => pool.dispose());
+
+    Future<void> play(VideoAnimationPaintable p, int from, int to) async {
+      for (var ms = from; ms < to; ms += 16) {
+        p.advancePlayback(AssetPaintContext(time: Duration(milliseconds: ms)));
+        await tick();
+      }
+    }
+
+    test('shows the frame it left on at once and plays on from it', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+      await play(p, 0, 200);
+      final texture = p.texture;
+      expect(texture, isNotNull);
+      final left = writer.indices.last;
+      expect(left, greaterThan(2));
+
+      p.leftScreen();
+      timers.elapse(Duration.zero);
+      expect(scheduler.leaseCount, 0, reason: 'it left: its lease went');
+      for (var i = 0; i < 20; i++) {
+        await tick();
+      }
+
+      final posted = writer.indices.length;
+      p
+        ..playbackResumed()
+        ..advancePlayback(const AssetPaintContext(time: Duration(seconds: 2)));
+      expect(p.texture, texture, reason: 'its last frame at once');
+      await play(p, 2016, 2150);
+
+      final after = writer.indices.skip(posted).toList();
+      expect(after, isNotEmpty, reason: 'it plays on');
+      expect(
+        after.first,
+        inInclusiveRange(left, left + 5),
+        reason: 'from the frame it left on ($left), not its first',
+      );
+      for (var i = 1; i < after.length; i++) {
+        expect(after[i], greaterThanOrEqualTo(after[i - 1]));
+      }
+    });
+
+    test('a restart does not take back the frame it held', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+      // The second pass ends at 800 ms: past it, a pass that does not loop
+      // holds its rest frame (the first: the lease goes), and a restart
+      // plays from the first frame.
+      for (var ms = 0; ms < 900; ms += 16) {
+        p.advancePlayback(
+          AssetPaintContext(time: Duration(milliseconds: ms), loop: false),
+        );
+        await tick();
+      }
+      expect(p.isHolding, isTrue);
+      expect(pool.keptFrames, 0, reason: 'nothing comes back to it');
+
+      expect(p.restart(), isTrue);
+      p.advancePlayback(
+        const AssetPaintContext(time: Duration(milliseconds: 900)),
+      );
+      expect(p.texture, isNull, reason: 'its old frame is not its first');
+      expect(p.sprite, isNull);
+    });
+  });
+
   group('VideoAnimationPaintable with a texture free', () {
     late FakeFrameTextureHost host;
     late FrameTexturePool pool;
@@ -493,6 +601,25 @@ void main() {
 
       await paintAt(p, 120);
       expect(scheduler.leaseCount, 1, reason: 'painted again, it leases');
+    });
+
+    test('on a slot, a clip that comes back draws the frame it left on at '
+        'once', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+      for (var ms = 0; ms < 100; ms += 20) {
+        await paintAt(p, ms);
+      }
+      expect(p.sprite, isNotNull);
+
+      p.leftScreen();
+      timers.elapse(Duration.zero);
+      expect(scheduler.leaseCount, 0);
+      p
+        ..playbackResumed()
+        ..advancePlayback(const AssetPaintContext(time: Duration(seconds: 2)));
+
+      expect(p.sprite, isNotNull, reason: 'not its still');
     });
 
     test('a failed lease is never asked again and the still stays', () async {
