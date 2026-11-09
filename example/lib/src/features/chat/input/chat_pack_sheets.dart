@@ -45,6 +45,8 @@ abstract final class ChatPackSheets {
     ValueChanged<ContentDescriptor>? onPick,
     PanelArrangement? arrangement,
   }) {
+    // Favourites from the sheet's preview: at once, as from the panel's.
+    void libraryEdit(LibraryEdit edit) => services.library.apply(edit);
     final messenger = ScaffoldMessenger.maybeOf(context);
     final strings = ChromeStringsScope.packSheetOf(context);
     void edits(List<PackEditRequest> requests) =>
@@ -85,6 +87,8 @@ abstract final class ChatPackSheets {
           onEditsRequested: edits,
           onPick: picked,
           onUnavailable: unavailable,
+          previews: services.previews,
+          onLibraryEditRequested: libraryEdit,
         ),
       },
     );
@@ -139,6 +143,16 @@ abstract final class ChatPackSheets {
         ),
       );
   }
+
+  /// Applies [edit] of a pack nothing describes, with no bulletin to name
+  /// it: a removal still keeps its undo window.
+  static AppliedEdit applyAlone(ContentLibrary library, LibraryPackEdit edit) =>
+      library.apply(
+        edit,
+        undoWindow: edit is LibraryEdit$InstallPack
+            ? Duration.zero
+            : undoWindow,
+      );
 
   /// What the bulletin after [requests] says, in [strings]: the reference's
   /// `StickerSetBulletinLayout` texts by kind and by what happened.

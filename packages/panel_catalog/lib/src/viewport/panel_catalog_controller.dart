@@ -246,6 +246,13 @@ final class PanelCatalogController {
   /// rectangle may lie partly or wholly outside [viewportBounds].
   Rect? leafBoundsOf(CatalogLeafHit hit) => _position?.leafBounds(hit);
 
+  /// The cell under [globalPosition] (under the current offset), or null over
+  /// a header, padding or an empty band, outside the viewport, or when no
+  /// viewport is attached: what a surface that follows a finger across the
+  /// grid (a preview that switches cells) resolves the finger against.
+  CatalogLeafHit? leafAt(Offset globalPosition) =>
+      _position?.leafAtGlobal(globalPosition);
+
   /// The button of the action of section [sectionId]'s header, in global
   /// coordinates under the current offset, or null when no viewport is
   /// attached, the section has no action or is not in the snapshot: where a

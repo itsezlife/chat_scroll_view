@@ -37,6 +37,12 @@ Future<void> _leave(WidgetTester tester) async {
   await tester.pump();
 }
 
+// The drafts' records: the boot writes others (the shipped packs' seed).
+Map<String, StoredValue> _drafts() => {
+  for (final MapEntry(:key, :value) in _storage.entries.entries)
+    if (key.startsWith('${ChatDraftStore.namespace}:')) key: value,
+};
+
 Future<ChatDraft?> _stored() => ChatDraftStore(_storage).read(_chat);
 
 RichText get _loud =>
@@ -89,16 +95,17 @@ void main() {
     ) async {
       await boot(tester);
       final rig = await _open(tester);
+      final booted = _storage.writeCount;
 
       rig.set.composer.insertText('a');
       await tester.pump(const Duration(milliseconds: 100));
       rig.set.composer.insertText('b');
       await tester.pump(const Duration(milliseconds: 100));
-      expect(_storage.entries, isEmpty);
+      expect(_drafts(), isEmpty);
 
       await tester.pump(_debounce);
       expect(await _stored(), const ChatDraft(markdown: 'ab'));
-      expect(_storage.writeCount, 1);
+      expect(_storage.writeCount - booted, 1);
     });
 
     testWidgets('leaving at once still saves what was typed', (tester) async {
@@ -122,11 +129,11 @@ void main() {
       await tester.pump();
 
       expect(rig.sent, ['hello']);
-      expect(_storage.entries, isEmpty);
+      expect(_drafts(), isEmpty);
 
       // The composer emptied by the send writes nothing back.
       await tester.pump(_debounce);
-      expect(_storage.entries, isEmpty);
+      expect(_drafts(), isEmpty);
     });
 
     testWidgets('an emptied composer leaves no draft', (tester) async {
@@ -138,7 +145,7 @@ void main() {
       rig.set.composer.clear();
       await tester.pump(_debounce);
 
-      expect(_storage.entries, isEmpty);
+      expect(_drafts(), isEmpty);
     });
 
     testWidgets('an edit in progress restores into edit mode for the same '
@@ -165,7 +172,7 @@ void main() {
       await rig.tapAction(tester, ChatComposerActions.primary);
       await tester.pump();
       expect(rig.edited, ['17:make it **loud**!']);
-      expect(_storage.entries, isEmpty);
+      expect(_drafts(), isEmpty);
     });
 
     testWidgets('cancelling an edit does not leave the edit draft behind', (
@@ -180,7 +187,7 @@ void main() {
       rig.set.cancelEdit();
       await tester.pump(_debounce);
 
-      expect(_storage.entries, isEmpty);
+      expect(_drafts(), isEmpty);
     });
 
     testWidgets('text typed before the stored draft was read wins over it', (

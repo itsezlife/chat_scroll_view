@@ -2,9 +2,7 @@ import 'dart:math' as math;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
-import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// The link of the pack [id] to share or copy, or null for a pack that has
@@ -37,24 +35,6 @@ final class PackSheetLinks {
 
 /// One item of a pack sheet's grid, with the pack it is shown in.
 typedef PackSheetItem = ({ContentDescriptor item, Pack pack});
-
-/// Begins the long press on [item] in a pack sheet's grid, or returns null to
-/// decline it: the injection point of the content preview.
-///
-/// The same shape as `CatalogPagePolicy.beginLongPress`, so the preview a
-/// page opens on its own grid opens here too: [kind] is the pointer that
-/// pressed, [cellBounds] and [viewportBounds] the pressed cell and the grid
-/// in global coordinates. The sheet forwards the rest of the gesture to the
-/// session and cancels it when the sheet goes away.
-typedef PackSheetLongPress =
-    CatalogLongPressSession? Function(
-      BuildContext context,
-      PackSheetItem item,
-      LongPressStartDetails details, {
-      required PointerDeviceKind kind,
-      required Rect cellBounds,
-      required Rect viewportBounds,
-    });
 
 /// Shows a pack sheet: a modal bottom sheet on touch and a centred box under
 /// a pointer, as the reference clients do (the mobile client's
@@ -229,12 +209,14 @@ class _DragToDismissState extends State<_DragToDismiss>
       Navigator.of(context).pop();
       return;
     }
-    final millis = (250 * (_offset / PackSheet.dismissDistance)).round();
+    final back =
+        PackSheet.closeDuration * (_offset / PackSheet.dismissDistance);
+    final speed = ChromeMotionScope.maybeOf(context)?.speed;
     _back
       ..value = _offset
       ..animateTo(
         0,
-        duration: Duration(milliseconds: math.max(1, millis)),
+        duration: speed?.scale(back) ?? back,
         curve: Curves.easeOut,
       );
   }

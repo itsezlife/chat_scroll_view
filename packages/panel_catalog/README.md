@@ -87,7 +87,9 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   kind (`Duration.zero` opens at once, a click that lifts sooner stays a tap);
   `pinnedLeaf` keeps one cell's hover wash and stops the wheel while a host
   surface is open over it; `PanelCatalogController.leafBoundsOf` and
-  `viewportBounds` give the global rectangles to place that surface by
+  `viewportBounds` give the global rectangles to place that surface by, and
+  `leafAt` the cell under a global point for a surface that follows a finger
+  from cell to cell
 - **Cursor** — the viewport asks for the click cursor over a leaf the shell can
   tap or long-press and over a header action it listens to, and defers
   elsewhere

@@ -15,6 +15,8 @@ import 'package:panel_pages/src/emoji/emoji_tone_picker.dart';
 import 'package:panel_pages/src/emoji/emoji_variant_picker.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/preview/catalog_content_preview.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -64,12 +66,17 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   desktop client opens it on the press for an emoji never chosen; a click
 ///   that inserts nothing read as a bug.) A finger or stylus keeps the
 ///   platform's long-press delay.
+/// - **Custom emoji.** Given [previews] and [assets], a press held on a
+///   custom emoji (never a unicode one) opens the content preview
+///   (`ContentPreviewSession`) after its own delays, the recents' included:
+///   Send Emoji, Copy Emoji, and Remove from Recent in the recents. Its
+///   right click keeps the recents menu.
 /// - **Strip.** The category strip above the catalogue, or pinned below it
 ///   under the pointer arrangement ([stripReady] defers it).
 /// - **A pack's header.** The title of a pack of custom emoji (a section of
-///   `CollectionId.set`) opens the pack through [onPackRequested]
-///   (`EmojiView`'s custom emoji pack header opens `EmojiPacksAlert`); without
-///   it a title is only a title.
+///   `CollectionId.set`) asks the host to open the pack
+///   (`PanelPageHost.requestPack`; `EmojiView`'s custom emoji pack header
+///   opens `EmojiPacksAlert`).
 final class EmojiPagePolicy extends CatalogPagePolicy {
   /// The emoji policy of the page behind [host].
   ///
@@ -84,7 +91,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     this.stripReady,
     this.assets,
     this.stripLayout = EmojiStripLayout.automatic,
-    this.onPackRequested,
+    this.previews,
   });
 
   /// The id a pack's header title reports.
@@ -108,6 +115,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   /// Height of a section header.
   static const double headerExtent = 27;
+
+  /// The host's handle on content previews, or null for none.
+  final ContentPreviewController? previews;
 
   /// The kind every pick of the page is filed under: the page's one recents
   /// list, custom emoji included. It names the list, in a pick's
@@ -196,13 +206,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   /// How the strip lays its icons out under the pointer arrangement.
   final EmojiStripLayout stripLayout;
 
-  /// Asked to open the pack of custom emoji whose title the user tapped, or
-  /// null for titles that do nothing.
-  final ValueChanged<PackId>? onPackRequested;
-
   @override
   String? titleActionOf(Collection collection) => switch (collection.id) {
-    CollectionId$Set() when onPackRequested != null => openPackActionId,
+    CollectionId$Set() => openPackActionId,
     _ => null,
   };
 
@@ -307,7 +313,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       openPackActionId,
       CollectionId$Set(:final id),
     )) {
-      onPackRequested?.call(PackId(id));
+      host.requestPack(PackId(id));
       return;
     }
     if (actionId != colorAllActionId ||
@@ -436,7 +442,24 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   // mouse's hold opens the picker for the ones that have variants.
   @override
   bool hasLongPress(CatalogLeafHit hit, Collection collection) =>
-      _isRecentEmoji(hit, collection) || _variantsOf(hit.leaf.key) != null;
+      _isRecentEmoji(hit, collection) ||
+      _variantsOf(hit.leaf.key) != null ||
+      (_preview?.previews(hit) ?? false);
+
+  // --- Custom emoji ---------------------------------------------------------
+
+  CatalogContentPreview? get _preview => switch ((previews, assets)) {
+    (final previews?, final assets?) => CatalogContentPreview(
+      controller: previews,
+      assets: assets,
+      actions: panelPreviewActions(host, recentsKind: recentsKind),
+      inRecents: (hit) => hit.sectionId == _recentsSectionId,
+    ),
+    _ => null,
+  };
+
+  // The recents' section: [sectionIdOf] is the collection id's own text.
+  static final String _recentsSectionId = CollectionId.recent.toString();
 
   static bool _isRecentEmoji(CatalogLeafHit hit, Collection collection) =>
       collection.id == CollectionId.recent;
@@ -452,6 +475,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     Collection collection,
     PointerDeviceKind kind,
   ) {
+    if (_preview?.previews(hit) ?? false) {
+      return CatalogContentPreview.delayOf(kind);
+    }
     if (kind != PointerDeviceKind.mouse) return null;
     return _variantsOf(hit.leaf.key) == null ? null : pointerHoldDelay;
   }
@@ -465,8 +491,28 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     required PointerDeviceKind kind,
     required Rect cellBounds,
     required Rect viewportBounds,
+    CatalogLeafHit? Function(Offset globalPosition)? leafAt,
   }) {
     final key = hit.leaf.key;
+    // A custom emoji previews, in the recents too, as the reference's
+    // preview takes the press before the list does.
+    if (_preview case final preview? when preview.previews(hit)) {
+      final hold = host.holdAutoHide();
+      try {
+        final session = preview.begin(
+          context,
+          hit,
+          kind: kind,
+          leafAt: leafAt,
+          hold: hold,
+        );
+        if (session == null) hold.release();
+        return session;
+      } on Object {
+        hold.release();
+        rethrow;
+      }
+    }
     // A finger on a recent asks to clear them. The pointer keeps the picker
     // (its menu has the clear item), and a cell with no variants has none.
     if (kind != PointerDeviceKind.mouse && _isRecentEmoji(hit, collection)) {

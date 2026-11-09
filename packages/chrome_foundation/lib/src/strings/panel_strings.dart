@@ -1,5 +1,6 @@
-/// Strings of the panel: tab names, section titles, search copy and the
-/// clear-recents confirmation and the recents menu.
+/// Strings of the panel: tab names, section titles, search copy, the
+/// clear-recents confirmations, the recents menu and the content preview's
+/// menu.
 ///
 /// Supplied by the host as part of `ChromeStrings`; this package ships no
 /// translation. Members are required so a host cannot forget one.
@@ -25,6 +26,19 @@ final class PanelStrings {
     required this.stickersEmpty,
     required this.gifsFailed,
     required this.retryAction,
+    required this.clearRecentStickersTitle,
+    required this.clearRecentStickersMessage,
+    required this.sendStickerAction,
+    required this.sendEmojiAction,
+    required this.sendGifAction,
+    required this.sendWithoutSoundAction,
+    required this.addToFavouritesAction,
+    required this.removeFromFavouritesAction,
+    required this.viewPackAction,
+    required this.deleteFromRecentAction,
+    required this.copyEmojiAction,
+    required this.saveGifAction,
+    required this.deleteGifAction,
   });
 
   /// The name of the panel page registered under [pageId]. Page ids are open
@@ -98,4 +112,49 @@ final class PanelStrings {
 
   /// Label of the button that tries a failed load of the GIF page again.
   final String retryAction;
+
+  /// Title of the confirmation that clears the recent stickers.
+  final String clearRecentStickersTitle;
+
+  /// Body of the confirmation that clears the recent stickers.
+  final String clearRecentStickersMessage;
+
+  /// Content preview item that sends the sticker shown.
+  final String sendStickerAction;
+
+  /// Content preview item that sends the custom emoji shown.
+  final String sendEmojiAction;
+
+  /// Content preview item that sends the GIF shown.
+  final String sendGifAction;
+
+  /// Content preview item that sends the content shown without a
+  /// notification sound.
+  final String sendWithoutSoundAction;
+
+  /// Content preview item that adds the sticker shown to the favourite
+  /// stickers.
+  final String addToFavouritesAction;
+
+  /// Content preview item that takes the sticker shown out of the favourite
+  /// stickers.
+  final String removeFromFavouritesAction;
+
+  /// Content preview item that shows the pack the content belongs to.
+  final String viewPackAction;
+
+  /// Content preview item that takes the sticker shown out of the recent
+  /// stickers. (A custom emoji's is [removeRecentAction], as in the
+  /// reference client.)
+  final String deleteFromRecentAction;
+
+  /// Content preview item that copies the custom emoji shown.
+  final String copyEmojiAction;
+
+  /// Content preview item that saves the GIF shown among the saved GIFs.
+  final String saveGifAction;
+
+  /// Content preview item that deletes the GIF shown from the saved GIFs;
+  /// shown in the attention style.
+  final String deleteGifAction;
 }

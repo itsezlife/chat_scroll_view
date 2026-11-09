@@ -11,6 +11,10 @@ import 'package:panel_pages/src/menu/catalog_context_menu.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_action.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/preview/catalog_content_preview.dart';
+import 'package:panel_pages/src/preview/content_preview_item.dart';
+import 'package:panel_pages/src/preview/content_preview_menu.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/snapshot/catalog_snapshot_builder.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -50,7 +54,8 @@ class PackSheetView extends StatefulWidget {
     this.onPick,
     this.onUnavailable,
     this.links,
-    this.longPress,
+    this.previews,
+    this.onLibraryEditRequested,
     super.key,
   });
 
@@ -82,8 +87,13 @@ class PackSheetView extends StatefulWidget {
   /// Share and Copy Link, or null for no menu.
   final PackSheetLinks? links;
 
-  /// The preview a long press opens, or null for none.
-  final PackSheetLongPress? longPress;
+  /// The host's handle on content previews, or null for none: with it a
+  /// sticker grid previews a held or tapped sticker (an emoji grid never
+  /// does: `ContentPreviewViewer.can()` is false for an emoji set).
+  final ContentPreviewController? previews;
+
+  /// Asked for the preview's library edits (favourites), or null for none.
+  final ValueChanged<LibraryEdit>? onLibraryEditRequested;
 
   // --- Metrics --------------------------------------------------------------
 
@@ -165,7 +175,7 @@ class _PackSheetViewState extends State<PackSheetView> {
       widget.library.archivedPacks(kind),
     ],
   ];
-  CatalogLongPressSession? _session;
+  ContentPreviewSession? _session;
   PointerDeviceKind _lastKind = PointerDeviceKind.touch;
   var _closed = false;
 
@@ -295,13 +305,76 @@ class _PackSheetViewState extends State<PackSheetView> {
       setState(() => _alone = item.pack.id);
       return;
     }
+    // A tap on a sticker opens its preview with the menu at once
+    // (`StickersAlert`: a click opens `ContentPreviewViewer` with its menu).
+    if (_preview case final preview?) {
+      _replaceSession(
+        ContentPreviewSession.show(
+          context: context,
+          item: preview.itemOf(hit)!,
+          assets: widget.assets,
+          actions: preview.actions,
+          library: preview.controller.library,
+          kind: _lastKind,
+          openMenu: true,
+          controller: preview.controller,
+          itemAt: _itemAt(preview),
+        ),
+      );
+      return;
+    }
+    _pick(item);
+  }
+
+  // The sheet goes and the host sends or inserts (`StickersAlert`
+  // `onStickerSelected` then `dismiss`, `EmojiPacksAlert` inserts and
+  // dismisses).
+  void _pick(PackSheetItem item) {
     final pick = widget.onPick;
     if (pick == null) return;
-    // The sheet goes and the host sends or inserts (`StickersAlert`
-    // `onStickerSelected` then `dismiss`, `EmojiPacksAlert` inserts and
-    // dismisses).
     _close();
     pick(item);
+  }
+
+  /// The preview of the grid, or null where nothing is previewed: an emoji
+  /// grid, or no controller.
+  CatalogContentPreview? get _preview => switch (widget.previews) {
+    final controller? when _grid == PackSheetGrid.stickers =>
+      CatalogContentPreview(
+        controller: controller,
+        assets: widget.assets,
+        // Send only when opened for a composer; View Pack never, the pack is
+        // open (`StickersAlert` passes no `openSet`).
+        actions: ContentPreviewActions(
+          send: widget.onPick == null ? null : _sendPreviewed,
+          editLibrary: widget.onLibraryEditRequested,
+        ),
+        inRecents: (_) => false,
+        packOf: (hit) => _itemOf(hit)?.pack.id,
+      ),
+    _ => null,
+  };
+
+  void _sendPreviewed(ContentPreviewItem previewed) {
+    for (final pack in _found ?? const <Pack>[]) {
+      for (final item in pack.items) {
+        if (item.key == previewed.key) {
+          _pick((item: item, pack: pack));
+          return;
+        }
+      }
+    }
+  }
+
+  ContentPreviewItem? Function(Offset) _itemAt(CatalogContentPreview preview) =>
+      (global) => switch (_catalog.leafAt(global)) {
+        final hit? => preview.itemOf(hit),
+        null => null,
+      };
+
+  void _replaceSession(ContentPreviewSession? session) {
+    _session?.cancel();
+    _session = session;
   }
 
   void _onSectionAction(String sectionId, String actionId) {
@@ -323,25 +396,14 @@ class _PackSheetViewState extends State<PackSheetView> {
     widget.onEditsRequested(action.requests);
   }
 
-  bool _longPressEligible(CatalogLeafHit hit) => widget.longPress != null;
+  bool _longPressEligible(CatalogLeafHit hit) =>
+      _preview?.previews(hit) ?? false;
 
   void _onLongPressStart(CatalogLeafHit hit, LongPressStartDetails details) {
-    _session?.cancel();
-    _session = null;
-    final begin = widget.longPress;
-    final item = _itemOf(hit);
-    final cell = _catalog.leafBoundsOf(hit);
-    final viewport = _catalog.viewportBounds;
-    if (begin == null || item == null || cell == null || viewport == null) {
-      return;
-    }
-    _session = begin(
-      context,
-      item,
-      details,
-      kind: _lastKind,
-      cellBounds: cell,
-      viewportBounds: viewport,
+    final preview = _preview;
+    if (preview == null) return;
+    _replaceSession(
+      preview.begin(context, hit, kind: _lastKind, leafAt: _catalog.leafAt),
     );
   }
 
@@ -419,6 +481,8 @@ class _PackSheetViewState extends State<PackSheetView> {
                         padding: PackSheetView.gridPadding,
                         onLeafTap: _onTap,
                         leafLongPressEligible: _longPressEligible,
+                        leafLongPressDelay: (_, kind) =>
+                            CatalogContentPreview.delayOf(kind),
                         onLeafLongPressStart: _onLongPressStart,
                         onLeafLongPressMove: (_, details) =>
                             _session?.update(details),
@@ -774,10 +838,21 @@ class _Spinner extends StatefulWidget {
 
 class _SpinnerState extends State<_Spinner>
     with SingleTickerProviderStateMixin {
-  late final _turn = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 1),
-  )..repeat();
+  // `RadialProgressView` turns once a second; reduce motion stops it.
+  static const _turnPeriod = Duration(seconds: 1);
+
+  late final _turn = AnimationController(vsync: this, duration: _turnPeriod);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final speed = ChromeMotionScope.maybeOf(context)?.speed;
+    if (speed == null || !speed.isInstant) {
+      if (!_turn.isAnimating) _turn.repeat();
+    } else {
+      _turn.stop();
+    }
+  }
 
   @override
   void dispose() {

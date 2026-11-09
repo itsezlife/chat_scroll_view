@@ -104,6 +104,7 @@ class _Policy extends CatalogPagePolicy {
     required PointerDeviceKind kind,
     required Rect cellBounds,
     required Rect viewportBounds,
+    CatalogLeafHit? Function(Offset globalPosition)? leafAt,
   }) {
     sessionLog.add('begin ${hit.sectionId}/${hit.index}');
     return _Session(sessionLog);

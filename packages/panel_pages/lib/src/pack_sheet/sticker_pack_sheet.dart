@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_action.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
 
 /// The sticker pack sheet: one pack of stickers or masks, its title, its
 /// stickers five to a row, and a button that adds or removes it (the
@@ -21,11 +22,13 @@ import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
 ///   official one is archived). A press closes the sheet and asks
 ///   [onEditsRequested]; the host applies the edit (a removal with its undo
 ///   window) and shows the feedback.
-/// - **Picking.** With [onPick] (given only when the sheet was opened for a
-///   composer that can send), a tap on a sticker closes the sheet and hands
-///   it to the host to send. Without it a tap does nothing.
-/// - **The preview.** [longPress] begins the content preview on a held
-///   sticker; without it a press is a tap.
+/// - **The preview.** With [previews], a held sticker opens the content
+///   preview, and a tap opens it with its menu at once, as the reference
+///   does; its Send (only with [onPick]) closes the sheet and hands the
+///   sticker to the host, and its favourites ask [onLibraryEditRequested].
+/// - **Picking.** Without [previews], a tap sends at once when there is an
+///   [onPick] (given only when the sheet was opened for a composer that can
+///   send), and does nothing otherwise.
 /// - **The menu.** Share and Copy Link, only with [links] and a link for the
 ///   pack.
 ///
@@ -42,7 +45,8 @@ class StickerPackSheet extends StatelessWidget {
     this.onPick,
     this.onUnavailable,
     this.links,
-    this.longPress,
+    this.previews,
+    this.onLibraryEditRequested,
     super.key,
   });
 
@@ -70,8 +74,14 @@ class StickerPackSheet extends StatelessWidget {
   /// Share and Copy Link, or null for no menu.
   final PackSheetLinks? links;
 
-  /// The preview a held sticker opens, or null for none.
-  final PackSheetLongPress? longPress;
+  /// The host's handle on content previews, or null for none: with it a
+  /// held sticker, or a tapped one, opens its preview (a tap with the menu
+  /// at once); its Send is [onPick], and there is no View Pack.
+  final ContentPreviewController? previews;
+
+  /// Asked for the preview's library edits (Add to / Delete from
+  /// Favorites), or null to offer none.
+  final ValueChanged<LibraryEdit>? onLibraryEditRequested;
 
   @override
   Widget build(BuildContext context) => PackSheetView(
@@ -84,6 +94,7 @@ class StickerPackSheet extends StatelessWidget {
     onPick: onPick,
     onUnavailable: onUnavailable,
     links: links,
-    longPress: longPress,
+    previews: previews,
+    onLibraryEditRequested: onLibraryEditRequested,
   );
 }

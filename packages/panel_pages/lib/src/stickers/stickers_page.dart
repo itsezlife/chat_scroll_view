@@ -4,6 +4,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/src/page/catalog_page.dart';
 import 'package:panel_pages/src/page/listen_value_builder.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/stickers/stickers_page_policy.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -22,8 +23,8 @@ import 'package:panel_shell/panel_shell.dart';
 /// says [PanelStrings.stickersEmpty] in the middle, over the empty catalogue,
 /// rather than show a blank page that reads as one still loading.
 ///
-/// A tap on a pack's title asks [onPackRequested] to open that pack (the
-/// host shows its pack sheet); without it a title is only a title.
+/// A tap on a pack's title asks the host to open that pack
+/// (`PanelPageHost.requestPack`; the host shows its pack sheet).
 ///
 /// Requires the chrome theme, strings and motion scopes.
 class StickersPage extends StatefulWidget {
@@ -33,7 +34,7 @@ class StickersPage extends StatefulWidget {
     required this.host,
     required this.source,
     required this.assets,
-    this.onPackRequested,
+    this.previews,
     super.key,
   });
 
@@ -48,27 +49,29 @@ class StickersPage extends StatefulWidget {
   /// The asset cache the grid and the strip draw through.
   final AssetCacheScope assets;
 
-  /// Asked to open the pack whose title the user tapped, or null.
-  final ValueChanged<PackId>? onPackRequested;
+  /// The host's handle on content previews: given, a press held on a sticker
+  /// previews it (`StickersPagePolicy`); null, a long press does nothing.
+  final ContentPreviewController? previews;
 
   @override
   State<StickersPage> createState() => _StickersPageState();
 }
 
 class _StickersPageState extends State<StickersPage> {
-  late StickersPagePolicy _policy = _policyOf(widget);
+  late StickersPagePolicy _policy = _newPolicy();
 
-  static StickersPagePolicy _policyOf(StickersPage page) => StickersPagePolicy(
-    assets: page.assets,
-    onPackRequested: page.onPackRequested,
+  StickersPagePolicy _newPolicy() => StickersPagePolicy(
+    assets: widget.assets,
+    host: widget.host,
+    previews: widget.previews,
   );
 
   @override
   void didUpdateWidget(StickersPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.assets, widget.assets) ||
-        oldWidget.onPackRequested != widget.onPackRequested) {
-      _policy = _policyOf(widget);
+        !identical(oldWidget.previews, widget.previews)) {
+      _policy = _newPolicy();
     }
   }
 

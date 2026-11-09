@@ -2637,6 +2637,16 @@ class RenderPanelCatalog extends RenderBox
       ? MatrixUtils.transformRect(getTransformTo(null), Offset.zero & size)
       : null;
 
+  // Asked as a finger moves over a surface that follows it, so no more than a
+  // hit test of the visible slots.
+  @override
+  CatalogLeafHit? leafAtGlobal(Offset globalPosition) {
+    if (!hasSize) return null;
+    final local = globalToLocal(globalPosition);
+    if (!(Offset.zero & size).contains(local)) return null;
+    return leafAt(local);
+  }
+
   // A scan of the slots, once per call: asked when a surface opens, not per
   // frame.
   @override

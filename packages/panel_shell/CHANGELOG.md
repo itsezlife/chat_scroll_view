@@ -6,6 +6,17 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (content preview requests)
+
+- `PanelEvent.libraryEditRequested(edit)` (`LibraryEditRequested`) and
+  `PanelEvent.packRequested(id)` (`PackRequested`), published by
+  `PanelPageHost.requestLibraryEdit` and `requestPack`: a page's content
+  preview asks the host to favourite a sticker, save a GIF or forget a recent
+  sticker, and to show a pack. The host applies the edit to its content
+  library and opens its pack sheet. A host's exhaustive switch over
+  `PanelEvent`, and an implementation of `PanelPageHost` outside this
+  package, must add them.
+
 ### Added (a fresh open)
 
 - `PanelShellController.reportFreshOpen` and `freshOpen`, and

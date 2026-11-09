@@ -46,11 +46,6 @@ typedef ChatBodyEditor = Future<void> Function(int id, String body);
 /// they agreed.
 typedef ClearRecentsConfirm = Future<bool> Function(SemanticKind kind);
 
-/// Opens the sheet of the pack [id], of [kind] (the page or the content it
-/// was asked from knows which): the host's to show (ADR 044, "Panel to
-/// sheet").
-typedef PackOpener = void Function(PackId id, PackKind kind);
-
 /// The message being edited: what the composer's header names.
 @immutable
 final class ChatEditTarget {
@@ -93,9 +88,8 @@ final class ChatEditTarget {
 ///   inline content reference in the composer and one `RecentsStore.record`;
 ///   a picked sticker is sent and put first in the content library's recent
 ///   stickers, a picked GIF sent and saved (ADR 044); backspace edits the
-///   composer; clearing recents asks [confirmClearRecents] first. A tap on a
-///   pack's title on the stickers or emoji page asks `openPack` for its pack
-///   sheet; what the sheet picks comes back through [pickContent].
+///   composer; clearing recents asks [confirmClearRecents] first. What a pack
+///   sheet picks comes back through [pickContent].
 /// - **Pasted media.** An image or file pasted into the composer, or an
 ///   image a keyboard inserts, goes to `onPastedMedia` to send, and no text
 ///   goes in; when it is not sent, the text that came with it does.
@@ -140,8 +134,9 @@ final class ChatInputSet {
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
     PanelPresentationPolicy? policy,
     Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
+    ValueChanged<PackId>? onPackRequested,
+    ValueChanged<LibraryPackEdit>? onPackEditRequested,
     int? messageLengthLimit = DemoConfig.messageLengthMax,
-    PackOpener? openPack,
   }) {
     // What has been made so far, to free in reverse if a later step throws
     // (a constructor assertion, a keyboard that cannot be read): a half-built
@@ -215,20 +210,10 @@ final class ChatInputSet {
               deferChrome: () =>
                   set.presentation.state.value.kind is KeyboardReplacement &&
                   !keyboardStrategy.keyboardIsUp,
-              onPackRequested: switch (openPack) {
-                final open? => (id) => open(id, PackKind.emoji),
-                null => null,
-              },
             ),
             // Type tabs in the order of the panel: emoji, GIFs, stickers.
             MediaPanelPages.gif(services: services),
-            MediaPanelPages.stickers(
-              services: services,
-              onPackRequested: switch (openPack) {
-                final open? => (id) => open(id, PackKind.stickers),
-                null => null,
-              },
-            ),
+            MediaPanelPages.stickers(services: services),
           ],
           preferences: services.preferences,
         ),
@@ -283,6 +268,8 @@ final class ChatInputSet {
         send: send,
         edit: edit,
         confirmClearRecents: confirmClearRecents,
+        onPackRequested: onPackRequested,
+        onPackEditRequested: onPackEditRequested,
         messageLengthLimit: messageLengthLimit,
         ime: ime,
         window: window,
@@ -313,6 +300,8 @@ final class ChatInputSet {
     required ChatBodySender send,
     required ChatBodyEditor edit,
     required ClearRecentsConfirm confirmClearRecents,
+    required ValueChanged<PackId>? onPackRequested,
+    required ValueChanged<LibraryPackEdit>? onPackEditRequested,
     required this.messageLengthLimit,
     required this.ime,
     required listen.ValueNotifier<PanelWindow> window,
@@ -335,6 +324,8 @@ final class ChatInputSet {
        _send = send,
        _edit = edit,
        _confirmClearRecents = confirmClearRecents,
+       _onPackRequested = onPackRequested,
+       _onPackEditRequested = onPackEditRequested,
        _window = window,
        _text = text,
        linkPreview = ChatLinkPreview(text: text) {
@@ -445,6 +436,10 @@ final class ChatInputSet {
   final ChatBodySender _send;
   final ChatBodyEditor _edit;
   final ClearRecentsConfirm _confirmClearRecents;
+
+  // Where "View pack" goes: the host's pack sheet, once there is one.
+  final ValueChanged<PackId>? _onPackRequested;
+  final ValueChanged<LibraryPackEdit>? _onPackEditRequested;
   final listen.ValueNotifier<PanelWindow> _window;
   final ComposerTextController _text;
 
@@ -966,6 +961,8 @@ final class ChatInputSet {
   /// press.
   Future<bool> handleBack() async {
     if (_disposed) return false;
+    // A content preview over the panel goes first, menu and all.
+    if (services.previews.dismiss()) return true;
     if (shell.search.value.isOpen && ime.samples.value.height > 1) {
       await _keyboardPort.hide();
       return true;
@@ -1012,6 +1009,17 @@ final class ChatInputSet {
         }
       case RecentRemoveRequested(:final key, :final kind):
         _forget(key, kind: kind);
+      // A pack's edit is the host's, with its bulletin (a removal held
+      // behind Undo). A favourite, a saved GIF, a recent sticker forgotten:
+      // the library takes the edit at once, with no undo window (the
+      // reference offers none for these).
+      case LibraryEditRequested(edit: final LibraryPackEdit edit)
+          when _onPackEditRequested != null:
+        _onPackEditRequested(edit);
+      case LibraryEditRequested(:final edit):
+        services.library.apply(edit);
+      case PackRequested(:final id):
+        _onPackRequested?.call(id);
       case SearchClosed():
         // What was picked while searching is listed once search is over.
         services.commitShownLists();

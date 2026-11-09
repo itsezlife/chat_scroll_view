@@ -21,6 +21,8 @@ import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
 /// - **Picking.** With [onPick] (the sheet was opened for a composer), a tap
 ///   on an emoji of one pack closes the sheet and hands it to the host to
 ///   insert.
+/// - **No preview.** An emoji pack's grid is never previewed (the
+///   reference's `ContentPreviewViewer.can()` is false for one).
 /// - **Unavailable.** A pack not found, or whose lookup failed, closes the
 ///   sheet and is reported to [onUnavailable] ("Emoji pack not found.").
 ///
@@ -36,7 +38,6 @@ class EmojiPackSheet extends StatelessWidget {
     this.onPick,
     this.onUnavailable,
     this.links,
-    this.longPress,
     super.key,
   }) : assert(packIds.length > 0, 'A pack sheet shows at least one pack.');
 
@@ -64,9 +65,6 @@ class EmojiPackSheet extends StatelessWidget {
   /// Share and Copy Link of a single pack, or null for no menu.
   final PackSheetLinks? links;
 
-  /// The preview a held emoji opens, or null for none.
-  final PackSheetLongPress? longPress;
-
   @override
   Widget build(BuildContext context) => PackSheetView(
     packIds: packIds,
@@ -80,6 +78,5 @@ class EmojiPackSheet extends StatelessWidget {
     onPick: onPick,
     onUnavailable: onUnavailable,
     links: links,
-    longPress: longPress,
   );
 }

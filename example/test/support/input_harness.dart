@@ -44,6 +44,9 @@ final class InputRig {
   /// Media the composer handed over: pasted, or inserted by a keyboard.
   final List<List<PastedMedia>> pastedMedia = <List<PastedMedia>>[];
 
+  /// Every pack "View pack" asked for, in order.
+  final List<PackId> packsAsked = <PackId>[];
+
   /// The set under test, once the first frame is built.
   late ChatInputSet set;
 
@@ -177,6 +180,7 @@ class _ScreenState extends State<_Screen> {
         _rig.pastedMedia.add(media);
         return true;
       },
+      onPackRequested: _rig.packsAsked.add,
       keyboard: _rig.keyboard,
       policy: widget.policy,
       messageLengthLimit: widget.messageLengthLimit,

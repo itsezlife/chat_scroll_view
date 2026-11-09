@@ -44,6 +44,13 @@ import 'page/catalog_page_model_test.dart' as catalog_page_model_test;
 import 'page/catalog_page_sticky_test.dart' as catalog_page_sticky_test;
 import 'page/catalog_page_test.dart' as catalog_page_test;
 import 'page/catalog_sticky_header_test.dart' as catalog_sticky_header_test;
+import 'preview/content_preview_emoji_test.dart' as content_preview_emoji_test;
+import 'preview/content_preview_gifs_test.dart' as content_preview_gifs_test;
+import 'preview/content_preview_layout_test.dart'
+    as content_preview_layout_test;
+import 'preview/content_preview_menu_test.dart' as content_preview_menu_test;
+import 'preview/content_preview_stickers_test.dart'
+    as content_preview_stickers_test;
 import 'scroll/page_scroll_reporter_test.dart' as page_scroll_reporter_test;
 import 'snapshot/catalog_snapshot_builder_test.dart'
     as catalog_snapshot_builder_test;
@@ -113,6 +120,26 @@ void main() {
   group(
     'page/catalog_sticky_header_test.dart',
     catalog_sticky_header_test.main,
+  );
+  group(
+    'preview/content_preview_emoji_test.dart',
+    content_preview_emoji_test.main,
+  );
+  group(
+    'preview/content_preview_gifs_test.dart',
+    content_preview_gifs_test.main,
+  );
+  group(
+    'preview/content_preview_layout_test.dart',
+    content_preview_layout_test.main,
+  );
+  group(
+    'preview/content_preview_menu_test.dart',
+    content_preview_menu_test.main,
+  );
+  group(
+    'preview/content_preview_stickers_test.dart',
+    content_preview_stickers_test.main,
   );
   group(
     'scroll/page_scroll_reporter_test.dart',

@@ -14,7 +14,6 @@ import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:listen/listen.dart' as listen;
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -43,30 +42,6 @@ Pack _pack(
   ],
 );
 
-final class _Session implements CatalogLongPressSession {
-  final _open = listen.ValueNotifier(true);
-  bool ended = false;
-  bool cancelled = false;
-
-  @override
-  listen.ValueListenable<bool> get isOpen => _open;
-
-  @override
-  void update(LongPressMoveUpdateDetails details) {}
-
-  @override
-  void end(LongPressEndDetails details) {
-    ended = true;
-    _open.value = false;
-  }
-
-  @override
-  void cancel() {
-    cancelled = true;
-    _open.value = false;
-  }
-}
-
 // The stand-ins of stickers nobody decodes shimmer for good, so the sheet
 // never settles: run the clock for a while instead.
 Future<void> settle(WidgetTester tester) async {
@@ -82,6 +57,7 @@ void main() {
   late List<List<PackEditRequest>> edits;
   late List<PackSheetItem> picks;
   late List<PackLookup> unavailable;
+  late List<LibraryEdit> libraryEdits;
   late BuildContext home;
 
   setUp(() {
@@ -93,6 +69,7 @@ void main() {
     edits = [];
     picks = [];
     unavailable = [];
+    libraryEdits = [];
     addTearDown(() {
       packs.dispose();
       library.dispose();
@@ -125,7 +102,7 @@ void main() {
     String id, {
     bool canSend = false,
     PanelArrangement arrangement = PanelArrangement.touch,
-    PackSheetLongPress? longPress,
+    ContentPreviewController? previews,
     PackSheetLinks? links,
   }) async {
     await pumpHome(tester);
@@ -140,7 +117,8 @@ void main() {
         onEditsRequested: edits.add,
         onPick: canSend ? picks.add : null,
         onUnavailable: unavailable.add,
-        longPress: longPress,
+        previews: previews,
+        onLibraryEditRequested: libraryEdits.add,
         links: links,
       ),
     ).ignore();
@@ -257,35 +235,56 @@ void main() {
       expect(sheetUp(), isTrue);
     });
 
-    testWidgets('a long press begins the injected preview on the item', (
-      tester,
-    ) async {
-      final session = _Session();
-      final held = <PackSheetItem>[];
-      await open(
-        tester,
-        'cats',
-        longPress:
-            (
-              context,
-              item,
-              details, {
-              required kind,
-              required cellBounds,
-              required viewportBounds,
-            }) {
-              held.add(item);
-              return session;
-            },
-      );
+    testWidgets('a held sticker opens its preview', (tester) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(tester, 'cats', canSend: true, previews: previews);
 
       final gesture = await tester.startGesture(firstCell(tester));
-      await tester.pump(const Duration(milliseconds: 600));
-      await gesture.up();
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(held.single.item.key, const ContentKey.document('cats-0'));
-      expect(session.ended, isTrue);
+      expect(previews.isOpen.value, isTrue);
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(picks, isEmpty);
+    });
+
+    testWidgets('a tap opens the preview with its menu: Send, favourites, '
+        'no View Pack; Send sends and closes the sheet', (tester) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(tester, 'cats', canSend: true, previews: previews);
+
+      await tester.tapAt(firstCell(tester));
+      await settle(tester);
+
+      expect(previews.isOpen.value, isTrue);
+      expect(find.text('Send Sticker'), findsOneWidget);
+      expect(find.text('Add to Favorites'), findsOneWidget);
+      expect(find.text('View Pack'), findsNothing);
+
+      await tester.tap(find.text('Send Sticker'));
+      await settle(tester);
+
+      expect(picks.single.item.key, const ContentKey.document('cats-0'));
+      expect(sheetUp(), isFalse);
+    });
+
+    testWidgets('without a composer the preview has no Send', (tester) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(tester, 'cats', previews: previews);
+
+      await tester.tapAt(firstCell(tester));
+      await settle(tester);
+
+      expect(find.text('Send Sticker'), findsNothing);
+      await tester.tap(find.text('Add to Favorites'));
+      await settle(tester);
+
+      expect(libraryEdits, [
+        const LibraryEdit.favouriteSticker(ContentKey.document('cats-0')),
+      ]);
     });
   });
 

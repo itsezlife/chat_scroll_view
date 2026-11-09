@@ -51,6 +51,14 @@ sealed class PanelEvent {
     required SemanticKind kind,
   }) = RecentRemoveRequested;
 
+  /// The user asked for [edit] of their content library; see
+  /// [LibraryEditRequested].
+  const factory PanelEvent.libraryEditRequested(LibraryEdit edit) =
+      LibraryEditRequested;
+
+  /// The user asked to see the pack [id]; see [PackRequested].
+  const factory PanelEvent.packRequested(PackId id) = PackRequested;
+
   /// The selected page changed to [pageId]; see [PageChanged].
   const factory PanelEvent.pageChanged(String pageId) = PageChanged;
 
@@ -227,6 +235,52 @@ final class RecentRemoveRequested extends PanelEvent {
 
   @override
   String toString() => 'RecentRemoveRequested($key, $kind)';
+}
+
+/// The user asked for [edit] of their content library: add a sticker to the
+/// favourites or take it out, save a GIF or delete it, forget a recent
+/// sticker.
+///
+/// The panel edits no library: the host calls `ContentLibrary.apply` with the
+/// edit, with whatever undo window its feedback offers, and shows that
+/// feedback (a limit reached, an undo) itself.
+final class LibraryEditRequested extends PanelEvent {
+  /// A request to apply [edit].
+  const LibraryEditRequested(this.edit);
+
+  /// The edit, as the library takes it.
+  final LibraryEdit edit;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LibraryEditRequested && other.edit == edit;
+
+  @override
+  int get hashCode => Object.hash(LibraryEditRequested, edit);
+
+  @override
+  String toString() => 'LibraryEditRequested($edit)';
+}
+
+/// The user asked to see the pack [id] (a content preview's "View pack").
+///
+/// The panel shows no pack: the host opens its pack sheet for [id], or does
+/// nothing where it has none.
+final class PackRequested extends PanelEvent {
+  /// A request to show the pack [id].
+  const PackRequested(this.id);
+
+  /// The pack, by its id.
+  final PackId id;
+
+  @override
+  bool operator ==(Object other) => other is PackRequested && other.id == id;
+
+  @override
+  int get hashCode => Object.hash(PackRequested, id);
+
+  @override
+  String toString() => 'PackRequested(${id.value})';
 }
 
 /// The selected page changed to [pageId].

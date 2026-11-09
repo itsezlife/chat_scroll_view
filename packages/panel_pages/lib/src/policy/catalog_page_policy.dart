@@ -351,7 +351,10 @@ abstract class CatalogPagePolicy {
   /// Only called where [hasLongPress] answered true. [context] is the page's.
   /// [kind] is the pointer that pressed, and [cellBounds] and [viewportBounds]
   /// the pressed cell and the catalogue's box in global coordinates, so a
-  /// surface can be placed against both.
+  /// surface can be placed against both. [leafAt] names the cell under a
+  /// global point as the finger moves on (the catalogue's
+  /// `PanelCatalogController.leafAt`), for a surface that follows it from
+  /// cell to cell (a content preview); null where there is no catalogue.
   CatalogLongPressSession? beginLongPress(
     BuildContext context,
     CatalogLeafHit hit,
@@ -360,6 +363,7 @@ abstract class CatalogPagePolicy {
     required PointerDeviceKind kind,
     required Rect cellBounds,
     required Rect viewportBounds,
+    CatalogLeafHit? Function(Offset globalPosition)? leafAt,
   }) => null;
 
   /// The user tapped the header action [actionId] of [collection]'s section:

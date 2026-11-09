@@ -11,6 +11,7 @@ import 'package:panel_pages/src/emoji/emoji_category_strip.dart';
 import 'package:panel_pages/src/emoji/emoji_page_policy.dart';
 import 'package:panel_pages/src/page/catalog_page.dart';
 import 'package:panel_pages/src/page/catalog_page_controller.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// Builds the glyph plan of the page's collections, or null while they are not
@@ -169,7 +170,7 @@ class EmojiPage extends StatefulWidget {
     this.deferChrome = false,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
     this.stripLayout = EmojiStripLayout.automatic,
-    this.onPackRequested,
+    this.previews,
     super.key,
   });
 
@@ -209,10 +210,9 @@ class EmojiPage extends StatefulWidget {
   /// host fixes one.
   final EmojiStripLayout stripLayout;
 
-  /// Asked to open the pack of custom emoji whose title the user tapped (the
-  /// host shows its pack sheet), or null for titles that do nothing. Read
-  /// when the page mounts.
-  final ValueChanged<PackId>? onPackRequested;
+  /// The host's handle on content previews: given, a press held on a custom
+  /// emoji previews it (`EmojiPagePolicy`); null, it does not.
+  final ContentPreviewController? previews;
 
   /// Horizontal inset of the grid.
   static const double gridPadH = 5;
@@ -283,7 +283,7 @@ class _EmojiPageState extends State<EmojiPage> {
     stripReady: _stripReady,
     assets: widget.assets,
     stripLayout: widget.stripLayout,
-    onPackRequested: widget.onPackRequested,
+    previews: widget.previews,
   );
 
   @override
@@ -311,7 +311,8 @@ class _EmojiPageState extends State<EmojiPage> {
     if (!identical(oldWidget.entryOf, widget.entryOf) ||
         !identical(oldWidget.preferences, widget.preferences) ||
         !identical(oldWidget.assets, widget.assets) ||
-        oldWidget.stripLayout != widget.stripLayout) {
+        oldWidget.stripLayout != widget.stripLayout ||
+        !identical(oldWidget.previews, widget.previews)) {
       _policy = _newPolicy();
     }
     if (!identical(oldWidget.assets, widget.assets)) {

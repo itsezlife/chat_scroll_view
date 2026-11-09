@@ -88,35 +88,20 @@ void main() {
     });
   });
 
-  final packRequests = <PackId>[];
-  setUp(packRequests.clear);
-
-  Widget page({
-    double width = 360,
-    TextDirection? direction,
-    bool opensPacks = false,
-  }) => PanelShellTestScope(
-    textDirection: direction ?? TextDirection.ltr,
-    child: Center(
-      child: SizedBox(
-        width: width,
-        height: 480,
-        child: StickersPage(
-          host: host,
-          source: source,
-          assets: assets,
-          onPackRequested: opensPacks ? packRequests.add : null,
+  Widget page({double width = 360, TextDirection? direction}) =>
+      PanelShellTestScope(
+        textDirection: direction ?? TextDirection.ltr,
+        child: Center(
+          child: SizedBox(
+            width: width,
+            height: 480,
+            child: StickersPage(host: host, source: source, assets: assets),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
-  Future<void> pumpPage(
-    WidgetTester tester, {
-    double width = 360,
-    bool opensPacks = false,
-  }) async {
-    await tester.pumpWidget(page(width: width, opensPacks: opensPacks));
+  Future<void> pumpPage(WidgetTester tester, {double width = 360}) async {
+    await tester.pumpWidget(page(width: width));
     await settle(tester);
   }
 
@@ -291,35 +276,24 @@ void main() {
 
   group('a pack title', () {
     pageTest('a tap on it asks to open the pack', (tester) async {
-      await pumpPage(tester, opensPacks: true);
+      await pumpPage(tester);
 
       await tester.tapAt(origin(tester) + const Offset(40, 36 + 13.5));
       await tester.pump();
 
-      expect(packRequests, [const PackId('a')]);
+      expect(host.packRequests, [const PackId('a')]);
       expect(host.picks, isEmpty);
     });
 
     pageTest('the recents title opens nothing', (tester) async {
       source.dispose();
       source = FakeCollectionSource([_recents(), _pack('a', 'Cats')]);
-      await pumpPage(tester, opensPacks: true);
-
-      await tester.tapAt(origin(tester) + const Offset(40, 36 + 13.5));
-      await tester.pump();
-
-      expect(packRequests, isEmpty);
-    });
-
-    pageTest('without a host that opens packs it is only a title', (
-      tester,
-    ) async {
       await pumpPage(tester);
 
       await tester.tapAt(origin(tester) + const Offset(40, 36 + 13.5));
       await tester.pump();
 
-      expect(packRequests, isEmpty);
+      expect(host.packRequests, isEmpty);
     });
   });
 

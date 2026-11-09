@@ -47,7 +47,13 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart'
-    show PackId, PackKind, PastedMedia, SemanticKind;
+    show
+        LibraryPackEdit,
+        PackId,
+        PackKind,
+        PackLookup$Found,
+        PastedMedia,
+        SemanticKind;
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -245,7 +251,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       keyboard: widget.softKeyboard,
       policy: widget.presentationPolicy,
       onPastedMedia: _onPastedMedia,
-      openPack: _openPack,
+      onPackRequested: (id) => unawaited(_openPack(id)),
+      onPackEditRequested: _editPack,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
     // Made with the input set: the chat's embeds hold while its popup panel
@@ -832,33 +839,23 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _input.beginEdit(messageId, content);
   }
 
-  /// Opens the sheet of the pack [id], of [kind]. Its stickers are sent, and
-  /// its emoji inserted, through the input set, as a pick from the panel
-  /// is; stickers only where the chat allows them.
-  void _openPack(PackId id, PackKind kind) {
-    if (!mounted) return;
-    final input = _input;
-    final canPick = kind == PackKind.emoji || _chatAllowsStickers;
-    ChatPackSheets.open(
-      context,
-      services: widget.services,
-      pack: id,
-      kind: kind,
-      onPick: canPick
-          ? (item) => input.pickContent(item.key, kind: item.semanticKind)
-          : null,
-    ).ignore();
-  }
-
-  /// Asks before the recent content of [kind] is cleared.
+  /// Asks before the recent content of [kind] is cleared: the recent
+  /// stickers in their own words, the emoji recents in theirs.
   Future<bool> _confirmClearRecents(SemanticKind kind) async {
     if (!mounted) return false;
     final panel = ChromeStringsScope.panelOf(context);
+    final (title, message) = switch (kind) {
+      SemanticKind.sticker => (
+        panel.clearRecentStickersTitle,
+        panel.clearRecentStickersMessage,
+      ),
+      _ => (panel.clearRecentsTitle, panel.clearRecentsMessage),
+    };
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(panel.clearRecentsTitle),
-        content: Text(panel.clearRecentsMessage),
+        title: Text(title),
+        content: Text(message),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -872,6 +869,53 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       ),
     );
     return confirmed ?? false;
+  }
+
+  // A pack title in the panel, or "View pack" in its preview: the pack's
+  // sheet, a sticker sheet or an emoji sheet by what the pack holds. Its
+  // stickers are sent, and its emoji inserted, through the input set as a
+  // pick from the panel is; stickers only where the chat allows them.
+  Future<void> _openPack(PackId id) async {
+    final services = widget.services;
+    final lookup = await services.packs.lookup(id);
+    if (!mounted) return;
+    final kind = switch (lookup) {
+      PackLookup$Found(:final pack) => pack.kind,
+      // The sheet says the pack is not there.
+      _ => PackKind.stickers,
+    };
+    final input = _input;
+    final canPick = kind == PackKind.emoji || _chatAllowsStickers;
+    await ChatPackSheets.open(
+      context,
+      services: services,
+      pack: id,
+      kind: kind,
+      onPick: canPick
+          ? (item) => input.pickContent(item.key, kind: item.semanticKind)
+          : null,
+    );
+  }
+
+  // A pack's edit asked by the panel: applied with its bulletin, a removal
+  // or an archiving behind Undo.
+  void _editPack(LibraryPackEdit edit) {
+    if (!mounted) return;
+    final services = widget.services;
+    final pack = switch (services.packs.peek(edit.id)) {
+      PackLookup$Found(:final pack) => pack,
+      _ => null,
+    };
+    if (pack == null) {
+      ChatPackSheets.applyAlone(services.library, edit);
+      return;
+    }
+    ChatPackSheets.apply(
+      services.library,
+      [(edit: edit, pack: pack)],
+      ChromeStringsScope.packSheetOf(context),
+      ScaffoldMessenger.maybeOf(context),
+    );
   }
 
   // The demo sends no media: it shows what it would send, as the reference

@@ -58,36 +58,20 @@ void main() {
   group('a pack of custom emoji', () {
     final pack = _loaded(const CollectionId.set('cats'), ['😀']);
 
-    test('its title opens the pack when the host opens packs', () {
-      final requested = <PackId>[];
-      final opening = EmojiPagePolicy(
-        host: host,
-        entryOf: fixtures.entryOf,
-        preferences: preferences,
-        onPackRequested: requested.add,
-      );
+    test('its title asks the host to open the pack', () {
+      final id = policy.titleActionOf(pack);
+      policy.onSectionAction(pack, id!, host);
 
-      final id = opening.titleActionOf(pack);
-      opening.onSectionAction(pack, id!, host);
-
-      expect(requested, [const PackId('cats')]);
+      expect(host.packRequests, [const PackId('cats')]);
     });
 
-    test('a category title and a title without the host open nothing', () {
-      final opening = EmojiPagePolicy(
-        host: host,
-        entryOf: fixtures.entryOf,
-        preferences: preferences,
-        onPackRequested: (_) {},
-      );
-
+    test('a category title opens nothing', () {
       expect(
-        opening.titleActionOf(
+        policy.titleActionOf(
           _loaded(const CollectionId.category('people'), []),
         ),
         isNull,
       );
-      expect(policy.titleActionOf(pack), isNull);
     });
   });
 

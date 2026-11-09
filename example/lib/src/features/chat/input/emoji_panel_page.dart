@@ -1,8 +1,6 @@
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -19,14 +17,11 @@ abstract final class EmojiPanelPage {
   ///
   /// [frames] paces the bake and [deferChrome] says, when the page mounts,
   /// whether to spread its first frame over several (the panel grows into a
-  /// free slot) or mount it at once (it replaces what is on screen). A tap
-  /// on the title of a pack of custom emoji asks [onPackRequested] to open
-  /// its sheet.
+  /// free slot) or mount it at once (it replaces what is on screen).
   static PanelPage of({
     required AppServices services,
     required BakeFrameSource frames,
     required bool Function() deferChrome,
-    ValueChanged<PackId>? onPackRequested,
   }) => PanelPage(
     id: id,
     tab: const PanelTab(icon: ChromeIconId.emoji, labelKey: 'emoji'),
@@ -39,6 +34,7 @@ abstract final class EmojiPanelPage {
       preferences: services.preferences,
       entryOf: services.emojiSource.entryOf,
       assets: services.assets,
+      previews: services.previews,
       atlasHostFactory:
           ({
             required devicePixelRatio,
@@ -72,7 +68,6 @@ abstract final class EmojiPanelPage {
       // verdict never re-bakes a page (ADR 006).
       planner: services.planGlyphs,
       deferChrome: deferChrome(),
-      onPackRequested: onPackRequested,
     ),
   );
 }
