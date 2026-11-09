@@ -41,6 +41,17 @@ final class BulletinTokens {
     countdown: Color(0xFFFFFFFF),
   );
 
+  /// The reference desktop client's toast: `toastBg` #2c3033 at 0xe5
+  /// alpha, `toastFg` white, and links in `mediaviewTextLinkFg`, which the
+  /// toast's text palette and its buttons take (toolkit `lib_ui`,
+  /// `ui/colors.palette` and `defaultToastPalette`).
+  static const BulletinTokens referenceDesktop = BulletinTokens(
+    background: Color(0xE52C3033),
+    foreground: Color(0xFFFFFFFF),
+    accent: Color(0xFF4DB8FF),
+    countdown: Color(0xFFFFFFFF),
+  );
+
   /// The dark card made opaque and its accent lighter, so the action label
   /// reaches 7:1 as the high-contrast palettes' text does.
   static const BulletinTokens highContrast = BulletinTokens(

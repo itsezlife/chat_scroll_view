@@ -198,9 +198,13 @@ class _BulletinHostState extends State<BulletinHost>
       return;
     }
     final TickerFuture run;
-    switch (_policy.transition) {
+    switch (_policy.transitionAt(entry.placementIn(_policy))) {
       case BulletinTransition$Slide(:final spring):
         run = presence.animateWith(SpringSimulation(spring, 0, 1, 0));
+      case BulletinTransition$TimedSlide(enter: final given) ||
+          BulletinTransition$Fade(enter: final given?):
+        final spec = given.withSpeed(_motion.speed);
+        run = presence.animateTo(1, duration: spec.duration, curve: spec.curve);
       case BulletinTransition$FadeScale() || BulletinTransition$Fade():
         final spec = _motion.specOf(MotionRole.bulletinShow);
         run = presence.animateTo(1, duration: spec.duration, curve: spec.curve);
@@ -229,10 +233,18 @@ class _BulletinHostState extends State<BulletinHost>
         Curves.easeIn,
       );
     } else {
-      switch (_policy.transition) {
+      switch (_policy.transitionAt(entry.placementIn(_policy))) {
         case BulletinTransition$Slide(:final spring):
           run = entry.presence.animateWith(
             SpringSimulation(spring, entry.presence.value, 0, 0),
+          );
+        case BulletinTransition$TimedSlide(exit: final given) ||
+            BulletinTransition$Fade(exit: final given?):
+          final spec = given.withSpeed(_motion.speed);
+          run = entry.presence.animateTo(
+            0,
+            duration: spec.duration,
+            curve: spec.curve,
           );
         case BulletinTransition$FadeScale() || BulletinTransition$Fade():
           final spec = _motion.specOf(MotionRole.bulletinHide);
@@ -319,6 +331,11 @@ final class _Entry {
   /// The card's width at the last layout, for the swipe threshold.
   double? width;
 
+  /// Where the card sits under [policy]: the bulletin's own placement, or
+  /// the policy's.
+  BulletinPlacement placementIn(BulletinPolicy policy) =>
+      handle.bulletin.placement ?? policy.placement;
+
   Animation<double> get drag => _drag;
 
   set dragOffset(double value) {
@@ -357,8 +374,15 @@ class _EntryView extends StatefulWidget {
 class _EntryViewState extends State<_EntryView> {
   _Entry get _entry => widget.entry;
 
-  BulletinPlacement get _placement =>
-      widget.view.bulletin.placement ?? widget.policy.placement;
+  BulletinPlacement get _placement => _entry.placementIn(widget.policy);
+
+  /// Whether the card has nothing to press: no action, no body tap, no link.
+  bool get _isInert {
+    final bulletin = widget.view.bulletin;
+    return bulletin.action == null &&
+        bulletin.onTap == null &&
+        bulletin.links.isEmpty;
+  }
 
   void _press(bool down) {
     if (_entry.isLeaving) return;
@@ -403,10 +427,21 @@ class _EntryViewState extends State<_EntryView> {
     final placement = _placement;
     final motion = ChromeMotionScope.of(context);
     final still = BulletinCard(view: widget.view, builders: widget.builders);
+    final minWidth = policy.minWidth;
     Widget card = LayoutBuilder(
       builder: (context, constraints) {
         _entry.width = constraints.maxWidth;
-        return still;
+        return switch (minWidth) {
+          null => still,
+          // A card as wide as its content: the content's widest line, held
+          // between the policy's bounds and the room the surface leaves.
+          final minWidth => ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: math.min(minWidth, constraints.maxWidth),
+            ),
+            child: IntrinsicWidth(child: still),
+          ),
+        };
       },
     );
     card = AnimatedScale(
@@ -437,7 +472,7 @@ class _EntryViewState extends State<_EntryView> {
     );
     final maxWidth = policy.maxWidth ?? double.infinity;
     return IgnorePointer(
-      ignoring: _entry.isLeaving,
+      ignoring: _entry.isLeaving || (policy.passesThroughWhenInert && _isInert),
       child: Padding(
         padding: policy.margin,
         child: Align(
@@ -448,7 +483,10 @@ class _EntryViewState extends State<_EntryView> {
           },
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
-            child: SizedBox(width: double.infinity, child: card),
+            child: switch (minWidth) {
+              null => SizedBox(width: double.infinity, child: card),
+              _ => card,
+            },
           ),
         ),
       ),
@@ -457,9 +495,10 @@ class _EntryViewState extends State<_EntryView> {
 
   Widget _transition(double p, BulletinPlacement placement, Widget child) {
     final margin = widget.policy.margin;
-    return switch (widget.policy.transition) {
+    return switch (widget.policy.transitionAt(placement)) {
       // Off by its own height and the margin past the edge it sits on.
-      BulletinTransition$Slide() => switch (placement) {
+      BulletinTransition$Slide() ||
+      BulletinTransition$TimedSlide() => switch (placement) {
         BulletinPlacement.top => Transform.translate(
           offset: Offset(0, -(1 - p) * margin.top),
           child: FractionalTranslation(
