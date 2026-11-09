@@ -154,6 +154,12 @@ final class LottieAnimationPaintable extends AssetPaintable {
   @override
   void playbackResumed() => _lastTime = null;
 
+  // The lease goes now, not at the sweep: the pool is shared by every
+  // surface, and the cells that come on screen need it. The played time
+  // stays, so a cell that comes back goes on from its frame on a new lease.
+  @override
+  void leftScreen() => _lease?.releaseUnlessPainted();
+
   void _beginPass() {
     _holding = false;
     _played = Duration.zero;
