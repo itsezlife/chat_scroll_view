@@ -110,6 +110,11 @@ class PackSheetView extends StatefulWidget {
   /// The title: 20 bold (`titleTextView.setTextSize(20)`, `bold()`).
   static const double titleSize = 20;
 
+  /// The weight of every bold text of the sheet: `AndroidUtilities.bold()`
+  /// is the Roboto Medium face (or the system font at weight 500), not a
+  /// bold one.
+  static const FontWeight boldWeight = FontWeight.w500;
+
   /// The title's inset from either side (`setPadding(dp(18), ...)`).
   static const double titleInset = 18;
 
@@ -153,7 +158,8 @@ class PackSheetView extends StatefulWidget {
   /// The margin around the filled add button.
   static const double buttonMargin = 8;
 
-  /// The label of the bottom button: 14 bold.
+  /// The label of the bottom button: 14 bold (`pickerBottomLayout`
+  /// `setTextSize(dp(14))` in pixels, `bold()`).
   static const double buttonTextSize = 14;
 
   /// The preview emoji's side (`dp(140)`), and the gap between it and the
@@ -1015,7 +1021,7 @@ class _Header extends StatelessWidget {
                 style: TextStyle(
                   color: palette.onSurface,
                   fontSize: PackSheetView.titleSize,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: PackSheetView.boldWeight,
                 ),
               ),
             ),
@@ -1129,7 +1135,7 @@ class _PackHeaderState extends State<_PackHeader>
     TextStyle label(Color color) => TextStyle(
       color: color,
       fontSize: PackSheetView.buttonTextSize,
-      fontWeight: FontWeight.w600,
+      fontWeight: PackSheetView.boldWeight,
     );
     final add = _HeaderButton(
       enabled: !installed,
@@ -1161,7 +1167,7 @@ class _PackHeaderState extends State<_PackHeader>
                   style: TextStyle(
                     color: palette.onSurface,
                     fontSize: _PackHeader.titleSize,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: PackSheetView.boldWeight,
                   ),
                 ),
               ),
@@ -1341,7 +1347,7 @@ class _BottomButton extends StatelessWidget {
       style: TextStyle(
         color: removes ? palette.destructive : palette.onAccent,
         fontSize: PackSheetView.buttonTextSize,
-        fontWeight: FontWeight.w600,
+        fontWeight: PackSheetView.boldWeight,
       ),
     );
     // Added: a filled pill inset 8 (`featuredStickers_addButton`); removed:

@@ -100,12 +100,10 @@ abstract final class PackSheet {
   }) => Navigator.of(context).push(switch (arrangement) {
     PanelArrangement.touch => _BottomSheetRoute(
       builder: builder,
-      textStyle: DefaultTextStyle.of(context).style,
       speed: ChromeMotionScope.maybeOf(context)?.speed,
     ),
     PanelArrangement.pointer => _BoxRoute(
       builder: builder,
-      textStyle: DefaultTextStyle.of(context).style,
       speed: ChromeMotionScope.maybeOf(context)?.speed,
     ),
   });
@@ -114,18 +112,15 @@ abstract final class PackSheet {
 /// The root of both routes' pages: the arrangement, the text style and room
 /// for the keyboard.
 ///
-/// A popup route has no `Material` above it, so its text would fall back to
-/// the debug style; the sheet takes the text style of the context that opened
-/// it (the host's font) in the chrome palette's `onSurface`. The routes do not take
-/// focus, so a raised keyboard stays up: the page lays out above it.
+/// A popup route has no `Material` above it, and the context that opens the
+/// sheet often has none either (a host's screen above its scaffold), so an
+/// inherited style is the framework's debug one; the sheet's text is the
+/// chrome face ([ChromeTypography]) in the chrome palette's `onSurface`. The
+/// routes do not take focus, so a raised keyboard stays up: the page lays out
+/// above it.
 class _SheetRoot extends StatelessWidget {
-  const _SheetRoot({
-    required this.textStyle,
-    required this.arrangement,
-    required this.child,
-  });
+  const _SheetRoot({required this.arrangement, required this.child});
 
-  final TextStyle textStyle;
   final PanelArrangement arrangement;
   final Widget child;
 
@@ -135,10 +130,7 @@ class _SheetRoot extends StatelessWidget {
     return PanelArrangementScope(
       arrangement: arrangement,
       child: DefaultTextStyle(
-        style: textStyle.copyWith(
-          color: palette.onSurface,
-          decoration: TextDecoration.none,
-        ),
+        style: ChromeTypography.of(context).copyWith(color: palette.onSurface),
         child: Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.viewInsetsOf(context).bottom,
@@ -153,17 +145,13 @@ class _SheetRoot extends StatelessWidget {
 // --- Bottom sheet -----------------------------------------------------------
 
 final class _BottomSheetRoute extends PopupRoute<void> {
-  _BottomSheetRoute({
-    required this.builder,
-    required this.textStyle,
-    this.speed,
-  }) : super(
-         requestFocus: false,
-         settings: const RouteSettings(name: PackSheet.routeName),
-       );
+  _BottomSheetRoute({required this.builder, this.speed})
+    : super(
+        requestFocus: false,
+        settings: const RouteSettings(name: PackSheet.routeName),
+      );
 
   final WidgetBuilder builder;
-  final TextStyle textStyle;
   final ChromeMotionSpeed? speed;
 
   @override
@@ -190,7 +178,6 @@ final class _BottomSheetRoute extends PopupRoute<void> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) => _SheetRoot(
-    textStyle: textStyle,
     arrangement: PanelArrangement.touch,
     child: Align(
       alignment: Alignment.bottomCenter,
@@ -294,14 +281,13 @@ class _DragToDismissState extends State<_DragToDismiss>
 // --- Box --------------------------------------------------------------------
 
 final class _BoxRoute extends PopupRoute<void> {
-  _BoxRoute({required this.builder, required this.textStyle, this.speed})
+  _BoxRoute({required this.builder, this.speed})
     : super(
         requestFocus: false,
         settings: const RouteSettings(name: PackSheet.routeName),
       );
 
   final WidgetBuilder builder;
-  final TextStyle textStyle;
   final ChromeMotionSpeed? speed;
 
   static const Duration _fade = Duration(milliseconds: 200);
@@ -324,7 +310,6 @@ final class _BoxRoute extends PopupRoute<void> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) => _SheetRoot(
-    textStyle: textStyle,
     arrangement: PanelArrangement.pointer,
     child: Center(
       child: SizedBox(

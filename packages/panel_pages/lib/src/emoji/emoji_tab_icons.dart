@@ -1,12 +1,12 @@
-import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:panel_pages/src/assets/icon_art.dart';
 
 /// Loads the bytes of a bundled asset; tests replace it.
-typedef EmojiTabAssetLoader = Future<ByteData> Function(String key);
+typedef EmojiTabAssetLoader = IconArtLoader;
 
 /// The pictures of the category strip, and of the favourites tab of the
 /// stickers page's strip, as chrome icon painters.
@@ -40,13 +40,10 @@ abstract final class EmojiTabIcons {
     };
   }
 
-  static final _cache = <String, Future<ui.Image>>{};
-
   /// The decoded art at bundle [key], shared by every scope for the life of the
   /// process: eight images of a few kilobytes, decoded once however often the
   /// panel opens, so the open does not pay for them again.
-  static Future<ui.Image> imageFor(String key) =>
-      _cache.putIfAbsent(key, () => _fromBundle(key));
+  static Future<ui.Image> imageFor(String key) => IconArt.imageFor(key);
 
   /// Forgets every decoded image, so the next [imageFor] reads the bundle
   /// again.
@@ -55,55 +52,22 @@ abstract final class EmojiTabIcons {
   /// fake async leaves a decode that never completes in the cache, which a
   /// later test awaiting [imageFor] would wait on for good.
   @visibleForTesting
-  static void clearCache() => _cache.clear();
-
-  static Future<ui.Image> _fromBundle(String key) async {
-    try {
-      return await _decode(rootBundle.load(key));
-    } on Object {
-      // A failure is not remembered: the next scope tries again.
-      unawaited(_cache.remove(key));
-      rethrow;
-    }
-  }
+  static void clearCache() => IconArt.clearCache();
 
   /// Decodes [bytes] into an image the caller owns.
-  static Future<ui.Image> decode(Future<ByteData> bytes) => _decode(bytes);
-
-  static Future<ui.Image> _decode(Future<ByteData> bytes) async {
-    final data = await bytes;
-    final codec = await ui.instantiateImageCodec(
-      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-    );
-    try {
-      return (await codec.getNextFrame()).image;
-    } finally {
-      codec.dispose();
-    }
-  }
+  static Future<ui.Image> decode(Future<ByteData> bytes) =>
+      IconArt.decode(bytes);
 
   /// A painter that draws [image] tinted with the icon colour.
-  ///
-  /// A new painter per image: painters are equal by their callback, so a scope
-  /// that gets one of these after the art loaded is a different registry and
-  /// icons repaint.
   static ChromeIconPainter painterFor(ui.Image image) =>
-      ChromeIconPainter.paint((canvas, size, color) {
-        canvas.drawImageRect(
-          image,
-          Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-          Offset.zero & size,
-          Paint()
-            ..filterQuality = FilterQuality.medium
-            ..colorFilter = ColorFilter.mode(color, BlendMode.srcIn),
-        );
-      });
+      IconArt.painterFor(image);
 }
 
 /// Registers the strip's pictures as chrome icons for the subtree, and loads
 /// them.
 ///
-/// Until the art is decoded the tabs show the registry's fallback glyph, and
+/// Art decoded earlier (by another scope) paints from the first frame; until
+/// the rest is decoded those tabs show the registry's fallback glyph, and
 /// they repaint as each picture arrives. A host restyles a tab by registering
 /// a painter for its id in a [ChromeIconScope] above this one (the strip
 /// mounts a scope of its own, so above is the only place a host can reach):
@@ -111,7 +75,7 @@ abstract final class EmojiTabIcons {
 ///
 /// The art is decoded once per process and shared; a `loader` of a test is
 /// decoded per scope and released with it.
-class EmojiTabIconScope extends StatefulWidget {
+class EmojiTabIconScope extends StatelessWidget {
   /// Provides the strip's icons to [child].
   const EmojiTabIconScope({required this.child, this.loader, super.key});
 
@@ -122,80 +86,12 @@ class EmojiTabIconScope extends StatefulWidget {
   final EmojiTabAssetLoader? loader;
 
   @override
-  State<EmojiTabIconScope> createState() => _EmojiTabIconScopeState();
-}
-
-class _EmojiTabIconScopeState extends State<EmojiTabIconScope> {
-  final _images = <ChromeIconId, ui.Image>{};
-  final _owned = <ui.Image>[];
-  var _painters = const <ChromeIconId, ChromeIconPainter>{};
-  var _disposed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    for (final id in EmojiTabIcons.assets.keys) {
-      unawaited(_load(id));
-    }
-  }
-
-  Future<void> _load(ChromeIconId id) async {
-    final key = EmojiTabIcons.assetKeyOf(id)!;
-    final loader = widget.loader;
-    try {
-      final image = switch (loader) {
-        final loader? => await EmojiTabIcons.decode(loader(key)),
-        null => await EmojiTabIcons.imageFor(key),
-      };
-      if (_disposed) {
-        if (loader != null) image.dispose();
-        return;
-      }
-      if (loader != null) _owned.add(image);
-      _images[id] = image;
-      setState(() {
-        _painters = {
-          for (final entry in _images.entries)
-            entry.key: EmojiTabIcons.painterFor(entry.value),
-        };
-      });
-    } on Object catch (error, stack) {
-      // A missing picture leaves the fallback glyph; it is reported, not
-      // thrown into the frame.
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stack,
-          library: 'panel_pages',
-          context: ErrorDescription('while loading the emoji tab art $key'),
-        ),
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    _disposed = true;
-    // Images of the shared cache outlive the scope; only decoded-by-loader
-    // images are this scope's to release.
-    for (final image in _owned) {
-      image.dispose();
-    }
-    _owned.clear();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // A tab the enclosing registry already paints is the host's: its
-    // registration wins over the art.
-    final enclosing = ChromeIconScope.of(context);
-    return ChromeIconScope(
-      icons: {
-        for (final entry in _painters.entries)
-          if (!enclosing.contains(entry.key)) entry.key: entry.value,
-      },
-      child: widget.child,
-    );
-  }
+  Widget build(BuildContext context) => IconArtScope(
+    assets: {
+      for (final id in EmojiTabIcons.assets.keys)
+        id: EmojiTabIcons.assetKeyOf(id)!,
+    },
+    loader: loader,
+    child: child,
+  );
 }

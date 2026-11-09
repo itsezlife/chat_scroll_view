@@ -10,9 +10,11 @@
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:content_model/content_model.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart' show TextTheme, Theme, ThemeData;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -51,6 +53,23 @@ Future<void> settle(WidgetTester tester) async {
   }
 }
 
+const hostFont = 'HostFont';
+
+// `MaterialApp`'s style for text outside any `Material`.
+const debugStyle = TextStyle(
+  fontFamily: 'monospace',
+  fontSize: 48,
+  fontWeight: FontWeight.w900,
+);
+
+// The style [text] is drawn in, inherited parts resolved.
+TextStyle drawnStyle(WidgetTester tester, Finder text) => tester
+    .widget<RichText>(
+      find.descendant(of: text, matching: find.byType(RichText)),
+    )
+    .text
+    .style!;
+
 void main() {
   late FakePackSource packs;
   late FakeContentLibrary library;
@@ -88,20 +107,33 @@ void main() {
       ..physicalSize = const Size(400, 800)
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    // As a Material app has it: the host's body face in its theme, and over
+    // the navigator the framework's debug style, which is all a page outside
+    // a `Material` inherits.
     return tester.pumpWidget(
       PanelShellTestScope(
         size: const Size(400, 800),
-        child: MediaQuery(
-          data: MediaQueryData(
-            size: const Size(400, 800),
-            gestureSettings: DeviceGestureSettings(touchSlop: touchSlop),
+        child: Theme(
+          data: ThemeData(
+            textTheme: const TextTheme(
+              bodyMedium: TextStyle(fontFamily: hostFont),
+            ),
           ),
-          child: Navigator(
-            onGenerateRoute: (_) => PageRouteBuilder<void>(
-              pageBuilder: (context, _, _) {
-                home = context;
-                return const SizedBox.expand();
-              },
+          child: DefaultTextStyle(
+            style: debugStyle,
+            child: MediaQuery(
+              data: MediaQueryData(
+                size: const Size(400, 800),
+                gestureSettings: DeviceGestureSettings(touchSlop: touchSlop),
+              ),
+              child: Navigator(
+                onGenerateRoute: (_) => PageRouteBuilder<void>(
+                  pageBuilder: (context, _, _) {
+                    home = context;
+                    return const SizedBox.expand();
+                  },
+                ),
+              ),
             ),
           ),
         ),
@@ -168,6 +200,66 @@ void main() {
 
       expect(sheetUp(), isFalse);
       expect(unavailable, [PackLookup.notFound]);
+    });
+  });
+
+  group('typography', () {
+    testWidgets('the title is the chrome face, 20 medium (`bold()`)', (
+      tester,
+    ) async {
+      await open(tester, 'cats');
+
+      final style = drawnStyle(tester, find.text('Pack cats'));
+      expect(style.fontFamily, hostFont);
+      expect(style.fontSize, 20);
+      expect(style.fontWeight, FontWeight.w500);
+    });
+
+    testWidgets('the bottom button is the chrome face, 14 medium', (
+      tester,
+    ) async {
+      await open(tester, 'cats');
+
+      final style = drawnStyle(tester, find.text('Add 20 stickers'));
+      expect(style.fontFamily, hostFont);
+      expect(style.fontSize, 14);
+      expect(style.fontWeight, FontWeight.w500);
+    });
+
+    testWidgets('the preview menu is the chrome face, 16 regular, each item '
+        'with its icon', (tester) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(tester, 'cats', canSend: true, previews: previews);
+
+      await tester.tapAt(firstCell(tester));
+      await settle(tester);
+
+      for (final label in ['Send Sticker', 'Add to Favorites']) {
+        final style = drawnStyle(tester, find.text(label));
+        expect(style.fontFamily, hostFont, reason: label);
+        expect(style.fontSize, 16, reason: label);
+        expect(style.fontWeight, FontWeight.w400, reason: label);
+      }
+      ChromeIcon iconOf(String label) => tester.widget<ChromeIcon>(
+        find.descendant(
+          of: find
+              .ancestor(of: find.text(label), matching: find.byType(Semantics))
+              .first,
+          matching: find.byType(ChromeIcon),
+        ),
+      );
+      expect(iconOf('Send Sticker').id, ContentPreviewAction.send.icon);
+      expect(iconOf('Send Sticker').size, 24);
+      expect(
+        tester.getTopLeft(find.text('Send Sticker')).dx -
+            tester.getTopLeft(find.byWidget(iconOf('Send Sticker'))).dx,
+        43,
+      );
+      expect(
+        iconOf('Add to Favorites').id,
+        ContentPreviewAction.favourite.icon,
+      );
     });
   });
 
@@ -417,6 +509,43 @@ void main() {
   });
 
   group('right-click', () {
+    testWidgets('its items are the chrome face, each with the preview '
+        "menu's icon", (tester) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(
+        tester,
+        'cats',
+        canSend: true,
+        previews: previews,
+        arrangement: PanelArrangement.pointer,
+      );
+
+      await tester.tapAt(
+        firstCell(tester),
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      );
+      await settle(tester);
+
+      expect(
+        drawnStyle(tester, find.text('Send Sticker')).fontFamily,
+        hostFont,
+      );
+      final icons = tester
+          .widgetList<ChromeIcon>(
+            find.descendant(
+              of: find.byType(CatalogContextMenuPanel),
+              matching: find.byType(ChromeIcon),
+            ),
+          )
+          .map((icon) => icon.id);
+      expect(icons, [
+        ContentPreviewAction.send.icon,
+        ContentPreviewAction.favourite.icon,
+      ]);
+    });
+
     testWidgets('on a sticker opens the preview menu, as the panel grid does', (
       tester,
     ) async {
