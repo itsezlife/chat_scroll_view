@@ -166,7 +166,7 @@ void main() {
   });
 
   group('the tabs', () {
-    testWidgets('are the reference client\'s, one per category, with no tab '
+    testWidgets('are one per category, with no tab '
         'of their own for flags or people', (tester) async {
       final semantics = tester.ensureSemantics();
       handle.setIds([_recents, _smileys, _animals, _food, _symbols]);
@@ -384,7 +384,7 @@ void main() {
     });
   });
 
-  group('with packs under touch: the reference mobile client\'s strip', () {
+  group('with packs under touch', () {
     const categories = [
       CollectionId.category('people'),
       CollectionId.category('nature'),
@@ -528,9 +528,8 @@ void main() {
       semantics.dispose();
     });
 
-    // Until a pack's cover has anything to show its tab draws the reference's
-    // stand-in, a faint rounded square in the idle icon colour at 25 of 255
-    // (`key_emptyListPlaceholder` at 0.2 of half alpha), never the scope's
+    // Until a pack's cover has anything to show its tab draws its stand-in, a faint rounded square in the idle icon colour at 25 of 255
+    // (0.2 of half alpha), never the scope's
     // media fill (`0xFFEDF3F7`, a light grey square in either theme). The
     // pointer arrangement's footer draws its covers the same way.
     for (final arrangement in PanelArrangement.values) {
@@ -601,8 +600,7 @@ void main() {
     });
   });
 
-  group('pinned at the bottom (the pointer arrangement): the reference '
-      'desktop client\'s footer', () {
+  group('pinned at the bottom (the pointer arrangement)', () {
     final all = [
       _recents,
       for (final id in [
@@ -626,8 +624,8 @@ void main() {
       'Symbols',
     ];
 
-    // The grouped layout unless a test says otherwise: the reference client
-    // groups as soon as there is a pack, and these tests mostly have none.
+    // The grouped layout unless a test says otherwise: it groups as soon as
+    // there is a pack, and these tests mostly have none.
     Future<void> pumpPinned(
       WidgetTester tester, {
       bool disableAnimations = false,

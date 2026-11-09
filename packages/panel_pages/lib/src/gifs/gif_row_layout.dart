@@ -48,7 +48,7 @@ final class GifRow {
   double get height => GifRowLayout.gap + GifRowLayout.rowExtent;
 }
 
-/// The reference client's justified grid of GIFs: clips of any proportion in
+/// A justified grid of GIFs: clips of any proportion in
 /// rows of one height that fill the width.
 ///
 /// A port of `ExtendedGridLayoutManager.prepareLayout` as `GifLayoutManager`
@@ -69,18 +69,17 @@ abstract final class GifRowLayout {
   /// The spans a row is divided in: `new GifLayoutManager` passes 100.
   static const int spanCount = 100;
 
-  /// The height a row is laid out for: `preferredRowSize = dp(100)`, which is
-  /// also the height `ContextLinkCell` takes with no height given.
+  /// The height a row is laid out for: 100, which is also the height a cell
+  /// takes with no height given.
   static const double rowExtent = 100;
 
-  /// The gap above a row and after a cell: `outRect.top`, `outRect.right`
-  /// are `dp(2)`.
+  /// The gap above a row and after a cell.
   static const double gap = 2;
 
   /// The rows the clips of [sizes] make in a row [width] wide.
   static List<GifRow> of(List<Size> sizes, {required double width}) {
     if (sizes.isEmpty) return const [];
-    // The reference client lays out an unmeasured view as 100 wide.
+    // An unmeasured view is laid out as 100 wide.
     final available = width <= 0 ? 100.0 : width;
     final spans = List<int>.filled(sizes.length, 0);
     final rowOf = <List<int>>[];

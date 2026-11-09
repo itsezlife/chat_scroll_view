@@ -79,11 +79,9 @@ final class CatalogBoundLeaf {
 ///   window, and nothing else: a leaf that leaves it gives back what it leased
 ///   for the screen (`AssetPaintable.leftScreen`), and one that comes back
 ///   goes on from where it was. A scroll, a fling or a drag against an edge
-///   changes nothing for a leaf that stays in the window: it plays on, as in
-///   the reference mobile client, whose panel grids never stop their
-///   drawables for a scroll (only its chat list does, through
-///   `RecyclerListView.setAllowStopHeaveOperations`). The scope's clock adds
-///   the host's pause layers.
+///   changes nothing for a leaf that stays in the window: it plays on, since
+///   animated leaves in a panel grid never stop for a scroll. The scope's
+///   clock adds the host's pause layers.
 ///
 /// ## Page level
 ///

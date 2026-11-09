@@ -47,7 +47,7 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// ## The dock
 ///
-/// A dock is a **standing section**, as in the reference client: while the
+/// A dock is a **standing section**: while the
 /// user prefers it ([dockPreferred]) and the window has room for it
 /// (`PanelPresentationPolicy.canDock`) it is on screen, shown by the window
 /// and not by a click or a hover. The preference is the user's, the window is
@@ -210,7 +210,7 @@ final class PanelPresentationController {
   /// The **auto-hide guard**: whether something keeps a self-dismissing
   /// popup open. True exactly while any [holdAutoHide] is unreleased.
   ///
-  /// The search field's focus is not a hold. The reference client's panel
+  /// The search field's focus is not a hold. The panel
   /// hides on the pointer leaving whether or not search is focused, and a
   /// popup the pointer has not left stays open anyway.
   listen.ValueListenable<bool> get autoHideGuard => _guard;

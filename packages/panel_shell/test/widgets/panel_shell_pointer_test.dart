@@ -164,7 +164,7 @@ void main() {
     });
   });
 
-  group('the section tabs (the reference desktop client\'s)', () {
+  group('the section tabs', () {
     Rect bar(WidgetTester tester) =>
         tester.getRect(find.byKey(PanelSectionTabs.barKey));
 

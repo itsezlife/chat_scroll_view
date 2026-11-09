@@ -1,4 +1,4 @@
-/// Where the content preview draws: the reference client's geometry.
+/// Where the content preview draws.
 ///
 /// **Seam:** [ContentPreviewLayout] as a pure function of the window.
 library;

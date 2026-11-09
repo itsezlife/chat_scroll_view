@@ -198,8 +198,8 @@ void main() {
       expect(overscan.demand.priority, AssetPriority.preload);
     });
 
-    // The reference mobile client's panel grids never stop their drawables
-    // for a scroll (ticket 141).
+    // Animated leaves in a panel grid never stop their drawables for a scroll
+    // (ticket 141).
     testWidgets('an animated leaf plays on while a fling runs', (tester) async {
       producer.onProduce = (attempt) =>
           attempt.advance(AssetStage.full, animated: true);

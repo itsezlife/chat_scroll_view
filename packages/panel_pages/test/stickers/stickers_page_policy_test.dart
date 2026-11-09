@@ -69,7 +69,7 @@ void main() {
   });
 
   group('geometry', () {
-    // `StickersGridAdapter`: stickersPerRow = width / dp(72); the cell is
+    // Columns are width / 72; the cell is
     // 82 tall; the sticker is drawn at most 66; the name cell is 27 tall and
     // its text begins 15 in.
     test('takes the columns from the width, 72 at least, rows 82 tall', () {

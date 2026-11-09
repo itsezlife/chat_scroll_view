@@ -33,21 +33,21 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///
 /// - **Geometry.** Under the touch arrangement eight columns of [cellPitch]
 ///   rows under a [headerExtent] header, for the categories and the search
-///   results alike. Under the pointer arrangement the reference desktop
-///   client's grid: as many columns of at least [pointerDesiredCellWidth] as
+///   results alike. Under the pointer arrangement the grid holds as many
+///   columns of at least [pointerDesiredCellWidth] as
 ///   the width holds, whole pixels wide, each row [pointerCellHeightInset]
 ///   shorter, so a dock that is dragged wider or narrower gains or loses
 ///   columns at once. Under touch an emoji is drawn in the glyph box of the
 ///   cell; under the pointer at [pointerGlyphSize], centred, whatever the
-///   width gives the cell, as the reference desktop client draws it. The
+///   width gives the cell, as the pointer grid draws it. The
 ///   atlas is baked for the larger of the two ([glyphBoxExtent]).
 /// - **Sections.** One per category with the title the panel strings give the
 ///   category; the recents first, only while there are some. Search open with
-///   no query changes none of it: the reference clients keep the whole
-///   catalogue on screen until there is something to look for.
+///   no query changes none of it: the whole catalogue stays on screen until
+///   there is something to look for.
 /// - **Recents.** One list for the page, filed under [recentsKind]: every
 ///   pick is recorded there, custom emoji (document keys) among the unicode
-///   ones, as the reference clients keep one list. The header is a title,
+///   ones, as one list. The header is a title,
 ///   with no button. A finger's long press
 ///   on an emoji of the recents asks the host to clear them
 ///   (`PanelPageHost.requestClearRecents`), instead of the variant picker.
@@ -62,8 +62,7 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   shows it from then on. An emoji with no variants has no long press.
 ///   Under a mouse the picker opens after a [pointerHoldDelay] hold, whether
 ///   or not a variant was ever chosen, and a release before then picks the
-///   emoji as the grid shows it: a click is always a pick. (The reference
-///   desktop client opens it on the press for an emoji never chosen; a click
+///   emoji as the grid shows it: a click is always a pick. (The pointer picker opens on the press for an emoji never chosen; a click
 ///   that inserts nothing read as a bug.) A finger or stylus keeps the
 ///   platform's long-press delay.
 /// - **Custom emoji.** Given [previews] and [assets], a press held on a
@@ -75,8 +74,7 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   under the pointer arrangement ([stripReady] defers it).
 /// - **A pack's header.** The title of a pack of custom emoji (a section of
 ///   `CollectionId.set`) asks the host to open the pack
-///   (`PanelPageHost.requestPack`; `EmojiView`'s custom emoji pack header
-///   opens `EmojiPacksAlert`).
+///   (`PanelPageHost.requestPack`).
 final class EmojiPagePolicy extends CatalogPagePolicy {
   /// The emoji policy of the page behind [host].
   ///
@@ -142,7 +140,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   static const CollectionId colorAllSection = CollectionId.category('people');
 
   // The emoji the tone-for-all picker offers: the waving hand, as it is and in
-  // each tone, as the reference desktop client offers it.
+  // each tone.
   static final List<(ContentKey$Unicode, EmojiModifiers)> _colorAllOptions = [
     (const ContentKey$Unicode('\u{1F44B}'), EmojiModifiers.none),
     for (final (i, tone) in SkinTone.values.indexed)
@@ -153,7 +151,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   ];
 
   /// How long a mouse holds a press on an emoji whose variant the user has
-  /// chosen before the picker opens: the reference client's 500 ms.
+  /// chosen before the picker opens: 500 ms.
   static const Duration pointerHoldDelay = Duration(milliseconds: 500);
 
   /// The side of the box an emoji is drawn in: what a glyph atlas for this
@@ -169,16 +167,16 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     headerExtent: headerExtent,
   );
 
-  /// The narrowest a column of the pointer grid is: the reference desktop
-  /// client's emoji list, whose columns are as many as fit at this width.
+  /// The narrowest a column of the pointer grid is: the columns are as many
+  /// as fit at this width.
   static const double pointerDesiredCellWidth = 37;
 
   /// How much shorter than it is wide a row of the pointer grid is.
   static const double pointerCellHeightInset = 2;
 
-  /// The size an emoji is drawn at under the pointer, at every width: the
-  /// reference desktop client's large emoji (24 logical pixels, the art
-  /// filling its square, as a colour emoji font fills its em).
+  /// The size an emoji is drawn at under the pointer, at every width: 24
+  /// logical pixels, the art filling its square, as a colour emoji font fills
+  /// its em.
   static const double pointerGlyphSize = 24;
 
   static const SectionLayout _pointerLayout = SectionLayout.grid(
@@ -253,8 +251,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   // --- Section header -------------------------------------------------------
 
   /// Under a pointer, the Smileys & People header ends in a button that opens
-  /// a picker of one tone for every emoji, as in the reference desktop
-  /// client.
+  /// a picker of one tone for every emoji.
   @override
   CatalogSectionAction? actionOf(
     Collection collection,
@@ -270,7 +267,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     _ => null,
   };
 
-  // The reference desktop client's tone button: two sliders, the upper one's
+  // The tone-for-all button: two sliders, the upper one's
   // knob at its right end, the lower one's at its left, stroked in [color].
   static void _paintToneIcon(Canvas canvas, Rect box, Color color) {
     final unit = box.width / 24;
@@ -379,7 +376,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   // --- Tooltip --------------------------------------------------------------
 
-  // The reference desktop client's: the code of a unicode emoji (its toneless
+  // The code of a unicode emoji (its toneless
   // form's, which the data already resolved), never one for a custom emoji.
   @override
   String? tooltipOf(CatalogLeafHit hit, Collection collection) =>
@@ -494,8 +491,8 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     CatalogLeafHit? Function(Offset globalPosition)? leafAt,
   }) {
     final key = hit.leaf.key;
-    // A custom emoji previews, in the recents too, as the reference's
-    // preview takes the press before the list does.
+    // A custom emoji previews, in the recents too: the preview takes the
+    // press before the list does.
     if (_preview case final preview? when preview.previews(hit)) {
       final hold = host.holdAutoHide();
       try {
@@ -526,7 +523,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       // The hold goes up with the picker: the move onto it is the first thing
       // the panel's hover rule hears of.
       final hold = host.holdAutoHide();
-      // Anything but a mouse gets the reference mobile client's picker.
+      // Anything but a mouse gets the touch tone picker.
       if (kind != PointerDeviceKind.mouse) {
         try {
           return _showTones(
@@ -590,7 +587,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     final compound = entry.variants.any(
       (variant) => variant.modifiers.tones.length > 1,
     );
-    // As the reference client: the saved choice is marked, not whatever the
+    // The saved choice is marked, not whatever the
     // cell shows (the recents show what was picked).
     final saved = preferences.preferredVariant(entry.base) ?? initial;
     if (!compound) {

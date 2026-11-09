@@ -9,7 +9,7 @@ is pre-1.0.
 ### Fixed (a sticker on screen never starts over, and plays through a fling)
 
 - A fling no longer stops the animated leaves on screen: they play on, as
-  in the reference client's panel grids. The pool used to hide them while
+  animated leaves in a panel grid always do. The pool used to hide them while
   the fling ran, which told their paintables they left the screen: a
   fling armed by the pointer up gave back their leases before any paint,
   so a leaf drew its first-frame still and then a new lease's frames, a
@@ -60,8 +60,7 @@ is pre-1.0.
 
 ### Changed
 
-- A GIF leaf that is loading draws the reference client's radial progress
-  (`RadialProgress`, disc radius 12) over its stand-in or thumbnail, and it
+- A GIF leaf that is loading draws a radial progress (disc radius 12) over its stand-in or thumbnail, and it
   fades out with the content. The arc turns with the pass's frame time; frames
   are asked for only while one shows and playback is not paused.
 - Content fading in over a thumbnail no longer drops back to the stand-in

@@ -2,8 +2,7 @@
 /// each is.
 ///
 /// **Seam:** [GifRowLayout.of], over the sizes of clips and a width. The
-/// expected spans are worked by hand from the reference client's
-/// `ExtendedGridLayoutManager.prepareLayout` (100 spans, a preferred row of
+/// expected spans are worked by hand (100 spans, a preferred row of
 /// 100, the last row stretched to full width), with the arithmetic in each
 /// test.
 library;

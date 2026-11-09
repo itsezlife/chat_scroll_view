@@ -5,9 +5,8 @@ import 'package:panel_pages/src/menu/catalog_menu_icons.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/preview/content_preview_item.dart';
 
-/// One item of a content preview's menu, with the icon it leads with: the
-/// reference client's (`ContentPreviewViewer` adds each item with its
-/// drawable, named below), from [CatalogMenuIcons].
+/// One item of a content preview's menu, with the icon it leads with, from
+/// [CatalogMenuIcons].
 enum ContentPreviewAction {
   /// Send the content (`msg_send`).
   send('send'),
@@ -110,7 +109,7 @@ final class ContentPreviewActions {
 /// The rules of a content preview's menu: which items, in which order, under
 /// which labels, and what choosing one asks of the opener.
 ///
-/// The reference client's (`ContentPreviewViewer`), per kind:
+/// The items of each kind:
 ///
 /// - **Sticker:** Send, Send without sound, Add to / Delete from Favorites
 ///   (never for a mask; for a favourite, or a sticker of a pack), View Pack
@@ -193,7 +192,7 @@ abstract final class ContentPreviewMenu {
   };
 
   /// Whether [action] is drawn in the attention colour: one that throws
-  /// something away where the reference draws it red.
+  /// something away: the attention colour marks it.
   static bool isAttention(
     ContentPreviewAction action,
     ContentPreviewItem item,

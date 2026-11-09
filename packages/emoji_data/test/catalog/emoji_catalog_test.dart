@@ -69,7 +69,7 @@ EmojiEntry _gesturingNo() {
 }
 
 void main() {
-  group('genders, as the reference client lists them', () {
+  group('genders, as the catalogue lists them', () {
     final catalog = EmojiCatalog(
       _structure([
         [_gesturingNo(), _thumb()],

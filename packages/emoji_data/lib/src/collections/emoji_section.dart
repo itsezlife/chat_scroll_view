@@ -4,8 +4,8 @@ import 'package:meta/meta.dart';
 /// one after the other.
 ///
 /// The catalogue's groups are Unicode's (smileys and people apart, flags of
-/// their own); the grid a user knows is a chat client's, and the reference
-/// client folds them into seven categories. A section is that fold: the host
+/// their own); the grid a user knows is a chat app's, and it folds them
+/// into seven categories. A section is that fold: the host
 /// says which groups make a category, and the collection source lists one
 /// collection per section that holds a group the catalogue has.
 @immutable
@@ -14,7 +14,7 @@ final class EmojiSection {
   const EmojiSection(this.id, this.groupIds)
     : assert(id != '', 'a section id must not be empty');
 
-  /// The reference client's categories: smileys and people are one, and the
+  /// The seven default categories: smileys and people are one, and the
   /// flags close the symbols. A group the list does not name is not lost: the
   /// collection source adds a section of its own for it.
   static const List<EmojiSection> reference = [

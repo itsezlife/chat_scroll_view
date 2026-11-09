@@ -5,8 +5,8 @@ import 'package:panel_pages/src/pack_sheet/pack_sheet.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_action.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
 
-/// The emoji pack sheet: one pack of custom emoji, or several (the reference
-/// mobile client's `EmojiPacksAlert`). Shown with [PackSheet.show].
+/// The emoji pack sheet: one pack of custom emoji, or several. Shown with
+/// [PackSheet.show].
 ///
 /// Effect-free like [StickerPackSheet]: it looks [packIds] up in [packs],
 /// reads their install states from [library], and asks the host for the rest.
@@ -21,11 +21,10 @@ import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
 /// - **Picking.** With [onPick] (the sheet was opened for a composer), a tap
 ///   on an emoji of one pack closes the sheet and hands it to the host to
 ///   insert.
-/// - **No preview.** An emoji pack's grid is never previewed (the
-///   reference's `ContentPreviewViewer.can()` is false for one).
+/// - **No preview.** An emoji pack's grid is never previewed.
 /// - **The preview emoji.** With [previewEmoji] (the emoji the user tapped in
 ///   a message), that emoji is drawn large above the card and moves with it,
-///   as the reference's `setPreviewEmoji` does; it fades out for good once
+///   and it fades out for good once
 ///   the user scrolls the grid, the sheet closes, or there is no room for it
 ///   above the card. Touch only: a box under a pointer has none.
 /// - **Unavailable.** A pack not found, or whose lookup failed, closes the

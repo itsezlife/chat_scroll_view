@@ -13,15 +13,15 @@ is pre-1.0.
   rather than the style inherited where they open. That style was the
   framework's debug one (monospace, weight 900) whenever the opener had no
   `Material` above it; `PackSheet.show` no longer captures it. The sheet's
-  bold texts are weight 500, the reference's `bold()` (Roboto Medium), not
+  bold texts are weight 500, the medium face (Roboto Medium), not
   600 (native-media ticket 140).
 
 ### Added (menu icons)
 
-- Each content preview menu item leads with the reference's icon
+- Each content preview menu item leads with its icon
   (`ContentPreviewAction.icon`: `msg_send`, `input_notify_off`, `msg_fave`,
   `msg_unfave`, `msg_media`, `msg_delete`, `msg_gif_add`, `msg_copy`),
-  16 px regular text `dp(43)` past the icon's start. `CatalogMenuIcons`
+  16 px regular text 43 past the icon's start. `CatalogMenuIcons`
   names the ids and bundles the art (`assets/menu_icons/`);
   `CatalogMenuIconScope` registers it. `CatalogMenuItem.icon` puts an icon on
   a context menu item, and the preview's right-click entries carry theirs.
@@ -31,8 +31,7 @@ is pre-1.0.
 - `PackSheet.routeName`: the `RouteSettings.name` of the route
   `PackSheet.show` pushes, in either arrangement (was unnamed). A host that
   pauses its animations under modal routes tells the sheet apart by it, so
-  the sheet's stickers and the preview opened from it play, as the
-  reference's sheets do (native-media ticket 128).
+  the sheet's stickers and the preview opened from it play (native-media ticket 128).
 
 ### Fixed (GIF preview swipe settles)
 
@@ -90,7 +89,7 @@ is pre-1.0.
 
 ### Added (content preview)
 
-- `ContentPreviewSession`: the reference mobile client's content preview, a
+- `ContentPreviewSession`: the content preview, a
   `CatalogLongPressSession` that shows a sticker, GIF or custom emoji large
   over a dim of the window (never a unicode emoji), follows a finger from cell
   to cell (a GIF drags up to open its menu instead), opens its menu after
@@ -99,7 +98,7 @@ is pre-1.0.
   menu. `ContentPreviewSession.show` is the entry point for any grid; a pack
   sheet opens it with a send action and `openMenu` for a tap.
 - `ContentPreviewItem`, `ContentPreviewKind`, `ContentPreviewLayout` (the
-  reference geometry), `ContentPreviewMenu` and `ContentPreviewAction` (the
+  geometry), `ContentPreviewMenu` and `ContentPreviewAction` (the
   items per kind, their labels and what each asks), `ContentPreviewActions`
   (what the opener can do), `ContentPreviewController` (the host's handle:
   the library the menus read, and `dismiss` for back),
@@ -125,7 +124,7 @@ is pre-1.0.
   source, titled `PanelStrings.favouriteStickersTitle` and hidden while known
   to be empty as the recents are, with no header button; a pick from it is a
   pick from a collection. Its strip has a tab for it, drawn by
-  `StickerPackStrip.favouritesIcon` (the reference's `emoji_tabs_faves`, now
+  `StickerPackStrip.favouritesIcon` (the `emoji_tabs_faves` asset, now
   bundled and registered by `EmojiTabIconScope`), and the tabs follow the
   order of the sections, so a source that lists the favourites first starts
   the strip on them. Requires `PanelStrings.favouriteStickersTitle`.
@@ -158,8 +157,7 @@ is pre-1.0.
 
 ### Changed (pack strip covers)
 
-- `StickerPackStrip` plays a pack's animated cover in its tab, looping, as the
-  reference mobile client does; before, a tab showed the cover's first frame.
+- `StickerPackStrip` plays a pack's animated cover in its tab, looping; before, a tab showed the cover's first frame.
   It plays on the shared playback clock, so the clock's pause layers (low
   power among them) stop it, and only while its tab is in the strip's view: a
   tab scrolled away stops repainting and gives its frame slot back. A still
@@ -201,10 +199,10 @@ is pre-1.0.
 ### Added (stickers and GIF pages)
 
 - `StickersPage` with `StickersPagePolicy` and `StickerPackStrip`: the
-  reference client's sticker list (columns from the width at 72, rows 82,
+  sticker list (columns from the width at 72, rows 82,
   stickers at most 66, headers 27 tall beginning 15 in) under a strip of packs
   whose tabs are covers, with a clear button on the recents header.
-- `GifPage` with `GifRowLayout`: the reference client's justified rows of GIFs.
+- `GifPage` with `GifRowLayout`: justified rows of GIFs.
 - `CatalogPagePolicy.headerStartInset` (default null: the viewport's), and
   `ChromeCatalogTheme` takes it. A policy of a list whose titles begin
   somewhere else says so; existing policies are unchanged.
@@ -216,18 +214,17 @@ is pre-1.0.
   `ChromeIconScope` already paints its id, so a host restyles the strip's
   tabs by registering painters above it (the strip mounts its own scope).
 - Under the touch arrangement, `EmojiCategoryStrip` follows `EmojiStripLayout`
-  too: with a pack (by default) it is the reference mobile client's strip with
+  too: with a pack (by default) it is the touch strip with
   custom emoji: the recents, the categories folded into a group that opens
   while one of them is active, then a tab per pack drawn by its cover. Without
   a pack, or with `EmojiStripLayout.plain`, it is the row of category tabs as
   before. Hosts that relied on the touch strip never showing packs pass
   `EmojiStripLayout.plain`.
-  A pack's tab is its cover's first frame, a still, as the reference client
-  draws it; the pill stays still on the open group while the category inside
+  A pack's tab is its cover's first frame, a still, as the strip draws it; the pill stays still on the open group while the category inside
   it changes.
 - `EmojiPagePolicy` files every pick under `EmojiPagePolicy.recentsKind`
   (`SemanticKind.unicodeEmoji`), custom emoji included: the page has one
-  recents list, as the reference clients do. The list is the pick's new
+  recents list. The list is the pick's new
   `recentsKind`; its `kind` stays the content's own, so a custom emoji pick
   is still `SemanticKind.customEmoji`. A host that recorded recents under
   `kind` records them under `recentsKind`. The recents menu and the finger's
@@ -242,7 +239,7 @@ is pre-1.0.
 - The two-person tone picker shows each tone as the emoji with both people
   in it (for two hands, the one-tone sequence), the other person greyed;
   choosing the same tone for both keeps that one-tone sequence. No blank cells.
-- The tone-for-all button draws the reference desktop client's sliders icon.
+- The tone-for-all button draws a sliders icon.
 - The bands over the catalogue and the touch strip paint the shell's
   background, and the catalogue is clipped below them.
 - A header lands at the page's top padding plus an overlaying strip, never
@@ -252,20 +249,19 @@ is pre-1.0.
   (`EmojiPagePolicy.colorAllActionId`); `EmojiVariantPicker` takes a `title`.
 - Source-breaking: `CatalogPagePolicy.onSectionAction` takes `context`,
   `bounds` and `viewportBounds`.
-- Anything but a mouse gets the reference mobile client's tone picker
+- Anything but a mouse gets the touch tone picker
   (`EmojiToneSession`, `EmojiTonePicker`, `EmojiTonePickerLayout`), with
   haptics and a two-person picker.
 - `EmojiStripLayout` (`automatic`, `plain`, `grouped`) on
   `EmojiCategoryStrip.layout`, `EmojiPagePolicy.stripLayout` and
   `EmojiPage.stripLayout`: plain with no pack and grouped with any by default,
-  as the reference desktop client decides.
+  as the default rule decides.
 - The strip's group opens linearly over 240 ms and the marker grows inside it
   on an exact ease-out cubic.
 - Under `pointer` the catalogue's hover is a 34 x 32 box and a press draws
   nothing (`ChromeCatalogTheme.pointerHoverSize`); the variant picker draws
   the same box (`EmojiVariantPicker.highlightSize`).
-- Source-breaking: under `pointer` the emoji strip is the reference desktop
-  client's footer with packs (`EmojiStripFooter`): no line over it, 30 px
+- Source-breaking: under `pointer` the emoji strip is the footer with packs (`EmojiStripFooter`): no line over it, 30 px
   slots from 3 px in, the categories folded into one icon that opens into
   theirs while one is active, a slot per pack (`CollectionId.set` sections,
   drawn by their cover from `EmojiCategoryStrip.assets`), wheel and drag
@@ -299,7 +295,7 @@ is pre-1.0.
   `EmojiPagePolicy.clearRecentsActionId` is gone.
 - Under `pointer` an `inline` search field is the page's, scrolls with the grid
   and does not pin.
-- The emoji tabs follow the reference client's seven categories
+- The emoji tabs follow the seven categories
   (`EmojiSection.reference`): the flags have no tab and the ids are
   `people`, `nature`, `food`, `activity`, `travel`, `objects`, `symbols`;
   activity comes before travel. Hosts that supply strings key

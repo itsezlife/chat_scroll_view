@@ -206,7 +206,7 @@ class EmojiPage extends StatefulWidget {
   final Duration searchDebounce;
 
   /// How the strip lays its icons out under the pointer arrangement: the
-  /// reference client's rule (plain with no pack, grouped with any) unless the
+  /// default rule (plain with no pack, grouped with any) unless the
   /// host fixes one.
   final EmojiStripLayout stripLayout;
 
@@ -439,9 +439,8 @@ class _EmojiPageState extends State<EmojiPage> {
         EmojiPage.gridPadH,
         MediaQuery.paddingOf(context).bottom + EmojiPage.gridPadBottom,
       ),
-      // The reference desktop client's list: 8 in from the left (its
-      // corner), 4 short of the right (its scrollbar's room less the margin
-      // the columns may take).
+      // The list: 8 in from the left (its corner), 4 short of the right (the
+      // scrollbar's room less the margin the columns may take).
       PanelArrangement.pointer => EdgeInsets.fromLTRB(
         EmojiPage.pointerGridPadStart,
         0,

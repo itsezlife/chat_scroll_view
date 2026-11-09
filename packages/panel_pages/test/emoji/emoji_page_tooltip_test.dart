@@ -1,4 +1,4 @@
-/// The tooltip of the reference desktop client over the emoji grid: the code
+/// The tooltip over the emoji grid: the code
 /// of the emoji a mouse rests on, a second after it got there, by the cursor,
 /// until the mouse moves on or leaves.
 ///

@@ -24,8 +24,8 @@ import 'package:panel_shell/panel_shell.dart';
 /// A preview stands over the whole window in an overlay, outside any route,
 /// so the system back reaches whatever the host routes it to (its panel's
 /// back handling) and not the preview. The host asks [dismiss] first and
-/// stops there when it answers true, as the reference client closes the
-/// preview, menu and all, on back.
+/// stops there when it answers true: the preview, menu and all, closes on
+/// back.
 ///
 /// Created and disposed by the host, after the pages and sheets that use it.
 final class ContentPreviewController {
@@ -80,8 +80,7 @@ final class ContentPreviewController {
 /// window while a finger holds its cell, with the menu of what can be done
 /// with it.
 ///
-/// It is the reference mobile client's `ContentPreviewViewer`, as one
-/// [CatalogLongPressSession] every surface opens the same way: the panel's
+/// It is one [CatalogLongPressSession] every surface opens the same way: the panel's
 /// sticker grid (its favourites and recents too), its GIF page and its
 /// custom emoji cells, and a pack sheet's grid. A unicode emoji is never
 /// previewed.
@@ -89,7 +88,7 @@ final class ContentPreviewController {
 /// ## Opening
 ///
 /// The opener begins it when its cell has been held [touchHoldDelay] (a
-/// finger) or [pointerHoldDelay] (a mouse: the desktop client's drag time),
+/// finger) or [pointerHoldDelay] (a mouse: the drag time),
 /// with the cell the press is on. It comes up over [showDuration], linearly,
 /// growing from its centre as it fades in over a dim of the window
 /// ([dimDark] or [dimLight] by the theme, at [dimAlpha] of its own alpha).
@@ -115,7 +114,7 @@ final class ContentPreviewController {
 ///   (see [ContentPreviewActions]) and closes the preview, as does a press
 ///   anywhere else, or [close] (the host's back, through
 ///   [ContentPreviewController.dismiss]).
-/// - A mouse gets the desktop client's preview: no menu, and lifting closes
+/// - A mouse gets a preview with no menu, and lifting closes
 ///   it. Its actions are the cell's context menu
 ///   ([ContentPreviewMenu.entriesOf]).
 /// - [openMenu] opens the menu at once (after [instantMenuDelay]): a tap on a
@@ -132,10 +131,9 @@ final class ContentPreviewController {
 /// back as it starts to close, and they go on from their frames. The clock
 /// keeps running for the preview, which is drawn in the foreground
 /// (`AssetProfile.foreground`): each item it shows plays its own pass from
-/// the first frame, the first one and every one the finger slides to. The
-/// reference posts `stopAllHeavyOperations` as its preview opens and
-/// `startAllHeavyOperations` as it closes, and sets the preview's animation
-/// to frame 0 on each open.
+/// the first frame, the first one and every one the finger slides to. Heavy
+/// operations stop as the preview opens and start again as it closes, and
+/// the preview's animation goes to frame 0 on each open.
 final class ContentPreviewSession implements CatalogLongPressSession {
   ContentPreviewSession._({
     required ContentPreviewItem item,
@@ -165,7 +163,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   /// - [hold]: the opener's hold on the panel's auto-hide, released as the
   ///   preview starts to close.
   /// - [controller]: the host's handle, which closes the preview on back.
-  /// - [keyboardHeight]: the height the reference assumes a keyboard takes,
+  /// - [keyboardHeight]: the height assumed for a keyboard,
   ///   which the preview stays above where the window is tall enough.
   ///
   /// Places the preview in the nearest root `Overlay` and re-provides the
@@ -219,8 +217,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   /// `runOnUIThread(openPreviewRunnable, 200)`.
   static const Duration touchHoldDelay = Duration(milliseconds: 200);
 
-  /// How long a mouse button holds a cell before the preview opens: the
-  /// desktop client's `QApplication::startDragTime()`.
+  /// How long a mouse button holds a cell before the preview opens.
   static const Duration pointerHoldDelay = Duration(milliseconds: 500);
 
   /// How long the preview takes to come up or go: `showProgress += dt / 120`.
@@ -234,14 +231,13 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   /// 2000)`.
   static const Duration gifMenuDelay = Duration(milliseconds: 2000);
 
-  /// When the menu of a preview opened by a tap comes up: the reference's
-  /// `menuOpenDelay` of one frame.
+  /// When the menu of a preview opened by a tap comes up: one frame.
   static const Duration instantMenuDelay = Duration(milliseconds: 16);
 
-  /// How far up a GIF can be dragged: `-dp(60)`.
+  /// How far up a GIF can be dragged: 60.
   static const double gifSwipeLimit = 60;
 
-  /// How far up a GIF is dragged when its menu opens: `-dp(55)`.
+  /// How far up a GIF is dragged when its menu opens: 55.
   static const double gifSwipeMenu = 55;
 
   /// How long a dragged GIF takes to settle back once its menu is up:
@@ -252,7 +248,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   /// (0.25, 0.1, 0.25, 1).
   static const Curve gifSwipeSettleCurve = Curves.ease;
 
-  /// The rubber band's factor: `rubberYPoisition(currentMoveY, dp(200))`.
+  /// The rubber band's factor: 200.
   static const double gifSwipeFactor = 200;
 
   /// The dim over a dark theme: `0x71000000`.
@@ -266,9 +262,8 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   /// `ColorDrawable` multiplies into its colour's own alpha.
   static const int dimAlpha = 180;
 
-  /// How strong the blur under the menu is at its end. Not traced: the
-  /// reference blurs a downscaled bitmap of the window
-  /// (`ScrimOptions.makeGlobalBlurBitmaps`).
+  /// How strong the blur under the menu is at its end, applied to a
+  /// downscaled bitmap of the window.
   static const double menuBlurSigma = 12;
 
   /// The draws the content is resized from: the cache's.
@@ -300,7 +295,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   double? _lastY;
   var _closing = false;
   // Set by the overlay once the preview is all the way up: a GIF is dragged
-  // only then, as the reference's `showProgress == 1`.
+  // only then, once the preview is fully up.
   var _up = false;
 
   /// What the preview shows now.
@@ -346,8 +341,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
 
   var _moveY = 0.0;
 
-  /// The reference's `rubberYPoisition`: how far a drag of [offset] moves
-  /// the GIF.
+  /// How far a drag of [offset] moves the GIF.
   static double _rubber(double offset) {
     final delta = offset.abs();
     final moved =
@@ -368,8 +362,8 @@ final class ContentPreviewSession implements CatalogLongPressSession {
 
   // --- The menu -------------------------------------------------------------
 
-  // A sticker opens its menu by itself only when it has a pack (the
-  // reference's `newSet != null`); a custom emoji always; a mouse never.
+  // A sticker opens its menu by itself only when it has a pack; a custom emoji
+  // always; a mouse never.
   void _scheduleMenuFor(ContentPreviewItem item) {
     if (kind == PointerDeviceKind.mouse) return;
     switch (item.kind) {
@@ -651,7 +645,7 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
 
 /// Centres the menu across the window with its top at [top], or higher
 /// when it would pass the window's [bottom] padding: the popup window the
-/// reference shows is kept on screen by the system.
+/// is kept on screen by the system.
 final class _MenuPlacement extends SingleChildLayoutDelegate {
   const _MenuPlacement({required this.top, required this.bottom});
 
@@ -709,8 +703,7 @@ class _PreviewContent extends StatelessWidget {
   }
 }
 
-/// The arrow over a GIF that says a drag up opens its menu. The reference
-/// draws an asset (`slideUpDrawable`); this is a chevron of about its size.
+/// The arrow over a GIF that says a drag up opens its menu: a chevron.
 class _SwipeArrow extends StatelessWidget {
   const _SwipeArrow({required this.color});
 
@@ -752,8 +745,7 @@ final class _ChevronPainter extends CustomPainter {
   bool shouldRepaint(_ChevronPainter oldDelegate) => oldDelegate.color != color;
 }
 
-/// The menu card under the preview: the reference's `ActionBarPopupWindow`
-/// of `ActionBarMenuSubItem`s, each led by its icon.
+/// The menu card under the preview: a stack of items, each led by its icon.
 class _PreviewMenu extends StatelessWidget {
   const _PreviewMenu({
     required this.item,
@@ -761,24 +753,23 @@ class _PreviewMenu extends StatelessWidget {
     required this.onChoose,
   });
 
-  /// `ActionBarMenuSubItem` is `dp(48)` tall.
+  /// An item is 48 tall.
   static const double itemExtent = 48;
 
-  /// The popup's corner radius, `dp(12)`.
+  /// The popup's corner radius: 12.
   static const double radius = 12;
 
-  /// The popup's padding, `dp(8)`.
+  /// The popup's padding: 8.
   static const double padding = 8;
 
-  /// An item's inset, `dp(18)` each side (`setPadding(dp(18), 0, dp(18),
-  /// 0)`), and its text size, 16 (`setTextSize(COMPLEX_UNIT_DIP, 16)`) at
-  /// the regular weight.
+  /// An item's inset, 18 each side, and its text size, 16 at the regular
+  /// weight.
   static const double itemInset = 18;
   static const double fontSize = 16;
 
-  /// From the icon's start to the text's: the text view is padded `dp(43)`
-  /// at the start when the item has an icon (`setTextAndIcon`), whatever the
-  /// icon's own size (`CatalogMenuIcons.sizeOf`).
+  /// From the icon's start to the text's: the text is padded 43 at the start
+  /// when the item has an icon, whatever the icon's own size
+  /// (`CatalogMenuIcons.sizeOf`).
   static const double labelInset = 43;
 
   /// The narrowest the card is. Not traced.
@@ -850,9 +841,8 @@ class _PreviewMenuItem extends StatelessWidget {
   final String label;
   final ChromeIconId icon;
 
-  // Text and icon in the attention colour (`setColors(red, red)`); otherwise
-  // the text in `actionBarDefaultSubmenuItem` and the icon in
-  // `actionBarDefaultSubmenuItemIcon`.
+  // Text and icon in the attention colour; otherwise the text and the icon
+  // take the default item colours.
   final bool attention;
   final VoidCallback onTap;
 

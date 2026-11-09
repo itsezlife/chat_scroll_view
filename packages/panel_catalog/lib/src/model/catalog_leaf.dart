@@ -156,8 +156,7 @@ final class CatalogLeaf {
   };
 
   /// How this leaf's content fills its box: a GIF fills its cell and is cut at
-  /// the edge, as the reference client's grid does (`ImageReceiver` with
-  /// `isAspectFit` false); everything else, a sticker included, is shown whole.
+  /// the edge (not aspect-fit); everything else, a sticker included, is shown whole.
   ///
   /// A grid lays a GIF out in a cell of its own proportion, so the two differ
   /// only where the cell is not (a clip beyond 4:1 or below 1:5 is laid out as

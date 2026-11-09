@@ -38,8 +38,8 @@ enum PanelArrangement {
   /// Whether the bar offers [action] under this arrangement.
   ///
   /// Backspace is a touch idiom: a soft keyboard that the panel replaced has
-  /// no backspace key of its own, a physical one does, and the desktop
-  /// reference client's panel has no such button.
+  /// no backspace key of its own, a physical one does, and the desktop panel
+  /// has no such button.
   bool offersAction(PageAction action) =>
       this == touch || action.id != PageAction.backspaceId;
 
@@ -48,7 +48,7 @@ enum PanelArrangement {
   ///
   /// A touch idiom: a finger has the keyboard up and the results below the
   /// field, so the field stays in reach. A cursor scrolls the field away like
-  /// any content, as the reference client's does.
+  /// any content.
   bool get pinsSearchWhenOpen => this == touch;
 
   /// Whether a secondary click (a mouse's right button) on content opens a

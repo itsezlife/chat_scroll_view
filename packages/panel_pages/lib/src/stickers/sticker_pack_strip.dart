@@ -14,13 +14,11 @@ import 'package:panel_shell/panel_shell.dart';
 /// The strip along the top of the stickers page: a tab for the favourite
 /// stickers and one for the recents, when the page has some, and one per
 /// pack, drawn by the pack's cover. The tabs are in the order of the page's
-/// sections; the reference lists the favourites first
-/// (`EmojiView.updateStickerTabs`), drawn by [favouritesIcon].
+/// sections, with the favourites first, drawn by [favouritesIcon].
 ///
-/// The reference mobile client's `ScrollSlidingTabStrip` of type `TAB` (the
-/// stickers tab of the emoji view): [height] tall, each tab [tabWidth] wide
-/// with the picture [iconSize] square in it, the row [padH] in from both ends
-/// and scrolling sideways when the packs do not fit. A pill [pillSize] square
+/// The tab row: [height] tall, each tab [tabWidth] wide with the picture
+/// [iconSize] square in it, the row [padH] in from both ends and scrolling
+/// sideways when the packs do not fit. A pill [pillSize] square
 /// marks the active tab.
 ///
 /// ## The active tab
@@ -55,8 +53,8 @@ import 'package:panel_shell/panel_shell.dart';
 /// once: the first build, a new set of tabs, and a catalogue repositioned by
 /// a command (`PanelCatalogProgrammaticJump`: a fresh open restarting the
 /// page, a host's jump), whose section change is placed until the next motion
-/// of the user's starts. The reference mobile client selects its tab on an
-/// open with no animated change (`firstTabUpdate`) and jumps its grid; a
+/// of the user's starts. The tab is selected on an open with no animated
+/// change, and the grid jumps; a
 /// slide there would play while the panel opens, or after, when its tickers
 /// come back. A command that cuts a tapped tab's jump short ends the tap: the
 /// mark goes where the catalogue landed.
@@ -94,13 +92,13 @@ class StickerPackStrip extends StatefulWidget {
     'stickers.favourites',
   );
 
-  /// Radius of a cover's corners: `imageView.setRoundRadius(dp(6))`.
+  /// Radius of a cover's corners: 6.
   static const double coverRadius = 6;
 
-  /// Inset of the first tab: `tabsContainer.setPadding(dp(9.5f), 0, dp(9.5f), 0)`.
+  /// Inset of the first tab: 9.5.
   static const double padH = 9.5;
 
-  /// Side of the mark at rest: `sz = dp(30)` in `dispatchDraw`.
+  /// Side of the mark at rest: 30.
   static const double pillSize = PanelStripMetrics.pillSide;
 
   /// Identifies the mark of the active tab.
@@ -119,8 +117,7 @@ class StickerPackStrip extends StatefulWidget {
   State<StickerPackStrip> createState() => _StickerPackStripState();
 }
 
-// What the reference's `ScrollSlidingTabStrip` measures differently from the
-// emoji strip: tabs the strip's height tall and [StickerPackStrip.tabWidth]
+// What the stickers strip measures differently from the emoji strip: tabs the strip's height tall and [StickerPackStrip.tabWidth]
 // wide with no gap, from [StickerPackStrip.padH] in, the pill swelling as its
 // `dispatchDraw` draws it, and a pack's cover playing.
 const PanelStripMetrics _metrics = PanelStripMetrics(
@@ -162,8 +159,7 @@ class _Tab {
 
 class _StickerPackStripState extends State<StickerPackStrip>
     with SingleTickerProviderStateMixin {
-  // `scrollOffset = dp(StickerTabView.SMALL_WIDTH)`: how far from an edge
-  // `scrollToChild` leaves a tab it scrolled to.
+  // How far from an edge a scrolled-to tab is left: one tab width.
   static const double _reveal = StickerPackStrip.tabWidth;
 
   // Made in initState, not lazily: a strip that never had a tab would
@@ -499,12 +495,11 @@ class _TabButton extends StatelessWidget {
       tokens: tokens,
       duration: duration,
     ),
-    // The whole cover, playing and looping: the reference client's tab plays
-    // an animated cover (filter `40_40`, `40_40_firstframe` only in its lite
-    // mode, which here is the clock's `lowPower` layer). A still cover is a
-    // still paintable and never moves. Off the strip's screen the binding
-    // stops, as the reference strip clears the images of the tabs out of
-    // view.
+    // The whole cover, playing and looping: the tab plays an animated cover
+    // (40 x 40, its first frame still only in the lite mode, which here is
+    // the clock's `lowPower` layer). A still cover is a still paintable and
+    // never moves. Off the strip's screen the binding stops, and the tab
+    // images are cleared once out of view.
     (null, final cover?, final scope?) => PanelStripCover(
       content: cover,
       scope: scope,

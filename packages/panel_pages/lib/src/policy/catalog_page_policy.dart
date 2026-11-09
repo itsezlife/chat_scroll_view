@@ -186,7 +186,7 @@ abstract class CatalogPagePolicy {
   /// publishes, in display order.
   ///
   /// Asked the same way whether search is open or not: an open search with no
-  /// query keeps the catalogue on screen, as the reference clients do, so the
+  /// query keeps the catalogue on screen, so the
   /// policy has no say in it. The default shows everything.
   List<Collection> visibleCollections(List<Collection> all) => all;
 
@@ -209,7 +209,7 @@ abstract class CatalogPagePolicy {
       };
 
   /// How far in from the start edge the titles of section headers begin, or
-  /// null for the viewport's default. A reference list sets it per kind of
+  /// null for the viewport's default. A list sets it per kind of
   /// content (the sticker list's titles sit 15 in, the emoji list's 5).
   double? get headerStartInset => null;
 
@@ -257,8 +257,7 @@ abstract class CatalogPagePolicy {
   /// [onSectionAction], or null for a title that does nothing, the default.
   ///
   /// The whole header band outside its trailing action ([actionOf]) is the
-  /// title's: a pack's header that opens the pack, as the reference mobile
-  /// client's sticker list does.
+  /// title's: a pack's header that opens the pack.
   String? titleActionOf(Collection collection) => null;
 
   /// The tag the default [leafOf] attaches to the cell of [item]: the host's

@@ -10,7 +10,7 @@ import 'package:panel_pages/src/emoji/emoji_strip_footer.dart';
 import 'package:panel_pages/src/strip/panel_strip.dart';
 
 /// The emoji strip under the touch arrangement once there are packs: the
-/// reference mobile client's strip as it is with custom emoji.
+/// strip as it is with custom emoji.
 ///
 /// ## Layout
 ///
@@ -82,9 +82,9 @@ class EmojiStripTabs extends StatefulWidget {
   State<EmojiStripTabs> createState() => _EmojiStripTabsState();
 }
 
-// What the reference's `EmojiTabsStrip` measures differently from the
+// What the emoji strip measures differently from the
 // stickers strip: 30 px tabs 3 px apart from 11 px in, pictures 24 px, the
-// pill swelling as `EmojiTabsStrip.dispatchDraw` draws it, and a pack's cover
+// pill swelling as the strip draws it, and a pack's cover
 // a still of its first frame.
 const PanelStripMetrics _metrics = PanelStripMetrics(
   tabWidth: EmojiCategoryStrip.cell,
@@ -99,7 +99,7 @@ const PanelStripMetrics _metrics = PanelStripMetrics(
 
 class _EmojiStripTabsState extends State<EmojiStripTabs>
     with TickerProviderStateMixin {
-  // The reference mobile client's motion past the pill's (the strip's own):
+  // The motion past the pill's (the strip's own):
   // the group 475 ms, ease-out quint.
   static const Duration _groupDuration = Duration(milliseconds: 475);
   static const Curve _curve = PanelStripMetrics.curve;
@@ -119,7 +119,7 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
 
   // How open the group is (0 closed, 1 open) where its motion started and
   // where it ends. Both motions run their controller from 0 and ease the
-  // time, as the reference client's animators do from the value they are at:
+  // time, from the value they are at:
   // easing the controller's value instead turns ease-out into ease-in
   // whenever it runs backwards, and the group lagged behind the pill.
   double _openFrom = 0;
@@ -194,15 +194,14 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
     final moving = animate && !_still;
     final open = index == _groupIndex;
     // Another category of the open group leaves the pill (and the group)
-    // where it is, as the reference client starts its slide only when the
+    // where it is, and the slide starts only when the
     // tab changes.
     if (_slide.aim(index, moving: moving)) {
       final openNow = _openNow;
       _openFrom = moving ? openNow : (open ? 1 : 0);
       _openTo = open ? 1 : 0;
       if (moving) {
-        // The whole 475 ms from wherever it is, as the reference client
-        // restarts it.
+        // The whole 475 ms from wherever it is, restarted.
         unawaited(_group.forward(from: 0));
       } else {
         _group.value = 1;
@@ -425,8 +424,8 @@ class _Tab extends StatelessWidget {
               tokens: tokens,
               duration: duration,
             ),
-            // The cover's first frame, as a still of its own: the reference
-            // client's tab is static, and a still entry holds no decoder.
+            // The cover's first frame, as a still of its own: the tab is
+            // static, and a still entry holds no decoder.
             (null, final cover?, final scope?) => PanelStripCover(
               content: cover,
               scope: scope,

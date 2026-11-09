@@ -64,8 +64,7 @@ sealed class PanelPresentationPolicy {
   /// The tallest a popup is, whatever the window.
   static const double popupMaxHeight = 640;
 
-  /// The narrowest a dock is, whatever the user drags it to: the reference
-  /// client's third column.
+  /// The narrowest a dock is, whatever the user drags it to: a third column.
   double get dockMinWidth => 292;
 
   /// The widest a dock is.
@@ -119,7 +118,7 @@ sealed class PanelPresentationPolicy {
   /// Whether the panel can be docked in [window]: the content and the dock fit
   /// side by side ([dockMinChatWidth] and [dockMinWidth]).
   ///
-  /// Not the window class: the reference client docks as soon as the two
+  /// Not the window class: a dock appears as soon as the two
   /// minimums fit, and a window that does not fit has no dock however wide the
   /// user would like it.
   bool canDock(PanelWindow window);
@@ -260,7 +259,7 @@ final class PanelPresentationPolicy$Desktop extends PanelPresentationPolicy {
   };
 
   /// Never: every kind keeps the place of every page across a close, as the
-  /// reference desktop client's panel keeps its selector.
+  /// panel keeps its selector.
   @override
   bool opensAfresh(PanelPresentation kind) => false;
 

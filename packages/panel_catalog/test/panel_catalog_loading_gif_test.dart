@@ -4,10 +4,10 @@
 /// **Seam:** [PanelCatalogViewport] over a real [AssetCacheScope] and a
 /// [FakeAssetProducer] the test plays by hand; what is observed is what the
 /// viewport asks a recording canvas to draw and what it paints into the fake
-/// paintables, never render-object fields. The reference client draws a GIF
-/// that is downloading as its blurred thumbnail with a turning arc in a dark
-/// disc over it, none for one it has on disk, and keeps a bitmap thumbnail opaque under the content that fades
-/// in (`ImageReceiver.draw`).
+/// paintables, never render-object fields. A GIF that is downloading draws its
+/// blurred thumbnail with a turning arc in a dark disc over it, none for one it
+/// has on disk, and keeps a bitmap thumbnail opaque under the content that fades
+/// in.
 library;
 
 import 'dart:math' as math;

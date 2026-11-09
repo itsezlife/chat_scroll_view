@@ -286,10 +286,8 @@ class CatalogContextMenuPanel extends StatefulWidget {
   static const double radius = 8;
 
   /// From an icon's start to its label's: the preview menu's
-  /// (`ActionBarMenuSubItem` pads its text `dp(43)` past the icon's start),
-  /// so a right-click shows the preview's items as the preview does. The
-  /// desktop client's icon menu style (`menuWithIcons`, in `lib_ui`) is not
-  /// in the reference checkout.
+  /// (43 logical pixels), so a right-click shows the preview's items as the
+  /// preview does.
   static const double labelInset = 43;
 
   @override

@@ -117,8 +117,8 @@ final class CatalogSection {
   /// What `onSectionAction` reports for a tap on the header outside its
   /// trailing [action], or null for a header whose title does nothing.
   ///
-  /// Nothing is painted for it: the title is the button, as a reference
-  /// client's pack header is (a tap opens the pack). The band still scrolls
+  /// Nothing is painted for it: the title is the button (a tap opens the
+  /// pack). The band still scrolls
   /// under a drag, and a screen reader taps the header node.
   final String? titleAction;
 }

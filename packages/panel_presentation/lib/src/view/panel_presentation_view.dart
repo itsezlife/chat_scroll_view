@@ -22,8 +22,8 @@ import 'package:panel_presentation/src/view/listen_value_builder.dart';
 /// offstage (no paint, no hit test, no semantics) and under [ExcludeFocus].
 /// The tree has one shape shown or hidden, so a hide and a show remount
 /// nothing: the shell, its pages and their cells keep their state, and the
-/// cells their frames, as the reference mobile client keeps its panel's
-/// views while it is removed from the window. Before the first show it
+/// cells their frames, and its views are kept while it is removed from the
+/// window. Before the first show it
 /// builds nothing.
 ///
 /// The view fills the box its host gives it; where that box sits, and how

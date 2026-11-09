@@ -323,8 +323,8 @@ class _DockedBodyState extends State<_DockedBody>
                         ),
                       ),
                     ),
-                    // Over the section's start edge, as the reference client's
-                    // strip is: it takes the pointer away from what is under it
+                    // Over the section's start edge, where the strip sits:
+                    // it takes the pointer away from what is under it
                     // there, which is the section's own margin.
                     PositionedDirectional(
                       start: 0,

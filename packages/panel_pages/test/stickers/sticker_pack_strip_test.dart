@@ -164,7 +164,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('is 36 tall, the height of the reference strip', (tester) async {
+  testWidgets('is 36 tall', (tester) async {
     await pump(tester);
 
     expect(tester.getSize(find.byType(StickerPackStrip)).height, 36);
@@ -216,9 +216,7 @@ void main() {
     expect(find.bySemanticsLabel('Sticker packs'), findsOneWidget);
   });
 
-  testWidgets('lays tabs 33 wide from 9.5 in, as the reference strip does', (
-    tester,
-  ) async {
+  testWidgets('lays tabs 33 wide from 9.5 in', (tester) async {
     await pump(tester);
 
     final origin = tester.getTopLeft(find.byType(StickerPackStrip));
@@ -327,7 +325,7 @@ void main() {
   });
 
   group('the mark', () {
-    // The reference strip draws the active mark as a 30 px pill that is
+    // The active mark is a 30 px pill that is
     // widest and flattest half way through its slide.
     test('is 30 square at rest', () {
       expect(StickerPackStrip.pillSizeAt(0), const Size(30, 30));
@@ -375,107 +373,104 @@ void main() {
     expect(mark.center.dx, lessThanOrEqualTo(to));
   });
 
-  group(
-    'placed at once, as the reference client places its tabs on an open',
-    () {
-      // `onOpen` selects the tab with `firstTabUpdate` set (no animated
-      // change) and jumps the grid; only a tap or the user's own scroll slides.
-      void expectMarkOn(WidgetTester tester, String label) {
-        final mark = tester.getRect(find.byKey(StickerPackStrip.markKey));
-        final tab = tester.getRect(find.bySemanticsLabel(label));
-        expect(mark.size, const Size(30, 30));
-        expect(mark.center.dx, closeTo(tab.center.dx, .5));
-      }
+  group('placed at once on an open', () {
+    // `onOpen` selects the tab with `firstTabUpdate` set (no animated
+    // change) and jumps the grid; only a tap or the user's own scroll slides.
+    void expectMarkOn(WidgetTester tester, String label) {
+      final mark = tester.getRect(find.byKey(StickerPackStrip.markKey));
+      final tab = tester.getRect(find.bySemanticsLabel(label));
+      expect(mark.size, const Size(30, 30));
+      expect(mark.center.dx, closeTo(tab.center.dx, .5));
+    }
 
-      testWidgets('a jump of the catalogue lands the mark on its tab at once', (
-        tester,
-      ) async {
-        await pump(tester);
+    testWidgets('a jump of the catalogue lands the mark on its tab at once', (
+      tester,
+    ) async {
+      await pump(tester);
 
-        handle.jump('${const CollectionId.set('b')}', 2);
-        await tester.pump();
+      handle.jump('${const CollectionId.set('b')}', 2);
+      await tester.pump();
 
-        expect(selected(tester, 'Dogs'), isTrue);
-        expectMarkOn(tester, 'Dogs');
-        expect(tester.hasRunningAnimations, isFalse);
-      });
+      expect(selected(tester, 'Dogs'), isTrue);
+      expectMarkOn(tester, 'Dogs');
+      expect(tester.hasRunningAnimations, isFalse);
+    });
 
-      testWidgets('a jump to a pack that does not fit scrolls the row to it at '
-          'once', (tester) async {
-        handle.entries.value = _entries([
-          for (var i = 0; i < 20; i++) _pack('p$i', 'Pack $i'),
-        ]);
-        await pump(tester, width: 200);
+    testWidgets('a jump to a pack that does not fit scrolls the row to it at '
+        'once', (tester) async {
+      handle.entries.value = _entries([
+        for (var i = 0; i < 20; i++) _pack('p$i', 'Pack $i'),
+      ]);
+      await pump(tester, width: 200);
 
-        handle.jump('${const CollectionId.set('p15')}', 15);
-        await tester.pump();
-        await tester.pump();
+      handle.jump('${const CollectionId.set('p15')}', 15);
+      await tester.pump();
+      await tester.pump();
 
-        expect(stripOffset(tester), greaterThan(0));
-        expect(tester.hasRunningAnimations, isFalse);
-        final tab = tester.getRect(find.bySemanticsLabel('Pack 15'));
-        final strip = tester.getRect(find.byType(StickerPackStrip));
-        expect(tab.left, greaterThanOrEqualTo(strip.left));
-        expect(tab.right, lessThanOrEqualTo(strip.right));
-      });
+      expect(stripOffset(tester), greaterThan(0));
+      expect(tester.hasRunningAnimations, isFalse);
+      final tab = tester.getRect(find.bySemanticsLabel('Pack 15'));
+      final strip = tester.getRect(find.byType(StickerPackStrip));
+      expect(tab.left, greaterThanOrEqualTo(strip.left));
+      expect(tab.right, lessThanOrEqualTo(strip.right));
+    });
 
-      testWidgets('the user\'s scroll after a jump slides the mark again', (
-        tester,
-      ) async {
-        await pump(tester);
-        handle.jump('${const CollectionId.set('a')}', 1);
-        await tester.pump();
+    testWidgets('the user\'s scroll after a jump slides the mark again', (
+      tester,
+    ) async {
+      await pump(tester);
+      handle.jump('${const CollectionId.set('a')}', 1);
+      await tester.pump();
 
-        handle.events.add(const PanelCatalogViewportScrolled(40));
-        handle.enter('${const CollectionId.set('b')}', 2);
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+      handle.events.add(const PanelCatalogViewportScrolled(40));
+      handle.enter('${const CollectionId.set('b')}', 2);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-        final mark = tester.getRect(find.byKey(StickerPackStrip.markKey));
-        final to = tester.getRect(find.bySemanticsLabel('Dogs')).center.dx;
-        expect(mark.center.dx, lessThan(to - 1));
-      });
+      final mark = tester.getRect(find.byKey(StickerPackStrip.markKey));
+      final to = tester.getRect(find.bySemanticsLabel('Dogs')).center.dx;
+      expect(mark.center.dx, lessThan(to - 1));
+    });
 
-      testWidgets('a jump that cuts a tapped tab\'s jump short marks where the '
-          'catalogue landed', (tester) async {
-        await pump(tester);
-        await tester.tap(find.bySemanticsLabel('Dogs'));
-        await tester.pump();
+    testWidgets('a jump that cuts a tapped tab\'s jump short marks where the '
+        'catalogue landed', (tester) async {
+      await pump(tester);
+      await tester.tap(find.bySemanticsLabel('Dogs'));
+      await tester.pump();
 
-        handle.jump('${CollectionId.recent}', 0);
-        await tester.pump();
+      handle.jump('${CollectionId.recent}', 0);
+      await tester.pump();
 
-        expect(selected(tester, 'Recently used'), isTrue);
-        expect(selected(tester, 'Dogs'), isFalse);
-        expectMarkOn(tester, 'Recently used');
-      });
+      expect(selected(tester, 'Recently used'), isTrue);
+      expect(selected(tester, 'Dogs'), isFalse);
+      expectMarkOn(tester, 'Recently used');
+    });
 
-      testWidgets('a new set of tabs moves the mark with its tab at once', (
-        tester,
-      ) async {
-        handle.dispose();
-        handle = _Handle([_pack('a', 'Cats'), _pack('b', 'Dogs')]);
-        await pump(tester);
-        handle.enter('${const CollectionId.set('a')}', 0);
-        await tester.pump();
-        expectMarkOn(tester, 'Cats');
+    testWidgets('a new set of tabs moves the mark with its tab at once', (
+      tester,
+    ) async {
+      handle.dispose();
+      handle = _Handle([_pack('a', 'Cats'), _pack('b', 'Dogs')]);
+      await pump(tester);
+      handle.enter('${const CollectionId.set('a')}', 0);
+      await tester.pump();
+      expectMarkOn(tester, 'Cats');
 
-        // The recents arrive ahead of the packs: Cats is one tab on.
-        handle.entries.value = _entries([
-          _recent,
-          _pack('a', 'Cats'),
-          _pack('b', 'Dogs'),
-        ]);
-        await tester.pump();
+      // The recents arrive ahead of the packs: Cats is one tab on.
+      handle.entries.value = _entries([
+        _recent,
+        _pack('a', 'Cats'),
+        _pack('b', 'Dogs'),
+      ]);
+      await tester.pump();
 
-        expect(selected(tester, 'Cats'), isTrue);
-        expectMarkOn(tester, 'Cats');
-      });
-    },
-  );
+      expect(selected(tester, 'Cats'), isTrue);
+      expectMarkOn(tester, 'Cats');
+    });
+  });
 
   group('the covers', () {
-    // The reference strip plays a pack's animated cover in its tab, looping,
+    // The strip plays a pack's animated cover in its tab, looping,
     // while the tab is on screen, and stops it once the tab scrolls away.
     const cats = ContentKey.document('cats');
     const dogs = ContentKey.document('dogs');
@@ -506,9 +501,8 @@ void main() {
       await tester.pump();
     }
 
-    // Until a cover has anything to show its tab draws the reference's
-    // stand-in, a faint rounded square in the idle icon colour at 25 of 255
-    // (`key_emptyListPlaceholder` at 0.2 of half alpha), never the scope's
+    // Until a cover has anything to show its tab draws its stand-in, a faint rounded square in the idle icon colour at 25 of 255
+    // (0.2 of half alpha), never the scope's
     // media fill (`0xFFEDF3F7`, a light grey square in either theme).
     for (final (brightness, standIn) in [
       (Brightness.light, const Color(0x197A8189)),

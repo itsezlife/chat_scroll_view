@@ -37,9 +37,7 @@ final class PackSheetLinks {
 typedef PackSheetItem = ({ContentDescriptor item, Pack pack});
 
 /// Shows a pack sheet: a modal bottom sheet on touch and a centred box under
-/// a pointer, as the reference clients do (the mobile client's
-/// `StickersAlert` / `EmojiPacksAlert` bottom sheets, the desktop client's
-/// `StickerSetBox`).
+/// a pointer.
 ///
 /// The sheet itself ([StickerPackSheet], [EmojiPackSheet]) reads the
 /// arrangement from the `PanelArrangementScope` this puts above it: a grabber
@@ -54,18 +52,16 @@ abstract final class PackSheet {
   ///
   /// A host that pauses its animations under modal routes tells the sheet
   /// apart by it: the sheet plays its own content and the preview opened
-  /// from it. The reference mobile client pauses only what is under the
-  /// sheet (`StickersAlert` and `EmojiPacksAlert` post
-  /// `stopAllHeavyOperations` for layer 4 while shown; the sheet's cells are
-  /// on layer 7 and its preview above every layer), and everything while the
-  /// sheet opens or closes (`BottomSheet`, layer 512).
+  /// from it. Only what is under the sheet pauses (the sheet's cells are on
+  /// layer 7 and its preview above every layer), and everything pauses while
+  /// the sheet opens or closes.
   static const String routeName = 'pack_sheet';
 
   /// The dim behind the bottom sheet: `BottomSheet`'s backDrawable alpha
   /// `0x33` of black.
   static const Color touchBarrier = Color(0x33000000);
 
-  /// The dim behind the box: the desktop client's `layerBg` (`#0000007f`).
+  /// The dim behind the box: `#0000007f`.
   static const Color pointerBarrier = Color(0x7F000000);
 
   /// How long the bottom sheet takes to open: `BottomSheet.startOpenAnimation`
@@ -87,8 +83,7 @@ abstract final class PackSheet {
   /// second (`velocityY >= 3500`).
   static const double dismissVelocity = 3500;
 
-  /// The width of the box under a pointer: the desktop client's
-  /// `boxWideWidth`.
+  /// The width of the box under a pointer.
   static const double boxWidth = 364;
 
   /// Shows the sheet [builder] builds over [context]'s navigator, arranged for
@@ -157,7 +152,7 @@ final class _BottomSheetRoute extends PopupRoute<void> {
   @override
   Color get barrierColor => PackSheet.touchBarrier;
 
-  // A tap above the content dismisses (`StickersAlert` `onTouchEvent`).
+  // A tap above the content dismisses.
   @override
   bool get barrierDismissible => true;
 

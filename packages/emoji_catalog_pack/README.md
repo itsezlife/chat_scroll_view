@@ -28,10 +28,9 @@ handshake belongs to the handshake). Formats are documented on
 `EmojiCatalogStructure`, `EmojiShortcodes` and `EmojiKeywordPack`; the readers
 are strict and throw a `FormatException` on anything they cannot read.
 
-The shortcodes are the toolkit's `shortname`s, which are the alpha codes the
-reference desktop client shows on hover. Like the keyword packs they cover
-entries and gender variants only: a tone variant shows its entry's code, as
-that client does. Sequences are matched with U+FE0F removed on both sides and
+The shortcodes are the toolkit's `shortname`s, which are the alpha codes shown on
+hover. Like the keyword packs they cover
+entries and gender variants only: a tone variant shows its entry's code. Sequences are matched with U+FE0F removed on both sides and
 written as the structure spells them.
 
 `EmojiKeywordPack` is the reader of this asset and also carries the spoken
@@ -130,7 +129,7 @@ when it is published.
   as their entry; per-tone CLDR names would add about 14-17 KB gzip to every
   pack.
 - Shortcodes come from emoji-toolkit's JSON because its `shortname` is the
-  reference desktop client's alpha code for 2645 of the 2666 emoji they share,
+  desktop alpha code for 2645 of the 2666 emoji they share,
   and the JSON is MIT. Only the JSON is read; no JoyPixels artwork is used.
   Emoji the toolkit does not name yet ship without a code rather than with an
   invented one.

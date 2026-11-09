@@ -92,8 +92,7 @@ class PanelShell extends StatefulWidget {
   final Color? background;
 
   /// How wide the bar under the selected section tab is under the pointer
-  /// arrangement: its label's width (the reference client's) or the whole
-  /// section's.
+  /// arrangement: its label's width or the whole section's.
   final PanelSectionTabsBar sectionTabsBar;
 
   /// The controller this shell projects.
@@ -287,7 +286,7 @@ class _PanelShellState extends State<PanelShell> {
           controller: _shell,
           position: _position,
           dragging: _dragging,
-          // The reference desktop client slides its sections in.
+          // The sections slide in.
           selectSlide: pointer ? _sectionSlide : Duration.zero,
         ),
       ),
@@ -395,8 +394,7 @@ class _PanelShellState extends State<PanelShell> {
 
   static const Duration _sectionSlide = Duration(milliseconds: 200);
 
-  // The pointer arrangement's tabs: the reference desktop client's sections
-  // above the search field. One page has nothing to switch to.
+  // The pointer arrangement's tabs: the sections above the search field. One page has nothing to switch to.
   Widget _sectionTabs() => FocusTraversalOrder(
     order: const NumericFocusOrder(2),
     child: ListenValueBuilder<String>(

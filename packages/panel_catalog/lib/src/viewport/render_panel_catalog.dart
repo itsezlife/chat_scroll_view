@@ -108,9 +108,8 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 ///
 /// Drag (`VerticalDragGestureRecognizer`) and pointer-wheel
 /// ([PointerScrollEvent]) both call [PanelCatalogController.scrollBy]. A
-/// mouse never drags: it scrolls by its wheel and the scrollbar, as the
-/// reference desktop client's grid does, and a press-and-move of it is a
-/// press on a cell, not a scroll ([_dragDevices]).
+/// mouse never drags: it scrolls by its wheel and the scrollbar, and a
+/// press-and-move of it is a press on a cell, not a scroll ([_dragDevices]).
 /// Drag-up (negative primary delta) reveals content below → positive delta
 /// on the controller. Drag start cancels fling and clears in-flight press.
 ///

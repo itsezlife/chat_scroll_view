@@ -132,8 +132,7 @@ void main() {
       }
     });
 
-    test('under the pointer draws an emoji 24 px, the reference desktop '
-        'client\'s size, at every width', () {
+    test('under the pointer draws an emoji 24 px at every width', () {
       final layout = policy.layoutOf(
         const Collection(id: CollectionId.recent),
         arrangement: PanelArrangement.pointer,

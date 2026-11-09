@@ -330,7 +330,7 @@ void main() {
       expect(host.scrollActivity.last, isA<PageScrollIdle>());
     });
 
-    // The reference client brings its bottom tabs back at rest at an end of
+    // The bottom tabs come back at rest at an end of
     // the emoji grid only; over GIFs only reading back shows them.
     pageTest('never says it rests at an end', (tester) async {
       source.dispose();
@@ -456,7 +456,7 @@ void main() {
     });
   });
 
-  // The reference grid appends a page with its change animations off: the
+  // The grid appends a page with its change animations off: the
   // reflowed row's cells move to their new places (`DefaultItemAnimator`,
   // move 250 ms) and the added ones fade in (add 120 ms).
   group('a page that arrives', () {

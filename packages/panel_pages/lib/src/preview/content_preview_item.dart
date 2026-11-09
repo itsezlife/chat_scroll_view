@@ -6,8 +6,8 @@ import 'package:panel_catalog/panel_catalog.dart';
 /// its menu.
 ///
 /// A unicode emoji is never previewed: it has no kind here
-/// ([ContentPreviewKind.of] answers null), as the reference client previews
-/// only an emoji cell that holds a custom emoji.
+/// ([ContentPreviewKind.of] answers null); only an emoji cell that holds a
+/// custom emoji is previewed.
 enum ContentPreviewKind {
   /// A sticker or a mask: drawn at a fraction of the screen, switched by
   /// sliding over other cells, with the sticker menu.
@@ -98,8 +98,8 @@ final class ContentPreviewItem {
   final SemanticKind semanticKind;
 
   /// The pack the content belongs to, or null: no pack to view, and no
-  /// sticker menu at all while the finger is down (the reference opens it
-  /// only for a sticker of a set).
+  /// sticker menu at all while the finger is down (the menu opens only for a
+  /// sticker of a set).
   final PackId? pack;
 
   /// Whether the item was opened from a recents list, which offers to take

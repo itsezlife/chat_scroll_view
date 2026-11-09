@@ -15,7 +15,7 @@ import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/stickers/stickers_page_policy.dart';
 import 'package:panel_shell/panel_shell.dart';
 
-/// The GIF page: the clips of [source] in the reference client's justified
+/// The GIF page: the clips of [source] in justified
 /// rows ([GifRowLayout]), each playing silently on a loop while it is in view.
 ///
 /// ## What it is made of
@@ -33,26 +33,23 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// The offset the page was left at is kept in the host's controllers, so a
 /// page the pager dropped for another tab, or a presentation switch rebuilt,
-/// opens where it was left (the reference client keeps one list per page).
+/// opens where it was left (one list is kept per page).
 ///
 /// A fresh open of the panel (`PanelPageHost.freshOpen`) is the exception: the
-/// list goes back to its start at once, mounted or not, as the reference
-/// mobile client's GIF page does each time its panel is shown. A close that
+/// list goes back to its start at once, mounted or not, each time its panel is shown. A close that
 /// is followed by an open that is not fresh (a popup, a dock) keeps the place.
 ///
 /// ## The bottom bar
 ///
 /// Only reading back brings the bar back: the page never reports a rest at
-/// an end of its list as one. The reference client shows its bottom tabs at
-/// rest at either end of the emoji grid alone (`EmojiGridView`
-/// `onScrollStateChanged`); over GIFs they follow the distance scrolled.
+/// an end of its list as one. The bottom tabs rest at either end of
+/// the emoji grid alone; over GIFs they follow the distance scrolled.
 ///
 /// ## Sections
 ///
 /// The recents come first, unless they are known to be empty, and every other
 /// collection after them. A collection's title heads it, except the first
-/// section's: the reference client titles only what follows its recents
-/// (`FeaturedGifs`).
+/// section's: only what follows its recents gets a title.
 ///
 /// ## Playback
 ///
@@ -82,17 +79,16 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// What is listed stays until the results of the new text arrive, while the
 /// field shows progress; they then replace it at once, from the start of the
-/// list, as the reference clients swap their results. Open with no text,
-/// search lists the [searchSuggestions] the host gives (the reference lists
-/// its trending clips there), or the collections when it gives none.
+/// list. Open with no text,
+/// search lists the [searchSuggestions] the host gives (its trending clips
+/// there), or the collections when it gives none.
 ///
 /// Such a page places the shell's search field itself, pinned above its list
 /// on the shell's background: the clips start under it and are clipped at its
 /// edge (the background may be see-through, so nothing scrolls behind it), and
 /// the field moves with the page when the pager swipes. Its
 /// hairline shows except while search is open with the list at its start, as
-/// the reference client's GIF field draws its shadow (`EmojiView`
-/// `checkGifSearchFieldScroll`). The field needs the `PanelSearchFieldScope`
+/// the field draws its shadow. The field needs the `PanelSearchFieldScope`
 /// a `PanelShell` gives its pages.
 ///
 /// ## When there is nothing to show
@@ -968,8 +964,7 @@ class _Cell extends StatefulWidget {
 }
 
 class _CellState extends State<_Cell> {
-  // The loader's disc in a grid cell, whatever the cell's size
-  // (`ContextLinkCell.onMeasure`: `setCircleRadius(dp(12))`).
+  // The loader's disc in a grid cell, whatever the cell's size.
   static const double _loadingRadius = 12;
 
   var _pressed = false;
@@ -1061,15 +1056,14 @@ class _CellState extends State<_Cell> {
                     devicePixelRatio: density,
                   ),
                   // Silent and looping, while it is in view; the clip fills its
-                  // cell and is cut at the edge, as the reference grid draws it
-                  // (`ImageReceiver`, `isAspectFit` false).
+                  // cell and is cut at the edge.
                   profile: const AssetProfile(
                     animate: true,
                     fit: AssetFit.cover,
                   ),
                 ),
                 // The cell's rectangle in a quiet token until the thumbnail
-                // arrives (`key_sharedMedia_photoPlaceholder`), under the
+                // arrives, under the
                 // loader the cell has until the clip's first frame.
                 tint: ChromeThemeScope.of(context).placeholder.skeleton,
                 loadingRadius: _loadingRadius,
@@ -1097,7 +1091,7 @@ final class _TouchHold extends LongPressGestureRecognizer {
       );
 }
 
-/// A mouse's hold on a clip: the desktop client's drag time.
+/// A mouse's hold on a clip: the drag time.
 final class _MouseHold extends LongPressGestureRecognizer {
   _MouseHold({super.debugOwner})
     : super(
