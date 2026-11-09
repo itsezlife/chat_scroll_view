@@ -2,11 +2,14 @@ import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/painting.dart' show VoidCallback;
+import 'package:flutter/foundation.dart' show VoidCallback, debugPrint;
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
+
+// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true.
+const bool _dbg141 = bool.fromEnvironment('DBG_141');
 
 /// One live attach of a visible leaf: the cache binding and what the painter
 /// needs to draw it.
@@ -224,6 +227,11 @@ final class CatalogLeafBindingPool {
     for (var i = _all.length - 1; i >= 0; i--) {
       final bound = _all[i];
       if (!bound._seen && !_held) {
+        if (_dbg141) {
+          debugPrint(
+            '[DBG-141] pool detach ${bound.binding.key} ${bound.spec.pixelWidth}px',
+          );
+        }
         _remove(bound, at: i);
         detached++;
       } else if (bound._seen) {
@@ -300,6 +308,11 @@ final class CatalogLeafBindingPool {
       }
     }
     final binding = _scope.attach(leaf.key, spec, preset.profile)..held = _held;
+    if (_dbg141) {
+      debugPrint(
+        '[DBG-141] pool attach ${leaf.key} ${spec.pixelWidth}px held=$_held',
+      );
+    }
     binding.addListener(_onChanged);
     final bound = CatalogBoundLeaf._(binding, spec);
     (_byKey[leaf.key] ??= []).add(bound);

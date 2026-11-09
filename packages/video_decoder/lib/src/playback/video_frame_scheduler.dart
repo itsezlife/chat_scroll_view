@@ -8,6 +8,12 @@ import 'package:video_decoder/src/engine/video_engine.dart';
 import 'package:video_decoder/src/renderer/video_frame_source.dart';
 import 'package:video_native/video_native.dart';
 
+// [DBG-141] Ticket 141's device log: lease and texture transitions, behind
+// --dart-define=DBG_141=true.
+const bool _dbg141 = bool.fromEnvironment('DBG_141');
+
+void _dbg(String message) => debugPrint('[DBG-141] video $message');
+
 /// Starts the sweep timer; `Timer.new` by default, a manual one in tests.
 typedef VideoSweepTimerFactory =
     Timer Function(Duration delay, void Function() callback);
@@ -113,7 +119,10 @@ final class VideoFrameLease {
   void hold() => _holding = true;
 
   /// Ends the lease. Idempotent. The entry stays in the pool, idle.
-  void release() => _scheduler._release(this);
+  void release() {
+    if (_dbg141 && !_released) _dbg('release(holder) $_key');
+    _scheduler._release(this);
+  }
 
   /// Ends the lease once the current frame is over, unless its holder wants
   /// a frame before that or the lease is [kept] by then: the holder left the
@@ -409,6 +418,12 @@ final class VideoFrameScheduler {
       _warmFor(lease);
     }
     _leases[key] = lease;
+    if (_dbg141) {
+      _dbg(
+        'acquire $key tex=${lease._texture?.texture.id} '
+        'slot=${lease._slot != null} canvas=$onCanvas',
+      );
+    }
     _following ??= _clock.follow(_onTick, frameInterval: tickInterval);
     _sweep ??= _startTimer(idleRelease, _onSweep);
     return lease;
@@ -447,7 +462,12 @@ final class VideoFrameScheduler {
     lease
       .._onCanvas = true
       .._canvasTouched = true;
-    if (lease._texture != null) _toSlot(lease);
+    if (lease._texture != null) {
+      if (_dbg141) {
+        _dbg('toSlot(canvas) ${lease._key} tex=${lease._texture!.texture.id}');
+      }
+      _toSlot(lease);
+    }
   }
 
   /// Evicts every idle pool entry now, as memory pressure asks.
@@ -553,6 +573,8 @@ final class VideoFrameScheduler {
       }
       final texture = _textureFor(lease);
       if (texture == null) continue;
+      if (_dbg141)
+        _dbg('moveToTexture ${lease._key} tex=${texture.texture.id}');
       lease
         .._texture = texture
         .._posts = 0
@@ -605,6 +627,7 @@ final class VideoFrameScheduler {
           other,
     ]..sort((a, b) => a._wantedAt.compareTo(b._wantedAt));
     for (final victim in stale) {
+      if (_dbg141) _dbg('release(stalest) ${victim._key} for ${lease._key}');
       _release(victim);
       if (_slotFor(lease) case final handle?) return handle;
     }
@@ -627,7 +650,10 @@ final class VideoFrameScheduler {
     for (final lease in leaving) {
       // Painted after it left (a hidden cell still drawn), or held on screen
       // by a surface that keeps its frame: it stays.
-      if (lease._leaving && !lease._kept) _release(lease);
+      if (lease._leaving && !lease._kept) {
+        if (_dbg141) _dbg('release(leftScreen) ${lease._key}');
+        _release(lease);
+      }
       lease._leaving = false;
     }
   }
@@ -718,6 +744,9 @@ final class VideoFrameScheduler {
           lease
             .._posts += 1
             .._missedLocks = 0;
+          if (_dbg141 && lease._posts == _postsBeforeShown) {
+            _dbg('shown ${lease._key} tex=${texture.texture.id}');
+          }
           // Shown now: the slot it came from goes.
           if (lease._shown) {
             lease._slot?.release();
@@ -726,12 +755,19 @@ final class VideoFrameScheduler {
         case TextureFrameOutcome.notLocked:
           // The frame is dropped: the texture keeps the one before, and the
           // ring has the next.
+          if (_dbg141) {
+            _dbg(
+              'notLocked ${lease._key} tex=${texture.texture.id} '
+              'missed=${lease._missedLocks + 1}',
+            );
+          }
           if (++lease._missedLocks >= lockFailureLimit) {
             _refused.add(lease._key);
             _dropTexture(lease, discard: true);
             lease._slot ??= _slotFor(lease);
           }
         case TextureFrameOutcome.failed:
+          if (_dbg141) _dbg('failed ${lease._key} tex=${texture.texture.id}');
           lease._player.failed = true;
       }
     } on Object catch (error, stack) {
@@ -815,6 +851,11 @@ final class VideoFrameScheduler {
       if (lease._touched) {
         lease._touched = false;
       } else {
+        if (_dbg141) {
+          _dbg(
+            'release(sweep) ${lease._key} tex=${lease._texture?.texture.id}',
+          );
+        }
         _release(lease);
         continue;
       }

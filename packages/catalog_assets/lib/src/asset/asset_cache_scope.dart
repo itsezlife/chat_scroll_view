@@ -20,6 +20,11 @@ import 'package:catalog_assets/src/texture/frame_texture_pool.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 
+// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true.
+const bool _dbg141 = bool.fromEnvironment('DBG_141');
+
+void _dbg(String message) => debugPrint('[DBG-141] entry $message');
+
 /// The asset cache of one host: entries keyed by content and [AssetSpec],
 /// bindings that pin them, a byte-budgeted LRU for the ones nobody holds, and
 /// the playback clock their animations advance by.
@@ -575,8 +580,15 @@ final class _Entry {
       (paintable?.isAnimated ?? false) ? AssetStage.firstFrame : stage;
 
   // Whether the paintable keeps its frame: some binding holds it on screen.
-  void syncKeep() =>
-      paintable?.keepFrame(keep: bindings.any((binding) => binding.held));
+  void syncKeep() {
+    final keep = bindings.any((binding) => binding.held);
+    if (_dbg141 && keep != _kept)
+      _dbg('keepFrame=$keep $key ${spec.pixelWidth}px');
+    _kept = keep;
+    paintable?.keepFrame(keep: keep);
+  }
+
+  bool _kept = false;
 
   // Whether a binding plays the paintable now (is on the clock).
   bool _playing = false;
@@ -587,6 +599,7 @@ final class _Entry {
     final playing = bindings.any((binding) => binding._registered);
     if (playing == _playing) return;
     _playing = playing;
+    if (_dbg141) _dbg('playing=$playing $key ${spec.pixelWidth}px');
     if (playing) paintable?.playbackResumed();
   }
 
@@ -601,6 +614,7 @@ final class _Entry {
     final shown = bindings.any((binding) => binding.visible);
     if (shown == _shown) return;
     _shown = shown;
+    if (_dbg141) _dbg('shown=$shown $key ${spec.pixelWidth}px');
     if (!shown) paintable?.leftScreen();
   }
 

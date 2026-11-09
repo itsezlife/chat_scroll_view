@@ -1,7 +1,13 @@
 import 'package:catalog_assets/src/playback/playback_policy.dart';
 import 'package:catalog_assets/src/playback/playback_tick_source.dart';
 import 'package:catalog_assets/src/playback/scheduler_playback_tick_source.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:meta/meta.dart';
+
+// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true.
+const bool _dbg141 = bool.fromEnvironment('DBG_141');
+
+void _dbg(String message) => debugPrint('[DBG-141] clock $message');
 
 /// Something the [PlaybackClock] advances: in practice a playing binding.
 @internal
@@ -84,6 +90,7 @@ final class PlaybackClock {
   /// nothing.
   void setPaused(PlaybackPauseLayer layer, {required bool paused}) {
     final changed = paused ? _layers.add(layer) : _layers.remove(layer);
+    if (_dbg141 && changed) _dbg('${layer.name}=$paused layers=$_layers');
     if (changed) _sync();
   }
 
@@ -132,6 +139,7 @@ final class PlaybackClock {
     final shouldRun = !_disposed && _lastTick.isNotEmpty && !isPaused;
     if (shouldRun == _running) return;
     _running = shouldRun;
+    if (_dbg141) _dbg(shouldRun ? 'runs' : 'stops');
     if (shouldRun) {
       _resuming = true;
       (_ticks ??= SchedulerPlaybackTickSource()).start(_onTick);

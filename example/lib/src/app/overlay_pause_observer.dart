@@ -3,6 +3,9 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/panel_pages.dart';
 
+// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true.
+const bool _dbg141 = bool.fromEnvironment('DBG_141');
+
 /// Holds the chat's animations still while a route is open over it.
 ///
 /// The reference desktop client pauses the chat under any box layer. Flutter's
@@ -129,6 +132,7 @@ final class _MotionHold {
   }
 
   void _follow(AnimationStatus status) {
+    if (_dbg141) debugPrint('[DBG-141] sheet route $status');
     if (status.isAnimating) {
       _hold ??= _activity.holdOverlay();
       return;
