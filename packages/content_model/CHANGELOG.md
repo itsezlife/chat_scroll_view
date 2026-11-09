@@ -8,6 +8,14 @@ package is pre-1.0.
 
 ### Added
 
+- Packs and the content library ([ADR 044](../../docs/adr/044-content-library-packs-and-preview.md)):
+  `Pack`, `PackId`, `PackKind`; `ContentDescriptor.pack`, the pack a content
+  belongs to; the `PackSource` seam with `CachingPackSource` (memory tier and
+  merged lookups over a host fetch); the `ContentLibrary` seam (recent
+  stickers, favourite stickers, saved GIFs, installed and archived packs)
+  with `LibraryEdit`, an undo window and ordered commits; the `LibraryStorage`
+  seam with `KeyValueLibraryStorage`; `StoredContentLibrary.load`. Fakes and
+  contract suites for the three seams in `testing.dart`.
 - `RichTextMarkdown.codec`: `encode` and `decode` as a `dart:convert` `Codec`,
   so a host can `fuse(utf8)` a body into bytes or `inverted` it. The static
   functions stay.

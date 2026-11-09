@@ -16,13 +16,14 @@ API.
 **Amended**: 2026-11-06 — `lottie_native`, `lottie_decoder`, `video_native` and `video_decoder` ([ADR 042](042-native-media-decoding.md)); the native packages are leaves, rule 8 added  
 **Amended**: 2026-11-08 — `frame_texture` ([ADR 043](043-platform-texture-frames.md))  
 **Amended**: 2026-11-09 — a `swipe_pager` leaf: the horizontal pager with the reference mobile client's swipe rules, depended on by `panel_shell`; held by convention (the dependency lint is not extended for it)  
+**Amended**: 2026-11-09 — `content_model` gains the `PackSource`, `ContentLibrary` and `LibraryStorage` seams; `panel_pages` holds the content preview and the pack sheets ([ADR 044](044-content-library-packs-and-preview.md)); no edge changes  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (package list in its Decided table is replaced by this one), [ADR 007](007-keyboard-panel-controller.md), [ADR 012](012-cross-platform-selection-policies.md)
 
 ## Decided
 
 | Package | Role | Depends on |
 | ------- | ---- | ---------- |
-| `content_model` | Pure-Dart leaf (its only non-SDK dependencies are `meta` and `listen`, which are not workspace packages). Content identity, collections, data seams (`CollectionSource`, `SearchSource`, `RecentsStore`, `PreferenceStore`, `KeywordSource`, `GlyphSupport`, `KeyValueStore`, `ContentResolver`, `RichClipboard`), reference stores, fakes and contract suites, the inline content ref and the rich-text value, opt-in `markdown.dart` | none |
+| `content_model` | Pure-Dart leaf (its only non-SDK dependencies are `meta` and `listen`, which are not workspace packages). Content identity, collections, data seams (`CollectionSource`, `SearchSource`, `RecentsStore`, `PreferenceStore`, `KeywordSource`, `GlyphSupport`, `KeyValueStore`, `ContentResolver`, `RichClipboard`, `PackSource`, `ContentLibrary`, `LibraryStorage`), reference stores, fakes and contract suites, the inline content ref and the rich-text value, opt-in `markdown.dart` | none |
 | `chrome_foundation` | Leaf. Palette, token groups, theme scope, motion roles, strings scope, icon registry, glass. Nothing chat-specific | none |
 | `catalog_assets` | Asset cache core: paintable, spec and profile, staged readiness, tiered LRU, playback clock, fetcher and decoder seams, baked glyph atlas, scope, content embed | `content_model` |
 | `panel_catalog` | Catalog viewport. Public seams per [ADR 024](024-panel-catalog-seams.md) | `content_model`, `catalog_assets` |
@@ -38,7 +39,7 @@ API.
 | `rich_clipboard` | `RichClipboard` adapter: the HTML codec and the platform clipboard code, the workspace's one Flutter plugin package ([ADR 032](032-rich-clipboard.md)) | `content_model` |
 | `swipe_pager` | Leaf. A horizontal pager whose swipe is claimed past a slop and a direction rule so page scrollables keep their drags; controller, settle physics, keep-alive policy, right-to-left, semantics and keyboard paging. Nothing panel-specific | none (`flutter` only) |
 | `panel_shell` | Host-independent panel: page registry, shell controller, pager, type tabs, bottom bar, search field, panel events, page scroll activity, focus and shortcuts | `chrome_foundation`, `content_model`, `swipe_pager` |
-| `panel_pages` | Catalog page scaffold and per-kind policies. Emoji page now; sticker and GIF pages later | `panel_shell`, `panel_catalog`, `catalog_assets`, `content_model`, `chrome_foundation` |
+| `panel_pages` | Catalog page scaffold and per-kind policies (emoji, sticker and GIF pages), the content preview and the pack sheets ([ADR 044](044-content-library-packs-and-preview.md)) | `panel_shell`, `panel_catalog`, `catalog_assets`, `content_model`, `chrome_foundation` |
 | `panel_presentation` | Sealed presentation kinds, the `$Mobile` / `$Desktop` policy, the presentation controller, occupancy, IME arbitration | `panel_shell`, `chrome_foundation` |
 | `composer_editable` | Leaf. The composer's one editable: a renamed, patched copy of the Flutter framework's text field, editable text and selection overlay, with the touch gesture matrix, handle and magnifier motion and the toolbar fade ([ADR 038](038-composer-editable-fork.md)). Nothing chat-specific | none (`flutter` and `characters` only) |
 | `chat_composer` | Slot-based composer, input-only controller, entity-aware text controller with formatting commands, selection menu, input query; renders through `composer_editable` | `chrome_foundation`, `content_model`, `catalog_assets`, `composer_editable` |

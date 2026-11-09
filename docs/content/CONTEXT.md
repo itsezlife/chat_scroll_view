@@ -11,7 +11,8 @@ Decisions: [ADR 021](../adr/021-content-identity-and-collections.md),
 [ADR 017](../adr/017-body-linkify-host-invoked.md) (entity detection),
 [ADR 034](../adr/034-rich-text-wire-and-persistence.md),
 [ADR 036](../adr/036-emoji-only-message-presentation.md),
-[ADR 042](../adr/042-native-media-decoding.md) (native decoders).
+[ADR 042](../adr/042-native-media-decoding.md) (native decoders),
+[ADR 044](../adr/044-content-library-packs-and-preview.md) (content library, packs, preview, pack sheets).
 
 ## Language
 
@@ -47,7 +48,7 @@ _Avoid_: Clipboard data, paste payload
 
 **Collection**:
 The uniform container: id (set id, well-known list such as recent, faved or saved, or query or category), metadata and contents with explicit state (`idle`, `loading`, `loaded`, `failed`) and a page token. Sets, recents, faved, saved, search results and trending are all collections.
-_Avoid_: Set, pack, list type per source, search-result type
+_Avoid_: Set, pack (a **pack** is the published unit a set collection lists), list type per source, search-result type
 
 **Emoji variant**:
 A skin-tone, gender or multi-person form of an emoji. Each variant is its own unicode key; a catalog entry links a **base** key to its variants, and the tone preference is stored per base as the chosen variant key.
@@ -175,6 +176,52 @@ _Avoid_: FFI calls in an adapter or the core, retrying a library that failed to 
 The `catalog_assets` adapter implementing an inline embed over an asset binding with the `messages` preset.
 _Avoid_: `WidgetSpan` or `ImageProvider` embeds
 
+### Library and packs
+
+**Pack**:
+A published set of stickers, masks or custom emoji, identified by an opaque pack id: kind, title, items in order, cover, official or not. Its listing is a set **collection**.
+_Avoid_: Sticker set (in prose), collection (for the published unit), album
+
+**Pack reference**:
+The pack id a **content descriptor** names for the content it describes, or none. Not identity: credentials of the pack stay on the host.
+_Avoid_: Set id inside the content key, a pack per collection source
+
+**Pack source**:
+Seam answering a pack by id: found, not found or failed, with what is known now readable without loading. Keeps every pack it found, installed or only seen, and merges concurrent requests for one pack.
+_Avoid_: Pack repository, pack resolver (a resolver answers descriptors)
+
+**Content library**:
+The user's own lists: recent stickers, favourite stickers, saved GIFs, and installed and archived packs per kind in the user's order. Changed only through **library edits**, local first.
+_Avoid_: Favourites store, stickers manager, a store per list
+
+**Favourite sticker**:
+A sticker the user marked to keep at hand. Most recently marked first, up to the host's limit; marking one more pushes out the oldest.
+_Avoid_: Faved (in prose), starred
+
+**Saved GIF**:
+A GIF in the user's saved list, which is also the GIF recents: sending a GIF saves it to the front. Most recent first, up to the host's limit.
+_Avoid_: Recent GIF as a list of its own, GIF favourite
+
+**Install state**:
+Whether a pack is installed, archived or not installed: a fact of the **content library**, never of the pack.
+_Avoid_: An installed flag on the pack value
+
+**Library edit**:
+One change to the **content library** as a value: add or remove a recent sticker, favourite or unfavourite a sticker, save or unsave a GIF, install, archive or remove a pack, reorder packs.
+_Avoid_: Library command per verb, mutation
+
+**Undo window**:
+The time an applied **library edit** is shown but not yet committed, so it can be taken back; edits commit in the order they were applied.
+_Avoid_: Delayed request, pending flag on a list
+
+**Content preview**:
+The enlarged sticker, GIF or custom emoji shown while a cell is held, with its action menu. Never for a unicode emoji.
+_Avoid_: Peek, popup, zoom
+
+**Pack sheet**:
+The surface that shows one pack (or several emoji packs) with its grid and its add or remove button; a bottom sheet on touch, a centred box under a pointer.
+_Avoid_: Stickers alert, pack dialog
+
 ### Data layer
 
 **Catalog structure**:
@@ -190,8 +237,8 @@ Seams producing collections and paged search-result collections.
 _Avoid_: A single content data source, facades per kind
 
 **Recents store**:
-Host-driven `record(key, {source})`. Keeps count and last-used time, orders by frequency then recency, default cap 48. Search picks do not record. One list per kind recorded under; the kind names the page's list, not each key's content (the emoji page files unicode and custom emoji in one list).
-_Avoid_: Pure most-recently-used, recording inside the page on tap
+Host-driven `record(key, {source})`. Keeps count and last-used time, orders by frequency then recency, default cap 48. Search picks do not record. One list per kind recorded under; the kind names the page's list, not each key's content (the emoji page files unicode and custom emoji in one list). Holds the emoji recents; sticker and GIF recents are **content library** lists.
+_Avoid_: Most-recently-used order for emoji, recording inside the page on tap
 
 **Preference store**:
 Typed preferences, such as the variant chosen per base.
