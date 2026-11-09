@@ -28,9 +28,8 @@ final class AssetPipelineLimits {
          'every limit is at least one',
        );
 
-  /// Fetches running at once. The reference client runs 5 small and 2 large
-  /// file loads; one lane of 6 serves both, because the size of a download
-  /// is not known before it starts.
+  /// Fetches running at once: one lane of 6 serves small and large file loads
+  /// alike, because the size of a download is not known before it starts.
   final int maxConcurrentFetches;
 
   /// Decodes running at once. Decoders may work off the UI isolate, but a

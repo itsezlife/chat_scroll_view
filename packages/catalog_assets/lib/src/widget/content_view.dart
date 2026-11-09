@@ -106,7 +106,7 @@ class ContentView extends StatefulWidget {
   /// provides.
   final AssetCacheScope? scope;
 
-  /// Radius of the reference client's download indicator (`RadialProgress`)
+  /// Radius of the download indicator (`RadialProgress`)
   /// drawn over the centre of the view while the content downloads and has
   /// no frame to show, or null for none.
   ///
@@ -118,7 +118,7 @@ class ContentView extends StatefulWidget {
   /// view first saw it. The view asks for a frame
   /// after each one it paints the indicator in, and stops when the first
   /// frame exists, the download ends or a [TickerMode] above it is off. A
-  /// grid GIF cell uses 12 (`ContextLinkCell.onMeasure`).
+  /// grid GIF cell uses 12.
   final double? loadingRadius;
 
   /// What the view paints before the content has a stage, and fades out

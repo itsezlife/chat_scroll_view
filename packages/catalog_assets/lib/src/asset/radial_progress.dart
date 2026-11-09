@@ -3,12 +3,11 @@ import 'dart:ui';
 
 import 'package:flutter/animation.dart';
 
-/// The reference client's download indicator for media: a translucent dark
-/// disc holding a white arc that turns and grows with the fraction of the
-/// content downloaded.
+/// The download indicator for media: a translucent dark disc holding a white
+/// arc that turns and grows with the fraction of the content downloaded.
 ///
-/// One indicator is one download on one surface, and it is stateful, as the
-/// reference's drawable is: the arc's start angle turns frame by frame, and a
+/// One indicator is one download on one surface, and it is stateful: the arc's
+/// start angle turns frame by frame, and a
 /// new fraction eases in from the arc the surface is showing. A surface makes
 /// one when a download starts for what it shows (`AssetBinding.
 /// downloadProgress` turns non-null), gives it each fraction with
@@ -16,37 +15,36 @@ import 'package:flutter/animation.dart';
 /// it when the download ends. A surface shows none for content that needs no
 /// download.
 ///
-/// | Measure | Value | Reference |
-/// | ------- | ----- | --------- |
-/// | disc radius | the caller's: 12 in a panel cell | `ContextLinkCell.onMeasure` |
-/// | arc radius | disc radius less [arcInset] | `MediaActionDrawable.draw` |
-/// | stroke | [strokeWidth], [thinStrokeWidth] below 0.7 of [referenceDiameter] | `MediaActionDrawable.setBounds` |
-/// | start | [initialDegrees] for a new indicator | `setIcon`, `downloadRadOffset = 112` |
-/// | turn | 360 degrees per [turnPeriod], a frame counting at most [maxFrameStep] | `MediaActionDrawable.draw` |
-/// | sweep | `max(4°, 360° * shownProgress)` | `MediaActionDrawable.draw` |
-/// | a higher fraction | eases from the arc shown over [easeDuration], [easeCurve] | `MediaActionDrawable.draw` |
-/// | a lower fraction | shown at once | `setProgress` |
+/// | Measure | Value |
+/// | ------- | ----- |
+/// | disc radius | the caller's: 12 in a panel cell |
+/// | arc radius | disc radius less [arcInset] |
+/// | stroke | [strokeWidth], [thinStrokeWidth] below 0.7 of [referenceDiameter] |
+/// | start | [initialDegrees] (112) for a new indicator |
+/// | turn | 360 degrees per [turnPeriod], a frame counting at most [maxFrameStep] |
+/// | sweep | `max(4°, 360° * shownProgress)` |
+/// | a higher fraction | eases from the arc shown over [easeDuration], [easeCurve] |
+/// | a lower fraction | shown at once |
 ///
-/// The indicator of a loading grid cell is the reference's `ICON_EMPTY`: a
-/// bare arc, without the cross of a message's cancel button.
+/// The indicator of a loading grid cell is a bare arc, without the cross of a
+/// message's cancel button.
 ///
 /// ## What it leaves out
 ///
-/// The reference fades the disc out over 400 ms when the download ends; the
-/// surface's own content fade ends the indicator here, so [paint] takes the
-/// `opacity` the surface fades it with.
+/// The disc is not faded out over 400 ms when the download ends; the surface's
+/// own content fade ends the indicator here, so [paint] takes the `opacity` the
+/// surface fades it with.
 final class RadialProgress {
   /// Creates the indicator of a download that has [progress] done, shown at
-  /// once: the reference starts a cell's arc from the file's known progress,
-  /// not animated (`ContextLinkCell.updateButtonState`).
+  /// once: a cell's arc starts from the file's known progress, not animated.
   RadialProgress({double progress = 0}) {
     setProgress(progress, animated: false);
   }
 
-  /// The disc: `key_chat_mediaLoaderPhoto`.
+  /// The disc: translucent black (`0x66000000`).
   static const Color discColor = Color(0x66000000);
 
-  /// The arc: `key_chat_mediaLoaderPhotoIcon`.
+  /// The arc: white.
   static const Color inkColor = Color(0xFFFFFFFF);
 
   /// The disc's box is inset this much (logical pixels) for the arc.
@@ -55,11 +53,10 @@ final class RadialProgress {
   /// The stroke of the arc.
   static const double strokeWidth = 3;
 
-  /// The stroke below [thinThreshold] of the reference size.
+  /// The stroke below [thinThreshold] of [referenceDiameter].
   static const double thinStrokeWidth = 2;
 
-  /// The reference icon box (`MediaActionDrawable.getIntrinsicWidth`), the
-  /// size the thin stroke scales against.
+  /// The icon box the thin stroke scales against.
   static const double referenceDiameter = 48;
 
   /// A disc narrower than this fraction of [referenceDiameter] draws the thin

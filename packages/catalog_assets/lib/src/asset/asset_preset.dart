@@ -62,7 +62,7 @@ abstract final class AssetPresets {
   /// A playing cell of at most [smallCellExtent] logical pixels is small: it
   /// plays at half rate (`AssetProfile.halfFrameRate`) and decodes at most
   /// [smallCellPixels] on a side, however dense the screen. This is the
-  /// reference client's rule for a sticker drawn at up to 90 dp (rendered at
+  /// rule for a sticker drawn at up to 90 dp (rendered at
   /// 160 px at most, every second frame): a grid of small playing cells is
   /// what a content panel shows most of, and at full rate and size it costs
   /// a render and a post per cell every frame. A still cell keeps its full
@@ -106,7 +106,7 @@ abstract final class AssetPresets {
   /// square of 1.2 times that, rounded to whole device pixels at
   /// [devicePixelRatio].
   ///
-  /// This is the reference client's rule for inline custom emoji: the box
+  /// This is the rule for inline custom emoji: the box
   /// follows the font's vertical metrics, not its em, because an emoji is
   /// wider than the em of the font it sits in. Every embed of a paragraph
   /// takes the same metrics, so they share one spec and one cache entry per
@@ -151,7 +151,7 @@ abstract final class AssetPresets {
   ///
   /// For a surface that knows only the font size of its text. A body that
   /// lays text out has the ascent and descent and uses [inlineMessage]
-  /// instead, which is the reference client's rule. Plays and loops while
+  /// instead, which is this preset's rule. Plays and loops while
   /// visible unless [animate] is false.
   static AssetPreset inlineFontSize({
     required double fontSize,
@@ -171,8 +171,7 @@ abstract final class AssetPresets {
   ///
   /// A step is a font size in logical pixels, so this package does not know
   /// the viewport's table of steps. Each step is its own size and so its own
-  /// cache entry, as the reference client's cache types are; the same step at the same
-  /// density is one. Custom emoji animate and loop; pass [animate] false for
+  /// cache entry; the same step at the same density is one. Custom emoji animate and loop; pass [animate] false for
   /// an item that is a still.
   static AssetPreset emojiOnly({
     required double step,
@@ -188,7 +187,7 @@ abstract final class AssetPresets {
   /// at that size at [devicePixelRatio].
   ///
   /// It plays once and does not loop, then rests on [restFrame] (the first
-  /// frame by default, as the reference client does) until the host replays it
+  /// frame by default) until the host replays it
   /// (`AssetBinding.replay`). [autoplay] says whether it starts when it
   /// attaches; the host decides it (a memory of what already played, per
   /// chat), never the cache. With [autoplay] false the sticker holds its
@@ -231,8 +230,8 @@ abstract final class AssetPresets {
   ///
   /// [maxPixelExtent] caps the decode's longer side, the shorter scaled with
   /// it: a large box on a dense screen draws a decode smaller than its pixels
-  /// rather than one larger than the media holds (the reference clients render
-  /// a sticker at 512 px at most). Under the cap the decode is the box at the
+  /// rather than one larger than the media holds (a sticker renders at 512 px at
+  /// most). Under the cap the decode is the box at the
   /// density, rounded up like [square].
   static AssetPreset media({
     required Size size,
@@ -256,8 +255,8 @@ abstract final class AssetPresets {
     return AssetPreset(size: size, spec: spec, profile: profile);
   }
 
-  /// Logical pixels an emoji-only item's box adds to its font size (the
-  /// reference client's `font + 4 dp`).
+  /// Logical pixels an emoji-only item's box adds to its font size (the box is
+  /// the font size plus 4 dp).
   static const double emojiOnlyBoxPadding = 4;
 
   static const double _inlineExtentPerLine = 1.2;

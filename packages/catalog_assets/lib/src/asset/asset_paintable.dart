@@ -136,8 +136,7 @@ abstract class AssetPaintable {
   /// rewound too, unlike [restart].
   ///
   /// For a surface that plays its own pass each time it opens
-  /// (`AssetProfile.foreground`): a content preview starts at frame 0, as the
-  /// reference client sets its animation's current frame to 0 as the preview
+  /// (`AssetProfile.foreground`): a content preview starts at frame 0 as it
   /// opens. The next paint that animates starts the pass, and until its first
   /// frame lands the paintable draws its first frame, never the frame it was
   /// at. Every surface of the entry sees it. Does nothing by default, which is
@@ -212,8 +211,8 @@ abstract class AssetPaintable {
   /// ([keepFrame]): the pool those come from is shared and capped, and a
   /// lease left to the idle sweep held its place for one to two seconds,
   /// so the cells a fling brought in found the pool full of cells that had
-  /// flown past and showed their stills (the reference client gives a
-  /// cell's drawable back the moment the cell detaches). A surface may
+  /// flown past and showed their stills (a cell's drawable is given back
+  /// the moment the cell detaches). A surface may
   /// still paint a binding it hides for the rest of the frame (a cell at
   /// the edge of a scrolling window), so the lease goes once
   /// the frame is over, and only if nothing painted it meanwhile. Painted

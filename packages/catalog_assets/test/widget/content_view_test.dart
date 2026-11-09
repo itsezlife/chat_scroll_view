@@ -311,7 +311,7 @@ void main() {
         expect(box(tester), isNot(paints..circle(radius: 12)));
       });
 
-      testWidgets('is the reference radial progress over the centre while '
+      testWidgets('is the radial progress over the centre while '
           'the content downloads, until the first frame exists', (
         tester,
       ) async {
@@ -569,8 +569,7 @@ void main() {
   });
 
   // ADR 022, "Readiness": content that arrives after the attach fades in over
-  // what stood in for it, as `ImageReceiver` does for a bitmap that is not a
-  // memory hit (`DEFAULT_CROSSFADE_DURATION`, 150 ms).
+  // what stood in for it, as a bitmap that is not a memory hit does (150 ms).
   group('fade', () {
     testWidgets('content that arrives after the attach rises from nothing to '
         'opaque over 150 ms', (tester) async {

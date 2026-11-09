@@ -65,7 +65,7 @@ void main() {
     }
   }
 
-  // The panel's GIF cell: a 24 dp box, so radius 12 (ContextLinkCell).
+  // The panel's GIF cell: a 24 dp box, so radius 12.
   group('the panel size, radius 12', () {
     test('a translucent black disc and a bare arc inside it', () {
       final canvas = paint(RadialProgress());
@@ -78,12 +78,12 @@ void main() {
         canvas.arcs.single.rect,
         Rect.fromCircle(center: center, radius: 8),
       );
-      // Below 0.7 of the 48 dp reference the stroke thins to 2.
+      // Below 0.7 of the 48 dp referenceDiameter the stroke thins to 2.
       expect(canvas.arcs.single.paint.strokeWidth, 2);
       expect(canvas.arcs.single.paint.strokeCap, StrokeCap.round);
       expect(canvas.arcs.single.paint.style, PaintingStyle.stroke);
       expect(canvas.arcs.single.paint.color.toARGB32(), 0xFFFFFFFF);
-      // The loading state of a grid cell (ICON_EMPTY) has no cross.
+      // The loading state of a grid cell is a bare arc with no cross.
       expect(canvas.lines, 0);
     });
   });

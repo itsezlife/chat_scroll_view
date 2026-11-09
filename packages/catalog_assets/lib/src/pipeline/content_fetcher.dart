@@ -161,8 +161,8 @@ abstract interface class ContentFetcher {
   ///
   /// The pipeline asks when an attempt starts, before it resolves the key or
   /// fetches anything, so a surface draws the download from its first frame,
-  /// over the placeholder and the thumbnail that arrives first, as the
-  /// reference client does for a file that does not exist yet (instead of
+  /// over the placeholder and the thumbnail that arrives first, also for a file
+  /// that does not exist yet (instead of
   /// from the first byte of the content, after the thumbnail). Content held
   /// locally is never announced, so a cached file shows no download.
   ///

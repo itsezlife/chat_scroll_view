@@ -35,23 +35,20 @@ void main() {
     expect(drawn.tlRadiusX, closeTo(60 * SoftPlaceholder.cornerFraction, 1e-9));
   });
 
-  test(
-    'is 25 of 255 of the text colour, or of the reference grey without one',
-    () {
-      final grey = _Recording();
-      final tinted = _Recording();
+  test('is 25 of 255 of the text colour, or of 0xFF73787B without one', () {
+    final grey = _Recording();
+    final tinted = _Recording();
 
-      const SoftPlaceholder().paint(grey, rect, const AssetPaintContext());
-      const SoftPlaceholder().paint(
-        tinted,
-        rect,
-        const AssetPaintContext(tint: Color(0xFFFF0000)),
-      );
+    const SoftPlaceholder().paint(grey, rect, const AssetPaintContext());
+    const SoftPlaceholder().paint(
+      tinted,
+      rect,
+      const AssetPaintContext(tint: Color(0xFFFF0000)),
+    );
 
-      expect(grey.rrects.single.color.toARGB32(), 0x1973787B);
-      expect(tinted.rrects.single.color.toARGB32(), 0x19FF0000);
-    },
-  );
+    expect(grey.rrects.single.color.toARGB32(), 0x1973787B);
+    expect(tinted.rrects.single.color.toARGB32(), 0x19FF0000);
+  });
 
   test('never animates, holds nothing and has no sprite', () {
     const placeholder = SoftPlaceholder();

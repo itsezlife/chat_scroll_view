@@ -33,9 +33,9 @@ enum AssetTier {
 /// cells (a 160 px Lottie cell of a 181 KB file counts about 0.28 MiB, so
 /// 10 MiB) and the emoji page's playing custom emoji (64 at 99 px, about
 /// 8 MiB). 32 MiB leaves about two more sticker screens for scrolling back
-/// with their positions. The reference mobile client keeps 10 MiB of
-/// animations but charges an animation only its two frame buffers and never
-/// recycles one a cell still uses. Pinned bytes come out of the budget first,
+/// with their positions. For scale, a 10 MiB animation cache charges an
+/// animation only its two frame buffers and never recycles one a cell still
+/// uses. Pinned bytes come out of the budget first,
 /// so a surface that shows more than a tier's budget leaves nothing for
 /// keep-alive; a host with a different device class sets its own.
 @immutable

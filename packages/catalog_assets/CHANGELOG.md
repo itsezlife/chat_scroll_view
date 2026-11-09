@@ -49,8 +49,7 @@ is pre-1.0.
   play as before.
 - `AssetPresets.keyboardCell` takes `decodeMode` and `fit`. A playing cell of
   at most 90 logical px (`smallCellExtent`) now plays at half rate and decodes
-  at most 160 px on a side (`smallCellPixels`), the reference client's rule
-  for small stickers. Code that read 198 px from a 66 px cell at 3x now reads
+  at most 160 px on a side (`smallCellPixels`), the rule for small stickers. Code that read 198 px from a 66 px cell at 3x now reads
   160; a still cell keeps its full pixels.
 
 ### Changed (no public top-level functions)
@@ -69,13 +68,13 @@ is pre-1.0.
   with the profile's fit as well.
 - `RectPlaceholder` and `AssetCacheScope.mediaPlaceholder`: a binding of
   anything but a unicode glyph waits behind the whole rectangle in the
-  context's tint (the reference's `0xFFEDF3F7` without one). Existing code that
+  context's tint (`0xFFEDF3F7` without one). Existing code that
   read `scope.placeholder` for a media binding's paintable now finds
   `scope.mediaPlaceholder`; `placeholder` (the circle) remains a glyph's.
 - `ContentView.loadingRadius`: the radial progress over the view until the
   content has a first frame, asking for a frame after each it paints.
 
-### Added (loading placeholders of the reference client)
+### Added (loading placeholders)
 
 - `AssetBinding.paintStandIn` / `releaseStandIn` (source-breaking for
   implementers of `AssetBinding`; `AssetBindingBase` supplies a no-op): the
@@ -113,7 +112,7 @@ is pre-1.0.
   `FrameRendererContract` now also runs a batch across pages of different
   sides.
 
-### Added (pause policies of the reference desktop client)
+### Added (pause policies for desktop)
 
 - `PlaybackActivity` and `PlaybackActivityPolicy`: the one seam that turns the
   app's lifecycle (`PlaybackLifecycleSource`, `WidgetsPlaybackLifecycleSource`
@@ -121,7 +120,7 @@ is pre-1.0.
   holds into the clock's pause layers. Focus lost (`inactive`) sets
   `appInactive`; `hidden`, `paused` and `detached` also set `surfaceHidden`;
   an unknown state, or a first `detached`, sets nothing. Grace periods default
-  to zero, as the reference client's pause is immediate. `dispose` clears only
+  to zero, so the pause is immediate. `dispose` clears only
   the five layers it owns and disposes none of its inputs.
 - `PlaybackPauseLayer.appInactive`, `reducedMotion` and `overlayShown`.
 - `PlaybackPolicy.standardPausingLayers`.
@@ -178,7 +177,7 @@ is pre-1.0.
 - Source-breaking: `InlineEmbedMetrics` requires `ascent` and `descent`, and
   `AssetPresets.inlineMessage` takes `ascent:` and `descent:` instead of
   `fontSize:`. Its extent is now `1.2 * (ascent + descent)` rounded to whole
-  device pixels (Telegram Android's rule), so every embed of a paragraph
+  device pixels (the inline emoji rule), so every embed of a paragraph
   shares one spec per key. `extentPerFontSize` is gone. The old font-size form
   remains for text with no metrics as `AssetPresets.inlineFontSize`.
   `ContentEmbedResolver` and `FakeInlineEmbedResolver` size embeds with the new
