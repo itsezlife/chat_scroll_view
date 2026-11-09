@@ -3,7 +3,7 @@
 Ten files for the demo's video pack (`VideoStickerPack`): three WebM
 stickers, four MP4 clips and three GIFs. The clips and GIFs have four
 proportions, so the GIF page's justified rows have a mix to lay out. All are generated from synthetic
-FFmpeg sources, so there is no third-party or Telegram artwork here, and each
+FFmpeg sources, so there is no third-party artwork here, and each
 is well under 200 KB.
 
 | File | What | Format |
