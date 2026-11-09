@@ -59,11 +59,11 @@ custom emoji names its pack (`ContentDescriptor.pack`), which the services'
 pack source serves by id from the bundled packs and the corpus.
 
 The pages list the installed packs (`ContentLibrary.installedPacks`), not
-every pack the app knows. The packs the panel listed before there was a
-library (each corpus folder, the animated emoji) are installed once, on the
+every pack the app knows. The packs the app ships (each corpus folder, the
+bundled demo sticker packs, the animated emoji) are installed once, on the
 first run that ships them (`ShippedPacksSeed`, namespace `library_seed`): one
-the user removes stays removed, and a corpus folder added later is installed
-on the next run. A tap on a pack's title opens its pack sheet (a bottom sheet
+the user removes stays removed, and a pack shipped later (a corpus folder, or
+the demo packs on an install from before them) is installed on the next run. A tap on a pack's title opens its pack sheet (a bottom sheet
 on a phone, a centred box on desktop); Add and Remove change the panel at
 once, and a removal shows a bulletin with Undo for 2750 ms
 (`lib/src/features/chat/input/chat_pack_sheets.dart`). In a sticker sheet a

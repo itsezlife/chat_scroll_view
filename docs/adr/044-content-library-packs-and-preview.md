@@ -12,6 +12,7 @@ host, and the host edits the library and shows the feedback.
 
 **Status**: Accepted  
 **Date**: 2026-11-09  
+**Amended**: 2026-11-09 (native-media ticket 128): a pack sheet's route is named, and a host pauses only the chat under it (section *Amendment: a pack sheet plays*)  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 023](023-data-layering-and-persistence.md) (amended: recents order), [ADR 024](024-panel-catalog-seams.md), [ADR 025](025-panel-shell-and-pages.md), [ADR 029](029-host-integration.md), [ADR 030](030-testing-policy.md)
 
 ## Context
@@ -111,6 +112,15 @@ kind, which ADR 023 chose for emoji.
   add them.
 - Short-name lookups (pack links opened from text) are the host's: it maps a
   short name to a `PackId` before it asks the pack source.
+
+## Amendment: a pack sheet plays (2026-11-09)
+
+Native-media ticket 128. The example paused the shared clock under every modal route but the message menu, so a pack sheet's stickers, and a preview opened from it, stood still. The reference mobile client pauses what is under its sheets and lets them play: `StickersAlert` and `EmojiPacksAlert` post `stopAllHeavyOperations` for layer 4 while shown, which stops the chat's image receivers (layer below 4) and not the sheet's cells (layer 7) or the preview (above every layer); `BottomSheet` posts it for layer 512, which stops the sheet's cells as well, only while the sheet opens or closes.
+
+| Area | Decision |
+| ---- | -------- |
+| Route | `PackSheet.show` pushes its route under `PackSheet.routeName`, in both arrangements, as the message menu names its own. |
+| Host | A host that pauses its animations under modal routes holds the clock for a pack sheet only while the route's transition runs (from push until open, from pop until gone), and holds the chat on its own while the sheet is open: one clock serves the chat and the sheet, so the chat is held as a surface (`ContentEmbed.held`, the path a popup panel already takes), not by a pause layer. The example's route observer and `PanelPlaybackHold.holdChat` do this. |
 
 ## Related
 

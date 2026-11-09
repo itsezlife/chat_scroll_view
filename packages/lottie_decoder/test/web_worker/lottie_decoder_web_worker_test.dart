@@ -145,16 +145,20 @@ void main() {
     final report = _Report();
 
     decoder.decode(
-      _request(bytes, spec: const AssetSpec(pixelWidth: 600, pixelHeight: 600)),
+      _request(
+        bytes,
+        spec: const AssetSpec(
+          pixelWidth: 64,
+          pixelHeight: 64,
+          variant: AssetVariant.firstFrame,
+        ),
+      ),
       report,
     );
     await pumpEventQueue();
 
-    // Above the largest size class the still is the final picture.
-    expect(report.advances.map((a) => a.stage), [
-      AssetStage.firstFrame,
-      AssetStage.full,
-    ]);
+    // A first-frame-only decode: the still is the whole answer.
+    expect(report.advances.map((a) => a.stage), [AssetStage.firstFrame]);
     expect(worker.core.liveHandles, 0);
   });
 }

@@ -25,7 +25,10 @@ import 'package:chat_scroll_view_example/src/features/chat/data/installed_packs_
 import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/library_content_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/shipped_packs_seed.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
@@ -527,11 +530,18 @@ final class AppServices {
       );
       // The panel lists the packs the user installed. The ones it listed
       // before there was a library (the corpus, the animated emoji) are
-      // installed once, on the first run that ships each; the bundled demo
-      // sticker packs are the showcase chat's content, added from a sheet.
+      // installed once, on the first run that ships each, and so are the
+      // bundled demo sticker packs (an install from before them gets them on
+      // its next run). A pack not shipped this way shows Add in its sheet.
       await packSeed.install(library, [
         for (final pack in corpusPacks.packs)
           (id: pack.packId, kind: PackKind.stickers),
+        for (final id in [
+          LottieStickerPack.packId,
+          StaticStickerPack.packId,
+          VideoStickerPack.packId,
+        ])
+          (id: id, kind: PackKind.stickers),
         (id: AnimatedEmojiPack.packId, kind: PackKind.emoji),
       ]);
       // Looked up now, so the panel's first open finds them loaded.
@@ -561,8 +571,8 @@ final class AppServices {
       );
       // The stickers page: the favourite stickers and the recent ones, then
       // the installed sticker packs in the library's order. Without a corpus
-      // (as on CI) nothing is installed at first and the favourites and the
-      // recents are all it lists; a pack added from a sheet joins them.
+      // (as on CI) the bundled demo packs follow the favourites and the
+      // recents; a pack added from a sheet joins them.
       final recentStickers = owned(
         LibraryContentSource.stickers(
           recentStickers: libraryShown.recentStickers,

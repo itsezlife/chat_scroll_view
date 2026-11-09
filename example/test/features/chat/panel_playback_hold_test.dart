@@ -73,6 +73,40 @@ void main() {
     expect(hold.chatHeld.value, isFalse);
   });
 
+  // A pack sheet over the chat: the reference pauses what is under it
+  // while its own stickers play (ticket 128).
+  test('a claim on the chat holds it until it is given back', () {
+    final first = hold.holdChat();
+    final second = hold.holdChat();
+    expect(hold.chatHeld.value, isTrue);
+    expect(clock.isPaused, isFalse);
+
+    first.release();
+    first.release();
+    expect(hold.chatHeld.value, isTrue);
+
+    second.release();
+    expect(hold.chatHeld.value, isFalse);
+  });
+
+  test('a claim and a popup panel hold the chat together', () {
+    final claim = hold.holdChat();
+    state.value = const PanelVisibility.shown(_popup);
+    state.value = PanelVisibility.hidden;
+    expect(hold.chatHeld.value, isTrue);
+
+    claim.release();
+    expect(hold.chatHeld.value, isFalse);
+  });
+
+  test('a claim given back after dispose is harmless', () {
+    final claim = hold.holdChat();
+    hold.dispose();
+
+    expect(hold.chatHeld.value, isFalse);
+    claim.release();
+  });
+
   test('dispose clears the layer it set and no other', () {
     clock.setPaused(PlaybackPauseLayer.fastScroll, paused: true);
     state.value = const PanelVisibility.showing(_popup);

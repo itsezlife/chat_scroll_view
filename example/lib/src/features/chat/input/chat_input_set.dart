@@ -421,9 +421,14 @@ final class ChatInputSet {
 
   final PanelPlaybackHold _playbackHold;
 
-  /// Whether the chat's playback is held because a popup panel is over it;
-  /// the chat's embeds follow it (`ChatBodyHost.held`).
+  /// Whether the chat's playback is held because a popup panel or a pack
+  /// sheet is over it; the chat's embeds follow it (`ChatBodyHost.held`).
   listen.ValueListenable<bool> get chatPlaybackHeld => _playbackHold.chatHeld;
+
+  /// Holds the chat's playback until the claim is released: the host claims
+  /// it for a pack sheet over the chat, which plays its own stickers on the
+  /// same clock (see `PanelPlaybackHold.holdChat`).
+  ChatPlaybackClaim holdChatPlayback() => _playbackHold.holdChat();
 
   final SchedulerBakeFrameSource _frames;
 
