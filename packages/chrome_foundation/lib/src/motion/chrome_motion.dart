@@ -96,13 +96,12 @@ enum MotionRole {
 ///
 /// Durations here are the design durations at normal speed; the scope's
 /// `ChromeMotionSpeed` scales them. The values are the ones the previous
-/// chrome shipped, except `headerReveal`, a chosen default not yet checked
-/// against the reference client, and `popupShow` / `popupHide`, whose 200 ms
-/// durations are the reference client's (its curves are not measured here).
+/// chrome shipped, except `headerReveal`, a chosen default not yet verified,
+/// and `popupShow` / `popupHide`, whose 200 ms durations are verified (their
+/// curves are not).
 /// The `menu*` roles are the composer selection menu's three motions,
-/// `spoilerReveal` is the reference client's spoiler ripple, and the
-/// `bulletin*` roles are the reference Android client's timed bulletin
-/// transition.
+/// `spoilerReveal` is the spoiler ripple, and the `bulletin*` roles are the
+/// timed bulletin transition.
 @immutable
 final class ChromeMotion {
   /// A motion table with every role given.
@@ -196,7 +195,7 @@ final class ChromeMotion {
 
   static const Duration _quarterSecond = Duration(milliseconds: 250);
 
-  /// The cubic the reference client uses for list and panel transitions,
+  /// The cubic used for list and panel transitions,
   /// measured from its interpolator rather than approximated by a named
   /// Flutter curve.
   static const Cubic androidListCurve = Cubic(
@@ -269,8 +268,7 @@ final class ChromeMotion {
   /// [MotionRole.pointerMenuHide]: 150 ms, linear.
   final MotionSpec pointerMenuHide;
 
-  /// [MotionRole.bulletinShow]: 255 ms ease-out quad, the reference Android
-  /// client's timed bulletin enter.
+  /// [MotionRole.bulletinShow]: 255 ms ease-out quad, the timed bulletin enter.
   final MotionSpec bulletinShow;
 
   /// [MotionRole.bulletinHide]: 175 ms ease-in quad, its timed exit.

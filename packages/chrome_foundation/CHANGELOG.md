@@ -18,7 +18,7 @@ package is pre-1.0.
 - `BulletinTokens`, a token group (`ChromeThemeData.bulletin`,
   `ChromeThemeScope.bulletinOf`, `ChromeThemeAspect.bulletin`): a bulletin's
   card, text, accent and countdown colours. `fromPalette` gives the
-  reference's dark card (`referenceAndroid`) on every palette but the
+  dark card (`referenceAndroid`) on every palette but the
   high-contrast presets (`highContrast`). Code that builds a
   `ChromeThemeData` whole must now pass `bulletin`.
 - `MotionRole.bulletinShow` (255 ms, ease-out quad) and
@@ -35,7 +35,7 @@ package is pre-1.0.
   `ChromeStringsScope.packSheetOf`): a pack sheet's Add / Remove buttons by
   kind and count, the several-packs buttons and counts, Share and Copy Link,
   the not-found texts, and the added / removed / archived bulletins with
-  Undo, in the reference client's English. Existing code that builds a
+  Undo, in English. Existing code that builds a
   `ChromeStrings` must now pass `packSheet`; the presets and
   `ChromeStringsSnapshot` include it.
 
@@ -47,8 +47,7 @@ package is pre-1.0.
   `deleteFromRecentAction`, `copyEmojiAction`, `saveGifAction`,
   `deleteGifAction`) and the recent stickers' own clear confirmation
   (`clearRecentStickersTitle`, `clearRecentStickersMessage`). All required:
-  a host's `PanelStrings` must add them. The presets carry the reference's
-  English and Russian.
+  a host's `PanelStrings` must add them. The presets carry English and Russian.
 
 ### Changed (glass look)
 
@@ -123,12 +122,11 @@ package is pre-1.0.
   The morph runs both ways: an upright glyph turning into a tilted one keeps
   its morph too, since the turned and the upright glyph share one tree shape.
 
-### Changed (Telegram's English in the presets)
+### Changed (English wording in the presets)
 
 - `ChromeStringsPresets.english`: the touch formatting page reads Code Block
-  and Bulleted list (the Android client's `AccDescrCodeBlock` and
-  `ArticleListBulletedList`), and the pointer menu's clear row reads Plain
-  text (the desktop client's `lng_menu_formatting_clear`). No API change.
+  and Bulleted list, and the pointer menu's clear row reads Plain
+  text. No API change.
 
 ### Changed (menu language)
 
@@ -143,7 +141,7 @@ package is pre-1.0.
 
 ### Added (pointer menu)
 
-- `PointerMenu`, the reference desktop client's popup list opened at the
+- `PointerMenu`, a popup list opened at the
   pointer: rows with a mnemonic label and a shortcut hint, greyed rows,
   separators, submenus that open on hover with a 300 ms aim hold, the
   arrow-key model, the grow-from-the-corner open animation and the linear
@@ -155,13 +153,12 @@ package is pre-1.0.
   `EaseOutCirc` and the row and panel keys.
 - `PointerMenuTokens` as a theme group (`ChromeThemeData.pointerMenu`,
   `ChromeThemeScope.pointerMenuOf`, `ChromeThemeAspect.pointerMenu`), derived
-  from the palette, with the reference's day and night colours as
+  from the palette, with the day and night colours as
   `referenceDay` and `referenceNight`. Source-breaking for hosts that build
   `ChromeThemeData` field by field or switch over `ChromeThemeAspect`.
 - Motion roles `pointerMenuShow` (200 ms) and `pointerMenuHide` (150 ms).
 - `EditMenuStrings` (`ChromeStrings.editMenu`, `ChromeStringsScope.editMenuOf`):
-  the labels of the composer's pointer menu, in the reference client's wording
-  with Qt `&` mnemonics. Source-breaking for hosts that build
+  the labels of the composer's pointer menu, with `&` mnemonics. Source-breaking for hosts that build
   `ChromeStrings`: the group is required; the English and Russian presets have
   it.
 
@@ -216,9 +213,9 @@ package is pre-1.0.
 
 ### Changed
 
-- The preset strings' `categoryTitle` is keyed by the reference client's
+- The preset strings' `categoryTitle` is keyed by the
   sections (`people`, `nature`, `food`, `activity`, `travel`, `objects`,
-  `symbols`) in the reference client's wording, not by Unicode group slugs.
+  `symbols`) in the preset wording, not by Unicode group slugs.
 
 ### Fixed
 
@@ -228,7 +225,7 @@ package is pre-1.0.
 
 ### Changed
 
-- `MotionRole.popupHide` lasts 200 ms (was 150 ms), the reference client's fade-out;
+- `MotionRole.popupHide` lasts 200 ms (was 150 ms), a fade-out;
   `popupShow` was already 200 ms. A popup that fades out for 50 ms longer can be
   turned back for that long, which is what hovering it again does.
 

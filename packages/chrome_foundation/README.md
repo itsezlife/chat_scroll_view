@@ -17,7 +17,7 @@ under a host quality policy
 | Type | Role |
 | --- | --- |
 | `ChromePalette` | The **chrome palette**: 15 semantic colour roles (surfaces, text, icons, accent, separator, ...) plus a brightness. Constructors: custom (every role), `light`, `dark`, `highContrastLight`, `highContrastDark`, `forBrightness`, `fromColorScheme`. |
-| `ComposerTokens`, `PanelTokens`, `ActionTokens`, `PlaceholderTokens`, `GlassMaterialTokens`, `SelectionMenuTokens`, `PointerMenuTokens`, `SpoilerTokens`, `BulletinTokens` | **Token groups**: immutable colours per component, each derived from a palette by `fromPalette`, with `copyWith` and `lerp`. `GlassMaterialTokens.colorsOf(material)` is what `GlassSurface` reads. `SelectionMenuTokens` is the selection menu's card, text, divider, shadow and page dim (the palette's raised surface and on-surface colour, its separator at half opacity, black at 0.45 and a black dim of `0x18` light or `0x40` dark; elevation 3 and radius 12 are constants on the class). `SpoilerTokens` is the spoiler particle colour (null follows the text colour; `colorOver(text)` resolves it) and its `SpoilerParticleMotion`. `BulletinTokens` is a bulletin's card, text, accent and countdown colours (the reference dark card on every palette, an opaque one on the high-contrast presets). |
+| `ComposerTokens`, `PanelTokens`, `ActionTokens`, `PlaceholderTokens`, `GlassMaterialTokens`, `SelectionMenuTokens`, `PointerMenuTokens`, `SpoilerTokens`, `BulletinTokens` | **Token groups**: immutable colours per component, each derived from a palette by `fromPalette`, with `copyWith` and `lerp`. `GlassMaterialTokens.colorsOf(material)` is what `GlassSurface` reads. `SelectionMenuTokens` is the selection menu's card, text, divider, shadow and page dim (the palette's raised surface and on-surface colour, its separator at half opacity, black at 0.45 and a black dim of `0x18` light or `0x40` dark; elevation 3 and radius 12 are constants on the class). `SpoilerTokens` is the spoiler particle colour (null follows the text colour; `colorOver(text)` resolves it) and its `SpoilerParticleMotion`. `BulletinTokens` is a bulletin's card, text, accent and countdown colours (the dark card on every palette, an opaque one on the high-contrast presets). |
 | `ChromeThemeData` | A palette plus one value of every group: what a root scope carries and what two themes are interpolated between. |
 | `ChromeThemeScope` | The **chrome theme scope** (`InheritedModel`). Required: a lookup with no supplier fails. Nested scopes override only the parts they supply. `of`, `paletteOf`, `composerOf`, ... |
 | `AnimatedChromeThemeScope` | A scope that interpolates to new tokens with each part's `lerp`. |
@@ -26,7 +26,7 @@ under a host quality policy
 | `SpoilerParticleMotion` | Motion that is not a role: the spoiler particles' speed (4-10 dp/s), life (1-3 s) and 30 fps tick (`tickAt(speed)` is null under an instant speed: static particles). |
 | `ChromeMotionSpeed`, `ChromeMotionScope`, `ChromeMotionData` | The speed scale (`normal`, `times(n)`, `instant`) and the nestable scope that supplies roles and speed. Components call `ChromeMotionScope.of(context).specOf(role)`. |
 | `ScalePressable`, `OvershootCurve` | Press-scale hit target driven by the `press` / `release` roles, and the overshoot easing (Android's `OvershootInterpolator`). |
-| `PointerMenu`, `PointerMenuEntry` (`PointerMenuItem`, `PointerMenuSeparator`), `PointerMenuTokens` | The **pointer menu**: the reference desktop client's popup list opened at the pointer by `PointerMenu.show` into the root overlay. Rows carry a label with an `&` mnemonic (drawn underlined), a shortcut hint, an enabled flag, an action or a submenu; a row that cannot be chosen is greyed, takes no hover and is skipped by the keys. Modal like a native popup: a press elsewhere closes it and is swallowed, Escape closes a submenu then the menu, every other key is swallowed. Hover opens a submenu at once, with a 300 ms aim hold toward it. The panel grows from the corner at the pointer (200 ms) and fades out (150 ms), both roles of the motion table. Placement, the reveal, the aim triangle and the navigation are pure (`PointerMenuPlacements`, `PointerMenuReveal`, `PointerMenuAim`, `PointerMenuNavigation`); the geometry is `PointerMenuMetrics` (each number verified, derived or UNVERIFIED). `PointerMenuTokens.referenceDay` and `referenceNight` are the reference's own colours. |
+| `PointerMenu`, `PointerMenuEntry` (`PointerMenuItem`, `PointerMenuSeparator`), `PointerMenuTokens` | The **pointer menu**: a popup list opened at the pointer by `PointerMenu.show` into the root overlay. Rows carry a label with an `&` mnemonic (drawn underlined), a shortcut hint, an enabled flag, an action or a submenu; a row that cannot be chosen is greyed, takes no hover and is skipped by the keys. Modal like a native popup: a press elsewhere closes it and is swallowed, Escape closes a submenu then the menu, every other key is swallowed. Hover opens a submenu at once, with a 300 ms aim hold toward it. The panel grows from the corner at the pointer (200 ms) and fades out (150 ms), both roles of the motion table. Placement, the reveal, the aim triangle and the navigation are pure (`PointerMenuPlacements`, `PointerMenuReveal`, `PointerMenuAim`, `PointerMenuNavigation`); the geometry is `PointerMenuMetrics` (each number verified, derived or UNVERIFIED). `PointerMenuTokens.referenceDay` and `referenceNight` are the preset colours. |
 | `ChromeStrings` (`PanelStrings`, `ComposerStrings`, `FormattingStrings`, `EditMenuStrings`, `SemanticsStrings`) | The **chrome strings**: grouped, host-provided text, with functions for plural and data-dependent wording. `FormattingStrings` holds the selection menu's item labels (Quote, Spoiler, Bold, Italic, Mono, Strikethrough, Underline, Create / Edit / Remove Link, Code block, Bullet / Numbered list, Regular), the "More" and "Back" labels and the semantics labels of a bullet and a numbered list item. |
 | `ChromeStringsScope` | Required scope supplying `ChromeStrings`; a lookup with no scope fails in debug builds. |
 | `ChromeIconId`, `ChromeIconPainter`, `ChromeIconRegistry` | A **chrome icon** is a semantic id; the registry maps ids to painters (font glyph or paint callback). `ChromeIconRegistry.stock` paints the chrome's own ids; an unknown id draws a neutral fallback glyph. |
@@ -36,7 +36,7 @@ under a host quality policy
 | `GlassSourceScope`, `GlassSource` | Marks the content that sampled glass reads. A scope above the content and the surfaces, a source around the content. |
 | `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `ChromeStringsSnapshot.of` for completeness checks. Tests and demos only. |
 
-Geometry is not a token here: metrics taken from the reference client stay constants owned by
+Geometry is not a token here: the menu metrics stay constants owned by
 the component that draws them. Labels are host strings, never tokens. Motion is
 a role table with a speed scale, not a colour-style group, so it has no `lerp`.
 
@@ -189,7 +189,7 @@ Android, Windows, Linux).
 Presets keep the text and icon pairings at WCAG AA (4.5:1 text, 3:1 icons;
 7:1 text in the high-contrast presets). Where an earlier flat colour class
 failed that, the preset uses the nearest value that passes. The values were
-not re-derived from a reference client, so a fidelity review of the shipped
+not re-derived from the original measurements, so a fidelity review of the shipped
 colours is open. The field-by-field mapping from that class, with the old and
 shipped value of each, is in
 [docs/chrome/palette-migration.md](../../docs/chrome/palette-migration.md).
@@ -218,7 +218,7 @@ this package.
   key non-empty in each preset, same keys in both, snapshot lists every
   declared member) and plural wording.
 - Menu and spoiler: the light menu colours and role durations against the
-  reference client's literal values, the two curves against worked values, the
+  fixed literal values, the two curves against worked values, the
   morph-duration ratios, the static spoiler tick under an instant speed, and the
   menu text on its card at AA in all four presets.
 - Icons: registry lookup, custom registration, fallback, scope nesting and

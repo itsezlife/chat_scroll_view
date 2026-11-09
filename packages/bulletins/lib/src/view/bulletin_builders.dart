@@ -353,7 +353,7 @@ class _RingPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     const stroke = 2.0;
     final rect = (Offset.zero & size).deflate(stroke / 2);
-    // Starts at the top and empties counter-clockwise, as the reference.
+    // Starts at the top and empties counter-clockwise.
     canvas.drawArc(
       rect,
       -math.pi / 2,

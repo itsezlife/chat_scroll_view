@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('fromPalette', () {
-    test('maps the light palette to the Telegram-derived panel colours', () {
+    test('maps the light palette to the panel colours', () {
       final tokens = PanelTokens.fromPalette(const ChromePalette.light());
       expect(tokens.background, const Color(0xFFF0F2F5));
       expect(tokens.hairline, const Color(0x12000000));

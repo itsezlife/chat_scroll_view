@@ -40,7 +40,7 @@ final class ActionTokens {
   /// Composer action icons.
   final Color icon;
 
-  /// A composer action icon while a mouse is over its button: the reference
+  /// A composer action icon while a mouse is over its button: the desktop
   /// client swaps the icon's colour and draws nothing else.
   final Color iconHover;
 

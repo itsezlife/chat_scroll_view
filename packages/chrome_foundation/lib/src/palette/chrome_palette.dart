@@ -41,7 +41,7 @@ final class ChromePalette {
     required this.shadow,
   });
 
-  /// The light palette of the reference client, adjusted where the original
+  /// The light palette, adjusted where the original
   /// greys and blue fell below AA (see the package README for the original
   /// values).
   const ChromePalette.light()
@@ -62,7 +62,7 @@ final class ChromePalette {
       contentFade = const Color(0xFFFFFFFF),
       shadow = const Color(0xFF000000);
 
-  /// The dark palette of the reference client, adjusted where the original
+  /// The dark palette, adjusted where the original
   /// greys fell below AA (see the package README for the original values).
   const ChromePalette.dark()
     : brightness = Brightness.dark,

@@ -7,7 +7,7 @@ import 'package:flutter/painting.dart';
 /// The **bulletin policy**: the layout and motion values of one platform
 /// family. Plain values with no widgets and no platform reads.
 ///
-/// Three stock families mirror the reference clients: [BulletinPolicy.android]
+/// Three stock families: [BulletinPolicy.android]
 /// (a card at the bottom that slides on a spring, swipes away and holds its
 /// timer while pressed), [BulletinPolicy.ios] (a card at the bottom that fades
 /// and scales, with no gestures) and [BulletinPolicy.desktop] (a toast centred
@@ -26,13 +26,13 @@ abstract base class BulletinPolicy {
   /// A policy; for subclasses.
   const BulletinPolicy();
 
-  /// The reference Android client's values; see [BulletinPolicy$Android].
+  /// The Android family's values; see [BulletinPolicy$Android].
   const factory BulletinPolicy.android() = BulletinPolicy$Android;
 
-  /// The reference iOS client's values; see [BulletinPolicy$IOS].
+  /// The iOS family's values; see [BulletinPolicy$IOS].
   const factory BulletinPolicy.ios() = BulletinPolicy$IOS;
 
-  /// The reference desktop client's values; see [BulletinPolicy$Desktop].
+  /// The desktop family's values; see [BulletinPolicy$Desktop].
   const factory BulletinPolicy.desktop() = BulletinPolicy$Desktop;
 
   /// The family of [platform]: Android and iOS their own, every other
@@ -191,7 +191,7 @@ sealed class BulletinTransition {
 
 /// The [BulletinTransition.slide] transition.
 final class BulletinTransition$Slide extends BulletinTransition {
-  /// A slide on a spring; the defaults are the reference Android client's.
+  /// A slide on a spring; the defaults are the Android family's.
   const BulletinTransition$Slide({
     this.stiffness = 400,
     this.dampingRatio = 0.8,
@@ -223,8 +223,7 @@ final class BulletinTransition$Slide extends BulletinTransition {
 
 /// The [BulletinTransition.fadeScale] transition.
 final class BulletinTransition$FadeScale extends BulletinTransition {
-  /// A fade and scale; the default start scale is the reference iOS
-  /// client's.
+  /// A fade and scale; the default start scale is the iOS family's.
   const BulletinTransition$FadeScale({
     this.fromScale = 0.96,
     this.enter,
@@ -256,7 +255,7 @@ final class BulletinTransition$FadeScale extends BulletinTransition {
 /// The two clocks of one direction of a [BulletinTransition.fadeScale]: the
 /// fade and the scale, each with its own duration and curve.
 ///
-/// The reference iOS client runs them apart (a 0.3 s fade under a 0.5 s
+/// The iOS family runs them apart (a 0.3 s fade under a 0.5 s
 /// scale), which one motion role cannot say. Both start together; the card
 /// has entered when the longer one ends, and has left when the fade ends,
 /// since nothing is visible after it.
@@ -326,7 +325,7 @@ final class BulletinTransition$TimedSlide extends BulletinTransition {
 
 // --- Stock families ---
 
-/// The reference Android client's bulletin (`Bulletin`): a card at the
+/// The Android family: a card at the
 /// bottom above the composer and keyboard, sliding on a spring, thrown away
 /// by a horizontal swipe, its timer held while pressed.
 base class BulletinPolicy$Android extends BulletinPolicy {
@@ -343,8 +342,8 @@ base class BulletinPolicy$Android extends BulletinPolicy {
   @override
   BulletinPlacement get placement => BulletinPlacement.bottom;
 
-  /// The reference pads its full-width layout 16 at the sides and 8 above
-  /// and below (B:800) and draws the card inside that padding (B:1222), so
+  /// The full-width layout pads 16 at the sides and 8 above
+  /// and below, and draws the card inside that padding, so
   /// the visible card sits 16 from the sides and 8 from the obstruction.
   @override
   EdgeInsets get margin =>
@@ -360,8 +359,7 @@ base class BulletinPolicy$Android extends BulletinPolicy {
   EdgeInsets get contentPadding =>
       const EdgeInsets.symmetric(horizontal: 12, vertical: 8);
 
-  /// The reference's 56 dp icon box, which starts at the card's edge
-  /// (B:1979).
+  /// The 56 dp icon box, which starts at the card's edge.
   @override
   double get leadingWidth => 56;
 
@@ -377,7 +375,7 @@ base class BulletinPolicy$Android extends BulletinPolicy {
   @override
   double get subtitleTextSize => 13;
 
-  /// The reference matches the parent on a phone and wraps on a tablet or in
+  /// The width matches the parent on a phone and wraps on a tablet or in
   /// landscape; 400 caps a wide window without changing a phone.
   @override
   double? get maxWidth => 400;
@@ -408,16 +406,11 @@ base class BulletinPolicy$Android extends BulletinPolicy {
   double get pressScale => 0.98;
 }
 
-/// The reference iOS client's undo overlay (`UndoOverlayController`): a
-/// blurred card at the bottom (or top) that fades and scales in and out, with
-/// no swipe and no pause.
+/// The iOS undo overlay: a blurred card at the bottom (or top) that fades and
+/// scales in and out, with no swipe and no pause.
 ///
-/// The constructor takes the reference's per-overlay `Appearance` and
-/// `elevatedLayout` (`UndoOverlayController.swift:86-98`), which here belong
-/// to the surface: [sideInset], [bottomInset], [elevated] and [narrow].
-///
-/// Line numbers below are in `UndoOverlayControllerNode.swift` of the
-/// reference, `submodules/UndoUI`.
+/// The per-overlay appearance and elevated layout belong here to the surface:
+/// [sideInset], [bottomInset], [elevated] and [narrow].
 base class BulletinPolicy$IOS extends BulletinPolicy {
   /// The iOS family.
   const BulletinPolicy$IOS({
@@ -428,32 +421,31 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
   });
 
   /// The space between the card and the area's edges, on every side
-  /// (`sideInset ?? 12`, :1936; the same value spaces it from the bottom and
-  /// the top, :2008, :2016).
+  /// (`sideInset ?? 12`; the same value spaces it from the bottom and the top).
   final double sideInset;
 
   /// Extra space under a bottom card, over [sideInset]; null for none, or
-  /// [elevatedInset] when [elevated]. Wins over [elevated] (:1996-1999).
+  /// [elevatedInset] when [elevated]. Wins over [elevated].
   final double? bottomInset;
 
   /// Whether the surface has a bar under the bulletin that the obstruction
   /// does not include (a tab bar, an input panel): the card then sits
-  /// [elevatedInset] higher (`elevatedLayout`, :1998-1999).
+  /// [elevatedInset] higher.
   final bool elevated;
 
   /// Whether the card is [narrowWidth] wide instead of the full width
-  /// (`isNarrow`, :2004-2005).
+  /// (`isNarrow`).
   final bool narrow;
 
-  /// The rise of an [elevated] card (:1999).
+  /// The rise of an [elevated] card.
   static const double elevatedInset = 49;
 
-  /// The width of a [narrow] card (:2005).
+  /// The width of a [narrow] card.
   static const double narrowWidth = 210;
 
-  /// A plain notice stays 3 s (copy :1046, link copied :355, media saved
-  /// :1067, a sticker or `universal` without a link :953, :1152); one with
-  /// Undo 5 s (removed chat :176, archived :204, action succeeded :332).
+  /// A plain notice stays 3 s (copy, link copied, media saved, a sticker or
+  /// `universal` without a link); one with Undo 5 s (removed chat, archived,
+  /// action succeeded).
   /// A long text gets no more time there: copy and link copied keep 3 s
   /// whatever their length.
   @override
@@ -474,32 +466,31 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
     sideInset + (bottomInset ?? (elevated ? elevatedInset : 0)),
   );
 
-  /// `max(50, contentHeight)` (:1989).
+  /// `max(50, contentHeight)`.
   @override
   double get minHeight => 50;
 
-  /// :1576, drawn with the continuous corner curve (:1700).
+  /// Pill-shaped (half the height), drawn with the continuous corner curve.
   @override
   double get cornerRadius => 25;
 
-  /// The text block has 10 above and 10 below it (`contentHeight = 20 +
-  /// ...`, :1934); the action label ends 16 from the right edge (`rightInset`,
-  /// :1933). The left 16 applies only without a leading, a case the
-  /// reference does not have: there the text starts at the leading slot's
-  /// end.
+  /// The text block has 10 above and 10 below it; the action label ends 16
+  /// from the right edge. The left 16 applies only without a leading, a case
+  /// the iOS overlay does not have: there the text starts at the leading
+  /// slot's end.
   @override
   EdgeInsets get contentPadding => const EdgeInsets.fromLTRB(16, 10, 16, 10);
 
-  /// `leftInset` (:1918): the slot runs from the card's edge and the text
-  /// starts at its end; the leading is centred in it.
+  /// The slot runs from the card's edge and the text starts at its end; the
+  /// leading is centred in it.
   @override
   double get leadingWidth => 50;
 
-  /// An animated leading's frame (32 by 32, :2138).
+  /// An animated leading's frame (32 by 32).
   @override
   double get iconSize => 32;
 
-  /// Every text is 14: regular, semibold for the title (:149-150, :194).
+  /// Every text is 14: regular, semibold for the title.
   @override
   double get messageTextSize => 14;
 
@@ -516,9 +507,9 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
   bool get clipsAtObstruction => false;
 
   /// In: opacity 0 to 1 in 0.3 s (the default ease-in-ease-out) and scale
-  /// 0.96 to 1 in 0.5 s on the spring curve (:2208-2212). Out: opacity to 0
-  /// in 0.25 s ease-out and scale to 0.96 in 0.5 s on the spring curve,
-  /// gone when the fade ends (:2242-2247).
+  /// 0.96 to 1 in 0.5 s on the spring curve. Out: opacity to 0 in 0.25 s
+  /// ease-out and scale to 0.96 in 0.5 s on the spring curve, gone when the
+  /// fade ends.
   @override
   BulletinTransition get transition => const BulletinTransition.fadeScale(
     enter: BulletinFadeScaleMotion(
@@ -531,10 +522,8 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
     ),
   );
 
-  /// The reference's `kCAMediaTimingFunctionSpring` at 0.5 s is a Core
-  /// Animation spring whose constants live outside the reference checkout;
-  /// its own non-spring fallback draws it as this cubic
-  /// (`Display/Source/ListViewAnimation.swift:103`).
+  /// The spring at 0.5 s is a platform spring whose constants are not
+  /// published here; its non-spring fallback draws it as this cubic.
   static const Curve springCurve = Cubic(0.23, 1, 0.32, 1);
 
   @override
@@ -557,21 +546,20 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
   double get pressScale => 1;
 
   /// The overlay takes touches only with an Undo or a link; otherwise the
-  /// screen under it gets them (:1596-1605).
+  /// screen under it gets them.
   @override
   bool get passesThroughWhenInert => true;
 }
 
-/// The reference desktop client's toast (`Ui::Toast` in the toolkit
-/// `lib_ui`, its `defaultMultilineToast` style, which a toast takes when the
-/// caller names none): centred on the surface, or attached to the top or
+/// The desktop toast, in the multiline toast style that a toast takes when
+/// its caller names none: centred on the surface, or attached to the top or
 /// bottom edge; as wide as its text between 160 and 360; it fades in over
 /// 200 ms and out over 1000 ms in the middle and slides 160 ms at an edge,
 /// both linear; no gestures, and pointers pass through it unless it has
 /// something to press.
 ///
-/// The short timeout is the toolkit's default of 1.5 s; the long and
-/// prolonged ones are its callers' 4 s (a link copied) and 5 s (a toast with
+/// The short timeout is the toast default of 1.5 s; the long and
+/// prolonged ones are 4 s (a link copied) and 5 s (a toast with
 /// a button), since every other caller keeps the default.
 base class BulletinPolicy$Desktop extends BulletinPolicy {
   /// The desktop family.
@@ -603,8 +591,8 @@ base class BulletinPolicy$Desktop extends BulletinPolicy {
   @override
   EdgeInsets get margin => const EdgeInsets.all(13);
 
-  /// The toolkit sets no height: the text and its padding decide it. The
-  /// one floor it has is an icon and its 2 px above and below.
+  /// No height is set: the text and its padding decide it. The one floor is an
+  /// icon and its 2 px above and below.
   @override
   double get minHeight => 24;
 

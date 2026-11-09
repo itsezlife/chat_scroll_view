@@ -16,7 +16,7 @@ void main() {
       }
     });
 
-    test('is the reference dark card on the other palettes', () {
+    test('is the referenceAndroid card on the other palettes', () {
       for (final palette in [
         const ChromePalette.light(),
         const ChromePalette.dark(),
@@ -28,7 +28,7 @@ void main() {
       }
     });
 
-    test('the reference values are the Android undo colours', () {
+    test('the referenceAndroid values are the undo colours', () {
       const tokens = BulletinTokens.referenceAndroid;
       expect(tokens.background, const Color(0xEA272F38));
       expect(tokens.foreground, const Color(0xFFFFFFFF));

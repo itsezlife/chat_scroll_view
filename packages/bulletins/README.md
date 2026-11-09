@@ -14,7 +14,7 @@ obstruction*).
 
 | Type | Role |
 | --- | --- |
-| `Bulletin` | The value: message, optional title, leading, action, duration, placement, body tap, spoken label, links (`BulletinLink` ranges of the message). `effectiveDuration` applies the reference factory rule when none is named (Undo: prolonged; under 20 characters: short; else long). |
+| `Bulletin` | The value: message, optional title, leading, action, duration, placement, body tap, spoken label, links (`BulletinLink` ranges of the message). `effectiveDuration` applies the default duration rule when none is named (Undo: prolonged; under 20 characters: short; else long). |
 | `BulletinLeading` | The content kind: `icon`, `animation(source)`, `thumbnail(source)`, `countdown`, `custom`. |
 | `BulletinAction` | `undo(onUndo:, onCommit:)` or `button(label:, onPressed:)`. |
 | `BulletinDuration` | `short`, `long`, `prolonged`, `untilDismissed`, `exactly(Duration)`. |

@@ -2,7 +2,7 @@
 /// the Formatting submenu and the workspace's additions to it.
 ///
 /// Supplied by the host as part of `ChromeStrings`; this package ships no
-/// translation. The wording is the reference desktop client's (Monospace,
+/// translation. The wording is the desktop menu's (Monospace,
 /// Create link, Plain text), which is not the touch menu's (Mono, Create
 /// Link, Regular), so the formatting rows of the two menus read their own group
 /// ([FormattingStrings] is the touch menu's). The clipboard rows are shared:
@@ -11,7 +11,7 @@
 /// removed, so both menus speak the app's language whatever the Material
 /// localisations are.
 ///
-/// **Mnemonics.** The reference toolkit marks an access letter with `&` in the
+/// **Mnemonics.** The desktop toolkit marks an access letter with `&` in the
 /// label (`&Undo`, `Cu&t`), and its menu draws that letter underlined; `&&` is
 /// a literal ampersand. A label here may carry the mark, and the menu draws
 /// it and strips it from the spoken label. A translation places the mark as
@@ -103,7 +103,7 @@ final class EditMenuStrings {
   final String clearFormattingAction;
 
   /// Addition: row that pastes the clipboard's plain text, without its
-  /// formatting. The reference client has the key only.
+  /// formatting. The key binding is the only shortcut for it.
   final String pastePlainAction;
 
   /// Addition: formatting row for a fenced code block.

@@ -10,8 +10,8 @@ final class LibraryLimits {
   /// Creates limits; each is at least 1.
   ///
   /// [favouriteStickers] and [savedGifs] are the host's to choose (the
-  /// reference allows 5 and 200 without a subscription). [recentStickers]
-  /// defaults to the reference's 30; a page may show fewer.
+  /// platform allows 5 and 200 without a subscription). [recentStickers]
+  /// defaults to 30; a page may show fewer.
   const LibraryLimits({
     required this.favouriteStickers,
     required this.savedGifs,
@@ -66,7 +66,7 @@ enum PackInstallState {
 /// Data rather than a method per change, so a panel or a sheet can ask the
 /// host for one in an event, a backend adapter can send one as it is, and the
 /// library can replay the edits still inside their undo window. Each rule is
-/// the reference client's:
+/// stated below:
 ///
 /// - The most-recently-used lists (recent stickers, favourite stickers, saved
 ///   GIFs): adding puts the key first, never twice; a key new to a full list

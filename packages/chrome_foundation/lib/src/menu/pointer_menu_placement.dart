@@ -36,7 +36,7 @@ enum PointerMenuOrigin {
 /// Where a pointer menu's body goes and which corner it grows from.
 typedef PointerMenuPlacement = ({Rect body, PointerMenuOrigin origin});
 
-/// Placement of a pointer menu and of its submenus: the reference client's
+/// Placement of a pointer menu and of its submenus: the desktop popup's
 /// `PopupMenu::prepareGeometryFor`, on the body (the panel without its
 /// shadow), clamped to the overlay instead of the screen.
 abstract final class PointerMenuPlacements {

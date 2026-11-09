@@ -189,8 +189,7 @@ void main() {
   });
 
   group('the mobile families', () {
-    // An inert iOS overlay lets touches through (UndoOverlayControllerNode
-    // :1596-1605); Android's bulletin catches them.
+    // An inert iOS overlay lets touches through; Android's bulletin catches them.
     for (final (policy, passesThrough) in const [
       (BulletinPolicy.android(), false),
       (BulletinPolicy.ios(), true),

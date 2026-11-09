@@ -83,7 +83,7 @@ final class PanelTokens {
   /// Search input text.
   final Color searchText;
 
-  /// Tooltip box fill: one step off [background], as the reference desktop
+  /// Tooltip box fill: one step off [background], as the desktop
   /// client's tooltip is one step off its window.
   final Color tooltipFill;
 

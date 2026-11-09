@@ -3,7 +3,7 @@
 ///
 /// **Seam:** `GlassStyle.resolve`, the one place a surface's theme colours
 /// and its material become paint parameters. Expected values are the
-/// reference Android client's frosted and liquid glass presets.
+/// frosted and liquid glass presets.
 library;
 
 import 'dart:ui';

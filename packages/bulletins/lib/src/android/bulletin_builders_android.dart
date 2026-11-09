@@ -9,52 +9,48 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
-/// The reference Android client's bulletin card (`Bulletin.Layout` and its
-/// `LottieLayout`, `TwoLineLayout` and `ButtonLayout` variants), as a set of
-/// `BulletinBuilders` for a host on the Android policy.
+/// The Android bulletin card, as a set of `BulletinBuilders` for a host on
+/// the Android policy.
 ///
 /// [create] gives the whole set: the card in the undo background, or glass
-/// tinted with it where the surface is a chat (the reference turns the
-/// card to glass only there); the leading slot of each kind; the title over
-/// the message; and the Undo or button in the accent. Sizes not owned by
-/// the policy (the slot boxes, the text insets, the button paddings) are the
-/// reference's own and fixed here.
+/// tinted with it where the surface is a chat (glass is used only there);
+/// the leading slot of each kind; the title over the message; and the Undo
+/// or button in the accent. Sizes not owned by the policy (the slot boxes,
+/// the text insets, the button paddings) are fixed here.
 abstract final class BulletinBuilders$Android {
-  // --- Metrics (the reference, in dp; the card is the drawn background) ---
+  // --- Metrics (in dp; the card is the drawn background) ---
 
   /// The leading box of the Lottie and simple layouts, from the card's start
-  /// edge: 56 by 48 (B:1979, the simple layout's 24 icon with 16 / 12
-  /// margins, B:1356).
+  /// edge: 56 by 48 (the simple layout's 24 icon with 16 / 12 margins).
   static const double _slotWidth = 56;
   static const double _slotHeight = 48;
 
-  /// A Lottie icon's size in its box (`setAnimation(resId)`, B:2035); the
+  /// A Lottie icon's size in its box; the
   /// copy and link icons use 36 and are drawn by a custom leading.
   static const double _animationSize = 32;
 
   /// The two-line layout's sticker or photo: 29 square at 12 from the start,
-  /// 12 above and below (B:1405); its text block starts at 54 (B:1409).
+  /// 12 above and below; its text block starts at 54.
   static const double _thumbnailSize = 29;
   static const double _thumbnailInset = 12;
   static const double _thumbnailTextStart = 54;
 
-  /// The undo countdown: 20 square at 21 from the start (B:1337).
+  /// The undo countdown: 20 square at 21 from the start.
   static const double _countdownSize = 20;
   static const double _countdownStart = 21;
 
-  /// The text's start without a leading (BF:442), its end without a button
-  /// (one line B:2004; under a title 8 + 4 of text padding, B:1458), and its
-  /// vertical padding (B:2003, B:1458).
+  /// The text's start without a leading, its end without a button (one line;
+  /// under a title 8 + 4 of text padding), and its vertical padding.
   static const double _textStart = 16;
   static const double _textEnd = 16;
   static const double _titledTextEnd = 12;
   static const double _textVertical = 8;
 
-  /// A button's measured width counts 12 less against the text (B:1300), so
+  /// A button's measured width counts 12 less against the text, so
   /// the text's end inset reaches 12 into the button's box.
   static const double _buttonOverlap = 12;
 
-  /// A message beside a custom button: 14, up to three lines (BF:445-449).
+  /// A message beside a custom button: 14, up to three lines.
   static const double _buttonMessageSize = 14;
 
   /// The weight of `AndroidUtilities.bold()`: the medium face (500).
@@ -66,7 +62,7 @@ abstract final class BulletinBuilders$Android {
   /// (a chat), otherwise it is the opaque undo background. [animation] and
   /// [thumbnail] resolve the opaque sources of those leading kinds (a Lottie
   /// from the asset cache, a sticker). A message's links are drawn in the
-  /// accent, as the reference's link colour (B:1417).
+  /// accent.
   static BulletinBuilders create({
     bool glass = false,
     BulletinSourceBuilder? animation,
@@ -82,19 +78,16 @@ abstract final class BulletinBuilders$Android {
   // --- Frame ---
 
   /// The opaque card: the undo background (0xEA272F38 by default), the
-  /// policy's radius and minimum height (`createRoundRectDrawable`, B:811).
+  /// policy's radius and minimum height.
   static Widget frame(BuildContext context, BulletinView view, Widget child) =>
       BulletinBuilders.stockFrame(context, view, child);
 
-  /// The card as glass, as the reference's chat draws it (ChatActivity
-  /// `onShow`, the `bulletin()` provider in `BlurredBackgroundProviderImpl`):
-  /// the undo background over the blurred surface, at the glass's own
-  /// opacity (0.76 frosted, 0.85 refracting, multiplied by the colour's
-  /// alpha); no edge stroke and no shadow, as that provider leaves their
-  /// colours unset.
+  /// The card as glass, over a chat: the undo background over the blurred
+  /// surface, at the glass's own opacity (0.76 frosted, 0.85 refracting,
+  /// multiplied by the colour's alpha); no edge stroke and no shadow.
   ///
   /// The glass stack has no bulletin material, so the card borrows the
-  /// floating-button material, whose 0.5 edge width is the provider's, and
+  /// floating-button material, whose 0.5 edge width is used as is, and
   /// recolours it in a nested theme scope. Adding a material to the
   /// foundation for one card would change every host's glass group.
   static Widget glassFrame(
@@ -127,7 +120,7 @@ abstract final class BulletinBuilders$Android {
   // --- Content ---
 
   /// The leading slot, the title over the message, and the action, laid out
-  /// as the reference's layouts place them.
+  /// in the Android card's arrangement.
   static Widget content(
     BuildContext context,
     BulletinView view, {
@@ -145,8 +138,8 @@ abstract final class BulletinBuilders$Android {
       (null, BulletinAction$Button()) => _buttonMessageSize,
       (null, _) => policy.messageTextSize,
     };
-    // An undo message wraps to two lines (BF:532), one beside a button to
-    // three (BF:448); a subtitle to two (B:1416).
+    // An undo message wraps to two lines, one beside a button to three; a
+    // subtitle to two.
     final maxLines =
         bulletin.maxLines ??
         switch ((title, action)) {
@@ -260,11 +253,10 @@ abstract final class BulletinBuilders$Android {
 
 // --- Action ---
 
-/// The reference's `UndoButton` with text (B:2256-2263): the label 14 medium
+/// The undo button with text: the label 14 medium
 /// in the accent, padded 12 / 8 inside a box 8 from its neighbours, with a
 /// 6-radius highlight of the accent at 0x19 while pressed (the ripple's
-/// colour and mask). A custom button is the same with its own label
-/// (BF:450).
+/// colour and mask). A custom button is the same with its own label.
 class _ActionButton$Android extends StatefulWidget {
   const _ActionButton$Android({required this.view});
 
@@ -293,7 +285,7 @@ class _ActionButton$AndroidState extends State<_ActionButton$Android> {
     final accent = view.tokens.accent;
     // A pointer listener, not the tap's down callback: the card's horizontal
     // drag shares the arena, which holds a tap down back until it resolves,
-    // while the reference shows its pressed state at once.
+    // while the pressed state shows at once.
     return Semantics(
       button: true,
       child: Listener(
@@ -334,7 +326,7 @@ class _ActionButton$AndroidState extends State<_ActionButton$Android> {
 
 // --- Countdown ---
 
-/// The reference's undo `TimerView` (B:2360-2455): a 20 ring, 2 wide with
+/// The undo countdown: a 20 ring, 2 wide with
 /// round caps, inset by 1, that empties counter-clockwise from the top over
 /// the time left, with the whole seconds left in 12 digits inside. When the
 /// second changes the old digit slides 10 down and fades while the new one
@@ -354,7 +346,7 @@ class BulletinCountdown$Android extends StatefulWidget {
   /// The bulletin counted down.
   final BulletinHandle handle;
 
-  /// The ring and digit colour (the reference's info colour).
+  /// The ring and digit colour (the info colour).
   final Color color;
 
   /// How long a digit change takes.
@@ -396,8 +388,8 @@ class _BulletinCountdown$AndroidState extends State<BulletinCountdown$Android>
     if (timeout == null || remaining == null) return const SizedBox.shrink();
     final seconds = math.max(0, (remaining.inMilliseconds / 1000).ceil());
     if (seconds != _$seconds) {
-      // The first value appears without a change, as the reference's first
-      // frame has no outgoing layout.
+      // The first value appears without a change: there is no outgoing layout
+      // on the first frame.
       _$previous = _$seconds;
       _$seconds = seconds;
       _$changedAt = _$now;
@@ -417,7 +409,7 @@ class _BulletinCountdown$AndroidState extends State<BulletinCountdown$Android>
     );
     const slide = BulletinCountdown$Android.digitSlide;
     Widget digit(int value, double opacity, double dy) => Transform.translate(
-      // The reference lifts its digits by half a point.
+      // The digits lift by half a point.
       offset: Offset(0, dy - 0.5),
       child: Opacity(
         opacity: opacity,

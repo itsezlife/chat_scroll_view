@@ -153,7 +153,7 @@ abstract interface class RichClipboard {
   /// The clipboard's text and the images and files it holds, read at once:
   /// where reading the clipboard asks the user (iOS), one paste asks once.
   ///
-  /// A paste that finds media hands it to the host to send, as the reference
+  /// A paste that finds media hands it to the host to send, as chat
   /// clients do, and keeps the text for when the host does not send it.
   /// Files a file manager copied come without text: its text is their names,
   /// not what was copied.

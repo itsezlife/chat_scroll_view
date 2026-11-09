@@ -6,7 +6,7 @@ import 'package:golden_baseline/golden_baseline.dart';
 
 // Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
 // The goldens are drawn with the test font (every glyph a square), so they
-// check geometry, the hover and disabled states and the reference colours;
+// check geometry, the hover and disabled states and the preset colours;
 // rounded edges and the blurred shadow are anti-aliased, hence the 1% pixel
 // tolerance.
 const _size = Size(640, 340);

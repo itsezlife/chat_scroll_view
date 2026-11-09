@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _surface = Size(400, 800);
 
-/// The reference's spring curve, as its non-spring fallback draws it.
+/// The iOS card's spring curve, as its non-spring fallback draws it.
 const _spring = Cubic(0.23, 1, 0.32, 1);
 
 /// An iOS host over a fixed surface whose child counts its taps.
@@ -136,7 +136,7 @@ void main() {
       expect(const BulletinPolicy$IOS(narrow: true).maxWidth, 210);
     });
 
-    test('has the reference card metrics', () {
+    test('has the iOS card metrics', () {
       expect(policy.minHeight, 50);
       expect(policy.cornerRadius, 25);
       expect(policy.leadingWidth, 50);
@@ -147,7 +147,7 @@ void main() {
       expect(policy.subtitleTextSize, 14);
     });
 
-    test('fades and scales on the reference timings', () {
+    test('fades and scales on the iOS card timings', () {
       expect(
         policy.transition,
         const BulletinTransition.fadeScale(
@@ -338,7 +338,7 @@ void main() {
       expect(find.text('5'), findsOneWidget);
       expect(_style(tester, '5').fontSize, 16);
 
-      // The reference ticks every 0.5 s and draws Int(remaining): 4.5 is 4.
+      // The countdown ticks every 0.5 s and draws the whole part of what is left: 4.5 is 4.
       h.clock.advance(const Duration(milliseconds: 499));
       await tester.pump();
       expect(find.text('5'), findsOneWidget);

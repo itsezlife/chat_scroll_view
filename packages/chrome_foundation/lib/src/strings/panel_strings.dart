@@ -145,7 +145,7 @@ final class PanelStrings {
 
   /// Content preview item that takes the sticker shown out of the recent
   /// stickers. (A custom emoji's is [removeRecentAction], as in the
-  /// reference client.)
+  /// desktop menu.)
   final String deleteFromRecentAction;
 
   /// Content preview item that copies the custom emoji shown.

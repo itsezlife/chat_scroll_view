@@ -3,7 +3,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('the reference client presets', () {
+  group('the referenceDay and referenceNight presets', () {
     test('day is the default theme\'s popup colours', () {
       const day = PointerMenuTokens.referenceDay;
       expect(day.background, const Color(0xFFFFFFFF));

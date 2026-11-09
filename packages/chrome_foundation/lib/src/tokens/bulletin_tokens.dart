@@ -19,11 +19,11 @@ final class BulletinTokens {
     required this.countdown,
   });
 
-  /// The default group: the reference dark card, [referenceAndroid], on
+  /// The default group: the dark card, [referenceAndroid], on
   /// every palette but the two high-contrast presets, which get
   /// [highContrast].
   ///
-  /// The reference clients keep the notice dark in day and night themes, so
+  /// The notice stays dark in day and night themes, so
   /// it stands out over either; the palette's colours do not change it. A
   /// host that wants a palette-coloured card overrides the group.
   factory BulletinTokens.fromPalette(ChromePalette palette) =>
@@ -32,8 +32,7 @@ final class BulletinTokens {
       ? highContrast
       : referenceAndroid;
 
-  /// The reference Android client's `undo_background`, `undo_infoColor` and
-  /// `undo_cancelColor`.
+  /// The undo notice's background, info and cancel colours.
   static const BulletinTokens referenceAndroid = BulletinTokens(
     background: Color(0xEA272F38),
     foreground: Color(0xFFFFFFFF),
@@ -41,10 +40,8 @@ final class BulletinTokens {
     countdown: Color(0xFFFFFFFF),
   );
 
-  /// The reference desktop client's toast: `toastBg` #2c3033 at 0xe5
-  /// alpha, `toastFg` white, and links in `mediaviewTextLinkFg`, which the
-  /// toast's text palette and its buttons take (toolkit `lib_ui`,
-  /// `ui/colors.palette` and `defaultToastPalette`).
+  /// The desktop toast: background #2c3033 at 0xe5 alpha and white foreground,
+  /// with the link colours its text and buttons take from the desktop palette.
   static const BulletinTokens referenceDesktop = BulletinTokens(
     background: Color(0xE52C3033),
     foreground: Color(0xFFFFFFFF),

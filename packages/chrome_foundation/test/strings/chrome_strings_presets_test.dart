@@ -87,7 +87,7 @@ void main() {
       expect(s.searchResultCount(111), '111 результатов');
     });
 
-    test('the pack sheet counts follow the reference wording', () {
+    test('the pack sheet counts follow the English wording', () {
       final s = ChromeStringsPresets.english.packSheet;
       expect(s.addStickers(1), 'Add sticker');
       expect(s.addStickers(20), 'Add 20 stickers');
@@ -147,7 +147,7 @@ void main() {
       );
     });
 
-    test('the desktop menu keeps the reference client\'s Qt mnemonics', () {
+    test('the desktop menu keeps its `&` mnemonics', () {
       final e = ChromeStringsPresets.english.editMenu;
       expect(
         [e.undoAction, e.redoAction, e.cutAction, e.copyAction, e.pasteAction],
@@ -158,8 +158,7 @@ void main() {
     });
 
     test('the desktop formatting rows use the desktop wording', () {
-      // tdesktop lng_menu_formatting_monospace, _link_create, _link_edit,
-      // _clear and lng_keys_legend_paste_plain.
+      // Desktop wording of the formatting and paste rows.
       final e = ChromeStringsPresets.english.editMenu;
       expect(e.monospaceAction, 'Monospace');
       expect(e.createLinkAction, 'Create link');
@@ -178,7 +177,7 @@ void main() {
       },
     );
 
-    test('the menu labels are the reference client\'s English wording', () {
+    test('the menu labels are the English wording', () {
       final f = ChromeStringsPresets.english.formatting;
       expect(
         [

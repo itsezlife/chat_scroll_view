@@ -1,9 +1,7 @@
 /// `EntityDetection` and `DetectionPolicy`: bare URLs, emails, `@name` and
-/// `#tag` become entities with Telegram Android's rules.
+/// `#tag` become entities with the chat-client rules.
 ///
-/// **Seam:** `EntityDetection.apply` / `strip` over [RichText]. Case names
-/// quote their source: the ticket's rule list, Android's `LinkifyPort` and
-/// `MessageObject.urlPattern`, desktop's `MessageLinksParser`.
+/// **Seam:** `EntityDetection.apply` / `strip` over [RichText].
 library;
 
 import 'package:content_model/content_model.dart';
