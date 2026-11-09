@@ -246,6 +246,71 @@ void main() {
     });
   });
 
+  // The emoji sheets keep their swipe to close: the same owner as the
+  // sticker sheet's.
+  group('dragging the sheet', () {
+    // A finger down at [from] that moves [by] in steps of 10, 16 ms apart,
+    // and lifts held still.
+    Future<void> pull(WidgetTester tester, Offset from, double by) async {
+      var time = Duration.zero;
+      final finger = await tester.startGesture(from);
+      for (var moved = 0.0; moved < by.abs(); moved += 10) {
+        time += const Duration(milliseconds: 16);
+        await finger.moveBy(Offset(0, 10 * by.sign), timeStamp: time);
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(milliseconds: 200));
+      await finger.up();
+      await settle(tester);
+    }
+
+    // Four hundred emoji: the card opens 0.56 down (448), its header's
+    // empty band right of the title.
+    testWidgets('a pull down on the grid at its top closes a tall sheet', (
+      tester,
+    ) async {
+      await open(tester, ['big']);
+
+      await pull(tester, const Offset(200, 650), 120);
+
+      expect(sheetUp(), isFalse);
+    });
+
+    testWidgets('a pull down on the empty header closes it', (tester) async {
+      await open(tester, ['big']);
+
+      await pull(tester, const Offset(300, 448 + 25), 120);
+
+      expect(sheetUp(), isFalse);
+    });
+
+    testWidgets('a drag up on the empty header raises the card', (
+      tester,
+    ) async {
+      await open(tester, ['big']);
+
+      await pull(tester, const Offset(300, 448 + 25), -150);
+
+      expect(sheetUp(), isTrue);
+      expect(sheet(tester).top, 0);
+      expect(
+        tester.getCenter(find.text('Pack big')).dy,
+        lessThan(448 + 25 - 100),
+      );
+    });
+
+    testWidgets('a short sheet closes under a pull on its grid', (
+      tester,
+    ) async {
+      await open(tester, ['a']);
+      final grid = sheet(tester).center;
+
+      await pull(tester, grid, 120);
+
+      expect(sheetUp(), isFalse);
+    });
+  });
+
   group('the preview emoji', () {
     // The emoji tapped in a message, drawn 140 large 20 above the card.
     Finder preview() => find.byWidgetPredicate(
