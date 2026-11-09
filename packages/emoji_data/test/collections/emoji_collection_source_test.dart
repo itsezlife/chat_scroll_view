@@ -72,7 +72,7 @@ void main() {
       preferences: preferences,
     );
 
-    test('are the reference client\'s: smileys and people are one, and flags '
+    test('are the default sections: smileys and people are one, and flags '
         'close the symbols', () {
       expect(
         [for (final c in sections().collections.value) c.id],

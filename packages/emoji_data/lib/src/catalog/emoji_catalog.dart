@@ -14,8 +14,8 @@ import 'package:emoji_catalog_pack/emoji_catalog_pack.dart';
 /// ## Genders
 ///
 /// The data links the person, the man and the woman of an emoji into one
-/// entry with every gender and tone. The reference client lists them as three
-/// emoji of the grid, each with its tones, and that is what this catalogue
+/// entry with every gender and tone. The grid lists them as three
+/// emoji, each with its tones, and that is what this catalogue
 /// does by default ([flattenGenders]): an entry is split into one entry per
 /// gender (the person first, then in the order the data gives them), whose base
 /// is that gender's form without a tone and whose variants are its tones. The
