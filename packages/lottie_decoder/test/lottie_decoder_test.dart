@@ -512,12 +512,18 @@ void main() {
     });
 
     test(
-      'a spec above the largest size class ends with the still as full',
+      'a spec above the largest size class plays, rendered at the cap',
       () async {
-        rig.decoder.decode(
+        // The content preview on a phone: M / 1.8 is about 600 px, above the
+        // 512 px class. The reference renders it at most 512 px and draws
+        // that scaled up; it still plays (ticket 128).
+        final sizes = _SizeRecordingRenderer();
+        final big = _Rig(renderer: sizes);
+        addTearDown(big.close);
+        big.decoder.decode(
           _request(
             _fakeBytes,
-            spec: const AssetSpec(pixelWidth: 1024, pixelHeight: 1024),
+            spec: const AssetSpec(pixelWidth: 600, pixelHeight: 600),
           ),
           report,
         );
@@ -527,11 +533,32 @@ void main() {
           AssetStage.firstFrame,
           AssetStage.full,
         ]);
-        expect(report.advances.every((a) => !a.paintable.isAnimated), isTrue);
-        // Rendered at the cap, not at the spec.
-        expect(rig.uploaded.single.width, 512);
-        expect(report.advances.last.bytes, 512 * 512 * 4);
-        expect(rig.binding.liveHandles, 0);
+        final paintable = report.advances.last.paintable;
+        expect(paintable.isAnimated, isTrue);
+        // The still is rendered at the cap, not at the spec.
+        expect(big.uploaded.single.width, 512);
+        expect(report.advances.last.bytes, 512 * 512 * 4 + 3);
+
+        final recorder = ui.PictureRecorder();
+        paintable.paint(
+          ui.Canvas(recorder),
+          const ui.Rect.fromLTWH(0, 0, 600, 600),
+          const AssetPaintContext(
+            time: Duration.zero,
+            loop: true,
+            restFrame: AssetRestFrame.first,
+            animate: true,
+            opacity: 1,
+          ),
+        );
+        recorder.endRecording().dispose();
+        big.ticks.tick(const Duration(milliseconds: 16));
+        await settle();
+
+        // Its frames go to a 512 px slot of the pool.
+        expect(sizes.sizes, [(512, 512)]);
+        expect(paintable.sprite, isNotNull);
+        expect(big.binding.liveHandles, 1);
       },
     );
 

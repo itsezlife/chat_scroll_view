@@ -75,10 +75,13 @@ Future<ui.Image> _imageFromPixels(Uint8List pixels, int width, int height) {
 /// ## Above the largest size class
 ///
 /// A spec whose longer side is over `LottiePixelJob.maxEdge` (512, the
-/// largest size class of the pool) does not animate: the reference clients
-/// skip the frame cache and cap the render at 512, so here the still is
-/// reported as `firstFrame` and again as `full`, and the handle is freed
-/// at once.
+/// largest size class of the pool) is rendered at the cap and plays: its
+/// frames take a 512 px slot or texture, and the surface draws them scaled up
+/// to its box. The reference client does the same: it renders a sticker at
+/// most 512 px on a side (`ImageLoader`, `Math.min(512, ...)`) and draws it
+/// at its view's size, the content preview included. Showing the still there
+/// instead (as before ticket 128) froze the preview, which is about 600 px on
+/// a phone.
 ///
 /// ## The frame cache
 ///
@@ -86,9 +89,9 @@ Future<ui.Image> _imageFromPixels(Uint8List pixels, int width, int height) {
 /// by the SHA-256 of the file, the pixel size they are rendered at and
 /// `LottieNativeVersion.engine`. The hash is computed off the calling isolate
 /// (see [LottieContentHasher]), started with the parse so it adds no wait,
-/// and only for an animation that plays with a cache. A spec above the cap never animates, so it
-/// has no key and no frame is cached. The renderer does the caching; see
-/// `LottieFrameRenderer`.
+/// and only for an animation that plays with a cache. A spec above the cap is
+/// keyed at the cap, the size its frames are rendered at. The renderer does
+/// the caching; see `LottieFrameRenderer`.
 ///
 /// ## Handles
 ///
@@ -208,9 +211,7 @@ final class _LottieDecode implements AssetTask {
 
   Future<void> _content() async {
     final spec = _request.spec;
-    final animates =
-        spec.variant == AssetVariant.full &&
-        math.max(spec.pixelWidth, spec.pixelHeight) <= LottiePixelJob.maxEdge;
+    final animates = spec.variant == AssetVariant.full;
     final Uint8List bytes;
     final LottieLoadResult loaded;
     Future<String>? contentHash;
@@ -274,9 +275,6 @@ final class _LottieDecode implements AssetTask {
     // Outside the try above: from here the image and the handle belong to the
     // paintables handed over.
     final frameBytes = width * height * 4;
-    // The still of the final stage is a second reference to the pixels, taken
-    // before the first stage goes out: the cache may dispose that one at once.
-    final finalImage = spec.variant == AssetVariant.full ? image.clone() : null;
     if (!animates) {
       _release(handle);
       _progress.advance(
@@ -284,17 +282,11 @@ final class _LottieDecode implements AssetTask {
         LottieStillPaintable(image),
         bytes: frameBytes,
       );
-      // Above the cap the still is the final picture too; each stage owns its
-      // own reference to the pixels.
-      if (finalImage != null) {
-        _progress.advance(
-          AssetStage.full,
-          LottieStillPaintable(finalImage),
-          bytes: frameBytes,
-        );
-      }
       return;
     }
+    // The still of the final stage is a second reference to the pixels, taken
+    // before the first stage goes out: the cache may dispose that one at once.
+    final finalImage = image.clone();
     final key = Object();
     _progress
       ..advance(
@@ -308,7 +300,7 @@ final class _LottieDecode implements AssetTask {
           key: key,
           handle: handle,
           info: info,
-          firstFrame: finalImage!,
+          firstFrame: finalImage,
           scheduler: _owner._scheduler,
           renderEdge: edge,
           cacheKey: hash == null

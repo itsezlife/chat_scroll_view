@@ -3,9 +3,9 @@ import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 
 /// Holds the animations still while the panel moves, and the chat's while a
-/// popup panel is over it, as the reference clients do.
+/// popup panel or a pack sheet is over it, as the reference clients do.
 ///
-/// Two holds, from the presentation's visibility alone:
+/// Two holds from the presentation's visibility, and one the host asks for:
 ///
 /// - **While the panel moves in or out** (`PanelVisibility.isMoving`, of any
 ///   kind: popup, dock, keyboard replacement), [PlaybackPauseLayer.routeMoving]
@@ -20,6 +20,11 @@ import 'package:panel_presentation/panel_presentation.dart';
 ///   keeps them while the panel plays. The reference desktop client pauses
 ///   the chat's animations for as long as its panel is shown. A dock sits
 ///   beside the chat and a keyboard panel below it; neither holds the chat.
+/// - **While a claim is open** ([holdChat]), [chatHeld] is true as well: the
+///   host claims it for a pack sheet over the chat. The reference mobile
+///   client pauses what is under its sticker and emoji sheets while their own
+///   stickers play; one clock serves both here, so the chat is held on its
+///   own rather than the clock paused.
 ///
 /// The layer is set and cleared only when this object's own claim changes, so
 /// a layer the host raised itself is not cleared by a settle, and [dispose]
@@ -38,18 +43,37 @@ final class PanelPlaybackHold {
   final listen.ValueListenable<PanelVisibility> _presentation;
   final PlaybackClock _clock;
   final listen.ValueNotifier<bool> _chatHeld = listen.ValueNotifier(false);
+  bool _popupOver = false;
+  int _claims = 0;
   bool _holdsMotion = false;
   bool _disposed = false;
 
-  /// Whether the chat's playback is held: a popup panel is on screen.
+  /// Whether the chat's playback is held: a popup panel is on screen, or a
+  /// claim is open.
   listen.ValueListenable<bool> get chatHeld => _chatHeld;
+
+  /// Holds the chat until the claim is released (idempotent); claims count.
+  /// Releasing one after [dispose] does nothing.
+  ChatPlaybackClaim holdChat() {
+    if (_disposed) return ChatPlaybackClaim._(null);
+    _claims++;
+    _updateChat();
+    return ChatPlaybackClaim._(() {
+      if (_disposed) return;
+      _claims--;
+      _updateChat();
+    });
+  }
 
   void _follow() {
     if (_disposed) return;
     final state = _presentation.value;
     _holdMotion(state.isMoving);
-    _chatHeld.value = state.isVisible && state.kind is AnchoredPopup;
+    _popupOver = state.isVisible && state.kind is AnchoredPopup;
+    _updateChat();
   }
+
+  void _updateChat() => _chatHeld.value = _popupOver || _claims > 0;
 
   void _holdMotion(bool on) {
     if (_holdsMotion == on) return;
@@ -66,5 +90,19 @@ final class PanelPlaybackHold {
     _disposed = true;
     _presentation.removeListener(_follow);
     _chatHeld.dispose();
+  }
+}
+
+/// One open claim on the chat's playback ([PanelPlaybackHold.holdChat]).
+final class ChatPlaybackClaim {
+  ChatPlaybackClaim._(this._onRelease);
+
+  void Function()? _onRelease;
+
+  /// Gives the claim back. Idempotent.
+  void release() {
+    final onRelease = _onRelease;
+    _onRelease = null;
+    onRelease?.call();
   }
 }

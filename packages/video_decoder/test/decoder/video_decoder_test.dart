@@ -277,6 +277,26 @@ void main() {
       },
     );
 
+    test(
+      'a spec above the largest class plays, decoded at the largest',
+      () async {
+        // The content preview on a phone is about 600 px (ticket 128): the
+        // clip is decoded at 512 and drawn scaled up, and it plays.
+        final report = _Report();
+        decoder.decode(
+          _request(
+            good,
+            spec: const AssetSpec(pixelWidth: 600, pixelHeight: 600),
+          ),
+          report,
+        );
+        await pumpEventQueue();
+
+        expect((uploaded.single.width, uploaded.single.height), (512, 512));
+        expect(report.advances.last.paintable.isAnimated, isTrue);
+      },
+    );
+
     test('a file on disk is read and decoded like bytes', () async {
       final dir = Directory.systemTemp.createTempSync('video_decoder_file_');
       addTearDown(() => dir.deleteSync(recursive: true));

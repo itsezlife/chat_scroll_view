@@ -202,6 +202,25 @@ void main() {
       expect(tester.widget<StickerPackSheet>(sheet).onPick, isNotNull);
     });
 
+    // The sheet plays its own stickers, as the reference's does: the clock
+    // is not paused under it, only the chat (ticket 128).
+    screenTest('a sticker sheet leaves the clock playing', (tester) async {
+      await openChat(tester);
+      final clock = services.assets.clock;
+
+      final sticker = stickerBody(tester, LottieStickerPack.stickers.first.key);
+      await tapAndRead(tester, tester.getCenter(sticker));
+      await settle(tester);
+
+      expect(find.byType(StickerPackSheet), findsOneWidget);
+      expect(clock.pausedLayers, isEmpty);
+
+      Navigator.of(tester.element(find.byType(StickerPackSheet))).pop();
+      await settle(tester);
+      expect(find.byType(StickerPackSheet), findsNothing);
+      expect(clock.pausedLayers, isEmpty);
+    });
+
     screenTest('a GIF opens nothing', (tester) async {
       await openChat(tester);
 
