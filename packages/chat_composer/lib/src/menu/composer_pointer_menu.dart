@@ -108,8 +108,8 @@ final class ComposerPointerMenu {
 
   // Whether a menu of [entries] opened at [pointer] fits under it: the
   // Spelling row goes on top only then, so it stays nearest the pointer when
-  // the menu flips upward (the reference predicts it the same way, from the
-  // heights of the rows).
+  // the menu flips upward (the prediction is made from the heights of
+  // the rows).
   static bool _fitsBelow(
     BuildContext context,
     Offset pointer,

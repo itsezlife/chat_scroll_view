@@ -432,11 +432,10 @@ final class ChatFlingMotion {
   }
 }
 
-/// Android's `OverScroller` fling curve (`SplineOverScroller`), in logical
-/// pixels.
+/// The spline fling curve of a native Android list, in logical pixels.
 ///
 /// Travels the same distance from the same initial velocity as
-/// `ClampingScrollSimulation`, but keeps Android's full duration and slow
+/// `ClampingScrollSimulation`, but keeps the native full duration and slow
 /// tail. `ClampingScrollSimulation` fits a power curve that ends after about
 /// 0.83 of that duration, so a fling there settles, and idle-driven chrome
 /// hides, noticeably sooner than on a native Android list.

@@ -5,7 +5,7 @@ description: >-
   Touch-platform enter and dismiss for every ExtendedTextField: long-press and
   double-tap word enter, one-touch phase, direction settling, tap dismiss,
   bidirectional handle invert. Desktop keeps stock Flutter defaults.
-tags: [telegram, composer, gestures, composer_editable]
+tags: [composer, gestures, composer_editable]
 timestamp: 2026-07-21T12:00:00.000Z
 content_hash: composer-gestures-v1
 ---

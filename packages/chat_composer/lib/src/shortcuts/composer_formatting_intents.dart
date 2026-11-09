@@ -19,8 +19,8 @@ class ToggleStyleIntent extends Intent {
 /// Asks the composer to toggle a code block over the lines the selection
 /// touches; see `ComposerTextController.toggleCodeBlock`.
 ///
-/// The default maps leave it unbound: the reference desktop client has no key
-/// for it (its monospace key makes a block over several lines on its own).
+/// The default maps leave it unbound: there is no key for it (its monospace
+/// key makes a block over several lines on its own).
 class ToggleCodeBlockIntent extends Intent {
   /// Creates the intent.
   const ToggleCodeBlockIntent();

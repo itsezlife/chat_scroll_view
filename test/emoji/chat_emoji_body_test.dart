@@ -9,9 +9,8 @@ import 'package:flutter/rendering.dart'
     show Layer, ContainerLayer, PictureLayer, RendererBinding, TextureLayer;
 import 'package:flutter_test/flutter_test.dart';
 
-// Android's per-count font sizes (`Theme.java:8602-8606`,
-// `MessageObject.java:2114-2148`), written out so the expectations do not
-// come from the code under test.
+// The per-count font sizes, written out as literals so the expectations do
+// not come from the code under test.
 const _allCustomFont = <int, double>{
   1: 81.6,
   2: 81.6,

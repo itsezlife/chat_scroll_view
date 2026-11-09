@@ -4,7 +4,7 @@ title: Selection highlight (composer)
 description: >-
   The selection highlight is the engine's boxes painted as one gapless shape by
   the editable itself, and the editable's painter slot is free for the host.
-tags: [telegram, composer, highlight, composer_editable]
+tags: [composer, highlight, composer_editable]
 timestamp: 2026-10-18T12:00:00.000Z
 content_hash: composer-highlight-v3
 ---
@@ -39,11 +39,10 @@ editable's box, so a scrolled selection does not leak into the field's padding.
 Mixed font sizes (a code span), right-to-left runs and inline atoms need no
 case of their own: the bridge is geometric, per box, not a grouping of lines.
 
-Plain rects, no rounded joins: the reference composer is a platform
-`EditText`, whose highlight is `Layout.getSelectionPath`, a path of one rect per
-line that abuts the next (line top to line bottom), drawn once. The message-bubble
-helper paints glyph-bounded middle lines instead; that is a different surface
-and not a reference here.
+Plain rects, no rounded joins: the highlight is one path of one rect per line,
+each rect abutting the next (line top to line bottom), drawn once, as a platform
+edit field draws it. Message bubbles paint glyph-bounded middle lines instead;
+that is a different surface and does not apply to the composer.
 
 ## Handle and toolbar visibility
 

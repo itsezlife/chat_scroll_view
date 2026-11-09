@@ -664,7 +664,7 @@ void main() {
     });
   });
 
-  group('the host can keep the reference clients\' rule', () {
+  group('the host can turn off emoji text selection', () {
     desktopTest('selectableText: false is a non-text body', (
       tester,
       selection,

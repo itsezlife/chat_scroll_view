@@ -2,9 +2,8 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// Android's tables, written out as literals: the expected values come from
-// `Theme.java:8602-8606` (steps) and `MessageObject.java:2114-2148` (by count),
-// not from the code under test.
+// The tables, written out as literals: the expected values are the stated
+// steps and counts, not values from the code under test.
 const _allCustom = <int, double>{
   1: 81.6,
   2: 81.6,

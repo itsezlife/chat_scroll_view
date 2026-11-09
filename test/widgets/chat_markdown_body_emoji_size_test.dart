@@ -74,7 +74,7 @@ const _style = TextStyle(
   color: Color(0xFF000000),
 );
 
-/// The font's height at [_fontSize]: what the reference client sizes an emoji
+/// The font's height at [_fontSize]: the size an emoji is set
 /// to. Read from a probe of the text font alone.
 double _fontHeight() {
   final probe = TextPainter(

@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 
 /// A paste that put text into the field, as the host is told of it.
 ///
-/// The host that offers to apply markdown formatting to a plain paste (the
-/// reference desktop client's toast) reads it, and replaces [range] with
+/// The host that offers to apply markdown formatting to a plain paste (a
+/// toast, say) reads it, and replaces [range] with
 /// `ComposerTextController.replaceRange`. The offer is feedback UI and stays
 /// the host's (ADR 032).
 @immutable

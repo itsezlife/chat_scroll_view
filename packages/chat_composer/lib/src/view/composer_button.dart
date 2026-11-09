@@ -100,7 +100,7 @@ class _ComposerButtonState extends State<ComposerButton> {
     final own = widget.fill != null;
     final dim = _active || own ? 1.0 : _disabledOpacity;
     // A mouse over a button that would act turns its glyph to the hover
-    // colour, as the reference client's does; the accent of an active button
+    // colour; the accent of an active button
     // and the send disc keep their own.
     final disc =
         widget.primary && widget.primaryStyle == ComposerPrimaryStyle.disc;
