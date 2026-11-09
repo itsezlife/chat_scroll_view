@@ -5,6 +5,7 @@ library;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/main.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
@@ -14,6 +15,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:panel_pages/panel_pages.dart';
 
 import '../support/fake_soft_keyboard.dart';
 import '../support/test_services.dart';
@@ -81,6 +83,25 @@ void main() {
         .selectionController!;
   }
 
+  // Long enough for a pack lookup and the sheet's entrance.
+  Future<void> settle(WidgetTester tester) async {
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
+
+  // The emoji-only body that shows the lone document [key].
+  Finder stickerBody(WidgetTester tester, ContentKey key) {
+    final body = find.byWidgetPredicate(
+      (widget) =>
+          widget is ChatEmojiBody &&
+          widget.sticker != null &&
+          widget.emojiOnly.items.single.key == key,
+    );
+    expect(body, findsOneWidget);
+    return body;
+  }
+
   Future<void> tapAndRead(WidgetTester tester, Offset at) async {
     await tester.tapAt(at);
     await tester.pump(const Duration(milliseconds: 100));
@@ -106,8 +127,14 @@ void main() {
 
       // Message 0: the first custom emoji follows "Launch day ".
       await tapAndRead(tester, _pointOn(selection, 0, 11, 12));
+      await settle(tester);
 
-      expect(find.textContaining('Emoji pack of document:'), findsOneWidget);
+      final sheet = find.byType(EmojiPackSheet);
+      expect(sheet, findsOneWidget);
+      expect(tester.widget<EmojiPackSheet>(sheet).packIds, [
+        AnimatedEmojiPack.packId,
+      ]);
+      expect(find.textContaining('Emoji pack of'), findsNothing);
     });
 
     screenTest('the sticker of an emoji-only message', (tester) async {
@@ -148,8 +175,42 @@ void main() {
       );
       expect(sticker, findsOneWidget);
       await tapAndRead(tester, tester.getCenter(sticker));
+      await settle(tester);
 
-      expect(find.textContaining('Sticker pack of document:'), findsOneWidget);
+      expect(find.byType(EmojiPackSheet), findsOneWidget);
+      expect(
+        tester.widget<EmojiPackSheet>(find.byType(EmojiPackSheet)).packIds,
+        [AnimatedEmojiPack.packId],
+      );
+      expect(find.textContaining('Sticker pack of'), findsNothing);
+    });
+
+    screenTest('a sticker of a pack opens its sticker sheet', (tester) async {
+      await openChat(tester);
+
+      final sticker = stickerBody(tester, LottieStickerPack.stickers.first.key);
+      await tapAndRead(tester, tester.getCenter(sticker));
+      await settle(tester);
+
+      final sheet = find.byType(StickerPackSheet);
+      expect(sheet, findsOneWidget);
+      expect(tester.widget<StickerPackSheet>(sheet).pack, LottieStickerPack.packId);
+      // The chat allows stickers: the sheet can send through the composer.
+      expect(tester.widget<StickerPackSheet>(sheet).onPick, isNotNull);
+    });
+
+    screenTest('a GIF opens nothing', (tester) async {
+      await openChat(tester);
+
+      final gif = VideoStickerPack.items.firstWhere(
+        (item) => item.descriptor.pack == null,
+      );
+      await tapAndRead(tester, tester.getCenter(stickerBody(tester, gif.key)));
+      await settle(tester);
+
+      expect(find.byType(StickerPackSheet), findsNothing);
+      expect(find.byType(EmojiPackSheet), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
     });
 
     screenTest('a spoiler: a tap reveals it, with no host action', (
