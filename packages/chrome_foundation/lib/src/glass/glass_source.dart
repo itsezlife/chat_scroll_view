@@ -232,7 +232,17 @@ class GlassSourceLink {
         blurSigma: sampler.sampleBlurSigma,
         saturation: sampler.sampleSaturation,
       );
-      (groups[spec] ??= []).add((sampler, snapRegion(region, ratio)));
+      // Kept inside the source: past its edge there is nothing to capture,
+      // and the blur would pull that transparency into the glass.
+      final snapped = snapRegion(
+        region,
+        ratio,
+      ).intersect(Offset.zero & source.size);
+      if (snapped.isEmpty) {
+        _frame[sampler] = null;
+        continue;
+      }
+      (groups[spec] ??= []).add((sampler, snapped));
     }
 
     for (final MapEntry(key: spec, value: members) in groups.entries) {
