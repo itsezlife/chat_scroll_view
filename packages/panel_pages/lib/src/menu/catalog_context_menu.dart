@@ -51,7 +51,8 @@ final class CatalogContextMenuController {
 /// - **Hold.** The menu sits outside the panel's own box, so the pointer
 ///   moving onto it reads as leaving the panel; the hold on auto-hide
 ///   ([PanelPageHost.holdAutoHide]) is taken as it opens and released as it
-///   closes, or with the page.
+///   closes, or with the page. A grid outside the panel (a pack sheet) has no
+///   host and nothing to hold.
 class CatalogContextMenuHost extends StatefulWidget {
   /// A host that holds auto-hide through [host] while its menu is up.
   const CatalogContextMenuHost({
@@ -61,8 +62,9 @@ class CatalogContextMenuHost extends StatefulWidget {
     super.key,
   });
 
-  /// The page's connection to the shell.
-  final PanelPageHost host;
+  /// The page's connection to the shell, or null for a grid outside the
+  /// panel.
+  final PanelPageHost? host;
 
   /// The handle the page opens the menu with.
   final CatalogContextMenuController controller;
@@ -79,10 +81,11 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
   var _entries = const <CatalogMenuEntry>[];
   ValueChanged<String>? _onSelected;
   PanelPageHold? _hold;
+  var _open = false;
   Offset _at = Offset.zero;
   var _moving = false;
 
-  bool get _isOpen => _hold != null;
+  bool get _isOpen => _open;
 
   @override
   void initState() {
@@ -104,7 +107,7 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
     if (identical(widget.controller._state, this)) {
       widget.controller._state = null;
     }
-    _releaseHold();
+    _markClosed();
     super.dispose();
   }
 
@@ -120,7 +123,8 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
     _onSelected = onSelected;
     // The hold goes up before the menu does: the move onto it is the first
     // thing the panel's hover rule hears of.
-    _hold ??= widget.host.holdAutoHide();
+    _open = true;
+    _hold ??= widget.host?.holdAutoHide();
     _at = box.globalToLocal(globalPosition);
     // The anchor closes an open menu before it opens it elsewhere; that close
     // is a move, and the hold goes on through it.
@@ -132,10 +136,11 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
   void _close() {
     if (!_isOpen) return;
     _menu.close();
-    _releaseHold();
+    _markClosed();
   }
 
-  void _releaseHold() {
+  void _markClosed() {
+    _open = false;
     _hold?.release();
     _hold = null;
   }
@@ -152,7 +157,7 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
     // The menu closes through [_close], which also lets go of the hold; the
     // anchor's own closing (a dismiss intent, a dispose) arrives here.
     onClose: () {
-      if (!_moving) _releaseHold();
+      if (!_moving) _markClosed();
     },
     // In the text fields' tap group, barrier included: a press on the menu
     // is not a press outside the composer.

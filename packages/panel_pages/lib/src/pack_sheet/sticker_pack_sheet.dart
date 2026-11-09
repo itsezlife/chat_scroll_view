@@ -24,8 +24,9 @@ import 'package:panel_pages/src/preview/content_preview_session.dart';
 ///   window) and shows the feedback.
 /// - **The preview.** With [previews], a held sticker opens the content
 ///   preview, and a tap opens it with its menu at once, as the reference
-///   does; its Send (only with [onPick]) closes the sheet and hands the
-///   sticker to the host, and its favourites ask [onLibraryEditRequested].
+///   does; a right-click opens the same items as a context menu, as on the
+///   panel's grid. Send (only with [onPick]) closes the sheet and hands the
+///   sticker to the host, and the favourites ask [onLibraryEditRequested].
 /// - **Picking.** Without [previews], a tap sends at once when there is an
 ///   [onPick] (given only when the sheet was opened for a composer that can
 ///   send), and does nothing otherwise.

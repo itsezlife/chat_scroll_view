@@ -36,7 +36,9 @@ abstract final class ChatPackSheets {
   };
 
   /// Opens the sheet of [pack], of [kind], over [context]; [onPick] (null when
-  /// nothing can be sent or inserted here) takes what the sheet picks.
+  /// nothing can be sent or inserted here) takes what the sheet picks. An
+  /// emoji sheet opened from a custom emoji in a message shows that emoji,
+  /// [previewEmoji], above it (the reference's `setPreviewEmoji`).
   static Future<void> open(
     BuildContext context, {
     required AppServices services,
@@ -44,6 +46,7 @@ abstract final class ChatPackSheets {
     required PackKind kind,
     ValueChanged<ContentDescriptor>? onPick,
     PanelArrangement? arrangement,
+    ContentKey? previewEmoji,
   }) => _show(
     context,
     services: services,
@@ -51,6 +54,7 @@ abstract final class ChatPackSheets {
     kind: kind,
     onPick: onPick,
     arrangement: arrangement,
+    previewEmoji: previewEmoji,
   );
 
   /// Opens one emoji sheet of [packs] (each once, in order) over [context]:
@@ -78,6 +82,7 @@ abstract final class ChatPackSheets {
     required PackKind kind,
     required ValueChanged<ContentDescriptor>? onPick,
     required PanelArrangement? arrangement,
+    ContentKey? previewEmoji,
   }) {
     // Favourites from the sheet's preview: at once, as from the panel's.
     void libraryEdit(LibraryEdit edit) => services.library.apply(edit);
@@ -112,6 +117,7 @@ abstract final class ChatPackSheets {
           onEditsRequested: edits,
           onPick: picked,
           onUnavailable: unavailable,
+          previewEmoji: previewEmoji,
         ),
         PackKind.stickers || PackKind.masks => StickerPackSheet(
           pack: packs.single,

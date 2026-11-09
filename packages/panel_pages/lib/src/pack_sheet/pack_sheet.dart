@@ -43,8 +43,8 @@ typedef PackSheetItem = ({ContentDescriptor item, Pack pack});
 ///
 /// The sheet itself ([StickerPackSheet], [EmojiPackSheet]) reads the
 /// arrangement from the `PanelArrangementScope` this puts above it: a grabber
-/// and a part-way height on touch, a close button and a bounded box under a
-/// pointer.
+/// on touch, and a tall sheet that opens part-way and rises with its grid
+/// (`PackSheetFrame`); a close button and a bounded box under a pointer.
 ///
 /// [StickerPackSheet]: package:panel_pages/src/pack_sheet/sticker_pack_sheet.dart
 /// [EmojiPackSheet]: package:panel_pages/src/pack_sheet/emoji_pack_sheet.dart

@@ -443,15 +443,16 @@ The sheet edits nothing itself: its button asks for the edits
 inside an undo window that its bulletin's Undo can take back (the reference
 holds it 2750 ms), and confirms with `PackSheetStrings`' words. It sends or
 inserts only through the `onPick` the host gives when a composer can take
-it, and a sticker sheet given the `ContentPreviewController` previews its
+it, and closes itself before it calls it (the host does not pop it), and a sticker sheet given the `ContentPreviewController` previews its
 stickers (Send only with `onPick`, no "View pack"). A `LibraryEditRequested`
 that removes or archives a pack goes through the same bulletin.
 The chat opens the same sheets with no change to the viewport: on a tapped
 `ChatStickerActivated` that is no interaction (a sticker, a custom emoji
 without an effect) and on a tapped `ChatEmbedActivated` (a custom emoji in
 text) the host reads the content's descriptor, through its `ContentResolver`,
-and opens the sheet of its pack reference (`ContentDescriptor.pack`); content
-of no pack (a GIF, a unicode emoji) opens nothing, and a lone emoji with an
+and opens the sheet of its pack reference (`ContentDescriptor.pack`), an
+emoji sheet opened from a custom emoji in text given that emoji as its
+`previewEmoji` (drawn large above the card); content of no pack (a GIF, a unicode emoji) opens nothing, and a lone emoji with an
 effect keeps its replay. The message menu's "This message contains emoji
 from N packs" is the host's too: the packs of the message's custom emoji,
 each once in the order the text names them, under the action card (a

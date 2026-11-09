@@ -12,6 +12,7 @@ library;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -61,7 +62,11 @@ void main() {
   late BuildContext home;
 
   setUp(() {
-    packs = FakePackSource([_pack('cats'), _pack('official', official: true)]);
+    packs = FakePackSource([
+      _pack('cats'),
+      _pack('official', official: true),
+      _pack('big', count: 60),
+    ]);
     library = FakeContentLibrary(
       limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
     );
@@ -285,6 +290,132 @@ void main() {
       expect(libraryEdits, [
         const LibraryEdit.favouriteSticker(ContentKey.document('cats-0')),
       ]);
+    });
+  });
+
+  group('a tall pack', () {
+    // Sixty stickers are twelve rows: the sheet is taller than the screen,
+    // so it opens two fifths down (320) and its grid leads by 320.
+    double titleCentre(WidgetTester tester) =>
+        tester.getCenter(find.text('Pack big')).dy;
+
+    // A finger that moves past the slop first, then [by] up the grid.
+    Future<void> scrollGrid(WidgetTester tester, double by) async {
+      final finger = await tester.startGesture(const Offset(200, 700));
+      await finger.moveBy(const Offset(0, -20));
+      await tester.pump();
+      for (var moved = 0.0; moved < by; moved += 20) {
+        await finger.moveBy(const Offset(0, -20));
+        await tester.pump();
+      }
+      await finger.up();
+      await settle(tester);
+    }
+
+    testWidgets('opens part-way, its card two fifths down the screen', (
+      tester,
+    ) async {
+      await open(tester, 'big');
+
+      expect(tester.getRect(find.byType(PackSheetView)).top, 0);
+      expect(titleCentre(tester), 320 + 25);
+    });
+
+    testWidgets('a tap above the card closes the sheet', (tester) async {
+      await open(tester, 'big', canSend: true);
+
+      await tester.tapAt(const Offset(200, 100));
+      await settle(tester);
+
+      expect(sheetUp(), isFalse);
+      expect(picks, isEmpty);
+    });
+
+    testWidgets('scrolling the grid raises the card to the top, then the '
+        'grid scrolls under the header', (tester) async {
+      await open(tester, 'big', canSend: true);
+
+      await scrollGrid(tester, 200);
+      expect(titleCentre(tester), closeTo(120 + 25, 1));
+
+      await scrollGrid(tester, 400);
+      expect(titleCentre(tester), 25);
+      expect(sheetUp(), isTrue);
+
+      // The header stays where it is and nothing under it is a sticker.
+      await tester.tapAt(const Offset(10 + 38, 25));
+      await settle(tester);
+      expect(picks, isEmpty);
+    });
+  });
+
+  group('right-click', () {
+    testWidgets('on a sticker opens the preview menu, as the panel grid does', (
+      tester,
+    ) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(
+        tester,
+        'cats',
+        canSend: true,
+        previews: previews,
+        arrangement: PanelArrangement.pointer,
+      );
+
+      await tester.tapAt(
+        firstCell(tester),
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      );
+      await settle(tester);
+
+      expect(previews.isOpen.value, isFalse);
+      expect(find.text('Send Sticker'), findsOneWidget);
+      await tester.tap(find.text('Add to Favorites'));
+      await settle(tester);
+
+      expect(libraryEdits, [
+        const LibraryEdit.favouriteSticker(ContentKey.document('cats-0')),
+      ]);
+      expect(sheetUp(), isTrue);
+    });
+
+    testWidgets('Send in it sends and closes the sheet', (tester) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(
+        tester,
+        'cats',
+        canSend: true,
+        previews: previews,
+        arrangement: PanelArrangement.pointer,
+      );
+
+      await tester.tapAt(
+        firstCell(tester),
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      );
+      await settle(tester);
+      await tester.tap(find.text('Send Sticker'));
+      await settle(tester);
+
+      expect(picks.single.item.key, const ContentKey.document('cats-0'));
+      expect(sheetUp(), isFalse);
+    });
+
+    testWidgets('does nothing without previews', (tester) async {
+      await open(tester, 'cats', arrangement: PanelArrangement.pointer);
+
+      await tester.tapAt(
+        firstCell(tester),
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      );
+      await settle(tester);
+
+      expect(find.text('Add to Favorites'), findsNothing);
     });
   });
 
