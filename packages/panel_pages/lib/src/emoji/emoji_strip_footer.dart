@@ -459,7 +459,10 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
     final maxX = _maxX(open);
 
     final slotWidth = _slotWidth;
+    // Keyed by icon, so an icon added in front never hands the others'
+    // covers a neighbour's content.
     Widget icon(EmojiFooterIcon icon, double left) => Positioned(
+      key: ValueKey<String>(icon.id),
       left: left,
       top: 0,
       width: slotWidth,

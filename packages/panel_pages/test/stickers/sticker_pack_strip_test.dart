@@ -497,6 +497,44 @@ void main() {
       });
     }
 
+    testWidgets('keeps every cover attached when a tab is added in front '
+        '(the recents arriving): no cover loads again', (tester) async {
+      handle.entries.value = _entries([_packOf('a', cats), _packOf('b', dogs)]);
+      await pump(tester, assets: scope);
+      final catsAttempts = producer.attempts
+          .where((attempt) => attempt.request.key == cats)
+          .length;
+      final dogsAttempts = producer.attempts
+          .where((attempt) => attempt.request.key == dogs)
+          .length;
+      final catsView = tester.state(
+        find.byWidgetPredicate((w) => w is ContentView && w.content == cats),
+      );
+
+      handle.entries.value = _entries([
+        _recent,
+        _packOf('a', cats),
+        _packOf('b', dogs),
+      ]);
+      await tester.pump();
+
+      expect(
+        producer.attempts.where((attempt) => attempt.request.key == cats),
+        hasLength(catsAttempts),
+      );
+      expect(
+        producer.attempts.where((attempt) => attempt.request.key == dogs),
+        hasLength(dogsAttempts),
+      );
+      expect(
+        tester.state(
+          find.byWidgetPredicate((w) => w is ContentView && w.content == cats),
+        ),
+        same(catsView),
+        reason: 'the cover moved with its tab, not re-created',
+      );
+    });
+
     testWidgets('plays an animated cover, looping, on the clock', (
       tester,
     ) async {
