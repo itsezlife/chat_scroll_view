@@ -4,12 +4,6 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:flutter/foundation.dart';
 
-// [DBG-141] Ticket 141's device log: lease and texture transitions, behind
-// --dart-define=DBG_141=true.
-const bool _dbg141 = bool.fromEnvironment('DBG_141');
-
-void _dbg(String message) => debugPrint('[DBG-141] lottie $message');
-
 /// Starts the sweep timer; `Timer.new` by default, a manual one in tests.
 typedef LottieSweepTimerFactory =
     Timer Function(Duration delay, void Function() callback);
@@ -123,16 +117,13 @@ final class LottieFrameLease {
       _wanted != _requested;
 
   /// Ends the lease. Idempotent. The entry stays in the pool, idle.
-  void release() {
-    if (_dbg141 && !_released) _dbg('release(holder) $_key');
-    _scheduler._release(this);
-  }
+  void release() => _scheduler._release(this);
 
   /// Ends the lease once the current frame is over, unless its holder wants
   /// a frame before that or the lease is [kept] by then: the holder left the
   /// screen (`AssetPaintable.leftScreen`), but a surface that hides a cell
-  /// may still paint it in the frame that hid it (a panel's cells are hidden
-  /// while a fling runs, and drawn), and giving that lease back would put
+  /// may still paint it in the frame that hid it (a cell at the edge of a
+  /// scrolling window), and giving that lease back would put
   /// the cell on its still while a new lease shows its first posts.
   void releaseUnlessPainted() => _scheduler._releaseUnlessPainted(this);
 }
@@ -327,12 +318,6 @@ final class LottieFrameScheduler {
       _warmFor(lease);
     }
     _leases[key] = lease;
-    if (_dbg141) {
-      _dbg(
-        'acquire $key tex=${lease._texture?.texture.id} '
-        'slot=${lease._slot != null} canvas=$onCanvas',
-      );
-    }
     _following ??= _clock.follow(_onTick, frameInterval: tickInterval);
     _sweep ??= _startTimer(idleRelease, _onSweep);
     return lease;
@@ -355,12 +340,7 @@ final class LottieFrameScheduler {
     lease
       .._onCanvas = true
       .._canvasTouched = true;
-    if (lease._texture != null) {
-      if (_dbg141) {
-        _dbg('toSlot(canvas) ${lease._key} tex=${lease._texture!.texture.id}');
-      }
-      _toSlot(lease);
-    }
+    if (lease._texture != null) _toSlot(lease);
   }
 
   /// Releases every lease, stops following the clock and disposes the atlas.
@@ -455,8 +435,6 @@ final class LottieFrameScheduler {
       }
       final texture = _textureFor(lease);
       if (texture == null) continue;
-      if (_dbg141)
-        _dbg('moveToTexture ${lease._key} tex=${texture.texture.id}');
       lease
         .._texture = texture
         .._posts = 0
@@ -527,7 +505,6 @@ final class LottieFrameScheduler {
           other,
     ]..sort((a, b) => a._wantedAt.compareTo(b._wantedAt));
     for (final victim in stale) {
-      if (_dbg141) _dbg('release(stalest) ${victim._key} for ${lease._key}');
       _release(victim);
       if (_slotFor(lease) case final handle?) return handle;
     }
@@ -550,10 +527,7 @@ final class LottieFrameScheduler {
     for (final lease in leaving) {
       // Painted after it left (a hidden cell still drawn), or held on screen
       // by a surface that keeps its frame: it stays.
-      if (lease._leaving && !lease._kept) {
-        if (_dbg141) _dbg('release(leftScreen) ${lease._key}');
-        _release(lease);
-      }
+      if (lease._leaving && !lease._kept) _release(lease);
       lease._leaving = false;
     }
   }
@@ -646,9 +620,6 @@ final class LottieFrameScheduler {
           lease
             .._posts += 1
             .._missedLocks = 0;
-          if (_dbg141 && lease._posts == _postsBeforeShown) {
-            _dbg('shown ${lease._key} tex=${texture.texture.id}');
-          }
           // Shown now: the slot it came from goes.
           if (lease._shown) {
             lease._slot?.release();
@@ -658,17 +629,10 @@ final class LottieFrameScheduler {
           // Skipped: the texture keeps its previous frame and the want is
           // asked again on the next tick.
           lease._requested = null;
-          if (_dbg141) {
-            _dbg(
-              'notLocked ${lease._key} tex=${texture.texture.id} '
-              'missed=${lease._missedLocks + 1}',
-            );
-          }
           if (++lease._missedLocks >= lockFailureLimit) {
             _refuseTexture(lease);
           }
         case TextureFrameOutcome.failed:
-          if (_dbg141) _dbg('failed ${lease._key} tex=${texture.texture.id}');
           lease._failed = true;
       }
     } on Object catch (error, stack) {
@@ -711,11 +675,6 @@ final class LottieFrameScheduler {
       if (lease._touched) {
         lease._touched = false;
       } else {
-        if (_dbg141) {
-          _dbg(
-            'release(sweep) ${lease._key} tex=${lease._texture?.texture.id}',
-          );
-        }
         _release(lease);
         continue;
       }

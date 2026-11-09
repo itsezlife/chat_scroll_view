@@ -41,9 +41,6 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 
-// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true.
-const bool _dbg141 = bool.fromEnvironment('DBG_141');
-
 /// Paint-leaf render object for the panel catalog body.
 ///
 /// Owns **extent scroll**, **visible-band asset binding**, and **canvas paint**
@@ -378,11 +375,6 @@ class RenderPanelCatalog extends RenderBox
   bool get held => _pool.held;
   set held(bool value) {
     if (_pool.held == value) return;
-    if (_dbg141) {
-      debugPrint(
-        '[DBG-141] catalog r${identityHashCode(this) % 10000} held=$value',
-      );
-    }
     _pool.held = value;
     if (!value) markNeedsLayout();
     markNeedsPaint();

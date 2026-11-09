@@ -1,10 +1,6 @@
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
-
-// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true.
-const bool _dbg141 = bool.fromEnvironment('DBG_141');
 
 /// Holds the animations still while the panel moves, and the chat's while a
 /// popup panel or a pack sheet is over it, as the reference clients do.
@@ -77,13 +73,7 @@ final class PanelPlaybackHold {
     _updateChat();
   }
 
-  void _updateChat() {
-    final held = _popupOver || _claims > 0;
-    if (_dbg141 && held != _chatHeld.value) {
-      debugPrint('[DBG-141] chatHeld=$held claims=$_claims');
-    }
-    _chatHeld.value = held;
-  }
+  void _updateChat() => _chatHeld.value = _popupOver || _claims > 0;
 
   void _holdMotion(bool on) {
     if (_holdsMotion == on) return;

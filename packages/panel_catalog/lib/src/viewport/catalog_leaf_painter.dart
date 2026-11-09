@@ -24,10 +24,6 @@ void _fl01Log(String message) =>
     // ignore: avoid_print
     print('[DEBUG-fl01] t=${developer.Timeline.now} $message');
 
-// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true: what
-// each animated leaf shows, logged when it changes.
-const bool _dbg141 = bool.fromEnvironment('DBG_141');
-
 /// Most text paragraphs one painter keeps; a paragraph is keyed by text, style
 /// and layout width, so a resize adds a few per visible header per step (title,
 /// action label, action icon). Far above the headers of one screen (a
@@ -167,9 +163,6 @@ final class CatalogLeafPainter {
       CatalogParagraphCache(limit: _kHeaderParagraphCacheLimit);
   final CatalogGlyphSpriteBatch _glyphSprites = CatalogGlyphSpriteBatch();
   final CatalogTextureLayers _textures = CatalogTextureLayers();
-
-  // [DBG-141] what each animated leaf showed last, by its key and spec.
-  final Map<Object, String> _dbg141Seen = {};
 
   // [DEBUG-fl01] the last signature printed per leaf.
   final Map<Object, String> _fl01Seen = {};
@@ -598,23 +591,6 @@ final class CatalogLeafPainter {
     // texture replaces it.
     final texture = animated ? paintable.texture : null;
     final sprite = texture == null ? paintable?.sprite : null;
-    if (_dbg141 && animated) {
-      final shows = switch ((texture, sprite)) {
-        (final texture?, _) => 'tex${texture.id}',
-        (_, final _?) => 'sprite',
-        _ => 'still/${binding!.readiness.stage.name}',
-      };
-      final id = (slot.leaf.key, bound?.spec.pixelWidth);
-      if (_dbg141Seen[id] != shows) {
-        _dbg141Seen[id] = shows;
-        debugPrint(
-          '[DBG-141] leaf p${identityHashCode(this) % 10000} '
-          '${slot.leaf.key} ${bound?.spec.pixelWidth}px $shows '
-          'held=${binding!.held} visible=${binding.visible} '
-          't=${_frameTime.inMilliseconds}',
-        );
-      }
-    }
     if (_fl01 && animated) {
       _fl01Leaf(
         slot,

@@ -6,9 +6,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
-// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true.
-const bool _dbg141 = bool.fromEnvironment('DBG_141');
-
 /// Connects the [GlassSource] and the [GlassSampler]s under one
 /// [GlassSourceScope].
 ///
@@ -285,7 +282,6 @@ class GlassSourceLink {
     }
     final change = _watch.changeSince(root);
     if (!change.changed) return;
-    if (_dbg141) debugPrint('[DBG-141] glass source changed');
     _disposeKept((capture) => change.touches(capture.region));
   }
 
@@ -468,7 +464,6 @@ class RenderGlassSource extends RenderProxyBox {
       clipBehavior: Clip.hardEdge,
     );
     final scene = layer.buildScene(builder);
-    if (_dbg141) debugPrint('[DBG-141] glass capture $region');
     try {
       return scene.toImageSync(width, height);
     } finally {

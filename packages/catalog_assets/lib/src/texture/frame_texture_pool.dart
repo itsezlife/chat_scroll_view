@@ -5,11 +5,6 @@ import 'package:catalog_assets/src/asset/asset_texture.dart';
 import 'package:catalog_assets/src/texture/frame_texture_host.dart';
 import 'package:flutter/foundation.dart';
 
-// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true.
-const bool _dbg141 = bool.fromEnvironment('DBG_141');
-
-void _dbg(String message) => debugPrint('[DBG-141] pool $message');
-
 /// One playing asset's claim on a texture of a [FrameTexturePool], ended
 /// exactly once.
 ///
@@ -226,7 +221,6 @@ final class FrameTexturePool {
     _idle.remove(leased);
     _releasedAt.remove(leased);
     _leased[leased] = sizeClass;
-    if (_dbg141) _dbg('lease $leased class=$sizeClass idle=${_idle.length}');
     return FrameTextureLease._(
       AssetTexture(
         id: leased,
@@ -295,7 +289,6 @@ final class FrameTexturePool {
         return;
       }
       _idle[id] = sizeClass;
-      if (_dbg141) _dbg('created $id class=$sizeClass');
     }
   }
 
@@ -347,7 +340,6 @@ final class FrameTexturePool {
   void _ended(int id, {required bool discard}) {
     final sizeClass = _leased.remove(id);
     if (sizeClass == null) return;
-    if (_dbg141) _dbg('end $id discard=$discard');
     if (discard || _disposed) {
       _destroy(id, sizeClass);
       return;
@@ -362,7 +354,6 @@ final class FrameTexturePool {
   }
 
   void _destroy(int id, int sizeClass) {
-    if (_dbg141) _dbg('destroy $id class=$sizeClass');
     _bytes -= bytesOfClass(sizeClass);
     host.destroy(id);
   }

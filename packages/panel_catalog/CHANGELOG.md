@@ -6,6 +6,16 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (a sticker on screen never starts over)
+
+- While a fling runs, an animated leaf in the painted window is held
+  (`AssetBinding.held`: its frame and its lease stay, nothing plays)
+  instead of hidden. Hiding it told its paintable it left the screen: a
+  fling armed by the pointer up gave back its lease before any paint, so
+  the leaf drew its first-frame still and then a new lease's frames, a
+  jump back to the start on every fling and every drag let go past an
+  edge. `visible` now means in the painted window and nothing else.
+
 ### Added (a header title that opens)
 
 - `CatalogSection.titleAction`: the header band outside its trailing action

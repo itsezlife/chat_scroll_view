@@ -8,14 +8,8 @@ import 'package:catalog_assets/src/asset/asset_readiness.dart';
 import 'package:catalog_assets/src/asset/asset_spec.dart';
 import 'package:catalog_assets/src/playback/playback_clock.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
-
-// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true.
-const bool _dbg141 = bool.fromEnvironment('DBG_141');
-
-void _dbg(String message) => debugPrint('[DBG-141] binding $message');
 
 /// What every binding shares, whatever media form is behind it: identity,
 /// listeners, the visible flag, the detached state and painting through the
@@ -125,7 +119,6 @@ abstract base class AssetBindingBase
     if (_held == value) return;
     _held = value;
     _heldAt = value ? _clock.now : null;
-    if (_dbg141) _dbg('held=$value $key ${spec.pixelWidth}px');
     if (!_detached) onHeldChanged();
   }
 

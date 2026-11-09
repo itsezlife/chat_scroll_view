@@ -2,14 +2,11 @@ import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart' show VoidCallback, debugPrint;
+import 'package:flutter/painting.dart' show VoidCallback;
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
-
-// [DBG-141] Ticket 141's device log, behind --dart-define=DBG_141=true.
-const bool _dbg141 = bool.fromEnvironment('DBG_141');
 
 /// One live attach of a visible leaf: the cache binding and what the painter
 /// needs to draw it.
@@ -39,6 +36,8 @@ final class CatalogBoundLeaf {
   Duration? _fadeStart;
   bool _seen = false;
   bool _shown = false;
+  // On screen while a fling runs: an animated leaf holds its frame there.
+  bool _paused = false;
 
   /// Opacity to draw the content at on the frame at [frameTime]: `1` for
   /// content that was there at attach, otherwise rising from `0` over
@@ -77,10 +76,16 @@ final class CatalogBoundLeaf {
 ///   playing leaf of at most 90 logical px plays at half rate and decodes at
 ///   most 160 px, as every small cell of a content panel does. The same
 ///   content at a size another section's cells need is a second attach;
-/// - the [AssetProfile] animates when the leaf does. Whether it plays is the
-///   binding's [AssetBinding.visible] flag, kept `true` only while the leaf is
-///   in the painted window and, for an animated leaf, no fling is running;
-///   the scope's clock adds the host's pause layers.
+/// - the [AssetProfile] animates when the leaf does. The binding's
+///   [AssetBinding.visible] flag says whether the leaf is in the painted
+///   window, and nothing else: a leaf that leaves it gives back what it leased
+///   for the screen (`AssetPaintable.leftScreen`), and one that comes back
+///   goes on from where it was. While a fling runs, an animated leaf in the
+///   window is [AssetBinding.held] instead: it stays on screen with its
+///   frame and its lease, plays nothing, and goes on from that frame when
+///   the fling ends. A sticker that stays on screen never starts over, as
+///   in the reference clients, where scrolling never touches a drawable's
+///   time. The scope's clock adds the host's pause layers.
 ///
 /// ## Page level
 ///
@@ -165,7 +170,7 @@ final class CatalogLeafBindingPool {
     if (_held == value) return;
     _held = value;
     for (final bound in _all) {
-      bound.binding.held = value;
+      bound.binding.held = value || bound._paused;
     }
   }
 
@@ -182,9 +187,11 @@ final class CatalogLeafBindingPool {
   /// it is kept attached, so it MUST NOT include slots outside the intended
   /// window.
   ///
-  /// A leaf is *shown* when its slot meets `[paintTop, paintBottom]` and, if
-  /// it animates, [animate] is true (false while a fling runs). Hidden
-  /// bindings stay attached and pinned but the cache does not advance them.
+  /// A leaf is *shown* ([AssetBinding.visible]) when its slot meets
+  /// `[paintTop, paintBottom]`. A shown leaf that animates is held while
+  /// [animate] is false (a fling runs): it keeps its frame and its lease and
+  /// is not advanced. Hidden bindings stay attached and pinned but the cache
+  /// does not advance them, and their paintables give back their leases.
   ///
   /// [pinnedKeys] are kept attached and shown even when outside the window,
   /// used during far-path stitch so outgoing strip bindings survive the
@@ -204,14 +211,19 @@ final class CatalogLeafBindingPool {
     for (final bound in _all) {
       bound
         .._seen = false
-        .._shown = false;
+        .._shown = false
+        .._paused = false;
     }
     for (var i = start; i < end; i++) {
       if (slots[i] case final CatalogLeafSlot slot) {
         final bound = _ensure(slot);
         bound._seen = true;
         final inPaint = slot.bottom >= paintTop && slot.top <= paintBottom;
-        if (inPaint && (animate || !slot.leaf.animated)) bound._shown = true;
+        if (inPaint) {
+          bound
+            .._shown = true
+            .._paused = !animate && slot.leaf.animated;
+        }
       }
     }
     if (pinnedKeys != null && pinnedKeys.isNotEmpty) {
@@ -219,7 +231,8 @@ final class CatalogLeafBindingPool {
         if (pinnedKeys.contains(bound.binding.key)) {
           bound
             .._seen = true
-            .._shown = true;
+            .._shown = true
+            .._paused = false;
         }
       }
     }
@@ -227,15 +240,14 @@ final class CatalogLeafBindingPool {
     for (var i = _all.length - 1; i >= 0; i--) {
       final bound = _all[i];
       if (!bound._seen && !_held) {
-        if (_dbg141) {
-          debugPrint(
-            '[DBG-141] pool detach ${bound.binding.key} ${bound.spec.pixelWidth}px',
-          );
-        }
         _remove(bound, at: i);
         detached++;
       } else if (bound._seen) {
-        bound.binding.visible = bound._shown;
+        // Held first: a leaf that leaves the window during a fling lets its
+        // frame go before it leaves, so its lease goes with it.
+        bound.binding
+          ..held = _held || bound._paused
+          ..visible = bound._shown;
       }
     }
     if (LogCategory.binding.enabled && (_all.isNotEmpty || detached > 0)) {
@@ -308,11 +320,6 @@ final class CatalogLeafBindingPool {
       }
     }
     final binding = _scope.attach(leaf.key, spec, preset.profile)..held = _held;
-    if (_dbg141) {
-      debugPrint(
-        '[DBG-141] pool attach ${leaf.key} ${spec.pixelWidth}px held=$_held',
-      );
-    }
     binding.addListener(_onChanged);
     final bound = CatalogBoundLeaf._(binding, spec);
     (_byKey[leaf.key] ??= []).add(bound);
