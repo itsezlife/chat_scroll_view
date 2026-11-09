@@ -2,6 +2,7 @@ import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
 import 'package:chrome_foundation/src/strings/edit_menu_strings.dart';
 import 'package:chrome_foundation/src/strings/formatting_strings.dart';
+import 'package:chrome_foundation/src/strings/pack_sheet_strings.dart';
 import 'package:chrome_foundation/src/strings/panel_strings.dart';
 import 'package:chrome_foundation/src/strings/semantics_strings.dart';
 import 'package:flutter/widgets.dart';
@@ -64,6 +65,10 @@ class ChromeStringsScope extends InheritedWidget {
   /// The pointer menu strings at [context]; see [of].
   static EditMenuStrings editMenuOf(BuildContext context) =>
       of(context).editMenu;
+
+  /// The pack sheet strings at [context]; see [of].
+  static PackSheetStrings packSheetOf(BuildContext context) =>
+      of(context).packSheet;
 
   /// The semantics strings at [context]; see [of].
   static SemanticsStrings semanticsOf(BuildContext context) =>

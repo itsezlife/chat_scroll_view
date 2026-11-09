@@ -15,6 +15,7 @@ abstract final class ChromeStringsSnapshot {
     final formatting = strings.formatting;
     final edit = strings.editMenu;
     final semantics = strings.semantics;
+    final pack = strings.packSheet;
     return {
       for (final id in _knownPageIds) 'panel.tabLabel[$id]': panel.tabLabel(id),
       for (final id in _knownCategoryIds)
@@ -92,6 +93,62 @@ abstract final class ChromeStringsSnapshot {
       'editMenu.addToDictionaryAction': edit.addToDictionaryAction,
       'editMenu.ignoreWordAction': edit.ignoreWordAction,
       'editMenu.removeFromDictionaryAction': edit.removeFromDictionaryAction,
+      for (final count in _pluralSamples)
+        'packSheet.addStickers[$count]': pack.addStickers(count),
+      for (final count in _pluralSamples)
+        'packSheet.removeStickers[$count]': pack.removeStickers(count),
+      for (final count in _pluralSamples)
+        'packSheet.addMasks[$count]': pack.addMasks(count),
+      for (final count in _pluralSamples)
+        'packSheet.removeMasks[$count]': pack.removeMasks(count),
+      for (final count in _pluralSamples)
+        'packSheet.addEmoji[$count]': pack.addEmoji(count),
+      for (final count in _pluralSamples)
+        'packSheet.removeEmoji[$count]': pack.removeEmoji(count),
+      for (final count in _pluralSamples)
+        'packSheet.addEmojiPacks[$count]': pack.addEmojiPacks(count),
+      for (final count in _pluralSamples)
+        'packSheet.removeEmojiPacks[$count]': pack.removeEmojiPacks(count),
+      for (final count in _pluralSamples)
+        'packSheet.emojiCount[$count]': pack.emojiCount(count),
+      for (final count in _pluralSamples)
+        'packSheet.emojiPacksAddedInfo[$count]': pack.emojiPacksAddedInfo(
+          count,
+        ),
+      for (final count in _pluralSamples)
+        'packSheet.emojiPacksRemovedInfo[$count]': pack.emojiPacksRemovedInfo(
+          count,
+        ),
+      'packSheet.stickersAddedInfo[title]': pack.stickersAddedInfo('title'),
+      'packSheet.masksAddedInfo[title]': pack.masksAddedInfo('title'),
+      'packSheet.emojiAddedInfo[title]': pack.emojiAddedInfo('title'),
+      'packSheet.stickersRemovedInfo[title]': pack.stickersRemovedInfo('title'),
+      'packSheet.masksRemovedInfo[title]': pack.masksRemovedInfo('title'),
+      'packSheet.emojiRemovedInfo[title]': pack.emojiRemovedInfo('title'),
+      'packSheet.stickersArchivedInfo[title]': pack.stickersArchivedInfo(
+        'title',
+      ),
+      'packSheet.masksArchivedInfo[title]': pack.masksArchivedInfo('title'),
+      'packSheet.emojiArchivedInfo[title]': pack.emojiArchivedInfo('title'),
+      'packSheet.addPackAction': pack.addPackAction,
+      'packSheet.removePackAction': pack.removePackAction,
+      'packSheet.closeAction': pack.closeAction,
+      'packSheet.shareAction': pack.shareAction,
+      'packSheet.copyLinkAction': pack.copyLinkAction,
+      'packSheet.moreOptionsLabel': pack.moreOptionsLabel,
+      'packSheet.linkCopied': pack.linkCopied,
+      'packSheet.stickersNotFound': pack.stickersNotFound,
+      'packSheet.emojiNotFound': pack.emojiNotFound,
+      'packSheet.stickersAdded': pack.stickersAdded,
+      'packSheet.masksAdded': pack.masksAdded,
+      'packSheet.emojiAdded': pack.emojiAdded,
+      'packSheet.stickersRemoved': pack.stickersRemoved,
+      'packSheet.masksRemoved': pack.masksRemoved,
+      'packSheet.emojiRemoved': pack.emojiRemoved,
+      'packSheet.stickersArchived': pack.stickersArchived,
+      'packSheet.masksArchived': pack.masksArchived,
+      'packSheet.emojiArchived': pack.emojiArchived,
+      'packSheet.undoAction': pack.undoAction,
       'semantics.panelOpened': semantics.panelOpened,
       'semantics.panelClosed': semantics.panelClosed,
       'semantics.pageSelected[label]': semantics.pageSelected('label'),

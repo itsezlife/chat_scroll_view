@@ -194,6 +194,7 @@ void main() {
           ignoreWordAction: edit.ignoreWordAction,
           removeFromDictionaryAction: edit.removeFromDictionaryAction,
         ),
+        packSheet: russian.packSheet,
         semantics: russian.semantics,
       );
       await MenuRig.show(tester, size: const Size(900, 700), strings: strings);

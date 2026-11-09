@@ -102,6 +102,52 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     ignoreWordAction: 'Пропустить слово',
     removeFromDictionaryAction: 'Удалить из словаря',
   ),
+  packSheet: PackSheetStrings(
+    addStickers: (n) =>
+        'Добавить $n ${_ru(n, 'стикер', 'стикера', 'стикеров')}',
+    removeStickers: (n) =>
+        'Удалить $n ${_ru(n, 'стикер', 'стикера', 'стикеров')}',
+    addMasks: (n) => 'Добавить $n ${_ru(n, 'маску', 'маски', 'масок')}',
+    removeMasks: (n) => 'Удалить $n ${_ru(n, 'маску', 'маски', 'масок')}',
+    addEmoji: (n) => 'Добавить $n эмодзи',
+    removeEmoji: (n) => 'Удалить $n эмодзи',
+    addEmojiPacks: (n) =>
+        'Добавить $n ${_ru(n, 'набор', 'набора', 'наборов')} эмодзи',
+    removeEmojiPacks: (n) =>
+        'Удалить $n ${_ru(n, 'набор', 'набора', 'наборов')} эмодзи',
+    emojiCount: (n) => '$n эмодзи',
+    addPackAction: 'Добавить',
+    removePackAction: 'Удалить',
+    closeAction: 'Закрыть',
+    shareAction: 'Поделиться',
+    copyLinkAction: 'Копировать ссылку',
+    moreOptionsLabel: 'Другие действия',
+    linkCopied: 'Ссылка скопирована в буфер обмена',
+    stickersNotFound: 'Стикеры не найдены',
+    emojiNotFound: 'Набор эмодзи не найден.',
+    stickersAdded: 'Стикеры добавлены.',
+    stickersAddedInfo: (title) => 'Набор «$title» добавлен в ваши стикеры.',
+    masksAdded: 'Маски добавлены.',
+    masksAddedInfo: (title) => 'Набор «$title» добавлен в ваши маски.',
+    emojiAdded: 'Эмодзи добавлены.',
+    emojiAddedInfo: (title) => 'Набор «$title» добавлен в ваши эмодзи.',
+    emojiPacksAddedInfo: (n) => 'Добавлено наборов эмодзи: $n.',
+    stickersRemoved: 'Стикеры удалены.',
+    stickersRemovedInfo: (title) =>
+        'Набора «$title» больше нет в ваших стикерах.',
+    masksRemoved: 'Маски удалены.',
+    masksRemovedInfo: (title) => 'Набора «$title» больше нет в ваших масках.',
+    emojiRemoved: 'Эмодзи удалены.',
+    emojiRemovedInfo: (title) => 'Набора «$title» больше нет в ваших эмодзи.',
+    emojiPacksRemovedInfo: (n) => 'Удалено наборов эмодзи: $n.',
+    stickersArchived: 'Стикеры в архиве.',
+    stickersArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+    masksArchived: 'Маски в архиве.',
+    masksArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+    emojiArchived: 'Эмодзи в архиве.',
+    emojiArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+    undoAction: 'Отменить',
+  ),
   semantics: SemanticsStrings(
     panelOpened: 'Панель открыта',
     panelClosed: 'Панель закрыта',
@@ -132,3 +178,11 @@ _Plural _pluralOf(int n) {
   }
   return _Plural.many;
 }
+
+// The word of [n] in its one / few / many form.
+String _ru(int n, String one, String few, String many) =>
+    switch (_pluralOf(n)) {
+      _Plural.one => one,
+      _Plural.few => few,
+      _Plural.many => many,
+    };

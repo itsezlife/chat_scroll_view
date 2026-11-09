@@ -2,6 +2,7 @@ import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
 import 'package:chrome_foundation/src/strings/edit_menu_strings.dart';
 import 'package:chrome_foundation/src/strings/formatting_strings.dart';
+import 'package:chrome_foundation/src/strings/pack_sheet_strings.dart';
 import 'package:chrome_foundation/src/strings/panel_strings.dart';
 import 'package:chrome_foundation/src/strings/semantics_strings.dart';
 
@@ -112,6 +113,52 @@ abstract final class ChromeStringsPresets {
       addToDictionaryAction: 'Add to Dictionary',
       ignoreWordAction: 'Ignore word',
       removeFromDictionaryAction: 'Remove from Dictionary',
+    ),
+    packSheet: PackSheetStrings(
+      addStickers: (n) => n == 1 ? 'Add sticker' : 'Add $n stickers',
+      removeStickers: (n) => n == 1 ? 'Remove sticker' : 'Remove $n stickers',
+      addMasks: (n) => n == 1 ? 'Add mask' : 'Add $n masks',
+      removeMasks: (n) => n == 1 ? 'Remove mask' : 'Remove $n masks',
+      addEmoji: (n) => n == 1 ? 'Add emoji' : 'Add $n emoji',
+      removeEmoji: (n) => n == 1 ? 'Remove emoji' : 'Remove $n emoji',
+      addEmojiPacks: (n) => n == 1 ? 'Add emoji pack' : 'Add $n emoji packs',
+      removeEmojiPacks: (n) =>
+          n == 1 ? 'Remove emoji pack' : 'Remove $n emoji packs',
+      emojiCount: (n) => '$n emoji',
+      addPackAction: 'Add',
+      removePackAction: 'Remove',
+      closeAction: 'Close',
+      shareAction: 'Share',
+      copyLinkAction: 'Copy Link',
+      moreOptionsLabel: 'More options',
+      linkCopied: 'Link copied to clipboard',
+      stickersNotFound: 'Stickers not found',
+      emojiNotFound: 'Emoji pack not found.',
+      stickersAdded: 'Stickers added.',
+      stickersAddedInfo: (title) => '$title has been added to your stickers.',
+      masksAdded: 'Masks added.',
+      masksAddedInfo: (title) => '$title has been added to your masks.',
+      emojiAdded: 'Emoji added.',
+      emojiAddedInfo: (title) => '$title has been added to your emoji packs.',
+      emojiPacksAddedInfo: (n) => n == 1
+          ? '1 emoji pack has been added to your emoji.'
+          : '$n emoji packs have been added to your emoji.',
+      stickersRemoved: 'Stickers removed.',
+      stickersRemovedInfo: (title) => '$title is no longer in your stickers.',
+      masksRemoved: 'Masks removed.',
+      masksRemovedInfo: (title) => '$title is no longer in your masks.',
+      emojiRemoved: 'Emoji removed.',
+      emojiRemovedInfo: (title) => '$title is no longer in your emoji packs.',
+      emojiPacksRemovedInfo: (n) => n == 1
+          ? '1 emoji pack is no longer in your emoji.'
+          : '$n emoji packs are no longer in your emoji.',
+      stickersArchived: 'Stickers archived.',
+      stickersArchivedInfo: (title) => '$title has been moved to your archive.',
+      masksArchived: 'Masks archived.',
+      masksArchivedInfo: (title) => '$title has been moved to your archive.',
+      emojiArchived: 'Emoji archived.',
+      emojiArchivedInfo: (title) => '$title has been moved to your archive.',
+      undoAction: 'Undo',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Panel opened',
@@ -229,6 +276,52 @@ abstract final class ChromeStringsPresets {
       ignoreWordAction: 'Пропустить слово',
       removeFromDictionaryAction: 'Удалить из словаря',
     ),
+    packSheet: PackSheetStrings(
+      addStickers: (n) =>
+          'Добавить $n ${_ru(n, 'стикер', 'стикера', 'стикеров')}',
+      removeStickers: (n) =>
+          'Удалить $n ${_ru(n, 'стикер', 'стикера', 'стикеров')}',
+      addMasks: (n) => 'Добавить $n ${_ru(n, 'маску', 'маски', 'масок')}',
+      removeMasks: (n) => 'Удалить $n ${_ru(n, 'маску', 'маски', 'масок')}',
+      addEmoji: (n) => 'Добавить $n эмодзи',
+      removeEmoji: (n) => 'Удалить $n эмодзи',
+      addEmojiPacks: (n) =>
+          'Добавить $n ${_ru(n, 'набор', 'набора', 'наборов')} эмодзи',
+      removeEmojiPacks: (n) =>
+          'Удалить $n ${_ru(n, 'набор', 'набора', 'наборов')} эмодзи',
+      emojiCount: (n) => '$n эмодзи',
+      addPackAction: 'Добавить',
+      removePackAction: 'Удалить',
+      closeAction: 'Закрыть',
+      shareAction: 'Поделиться',
+      copyLinkAction: 'Копировать ссылку',
+      moreOptionsLabel: 'Другие действия',
+      linkCopied: 'Ссылка скопирована в буфер обмена',
+      stickersNotFound: 'Стикеры не найдены',
+      emojiNotFound: 'Набор эмодзи не найден.',
+      stickersAdded: 'Стикеры добавлены.',
+      stickersAddedInfo: (title) => 'Набор «$title» добавлен в ваши стикеры.',
+      masksAdded: 'Маски добавлены.',
+      masksAddedInfo: (title) => 'Набор «$title» добавлен в ваши маски.',
+      emojiAdded: 'Эмодзи добавлены.',
+      emojiAddedInfo: (title) => 'Набор «$title» добавлен в ваши эмодзи.',
+      emojiPacksAddedInfo: (n) => 'Добавлено наборов эмодзи: $n.',
+      stickersRemoved: 'Стикеры удалены.',
+      stickersRemovedInfo: (title) =>
+          'Набора «$title» больше нет в ваших стикерах.',
+      masksRemoved: 'Маски удалены.',
+      masksRemovedInfo: (title) => 'Набора «$title» больше нет в ваших масках.',
+      emojiRemoved: 'Эмодзи удалены.',
+      emojiRemovedInfo: (title) => 'Набора «$title» больше нет в ваших эмодзи.',
+      emojiPacksRemovedInfo: (n) => 'Удалено наборов эмодзи: $n.',
+      stickersArchived: 'Стикеры в архиве.',
+      stickersArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+      masksArchived: 'Маски в архиве.',
+      masksArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+      emojiArchived: 'Эмодзи в архиве.',
+      emojiArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+      undoAction: 'Отменить',
+    ),
     semantics: SemanticsStrings(
       panelOpened: 'Панель открыта',
       panelClosed: 'Панель закрыта',
@@ -260,3 +353,11 @@ _RussianPlural _russianPlural(int n) {
   }
   return _RussianPlural.many;
 }
+
+// The word of [n] in its one / few / many form.
+String _ru(int n, String one, String few, String many) =>
+    switch (_russianPlural(n)) {
+      _RussianPlural.one => one,
+      _RussianPlural.few => few,
+      _RussianPlural.many => many,
+    };
