@@ -7,13 +7,11 @@ import 'package:listen/listen.dart' as listen;
 ///
 /// - [LibraryContentSource.stickers]: the favourite stickers
 ///   (`CollectionId.faved`), then the recent stickers (`CollectionId.recent`),
-///   as the reference mobile client lists them (`EmojiView`'s
-///   `StickersGridAdapter.updateItems`: favourites, then recents). A
+///   favourites, then recents. A
 ///   favourite is not listed again among the recents, and the recents show
-///   the first [shownRecentStickers] of the ones the library keeps
-///   (`checkDocuments` and `getRecentStickers(TYPE_IMAGE, true)`).
+///   the first [shownRecentStickers] of the ones the library keeps.
 /// - [LibraryContentSource.gifs]: the saved GIFs, every one, as the GIF
-///   page's recents: in the reference the GIF recents are the saved GIFs.
+///   page's recents.
 ///
 /// What is on a list is described by `describe`; a key nothing describes (a
 /// pack the host no longer ships, a feed's clip this session never listed)
@@ -62,8 +60,7 @@ final class LibraryContentSource implements CollectionSource {
     }
   }
 
-  /// How many recent stickers the page shows: the reference shows 20 of the
-  /// 30 it keeps.
+  /// How many recent stickers the page shows: 20 of the 30 it keeps.
   static const int shownRecentStickers = 20;
 
   final List<listen.ValueListenable<List<ContentKey>>> _lists;

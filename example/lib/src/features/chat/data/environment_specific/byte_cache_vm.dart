@@ -35,8 +35,8 @@ final class _DirectoryByteCache implements ByteCache {
     }
   }
 
-  // One stat on the UI isolate per attempt, as the reference client checks
-  // that a file exists before it draws a cell's download.
+  // One stat on the UI isolate per attempt, to check that a file exists
+  // before a cell's download is drawn.
   @override
   bool holds(String name) => _file(name).existsSync();
 

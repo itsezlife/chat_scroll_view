@@ -10,8 +10,8 @@ import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
 
 /// What desktop recolours the glyphs of a selected emoji-only message with
-/// (`msgStickerOverlay`; the palette value is not in the sources at hand, so
-/// this is the selection colour of the demo's bubbles).
+/// (the palette value is not given, so this is the selection colour of the
+/// demo's bubbles).
 const Color _kSelectedOverlay = Color(0xFF2B5278);
 
 /// How strongly the overlay tints at full selection.
@@ -116,8 +116,7 @@ class DemoEmojiMessage extends StatefulWidget {
 
 class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
   /// A primary mouse click on the pill, which the pill's tap barrier keeps from
-  /// the viewport: what the reference desktop client does for a click on the
-  /// date (`CursorState::Date` in `ListWidget::mouseActionFinish`): select the
+  /// the viewport: on desktop, a click on the date: select the
   /// message when nothing is selected, toggle it in message selection. The
   /// facade's toggle does both, and drops a live text selection as a click on
   /// the row would.
@@ -277,12 +276,12 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
             colorFilter: ColorFilter.mode(tint, BlendMode.srcATop),
             child: emojiBody,
           );
-          // The pill is the message's status and selects with it: the
-          // reference paints its selected service colour there too.
+          // The pill is the message's status and selects with it: its
+          // selected service colour is painted there too.
           pillColors = colors.tinted(tint);
         }
 
-        // The reference desktop client's click on the date selects the message.
+        // On desktop, a click on the date selects the message.
         // A mobile selection policy has no such click: a tap on the row is the
         // idle chrome, and the viewport already toggles it in message
         // selection.
