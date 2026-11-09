@@ -580,7 +580,10 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
                       opacity: shown,
                       child: _PreviewContent(
                         item: item,
-                        size: layout.content.size,
+                        // Not the box's own size, which drifts as a drag
+                        // moves it: a new size attaches the content again,
+                        // and a foreground attach plays from frame 0.
+                        size: layout.extent,
                         assets: session.assets,
                       ),
                     ),
