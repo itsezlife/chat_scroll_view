@@ -22,6 +22,17 @@ import 'package:swipe_pager/src/swipe_pager_physics.dart';
 /// Deltas reported to [onUpdate] are screen-space horizontal pixels; the
 /// slop is consumed, so the first update after the claim starts from the
 /// claim position and the page does not jump.
+///
+/// **A nested scroller at its edge.** A horizontal scroller in a page claims
+/// at the platform drag slop, under the pager's, whether or not it can
+/// scroll the drag's way; at its edge it takes the drag only to overscroll.
+/// The reference pager yields only to a child that can scroll. Here the
+/// pager's region shows each move to [preview] before any recognizer sees
+/// it: on the move that would let the nested scrollers claim, when none of
+/// them can scroll that way and the pager can move, the pager takes the
+/// arena early. It still starts the swipe only by the slop and direction
+/// rule above; a drag that then goes across is nobody's, as it would have
+/// been the nested scroller's.
 class SwipeDragRecognizer extends OneSequenceGestureRecognizer {
   /// A recognizer for the pointers of [supportedDevices].
   SwipeDragRecognizer({super.debugOwner, super.supportedDevices});
@@ -51,6 +62,8 @@ class SwipeDragRecognizer extends OneSequenceGestureRecognizer {
 
   int? _pointer;
   PointerDeviceKind? _kind;
+  // The down's global position; [_origin] is the start of the offsets.
+  Offset _down = Offset.zero;
   Offset _origin = Offset.zero;
   Offset _last = Offset.zero;
   VelocityTracker? _velocity;
@@ -62,6 +75,8 @@ class SwipeDragRecognizer extends OneSequenceGestureRecognizer {
   // The swipe started: [onStart] was called.
   bool _claimed = false;
   bool _caught = false;
+  // [preview] asked the nested scrollers: they claim on that move or never.
+  bool _previewed = false;
 
   static bool _never(double delta) => false;
   static bool _no() => false;
@@ -90,6 +105,7 @@ class SwipeDragRecognizer extends OneSequenceGestureRecognizer {
   void _begin(PointerEvent event, Offset origin) {
     _pointer = event.pointer;
     _kind = event.kind;
+    _down = event.position;
     _origin = origin;
     _last = Offset.zero;
     _velocity = VelocityTracker.withKind(event.kind)
@@ -98,6 +114,7 @@ class SwipeDragRecognizer extends OneSequenceGestureRecognizer {
     _requested = false;
     _claimed = false;
     _caught = false;
+    _previewed = false;
     startTrackingPointer(event.pointer, event.transform);
   }
 
@@ -119,6 +136,32 @@ class SwipeDragRecognizer extends OneSequenceGestureRecognizer {
         stopTrackingPointer(event.pointer);
       default:
     }
+  }
+
+  /// Shows the recognizer a move of its pointer before any recognizer
+  /// handles it, so the pager can take the arena from nested scrollers at
+  /// their edge.
+  ///
+  /// [nestedAtEdge] tells whether a horizontal scroller that takes drags is
+  /// under a global position and none of those there can scroll a drag by a
+  /// screen-space horizontal delta.
+  void preview(
+    PointerEvent event, {
+    required bool Function(Offset position, double delta) nestedAtEdge,
+  }) {
+    if (event.pointer != _pointer || _previewed || _won || _requested) return;
+    final offset = switch (event) {
+      PointerMoveEvent(:final position) => position - _origin,
+      PointerPanZoomUpdateEvent(:final pan) => pan,
+      _ => null,
+    };
+    // A stock drag recognizer claims strictly past the platform slop along
+    // its axis, counting the moves it has seen; this move is not seen yet.
+    if (offset == null || offset.dx.abs() <= _platformSlop) return;
+    _previewed = true;
+    if (!canMove(offset.dx) || !nestedAtEdge(_down, offset.dx)) return;
+    // Taken unasked: the swipe still waits for the slop.
+    resolve(GestureDisposition.accepted);
   }
 
   void _moved(Offset offset) {
@@ -171,12 +214,15 @@ class SwipeDragRecognizer extends OneSequenceGestureRecognizer {
   /// recognizer sees each move before this one, and both claim strictly
   /// past their slop.
   double get _claimSlop {
-    final platform = switch (_kind) {
-      final kind? => computeHitSlop(kind, gestureSettings),
-      null => kTouchSlop,
-    };
+    final platform = _platformSlop;
     return physics.claimSlop > platform ? physics.claimSlop : platform;
   }
+
+  /// The slop a stock drag recognizer claims past for the pointer.
+  double get _platformSlop => switch (_kind) {
+    final kind? => computeHitSlop(kind, gestureSettings),
+    null => kTouchSlop,
+  };
 
   void _released() {
     final velocity = _clamped(
@@ -225,6 +271,7 @@ class SwipeDragRecognizer extends OneSequenceGestureRecognizer {
     _requested = false;
     _claimed = false;
     _caught = false;
+    _previewed = false;
   }
 
   @override
