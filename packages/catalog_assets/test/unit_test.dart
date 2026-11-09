@@ -16,6 +16,8 @@ import 'asset/asset_cache_scope_test.dart' as asset_cache_scope_test;
 import 'asset/asset_download_progress_test.dart'
     as asset_download_progress_test;
 import 'asset/asset_fit_test.dart' as asset_fit_test;
+import 'asset/asset_foreground_playback_test.dart'
+    as asset_foreground_playback_test;
 import 'asset/asset_playback_test.dart' as asset_playback_test;
 import 'asset/asset_sibling_stage_test.dart' as asset_sibling_stage_test;
 import 'asset/asset_spec_test.dart' as asset_spec_test;
@@ -114,6 +116,10 @@ void main() {
     asset_download_progress_test.main,
   );
   group('asset/asset_fit_test.dart', asset_fit_test.main);
+  group(
+    'asset/asset_foreground_playback_test.dart',
+    asset_foreground_playback_test.main,
+  );
   group('asset/asset_stand_in_test.dart', asset_stand_in_test.main);
   group('atlas/bake_governor_test.dart', bake_governor_test.main);
   group(

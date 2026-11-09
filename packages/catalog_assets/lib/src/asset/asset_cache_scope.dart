@@ -59,6 +59,18 @@ import 'package:flutter/foundation.dart';
 /// its entry up again, so nothing done to the cache while it is live changes
 /// another binding's counts.
 ///
+/// ## Background hold
+///
+/// [holdBackground] holds every binding of the scope but those of a
+/// foreground profile (`AssetProfile.foreground`): each keeps the frame it
+/// shows, as if its surface held it (`AssetBinding.held`), and goes on from
+/// that frame when the last hold is released. The clock keeps running, so the
+/// foreground surface (a content preview) plays while the panel, the chat and
+/// a sheet under it stand still; a pause layer of the clock would stop it
+/// too. It is the reference mobile client's `stopAllHeavyOperations` as its
+/// preview opens: every image below the preview's layer stops its animation,
+/// and `startAllHeavyOperations` as it closes starts them where they were.
+///
 /// ## Glyphs
 ///
 /// Unicode keys are the glyph media form: with a [glyphSource] registered they
@@ -149,6 +161,7 @@ final class AssetCacheScope {
     for (final tier in AssetTier.values) tier: 0,
   };
   final Set<GlyphBinding> _glyphBindings = {};
+  int _backgroundHolds = 0;
 
   // A unicode key that reaches an entry (a glyph drawn as text) is still a
   // glyph: its stand-in is the circle, whatever the media default is.
@@ -222,6 +235,37 @@ final class AssetCacheScope {
     }
   }
 
+  /// Holds every binding of the scope but the foreground ones until the hold
+  /// is released; see "Background hold" above. Holds count, so two surfaces
+  /// over the others keep the hold until both are gone. A binding attached
+  /// while a hold is on starts held.
+  ///
+  /// Throws a [StateError] after [dispose], as [attach] does.
+  AssetBackgroundHold holdBackground() {
+    if (_disposed) {
+      throw StateError('AssetCacheScope.holdBackground called after dispose.');
+    }
+    if (_backgroundHolds++ == 0) _setBackgroundHeld(true);
+    return AssetBackgroundHold._(() {
+      if (_disposed) return;
+      if (--_backgroundHolds == 0) _setBackgroundHeld(false);
+    });
+  }
+
+  /// Whether a background hold is on.
+  bool get isBackgroundHeld => _backgroundHolds > 0;
+
+  void _setBackgroundHeld(bool held) {
+    for (final entry in List<_Entry>.of(_entries.values)) {
+      for (final binding in List<_EntryBinding>.of(entry.bindings)) {
+        binding.backgroundHeld = held;
+      }
+    }
+    for (final binding in List<GlyphBinding>.of(_glyphBindings)) {
+      binding.backgroundHeld = held;
+    }
+  }
+
   /// Whether any binding is attached to the entry for [key] at [spec].
   bool isAttached(ContentKey key, AssetSpec spec) =>
       _entries[(key, spec)]?.bindings.isNotEmpty ?? false;
@@ -251,6 +295,7 @@ final class AssetCacheScope {
         profile: profile,
         placeholder: placeholder,
         clock: _clock,
+        backgroundHeld: _backgroundHolds > 0,
         source: _glyphSource,
         openEntry: () => _attachEntry(key, spec, profile),
         onDetach: _glyphBindings.remove,
@@ -523,7 +568,7 @@ final class AssetCacheScope {
     final entry = binding.entry;
     entry.bindings.remove(binding);
     entry.demand.refresh(entry.bindings);
-    if (binding.held) entry.syncKeep();
+    if (binding.holdsFrame) entry.syncKeep();
     entry.syncShown();
     if (entry.bindings.isNotEmpty) return;
     entry.attempt?.cancel();
@@ -576,7 +621,7 @@ final class _Entry {
 
   // Whether the paintable keeps its frame: some binding holds it on screen.
   void syncKeep() =>
-      paintable?.keepFrame(keep: bindings.any((binding) => binding.held));
+      paintable?.keepFrame(keep: bindings.any((binding) => binding.holdsFrame));
 
   // Whether a binding plays the paintable now (is on the clock).
   bool _playing = false;
@@ -716,6 +761,7 @@ final class _EntryBinding extends AssetBindingBase {
          spec: entry.spec,
          placeholder: scope._placeholderOf(entry.key),
          clock: scope.clock,
+         backgroundHeld: scope._backgroundHolds > 0,
        );
 
   final AssetCacheScope _scope;
@@ -732,6 +778,10 @@ final class _EntryBinding extends AssetBindingBase {
   // The pass of a profile that does not loop is over. The animated stage is
   // the entry's final one, so the paintable never changes under it.
   bool _ended = false;
+  // The paintable a foreground binding rewound as it started to play: once
+  // per attach and paintable, so a hold or a hide in between goes on from
+  // the frame it was at.
+  AssetPaintable? _rewound;
   late final _PlaybackTarget _target = _PlaybackTarget(
     clock.policy.frameIntervalFor(spec),
     _onTick,
@@ -931,16 +981,28 @@ final class _EntryBinding extends AssetBindingBase {
     final wanted =
         !isDetached &&
         visible &&
-        !held &&
+        !holdsFrame &&
         animates &&
         !_ended &&
         (_shown?.isAnimated ?? false);
     if (wanted == _registered) return;
     _registered = wanted;
     if (wanted) {
-      // A binding that starts to play wakes a playback another binding of
-      // the entry left holding its rest frame; a running one is left alone.
-      _shown?.restart();
+      final shown = _shown;
+      // A foreground surface plays its own pass from the first frame (a
+      // borrowed sibling only lends a still, and never plays).
+      if (profile.foreground &&
+          _borrowed == null &&
+          shown != null &&
+          !identical(shown, _rewound)) {
+        _rewound = shown;
+        shown.rewind();
+      } else {
+        // A binding that starts to play wakes a playback another binding of
+        // the entry left holding its rest frame; a running one is left
+        // alone.
+        shown?.restart();
+      }
       clock.register(_target);
     } else {
       clock.unregister(_target);
@@ -961,6 +1023,26 @@ final class _EntryBinding extends AssetBindingBase {
       entry.syncPlaying();
     }
     _scope._detached(this);
+  }
+}
+
+/// One claim on the background of a scope, released exactly once.
+///
+/// Returned by [AssetCacheScope.holdBackground].
+final class AssetBackgroundHold {
+  AssetBackgroundHold._(this._onRelease);
+
+  void Function()? _onRelease;
+
+  /// Whether [release] has run.
+  bool get isReleased => _onRelease == null;
+
+  /// Gives the claim back: the background plays again from its frames once
+  /// no claim is left. Idempotent; after the scope's dispose it does nothing.
+  void release() {
+    final onRelease = _onRelease;
+    _onRelease = null;
+    onRelease?.call();
   }
 }
 

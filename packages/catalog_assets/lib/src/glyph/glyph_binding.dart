@@ -43,6 +43,7 @@ final class GlyphBinding extends AssetBindingBase {
     required GlyphSpriteSource? source,
     required AssetBinding Function() openEntry,
     required void Function(GlyphBinding binding) onDetach,
+    super.backgroundHeld,
   }) : _glyph = key.sequence,
        _openEntry = openEntry,
        _onDetach = onDetach,

@@ -262,6 +262,29 @@ void main() {
     await gesture.up();
   });
 
+  testWidgets('while it is open everything else the scope draws is held, '
+      'and plays again from the close; the preview is in the foreground', (
+    tester,
+  ) async {
+    await pumpPage(tester);
+    expect(assets.isBackgroundHeld, isFalse);
+    final gesture = await hold(tester, 1);
+
+    expect(assets.isBackgroundHeld, isTrue);
+    final preview = tester.widget<ContentView>(_previewOf('a-1'));
+    expect(preview.preset.profile.foreground, isTrue);
+
+    await gesture.moveTo(cell(tester, 3));
+    await tester.pump();
+    expect(assets.isBackgroundHeld, isTrue, reason: 'one hold per preview');
+
+    await gesture.up();
+    await tester.pump();
+    expect(assets.isBackgroundHeld, isFalse, reason: 'as the close starts');
+    await settleClose(tester);
+    expect(assets.isBackgroundHeld, isFalse);
+  });
+
   testWidgets('a sticker of no pack has no menu while the finger is down', (
     tester,
   ) async {

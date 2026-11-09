@@ -28,8 +28,12 @@ abstract base class AssetBindingBase
     required this.profile,
     required AssetPaintable placeholder,
     required PlaybackClock clock,
+    bool backgroundHeld = false,
   }) : _placeholder = placeholder,
-       _clock = clock;
+       _clock = clock,
+       _backgroundHeld = backgroundHeld {
+    if (holdsFrame) _heldAt = clock.now;
+  }
 
   @override
   final ContentKey key;
@@ -44,6 +48,7 @@ abstract base class AssetBindingBase
   final PlaybackClock _clock;
   bool _visible = true;
   bool _held = false;
+  bool _backgroundHeld;
   // The clock's time when the hold began: what a held binding paints at.
   Duration? _heldAt;
   bool _detached = false;
@@ -84,9 +89,27 @@ abstract base class AssetBindingBase
   @protected
   void onVisibleChanged() {}
 
-  /// Called after [held] changed while attached.
+  /// Called after [holdsFrame] changed while attached.
   @protected
   void onHeldChanged() {}
+
+  /// Whether the binding holds its frame now: the surface holds it ([held]),
+  /// or the scope's background hold does and the profile is not in the
+  /// foreground (`AssetProfile.foreground`).
+  ///
+  /// Kept apart from [held], which stays the surface's own wish: a surface
+  /// that holds its binding is still holding it when the background hold
+  /// ends.
+  bool get holdsFrame => _held || (_backgroundHeld && !profile.foreground);
+
+  /// Set by the scope while a background hold is on
+  /// (`AssetCacheScope.holdBackground`).
+  set backgroundHeld(bool value) {
+    if (_backgroundHeld == value) return;
+    final before = holdsFrame;
+    _backgroundHeld = value;
+    _holdChanged(before);
+  }
 
   /// Tells the listeners something this binding paints changed.
   @protected
@@ -117,8 +140,15 @@ abstract base class AssetBindingBase
   @override
   set held(bool value) {
     if (_held == value) return;
+    final before = holdsFrame;
     _held = value;
-    _heldAt = value ? _clock.now : null;
+    _holdChanged(before);
+  }
+
+  void _holdChanged(bool before) {
+    final holds = holdsFrame;
+    if (holds == before) return;
+    _heldAt = holds ? _clock.now : null;
     if (!_detached) onHeldChanged();
   }
 
