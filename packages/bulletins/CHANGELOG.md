@@ -16,3 +16,23 @@ is pre-1.0.
   announcement; `BulletinPolicy` with the Android, iOS and desktop families;
   `BulletinBuilders` with flat stock builders; `ManualBulletinClock` and
   `BulletinPolicyContract` in `testing.dart`.
+- The desktop toast (ticket 132), its values checked against the toolkit
+  `lib_ui`: `DesktopBulletinBuilders`, `BulletinMessage` and
+  `Bulletin.links`; the policy's `minWidth`, `transitionAt` and
+  `passesThroughWhenInert` (defaults keep the Android and iOS families as
+  they were); `BulletinTransition.timedSlide` and explicit times on
+  `fade`. `BulletinPolicy$Desktop` changes: margin 16 → 13, radius 9 → 8,
+  padding 16 → 19 at the sides, width 380 → 160 to 360 as wide as its text,
+  icon slot 32 → 44, minimum height 40 → 24, fade 200 ms in and 1000 ms
+  out instead of the motion roles, a 160 ms slide when attached to an edge.
+  A host switch over `BulletinTransition` adds the `timedSlide` case.
+- The Android card (ticket 130): `BulletinBuilders$Android` (the opaque
+  undo card, or glass in a chat; the 56 x 48 leading slot, the 29
+  thumbnail, the 20 countdown ring with sliding digits; Undo and buttons
+  with a pressed highlight; the reference text sizes and line counts) and
+  `BulletinCountdown$Android`. `BulletinPolicy$Android` changes: margin 8 →
+  16 at the sides, leading slot 48 → 56. The host now slides a spring card
+  by its height and both vertical margins, flings it on a stiffness-100
+  spring, swipes only once entered, fades a drag where the card is narrower
+  than its area, and scales only a card with a body tap (80 ms in, 350 ms
+  overshoot out).

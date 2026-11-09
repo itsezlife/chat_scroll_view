@@ -1,5 +1,7 @@
 import 'package:bulletins/bulletins.dart';
 import 'package:bulletins/testing.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -124,12 +126,81 @@ void main() {
   group('desktop', () {
     const policy = BulletinPolicy.desktop();
 
-    test('is a centred toast at most 380 wide that fades', () {
-      expect(policy.placement, BulletinPlacement.center);
-      expect(policy.maxWidth, 380);
-      expect(policy.transition, isA<BulletinTransition$Fade>());
-      expect(policy.swipeToDismiss, isFalse);
+    test('times out after 1500, 4000 and 5000 ms', () {
+      expect(
+        policy.timeoutOf(BulletinDurationClass.short),
+        const Duration(milliseconds: 1500),
+      );
+      expect(
+        policy.timeoutOf(BulletinDurationClass.long),
+        const Duration(seconds: 4),
+      );
+      expect(
+        policy.timeoutOf(BulletinDurationClass.prolonged),
+        const Duration(seconds: 5),
+      );
     });
+
+    test('is the multiline toast: centred, 160 to 360 wide, radius 8', () {
+      expect(policy.placement, BulletinPlacement.center);
+      expect(policy.minWidth, 160);
+      expect(policy.maxWidth, 360);
+      expect(policy.cornerRadius, 8);
+      expect(policy.margin, const EdgeInsets.all(13));
+      expect(policy.contentPadding, const EdgeInsets.fromLTRB(19, 13, 19, 12));
+    });
+
+    test('draws text 13 and a 20 px icon in a 44 px slot', () {
+      expect(policy.messageTextSize, 13);
+      expect(policy.titleTextSize, 13);
+      expect(policy.subtitleTextSize, 13);
+      expect(policy.iconSize, 20);
+      expect(policy.leadingWidth, 44);
+    });
+
+    test('a centred toast fades in over 200 ms and out over 1000 ms', () {
+      expect(
+        policy.transitionAt(BulletinPlacement.center),
+        const BulletinTransition.fade(
+          enter: MotionSpec(Duration(milliseconds: 200), Curves.linear),
+          exit: MotionSpec(Duration(milliseconds: 1000), Curves.linear),
+        ),
+      );
+      expect(policy.transition, policy.transitionAt(policy.placement));
+    });
+
+    test('an attached toast slides 160 ms each way without a fade', () {
+      const slide = BulletinTransition.timedSlide(
+        enter: MotionSpec(Duration(milliseconds: 160), Curves.linear),
+        exit: MotionSpec(Duration(milliseconds: 160), Curves.linear),
+      );
+      expect(policy.transitionAt(BulletinPlacement.top), slide);
+      expect(policy.transitionAt(BulletinPlacement.bottom), slide);
+    });
+
+    test('has no gestures and lets pointers through when inert', () {
+      expect(policy.swipeToDismiss, isFalse);
+      expect(policy.pauseOnPress, isFalse);
+      expect(policy.pressScale, 1);
+      expect(policy.followSpring, isNull);
+      expect(policy.clipsAtObstruction, isFalse);
+      expect(policy.passesThroughWhenInert, isTrue);
+    });
+  });
+
+  group('the mobile families', () {
+    for (final policy in const [
+      BulletinPolicy.android(),
+      BulletinPolicy.ios(),
+    ]) {
+      test('$policy fills the width, catches pointers, one transition', () {
+        expect(policy.minWidth, isNull);
+        expect(policy.passesThroughWhenInert, isFalse);
+        for (final placement in BulletinPlacement.values) {
+          expect(policy.transitionAt(placement), policy.transition);
+        }
+      });
+    }
   });
 
   group('timeoutFor', () {

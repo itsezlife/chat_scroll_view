@@ -1,7 +1,8 @@
 import 'package:bulletins/src/bulletin/bulletin.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
-import 'package:flutter/physics.dart';
 
 /// The **bulletin policy**: the layout and motion values of one platform
 /// family. Plain values with no widgets and no platform reads.
@@ -87,6 +88,12 @@ abstract base class BulletinPolicy {
   /// The card's widest width; null for the whole width the margin leaves.
   double? get maxWidth;
 
+  /// Null (the default): the card fills the width up to [maxWidth], as a
+  /// phone card does. A width: the card takes its content's width, no
+  /// narrower than this and no wider than [maxWidth], as a desktop toast
+  /// does.
+  double? get minWidth => null;
+
   /// The space between the card's edge and its content.
   EdgeInsets get contentPadding;
 
@@ -111,8 +118,13 @@ abstract base class BulletinPolicy {
 
   // --- Motion ---
 
-  /// How the card enters and leaves.
+  /// How the card enters and leaves at the policy's [placement].
   BulletinTransition get transition;
+
+  /// How a card at [placement] enters and leaves; [transition] unless a
+  /// family moves cards differently by where they sit (the desktop toast
+  /// fades in the middle and slides at an edge).
+  BulletinTransition transitionAt(BulletinPlacement placement) => transition;
 
   /// The spring the card follows the obstruction with when it moves; null to
   /// jump.
@@ -135,6 +147,11 @@ abstract base class BulletinPolicy {
 
   /// The card's scale while pressed; 1 for no press feedback.
   double get pressScale;
+
+  /// Whether a card with nothing to press (no action, no body tap, no link)
+  /// lets pointers through to the surface under it, as the desktop toast
+  /// does, instead of catching them. False by default.
+  bool get passesThroughWhenInert => false;
 }
 
 /// How a bulletin enters and leaves.
@@ -155,9 +172,17 @@ sealed class BulletinTransition {
   const factory BulletinTransition.fadeScale({double fromScale}) =
       BulletinTransition$FadeScale;
 
-  /// Fades in and out, timed by the `bulletinShow` and `bulletinHide` motion
-  /// roles.
-  const factory BulletinTransition.fade() = BulletinTransition$Fade;
+  /// Fades in and out over [enter] and [exit]; a null one is timed by the
+  /// `bulletinShow` or `bulletinHide` motion role.
+  const factory BulletinTransition.fade({MotionSpec? enter, MotionSpec? exit}) =
+      BulletinTransition$Fade;
+
+  /// Slides in from the edge it sits on over [enter] and back out over
+  /// [exit], without fading.
+  const factory BulletinTransition.timedSlide({
+    required MotionSpec enter,
+    required MotionSpec exit,
+  }) = BulletinTransition$TimedSlide;
 }
 
 /// The [BulletinTransition.slide] transition.
@@ -211,14 +236,45 @@ final class BulletinTransition$FadeScale extends BulletinTransition {
 
 /// The [BulletinTransition.fade] transition.
 final class BulletinTransition$Fade extends BulletinTransition {
-  /// A fade.
-  const BulletinTransition$Fade() : super._();
+  /// A fade over [enter] and [exit], or the motion roles' times.
+  const BulletinTransition$Fade({this.enter, this.exit}) : super._();
+
+  /// The fade in; null for the `bulletinShow` motion role.
+  final MotionSpec? enter;
+
+  /// The fade out; null for the `bulletinHide` motion role.
+  final MotionSpec? exit;
 
   @override
-  bool operator ==(Object other) => other is BulletinTransition$Fade;
+  bool operator ==(Object other) =>
+      other is BulletinTransition$Fade &&
+      other.enter == enter &&
+      other.exit == exit;
 
   @override
-  int get hashCode => (BulletinTransition$Fade).hashCode;
+  int get hashCode => Object.hash(BulletinTransition$Fade, enter, exit);
+}
+
+/// The [BulletinTransition.timedSlide] transition.
+final class BulletinTransition$TimedSlide extends BulletinTransition {
+  /// A slide over [enter] and [exit].
+  const BulletinTransition$TimedSlide({required this.enter, required this.exit})
+    : super._();
+
+  /// The slide in.
+  final MotionSpec enter;
+
+  /// The slide out.
+  final MotionSpec exit;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BulletinTransition$TimedSlide &&
+      other.enter == enter &&
+      other.exit == exit;
+
+  @override
+  int get hashCode => Object.hash(BulletinTransition$TimedSlide, enter, exit);
 }
 
 // --- Stock families ---
@@ -381,15 +437,33 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
   double get pressScale => 1;
 }
 
-/// The reference desktop client's toast (`Ui::Toast`): centred on the
-/// surface, fading in and out, no gestures.
+/// The reference desktop client's toast (`Ui::Toast` in the toolkit
+/// `lib_ui`, its `defaultMultilineToast` style, which a toast takes when the
+/// caller names none): centred on the surface, or attached to the top or
+/// bottom edge; as wide as its text between 160 and 360; it fades in over
+/// 200 ms and out over 1000 ms in the middle and slides 160 ms at an edge,
+/// both linear; no gestures, and pointers pass through it unless it has
+/// something to press.
 ///
-/// Its default timeout, margins and height live in a toolkit the reference
-/// checkout does not include; the short timeout and the metrics here are
-/// unverified, the long and prolonged ones are its call sites' 4 s and 5 s.
+/// The short timeout is the toolkit's default of 1.5 s; the long and
+/// prolonged ones are its callers' 4 s (a link copied) and 5 s (a toast with
+/// a button), since every other caller keeps the default.
 base class BulletinPolicy$Desktop extends BulletinPolicy {
   /// The desktop family.
   const BulletinPolicy$Desktop();
+
+  static const MotionSpec _fadeIn = MotionSpec(
+    Duration(milliseconds: 200),
+    Curves.linear,
+  );
+  static const MotionSpec _fadeOut = MotionSpec(
+    Duration(milliseconds: 1000),
+    Curves.linear,
+  );
+  static const MotionSpec _slide = MotionSpec(
+    Duration(milliseconds: 160),
+    Curves.linear,
+  );
 
   @override
   Duration timeoutOf(BulletinDurationClass duration) => switch (duration) {
@@ -402,19 +476,23 @@ base class BulletinPolicy$Desktop extends BulletinPolicy {
   BulletinPlacement get placement => BulletinPlacement.center;
 
   @override
-  EdgeInsets get margin => const EdgeInsets.all(16);
+  EdgeInsets get margin => const EdgeInsets.all(13);
+
+  /// The toolkit sets no height: the text and its padding decide it. The
+  /// one floor it has is an icon and its 2 px above and below.
+  @override
+  double get minHeight => 24;
 
   @override
-  double get minHeight => 40;
+  double get cornerRadius => 8;
 
   @override
-  double get cornerRadius => 9;
+  EdgeInsets get contentPadding => const EdgeInsets.fromLTRB(19, 13, 19, 12);
 
+  /// A 20 px icon with 12 on each side; the slot takes the place of the
+  /// start padding.
   @override
-  EdgeInsets get contentPadding => const EdgeInsets.fromLTRB(16, 13, 16, 12);
-
-  @override
-  double get leadingWidth => 32;
+  double get leadingWidth => 44;
 
   @override
   double get iconSize => 20;
@@ -429,13 +507,27 @@ base class BulletinPolicy$Desktop extends BulletinPolicy {
   double get subtitleTextSize => 13;
 
   @override
-  double? get maxWidth => 380;
+  double? get maxWidth => 360;
+
+  @override
+  double? get minWidth => 160;
 
   @override
   bool get clipsAtObstruction => false;
 
   @override
-  BulletinTransition get transition => const BulletinTransition.fade();
+  BulletinTransition get transition => transitionAt(placement);
+
+  @override
+  BulletinTransition transitionAt(BulletinPlacement placement) =>
+      switch (placement) {
+        BulletinPlacement.center => const BulletinTransition.fade(
+          enter: _fadeIn,
+          exit: _fadeOut,
+        ),
+        BulletinPlacement.top || BulletinPlacement.bottom =>
+          const BulletinTransition.timedSlide(enter: _slide, exit: _slide),
+      };
 
   @override
   SpringDescription? get followSpring => null;
@@ -454,4 +546,7 @@ base class BulletinPolicy$Desktop extends BulletinPolicy {
 
   @override
   double get pressScale => 1;
+
+  @override
+  bool get passesThroughWhenInert => true;
 }

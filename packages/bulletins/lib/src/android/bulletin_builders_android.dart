@@ -4,19 +4,10 @@ import 'dart:math' as math;
 import 'package:bulletins/src/bulletin/bulletin.dart';
 import 'package:bulletins/src/controller/bulletin_controller.dart';
 import 'package:bulletins/src/view/bulletin_builders.dart';
+import 'package:bulletins/src/view/bulletin_message.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-
-/// Builds a bulletin's message as a span, for a message with links: the
-/// reference draws them in the accent and opens them on tap. [linkStyle]
-/// carries the accent; the span inherits the message's size and colour.
-typedef BulletinMessageBuilder =
-    InlineSpan Function(
-      BuildContext context,
-      BulletinView view,
-      TextStyle linkStyle,
-    );
 
 /// The reference Android client's bulletin card (`Bulletin.Layout` and its
 /// `LottieLayout`, `TwoLineLayout` and `ButtonLayout` variants), as a set of
@@ -74,21 +65,16 @@ abstract final class BulletinBuilders$Android {
   /// The Android builders. [glass] draws the card as glass over the surface
   /// (a chat), otherwise it is the opaque undo background. [animation] and
   /// [thumbnail] resolve the opaque sources of those leading kinds (a Lottie
-  /// from the asset cache, a sticker); [message] draws a message with links.
+  /// from the asset cache, a sticker). A message's links are drawn in the
+  /// accent, as the reference's link colour (B:1417).
   static BulletinBuilders create({
     bool glass = false,
     BulletinSourceBuilder? animation,
     BulletinSourceBuilder? thumbnail,
-    BulletinMessageBuilder? message,
   }) => BulletinBuilders(
     frame: glass ? glassFrame : frame,
-    content: (context, view) => content(
-      context,
-      view,
-      animation: animation,
-      thumbnail: thumbnail,
-      message: message,
-    ),
+    content: (context, view) =>
+        content(context, view, animation: animation, thumbnail: thumbnail),
     animation: animation,
     thumbnail: thumbnail,
   );
@@ -147,7 +133,6 @@ abstract final class BulletinBuilders$Android {
     BulletinView view, {
     BulletinSourceBuilder? animation,
     BulletinSourceBuilder? thumbnail,
-    BulletinMessageBuilder? message,
   }) {
     final bulletin = view.bulletin;
     final policy = view.policy;
@@ -189,20 +174,13 @@ abstract final class BulletinBuilders$Android {
                   fontWeight: _medium,
                 ),
               ),
-            switch (message) {
-              final message? => Text.rich(
-                message(context, view, TextStyle(color: view.tokens.accent)),
-                maxLines: maxLines,
-                overflow: TextOverflow.ellipsis,
-                style: messageStyle,
-              ),
-              null => Text(
-                bulletin.message,
-                maxLines: maxLines,
-                overflow: TextOverflow.ellipsis,
-                style: messageStyle,
-              ),
-            },
+            BulletinMessage(
+              message: bulletin.message,
+              links: bulletin.links,
+              linkColor: view.tokens.accent,
+              maxLines: maxLines,
+              style: messageStyle,
+            ),
           ],
         ),
       ),

@@ -198,9 +198,13 @@ class _BulletinHostState extends State<BulletinHost>
       return;
     }
     final TickerFuture run;
-    switch (_policy.transition) {
+    switch (_policy.transitionAt(entry.placementIn(_policy))) {
       case BulletinTransition$Slide(:final spring):
         run = presence.animateWith(SpringSimulation(spring, 0, 1, 0));
+      case BulletinTransition$TimedSlide(enter: final given) ||
+          BulletinTransition$Fade(enter: final given?):
+        final spec = given.withSpeed(_motion.speed);
+        run = presence.animateTo(1, duration: spec.duration, curve: spec.curve);
       case BulletinTransition$FadeScale() || BulletinTransition$Fade():
         final spec = _motion.specOf(MotionRole.bulletinShow);
         run = presence.animateTo(1, duration: spec.duration, curve: spec.curve);
@@ -246,10 +250,18 @@ class _BulletinHostState extends State<BulletinHost>
         ),
       };
     } else {
-      switch (_policy.transition) {
+      switch (_policy.transitionAt(entry.placementIn(_policy))) {
         case BulletinTransition$Slide(:final spring):
           run = entry.presence.animateWith(
             SpringSimulation(spring, entry.presence.value, 0, 0),
+          );
+        case BulletinTransition$TimedSlide(exit: final given) ||
+            BulletinTransition$Fade(exit: final given?):
+          final spec = given.withSpeed(_motion.speed);
+          run = entry.presence.animateTo(
+            0,
+            duration: spec.duration,
+            curve: spec.curve,
           );
         case BulletinTransition$FadeScale() || BulletinTransition$Fade():
           final spec = _motion.specOf(MotionRole.bulletinHide);
@@ -344,6 +356,11 @@ final class _Entry {
   /// so a drag fades it as well as moving it (B:875-887).
   bool fadesOnDrag = false;
 
+  /// Where the card sits under [policy]: the bulletin's own placement, or
+  /// the policy's.
+  BulletinPlacement placementIn(BulletinPolicy policy) =>
+      handle.bulletin.placement ?? policy.placement;
+
   Animation<double> get drag => _drag;
 
   TickerFuture flingDrag(Simulation simulation) =>
@@ -385,8 +402,15 @@ class _EntryView extends StatefulWidget {
 class _EntryViewState extends State<_EntryView> {
   _Entry get _entry => widget.entry;
 
-  BulletinPlacement get _placement =>
-      widget.view.bulletin.placement ?? widget.policy.placement;
+  BulletinPlacement get _placement => _entry.placementIn(widget.policy);
+
+  /// Whether the card has nothing to press: no action, no body tap, no link.
+  bool get _isInert {
+    final bulletin = widget.view.bulletin;
+    return bulletin.action == null &&
+        bulletin.onTap == null &&
+        bulletin.links.isEmpty;
+  }
 
   void _press(bool down) {
     if (_entry.isLeaving) return;
@@ -446,10 +470,21 @@ class _EntryViewState extends State<_EntryView> {
     final placement = _placement;
     final motion = ChromeMotionScope.of(context);
     final still = BulletinCard(view: widget.view, builders: widget.builders);
+    final minWidth = policy.minWidth;
     Widget card = LayoutBuilder(
       builder: (context, constraints) {
         _entry.width = constraints.maxWidth;
-        return still;
+        return switch (minWidth) {
+          null => still,
+          // A card as wide as its content: the content's widest line, held
+          // between the policy's bounds and the room the surface leaves.
+          final minWidth => ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: math.min(minWidth, constraints.maxWidth),
+            ),
+            child: IntrinsicWidth(child: still),
+          ),
+        };
       },
     );
     final bulletin = widget.view.bulletin;
@@ -503,16 +538,20 @@ class _EntryViewState extends State<_EntryView> {
       },
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
-        child: SizedBox(width: double.infinity, child: card),
+        child: switch (minWidth) {
+          null => SizedBox(width: double.infinity, child: card),
+          _ => card,
+        },
       ),
     );
     return IgnorePointer(
-      ignoring: _entry.isLeaving,
+      ignoring: _entry.isLeaving || (policy.passesThroughWhenInert && _isInert),
       child: Padding(
         padding: policy.margin,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            _entry.fadesOnDrag = constraints.maxWidth > maxWidth;
+            _entry.fadesOnDrag =
+                minWidth != null || constraints.maxWidth > maxWidth;
             return placed;
           },
         ),
@@ -522,14 +561,22 @@ class _EntryViewState extends State<_EntryView> {
 
   Widget _transition(double p, BulletinPlacement placement, Widget child) {
     final margin = widget.policy.margin;
-    return switch (widget.policy.transition) {
-      // Off by its own height and both vertical margins: the reference's
-      // in-out offset is its layout's height, the card and the padding
-      // around it (B:1121-1163), so the hidden card sits a margin past the
-      // edge it clips at.
-      BulletinTransition$Slide() => switch (placement) {
+    final transition = widget.policy.transitionAt(placement);
+    // Off by its own height and a margin past the edge it sits on. The
+    // spring slide goes both vertical margins: the reference's in-out offset
+    // is its layout's height, the card and the padding around it
+    // (B:1121-1163), so the hidden card sits a margin past the edge it clips
+    // at.
+    final beyond = switch ((transition, placement)) {
+      (BulletinTransition$Slide(), _) => margin.vertical,
+      (_, BulletinPlacement.top) => margin.top,
+      (_, _) => margin.bottom,
+    };
+    return switch (transition) {
+      BulletinTransition$Slide() ||
+      BulletinTransition$TimedSlide() => switch (placement) {
         BulletinPlacement.top => Transform.translate(
-          offset: Offset(0, -(1 - p) * margin.vertical),
+          offset: Offset(0, -(1 - p) * beyond),
           child: FractionalTranslation(
             translation: Offset(0, -(1 - p)),
             child: child,
@@ -537,7 +584,7 @@ class _EntryViewState extends State<_EntryView> {
         ),
         BulletinPlacement.bottom ||
         BulletinPlacement.center => Transform.translate(
-          offset: Offset(0, (1 - p) * margin.vertical),
+          offset: Offset(0, (1 - p) * beyond),
           child: FractionalTranslation(
             translation: Offset(0, 1 - p),
             child: child,

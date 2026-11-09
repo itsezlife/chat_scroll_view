@@ -31,7 +31,12 @@ void main() {
     final rich = tester.widget<RichText>(
       find.descendant(of: find.text(text), matching: find.byType(RichText)),
     );
-    return rich.text.style!;
+    // A message is a rich text whose one child span carries its style.
+    final span = rich.text as TextSpan;
+    return switch (span.children) {
+      [TextSpan(:final style?)] => span.style!.merge(style),
+      _ => span.style!,
+    };
   }
 
   int? maxLinesOf(WidgetTester tester, String text) =>
@@ -154,25 +159,16 @@ void main() {
       expect(maxLinesOf(tester, 'GIF saved'), 3);
     });
 
-    testWidgets('a message builder draws links in the accent', (tester) async {
+    testWidgets('a link is drawn in the accent and opens on tap', (
+      tester,
+    ) async {
       h = AndroidHarness();
       var opened = 0;
-      final recognizer = TapGestureRecognizer()..onTap = () => opened++;
-      addTearDown(recognizer.dispose);
       await show(
         tester,
-        const Bulletin(message: 'Limit reached. More with Premium'),
-        builders: BulletinBuilders$Android.create(
-          message: (context, view, linkStyle) => TextSpan(
-            children: [
-              const TextSpan(text: 'Limit reached. More with '),
-              TextSpan(
-                text: 'Premium',
-                style: linkStyle,
-                recognizer: recognizer,
-              ),
-            ],
-          ),
+        Bulletin(
+          message: 'Limit reached. More with Premium',
+          links: [BulletinLink(start: 25, end: 32, onTap: () => opened++)],
         ),
       );
       final rich = tester.widget<RichText>(
@@ -181,11 +177,12 @@ void main() {
           matching: find.byType(RichText),
         ),
       );
-      final link = (rich.text as TextSpan).children!.single as TextSpan;
-      expect(
-        ((link.children!.last) as TextSpan).style!.color,
-        const Color(0xFF85CAFF),
-      );
+      final message = (rich.text as TextSpan).children!.single as TextSpan;
+      final link = message.children!.last as TextSpan;
+      expect(link.text, 'Premium');
+      expect(link.style!.color, const Color(0xFF85CAFF));
+      (link.recognizer! as TapGestureRecognizer).onTap!();
+      expect(opened, 1);
     });
   });
 

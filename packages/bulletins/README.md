@@ -14,16 +14,18 @@ obstruction*).
 
 | Type | Role |
 | --- | --- |
-| `Bulletin` | The value: message, optional title, leading, action, duration, placement, body tap, spoken label. `effectiveDuration` applies the reference factory rule when none is named (Undo: prolonged; under 20 characters: short; else long). |
+| `Bulletin` | The value: message, optional title, leading, action, duration, placement, body tap, spoken label, links (`BulletinLink` ranges of the message). `effectiveDuration` applies the reference factory rule when none is named (Undo: prolonged; under 20 characters: short; else long). |
 | `BulletinLeading` | The content kind: `icon`, `animation(source)`, `thumbnail(source)`, `countdown`, `custom`. |
 | `BulletinAction` | `undo(onUndo:, onCommit:)` or `button(label:, onPressed:)`. |
 | `BulletinDuration` | `short`, `long`, `prolonged`, `untilDismissed`, `exactly(Duration)`. |
 | `BulletinController`, `BulletinHandle`, `BulletinExit` | The surface's slot. `show` returns a handle; every handle closes once with an exit; `closed` completes with it. Commit on leave runs `onCommit` once for every exit but `undone`. The timer starts at `markEntered`; `pause` holds it, `resume` restarts it. |
 | `BulletinClock` | Time for the controller; `ManualBulletinClock` in `testing.dart`. |
-| `BulletinPolicy` (`$Android`, `$IOS`, `$Desktop`) | Layout, text and motion values per platform family; `forPlatform` / `current` pick one. Not sealed: extend a stock family to change a value. |
-| `BulletinTransition` | `slide` (spring), `fadeScale`, `fade`; the timed ones read the `bulletinShow` / `bulletinHide` motion roles. |
+| `BulletinPolicy` (`$Android`, `$IOS`, `$Desktop`) | Layout, text and motion values per platform family; `forPlatform` / `current` pick one. Not sealed: extend a stock family to change a value. `minWidth` makes the card as wide as its content (desktop); `transitionAt` moves a card by where it sits; `passesThroughWhenInert` lets pointers through a card with nothing to press. |
+| `BulletinTransition` | `slide` (spring), `timedSlide(enter:, exit:)`, `fadeScale`, `fade({enter, exit})`; a timed one without its own `MotionSpec` reads the `bulletinShow` / `bulletinHide` motion roles. |
 | `BulletinHost` | Mounts a controller over a surface: layout inside the obstruction, enter and exit, press and swipe, announcement, `surfaceGone` on unmount. |
 | `BulletinBuilders`, `BulletinView`, `BulletinCard` | How a card is drawn: `frame`, `content`, `leading`, `action`, and the host's `animation` and `thumbnail` resolvers. Each null part uses its `stock*` builder. |
+| `BulletinMessage` | The message text with its links (owns their tap recognizers) after an optional prefix. |
+| `DesktopBulletinBuilders` | The desktop toast's builders (`create(animation:, ...)`): one wrapping text block with a bold title line, up to 16 lines, an icon slot in place of the start padding. Pair with `BulletinPolicy.desktop()` and `BulletinTokens.referenceDesktop`. |
 | `BulletinPolicyContract` | `testing.dart`: the suite every policy passes. |
 
 ## Host contract

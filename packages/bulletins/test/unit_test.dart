@@ -16,8 +16,11 @@ import 'android/bulletin_builders_android_test.dart'
     as bulletin_builders_android_test;
 import 'bulletin/bulletin_test.dart' as bulletin_test;
 import 'controller/bulletin_controller_test.dart' as bulletin_controller_test;
+import 'desktop/desktop_toast_golden_test.dart' as desktop_toast_golden_test;
+import 'desktop/desktop_toast_test.dart' as desktop_toast_test;
 import 'policy/bulletin_policy_test.dart' as bulletin_policy_test;
 import 'view/bulletin_host_test.dart' as bulletin_host_test;
+import 'view/bulletin_message_test.dart' as bulletin_message_test;
 
 void main() {
   group(
@@ -37,6 +40,12 @@ void main() {
     'controller/bulletin_controller_test.dart',
     bulletin_controller_test.main,
   );
+  group(
+    'desktop/desktop_toast_golden_test.dart',
+    desktop_toast_golden_test.main,
+  );
+  group('desktop/desktop_toast_test.dart', desktop_toast_test.main);
   group('policy/bulletin_policy_test.dart', bulletin_policy_test.main);
   group('view/bulletin_host_test.dart', bulletin_host_test.main);
+  group('view/bulletin_message_test.dart', bulletin_message_test.main);
 }
