@@ -1225,6 +1225,25 @@ void main() {
       expect(rig.services.library.favouriteStickers.value, [sun]);
     });
 
+    // What the host's bulletin reads: the edit, and the key it pushed out.
+    testWidgets('a library edit is reported once the library took it', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      final sun = StaticStickerPack.stickers.first.key;
+      await _open(tester, rig);
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestLibraryEdit(LibraryEdit.favouriteSticker(sun));
+      await tester.pump();
+
+      expect(rig.libraryEdits.map((applied) => applied.edit), [
+        LibraryEdit.favouriteSticker(sun),
+      ]);
+      expect(rig.libraryEdits.single.evicted, isNull);
+    });
+
     // The reference reloads the panel's favourites and saved GIFs on an
     // explicit edit while it is open (`recentDocumentsDidLoad`,
     // `gifAddedOrDeleted`); only the record of a send waits.

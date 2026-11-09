@@ -161,7 +161,10 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     emojiArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
     undoAction: 'Отменить',
   ),
-  bulletin: const BulletinStrings(undoAction: 'Undo', dismissAction: 'Dismiss'),
+  bulletin: const BulletinStrings(
+    undoAction: 'Отменить',
+    dismissAction: 'Закрыть',
+  ),
   semantics: SemanticsStrings(
     panelOpened: 'Панель открыта',
     panelClosed: 'Панель закрыта',

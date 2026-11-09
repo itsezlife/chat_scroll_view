@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:bulletins/bulletins.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
@@ -17,23 +19,20 @@ typedef PackFeedback = ({String title, String info});
 /// How this host shows a pack sheet and answers it: the library edit, the
 /// bulletin after it, and what the sheet picks.
 ///
-/// The sheet asks; the host applies each edit to [AppServices.library] (a
-/// removal or an archiving inside the bulletin's [undoWindow], as the
-/// reference client holds `toggleStickerSet` behind its Undo) and shows one
-/// bulletin for the button's edits, with Undo when they took packs away.
-/// The reference's bulletin durations: `Bulletin.DURATION_LONG` (2750 ms)
-/// for a removal, `DURATION_SHORT` (1500 ms) for an addition.
+/// The sheet asks; the host applies each edit to [AppServices.library] and
+/// shows one bulletin for the button's edits through the chat's
+/// `BulletinController` (the reference shows a sheet's bulletins on the
+/// screen under it, `Bulletin.make(fragment, ...)`), with Undo when they took
+/// packs away. The reference's `StickerSetBulletinLayout` over
+/// `toggleStickerSet`: the pack's cover leads it, a removal or an archiving
+/// stays `DURATION_LONG` (2750 ms) and an addition `DURATION_SHORT`
+/// (1500 ms).
 abstract final class ChatPackSheets {
-  /// How long the bulletin of a removal or an archiving stays, its Undo
-  /// with it.
-  static const Duration undoWindow = Duration(milliseconds: 2750);
-
-  /// The longest a removal waits for its bulletin to close before it
-  /// commits anyway.
-  static const Duration undoHold = Duration(seconds: 10);
-
-  /// How long the bulletin after an addition stays.
-  static const Duration addedDuration = Duration(milliseconds: 1500);
+  /// The library's undo window of a removal or an archiving: only a guard
+  /// (ADR 045, *Undo window*). The bulletin ends the window, committing the
+  /// edits when it leaves by anything but Undo; this is comfortably longer
+  /// than the bulletin can stay (its timeout and a press that holds it).
+  static const Duration undoGuard = Duration(seconds: 30);
 
   /// The arrangement a sheet opens in on this platform: a centred box on
   /// desktop, a bottom sheet elsewhere.
@@ -51,6 +50,7 @@ abstract final class ChatPackSheets {
   static Future<void> open(
     BuildContext context, {
     required AppServices services,
+    required BulletinController? bulletins,
     required PackId pack,
     required PackKind kind,
     ValueChanged<ContentDescriptor>? onPick,
@@ -59,6 +59,7 @@ abstract final class ChatPackSheets {
   }) => _show(
     context,
     services: services,
+    bulletins: bulletins,
     packs: [pack],
     kind: kind,
     onPick: onPick,
@@ -72,12 +73,14 @@ abstract final class ChatPackSheets {
   static Future<void> openEmojiPacks(
     BuildContext context, {
     required AppServices services,
+    required BulletinController? bulletins,
     required List<PackId> packs,
     ValueChanged<ContentDescriptor>? onPick,
     PanelArrangement? arrangement,
   }) => _show(
     context,
     services: services,
+    bulletins: bulletins,
     packs: packs,
     kind: PackKind.emoji,
     onPick: onPick,
@@ -87,6 +90,7 @@ abstract final class ChatPackSheets {
   static Future<void> _show(
     BuildContext context, {
     required AppServices services,
+    required BulletinController? bulletins,
     required List<PackId> packs,
     required PackKind kind,
     required ValueChanged<ContentDescriptor>? onPick,
@@ -94,23 +98,30 @@ abstract final class ChatPackSheets {
     ContentKey? previewEmoji,
   }) {
     // Favourites from the sheet's preview: at once, as from the panel's, and
-    // shown at once by the panel under the sheet.
-    void libraryEdit(LibraryEdit edit) => services.libraryShown.apply(edit);
-    final messenger = ScaffoldMessenger.maybeOf(context);
+    // shown at once by the panel under the sheet, with their bulletin.
+    void libraryEdit(LibraryEdit edit) {
+      final applied = services.libraryShown.apply(edit);
+      if (ChatBulletins.ofLibraryEdit(
+            applied,
+            limits: services.library.limits,
+            strings: ChatBulletinStrings.demo,
+          )
+          case final bulletin?) {
+        bulletins?.show(bulletin);
+      }
+    }
+
     final strings = ChromeStringsScope.packSheetOf(context);
     void edits(List<PackEditRequest> requests) =>
-        apply(services.library, requests, strings, messenger);
-    void unavailable(PackLookup _) => messenger
-      ?..clearSnackBars()
-      ..showSnackBar(
-        _bulletin(
-          Text(
-            kind == PackKind.emoji
-                ? strings.emojiNotFound
-                : strings.stickersNotFound,
-          ),
-        ),
-      );
+        apply(services.library, requests, strings, bulletins);
+    // `createErrorBulletin(AddStickersNotFound)`.
+    void unavailable(PackLookup _) => bulletins?.show(
+      ChatBulletins.error(
+        kind == PackKind.emoji
+            ? strings.emojiNotFound
+            : strings.stickersNotFound,
+      ),
+    );
     final picked = switch (onPick) {
       final pick? => (PackSheetItem item) => pick(item.item),
       null => null,
@@ -158,71 +169,65 @@ abstract final class ChatPackSheets {
   }
 
   /// Applies [requests] to [library] and shows their bulletin through
-  /// [messenger], with Undo for a removal or an archiving.
+  /// [bulletins], with Undo for a removal or an archiving.
   ///
   /// A removal is held for as long as its bulletin shows Undo, as the
   /// reference runs `toggleStickerSet` as the bulletin's delayed action: the
-  /// edits commit when the bulletin closes (timed out, replaced by another,
-  /// or swiped away), and Undo takes them back while it is up. The bulletin
-  /// is up a little longer than [undoWindow] (it slides in before its timer
-  /// starts), so the library's own window is only a bound, [undoHold], for
-  /// a bulletin that never closes. With no [messenger] there is no Undo,
-  /// and the edits commit at once.
+  /// bulletin's commit on leave commits the edits (timed out, replaced by
+  /// another, swiped away, the chat gone), and Undo takes them back. The
+  /// library's own window, [undoGuard], is only a bound. With no [bulletins]
+  /// there is no Undo, and the edits commit at once.
   static void apply(
     ContentLibrary library,
     List<PackEditRequest> requests,
     PackSheetStrings strings,
-    ScaffoldMessengerState? messenger,
+    BulletinController? bulletins,
   ) {
     if (requests.isEmpty) return;
     final takesAway =
-        messenger != null && requests.first.edit is! LibraryEdit$InstallPack;
+        bulletins != null && requests.first.edit is! LibraryEdit$InstallPack;
     final applied = [
       for (final request in requests)
         library.apply(
           request.edit,
-          undoWindow: takesAway ? undoHold : Duration.zero,
+          undoWindow: takesAway ? undoGuard : Duration.zero,
         ),
     ];
-    if (messenger == null) return;
+    if (bulletins == null) return;
     final feedback = feedbackOf(requests, strings);
-    messenger.clearSnackBars();
-    final bulletin = messenger.showSnackBar(
-      _bulletin(
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              feedback.title,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            Text(feedback.info),
-          ],
-        ),
-        duration: takesAway ? undoWindow : addedDuration,
+    final pack = requests.first.pack;
+    bulletins.show(
+      Bulletin(
+        title: feedback.title,
+        message: feedback.info,
+        leading: switch (pack.cover ?? pack.items.firstOrNull?.key) {
+          final cover? => BulletinLeading.thumbnail(cover),
+          null => null,
+        },
+        duration: takesAway ? BulletinDuration.long : BulletinDuration.short,
         action: takesAway
-            ? SnackBarAction(
-                label: strings.undoAction,
-                onPressed: () {
-                  // Each comes back to its own place: the library replays
-                  // the edits still in their window.
+            ? BulletinAction.undo(
+                // Each comes back to its own place: the library replays the
+                // edits still in their window.
+                onUndo: () {
                   for (final edit in applied.reversed) {
                     edit.undo();
+                  }
+                },
+                // An edit already undone ignores its commit.
+                onCommit: () {
+                  for (final edit in applied) {
+                    edit.commit();
                   }
                 },
               )
             : null,
       ),
     );
-    if (!takesAway) return;
-    // An edit already undone ignores its commit.
-    bulletin.closed.then((_) {
-      for (final edit in applied) {
-        edit.commit();
-      }
-    }).ignore();
   }
+
+  // Nothing shows Undo for it: the window of the reference's bulletin.
+  static const Duration _aloneWindow = Duration(milliseconds: 2750);
 
   /// Applies [edit] of a pack nothing describes, with no bulletin to name
   /// it: a removal still keeps its undo window.
@@ -231,7 +236,7 @@ abstract final class ChatPackSheets {
         edit,
         undoWindow: edit is LibraryEdit$InstallPack
             ? Duration.zero
-            : undoWindow,
+            : _aloneWindow,
       );
 
   /// What the bulletin after [requests] says, in [strings]: the reference's
@@ -294,18 +299,4 @@ abstract final class ChatPackSheets {
       ),
     };
   }
-
-  static SnackBar _bulletin(
-    Widget content, {
-    Duration duration = addedDuration,
-    SnackBarAction? action,
-  }) => SnackBar(
-    content: content,
-    behavior: SnackBarBehavior.floating,
-    duration: duration,
-    action: action,
-    // A bulletin with Undo hides after its time too: Undo is only good
-    // while the edit is held.
-    persist: false,
-  );
 }

@@ -1,3 +1,4 @@
+import 'package:bulletins/bulletins.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
@@ -46,6 +47,9 @@ final class InputRig {
 
   /// Every pack "View pack" asked for, in order.
   final List<PackId> packsAsked = <PackId>[];
+
+  /// Every library edit the user asked for, as the set reported it.
+  final List<AppliedEdit> libraryEdits = <AppliedEdit>[];
 
   /// The set under test, once the first frame is built.
   late ChatInputSet set;
@@ -159,6 +163,9 @@ class _Screen extends StatefulWidget {
 class _ScreenState extends State<_Screen> {
   ChatInputSet? _input;
 
+  /// The screen's bulletins, mounted over the stack as the chat mounts its.
+  final BulletinController _bulletins = BulletinController();
+
   InputRig get _rig => widget.rig;
 
   @override
@@ -181,6 +188,7 @@ class _ScreenState extends State<_Screen> {
         return true;
       },
       onPackRequested: _rig.packsAsked.add,
+      onLibraryEdited: _rig.libraryEdits.add,
       keyboard: _rig.keyboard,
       policy: widget.policy,
       messageLengthLimit: widget.messageLengthLimit,
@@ -198,6 +206,7 @@ class _ScreenState extends State<_Screen> {
   @override
   void dispose() {
     _input?.dispose();
+    _bulletins.dispose();
     super.dispose();
   }
 
@@ -206,34 +215,38 @@ class _ScreenState extends State<_Screen> {
     final input = _input!;
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: Stack(
-        key: _rig._space,
-        children: [
-          Positioned.fill(
-            // The chat gives a docked section its room, as the screen does:
-            // only the padding follows the inset, the chat is not rebuilt.
-            child: ValueListenableBuilder<double>(
-              valueListenable: input.insets.inlineEnd,
-              builder: (context, inlineEnd, child) => Padding(
-                padding: EdgeInsetsDirectional.only(end: inlineEnd),
-                child: child,
-              ),
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: ChatBottomChrome(
-                  input: input,
-                  selection: _rig.selection,
-                  islandKey: _rig._island,
-                  anchorSpace: _rig._space,
+      body: BulletinHost(
+        controller: _bulletins,
+        child: Stack(
+          key: _rig._space,
+          children: [
+            Positioned.fill(
+              // The chat gives a docked section its room, as the screen does:
+              // only the padding follows the inset, the chat is not rebuilt.
+              child: ValueListenableBuilder<double>(
+                valueListenable: input.insets.inlineEnd,
+                builder: (context, inlineEnd, child) => Padding(
+                  padding: EdgeInsetsDirectional.only(end: inlineEnd),
+                  child: child,
+                ),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: ChatBottomChrome(
+                    input: input,
+                    selection: _rig.selection,
+                    islandKey: _rig._island,
+                    anchorSpace: _rig._space,
+                    bulletins: _bulletins,
+                  ),
                 ),
               ),
             ),
-          ),
-          if (!ChatBottomChrome.replacesKeyboard(input))
-            Positioned.fill(
-              child: PanelPresentationView(controller: input.presentation),
-            ),
-        ],
+            if (!ChatBottomChrome.replacesKeyboard(input))
+              Positioned.fill(
+                child: PanelPresentationView(controller: input.presentation),
+              ),
+          ],
+        ),
       ),
     );
   }

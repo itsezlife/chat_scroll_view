@@ -62,6 +62,7 @@ import 'features/chat/bundled_packs_test.dart' as bundled_packs_test;
 import 'features/chat/byte_cache_test.dart' as byte_cache_test;
 import 'features/chat/chat_body_host_test.dart' as chat_body_host_test;
 import 'features/chat/chat_body_markdown_test.dart' as chat_body_markdown_test;
+import 'features/chat/chat_bulletins_test.dart' as chat_bulletins_test;
 import 'features/chat/chat_composer_spec_test.dart' as chat_composer_spec_test;
 import 'features/chat/chat_copy_test.dart' as chat_copy_test;
 import 'features/chat/chat_data_source_bodies_test.dart'
@@ -390,6 +391,7 @@ void main() {
     'features/chat/library_content_source_test.dart',
     library_content_source_test.main,
   );
+  group('features/chat/chat_bulletins_test.dart', chat_bulletins_test.main);
   group('features/chat/chat_pack_sheets_test.dart', chat_pack_sheets_test.main);
   group(
     'features/chat/chat_pack_targets_test.dart',

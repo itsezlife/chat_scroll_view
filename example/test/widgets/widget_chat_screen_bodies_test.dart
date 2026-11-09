@@ -2,6 +2,7 @@
 /// the interactions the inline layer reports, and the large-emoji setting.
 library;
 
+import 'package:bulletins/bulletins.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/main.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
@@ -232,7 +233,7 @@ void main() {
 
       expect(find.byType(StickerPackSheet), findsNothing);
       expect(find.byType(EmojiPackSheet), findsNothing);
-      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byType(BulletinCard), findsNothing);
     });
 
     screenTest('the menu of a message with custom emoji offers their pack', (
@@ -269,7 +270,7 @@ void main() {
       await tapAndRead(tester, _pointOn(selection, 6, 14, 23));
 
       expect(selection.spoilers.isRevealed(6), isTrue);
-      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byType(BulletinCard), findsNothing);
     });
   });
 

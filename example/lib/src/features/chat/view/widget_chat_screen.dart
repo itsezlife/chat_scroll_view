@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:bulletins/bulletins.dart';
 import 'package:chat_composer/chat_composer.dart' show ComposerBottomFade;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
@@ -9,6 +10,7 @@ import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/panel_trace.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenable.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
@@ -20,6 +22,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_d
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
@@ -50,6 +53,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separa
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart'
     show
+        AppliedEdit,
         ContentKey,
         LibraryPackEdit,
         PackId,
@@ -190,6 +194,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   ChatInputSet get _input => _inputSet!;
 
+  /// The chat's bulletins: one slot for the screen and the pack sheets over
+  /// it (the reference shows a sheet's bulletins on its screen), on the
+  /// policy of the platform. Mounted over the chat region; disposed with the
+  /// screen, which commits an Undo still showing.
+  final BulletinController _bulletins = BulletinController();
+
+  /// What covers the chat's bottom for a bulletin: the composer, its safe
+  /// inset and the keyboard or panel (the reference chat's
+  /// `Bulletin.Delegate.getBottomOffset`). Made with the input set.
+  MappedValueListenable<double, EdgeInsets>? _bulletinObstruction;
+
+  late final BulletinBuilders _bulletinBuilders = ChatBulletins.buildersFor(
+    _bulletins.policy,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -211,7 +230,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     widget.services.largeEmoji.enabled.addListener(_refreshEmojiPolicy);
     widget.services.largeEmoji.desktopLimit.addListener(_refreshEmojiPolicy);
     _stickerInteractions = StickerInteractionStub(
-      onBroadcast: (broadcast) => _showDemoSnack('Would broadcast $broadcast'),
+      onBroadcast: (broadcast) => _showNotice('Would broadcast $broadcast'),
       // A real host counts the effects the animated-emoji set holds for the
       // emoji; the demo gives every emoji of the pack the same number.
       animationCount: (emoji) =>
@@ -256,8 +275,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       onPastedMedia: _onPastedMedia,
       onPackRequested: (id) => unawaited(_openPack(id)),
       onPackEditRequested: _editPack,
+      onLibraryEdited: _onLibraryEdited,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
+    if (fresh) {
+      _bulletinObstruction = input.insets.bottomPadding.map(
+        (bottom) => EdgeInsets.only(bottom: bottom),
+      );
+    }
     // Made with the input set: the chat's embeds hold while its popup panel
     // is over the chat.
     if (fresh) {
@@ -313,7 +338,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         if (gesture == ChatInlineGesture.longPress) {
           HapticFeedback.lightImpact();
         }
-        _showCopiedSnack(switch (origin) {
+        _showCopied(switch (origin) {
           ChatCopyOrigin.textSelection => ChatCopyKind.textSelection,
           ChatCopyOrigin.messageSelection => ChatCopyKind.messages,
           ChatCopyOrigin.codeTap => ChatCopyKind.code,
@@ -333,11 +358,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       // The host decides what a mention means: a resolved one opens the user it
       // names; a username was only typed, so it is looked up by name first.
       case ChatResolvedMentionActivated(:final id, :final name):
-        _showDemoSnack('User Profile: $name (id $id)');
+        _showNotice('User Profile: $name (id $id)');
       case ChatUsernameMentionActivated(:final name):
-        _showDemoSnack('Resolving username: $name');
+        _showNotice('Resolving username: $name');
       case ChatHashtagActivated(:final tag):
-        _showDemoSnack('Search: #$tag');
+        _showNotice('Search: #$tag');
       // A custom emoji in the text opens its pack's emoji sheet, as the
       // reference's `didPressAnimatedEmoji` does. A long press is the
       // message's.
@@ -371,7 +396,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   // Whether a copy is confirmed is the platform family's (the selection
   // policy's), not the trigger's: see [ChatCopyFeedback].
-  void _showCopiedSnack(ChatCopyKind kind, String text) {
+  void _showCopied(ChatCopyKind kind, String text) {
     if (!mounted || text.isEmpty) return;
     final feedback = ChatCopyFeedback.forPolicy(
       _selection.selectionPolicy,
@@ -379,15 +404,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       systemConfirms: defaultTargetPlatform == TargetPlatform.android,
     );
     if (!feedback.showsToast(kind)) return;
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Copied'),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 1),
-        ),
-      );
+    _bulletins.show(ChatBulletins.copied(kind, ChatBulletinStrings.demo));
+  }
+
+  // An edit of the user's lists asked from the panel: its bulletin, if the
+  // reference shows one.
+  void _onLibraryEdited(AppliedEdit applied) {
+    if (!mounted) return;
+    if (ChatBulletins.ofLibraryEdit(
+          applied,
+          limits: widget.services.library.limits,
+          strings: ChatBulletinStrings.demo,
+        )
+        case final bulletin?) {
+      _bulletins.show(bulletin);
+    }
   }
 
   void _onLinkTap(int messageId, String title, String url) {
@@ -399,15 +430,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       HashtagLinkActivation(:final tag) => 'Hashtag: $tag',
       OtherLinkActivation(:final url) => 'Link: $url',
     };
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(label),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    _showNotice(label);
   }
 
   void _onLinkLongPress(int messageId, String title, String url) {
@@ -419,22 +442,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         title: title,
         url: url,
         onOpen: () => _onLinkTap(messageId, title, url),
-        onCopied: (text) => _showCopiedSnack(ChatCopyKind.link, text),
+        onCopied: (text) => _showCopied(ChatCopyKind.link, text),
       ),
     );
   }
 
   void _onAvatarTap(String sender) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('User Profile: $sender'),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 1),
-        ),
-      );
+    _showNotice('User Profile: $sender');
   }
 
   @override
@@ -464,6 +478,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     }
     _dataSource?.dispose();
     _messageMenu = null;
+    _bulletinObstruction?.dispose();
+    _bulletins.dispose();
     super.dispose();
   }
 
@@ -533,12 +549,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           onDelete: (messageId) => _handleDeleteSelected([messageId]),
           onDeleteSelected: _handleDeleteSelected,
           onEdit: _beginEdit,
-          onCopy: (text) => _showCopiedSnack(ChatCopyKind.messages, text),
+          onCopy: (text) => _showCopied(ChatCopyKind.messages, text),
           onCopySelected: (text) =>
-              _showCopiedSnack(ChatCopyKind.textSelection, text),
-          onCopyLink: (text) => _showCopiedSnack(ChatCopyKind.link, text),
-          onCopyCode: (text) => _showCopiedSnack(ChatCopyKind.code, text),
+              _showCopied(ChatCopyKind.textSelection, text),
+          onCopyLink: (text) => _showCopied(ChatCopyKind.link, text),
+          onCopyCode: (text) => _showCopied(ChatCopyKind.code, text),
           onEmojiPacks: (packs) => unawaited(_openEmojiPacks(packs)),
+          onNotice: _showNotice,
         ),
         emojiPacks: MessageEmojiPacks(
           of: (id) => switch (backend.getMessage(id)?.text) {
@@ -731,14 +748,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           await ds.sendMessage(text);
         } on BackendConnectionException catch (error) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(error.message),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+          _bulletins.show(ChatBulletins.error(error.message));
           rethrow;
         }
       case _:
@@ -917,6 +927,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       ChatPackSheets.open(
         context,
         services: services,
+        bulletins: _bulletins,
         pack: id,
         kind: kind,
         onPick: canPick
@@ -935,6 +946,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       ChatPackSheets.openEmojiPacks(
         context,
         services: widget.services,
+        bulletins: _bulletins,
         packs: packs,
         onPick: (item) => input.pickContent(item.key, kind: item.semanticKind),
       ),
@@ -976,7 +988,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       services.library,
       [(edit: edit, pack: pack)],
       ChromeStringsScope.packSheetOf(context),
-      ScaffoldMessenger.maybeOf(context),
+      _bulletins,
     );
   }
 
@@ -987,7 +999,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     if (!mounted) return false;
     final send = await showPastedMediaSheet(context, media);
     if (send) {
-      _showDemoSnack(
+      _showNotice(
         media.length == 1
             ? 'Would send 1 item'
             : 'Would send ${media.length} items',
@@ -996,17 +1008,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     return send;
   }
 
-  void _showDemoSnack(String text) {
+  // A demo label: what the screen would do, where the demo does nothing.
+  void _showNotice(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(text),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 1),
-        ),
-      );
+    _bulletins.show(ChatBulletins.notice(text));
   }
 
   void _copySelected() {
@@ -1022,7 +1027,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     if (copied.isEmpty) return;
     unawaited(widget.services.clipboard.write(copied));
     ChatCopyFeedback.endSelection(_selection);
-    _showCopiedSnack(ChatCopyKind.messages, copied.plain);
+    _showCopied(ChatCopyKind.messages, copied.plain);
   }
 
   void _editSelectedFromBar() {
@@ -1129,9 +1134,19 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                                   onCopy: _copySelected,
                                 ),
                               },
-                              child: _buildChatRegion(
-                                search: search,
-                                mobilePanel: mobilePanel,
+                              // The bulletins over the chat, above the
+                              // composer and its keyboard or panel.
+                              child: ChromeIconScope(
+                                icons: ChatBulletins.icons,
+                                child: BulletinHost(
+                                  controller: _bulletins,
+                                  obstruction: _bulletinObstruction,
+                                  builders: _bulletinBuilders,
+                                  child: _buildChatRegion(
+                                    search: search,
+                                    mobilePanel: mobilePanel,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -1263,9 +1278,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             selection: _selection,
             islandKey: _composerGlassKey,
             anchorSpace: _presentationSpace,
+            bulletins: _bulletins,
             onAttachPressed: () =>
-                _showDemoSnack('Attachments are not in the demo'),
-            onVoicePressed: () => _showDemoSnack('Voice is not in the demo'),
+                _showNotice('Attachments are not in the demo'),
+            onVoicePressed: () => _showNotice('Voice is not in the demo'),
           ),
         ),
         // Contextual selection bar — overlays the top. [headerReserve] is

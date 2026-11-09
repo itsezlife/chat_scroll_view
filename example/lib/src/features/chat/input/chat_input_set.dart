@@ -136,6 +136,7 @@ final class ChatInputSet {
     Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
     ValueChanged<PackId>? onPackRequested,
     ValueChanged<LibraryPackEdit>? onPackEditRequested,
+    ValueChanged<AppliedEdit>? onLibraryEdited,
     int? messageLengthLimit = DemoConfig.messageLengthMax,
   }) {
     // What has been made so far, to free in reverse if a later step throws
@@ -270,6 +271,7 @@ final class ChatInputSet {
         confirmClearRecents: confirmClearRecents,
         onPackRequested: onPackRequested,
         onPackEditRequested: onPackEditRequested,
+        onLibraryEdited: onLibraryEdited,
         messageLengthLimit: messageLengthLimit,
         ime: ime,
         window: window,
@@ -302,6 +304,7 @@ final class ChatInputSet {
     required ClearRecentsConfirm confirmClearRecents,
     required ValueChanged<PackId>? onPackRequested,
     required ValueChanged<LibraryPackEdit>? onPackEditRequested,
+    required ValueChanged<AppliedEdit>? onLibraryEdited,
     required this.messageLengthLimit,
     required this.ime,
     required listen.ValueNotifier<PanelWindow> window,
@@ -326,6 +329,7 @@ final class ChatInputSet {
        _confirmClearRecents = confirmClearRecents,
        _onPackRequested = onPackRequested,
        _onPackEditRequested = onPackEditRequested,
+       _onLibraryEdited = onLibraryEdited,
        _window = window,
        _text = text,
        linkPreview = ChatLinkPreview(text: text) {
@@ -445,6 +449,10 @@ final class ChatInputSet {
   // Where "View pack" goes: the host's pack sheet, once there is one.
   final ValueChanged<PackId>? _onPackRequested;
   final ValueChanged<LibraryPackEdit>? _onPackEditRequested;
+
+  // Where an edit the user asked for (a favourite, a saved GIF, a recent
+  // forgotten) is reported once the library took it: the host's bulletin.
+  final ValueChanged<AppliedEdit>? _onLibraryEdited;
   final listen.ValueNotifier<PanelWindow> _window;
   final ComposerTextController _text;
 
@@ -1022,7 +1030,7 @@ final class ChatInputSet {
           when _onPackEditRequested != null:
         _onPackEditRequested(edit);
       case LibraryEditRequested(:final edit):
-        services.libraryShown.apply(edit);
+        _edited(services.libraryShown.apply(edit));
       case PackRequested(:final id):
         _onPackRequested?.call(id);
       case SearchClosed():
@@ -1096,13 +1104,20 @@ final class ChatInputSet {
   void _forget(ContentKey key, {required SemanticKind kind}) {
     switch (kind) {
       case SemanticKind.sticker:
-        services.libraryShown.apply(LibraryEdit.removeRecentSticker(key));
+        _edited(
+          services.libraryShown.apply(LibraryEdit.removeRecentSticker(key)),
+        );
       case SemanticKind.gif:
-        services.libraryShown.apply(LibraryEdit.unsaveGif(key));
+        _edited(services.libraryShown.apply(LibraryEdit.unsaveGif(key)));
       default:
         unawaited(services.recentsShown.remove(key, kind: kind));
     }
   }
+
+  // Reports an edit the library took. Not `_onLibraryEdited?.call(apply())`:
+  // a null-aware call skips its argument, and with no listener the edit
+  // would not be made at all.
+  void _edited(AppliedEdit applied) => _onLibraryEdited?.call(applied);
 
   // Sends the body of a picked sticker or GIF. The chat screen has already
   // told the user why a send failed (its sender shows the reason and rethrows),

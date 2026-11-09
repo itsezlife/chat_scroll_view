@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/input_harness.dart';
 import '../support/test_services.dart';
 
-const _toast = 'Apply formatting';
+const _toast = 'Применить форматирование';
 
 Future<(InputRig, FakeRichClipboard)> _pumpRig(WidgetTester tester) async {
   final services = (await tester.runAsync(createTestServices))!;
