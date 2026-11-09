@@ -272,6 +272,24 @@ void main() {
       );
     });
 
+    test('a tick sends the largest frames first', () async {
+      await pool.warm(64, 3);
+      final small = scheduler.acquire('small', 'small', 16, 16)!;
+      final big = scheduler.acquire('big', 'big', 64, 64)!;
+      final middle = scheduler.acquire('middle', 'middle', 48, 32)!;
+
+      scheduler
+        ..want(small, 1)
+        ..want(big, 1)
+        ..want(middle, 1);
+      await tick();
+
+      expect(
+        [for (final batch in writer.batches) batch.single.source],
+        ['big', 'middle', 'small'],
+      );
+    });
+
     test('a slow page batch never delays a texture lease', () async {
       await pool.warm(64, 1);
       final onTexture = lease('texture');

@@ -133,12 +133,13 @@ final class LottieFrameLease {
 /// frame coalesces, it never queues, and it never holds back another lease's
 /// next frame (the reference client schedules each animation's next frame on
 /// its own, the same way). Batches therefore overlap: the atlas runs its own
-/// one after the other, and the render isolate answers writes in the order
-/// they were sent, so a lease's frames land in order. A want for the frame
-/// already sent is free, so a paused animation costs nothing. A paintable at
-/// half frame rate (`AssetProfile.halfFrameRate`) wants only every second
-/// frame, so its slot or texture is rendered and posted half as often, by the
-/// same rule.
+/// one after the other, and each render isolate answers in the order it was
+/// sent, an animation always on the same one, so a lease's frames land in
+/// order. Of the writes of a tick the largest frame goes first, as the one
+/// most in view. A want for the frame already sent is free, so a paused
+/// animation costs nothing. A paintable at half frame rate
+/// (`AssetProfile.halfFrameRate`) wants only every second frame, so its slot
+/// or texture is rendered and posted half as often, by the same rule.
 ///
 /// The bindings of the animated paintables are targets of the same clock and
 /// repaint on their own, so no repaint signal goes out from here. The follow
@@ -480,7 +481,13 @@ final class LottieFrameScheduler {
       (lease._texture != null ? onTextures : onSlots).add(lease);
     }
     if (onSlots.isNotEmpty) unawaited(_renderSlots(onSlots));
-    onTextures.forEach(_writeTexture);
+    // The largest frames go first: a render isolate answers in arrival
+    // order, so this puts the surface in front (a chat sticker) ahead of the
+    // small cells of a panel queued on the same isolate. The sort is stable,
+    // so leases of one size keep their order.
+    onTextures
+      ..sort((a, b) => (b._width * b._height).compareTo(a._width * a._height))
+      ..forEach(_writeTexture);
   }
 
   Future<void> _renderSlots(List<LottieFrameLease> due) async {
