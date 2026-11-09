@@ -19,8 +19,11 @@ import 'package:panel_shell/panel_shell.dart';
 ///   sticker drawn at most [stickerExtent] square and centred in its cell,
 ///   under a [headerExtent] header whose title begins [headerStartInset] in.
 ///   The same under either arrangement.
-/// - **Sections.** One per pack, titled by the pack, the recents first and
-///   unless they are known to be empty.
+/// - **Sections.** The favourite stickers (`CollectionId.faved`, titled
+///   [PanelStrings.favouriteStickersTitle]), then the recents, then one per
+///   pack, titled by the pack; the favourites and the recents unless they
+///   are known to be empty. The order is the source's: the reference lists
+///   the favourites above the recents (`StickersGridAdapter.updateItems`).
 /// - **Picks.** A tap picks the sticker under its own kind, so a pick lands in
 ///   the recents of stickers (a GIF in the pack would land in those of GIFs).
 /// - **The recents header.** A clear button at its end; it asks the host to
@@ -28,8 +31,12 @@ import 'package:panel_shell/panel_shell.dart';
 ///   host confirms, as the reference client's alert does.
 /// - **Strip.** The [StickerPackStrip] above the catalogue.
 ///
-/// Not ported: the search field, trending packs, favourites, the sticker
-/// preview on a long press, the group pack, the create button, and re-ordering
+/// What the favourites and the recents hold (and that a favourite is not
+/// listed again among the recents) is the host's: the page shows the
+/// collections it is given.
+///
+/// Not ported: the search field, trending packs, the sticker preview on a
+/// long press, the group pack, the create button, and re-ordering
 /// the packs by dragging their tabs.
 final class StickersPagePolicy extends CatalogPagePolicy {
   /// The stickers policy; [assets] draws the covers of the strip's tabs (none
@@ -79,21 +86,28 @@ final class StickersPagePolicy extends CatalogPagePolicy {
 
   // --- Sections -------------------------------------------------------------
 
-  // The recents are shown until they are known to be empty: a collection that
-  // is hidden is never asked to load, so one hidden for not being loaded yet
-  // would stay hidden.
+  // The favourites and the recents are shown until they are known to be
+  // empty: a collection that is hidden is never asked to load, so one hidden
+  // for not being loaded yet would stay hidden.
   @override
   List<Collection> visibleCollections(List<Collection> all) => [
     for (final collection in all)
-      if (!_isEmptyRecents(collection)) collection,
+      if (!_isEmptyPersonalList(collection)) collection,
   ];
 
-  static bool _isEmptyRecents(Collection collection) =>
-      collection.id == CollectionId.recent &&
+  static bool _isEmptyPersonalList(Collection collection) =>
+      (collection.id == CollectionId.recent ||
+          collection.id == CollectionId.faved) &&
       switch (collection.contents) {
         CollectionContents$Loaded(:final items) => items.isEmpty,
         _ => false,
       };
+
+  @override
+  String titleOf(Collection collection, PanelStrings strings) =>
+      collection.id == CollectionId.faved
+      ? strings.favouriteStickersTitle
+      : super.titleOf(collection, strings);
 
   @override
   SectionLayout? layoutOf(

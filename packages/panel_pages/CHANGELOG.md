@@ -6,6 +6,19 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (favourite stickers)
+
+- The stickers page shows a favourites section, `CollectionId.faved` from its
+  source, titled `PanelStrings.favouriteStickersTitle` and hidden while known
+  to be empty as the recents are, with no header button; a pick from it is a
+  pick from a collection. Its strip has a tab for it, drawn by
+  `StickerPackStrip.favouritesIcon` (the reference's `emoji_tabs_faves`, now
+  bundled and registered by `EmojiTabIconScope`), and the tabs follow the
+  order of the sections, so a source that lists the favourites first starts
+  the strip on them. Requires `PanelStrings.favouriteStickersTitle`.
+- A pack tab whose cover is not known yet draws nothing until it is; it drew
+  the recents' icon.
+
 ### Changed (a fresh open)
 
 - A page comes back from a close as the presentation's **fresh open**

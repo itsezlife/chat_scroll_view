@@ -8,7 +8,8 @@ import 'package:flutter/widgets.dart';
 /// Loads the bytes of a bundled asset; tests replace it.
 typedef EmojiTabAssetLoader = Future<ByteData> Function(String key);
 
-/// The pictures of the category strip, as chrome icon painters.
+/// The pictures of the category strip, and of the favourites tab of the
+/// stickers page's strip, as chrome icon painters.
 ///
 /// The art is the reference client's: single-colour alpha masks bundled with
 /// this package and drawn tinted with the icon's colour.
@@ -26,6 +27,8 @@ abstract final class EmojiTabIcons {
     ChromeIconId('emoji.travel'): 'msg_emoji_travel',
     ChromeIconId('emoji.objects'): 'msg_emoji_objects',
     ChromeIconId('emoji.symbols'): 'msg_emoji_other',
+    // The stickers page's favourites tab (`stickerIcons[1]` of `EmojiView`).
+    ChromeIconId('stickers.favourites'): 'emoji_tabs_faves',
   };
 
   /// The bundle key of [id]'s art, or null for an id that is not a tab's.

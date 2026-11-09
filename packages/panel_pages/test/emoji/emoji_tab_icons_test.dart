@@ -33,10 +33,16 @@ void main() {
     },
   );
 
-  test('names a picture for each category tab, and nothing else', () {
+  test('names a picture for each category tab and the favourite stickers\' '
+      'tab, and nothing else', () {
     expect(EmojiTabIcons.assets.keys, [
       for (final tab in EmojiCategories.tabs) tab.icon,
+      StickerPackStrip.favouritesIcon,
     ]);
+    expect(
+      EmojiTabIcons.assetKeyOf(StickerPackStrip.favouritesIcon),
+      'packages/panel_pages/assets/emoji_tabs/emoji_tabs_faves.webp',
+    );
     expect(
       EmojiTabIcons.assetKeyOf(smileys),
       'packages/panel_pages/assets/emoji_tabs/msg_emoji_smiles.webp',
