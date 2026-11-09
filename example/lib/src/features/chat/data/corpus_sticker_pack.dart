@@ -53,6 +53,7 @@ final class CorpusSticker implements BundledItem {
     animated: mediaForm != MediaForm.still,
     size: const ContentSize(512, 512),
     spokenName: '$pack $name',
+    pack: CorpusPack.packIdOf(pack),
   );
 
   @override
@@ -71,10 +72,24 @@ final class CorpusPack {
   String get title => folder;
 
   /// The collection the pack is listed as.
-  CollectionId get id => CollectionId.set('corpus_$folder');
+  CollectionId get id => CollectionId.set(packId.value);
+
+  /// The pack its stickers name: the same text as [id].
+  PackId get packId => packIdOf(folder);
+
+  /// The id of the pack of [folder].
+  static PackId packIdOf(String folder) => PackId('corpus_$folder');
 
   /// Its stickers, in file-number order.
   final List<CorpusSticker> stickers;
+
+  /// The pack, as the host's pack source serves it.
+  Pack get pack => Pack(
+    id: packId,
+    kind: PackKind.stickers,
+    title: title,
+    items: [for (final sticker in stickers) sticker.descriptor],
+  );
 }
 
 /// A local corpus of Lottie stickers, for trying the Lottie pipeline on real
@@ -204,6 +219,15 @@ final class CorpusStickerPack {
       for (final sticker in pack.stickers) {
         if (sticker.key == key) return sticker;
       }
+    }
+    return null;
+  }
+
+  /// The pack [id] as the host's pack source serves it, or null for an id
+  /// that is no pack of the corpus.
+  Pack? packOf(PackId id) {
+    for (final pack in packs) {
+      if (pack.packId == id) return pack.pack;
     }
     return null;
   }

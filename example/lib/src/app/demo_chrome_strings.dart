@@ -23,6 +23,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
       _ => id,
     },
     recentlyUsedTitle: 'Недавние',
+    favouriteStickersTitle: 'Избранные',
     searchResultsTitle: 'Результат поиска',
     searchHint: 'Поиск',
     searchEmpty: 'Эмодзи не найдены',

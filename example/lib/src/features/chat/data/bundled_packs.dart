@@ -13,10 +13,10 @@ import 'package:flutter/services.dart';
 /// corpus) answers for that too. Null for a key it cannot describe.
 typedef DescribeContent = ContentDescriptor? Function(ContentKey key);
 
-/// The packs the app bundles, as the host's asset pipeline and its recents see
-/// them: one lookup, one fetcher, one resolver and one list of descriptors over
-/// all of them, so a pack added here is served, described and known in one
-/// place.
+/// The packs the app bundles, as the host's asset pipeline, its recents and
+/// its pack source see them: one lookup, one fetcher, one resolver, one list
+/// of descriptors and one pack lookup over all of them, so a pack added here
+/// is served, described and known in one place.
 abstract final class BundledPacks {
   /// The descriptor of every item of every pack, for the asset pipeline.
   static Iterable<ContentDescriptor> get descriptors => [
@@ -36,6 +36,20 @@ abstract final class BundledPacks {
   /// The descriptor of the item of [key] in any pack, or null: a
   /// [DescribeContent] over the bundled packs alone.
   static ContentDescriptor? describe(ContentKey key) => of(key)?.descriptor;
+
+  /// The pack [id] as the host's pack source serves it, or null for an id
+  /// that is no bundled pack. Each item's descriptor names the pack it is in.
+  static Pack? packOf(PackId id) => _packs[id];
+
+  static final Map<PackId, Pack> _packs = {
+    for (final pack in [
+      AnimatedEmojiPack.pack,
+      LottieStickerPack.pack,
+      StaticStickerPack.pack,
+      VideoStickerPack.pack,
+    ])
+      pack.id: pack,
+  };
 
   /// A fetcher that reads every pack's files from [bundle].
   static ContentFetcher fetcher(AssetBundle bundle) =>

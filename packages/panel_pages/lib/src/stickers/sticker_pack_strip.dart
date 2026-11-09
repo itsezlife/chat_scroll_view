@@ -11,8 +11,11 @@ import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/strip/panel_strip.dart';
 import 'package:panel_shell/panel_shell.dart';
 
-/// The strip along the top of the stickers page: a tab for the recents, when
-/// the page has some, and one per pack, drawn by the pack's cover.
+/// The strip along the top of the stickers page: a tab for the favourite
+/// stickers and one for the recents, when the page has some, and one per
+/// pack, drawn by the pack's cover. The tabs are in the order of the page's
+/// sections; the reference lists the favourites first
+/// (`EmojiView.updateStickerTabs`), drawn by [favouritesIcon].
 ///
 /// The reference mobile client's `ScrollSlidingTabStrip` of type `TAB` (the
 /// stickers tab of the emoji view): [height] tall, each tab [tabWidth] wide
@@ -60,7 +63,8 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// The strip is the page's own widget: its whole connection is the
 /// [CatalogStripHandle]. It requires the chrome theme, strings and motion
-/// scopes. Draws nothing when the page has no pack and no recents.
+/// scopes. Draws nothing when the page has no pack, no favourites and no
+/// recents.
 class StickerPackStrip extends StatefulWidget {
   /// A strip over the sections of [handle], drawing covers through [assets]
   /// (none are drawn when it is null).
@@ -83,6 +87,12 @@ class StickerPackStrip extends StatefulWidget {
 
   /// Side of the recents' icon: `StickerTabView.IMAGE_ICON_SMALL_SIZE`.
   static const double recentsIconSize = 24;
+
+  /// The icon of the favourites' tab: `emoji_tabs_faves`, drawn at
+  /// [recentsIconSize] as the recents' icon is.
+  static const ChromeIconId favouritesIcon = ChromeIconId(
+    'stickers.favourites',
+  );
 
   /// Radius of a cover's corners: `imageView.setRoundRadius(dp(6))`.
   static const double coverRadius = 6;
@@ -132,6 +142,15 @@ class _Tab {
   final Collection collection;
 
   bool get isRecents => collection.id == CollectionId.recent;
+
+  bool get isFavourites => collection.id == CollectionId.faved;
+
+  // The icon of a personal list's tab; null for a pack, drawn by its cover.
+  ChromeIconId? get icon => isFavourites
+      ? StickerPackStrip.favouritesIcon
+      : isRecents
+      ? EmojiCategories.recents.icon
+      : null;
 
   ContentKey? get cover =>
       collection.metadata.cover ??
@@ -210,6 +229,7 @@ class _StickerPackStripState extends State<StickerPackStrip>
   static List<_Tab> _tabsOf(List<CatalogStripEntry> entries) => [
     for (final entry in entries)
       if (entry.collection.id == CollectionId.recent ||
+          entry.collection.id == CollectionId.faved ||
           entry.collection.id is CollectionId$Set)
         _Tab(entry.sectionId, entry.collection),
   ];
@@ -388,10 +408,13 @@ class _StickerPackStripState extends State<StickerPackStrip>
                         child: _TabButton(
                           index: i,
                           inView: _inView,
-                          label: tab.isRecents
+                          label: tab.isFavourites
+                              ? strings.panel.favouriteStickersTitle
+                              : tab.isRecents
                               ? strings.panel.recentlyUsedTitle
                               : tab.collection.metadata.title ?? '',
-                          cover: tab.isRecents ? null : tab.cover,
+                          icon: tab.icon,
+                          cover: tab.cover,
                           selected: tab.sectionId == _active,
                           tokens: tokens,
                           assets: widget.assets,
@@ -412,13 +435,14 @@ class _StickerPackStripState extends State<StickerPackStrip>
   }
 }
 
-/// One tab: the recents' icon in the idle or selected colour, or a pack's
-/// cover.
+/// One tab: the icon of a personal list (the favourites, the recents) in the
+/// idle or selected colour, or a pack's cover.
 class _TabButton extends StatelessWidget {
   const _TabButton({
     required this.index,
     required this.inView,
     required this.label,
+    required this.icon,
     required this.cover,
     required this.selected,
     required this.tokens,
@@ -434,6 +458,7 @@ class _TabButton extends StatelessWidget {
   final ValueListenable<PanelStripRange> inView;
 
   final String label;
+  final ChromeIconId? icon;
   final ContentKey? cover;
   final bool selected;
   final PanelTokens tokens;
@@ -466,9 +491,9 @@ class _TabButton extends StatelessWidget {
     ),
   );
 
-  Widget _picture() => switch ((cover, assets)) {
-    (null, _) => PanelStripIcon(
-      icon: EmojiCategories.recents.icon,
+  Widget _picture() => switch ((icon, cover, assets)) {
+    (final icon?, _, _) => PanelStripIcon(
+      icon: icon,
       size: _metrics.iconSize,
       selected: selected,
       tokens: tokens,
@@ -480,7 +505,7 @@ class _TabButton extends StatelessWidget {
     // still paintable and never moves. Off the strip's screen the binding
     // stops, as the reference strip clears the images of the tabs out of
     // view.
-    (final cover?, final scope?) => PanelStripCover(
+    (null, final cover?, final scope?) => PanelStripCover(
       content: cover,
       scope: scope,
       size: _metrics.coverSize,
@@ -490,6 +515,6 @@ class _TabButton extends StatelessWidget {
       index: index,
       inView: inView,
     ),
-    (_, null) => const SizedBox.shrink(),
+    (null, _, _) => const SizedBox.shrink(),
   };
 }

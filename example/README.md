@@ -35,18 +35,32 @@ The panel lists only real content:
 
 - the emoji page: the emoji catalogue, then the animated emoji pack (custom
   emoji, not stickers);
-- the stickers page: the recent stickers, then the local Telegram corpus, a
-  pack per folder (see "Local Telegram stickers" below). Without the corpus
-  (a fresh checkout, CI) it lists the recents alone, and with no recents
-  either it says "Стикеров пока нет" (`PanelStrings.stickersEmpty`);
-- the GIF page: the recent GIFs, then Giphy's trending and search (see
-  "Giphy GIFs" below). Without a key it lists the recents alone, and with no
-  recents either it says "GIF не найдены" (`PanelStrings.gifsEmpty`).
+- the stickers page: the favourite stickers ("Избранные", with a tab of
+  their own), the recent stickers, then the local Telegram corpus, a pack per
+  folder (see "Local Telegram stickers" below). Without the corpus (a fresh
+  checkout, CI) it lists the favourites and the recents alone, and with
+  neither it says "Стикеров пока нет" (`PanelStrings.stickersEmpty`);
+- the GIF page: the saved GIFs as its recents, then Giphy's trending and
+  search (see "Giphy GIFs" below). Without a key it lists the saved GIFs
+  alone, and with none either it says "GIF не найдены"
+  (`PanelStrings.gifsEmpty`).
+
+The favourite and recent stickers and the saved GIFs are the content library
+(ADR 044), kept in the key-value store under `library`, with the reference
+client's limits without a subscription: 5 favourite stickers, 200 saved GIFs,
+30 recent stickers of which the page shows 20. They are most recently used
+first: a sent sticker becomes the first recent, a sent GIF the first saved
+GIF, wherever it was found (search too). A favourite is not listed again
+among the recents. The page lists what was sent since it last opened when it
+opens again, not while it is open; a removal shows at once. Nothing in the
+example favourites a sticker yet: the content preview will. Each sticker and
+custom emoji names its pack (`ContentDescriptor.pack`), which the services'
+pack source serves by id from the bundled packs and the corpus.
 
 The bundled demo packs (Lottie, static and video stickers, MP4 clips and
 GIFs) are no longer on any panel page: they stay in the app for the showcase
-chat, which shows every one of them, and one already in the recents stays
-listed there. Tapping a sticker or GIF sends it as a message
+chat, which shows every one of them, and one already among the recents, the
+favourites or the saved GIFs stays listed there. Tapping a sticker or GIF sends it as a message
 and leaves the panel open; a sent sticker or GIF cannot be edited. Wiring:
 `lib/src/app/app_services.dart` (the page sources) and
 `lib/src/features/chat/input/media_panel_pages.dart`.
@@ -78,12 +92,12 @@ message carries Giphy's id, not a URL. The chat draws it by asking Giphy for
 that id (one batched request for the ids it does not know) and downloading
 the file through the asset pipeline, so a message from the backend chat still
 plays after a restart. The offline-only generated chat does not keep
-messages. Recent GIFs are remembered by key, but are listed again only once
+messages. Saved GIFs are remembered by key, but are listed again only once
 the session has seen the clip (after a restart, once it is in trending or a
-search); a clip listed only in the recents stays out until then.
+search); a clip listed only among the saved GIFs stays out until then.
 
 Offline or with a busy server the page shows "Couldn't load GIFs" with a
-retry button under the recent GIFs; there are no demo clips beneath it.
+retry button under the saved GIFs; there are no demo clips beneath it.
 
 ## Disk caches
 

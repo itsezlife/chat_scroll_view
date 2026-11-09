@@ -61,7 +61,10 @@ made. Whoever creates an object disposes it, in the reverse order.
 1. **Key-value adapter.** `await SharedPreferencesKeyValueStore.open()`.
 2. **Stores, loaded.** `KeyValueRecentsStore.load` and
    `KeyValuePreferenceStore.load` (one namespace per package, each awaited once
-   at startup), `KeyboardHeightStore.open`. A store never exists unloaded.
+   at startup), `KeyboardHeightStore.open`, and, with stickers or GIFs, the
+   content library: `StoredContentLibrary.load` over a
+   `KeyValueLibraryStorage`, with the host's `LibraryLimits` (ADR 044). A
+   store never exists unloaded.
 3. **Asset cache.** `PageAssets.createScope(memoryPressure: SystemMemoryPressure())`.
    Add a `producer:` (an `AssetPipeline` over your fetcher and decoders) when
    content is more than unicode glyphs. Feed the clock your pause layers
@@ -512,7 +515,10 @@ The panel lists the recents first, so a pick that updated them at once would
 reorder the grid under the finger that is picking from it. Give the panel's
 sources a `DeferredRecentsStore` over the real store, record picks in the real
 store, and `commit()` the view when the panel opens and when search ends. A
-clear commits at once.
+clear commits at once. The content library's lists (recent and favourite
+stickers, saved GIFs) want the same: the example's `DeferredLibraryView`
+shows them as of its last `commit()` and drops a key that leaves the library
+at once.
 
 ### Composer wiring
 
@@ -1191,9 +1197,13 @@ stickers) and `GifPage` (the clips in justified rows). A host registers each as
 a `PanelPage` (ids and tab icons of its choosing) and gives each one
 `CollectionSource`:
 
-- the **recents first** as `CollectionId.recent`, loaded from the start (a
-  collection a page hides is never asked to load, so a recents list that is
-  hidden while it loads would stay hidden), then the packs as
+- the **personal lists first**, loaded from the start (a collection a page
+  hides is never asked to load, so a list that is hidden while it loads would
+  stay hidden): on the stickers page the favourite stickers as
+  `CollectionId.faved` and then the recent stickers as `CollectionId.recent`
+  (the reference lists a favourite once, among the favourites, and shows 20
+  recents), on the GIF page the saved GIFs as `CollectionId.recent`; all of
+  them the content library's lists (ADR 044). Then the packs as
   `CollectionId.set`, each with a title and a cover (`CollectionMetadata.cover`
   or its first item) for the strip;
 - descriptors that carry the content's kind (`sticker` or `gif`) and its
@@ -1202,9 +1212,10 @@ a `PanelPage` (ids and tab icons of its choosing) and gives each one
 A tap is a `ContentPicked` with the content's own kind and recents kind, so the
 host's one handler sends it: **the panel stays open and the composer keeps its
 text**, as the reference client's `onStickerSelected` and `onGifSelected` leave
-them, the sent item is filed in the recents of its kind (`RecentsStore.record`,
-shown on the next open through a deferred view so the list does not move under
-the finger), and the message goes out through the host's own send path (the
+them, the sent item goes first in the content library (a sticker by
+`LibraryEdit.addRecentSticker`, a GIF by `LibraryEdit.saveGif`, wherever it
+was found, search too; shown on the next open through a deferred view of the
+library's lists so the list does not move under the finger), and the message goes out through the host's own send path (the
 reference client also scrolls the chat to it, `onMessageSend`; that is the
 chat's, not the panel's). The sticker page's clear button on the recents header is a `ClearRecentsRequested` the host
 confirms.
@@ -1285,12 +1296,12 @@ not use the hover-open toggle region.
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
 | Video decoder probe and start (VM and web forks) | `example/lib/src/app/video_playback.dart`, `environment_specific/video_playback.dart`, `video_playback_vm.dart`, `video_playback_js.dart` |
 | Lottie decoder probe and start, the frame cache and its folder (VM and web forks) | `example/lib/src/app/lottie_playback.dart`, `environment_specific/lottie_playback.dart`, `lottie_playback_vm.dart`, `lottie_playback_js.dart`, `cache_directory_vm.dart`, `cache_directory_js.dart` |
-| Bundled packs: one lookup, fetcher and resolver, one pack source, the authored Lottie and static stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart`, `static_sticker_pack.dart` |
+| Bundled packs: one lookup, fetcher and resolver, the packs the pack source serves, one collection source, the authored Lottie and static stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart`, `static_sticker_pack.dart` |
 | `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
 | App scopes | `example/lib/src/app/app_chrome.dart` |
 | Per-chat controller set, event handler, back, hand-off | `example/lib/src/features/chat/input/chat_input_set.dart` |
 | Emoji page composition (atlas host factory, planner) | `example/lib/src/features/chat/input/emoji_panel_page.dart` |
-| Stickers and GIF pages (sources of the recents, the local sticker corpus and Giphy; sending on a pick, editability) | `example/lib/src/features/chat/input/media_panel_pages.dart`, `data/recent_content_source.dart`, `data/corpus_sticker_pack.dart`, `data/giphy_gif_source.dart`, `utils/sticker_message_body.dart`, `utils/message_editability.dart` |
+| Stickers and GIF pages (sources of the library's lists, the local sticker corpus and Giphy; sending on a pick, editability) | `example/lib/src/features/chat/input/media_panel_pages.dart`, `data/library_content_source.dart`, `data/deferred_library_view.dart`, `data/corpus_sticker_pack.dart`, `data/giphy_gif_source.dart`, `utils/sticker_message_body.dart`, `utils/message_editability.dart` |
 | Composer spec | `example/lib/src/features/chat/input/chat_composer_spec.dart` |
 | Inset aggregation | `example/lib/src/features/chat/utils/chat_viewport_insets.dart` |
 | IME readings and keyboard commands | `example/lib/src/common/soft_keyboard_port.dart` |

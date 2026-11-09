@@ -41,6 +41,13 @@ Collection _recents({int items = 2}) => Collection(
   ]),
 );
 
+Collection _favourites({int items = 2}) => Collection(
+  id: CollectionId.faved,
+  contents: CollectionContents.loaded([
+    for (var i = 0; i < items; i++) _item('f-$i'),
+  ]),
+);
+
 CatalogLeafHit _hit(Collection collection, int index) {
   final item = (collection.contents as CollectionContents$Loaded).items[index];
   return CatalogLeafHit(
@@ -104,9 +111,40 @@ void main() {
       ]);
     });
 
+    test('show the favourites only while there are some', () {
+      final packs = [_pack('a')];
+
+      expect(
+        policy.visibleCollections([
+          _favourites(items: 0),
+          _recents(),
+          ...packs,
+        ]),
+        [_recents(), ...packs],
+      );
+      expect(policy.visibleCollections([_favourites(), _recents(), ...packs]), [
+        _favourites(),
+        _recents(),
+        ...packs,
+      ]);
+    });
+
+    test('keep favourites still loading, as they may have some', () {
+      const loading = Collection(id: CollectionId.faved);
+
+      expect(policy.visibleCollections([loading]), [loading]);
+    });
+
     test('are titled by the pack, and the recents by the panel strings', () {
       expect(policy.titleOf(_pack('a', title: 'Cats'), _strings), 'Cats');
       expect(policy.titleOf(_recents(), _strings), _strings.recentlyUsedTitle);
+    });
+
+    test('title the favourites by the panel strings', () {
+      expect(
+        policy.titleOf(_favourites(), _strings),
+        _strings.favouriteStickersTitle,
+      );
     });
   });
 
@@ -132,6 +170,19 @@ void main() {
         PickSource.recents,
       );
     });
+
+    test('files a favourite under its own kind, as from a collection', () {
+      final favourites = _favourites();
+
+      expect(
+        policy.pickOf(_hit(favourites, 1), favourites, searching: false),
+        CatalogPick(
+          key: _key('f-1'),
+          kind: SemanticKind.sticker,
+          source: PickSource.collection,
+        ),
+      );
+    });
   });
 
   group('the recents header', () {
@@ -145,6 +196,10 @@ void main() {
         _strings.clearRecentAction,
       );
       expect(policy.actionOf(_pack('a'), _strings), isNull);
+    });
+
+    test('is the only one: the favourites header has no button', () {
+      expect(policy.actionOf(_favourites(), _strings), isNull);
     });
 
     test('asks the host to clear the recent stickers, which it confirms', () {

@@ -17,7 +17,8 @@ import 'package:panel_shell/panel_shell.dart';
 /// is the host's. The page has no search, and no bake: stickers are content,
 /// not glyphs.
 ///
-/// A page with nothing to list (the recents known to be empty, and no pack)
+/// A page with nothing to list (the favourites and the recents known to be
+/// empty, and no pack)
 /// says [PanelStrings.stickersEmpty] in the middle, over the empty catalogue,
 /// rather than show a blank page that reads as one still loading.
 ///
@@ -35,8 +36,9 @@ class StickersPage extends StatefulWidget {
   /// The page's connection to the shell; fixed for the life of the widget.
   final PanelPageHost host;
 
-  /// The packs, the recents first when the host keeps some: one collection
-  /// each. Packs are `CollectionId.set` and the recents `CollectionId.recent`.
+  /// The packs, the favourites and the recents first when the host keeps
+  /// some: one collection each. Packs are `CollectionId.set`, the favourites
+  /// `CollectionId.faved` and the recents `CollectionId.recent`.
   final CollectionSource source;
 
   /// The asset cache the grid and the strip draw through.

@@ -24,6 +24,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
+import 'package:panel_pages/src/strip/panel_strip.dart' show PanelStripIcon;
 import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/testing.dart';
 
@@ -82,6 +83,8 @@ Collection _pack(String id, String title) => Collection(
 );
 
 const _recent = Collection(id: CollectionId.recent);
+
+const _faved = Collection(id: CollectionId.faved);
 
 // A pack whose first sticker, its cover, is [cover].
 Collection _packOf(String id, ContentKey cover) => Collection(
@@ -175,6 +178,36 @@ void main() {
     expect(find.bySemanticsLabel('Recently used'), findsOneWidget);
     expect(find.bySemanticsLabel('Cats'), findsOneWidget);
     expect(find.bySemanticsLabel('Dogs'), findsOneWidget);
+  });
+
+  testWidgets('has a tab for the favourites, before the recents when the '
+      'page lists them first, drawn by the favourites icon', (tester) async {
+    handle.dispose();
+    handle = _Handle([_faved, _recent, _pack('a', 'Cats')]);
+    await pump(tester);
+
+    expect(find.bySemanticsLabel('Favorites'), findsOneWidget);
+    expect(
+      tester
+          .widgetList<PanelStripIcon>(find.byType(PanelStripIcon))
+          .map((icon) => icon.icon),
+      [StickerPackStrip.favouritesIcon, EmojiCategories.recents.icon],
+    );
+    expect(
+      tester.getCenter(find.bySemanticsLabel('Favorites')).dx,
+      lessThan(tester.getCenter(find.bySemanticsLabel('Recently used')).dx),
+    );
+  });
+
+  testWidgets('starts on the favourites when the page lists them first', (
+    tester,
+  ) async {
+    handle.dispose();
+    handle = _Handle([_faved, _recent, _pack('a', 'Cats')]);
+    await pump(tester);
+
+    expect(selected(tester, 'Favorites'), isTrue);
+    expect(selected(tester, 'Recently used'), isFalse);
   });
 
   testWidgets('is one labelled group for assistive technology', (tester) async {

@@ -85,8 +85,10 @@ final class ChatEditTarget {
 /// What the set decides, in one place each:
 ///
 /// - **Insert and record.** A picked emoji, unicode or animated, becomes an
-///   inline content reference in the composer and one `RecentsStore.record`; backspace edits
-///   the composer; clearing recents asks [confirmClearRecents] first.
+///   inline content reference in the composer and one `RecentsStore.record`;
+///   a picked sticker is sent and put first in the content library's recent
+///   stickers, a picked GIF sent and saved (ADR 044); backspace edits the
+///   composer; clearing recents asks [confirmClearRecents] first.
 /// - **Pasted media.** An image or file pasted into the composer, or an
 ///   image a keyboard inserts, goes to `onPastedMedia` to send, and no text
 ///   goes in; when it is not sent, the text that came with it does.
@@ -993,11 +995,7 @@ final class ChatInputSet {
             case final body?) {
           unawaited(_sendPicked(body));
         }
-        // In the list the page chose: the emoji page files unicode and
-        // animated emoji in one.
-        unawaited(
-          services.recents.record(key, kind: recentsKind, source: source),
-        );
+        _record(key, kind: recentsKind, source: source);
       case BackspaceRequested():
         unawaited(HapticFeedback.selectionClick());
         composer.backspace();
@@ -1011,17 +1009,50 @@ final class ChatInputSet {
           unawaited(services.clipboard.write(ChatCopy.content(key, text)));
         }
       case RecentRemoveRequested(:final key, :final kind):
-        // Through the view the panel lists: the emoji leaves the list at once,
-        // and nothing else in it moves.
-        unawaited(services.recentsShown.remove(key, kind: kind));
+        _forget(key, kind: kind);
       case SearchClosed():
         // What was picked while searching is listed once search is over.
-        services.recentsShown.commit();
+        services.commitShownLists();
         // The search field's keyboard goes with its focus; the composer takes
         // it back, still with no keyboard of its own while the panel is up.
         if (isPanelVisible) composer.requestFocus();
       case ActionInvoked() || PageChanged() || SearchOpened():
         break;
+    }
+  }
+
+  // Records a pick in the list the page chose ([kind]): a sticker among the
+  // library's recent stickers and a GIF among its saved GIFs, whatever it
+  // was found by, as the reference client does on every send
+  // (`addRecentSticker`, `addRecentGif`); anything else in the emoji
+  // recents, where the emoji page files unicode and animated emoji in one
+  // and a pick from search does not count.
+  void _record(
+    ContentKey key, {
+    required SemanticKind kind,
+    required PickSource source,
+  }) {
+    switch (kind) {
+      case SemanticKind.sticker:
+        services.library.apply(LibraryEdit.addRecentSticker(key));
+      case SemanticKind.gif:
+        services.library.apply(LibraryEdit.saveGif(key));
+      default:
+        unawaited(services.recents.record(key, kind: kind, source: source));
+    }
+  }
+
+  // Forgets one recent of [kind]. The panel's lists lose it at once, and
+  // nothing else in them moves: the library's view drops what leaves the
+  // library, the emoji recents go through their view.
+  void _forget(ContentKey key, {required SemanticKind kind}) {
+    switch (kind) {
+      case SemanticKind.sticker:
+        services.library.apply(LibraryEdit.removeRecentSticker(key));
+      case SemanticKind.gif:
+        services.library.apply(LibraryEdit.unsaveGif(key));
+      default:
+        unawaited(services.recentsShown.remove(key, kind: kind));
     }
   }
 
@@ -1065,6 +1096,19 @@ final class ChatInputSet {
 
   Future<void> _clearRecents(SemanticKind kind) async {
     if (!await _confirmClearRecents(kind) || _disposed) return;
+    // The library has no edit that clears a list: one removal per key, each
+    // leaving the panel's view at once.
+    final inLibrary = switch (kind) {
+      SemanticKind.sticker => services.library.recentStickers.value,
+      SemanticKind.gif => services.library.savedGifs.value,
+      _ => null,
+    };
+    if (inLibrary case final keys?) {
+      for (final key in keys) {
+        _forget(key, kind: kind);
+      }
+      return;
+    }
     // Through the view too: what the user asked to forget is not listed a
     // moment longer.
     await services.recentsShown.clear(kind: kind);
@@ -1075,7 +1119,7 @@ final class ChatInputSet {
     // The panel shows the recents as of the moment it opens: what was picked
     // in the last session is listed now, not while the user picks.
     final opened = !_wasVisible && state.isVisible;
-    if (opened) services.recentsShown.commit();
+    if (opened) services.commitShownLists();
     _wasVisible = state.isVisible;
     // The panel stands in for the keyboard only while it is coming or on
     // screen; once it is leaving, the field is a field again.

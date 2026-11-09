@@ -36,6 +36,7 @@ final class AnimatedEmoji implements BundledItem {
       AnimatedEmojiPack._pixelSize,
     ),
     spokenName: name,
+    pack: AnimatedEmojiPack.packId,
   );
 
   @override
@@ -57,6 +58,17 @@ abstract final class AnimatedEmojiPack {
 
   /// The pack's title, as its publisher names it.
   static const String title = 'Noto Animated Emoji';
+
+  /// The pack each emoji names: the same text as [id].
+  static const PackId packId = PackId('noto_animated_emoji');
+
+  /// The pack, a pack of custom emoji, as the host's pack source serves it.
+  static Pack get pack => Pack(
+    id: packId,
+    kind: PackKind.emoji,
+    title: title,
+    items: descriptors.toList(),
+  );
 
   static const String _keyPrefix = 'noto-animated:';
 
