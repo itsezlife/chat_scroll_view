@@ -271,6 +271,9 @@ final class LottieFrameScheduler {
   // Leases whose paintable left the screen, released when the frame is over
   // unless painted meanwhile.
   final Set<LottieFrameLease> _leaving = {};
+  // The frame each key's kept texture holds (see `_release`): a lease that
+  // takes the texture back does not render it again.
+  final Map<Object, int> _keptFrames = {};
   PlaybackSubscription? _following;
   Timer? _sweep;
   Timer? _leave;
@@ -316,8 +319,13 @@ final class LottieFrameScheduler {
       // it: shown at once, its queued frames are this animation's own, and
       // the paintable goes on from that frame (ticket 144).
       final texture = lease._texture = _textureFor(lease, showing: key);
+      final kept = _keptFrames.remove(key);
       if (texture != null && texture.showsFrame) {
-        lease._posts = _postsBeforeShown;
+        // The frame it holds is not rendered again: the first frame the
+        // paintable wants after it is the next one.
+        lease
+          .._posts = _postsBeforeShown
+          .._requested = kept;
       }
     }
     if (lease._texture == null) {
@@ -359,6 +367,7 @@ final class LottieFrameScheduler {
     if (_disposed || _leases.containsKey(key)) return;
     _textures?.forgetFrameOf(key);
     _atlas.forgetFrame(key);
+    _keptFrames.remove(key);
   }
 
   /// Releases every lease, stops following the clock and disposes the atlas.
@@ -366,6 +375,7 @@ final class LottieFrameScheduler {
   void dispose() {
     if (_disposed) return;
     List.of(_leases.values).forEach(_release);
+    _keptFrames.clear();
     _disposed = true;
     _returnAfterWrite
       ..keys.forEach(_giveBack)
@@ -565,6 +575,12 @@ final class LottieFrameScheduler {
       final showing = keepFrame && lease._shown && !lease._failed
           ? lease._key
           : null;
+      // The frame last sent: posted already, or by the write in flight
+      // (one that finds the texture locked leaves the one before, and the
+      // paintable moves past it a frame later).
+      if (showing != null) {
+        if (lease._requested case final frame?) _keptFrames[showing] = frame;
+      }
       if (lease._writing && !_disposed) {
         _returnAfterWrite[texture] = showing;
       } else {

@@ -6,6 +6,19 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a clip that comes back goes on at once)
+
+- A clip that left the screen keeps the frames it had decoded ahead, not only
+  its time and its decoder's position: back on screen it shows the next frame
+  at its time. Before, it held the frame it came back on for three or four
+  frames' time and then skipped those frames, which read as a jump. The kept
+  frames cost at most `VideoFrameScheduler.keptAheadBytes` together (12 MiB
+  by default; the clip away longest gives its frames up first, and then
+  comes back as before); `releaseIdle` and `forget` drop them, and
+  `bufferedBytes` counts them until then.
+- A clip that comes back starts its timing at its next want: the time it was
+  away is never played, even when its paintable counted it.
+
 ### Changed (each clip waits only for its own frame)
 
 - `VideoFrameScheduler` keeps a frame in flight per clip, not one batch for

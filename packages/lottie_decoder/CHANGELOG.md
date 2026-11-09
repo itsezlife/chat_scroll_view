@@ -5,6 +5,11 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a cell that comes back goes on at once)
+
+- A lease that takes its kept texture back renders the frame after the one
+  on it, not that frame again: one render less, and no doubled first frame.
+
 ### Changed (an animation above the cap plays)
 
 - A `full` decode whose spec is above 512 px (`LottiePixelJob.maxEdge`) now

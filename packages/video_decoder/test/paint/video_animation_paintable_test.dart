@@ -191,7 +191,9 @@ void main() {
   });
 
   // Ticket 144: a clip that comes back keeps its decoder's position and its
-  // frame, so it shows the frame it left on and goes on from there.
+  // frame, so it shows the frame it left on and goes on from there. Ticket
+  // 148: with the frames it had decoded ahead, so the next frame shows at
+  // its time, with no hold and no skip.
   group('VideoAnimationPaintable that leaves the screen and comes back', () {
     // 30 fps, 12 frames: the fake's blue is 16 times the frame index.
     final bytes12 = Uint8List.fromList([12, 0]);
@@ -205,25 +207,30 @@ void main() {
     late FrameTexturePool pool;
     late _IndexRecordingWriter writer;
 
+    VideoFrameScheduler withTextures({
+      int keptAheadBytes = VideoFrameScheduler.defaultKeptAheadBytes,
+    }) => VideoFrameScheduler(
+      engine: engine,
+      atlas: VideoFrameAtlas.create(
+        upload: (pixels, side) async => _solid(0xFF000000, side: 4),
+        sizeClasses: const [64],
+      ),
+      clock: clock,
+      textures: pool,
+      textureWriter: writer,
+      startTimer: timers.start,
+      keptAheadBytes: keptAheadBytes,
+    );
+
     setUp(() async {
       scheduler.dispose();
       pool = FrameTexturePool(
         host: FakeFrameTextureHost(),
         sizeClasses: const [64],
       );
-      await pool.warm(64, 1);
+      await pool.warm(64, 2);
       writer = _IndexRecordingWriter();
-      scheduler = VideoFrameScheduler(
-        engine: engine,
-        atlas: VideoFrameAtlas.create(
-          upload: (pixels, side) async => _solid(0xFF000000, side: 4),
-          sizeClasses: const [64],
-        ),
-        clock: clock,
-        textures: pool,
-        textureWriter: writer,
-        startTimer: timers.start,
-      );
+      scheduler = withTextures();
       engine.accept(bytes12, info12, frameCount: 12);
       clip =
           ((await engine.open(bytes12, width: 16, height: 16))
@@ -239,9 +246,14 @@ void main() {
       }
     }
 
-    test('shows the frame it left on at once and plays on from it', () async {
-      final p = paintable();
-      addTearDown(p.dispose);
+    // Plays [p] to 200 ms, leaves the screen and comes back [away] ms later
+    // (telling it playback resumed unless [resumed] is false), plays 150 ms
+    // more; returns the frame it left on and the frames posted after.
+    Future<({int left, List<int> after})> leaveAndComeBack(
+      VideoAnimationPaintable p, {
+      int away = 1800,
+      bool resumed = true,
+    }) async {
       await play(p, 0, 200);
       final texture = p.texture;
       expect(texture, isNotNull);
@@ -251,27 +263,116 @@ void main() {
       p.leftScreen();
       timers.elapse(Duration.zero);
       expect(scheduler.leaseCount, 0, reason: 'it left: its lease went');
-      for (var i = 0; i < 20; i++) {
+      for (var i = 0; i < away ~/ 16; i++) {
         await tick();
       }
 
       final posted = writer.indices.length;
-      p
-        ..playbackResumed()
-        ..advancePlayback(const AssetPaintContext(time: Duration(seconds: 2)));
+      final back = 200 + away;
+      if (resumed) p.playbackResumed();
+      p.advancePlayback(AssetPaintContext(time: Duration(milliseconds: back)));
       expect(p.texture, texture, reason: 'its last frame at once');
-      await play(p, 2016, 2150);
+      await play(p, back + 16, back + 150);
+      return (left: left, after: writer.indices.skip(posted).toList());
+    }
 
-      final after = writer.indices.skip(posted).toList();
+    test('shows the frame it left on at once and plays on from the next '
+        'one, frame by frame', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+      final (:left, :after) = await leaveAndComeBack(p);
+
+      // 150 ms at 30 fps: each frame the one after the last.
+      expect(after, [for (var i = 1; i <= 5; i++) left + i]);
+    });
+
+    test('a stop shorter than the resume gap is not played either', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+      // No resume said: the paintable counts the 300 ms as played, the
+      // clip that comes back does not.
+      final (:left, :after) = await leaveAndComeBack(
+        p,
+        away: 300,
+        resumed: false,
+      );
+
+      expect(after.first, left + 1);
+    });
+
+    test('with no budget for frames decoded ahead it holds its frame, then '
+        'goes on from it', () async {
+      scheduler.dispose();
+      scheduler = withTextures(keptAheadBytes: 0);
+      final p = paintable();
+      addTearDown(p.dispose);
+      final (:left, :after) = await leaveAndComeBack(p);
+
       expect(after, isNotEmpty, reason: 'it plays on');
       expect(
         after.first,
-        inInclusiveRange(left, left + 5),
-        reason: 'from the frame it left on ($left), not its first',
+        inInclusiveRange(left + 2, left + 5),
+        reason: 'the frames it decoded ahead went: it skips them',
       );
-      for (var i = 1; i < after.length; i++) {
-        expect(after[i], greaterThanOrEqualTo(after[i - 1]));
+    });
+
+    test('the clip away longest gives up its frames first', () async {
+      scheduler.dispose();
+      // 16 x 16 frames of 1 KiB: one clip's ring and decode, not two.
+      scheduler = withTextures(keptAheadBytes: 5 * 1024);
+      final other =
+          ((await engine.open(bytes12, width: 16, height: 16))
+                  as VideoClipOpened)
+              .clip;
+      final a = paintable();
+      final b = VideoAnimationPaintable(
+        key: 'b',
+        clip: other,
+        firstFrame: _solid(0xFF00FF00),
+        scheduler: scheduler,
+      );
+      addTearDown(a.dispose);
+      addTearDown(b.dispose);
+      for (var ms = 0; ms < 200; ms += 16) {
+        final context = AssetPaintContext(time: Duration(milliseconds: ms));
+        a.advancePlayback(context);
+        b.advancePlayback(context);
+        await tick();
       }
+      final held = scheduler.bufferedBytes;
+
+      a.leftScreen();
+      timers.elapse(Duration.zero);
+      b.leftScreen();
+      timers.elapse(Duration.zero);
+
+      expect(scheduler.bufferedBytes, lessThanOrEqualTo(5 * 1024));
+      expect(scheduler.bufferedBytes, lessThan(held));
+      expect(scheduler.bufferedBytes, greaterThan(0), reason: 'b keeps its');
+    });
+
+    test('frames kept for a return go with the paintable, and under memory '
+        'pressure', () async {
+      final p = paintable();
+      await play(p, 0, 200);
+      p.leftScreen();
+      timers.elapse(Duration.zero);
+      expect(scheduler.bufferedBytes, greaterThan(0));
+
+      scheduler.releaseIdle();
+      expect(scheduler.bufferedBytes, 0, reason: 'memory pressure');
+
+      p
+        ..playbackResumed()
+        ..advancePlayback(const AssetPaintContext(time: Duration(seconds: 1)));
+      await play(p, 1016, 1200);
+      p.leftScreen();
+      timers.elapse(Duration.zero);
+      expect(scheduler.bufferedBytes, greaterThan(0));
+
+      p.dispose();
+      await pumpEventQueue();
+      expect(scheduler.bufferedBytes, 0, reason: 'disposed');
     });
 
     test('a restart does not take back the frame it held', () async {
