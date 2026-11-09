@@ -361,10 +361,9 @@ void main() {
   });
 
   group('search across a hide', () {
-    // The reference mobile client closes search when its panel is toggled
-    // away while searching (`setSearchingTypeInternal(0, true)`,
-    // `closeSearch`), so a reopened panel is never in search; its desktop
-    // client only gives the field's focus back.
+    // The mobile panel closes search when it is toggled away while searching,
+    // so a reopened panel is never in search; the desktop one only gives the
+    // field's focus back.
     test('a mobile panel that hides ends the search left open, so the next '
         'show starts outside it', () {
       build(policy: mobile);

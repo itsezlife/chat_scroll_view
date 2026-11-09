@@ -4,7 +4,7 @@ import 'package:flutter/widgets.dart';
 /// grows from.
 ///
 /// The width is required and the other fields default to nothing drawn. No
-/// reference client's dimensions are shipped here: a host passes the ones its
+/// dimensions are shipped here: a host passes the ones its
 /// design calls for. The height is not part of the style; the presentation
 /// policy sizes it from the window.
 @immutable
@@ -38,12 +38,12 @@ final class AnchoredPopupStyle {
   /// The scale the popup has when it starts to appear and when it has
   /// finished disappearing, around its bottom-end corner. `1` only fades.
   ///
-  /// A chosen default, not checked against a reference client.
+  /// A chosen default.
   final double scaleBegin;
 
   /// The room left between the popup and the composer it anchors to: above the
-  /// composer's top edge and inside its end edge. The reference client keeps
-  /// the same room on both sides, so the popup is a card floating over the
+  /// composer's top edge and inside its end edge. The room is the same
+  /// on both sides, so the popup is a card floating over the
   /// corner, not a sheet standing on the composer. The pointer's hover area
   /// still reaches the toggle across it.
   final double edgeGap;

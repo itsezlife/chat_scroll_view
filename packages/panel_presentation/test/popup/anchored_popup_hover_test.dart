@@ -107,7 +107,7 @@ void main() {
   });
 
   group('leaving', () {
-    // Reference client: the toggle's leave arms a 0 ms timer, which the
+    // The toggle's leave arms a 0 ms timer, which the
     // popup's enter cancels because the two rectangles touch.
     testWidgets(
       'leaving the toggle hides on the next event pass, not at once',

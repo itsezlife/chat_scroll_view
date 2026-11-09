@@ -165,15 +165,12 @@ void main() {
     const policy = PanelPresentationPolicy$Desktop();
     const wide = PanelWindow(width: 1200, height: 800);
 
-    test(
-      'is the reference client\'s: 292 to 392, the chat never under 380',
-      () {
-        expect(policy.dockMinWidth, 292);
-        expect(policy.dockMaxWidth, 392);
-        expect(policy.dockMinChatWidth, 380);
-        expect(policy.dockResizeExtent, 6);
-      },
-    );
+    test('is 292 to 392, the chat never under 380', () {
+      expect(policy.dockMinWidth, 292);
+      expect(policy.dockMaxWidth, 392);
+      expect(policy.dockMinChatWidth, 380);
+      expect(policy.dockResizeExtent, 6);
+    });
 
     test('is the narrowest one nobody has resized', () {
       expect(policy.dockWidthIn(wide), 292);
@@ -307,14 +304,11 @@ void main() {
       });
     });
 
-    test(
-      'timers follow the reference client: 300 ms leave, 3 s after a hold',
-      () {
-        const policy = PanelPresentationPolicy$Desktop();
-        expect(policy.leaveDelay, const Duration(milliseconds: 300));
-        expect(policy.afterHoldDelay, const Duration(seconds: 3));
-      },
-    );
+    test('timers are 300 ms leave, 3 s after a hold', () {
+      const policy = PanelPresentationPolicy$Desktop();
+      expect(policy.leaveDelay, const Duration(milliseconds: 300));
+      expect(policy.afterHoldDelay, const Duration(seconds: 3));
+    });
   });
 
   group('sizing', () {

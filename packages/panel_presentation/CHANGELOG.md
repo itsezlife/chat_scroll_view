@@ -106,7 +106,7 @@ this package is pre-1.0.
   Code that relied on Escape working with no focus anywhere after opening by
   click must now have focus in the composer (the host wraps it in
   `AnchoredPopupActions`) or in the popup.
-- **The hover machine follows the reference client.** Leaving the toggle hides
+- **The hover machine's leave is immediate.** Leaving the toggle hides
   at the next event pass (it used to wait 300 ms), cancelled by entering the
   popup; the popup's hover area now includes a transparent gutter and a bridge
   down to the toggle, so the pointer never crosses a gap. Leaving the popup
