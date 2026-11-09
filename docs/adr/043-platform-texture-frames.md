@@ -12,6 +12,7 @@ carry the frames as before.
 **Date**: 2026-11-08  
 **Amended**: 2026-11-09 (native-media ticket 87): a held texture keeps its last frame (row *Kept leases*); 2026-11-09 (native-media ticket 108): a warm makes room from idle textures of other classes, and a lease still on a slot asks for a texture at every sweep (row *Pool*)  
 **Amended**: 2026-11-09 (native-media ticket 110): each lease waits only for its own frame in flight (row *Pacing*, section *Amendment: each lease waits only for its own frame*)
+**Amended**: 2026-11-09 (native-media ticket 116): a texture is given back when its lease's paintable leaves the screen (section *Amendment: textures given back on leaving*)
 **Relates to**: [ADR 022](022-asset-cache-and-media-pipeline.md) (paint surface, dynamic frame pages), [ADR 042](042-native-media-decoding.md) (engines, workers), [ADR 020](020-package-topology.md), [ADR 024](024-panel-catalog-seams.md), [ADR 030](030-testing-policy.md)
 
 ## Context
@@ -134,3 +135,13 @@ cadence instead of 60.
 | Kept rules | A texture is posted at most once a clock frame (one frame out per lease, sent only on a tick); a texture is shown after three posts of its lease (ticket 82); a texture a lease lets go during its write goes back to the pool when that write ends; a lease with a frame in flight moves to a texture only after it ends, so a write always names the texture its lease holds. Kept leases, the parity fills and the frame-file reads are unchanged. |
 | Cost | One isolate message per texture frame instead of one per tick; the posts of a tick no longer land together, which ticket 99 (posts of a tick in one burst) has to weigh against per-lease cadence. |
 | Render isolates | With one Lottie render isolate the leases still shared its time, and the chat's sticker queued behind a panel's cells (measured worse than before, about 30 changes a second): Lottie renders on a pool of isolates, and a tick sends its largest texture frames first ([ADR 042](042-native-media-decoding.md), *Amendment: a pool of render isolates*). |
+
+## Amendment: textures given back on leaving
+
+Native-media ticket 116. A fling through a sticker panel ended with every texture leased (33 leased, none idle) by cells that had flown past, released only by the sweep. The rules are in [ADR 022](022-asset-cache-and-media-pipeline.md), *Amendment: a lease is given back on leaving*; what they mean for textures:
+
+| Area | Decision |
+| ---- | -------- |
+| Leaving | A lease whose paintable left the screen gives its texture back once the frame is over, unless painted in it or kept, through the same path as any release: a texture a write still names goes back when that write ends, and the pool's reuse delay applies before another lease takes it. A cell hidden but still drawn (a panel's cells during a fling) keeps its texture, so it never falls back to its still for three posts. |
+| Full pool | A full pool takes page slots from stale leases, never a texture: handing a texture straight to another lease would skip the reuse delay, while the surface that last composited it may still be drawn with it. A lease that found no texture plays from the slot it got and moves to an idle texture on a later tick, as before. |
+| Kept leases | Unchanged: a kept lease is never given back on leaving, never taken, never swept. |

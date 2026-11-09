@@ -161,6 +161,115 @@ void main() {
       expect(held, hasLength(4));
     });
 
+    group('a full pool', () {
+      // One page: four cells.
+      setUp(() {
+        scheduler.dispose();
+        scheduler = build(budget: 128 * 128 * 4);
+      });
+
+      /// Ticks for [ms] while [painted] are wanted every frame.
+      Future<void> play(int ms, List<LottieFrameLease> painted) async {
+        for (var t = 0; t < ms; t += 16) {
+          for (final lease in painted) {
+            scheduler.want(lease, 0);
+          }
+          tick();
+        }
+        await pumpEventQueue();
+      }
+
+      test('takes the slot of the lease painted least recently', () async {
+        final leases = [for (var i = 0; i < 4; i++) lease('k$i')];
+        await play(48, leases);
+        await play(48, leases.sublist(1)); // k0 leaves first
+        await play(200, leases.sublist(2)); // then k1
+
+        final extra = scheduler.acquire('extra', 'src', 48, 48);
+
+        expect(extra, isNotNull);
+        expect(leases[0].isReleased, isTrue);
+        expect(leases.skip(1).map((l) => l.isReleased), [false, false, false]);
+      });
+
+      test('never takes a lease painted within the visible window', () async {
+        final leases = [for (var i = 0; i < 4; i++) lease('k$i')];
+        await play(200, leases.sublist(1));
+        // k0 was painted a frame ago: a surface that repaints every few
+        // frames still shows it.
+        scheduler.want(leases[0], 0);
+        tick();
+        tick();
+
+        expect(scheduler.acquire('extra', 'src', 48, 48), isNull);
+        expect(leases.map((l) => l.isReleased), everyElement(isFalse));
+      });
+
+      test(
+        'never takes a kept lease, however long it went unpainted',
+        () async {
+          final leases = [for (var i = 0; i < 4; i++) lease('k$i')];
+          for (final lease in leases) {
+            lease.kept = true;
+          }
+          await play(500, const []);
+
+          expect(scheduler.acquire('extra', 'src', 48, 48), isNull);
+          expect(leases.map((l) => l.isReleased), everyElement(isFalse));
+        },
+      );
+
+      test(
+        'a lease taken comes back on its next acquire, as a new one',
+        () async {
+          final a = lease('a');
+          final others = [for (var i = 0; i < 3; i++) lease('k$i')];
+          await play(200, others);
+          lease('extra');
+          expect(a.isReleased, isTrue);
+
+          await play(200, const []);
+          expect(scheduler.acquire('a', 'src', 48, 48), isNotNull);
+        },
+      );
+    });
+
+    group('a lease whose paintable left the screen', () {
+      test('ends once the frame is over', () {
+        final a = lease('a');
+        a.releaseUnlessPainted();
+        expect(a.isReleased, isFalse, reason: 'the frame may still paint it');
+
+        timers.elapse(Duration.zero);
+        expect(a.isReleased, isTrue);
+      });
+
+      test('stays when it is painted in that frame', () {
+        final a = lease('a');
+        a.releaseUnlessPainted();
+        scheduler.want(a, 3);
+
+        timers.elapse(Duration.zero);
+        expect(a.isReleased, isFalse);
+      });
+
+      test('stays while kept', () {
+        final a = lease('a')..kept = true;
+        a.releaseUnlessPainted();
+
+        timers.elapse(Duration.zero);
+        expect(a.isReleased, isFalse);
+      });
+
+      test('leaves no timer behind once every lease ended', () {
+        final a = lease('a');
+        a.releaseUnlessPainted();
+        a.release();
+
+        expect(timers.pending, 0);
+      });
+    });
+
     test('releases a lease nobody wanted for a sweep, keeping its entry', () {
       final idle = lease('idle');
       final busy = lease('busy');

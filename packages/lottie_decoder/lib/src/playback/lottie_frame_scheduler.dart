@@ -62,6 +62,12 @@ final class LottieFrameLease {
   int? _wanted;
   int? _requested;
   bool _touched = true;
+  // The scheduler's tick time at the last want (the acquisition counts as
+  // one): how a full pool finds the lease painted least recently.
+  Duration _wantedAt = Duration.zero;
+  // Whether its paintable left the screen and no want came since: the lease
+  // goes when the frame is over (see releaseUnlessPainted).
+  bool _leaving = false;
   // Whether a surface that only has a canvas painted it since the last sweep
   // but one: such a lease keeps a slot, whose sprite a canvas can draw.
   bool _onCanvas = false;
@@ -112,6 +118,14 @@ final class LottieFrameLease {
 
   /// Ends the lease. Idempotent. The entry stays in the pool, idle.
   void release() => _scheduler._release(this);
+
+  /// Ends the lease once the current frame is over, unless its holder wants
+  /// a frame before that or the lease is [kept] by then: the holder left the
+  /// screen (`AssetPaintable.leftScreen`), but a surface that hides a cell
+  /// may still paint it in the frame that hid it (a panel's cells are hidden
+  /// while a fling runs, and drawn), and giving that lease back would put
+  /// the cell on its still while a new lease shows its first posts.
+  void releaseUnlessPainted() => _scheduler._releaseUnlessPainted(this);
 }
 
 /// The one owner of a host's [FrameAtlas]: it works out, once per clock tick,
@@ -148,14 +162,31 @@ final class LottieFrameLease {
 /// paintable asks one frame ahead for that, which is the "one to two frames
 /// ahead" budget.
 ///
-/// ## Leases and the sweep
+/// ## Leases: given back on leaving, taken when the pool is full, swept
 ///
-/// A paint is the only sign a paintable is on screen, and nothing says when it
-/// leaves. One sweep timer, alive only while leases exist, runs every
-/// [idleRelease]: a lease that was not wanted since the previous sweep is
-/// released, so a sticker that is cached but off screen frees its slot, which
-/// stays in the pool idle (evictable, not evicted). A lease therefore lives at
-/// least [idleRelease] unpainted and at most twice that.
+/// A paint is the only sign a paintable is on screen. A lease ends in one of
+/// three ways, so the pool's slots and textures go to the cells on screen:
+///
+/// 1. Its paintable left the screen: every binding of its entry hid or
+///    detached, and the paintable called
+///    [LottieFrameLease.releaseUnlessPainted]. The lease goes when the frame
+///    is over unless it was painted in it, or kept. Without this a fling
+///    filled the pool with the leases of cells that had flown past, and the
+///    cells it brought in showed their stills for seconds (ticket 116).
+/// 2. An [acquire] found the pool full: the leases on slots that nothing
+///    painted for [visibleWindow] give theirs up, the least recently painted
+///    first, until one is free. A kept lease is never taken, nor one painted
+///    within the window, which covers the current frame and a surface that
+///    repaints only every few frames (a cell at half rate), so leases on
+///    screen never pass a slot back and forth.
+/// 3. The sweep, the backstop for what no surface said: one timer, alive only
+///    while leases exist, runs every [idleRelease], and a lease that was not
+///    wanted since the previous sweep is released. A lease therefore lives at
+///    most twice [idleRelease] unpainted.
+///
+/// A released lease's slot stays in the pool idle (evictable, not evicted),
+/// and its texture idles in the texture pool for its reuse delay, so a cell
+/// that comes back soon finds its frame.
 ///
 /// ## Textures
 ///
@@ -194,6 +225,7 @@ final class LottieFrameScheduler {
     FrameTexturePool? textures,
     TextureFrameWriter? textureWriter,
     this.idleRelease = const Duration(seconds: 1),
+    this.visibleWindow = const Duration(milliseconds: 150),
     this.tickInterval = Duration.zero,
     LottieSweepTimerFactory startTimer = Timer.new,
   }) : _atlas = atlas,
@@ -208,6 +240,12 @@ final class LottieFrameScheduler {
 
   /// How long a lease may go unwanted before the sweep frees its slot.
   final Duration idleRelease;
+
+  /// How long since its last paint, in the clock's playback time, a lease
+  /// still counts as on screen: a full pool never takes it. Several clock
+  /// frames, so a surface that repaints only every few frames keeps its
+  /// lease; the clock's pauses do not count.
+  final Duration visibleWindow;
 
   /// Shortest time between two ticks of the follow subscription.
   final Duration tickInterval;
@@ -229,8 +267,14 @@ final class LottieFrameScheduler {
   final Set<int> _classesToWarm = <int>{};
   // Textures leases let go of that a write in flight still names.
   final Set<FrameTextureLease> _returnAfterWrite = {};
+  // Leases whose paintable left the screen, released when the frame is over
+  // unless painted meanwhile.
+  final Set<LottieFrameLease> _leaving = {};
   PlaybackSubscription? _following;
   Timer? _sweep;
+  Timer? _leave;
+  // The time of the last tick: what a want is stamped with.
+  Duration _now = Duration.zero;
   bool _disposed = false;
 
   /// Leases alive now.
@@ -241,8 +285,10 @@ final class LottieFrameScheduler {
 
   /// A lease for frames of [width] x [height] pixels of [source] (what the
   /// renderer renders) under [key]: on a texture when one is free, else on a
-  /// slot; null when there is no texture and every page is open and every
-  /// cell pinned: the caller keeps showing its still, never an error.
+  /// slot, taken from the least recently painted lease when the pool is full
+  /// (see the class documentation); null when there is no texture and every
+  /// slot is pinned by a lease on screen or kept: the caller keeps showing
+  /// its still, never an error.
   ///
   /// Throws a [StateError] when [key] already has a lease and an
   /// [ArgumentError] for a size the pool refuses.
@@ -261,16 +307,12 @@ final class LottieFrameScheduler {
       throw StateError('$key already has a lease.');
     }
     final lease = LottieFrameLease._(this, key, source, width, height)
+      .._wantedAt = _now
       .._onCanvas = onCanvas
       .._canvasTouched = onCanvas;
     if (!onCanvas) lease._texture = _textureFor(lease);
     if (lease._texture == null) {
-      final handle = _atlas.acquire(
-        key,
-        source: source,
-        width: width,
-        height: height,
-      );
+      final handle = _slotFor(lease) ?? _slotFromStalest(lease);
       if (handle == null) return null;
       lease._slot = handle;
       _warmFor(lease);
@@ -291,7 +333,9 @@ final class LottieFrameScheduler {
     if (lease._released) return;
     lease
       .._wanted = frame
-      .._touched = true;
+      .._touched = true
+      .._wantedAt = _now
+      .._leaving = false;
     if (!onCanvas) return;
     lease
       .._onCanvas = true
@@ -407,12 +451,7 @@ final class LottieFrameScheduler {
   // to a slot again. Without a slot to take it keeps the texture, and the
   // canvas draws the still, as for a full pool.
   void _toSlot(LottieFrameLease lease) {
-    lease._slot ??= _atlas.acquire(
-      lease._key,
-      source: lease._source,
-      width: lease._width,
-      height: lease._height,
-    );
+    lease._slot ??= _slotFor(lease);
     if (lease._slot == null) return;
     _dropTexture(lease, discard: false);
   }
@@ -437,15 +476,61 @@ final class LottieFrameScheduler {
   void _refuseTexture(LottieFrameLease lease) {
     _refused.add(lease._key);
     _dropTexture(lease, discard: true);
-    lease._slot ??= _atlas.acquire(
-      lease._key,
-      source: lease._source,
-      width: lease._width,
-      height: lease._height,
-    );
+    lease._slot ??= _slotFor(lease);
   }
 
   // --- Leases ---
+
+  FrameHandle<Object>? _slotFor(LottieFrameLease lease) => _atlas.acquire(
+    lease._key,
+    source: lease._source,
+    width: lease._width,
+    height: lease._height,
+  );
+
+  // The pool is full. The leases on slots that no surface painted for the
+  // visible window are off screen whatever their bindings say (the sweep
+  // would free them within two idle periods): they give their slots up, the
+  // least recently painted first, until the pool has one for [lease]. One at
+  // a time, because a freed cell may be of another size class or pinned by
+  // a batch still rendering into it. A lease on a texture alone frees no
+  // slot, and its texture could not be leased again before the texture
+  // pool's reuse delay, so it is left to the sweep.
+  FrameHandle<Object>? _slotFromStalest(LottieFrameLease lease) {
+    final stale = [
+      for (final other in _leases.values)
+        if (other._slot != null &&
+            !other._kept &&
+            _now - other._wantedAt > visibleWindow)
+          other,
+    ]..sort((a, b) => a._wantedAt.compareTo(b._wantedAt));
+    for (final victim in stale) {
+      _release(victim);
+      if (_slotFor(lease) case final handle?) return handle;
+    }
+    return null;
+  }
+
+  void _releaseUnlessPainted(LottieFrameLease lease) {
+    if (lease._released || _disposed) return;
+    lease._leaving = true;
+    _leaving.add(lease);
+    // A zero timer runs once the event in progress is over: after the
+    // frame's paint when the paintable left at its layout.
+    _leave ??= _startTimer(Duration.zero, _releaseLeaving);
+  }
+
+  void _releaseLeaving() {
+    _leave = null;
+    final leaving = List.of(_leaving);
+    _leaving.clear();
+    for (final lease in leaving) {
+      // Painted after it left (a hidden cell still drawn), or held on screen
+      // by a surface that keeps its frame: it stays.
+      if (lease._leaving && !lease._kept) _release(lease);
+      lease._leaving = false;
+    }
+  }
 
   void _release(LottieFrameLease lease) {
     if (lease._released) return;
@@ -465,11 +550,15 @@ final class LottieFrameScheduler {
     _following = null;
     _sweep?.cancel();
     _sweep = null;
+    _leave?.cancel();
+    _leave = null;
+    _leaving.clear();
   }
 
   // --- A tick ---
 
   void _onTick(Duration now) {
+    _now = now;
     _moveToTextures();
     final onSlots = <LottieFrameLease>[];
     final onTextures = <LottieFrameLease>[];

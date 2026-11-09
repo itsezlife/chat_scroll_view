@@ -514,6 +514,82 @@ void main() {
       expect(scheduler.acquire('k4', clip), isNull);
     });
 
+    group('a full pool', () {
+      late List<VideoFrameLease> leases;
+
+      setUp(() async {
+        scheduler.dispose();
+        scheduler = build(budget: 128 * 128 * 4);
+        final clip = await openClip();
+        leases = [for (var i = 0; i < 4; i++) scheduler.acquire('k$i', clip)!];
+      });
+
+      /// Ticks for [ms] while [painted] are wanted every frame.
+      Future<void> play(int ms, List<VideoFrameLease> painted) async {
+        for (var t = 0; t < ms; t += 16) {
+          for (final lease in painted) {
+            scheduler.want(lease, Duration(milliseconds: t));
+          }
+          await tick();
+        }
+      }
+
+      test('takes the slot of the clip painted least recently', () async {
+        await play(48, leases);
+        await play(48, leases.sublist(1)); // k0 leaves first
+        await play(200, leases.sublist(2)); // then k1
+
+        final extra = scheduler.acquire('extra', await openClip());
+
+        expect(extra, isNotNull);
+        expect(leases[0].isReleased, isTrue);
+        expect(leases.skip(1).map((l) => l.isReleased), [false, false, false]);
+      });
+
+      test('never takes a clip painted within the visible window', () async {
+        await play(200, leases.sublist(1));
+        scheduler.want(leases[0], Duration.zero);
+        await tick();
+        await tick();
+
+        expect(scheduler.acquire('extra', await openClip()), isNull);
+        expect(leases.map((l) => l.isReleased), everyElement(isFalse));
+      });
+
+      test('never takes a kept clip, however long it went unpainted', () async {
+        for (final lease in leases) {
+          lease.kept = true;
+        }
+        await play(500, const []);
+
+        expect(scheduler.acquire('extra', await openClip()), isNull);
+        expect(leases.map((l) => l.isReleased), everyElement(isFalse));
+      });
+    });
+
+    group('a clip whose paintable left the screen', () {
+      test('ends its lease once the frame is over', () async {
+        final lease = scheduler.acquire('a', await openClip())!;
+        lease.releaseUnlessPainted();
+        expect(lease.isReleased, isFalse);
+
+        timers.elapse(Duration.zero);
+        expect(lease.isReleased, isTrue);
+      });
+
+      test('keeps it when painted in that frame, or kept', () async {
+        final painted = scheduler.acquire('a', await openClip())!;
+        final kept = scheduler.acquire('b', await openClip())!..kept = true;
+        painted.releaseUnlessPainted();
+        kept.releaseUnlessPainted();
+        scheduler.want(painted, Duration.zero);
+
+        timers.elapse(Duration.zero);
+        expect(painted.isReleased, isFalse);
+        expect(kept.isReleased, isFalse);
+      });
+    });
+
     test('a decode failure fails the lease', () async {
       final clip = await openClip();
       final lease = scheduler.acquire('a', clip)!;

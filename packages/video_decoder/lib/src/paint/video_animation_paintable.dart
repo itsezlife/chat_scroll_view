@@ -127,6 +127,13 @@ final class VideoAnimationPaintable extends AssetPaintable {
   @override
   void playbackResumed() => _lastTime = null;
 
+  // The lease goes now, not at the sweep: the pool is shared by every
+  // surface, and the cells that come on screen need it. A clip that comes
+  // back takes a new lease, which starts at its first frame, as after a
+  // sweep.
+  @override
+  void leftScreen() => _lease?.releaseUnlessPainted();
+
   void _beginPass() {
     _holding = false;
     _played = Duration.zero;

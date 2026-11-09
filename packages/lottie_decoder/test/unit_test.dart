@@ -25,6 +25,7 @@ import 'playback/lottie_frame_scheduler_test.dart'
     as lottie_frame_scheduler_test;
 import 'playback/lottie_frame_scheduler_texture_test.dart'
     as lottie_frame_scheduler_texture_test;
+import 'playback/lottie_lease_turnover_test.dart' as lottie_lease_turnover_test;
 import 'renderer/lottie_frame_renderer_texture_test.dart'
     as lottie_frame_renderer_texture_test;
 import 'renderer/lottie_source_test.dart' as lottie_source_test;
@@ -55,6 +56,10 @@ void main() {
   group(
     'playback/lottie_frame_scheduler_texture_test.dart',
     lottie_frame_scheduler_texture_test.main,
+  );
+  group(
+    'playback/lottie_lease_turnover_test.dart',
+    lottie_lease_turnover_test.main,
   );
   group(
     'renderer/lottie_frame_renderer_texture_test.dart',

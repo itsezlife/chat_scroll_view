@@ -451,6 +451,30 @@ void main() {
       expect(scheduler.bufferedBytes, 0);
     });
 
+    test('leaving the screen gives the lease back after the frame, unless '
+        'kept', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+      for (var ms = 0; ms < 100; ms += 20) {
+        await paintAt(p, ms);
+      }
+
+      p
+        ..keepFrame(keep: true)
+        ..leftScreen();
+      timers.elapse(Duration.zero);
+      expect(scheduler.leaseCount, 1, reason: 'a held surface shows it');
+
+      p
+        ..keepFrame(keep: false)
+        ..leftScreen();
+      timers.elapse(Duration.zero);
+      expect(scheduler.leaseCount, 0);
+
+      await paintAt(p, 120);
+      expect(scheduler.leaseCount, 1, reason: 'painted again, it leases');
+    });
+
     test('a failed lease is never asked again and the still stays', () async {
       await engine.close(clip);
       final p = paintable();
