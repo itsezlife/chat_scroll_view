@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -10,6 +11,7 @@ import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/menu/catalog_context_menu.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_action.dart';
+import 'package:panel_pages/src/pack_sheet/pack_sheet_frame.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/preview/catalog_content_preview.dart';
 import 'package:panel_pages/src/preview/content_preview_item.dart';
@@ -109,11 +111,15 @@ class PackSheetView extends StatefulWidget {
   /// The menu button: 40 square, 5 in from the top and the end edge.
   static const double menuButtonExtent = 40;
 
-  /// The grabber: 36 x 4, radius 2, 6 below the sheet's top edge.
+  /// The grabber: 36 x 4, radius 2 (`dp(36)`, `dp(4)`, `dp(2)`).
   static const Size grabberSize = Size(36, 4);
 
-  /// The top corners of the bottom sheet (`dp(12)`).
-  static const double topRadius = 12;
+  /// The header's shadow line: `dialogShadowLine`, `dp(48)` below the
+  /// header's top, `getShadowHeight()` (one density-independent pixel) tall.
+  static const double shadowLineTop = 48;
+
+  /// How long the shadow line takes to fade in or out (`setDuration(150)`).
+  static const Duration shadowFade = Duration(milliseconds: 150);
 
   /// The row of a sticker pack (`dp(82)`).
   static const double stickerRowExtent = 82;
@@ -145,15 +151,6 @@ class PackSheetView extends StatefulWidget {
   /// The label of the bottom button: 14 bold.
   static const double buttonTextSize = 14;
 
-  /// The grid wraps its content while the sheet is under this share of the
-  /// screen's height (`contentSize < height / 5 * 3.2`), and otherwise opens
-  /// [partHeight] of it tall.
-  static const double wrapLimit = 3.2 / 5;
-
-  /// The share of the screen a tall sheet opens to: the grid's top padding is
-  /// two fifths of the screen.
-  static const double partHeight = 3 / 5;
-
   /// The tallest the grid is in a box under a pointer: the desktop client's
   /// `stickersMaxHeight` (320) for stickers, its emoji height (197) otherwise.
   static double boxGridMaxHeight(PackSheetGrid grid) =>
@@ -163,21 +160,35 @@ class PackSheetView extends StatefulWidget {
   State<PackSheetView> createState() => _PackSheetViewState();
 }
 
-class _PackSheetViewState extends State<PackSheetView> {
+class _PackSheetViewState extends State<PackSheetView>
+    with SingleTickerProviderStateMixin {
   final _catalog = PanelCatalogController();
   final _snapshots = listen.ValueNotifier<CatalogSnapshot>(
     const CatalogSnapshot.empty(),
   );
-  late final _builder = CatalogSnapshotBuilder(policy: _policyFor(const []));
+  late final _builder = CatalogSnapshotBuilder(policy: _policyFor());
   late final List<listen.ValueListenable<List<PackId>>> _states = [
     for (final kind in PackKind.values) ...[
       widget.library.installedPacks(kind),
       widget.library.archivedPacks(kind),
     ],
   ];
+  final _menu = CatalogContextMenuController();
   ContentPreviewSession? _session;
   PointerDeviceKind _lastKind = PointerDeviceKind.touch;
   var _closed = false;
+
+  /// The grid's scroll offset, which the card's top, its background and the
+  /// headers over the grid follow; the rest of the sheet does not rebuild.
+  final _offset = ValueNotifier<double>(0);
+  late final StreamSubscription<PanelCatalogScrollEvent> _scrolls;
+
+  /// How far an emoji card's background has closed over the status bar
+  /// (`EmojiPacksAlert`'s `statusBarT`, 350 ms on ease-out-quint).
+  late final _closing = AnimationController(vsync: this);
+
+  /// The frame of the last build, which the offset is read against.
+  PackSheetFrame _frame = const PackSheetFrame.fixed(0);
 
   /// The pack a sheet of several opened on its own by a tap on one of its
   /// items (`EmojiPacksAlert`: a tap opens that pack alone), or null.
@@ -190,6 +201,8 @@ class _PackSheetViewState extends State<PackSheetView> {
 
   PackSheetGrid get _grid => _alone == null ? widget.grid : PackSheetGrid.emoji;
 
+  bool get _isEmoji => _grid != PackSheetGrid.stickers;
+
   @override
   void initState() {
     super.initState();
@@ -201,6 +214,12 @@ class _PackSheetViewState extends State<PackSheetView> {
       // The answer arrives through [changes]; a failure is an answer.
       widget.packs.lookup(id).ignore();
     }
+    _scrolls = _catalog.events.listen((event) {
+      if (event case PanelCatalogOffsetChanged(:final offset)) {
+        _offset.value = offset;
+        _followStatusBar();
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _changed());
   }
 
@@ -211,8 +230,12 @@ class _PackSheetViewState extends State<PackSheetView> {
       list.removeListener(_changed);
     }
     _session?.cancel();
+    _scrolls.cancel().ignore();
+    _menu.dispose();
     _catalog.dispose();
     _snapshots.dispose();
+    _offset.dispose();
+    _closing.dispose();
     super.dispose();
   }
 
@@ -248,22 +271,10 @@ class _PackSheetViewState extends State<PackSheetView> {
     return found;
   }
 
-  _PackSheetGridPolicy _policyFor(
-    List<Pack> packs, [
-    PackSheetStrings? strings,
-  ]) => _PackSheetGridPolicy(
-    grid: _grid,
-    installed: {
-      for (final pack in packs)
-        pack.id:
-            widget.library.installStateOf(pack.id) ==
-            PackInstallState.installed,
-    },
-    strings: strings,
-  );
+  _PackSheetGridPolicy _policyFor() => _PackSheetGridPolicy(grid: _grid);
 
-  void _publish(List<Pack> packs, PackSheetStrings strings) {
-    _builder.policy = _policyFor(packs, strings);
+  void _publish(List<Pack> packs) {
+    _builder.policy = _policyFor();
     final snapshot = _builder.build([
       for (final pack in packs)
         _grid == PackSheetGrid.severalEmoji ? _limited(pack) : pack.collection,
@@ -295,6 +306,23 @@ class _PackSheetViewState extends State<PackSheetView> {
     }
     return null;
   }
+
+  // An emoji card's background closes over the status bar once its top
+  // reaches it, and opens again when it leaves: animated, not tied to the
+  // offset (`statusBarT` is an `AnimatedFloat`).
+  void _followStatusBar() {
+    if (!_isEmoji) return;
+    final target = _frame.closesAt(_frame.cardTopAt(_offset.value)) ? 1.0 : 0.0;
+    if (_closing.value == target && !_closing.isAnimating) return;
+    final speed = ChromeMotionScope.maybeOf(context)?.speed;
+    _closing.animateTo(
+      target,
+      duration: speed?.scale(_statusBarMorph) ?? _statusBarMorph,
+      curve: Curves.easeOutQuint,
+    );
+  }
+
+  static const Duration _statusBarMorph = Duration(milliseconds: 350);
 
   // --- Interaction ----------------------------------------------------------
 
@@ -377,13 +405,23 @@ class _PackSheetViewState extends State<PackSheetView> {
     _session = session;
   }
 
-  void _onSectionAction(String sectionId, String actionId) {
-    final collection = _builder.collectionOf(sectionId);
-    final pack = (_found ?? const <Pack>[])
-        .where((pack) => pack.collectionId == collection?.id)
-        .firstOrNull;
-    if (pack == null) return;
-    // A pack's own button among several toggles it and leaves the sheet up.
+  // A right-click on a sticker opens the preview's items as a context menu,
+  // as on the panel's grid (the desktop client's right-click menu).
+  void _onSecondaryTap(CatalogLeafHit hit, Offset globalPosition) {
+    final preview = _preview;
+    if (preview == null) return;
+    final entries = preview.entriesOf(hit, ChromeStringsScope.panelOf(context));
+    if (entries.isEmpty) return;
+    _replaceSession(null);
+    _menu.show(
+      globalPosition: globalPosition,
+      entries: entries,
+      onSelected: (id) => preview.perform(hit, id),
+    );
+  }
+
+  // A pack's own button among several toggles it and leaves the sheet up.
+  void _togglePack(Pack pack) {
     if (PackSheetAction.of([pack], widget.library.installStateOf)
         case final action?) {
       widget.onEditsRequested(action.requests);
@@ -419,7 +457,7 @@ class _PackSheetViewState extends State<PackSheetView> {
       final packs? => PackSheetAction.of(packs, widget.library.installStateOf),
       null => null,
     };
-    if (packs != null) _publish(packs, strings);
+    if (packs != null) _publish(packs);
     final touch = arrangement == PanelArrangement.touch;
     final media = MediaQuery.of(context);
     final width = touch ? media.size.width : PackSheet.boxWidth;
@@ -429,76 +467,221 @@ class _PackSheetViewState extends State<PackSheetView> {
       PackSheetAction(removes: true) => PackSheetView.buttonExtent,
       _ => PackSheetView.buttonExtent + 2 * PackSheetView.buttonMargin,
     };
-    final content = PackSheetView.headerExtent + gridExtent + buttonBar;
-    final height = touch
-        ? (content < media.size.height * PackSheetView.wrapLimit
-              ? content
-              : media.size.height * PackSheetView.partHeight)
-        : PackSheetView.headerExtent +
-              math.min(gridExtent, PackSheetView.boxGridMaxHeight(_grid)) +
-              buttonBar;
+    final bottomInset = touch ? media.padding.bottom : 0.0;
+    final frame = _frame = touch
+        ? PackSheetFrame.touch(
+            screen: media.size,
+            statusBar: media.padding.top,
+            content:
+                PackSheetView.headerExtent +
+                gridExtent +
+                buttonBar +
+                bottomInset,
+            grid: _grid,
+          )
+        : PackSheetFrame.fixed(
+            PackSheetView.headerExtent +
+                math.min(gridExtent, PackSheetView.boxGridMaxHeight(_grid)) +
+                buttonBar,
+          );
+    final gridTop = frame.topInset + PackSheetView.headerExtent;
+    final gridBottom = buttonBar + bottomInset;
     final title = switch (packs) {
       [final pack] => pack.title,
       _ => '',
     };
-    return ChromeCatalogTheme(
-      child: Container(
-        height: height + (touch ? media.padding.bottom : 0),
-        padding: EdgeInsets.only(bottom: touch ? media.padding.bottom : 0),
-        decoration: BoxDecoration(
-          color: palette.surface,
-          borderRadius: touch
-              ? const BorderRadius.vertical(
-                  top: Radius.circular(PackSheetView.topRadius),
-                )
-              : BorderRadius.circular(PackSheetView.topRadius),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            _Header(
-              title: title,
-              grabber: touch,
-              close: !touch,
-              links: switch ((widget.links, packs)) {
-                (final links?, [final pack]) => switch (links.linkOf(pack.id)) {
-                  final link? => (links, link),
-                  null => null,
-                },
-                _ => null,
-              },
+    final grid = packs == null
+        ? const Center(child: _Spinner())
+        : Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (event) => _lastKind = event.kind,
+            child: PanelCatalogViewport(
+              snapshots: _snapshots,
+              assets: widget.assets,
+              controller: _catalog,
+              padding: PackSheetView.gridPadding.copyWith(
+                top: PackSheetView.gridPadding.top + frame.lead,
+              ),
+              onLeafTap: _onTap,
+              onLeafSecondaryTap: _preview == null ? null : _onSecondaryTap,
+              leafLongPressEligible: _longPressEligible,
+              leafLongPressDelay: (_, kind) =>
+                  CatalogContentPreview.delayOf(kind),
+              onLeafLongPressStart: _onLongPressStart,
+              onLeafLongPressMove: (_, details) => _session?.update(details),
+              onLeafLongPressEnd: (_, details) => _session?.end(details),
             ),
-            Expanded(
-              child: packs == null
-                  ? const Center(child: _Spinner())
-                  : Listener(
-                      behavior: HitTestBehavior.translucent,
-                      onPointerDown: (event) => _lastKind = event.kind,
-                      child: PanelCatalogViewport(
-                        snapshots: _snapshots,
-                        assets: widget.assets,
-                        controller: _catalog,
-                        padding: PackSheetView.gridPadding,
-                        onLeafTap: _onTap,
-                        leafLongPressEligible: _longPressEligible,
-                        leafLongPressDelay: (_, kind) =>
-                            CatalogContentPreview.delayOf(kind),
-                        onLeafLongPressStart: _onLongPressStart,
-                        onLeafLongPressMove: (_, details) =>
-                            _session?.update(details),
-                        onLeafLongPressEnd: (_, details) =>
-                            _session?.end(details),
-                        onSectionAction: _onSectionAction,
-                      ),
+          );
+    final header = _Header(
+      title: title,
+      close: !touch,
+      links: switch ((widget.links, packs)) {
+        (final links?, [final pack]) => switch (links.linkOf(pack.id)) {
+          final link? => (links, link),
+          null => null,
+        },
+        _ => null,
+      },
+    );
+    final severalHeaders = switch (packs) {
+      final packs? when _grid == PackSheetGrid.severalEmoji => [
+        for (final (index, top) in _sectionTops(packs, width).indexed)
+          (top: top, pack: packs[index]),
+      ],
+      _ => const <({double top, Pack pack})>[],
+    };
+    // Where the box's top is on the screen: the grabber fades as the card
+    // nears the status bar.
+    final boxTop = touch ? media.size.height - frame.height : 0.0;
+    final body = ListenableBuilder(
+      listenable: Listenable.merge([_offset, _closing]),
+      child: grid,
+      builder: (context, grid) {
+        final offset = _offset.value;
+        final cardTop = frame.cardTopAt(offset);
+        final backdrop = _isEmoji
+            ? frame.emojiBackdrop(cardTop, _closing.value)
+            : frame.stickersBackdrop(cardTop);
+        final grabber = _isEmoji
+            ? (
+                // `y += dp(10)`; alpha `clamp(y / dp(20))` before it.
+                top: backdrop.top + 10,
+                alpha: ((boxTop + backdrop.top) / 20).clamp(0.0, 1.0),
+              )
+            : (
+                // `dp(6)` below the card; alpha over `dp(16)` above the
+                // status bar.
+                top: cardTop + 6,
+                alpha: ((boxTop + cardTop + 6 - frame.topInset) / 16).clamp(
+                  0.0,
+                  1.0,
+                ),
+              );
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _BackdropPainter(
+                  top: backdrop.top,
+                  radius: touch ? backdrop.radius : 0,
+                  color: palette.surface,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: gridTop,
+              bottom: gridBottom,
+              child: grid!,
+            ),
+            if (severalHeaders.isNotEmpty)
+              Positioned(
+                left: PackSheetView.gridPadding.left,
+                right: PackSheetView.gridPadding.right,
+                top: gridTop,
+                bottom: gridBottom,
+                child: ClipRect(
+                  child: Stack(
+                    children: [
+                      for (final (:top, :pack) in severalHeaders)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: frame.lead + top - offset,
+                          height: _PackHeader.extent,
+                          child: _PackHeader(
+                            key: ValueKey(pack.id),
+                            pack: pack,
+                            installed:
+                                widget.library.installStateOf(pack.id) ==
+                                PackInstallState.installed,
+                            onToggle: () => _togglePack(pack),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            // A press above the card closes the sheet (`StickersAlert`:
+            // `ev.getY() < scrollOffsetY` on `ACTION_DOWN`).
+            if (cardTop > 0)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                height: cardTop,
+                child: Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: (_) => _close(),
+                ),
+              ),
+            if (touch)
+              Positioned(
+                top: grabber.top,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: _Grabber(
+                    color: palette.onSurfaceMuted.withValues(
+                      alpha: palette.onSurfaceMuted.a * grabber.alpha,
                     ),
+                  ),
+                ),
+              ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: cardTop,
+              height: PackSheetView.headerExtent,
+              child: header,
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: cardTop + PackSheetView.shadowLineTop,
+              height: 1,
+              child: IgnorePointer(
+                child: AnimatedOpacity(
+                  opacity: frame.scrolledUnderHeaderAt(offset) ? 1 : 0,
+                  duration:
+                      ChromeMotionScope.maybeOf(
+                        context,
+                      )?.speed.scale(PackSheetView.shadowFade) ??
+                      PackSheetView.shadowFade,
+                  child: ColoredBox(color: palette.separator),
+                ),
+              ),
             ),
             if (action != null)
-              _BottomButton(
-                label: action.labelIn(strings),
-                removes: action.removes,
-                onPressed: () => _onButton(action),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: bottomInset,
+                child: _BottomButton(
+                  label: action.labelIn(strings),
+                  removes: action.removes,
+                  onPressed: () => _onButton(action),
+                ),
               ),
           ],
+        );
+      },
+    );
+    return ChromeCatalogTheme(
+      child: CatalogContextMenuHost(
+        host: null,
+        controller: _menu,
+        child: SizedBox(
+          height: frame.height,
+          child: touch
+              ? body
+              : ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    PackSheetFrame.stickersRadius,
+                  ),
+                  child: body,
+                ),
         ),
       ),
     );
@@ -524,41 +707,51 @@ class _PackSheetViewState extends State<PackSheetView> {
         final rows = math.max(2, (count / columns).ceil());
         return rows * (usable / columns) + pad;
       case PackSheetGrid.severalEmoji:
-        final cell = usable / PackSheetView.severalColumns;
-        var extent = pad;
-        for (final pack in packs ?? const <Pack>[]) {
-          final shown = math.min(pack.count, PackSheetView.severalLimit);
-          extent +=
-              _PackSheetGridPolicy.severalHeaderExtent +
-              (shown / PackSheetView.severalColumns).ceil() * cell;
+        if (packs == null) {
+          return 2 * usable / PackSheetView.severalColumns + pad;
         }
-        return packs == null ? 2 * cell + pad : extent;
+        final last = packs.lastOrNull;
+        if (last == null) return pad;
+        return _sectionTops(packs, width).last +
+            _severalSectionExtent(last, usable) +
+            pad;
     }
+  }
+
+  // Where each pack's header is in a grid of several, from the grid's
+  // content top: each section is its 56 header and its rows of eight.
+  static List<double> _sectionTops(List<Pack> packs, double width) {
+    final usable = width - PackSheetView.gridPadding.horizontal;
+    var top = PackSheetView.gridPadding.top;
+    final tops = <double>[];
+    for (final pack in packs) {
+      tops.add(top);
+      top += _severalSectionExtent(pack, usable);
+    }
+    return tops;
+  }
+
+  static double _severalSectionExtent(Pack pack, double usable) {
+    final shown = math.min(pack.count, PackSheetView.severalLimit);
+    return _PackHeader.extent +
+        (shown / PackSheetView.severalColumns).ceil() *
+            (usable / PackSheetView.severalColumns);
   }
 }
 
 // --- Grid policy -------------------------------------------------------------
 
-/// The geometry and headers of a sheet's grid, as the catalogue's snapshot
-/// builder asks for them. A new one per build: the install states the
-/// several-packs headers show are a snapshot of the library's.
+/// The geometry of a sheet's grid, as the catalogue's snapshot builder asks
+/// for it. A pack's header among several is a blank band here: the sheet
+/// draws it over the grid ([_PackHeader]), with what the catalogue's
+/// headers cannot show (its count, a pill that cross-fades).
 final class _PackSheetGridPolicy extends CatalogPagePolicy {
-  _PackSheetGridPolicy({
-    required this.grid,
-    required this.installed,
-    required this.strings,
-  });
-
-  /// The header of a pack among several: `EmojiPackHeader`, 56 tall.
-  static const double severalHeaderExtent = 56;
+  _PackSheetGridPolicy({required this.grid});
 
   final PackSheetGrid grid;
-  final Map<PackId, bool> installed;
-  final PackSheetStrings? strings;
 
   @override
-  String titleOf(Collection collection, PanelStrings strings) =>
-      grid == PackSheetGrid.severalEmoji ? collection.metadata.title ?? '' : '';
+  String titleOf(Collection collection, PanelStrings strings) => '';
 
   @override
   SectionLayout? layoutOf(
@@ -579,47 +772,80 @@ final class _PackSheetGridPolicy extends CatalogPagePolicy {
     PackSheetGrid.severalEmoji => const SectionLayout.grid(
       spanCount: PackSheetView.severalColumns,
       cellAspect: 1,
-      headerExtent: severalHeaderExtent,
+      headerExtent: _PackHeader.extent,
     ),
   };
 
   @override
   CatalogContentBox? contentBoxOf(Collection collection) =>
       grid == PackSheetGrid.stickers ? CatalogContentBox.glyph : null;
-
-  @override
-  CatalogSectionAction? actionOf(
-    Collection collection,
-    PanelStrings strings, {
-    PanelArrangement arrangement = PanelArrangement.touch,
-  }) {
-    final words = this.strings;
-    if (grid != PackSheetGrid.severalEmoji || words == null) return null;
-    final id = switch (collection.id) {
-      CollectionId$Set(:final id) => PackId(id),
-      _ => null,
-    };
-    if (id == null) return null;
-    final isInstalled = installed[id] ?? false;
-    return CatalogSectionAction(
-      id: isInstalled ? 'remove' : 'add',
-      label: isInstalled ? words.removePackAction : words.addPackAction,
-    );
-  }
 }
 
 // --- Parts -------------------------------------------------------------------
 
+/// The card's background from [top] down, its top corners rounded by
+/// [radius]: the sheet's own drawing, so it can follow the grid and reach
+/// over the status bar.
+class _BackdropPainter extends CustomPainter {
+  const _BackdropPainter({
+    required this.top,
+    required this.radius,
+    required this.color,
+  });
+
+  final double top;
+  final double radius;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRRect(
+      RRect.fromLTRBAndCorners(
+        0,
+        top,
+        size.width,
+        size.height,
+        topLeft: Radius.circular(radius),
+        topRight: Radius.circular(radius),
+      ),
+      Paint()..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BackdropPainter oldDelegate) =>
+      oldDelegate.top != top ||
+      oldDelegate.radius != radius ||
+      oldDelegate.color != color;
+}
+
+/// The grabber (`sheet_scrollUp`), its alpha already in [color].
+class _Grabber extends StatelessWidget {
+  const _Grabber({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: Container(
+      width: PackSheetView.grabberSize.width,
+      height: PackSheetView.grabberSize.height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(2),
+      ),
+    ),
+  );
+}
+
 class _Header extends StatelessWidget {
   const _Header({
     required this.title,
-    required this.grabber,
     required this.close,
     required this.links,
   });
 
   final String title;
-  final bool grabber;
   final bool close;
   final (PackSheetLinks, Uri)? links;
 
@@ -627,70 +853,249 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = ChromeThemeScope.of(context).palette;
     final strings = ChromeStringsScope.packSheetOf(context);
-    return SizedBox(
-      height: PackSheetView.headerExtent,
-      child: Stack(
-        children: [
-          if (grabber)
-            Positioned(
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: PackSheetView.titleInset,
+              end: PackSheetView.titleInset + PackSheetView.menuButtonExtent,
               top: 6,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  width: PackSheetView.grabberSize.width,
-                  height: PackSheetView.grabberSize.height,
-                  decoration: BoxDecoration(
-                    color: palette.onSurfaceMuted,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+              bottom: 6,
+            ),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: palette.onSurface,
+                  fontSize: PackSheetView.titleSize,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsetsDirectional.only(
-                start: PackSheetView.titleInset,
-                end: PackSheetView.titleInset + PackSheetView.menuButtonExtent,
-                top: 6,
-                bottom: 6,
-              ),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
+          ),
+        ),
+        PositionedDirectional(
+          top: 5,
+          end: 5,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (links case (final links, final link))
+                _MenuButton(links: links, link: link),
+              if (close)
+                _IconButton(
+                  label: strings.closeAction,
+                  painter: _CrossPainter(palette.onSurfaceMuted),
+                  onPressed: () => Navigator.maybeOf(context)?.maybePop(),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The header of one pack among several (`EmojiPacksAlert.EmojiPackHeader`,
+/// not single): its title, how many emoji it holds, and a button that adds
+/// it (a filled pill) or removes it (accent text), which cross-fade with a
+/// scale as the pack's install state changes.
+class _PackHeader extends StatefulWidget {
+  const _PackHeader({
+    required this.pack,
+    required this.installed,
+    required this.onToggle,
+    super.key,
+  });
+
+  /// The header's band (`dp(56)`).
+  static const double extent = 56;
+
+  /// The title: 17 bold, `dp(10)` down, `dp(6)` in plus its own `dp(2)`.
+  static const double titleSize = 17;
+
+  /// The count: 13 in the muted colour, `dp(31.66)` down, `dp(8)` in.
+  static const double subtitleSize = 13;
+
+  /// The button: 28 tall, `dp(15.66)` down, `dp(5.66)` from the end; the
+  /// title stops `dp(8 + 8)` short of its far edge.
+  static const double buttonExtent = 28;
+
+  /// How long the buttons take to trade places (`setDuration(250)`,
+  /// `EASE_OUT_QUINT`).
+  static const Duration toggleDuration = Duration(milliseconds: 250);
+
+  final Pack pack;
+  final bool installed;
+  final VoidCallback onToggle;
+
+  @override
+  State<_PackHeader> createState() => _PackHeaderState();
+}
+
+class _PackHeaderState extends State<_PackHeader>
+    with SingleTickerProviderStateMixin {
+  // 0 shows Add, 1 shows Remove (`toggleT`).
+  late final _toggle = AnimationController(
+    vsync: this,
+    value: widget.installed ? 1 : 0,
+  );
+
+  @override
+  void didUpdateWidget(_PackHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.installed == widget.installed) return;
+    final speed = ChromeMotionScope.maybeOf(context)?.speed;
+    _toggle.animateTo(
+      widget.installed ? 1 : 0,
+      duration:
+          speed?.scale(_PackHeader.toggleDuration) ??
+          _PackHeader.toggleDuration,
+      curve: Curves.easeOutQuint,
+    );
+  }
+
+  @override
+  void dispose() {
+    _toggle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ChromeThemeScope.of(context).palette;
+    final strings = ChromeStringsScope.packSheetOf(context);
+    final installed = widget.installed;
+    Widget faded(Widget child, {required bool remove}) => AnimatedBuilder(
+      animation: _toggle,
+      child: child,
+      builder: (context, child) {
+        final shown = remove ? _toggle.value : 1 - _toggle.value;
+        // At rest only one button is there; both while they trade places.
+        if (shown <= 0) return const SizedBox.shrink();
+        return Opacity(
+          opacity: shown.clamp(0.0, 1.0),
+          child: Transform.scale(scale: shown, child: child),
+        );
+      },
+    );
+    TextStyle label(Color color) => TextStyle(
+      color: color,
+      fontSize: PackSheetView.buttonTextSize,
+      fontWeight: FontWeight.w600,
+    );
+    final add = _HeaderButton(
+      enabled: !installed,
+      onPressed: widget.onToggle,
+      padding: 18,
+      color: palette.accent,
+      child: Text(strings.addPackAction, style: label(palette.onAccent)),
+    );
+    final remove = _HeaderButton(
+      enabled: installed,
+      onPressed: widget.onToggle,
+      padding: 12,
+      child: Text(strings.removePackAction, style: label(palette.accent)),
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Stack(
+            children: [
+              PositionedDirectional(
+                start: 8,
+                end: 0,
+                top: 10,
                 child: Text(
-                  title,
+                  widget.pack.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: palette.onSurface,
-                    fontSize: PackSheetView.titleSize,
+                    fontSize: _PackHeader.titleSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-            ),
-          ),
-          PositionedDirectional(
-            top: 5,
-            end: 5,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (links case (final links, final link))
-                  _MenuButton(links: links, link: link),
-                if (close)
-                  _IconButton(
-                    label: strings.closeAction,
-                    painter: _CrossPainter(palette.onSurfaceMuted),
-                    onPressed: () => Navigator.maybeOf(context)?.maybePop(),
+              PositionedDirectional(
+                start: 8,
+                end: 0,
+                top: 31.66,
+                child: Text(
+                  strings.emojiCount(widget.pack.count),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: palette.onSurfaceMuted,
+                    fontSize: _PackHeader.subtitleSize,
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 16 - 5.66),
+        Padding(
+          padding: const EdgeInsets.only(top: 15.66),
+          child: Stack(
+            alignment: AlignmentDirectional.centerEnd,
+            children: [faded(add, remove: false), faded(remove, remove: true)],
+          ),
+        ),
+        const SizedBox(width: 5.66),
+      ],
     );
   }
+}
+
+/// One of a pack header's buttons: [child] in a 28 tall band, [padding] in
+/// from either side, on a fully rounded [color] fill when there is one.
+class _HeaderButton extends StatelessWidget {
+  const _HeaderButton({
+    required this.enabled,
+    required this.onPressed,
+    required this.padding,
+    required this.child,
+    this.color,
+  });
+
+  final bool enabled;
+  final VoidCallback onPressed;
+  final double padding;
+  final Color? color;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    // The one faded out keeps its place but takes no press.
+    ignoring: !enabled,
+    child: Semantics(
+      button: true,
+      excludeSemantics: !enabled,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: Container(
+          height: _PackHeader.buttonExtent,
+          padding: EdgeInsets.symmetric(horizontal: padding),
+          alignment: Alignment.center,
+          decoration: switch (color) {
+            final color? => BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(_PackHeader.buttonExtent / 2),
+            ),
+            null => null,
+          },
+          child: child,
+        ),
+      ),
+    ),
+  );
 }
 
 class _IconButton extends StatelessWidget {

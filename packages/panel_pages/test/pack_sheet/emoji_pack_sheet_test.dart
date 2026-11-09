@@ -133,9 +133,52 @@ void main() {
     testWidgets('each pack has its title and its own button', (tester) async {
       await open(tester, ['a', 'b']);
 
-      // The sheet's own title is empty: each pack has its header.
-      expect(find.text('Pack a'), findsNothing);
+      // The sheet's own title is empty: each pack has its header, with its
+      // count under its title and an Add pill.
+      expect(find.text('Pack a'), findsOneWidget);
+      expect(find.text('32 emoji'), findsOneWidget);
+      expect(find.text('Pack b'), findsOneWidget);
+      expect(find.text('20 emoji'), findsOneWidget);
+      expect(find.text('Add'), findsNWidgets(2));
       expect(find.text('Add 2 emoji packs'), findsOneWidget);
+    });
+
+    testWidgets('a pack header sits over its rows: 56 tall, the first row '
+        'under it', (tester) async {
+      await open(tester, ['a', 'b']);
+
+      final top = sheet(tester).top + 50;
+      // Title 17 at 10 down, the count 13 at 31.66 down.
+      expect(tester.getTopLeft(find.text('Pack a')).dy, closeTo(top + 10, 1));
+      expect(
+        tester.getTopLeft(find.text('32 emoji')).dy,
+        closeTo(top + 31.66, 1),
+      );
+      // The second pack's header is under the first pack's two rows.
+      expect(
+        tester.getTopLeft(find.text('Pack b')).dy,
+        closeTo(top + 56 + 2 * 47.5 + 10, 1),
+      );
+    });
+
+    testWidgets("a header's button turns to Remove once its pack is added", (
+      tester,
+    ) async {
+      await open(tester, ['a', 'b']);
+
+      library.apply(const LibraryEdit.installPack(PackId('a'), PackKind.emoji));
+      await settle(tester);
+
+      expect(find.text('Remove'), findsOneWidget);
+      expect(find.text('Add'), findsOneWidget);
+      await tester.tap(find.text('Remove'));
+      await settle(tester);
+
+      expect(
+        edits.single.single.edit,
+        const LibraryEdit.removePack(PackId('a'), PackKind.emoji),
+      );
+      expect(sheetUp(), isTrue);
     });
 
     testWidgets('a pack header button adds that pack and leaves the sheet up', (

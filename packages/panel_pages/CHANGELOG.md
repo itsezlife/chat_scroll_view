@@ -6,13 +6,33 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (pack sheet parity)
+
+- A tall pack sheet on touch now opens with its card two fifths down the
+  screen (an emoji sheet at 0.56 of it, 0.3 in landscape) and rises as its
+  grid scrolls, until the card meets the status bar; then the grid scrolls
+  under the pinned header, whose shadow line fades in over 150 ms. Before, it
+  opened at a fixed 3/5 of the screen and only its grid scrolled. A press
+  above the card closes the sheet. A sticker card's 12 px top corners square
+  as it reaches the status bar, which its background then covers; an emoji
+  card's 14 px corners do the same over 350 ms.
+- A pack's header in a sheet of several emoji packs is 56 px: its title (17
+  bold), its count (`PackSheetStrings.emojiCount`, 13) and a 28 px button,
+  an Add pill or a Remove text button, which trade places with a 250 ms
+  fade and scale when the pack's install state changes. The sheet draws
+  these headers over the grid; the grid's section headers are blank bands.
+- A right-click on a sticker of a sheet given `previews` opens the preview's
+  items as a context menu, as the panel's grid does.
+- `CatalogContextMenuHost.host` may be null, for a grid outside the panel
+  with no auto-hide to hold.
+
 ### Added (pack sheets)
 
 - `StickerPackSheet` and `EmojiPackSheet` (one pack or several), shown with
   `PackSheet.show`: a bottom sheet on touch (dim `0x33`, opening in 420 ms
   on ease-out-quint after 20 ms, closing in 250 ms, dismissed by a drag past
-  0.8 cm or a 3500 px/s fling, part-way at 3/5 of the screen when taller
-  than 3.2/5) and a centred 364 px box under a pointer. They read a
+  0.8 cm or a 3500 px/s fling, part-way when taller than 3.2/5 of the
+  screen) and a centred 364 px box under a pointer. They read a
   `PackSource` and the library's install states and ask the host for every
   effect (`PackEditsRequested`, `onPick`, `onUnavailable`, `PackSheetLinks`).
   The bottom button is a `PackSheetAction`. A sticker sheet given `previews`

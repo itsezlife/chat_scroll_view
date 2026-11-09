@@ -443,7 +443,7 @@ The sheet edits nothing itself: its button asks for the edits
 inside an undo window that its bulletin's Undo can take back (the reference
 holds it 2750 ms), and confirms with `PackSheetStrings`' words. It sends or
 inserts only through the `onPick` the host gives when a composer can take
-it, and a sticker sheet given the `ContentPreviewController` previews its
+it, and closes itself before it calls it (the host does not pop it), and a sticker sheet given the `ContentPreviewController` previews its
 stickers (Send only with `onPick`, no "View pack"). A `LibraryEditRequested`
 that removes or archives a pack goes through the same bulletin.
 A host that lists the recents through a `DeferredRecentsStore` view (so a pick

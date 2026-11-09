@@ -36,6 +36,7 @@ import 'goldens/emoji_page_golden_test.dart' as emoji_page_golden_test;
 import 'menu/catalog_context_menu_test.dart' as catalog_context_menu_test;
 import 'pack_sheet/emoji_pack_sheet_test.dart' as emoji_pack_sheet_test;
 import 'pack_sheet/pack_sheet_action_test.dart' as pack_sheet_action_test;
+import 'pack_sheet/pack_sheet_frame_test.dart' as pack_sheet_frame_test;
 import 'pack_sheet/sticker_pack_sheet_test.dart' as sticker_pack_sheet_test;
 import 'page/catalog_page_contents_change_test.dart'
     as catalog_page_contents_change_test;
@@ -102,6 +103,7 @@ void main() {
   group('menu/catalog_context_menu_test.dart', catalog_context_menu_test.main);
   group('pack_sheet/emoji_pack_sheet_test.dart', emoji_pack_sheet_test.main);
   group('pack_sheet/pack_sheet_action_test.dart', pack_sheet_action_test.main);
+  group('pack_sheet/pack_sheet_frame_test.dart', pack_sheet_frame_test.main);
   group(
     'pack_sheet/sticker_pack_sheet_test.dart',
     sticker_pack_sheet_test.main,
