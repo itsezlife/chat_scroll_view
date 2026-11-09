@@ -265,8 +265,9 @@ final class LottieFrameScheduler {
   final Set<Object> _refused = <Object>{};
   // Size classes a lease found no texture of since the last warm.
   final Set<int> _classesToWarm = <int>{};
-  // Textures leases let go of that a write in flight still names.
-  final Set<FrameTextureLease> _returnAfterWrite = {};
+  // Textures leases let go of that a write in flight still names, with the
+  // key whose frame each keeps (see `_release`).
+  final Map<FrameTextureLease, Object?> _returnAfterWrite = {};
   // Leases whose paintable left the screen, released when the frame is over
   // unless painted meanwhile.
   final Set<LottieFrameLease> _leaving = {};
@@ -310,7 +311,15 @@ final class LottieFrameScheduler {
       .._wantedAt = _now
       .._onCanvas = onCanvas
       .._canvasTouched = onCanvas;
-    if (!onCanvas) lease._texture = _textureFor(lease);
+    if (!onCanvas) {
+      // The texture this key left showing its frame, while the pool keeps
+      // it: shown at once, its queued frames are this animation's own, and
+      // the paintable goes on from that frame (ticket 144).
+      final texture = lease._texture = _textureFor(lease, showing: key);
+      if (texture != null && texture.showsFrame) {
+        lease._posts = _postsBeforeShown;
+      }
+    }
     if (lease._texture == null) {
       final handle = _slotFor(lease) ?? _slotFromStalest(lease);
       if (handle == null) return null;
@@ -343,6 +352,15 @@ final class LottieFrameScheduler {
     if (lease._texture != null) _toSlot(lease);
   }
 
+  /// Forgets the frame kept for [key]'s return, on an idle texture or slot:
+  /// whoever leases [key] next starts at the first frame (its paintable was
+  /// disposed). Nothing for a key that has a lease.
+  void forget(Object key) {
+    if (_disposed || _leases.containsKey(key)) return;
+    _textures?.forgetFrameOf(key);
+    _atlas.forgetFrame(key);
+  }
+
   /// Releases every lease, stops following the clock and disposes the atlas.
   /// Idempotent.
   void dispose() {
@@ -350,7 +368,7 @@ final class LottieFrameScheduler {
     List.of(_leases.values).forEach(_release);
     _disposed = true;
     _returnAfterWrite
-      ..forEach(_giveBack)
+      ..keys.forEach(_giveBack)
       ..clear();
     _atlas.dispose();
   }
@@ -380,9 +398,9 @@ final class LottieFrameScheduler {
         pool.classOf(lease._width, lease._height) != null;
   }
 
-  FrameTextureLease? _textureFor(LottieFrameLease lease) =>
+  FrameTextureLease? _textureFor(LottieFrameLease lease, {Object? showing}) =>
       _mayTakeTexture(lease)
-      ? _textures!.lease(lease._width, lease._height)
+      ? _textures!.lease(lease._width, lease._height, showing: showing)
       : null;
 
   // A lease that wanted a texture and found none asks the pool for as many of
@@ -445,7 +463,8 @@ final class LottieFrameScheduler {
     }
   }
 
-  void _giveBack(FrameTextureLease texture) => texture.release();
+  void _giveBack(FrameTextureLease texture, [Object? showing]) =>
+      texture.release(showing: showing);
 
   // A surface that cannot show the texture paints the lease: its frames go
   // to a slot again. Without a slot to take it keeps the texture, and the
@@ -465,7 +484,7 @@ final class LottieFrameScheduler {
     if (discard) {
       texture.discard();
     } else if (lease._writing) {
-      _returnAfterWrite.add(texture);
+      _returnAfterWrite[texture] = null;
     } else {
       _giveBack(texture);
     }
@@ -505,7 +524,7 @@ final class LottieFrameScheduler {
           other,
     ]..sort((a, b) => a._wantedAt.compareTo(b._wantedAt));
     for (final victim in stale) {
-      _release(victim);
+      _release(victim, keepFrame: true);
       if (_slotFor(lease) case final handle?) return handle;
     }
     return null;
@@ -527,21 +546,29 @@ final class LottieFrameScheduler {
     for (final lease in leaving) {
       // Painted after it left (a hidden cell still drawn), or held on screen
       // by a surface that keeps its frame: it stays.
-      if (lease._leaving && !lease._kept) _release(lease);
+      if (lease._leaving && !lease._kept) _release(lease, keepFrame: true);
       lease._leaving = false;
     }
   }
 
-  void _release(LottieFrameLease lease) {
+  // [keepFrame] says the paintable may come back and go on from the frame
+  // its texture shows (it left the screen, or went unpainted): the pool
+  // keeps that frame for its key. Not for one that ends (a disposed
+  // paintable, whose key a new one starting at its first frame may take),
+  // nor for a texture not shown yet or a failed lease.
+  void _release(LottieFrameLease lease, {bool keepFrame = false}) {
     if (lease._released) return;
     lease._released = true;
     lease._slot?.release();
     final texture = lease._texture;
     if (texture != null) {
+      final showing = keepFrame && lease._shown && !lease._failed
+          ? lease._key
+          : null;
       if (lease._writing && !_disposed) {
-        _returnAfterWrite.add(texture);
+        _returnAfterWrite[texture] = showing;
       } else {
-        _giveBack(texture);
+        _giveBack(texture, showing);
       }
     }
     _leases.remove(lease._key);
@@ -641,7 +668,9 @@ final class LottieFrameScheduler {
       lease
         .._writing = false
         .._inFlight = false;
-      if (_returnAfterWrite.remove(texture)) _giveBack(texture);
+      if (_returnAfterWrite.containsKey(texture)) {
+        _giveBack(texture, _returnAfterWrite.remove(texture));
+      }
     }
   }
 
@@ -675,7 +704,7 @@ final class LottieFrameScheduler {
       if (lease._touched) {
         lease._touched = false;
       } else {
-        _release(lease);
+        _release(lease, keepFrame: true);
         continue;
       }
       // Asked again at every sweep, not only at the lease: a lease that left

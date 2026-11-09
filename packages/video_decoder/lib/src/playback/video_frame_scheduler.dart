@@ -62,6 +62,10 @@ final class VideoFrameLease {
   /// The tick time at which the clip last had a slot.
   Duration _servedAt = Duration.zero;
   bool _released = false;
+  // Whether the lease ended where its clip may go on from (it left the
+  // screen, or went unpainted): a lease acquired after it continues the
+  // clip's position, see `VideoFrameScheduler.acquire`.
+  bool _resumable = false;
   bool _holding = false;
   bool _kept = false;
   // Whether its paintable left the screen and no want came since: the lease
@@ -112,7 +116,8 @@ final class VideoFrameLease {
   /// ended on its last frame. The slot stays leased until [release].
   void hold() => _holding = true;
 
-  /// Ends the lease. Idempotent. The entry stays in the pool, idle.
+  /// Ends the lease. Idempotent. The entry stays in the pool, idle. The clip
+  /// starts over on the next lease: its frame is not kept.
   void release() => _scheduler._release(this);
 
   /// Ends the lease once the current frame is over, unless its holder wants
@@ -223,9 +228,21 @@ final class VideoFrameLease {
 /// A paint is the only sign a paintable is on screen. One sweep timer, alive
 /// only while leases exist, runs every [idleRelease]: a lease not wanted
 /// since the previous sweep is released, so a clip that is cached but off
-/// screen frees its slot, which stays in the pool, idle. A lease that starts
-/// again (after a sweep, a restart) rewinds the clip and plays from its
-/// first frame.
+/// screen frees its slot, which stays in the pool, idle.
+///
+/// ## Coming back
+///
+/// A lease that ended because its clip left the screen or went unpainted
+/// (leaving, a full pool, the sweep) keeps where the clip was: the next
+/// lease of the same key that names it ([acquire]'s `after`) goes on from
+/// the clip's time and the decoder's position, without a rewind. Its frame
+/// stays too: the texture it showed while the texture pool
+/// keeps it (shown at once, see `FrameTexturePool`, *Kept frames*), or the
+/// pool slot that holds it. The frames the old lease had decoded ahead are
+/// dropped, so the clip holds its frame for those few frames' time before it
+/// moves on. A lease [VideoFrameLease.release]d by its holder (a restart, a
+/// rewind, a pass that rests on its first frame, a disposal) starts the
+/// clip over from its first frame with no frame kept.
 ///
 /// ## Textures
 ///
@@ -345,8 +362,9 @@ final class VideoFrameScheduler {
   final Set<Object> _refused = <Object>{};
   // Size classes a lease found no texture of since the last warm.
   final Set<int> _classesToWarm = <int>{};
-  // Textures leases let go of that a write in flight still names.
-  final Set<FrameTextureLease> _returnAfterWrite = {};
+  // Textures leases let go of that a write in flight still names, with the
+  // key whose frame each keeps (see `_release`).
+  final Map<FrameTextureLease, Object?> _returnAfterWrite = {};
   // Leases whose paintable left the screen, released when the frame is over
   // unless painted meanwhile.
   final Set<VideoFrameLease> _leaving = {};
@@ -381,24 +399,46 @@ final class VideoFrameScheduler {
   /// [onCanvas] says the lease is for a surface that only has a canvas: it
   /// takes a slot, as [want] says.
   ///
+  /// [after] is the holder's previous lease of [key], if any: when it ended
+  /// where the clip may go on from, the new lease continues it (see *Coming
+  /// back*); otherwise the clip starts over.
+  ///
   /// Throws a [StateError] when [key] already has a lease and an
   /// [ArgumentError] for a size the pool refuses.
   VideoFrameLease? acquire(
     Object key,
     VideoClip clip, {
     bool onCanvas = false,
+    VideoFrameLease? after,
   }) {
     if (_disposed) return null;
     if (_leases.containsKey(key)) {
       throw StateError('$key already has a lease.');
     }
-    final player = _ClipPlayer(this, clip);
+    final resumes =
+        after != null &&
+        after._resumable &&
+        after._key == key &&
+        identical(after._player._clip, clip);
+    // A clip that starts over shows no frame of where it was.
+    if (!resumes) forget(key);
+    final player = resumes
+        ? _ClipPlayer.after(after._player)
+        : _ClipPlayer(this, clip);
     final lease = VideoFrameLease._(this, key, player, _nextSeq++)
       .._wantedAt = _now
       .._servedAt = _now
       .._onCanvas = onCanvas
       .._canvasTouched = onCanvas;
-    if (!onCanvas) lease._texture = _textureFor(lease);
+    if (!onCanvas) {
+      final texture = lease._texture = _textureFor(
+        lease,
+        showing: resumes ? key : null,
+      );
+      if (texture != null && texture.showsFrame) {
+        lease._posts = _postsBeforeShown;
+      }
+    }
     if (lease._texture == null) {
       final handle = _slotFor(lease) ?? _slotFromStalest(lease);
       if (handle == null) {
@@ -450,6 +490,15 @@ final class VideoFrameScheduler {
     if (lease._texture != null) _toSlot(lease);
   }
 
+  /// Forgets the frame kept for [key]'s return, on an idle texture or slot:
+  /// the clip will not go on from it (its paintable was disposed, or starts
+  /// over). Nothing for a key that has a lease.
+  void forget(Object key) {
+    if (_disposed || _leases.containsKey(key)) return;
+    _textures?.forgetFrameOf(key);
+    _atlas.forgetFrame(key);
+  }
+
   /// Evicts every idle pool entry now, as memory pressure asks.
   void releaseIdle() => _atlas.releaseUnpinned();
 
@@ -460,7 +509,7 @@ final class VideoFrameScheduler {
     List.of(_leases.values).forEach(_release);
     _disposed = true;
     _returnAfterWrite
-      ..forEach(_giveBack)
+      ..keys.forEach(_giveBack)
       ..clear();
     _atlas.dispose();
   }
@@ -490,9 +539,13 @@ final class VideoFrameScheduler {
         pool.classOf(lease._player.width, lease._player.height) != null;
   }
 
-  FrameTextureLease? _textureFor(VideoFrameLease lease) =>
+  FrameTextureLease? _textureFor(VideoFrameLease lease, {Object? showing}) =>
       _mayTakeTexture(lease)
-      ? _textures!.lease(lease._player.width, lease._player.height)
+      ? _textures!.lease(
+          lease._player.width,
+          lease._player.height,
+          showing: showing,
+        )
       : null;
 
   FrameHandle<Object>? _slotFor(VideoFrameLease lease) => _atlas.acquire(
@@ -561,7 +614,8 @@ final class VideoFrameScheduler {
     }
   }
 
-  void _giveBack(FrameTextureLease texture) => texture.release();
+  void _giveBack(FrameTextureLease texture, [Object? showing]) =>
+      texture.release(showing: showing);
 
   // A surface that cannot show the texture paints the lease: its frames go
   // to a slot again. Without a slot to take it keeps the texture, and the
@@ -580,7 +634,7 @@ final class VideoFrameScheduler {
     if (discard) {
       texture.discard();
     } else if (lease._writing) {
-      _returnAfterWrite.add(texture);
+      _returnAfterWrite[texture] = null;
     } else {
       _giveBack(texture);
     }
@@ -605,7 +659,7 @@ final class VideoFrameScheduler {
           other,
     ]..sort((a, b) => a._wantedAt.compareTo(b._wantedAt));
     for (final victim in stale) {
-      _release(victim);
+      _release(victim, keepFrame: true);
       if (_slotFor(lease) case final handle?) return handle;
     }
     return null;
@@ -627,21 +681,31 @@ final class VideoFrameScheduler {
     for (final lease in leaving) {
       // Painted after it left (a hidden cell still drawn), or held on screen
       // by a surface that keeps its frame: it stays.
-      if (lease._leaving && !lease._kept) _release(lease);
+      if (lease._leaving && !lease._kept) _release(lease, keepFrame: true);
       lease._leaving = false;
     }
   }
 
-  void _release(VideoFrameLease lease) {
+  // [keepFrame] says the clip may come back and go on from where it is (it
+  // left the screen, or went unpainted): the lease is resumable and the
+  // frame it shows stays, on its texture (kept by the pool for its key) or
+  // its slot. Not for a lease its holder released (the clip starts over), a
+  // failed one, or a texture not shown yet.
+  void _release(VideoFrameLease lease, {bool keepFrame = false}) {
     if (lease._released) return;
-    lease._released = true;
+    final keeps = keepFrame && !lease.isFailed;
+    lease
+      .._released = true
+      .._resumable = keeps;
     lease._player.dispose();
-    lease._slot?.release();
-    if (lease._texture != null) {
+    // A slot whose texture is shown holds an older frame: it is let go then.
+    lease._slot?.release(keepFrame: keeps && !lease._shown);
+    if (lease._texture case final texture?) {
+      final showing = keeps && lease._shown ? lease._key : null;
       if (lease._writing && !_disposed) {
-        _returnAfterWrite.add(lease._texture!);
+        _returnAfterWrite[texture] = showing;
       } else {
-        _giveBack(lease._texture!);
+        _giveBack(texture, showing);
       }
     }
     _leases.remove(lease._key);
@@ -739,7 +803,9 @@ final class VideoFrameScheduler {
     } finally {
       lease._writing = false;
       _endFrame(lease);
-      if (_returnAfterWrite.remove(texture)) _giveBack(texture);
+      if (_returnAfterWrite.containsKey(texture)) {
+        _giveBack(texture, _returnAfterWrite.remove(texture));
+      }
     }
   }
 
@@ -815,7 +881,7 @@ final class VideoFrameScheduler {
       if (lease._touched) {
         lease._touched = false;
       } else {
-        _release(lease);
+        _release(lease, keepFrame: true);
         continue;
       }
       // Asked again at every sweep, not only at the lease: a lease that left
@@ -847,6 +913,24 @@ final class _ClipPlayer implements VideoFrameSource {
     final declared = _passLength;
     if (declared != null && declared <= Duration.zero) _passLength = null;
   }
+
+  /// The player of a lease that continues [previous]'s (see *Coming back*):
+  /// the same clip time and timeline, and the decoder where it is, so no
+  /// rewind unless [previous] owed one. Its ring is not carried: those
+  /// frames are gone with its buffers, and the decoder is past them, so the
+  /// next frame decoded is a few ahead of the clip time and shows when the
+  /// clip time reaches it. A decode [previous] had in flight lands unseen,
+  /// one frame more of the same.
+  _ClipPlayer.after(_ClipPlayer previous)
+    : _owner = previous._owner,
+      _clip = previous._clip,
+      _clipTime = previous._clipTime,
+      _passBase = previous._passBase,
+      _passLength = previous._passLength,
+      _lastPts = previous._lastPts,
+      _framesInPass = previous._framesInPass,
+      _needsRewind = previous._needsRewind,
+      _number = previous._number;
 
   final VideoFrameScheduler _owner;
   final VideoClip _clip;
