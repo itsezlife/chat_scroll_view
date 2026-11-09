@@ -235,7 +235,7 @@ class _BulletinHostState extends State<BulletinHost>
       final width = entry.width ?? 400;
       run = switch (entry.flingVelocity) {
         // A fling springs towards twice the width from the release speed
-        // and is gone once past the width (B:583-597).
+        // and is gone once past the width.
         final velocity? => entry.flingDrag(
           _PastLimit(
             SpringSimulation(
@@ -248,7 +248,7 @@ class _BulletinHostState extends State<BulletinHost>
           ),
         ),
         // A drag released past the threshold accelerates to the width in
-        // 200 ms (B:635).
+        // 200 ms.
         null => entry.animateDragTo(
           entry.swipeDirection * width,
           const Duration(milliseconds: 200),
@@ -372,7 +372,7 @@ final class _Entry {
   double? width;
 
   /// Whether the card is narrower than the area it sits in (a wide window),
-  /// so a drag fades it as well as moving it (B:875-887).
+  /// so a drag fades it as well as moving it.
   bool fadesOnDrag = false;
 
   /// Where the card sits under [policy]: the bulletin's own placement, or
@@ -444,9 +444,9 @@ class _EntryViewState extends State<_EntryView> {
     }
   }
 
-  /// Whether a drag may move the card: only once it has entered, as the
-  /// reference swipes only a bulletin that can hide (B:571), which it can
-  /// from the end of its enter.
+  /// Whether a drag may move the card: only once it has entered, since only
+  /// a bulletin that can hide is swiped, and it can hide from the end of its
+  /// enter.
   bool get _canDrag => _entry.handle.isEntered && !_entry.isLeaving;
 
   void _dragUpdate(DragUpdateDetails details) {
@@ -471,8 +471,7 @@ class _EntryViewState extends State<_EntryView> {
         ..flingVelocity = flung ? velocity : null;
       _entry.handle.swipeAway();
     } else {
-      // Back in 200 ms on the platform's default accelerate-decelerate
-      // (B:643).
+      // Back in 200 ms on the platform's default accelerate-decelerate.
       unawaited(
         _entry
             .animateDragTo(
@@ -510,10 +509,8 @@ class _EntryViewState extends State<_EntryView> {
       },
     );
     final bulletin = widget.view.bulletin;
-    // Only a tappable card shows its press, as the reference sets the
-    // pressed state only with a click listener (B:621-623). It shrinks in
-    // 80 ms and returns in 350 ms with an overshoot of tension 1.5
-    // (`ScaleStateListAnimator.apply(this, .02f, 1.5f)`, B:802).
+    // Only a tappable card shows its press. It shrinks in 80 ms and returns
+    // in 350 ms with an overshoot of tension 1.5.
     final pressed = _entry.isPressed && bulletin.onTap != null;
     card = AnimatedScale(
       scale: pressed ? policy.pressScale : 1,
@@ -585,10 +582,9 @@ class _EntryViewState extends State<_EntryView> {
     final margin = widget.policy.margin;
     final transition = widget.policy.transitionAt(placement);
     // Off by its own height and a margin past the edge it sits on. The
-    // spring slide goes both vertical margins: the reference's in-out offset
-    // is its layout's height, the card and the padding around it
-    // (B:1121-1163), so the hidden card sits a margin past the edge it clips
-    // at.
+    // spring slide goes both vertical margins: the offset is the height of the
+    // card and the padding around it, so the hidden card sits a margin past
+    // the edge it clips at.
     final beyond = switch ((transition, placement)) {
       (BulletinTransition$Slide(), _) => margin.vertical,
       (_, BulletinPlacement.top) => margin.top,
@@ -632,15 +628,15 @@ class _EntryViewState extends State<_EntryView> {
 
 // --- Swipe and press motion ---
 
-/// The spring a flung card leaves on: stiffness 100, no bounce (B:593-594).
+/// The spring a flung card leaves on: stiffness 100, no bounce.
 final SpringDescription _flingSpring = SpringDescription.withDampingRatio(
   mass: 1,
   stiffness: 100,
 );
 
-/// [simulation], done once its position passes [limit] either way: the
-/// reference cancels its fling spring past the card's width (B:586-590),
-/// long before the spring would settle at twice the width.
+/// [simulation], done once its position passes [limit] either way: the fling
+/// spring is cancelled past the card's width, long before the spring would
+/// settle at twice the width.
 final class _PastLimit extends Simulation {
   _PastLimit(this.simulation, this.limit);
 

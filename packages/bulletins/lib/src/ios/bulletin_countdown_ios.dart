@@ -5,21 +5,18 @@ import 'package:bulletins/src/controller/bulletin_controller.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
-/// The reference iOS client's countdown: a ring that empties over a
-/// bulletin's time left, with the seconds left inside it. Draws nothing for
-/// a bulletin without a timeout.
+/// The iOS undo countdown: a ring that empties over a bulletin's time left,
+/// with the seconds left inside it. Draws nothing for a bulletin without a
+/// timeout.
 ///
-/// The digits follow the reference's timer, not the clock's exact seconds:
-/// it ticks every 0.5 s and shows the whole part of what is left
-/// (`UndoOverlayControllerNode.swift:1748-1757`), so a 5 s bulletin shows 5
-/// for its first half second, then 4, and 0 in its last half second. A
-/// change slides the new digit down from 10 above while it fades in, and the
-/// old one down 10 while it fades out, in 0.12 s (:1762-1765). The digits
-/// are 16 regular (:1775); the ring is 30 across (:2156).
+/// The digits tick every 0.5 s and show the whole part of what is left, not
+/// the clock's exact seconds, so a 5 s bulletin shows 5 for its first half
+/// second, then 4, and 0 in its last half second. A change slides the new
+/// digit down from 10 above while it fades in, and the old one down 10 while
+/// it fades out, in 0.12 s. The digits are 16 regular; the ring is 30 across.
 ///
-/// The ring's stroke and direction come from the reference's radial status
-/// node, which its checkout does not include: a 2-wide round-capped arc that
-/// starts at the top and empties counter-clockwise, as the stock countdown.
+/// The ring's stroke and direction: a 2-wide round-capped arc that starts at
+/// the top and empties counter-clockwise, as the stock countdown draws it.
 class BulletinCountdownIOS extends StatefulWidget {
   /// A countdown of [handle] in [color], [size] square.
   const BulletinCountdownIOS({
@@ -47,7 +44,7 @@ class BulletinCountdownIOS extends StatefulWidget {
   /// How long a digit change takes.
   static const Duration digitChange = Duration(milliseconds: 120);
 
-  /// The digit the reference shows when [remaining] of [timeout] is left.
+  /// The digit shown when [remaining] of [timeout] is left.
   static int digitOf(Duration timeout, Duration remaining) {
     const tick = 500;
     final ticks = (timeout - remaining).inMilliseconds ~/ tick;

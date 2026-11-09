@@ -59,11 +59,10 @@ final class Bulletin {
   /// where the policy lets an inert card pass pointers through.
   final List<BulletinLink> links;
 
-  /// The text length under which a bulletin without an undo is short, as the
-  /// reference factory decides.
+  /// The text length under which a bulletin without an undo is short.
   static const int shortTextLength = 20;
 
-  /// [duration], or the reference factory's rule when it is null: an undo
+  /// [duration], or the default rule when it is null: an undo
   /// bulletin is prolonged; otherwise text (title and message together)
   /// under [shortTextLength] characters is short, and longer text is long.
   BulletinDuration get effectiveDuration {

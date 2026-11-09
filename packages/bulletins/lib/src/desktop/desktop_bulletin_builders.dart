@@ -2,13 +2,13 @@ import 'package:bulletins/src/view/bulletin_builders.dart';
 import 'package:bulletins/src/view/bulletin_message.dart';
 import 'package:flutter/widgets.dart';
 
-/// The reference desktop client's toast drawn as a bulletin: the builders to
+/// The desktop toast drawn as a bulletin: the builders to
 /// pair with `BulletinPolicy.desktop()` and the `BulletinTokens.referenceDesktop`
 /// colours.
 ///
 /// The frame is the stock flat card (the toast is a plain rounded fill with
-/// no shadow). The content differs from the stock one the way the toolkit's
-/// toast lays out:
+/// no shadow). The content differs from the stock one the way the desktop
+/// toast is laid out:
 ///
 /// - the title is the bold first line of one text block that wraps, not a
 ///   line of its own; the block takes up to [maxLines] lines when the
@@ -17,13 +17,12 @@ import 'package:flutter/widgets.dart';
 /// - a leading icon sits in a slot that takes the place of the start
 ///   padding, so an icon toast starts at the icon's own 12 px gap.
 abstract final class DesktopBulletinBuilders {
-  /// The most lines of a toast's text when the bulletin names none (the
-  /// toolkit's `Config::maxlines`).
+  /// The most lines of a toast's text when the bulletin names none.
   static const int maxLines = 16;
 
   /// The desktop builders, with the host's own builders for the parts that
   /// have them: [animation] and [thumbnail] resolve a leading source (the
-  /// reference's 20 px Lottie icons), [leading] and [action] replace those
+  /// 20 px Lottie icons), [leading] and [action] replace those
   /// parts, and [frame] the card's surface.
   ///
   /// Give every builder here rather than through `copyWith` on the result:

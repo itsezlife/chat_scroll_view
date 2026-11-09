@@ -9,7 +9,7 @@ import 'package:golden_baseline/golden_baseline.dart';
 // Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
 // Drawn with the test font (every glyph a square), so it checks the toast's
 // geometry (width between 160 and 360, padding, the icon slot, the title
-// line) and the toolkit colours; rounded corners are anti-aliased, hence the
+// line) and the toast colours; rounded corners are anti-aliased, hence the
 // 1% pixel tolerance.
 const _cell = Size(420, 120);
 
