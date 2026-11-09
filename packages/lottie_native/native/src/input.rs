@@ -9,7 +9,7 @@ use std::io::Read;
 /// the largest legitimate file while keeping an upload from pinning memory.
 pub const MAX_ENCODED_BYTES: usize = 4 * 1024 * 1024;
 
-/// Cap on the inflated JSON. Matches the reference web client; it sits under
+/// Cap on the inflated JSON. It sits under
 /// tlottie's own 16 MiB input limit, so the gunzip cap is the binding one.
 pub const MAX_INFLATED_BYTES: usize = 8 * 1024 * 1024;
 

@@ -4,7 +4,7 @@ import test from 'node:test';
 
 import { coreOf, fixtureJson, skip } from './support/wasm_fixture.mjs';
 
-// The reference frame is drawn by the host (native) build and committed, see
+// The golden frame is drawn by the host (native) build and committed, see
 // native/tests/golden.rs for how it is made and regenerated. Both wasm builds
 // must draw the same frame within one colour level per channel, so a drift
 // between the native and web renderers fails here.
