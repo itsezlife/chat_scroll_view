@@ -5,7 +5,7 @@ description: >-
   Composer handle lifecycle on touch ExtendedTextField: overshoot appear,
   finger-tracked moving overlay, frozen orientation until settle, easeOut
   settle to caret. Logical selection updates live throughout.
-tags: [telegram, composer, handles, composer_editable]
+tags: [composer, handles, composer_editable]
 timestamp: 2026-07-21T12:00:00.000Z
 content_hash: composer-handles-v2
 ---
@@ -15,19 +15,19 @@ content_hash: composer-handles-v2
 Glossary: **Composer selection chrome**, **Finger-tracked handle**, **Frozen
 handle chrome**, **Handle settle** — see [CONTEXT.md](../../CONTEXT.md).
 
-## Appear / hide (AOSP + bubble parity)
+## Appear / hide
 
 | Phase | Behavior | Code |
 | ----- | -------- | ---- |
-| Appear | ~250ms fade + scale, `OvershootInterpolator` tension 2.0 | `_SelectionHandleOverlay` `_scale` |
-| Hide | **Instant** (`progress = 0`, no reverse) | Telegram `clear()` / `handleViewProgress` |
+| Appear | ~250ms fade + scale, overshoot curve with tension 2.0 | `_SelectionHandleOverlay` `_scale` |
+| Hide | **Instant** (`progress = 0`, no reverse) | `_applyHandleVisibility` |
 
 ## Grab (pointer DOWN)
 
 Finger-tracking starts on **pointer DOWN** (not after touch slop), through
 `Listener.onPointerDown` on the handle, so an Android `PointerDeviceKind.mouse`
 (scrcpy) takes the same path. The grabbed handle is **not scaled**: three
-documented values disagreed (1.2, 1.4, 1.5) and no Telegram source states one.
+candidate values (1.2, 1.4, 1.5) disagree and none is verified.
 
 Extent hit-test during drag uses **caret-equivalent X**
 (`pointer + grabOffset` on X; Y keeps line-jump logic) so the highlight stays
@@ -40,9 +40,9 @@ aligned with the moving handle.
 | **Grabbed (moving)** | Overlay = `pointer + grabOffset` (both axes); offsets from hit-test | ~250ms easeOut **settle** to caret anchor (visual only) |
 | **Fixed** | Caret-anchored via `CompositedTransformFollower` + endpoints | Stays anchored |
 
-Grab offset frozen at DOWN (AOSP `mTouchToWindowOffset`).
+Grab offset frozen at DOWN.
 
-## Frozen handle chrome (Telegram crossover parity)
+## Frozen handle chrome
 
 From DOWN until settle **completes**:
 
@@ -54,20 +54,20 @@ From DOWN until settle **completes**:
 3. After settle: one `_applySelectionOverlayMetrics()` refresh.
 
 **Why:** When selection reverses, live start=left / end=right types make both
-handles point **inward** and overlap. Telegram keeps pre-cross orientations until
-motion settles, then flips both if needed.
+handles point **inward** and overlap. The orientations therefore stay at their
+pre-cross values until motion settles, then flip if needed.
 
 ## Invert model
 
 All platforms: dragged handle becomes **extent**; opposite end is **fixed base**
 from `_dragStartSelection`. `_avoidCollapseExtent` keeps minimum one character.
 
-Distinct from stock Android (“don’t allow order swapping”).
+Stock Android does not allow order swapping; this model does.
 
 ## Geometry
 
 Material circle+stem, 22dp — `extendedMaterialTextSelectionHandleControls` on
-every platform for the composer (Telegram's handles are Telegram-drawn, not the
+every platform for the composer (the composer draws its own handles, not the
 iOS bars); the Cupertino controls stay available to a host that passes them.
 
 ## Code seams
@@ -80,7 +80,7 @@ iOS bars); the Cupertino controls stay available to a host that passes them.
 
 ## Acceptance (manual)
 
-scrcpy vs Telegram Android **composer** (not bubble):
+Manual check on Android via scrcpy, on the **composer** (not bubble):
 
 1. Grab handle — it follows the finger from the grab point.
 2. Drag far from line — handle follows finger; fixed handle stays on text.
