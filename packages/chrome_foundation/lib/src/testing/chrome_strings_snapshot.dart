@@ -20,6 +20,7 @@ abstract final class ChromeStringsSnapshot {
       for (final id in _knownCategoryIds)
         'panel.categoryTitle[$id]': panel.categoryTitle(id),
       'panel.recentlyUsedTitle': panel.recentlyUsedTitle,
+      'panel.favouriteStickersTitle': panel.favouriteStickersTitle,
       'panel.searchResultsTitle': panel.searchResultsTitle,
       'panel.searchHint': panel.searchHint,
       'panel.searchEmpty': panel.searchEmpty,

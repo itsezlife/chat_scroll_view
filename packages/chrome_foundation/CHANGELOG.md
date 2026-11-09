@@ -28,6 +28,13 @@ package is pre-1.0.
 - A frosted surface no longer needs the glass shaders, and a failed shader
   load leaves surfaces frosted instead of on the scene filter.
 
+### Added (favourite stickers)
+
+- `PanelStrings.favouriteStickersTitle`, required, with English and Russian
+  presets: the title of the stickers page's favourites section and the name
+  of its strip tab. A host that builds `PanelStrings(...)` must pass it
+  (source-breaking).
+
 ### Added (stickers page copy)
 
 - `PanelStrings.stickersEmpty`, required, with English and Russian presets:

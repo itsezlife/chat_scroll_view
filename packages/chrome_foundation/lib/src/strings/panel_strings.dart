@@ -9,6 +9,7 @@ final class PanelStrings {
     required this.tabLabel,
     required this.categoryTitle,
     required this.recentlyUsedTitle,
+    required this.favouriteStickersTitle,
     required this.searchResultsTitle,
     required this.searchHint,
     required this.searchEmpty,
@@ -41,6 +42,10 @@ final class PanelStrings {
 
   /// Title of the recently-used section.
   final String recentlyUsedTitle;
+
+  /// Title of the favourite stickers' section, and the name of its tab on the
+  /// stickers page's strip.
+  final String favouriteStickersTitle;
 
   /// Title of the keyword-hit section while searching.
   final String searchResultsTitle;

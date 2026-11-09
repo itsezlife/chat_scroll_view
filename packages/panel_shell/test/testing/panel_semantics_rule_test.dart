@@ -14,6 +14,7 @@ ChromeStrings stringsWith({
       tabLabel: tabLabel ?? base.panel.tabLabel,
       categoryTitle: base.panel.categoryTitle,
       recentlyUsedTitle: base.panel.recentlyUsedTitle,
+      favouriteStickersTitle: base.panel.favouriteStickersTitle,
       searchResultsTitle: base.panel.searchResultsTitle,
       searchHint: base.panel.searchHint,
       searchEmpty: base.panel.searchEmpty,
