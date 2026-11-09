@@ -16,6 +16,8 @@ void main() {
   late ManualBakeClock clock;
   late ValueNotifier<bool> visible;
   late ValueNotifier<bool> opening;
+  late ValueNotifier<bool> hostScrolling;
+  late ValueNotifier<bool> shown;
   late List<FlutterErrorDetails> errors;
 
   setUp(() {
@@ -25,6 +27,8 @@ void main() {
     clock = ManualBakeClock();
     visible = ValueNotifier<bool>(true);
     opening = ValueNotifier<bool>(false);
+    hostScrolling = ValueNotifier<bool>(false);
+    shown = ValueNotifier<bool>(true);
     errors = <FlutterErrorDetails>[];
     final previous = FlutterError.onError;
     FlutterError.onError = errors.add;
@@ -33,6 +37,8 @@ void main() {
   tearDown(() async {
     visible.dispose();
     opening.dispose();
+    hostScrolling.dispose();
+    shown.dispose();
     await cache.clear();
   });
 
@@ -56,6 +62,8 @@ void main() {
       clock: clock.read,
       panelVisible: visible,
       panelOpening: opening,
+      scrolling: hostScrolling,
+      glyphsShown: shown,
       residency: residency,
       predecessor: predecessor,
     );
@@ -258,6 +266,23 @@ void main() {
         expect(third.atlas.spriteOf('g0'), isNotNull);
       },
     );
+
+    test('waits for the host\'s scrolling signal, not for a glyph surface '
+        'to be shown', () async {
+      await firstRun(_glyphs(2));
+      shown.value = false;
+      hostScrolling.value = true;
+      final run = launch(_glyphs(2))..atlas.start();
+      await pumpEventQueue();
+      expect(frames.hasPendingRequest, isFalse);
+
+      hostScrolling.value = false;
+      await pumpEventQueue();
+      await frame();
+
+      expect(run.atlas.spriteOf('g0'), isNotNull);
+      expect(run.rasteriser.painted, isEmpty, reason: 'restored, not baked');
+    });
 
     test(
       'dispose in the middle of a restore leaves no request behind',

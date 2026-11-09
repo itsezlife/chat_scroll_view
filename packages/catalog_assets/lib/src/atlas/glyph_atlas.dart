@@ -36,12 +36,17 @@ import 'package:flutter/foundation.dart';
 ///
 /// ## Who tells it to wait
 ///
-/// Baking runs only while the panel is visible, nothing scrolls and the
-/// panel is not opening ([BakePauseSignals]). The host owns the first and the
-/// last as [panelVisible] and [panelOpening]; each surface that scrolls
-/// reports the middle one through [reportScrolling] (motion lasts until every
-/// surface that reported it has said it stopped) and says what is on screen
-/// through [prioritise], because only it knows.
+/// Baking runs only while the panel is visible, a surface that draws the
+/// glyphs is shown, nothing scrolls and the panel is not opening
+/// ([BakePauseSignals]). The host owns [panelVisible], `glyphsShown` and
+/// [panelOpening]. Motion has two sources: each surface that draws from the
+/// atlas reports its own through [reportScrolling] (motion lasts until every
+/// surface that reported it has said it stopped), and the host may add its
+/// own `scrolling` signal for every other surface of the app, such as a chat
+/// list or another page of the panel, because a bake step costs the raster
+/// thread of whatever frame it lands in, not only the frames of the
+/// catalogue. A surface says what is on screen through [prioritise], because
+/// only it knows.
 ///
 /// ## Sharing the pass
 ///
@@ -116,6 +121,12 @@ import 'package:flutter/foundation.dart';
 final class GlyphAtlas implements GlyphSpriteSource {
   /// Creates an atlas for the glyphs of [index]. Nothing runs until [start].
   ///
+  /// [scrolling] is the host's own motion signal, held like a scroll a
+  /// surface reports; [glyphsShown] says whether a surface that draws the
+  /// glyphs is shown, and holds only the bake (a hidden page's pages are
+  /// still restored from the cache, so it opens onto drawn glyphs). Both
+  /// default to never holding.
+  ///
   /// Pass either a [store] (pages kept for this atlas's life only) or a
   /// [persistence] (pages kept across launches), not both. A [predecessor] is
   /// the art of the atlas this one replaces; see [retire].
@@ -126,6 +137,8 @@ final class GlyphAtlas implements GlyphSpriteSource {
     required BakeClock clock,
     required ValueListenable<bool> panelVisible,
     required ValueListenable<bool> panelOpening,
+    ValueListenable<bool>? scrolling,
+    ValueListenable<bool>? glyphsShown,
     GlyphPageStore? store,
     GlyphAtlasPersistence? persistence,
     BakeGovernor? governor,
@@ -141,6 +154,7 @@ final class GlyphAtlas implements GlyphSpriteSource {
        _clock = clock,
        _panelVisible = panelVisible,
        _panelOpening = panelOpening,
+       _hostScrolling = scrolling,
        _residency = residency ?? GlyphPageResidency(),
        _predecessorSettled = predecessor?.settled {
     _pageStore = _AtlasPageStore(
@@ -156,10 +170,13 @@ final class GlyphAtlas implements GlyphSpriteSource {
     );
     _pageStore.onComposed = _keepComposed;
     _pageStore.onWriteFailed = _reportWriteFailed;
+    _hostScrolling?.addListener(_onMotion);
+    _onMotion();
     _signals = BakePauseSignals(
       panelVisible: panelVisible,
       scrolling: _scrolling,
       panelOpening: panelOpening,
+      glyphsShown: glyphsShown,
     );
     _scheduler = GlyphBakeScheduler(
       baker: _baker,
@@ -195,6 +212,7 @@ final class GlyphAtlas implements GlyphSpriteSource {
   final BakeClock _clock;
   final ValueListenable<bool> _panelVisible;
   final ValueListenable<bool> _panelOpening;
+  final ValueListenable<bool>? _hostScrolling;
   final GlyphPageResidency _residency;
   final Future<void>? _predecessorSettled;
   final _IoLedger _io = _IoLedger();
@@ -353,7 +371,14 @@ final class GlyphAtlas implements GlyphSpriteSource {
     } else {
       _scrollers.remove(reporter);
     }
-    _scrolling.value = _scrollers.isNotEmpty;
+    _onMotion();
+  }
+
+  // Motion is the union of the reporting surfaces and the host's signal.
+  void _onMotion() {
+    if (_disposed) return;
+    _scrolling.value =
+        _scrollers.isNotEmpty || (_hostScrolling?.value ?? false);
   }
 
   /// Says which glyphs are on screen, most important first; the pages holding
@@ -410,6 +435,7 @@ final class GlyphAtlas implements GlyphSpriteSource {
   void _shutdown() {
     _lifecycle = _Lifecycle.disposed;
     _panelVisible.removeListener(_onVisibleChanged);
+    _hostScrolling?.removeListener(_onMotion);
     _openHold?.release();
     _openHold = null;
     for (final wake in List<VoidCallback>.of(_sleepers)) {

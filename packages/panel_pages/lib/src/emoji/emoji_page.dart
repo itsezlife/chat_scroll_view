@@ -23,14 +23,17 @@ typedef GlyphPlanner = GlyphPlan? Function(List<Collection> collections);
 /// The composition root owns everything about *how* glyphs are baked (the
 /// frame source, the disk cache, the glyph-support probe's observer, memory
 /// pressure); the page owns *what* and *when*. [glyphBoxExtent] and
-/// [devicePixelRatio] are the page's to say, and [visible] and [opening] are
-/// the panel's presence, which the host follows.
+/// [devicePixelRatio] are the page's to say, [visible] and [opening] are
+/// the panel's presence, and [shown] is whether the page is the selected one:
+/// the host follows all three (pass [shown] as the host's `glyphsShown`, so
+/// the bake holds while another page is shown).
 typedef GlyphAtlasHostFactory =
     GlyphAtlasHost Function({
       required double devicePixelRatio,
       required double glyphBoxExtent,
       required listen.ValueListenable<bool> visible,
       required listen.ValueListenable<bool> opening,
+      required listen.ValueListenable<bool> shown,
     });
 
 /// What the emoji page keeps across being unmounted: the catalogue's controller
@@ -364,6 +367,7 @@ class _EmojiPageState extends State<EmojiPage> {
       glyphBoxExtent: EmojiPagePolicy.glyphBoxExtent,
       visible: _host.panelVisible,
       opening: _host.panelOpening,
+      shown: _host.isActive,
     );
     _controller.atlasHost = created;
   }

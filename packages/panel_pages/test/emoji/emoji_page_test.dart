@@ -451,12 +451,14 @@ void main() {
           required glyphBoxExtent,
           required visible,
           required opening,
+          required shown,
         }) => GlyphAtlasHost(
           frames: frames,
           devicePixelRatio: devicePixelRatio,
           glyphBoxExtent: glyphBoxExtent,
           visible: visible,
           opening: opening,
+          glyphsShown: shown,
           rasteriser: FakeGlyphRasteriser(),
           newStore: FakeGlyphPageStore.new,
         );
@@ -532,6 +534,22 @@ void main() {
       host.opening = true;
       await tester.pump();
       expect(frames.hasPendingRequest, isFalse);
+    });
+
+    testWidgets('bakes only while the page is the selected one', (
+      tester,
+    ) async {
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+      expect(frames.hasPendingRequest, isTrue);
+
+      host.active = false;
+      await tester.pump();
+      expect(frames.hasPendingRequest, isFalse);
+
+      host.active = true;
+      await tester.pump();
+      expect(frames.hasPendingRequest, isTrue);
     });
 
     testWidgets('survives the page: closing and reopening does not bake '
@@ -664,6 +682,7 @@ void main() {
             required glyphBoxExtent,
             required visible,
             required opening,
+            required shown,
           }) => GlyphAtlasHost(
             frames: frames,
             devicePixelRatio: devicePixelRatio,

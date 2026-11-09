@@ -8,7 +8,9 @@ import 'package:panel_shell/panel_shell.dart';
 /// the panel's catalogue, under a drag or a fling.
 ///
 /// The texture pool's `scrolling` signal (ADR 043, "Pool"): it creates no
-/// texture while this is true.
+/// texture while this is true. The emoji glyph bake holds on it too (ADR 022,
+/// *Amendment: glyph bake holds*): no strip or page is baked while any
+/// surface moves.
 final class ScrollingSurfaces extends ChangeNotifier
     implements ValueListenable<bool> {
   final Set<Object> _moving = {};
