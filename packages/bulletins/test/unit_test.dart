@@ -9,9 +9,14 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'bulletin/bulletin_test.dart' as bulletin_test;
+import 'controller/bulletin_controller_test.dart' as bulletin_controller_test;
 import 'policy/bulletin_policy_test.dart' as bulletin_policy_test;
 
 void main() {
   group('bulletin/bulletin_test.dart', bulletin_test.main);
+  group(
+    'controller/bulletin_controller_test.dart',
+    bulletin_controller_test.main,
+  );
   group('policy/bulletin_policy_test.dart', bulletin_policy_test.main);
 }
