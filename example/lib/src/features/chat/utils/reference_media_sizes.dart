@@ -7,25 +7,22 @@ import 'package:content_model/content_model.dart' show ContentSize;
 import 'package:flutter/foundation.dart';
 
 /// The example's media size policy: how large a sticker or GIF sent on its
-/// own is drawn in the chat, as the reference client draws it, per platform
-/// family.
+/// own is drawn in the chat, per platform family.
 ///
-/// - [$Mobile] (Android, iOS; `ChatMessageCell.java`, the sticker and GIF
-///   branches of `setMessageContent`): a sticker fitted in a square of half
+/// - [$Mobile] (Android, iOS): a sticker fitted in a square of half
 ///   the shorter of the chat's width and the screen's height (206 dp on a
 ///   412 dp phone), 40 % of the tablet side on a tablet; a GIF as wide as the
 ///   chat less 64 dp when it is landscape, 70 % of it when portrait, by its
 ///   proportion high, held between 120 dp and the width plus 100 dp.
-/// - [$Desktop] (macOS, Windows, Linux and the web; `history_view_sticker.cpp`,
-///   `history_view_gif.cpp`): a sticker fitted in 224 px and a GIF in 320 px,
+/// - [$Desktop] (macOS, Windows, Linux and the web): a sticker fitted in
+///   224 px and a GIF in 320 px,
 ///   never enlarged, whatever the window.
 ///
-/// Both decode at most 512 px on the longer side, the reference render cap
-/// (`ImageLoader.java`).
+/// Both decode at most 512 px on the longer side, the render cap.
 ///
-/// It sizes a message of a private chat: the reference client takes 52 dp more
-/// off a GIF for the sender's avatar in a group and 10 dp for the share button
-/// of a channel post, which the demo chat has neither of.
+/// It sizes a message of a private chat: a group takes 52 dp more off a GIF
+/// for the sender's avatar and a channel post 10 dp for the share button,
+/// which the demo chat has neither of.
 @immutable
 sealed class ReferenceMediaSizes implements ChatMediaSizePolicy {
   const ReferenceMediaSizes();
@@ -56,7 +53,7 @@ sealed class ReferenceMediaSizes implements ChatMediaSizePolicy {
   /// A sticker's size when its source is not known.
   static const ContentSize unknownSticker = ContentSize(512, 512);
 
-  /// The reference render cap.
+  /// The render cap.
   static const int renderCap = 512;
 
   @override
@@ -131,8 +128,7 @@ final class ReferenceMediaSizes$Mobile extends ReferenceMediaSizes {
 
   static bool _isTablet(Size viewport) => viewport.shortestSide >= tabletSide;
 
-  // The chat's side of a tablet, the list column taken off it
-  // (`AndroidUtilities.getMinTabletSide`).
+  // The chat's side of a tablet, the list column taken off it.
   static double _minTabletSide(Size viewport) {
     final small = viewport.shortestSide;
     final large = viewport.longestSide;

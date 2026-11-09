@@ -30,8 +30,8 @@ final class ChatBodyHost {
   /// by default the animated pack's. [plays] is the memory of what already
   /// played on this screen. [playbackFor] is the host's choice of how the
   /// sticker of an emoji plays, from the kind of asset and the user's
-  /// animation settings; by default the reference client's (a unicode emoji
-  /// plays once and rests on the first frame, a custom emoji loops).
+  /// animation settings; by default a unicode emoji plays once and rests on
+  /// the first frame, and a custom emoji loops.
   ///
   /// [describe] says what the host knows of a document: a GIF waits behind
   /// the whole rectangle, as in the panel's grid, a sticker or custom emoji
@@ -43,7 +43,7 @@ final class ChatBodyHost {
   ///
   /// It also says which lone document is a sticker or a GIF of its own
   /// ([mediaOf]), drawn at the size [mediaSizes] gives it: the running
-  /// platform's reference sizes by default.
+  /// platform's sizes by default.
   ChatBodyHost({
     required AssetCacheScope assets,
     required this.policy,

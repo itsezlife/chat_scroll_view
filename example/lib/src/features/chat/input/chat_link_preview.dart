@@ -36,7 +36,7 @@ final class ChatLinkPreviewCard {
 /// A debounced listener that reads the text and writes nothing back: the
 /// composer stays blind to link-class detection (no live underline, no entity
 /// while typing), and the URL is found in a copy of the text
-/// that is thrown away. The timing is the reference client's: a change is read
+/// that is thrown away. The timing: a change is read
 /// one second after the last keystroke, and at once when the text jumped by
 /// more than [jumpLength] characters (a paste) or the caret follows a space or
 /// a line break (the URL is finished).

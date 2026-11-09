@@ -7,8 +7,7 @@ import 'package:flutter/material.dart';
 /// where a pack's title is looked up ([source]).
 ///
 /// The menu offers "This message contains emoji from N packs" below its
-/// actions when [of] names any, as the reference client's
-/// `MessageContainsEmojiButton` does, and hands the packs to
+/// actions when [of] names any, and hands the packs to
 /// `MessageMenuActions.onEmojiPacks`.
 @immutable
 final class MessageEmojiPacks {
@@ -23,14 +22,13 @@ final class MessageEmojiPacks {
 }
 
 /// The menu's "contains emoji" entry: a block of its own under the action
-/// card, the reference's `MessageContainsEmojiButton`.
+/// card.
 ///
 /// One pack is named by its title once its source has it (looked up when
 /// the entry shows; a placeholder holds its place meanwhile), several by
-/// their count. The words are the reference's (`MessageContainsEmojiPack`,
-/// `MessageContainsEmojiPacks`), the name or count bold in the accent
-/// colour; 13 px text, padding 13 by 8. The reference also draws the pack's
-/// cover emoji before a lone title, which this entry leaves out.
+/// their count. The name or count is bold in the accent colour; 13 px text,
+/// padding 13 by 8. The entry leaves out the pack's cover emoji before a lone
+/// title.
 class MessageContainsEmojiButton extends StatefulWidget {
   /// The entry for [packs] (at least one), titled from [source].
   const MessageContainsEmojiButton({
@@ -102,7 +100,7 @@ class _MessageContainsEmojiButtonState
             const TextSpan(text: ' pack.'),
           ],
         ),
-        // The reference's loading bar where the title will be.
+        // A loading bar where the title will be.
         _ => TextSpan(
           children: [
             WidgetSpan(
