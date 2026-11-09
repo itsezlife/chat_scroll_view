@@ -63,10 +63,12 @@ final class FrameTextureLease {
 ///
 /// Every texture counts `edge * edge * 4` bytes for each buffer of the host's
 /// queue ([FrameTextureHost.buffersPerTexture]), leased or idle, from the
-/// moment it is asked for until it is destroyed. [warm] stops at a texture
-/// the budget does not cover. The default, 48 MiB, is the default of the
-/// dynamic frame pages (ADR 022), which a texture replaces for the asset that
-/// holds it.
+/// moment it is asked for until it is destroyed. A [warm] the budget does not
+/// cover makes room by destroying idle textures of other classes, released
+/// longest ago first; it stops when even those would not cover it. Leased
+/// textures are never destroyed for room. The default, 48 MiB, is the
+/// default of the dynamic frame pages (ADR 022), which a texture replaces for
+/// the asset that holds it.
 ///
 /// ## Idle textures
 ///
@@ -234,9 +236,10 @@ final class FrameTexturePool {
   /// Creates textures of [sizeClass] until it has [count] idle ones (at most
   /// [idleLimit]), off the frame path.
   ///
-  /// Waits while [scrolling] is true, before each creation; stops early when
-  /// the budget does not cover another texture, when the host refuses one, or
-  /// when the pool is disposed. Never fails. Calls that overlap share the
+  /// Waits while [scrolling] is true, before each creation; destroys idle
+  /// textures of other classes when the budget does not cover another
+  /// texture, and stops early when even that would not, when the host
+  /// refuses one, or when the pool is disposed. Never fails. Calls that overlap share the
   /// work: a texture being created counts toward every call's [count].
   ///
   /// Throws an [ArgumentError] for a [sizeClass] that is not one of
@@ -256,7 +259,7 @@ final class FrameTexturePool {
         continue;
       }
       final cost = bytesOfClass(sizeClass);
-      if (_bytes + cost > budgetBytes) return;
+      if (!_makeRoom(cost, sizeClass)) return;
       _bytes += cost;
       _creating[sizeClass] = (_creating[sizeClass] ?? 0) + 1;
       int? id;
@@ -287,6 +290,31 @@ final class FrameTexturePool {
       }
       _idle[id] = sizeClass;
     }
+  }
+
+  // Whether [cost] fits the budget, after destroying idle textures of other
+  // classes, released longest ago first, as far as that makes it fit. An idle
+  // texture is on no screen; a warm is for a lease that waits on a page slot,
+  // uploading a frame page on every tick. Without this, textures warmed for a
+  // surface that is gone (a chat's stickers, a page left) hold the budget
+  // while the surface on screen plays from pages. Nothing is destroyed when
+  // even every idle texture of the other classes would not make it fit.
+  bool _makeRoom(int cost, int sizeClass) {
+    var over = _bytes + cost - budgetBytes;
+    if (over <= 0) return true;
+    final victims = <int>[];
+    for (final MapEntry(:key, :value) in _idle.entries) {
+      if (value == sizeClass) continue;
+      victims.add(key);
+      over -= bytesOfClass(value);
+      if (over <= 0) break;
+    }
+    if (over > 0) return false;
+    for (final id in victims) {
+      _releasedAt.remove(id);
+      _destroy(id, _idle.remove(id)!);
+    }
+    return true;
   }
 
   /// Destroys every idle texture: the answer to memory pressure. Leased

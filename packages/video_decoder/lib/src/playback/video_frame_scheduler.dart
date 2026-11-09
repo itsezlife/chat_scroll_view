@@ -223,9 +223,11 @@ final class VideoFrameLease {
 /// it would wait for the slowest worker, and a batch that ran past a clock
 /// frame would cost every clip that frame. Batches overlap: the atlas runs
 /// its own one after the other, and a clip's writes go to the worker that
-/// decodes it, which answers them in order. A frame whose texture could not be locked is dropped (the
-/// texture keeps the one before); [lockFailureLimit] in a row discard the
-/// texture and send the clip back to a slot for the life of the scheduler.
+/// decodes it, which answers them in order.
+///
+/// A frame whose texture could not be locked is dropped (the texture keeps
+/// the one before); [lockFailureLimit] in a row discard the texture and send
+/// the clip back to a slot for the life of the scheduler.
 ///
 /// One lease per key: the atlas names an entry once in a batch.
 ///
@@ -730,7 +732,13 @@ final class VideoFrameScheduler {
         lease._touched = false;
       } else {
         _release(lease);
+        continue;
       }
+      // Asked again at every sweep, not only at the lease: a lease that left
+      // the canvas, or found the pool's budget spent when it began, would
+      // otherwise play from a slot (a page upload on every tick) for its
+      // whole life. The pool answers at once when it cannot make one.
+      if (lease._texture == null && !lease.isFailed) _warmFor(lease);
     }
     if (_leases.isNotEmpty) _sweep = _startTimer(idleRelease, _onSweep);
   }

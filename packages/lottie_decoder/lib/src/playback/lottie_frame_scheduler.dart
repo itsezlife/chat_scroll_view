@@ -135,9 +135,10 @@ final class LottieFrameLease {
 /// its own, the same way). Batches therefore overlap: the atlas runs its own
 /// one after the other, and the render isolate answers writes in the order
 /// they were sent, so a lease's frames land in order. A want for the frame
-/// already sent is free, so a paused animation costs nothing. A paintable at half frame rate
-/// (`AssetProfile.halfFrameRate`) wants only every second frame, so its slot
-/// or texture is rendered and posted half as often, by the same rule.
+/// already sent is free, so a paused animation costs nothing. A paintable at
+/// half frame rate (`AssetProfile.halfFrameRate`) wants only every second
+/// frame, so its slot or texture is rendered and posted half as often, by the
+/// same rule.
 ///
 /// The bindings of the animated paintables are targets of the same clock and
 /// repaint on their own, so no repaint signal goes out from here. The follow
@@ -579,7 +580,13 @@ final class LottieFrameScheduler {
         lease._touched = false;
       } else {
         _release(lease);
+        continue;
       }
+      // Asked again at every sweep, not only at the lease: a lease that left
+      // the canvas, or found the pool's budget spent when it began, would
+      // otherwise play from a slot (a page upload on every tick) for its
+      // whole life. The pool answers at once when it cannot make one.
+      if (lease._texture == null && !lease._failed) _warmFor(lease);
     }
     if (_leases.isNotEmpty) _sweep = _startTimer(idleRelease, _onSweep);
   }
