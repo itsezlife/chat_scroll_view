@@ -411,6 +411,18 @@ final class _PageHost with ChangeNotifier implements PanelPageHost {
   }
 
   @override
+  void requestLibraryEdit(LibraryEdit edit) {
+    if (_shell._disposed) return;
+    _shell._events.publish(LibraryEditRequested(edit));
+  }
+
+  @override
+  void requestPack(PackId id) {
+    if (_shell._disposed) return;
+    _shell._events.publish(PackRequested(id));
+  }
+
+  @override
   PanelPageHold holdAutoHide() {
     final hold = _Hold(_shell);
     if (!_shell._disposed) _shell._autoHideHolds.value++;

@@ -36,6 +36,14 @@ void main() {
         kind: SemanticKind.unicodeEmoji,
       ).hashCode,
     );
+    expect(
+      const LibraryEditRequested(LibraryEdit.favouriteSticker(thumbs)),
+      const LibraryEditRequested(LibraryEdit.favouriteSticker(thumbs)),
+    );
+    expect(
+      const PackRequested(PackId('cats')).hashCode,
+      const PackRequested(PackId('cats')).hashCode,
+    );
   });
 
   test('a pick is filed under the recents of its own kind unless told '
@@ -72,6 +80,14 @@ void main() {
     expect(const PageChanged('a'), isNot(const PageChanged('b')));
     expect(const SearchOpened(), isNot(const SearchClosed()));
     expect(
+      const LibraryEditRequested(LibraryEdit.favouriteSticker(thumbs)),
+      isNot(const LibraryEditRequested(LibraryEdit.unfavouriteSticker(thumbs))),
+    );
+    expect(
+      const PackRequested(PackId('cats')),
+      isNot(const PackRequested(PackId('dogs'))),
+    );
+    expect(
       const ContentCopyRequested(key: thumbs, kind: SemanticKind.unicodeEmoji),
       isNot(
         const RecentRemoveRequested(
@@ -93,6 +109,8 @@ void main() {
       PageChanged() => 'page',
       SearchOpened() => 'opened',
       SearchClosed() => 'closed',
+      LibraryEditRequested() => 'library',
+      PackRequested() => 'pack',
     };
 
     expect(describe(const SearchClosed()), 'closed');

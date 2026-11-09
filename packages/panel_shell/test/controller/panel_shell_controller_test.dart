@@ -369,6 +369,20 @@ void main() {
       ]);
     });
 
+    test('turns library edit and pack requests into panel events', () {
+      final host = build().hostFor('stickers');
+      const sticker = ContentKey.document('7');
+
+      host
+        ..requestLibraryEdit(const LibraryEdit.favouriteSticker(sticker))
+        ..requestPack(const PackId('cats'));
+
+      expect(events, [
+        const LibraryEditRequested(LibraryEdit.favouriteSticker(sticker)),
+        const PackRequested(PackId('cats')),
+      ]);
+    });
+
     test('isActive follows the selected page', () {
       final controller = build();
       final emoji = controller.hostFor('emoji');

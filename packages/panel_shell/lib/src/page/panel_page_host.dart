@@ -86,6 +86,14 @@ abstract interface class PanelPageHost {
   /// shell publishes [RecentRemoveRequested].
   void requestRemoveRecent(ContentKey key, {required SemanticKind kind});
 
+  /// Reports that the user asked for [edit] of their content library; the
+  /// shell publishes [LibraryEditRequested].
+  void requestLibraryEdit(LibraryEdit edit);
+
+  /// Reports that the user asked to see the pack [id]; the shell publishes
+  /// [PackRequested].
+  void requestPack(PackId id);
+
   /// Asks that a presentation which dismisses itself (a popup that closes
   /// when the pointer leaves it) stays open until the returned hold is
   /// released.
