@@ -35,17 +35,22 @@ final class CorpusSticker implements BundledItem {
   @override
   ContentKey get key => ContentKey.document('corpus:$pack:$name');
 
-  /// Whether the file is a still image (`.webp`) rather than a Lottie file.
-  bool get isStill => path.toLowerCase().endsWith('.webp');
+  /// How the file is drawn, by its extension, as a sticker's format names
+  /// its kind: a still image (`.webp`), a video (`.webm`) or a Lottie
+  /// animation (`.json`, `.tgs`).
+  MediaForm get mediaForm => switch (path.toLowerCase()) {
+    final p when p.endsWith('.webp') => MediaForm.still,
+    final p when p.endsWith('.webm') => MediaForm.video,
+    _ => MediaForm.vectorAnimation,
+  };
 
-  /// What the pipeline needs to make it: a Lottie animation, as the bundled
-  /// Lottie stickers are, or a still for a `.webp` sticker.
+  /// What the pipeline needs to make it, in the form its file names.
   @override
   ContentDescriptor get descriptor => ContentDescriptor(
     key: key,
     semanticKind: SemanticKind.sticker,
-    mediaForm: isStill ? MediaForm.still : MediaForm.vectorAnimation,
-    animated: !isStill,
+    mediaForm: mediaForm,
+    animated: mediaForm != MediaForm.still,
     size: const ContentSize(512, 512),
     spokenName: '$pack $name',
   );
@@ -79,8 +84,8 @@ final class CorpusPack {
 /// ## Where the packs come from
 ///
 /// - The app bundle: `assets/sticker_corpus/<pack>--<n>.json` (or `.tgs`, the
-///   gzipped form the engine also reads, or `.webp` for a still sticker), put
-///   there by
+///   gzipped form the engine also reads, `.webp` for a still sticker or
+///   `.webm` for a video sticker), put there by
 ///   `tool/link_corpus_assets.sh`. The folder is listed in the pubspec, but
 ///   its files are git-ignored, so a checkout without them builds and lists
 ///   no pack. Files are flat because a pubspec asset folder is not recursive
@@ -105,7 +110,7 @@ final class CorpusStickerPack {
 
   static const String _assetDirectory = 'assets/sticker_corpus/';
   static final RegExp _assetName = RegExp(
-    r'^(.+)--([^/]+)\.(?:json|tgs|webp)$',
+    r'^(.+)--([^/]+)\.(?:json|tgs|webp|webm)$',
   );
   static const String _keyPrefix = 'corpus:';
 
