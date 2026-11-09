@@ -34,6 +34,8 @@ import 'rich_text/typed_markdown_test.dart' as typed_markdown_test;
 import 'rich_text/username_hashtag_test.dart' as username_hashtag_test;
 import 'store/caching_pack_source_test.dart' as caching_pack_source_test;
 import 'store/deferred_recents_store_test.dart' as deferred_recents_store_test;
+import 'store/key_value_library_storage_test.dart'
+    as key_value_library_storage_test;
 import 'store/key_value_preference_store_test.dart'
     as key_value_preference_store_test;
 import 'store/key_value_recents_store_test.dart'
@@ -45,6 +47,7 @@ import 'testing/fake_content_resolver_test.dart' as fake_content_resolver_test;
 import 'testing/fake_glyph_support_test.dart' as fake_glyph_support_test;
 import 'testing/fake_key_value_store_test.dart' as fake_key_value_store_test;
 import 'testing/fake_keyword_source_test.dart' as fake_keyword_source_test;
+import 'testing/fake_library_storage_test.dart' as fake_library_storage_test;
 import 'testing/fake_pack_source_test.dart' as fake_pack_source_test;
 import 'testing/fake_preference_store_test.dart' as fake_preference_store_test;
 import 'testing/fake_recents_store_test.dart' as fake_recents_store_test;
@@ -87,6 +90,10 @@ void main() {
     deferred_recents_store_test.main,
   );
   group(
+    'store/key_value_library_storage_test.dart',
+    key_value_library_storage_test.main,
+  );
+  group(
     'store/key_value_preference_store_test.dart',
     key_value_preference_store_test.main,
   );
@@ -109,6 +116,10 @@ void main() {
     fake_key_value_store_test.main,
   );
   group('testing/fake_keyword_source_test.dart', fake_keyword_source_test.main);
+  group(
+    'testing/fake_library_storage_test.dart',
+    fake_library_storage_test.main,
+  );
   group('testing/fake_pack_source_test.dart', fake_pack_source_test.main);
   group(
     'testing/fake_preference_store_test.dart',
