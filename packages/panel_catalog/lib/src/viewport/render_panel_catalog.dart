@@ -1748,10 +1748,8 @@ class RenderPanelCatalog extends RenderBox
         time: details.sourceTimeStamp,
       );
     }
-    final before = _pixels;
     // Drag up (negative dy) reveals content below → increase offset.
     scrollBy(-dy);
-    if (_pixels != before) _handoff.contentMoved(details.sourceTimeStamp);
   }
 
   /// Starts a fling when release velocity exceeds the physics threshold.
@@ -1765,7 +1763,7 @@ class RenderPanelCatalog extends RenderBox
     final contentVelocity = -fingerVelocity;
     _controller.publish(PanelCatalogUserDragEnd(contentVelocity));
     // The sink settles a release it took part in: no content fling.
-    if (_handoff.endDrag(fingerVelocity)) return;
+    if (_handoff.endDrag()) return;
     if (!hasSize || maxOffset <= 0) return;
     if (contentVelocity.abs() < 50) return;
     _controller.publish(PanelCatalogFlingStart(contentVelocity));
@@ -1779,7 +1777,7 @@ class RenderPanelCatalog extends RenderBox
     _userDragging = false;
     // What the sink holds is released at rest, not left where the drag
     // stopped.
-    _handoff.endDrag(0);
+    _handoff.endDrag(cancelled: true);
     _controller.publish(const PanelCatalogUserDragCancel());
   }
 

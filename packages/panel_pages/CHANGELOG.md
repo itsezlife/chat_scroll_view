@@ -13,7 +13,9 @@ is pre-1.0.
   flick; a shorter pull springs back. Before, the grid took every drag over
   it and dropped what it could not scroll, so only the title's own glyphs
   moved the sheet. A push up first undoes the pull, then raises the card.
-  A quick scroll back to the top does not close the sheet. Sticker and emoji
+  A scroll that reaches the top moves the sheet on the same tick; it
+  closes on the pull's own speed, so a fast scroll that runs a little past
+  the top and slows springs back. Sticker and emoji
   sheets alike; the box under a pointer is unchanged.
 
 ### Fixed (sheet and menu typography, menu icons)

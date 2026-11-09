@@ -55,7 +55,10 @@ final class PackSheetDrag {
     return taken;
   }
 
-  /// What a finger lifted at [velocity] physical px/s does.
+  /// What a release does when the pull was moving at [velocity] physical
+  /// px/s: the speed of the sheet's own pull, not of the finger's whole drag
+  /// (a fast scroll that only runs a little past the grid's top is a slow
+  /// pull).
   ///
   /// Only a sheet that holds a pull settles: one that gave it all back leaves
   /// the release to the grid. The flick closes it however short the pull.

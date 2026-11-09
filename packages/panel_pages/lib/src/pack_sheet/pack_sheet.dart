@@ -88,11 +88,6 @@ abstract final class PackSheet {
   /// second.
   static const double dismissVelocity = 3500;
 
-  /// How long, within one drag, the grid must have rested at its top before
-  /// a pull past it moves the sheet: a quick scroll back to the top that runs
-  /// on does not close the sheet ([CatalogOverscrollSink.restBeforePull]).
-  static const Duration pullRest = Duration(milliseconds: 200);
-
   /// The width of the box under a pointer.
   static const double boxWidth = 364;
 
@@ -242,7 +237,6 @@ class _SheetDragState extends State<_SheetDrag>
   var _dismissed = false;
 
   late final _sink = CatalogOverscrollSink(
-    restBeforePull: PackSheet.pullRest,
     onStart: _back.stop,
     onDelta: (pixels) {
       if (_dismissed) return 0;
