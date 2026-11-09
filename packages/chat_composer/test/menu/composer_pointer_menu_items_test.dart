@@ -108,7 +108,7 @@ void main() {
       _find(entries, id).isEnabled;
 
   group('order', () {
-    test('the message field\'s menu, in the reference order', () {
+    test('the message field\'s menu, in the listed order', () {
       load(const RichText.plain('hello'));
 
       expect(_shape(build()), [
@@ -246,7 +246,7 @@ void main() {
     List<PointerMenuEntry> submenu(List<PointerMenuEntry> entries) =>
         _find(entries, ComposerMenuAction.formatting).submenu!;
 
-    test('lists the reference rows in order, then the additions', () {
+    test('lists the standard rows in order, then the additions', () {
       load(const RichText.plain('hello'), from: 0, to: 5);
 
       expect(
@@ -386,7 +386,7 @@ void main() {
       expect(_has(entries, ComposerMenuAction.editLink), isFalse);
     });
 
-    test('hints are the reference keys, none for the additions', () {
+    test('hints are the standard keys, none for the additions', () {
       load(const RichText.plain('hello'), from: 0, to: 5);
       final entries = build();
 

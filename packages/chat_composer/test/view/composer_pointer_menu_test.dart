@@ -1,5 +1,5 @@
 /// The composer's pointer menu on desktop: a secondary click in the field
-/// opens the reference client's context menu at the pointer, over a selection
+/// opens the context menu at the pointer, over a selection
 /// it leaves alone.
 ///
 /// **Seam:** a `ComposerView` over a `ComposerController` under a macOS or
