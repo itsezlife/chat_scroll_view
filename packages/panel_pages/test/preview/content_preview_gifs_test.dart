@@ -178,6 +178,37 @@ void main() {
     expect(host.picks.single.kind, SemanticKind.gif);
   });
 
+  testWidgets('once the menu is up, a dragged clip settles back over 350 ms', (
+    tester,
+  ) async {
+    await pumpPage(tester);
+    final gesture = await hold(tester, _first);
+    final clip = find.byWidgetPredicate(
+      (widget) => widget.runtimeType.toString() == '_PreviewContent',
+    );
+    final rest = tester.getRect(clip).top;
+
+    for (var i = 0; i < 4; i++) {
+      await gesture.moveBy(const Offset(0, -20));
+      await tester.pump();
+    }
+    final dragged = tester.getRect(clip).top;
+    expect(dragged, lessThan(rest));
+
+    await tester.pump(ContentPreviewSession.gifSwipeSettle ~/ 2);
+    final halfway = tester.getRect(clip).top;
+    expect(halfway, greaterThan(dragged));
+    expect(halfway, lessThan(rest));
+
+    await tester.pump(ContentPreviewSession.gifSwipeSettle ~/ 2);
+    expect(tester.getRect(clip).top, moreOrLessEquals(rest));
+    expect(find.text('Send GIF'), findsOneWidget);
+    expect(previews.isOpen.value, isTrue);
+    await gesture.up();
+    await tester.pump();
+    expect(previews.isOpen.value, isTrue);
+  });
+
   testWidgets('a right click opens the same items as a context menu', (
     tester,
   ) async {
