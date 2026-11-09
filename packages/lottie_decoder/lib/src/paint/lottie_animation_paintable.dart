@@ -171,7 +171,9 @@ final class LottieAnimationPaintable extends AssetPaintable {
 
   // The lease goes now, not at the sweep: the pool is shared by every
   // surface, and the cells that come on screen need it. The played time
-  // stays, so a cell that comes back goes on from its frame on a new lease.
+  // stays, so a cell that comes back goes on from its frame on a new lease,
+  // which takes back the texture still showing that frame while the texture
+  // pool keeps it (ticket 144), or the slot that holds it.
   @override
   void leftScreen() => _lease?.releaseUnlessPainted();
 
@@ -271,6 +273,9 @@ final class LottieAnimationPaintable extends AssetPaintable {
     _disposed = true;
     _lease?.release();
     _lease = null;
+    // A frame kept for a return that will not come: a paintable that takes
+    // this key starts at its first frame.
+    _scheduler.forget(_key);
     _still.dispose();
     _onDispose?.call();
   }

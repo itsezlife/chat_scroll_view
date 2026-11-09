@@ -93,10 +93,18 @@ final class FrameHandle<K extends Object> {
   /// Ends the claim. Idempotent. When it was the entry's last claim and the
   /// atlas [FrameAtlas.forgetIdleFrames], the frame is forgotten; a batch still
   /// running on the entry forgets it when it ends.
-  void release() {
+  ///
+  /// [keepFrame] keeps it all the same: the holder goes on from that frame
+  /// when it comes back (a video clip that keeps its position), so the next
+  /// handle on the entry shows it at once. [FrameAtlas.forgetFrame] drops it
+  /// when that is no longer so.
+  void release({bool keepFrame = false}) {
+    if (!isReleased) _keepFrame = keepFrame;
     _lease.release();
     _atlas._forgetIfIdle(this);
   }
+
+  bool _keepFrame = false;
 }
 
 /// One frame to render for one handle.
@@ -315,6 +323,15 @@ final class FrameAtlas<K extends Object> {
     return run;
   }
 
+  /// Forgets the frame [key]'s idle entry holds, so the next handle on it
+  /// starts without one: its holder will not go on from that frame (it was
+  /// disposed, a new one starts at the first frame). Nothing while a handle
+  /// or a batch holds the entry.
+  void forgetFrame(K key) {
+    if (_pool.isPinned(key)) return;
+    _states[key]?.frame = null;
+  }
+
   /// Evicts every idle entry now, as memory pressure asks.
   void releaseUnpinned() => _pool.releaseUnpinned();
 
@@ -368,7 +385,9 @@ final class FrameAtlas<K extends Object> {
       // The pages hold the frames now. A handle released meanwhile shows
       // nothing, so its frame is not admitted.
       for (final handle in rendered) {
-        if (forgetIdleFrames && handle.isReleased) continue;
+        if (forgetIdleFrames && handle.isReleased && !handle._keepFrame) {
+          continue;
+        }
         handle._state.frame = frames[handle]!;
       }
       if (_fl01) {
@@ -389,7 +408,10 @@ final class FrameAtlas<K extends Object> {
   // An entry with no claim shows no frame: a re-lease would draw the frame it
   // stopped on, for a few passes, before the first new frame replaced it.
   void _forgetIfIdle(FrameHandle<K> handle) {
-    if (forgetIdleFrames && handle.isReleased && !_pool.isPinned(handle.key)) {
+    if (forgetIdleFrames &&
+        handle.isReleased &&
+        !handle._keepFrame &&
+        !_pool.isPinned(handle.key)) {
       handle._state.frame = null;
     }
   }
