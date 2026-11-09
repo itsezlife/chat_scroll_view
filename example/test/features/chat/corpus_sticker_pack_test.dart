@@ -93,6 +93,26 @@ void main() {
       },
     );
 
+    test('takes still stickers (.webp), described as a still, not a vector '
+        'animation', () async {
+      final pack = await CorpusStickerPack.load(
+        bundle: _FakeBundle({
+          '$_dir/hookah--0.webp': 'x',
+          '$_dir/duck--0.tgs': 'y',
+        }),
+      );
+
+      final hookah = pack.packs.firstWhere((p) => p.title == 'hookah');
+      final duck = pack.packs.firstWhere((p) => p.title == 'duck');
+      expect(hookah.stickers.single.descriptor.mediaForm, MediaForm.still);
+      expect(hookah.stickers.single.descriptor.animated, isFalse);
+      expect(
+        duck.stickers.single.descriptor.mediaForm,
+        MediaForm.vectorAnimation,
+      );
+      expect(duck.stickers.single.descriptor.animated, isTrue);
+    });
+
     test(
       'ignores the folder README, the git rules and anything not a pack file',
       () async {

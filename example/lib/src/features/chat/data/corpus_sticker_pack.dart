@@ -35,14 +35,17 @@ final class CorpusSticker implements BundledItem {
   @override
   ContentKey get key => ContentKey.document('corpus:$pack:$name');
 
+  /// Whether the file is a still image (`.webp`) rather than a Lottie file.
+  bool get isStill => path.toLowerCase().endsWith('.webp');
+
   /// What the pipeline needs to make it: a Lottie animation, as the bundled
-  /// Lottie stickers are.
+  /// Lottie stickers are, or a still for a `.webp` sticker.
   @override
   ContentDescriptor get descriptor => ContentDescriptor(
     key: key,
     semanticKind: SemanticKind.sticker,
-    mediaForm: MediaForm.vectorAnimation,
-    animated: true,
+    mediaForm: isStill ? MediaForm.still : MediaForm.vectorAnimation,
+    animated: !isStill,
     size: const ContentSize(512, 512),
     spokenName: '$pack $name',
   );
@@ -76,7 +79,8 @@ final class CorpusPack {
 /// ## Where the packs come from
 ///
 /// - The app bundle: `assets/sticker_corpus/<pack>--<n>.json` (or `.tgs`, the
-///   gzipped form the engine also reads), put there by
+///   gzipped form the engine also reads, or `.webp` for a still sticker), put
+///   there by
 ///   `tool/link_corpus_assets.sh`. The folder is listed in the pubspec, but
 ///   its files are git-ignored, so a checkout without them builds and lists
 ///   no pack. Files are flat because a pubspec asset folder is not recursive
@@ -100,7 +104,9 @@ final class CorpusStickerPack {
   );
 
   static const String _assetDirectory = 'assets/sticker_corpus/';
-  static final RegExp _assetName = RegExp(r'^(.+)--([^/]+)\.(?:json|tgs)$');
+  static final RegExp _assetName = RegExp(
+    r'^(.+)--([^/]+)\.(?:json|tgs|webp)$',
+  );
   static const String _keyPrefix = 'corpus:';
 
   /// No pack at all.

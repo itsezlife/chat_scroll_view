@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-/// The VM hook: the `*.json` and `*.tgs` (gzipped) files of each folder
+/// The VM hook: the `*.json`, `*.tgs` (gzipped) and `*.webp` (still) files of
+/// each folder
 /// directly under [directory],
 /// by folder name, each list in path order. A directory that is not there, or holds no
 /// folder with a Lottie file, lists nothing.
@@ -14,7 +15,9 @@ Future<Map<String, List<String>>> $listCorpusFiles(String directory) async {
     final files = [
       await for (final file in entity.list())
         if (file is File &&
-            (file.path.endsWith('.json') || file.path.endsWith('.tgs')))
+            (file.path.endsWith('.json') ||
+                file.path.endsWith('.tgs') ||
+                file.path.endsWith('.webp')))
           file.path,
     ]..sort();
     if (files.isNotEmpty) {
