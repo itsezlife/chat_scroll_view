@@ -8,8 +8,8 @@ import 'package:content_model/markdown.dart' show RichTextMarkdown;
 
 /// Which messages the user may edit, decided by what the message is.
 ///
-/// A sticker or a GIF sent as a message has no text to change, and the
-/// reference client offers no edit action on one: not in the message menu,
+/// A sticker or a GIF sent as a message has no text to change, so no edit
+/// action is offered on one: not in the message menu,
 /// not from the selection bar, not by any shortcut. A message is one of them
 /// when its body is a lone document that the bundled packs describe as a
 /// sticker or a GIF. A custom emoji alone is text with an emoji in it and is

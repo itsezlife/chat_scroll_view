@@ -278,7 +278,7 @@ void main() {
     });
 
     // Android is the platform family that gates on the sticker permission;
-    // iOS and desktop do not (04 section 4, row 1).
+    // iOS and desktop do not.
     bodyTest(
       'a chat that does not allow stickers keeps the markdown body '
       'for a member, not for an admin',
@@ -393,8 +393,8 @@ void main() {
       expect(body.sticker, const ContentKey.document('5368'));
     });
 
-    bodyTest('a lone sticker or GIF is drawn at the reference client\'s '
-        'size, its own proportion kept', (tester) async {
+    bodyTest('a lone sticker or GIF is drawn at the media size, '
+        'its own proportion kept', (tester) async {
       const sticker = ContentKey.document('sticker');
       const gif = ContentKey.document('giphy:abc');
       final own = ChatBodyHost(

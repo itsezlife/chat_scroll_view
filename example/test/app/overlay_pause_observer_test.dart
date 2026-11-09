@@ -138,7 +138,7 @@ void main() {
     });
   }
 
-  // The reference pauses everything while its sticker and emoji sheets move
+  // Everything pauses while the sticker and emoji sheets move
   // and only what is under them while they are open: their own stickers and
   // the preview opened from them play (ticket 128).
   group('a pack sheet', () {

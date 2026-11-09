@@ -196,14 +196,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   ChatInputSet get _input => _inputSet!;
 
   /// The chat's bulletins: one slot for the screen and the pack sheets over
-  /// it (the reference shows a sheet's bulletins on its screen), on the
+  /// it, on the
   /// policy of the platform. Mounted over the chat region; disposed with the
   /// screen, which commits an Undo still showing.
   final BulletinController _bulletins = BulletinController();
 
   /// What covers the chat's bottom for a bulletin: the composer, its safe
-  /// inset and the keyboard or panel (the reference chat's
-  /// `Bulletin.Delegate.getBottomOffset`). Made with the input set.
+  /// inset and the keyboard or panel. Made with the input set.
   MappedValueListenable<double, EdgeInsets>? _bulletinObstruction;
 
   late final BulletinBuilders _bulletinBuilders = ChatBulletins.buildersFor(
@@ -367,10 +366,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         _showNotice('Resolving username: $name');
       case ChatHashtagActivated(:final tag):
         _showNotice('Search: #$tag');
-      // A custom emoji in the text opens its pack's emoji sheet, as the
-      // reference's `didPressAnimatedEmoji` does. A long press is the
-      // message's.
-      // The tapped emoji shows above the sheet (`setPreviewEmoji`).
+      // A custom emoji in the text opens its pack's emoji sheet. A long press
+      // is the message's.
+      // The tapped emoji shows above the sheet.
       case ChatEmbedActivated(:final target, gesture: ChatInlineGesture.tap):
         _openPackOf(
           ChatPackTargets.ofEmbed(target, widget.services.describe),
@@ -413,8 +411,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _bulletins.show(ChatBulletins.copied(kind, ChatBulletinStrings.demo));
   }
 
-  // An edit of the user's lists asked from the panel: its bulletin, if the
-  // reference shows one.
+  // An edit of the user's lists asked from the panel: its bulletin, if one
+  // is shown.
   void _onLibraryEdited(AppliedEdit applied) {
     if (!mounted) return;
     if (ChatBulletins.ofLibraryEdit(
@@ -959,8 +957,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     );
   }
 
-  // Holds the chat's stickers while a pack sheet is over it: the reference
-  // pauses what is under its sheets while their own stickers play. The app's
+  // Holds the chat's stickers while a pack sheet is over it: what is under
+  // the sheets pauses while their own stickers play. The app's
   // route observer leaves the clock running for a pack sheet (it holds it
   // only while the sheet moves), so the chat is held on its own.
   Future<void> _overChat(Future<void> sheet) async {
@@ -998,8 +996,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     );
   }
 
-  // The demo sends no media: it shows what it would send, as the reference
-  // clients show pasted media before sending it. Cancelling pastes the text
+  // The demo sends no media: it shows what it would send, as a composer
+  // shows pasted media before sending it. Cancelling pastes the text
   // that came with the media, if any.
   Future<bool> _onPastedMedia(List<PastedMedia> media) async {
     if (!mounted) return false;

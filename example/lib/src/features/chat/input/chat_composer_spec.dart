@@ -88,7 +88,7 @@ ComposerSpec buildChatComposerSpec({
         icon: ChromeIconId.attach,
         semanticLabel: composer.attachAction,
         // Where the panel is at the end (a desktop), attach takes the start
-        // edge, before the field, as in the reference client: attach, field,
+        // edge, before the field: attach, field,
         // panel, send. Where the panel is first (a phone) attach stays with
         // the voice and send actions at the end.
         placement: switch (panelPlacement) {

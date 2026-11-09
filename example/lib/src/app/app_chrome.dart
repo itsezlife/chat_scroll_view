@@ -48,11 +48,11 @@ class AppChrome extends StatelessWidget {
       ChromePalette.fromColorScheme(Theme.of(context).colorScheme),
     ),
     // The desktop pointer menu of the composer's field is drawn in the
-    // reference client's own night colours, for a 1:1 look.
+    // night colours of its own preset.
     pointerMenu: PointerMenuTokens.referenceNight,
     // The bulletins' desktop toast in the toolkit's own colours, where the
-    // bulletin policy is the desktop one (the web included); the reference's
-    // dark card elsewhere (ADR 045, *Desktop values*).
+    // bulletin policy is the desktop one (the web included); the dark card
+    // preset elsewhere (ADR 045, *Desktop values*).
     bulletin: _desktopBulletins ? BulletinTokens.referenceDesktop : null,
     child: ChromeStringsScope(
       strings: demoChromeStrings,

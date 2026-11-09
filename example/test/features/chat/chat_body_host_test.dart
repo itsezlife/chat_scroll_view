@@ -347,7 +347,7 @@ void main() {
         expect(host.mediaOf(_only([sticker])), isNull, reason: 'no describe');
       });
 
-      test('sizes media by the running platform\'s reference sizes, or the '
+      test('sizes media by the running platform\'s sizes, or the '
           'host\'s', () {
         expect(
           ChatBodyHost(assets: scope, policy: policy).mediaSizes,

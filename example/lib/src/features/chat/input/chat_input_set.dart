@@ -369,20 +369,18 @@ final class ChatInputSet {
     }
   }
 
-  // The reference desktop client's popup: 345 wide, nine columns of 37.
+  // The desktop popup: 345 wide, nine columns of 37.
   static const AnchoredPopupStyle _popupStyle = AnchoredPopupStyle(
     width: 345,
     cornerRadius: 14,
-    // The room the reference client leaves between its popup and the composer
-    // corner it floats over.
+    // The room between the popup and the composer corner it floats over.
     edgeGap: 10,
     shadows: <BoxShadow>[
       BoxShadow(color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 8)),
     ],
   );
 
-  // No width of its own: a dock nobody has dragged is the policy's narrowest,
-  // as the reference client's is.
+  // No width of its own: a dock nobody has dragged is the policy's narrowest.
   static const DockedStyle _dockedStyle = DockedStyle(
     separator: Color(0x24FFFFFF),
   );
@@ -625,8 +623,8 @@ final class ChatInputSet {
   // Focus alone is not the keyboard. A composer that took focus when the chat
   // opened, or while a panel held the keyboard's place, attached with no
   // keyboard type and stays that way until the keyboard is asked for; so an
-  // edit asks, as the references do (Android `openKeyboard`, iOS input mode
-  // text, Desktop `setInnerFocus`).
+  // edit asks: the keyboard opens with the field's text input mode, and the
+  // desktop field takes its inner focus.
   //
   // The ask waits for the frame that follows. An edit begun from the selection
   // bar clears the selection in the same breath, and the composer is not in
@@ -783,8 +781,7 @@ final class ChatInputSet {
   void dismissFormatOffer() => _setOffer(null);
 
   /// The dialog the composer asks for a link's URL with (`ComposerSpec.linkPrompt`):
-  /// the Create / Edit Link shape of the reference client, with the clipboard's
-  /// text offered.
+  /// the Create / Edit Link shape, with the clipboard's text offered.
   ComposerLinkPrompt get linkPrompt => linkPromptOver(services.clipboard);
 
   /// [linkPrompt] over [clipboard], for a field that has no input set.
@@ -986,8 +983,8 @@ final class ChatInputSet {
   // --- Wiring ---------------------------------------------------------------
 
   // Search that lets go of its focus while it stays open (the catalogue was
-  // dragged) lowers the keyboard and leaves the field focused, as the
-  // reference mobile client does; a press on the field asks for it again.
+  // dragged) lowers the keyboard and leaves the field focused, as on
+  // mobile; a press on the field asks for it again.
   void _onSearchState() {
     final search = shell.search.value;
     final released = _searchWantedFocus && !search.wantsFocus;
@@ -1024,8 +1021,8 @@ final class ChatInputSet {
         _forget(key, kind: kind);
       // A pack's edit is the host's, with its bulletin (a removal held
       // behind Undo). A favourite, a saved GIF, a recent sticker forgotten:
-      // the library takes the edit at once, with no undo window (the
-      // reference offers none for these), and the open panel shows it.
+      // the library takes the edit at once, with no undo window (no
+      // bulletin is offered for these), and the open panel shows it.
       case LibraryEditRequested(edit: final LibraryPackEdit edit)
           when _onPackEditRequested != null:
         _onPackEditRequested(edit);
@@ -1066,9 +1063,8 @@ final class ChatInputSet {
       );
     }
     // A sticker or a GIF is not text: tapping it sends it, and the panel
-    // stays open and the composer as it is, as the reference client does
-    // (`onStickerSelected` and `onGifSelected` send, add to the recents
-    // and leave the panel up).
+    // stays open and the composer as it is (sending a sticker or GIF adds it
+    // to the recents and leaves the panel up).
     if (StickerMessageBody.ofKey(key, describe: services.describe)
         case final body?) {
       unawaited(_sendPicked(body));
@@ -1078,9 +1074,8 @@ final class ChatInputSet {
 
   // Records a pick in the list the page chose ([kind]): a sticker among the
   // library's recent stickers and a GIF among its saved GIFs, whatever it
-  // was found by, as the reference client does on every send
-  // (`addRecentSticker`, `addRecentGif`), and listed by the open panel only
-  // when it next opens (the reference's send signals no reload); anything
+  // was found by, on every send; the open panel lists it only when it next
+  // opens (a send signals no reload); anything
   // else in the emoji recents, where the emoji page files unicode and
   // animated emoji in one and a pick from search does not count.
   void _record(

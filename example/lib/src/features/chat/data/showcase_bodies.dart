@@ -6,7 +6,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pa
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
 
 /// Message bodies that show the inline layer and the emoji-only bodies working
-/// in the reference host: custom emoji painted in the text, spoilers (with an
+/// in the demo host: custom emoji painted in the text, spoilers (with an
 /// embed inside), mentions, usernames and hashtags, and messages of nothing but
 /// emoji in each of the layouts, and the Lottie, static and video items of the
 /// demo packs as lone documents.

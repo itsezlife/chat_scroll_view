@@ -102,7 +102,7 @@ class MainActivity : FlutterActivity() {
         }
 
         // What decides whether the system confirms a copy by itself
-        // (AndroidUtilities.shouldShowClipboardToast).
+        // (the system's clipboard-toast rule).
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             SYSTEM_CHANNEL,

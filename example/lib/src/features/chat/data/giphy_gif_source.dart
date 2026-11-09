@@ -230,7 +230,7 @@ final class GiphyGifSource implements CollectionSource {
 ///
 /// The last [cachedQueries] queries are kept with what they found, so going
 /// back to one (deleting the letter just typed) shows its results at once and
-/// asks nothing, as the reference clients keep a result per query; one that
+/// asks nothing, as a result is kept per query; one that
 /// failed is asked again.
 final class GiphyGifSearch implements SearchSource {
   /// Searches [client], remembering the clips found in [content].

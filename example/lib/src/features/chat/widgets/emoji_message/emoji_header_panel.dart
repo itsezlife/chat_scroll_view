@@ -130,8 +130,8 @@ class EmojiHeaderPanel extends StatelessWidget {
   /// The header and its size.
   final EmojiHeaderMeasure measure;
 
-  // Where a platform puts the lines inside the panel (research 04, 1.6, 2.5,
-  // 3.4): the forward block's origin and height, then the reply's offsets in
+  // Where a platform puts the lines inside the panel: the forward block's
+  // origin and height, then the reply's offsets in
   // its own block.
   ({Offset forward, double forwardHeight, Offset name, Offset text, double bar})
   _inner(EmojiHeaderShape shape) {

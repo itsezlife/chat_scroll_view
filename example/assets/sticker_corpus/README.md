@@ -1,8 +1,8 @@
-# Telegram stickers (local only)
+# Local sticker corpus (local only)
 
 The Lottie stickers a maintainer keeps on their machine to try the Lottie
-pipeline on real artwork (`CorpusStickerPack`). **They are Telegram's
-property.** They are never committed, never copied into tests, goldens or
+pipeline on real artwork (`CorpusStickerPack`). **They belong to their
+owner.** They are never committed, never copied into tests, goldens or
 docs, and this folder's `.gitignore` ignores everything but this README and
 itself, so a stray `git add` cannot take them.
 
@@ -24,7 +24,7 @@ named `<pack>--<n>.json`. The script does the copy:
 
 ```sh
 example/tool/link_corpus_assets.sh \
-  /Users/gothiq2302/Documents/VSCodeProjects/Flutter/chat_scroll_view/.scratch/native-media-ffi/corpus/telegram-stickers
+  <corpus>
 ```
 
 or by hand, for every pack folder:
@@ -47,7 +47,7 @@ names the rule above.
 On macOS and the other desktop targets the same folders can be read in place:
 
 ```sh
-flutter run --dart-define=CHAT_CORPUS_DIR=/path/to/telegram-stickers
+flutter run --dart-define=CHAT_CORPUS_DIR=/path/to/corpus
 ```
 
 A folder found there takes over the bundled pack of the same name.

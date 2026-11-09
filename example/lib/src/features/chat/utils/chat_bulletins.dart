@@ -10,8 +10,8 @@ import 'package:flutter/widgets.dart';
 /// the host's). A pack's texts are the chrome's `PackSheetStrings`, and the
 /// Undo label `BulletinStrings`.
 ///
-/// [english] holds the reference Android client's strings; [russian] is the
-/// demo's language, as `demoChromeStrings` is.
+/// [english] holds the English texts; [russian] is the demo's language, as
+/// `demoChromeStrings` is.
 @immutable
 final class ChatBulletinStrings {
   /// A set of every text.
@@ -31,7 +31,7 @@ final class ChatBulletinStrings {
     required this.formatOffer,
   });
 
-  /// The reference's English (`strings.xml`).
+  /// The English texts.
   static const ChatBulletinStrings english = ChatBulletinStrings(
     favouriteAdded: 'Sticker was added to Favorites',
     favouriteRemoved: 'Sticker was removed from Favorites',
@@ -128,16 +128,14 @@ String _russianPlural(int n, String one, String few, String many) {
   return many;
 }
 
-/// The chat's bulletins, after the reference Android client's
-/// `BulletinFactory` and `StickerSetBulletinLayout`: what each says, what
-/// leads it, and how long it stays. Values only; the chat screen shows them
-/// through its `BulletinController`.
+/// The chat's bulletins: what each says, what leads it, and how long it
+/// stays. Values only; the chat screen shows them through its
+/// `BulletinController`.
 ///
-/// The reference's Lottie icons (`copy`, `voip_invite`, `ic_save_to_gifs`,
-/// `chats_infotip`) are not bundled with the demo; the icons here are chrome
-/// icons the host registers ([icons]) in their place.
+/// Animated bulletin icons are not bundled with the demo; the icons here are
+/// chrome icons the host registers ([icons]) in their place.
 abstract final class ChatBulletins {
-  /// A copy (the reference's `copy` animation).
+  /// A copy.
   static const ChromeIconId copyIcon = ChromeIconId('bulletin.copy');
 
   /// A copied link (`voip_invite`).
@@ -157,15 +155,13 @@ abstract final class ChatBulletins {
     infoIcon: ChromeIconPainter.font(Icons.info_outline_rounded),
   };
 
-  /// How long a "limit reached, older one replaced" bulletin stays: the
-  /// reference's 3500 ms for `TYPE_REPLACED_TO_FAVORITES*`
-  /// (`LaunchActivity`, the `TYPE_STICKER` case).
+  /// How long a "limit reached, older one replaced" bulletin stays: 3500 ms.
   static const BulletinDuration replaced = BulletinDuration.exactly(
     Duration(milliseconds: 3500),
   );
 
   /// The bulletin after [applied], a sticker or GIF edit the user asked for,
-  /// or null when the reference shows none (a GIF unsaved, a pack's edit:
+  /// or null when none is shown (a GIF unsaved, a pack's edit:
   /// that is the pack sheet host's). [limits] names the full list.
   ///
   /// Each is `DURATION_SHORT`, written out: the factory's length rule would
@@ -175,8 +171,8 @@ abstract final class ChatBulletins {
     required LibraryLimits limits,
     required ChatBulletinStrings strings,
   }) {
-    // `MediaDataController.addRecentSticker` (TYPE_FAVE): the full list
-    // replaces its oldest; `addRecentGif`: the same for the saved GIFs.
+    // A full list of recent stickers replaces its oldest; the same holds for
+    // the saved GIFs.
     Bulletin limit(ContentKey key, String title, String message) => Bulletin(
       title: title,
       message: message,
@@ -276,8 +272,8 @@ abstract final class ChatBulletins {
 
   /// The builders of [policy]'s platform family, with a thumbnail of a
   /// content key drawn through the asset cache (a sticker is its own
-  /// thumbnail): the Android card as glass over the chat (the reference
-  /// turns its card to glass in a chat only), the iOS blurred card, the
+  /// thumbnail): the Android card as glass over the chat (the card turns to
+  /// glass in a chat only), the iOS blurred card, the
   /// desktop toast.
   static BulletinBuilders buildersFor(BulletinPolicy policy) =>
       switch (policy) {

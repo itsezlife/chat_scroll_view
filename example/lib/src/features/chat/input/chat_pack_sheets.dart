@@ -21,10 +21,9 @@ typedef PackFeedback = ({String title, String info});
 ///
 /// The sheet asks; the host applies each edit to [AppServices.library] and
 /// shows one bulletin for the button's edits through the chat's
-/// `BulletinController` (the reference shows a sheet's bulletins on the
-/// screen under it, `Bulletin.make(fragment, ...)`), with Undo when they took
-/// packs away. The reference's `StickerSetBulletinLayout` over
-/// `toggleStickerSet`: the pack's cover leads it, a removal or an archiving
+/// `BulletinController` (a sheet's bulletins show on the screen under it),
+/// with Undo when they took packs away. The bulletin's layout: the pack's
+/// cover leads it, a removal or an archiving
 /// stays `DURATION_LONG` (2750 ms) and an addition `DURATION_SHORT`
 /// (1500 ms).
 abstract final class ChatPackSheets {
@@ -46,7 +45,7 @@ abstract final class ChatPackSheets {
   /// Opens the sheet of [pack], of [kind], over [context]; [onPick] (null when
   /// nothing can be sent or inserted here) takes what the sheet picks. An
   /// emoji sheet opened from a custom emoji in a message shows that emoji,
-  /// [previewEmoji], above it (the reference's `setPreviewEmoji`).
+  /// [previewEmoji], above it.
   static Future<void> open(
     BuildContext context, {
     required AppServices services,
@@ -68,8 +67,8 @@ abstract final class ChatPackSheets {
   );
 
   /// Opens one emoji sheet of [packs] (each once, in order) over [context]:
-  /// the reference's `EmojiPacksAlert` over the packs of a message's custom
-  /// emoji. [onPick] takes an emoji the sheet inserts.
+  /// the packs of a message's custom emoji. [onPick] takes an emoji the sheet
+  /// inserts.
   static Future<void> openEmojiPacks(
     BuildContext context, {
     required AppServices services,
@@ -171,8 +170,7 @@ abstract final class ChatPackSheets {
   /// Applies [requests] to [library] and shows their bulletin through
   /// [bulletins], with Undo for a removal or an archiving.
   ///
-  /// A removal is held for as long as its bulletin shows Undo, as the
-  /// reference runs `toggleStickerSet` as the bulletin's delayed action: the
+  /// A removal is held for as long as its bulletin shows Undo: the
   /// bulletin's commit on leave commits the edits (timed out, replaced by
   /// another, swiped away, the chat gone), and Undo takes them back. The
   /// library's own window, [undoGuard], is only a bound. With no [bulletins]
@@ -226,7 +224,7 @@ abstract final class ChatPackSheets {
     );
   }
 
-  // Nothing shows Undo for it: the window of the reference's bulletin.
+  // Nothing shows Undo for it: the window of the bulletin.
   static const Duration _aloneWindow = Duration(milliseconds: 2750);
 
   /// Applies [edit] of a pack nothing describes, with no bulletin to name
@@ -239,8 +237,8 @@ abstract final class ChatPackSheets {
             : _aloneWindow,
       );
 
-  /// What the bulletin after [requests] says, in [strings]: the reference's
-  /// `StickerSetBulletinLayout` texts by kind and by what happened.
+  /// What the bulletin after [requests] says, in [strings]: its texts by kind
+  /// and by what happened.
   static PackFeedback feedbackOf(
     List<PackEditRequest> requests,
     PackSheetStrings strings,

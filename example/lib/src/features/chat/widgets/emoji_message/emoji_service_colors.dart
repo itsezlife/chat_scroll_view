@@ -23,7 +23,7 @@ import 'package:flutter/painting.dart';
 ///   alpha.
 /// - iOS fills with black at 0.2 over a wallpaper the host gives, and with the
 ///   built-in wallpaper's `#748391` at 0.45 over none; pill and panels alike.
-/// - Desktop's palette is not in the sources at hand: it takes Android's
+/// - Desktop's palette is not given: it takes Android's
 ///   derivation for panels and pill alike (an unverified value, ADR 036).
 @immutable
 final class EmojiServiceColors {
@@ -64,9 +64,8 @@ final class EmojiServiceColors {
     return EmojiServiceColors._(panel: panel, pill: panel, text: _white);
   }
 
-  /// The wallpaper colour a host without one gets: the tint of the built-in
-  /// wallpaper of the iOS client, the only neutral wallpaper colour the
-  /// sources give.
+  /// The wallpaper colour a host without one gets: the tint of a built-in
+  /// neutral wallpaper, the only neutral wallpaper colour available.
   static const Color defaultWallpaper = Color(0xFF748391);
 
   /// Android's alpha for the service colour of a flat wallpaper (`0x66`).
@@ -93,8 +92,8 @@ final class EmojiServiceColors {
   static const Color _white = Color(0xFFFFFFFF);
 
   /// These colours with [tint] laid over their fills: the selected variant of
-  /// the service colour (`msgServiceBgSelected`), which the reference paints
-  /// under the time pill of a selected message. The text stays as it is.
+  /// the service colour, which is painted under the time pill of a selected
+  /// message. The text stays as it is.
   EmojiServiceColors tinted(Color tint) => EmojiServiceColors._(
     panel: Color.alphaBlend(tint, panel),
     pill: Color.alphaBlend(tint, pill),

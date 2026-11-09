@@ -20,12 +20,9 @@ import 'package:listen/listen.dart' as listen;
 ///   recent, a GIF sent the first saved GIF). It waits for the next
 ///   [commit]: the user is picking, and the grid must not move under them.
 /// - [apply] is an edit the user asked for (favourite, unfavourite, save or
-///   unsave a GIF, forget a recent). It shows at once, as the reference
-///   client's panel does: `MediaDataController.addRecentSticker` signals
-///   `recentDocumentsDidLoad` for a favourite or a removal, not for a send,
-///   and a GIF saved from the preview calls `gifAddedOrDeleted`, while a GIF
-///   sent (`addRecentGif` with a date) signals nothing; `EmojiView` reloads
-///   its lists on those signals only.
+///   unsave a GIF, forget a recent). It shows at once. A favourite or a
+///   removal reloads the lists, a send does not, and a GIF saved from the
+///   preview reloads them while a GIF sent signals nothing.
 ///
 /// ## Behaviour
 ///
@@ -36,9 +33,8 @@ import 'package:listen/listen.dart' as listen;
 ///   list shown at once, and nothing else in it moves: what the user asked
 ///   to forget is not shown a moment longer.
 /// - A key [apply] adds or moves is shown first in its list at once, and
-///   nothing else in it moves: the sends still waiting stay waiting. (The
-///   reference reloads the whole list, sends included; showing the one key
-///   keeps the rest of the grid where the finger left it.)
+///   nothing else in it moves: the sends still waiting stay waiting. (Showing
+///   the one key keeps the rest of the grid where the finger left it.)
 /// - Any other key added or moved waits for the next [commit].
 ///
 /// The view does not own the library: [dispose] stops following it and

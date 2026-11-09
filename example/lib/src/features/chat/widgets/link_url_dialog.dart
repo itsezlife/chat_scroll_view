@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Asks for a link's URL in the shape of the reference mobile client's
-/// "Create Link" dialog: one URL field, prefilled and selected, and a Paste
+/// Asks for a link's URL in the shape of a "Create Link" dialog: one URL
+/// field, prefilled and selected, and a Paste
 /// chip over the field while it holds nothing worth keeping.
 ///
 /// Completes with the trimmed URL, or null when the user cancelled or left the
@@ -171,7 +171,7 @@ class _LinkUrlDialogState extends State<_LinkUrlDialog>
 }
 
 /// The Paste chip: 12 dp bold text on a 26 dp rounded tint, fading in and
-/// growing from 0.7 on the ease-out-quint curve the reference client uses.
+/// growing from 0.7 on the ease-out-quint curve.
 class _PasteChip extends StatelessWidget {
   const _PasteChip({
     required this.progress,

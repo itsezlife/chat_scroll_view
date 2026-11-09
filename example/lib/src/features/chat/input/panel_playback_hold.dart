@@ -3,27 +3,27 @@ import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 
 /// Holds the animations still while the panel moves, and the chat's while a
-/// popup panel or a pack sheet is over it, as the reference clients do.
+/// popup panel or a pack sheet is over it.
 ///
 /// Two holds from the presentation's visibility, and one the host asks for:
 ///
 /// - **While the panel moves in or out** (`PanelVisibility.isMoving`, of any
 ///   kind: popup, dock, keyboard replacement), [PlaybackPauseLayer.routeMoving]
 ///   is set on the clock: nothing advances, decodes or uploads, every surface
-///   keeps its frame, and the frames go to the motion. The reference desktop
-///   client paints its panel from a snapshot for the show and hide and plays
-///   nothing in it; the reference mobile client locks its notifications for
-///   the panel's animation. Playback resumes when the motion settles.
+///   keeps its frame, and the frames go to the motion. The panel is painted
+///   from a snapshot for the show and hide and plays nothing in it; its
+///   notifications are locked for the panel's animation. Playback resumes
+///   when the motion settles.
 /// - **While a popup panel is on screen** (`AnchoredPopup`, from showing to
 ///   hidden), [chatHeld] is true: the host feeds it to the chat's embeds
 ///   (`ContentEmbed.held`), so the chat under the popup shows its frames and
-///   keeps them while the panel plays. The reference desktop client pauses
-///   the chat's animations for as long as its panel is shown. A dock sits
+///   keeps them while the panel plays. The chat's animations pause for as
+///   long as its panel is shown. A dock sits
 ///   beside the chat and a keyboard panel below it; neither holds the chat.
 /// - **While a claim is open** ([holdChat]), [chatHeld] is true as well: the
-///   host claims it for a pack sheet over the chat. The reference mobile
-///   client pauses what is under its sticker and emoji sheets while their own
-///   stickers play; one clock serves both here, so the chat is held on its
+///   host claims it for a pack sheet over the chat. What is under a sticker
+///   or emoji sheet pauses while the sheet's own stickers play; one clock
+///   serves both here, so the chat is held on its
 ///   own rather than the clock paused.
 ///
 /// The layer is set and cleared only when this object's own claim changes, so

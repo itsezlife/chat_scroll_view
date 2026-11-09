@@ -8,7 +8,7 @@ a scope widget, and the host builds one composition root.
 
 Each package README ends its contract in a **Host contract** table (what the
 host provides, what it must not do). This guide is the order those tables
-apply in. The reference host is the demo app under `example/`; the last section
+apply in. The demo app under `example/` is the working host; the last section
 maps each step to its file.
 
 Terms: [Chat chrome](chrome/CONTEXT.md), [Content and Assets](content/CONTEXT.md),
@@ -107,7 +107,7 @@ notification is reported to this one static hook, whose default rethrows: the
 notification stops at that listener, the others are never called, and the
 notifier is left mid-dispatch. Set it once at startup to report and not
 rethrow, so one faulty listener cannot starve the rest or interrupt the code
-that changed the state. The reference host routes it to
+that changed the state. The demo host routes it to
 `FlutterError.reportError` (`reportListenerErrors`, installed by `bootApp`).
 The same hook receives the debug assertions `package:listen` adds for a
 notifier used after `dispose`. Typed events (the panel event, scroll events)
@@ -125,7 +125,7 @@ all in the seams' and controllers' dartdoc and in
 - A `package:listen` `Listenable` is not Flutter's: `ListenableBuilder`, a
   `Listenable.merge` of Flutter and `AnimatedBuilder` do not accept it. Read
   one in the widget tree with a small builder over `addListener` (the
-  reference host has `ListenValueBuilder`) or adapt it (`ListenableBridge`).
+  demo host has `ListenValueBuilder`) or adapt it (`ListenableBridge`).
   A file that imports Flutter imports `package:listen/listen.dart as listen`.
 - There is no batching: a mutation that changes several things assigns the
   final value once.
@@ -440,7 +440,7 @@ emoji page) is `PackRequested` too. The host answers it with a pack sheet
 `PackSheet.show`: a bottom sheet on touch, a centred box under a pointer).
 The sheet edits nothing itself: its button asks for the edits
 (`PackEditsRequested`), which the host applies, a removal or an archiving
-inside an undo window that its bulletin's Undo can take back (the reference
+inside an undo window that its bulletin's Undo can take back (the bulletin
 holds it 2750 ms), and confirms with `PackSheetStrings`' words. It sends or
 inserts only through the `onPick` the host gives when a composer can take
 it, and closes itself before it calls it (the host does not pop it), and a sticker sheet given the `ContentPreviewController` previews its
@@ -560,7 +560,7 @@ at once. Which library edits wait is the verb the host uses on the view: the
 record of a send (`record`) waits for the next `commit()`; an edit the user
 asked for (`apply`: favourite, unfavourite, save or unsave a GIF, forget a
 recent) shows at once, its key first and nothing else moving, as the
-reference client reloads its lists for those and not for a send.
+lists reload for those and not for a send.
 
 ### Composer wiring
 
@@ -584,7 +584,7 @@ loaded with `restore(RichTextMarkdown.decode(...))`.
 ### Pointer menu (desktop)
 
 On macOS, Windows, Linux and the web a secondary click in the composer field
-opens the reference desktop client's context menu at the pointer instead of the
+opens the desktop context menu at the pointer instead of the
 floating card (`ComposerMenuPolicy`, chosen by platform; pass
 `ComposerView.menuPolicy` to override; touch keeps the card). Nothing needs
 wiring beyond what the selection menu already has, plus:
@@ -593,7 +593,7 @@ wiring beyond what the selection menu already has, plus:
   carry a Qt-style `&` mnemonic, which the menu underlines.
 - A `ChromeThemeScope` (it supplies `PointerMenuTokens`, derived from the
   palette; pass `PointerMenuTokens.referenceDay` or `referenceNight` to the
-  scope's `pointerMenu` for the reference's exact colours).
+  scope's `pointerMenu` for the exact desktop colours).
 - Optionally `ComposerSpec.spellChecker`: a `ComposerSpellChecker` over the
   platform's checker (the composer ships none). Without one there is no
   Spelling row.
@@ -643,7 +643,7 @@ final shortcuts = {
 ```
 
 A chat leaves lists off; a form field that wants them builds its controller
-with `lists: true` (the reference host's notes field does).
+with `lists: true` (the demo host's notes field does).
 
 ### The field in a form
 
@@ -692,12 +692,12 @@ Three things stay the host's, because they are feedback or data:
 
 - **Apply formatting.** `ComposerController.onPaste` reports each paste. For a
   plain paste (`wasRich` false) whose `RichTextMarkdown.decode(text)` differs
-  from `RichText.plain(text)`, offer to apply it (the reference desktop
-  client's toast, nine seconds): applying replaces the reported range with the
+  from `RichText.plain(text)`, offer to apply it (the desktop toast,
+  nine seconds): applying replaces the reported range with the
   decoded text through `ComposerTextController.replaceRange`. Any edit
   withdraws the offer, and it never holds the paste back.
 - **Suggestions.** Register `ComposerQueryKind`s (`@`, `#`), build the panel from
-  `composer.query` (the reference host puts it in the header strip with
+  `composer.query` (the demo host puts it in the header strip with
   `ComposerHeader.suggestion`), and on a pick call `replaceQuery` with a real
   mention atom or hashtag. Answer `confirmMention` from your own members so a
   pasted mention survives the send.
@@ -899,13 +899,13 @@ reconciles with the stored body.
 
 **Typed markers.** A user who types `` `a` ``, ```` ```a``` ````, `**a**`,
 `__a__`, `~~a~~` or `||a||` gets code, a code block, bold, italic, strike or a
-spoiler, as in the reference client. `TypedMarkdown.apply(richText)` is the
+spoiler. `TypedMarkdown.apply(richText)` is the
 same kind of pure, host-invoked transform: call it on send before detection,
 so a URL typed inside code stays code. Markers inside code, a code block, a
 link, a mention, a username, a hashtag or inline content stay text. Underline
 and quote have no typed form.
 
-It reads the markers as the reference client does, so there is no word boundary:
+It reads the markers with no word boundary:
 `foo__bar__baz` has an italic `bar`, `2**3 * 4**5` a bold `3 * 4`, and
 `a || b || c` hides ` b `. There is no escape either: a user who wants the
 characters types them inside code. A host that would rather leave a pair alone
@@ -979,13 +979,13 @@ ids. What the host wires:
    starts, also when the host lets go of its composer's focus in a listener of
    its own. A host without that wrapper must hold the focus somewhere inside
    the `Actions` above, or the key reaches no one.
-3. **Format.** Per selection policy, as the reference clients write it: under
+3. **Format.** Per selection policy: under
    `$Desktop` one message is its text and several are `[time] Name: text` lines
-   a newline apart (Telegram Desktop, `HistorySelectedItemsText`); under
+   a newline apart; under
    `$Mobile` messages are a blank line apart with a `Name:` line before the
-   first and wherever the sender changes (Telegram Android); a single message
+   first and wherever the sender changes; a single message
    is its text alone in both. The time is the system locale's short date and
-   time on the desktop client, so the host supplies its own formatter. The
+   time on desktop, so the host supplies its own formatter. The
    demo's `ChatMessagesCopyFormat` is one implementation; the rich form
    (entities) of each body is kept behind the headers.
 4. **Confirmation and selection after the copy.** Per policy, whatever made the
@@ -1036,7 +1036,7 @@ A message of nothing but emoji is shown without a bubble, large
      them the document is drawn as a lone emoji's sticker. Pass the same pair to
      `geometryFor`;
    - `playback` (`ChatStickerPlayback`): how the sticker plays, from the asset
-     kind and the user's animation settings. Null is the reference default (a
+     kind and the user's animation settings. Null is the default (a
      lone unicode emoji plays once and rests on the first frame, a custom emoji
      loops). The body reads no setting;
    - `playLedger` (`ChatStickerPlayLedger`): the played-once memory, **per open
@@ -1159,7 +1159,7 @@ final hold = activity.holdOverlay();   // ... hold.release() when it closes
 | --- | --- | --- |
 | Lifecycle `inactive` | `appInactive` | Window or app lost focus: another app took it (macOS, Windows, Linux), a call or system sheet (phones), a blurred tab (web). Pauses at once; `PlaybackActivityPolicy` adds a grace if you want one |
 | Lifecycle `hidden`, `paused`, `detached` | `appInactive` and `surfaceHidden` | Minimised, hidden, on another desktop; on macOS also fully covered. The framework stops frames itself on these; the layers also freeze the clock's `now` |
-| `lowPower` | `lowPower` | **Yours to detect.** The SDK reports no battery state. The reference desktop client turns everything off on macOS Low Power Mode (or a critical thermal state, or a low charge on battery), Windows Battery Saver and the Linux power-saver profile, with a user override. `battery_plus` documents `isInBatterySaveMode` for Android, iOS, macOS and Windows (no Linux); no package here depends on it |
+| `lowPower` | `lowPower` | **Yours to detect.** The SDK reports no battery state. Desktop turns everything off on macOS Low Power Mode (or a critical thermal state, or a low charge on battery), Windows Battery Saver and the Linux power-saver profile, with a user override. `battery_plus` documents `isInBatterySaveMode` for Android, iOS, macOS and Windows (no Linux); no package here depends on it |
 | `reducedMotion` | `reducedMotion` | Not in the default pausing set. The engine reports `PlatformDispatcher.accessibilityFeatures.disableAnimations` on Linux and the phones; on macOS and Windows it reports nothing at this Flutter revision, so a host that wants the setting reads it over a platform channel and feeds the same notifier. Chrome motion and the spoiler stillness follow `MediaQuery.disableAnimations` regardless. Add the layer to `PlaybackPolicy.pausingLayers` to stop playback on it |
 | `holdOverlay()` | `overlayShown` | One hold per overlay; the layer stays set until every hold is released. Flutter's `TickerMode` does not reach a non-opaque route, so a dialog leaves the chat animating unless you hold. The example does it from a `NavigatorObserver` for every modal route above the first |
 
@@ -1176,7 +1176,7 @@ out of the time it is told. A custom `AssetPaintable` that derives its frame
 from the time alone must do the same. Revealed spoilers are not touched by any
 pause.
 
-Not replicated from the reference desktop client ([ADR 022](adr/022-asset-cache-and-media-pipeline.md),
+Not replicated from the desktop policy ([ADR 022](adr/022-asset-cache-and-media-pipeline.md),
 amendment *pause policies*): the six-level reason hierarchy (an open emoji panel
 does not pause the chat behind it; feed `ChatEmojiBody.isActive` per row if you
 want that), the round-video exemption, the per-feature power flags, and the
@@ -1244,7 +1244,7 @@ a `PanelPage` (ids and tab icons of its choosing) and gives each one
   hides is never asked to load, so a list that is hidden while it loads would
   stay hidden): on the stickers page the favourite stickers as
   `CollectionId.faved` and then the recent stickers as `CollectionId.recent`
-  (the reference lists a favourite once, among the favourites, and shows 20
+  (a favourite is listed once, among the favourites, and 20
   recents), on the GIF page the saved GIFs as `CollectionId.recent`; all of
   them the content library's lists (ADR 044). Then the packs as
   `CollectionId.set`, each with a title and a cover (`CollectionMetadata.cover`
@@ -1254,12 +1254,12 @@ a `PanelPage` (ids and tab icons of its choosing) and gives each one
 
 A tap is a `ContentPicked` with the content's own kind and recents kind, so the
 host's one handler sends it: **the panel stays open and the composer keeps its
-text**, as the reference client's `onStickerSelected` and `onGifSelected` leave
+text**, as `onStickerSelected` and `onGifSelected` leave
 them, the sent item goes first in the content library (a sticker by
 `LibraryEdit.addRecentSticker`, a GIF by `LibraryEdit.saveGif`, wherever it
 was found, search too; shown on the next open through a deferred view of the
 library's lists so the list does not move under the finger), and the message goes out through the host's own send path (the
-reference client also scrolls the chat to it, `onMessageSend`; that is the
+chat also scrolls to it, `onMessageSend`; that is the
 chat's, not the panel's). The sticker page's clear button on the recents header is a `ClearRecentsRequested` the host
 confirms.
 
@@ -1272,7 +1272,7 @@ collection is retried by `CollectionSource.load`); a search that found nothing
 shows `gifsEmpty`. `attribution` is a line the page heads its list with, for a
 provider whose terms ask for one. Content that is fetched rather than bundled
 reaches the pipeline through a `ContentFetcher` and a `ContentResolver` of the
-host's (the reference host's Giphy and local-corpus ones sit in front of the
+host's (the demo host's Giphy and local-corpus ones sit in front of the
 bundled ones and hand on any key that is not theirs), and a message that
 references it carries the key (`![alt](document:<id>)`), so the resolver must
 be able to describe it again after a restart.
@@ -1280,7 +1280,7 @@ be able to describe it again after a restart.
 A sent sticker or GIF has no text to edit. Every way into edit mode (the
 message menu, the selection bar, a shortcut, a restored draft) asks one rule by
 what the message is, so none can forget it (`MessageEditability` in the
-reference host).
+demo host).
 
 ## 11. Verifying your host
 
@@ -1328,9 +1328,9 @@ Decisions a migrating host makes once:
   alone get its default copy formatter, which writes the codec's dialect back;
   they change nothing.
 
-## 13. Reference host map
+## 13. Demo host map
 
-The demo app under `example/` is the reference. It registers the emoji page,
+The demo app under `example/` is the working host. It registers the emoji page,
 the stickers page and the GIF page, fetches nothing from a network (its animated emoji are bundled), and does
 not use the hover-open toggle region.
 

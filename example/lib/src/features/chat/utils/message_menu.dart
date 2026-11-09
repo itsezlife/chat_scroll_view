@@ -622,8 +622,8 @@ final class MessageMenu {
     }
   }
 
-  // Offered on the message alone, as the reference builds the button only
-  // for the menu of one message: not over a selection, and not beside the
+  // Offered on the message alone: the button is built only for the menu of
+  // one message, not over a selection, and not beside the
   // bubble on desktop, where the menu is Select alone.
   List<PackId> _emojiPacksFor(
     ChatMessageMenuRequest request,
@@ -658,7 +658,7 @@ final class _ChatDataSourceListenable implements Listenable {
 }
 
 /// The default menu column with the contains-emoji entry under the action
-/// card, 8 px apart as the reference's gap.
+/// card, 8 px apart.
 class _WithEmojiPacks extends StatelessWidget {
   const _WithEmojiPacks({required this.slots, required this.button});
 

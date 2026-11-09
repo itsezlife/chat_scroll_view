@@ -1,5 +1,5 @@
 /// A click in the desktop panel is not a click outside the composer: the
-/// caret stays in the field, as in the reference desktop client, whose panel
+/// caret stays in the field, as on desktop, whose panel
 /// never takes focus.
 ///
 /// **Seam:** the chat's input set with the desktop policy on a desktop target

@@ -37,8 +37,8 @@ The panel lists only real content:
   emoji (the animated emoji pack, not stickers);
 - the stickers page: the favourite stickers ("Избранные", with a tab of
   their own), the recent stickers, then the installed sticker packs in the
-  library's order (the local Telegram corpus, a pack per folder; see "Local
-  Telegram stickers" below). Without the corpus (a fresh checkout, CI) it
+  library's order (the local sticker corpus, a pack per folder; see "Local
+  sticker corpus" below). Without the corpus (a fresh checkout, CI) it
   lists the favourites and the recents alone, and with neither it says
   "Стикеров пока нет" (`PanelStrings.stickersEmpty`);
 - the GIF page: the saved GIFs as its recents, then Giphy's trending and
@@ -47,8 +47,8 @@ The panel lists only real content:
   (`PanelStrings.gifsEmpty`).
 
 The favourite and recent stickers and the saved GIFs are the content library
-(ADR 044), kept in the key-value store under `library`, with the reference
-client's limits without a subscription: 5 favourite stickers, 200 saved GIFs,
+(ADR 044), kept in the key-value store under `library`, with the limits
+without a subscription: 5 favourite stickers, 200 saved GIFs,
 30 recent stickers of which the page shows 20. They are most recently used
 first: a sent sticker becomes the first recent, a sent GIF the first saved
 GIF, wherever it was found (search too). A favourite is not listed again
@@ -128,7 +128,7 @@ shipped client. Animated media shares one store, the `media` folder of the
 app's cache folder (`Context.getCacheDir` on Android, the container's
 `Library/Caches` on iOS, the user cache folder on a desktop): Giphy's stills
 and clips under their Giphy id in `media/giphy`, the rendered Lottie frames in
-`media/lottie_frames`. As in the reference client, a file is kept a month
+`media/lottie_frames`. A file is kept a month
 after its last use and there is no size limit; a sweep at start and every
 hour, in an isolate of its own, removes what aged out. A host changes either
 where it makes the store (`MediaDiskCache(root, keepFor:, limitBytes:)` in
@@ -139,22 +139,22 @@ memory. `--dart-define=DISK_CACHE=false` turns them all off for a launch that
 must start cold and leave no file: a test, a measured run, a recorded net
 tape.
 
-## Local Telegram stickers (not in the repository)
+## Local sticker corpus (not in the repository)
 
 A maintainer's local corpus of Lottie stickers (one folder per pack) can be
-tried on the stickers page, one pack per folder. **The files are Telegram's
-property: they are never copied into the repository, tests, goldens or docs.**
+tried on the stickers page, one pack per folder. **The files belong to their
+owner: they are never copied into the repository, tests, goldens or docs.**
 `assets/sticker_corpus/` holds only a README and a `.gitignore` that
 ignores everything else; the pubspec lists that folder, so a checkout without
 the files builds and runs as before.
 
 ```sh
 # copy the corpus into the git-ignored asset folder (every platform):
-example/tool/link_corpus_assets.sh <corpus>/telegram-stickers
+example/tool/link_corpus_assets.sh <corpus>
 # rebuild: assets are bundled at build time
 
 # or, on desktop only, read the folders in place:
-flutter run --dart-define=CHAT_CORPUS_DIR=<corpus>/telegram-stickers
+flutter run --dart-define=CHAT_CORPUS_DIR=<corpus>
 ```
 
 On Android and iOS use the first: no device file access or new dependency is

@@ -44,7 +44,7 @@ import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:rich_clipboard/rich_clipboard.dart';
 
-/// The app's long-lived services: the composition root of the reference host.
+/// The app's long-lived services: the composition root of the demo host.
 ///
 /// [create] builds them once, in dependency order, and [dispose] frees what
 /// [create] made, in the reverse order. Nothing here is a service locator:
@@ -154,8 +154,8 @@ final class AppServices {
        _reducedMotion = reducedMotion,
        _webProbePass = webProbePass,
        _glyphFontsReady = glyphFontsReady {
-    // The panel's collections, loaded now as the reference client loads its
-    // emoji at start: everything is in memory, so the first open lays every
+    // The panel's collections are loaded now, at start: everything is in
+    // memory, so the first open lays every
     // section out at its size, not a row of placeholders that then jumps.
     for (final collection in emojiPageSource.collections.value) {
       unawaited(emojiPageSource.load(collection.id));
@@ -179,9 +179,8 @@ final class AppServices {
   /// The key-value namespace of the content library.
   static const String libraryNamespace = 'library';
 
-  /// The limits of the content library: the reference's values without a
-  /// subscription, 5 favourite stickers and 200 saved GIFs, and the 30
-  /// recent stickers it keeps.
+  /// The limits of the content library without a subscription: 5 favourite
+  /// stickers and 200 saved GIFs, and the 30 recent stickers it keeps.
   static const LibraryLimits libraryLimits = LibraryLimits(
     favouriteStickers: 5,
     savedGifs: 200,

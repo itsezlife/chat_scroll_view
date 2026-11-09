@@ -1,9 +1,9 @@
-/// The chat's bulletins after the reference factories: what each says, what
+/// The chat's bulletins: what each says, what
 /// leads it and how long it stays.
 ///
 /// **Seam:** [ChatBulletins], read as values: a library edit applied to a
 /// `FakeContentLibrary` in, the `Bulletin` out. The English strings keep the
-/// expected texts the reference's own.
+/// expected texts of their own.
 library;
 
 import 'package:bulletins/bulletins.dart';
@@ -112,7 +112,7 @@ void main() {
       );
     });
 
-    test('unsaved shows nothing, as the reference', () {
+    test('unsaved shows nothing', () {
       of(const LibraryEdit.saveGif(a));
 
       expect(of(const LibraryEdit.unsaveGif(a)), isNull);
