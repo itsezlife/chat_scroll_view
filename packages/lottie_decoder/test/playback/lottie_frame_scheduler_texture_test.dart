@@ -214,6 +214,90 @@ void main() {
       );
     });
 
+    test('a slow write of one lease never delays the next frame of '
+        'another', () async {
+      await pool.warm(64, 2);
+      final slow = lease('slow', source: 'slow');
+      final fast = lease('fast', source: 'fast');
+      scheduler
+        ..want(slow, 1)
+        ..want(fast, 1);
+      await tick();
+      int idOf(Object source) => writer.batches
+          .expand((batch) => batch)
+          .firstWhere((job) => job.source == source)
+          .texture
+          .id;
+      final slowId = idOf('slow');
+      final fastId = idOf('fast');
+      writer.batches.clear();
+
+      writer.hold(slowId);
+      scheduler
+        ..want(slow, 2)
+        ..want(fast, 2);
+      await tick();
+      for (var frame = 3; frame <= 5; frame++) {
+        scheduler
+          ..want(slow, frame)
+          ..want(fast, frame);
+        await tick();
+      }
+
+      final written = [
+        for (final batch in writer.batches)
+          for (final job in batch) (job.texture.id, job.frame),
+      ];
+      expect(
+        [
+          for (final (id, frame) in written)
+            if (id == fastId) frame,
+        ],
+        [2, 3, 4, 5],
+        reason: 'one frame a tick while the other write is held',
+      );
+      expect(written.where((w) => w.$1 == slowId), isEmpty);
+
+      writer.letGo(slowId);
+      await pumpEventQueue();
+      await tick();
+      expect(
+        [
+          for (final batch in writer.batches)
+            for (final job in batch)
+              if (job.texture.id == slowId) job.frame,
+        ],
+        [2, 5],
+        reason: 'the slow one wrote its frame, then only the latest want',
+      );
+    });
+
+    test('a slow page batch never delays a texture lease', () async {
+      await pool.warm(64, 1);
+      final onTexture = lease('texture');
+      final onSlot = lease('slot');
+      expect(pool.idleTextures, 0);
+
+      renderer.pause();
+      for (var frame = 1; frame <= 3; frame++) {
+        scheduler
+          ..want(onTexture, frame)
+          ..want(onSlot, frame);
+        await tick();
+      }
+
+      expect(
+        [for (final batch in writer.batches) batch.single.frame],
+        [1, 2, 3],
+      );
+      expect(renderer.batches, isEmpty, reason: 'the page batch is held');
+      renderer.resume();
+      await pumpEventQueue();
+      expect(renderer.batches, [
+        [1],
+      ]);
+    });
+
     test('a lock that fails skips the frame and asks it again', () async {
       await pool.warm(64, 1);
       final a = lease('a');
