@@ -100,22 +100,70 @@ abstract final class PackSheet {
   }) => Navigator.of(context).push(switch (arrangement) {
     PanelArrangement.touch => _BottomSheetRoute(
       builder: builder,
+      textStyle: DefaultTextStyle.of(context).style,
       speed: ChromeMotionScope.maybeOf(context)?.speed,
     ),
     PanelArrangement.pointer => _BoxRoute(
       builder: builder,
+      textStyle: DefaultTextStyle.of(context).style,
       speed: ChromeMotionScope.maybeOf(context)?.speed,
     ),
   });
 }
 
+/// The root of both routes' pages: the arrangement, the text style and room
+/// for the keyboard.
+///
+/// A popup route has no `Material` above it, so its text would fall back to
+/// the debug style; the sheet takes the text style of the context that opened
+/// it (the host's font) in the chrome palette's `onSurface`. The routes do not take
+/// focus, so a raised keyboard stays up: the page lays out above it.
+class _SheetRoot extends StatelessWidget {
+  const _SheetRoot({
+    required this.textStyle,
+    required this.arrangement,
+    required this.child,
+  });
+
+  final TextStyle textStyle;
+  final PanelArrangement arrangement;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ChromeThemeScope.of(context).palette;
+    return PanelArrangementScope(
+      arrangement: arrangement,
+      child: DefaultTextStyle(
+        style: textStyle.copyWith(
+          color: palette.onSurface,
+          decoration: TextDecoration.none,
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
 // --- Bottom sheet -----------------------------------------------------------
 
 final class _BottomSheetRoute extends PopupRoute<void> {
-  _BottomSheetRoute({required this.builder, this.speed})
-    : super(settings: const RouteSettings(name: PackSheet.routeName));
+  _BottomSheetRoute({
+    required this.builder,
+    required this.textStyle,
+    this.speed,
+  }) : super(
+         requestFocus: false,
+         settings: const RouteSettings(name: PackSheet.routeName),
+       );
 
   final WidgetBuilder builder;
+  final TextStyle textStyle;
   final ChromeMotionSpeed? speed;
 
   @override
@@ -141,7 +189,8 @@ final class _BottomSheetRoute extends PopupRoute<void> {
     BuildContext context,
     Animation<double> animation,
     Animation<double> secondaryAnimation,
-  ) => PanelArrangementScope(
+  ) => _SheetRoot(
+    textStyle: textStyle,
     arrangement: PanelArrangement.touch,
     child: Align(
       alignment: Alignment.bottomCenter,
@@ -245,10 +294,14 @@ class _DragToDismissState extends State<_DragToDismiss>
 // --- Box --------------------------------------------------------------------
 
 final class _BoxRoute extends PopupRoute<void> {
-  _BoxRoute({required this.builder, this.speed})
-    : super(settings: const RouteSettings(name: PackSheet.routeName));
+  _BoxRoute({required this.builder, required this.textStyle, this.speed})
+    : super(
+        requestFocus: false,
+        settings: const RouteSettings(name: PackSheet.routeName),
+      );
 
   final WidgetBuilder builder;
+  final TextStyle textStyle;
   final ChromeMotionSpeed? speed;
 
   static const Duration _fade = Duration(milliseconds: 200);
@@ -270,7 +323,8 @@ final class _BoxRoute extends PopupRoute<void> {
     BuildContext context,
     Animation<double> animation,
     Animation<double> secondaryAnimation,
-  ) => PanelArrangementScope(
+  ) => _SheetRoot(
+    textStyle: textStyle,
     arrangement: PanelArrangement.pointer,
     child: Center(
       child: SizedBox(
