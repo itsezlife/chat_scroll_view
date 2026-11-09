@@ -140,7 +140,7 @@ later additions: HEVC, dav1d (AV1), audio decoders.
 
 ## What is enabled
 
-The set Telegram ships, LGPL only (no `--enable-gpl`, `--enable-nonfree`,
+The LGPL-only set (no `--enable-gpl`, `--enable-nonfree`,
 `--enable-version3`), `--disable-everything` plus: demuxers `mov`, `matroska`,
 `gif`; decoders `h264`, `gif`, `libvpx_vp9`, `vp9` (native, kept only to show
 the alpha finding; production forces `libvpx-vp9`); parsers `h264`, `vp9`,
@@ -223,5 +223,4 @@ Results:
 The WebM row with `--native` is the negative proof: the same file through the
 same build, but with FFmpeg's own `vp9` decoder, yields opaque `yuv420p` (the
 container still carries `alpha_mode: 1`). This is the finding of FFmpeg Trac
-#8344, and why the decoder is forced to `libvpx-vp9` (as tdesktop does in
-`ffmpeg_utility.cpp`).
+#8344, and why the decoder is forced to `libvpx-vp9`.
