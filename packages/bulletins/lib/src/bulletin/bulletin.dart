@@ -22,6 +22,7 @@ final class Bulletin {
     this.maxLines,
     this.onTap,
     this.semanticsLabel,
+    this.links = const [],
   });
 
   /// The text; the subtitle when [title] is given.
@@ -53,6 +54,11 @@ final class Bulletin {
   /// What assistive technology says; null for [title] and [message].
   final String? semanticsLabel;
 
+  /// The parts of [message] that act as links, drawn in the accent colour,
+  /// in order and not overlapping. A link makes the card pressable even
+  /// where the policy lets an inert card pass pointers through.
+  final List<BulletinLink> links;
+
   /// The text length under which a bulletin without an undo is short, as the
   /// reference factory decides.
   static const int shortTextLength = 20;
@@ -79,6 +85,31 @@ final class Bulletin {
 
   /// The most lines [message] takes.
   int get effectiveMaxLines => maxLines ?? (title == null ? 1 : 2);
+}
+
+/// A part of a bulletin's message that runs [onTap] when pressed: a
+/// character range [start] to [end] (exclusive) of the message.
+@immutable
+final class BulletinLink {
+  /// A link over the message's characters [start] to [end].
+  const BulletinLink({
+    required this.start,
+    required this.end,
+    required this.onTap,
+  }) : assert(
+         0 <= start && start < end,
+         'a link covers at least one character',
+       );
+
+  /// The first character of the link.
+  final int start;
+
+  /// The character after the link.
+  final int end;
+
+  /// Runs when the link is pressed. The bulletin stays: the callback
+  /// dismisses it through its handle when it should go.
+  final VoidCallback onTap;
 }
 
 /// Where a bulletin appears on its surface.

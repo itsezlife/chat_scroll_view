@@ -37,6 +37,13 @@ void main() {
     });
   });
 
+  test('the desktop preset is the toolkit toast colours', () {
+    const tokens = BulletinTokens.referenceDesktop;
+    expect(tokens.background, const Color(0xE52C3033));
+    expect(tokens.foreground, const Color(0xFFFFFFFF));
+    expect(tokens.accent, const Color(0xFF4DB8FF));
+  });
+
   test('copyWith replaces only the named fields', () {
     const base = BulletinTokens.referenceAndroid;
     final next = base.copyWith(accent: const Color(0xFF00FF00));

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:bulletins/src/bulletin/bulletin.dart';
 import 'package:bulletins/src/controller/bulletin_controller.dart';
 import 'package:bulletins/src/policy/bulletin_policy.dart';
+import 'package:bulletins/src/view/bulletin_message.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -150,10 +151,11 @@ final class BulletinBuilders {
                 fontWeight: FontWeight.w600,
               ),
             ),
-          Text(
-            bulletin.message,
+          BulletinMessage(
+            message: bulletin.message,
+            links: bulletin.links,
+            linkColor: view.tokens.accent,
             maxLines: bulletin.effectiveMaxLines,
-            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: foreground,
               fontSize: bulletin.title == null

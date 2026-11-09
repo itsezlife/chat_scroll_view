@@ -25,6 +25,10 @@ dependencies:
   flutter_test:
     sdk: flutter
 
+dev_dependencies:
+  golden_baseline:
+    path: ../golden_baseline
+
 flutter:
   # The stock chrome icons draw Material icon glyphs, and widget tests that
   # paint an icon leading need the font in the test bundle.
