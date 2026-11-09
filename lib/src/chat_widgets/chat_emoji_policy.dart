@@ -290,7 +290,7 @@ final class ChatEmojiPolicy$Ios extends ChatEmojiPolicy {
   ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) =>
       ChatEmojiHeaderPlacement.beside;
 
-  // Not traced for iOS: Android's rule, the authority where iOS is silent.
+  // Not set for iOS; the Android value stands where iOS is silent.
   @override
   double get inTextEmojiScale => 1;
 
@@ -340,7 +340,7 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
   /// The box of a custom emoji in a message of 8 or more along its larger side.
   ///
   /// Unverified (the same table). The smallest box another platform verifies
-  /// (Android's smallest font step plus its padding) stands in.
+  /// (the smallest font step plus its padding) stands in.
   static const double unverifiedNormalCustomBox = 26.8;
 
   @override

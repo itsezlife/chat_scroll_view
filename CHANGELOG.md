@@ -843,7 +843,7 @@ changes only through the viewport fix. The release tag is `v0.2.0`.
   stands in for an inline separator. The clock starts idle, so the list opens
   with the floating header hidden unless it stands in. The default `null` runs
   no clock, and activity stays at `1`.
-- **CHANGED**: Flings follow Android's `OverScroller` spline instead of
+- **CHANGED**: Flings follow the native Android spline instead of
   `ClampingScrollSimulation`. Distance and initial velocity are unchanged,
   but a fling now lasts the full native duration (about 20% longer) with a
   slow tail, so the idle delay starts as late as on a native Android list.
