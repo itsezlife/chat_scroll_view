@@ -36,10 +36,8 @@ const double _kActionPartGap = 4;
 /// An action icon is drawn this much larger than the header text.
 const double _kActionIconScale = 1.3;
 
-/// Radius of the disc of the radial progress over a loading GIF: the reference
-/// client's panel GIF cell sets a 24 logical pixel box and `setCircleRadius(12)`
-/// (`ContextLinkCell.onMeasure`, a single `dp()` conversion), whatever the size
-/// of the cell.
+/// Radius of the disc of the radial progress over a loading GIF: 12 logical
+/// pixels, inside a 24 logical pixel box, whatever the size of the cell.
 const double _kProgressRadius = 12;
 
 /// Paints catalog headers and leaves onto a [Canvas].
@@ -116,7 +114,7 @@ const double _kProgressRadius = 12;
 ///
 /// A GIF leaf that is not drawn yet (no stage, or its thumbnail) and whose
 /// binding downloads its content (`AssetBinding.downloadProgress`) also gets
-/// the reference client's download indicator ([RadialProgress]) over its
+/// the download indicator ([RadialProgress]) over its
 /// centre, and it fades out with the content's fade. A leaf whose content is
 /// known to be missing shows it from its first paint, and a failed download
 /// keeps it while the content is still missing; a leaf served from a cache
@@ -740,8 +738,7 @@ final class CatalogLeafPainter {
 
   /// What shows under content that fades in over [rect]: the thumbnail the
   /// [binding] kept, fully opaque (a bitmap thumbnail does not fade in the
-  /// reference client, `ImageReceiver.draw`: the content rises over it and it
-  /// is dropped when the content is opaque), or, with no thumbnail, the
+  /// the content rises over it and it is dropped when the content is opaque), or, with no thumbnail, the
   /// style's placeholder fading out as the content rises.
   void _paintUnderContent(
     Canvas canvas,

@@ -277,7 +277,7 @@ void main() {
     });
   });
 
-  group('the reference desktop client\'s ink', () {
+  group('desktop hover ink', () {
     const press = Color(0x0F000000);
     PanelCatalogThemeData desktop() => withHover().copyWith(
       leafHoverHighlightSize: const Size(34, 32),

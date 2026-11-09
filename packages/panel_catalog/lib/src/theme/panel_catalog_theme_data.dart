@@ -60,7 +60,7 @@ import 'package:flutter/painting.dart';
 ///
 /// ## Defaults
 ///
-/// [light] and [dark] ship reference-aligned tints. [forBrightness] picks
+/// [light] and [dark] ship the default tints. [forBrightness] picks
 /// between them.
 ///
 /// ## Animated transitions
@@ -180,7 +180,7 @@ class PanelCatalogThemeData {
 
   /// Light catalog paint defaults.
   ///
-  /// Reference preset for [forBrightness] / [lerp] light targets.
+  /// Preset for [forBrightness] / [lerp] light targets.
   static const PanelCatalogThemeData light = PanelCatalogThemeData(
     circleColor: Color(0x10000000),
     thumbColor: Color(0x10000000),
@@ -210,7 +210,7 @@ class PanelCatalogThemeData {
     ),
   );
 
-  /// One sweep of the wash highlight, from the reference placeholder.
+  /// One sweep of the wash highlight.
   static const Duration _defaultWashPeriod = Duration(milliseconds: 1800);
 
   /// Default corner radius for rounded-rect placeholders (logical px).
