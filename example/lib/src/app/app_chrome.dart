@@ -49,11 +49,11 @@ class AppChrome extends StatelessWidget {
     ),
     // The desktop pointer menu of the composer's field is drawn in the
     // night colours of its own preset.
-    pointerMenu: PointerMenuTokens.referenceNight,
+    pointerMenu: PointerMenuTokens.night,
     // The bulletins' desktop toast in the toolkit's own colours, where the
     // bulletin policy is the desktop one (the web included); the dark card
     // preset elsewhere (ADR 045, *Desktop values*).
-    bulletin: _desktopBulletins ? BulletinTokens.referenceDesktop : null,
+    bulletin: _desktopBulletins ? BulletinTokens.desktop : null,
     child: ChromeStringsScope(
       strings: demoChromeStrings,
       child: ChromeMotionScope(

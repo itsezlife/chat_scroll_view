@@ -107,7 +107,7 @@ pinned commit may differ). `W` = `ui/widgets/widgets.style`, `T` =
 Deviations: the timer here starts when the fade in ends (200 ms later than
 the toolkit), the one timer rule all families share; a link does not
 underline on hover (the toolkit's `kLinkUnderlineActive`); colours are the
-`BulletinTokens.referenceDesktop` preset, which a desktop host puts in its
+`BulletinTokens.desktop` preset, which a desktop host puts in its
 theme, since `fromPalette` does not know the platform.
 
 ### Tokens and strings

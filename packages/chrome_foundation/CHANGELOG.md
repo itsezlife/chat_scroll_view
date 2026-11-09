@@ -6,6 +6,11 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Breaking
+
+- `PointerMenuTokens.referenceDay` is `PointerMenuTokens.day`, and `PointerMenuTokens.referenceNight` is `PointerMenuTokens.night`.
+- `BulletinTokens.referenceAndroid` is `BulletinTokens.android`, and `BulletinTokens.referenceDesktop` is `BulletinTokens.desktop`. The rename covers the unreleased `BulletinTokens` group too; no alias is kept.
+
 ### Added (chrome typography)
 
 - `ChromeTypography.of`: the base style of chrome text, the host theme's
@@ -18,7 +23,7 @@ package is pre-1.0.
 - `BulletinTokens`, a token group (`ChromeThemeData.bulletin`,
   `ChromeThemeScope.bulletinOf`, `ChromeThemeAspect.bulletin`): a bulletin's
   card, text, accent and countdown colours. `fromPalette` gives the
-  dark card (`referenceAndroid`) on every palette but the
+  dark card (`android`) on every palette but the
   high-contrast presets (`highContrast`). Code that builds a
   `ChromeThemeData` whole must now pass `bulletin`.
 - `MotionRole.bulletinShow` (255 ms, ease-out quad) and

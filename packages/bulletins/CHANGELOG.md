@@ -6,6 +6,10 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Breaking
+
+- No API change here. The doc comments and tests now name the `chrome_foundation` tokens `BulletinTokens.desktop` and `BulletinTokens.android` (was `referenceDesktop` and `referenceAndroid`). See the `chrome_foundation` changelog.
+
 ### Added
 
 - The package ([ADR 045](../../docs/adr/045-bulletins.md)): the `Bulletin`
