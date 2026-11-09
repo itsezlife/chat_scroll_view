@@ -6,6 +6,26 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (sheet and menu typography, menu icons)
+
+- The pack sheet, the content preview and the pickers and tooltips placed in
+  an overlay draw their text in the host's body face (`ChromeTypography`)
+  rather than the style inherited where they open. That style was the
+  framework's debug one (monospace, weight 900) whenever the opener had no
+  `Material` above it; `PackSheet.show` no longer captures it. The sheet's
+  bold texts are weight 500, the reference's `bold()` (Roboto Medium), not
+  600 (native-media ticket 140).
+
+### Added (menu icons)
+
+- Each content preview menu item leads with the reference's icon
+  (`ContentPreviewAction.icon`: `msg_send`, `input_notify_off`, `msg_fave`,
+  `msg_unfave`, `msg_media`, `msg_delete`, `msg_gif_add`, `msg_copy`),
+  16 px regular text `dp(43)` past the icon's start. `CatalogMenuIcons`
+  names the ids and bundles the art (`assets/menu_icons/`);
+  `CatalogMenuIconScope` registers it. `CatalogMenuItem.icon` puts an icon on
+  a context menu item, and the preview's right-click entries carry theirs.
+
 ### Added (a pack sheet's route is named)
 
 - `PackSheet.routeName`: the `RouteSettings.name` of the route

@@ -61,6 +61,7 @@ sealed class CatalogMenuEntry {
     required String id,
     required String label,
     bool attention,
+    ChromeIconId? icon,
   }) = CatalogMenuItem;
 
   /// A line between two groups of items; see [CatalogMenuSeparator].
@@ -74,6 +75,7 @@ final class CatalogMenuItem extends CatalogMenuEntry {
     required this.id,
     required this.label,
     this.attention = false,
+    this.icon,
   });
 
   /// Names the item to [CatalogPagePolicy.onMenuAction]; unique in its menu.
@@ -86,15 +88,19 @@ final class CatalogMenuItem extends CatalogMenuEntry {
   /// something away.
   final bool attention;
 
+  /// The icon the item leads with, or null for a label alone.
+  final ChromeIconId? icon;
+
   @override
   bool operator ==(Object other) =>
       other is CatalogMenuItem &&
       other.id == id &&
       other.label == label &&
-      other.attention == attention;
+      other.attention == attention &&
+      other.icon == icon;
 
   @override
-  int get hashCode => Object.hash(id, label, attention);
+  int get hashCode => Object.hash(id, label, attention, icon);
 
   @override
   String toString() => 'CatalogMenuItem($id, $label)';

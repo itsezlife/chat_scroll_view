@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (chrome typography)
+
+- `ChromeTypography.of`: the base style of chrome text, the host theme's
+  body face at the regular weight, not inheriting. Chrome drawn outside a
+  `Material` (an overlay entry, a popup route) reads its face here instead of
+  the framework's debug style. `PointerMenu` reads its face through it.
+
 ### Added (bulletins)
 
 - `BulletinTokens`, a token group (`ChromeThemeData.bulletin`,
