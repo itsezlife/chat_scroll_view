@@ -5,7 +5,7 @@ void main() {
   const physics = SwipePagerPhysics();
 
   group('a release from a drag that started at rest', () {
-    // Velocities in logical px/s at a device pixel ratio of 3: the reference
+    // Velocities in logical px/s at a device pixel ratio of 3: the commit
     // thresholds are 3500 physical px/s, so 1166.7 logical px/s here.
     bool commits(double fraction, double velocity, [double cross = 0]) =>
         physics.commits(

@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:swipe_pager/swipe_pager.dart';
 
 /// The test view is 800 x 600 logical pixels at a device pixel ratio of 3,
-/// so the reference's physical velocities divide by 3.
+/// so the physical velocities divide by 3.
 void main() {
   late SwipePagerController controller;
   late List<ScrollController> lists;

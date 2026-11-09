@@ -21,8 +21,8 @@ package is pre-1.0.
   spoilers, and `data-` attributes for mentions and inline content. `decode`
   reads its own HTML exactly, other apps' HTML as far as entities can say it
   (elements, CSS weights, styles and decorations, block elements as lines,
-  collapsed whitespace, followable links only), and the reference clients'
-  `animated-emoji`, `spoiler`, `tg-spoiler` and `details`. A style over all of
+  collapsed whitespace, followable links only), and the `animated-emoji`,
+  `spoiler`, `tg-spoiler` and `details` tags. A style over all of
   another app's text is dropped. It never throws.
 - `SystemRichClipboard`: the `RichClipboard` over the system clipboard, one
   item with the plain text and the HTML. Native code for Android, iOS, macOS,
@@ -37,9 +37,8 @@ package is pre-1.0.
   no text, else image data. macOS: file URLs, else GIF, PNG, JPEG or TIFF as
   PNG. iOS: item images (GIF, PNG, JPEG, HEIC, WebP, or a `UIImage` as PNG)
   saved to temporary files off the main thread. Android: the clip's content
-  URIs copied into the app cache under their names, off the main thread, as
-  the reference client copies a pasted image; an image item's URI is not
-  read as text. Windows: `CF_HDROP` paths, else the `PNG` format or `CF_DIB`
+  URIs copied into the app cache under their names, off the main thread; an
+  image item's URI is not read as text. Windows: `CF_HDROP` paths, else the `PNG` format or `CF_DIB`
   as BMP. Linux: the URI list as paths, else the image as PNG. Web:
   `ClipboardItem` images.
 - Decoding trusts `data-mention-id` and `data-content-key` only in HTML
