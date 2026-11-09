@@ -79,6 +79,101 @@ void main() {
     });
   });
 
+  // Ticket 144: a cell that left the screen comes back to the texture that
+  // still shows its frame.
+  group('kept frames', () {
+    test('a texture released showing an asset goes back to it first, at '
+        'once, and says it shows the frame', () async {
+      var now = Duration.zero;
+      final timed = FrameTexturePool(host: host, now: () => now);
+      addTearDown(timed.dispose);
+      await timed.warm(128, 2);
+      final other = timed.lease(100, 100)!;
+      final own = timed.lease(100, 100)!;
+      other.release();
+      now += FrameTexturePool.defaultReuseDelay;
+      own.release(showing: 'a');
+
+      final back = timed.lease(100, 100, showing: 'a')!;
+
+      expect(back.texture.id, own.texture.id, reason: 'no reuse delay');
+      expect(back.showsFrame, isTrue);
+      expect(timed.keptFrames, 0);
+    });
+
+    test('another asset takes one that keeps no frame first, and one that '
+        'does only when none is left, which then shows nothing', () async {
+      await pool.warm(128, 2);
+      final kept = pool.lease(100, 100)!;
+      final plain = pool.lease(100, 100)!;
+      kept.release(showing: 'a');
+      plain.release();
+
+      final first = pool.lease(100, 100, showing: 'b')!;
+      final second = pool.lease(100, 100, showing: 'b')!;
+
+      expect(first.texture.id, plain.texture.id);
+      expect(first.showsFrame, isFalse);
+      expect(second.texture.id, kept.texture.id);
+      expect(second.showsFrame, isFalse);
+      second.release();
+      expect(
+        pool.lease(100, 100, showing: 'a')!.showsFrame,
+        isFalse,
+        reason: 'another asset was posted to it',
+      );
+    });
+
+    test('a warm does not count a texture that keeps a frame', () async {
+      await pool.warm(128, 1);
+      pool.lease(100, 100)!.release(showing: 'a');
+
+      await pool.warm(128, 1);
+
+      expect(host.created, hasLength(2));
+      expect(pool.lease(100, 100)!.showsFrame, isFalse);
+      expect(pool.lease(100, 100, showing: 'a')!.showsFrame, isTrue);
+    });
+
+    test('past the kept budget the frame kept longest is forgotten', () async {
+      final small = FrameTexturePool(
+        host: host,
+        reuseDelay: Duration.zero,
+        keptFrameBytes: 2 * 128 * 128 * 4,
+      );
+      addTearDown(small.dispose);
+      await small.warm(128, 3);
+      final leases = [for (var i = 0; i < 3; i++) small.lease(100, 100)!];
+      for (final (i, lease) in leases.indexed) {
+        lease.release(showing: i);
+      }
+
+      expect(small.keptFrames, 2);
+      expect(small.lease(100, 100, showing: 0)!.showsFrame, isFalse);
+      expect(small.lease(100, 100, showing: 2)!.showsFrame, isTrue);
+    });
+
+    test('forgetting an asset frees its texture for any lease', () async {
+      await pool.warm(128, 1);
+      pool.lease(100, 100)!.release(showing: 'a');
+
+      pool.forgetFrameOf('a');
+
+      expect(pool.keptFrames, 0);
+      expect(pool.lease(100, 100, showing: 'a')!.showsFrame, isFalse);
+    });
+
+    test('memory pressure destroys kept textures too', () async {
+      await pool.warm(128, 1);
+      pool.lease(100, 100)!.release(showing: 'a');
+
+      pool.releaseIdle();
+
+      expect(pool.keptFrames, 0);
+      expect(pool.lease(100, 100, showing: 'a'), isNull);
+    });
+  });
+
   group('release', () {
     test('idles the texture for the next lease, without a new one', () async {
       await pool.warm(128, 1);
