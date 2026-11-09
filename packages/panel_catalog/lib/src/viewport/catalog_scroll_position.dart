@@ -81,6 +81,10 @@ abstract interface class CatalogScrollPosition {
   /// or wholly outside the viewport.
   Rect? leafBounds(CatalogLeafHit hit);
 
+  /// The cell under [globalPosition] under the current offset, or null over a
+  /// header, padding, an empty band or outside the viewport.
+  CatalogLeafHit? leafAtGlobal(Offset globalPosition);
+
   /// The button of the action of section [sectionId]'s header, as a rectangle
   /// in global coordinates under the current offset, or null when the section
   /// has no action or is not in the snapshot.

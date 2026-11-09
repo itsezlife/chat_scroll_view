@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the cell under a point)
+
+- `PanelCatalogController.leafAt(globalPosition)` and
+  `CatalogScrollPosition.leafAtGlobal`: the cell under a global point, for a
+  surface that follows a finger across the grid (a content preview that
+  switches cells). `FakeCatalogScrollPosition.leafUnder` answers it.
+
 ### Changed (the panel keeps its animations)
 
 - A `PanelCatalogViewport` whose tickers are off (`TickerMode`) holds its
