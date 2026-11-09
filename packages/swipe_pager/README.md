@@ -36,19 +36,19 @@ Decisions: [ADR 020](../../docs/adr/020-package-topology.md) (where it sits).
 - With `MediaQuery.disableAnimations`, settles and slides land at once.
 - Pages are identified by index; reordering them needs a new pager key.
 
-## Reference
+## Rules and values
 
-The defaults port the reference mobile client's own pager
-(`Telegram/TMessagesProj/src/main/java/org/telegram/ui/Components/ViewPagerFixed.java`):
+The defaults of `SwipePagerPhysics`, rule by rule. Physical px are device
+pixels; logical px are the units the pager lays out in.
 
-| Rule | Reference | Here |
+| Rule | Behaviour | Value (`SwipePagerPhysics`) |
 | --- | --- | --- |
-| Claim slop 0.3 cm | `touchSlop = getPixelsInCM(0.3f, true)` (181); claim when `abs(dx) >= touchSlop && abs(dx) > dy` (656-659) | `claimSlop`, 18.9 logical px at 160 per inch |
-| Vertical list wins | the page's `RecyclerView` starts dragging past the 8 dp touch slop (`RecyclerView.java` 3249) and calls `requestDisallowInterceptTouchEvent` (3393), which drops the pager's pending claim (`ViewPagerFixed` 575-579) | `crossAxisSlop` 8, decided on the straight line from the down |
-| Nested horizontal scroller | a child that scrolls horizontally under the finger keeps the gesture (626-631, `findScrollingChild` 2324-2344); one at its edge consumes nothing and the pager takes the drag | the claim slop is never under the platform drag slop; one that cannot scroll the drag's way loses the arena to the pager on the move it would claim on |
-| Edges | `prepareForMoving` refuses past the first and last page (517-520) | no claim outward, no overscroll |
-| Fling under the slop | `abs(velX) >= 3000 && abs(velX) > abs(velY)` (691) | `flingStartVelocity`, physical px/s |
-| Release | back when `abs(x) < width / 3 && (abs(velX) < 3500 \|\| abs(velX) < abs(velY))` (717); after catching a settle, `abs(velX) > 1500` goes the way of the fling, else the nearer page (702-716) | `commits` |
-| Settle | quintic `t^5 + 1` on `t - 1` (86-89); duration rule and 150..600 ms clamp (759-772, `distanceInfluenceForSnapDuration` 874-878) | `settleCurve`, `settleDuration` |
-| Catch a settle | a down during the settle takes it over (597-622, `checkTabsAnimationInProgress` 842-872) | `catchesOnDown` |
-| Programmatic | `scrollToPosition`: the target slides in next to the current page, 540 ms `EASE_OUT_QUINT` (221-289, 291-293); swipes refused meanwhile (`manualScrolling`, 518) | `animateTo` |
+| Claim slop | A drag is claimed once it moves this far along the axis, when it is further along the axis than across. | 0.3 cm, about 18.9 logical px at 160 per inch (`claimSlop`) |
+| Vertical list wins | A vertical list in the page starts scrolling past the platform touch slop and takes the drag; the pager lets go of its pending claim. Decided on the straight line from the down. | 8 logical px across the axis (`crossAxisSlop`) |
+| Nested horizontal scroller | A child that scrolls horizontally under the finger keeps the gesture; one at its edge consumes nothing and the pager takes the drag. The claim slop is never under the platform drag slop, so one that cannot scroll the drag's way loses the arena to the pager on the move it would claim on. | Scrollers are found by their sliver viewport in a hit test of the page |
+| Edges | No claim outward past the first or last page; no overscroll. | none |
+| Fling under the slop | A release faster along the axis than across, at or above this speed, starts a swipe. | 3000 physical px/s (`flingStartVelocity`) |
+| Release | Back when less than a third of the next page shows, unless the release is at least 3500 physical px/s and faster along the axis than across. After catching a settle, a release faster than 1500 physical px/s goes the way of the fling; otherwise the nearer page. | `commits` |
+| Settle | Quintic ease out, `1 + (t - 1)^5`. Duration from the distance and the velocity, clamped to the range. | `settleCurve`, 150..600 ms (`settleDuration`) |
+| Catch a settle | A down during a settle takes it over. | `catchesOnDown` |
+| Programmatic | `animateTo` slides the target in next to the current page; swipes are refused meanwhile. | 540 ms, ease out quint (`animateTo`) |

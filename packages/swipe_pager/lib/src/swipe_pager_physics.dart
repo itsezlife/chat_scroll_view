@@ -6,17 +6,17 @@ import 'package:flutter/foundation.dart';
 /// The numbers and rules of a swipe pager: when a drag becomes a swipe, when
 /// a release goes on to the next page, and how long the settle takes.
 ///
-/// The defaults are the reference mobile client's own pager. Distances are
-/// in logical pixels. The release velocities are in physical pixels per
-/// second, as the reference measures them, and are compared against a
-/// logical velocity times the device pixel ratio: on a phone the same flick
+/// The defaults are the values of a mobile pager's gestures and settle.
+/// Distances are in logical pixels. The release velocities are in physical
+/// pixels per second, and are compared against a logical velocity times the
+/// device pixel ratio: on a phone the same flick
 /// commits on both, on a low-density screen it takes a faster one.
 ///
 /// Every rule takes the axis of the pager as its main axis: `velocity` is
 /// along it and `crossVelocity` across it.
 @immutable
 class SwipePagerPhysics {
-  /// The rules, the reference's by default.
+  /// The rules, with these defaults.
   const SwipePagerPhysics({
     this.claimSlop = 0.3 / 2.54 * 160,
     this.crossAxisSlop = 8,
@@ -34,8 +34,8 @@ class SwipePagerPhysics {
   /// in logical pixels, provided it has not first moved [crossAxisSlop]
   /// across.
   ///
-  /// The reference's 0.3 cm, at the 160 logical pixels per inch a logical
-  /// pixel stands for: about 18.9. It is above the platform's own drag slop
+  /// 0.3 cm, at the 160 logical pixels per inch a logical pixel stands for:
+  /// about 18.9. It is above the platform's own drag slop
   /// (18, or 8 on Android), so a nested scroller along the same axis claims
   /// its drag first.
   final double claimSlop;
@@ -43,8 +43,8 @@ class SwipePagerPhysics {
   /// How far across the axis a drag moves before the pager lets it go, in
   /// logical pixels.
   ///
-  /// The reference pager gives way as soon as a vertical list in the page
-  /// starts scrolling, which a list does past the platform touch slop of
+  /// The pager gives way as soon as a vertical list in the page starts
+  /// scrolling, which a list does past the platform touch slop of
   /// 8 dp. Together with [claimSlop] a straight drag pages only within about
   /// 23 degrees of the axis.
   final double crossAxisSlop;
@@ -60,8 +60,7 @@ class SwipePagerPhysics {
 
   /// The velocity, in physical pixels per second, that lets a drag from rest
   /// go on to the next page however short it was, while it is faster along
-  /// the axis than across. Its direction does not matter, as in the
-  /// reference.
+  /// the axis than across. Its direction does not matter.
   final double commitVelocity;
 
   /// The velocity, in physical pixels per second, over which a drag that
@@ -79,8 +78,8 @@ class SwipePagerPhysics {
   /// The longest settle after a release.
   final Duration maxSettle;
 
-  /// The curve of the settle after a release: the reference's quintic ease
-  /// out, `1 + (t - 1)^5`.
+  /// The curve of the settle after a release: a quintic ease out,
+  /// `1 + (t - 1)^5`.
   final Curve settleCurve;
 
   /// Whether a release that never went past [claimSlop] starts a swipe.
@@ -122,7 +121,7 @@ class SwipePagerPhysics {
   /// page [extent] long at a release [velocity] (any unit, the same for all
   /// three, per second).
   ///
-  /// The reference's snap rule: with a velocity, four times the time to
+  /// The snap rule: with a velocity, four times the time to
   /// cover half the page plus a sine-weighted share of the other half; with
   /// none, 100 ms plus 100 ms per page left. Clamped to [minSettle] ..
   /// [maxSettle].
@@ -175,7 +174,7 @@ class SwipePagerPhysics {
   );
 }
 
-/// `1 + (t - 1)^5`: the reference pager's settle interpolator.
+/// `1 + (t - 1)^5`: the settle interpolator.
 class _QuinticOut extends Curve {
   const _QuinticOut();
 

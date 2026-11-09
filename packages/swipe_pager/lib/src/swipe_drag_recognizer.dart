@@ -9,15 +9,13 @@ import 'package:swipe_pager/src/swipe_pager_physics.dart';
 /// slop whatever the vertical movement, so a slightly diagonal drag over a
 /// vertical list is taken as a swipe; and it cannot give way across the
 /// axis, catch a settle on the down, or start on a fling that never reached
-/// its slop. Those are the reference pager's rules, so this recognizer
-/// implements them.
+/// its slop. This recognizer implements the pager's rules for those.
 ///
 /// The claim is decided on the straight line from the down position: the
 /// drag is the pager's when it leaves the box `claimSlop` x `crossAxisSlop`
 /// through a side, and not when it leaves through the top or bottom. That
 /// makes the decision independent of how the platform samples the moves; a
-/// finely sampled straight drag decides as the reference does event by
-/// event.
+/// finely sampled straight drag decides the same way event by event.
 ///
 /// Deltas reported to [onUpdate] are screen-space horizontal pixels; the
 /// slop is consumed, so the first update after the claim starts from the
@@ -26,8 +24,7 @@ import 'package:swipe_pager/src/swipe_pager_physics.dart';
 /// **A nested scroller at its edge.** A horizontal scroller in a page claims
 /// at the platform drag slop, under the pager's, whether or not it can
 /// scroll the drag's way; at its edge it takes the drag only to overscroll.
-/// The reference pager yields only to a child that can scroll. Here the
-/// pager's region shows each move to [preview] before any recognizer sees
+/// The pager yields only to a child that can scroll. Here the pager's region shows each move to [preview] before any recognizer sees
 /// it: on the move that would let the nested scrollers claim, when none of
 /// them can scroll that way and the pager can move, the pager takes the
 /// arena early. It still starts the swipe only by the slop and direction
@@ -179,8 +176,8 @@ class SwipeDragRecognizer extends OneSequenceGestureRecognizer {
       _giveUp();
       return;
     }
-    // Past the slop toward an edge, or not yet more along than across: the
-    // reference keeps watching rather than letting go.
+    // Past the slop toward an edge, or not yet more along than across: keep
+    // watching rather than letting go.
     if (offset.dx.abs() <= offset.dy.abs() || !canMove(offset.dx)) return;
     _claim();
   }
