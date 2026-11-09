@@ -732,10 +732,18 @@ void main() {
       await fetch(services);
 
       expect(services.glyphCache, isNotNull);
-      expect(
-        await files(),
-        containsAll(['/media/giphy/still_a', '/media/giphy/clip_a']),
-      );
+      // A fetch does not wait for its disk write (a temporary file renamed
+      // into place), so wait for the renamed files rather than a fixed time.
+      const kept = ['/media/giphy/still_a', '/media/giphy/clip_a'];
+      for (var i = 0; i < 250; i++) {
+        final present = [
+          for (final name in kept)
+            if (File('${dir.path}$name').existsSync()) name,
+        ];
+        if (present.length == kept.length) break;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(await files(), containsAll(kept));
     });
 
     test('sweep the media store at start when on: a file unused for a month '
