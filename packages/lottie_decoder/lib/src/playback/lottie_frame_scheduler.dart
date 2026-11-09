@@ -579,7 +579,13 @@ final class LottieFrameScheduler {
         lease._touched = false;
       } else {
         _release(lease);
+        continue;
       }
+      // Asked again at every sweep, not only at the lease: a lease that left
+      // the canvas, or found the pool's budget spent when it began, would
+      // otherwise play from a slot (a page upload on every tick) for its
+      // whole life. The pool answers at once when it cannot make one.
+      if (lease._texture == null && !lease._failed) _warmFor(lease);
     }
     if (_leases.isNotEmpty) _sweep = _startTimer(idleRelease, _onSweep);
   }

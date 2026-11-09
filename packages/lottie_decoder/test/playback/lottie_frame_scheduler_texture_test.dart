@@ -408,6 +408,27 @@ void main() {
       expect(a.texture, isNotNull);
     });
 
+    test('a lease still on a slot that may take a texture warms its class '
+        'at a sweep', () async {
+      final a = scheduler.acquire('a', 'src', 48, 32, onCanvas: true)!;
+      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue();
+      expect(host.created, isEmpty, reason: 'a canvas lease warms nothing');
+
+      // Two sweeps without a canvas paint: the lease may take a texture now,
+      // and nothing else will ask the pool for one.
+      scheduler.want(a, 1);
+      timers.elapse(const Duration(seconds: 1));
+      scheduler.want(a, 2);
+      timers.elapse(const Duration(seconds: 1));
+      await Future<void>.delayed(Duration.zero);
+      await pumpEventQueue();
+
+      expect(host.created, hasLength(1));
+      await postThree(a, 3);
+      expect(a.texture, isNotNull);
+    });
+
     test('textures switched off send every lease to a slot, and back on '
         'to idle textures', () async {
       await pool.warm(64, 1);

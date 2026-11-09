@@ -9,6 +9,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'glass/glass_flat_golden_test.dart' as glass_flat_golden_test;
+import 'glass/glass_layer_watch_test.dart' as glass_layer_watch_test;
 import 'glass/glass_public_api_test.dart' as glass_public_api_test;
 import 'glass/glass_shaders_test.dart' as glass_shaders_test;
 import 'glass/glass_source_test.dart' as glass_source_test;
@@ -55,6 +56,7 @@ void main() {
   group('glass/glass_flat_golden_test.dart', glass_flat_golden_test.main);
   group('glass/glass_public_api_test.dart', glass_public_api_test.main);
   group('glass/glass_shaders_test.dart', glass_shaders_test.main);
+  group('glass/glass_layer_watch_test.dart', glass_layer_watch_test.main);
   group('glass/glass_source_test.dart', glass_source_test.main);
   group('glass/glass_strategy_test.dart', glass_strategy_test.main);
   group('glass/glass_surface_route_test.dart', glass_surface_route_test.main);
