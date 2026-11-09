@@ -46,7 +46,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart'
-    show PastedMedia, SemanticKind;
+    show PackId, PackLookup$Found, PastedMedia, SemanticKind;
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -244,6 +244,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       keyboard: widget.softKeyboard,
       policy: widget.presentationPolicy,
       onPastedMedia: _onPastedMedia,
+      onPackRequested: _openPack,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
     // Made with the input set: the chat's embeds hold while its popup panel
@@ -830,15 +831,23 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _input.beginEdit(messageId, content);
   }
 
-  /// Asks before the recent content of [kind] is cleared.
+  /// Asks before the recent content of [kind] is cleared: the recent
+  /// stickers in their own words, the emoji recents in theirs.
   Future<bool> _confirmClearRecents(SemanticKind kind) async {
     if (!mounted) return false;
     final panel = ChromeStringsScope.panelOf(context);
+    final (title, message) = switch (kind) {
+      SemanticKind.sticker => (
+        panel.clearRecentStickersTitle,
+        panel.clearRecentStickersMessage,
+      ),
+      _ => (panel.clearRecentsTitle, panel.clearRecentsMessage),
+    };
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(panel.clearRecentsTitle),
-        content: Text(panel.clearRecentsMessage),
+        title: Text(title),
+        content: Text(message),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -852,6 +861,19 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       ),
     );
     return confirmed ?? false;
+  }
+
+  // "View pack" from the panel's preview. The pack sheet (ticket 123) opens
+  // here; until it lands, the demo names the pack it would show.
+  void _openPack(PackId id) {
+    if (!mounted) return;
+    final title = switch (widget.services.packs.peek(id)) {
+      PackLookup$Found(:final pack) => pack.title,
+      _ => id.value,
+    };
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(title)));
   }
 
   // The demo sends no media: it shows what it would send, as the reference

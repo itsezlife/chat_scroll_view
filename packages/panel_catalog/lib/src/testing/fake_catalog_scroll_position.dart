@@ -129,6 +129,14 @@ final class FakeCatalogScrollPosition implements CatalogScrollPosition {
   Rect? leafBounds(CatalogLeafHit hit) =>
       leafRects['${hit.sectionId}/${hit.index}'];
 
+  /// What [leafAtGlobal] answers: the cell under a global point, or null.
+  /// Unset, nothing is under any point.
+  CatalogLeafHit? Function(Offset globalPosition)? leafUnder;
+
+  @override
+  CatalogLeafHit? leafAtGlobal(Offset globalPosition) =>
+      leafUnder?.call(globalPosition);
+
   /// What [sectionActionBounds] answers per section; a missing one is null.
   final Map<String, Rect> sectionActionRects = {};
 

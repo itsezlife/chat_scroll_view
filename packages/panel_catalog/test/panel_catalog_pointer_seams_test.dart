@@ -380,6 +380,23 @@ void main() {
       expect(controller.leafBoundsOf(nowhere), isNull);
     });
 
+    testWidgets('the controller names the cell under a global point, with '
+        'the offset', (tester) async {
+      await pumpViewport(tester, onLeafTap: (_) {});
+
+      // Column 1 of the second row: (80, 64) 80 x 40.
+      expect(controller.leafAt(const Offset(100, 70))?.index, 5);
+      controller.jumpTo(30);
+      await tester.pump();
+      expect(controller.leafAt(const Offset(100, 40))?.index, 5);
+      expect(
+        controller.leafAt(const Offset(100, 10))?.index,
+        isNot(5),
+        reason: 'a header or another row is not the cell',
+      );
+      expect(controller.leafAt(const Offset(100, 900)), isNull);
+    });
+
     testWidgets('the controller reports a section action\'s button globally, '
         'with the offset', (tester) async {
       snapshots.replaceSections([

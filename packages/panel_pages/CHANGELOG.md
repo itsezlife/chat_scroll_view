@@ -6,6 +6,37 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (content preview)
+
+- `ContentPreviewSession`: the reference mobile client's content preview, a
+  `CatalogLongPressSession` that shows a sticker, GIF or custom emoji large
+  over a dim of the window (never a unicode emoji), follows a finger from cell
+  to cell (a GIF drags up to open its menu instead), opens its menu after
+  1.3 s (a GIF 2 s), and closes on a lift before the menu, on an item, on a
+  press elsewhere or on the host's back. A mouse holds 500 ms and gets no
+  menu. `ContentPreviewSession.show` is the entry point for any grid; a pack
+  sheet opens it with a send action and `openMenu` for a tap.
+- `ContentPreviewItem`, `ContentPreviewKind`, `ContentPreviewLayout` (the
+  reference geometry), `ContentPreviewMenu` and `ContentPreviewAction` (the
+  items per kind, their labels and what each asks), `ContentPreviewActions`
+  (what the opener can do), `ContentPreviewController` (the host's handle:
+  the library the menus read, and `dismiss` for back),
+  `CatalogContentPreview` (a grid's delegate for long press and context menu)
+  and `panelPreviewActions` (the panel host's requests).
+- `StickersPage`, `GifPage` and `EmojiPage` take an optional `previews`:
+  given, a held sticker (favourites and recents included), GIF or custom
+  emoji previews, and a right click on a sticker or GIF opens the preview's
+  items as a context menu. Without it nothing changes.
+- `FakePanelPageHost.libraryEditRequests` and `packRequests`.
+
+### Changed (content preview)
+
+- `CatalogPagePolicy.beginLongPress` takes an optional `leafAt` (the
+  catalogue's `PanelCatalogController.leafAt`); a policy that overrides it
+  must add the parameter.
+- `StickersPagePolicy` takes `host` and `previews`, and tags a sticker cell
+  with its pack (`StickerPackTag`).
+
 ### Added (favourite stickers)
 
 - The stickers page shows a favourites section, `CollectionId.faved` from its

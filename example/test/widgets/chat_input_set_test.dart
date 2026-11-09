@@ -25,6 +25,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_pages/panel_pages.dart'
+    show ContentPreviewActions, ContentPreviewItem, ContentPreviewSession;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -1205,6 +1207,58 @@ void main() {
       expect(rig.services.library.recentStickers.value, isEmpty);
       expect(rig.services.library.favouriteStickers.value, [sun]);
       expect(rig.services.libraryShown.recentStickers.value, isEmpty);
+    });
+  });
+
+  group('what the content preview asks for', () {
+    testWidgets('a library edit goes to the library at once', (tester) async {
+      final rig = await _mobileRig(tester);
+      final sun = StaticStickerPack.stickers.first.key;
+      await _open(tester, rig);
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestLibraryEdit(LibraryEdit.favouriteSticker(sun));
+      await tester.pump();
+
+      expect(rig.services.library.favouriteStickers.value, [sun]);
+    });
+
+    testWidgets('"View pack" reaches the host\'s pack hook', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+
+      rig.set.shell.hostFor('stickers').requestPack(const PackId('cats'));
+      await tester.pump();
+
+      expect(rig.packsAsked, [const PackId('cats')]);
+    });
+
+    testWidgets('back closes a preview that is up before the panel', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final sun = StaticStickerPack.stickers.first;
+      final context = tester.element(find.byType(PanelShell));
+      ContentPreviewSession.show(
+        context: context,
+        item: ContentPreviewItem(
+          key: sun.key,
+          semanticKind: SemanticKind.sticker,
+        ),
+        assets: rig.services.assets,
+        actions: const ContentPreviewActions(),
+        controller: rig.services.previews,
+      );
+      await tester.pump();
+
+      expect(await rig.set.handleBack(), isTrue);
+      expect(rig.services.previews.isOpen.value, isFalse);
+      expect(rig.set.isPanelVisible, isTrue);
+      await tester.pump(ContentPreviewSession.showDuration);
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump();
     });
   });
 

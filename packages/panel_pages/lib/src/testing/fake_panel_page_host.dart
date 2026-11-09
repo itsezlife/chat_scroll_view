@@ -67,6 +67,12 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
   /// Every remove-from-recent request, in order.
   final List<({ContentKey key, SemanticKind kind})> removeRecentRequests = [];
 
+  /// Every library edit asked for, in order.
+  final List<LibraryEdit> libraryEditRequests = [];
+
+  /// Every pack asked to be shown, in order.
+  final List<PackId> packRequests = [];
+
   /// How many holds on auto-hide the page took in all.
   int holdsTaken = 0;
 
@@ -152,6 +158,12 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
   @override
   void requestRemoveRecent(ContentKey key, {required SemanticKind kind}) =>
       removeRecentRequests.add((key: key, kind: kind));
+
+  @override
+  void requestLibraryEdit(LibraryEdit edit) => libraryEditRequests.add(edit);
+
+  @override
+  void requestPack(PackId id) => packRequests.add(id);
 
   @override
   PanelPageHold holdAutoHide() {

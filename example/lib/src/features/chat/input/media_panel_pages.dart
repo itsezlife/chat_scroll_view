@@ -54,6 +54,7 @@ abstract final class MediaPanelPages {
         attribution: services.giphy == null
             ? null
             : AppServices.giphyAttribution,
+        previews: services.previews,
       ),
     );
   }
@@ -74,6 +75,7 @@ abstract final class MediaPanelPages {
         host: host,
         source: services.stickerPageSource,
         assets: services.assets,
+        previews: services.previews,
       );
     },
   );

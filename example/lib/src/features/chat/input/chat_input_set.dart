@@ -133,6 +133,7 @@ final class ChatInputSet {
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
     PanelPresentationPolicy? policy,
     Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
+    ValueChanged<PackId>? onPackRequested,
     int? messageLengthLimit = DemoConfig.messageLengthMax,
   }) {
     // What has been made so far, to free in reverse if a later step throws
@@ -265,6 +266,7 @@ final class ChatInputSet {
         send: send,
         edit: edit,
         confirmClearRecents: confirmClearRecents,
+        onPackRequested: onPackRequested,
         messageLengthLimit: messageLengthLimit,
         ime: ime,
         window: window,
@@ -295,6 +297,7 @@ final class ChatInputSet {
     required ChatBodySender send,
     required ChatBodyEditor edit,
     required ClearRecentsConfirm confirmClearRecents,
+    required ValueChanged<PackId>? onPackRequested,
     required this.messageLengthLimit,
     required this.ime,
     required listen.ValueNotifier<PanelWindow> window,
@@ -317,6 +320,7 @@ final class ChatInputSet {
        _send = send,
        _edit = edit,
        _confirmClearRecents = confirmClearRecents,
+       _onPackRequested = onPackRequested,
        _window = window,
        _text = text,
        linkPreview = ChatLinkPreview(text: text) {
@@ -427,6 +431,9 @@ final class ChatInputSet {
   final ChatBodySender _send;
   final ChatBodyEditor _edit;
   final ClearRecentsConfirm _confirmClearRecents;
+
+  // Where "View pack" goes: the host's pack sheet, once there is one.
+  final ValueChanged<PackId>? _onPackRequested;
   final listen.ValueNotifier<PanelWindow> _window;
   final ComposerTextController _text;
 
@@ -948,6 +955,8 @@ final class ChatInputSet {
   /// press.
   Future<bool> handleBack() async {
     if (_disposed) return false;
+    // A content preview over the panel goes first, menu and all.
+    if (services.previews.dismiss()) return true;
     if (shell.search.value.isOpen && ime.samples.value.height > 1) {
       await _keyboardPort.hide();
       return true;
@@ -1010,6 +1019,13 @@ final class ChatInputSet {
         }
       case RecentRemoveRequested(:final key, :final kind):
         _forget(key, kind: kind);
+      // A favourite, a saved GIF, a recent sticker forgotten: the library
+      // takes the edit at once, with no undo window (the reference offers
+      // none for these).
+      case LibraryEditRequested(:final edit):
+        services.library.apply(edit);
+      case PackRequested(:final id):
+        _onPackRequested?.call(id);
       case SearchClosed():
         // What was picked while searching is listed once search is over.
         services.commitShownLists();

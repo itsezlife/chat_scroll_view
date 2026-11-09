@@ -1,11 +1,14 @@
 import 'package:catalog_assets/catalog_assets.dart' show AssetCacheScope;
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/emoji/emoji_tab_icons.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/preview/catalog_content_preview.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/stickers/sticker_pack_strip.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -30,18 +33,23 @@ import 'package:panel_shell/panel_shell.dart';
 ///   clear the recent stickers (`PanelPageHost.requestClearRecents`), and the
 ///   host confirms, as the reference client's alert does.
 /// - **Strip.** The [StickerPackStrip] above the catalogue.
+/// - **Preview.** Given [previews] and a [host], a press held on a sticker
+///   opens the content preview (`ContentPreviewSession`), favourites and
+///   recents included, and a right click under the pointer arrangement the
+///   preview's items as a context menu; their actions are requests to the
+///   host (`panelPreviewActions`).
 ///
 /// What the favourites and the recents hold (and that a favourite is not
 /// listed again among the recents) is the host's: the page shows the
 /// collections it is given.
 ///
-/// Not ported: the search field, trending packs, the sticker preview on a
-/// long press, the group pack, the create button, and re-ordering
+/// Not ported: the search field, trending packs, the group pack, the create button, and re-ordering
 /// the packs by dragging their tabs.
 final class StickersPagePolicy extends CatalogPagePolicy {
-  /// The stickers policy; [assets] draws the covers of the strip's tabs (none
-  /// are drawn when it is null).
-  const StickersPagePolicy({this.assets});
+  /// The stickers policy; [assets] draws the covers of the strip's tabs and
+  /// the previews (no cover is drawn, and no preview opens, when it is null).
+  /// A long press previews a sticker when [previews] and [host] are given.
+  const StickersPagePolicy({this.assets, this.host, this.previews});
 
   /// What the page declares to the shell: a top strip, and nothing it
   /// searches or acts on.
@@ -68,8 +76,14 @@ final class StickersPagePolicy extends CatalogPagePolicy {
   /// The id of the recents header's clear button.
   static const String clearRecentsActionId = 'clear-recents';
 
-  /// Where the strip draws pack covers from.
+  /// Where the strip draws pack covers, and the preview its sticker, from.
   final AssetCacheScope? assets;
+
+  /// The page's connection to the shell, which the preview's items ask.
+  final PanelPageHost? host;
+
+  /// The host's handle on content previews, or null for none.
+  final ContentPreviewController? previews;
 
   static const SectionLayout _layout = SectionLayout.grid(
     desiredCellWidth: desiredCellWidth,
@@ -120,6 +134,91 @@ final class StickersPagePolicy extends CatalogPagePolicy {
   @override
   CatalogContentBox? contentBoxOf(Collection collection) =>
       CatalogContentBox.glyph;
+
+  // The pack a cell's sticker belongs to rides on the cell: the preview of a
+  // cell the finger slides onto has nothing else to find it by.
+  @override
+  Object? tagOf(CollectionItem item, Collection collection) =>
+      switch (item.descriptor?.pack) {
+        final pack? => StickerPackTag(pack),
+        null => null,
+      };
+
+  // --- The preview ----------------------------------------------------------
+
+  CatalogContentPreview? get _preview => switch ((previews, assets, host)) {
+    (final previews?, final assets?, final host?) => CatalogContentPreview(
+      controller: previews,
+      assets: assets,
+      actions: panelPreviewActions(host),
+      inRecents: (hit) => hit.sectionId == _recentsSectionId,
+      packOf: (hit) => switch (hit.leaf.tag) {
+        StickerPackTag(:final pack) => pack,
+        _ => null,
+      },
+    ),
+    _ => null,
+  };
+
+  // The recents' section: [sectionIdOf] is the collection id's own text.
+  static final String _recentsSectionId = CollectionId.recent.toString();
+
+  @override
+  bool hasLongPress(CatalogLeafHit hit, Collection collection) =>
+      _preview?.previews(hit) ?? false;
+
+  @override
+  Duration? longPressDelayOf(
+    CatalogLeafHit hit,
+    Collection collection,
+    PointerDeviceKind kind,
+  ) => CatalogContentPreview.delayOf(kind);
+
+  @override
+  CatalogLongPressSession? beginLongPress(
+    BuildContext context,
+    CatalogLeafHit hit,
+    Collection collection,
+    LongPressStartDetails details, {
+    required PointerDeviceKind kind,
+    required Rect cellBounds,
+    required Rect viewportBounds,
+    CatalogLeafHit? Function(Offset globalPosition)? leafAt,
+  }) {
+    final preview = _preview;
+    if (preview == null) return null;
+    final hold = host!.holdAutoHide();
+    try {
+      final session = preview.begin(
+        context,
+        hit,
+        kind: kind,
+        leafAt: leafAt,
+        hold: hold,
+      );
+      if (session == null) hold.release();
+      return session;
+    } on Object {
+      hold.release();
+      rethrow;
+    }
+  }
+
+  @override
+  List<CatalogMenuEntry> menuOf(
+    CatalogLeafHit hit,
+    Collection collection,
+    PanelStrings strings, {
+    required PanelArrangement arrangement,
+  }) => _preview?.entriesOf(hit, strings) ?? const [];
+
+  @override
+  void onMenuAction(
+    CatalogLeafHit hit,
+    Collection collection,
+    String itemId,
+    PanelPageHost host,
+  ) => _preview?.perform(hit, itemId);
 
   // --- The recents header ---------------------------------------------------
 
@@ -190,4 +289,22 @@ final class StickersPagePolicy extends CatalogPagePolicy {
       EmojiTabIconScope(
         child: StickerPackStrip(handle: strip, assets: assets),
       );
+}
+
+/// The tag of a sticker cell: the pack its sticker belongs to, which the
+/// content preview offers to show.
+@immutable
+final class StickerPackTag {
+  /// The tag of a sticker of [pack].
+  const StickerPackTag(this.pack);
+
+  /// The sticker's pack.
+  final PackId pack;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StickerPackTag && other.pack == pack;
+
+  @override
+  int get hashCode => Object.hash(StickerPackTag, pack);
 }
