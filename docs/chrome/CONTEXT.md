@@ -3,7 +3,7 @@
 The chrome around a chat's message list: the theme and glass it paints with,
 the panel shell and its pages, how the panel is presented, and the composer.
 Covers `chrome_foundation`, `panel_shell`, `panel_pages`, `panel_presentation`,
-`chat_composer`, `composer_editable` and `chat_wallpaper`. Does not cover the catalog viewport (see the
+`chat_composer`, `composer_editable`, `chat_wallpaper` and `bulletins`. Does not cover the catalog viewport (see the
 [Panel Catalog glossary](../panel-catalog/CONTEXT.md)) or content and asset
 terms (see the [Content and Assets glossary](../content/CONTEXT.md)).
 
@@ -14,7 +14,8 @@ Decisions: [ADR 025](../adr/025-panel-shell-and-pages.md),
 [ADR 029](../adr/029-host-integration.md),
 [ADR 031](../adr/031-localization-accessibility-and-input.md),
 [ADR 038](../adr/038-composer-editable-fork.md),
-[ADR 040](../adr/040-chat-wallpaper.md).
+[ADR 040](../adr/040-chat-wallpaper.md),
+[ADR 045](../adr/045-bulletins.md).
 
 ## Language
 
@@ -195,6 +196,31 @@ _Avoid_: A fixed panel height, a height that includes the safe area
 **Composer safe inset**:
 The part of the bottom safe band that the keyboard presentation's occupancy has not covered yet: `max(0, band - occupancy)`. The host hands it to the composer as its bottom safe-area pad so the bottom of the window never steps.
 _Avoid_: Adding the safe area to the occupancy a second time, peeling the safe area by platform
+
+### Bulletins
+
+**Bulletin**:
+A short notice shown over a surface for a few seconds: a message, an optional title, an optional leading (icon, animation, thumbnail, countdown) and an optional action (Undo or a button). One is visible per surface; a new one replaces it.
+_Avoid_: Toast, snack bar, banner (as the general term)
+
+**Bulletin controller**:
+The host-owned slot of one surface: shows a bulletin, replaces, dismisses, pauses and resumes it, and closes every bulletin exactly once with an exit reason.
+_Avoid_: Global bulletin service, static visible bulletin
+
+**Bulletin host**:
+The widget that mounts a bulletin controller over a surface's content: layout, enter and exit, gestures and the announcement. Unmounting it closes the bulletin as the surface gone.
+
+**Bulletin policy**:
+Pure-Dart layout and motion values of one platform family (Android, iOS, desktop): placement, margins, radius, timeouts per duration class, transition, gestures. A host extends a stock policy to change a value.
+_Avoid_: Platform forks of the bulletin view
+
+**Commit on leave**:
+An Undo bulletin's commit runs once when it closes by anything but Undo: timeout, swipe, replacement, dismissal, the surface gone.
+_Avoid_: Commit on timeout only
+
+**Bottom obstruction**:
+What covers a surface's edges for a bulletin (the composer and its safe inset, the keyboard; a top bar), supplied by the host; the bulletin stays clear of it and follows it.
+_Avoid_: Bulletin reading the keyboard or composer itself
 
 ### Composer
 

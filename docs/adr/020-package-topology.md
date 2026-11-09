@@ -17,6 +17,7 @@ API.
 **Amended**: 2026-11-08 — `frame_texture` ([ADR 043](043-platform-texture-frames.md))  
 **Amended**: 2026-11-09 — a `swipe_pager` leaf: the horizontal pager with the reference mobile client's swipe rules, depended on by `panel_shell`; held by convention (the dependency lint is not extended for it)  
 **Amended**: 2026-11-09 — `content_model` gains the `PackSource`, `ContentLibrary` and `LibraryStorage` seams; `panel_pages` holds the content preview and the pack sheets ([ADR 044](044-content-library-packs-and-preview.md)); no edge changes  
+**Amended**: 2026-11-09 — a `bulletins` package: transient notices over a surface ([ADR 045](045-bulletins.md)), depending on `chrome_foundation` only; held by convention (the dependency lint is not extended for it)  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (package list in its Decided table is replaced by this one), [ADR 007](007-keyboard-panel-controller.md), [ADR 012](012-cross-platform-selection-policies.md)
 
 ## Decided
@@ -43,6 +44,7 @@ API.
 | `panel_presentation` | Sealed presentation kinds, the `$Mobile` / `$Desktop` policy, the presentation controller, occupancy, IME arbitration | `panel_shell`, `chrome_foundation` |
 | `composer_editable` | Leaf. The composer's one editable: a renamed, patched copy of the Flutter framework's text field, editable text and selection overlay, with the touch gesture matrix, handle and magnifier motion and the toolbar fade ([ADR 038](038-composer-editable-fork.md)). Nothing chat-specific | none (`flutter` and `characters` only) |
 | `chat_composer` | Slot-based composer, input-only controller, entity-aware text controller with formatting commands, selection menu, input query; renders through `composer_editable` | `chrome_foundation`, `content_model`, `catalog_assets`, `composer_editable` |
+| `bulletins` | Bulletins: the bulletin value, the per-surface controller with commit on leave, the host mount with the bottom obstruction seam, the per-platform presentation policy and the stock builders ([ADR 045](045-bulletins.md)). Nothing chat, panel or content specific | `chrome_foundation` |
 | `golden_baseline` | Leaf, test support only. `useGoldenBaselines` and the comparator that holds golden baselines to the CI runner | none (`flutter`, `flutter_test`) |
 | `chat_scroll_view` (repo root) | The anchor viewport and its markdown bodies: message and text selection, inline hits, the embed adapter, spoiler wiring, `ChatEmojiBody`. Consumes the markdown engine fork by git ref ([ADR 035](035-markdown-engine-fork.md)), which is not a workspace package | `catalog_assets`, `content_model` |
 

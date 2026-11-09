@@ -60,6 +60,7 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `packages/panel_shell` / `panel_pages` / `panel_presentation` | Panel shell + page registry / catalog pages / presentation kinds and policy | panel tabs, search, pages, popup / docked / keyboard replacement, occupancy |
 | `packages/chat_composer`                 | Slot-based composer, input controller, entity text, formatting commands, selection menu | composer slots, input, queries, formatting                          |
 | `packages/composer_editable`             | Leaf: the composer's one editable (patched Flutter text field)            | field gestures, handles, magnifier, re-vendor                                    |
+| `packages/bulletins`                     | Bulletins: per-surface controller (commit on leave), host mount, platform policy, builders | transient notices, Undo feedback ([ADR 045](docs/adr/045-bulletins.md))           |
 | `packages/golden_baseline`              | Test support: golden baselines held to the CI runner (`useGoldenBaselines`) | adding or regenerating a golden test                                              |
 | `example/`                               | Demo host only — not the portable contract                                | wiring demos                                                                     |
 | `scripts/`                               | `scripts/check` entry + the workspace lints (`workspace_check` package)   | CI gates, dependency direction, re-export / fakes rules                          |
