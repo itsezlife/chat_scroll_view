@@ -1066,9 +1066,8 @@ void main() {
     });
 
     testWidgets('of a sticker sends it as a message, keeps the panel open and '
-        'the composer as it was, and files it in the recent stickers', (
-      tester,
-    ) async {
+        'the composer as it was, and puts it first in the library\'s recent '
+        'stickers', (tester) async {
       final rig = await _mobileRig(tester);
       rig.set.composer.insertText('half a thought');
       await _open(tester, rig);
@@ -1082,11 +1081,12 @@ void main() {
       expect(rig.sent, [StickerMessageBody.of(sticker)]);
       expect(_state(rig), isA<PanelVisibility$Shown>());
       expect(rig.set.composer.text.text, 'half a thought');
-      expect(rig.services.recents.recents(SemanticKind.sticker), [sticker.key]);
+      expect(rig.services.library.recentStickers.value, [sticker.key]);
+      expect(rig.services.recents.recents(SemanticKind.sticker), isEmpty);
     });
 
-    testWidgets('of a GIF sends it as a message and files it in the recent '
-        'GIFs', (tester) async {
+    testWidgets('of a GIF sends it as a message and saves it, first among '
+        'the saved GIFs', (tester) async {
       final rig = await _mobileRig(tester);
       await _open(tester, rig);
       final gif = VideoStickerPack.gifs.first;
@@ -1096,10 +1096,13 @@ void main() {
 
       expect(rig.sent, [StickerMessageBody.of(gif)]);
       expect(_state(rig), isA<PanelVisibility$Shown>());
-      expect(rig.services.recents.recents(SemanticKind.gif), [gif.key]);
+      expect(rig.services.library.savedGifs.value, [gif.key]);
+      expect(rig.services.recents.recents(SemanticKind.gif), isEmpty);
     });
 
-    testWidgets('of a sticker from search is sent but not recorded', (
+    // The reference records every sticker sent and saves every GIF sent,
+    // wherever it was found; only an emoji found by search does not count.
+    testWidgets('of a sticker from search is sent and recorded', (
       tester,
     ) async {
       final rig = await _mobileRig(tester);
@@ -1116,7 +1119,21 @@ void main() {
       await tester.pump();
 
       expect(rig.sent, [StickerMessageBody.of(sticker)]);
-      expect(rig.services.recents.recents(SemanticKind.sticker), isEmpty);
+      expect(rig.services.library.recentStickers.value, [sticker.key]);
+    });
+
+    testWidgets('of a GIF from search is sent and saved', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final gif = VideoStickerPack.gifs.first;
+
+      rig.set.shell
+          .hostFor('gif')
+          .pick(gif.key, kind: SemanticKind.gif, source: PickSource.search);
+      await tester.pump();
+
+      expect(rig.sent, [StickerMessageBody.of(gif)]);
+      expect(rig.services.library.savedGifs.value, [gif.key]);
     });
 
     testWidgets('from search results is not recorded', (tester) async {
@@ -1165,6 +1182,29 @@ void main() {
 
       expect(rig.clearAsked, [SemanticKind.unicodeEmoji]);
       expect(rig.services.recents.recents(SemanticKind.unicodeEmoji), isEmpty);
+    });
+
+    testWidgets('clearing the recent stickers is asked first, then empties '
+        'the library\'s recents and keeps the favourites', (tester) async {
+      final rig = await _mobileRig(tester);
+      final star = LottieStickerPack.stickers.first.key;
+      final sun = StaticStickerPack.stickers.first.key;
+      rig.services.library
+        ..apply(LibraryEdit.addRecentSticker(star))
+        ..apply(LibraryEdit.addRecentSticker(sun))
+        ..apply(LibraryEdit.favouriteSticker(sun));
+      await _open(tester, rig);
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestClearRecents(SemanticKind.sticker);
+      await tester.pump();
+      await tester.pump();
+
+      expect(rig.clearAsked, [SemanticKind.sticker]);
+      expect(rig.services.library.recentStickers.value, isEmpty);
+      expect(rig.services.library.favouriteStickers.value, [sun]);
+      expect(rig.services.libraryShown.recentStickers.value, isEmpty);
     });
   });
 
@@ -1272,6 +1312,52 @@ void main() {
         emojiKey('\u{1F525}'),
         emojiKey(heart),
       ]);
+    });
+  });
+
+  group('what the library is asked for', () {
+    testWidgets('a removal of a recent sticker takes it out of the library '
+        'and out of the panel at once', (tester) async {
+      final rig = await _mobileRig(tester);
+      final star = LottieStickerPack.stickers.first.key;
+      final sun = StaticStickerPack.stickers.first.key;
+      rig.services.library
+        ..apply(LibraryEdit.addRecentSticker(star))
+        ..apply(LibraryEdit.addRecentSticker(sun));
+      rig.services.commitShownLists();
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestRemoveRecent(star, kind: SemanticKind.sticker);
+      await tester.pump();
+
+      expect(rig.services.library.recentStickers.value, [sun]);
+      expect(rig.services.libraryShown.recentStickers.value, [sun]);
+    });
+
+    testWidgets('a removal of a recent GIF unsaves it', (tester) async {
+      final rig = await _mobileRig(tester);
+      final gif = VideoStickerPack.gifs.first.key;
+      rig.services.library.apply(LibraryEdit.saveGif(gif));
+
+      rig.set.shell
+          .hostFor('gif')
+          .requestRemoveRecent(gif, kind: SemanticKind.gif);
+      await tester.pump();
+
+      expect(rig.services.library.savedGifs.value, isEmpty);
+    });
+
+    testWidgets('the panel opening shows what was sent since it last '
+        'opened', (tester) async {
+      final rig = await _mobileRig(tester);
+      final star = LottieStickerPack.stickers.first.key;
+      rig.services.library.apply(LibraryEdit.addRecentSticker(star));
+      expect(rig.services.libraryShown.recentStickers.value, isEmpty);
+
+      await _open(tester, rig);
+
+      expect(rig.services.libraryShown.recentStickers.value, [star]);
     });
   });
 

@@ -17,12 +17,13 @@ import 'package:chat_scroll_view_example/src/features/chat/data/byte_cache.dart'
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/deferred_library_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
-import 'package:chat_scroll_view_example/src/features/chat/data/recent_content_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/library_content_source.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
@@ -48,9 +49,10 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 /// ## Order
 ///
 /// 1. the [KeyValueStore] adapter (`kv_shared_preferences`);
-/// 2. the stores, which arrive loaded: [recents], [preferences],
-///    [keyboardHeights], [dockWidths], [centerBands], [drafts] and
-///    [largeEmoji];
+/// 2. the stores, which arrive loaded: [recents] (the emoji's), the content
+///    [library] (recent and favourite stickers, saved GIFs, packs; ADR 044),
+///    [preferences], [keyboardHeights], [dockWidths], [centerBands], [drafts]
+///    and [largeEmoji];
 /// 3. the asset cache [assets] with its pause policies ([activity]: the app's
 ///    focus and visibility, the [lowPower] switch, the system's reduced-motion
 ///    setting and the overlays over the chat) and memory pressure, and
@@ -70,8 +72,10 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 ///    under the [glyphProbe] that hides what the system cannot draw, the
 ///    animated emoji pack, and [emojiPageSource], which lists that pack after
 ///    the catalogue's categories, and the [stickerPageSource] and
-///    [gifPageSource] of the two dedicated pages, over the recent stickers
-///    and GIFs (a view of the recents that catches up when the panel opens).
+///    [gifPageSource] of the two dedicated pages, over the favourite and
+///    recent stickers and the saved GIFs ([libraryShown], a view of the
+///    library that catches up when the panel opens), and the [packs] source
+///    over the bundled packs and the corpus.
 ///    The panel lists only real content: the stickers page the local corpus,
 ///    the GIF page Giphy. The bundled demo stickers and clips stay known to
 ///    the pipeline, for the showcase chat and the recents, but no page lists
@@ -94,6 +98,9 @@ final class AppServices {
     required this.keyValueStore,
     required this.recents,
     required this.recentsShown,
+    required this.library,
+    required this.libraryShown,
+    required this.packs,
     required this.preferences,
     required this.keyboardHeights,
     required this.dockWidths,
@@ -166,6 +173,17 @@ final class AppServices {
   /// The key-value namespace of the recents store.
   static const String recentsNamespace = 'recents';
 
+  /// The key-value namespace of the content library.
+  static const String libraryNamespace = 'library';
+
+  /// The limits of the content library: the reference's values without a
+  /// subscription, 5 favourite stickers and 200 saved GIFs, and the 30
+  /// recent stickers it keeps.
+  static const LibraryLimits libraryLimits = LibraryLimits(
+    favouriteStickers: 5,
+    savedGifs: 200,
+  );
+
   /// The key-value namespace of the preference store.
   static const String preferencesNamespace = 'preferences';
 
@@ -185,7 +203,7 @@ final class AppServices {
   /// its own, and null where there is none.
   ///
   /// [giphyApiKey] turns the GIF page's Giphy source on (see
-  /// [giphyApiKeyDefine]); empty leaves the page with the recent GIFs alone.
+  /// [giphyApiKeyDefine]); empty leaves the page with the saved GIFs alone.
   /// [giphyHttpClient] is the transport it sends through, closed by the
   /// services only if they made it. [corpus] is the local sticker corpus;
   /// null looks for one in the app bundle and in the `CHAT_CORPUS_DIR`
@@ -248,6 +266,7 @@ final class AppServices {
       // beside a sibling that failed is still freed.
       final (
         recents,
+        library,
         preferences,
         keyboardHeights,
         dockWidths,
@@ -257,6 +276,10 @@ final class AppServices {
           storage,
           namespace: recentsNamespace,
         ).then((store) => owned(store, (store) => store.dispose())),
+        StoredContentLibrary.load(
+          KeyValueLibraryStorage(storage, namespace: libraryNamespace),
+          limits: libraryLimits,
+        ).then((library) => owned(library, (library) => library.dispose())),
         KeyValuePreferenceStore.load(
           storage,
           namespace: preferencesNamespace,
@@ -354,7 +377,7 @@ final class AppServices {
       if (giphyApiKey.isEmpty) {
         l.i(
           'Giphy GIFs are off: no GIPHY_API_KEY was given '
-          '(--dart-define=GIPHY_API_KEY=...); the GIF page lists the recent '
+          '(--dart-define=GIPHY_API_KEY=...); the GIF page lists the saved '
           'GIFs alone',
         );
       } else {
@@ -502,13 +525,29 @@ final class AppServices {
         (source) => source.dispose(),
       );
 
-      // The stickers page: the recent stickers, then the local corpus, a pack
-      // each. Without a corpus (as on CI) the recents are all it lists; the
-      // bundled demo packs are content of the showcase chat, not of the panel.
+      // A pack by the id a sticker's or custom emoji's descriptor names: the
+      // bundled packs and the corpus, all in memory, so the fetch never
+      // fails and the source's memory tier holds them once found.
+      final packs = owned(
+        CachingPackSource(
+          (id) async => BundledPacks.packOf(id) ?? corpusPacks.packOf(id),
+        ),
+        (source) => source.dispose(),
+      );
+      // The library as the panel lists it: caught up when the panel opens,
+      // as the emoji recents are (see [libraryShown]).
+      final libraryShown = owned(
+        DeferredLibraryView(library),
+        (view) => view.dispose(),
+      );
+      // The stickers page: the favourite stickers and the recent ones, then
+      // the local corpus, a pack each. Without a corpus (as on CI) the
+      // favourites and the recents are all it lists; the bundled demo packs
+      // are content of the showcase chat, not of the panel.
       final recentStickers = owned(
-        RecentContentSource(
-          recents: recentsShown,
-          kind: SemanticKind.sticker,
+        LibraryContentSource.stickers(
+          recentStickers: libraryShown.recentStickers,
+          favouriteStickers: libraryShown.favouriteStickers,
           describe: describe,
         ),
         (source) => source.dispose(),
@@ -521,14 +560,13 @@ final class AppServices {
         JoinedCollectionSource([recentStickers, ...corpusSources]),
         (source) => source.dispose(),
       );
-      // The GIF page: the recent GIFs, then Giphy's trending when there is a
-      // key. Offline, trending fails and the page shows its failure line with
-      // a retry; without a key the recents are all it lists. No bundled clip
-      // is listed beneath either.
+      // The GIF page: the saved GIFs as its recents, then Giphy's trending
+      // when there is a key. Offline, trending fails and the page shows its
+      // failure line with a retry; without a key the saved GIFs are all it
+      // lists. No bundled clip is listed beneath either.
       final recentGifs = owned(
-        RecentContentSource(
-          recents: recentsShown,
-          kind: SemanticKind.gif,
+        LibraryContentSource.gifs(
+          savedGifs: libraryShown.savedGifs,
           describe: describe,
         ),
         (source) => source.dispose(),
@@ -554,6 +592,9 @@ final class AppServices {
         keyValueStore: storage,
         recents: recents,
         recentsShown: recentsShown,
+        library: library,
+        libraryShown: libraryShown,
+        packs: packs,
         preferences: preferences,
         keyboardHeights: keyboardHeights,
         dockWidths: dockWidths,
@@ -623,7 +664,8 @@ final class AppServices {
   /// holds nothing.
   final RichClipboard clipboard;
 
-  /// What the user picked, per kind of content.
+  /// What the user picked, per kind of content: the emoji recents, by
+  /// frequency. The recent stickers and the GIF recents are the [library]'s.
   final RecentsStore recents;
 
   /// The recents as the panel shows them: those of [recents] as of the last
@@ -631,6 +673,28 @@ final class AppServices {
   /// the host commits, so the grid does not reorder under the finger that is
   /// picking from it.
   final DeferredRecentsStore recentsShown;
+
+  /// The user's own lists: recent and favourite stickers, saved GIFs (the
+  /// GIF recents) and installed packs, kept to [libraryLimits] and persisted
+  /// in [libraryNamespace]. Sending a sticker adds it to the recents, sending
+  /// a GIF saves it.
+  final ContentLibrary library;
+
+  /// The [library] as the panel shows it: as of the last
+  /// [commitShownLists], except that what leaves the library leaves it at
+  /// once.
+  final DeferredLibraryView libraryShown;
+
+  /// Every pack by its id, as a content's descriptor names it: the bundled
+  /// packs and the local corpus.
+  final PackSource packs;
+
+  /// Lets the panel's lists catch up with what was picked: the emoji
+  /// recents ([recentsShown]) and the library's lists ([libraryShown]).
+  void commitShownLists() {
+    recentsShown.commit();
+    libraryShown.commit();
+  }
 
   /// The variant chosen per emoji, the selected panel page and the dock
   /// choice.
@@ -687,11 +751,11 @@ final class AppServices {
   /// pack of animated emoji. It owns none.
   final CollectionSource emojiPageSource;
 
-  /// What the stickers page lists: the recent stickers, then the packs of
-  /// the local [corpus]. It owns none.
+  /// What the stickers page lists: the favourite stickers, the recent
+  /// stickers, then the packs of the local [corpus]. It owns none.
   final CollectionSource stickerPageSource;
 
-  /// What the GIF page lists: the recent GIFs, then Giphy's trending clips
+  /// What the GIF page lists: the saved GIFs, then Giphy's trending clips
   /// when there is a key. It owns none.
   final CollectionSource gifPageSource;
 
@@ -840,6 +904,8 @@ final class AppServices {
     emojiSearch.dispose();
     emojiSource.dispose();
     recentsShown.dispose();
+    libraryShown.dispose();
+    packs.dispose();
     glyphProbe.dispose();
     // The activity first: it clears the layers it set on the clock.
     activity.dispose();
@@ -862,6 +928,8 @@ final class AppServices {
     memoryPressure.dispose();
     largeEmoji.dispose();
     preferences.dispose();
+    // Commits what is still in an undo window.
+    library.dispose();
     recents.dispose();
   }
 

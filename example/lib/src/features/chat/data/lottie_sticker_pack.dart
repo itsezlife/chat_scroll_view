@@ -33,6 +33,7 @@ final class LottieSticker implements BundledItem {
       LottieStickerPack._pixelSize,
     ),
     spokenName: spokenName,
+    pack: LottieStickerPack.packId,
   );
 
   @override
@@ -54,6 +55,18 @@ abstract final class LottieStickerPack {
 
   /// The pack's title.
   static const String title = 'Demo Lottie stickers';
+
+  /// The pack each sticker names: the same text as [id], so the pack's
+  /// listing is the collection the pack is listed as.
+  static const PackId packId = PackId('demo_lottie');
+
+  /// The pack, as the host's pack source serves it.
+  static Pack get pack => Pack(
+    id: packId,
+    kind: PackKind.stickers,
+    title: title,
+    items: descriptors.toList(),
+  );
 
   static const String _keyPrefix = 'demo-lottie:';
 

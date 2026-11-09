@@ -48,6 +48,8 @@ final class VideoPackItem implements BundledItem {
     animated: true,
     size: ContentSize(_width, _height),
     spokenName: spokenName,
+    // A WebM sticker is the pack's; a clip or a GIF is sent outside any pack.
+    pack: kind == SemanticKind.sticker ? VideoStickerPack.packId : null,
   );
 
   @override
@@ -71,6 +73,18 @@ abstract final class VideoStickerPack {
 
   /// The pack's title.
   static const String title = 'Demo video stickers';
+
+  /// The pack each WebM sticker names: the same text as [id].
+  static const PackId packId = PackId('demo_video');
+
+  /// The pack of the WebM stickers, as the host's pack source serves it. The
+  /// clips and GIFs are not in it: they belong to no pack.
+  static Pack get pack => Pack(
+    id: packId,
+    kind: PackKind.stickers,
+    title: title,
+    items: [for (final sticker in stickers) sticker.descriptor],
+  );
 
   static const String _keyPrefix = 'demo-video:';
 

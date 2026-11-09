@@ -56,6 +56,34 @@ List<String> _titles(CorpusStickerPack pack) => [
 ];
 
 void main() {
+  group('packs', () {
+    test('each sticker names its folder\'s pack, which the corpus serves '
+        'by id as the collection the page lists', () async {
+      final corpus = await CorpusStickerPack.load(
+        bundle: _FakeBundle({
+          '$_dir/duck--1.json': '{}',
+          '$_dir/duck--0.json': '{}',
+          '$_dir/utya--0.tgs': 'x',
+        }),
+      );
+      final duck = corpus.packs.first;
+
+      expect(duck.stickers.first.descriptor.pack, const PackId('corpus_duck'));
+      final pack = corpus.packOf(const PackId('corpus_duck'))!;
+      expect(pack.kind, PackKind.stickers);
+      expect(pack.title, 'duck');
+      expect(pack.items, [
+        for (final sticker in duck.stickers) sticker.descriptor,
+      ]);
+      expect(pack.collectionId, duck.id);
+      expect(corpus.packOf(const PackId('corpus_none')), isNull);
+      expect(
+        CorpusStickerPack.none.packOf(const PackId('corpus_duck')),
+        isNull,
+      );
+    });
+  });
+
   group('from the asset bundle', () {
     test(
       'makes one pack per prefix, the prefix as its title, in name order',

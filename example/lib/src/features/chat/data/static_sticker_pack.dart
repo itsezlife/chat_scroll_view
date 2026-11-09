@@ -33,6 +33,7 @@ final class StaticSticker implements BundledItem {
       StaticStickerPack._pixelSize,
     ),
     spokenName: spokenName,
+    pack: StaticStickerPack.packId,
   );
 
   @override
@@ -53,6 +54,17 @@ abstract final class StaticStickerPack {
 
   /// The pack's title.
   static const String title = 'Demo static stickers';
+
+  /// The pack each sticker names: the same text as [id].
+  static const PackId packId = PackId('demo_still');
+
+  /// The pack, as the host's pack source serves it.
+  static Pack get pack => Pack(
+    id: packId,
+    kind: PackKind.stickers,
+    title: title,
+    items: descriptors.toList(),
+  );
 
   static const String _keyPrefix = 'demo-still:';
 

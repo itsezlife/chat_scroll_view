@@ -73,6 +73,8 @@ import 'features/chat/chat_texture_warmer_test.dart'
     as chat_texture_warmer_test;
 import 'features/chat/corpus_sticker_pack_test.dart'
     as corpus_sticker_pack_test;
+import 'features/chat/deferred_library_view_test.dart'
+    as deferred_library_view_test;
 import 'features/chat/emoji_chrome_test.dart' as emoji_chrome_test;
 import 'features/chat/emoji_service_colors_test.dart'
     as emoji_service_colors_test;
@@ -82,6 +84,8 @@ import 'features/chat/giphy_gif_source_test.dart' as giphy_gif_source_test;
 import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
 import 'features/chat/large_emoji_test.dart' as large_emoji_test;
+import 'features/chat/library_content_source_test.dart'
+    as library_content_source_test;
 import 'features/chat/link_activation_test.dart' as link_activation_test;
 import 'features/chat/lottie_sticker_pack_test.dart'
     as lottie_sticker_pack_test;
@@ -93,8 +97,6 @@ import 'features/chat/panel_playback_hold_test.dart'
     as panel_playback_hold_test;
 import 'features/chat/panel_texture_warmer_test.dart'
     as panel_texture_warmer_test;
-import 'features/chat/recent_content_source_test.dart'
-    as recent_content_source_test;
 import 'features/chat/reference_media_sizes_test.dart'
     as reference_media_sizes_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
@@ -186,10 +188,6 @@ import 'widgets/widget_chat_screen_source_test.dart'
     as widget_chat_screen_source_test;
 
 void main() {
-  group(
-    'features/chat/recent_content_source_test.dart',
-    recent_content_source_test.main,
-  );
   group(
     'features/chat/reference_media_sizes_test.dart',
     reference_media_sizes_test.main,
@@ -378,6 +376,14 @@ void main() {
     emoji_service_colors_test.main,
   );
   group('features/chat/large_emoji_test.dart', large_emoji_test.main);
+  group(
+    'features/chat/deferred_library_view_test.dart',
+    deferred_library_view_test.main,
+  );
+  group(
+    'features/chat/library_content_source_test.dart',
+    library_content_source_test.main,
+  );
   group('features/chat/link_activation_test.dart', link_activation_test.main);
   group(
     'features/chat/spoiler_round_trip_test.dart',

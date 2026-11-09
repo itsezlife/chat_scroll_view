@@ -131,8 +131,7 @@ void main() {
       'stickers',
       create: () async {
         final services = await createTestServices();
-        await services.recents.record(sticker.key, kind: SemanticKind.sticker);
-        services.recentsShown.commit();
+        services.library.apply(LibraryEdit.addRecentSticker(sticker.key));
         return services;
       },
     );
@@ -142,6 +141,40 @@ void main() {
 
     expect(rig.sent, [StickerMessageBody.of(sticker)]);
     expect(find.text(demoChromeStrings.panel.stickersEmpty), findsNothing);
+    semantics.dispose();
+  });
+
+  testWidgets('a favourite sticker is listed under its own title and tab, '
+      'and sent from there', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final favourite = StaticStickerPack.stickers.first;
+    final recent = LottieStickerPack.stickers.first;
+    final rig = await _openOn(
+      tester,
+      'stickers',
+      create: () async {
+        final services = await createTestServices();
+        services.library
+          ..apply(LibraryEdit.addRecentSticker(recent.key))
+          ..apply(LibraryEdit.favouriteSticker(favourite.key));
+        return services;
+      },
+    );
+    final panel = demoChromeStrings.panel;
+
+    // A tab and a section header each.
+    expect(
+      find.semantics.byLabel(panel.favouriteStickersTitle).evaluate(),
+      hasLength(2),
+    );
+    tester.semantics.tap(find.semantics.byLabel(favourite.spokenName));
+    await tester.pump();
+
+    expect(rig.sent, [StickerMessageBody.of(favourite)]);
+    expect(rig.services.library.recentStickers.value, [
+      favourite.key,
+      recent.key,
+    ]);
     semantics.dispose();
   });
 
@@ -172,7 +205,7 @@ void main() {
         );
 
     testWidgets('a tap on a trending clip sends it as a lone document that '
-        'names the Giphy clip, files it among the recent GIFs, and the page '
+        'names the Giphy clip, saves it, and the page '
         'credits Giphy', (tester) async {
       final semantics = tester.ensureSemantics();
       final rig = await openGif(tester);
@@ -182,7 +215,7 @@ void main() {
       await tester.pump();
 
       expect(rig.sent, ['![happy cat](document:giphy:abc123)']);
-      expect(rig.services.recents.recents(SemanticKind.gif), [
+      expect(rig.services.library.savedGifs.value, [
         const ContentKey.document('giphy:abc123'),
       ]);
       for (final label in _demoLabels) {

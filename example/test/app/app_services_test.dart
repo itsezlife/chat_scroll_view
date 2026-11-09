@@ -118,6 +118,7 @@ void main() {
         log.where((entry) => entry.startsWith('kv:')).toSet(),
         containsAll(<String>{
           'kv:${AppServices.recentsNamespace}',
+          'kv:${AppServices.libraryNamespace}',
           'kv:${AppServices.preferencesNamespace}',
           'kv:panel_presentation',
         }),
@@ -146,6 +147,87 @@ void main() {
         (collection) => collection.id == CollectionId.recent,
       );
       expect(recent.contents, isA<CollectionContents$Loaded>());
+    });
+  });
+
+  group('the content library', () {
+    test('keeps the host\'s limits: 5 favourite stickers, 200 saved GIFs, '
+        '30 recent stickers', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+
+      expect(
+        services.library.limits,
+        const LibraryLimits(
+          favouriteStickers: 5,
+          savedGifs: 200,
+          recentStickers: 30,
+        ),
+      );
+    });
+
+    test('arrives loaded: what an earlier launch kept is there', () async {
+      final storage = FakeKeyValueStore();
+      final first = await createTestServices(storage: storage);
+      final sticker = LottieStickerPack.stickers.first.key;
+      final gif = VideoStickerPack.gifs.first.key;
+      final outcomes = [
+        first.library.apply(LibraryEdit.favouriteSticker(sticker)).outcome,
+        first.library.apply(LibraryEdit.saveGif(gif)).outcome,
+      ];
+      expect(await Future.wait(outcomes), [
+        EditOutcome.committed,
+        EditOutcome.committed,
+      ]);
+      first.dispose();
+
+      final second = await createTestServices(storage: storage);
+      addTearDown(second.dispose);
+
+      expect(second.library.favouriteStickers.value, [sticker]);
+      expect(second.library.savedGifs.value, [gif]);
+    });
+  });
+
+  group('the pack source', () {
+    test('serves a bundled pack by the id its stickers name', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      final sticker = LottieStickerPack.stickers.first;
+
+      final lookup = await services.packs.lookup(sticker.descriptor.pack!);
+
+      expect(lookup, PackLookup.found(LottieStickerPack.pack));
+    });
+
+    test('serves a corpus pack by the id its stickers name', () async {
+      final dir = Directory.systemTemp.createTempSync('corpus_packs');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      Directory('${dir.path}/fox').createSync();
+      File('${dir.path}/fox/0.json').writeAsStringSync('{}');
+      final corpus = await CorpusStickerPack.load(
+        bundle: rootBundle,
+        directory: dir.path,
+      );
+      final services = await createTestServices(corpus: corpus);
+      addTearDown(services.dispose);
+      final fox = corpus.packs.singleWhere((pack) => pack.folder == 'fox');
+
+      final lookup = await services.packs.lookup(
+        fox.stickers.single.descriptor.pack!,
+      );
+
+      expect(lookup, PackLookup.found(fox.pack));
+    });
+
+    test('answers not found for an id no source has', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+
+      expect(
+        await services.packs.lookup(const PackId('nowhere')),
+        PackLookup.notFound,
+      );
     });
   });
 
@@ -780,15 +862,19 @@ void main() {
       for (final collection in source.collections.value) collection.id,
     ];
 
-    test('list the recent stickers alone without a corpus: no bundled demo '
-        'pack', () async {
+    test('list the favourite and the recent stickers alone without a '
+        'corpus: no bundled demo pack', () async {
       final services = await createTestServices();
       addTearDown(services.dispose);
 
-      expect(ids(services.stickerPageSource), [CollectionId.recent]);
+      expect(ids(services.stickerPageSource), [
+        CollectionId.faved,
+        CollectionId.recent,
+      ]);
     });
 
-    test('list a local corpus after the recents, a pack each', () async {
+    test('list a local corpus after the favourites and the recents, a pack '
+        'each', () async {
       final dir = Directory.systemTemp.createTempSync('corpus_services');
       addTearDown(() => dir.deleteSync(recursive: true));
       Directory('${dir.path}/fox').createSync();
@@ -804,6 +890,7 @@ void main() {
       // files into the (gitignored) bundled assets folder, which add packs.
       final fox = corpus.packs.singleWhere((pack) => pack.folder == 'fox');
       expect(ids(services.stickerPageSource), [
+        CollectionId.faved,
         CollectionId.recent,
         for (final pack in corpus.packs) pack.id,
       ]);
@@ -848,46 +935,61 @@ void main() {
       expect(services.giphy, isNull);
     });
 
-    test('show a pick as a recent once the host commits, not before', () async {
+    List<ContentKey> keysOf(CollectionSource source, CollectionId id) =>
+        switch (source.collections.value
+            .singleWhere((collection) => collection.id == id)
+            .contents) {
+          CollectionContents$Loaded(:final items) => [
+            for (final item in items) item.key,
+          ],
+          _ => const [],
+        };
+
+    test('show a sent sticker as a recent once the host commits, not '
+        'before', () async {
       final services = await createTestServices();
       addTearDown(services.dispose);
       final sticker = LottieStickerPack.stickers.first;
-      List<ContentKey> recent() =>
-          switch (services.stickerPageSource.collections.value.first.contents) {
-            CollectionContents$Loaded(:final items) => [
-              for (final item in items) item.key,
-            ],
-            _ => const [],
-          };
 
-      await services.recents.record(sticker.key, kind: SemanticKind.sticker);
-      expect(recent(), isEmpty);
+      services.library.apply(LibraryEdit.addRecentSticker(sticker.key));
+      expect(keysOf(services.stickerPageSource, CollectionId.recent), isEmpty);
 
-      services.recentsShown.commit();
-      expect(recent(), [sticker.key]);
+      services.commitShownLists();
+      expect(keysOf(services.stickerPageSource, CollectionId.recent), [
+        sticker.key,
+      ]);
     });
 
-    test('keep the stickers apart from the GIFs in the recents', () async {
+    test(
+      'list the favourite stickers, and not again among the recents',
+      () async {
+        final services = await createTestServices();
+        addTearDown(services.dispose);
+        final star = LottieStickerPack.stickers.first.key;
+        final sun = StaticStickerPack.stickers.first.key;
+
+        services.library
+          ..apply(LibraryEdit.addRecentSticker(star))
+          ..apply(LibraryEdit.addRecentSticker(sun))
+          ..apply(LibraryEdit.favouriteSticker(star));
+        services.commitShownLists();
+
+        expect(keysOf(services.stickerPageSource, CollectionId.faved), [star]);
+        expect(keysOf(services.stickerPageSource, CollectionId.recent), [sun]);
+      },
+    );
+
+    test('list the saved GIFs as the GIF page\'s recents, apart from the '
+        'stickers', () async {
       final services = await createTestServices();
       addTearDown(services.dispose);
       final clip = VideoStickerPack.clips.first;
 
-      await services.recents.record(clip.key, kind: SemanticKind.gif);
-      services.recentsShown.commit();
+      services.library.apply(LibraryEdit.saveGif(clip.key));
+      services.commitShownLists();
 
-      expect(
-        (services.gifPageSource.collections.value.first.contents
-                as CollectionContents$Loaded)
-            .items
-            .map((item) => item.key),
-        [clip.key],
-      );
-      expect(
-        (services.stickerPageSource.collections.value.first.contents
-                as CollectionContents$Loaded)
-            .items,
-        isEmpty,
-      );
+      expect(keysOf(services.gifPageSource, CollectionId.recent), [clip.key]);
+      expect(keysOf(services.stickerPageSource, CollectionId.recent), isEmpty);
     });
   });
 
