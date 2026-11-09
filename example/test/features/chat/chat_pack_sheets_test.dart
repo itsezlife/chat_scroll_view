@@ -144,6 +144,9 @@ void main() {
     testWidgets('adds a pack not installed, with no Undo', (tester) async {
       await pump(tester);
       final pack = LottieStickerPack.pack.id;
+      // The demo packs are installed on the first run: removed, it is one
+      // not installed.
+      services.library.apply(LibraryEdit.removePack(pack, PackKind.stickers));
 
       ChatPackSheets.open(
         home,

@@ -11,7 +11,6 @@ import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
-import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
@@ -863,15 +862,38 @@ void main() {
       for (final collection in source.collections.value) collection.id,
     ];
 
-    test('list the favourite and the recent stickers alone without a '
-        'corpus: no bundled demo pack', () async {
+    test('list the favourite and the recent stickers, then the bundled '
+        'demo packs, installed on the first run', () async {
       final services = await createTestServices();
       addTearDown(services.dispose);
 
       expect(ids(services.stickerPageSource), [
         CollectionId.faved,
         CollectionId.recent,
+        CollectionId.set(LottieStickerPack.packId.value),
+        CollectionId.set(StaticStickerPack.packId.value),
+        CollectionId.set(VideoStickerPack.packId.value),
       ]);
+    });
+
+    test('a removed demo pack stays removed on the next run', () async {
+      final storage = FakeKeyValueStore();
+      final first = await createTestServices(storage: storage);
+      first.library.apply(
+        const LibraryEdit.removePack(
+          LottieStickerPack.packId,
+          PackKind.stickers,
+        ),
+      );
+      first.dispose();
+
+      final second = await createTestServices(storage: storage);
+      addTearDown(second.dispose);
+
+      expect(
+        second.library.installStateOf(LottieStickerPack.packId),
+        PackInstallState.notInstalled,
+      );
     });
 
     test('the emoji page lists the shipped emoji pack as installed, and '
@@ -897,28 +919,6 @@ void main() {
     });
 
     test(
-      'a bundled demo pack added to the library joins the stickers page',
-      () async {
-        final services = await createTestServices();
-        addTearDown(services.dispose);
-        final demo = BundledPacks.descriptors
-            .firstWhere((d) => d.semanticKind == SemanticKind.sticker)
-            .pack!;
-
-        services.library.apply(
-          LibraryEdit.installPack(demo, PackKind.stickers),
-        );
-        await pumpEventQueue();
-
-        expect(ids(services.stickerPageSource), [
-          CollectionId.faved,
-          CollectionId.recent,
-          CollectionId.set(demo.value),
-        ]);
-      },
-    );
-
-    test(
       'the shipped packs are installed once: one removed stays removed',
       () async {
         final storage = FakeKeyValueStore();
@@ -930,6 +930,9 @@ void main() {
           ),
         );
         first.dispose();
+        // The removal's write queues behind the seed's: a next run starts
+        // after it lands.
+        await pumpEventQueue();
 
         final second = await createTestServices(storage: storage);
         addTearDown(second.dispose);
@@ -961,6 +964,8 @@ void main() {
         CollectionId.faved,
         CollectionId.recent,
         for (final pack in corpus.packs) pack.id,
+        for (final id in const ['demo_lottie', 'demo_still', 'demo_video'])
+          CollectionId.set(id),
       ]);
       expect(ids(services.stickerPageSource), contains(fox.id));
       expect(services.describe(fox.stickers.single.key), isNotNull);
