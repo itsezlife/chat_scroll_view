@@ -5,6 +5,17 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a pool of render isolates)
+
+- `IsolateLottieEngine.spawn(workers:)` starts one to `maxWorkers` (4) render
+  isolates; `defaultWorkers` is the core count less one, at most four. A
+  handle stays on the isolate that loaded it, and the handles the engine
+  gives out encode it, so with more than one isolate they are not the
+  binding's ids. A request over several isolates' handles is split and
+  answered in job order; one isolate ending closes the engine. The default
+  stays one isolate.
+- `LottieFrameScheduler` sends the largest texture frames of a tick first.
+
 ### Changed (each lease waits only for its own frame)
 
 - `LottieFrameScheduler` keeps a frame in flight per lease, not one batch
