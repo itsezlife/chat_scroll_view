@@ -930,6 +930,9 @@ void main() {
           ),
         );
         first.dispose();
+        // The removal's write queues behind the seed's: a next run starts
+        // after it lands.
+        await pumpEventQueue();
 
         final second = await createTestServices(storage: storage);
         addTearDown(second.dispose);
@@ -961,6 +964,8 @@ void main() {
         CollectionId.faved,
         CollectionId.recent,
         for (final pack in corpus.packs) pack.id,
+        for (final id in const ['demo_lottie', 'demo_still', 'demo_video'])
+          CollectionId.set(id),
       ]);
       expect(ids(services.stickerPageSource), contains(fox.id));
       expect(services.describe(fox.stickers.single.key), isNotNull);
