@@ -229,6 +229,14 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   /// How far up a GIF is dragged when its menu opens: `-dp(55)`.
   static const double gifSwipeMenu = 55;
 
+  /// How long a dragged GIF takes to settle back once its menu is up:
+  /// `valueAnimator.setDuration(350)` in `showSheetRunnable`.
+  static const Duration gifSwipeSettle = Duration(milliseconds: 350);
+
+  /// The curve of that settling: `CubicBezierInterpolator.DEFAULT`,
+  /// (0.25, 0.1, 0.25, 1).
+  static const Curve gifSwipeSettleCurve = Curves.ease;
+
   /// The rubber band's factor: `rubberYPoisition(currentMoveY, dp(200))`.
   static const double gifSwipeFactor = 200;
 
@@ -424,6 +432,12 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
     vsync: this,
     duration: ContentPreviewSession.showDuration,
   );
+  // A dragged GIF going back to rest once its menu is up: `moveY` from
+  // `startMoveY` to 0.
+  late final AnimationController _settle = AnimationController(
+    vsync: this,
+    duration: ContentPreviewSession.gifSwipeSettle,
+  );
 
   ContentPreviewSession get _session => widget.session;
 
@@ -445,6 +459,7 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
     _session._menu.removeListener(_onMenuChanged);
     _show.dispose();
     _blur.dispose();
+    _settle.dispose();
     super.dispose();
   }
 
@@ -460,9 +475,27 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
   void _onMenuChanged() {
     if (_session._menu.value != null) {
       unawaited(_blur.forward());
+      _settleSwipe();
     } else {
       unawaited(_blur.reverse());
     }
+  }
+
+  void _settleSwipe() {
+    final start = _session._swipe.value;
+    if (start == 0) return;
+    final eased = CurvedAnimation(
+      parent: _settle,
+      curve: ContentPreviewSession.gifSwipeSettleCurve,
+    );
+    void follow() => _session._swipe.value = start * (1 - eased.value);
+    _settle.addListener(follow);
+    unawaited(
+      _settle.forward(from: 0).whenComplete(() {
+        _settle.removeListener(follow);
+        eased.dispose();
+      }),
+    );
   }
 
   @override

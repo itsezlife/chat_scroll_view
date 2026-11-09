@@ -6,6 +6,11 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (GIF preview swipe settles)
+
+- A GIF dragged up until its menu opens now moves back to its resting place
+  over 350 ms on the standard ease curve; the menu stays open.
+
 ### Fixed (pack sheet text and focus)
 
 - A pack sheet's text no longer falls back to the debug style (yellow double
