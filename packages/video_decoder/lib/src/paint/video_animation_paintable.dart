@@ -134,8 +134,9 @@ final class VideoAnimationPaintable extends AssetPaintable {
 
   // The lease goes now, not at the sweep: the pool is shared by every
   // surface, and the cells that come on screen need it. A clip that comes
-  // back takes a new lease, which starts at its first frame, as after a
-  // sweep.
+  // back takes a new lease that continues the old one: the frame it left on
+  // shows at once, and it plays on from there (the scheduler's *Coming
+  // back*).
   @override
   void leftScreen() => _lease?.releaseUnlessPainted();
 
@@ -186,7 +187,14 @@ final class VideoAnimationPaintable extends AssetPaintable {
       return;
     }
     if (lease == null || lease.isReleased) {
-      lease = _lease = _scheduler.acquire(_key, _clip, onCanvas: onCanvas);
+      // A lease that went with the clip leaving the screen is continued:
+      // its frame shows at once and the clip goes on from it (ticket 144).
+      lease = _lease = _scheduler.acquire(
+        _key,
+        _clip,
+        onCanvas: onCanvas,
+        after: lease,
+      );
       if (lease == null) return;
       lease.kept = _keep;
     }
@@ -224,6 +232,8 @@ final class VideoAnimationPaintable extends AssetPaintable {
     _disposed = true;
     _lease?.release();
     _lease = null;
+    // A frame kept for a return that will not come.
+    _scheduler.forget(_key);
     _still.dispose();
     _onDispose?.call();
   }
