@@ -5,15 +5,30 @@ import 'package:meta/meta.dart';
 /// The numbers that shape [BakeGovernor]: how many glyphs one frame may bake
 /// and what share of the frame budget counts as cheap or expensive.
 ///
-/// The ceiling of 16 glyphs per frame is about a thousand glyphs a second at
-/// 60 Hz; the governor lowers it when frames get expensive and raises it back
-/// when they are cheap. The two fractions are starting points, not tuned
-/// values: a host that has measured its device passes its own.
+/// The ceiling is the bake unit: at most this many glyphs go into one strip,
+/// one `Picture.toImageSync`. Its cost lands on the raster thread, which
+/// frame timings do not report (a snapshot is not part of any frame's raster
+/// time), so the governor rarely sees it and the ceiling is in practice the
+/// size of every step. It is sized from a device trace (Vulkan, colour emoji
+/// at 72 px): a strip of 16 glyphs took 3.3 ms at the median and 4.9 ms at
+/// p90 of raster time, about 0.25 ms a glyph. Next to a 120 Hz frame's own
+/// raster work (2.1 ms at the median) that left too little of the 8.3 ms
+/// budget, so the default is 8 glyphs, about 2 ms, which also keeps a step
+/// that was queued just before a scroll began from costing the scroll a
+/// frame. About 1.6 thousand glyphs then bake in some 200 frames.
+///
+/// What the unit cannot split is reported in ADR 022: composing a page (one
+/// 2048 px snapshot) and the engine growing its own glyph atlas are each one
+/// stall of tens of milliseconds, kept off moving frames by the pause
+/// signals, not by the pace.
+///
+/// The two fractions are starting points, not tuned values: a host that has
+/// measured its device passes its own pacing.
 @immutable
 final class BakePacing {
   /// Creates a pacing.
   const BakePacing({
-    this.maxGlyphsPerFrame = 16,
+    this.maxGlyphsPerFrame = 8,
     this.minGlyphsPerFrame = 1,
     this.cheapFraction = 0.5,
     this.expensiveFraction = 0.85,
@@ -29,7 +44,8 @@ final class BakePacing {
        ),
        assert(rise > 0, 'the pace must be able to recover');
 
-  /// Glyphs per frame when frames are cheap: the default pace.
+  /// Glyphs per frame when frames are cheap: the default pace, and the most
+  /// one strip holds.
   final int maxGlyphsPerFrame;
 
   /// Glyphs per frame under sustained pressure. Never zero: pausing is the
