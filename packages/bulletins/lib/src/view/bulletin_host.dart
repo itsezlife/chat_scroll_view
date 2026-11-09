@@ -233,11 +233,28 @@ class _BulletinHostState extends State<BulletinHost>
     final TickerFuture run;
     if (entry.swipeDirection != 0) {
       final width = entry.width ?? 400;
-      run = entry.animateDragTo(
-        entry.swipeDirection * width,
-        const Duration(milliseconds: 200),
-        Curves.easeIn,
-      );
+      run = switch (entry.flingVelocity) {
+        // A fling springs towards twice the width from the release speed
+        // and is gone once past the width (B:583-597).
+        final velocity? => entry.flingDrag(
+          _PastLimit(
+            SpringSimulation(
+              _flingSpring,
+              entry.drag.value,
+              entry.swipeDirection * width * 2,
+              velocity,
+            ),
+            width,
+          ),
+        ),
+        // A drag released past the threshold accelerates to the width in
+        // 200 ms (B:635).
+        null => entry.animateDragTo(
+          entry.swipeDirection * width,
+          const Duration(milliseconds: 200),
+          Curves.easeInQuad,
+        ),
+      };
     } else {
       switch (_policy.transitionAt(entry.placementIn(_policy))) {
         case BulletinTransition$Slide(:final spring):
@@ -347,8 +364,16 @@ final class _Entry {
   /// -1 or 1 once thrown away by a swipe, else 0.
   double swipeDirection = 0;
 
+  /// The release speed when a fling threw it away; null for a drag past the
+  /// threshold.
+  double? flingVelocity;
+
   /// The card's width at the last layout, for the swipe threshold.
   double? width;
+
+  /// Whether the card is narrower than the area it sits in (a wide window),
+  /// so a drag fades it as well as moving it (B:875-887).
+  bool fadesOnDrag = false;
 
   /// Where the card sits under [policy]: the bulletin's own placement, or
   /// the policy's.
@@ -359,6 +384,9 @@ final class _Entry {
   ({double opacity, double scale})? leaveFrom;
 
   Animation<double> get drag => _drag;
+
+  TickerFuture flingDrag(Simulation simulation) =>
+      _drag.animateWith(simulation);
 
   set dragOffset(double value) {
     _drag
@@ -416,11 +444,18 @@ class _EntryViewState extends State<_EntryView> {
     }
   }
 
+  /// Whether a drag may move the card: only once it has entered, as the
+  /// reference swipes only a bulletin that can hide (B:571), which it can
+  /// from the end of its enter.
+  bool get _canDrag => _entry.handle.isEntered && !_entry.isLeaving;
+
   void _dragUpdate(DragUpdateDetails details) {
+    if (!_canDrag) return;
     _entry.dragOffset = _entry.drag.value + details.delta.dx;
   }
 
   void _dragEnd(DragEndDetails details) {
+    if (!_canDrag) return;
     final policy = widget.policy;
     final dx = _entry.drag.value;
     final velocity = details.velocity.pixelsPerSecond.dx;
@@ -429,14 +464,22 @@ class _EntryViewState extends State<_EntryView> {
         dx.abs() > width * policy.swipeDismissFraction ||
         velocity.abs() > policy.swipeFlingVelocity;
     if (thrown) {
-      final direction =
-          (velocity.abs() > policy.swipeFlingVelocity ? velocity : dx).sign;
-      _entry.swipeDirection = direction == 0 ? 1 : direction;
+      final flung = velocity.abs() > policy.swipeFlingVelocity;
+      final direction = (flung ? velocity : dx).sign;
+      _entry
+        ..swipeDirection = direction == 0 ? 1 : direction
+        ..flingVelocity = flung ? velocity : null;
       _entry.handle.swipeAway();
     } else {
+      // Back in 200 ms on the platform's default accelerate-decelerate
+      // (B:643).
       unawaited(
         _entry
-            .animateDragTo(0, const Duration(milliseconds: 200), Curves.easeOut)
+            .animateDragTo(
+              0,
+              const Duration(milliseconds: 200),
+              Curves.easeInOutSine,
+            )
             .orCancel
             .then((_) {}, onError: (_) {}),
       );
@@ -466,12 +509,20 @@ class _EntryViewState extends State<_EntryView> {
         };
       },
     );
+    final bulletin = widget.view.bulletin;
+    // Only a tappable card shows its press, as the reference sets the
+    // pressed state only with a click listener (B:621-623). It shrinks in
+    // 80 ms and returns in 350 ms with an overshoot of tension 1.5
+    // (`ScaleStateListAnimator.apply(this, .02f, 1.5f)`, B:802).
+    final pressed = _entry.isPressed && bulletin.onTap != null;
     card = AnimatedScale(
-      scale: _entry.isPressed ? policy.pressScale : 1,
-      duration: motion.durationOf(MotionRole.press),
+      scale: pressed ? policy.pressScale : 1,
+      duration: motion.speed.isInstant
+          ? Duration.zero
+          : Duration(milliseconds: pressed ? 80 : 350),
+      curve: pressed ? Curves.easeInOutSine : const _Overshoot(1.5),
       child: card,
     );
-    final bulletin = widget.view.bulletin;
     card = Listener(
       onPointerDown: (_) => _press(true),
       onPointerUp: (_) => _press(false),
@@ -487,29 +538,44 @@ class _EntryViewState extends State<_EntryView> {
     card = AnimatedBuilder(
       animation: Listenable.merge([_entry.presence, _entry.drag]),
       child: card,
-      builder: (context, child) => Transform.translate(
-        offset: Offset(_entry.drag.value, 0),
-        child: _transition(_entry.presence.value, placement, child!),
-      ),
+      builder: (context, child) {
+        final dx = _entry.drag.value;
+        final width = _entry.width ?? 0;
+        Widget moved = Transform.translate(offset: Offset(dx, 0), child: child);
+        if (_entry.fadesOnDrag && dx != 0 && width > 0) {
+          moved = Opacity(
+            opacity: (1 - dx.abs() / width).clamp(0.0, 1.0),
+            child: moved,
+          );
+        }
+        return _transition(_entry.presence.value, placement, moved);
+      },
     );
     final maxWidth = policy.maxWidth ?? double.infinity;
+    final placed = Align(
+      alignment: switch (placement) {
+        BulletinPlacement.bottom => Alignment.bottomCenter,
+        BulletinPlacement.top => Alignment.topCenter,
+        BulletinPlacement.center => Alignment.center,
+      },
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: switch (minWidth) {
+          null => SizedBox(width: double.infinity, child: card),
+          _ => card,
+        },
+      ),
+    );
     return IgnorePointer(
       ignoring: _entry.isLeaving || (policy.passesThroughWhenInert && _isInert),
       child: Padding(
         padding: policy.margin,
-        child: Align(
-          alignment: switch (placement) {
-            BulletinPlacement.bottom => Alignment.bottomCenter,
-            BulletinPlacement.top => Alignment.topCenter,
-            BulletinPlacement.center => Alignment.center,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            _entry.fadesOnDrag =
+                minWidth != null || constraints.maxWidth > maxWidth;
+            return placed;
           },
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: switch (minWidth) {
-              null => SizedBox(width: double.infinity, child: card),
-              _ => card,
-            },
-          ),
         ),
       ),
     );
@@ -517,12 +583,22 @@ class _EntryViewState extends State<_EntryView> {
 
   Widget _transition(double p, BulletinPlacement placement, Widget child) {
     final margin = widget.policy.margin;
-    return switch (widget.policy.transitionAt(placement)) {
-      // Off by its own height and the margin past the edge it sits on.
+    final transition = widget.policy.transitionAt(placement);
+    // Off by its own height and a margin past the edge it sits on. The
+    // spring slide goes both vertical margins: the reference's in-out offset
+    // is its layout's height, the card and the padding around it
+    // (B:1121-1163), so the hidden card sits a margin past the edge it clips
+    // at.
+    final beyond = switch ((transition, placement)) {
+      (BulletinTransition$Slide(), _) => margin.vertical,
+      (_, BulletinPlacement.top) => margin.top,
+      (_, _) => margin.bottom,
+    };
+    return switch (transition) {
       BulletinTransition$Slide() ||
       BulletinTransition$TimedSlide() => switch (placement) {
         BulletinPlacement.top => Transform.translate(
-          offset: Offset(0, -(1 - p) * margin.top),
+          offset: Offset(0, -(1 - p) * beyond),
           child: FractionalTranslation(
             translation: Offset(0, -(1 - p)),
             child: child,
@@ -530,7 +606,7 @@ class _EntryViewState extends State<_EntryView> {
         ),
         BulletinPlacement.bottom ||
         BulletinPlacement.center => Transform.translate(
-          offset: Offset(0, (1 - p) * margin.bottom),
+          offset: Offset(0, (1 - p) * beyond),
           child: FractionalTranslation(
             translation: Offset(0, 1 - p),
             child: child,
@@ -551,6 +627,46 @@ class _EntryViewState extends State<_EntryView> {
         child: child,
       ),
     };
+  }
+}
+
+// --- Swipe and press motion ---
+
+/// The spring a flung card leaves on: stiffness 100, no bounce (B:593-594).
+final SpringDescription _flingSpring = SpringDescription.withDampingRatio(
+  mass: 1,
+  stiffness: 100,
+);
+
+/// [simulation], done once its position passes [limit] either way: the
+/// reference cancels its fling spring past the card's width (B:586-590),
+/// long before the spring would settle at twice the width.
+final class _PastLimit extends Simulation {
+  _PastLimit(this.simulation, this.limit);
+
+  final Simulation simulation;
+  final double limit;
+
+  @override
+  double x(double time) => simulation.x(time);
+
+  @override
+  double dx(double time) => simulation.dx(time);
+
+  @override
+  bool isDone(double time) => x(time).abs() >= limit || simulation.isDone(time);
+}
+
+/// Android's `OvershootInterpolator` of [tension]: passes 1 and settles back.
+final class _Overshoot extends Curve {
+  const _Overshoot(this.tension);
+
+  final double tension;
+
+  @override
+  double transformInternal(double t) {
+    final s = t - 1;
+    return s * s * ((tension + 1) * s + tension) + 1;
   }
 }
 

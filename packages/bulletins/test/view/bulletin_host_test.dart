@@ -149,10 +149,11 @@ void main() {
       await tester.pumpAndSettle();
       final card = tester.getRect(find.byType(BulletinCard));
       final surface = _surfaceRect(tester);
-      // The Android policy keeps 8 from every edge of the free area.
+      // The Android policy keeps 16 from the sides of the free area and 8
+      // from its bottom.
       expect(card.bottom, surface.bottom - 100 - 8);
-      expect(card.left, surface.left + 8);
-      expect(card.right, surface.right - 8);
+      expect(card.left, surface.left + 16);
+      expect(card.right, surface.right - 16);
       expect(card.height, greaterThanOrEqualTo(48));
     });
 

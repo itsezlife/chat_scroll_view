@@ -343,11 +343,12 @@ base class BulletinPolicy$Android extends BulletinPolicy {
   @override
   BulletinPlacement get placement => BulletinPlacement.bottom;
 
-  /// The reference lays the card out with 16 dp of padding and draws its
-  /// background inset by 8 on each side, so the visible card sits 8 from
-  /// every edge.
+  /// The reference pads its full-width layout 16 at the sides and 8 above
+  /// and below (B:800) and draws the card inside that padding (B:1222), so
+  /// the visible card sits 16 from the sides and 8 from the obstruction.
   @override
-  EdgeInsets get margin => const EdgeInsets.all(8);
+  EdgeInsets get margin =>
+      const EdgeInsets.symmetric(horizontal: 16, vertical: 8);
 
   @override
   double get minHeight => 48;
@@ -359,9 +360,10 @@ base class BulletinPolicy$Android extends BulletinPolicy {
   EdgeInsets get contentPadding =>
       const EdgeInsets.symmetric(horizontal: 12, vertical: 8);
 
-  /// The reference's 56 dp icon box, less the 8 the card is inset by.
+  /// The reference's 56 dp icon box, which starts at the card's edge
+  /// (B:1979).
   @override
-  double get leadingWidth => 48;
+  double get leadingWidth => 56;
 
   @override
   double get iconSize => 24;

@@ -34,6 +34,16 @@ is pre-1.0.
   (`BulletinFadeScaleMotion`) to time the fade and the scale apart. A host
   that compared `BulletinPolicy.ios().transition` to a plain
   `fadeScale()` sees them differ now.
+- The Android card (ticket 130): `BulletinBuilders$Android` (the opaque
+  undo card, or glass in a chat; the 56 x 48 leading slot, the 29
+  thumbnail, the 20 countdown ring with sliding digits; Undo and buttons
+  with a pressed highlight; the reference text sizes and line counts) and
+  `BulletinCountdown$Android`. `BulletinPolicy$Android` changes: margin 8 →
+  16 at the sides, leading slot 48 → 56. The host now slides a spring card
+  by its height and both vertical margins, flings it on a stiffness-100
+  spring, swipes only once entered, fades a drag where the card is narrower
+  than its area, and scales only a card with a body tap (80 ms in, 350 ms
+  overshoot out).
 
 ### Changed
 

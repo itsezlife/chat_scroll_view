@@ -8,6 +8,12 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'android/bulletin_android_golden_test.dart'
+    as bulletin_android_golden_test;
+import 'android/bulletin_android_motion_test.dart'
+    as bulletin_android_motion_test;
+import 'android/bulletin_builders_android_test.dart'
+    as bulletin_builders_android_test;
 import 'bulletin/bulletin_test.dart' as bulletin_test;
 import 'controller/bulletin_controller_test.dart' as bulletin_controller_test;
 import 'desktop/desktop_toast_golden_test.dart' as desktop_toast_golden_test;
@@ -19,6 +25,18 @@ import 'view/bulletin_host_test.dart' as bulletin_host_test;
 import 'view/bulletin_message_test.dart' as bulletin_message_test;
 
 void main() {
+  group(
+    'android/bulletin_android_golden_test.dart',
+    bulletin_android_golden_test.main,
+  );
+  group(
+    'android/bulletin_android_motion_test.dart',
+    bulletin_android_motion_test.main,
+  );
+  group(
+    'android/bulletin_builders_android_test.dart',
+    bulletin_builders_android_test.main,
+  );
   group('bulletin/bulletin_test.dart', bulletin_test.main);
   group(
     'controller/bulletin_controller_test.dart',
