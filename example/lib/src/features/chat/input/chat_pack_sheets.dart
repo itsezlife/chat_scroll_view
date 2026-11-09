@@ -93,8 +93,9 @@ abstract final class ChatPackSheets {
     required PanelArrangement? arrangement,
     ContentKey? previewEmoji,
   }) {
-    // Favourites from the sheet's preview: at once, as from the panel's.
-    void libraryEdit(LibraryEdit edit) => services.library.apply(edit);
+    // Favourites from the sheet's preview: at once, as from the panel's, and
+    // shown at once by the panel under the sheet.
+    void libraryEdit(LibraryEdit edit) => services.libraryShown.apply(edit);
     final messenger = ScaffoldMessenger.maybeOf(context);
     final strings = ChromeStringsScope.packSheetOf(context);
     void edits(List<PackEditRequest> requests) =>

@@ -721,7 +721,8 @@ final class AppServices {
 
   /// The [library] as the panel shows it: as of the last
   /// [commitShownLists], except that what leaves the library leaves it at
-  /// once.
+  /// once and an edit the user asks for (`DeferredLibraryView.apply`) shows
+  /// at once. The record of a send (`DeferredLibraryView.record`) waits.
   final DeferredLibraryView libraryShown;
 
   /// Every pack by its id, as a content's descriptor names it: the bundled

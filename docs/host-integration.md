@@ -556,7 +556,11 @@ store, and `commit()` the view when the panel opens and when search ends. A
 clear commits at once. The content library's lists (recent and favourite
 stickers, saved GIFs) want the same: the example's `DeferredLibraryView`
 shows them as of its last `commit()` and drops a key that leaves the library
-at once.
+at once. Which library edits wait is the verb the host uses on the view: the
+record of a send (`record`) waits for the next `commit()`; an edit the user
+asked for (`apply`: favourite, unfavourite, save or unsave a GIF, forget a
+recent) shows at once, its key first and nothing else moving, as the
+reference client reloads its lists for those and not for a send.
 
 ### Composer wiring
 
