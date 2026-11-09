@@ -34,6 +34,9 @@ import 'gifs/gif_page_test.dart' as gif_page_test;
 import 'gifs/gif_row_layout_test.dart' as gif_row_layout_test;
 import 'goldens/emoji_page_golden_test.dart' as emoji_page_golden_test;
 import 'menu/catalog_context_menu_test.dart' as catalog_context_menu_test;
+import 'pack_sheet/emoji_pack_sheet_test.dart' as emoji_pack_sheet_test;
+import 'pack_sheet/pack_sheet_action_test.dart' as pack_sheet_action_test;
+import 'pack_sheet/sticker_pack_sheet_test.dart' as sticker_pack_sheet_test;
 import 'page/catalog_page_contents_change_test.dart'
     as catalog_page_contents_change_test;
 import 'page/catalog_page_in_shell_test.dart' as catalog_page_in_shell_test;
@@ -97,6 +100,12 @@ void main() {
   group('gifs/gif_row_layout_test.dart', gif_row_layout_test.main);
   group('goldens/emoji_page_golden_test.dart', emoji_page_golden_test.main);
   group('menu/catalog_context_menu_test.dart', catalog_context_menu_test.main);
+  group('pack_sheet/emoji_pack_sheet_test.dart', emoji_pack_sheet_test.main);
+  group('pack_sheet/pack_sheet_action_test.dart', pack_sheet_action_test.main);
+  group(
+    'pack_sheet/sticker_pack_sheet_test.dart',
+    sticker_pack_sheet_test.main,
+  );
   group(
     'page/catalog_page_contents_change_test.dart',
     catalog_page_contents_change_test.main,

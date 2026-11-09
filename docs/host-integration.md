@@ -434,6 +434,18 @@ controller over its `ContentLibrary` (the menus read it to say "Add to" or
 "Delete from Favorites"), disposes it after the pages, and calls
 `controller.dismiss()` first in its back handling: the preview stands in an
 overlay outside any route, so back reaches the host, not the preview.
+A tap on a pack's title (the stickers page, a pack of custom emoji on the
+emoji page) is `PackRequested` too. The host answers it with a pack sheet
+(`StickerPackSheet` or `EmojiPackSheet` by the pack's kind, shown with
+`PackSheet.show`: a bottom sheet on touch, a centred box under a pointer).
+The sheet edits nothing itself: its button asks for the edits
+(`PackEditsRequested`), which the host applies, a removal or an archiving
+inside an undo window that its bulletin's Undo can take back (the reference
+holds it 2750 ms), and confirms with `PackSheetStrings`' words. It sends or
+inserts only through the `onPick` the host gives when a composer can take
+it, and a sticker sheet given the `ContentPreviewController` previews its
+stickers (Send only with `onPick`, no "View pack"). A `LibraryEditRequested`
+that removes or archives a pack goes through the same bulletin.
 A host that lists the recents through a `DeferredRecentsStore` view (so a pick
 does not reorder the grid under the pointer) routes `remove` and `clear` through
 the view: the emoji leaves the list at once and nothing else in it moves.

@@ -32,6 +32,9 @@ import 'package:panel_shell/panel_shell.dart';
 /// - **The recents header.** A clear button at its end; it asks the host to
 ///   clear the recent stickers (`PanelPageHost.requestClearRecents`), and the
 ///   host confirms, as the reference client's alert does.
+/// - **A pack's header.** Its title opens the pack: a tap asks the host for
+///   the pack the section lists (`PanelPageHost.requestPack`; `EmojiView`'s
+///   `setHeaderOnClick` calls `onShowStickerSet`).
 /// - **Strip.** The [StickerPackStrip] above the catalogue.
 /// - **Preview.** Given [previews] and a [host], a press held on a sticker
 ///   opens the content preview (`ContentPreviewSession`), favourites and
@@ -75,6 +78,9 @@ final class StickersPagePolicy extends CatalogPagePolicy {
 
   /// The id of the recents header's clear button.
   static const String clearRecentsActionId = 'clear-recents';
+
+  /// The id a pack's header title reports.
+  static const String openPackActionId = 'open-pack';
 
   /// Where the strip draws pack covers, and the preview its sticker, from.
   final AssetCacheScope? assets;
@@ -249,6 +255,14 @@ final class StickersPagePolicy extends CatalogPagePolicy {
       ..drawLine(at(16.5, 7.5), at(7.5, 16.5), pen);
   }
 
+  // --- A pack's header ------------------------------------------------------
+
+  @override
+  String? titleActionOf(Collection collection) => switch (collection.id) {
+    CollectionId$Set() => openPackActionId,
+    _ => null,
+  };
+
   @override
   void onSectionAction(
     Collection collection,
@@ -258,8 +272,11 @@ final class StickersPagePolicy extends CatalogPagePolicy {
     Rect? bounds,
     Rect? viewportBounds,
   }) {
-    if (actionId == clearRecentsActionId) {
-      host.requestClearRecents(SemanticKind.sticker);
+    switch ((actionId, collection.id)) {
+      case (clearRecentsActionId, _):
+        host.requestClearRecents(SemanticKind.sticker);
+      case (openPackActionId, CollectionId$Set(:final id)):
+        host.requestPack(PackId(id));
     }
   }
 

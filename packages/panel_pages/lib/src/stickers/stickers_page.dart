@@ -23,6 +23,9 @@ import 'package:panel_shell/panel_shell.dart';
 /// says [PanelStrings.stickersEmpty] in the middle, over the empty catalogue,
 /// rather than show a blank page that reads as one still loading.
 ///
+/// A tap on a pack's title asks the host to open that pack
+/// (`PanelPageHost.requestPack`; the host shows its pack sheet).
+///
 /// Requires the chrome theme, strings and motion scopes.
 class StickersPage extends StatefulWidget {
   /// The stickers page of [host], showing the packs of [source] and drawing

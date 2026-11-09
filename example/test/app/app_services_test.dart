@@ -11,6 +11,7 @@ import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
@@ -872,6 +873,73 @@ void main() {
         CollectionId.recent,
       ]);
     });
+
+    test('the emoji page lists the shipped emoji pack as installed, and '
+        'loses it when it is removed', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      const pack = CollectionId.set('noto_animated_emoji');
+
+      expect(ids(services.emojiPageSource), contains(pack));
+      expect(
+        services.library.installStateOf(const PackId('noto_animated_emoji')),
+        PackInstallState.installed,
+      );
+
+      services.library.apply(
+        const LibraryEdit.removePack(
+          PackId('noto_animated_emoji'),
+          PackKind.emoji,
+        ),
+      );
+
+      expect(ids(services.emojiPageSource), isNot(contains(pack)));
+    });
+
+    test(
+      'a bundled demo pack added to the library joins the stickers page',
+      () async {
+        final services = await createTestServices();
+        addTearDown(services.dispose);
+        final demo = BundledPacks.descriptors
+            .firstWhere((d) => d.semanticKind == SemanticKind.sticker)
+            .pack!;
+
+        services.library.apply(
+          LibraryEdit.installPack(demo, PackKind.stickers),
+        );
+        await pumpEventQueue();
+
+        expect(ids(services.stickerPageSource), [
+          CollectionId.faved,
+          CollectionId.recent,
+          CollectionId.set(demo.value),
+        ]);
+      },
+    );
+
+    test(
+      'the shipped packs are installed once: one removed stays removed',
+      () async {
+        final storage = FakeKeyValueStore();
+        final first = await createTestServices(storage: storage);
+        first.library.apply(
+          const LibraryEdit.removePack(
+            PackId('noto_animated_emoji'),
+            PackKind.emoji,
+          ),
+        );
+        first.dispose();
+
+        final second = await createTestServices(storage: storage);
+        addTearDown(second.dispose);
+
+        expect(
+          second.library.installStateOf(const PackId('noto_animated_emoji')),
+          PackInstallState.notInstalled,
+        );
+      },
+    );
 
     test('list a local corpus after the favourites and the recents, a pack '
         'each', () async {

@@ -73,6 +73,10 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   right click keeps the recents menu.
 /// - **Strip.** The category strip above the catalogue, or pinned below it
 ///   under the pointer arrangement ([stripReady] defers it).
+/// - **A pack's header.** The title of a pack of custom emoji (a section of
+///   `CollectionId.set`) asks the host to open the pack
+///   (`PanelPageHost.requestPack`; `EmojiView`'s custom emoji pack header
+///   opens `EmojiPacksAlert`).
 final class EmojiPagePolicy extends CatalogPagePolicy {
   /// The emoji policy of the page behind [host].
   ///
@@ -89,6 +93,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     this.stripLayout = EmojiStripLayout.automatic,
     this.previews,
   });
+
+  /// The id a pack's header title reports.
+  static const String openPackActionId = 'open-pack';
 
   /// What the page declares to the shell: search, placed inline among the
   /// content so it scrolls away with it and pins when search opens; a top
@@ -200,6 +207,12 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   final EmojiStripLayout stripLayout;
 
   @override
+  String? titleActionOf(Collection collection) => switch (collection.id) {
+    CollectionId$Set() => openPackActionId,
+    _ => null,
+  };
+
+  @override
   PageCapabilities get capabilities => pageCapabilities;
 
   // --- Sections -------------------------------------------------------------
@@ -296,6 +309,13 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     Rect? bounds,
     Rect? viewportBounds,
   }) {
+    if ((actionId, collection.id) case (
+      openPackActionId,
+      CollectionId$Set(:final id),
+    )) {
+      host.requestPack(PackId(id));
+      return;
+    }
     if (actionId != colorAllActionId ||
         context == null ||
         bounds == null ||

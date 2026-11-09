@@ -6,6 +6,21 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (pack sheets)
+
+- `StickerPackSheet` and `EmojiPackSheet` (one pack or several), shown with
+  `PackSheet.show`: a bottom sheet on touch (dim `0x33`, opening in 420 ms
+  on ease-out-quint after 20 ms, closing in 250 ms, dismissed by a drag past
+  0.8 cm or a 3500 px/s fling, part-way at 3/5 of the screen when taller
+  than 3.2/5) and a centred 364 px box under a pointer. They read a
+  `PackSource` and the library's install states and ask the host for every
+  effect (`PackEditsRequested`, `onPick`, `onUnavailable`, `PackSheetLinks`).
+  The bottom button is a `PackSheetAction`. A sticker sheet given `previews`
+  opens the content preview on a hold and, with its menu, on a tap.
+- `CatalogPagePolicy.titleActionOf`: a section's title as an action. The
+  stickers and emoji pages report a tap on a pack's title as
+  `PanelPageHost.requestPack`.
+
 ### Added (content preview)
 
 - `ContentPreviewSession`: the reference mobile client's content preview, a

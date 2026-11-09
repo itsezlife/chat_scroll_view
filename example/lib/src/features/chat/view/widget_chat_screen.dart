@@ -18,6 +18,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_dat
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
@@ -46,7 +47,13 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart'
-    show PackId, PackLookup$Found, PastedMedia, SemanticKind;
+    show
+        LibraryPackEdit,
+        PackId,
+        PackKind,
+        PackLookup$Found,
+        PastedMedia,
+        SemanticKind;
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -244,7 +251,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       keyboard: widget.softKeyboard,
       policy: widget.presentationPolicy,
       onPastedMedia: _onPastedMedia,
-      onPackRequested: _openPack,
+      onPackRequested: (id) => unawaited(_openPack(id)),
+      onPackEditRequested: _editPack,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
     // Made with the input set: the chat's embeds hold while its popup panel
@@ -863,17 +871,51 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     return confirmed ?? false;
   }
 
-  // "View pack" from the panel's preview. The pack sheet (ticket 123) opens
-  // here; until it lands, the demo names the pack it would show.
-  void _openPack(PackId id) {
+  // A pack title in the panel, or "View pack" in its preview: the pack's
+  // sheet, a sticker sheet or an emoji sheet by what the pack holds. Its
+  // stickers are sent, and its emoji inserted, through the input set as a
+  // pick from the panel is; stickers only where the chat allows them.
+  Future<void> _openPack(PackId id) async {
+    final services = widget.services;
+    final lookup = await services.packs.lookup(id);
     if (!mounted) return;
-    final title = switch (widget.services.packs.peek(id)) {
-      PackLookup$Found(:final pack) => pack.title,
-      _ => id.value,
+    final kind = switch (lookup) {
+      PackLookup$Found(:final pack) => pack.kind,
+      // The sheet says the pack is not there.
+      _ => PackKind.stickers,
     };
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(title)));
+    final input = _input;
+    final canPick = kind == PackKind.emoji || _chatAllowsStickers;
+    await ChatPackSheets.open(
+      context,
+      services: services,
+      pack: id,
+      kind: kind,
+      onPick: canPick
+          ? (item) => input.pickContent(item.key, kind: item.semanticKind)
+          : null,
+    );
+  }
+
+  // A pack's edit asked by the panel: applied with its bulletin, a removal
+  // or an archiving behind Undo.
+  void _editPack(LibraryPackEdit edit) {
+    if (!mounted) return;
+    final services = widget.services;
+    final pack = switch (services.packs.peek(edit.id)) {
+      PackLookup$Found(:final pack) => pack,
+      _ => null,
+    };
+    if (pack == null) {
+      ChatPackSheets.applyAlone(services.library, edit);
+      return;
+    }
+    ChatPackSheets.apply(
+      services.library,
+      [(edit: edit, pack: pack)],
+      ChromeStringsScope.packSheetOf(context),
+      ScaffoldMessenger.maybeOf(context),
+    );
   }
 
   // The demo sends no media: it shows what it would send, as the reference

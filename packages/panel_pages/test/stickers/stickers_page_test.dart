@@ -274,6 +274,29 @@ void main() {
     });
   });
 
+  group('a pack title', () {
+    pageTest('a tap on it asks to open the pack', (tester) async {
+      await pumpPage(tester);
+
+      await tester.tapAt(origin(tester) + const Offset(40, 36 + 13.5));
+      await tester.pump();
+
+      expect(host.packRequests, [const PackId('a')]);
+      expect(host.picks, isEmpty);
+    });
+
+    pageTest('the recents title opens nothing', (tester) async {
+      source.dispose();
+      source = FakeCollectionSource([_recents(), _pack('a', 'Cats')]);
+      await pumpPage(tester);
+
+      await tester.tapAt(origin(tester) + const Offset(40, 36 + 13.5));
+      await tester.pump();
+
+      expect(host.packRequests, isEmpty);
+    });
+  });
+
   group('the strip', () {
     pageTest('has a tab per pack, the first one active', (tester) async {
       await pumpPage(tester);

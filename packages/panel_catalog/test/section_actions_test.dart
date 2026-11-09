@@ -27,11 +27,13 @@ String _glyph(int i) => String.fromCharCode(0x1F600 + i);
 CatalogSection _section(
   String id, {
   CatalogSectionAction? action,
+  String? titleAction,
   int leaves = 8,
 }) => CatalogSection(
   id: id,
   title: id,
   action: action,
+  titleAction: titleAction,
   leaves: [for (var i = 0; i < leaves; i++) CatalogLeaf.unicode(_glyph(i))],
 );
 
@@ -293,5 +295,62 @@ void main() {
         expect(controller.offset, greaterThan(0));
       },
     );
+  });
+
+  group('a header that opens', () {
+    const more = CatalogSectionAction(id: 'more', label: 'More');
+
+    testWidgets('a tap on the title reports the title action', (tester) async {
+      snapshots.replaceSections([_section('a', titleAction: 'open')]);
+      await pumpViewport(tester);
+
+      await tapAt(tester, const Offset(20, 12));
+
+      expect(actions, [('a', 'open')]);
+    });
+
+    testWidgets('anywhere in the band but the trailing action reports it', (
+      tester,
+    ) async {
+      snapshots.replaceSections([
+        _section('a', action: more, titleAction: 'open'),
+      ]);
+      await pumpViewport(tester);
+
+      await tapAt(tester, const Offset(200, 12));
+      await tapAt(tester, const Offset(290, 12));
+
+      expect(actions, [('a', 'open'), ('a', 'more')]);
+    });
+
+    testWidgets('a header without one stays silent off its action', (
+      tester,
+    ) async {
+      snapshots.replaceSections([_section('a', action: more)]);
+      await pumpViewport(tester);
+
+      await tapAt(tester, const Offset(20, 12));
+
+      expect(actions, isEmpty);
+    });
+
+    testWidgets('a drag that starts on the title scrolls and reports nothing', (
+      tester,
+    ) async {
+      snapshots.replaceSections([
+        _section('a', titleAction: 'open', leaves: 200),
+      ]);
+      await pumpViewport(tester);
+
+      final origin = tester.getTopLeft(find.byType(PanelCatalogViewport));
+      await tester.dragFrom(
+        origin + const Offset(20, 12),
+        const Offset(0, -100),
+      );
+      await tester.pump();
+
+      expect(actions, isEmpty);
+      expect(controller.offset, greaterThan(0));
+    });
   });
 }

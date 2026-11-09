@@ -69,6 +69,7 @@ import 'features/chat/chat_data_source_bodies_test.dart'
 import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
 import 'features/chat/chat_messages_copy_format_test.dart'
     as chat_messages_copy_format_test;
+import 'features/chat/chat_pack_sheets_test.dart' as chat_pack_sheets_test;
 import 'features/chat/chat_texture_warmer_test.dart'
     as chat_texture_warmer_test;
 import 'features/chat/corpus_sticker_pack_test.dart'
@@ -81,6 +82,8 @@ import 'features/chat/emoji_service_colors_test.dart'
 import 'features/chat/giphy_client_test.dart' as giphy_client_test;
 import 'features/chat/giphy_content_test.dart' as giphy_content_test;
 import 'features/chat/giphy_gif_source_test.dart' as giphy_gif_source_test;
+import 'features/chat/installed_packs_source_test.dart'
+    as installed_packs_source_test;
 import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
 import 'features/chat/large_emoji_test.dart' as large_emoji_test;
@@ -99,6 +102,7 @@ import 'features/chat/panel_texture_warmer_test.dart'
     as panel_texture_warmer_test;
 import 'features/chat/reference_media_sizes_test.dart'
     as reference_media_sizes_test;
+import 'features/chat/shipped_packs_seed_test.dart' as shipped_packs_seed_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/static_sticker_pack_test.dart'
     as static_sticker_pack_test;
@@ -383,6 +387,15 @@ void main() {
   group(
     'features/chat/library_content_source_test.dart',
     library_content_source_test.main,
+  );
+  group('features/chat/chat_pack_sheets_test.dart', chat_pack_sheets_test.main);
+  group(
+    'features/chat/installed_packs_source_test.dart',
+    installed_packs_source_test.main,
+  );
+  group(
+    'features/chat/shipped_packs_seed_test.dart',
+    shipped_packs_seed_test.main,
   );
   group('features/chat/link_activation_test.dart', link_activation_test.main);
   group(

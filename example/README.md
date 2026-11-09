@@ -33,13 +33,14 @@ What has and has not run in a browser: see "Not run" under Web in
 
 The panel lists only real content:
 
-- the emoji page: the emoji catalogue, then the animated emoji pack (custom
-  emoji, not stickers);
+- the emoji page: the emoji catalogue, then the installed packs of custom
+  emoji (the animated emoji pack, not stickers);
 - the stickers page: the favourite stickers ("Избранные", with a tab of
-  their own), the recent stickers, then the local Telegram corpus, a pack per
-  folder (see "Local Telegram stickers" below). Without the corpus (a fresh
-  checkout, CI) it lists the favourites and the recents alone, and with
-  neither it says "Стикеров пока нет" (`PanelStrings.stickersEmpty`);
+  their own), the recent stickers, then the installed sticker packs in the
+  library's order (the local Telegram corpus, a pack per folder; see "Local
+  Telegram stickers" below). Without the corpus (a fresh checkout, CI) it
+  lists the favourites and the recents alone, and with neither it says
+  "Стикеров пока нет" (`PanelStrings.stickersEmpty`);
 - the GIF page: the saved GIFs as its recents, then Giphy's trending and
   search (see "Giphy GIFs" below). Without a key it lists the saved GIFs
   alone, and with none either it says "GIF не найдены"
@@ -57,8 +58,20 @@ example favourites a sticker yet: the content preview will. Each sticker and
 custom emoji names its pack (`ContentDescriptor.pack`), which the services'
 pack source serves by id from the bundled packs and the corpus.
 
+The pages list the installed packs (`ContentLibrary.installedPacks`), not
+every pack the app knows. The packs the panel listed before there was a
+library (each corpus folder, the animated emoji) are installed once, on the
+first run that ships them (`ShippedPacksSeed`, namespace `library_seed`): one
+the user removes stays removed, and a corpus folder added later is installed
+on the next run. A tap on a pack's title opens its pack sheet (a bottom sheet
+on a phone, a centred box on desktop); Add and Remove change the panel at
+once, and a removal shows a bulletin with Undo for 2750 ms
+(`lib/src/features/chat/input/chat_pack_sheets.dart`). In a sticker sheet a
+tap or a hold opens the content preview, whose Send sends the sticker; in an
+emoji sheet a tap inserts the emoji.
+
 The bundled demo packs (Lottie, static and video stickers, MP4 clips and
-GIFs) are no longer on any panel page: they stay in the app for the showcase
+GIFs) are not installed and so are on no panel page: they stay in the app for the showcase
 chat, which shows every one of them, and one already among the recents, the
 favourites or the saved GIFs stays listed there. Tapping a sticker or GIF sends it as a message
 and leaves the panel open; a sent sticker or GIF cannot be edited. Wiring:

@@ -88,7 +88,8 @@ final class ChatEditTarget {
 ///   inline content reference in the composer and one `RecentsStore.record`;
 ///   a picked sticker is sent and put first in the content library's recent
 ///   stickers, a picked GIF sent and saved (ADR 044); backspace edits the
-///   composer; clearing recents asks [confirmClearRecents] first.
+///   composer; clearing recents asks [confirmClearRecents] first. What a pack
+///   sheet picks comes back through [pickContent].
 /// - **Pasted media.** An image or file pasted into the composer, or an
 ///   image a keyboard inserts, goes to `onPastedMedia` to send, and no text
 ///   goes in; when it is not sent, the text that came with it does.
@@ -134,6 +135,7 @@ final class ChatInputSet {
     PanelPresentationPolicy? policy,
     Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
     ValueChanged<PackId>? onPackRequested,
+    ValueChanged<LibraryPackEdit>? onPackEditRequested,
     int? messageLengthLimit = DemoConfig.messageLengthMax,
   }) {
     // What has been made so far, to free in reverse if a later step throws
@@ -267,6 +269,7 @@ final class ChatInputSet {
         edit: edit,
         confirmClearRecents: confirmClearRecents,
         onPackRequested: onPackRequested,
+        onPackEditRequested: onPackEditRequested,
         messageLengthLimit: messageLengthLimit,
         ime: ime,
         window: window,
@@ -298,6 +301,7 @@ final class ChatInputSet {
     required ChatBodyEditor edit,
     required ClearRecentsConfirm confirmClearRecents,
     required ValueChanged<PackId>? onPackRequested,
+    required ValueChanged<LibraryPackEdit>? onPackEditRequested,
     required this.messageLengthLimit,
     required this.ime,
     required listen.ValueNotifier<PanelWindow> window,
@@ -321,6 +325,7 @@ final class ChatInputSet {
        _edit = edit,
        _confirmClearRecents = confirmClearRecents,
        _onPackRequested = onPackRequested,
+       _onPackEditRequested = onPackEditRequested,
        _window = window,
        _text = text,
        linkPreview = ChatLinkPreview(text: text) {
@@ -434,6 +439,7 @@ final class ChatInputSet {
 
   // Where "View pack" goes: the host's pack sheet, once there is one.
   final ValueChanged<PackId>? _onPackRequested;
+  final ValueChanged<LibraryPackEdit>? _onPackEditRequested;
   final listen.ValueNotifier<PanelWindow> _window;
   final ComposerTextController _text;
 
@@ -988,23 +994,7 @@ final class ChatInputSet {
   void _onPanelEvent(PanelEvent event) {
     switch (event) {
       case ContentPicked(:final key, :final recentsKind, :final source):
-        unawaited(HapticFeedback.selectionClick());
-        // By the content: this host inserts what it can read as text, a
-        // unicode emoji or an animated emoji of its pack.
-        if (_textOf(key) case final alternativeText?) {
-          composer.insertContent(
-            InlineContentRef(key: key, alternativeText: alternativeText),
-          );
-        }
-        // A sticker or a GIF is not text: tapping it sends it, and the panel
-        // stays open and the composer as it is, as the reference client does
-        // (`onStickerSelected` and `onGifSelected` send, add to the recents
-        // and leave the panel up).
-        if (StickerMessageBody.ofKey(key, describe: services.describe)
-            case final body?) {
-          unawaited(_sendPicked(body));
-        }
-        _record(key, kind: recentsKind, source: source);
+        _pick(key, recentsKind: recentsKind, source: source);
       case BackspaceRequested():
         unawaited(HapticFeedback.selectionClick());
         composer.backspace();
@@ -1019,9 +1009,13 @@ final class ChatInputSet {
         }
       case RecentRemoveRequested(:final key, :final kind):
         _forget(key, kind: kind);
-      // A favourite, a saved GIF, a recent sticker forgotten: the library
-      // takes the edit at once, with no undo window (the reference offers
-      // none for these).
+      // A pack's edit is the host's, with its bulletin (a removal held
+      // behind Undo). A favourite, a saved GIF, a recent sticker forgotten:
+      // the library takes the edit at once, with no undo window (the
+      // reference offers none for these).
+      case LibraryEditRequested(edit: final LibraryPackEdit edit)
+          when _onPackEditRequested != null:
+        _onPackEditRequested(edit);
       case LibraryEditRequested(:final edit):
         services.library.apply(edit);
       case PackRequested(:final id):
@@ -1035,6 +1029,38 @@ final class ChatInputSet {
       case ActionInvoked() || PageChanged() || SearchOpened():
         break;
     }
+  }
+
+  /// Takes [key], content of [kind] picked outside the panel (a pack sheet),
+  /// as a pick from the panel: an emoji goes into the composer, a sticker
+  /// is sent, and either is recorded among its recents.
+  void pickContent(ContentKey key, {required SemanticKind kind}) {
+    if (_disposed) return;
+    _pick(key, recentsKind: kind, source: PickSource.collection);
+  }
+
+  void _pick(
+    ContentKey key, {
+    required SemanticKind recentsKind,
+    required PickSource source,
+  }) {
+    unawaited(HapticFeedback.selectionClick());
+    // By the content: this host inserts what it can read as text, a
+    // unicode emoji or an animated emoji of its pack.
+    if (_textOf(key) case final alternativeText?) {
+      composer.insertContent(
+        InlineContentRef(key: key, alternativeText: alternativeText),
+      );
+    }
+    // A sticker or a GIF is not text: tapping it sends it, and the panel
+    // stays open and the composer as it is, as the reference client does
+    // (`onStickerSelected` and `onGifSelected` send, add to the recents
+    // and leave the panel up).
+    if (StickerMessageBody.ofKey(key, describe: services.describe)
+        case final body?) {
+      unawaited(_sendPicked(body));
+    }
+    _record(key, kind: recentsKind, source: source);
   }
 
   // Records a pick in the list the page chose ([kind]): a sticker among the

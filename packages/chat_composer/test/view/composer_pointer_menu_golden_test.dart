@@ -55,6 +55,7 @@ final _baselineStrings = ChromeStrings(
   panel: _english.panel,
   composer: _english.composer,
   formatting: _english.formatting,
+  packSheet: _english.packSheet,
   semantics: _english.semantics,
   editMenu: EditMenuStrings(
     undoAction: _english.editMenu.undoAction,
