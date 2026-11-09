@@ -109,6 +109,35 @@ void main() {
       },
     );
 
+    // Ticket 148: a lease that comes back shows its kept frame at once and
+    // writes the next one, not the kept one again.
+    test(
+      'a lease that comes back does not write its kept frame again',
+      () async {
+        await pool.warm(64, 1);
+        final a = lease('a');
+        await postThree(a, 4);
+        expect(a.texture, isNotNull);
+
+        a.releaseUnlessPainted();
+        timers.elapse(Duration.zero);
+        expect(pool.keptFrames, 1);
+
+        final back = lease('a');
+        expect(back.texture, isNotNull, reason: 'its kept frame at once');
+        final written = writer.batches.length;
+        scheduler.want(back, 6);
+        await tick();
+        expect(writer.batches.skip(written), isEmpty, reason: 'it holds 6');
+        scheduler.want(back, 7);
+        await tick();
+        expect(
+          [for (final b in writer.batches.skip(written)) b.single.frame],
+          [7],
+        );
+      },
+    );
+
     test('exposes the texture only once three frames were posted', () async {
       await pool.warm(64, 1);
       final a = lease('a');
