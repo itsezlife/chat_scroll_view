@@ -1,4 +1,5 @@
 import 'package:content_model/src/identity/content_key.dart';
+import 'package:content_model/src/pack/pack.dart';
 import 'package:meta/meta.dart';
 
 /// What a piece of content is to the user.
@@ -153,6 +154,7 @@ final class ContentDescriptor {
     this.thumbnail,
     this.spokenName,
     this.shortcode,
+    this.pack,
   });
 
   /// The content this descriptor describes.
@@ -191,6 +193,12 @@ final class ContentDescriptor {
   /// language, unlike [spokenName]; a panel shows it as a hint for the item.
   final String? shortcode;
 
+  /// The pack the content belongs to, when it was published in one: the
+  /// pack a sticker or custom emoji opens. Null for content outside any pack
+  /// (a sticker sent on its own, a GIF, a unicode emoji). Not identity: the
+  /// key alone says which content this is.
+  final PackId? pack;
+
   @override
   bool operator ==(Object other) =>
       other is ContentDescriptor &&
@@ -203,7 +211,8 @@ final class ContentDescriptor {
       other.size == size &&
       other.thumbnail == thumbnail &&
       other.spokenName == spokenName &&
-      other.shortcode == shortcode;
+      other.shortcode == shortcode &&
+      other.pack == pack;
 
   @override
   int get hashCode => Object.hash(
@@ -217,6 +226,7 @@ final class ContentDescriptor {
     thumbnail,
     spokenName,
     shortcode,
+    pack,
   );
 
   @override

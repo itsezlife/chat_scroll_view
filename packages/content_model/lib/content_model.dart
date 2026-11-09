@@ -20,6 +20,7 @@ export 'src/emoji/emoji_only_text.dart';
 export 'src/identity/content_descriptor.dart';
 export 'src/identity/content_key.dart';
 export 'src/identity/inline_content_ref.dart';
+export 'src/pack/pack.dart';
 export 'src/rich_text/detection/detection_policy.dart';
 export 'src/rich_text/detection/entity_detection.dart';
 export 'src/rich_text/entity.dart';

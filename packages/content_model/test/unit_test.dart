@@ -23,6 +23,7 @@ import 'markdown/markdown_list_test.dart' as markdown_list_test;
 import 'markdown/markdown_round_trip_test.dart' as markdown_round_trip_test;
 import 'markdown/markdown_username_hashtag_test.dart'
     as markdown_username_hashtag_test;
+import 'pack/pack_test.dart' as pack_test;
 import 'rich_text/code_block_test.dart' as code_block_test;
 import 'rich_text/entity_detection_test.dart' as entity_detection_test;
 import 'rich_text/list_test.dart' as list_test;
@@ -69,6 +70,7 @@ void main() {
     'markdown/markdown_username_hashtag_test.dart',
     markdown_username_hashtag_test.main,
   );
+  group('pack/pack_test.dart', pack_test.main);
   group('rich_text/code_block_test.dart', code_block_test.main);
   group('rich_text/entity_detection_test.dart', entity_detection_test.main);
   group('rich_text/list_test.dart', list_test.main);
