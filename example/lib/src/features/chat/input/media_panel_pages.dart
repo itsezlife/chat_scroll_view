@@ -2,6 +2,8 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -58,8 +60,12 @@ abstract final class MediaPanelPages {
     );
   }
 
-  /// The stickers [PanelPage]: a strip of packs over the catalogue.
-  static PanelPage stickers({required AppServices services}) => PanelPage(
+  /// The stickers [PanelPage]: a strip of packs over the catalogue. A tap on
+  /// a pack's title asks [onPackRequested] to open that pack's sheet.
+  static PanelPage stickers({
+    required AppServices services,
+    ValueChanged<PackId>? onPackRequested,
+  }) => PanelPage(
     id: stickersId,
     tab: const PanelTab(icon: ChromeIconId.stickers, labelKey: stickersId),
     capabilities: StickersPagePolicy.pageCapabilities,
@@ -74,6 +80,7 @@ abstract final class MediaPanelPages {
         host: host,
         source: services.stickerPageSource,
         assets: services.assets,
+        onPackRequested: onPackRequested,
       );
     },
   );

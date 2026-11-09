@@ -18,6 +18,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_dat
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
@@ -46,7 +47,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart'
-    show PastedMedia, SemanticKind;
+    show PackId, PackKind, PastedMedia, SemanticKind;
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -244,6 +245,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       keyboard: widget.softKeyboard,
       policy: widget.presentationPolicy,
       onPastedMedia: _onPastedMedia,
+      openPack: _openPack,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
     // Made with the input set: the chat's embeds hold while its popup panel
@@ -828,6 +830,24 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     if (content == null) return;
     _selection.clear();
     _input.beginEdit(messageId, content);
+  }
+
+  /// Opens the sheet of the pack [id], of [kind]. Its stickers are sent, and
+  /// its emoji inserted, through the input set, as a pick from the panel
+  /// is; stickers only where the chat allows them.
+  void _openPack(PackId id, PackKind kind) {
+    if (!mounted) return;
+    final input = _input;
+    final canPick = kind == PackKind.emoji || _chatAllowsStickers;
+    ChatPackSheets.open(
+      context,
+      services: widget.services,
+      pack: id,
+      kind: kind,
+      onPick: canPick
+          ? (item) => input.pickContent(item.key, kind: item.semanticKind)
+          : null,
+    ).ignore();
   }
 
   /// Asks before the recent content of [kind] is cleared.
