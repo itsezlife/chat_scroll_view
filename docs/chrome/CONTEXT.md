@@ -75,7 +75,7 @@ A registry entry: id, tab descriptor, builder and declared capabilities (search,
 _Avoid_: Tab enum, allow bitset, plain widget page
 
 **Sticky header**:
-What a catalogue page draws over its content at the top under the `touch` arrangement (under `pointer` there is none): the strip, which slides away as the user reads on and returns as they read back, and, for a page that places its search field inline, the field, which is the first thing in the content, scrolls away with it and pins to the top once search opens. The page pads the catalogue by their extent; the geometry is `CatalogStickyHeader`.
+What a catalogue page draws over its content at the top under the `touch` arrangement (under `pointer` there is none): the strip, which slides away as the user reads on and returns as they read back (unless the page's policy pins it: the stickers strip stays whole, only search takes it away), and, for a page that places its search field inline, the field, which is the first thing in the content, scrolls away with it and pins to the top once search opens. The page pads the catalogue by their extent; the geometry is `CatalogStickyHeader`.
 _Avoid_: A header that stands still, a field the shell draws for a page that placed it itself
 
 **Panel shell controller**:
@@ -91,7 +91,7 @@ Two `ValueListenable`s (`package:listen`) the shell publishes for the host's pau
 _Avoid_: A shell that reads its own visibility, pause flags inside pages
 
 **Fresh open**:
-An open of a hidden panel after which every page comes back as a new open shows it: the presentation policy decides which kinds open afresh (the mobile keyboard replacement does, a popup or a dock does not), the presentation controller reports it to the shell before the panel is visible, and each page decides what it means for its content (back at its start, or its place kept). The shell shows the bottom bar on one.
+An open of a hidden panel after which every page comes back as a new open shows it: the presentation policy decides which kinds open afresh (the mobile keyboard replacement does, a popup or a dock does not), the presentation controller reports it to the shell before the panel is visible, and each page decides what it means for its content (back at its start, or its place kept). The shell shows the bottom bar on one. A panel of a kind that opens afresh ends a search left open once it is hidden, so a fresh open never starts in search.
 _Avoid_: A reset on hide, a page that reads the platform or the arrangement to decide, a reset the shell decides
 
 **Page controller registry**:

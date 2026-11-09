@@ -81,7 +81,8 @@ import 'package:panel_shell/panel_shell.dart';
 /// their extent so its first row starts under both.
 ///
 /// - The **strip** (above the field) slides away as the user reads on and
-///   comes back as they read back; a tap on one of its entries lands the
+///   comes back as they read back, unless the policy pins it
+///   ([CatalogPagePolicy.stripSlidesAway]); a tap on one of its entries lands the
 ///   section's header right under it ([PanelCatalogViewport.headerLandingInset]).
 ///   It is not part of the page while search is open or results show.
 /// - The **field** is the first thing in the content: it scrolls away with it,
@@ -183,6 +184,7 @@ class _CatalogPageState extends State<CatalogPage>
   // policy asks for another one.
   double _headerStripExtent = -1;
   bool? _headerInline;
+  bool? _headerPinned;
   late final AnimationController _reveal;
   var _revealFrom = 0.0;
   Curve _revealCurve = Curves.linear;
@@ -343,16 +345,21 @@ class _CatalogPageState extends State<CatalogPage>
         widget.searchSource != null;
     _syncStripPlacement();
     final stripExtent = _stripExtent;
-    if (_headerInline == _inlineSearch && _headerStripExtent == stripExtent) {
+    final pinned = !widget.policy.stripSlidesAway;
+    if (_headerInline == _inlineSearch &&
+        _headerStripExtent == stripExtent &&
+        _headerPinned == pinned) {
       return;
     }
     final first = _headerInline == null;
     final old = first ? null : _header;
     _headerInline = _inlineSearch;
     _headerStripExtent = stripExtent;
+    _headerPinned = pinned;
     _header = CatalogStickyHeader(
       stripExtent: stripExtent,
       searchExtent: _inlineSearch ? PanelSearchField.height : 0,
+      pinned: pinned,
     );
     _configureHeader();
     if (old != null) {

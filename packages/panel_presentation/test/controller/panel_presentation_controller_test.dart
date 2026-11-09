@@ -360,6 +360,64 @@ void main() {
     });
   });
 
+  group('search across a hide', () {
+    // The reference mobile client closes search when its panel is toggled
+    // away while searching (`setSearchingTypeInternal(0, true)`,
+    // `closeSearch`), so a reopened panel is never in search; its desktop
+    // client only gives the field's focus back.
+    test('a mobile panel that hides ends the search left open, so the next '
+        'show starts outside it', () {
+      build(policy: mobile);
+      final view = controller.attach();
+      controller.show();
+      view.motionSettled(controller.state.value);
+      shell
+        ..openSearch()
+        ..setQuery('cat');
+
+      controller.hide();
+      expect(shell.search.value.isOpen, isTrue, reason: 'still on screen');
+      view.motionSettled(controller.state.value);
+
+      expect(shell.search.value, PanelSearchState.closed);
+      controller.show();
+      expect(shell.search.value.isOpen, isFalse);
+    });
+
+    test('a mobile panel turned back while hiding keeps its search', () {
+      build(policy: mobile);
+      final view = controller.attach();
+      controller.show();
+      view.motionSettled(controller.state.value);
+      shell
+        ..openSearch()
+        ..setQuery('cat');
+
+      controller
+        ..hide()
+        ..show();
+
+      expect(shell.search.value.isOpen, isTrue);
+      expect(shell.search.value.query, 'cat');
+    });
+
+    test('a desktop popup and dock keep their search across a hide', () {
+      build(window: wide);
+      for (final kind in [const AnchoredPopup(), const Docked()]) {
+        controller.show(kind: kind);
+        shell
+          ..openSearch()
+          ..setQuery('cat');
+
+        controller.hide();
+
+        expect(shell.search.value.isOpen, isTrue);
+        expect(shell.search.value.query, 'cat');
+        shell.closeSearch();
+      }
+    });
+  });
+
   group('handleBack', () {
     test('closes search before the panel, then the panel, then nothing', () {
       build().show();

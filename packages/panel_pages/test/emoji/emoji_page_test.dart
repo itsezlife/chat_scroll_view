@@ -823,6 +823,23 @@ void main() {
       handle.dispose();
     });
 
+    testWidgets('slides away as the user reads on, unlike the stickers '
+        'page\'s', (tester) async {
+      await pumpPage(tester);
+      final catalog = controller().catalog..jumpTo(200);
+      await tester.pumpAndSettle();
+      expect(catalog.maxScrollExtent, greaterThan(300));
+
+      catalog.scrollBy(80);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getTopLeft(find.byType(EmojiCategoryStrip)).dy -
+            origin(tester).dy,
+        lessThan(-EmojiCategoryStrip.height + 1),
+      );
+    });
+
     testWidgets('is not shown over search results', (tester) async {
       await pumpPage(tester);
 

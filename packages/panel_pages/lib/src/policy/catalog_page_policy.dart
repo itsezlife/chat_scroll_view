@@ -401,6 +401,15 @@ abstract class CatalogPagePolicy {
   /// much, so the strip's own layout must be exactly this tall.
   double get stripExtent => 0;
 
+  /// Whether the strip on top slides away as the user reads on and returns as
+  /// they read back, where the arrangement lets a header slide.
+  ///
+  /// False pins it: it stays whole whatever the scroll, and only search takes
+  /// it away. A page whose strip is how the user gets around a long list of
+  /// sets (stickers) keeps it in reach; one read by category (emoji) gives
+  /// the room back to the content. The default slides.
+  bool get stripSlidesAway => true;
+
   /// The strip (a category or set strip) shown with the catalogue while
   /// browsing, or null for none: over the top of it, or below it where
   /// [stripAtBottom].
@@ -408,7 +417,8 @@ abstract class CatalogPagePolicy {
   /// The page owns the strip: [strip] gives it the sections to show and the
   /// jump to one. It reads the arrangement it is drawn for from
   /// `PanelArrangementScope`. At the top it slides away as the user reads on
-  /// and returns as they read back, and it is not part of the page while search
+  /// and returns as they read back (unless [stripSlidesAway] is false), and
+  /// it is not part of the page while search
   /// is open or results are shown; at the bottom it stays, and only results
   /// take it away.
   Widget? buildStrip(BuildContext context, CatalogStripHandle strip) => null;

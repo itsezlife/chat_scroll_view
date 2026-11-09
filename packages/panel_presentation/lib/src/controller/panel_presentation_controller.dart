@@ -79,7 +79,9 @@ import 'package:panel_shell/panel_shell.dart';
 /// reports a **fresh open** ([PanelShellController.reportFreshOpen]) when it
 /// opens a hidden panel as a kind the policy opens afresh
 /// (`PanelPresentationPolicy.opensAfresh`), before the presence that shows
-/// it, and turns every shell event (a page change, search opening or closing, a
+/// it, closes the shell's search ([PanelShellController.closeSearch]) once a
+/// panel of such a kind is hidden, before the presence that hides it, and
+/// turns every shell event (a page change, search opening or closing, a
 /// pick) into a signal on [interactions]. [handleBack] steps back through the
 /// shell first.
 ///
@@ -515,6 +517,14 @@ final class PanelPresentationController {
     if (previous case PanelVisibility$Hidden()) {
       if (settled.kind case final kind? when policy.opensAfresh(kind)) {
         shell.reportFreshOpen();
+      }
+    }
+    // A panel opened afresh is not left in search either: once it is gone
+    // from the screen, so the search does not visibly close while it hides,
+    // and before the shell hears it is hidden.
+    if (settled case PanelVisibility$Hidden()) {
+      if (previous.kind case final kind? when policy.opensAfresh(kind)) {
+        shell.closeSearch();
       }
     }
     shell.updatePresence(visible: settled.isVisible, opening: settled.isMoving);

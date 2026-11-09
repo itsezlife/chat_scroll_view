@@ -46,6 +46,18 @@ import 'package:panel_shell/panel_shell.dart';
 /// ([pillSizeAt]). A host with motion off, or the system's disabled animations,
 /// gets it in place at once.
 ///
+/// It slides only for what the user did: a tap, or a scroll of theirs (a
+/// drag, a fling, the wheel, an animated scroll) carrying the catalogue into
+/// another section. What the user did not do places the mark and the row at
+/// once: the first build, a new set of tabs, and a catalogue repositioned by
+/// a command (`PanelCatalogProgrammaticJump`: a fresh open restarting the
+/// page, a host's jump), whose section change is placed until the next motion
+/// of the user's starts. The reference mobile client selects its tab on an
+/// open with no animated change (`firstTabUpdate`) and jumps its grid; a
+/// slide there would play while the panel opens, or after, when its tickers
+/// come back. A command that cuts a tapped tab's jump short ends the tap: the
+/// mark goes where the catalogue landed.
+///
 /// The strip is the page's own widget: its whole connection is the
 /// [CatalogStripHandle]. It requires the chrome theme, strings and motion
 /// scopes. Draws nothing when the page has no pack and no recents.
@@ -147,6 +159,12 @@ class _StickerPackStripState extends State<StickerPackStrip>
   var _tabs = const <_Tab>[];
   String? _active;
   var _jumping = false;
+  // Set by a programmatic jump of the catalogue until a motion of the user's
+  // starts: the section changes it brings are placed, not slid.
+  var _placing = false;
+  // Whether the mark's last move was a slide: the tabs' colours ease with it,
+  // or change at once with a mark that was placed.
+  var _slid = false;
 
   CatalogStripHandle get _handle => widget.handle;
 
@@ -211,16 +229,31 @@ class _StickerPackStripState extends State<StickerPackStrip>
             _tabFor(_handle.currentSectionId) ?? _tabs.firstOrNull?.sectionId;
       }
     });
-    _aim(animate: _slide.placed);
+    // A new set of tabs moves the tabs at once; a slide of the mark would
+    // trail behind its own tab.
+    _aim(animate: false);
   }
 
   void _onScroll(PanelCatalogScrollEvent event) {
-    if (_jumping) return;
-    if (event case PanelCatalogCurrentSectionChanged(:final sectionId)) {
-      final tab = _tabFor(sectionId);
-      if (tab == null || tab == _active) return;
-      setState(() => _active = tab);
-      _aim(animate: true);
+    switch (event) {
+      case PanelCatalogProgrammaticJump():
+        _placing = true;
+        // The command took over from a tapped tab's jump, whose end would
+        // arrive only after the section the command landed in.
+        _jumping = false;
+      case PanelCatalogUserDragStart() ||
+          PanelCatalogFlingStart() ||
+          PanelCatalogViewportScrolled() ||
+          PanelCatalogAnimateStart() ||
+          PanelCatalogSectionJumpStart():
+        _placing = false;
+      case PanelCatalogCurrentSectionChanged(:final sectionId) when !_jumping:
+        final tab = _tabFor(sectionId);
+        if (tab == null || tab == _active) return;
+        setState(() => _active = tab);
+        _aim(animate: !_placing);
+      default:
+        break;
     }
   }
 
@@ -229,6 +262,7 @@ class _StickerPackStripState extends State<StickerPackStrip>
     setState(() {
       _active = tab.sectionId;
       _jumping = true;
+      _placing = false;
     });
     _aim(animate: true);
     try {
@@ -252,6 +286,7 @@ class _StickerPackStripState extends State<StickerPackStrip>
     final index = _activeIndex;
     if (index == null) return;
     final moving = animate && !_still;
+    _slid = moving;
     _slide.aim(index, moving: moving);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _scrollTo(index, animate: moving);
@@ -355,9 +390,9 @@ class _StickerPackStripState extends State<StickerPackStrip>
                           selected: tab.sectionId == _active,
                           tokens: tokens,
                           assets: widget.assets,
-                          duration: _still
-                              ? Duration.zero
-                              : PanelStripMetrics.slideDuration,
+                          duration: _slid
+                              ? PanelStripMetrics.slideDuration
+                              : Duration.zero,
                           onTap: () => unawaited(_onTap(tab)),
                         ),
                       ),
