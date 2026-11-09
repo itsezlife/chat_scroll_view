@@ -6,6 +6,13 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (each clip waits only for its own frame)
+
+- `VideoFrameScheduler` keeps a frame in flight per clip, not one batch for
+  all: a clip whose frame is still being drawn or written is skipped on a
+  tick and the others go on. Each clip on a texture is its own write, so a
+  slow worker no longer holds the posts of clips on the other workers.
+
 ### Added (the panel keeps its animations)
 
 - `VideoAnimationPaintable.firstFrame` is its first-frame still, which a

@@ -19,6 +19,7 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Amended**: 2026-11-09 (native-media ticket 96): a small playing cell plays at half rate and decodes at most 160 px (section *Amendment: half frame rate*)  
 **Amended**: 2026-11-09 (native-media ticket 98): a persisted animation's frames are read one at a time from its file by the render isolate; the RAM tier holds only animations being filled and never evicts one that plays (section *Amendment: frames read from the file*)
 **Amended**: 2026-11-09 (native-media ticket 102): the frame cache keeps an animation as two fills, its even and its odd frames, so a half-rate playback completes and persists one (section *Amendment: a fill per parity*)
+**Amended**: 2026-11-09 (native-media ticket 110): a frame in flight is per lease, so one slow batch no longer skips a tick of every animation (section *Amendment: each lease waits only for its own frame*)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (replaces its process-wide cache wording; the atlas amendment there is the panel-side view of this ADR), [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 024](024-panel-catalog-seams.md)
 
 ## Decided
@@ -316,3 +317,7 @@ playback could miss frames too, when renders lag the clock.
 ## Amendment: a playback that resumes does not catch up (2026-11-09)
 
 An entry tells its paintable `playbackResumed()` when the first of its bindings plays again after none did (held, hidden, detached, off the clock). Lottie and video paintables then take the next paint as the start of their timing; a playing image counts its shown frame's duration from that paint. Before, the clock ran on for other surfaces meanwhile and a paintable added the whole stop at its next paint unless it exceeded `resumeGap` (500 ms): a sticker panel shut for 300-480 ms came back 20-28 frames on (device log 2026-11-09, `[DBG-r1]` skips with dt 324-499 ms on every cell). Freeze and continue now holds for a stop of any length, as the reference client's drawable keeps its frame across stop and start.
+
+## Amendment: each lease waits only for its own frame (2026-11-09)
+
+Native-media ticket 110. *Dynamic frame pages*, row *Surface*, said a worker renders every active slot in one batch per tick; the schedulers also sent nothing while that batch ran, so one slow batch skipped a tick of every animation. Now a frame in flight is per lease: the slots of one tick still go out as one batch, but a lease whose frame is still out is left for a later tick and the others go on, and batches of different ticks overlap (the atlas runs them one after the other). Textures, writes per lease and the rules kept are in [ADR 043](043-platform-texture-frames.md), *Amendment: each lease waits only for its own frame*.

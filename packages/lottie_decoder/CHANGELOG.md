@@ -5,6 +5,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (each lease waits only for its own frame)
+
+- `LottieFrameScheduler` keeps a frame in flight per lease, not one batch
+  for all: a lease whose frame is still out is skipped on a tick and every
+  other lease goes on. Each lease on a texture is its own write, so its post
+  lands when its own frame is done; the page slots of a tick still share one
+  atlas batch. A writer now sees one job per `write` call from the scheduler.
+
 ### Changed (the panel keeps its animations)
 
 - The `full` stage charges its first-frame still plus the encoded size once
