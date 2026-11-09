@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:chrome_foundation/src/glass/glass_layer_watch.dart';
 import 'package:chrome_foundation/src/glass/glass_style.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -26,7 +27,7 @@ class _GlassSourceScopeState extends State<GlassSourceScope> {
 
   @override
   void dispose() {
-    _link._releaseFrame();
+    _link._releaseAll();
     super.dispose();
   }
 
@@ -58,10 +59,12 @@ abstract interface class GlassSampler {
   double get sampleBlurSigma;
 }
 
-/// One frame's capture of a [GlassSource] region.
+/// A capture of a [GlassSource] region.
 ///
-/// Owned by the [GlassSourceLink] and disposed after the frame; draw with it
-/// while compositing that frame, never keep it.
+/// Owned by the [GlassSourceLink], which keeps it over the frames in which
+/// nothing under [region] changed and disposes it when it recaptures or no
+/// sampler reads it any more. Draw with it while compositing the frame it was
+/// handed out for; never keep it.
 @immutable
 class GlassCapture {
   const GlassCapture._(this.image, this.region, this.pixelRatio);
@@ -78,11 +81,17 @@ class GlassCapture {
 
 /// Where a [GlassSourceScope] keeps its [RenderGlassSource] and samplers.
 ///
-/// Captures once per frame for all samplers: the first [captureFor] of a
-/// frame collects every sampler's region, merges the ones close enough that
-/// one image is cheaper than several ([mergeRegions]), and renders each
+/// Captures at most once per frame for all samplers: the first [captureFor]
+/// of a frame collects every sampler's region, merges the ones close enough
+/// that one image is cheaper than several ([mergeRegions]), and renders each
 /// merged region once. Samplers with different resolution or blur never
 /// share an image.
+///
+/// A merged region is rendered again only when something under it changed
+/// since its last capture: the source's composited layer tree is diffed
+/// against the last frame's ([GlassLayerWatch]), and a capture is kept while
+/// the change misses its region. A region that moves or resizes is a new
+/// capture. A playing texture under a region recaptures it every frame.
 class GlassSourceLink {
   GlassSourceLink._();
 
@@ -123,7 +132,17 @@ class GlassSourceLink {
   RenderGlassSource? _source;
   final _samplers = <GlassSampler>{};
   final _frame = <GlassSampler, GlassCapture?>{};
-  final _images = <ui.Image>[];
+  final _watch = GlassLayerWatch();
+
+  /// Captures kept across frames, by resolution, blur and merged region.
+  final _kept = <(double, double, Rect), GlassCapture>{};
+
+  /// The keys of [_kept] read since the last release.
+  final _read = <(double, double, Rect)>{};
+
+  /// The source [_kept] and [_watch] describe.
+  RenderGlassSource? _watched;
+  var _watchedThisFrame = false;
   var _releaseScheduled = false;
 
   /// The mounted source, or null while none is attached.
@@ -136,6 +155,9 @@ class GlassSourceLink {
   void removeSampler(GlassSampler sampler) {
     _samplers.remove(sampler);
     _frame.remove(sampler);
+    // A capture only it read goes at the end of the next frame another
+    // sampler captures in; with none left, there is no such frame.
+    if (_samplers.isEmpty) _disposeKept((_) => true);
   }
 
   /// This frame's capture covering [sampler]'s region, or null when there is
@@ -148,12 +170,18 @@ class GlassSourceLink {
   void _captureFrame() {
     final source = _source;
     final pending = _samplers.where((s) => !_frame.containsKey(s)).toList();
-    if (source == null || !source.attached || !source.hasSize) {
+    final root = source?._composited;
+    if (source == null ||
+        !source.attached ||
+        !source.hasSize ||
+        root is! OffsetLayer ||
+        !root.attached) {
       for (final sampler in pending) {
         _frame[sampler] = null;
       }
       return;
     }
+    _invalidate(source, root);
 
     final groups = <(double, double), List<(GlassSampler, Rect)>>{};
     for (final sampler in pending) {
@@ -172,18 +200,45 @@ class GlassSourceLink {
       for (final (sampler, region) in members) {
         final union = merged.firstWhere((m) => m.expandToInclude(region) == m);
         _frame[sampler] = captures.putIfAbsent(union, () {
+          final key = (ratio, blur, union);
+          _read.add(key);
+          if (_kept[key] case final kept?) return kept;
           final image = source.capture(
             union,
             pixelRatio: ratio,
             blurSigma: blur,
           );
           if (image == null) return null;
-          _images.add(image);
-          return GlassCapture._(image, union, ratio);
+          return _kept[key] = GlassCapture._(image, union, ratio);
         });
       }
     }
     _scheduleRelease();
+  }
+
+  /// Drops the kept captures this frame's changes reach, once per frame.
+  ///
+  /// The watch compares against the last frame a sampler read the source in,
+  /// so a change in a frame without one is still seen in the next.
+  void _invalidate(RenderGlassSource source, OffsetLayer root) {
+    if (_watchedThisFrame) return;
+    _watchedThisFrame = true;
+    if (!identical(source, _watched)) {
+      _watched = source;
+      _watch.reset();
+      _disposeKept((_) => true);
+    }
+    final change = _watch.changeSince(root);
+    if (!change.changed) return;
+    _disposeKept((capture) => change.touches(capture.region));
+  }
+
+  void _disposeKept(bool Function(GlassCapture capture) where) {
+    _kept.removeWhere((key, capture) {
+      if (!where(capture)) return false;
+      capture.image.dispose();
+      return true;
+    });
   }
 
   void _scheduleRelease() {
@@ -195,12 +250,24 @@ class GlassSourceLink {
     });
   }
 
+  /// Ends a frame: drops the captures no sampler read since the last one.
   void _releaseFrame() {
-    for (final image in _images) {
-      image.dispose();
-    }
-    _images.clear();
+    _kept.removeWhere((key, capture) {
+      if (_read.contains(key)) return false;
+      capture.image.dispose();
+      return true;
+    });
+    _read.clear();
     _frame.clear();
+    _watchedThisFrame = false;
+  }
+
+  void _releaseAll() {
+    _disposeKept((_) => true);
+    _read.clear();
+    _frame.clear();
+    _watch.reset();
+    _watched = null;
   }
 }
 
@@ -265,6 +332,9 @@ class RenderGlassSource extends RenderProxyBox {
   @override
   bool get isRepaintBoundary => true;
 
+  /// The layer this source composites into, for its link's watch.
+  ContainerLayer? get _composited => layer;
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
@@ -282,8 +352,9 @@ class RenderGlassSource extends RenderProxyBox {
   }
 
   /// Renders [region] (local logical px) of the last painted frame at
-  /// [pixelRatio], blurred by [blurSigma] image px. The caller owns the
-  /// image.
+  /// [pixelRatio], blurred by [blurSigma] image px. Only what lies inside
+  /// [region] is rendered: the edges blur against their own pixels, not the
+  /// content beyond them. The caller owns the image.
   ///
   /// Callable while the frame's scene is composited: the layer tree is
   /// complete after paint, and the engine rasterizes the image before the
@@ -317,6 +388,13 @@ class RenderGlassSource extends RenderProxyBox {
         1,
       );
     final root = builder.pushTransform(transform.storage);
+    // Inside the blur, so the blur's input is the region alone: what the
+    // source draws outside it is culled before it reaches the display list,
+    // instead of rendered and then blurred into the edges.
+    final cull = builder.pushClipRect(
+      region.shift(layer.offset),
+      clipBehavior: Clip.hardEdge,
+    );
     final scene = layer.buildScene(builder);
     try {
       return scene.toImageSync(width, height);
@@ -325,6 +403,7 @@ class RenderGlassSource extends RenderProxyBox {
       // garbage collector, every captured frame's tree is torn down at once
       // inside a scavenge on the UI thread.
       scene.dispose();
+      cull.dispose();
       root.dispose();
       blur?.dispose();
     }

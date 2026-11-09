@@ -300,6 +300,32 @@ void main() {
       expect(pool.bytes, lessThanOrEqualTo(pool.budgetBytes));
     });
 
+    test('makes room by destroying idle textures of another class, oldest '
+        'first', () async {
+      // Six 64 px textures fill it; a 128 px one costs four of them.
+      await pool.warm(64, 6);
+      final idle64 = List.of(host.liveIds);
+
+      await pool.warm(128, 1);
+
+      expect(host.created.last, (width: 128, height: 128));
+      expect(host.destroyed, idle64.take(4));
+      expect(pool.bytes, lessThanOrEqualTo(pool.budgetBytes));
+      expect(pool.lease(100, 100), isNotNull);
+    });
+
+    test('never destroys a leased texture to make room', () async {
+      await pool.warm(64, 6);
+      for (var i = 0; i < 6; i++) {
+        pool.lease(64, 64);
+      }
+
+      await pool.warm(128, 1);
+
+      expect(host.destroyed, isEmpty);
+      expect(host.created, hasLength(6));
+    });
+
     test('leased textures count; destroyed ones go back to it', () async {
       await pool.warm(128, 1);
       final lease = pool.lease(100, 100)!;

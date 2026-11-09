@@ -54,6 +54,23 @@ abstract final class ScrollLab {
   /// comparison run one build.
   static final textures = ValueNotifier<bool>(true);
 
+  /// Whether the app's glass captures its source (the chat); off, every glass
+  /// paints flat (lite mode), so an arm without the capture measures its
+  /// cost. `adb shell am broadcast -a lab.SET --es key glass --ez value false`
+  /// switches it at run time.
+  static final glass = ValueNotifier<bool>(true);
+
+  /// The on/off switch [key] names over `lab.SET`, or null when it names
+  /// none (a command or a numeric switch).
+  static ValueNotifier<bool>? switchNamed(String? key) => switch (key) {
+    'resampling' => resampling,
+    'snap' => pixelSnap,
+    'plain' => plainText,
+    'textures' => textures,
+    'glass' => glass,
+    _ => null,
+  };
+
   /// The texture pool of the build, for the replay summary; null without a
   /// texture host.
   static FrameTexturePool? texturePool;
@@ -79,6 +96,7 @@ abstract final class ScrollLab {
       _log('switch pixelSnap=${pixelSnap.value}');
     });
     plainText.addListener(() => _log('switch plainText=${plainText.value}'));
+    glass.addListener(() => _log('switch glass=${glass.value}'));
     videoCap.addListener(() => _log('switch videoCap=${videoCap.value}'));
     textures.addListener(
       () => _log(
@@ -123,6 +141,18 @@ abstract final class ScrollLab {
                 highlight: false,
               ),
             );
+          }
+          return;
+        case 'pool':
+          // The texture pool now: with `bytes` at `budget` and leases on
+          // page slots, a playing asset uploads a frame page every tick.
+          if (texturePool case final pool?) {
+            _log(
+              'pool leased=${pool.leasedTextures} idle=${pool.idleTextures} '
+              'bytes=${pool.bytes} budget=${pool.budgetBytes}',
+            );
+          } else {
+            _log('pool: no texture host in this build');
           }
           return;
         case 'net':
@@ -188,14 +218,7 @@ abstract final class ScrollLab {
         }
         return;
       }
-      final target = switch (args['key']) {
-        'resampling' => resampling,
-        'snap' => pixelSnap,
-        'plain' => plainText,
-        'textures' => textures,
-        _ => null,
-      };
-      target?.value = args['value'] == true;
+      switchNamed(args['key'] as String?)?.value = args['value'] == true;
     });
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
   }
@@ -393,6 +416,7 @@ class _ScrollLabOverlayState extends State<ScrollLabOverlay> {
                       _toggle('Input resampling', ScrollLab.resampling),
                       _toggle('Pixel snap rows', ScrollLab.pixelSnap),
                       _toggle('Plain text bodies', ScrollLab.plainText),
+                      _toggle('Glass capture', ScrollLab.glass),
                     ],
                   ),
                 ),

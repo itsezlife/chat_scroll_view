@@ -2,6 +2,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/widgets.dart';
@@ -45,9 +46,14 @@ class AppChrome extends StatelessWidget {
             ? ChromeMotionSpeed.instant
             : ChromeMotionSpeed.normal,
         // The glass policy of the app: the best strategy the device supports.
-        // A host with a low-power mode passes `liteMode` here.
-        child: GlassQualityScope(
-          liteMode: DemoConfig.glassLite,
+        // A host with a low-power mode passes `liteMode` here; the lab's
+        // glass switch puts it there for an A/B arm without the capture.
+        child: ValueListenableBuilder<bool>(
+          valueListenable: ScrollLab.glass,
+          builder: (context, glass, child) => GlassQualityScope(
+            liteMode: DemoConfig.glassLite || !glass,
+            child: child!,
+          ),
           child: EmojiTabIconScope(
             child: AssetCacheProvider(scope: services.assets, child: child),
           ),
