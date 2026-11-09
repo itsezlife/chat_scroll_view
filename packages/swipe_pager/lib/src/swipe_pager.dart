@@ -41,11 +41,11 @@ class SwipePagerController {
       _page = initialPage,
       _view = _PagerView(from: initialPage);
 
-  /// The duration of [animateTo] when none is given: the reference's 540 ms.
+  /// The duration of [animateTo] when none is given: 540 ms.
   static const Duration slideDuration = Duration(milliseconds: 540);
 
-  /// The curve of [animateTo] when none is given: the reference's ease out
-  /// quint, cubic (0.23, 1, 0.32, 1).
+  /// The curve of [animateTo] when none is given: an ease out quint, cubic
+  /// (0.23, 1, 0.32, 1).
   static const Curve slideCurve = Curves.easeOutQuint;
 
   int _page;
@@ -101,8 +101,7 @@ class SwipePagerController {
   /// the current page, and completes when it lands or is interrupted.
   ///
   /// With animations disabled (`MediaQuery.disableAnimations`), or detached,
-  /// it jumps. A slide holds off swipes until it lands, as the reference's
-  /// does. Called during a drag, it drops the drag; during a settle or a
+  /// it jumps. A slide holds off swipes until it lands. Called during a drag, it drops the drag; during a settle or a
   /// slide, it starts from the page that shows more.
   Future<void> animateTo(
     int page, {
@@ -417,8 +416,8 @@ class _PagerView {
 
 // --- Widget -------------------------------------------------------------
 
-/// A horizontal pager over [pageCount] pages, swiped with the reference
-/// mobile client's gesture rules.
+/// A horizontal pager over [pageCount] pages, swiped with the gesture rules
+/// of a mobile pager.
 ///
 /// **The swipe.** A drag becomes a swipe only once it has moved
 /// [SwipePagerPhysics.claimSlop] along the axis without first moving
@@ -432,8 +431,8 @@ class _PagerView {
 /// settling pager catches it and drags it on.
 ///
 /// **The release.** It goes on to the next page from a third of a page, or
-/// on a fast enough fling, and settles along the reference's quintic ease
-/// out in 150..600 ms ([SwipePagerPhysics]). With animations disabled it
+/// on a fast enough fling, and settles along a quintic ease out in
+/// 150..600 ms ([SwipePagerPhysics]). With animations disabled it
 /// lands at once.
 ///
 /// **Pages.** Pages are identified by index. [keepAlive] chooses which

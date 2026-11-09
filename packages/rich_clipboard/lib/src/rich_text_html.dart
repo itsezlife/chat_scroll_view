@@ -16,7 +16,7 @@ import 'package:html/parser.dart' as html;
 /// | Entity | HTML |
 /// | --- | --- |
 /// | bold, italic, underline, strike | `<b>`, `<i>`, `<u>`, `<s>` |
-/// | spoiler | `<tg-spoiler>` (the reference desktop client's element) |
+/// | spoiler | `<tg-spoiler>` |
 /// | code | `<code>` |
 /// | code block | `<pre>`, `<pre lang>` with a language |
 /// | quote | `<blockquote>` |
@@ -49,10 +49,10 @@ import 'package:html/parser.dart' as html;
 ///   item is the text of one `li` up to a list nested in it, and its depth is
 ///   how many lists enclose it, at most three), `pre` as a code block (its
 ///   language from `lang`, `language`, `lng`, `data-language` or a
-///   `language-` class of its `code`, as code sites write it), the reference
-///   clients'
+///   `language-` class of its `code`, as code sites write it), and the
 ///   `spoiler`, `tg-spoiler`, `class="tg-spoiler"` and
-///   `<animated-emoji data-document-id>` (inline content of a document key).
+///   `<animated-emoji data-document-id>` tags (inline content of a document
+///   key).
 /// - **CSS:** `font-weight`, `font-style` and `text-decoration`, which also
 ///   switch a style off (a whole copy from a document editor sits in a `<b>`
 ///   that is not bold).
@@ -70,8 +70,8 @@ import 'package:html/parser.dart' as html;
 ///   its HTML as this app's own, so a host checks a pasted mention's id
 ///   before sending it.
 /// - **Whole-text styles:** a style that covers all of another app's text is
-///   dropped, as the reference desktop client drops it: pasting a bold
-///   paragraph from a web page should not make the message bold.
+///   dropped: pasting a bold paragraph from a web page should not make the
+///   message bold.
 ///
 /// [decode] never throws: what cannot be read keeps its text, and entities
 /// that cannot coexist are dropped, styles first, then code blocks and lists.
@@ -276,7 +276,7 @@ final class _Encoder {
       '<span ${RichTextHtml.mentionAttribute}="${_escapeAttribute(id)}">',
     EntityKind$InlineContent(:final key) =>
       '<span ${RichTextHtml.contentKeyAttribute}="${_escapeAttribute(key.encoded)}">',
-    // `lang` is the attribute the reference Android client reads.
+    // `lang` is the attribute the decoder reads the language from.
     EntityKind$CodeBlock(:final language?) =>
       '<pre lang="${_escapeAttribute(language)}">',
     EntityKind$CodeBlock() ||
@@ -603,8 +603,7 @@ final class _Decoder {
 
   // Mention ids and content keys are trusted only in this app's own HTML:
   // a page could put them over any text, a mention that shows one name and
-  // notifies another. The reference clients' custom emoji tag is read from
-  // anyone, as they read it.
+  // notifies another. The `animated-emoji` tag is read from anyone.
   EntityKind? _atomOf(dom.Element element) {
     final attributes = element.attributes;
     if (_own) {

@@ -23,10 +23,10 @@ class OvershootCurve extends Curve {
 }
 
 /// Duration for handle appear and handle settle on release (~250ms).
-const Duration kTelegramHandleMotionDuration = Duration(milliseconds: 250);
+const Duration kHandleMotionDuration = Duration(milliseconds: 250);
 
 /// Alias for settle duration (same as appear).
-const Duration kHandleSettleDuration = kTelegramHandleMotionDuration;
+const Duration kHandleSettleDuration = kHandleMotionDuration;
 
 /// Magnifier settle time constant (~100ms).
 ///
@@ -34,10 +34,10 @@ const Duration kHandleSettleDuration = kTelegramHandleMotionDuration;
 const double kAospMagnifierSettleMs = 100;
 
 /// @nodoc Kept for callers that still name the old X constant.
-const double kTelegramMagnifierXSettleMs = kAospMagnifierSettleMs;
+const double kMagnifierXSettleMs = kAospMagnifierSettleMs;
 
 /// @nodoc Legacy Y rate alias — equals [kAospMagnifierSettleMs].
-const double kTelegramMagnifierYSettleMs = kAospMagnifierSettleMs;
+const double kMagnifierYSettleMs = kAospMagnifierSettleMs;
 
 /// Smooths [MagnifierInfo] toward [target] with ~100ms X/Y rates.
 ///

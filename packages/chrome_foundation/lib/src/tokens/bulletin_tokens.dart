@@ -19,7 +19,7 @@ final class BulletinTokens {
     required this.countdown,
   });
 
-  /// The default group: the dark card, [referenceAndroid], on
+  /// The default group: the dark card, [BulletinTokens.android], on
   /// every palette but the two high-contrast presets, which get
   /// [highContrast].
   ///
@@ -30,10 +30,10 @@ final class BulletinTokens {
       palette == const ChromePalette.highContrastLight() ||
           palette == const ChromePalette.highContrastDark()
       ? highContrast
-      : referenceAndroid;
+      : android;
 
   /// The undo notice's background, info and cancel colours.
-  static const BulletinTokens referenceAndroid = BulletinTokens(
+  static const BulletinTokens android = BulletinTokens(
     background: Color(0xEA272F38),
     foreground: Color(0xFFFFFFFF),
     accent: Color(0xFF85CAFF),
@@ -42,7 +42,7 @@ final class BulletinTokens {
 
   /// The desktop toast: background #2c3033 at 0xe5 alpha and white foreground,
   /// with the link colours its text and buttons take from the desktop palette.
-  static const BulletinTokens referenceDesktop = BulletinTokens(
+  static const BulletinTokens desktop = BulletinTokens(
     background: Color(0xE52C3033),
     foreground: Color(0xFFFFFFFF),
     accent: Color(0xFF4DB8FF),

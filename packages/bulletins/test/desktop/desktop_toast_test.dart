@@ -27,7 +27,7 @@ class _Harness {
       data: const MediaQueryData(size: _surface),
       child: ChromeThemeScope(
         palette: const ChromePalette.dark(),
-        bulletin: BulletinTokens.referenceDesktop,
+        bulletin: BulletinTokens.desktop,
         child: ChromeStringsScope(
           strings: ChromeStringsPresets.english,
           child: ChromeMotionScope(

@@ -16,20 +16,17 @@ void main() {
       }
     });
 
-    test('is the referenceAndroid card on the other palettes', () {
+    test('is the android card on the other palettes', () {
       for (final palette in [
         const ChromePalette.light(),
         const ChromePalette.dark(),
       ]) {
-        expect(
-          BulletinTokens.fromPalette(palette),
-          BulletinTokens.referenceAndroid,
-        );
+        expect(BulletinTokens.fromPalette(palette), BulletinTokens.android);
       }
     });
 
-    test('the referenceAndroid values are the undo colours', () {
-      const tokens = BulletinTokens.referenceAndroid;
+    test('the android values are the undo colours', () {
+      const tokens = BulletinTokens.android;
       expect(tokens.background, const Color(0xEA272F38));
       expect(tokens.foreground, const Color(0xFFFFFFFF));
       expect(tokens.accent, const Color(0xFF85CAFF));
@@ -38,14 +35,14 @@ void main() {
   });
 
   test('the desktop preset is the toolkit toast colours', () {
-    const tokens = BulletinTokens.referenceDesktop;
+    const tokens = BulletinTokens.desktop;
     expect(tokens.background, const Color(0xE52C3033));
     expect(tokens.foreground, const Color(0xFFFFFFFF));
     expect(tokens.accent, const Color(0xFF4DB8FF));
   });
 
   test('copyWith replaces only the named fields', () {
-    const base = BulletinTokens.referenceAndroid;
+    const base = BulletinTokens.android;
     final next = base.copyWith(accent: const Color(0xFF00FF00));
     expect(next.accent, const Color(0xFF00FF00));
     expect(next.background, base.background);
@@ -81,14 +78,12 @@ void main() {
   test('equality is by value', () {
     expect(
       BulletinTokens.fromPalette(const ChromePalette.light()).hashCode,
-      BulletinTokens.referenceAndroid.hashCode,
+      BulletinTokens.android.hashCode,
     );
     expect(
-      BulletinTokens.referenceAndroid,
+      BulletinTokens.android,
       isNot(
-        BulletinTokens.referenceAndroid.copyWith(
-          background: const Color(0xFF123456),
-        ),
+        BulletinTokens.android.copyWith(background: const Color(0xFF123456)),
       ),
     );
   });

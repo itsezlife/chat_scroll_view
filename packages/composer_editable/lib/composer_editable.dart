@@ -65,7 +65,7 @@ export 'src/widget/text_selection.dart'
         isInterruptedCharacter,
         kAospMagnifierSettleMs,
         kHandleSettleDuration,
-        kTelegramHandleMotionDuration,
+        kHandleMotionDuration,
         magnifierInfoSettled,
         pointerLineMagnifierTarget,
         settleTForElapsed,

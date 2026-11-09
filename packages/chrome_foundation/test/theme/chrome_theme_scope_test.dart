@@ -388,7 +388,7 @@ void main() {
       tester,
     ) async {
       late BulletinTokens seen;
-      final custom = BulletinTokens.referenceAndroid.copyWith(
+      final custom = BulletinTokens.android.copyWith(
         background: const Color(0xFF102030),
       );
       Widget app(BulletinTokens? bulletin) => ChromeThemeScope(
