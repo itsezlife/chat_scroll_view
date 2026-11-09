@@ -17,7 +17,8 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 **Amended**: 2026-11-09 (native-media ticket 94): the fetcher reports the bytes of a download and a binding exposes the fraction, null when nothing downloads; the download indicator shows only then (section *Amendment: download progress*)  
 **Amended**: 2026-11-09 (native-media ticket 103): the fetcher says at once whether content is missing, so the download shows from the attach, before the thumbnail, and it outlasts a failed attempt while the content is missing (section *Amendment: download progress*, rows *Missing* and *Binding*)  
 **Amended**: 2026-11-09 (native-media ticket 96): a small playing cell plays at half rate and decodes at most 160 px (section *Amendment: half frame rate*)  
-**Amended**: 2026-11-09 (native-media ticket 98): a persisted animation's frames are read one at a time from its file by the render isolate; the RAM tier holds only animations being filled and never evicts one that plays (section *Amendment: frames read from the file*)
+**Amended**: 2026-11-09 (native-media ticket 98): a persisted animation's frames are read one at a time from its file by the render isolate; the RAM tier holds only animations being filled and never evicts one that plays (section *Amendment: frames read from the file*)  
+**Amended**: 2026-11-09 (native-media ticket 128): an animation whose spec is above the largest size class plays at the cap instead of showing its still (section *Amendment: an animation above the cap plays*)
 **Amended**: 2026-11-09 (native-media ticket 102): the frame cache keeps an animation as two fills, its even and its odd frames, so a half-rate playback completes and persists one (section *Amendment: a fill per parity*)
 **Amended**: 2026-11-09 (native-media ticket 110): a frame in flight is per lease, so one slow batch no longer skips a tick of every animation (section *Amendment: each lease waits only for its own frame*)
 **Amended**: 2026-11-09 (native-media ticket 117): the glyph bake holds while any surface of the host scrolls and while the page that draws the glyphs is not shown; a strip is 8 glyphs at most, a host-tunable `BakePacing` (section *Amendment: glyph bake holds*)
@@ -166,7 +167,7 @@ Evidence and open items are in that ADR.
 | Fps | The fps cap derives from the spec's pixel size, as above. An asset authored at 60 fps and shown small plays at the cap, not at 60. |
 | Video | Video GIFs and video stickers write display-size BGRA into the same slots and pages. A shader-side YUV upload is a later optimisation behind the seam. |
 | Rest | `loop` false holds the rest frame and `restart()` replays from frame 0; `animate` false uses the first-frame stage only: the existing paintable contract, unchanged. |
-| Size cap | An animation whose spec is larger than the largest size class (512 px on the longer side) shows its still: the decoder reports the first frame, rendered at the cap, as `firstFrame` and again as `full`, and frees the native handle. The reference clients skip the frame cache and cap the render at 512 likewise. |
+| Size cap | (Amended by *Amendment: an animation above the cap plays*.) An animation whose spec is larger than the largest size class (512 px on the longer side) is rendered at the cap and plays, drawn scaled up to its box. |
 | Failure | A native library that fails its start-up probe leaves its media form without a decoder; the entry stays at its placeholder. An input the engine's checks reject ends in `AssetProgress.fail`. Both follow the failure rule above. |
 
 ## Amendment: sibling stages
@@ -359,3 +360,14 @@ Native-media ticket 116. *Dynamic frame pages*, row *Budget*, said a slot is rel
 | Full pool | An acquire that finds no texture and no free slot takes slots from the leases on slots that no surface painted for the scheduler's visible window (150 ms of playback time: several clock frames, so a surface that repaints only every few frames keeps its leases, and the current frame is always inside it), the least recently painted first, one at a time until the pool has a slot: a freed cell may be of another class, or pinned by a batch still rendering into it. A lease on a texture alone is not taken: it frees no slot, and its texture could not be leased again before the pool's reuse delay. The acquire answers null only when every slot is held by a lease on screen or kept. |
 | Sweep | Unchanged; now the backstop for what no surface said (a binding left visible and attached that no surface paints). |
 | Position | A Lottie paintable keeps its played time when its lease goes and goes on from that frame on a new lease. A video clip's new lease starts at its first frame, as after a sweep: decoding is sequential and the lease owns the decoder's position. |
+
+## Amendment: an animation above the cap plays (2026-11-09)
+
+Native-media ticket 128. *Dynamic frame pages*, row *Size cap*, had an animation whose spec is above the largest size class show its still, and said the reference clients did the same. They do not: the reference Android client renders a Lottie sticker at most 512 px on a side (`ImageLoader`, `Math.min(512, ...)`, 448 px for a view without a size filter on a 2.625 density) and draws that bitmap at its view's size; its content preview (`ContentPreviewViewer`) plays at M / 1.8, about 600 px on a phone. Our preview asked for its own pixels, the Lottie decoder reported the still as `full`, and the preview stood still. The video decoder already decoded at the largest class and played.
+
+| Area | Decision |
+| ---- | -------- |
+| Render | An animation whose spec is above the largest class is rendered with its longer side at the cap (512 px) and plays; the surface scales the frame up to its box (`AssetFit` places a sprite or a texture by the frame's size). The first-frame still is rendered at the cap too. |
+| Pool | No new size class and no unpooled path: the frames take a 512 px slot or texture, the class a chat sticker at 3x already uses. The grid cells' path is unchanged. |
+| Cost | One more 512 px lease while a preview is open: a texture of 1 MiB a buffer (4 MiB with Android's four), or a cell of a 1024 px page (4 MiB, shared by up to four cells), both inside the existing 48 MiB budgets. The preview's still costs 1 MiB instead of 1.4 MiB at 600 px. A frame cache key names the cap's size, as for any other animation. |
+| Upscaling | Above 512 px the picture is soft by up to the ratio of box to cap (600 / 512 on a phone). The reference accepts the same; a sharper preview would need a class above 512 whose page or texture is 4 to 16 MiB for one asset. |
