@@ -289,9 +289,7 @@ void main() {
       build(policy: mobile);
       count();
       bool? visibleAtSignal;
-      shell.freshOpen.addListener(
-        () => visibleAtSignal = shell.visible.value,
-      );
+      shell.freshOpen.addListener(() => visibleAtSignal = shell.visible.value);
 
       controller.show();
 
