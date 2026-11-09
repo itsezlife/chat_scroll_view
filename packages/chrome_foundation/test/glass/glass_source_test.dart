@@ -94,7 +94,12 @@ class _Sampler implements GlassSampler {
 
   @override
   double get sampleBlurSigma => 2;
+
+  @override
+  double get sampleSaturation => 1;
 }
+
+bool _covers(Rect outer, Rect inner) => outer.expandToInclude(inner) == outer;
 
 /// The upper and lower halves of an 800 x 600 source, each a repaint
 /// boundary of its own, so a change to one leaves the other's layer as it is.
@@ -212,7 +217,8 @@ void main() {
       final b = link.captureFor(button)!;
 
       expect(identical(a.image, b.image), isTrue);
-      expect(a.region, composer.region.expandToInclude(button.region));
+      expect(_covers(a.region, composer.region), isTrue);
+      expect(_covers(a.region, button.region), isTrue);
       await tester.pump();
     });
 
@@ -228,7 +234,9 @@ void main() {
       final b = link.captureFor(bottom)!;
 
       expect(identical(a.image, b.image), isFalse);
-      expect((a.region, b.region), (top.region, bottom.region));
+      expect(_covers(a.region, top.region), isTrue);
+      expect(_covers(b.region, bottom.region), isTrue);
+      expect(_covers(a.region, bottom.region), isFalse);
       await tester.pump();
     });
   });
@@ -292,7 +300,25 @@ void main() {
       final second = await _nextFrame(tester, scene.link, sampler);
 
       expect(second.image, isNot(same(first.image)));
-      expect(second.region, sampler.region);
+      expect(_covers(second.region, sampler.region), isTrue);
+    });
+
+    testGlassWidgets('keeps the capture while its region moves within the '
+        'capture grid', (tester) async {
+      final scene = _Halves();
+      await scene.pump(tester);
+      // At 0.5 image px per logical px the grid is 2 image px, 4 logical:
+      // both regions snap out to 400..504.
+      final sampler = _Sampler(const Rect.fromLTWH(0, 401, 400, 100));
+      scene.link.addSampler(sampler);
+      final first = await _nextFrame(tester, scene.link, sampler);
+
+      sampler.region = const Rect.fromLTWH(0, 402.5, 400, 100);
+      final second = await _nextFrame(tester, scene.link, sampler);
+
+      expect(second.image, same(first.image));
+      expect(second.region, const Rect.fromLTRB(0, 400, 400, 504));
+      expect((second.image.width, second.image.height), (200, 52));
     });
 
     testGlassWidgets('recaptures every frame over a playing texture', (
@@ -364,6 +390,45 @@ void main() {
   });
 
   group('GlassSource', () {
+    testGlassWidgets('raises the saturation of what it captures', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const GlassSourceScope(
+          child: GlassSource(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: ColoredBox(color: Color(0xFF808080))),
+                Expanded(child: ColoredBox(color: Color(0xFFA06060))),
+              ],
+            ),
+          ),
+        ),
+      );
+      final source = tester.renderObject<RenderGlassSource>(
+        find.byType(GlassSource),
+      );
+      final image = source.capture(
+        const Rect.fromLTWH(0, 0, 100, 600),
+        pixelRatio: 1,
+        blurSigma: 0,
+        saturation: 3,
+      )!;
+      addTearDown(image.dispose);
+      final pixels = await _argb(tester, image);
+      int channel(int argb, int shift) => (argb >> shift) & 0xFF;
+      final grey = pixels[100 * 100 + 50];
+      final reddish = pixels[500 * 100 + 50];
+
+      // Grey has no saturation to raise; the reddish half moves away from
+      // grey: more red, less green and blue than the 0xA06060 it was.
+      expect(grey, 0xFF808080);
+      expect(channel(reddish, 16), greaterThan(0xB0));
+      expect(channel(reddish, 8), lessThan(0x50));
+      expect(channel(reddish, 0), lessThan(0x50));
+    });
+
     testGlassWidgets('renders only what lies in the region', (tester) async {
       await tester.pumpWidget(
         const GlassSourceScope(
@@ -389,6 +454,7 @@ void main() {
         const Rect.fromLTWH(400, 0, 100, 100),
         pixelRatio: 1,
         blurSigma: 4,
+        saturation: 1,
       )!;
       addTearDown(image.dispose);
       final pixels = await _argb(tester, image);
@@ -408,6 +474,7 @@ void main() {
         const Rect.fromLTWH(10, 20, 100, 50),
         pixelRatio: 0.5,
         blurSigma: 2,
+        saturation: 1,
       )!;
       addTearDown(image.dispose);
 

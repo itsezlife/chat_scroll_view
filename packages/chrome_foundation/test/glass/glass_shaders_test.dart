@@ -17,6 +17,7 @@ void main() {
     strokeTop: Color(0x28FFFFFF),
     strokeBottom: Color(0x14FFFFFF),
     shadowColor: Color(0x00000000),
+    enableLiquid: true,
   );
 
   test('a surface thinner than five pixels has a reach, not an error: a '

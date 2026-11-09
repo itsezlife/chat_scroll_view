@@ -57,7 +57,18 @@ abstract interface class GlassSampler {
 
   /// Capture blur sigma in image px.
   double get sampleBlurSigma;
+
+  /// Saturation the capture is rendered with (1 leaves the colours).
+  double get sampleSaturation;
 }
+
+/// How a capture is rendered: resolution, blur and saturation. Samplers that
+/// agree on all three share captures.
+typedef _CaptureSpec = ({
+  double pixelRatio,
+  double blurSigma,
+  double saturation,
+});
 
 /// A capture of a [GlassSource] region.
 ///
@@ -82,10 +93,16 @@ class GlassCapture {
 /// Where a [GlassSourceScope] keeps its [RenderGlassSource] and samplers.
 ///
 /// Captures at most once per frame for all samplers: the first [captureFor]
-/// of a frame collects every sampler's region, merges the ones close enough
-/// that one image is cheaper than several ([mergeRegions]), and renders each
-/// merged region once. Samplers with different resolution or blur never
-/// share an image.
+/// of a frame collects every sampler's region, snaps it out to the capture
+/// grid ([gridPixels] image px), merges the ones close enough that one image
+/// is cheaper than several ([mergeRegions]), and renders each merged region
+/// once. Samplers with different resolution, blur or saturation never share
+/// an image.
+///
+/// The grid keeps a capture's size and its pixel phase against the source
+/// still while a surface moves by less than a grid step (an island growing
+/// with its text, a button's press scale), so such a move neither recaptures
+/// nor shifts the sampled pixels.
 ///
 /// A merged region is rendered again only when something under it changed
 /// since its last capture: the source's composited layer tree is diffed
@@ -101,6 +118,25 @@ class GlassSourceLink {
   static GlassSourceLink? of(BuildContext context) => context
       .dependOnInheritedWidgetOfExactType<_GlassSourceScopeMarker>()
       ?.link;
+
+  /// The capture grid, in image px: a captured region's edges lie on
+  /// multiples of it in the source's coordinates. At an eighth of device
+  /// resolution it is 16 device px.
+  static const int gridPixels = 2;
+
+  /// [region] grown out to the capture grid at [pixelRatio] image px per
+  /// logical px.
+  static Rect snapRegion(Rect region, double pixelRatio) {
+    final step = gridPixels / pixelRatio;
+    double down(double v) => (v / step).floorToDouble() * step;
+    double up(double v) => (v / step).ceilToDouble() * step;
+    return Rect.fromLTRB(
+      down(region.left),
+      down(region.top),
+      up(region.right),
+      up(region.bottom),
+    );
+  }
 
   /// Merges [regions] whose common bounds cost at most [slack] times their
   /// summed areas, so nearby surfaces share one capture and distant ones keep
@@ -134,11 +170,11 @@ class GlassSourceLink {
   final _frame = <GlassSampler, GlassCapture?>{};
   final _watch = GlassLayerWatch();
 
-  /// Captures kept across frames, by resolution, blur and merged region.
-  final _kept = <(double, double, Rect), GlassCapture>{};
+  /// Captures kept across frames, by spec and merged region.
+  final _kept = <(_CaptureSpec, Rect), GlassCapture>{};
 
   /// The keys of [_kept] read since the last release.
-  final _read = <(double, double, Rect)>{};
+  final _read = <(_CaptureSpec, Rect)>{};
 
   /// The source [_kept] and [_watch] describe.
   RenderGlassSource? _watched;
@@ -183,33 +219,39 @@ class GlassSourceLink {
     }
     _invalidate(source, root);
 
-    final groups = <(double, double), List<(GlassSampler, Rect)>>{};
+    final groups = <_CaptureSpec, List<(GlassSampler, Rect)>>{};
     for (final sampler in pending) {
       final region = sampler.sampleRegion(source);
-      if (region == null || region.isEmpty) {
+      final ratio = sampler.samplePixelRatio;
+      if (region == null || region.isEmpty || ratio <= 0) {
         _frame[sampler] = null;
         continue;
       }
-      final key = (sampler.samplePixelRatio, sampler.sampleBlurSigma);
-      (groups[key] ??= []).add((sampler, region));
+      final spec = (
+        pixelRatio: ratio,
+        blurSigma: sampler.sampleBlurSigma,
+        saturation: sampler.sampleSaturation,
+      );
+      (groups[spec] ??= []).add((sampler, snapRegion(region, ratio)));
     }
 
-    for (final MapEntry(key: (ratio, blur), value: members) in groups.entries) {
+    for (final MapEntry(key: spec, value: members) in groups.entries) {
       final merged = mergeRegions([for (final (_, r) in members) r]);
       final captures = <Rect, GlassCapture?>{};
       for (final (sampler, region) in members) {
         final union = merged.firstWhere((m) => m.expandToInclude(region) == m);
         _frame[sampler] = captures.putIfAbsent(union, () {
-          final key = (ratio, blur, union);
+          final key = (spec, union);
           _read.add(key);
           if (_kept[key] case final kept?) return kept;
           final image = source.capture(
             union,
-            pixelRatio: ratio,
-            blurSigma: blur,
+            pixelRatio: spec.pixelRatio,
+            blurSigma: spec.blurSigma,
+            saturation: spec.saturation,
           );
           if (image == null) return null;
-          return _kept[key] = GlassCapture._(image, union, ratio);
+          return _kept[key] = GlassCapture._(image, union, spec.pixelRatio);
         });
       }
     }
@@ -285,13 +327,18 @@ class GlassSource extends SingleChildRenderObjectWidget {
   /// Wraps [child] as the sample tree of the enclosing [GlassSourceScope].
   const GlassSource({required Widget super.child, super.key});
 
-  /// The scale, relative to the frame, at which a glass captures this
-  /// subtree: its content is drawn a second time at that scale.
+  /// The scale, relative to the frame, at which a frosted glass captures
+  /// this subtree: its content is drawn a second time at that scale.
   ///
   /// Caches keyed by scale fill for the capture separately, the engine's
   /// glyph atlas among them. A host that warms one before a glass first
-  /// shows warms it at this scale as well as at 1.
-  static const double captureScale = 1 / GlassStyle.defaultSourceDownscale;
+  /// shows warms it at this scale as well as at 1, and at
+  /// [refractingCaptureScale] too when it allows `GlassQuality.fullLiquid`.
+  static const double captureScale = 1 / GlassStyle.frostedSourceDownscale;
+
+  /// The scale at which a refracting glass captures this subtree.
+  static const double refractingCaptureScale =
+      1 / GlassStyle.refractingSourceDownscale;
 
   @override
   RenderGlassSource createRenderObject(BuildContext context) =>
@@ -352,7 +399,8 @@ class RenderGlassSource extends RenderProxyBox {
   }
 
   /// Renders [region] (local logical px) of the last painted frame at
-  /// [pixelRatio], blurred by [blurSigma] image px. Only what lies inside
+  /// [pixelRatio], blurred by [blurSigma] image px, with its saturation
+  /// scaled by [saturation] (1 leaves it). Only what lies inside
   /// [region] is rendered: the edges blur against their own pixels, not the
   /// content beyond them. The caller owns the image.
   ///
@@ -363,11 +411,14 @@ class RenderGlassSource extends RenderProxyBox {
     Rect region, {
     required double pixelRatio,
     required double blurSigma,
+    required double saturation,
   }) {
     final layer = this.layer;
     if (layer is! OffsetLayer || !layer.attached) return null;
-    final width = (region.width * pixelRatio).ceil();
-    final height = (region.height * pixelRatio).ceil();
+    // A snapped region is a whole number of image px; the slack keeps a
+    // product like 52.000000001 from growing the image by one.
+    final width = (region.width * pixelRatio - 1e-6).ceil();
+    final height = (region.height * pixelRatio - 1e-6).ceil();
     if (width <= 0 || height <= 0) return null;
 
     final builder = ui.SceneBuilder();
@@ -378,6 +429,13 @@ class RenderGlassSource extends RenderProxyBox {
               sigmaY: blurSigma,
               tileMode: TileMode.clamp,
             ),
+          )
+        : null;
+    // Blur and saturation commute (both are linear in colour), so one pass
+    // of each over the small image is the whole colour treatment.
+    final saturate = saturation != 1
+        ? builder.pushColorFilter(
+            ui.ColorFilter.matrix(saturationMatrix(saturation)),
           )
         : null;
     final transform = Matrix4.diagonal3Values(pixelRatio, pixelRatio, 1)
@@ -405,7 +463,21 @@ class RenderGlassSource extends RenderProxyBox {
       scene.dispose();
       cull.dispose();
       root.dispose();
+      saturate?.dispose();
       blur?.dispose();
     }
+  }
+
+  /// The colour matrix that scales saturation by [s] about Rec. 709 luma,
+  /// the luma weights of a platform saturation matrix.
+  static List<double> saturationMatrix(double s) {
+    const r = 0.213, g = 0.715, b = 0.072;
+    final i = 1 - s;
+    return <double>[
+      r * i + s, g * i, b * i, 0, 0, //
+      r * i, g * i + s, b * i, 0, 0, //
+      r * i, g * i, b * i + s, 0, 0, //
+      0, 0, 0, 1, 0, //
+    ];
   }
 }

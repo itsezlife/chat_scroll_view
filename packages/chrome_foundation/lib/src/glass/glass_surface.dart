@@ -20,9 +20,13 @@ import 'package:flutter/widgets.dart';
 /// [GlassSourceScope] is present, and route motion:
 ///
 /// - Under a [GlassSourceScope] on a backend that can capture, the surface
-///   samples the scope's [GlassSource]: each frame it draws a downscaled,
-///   blurred copy of the source region behind it, shared with nearby surfaces.
-///   Nothing reads back the onscreen target.
+///   samples the scope's [GlassSource]: it draws a downscaled, blurred and
+///   saturated copy of the source region behind it, shared with nearby
+///   surfaces and captured again only when something under it changed.
+///   Nothing reads back the onscreen target. A frosted surface draws it with
+///   no shader; a refracting one (`GlassQuality.fullLiquid`) bends it at the
+///   rim with a fragment shader, frosted until the shader loads and for good
+///   if it fails to.
 /// - Otherwise it filters the scene behind it. While the enclosing route
 ///   moves (pushed, popped, dragged by a back gesture, or shifted by a route
 ///   transitioning above it) it paints the material's fill flat instead, since
@@ -30,7 +34,11 @@ import 'package:flutter/widgets.dart';
 ///   frame, which costs several frame budgets per frame on mobile GPUs. The
 ///   glass returns when the route settles.
 /// - Under lite mode, `GlassQuality.flat` or a backend with no filters, the
-///   fill is painted flat; under `GlassQuality.off` nothing is painted.
+///   material's tint is painted opaque; under `GlassQuality.off` nothing is
+///   painted.
+///
+/// With no `GlassQualityScope` the surface is frosted; refraction is the
+/// host's opt-in.
 ///
 /// A chrome fade or wash painted over the content should sit outside the
 /// [GlassSource], or have a cutout under the surface, so it is not sampled
@@ -131,37 +139,47 @@ class _GlassSurfaceState extends State<GlassSurface> {
   @override
   Widget build(BuildContext context) {
     final policy = GlassQualityScope.maybeOf(context);
-    final quality = policy?.quality ?? GlassQuality.fullLiquid;
-    var capabilities = policy?.capabilities ?? GlassCapabilities.detect();
-    // Shaders that failed to load take every shader path away.
-    if (_shadersFailed) {
-      capabilities = capabilities.copyWith(
-        sampledBackdrop: false,
-        shaderFilter: false,
-      );
+    var quality = policy?.quality ?? GlassQuality.frosted;
+    // Shaders that failed to load take refraction away; the frosted paths
+    // need none.
+    if (_shadersFailed && quality == GlassQuality.fullLiquid) {
+      quality = GlassQuality.frosted;
     }
+    final capabilities = policy?.capabilities ?? GlassCapabilities.detect();
     final link = GlassSourceLink.of(context);
-    final strategy = GlassStrategy.select(
+    GlassStrategy select({required bool routeMoving}) => GlassStrategy.select(
       quality: quality,
       liteMode: policy?.liteMode ?? false,
       capabilities: capabilities,
       hasSource: link != null,
-      routeMoving: !_routeSettled,
+      routeMoving: routeMoving,
     );
+    final strategy = select(routeMoving: !_routeSettled);
     if (strategy == GlassStrategy.none) return widget.child;
 
+    // A glass that is flat only while its route moves keeps its translucent
+    // tint, so the backdrop's return is not a jump from opaque; one that is
+    // flat for good (quality, lite mode, backend) is opaque, as no backdrop
+    // is read for the tint to sit on.
+    final finish = switch (strategy) {
+      GlassStrategy.flat when select(routeMoving: false) == strategy =>
+        GlassFinish.flat,
+      _ when quality == GlassQuality.fullLiquid => GlassFinish.refracting,
+      _ => GlassFinish.frosted,
+    };
     final colors = ChromeThemeScope.glassOf(context).colorsOf(widget.material);
     final style = GlassStyle.resolve(
       material: widget.material,
       colors: colors,
       cornerRadius: widget.cornerRadius ?? widget.material.cornerRadius,
-      liquid: quality == GlassQuality.fullLiquid,
+      finish: finish,
     );
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
 
     final needsShaders =
-        strategy == GlassStrategy.sampledLiquid ||
-        strategy == GlassStrategy.sampledFrost ||
-        (strategy == GlassStrategy.backdropFilter && style.enableLiquid);
+        style.enableLiquid &&
+        (strategy == GlassStrategy.sampledLiquid ||
+            strategy == GlassStrategy.backdropFilter);
     if (needsShaders && _programs == null && !_loading) {
       _loadShaders().ignore();
     }
@@ -172,12 +190,13 @@ class _GlassSurfaceState extends State<GlassSurface> {
         link: link!,
         style: style,
         programs: _programs,
-        pixelRatio: MediaQuery.devicePixelRatioOf(context),
+        pixelRatio: pixelRatio,
       ),
       GlassStrategy.backdropFilter => FilterGlassBackdrop(
         style: style,
         programs: _programs,
         shaderFilter: capabilities.shaderFilter,
+        devicePixelRatio: pixelRatio,
       ),
       GlassStrategy.flat || GlassStrategy.none => ColoredBox(color: style.fill),
     };
