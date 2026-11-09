@@ -352,7 +352,7 @@ void main() {
       expect(controller().catalog.offset, closeTo(27 + 4 * 82 + 10, .5));
     });
 
-    // The reference client's stickers tabs follow only search, never the
+    // The stickers tabs follow only search, never the
     // grid's scroll (the emoji page's strip does slide away).
     pageTest('stays whole however far the user reads on and back', (
       tester,

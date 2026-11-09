@@ -5,10 +5,8 @@ import 'package:panel_pages/src/assets/icon_art.dart';
 /// The icons the pages' menus lead their items with: the content preview's
 /// menu and the context menu a secondary click opens.
 ///
-/// The art is the reference mobile client's menu drawables (the ones
-/// `ContentPreviewViewer` adds its items with), bundled with this package as
-/// their `drawable-xxhdpi` pictures: masks drawn at their size at the
-/// reference's 3x ([sizeOf]). A host restyles one by registering a painter for its id
+/// The art is single-colour menu masks bundled with this package at their
+/// 3x size ([sizeOf]). A host restyles one by registering a painter for its id
 /// in a [ChromeIconScope] above the menu.
 abstract final class CatalogMenuIcons {
   /// Send (`msg_send`).
@@ -37,9 +35,8 @@ abstract final class CatalogMenuIcons {
   /// Copy (`msg_copy`).
   static const ChromeIconId copy = ChromeIconId('menu.copy');
 
-  /// The size [id] is drawn at: its drawable's own (an
-  /// `ActionBarMenuSubItem` icon is `WRAP_CONTENT` with `ScaleType.CENTER`,
-  /// so never scaled): 24, but 28 for `input_notify_off` (84 px at 3x).
+  /// The size [id] is drawn at, never scaled: 24, but 28 for the
+  /// notifications-off icon (84 px at 3x).
   static double sizeOf(ChromeIconId id) => id == sendWithoutSound ? 28 : 24;
 
   /// The bundle key of each icon's art.

@@ -7,9 +7,8 @@ import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
 import 'package:panel_pages/src/preview/content_preview_session.dart';
 
 /// The sticker pack sheet: one pack of stickers or masks, its title, its
-/// stickers five to a row, and a button that adds or removes it (the
-/// reference mobile client's `StickersAlert`, the desktop client's
-/// `StickerSetBox`). Shown with [PackSheet.show].
+/// stickers five to a row, and a button that adds or removes it. Shown with
+/// [PackSheet.show].
 ///
 /// Effect-free, as the panel is: it looks the pack up in [packs], reads its
 /// install state from [library], and asks the host for everything else.
@@ -23,8 +22,7 @@ import 'package:panel_pages/src/preview/content_preview_session.dart';
 ///   [onEditsRequested]; the host applies the edit (a removal with its undo
 ///   window) and shows the feedback.
 /// - **The preview.** With [previews], a held sticker opens the content
-///   preview, and a tap opens it with its menu at once, as the reference
-///   does; a right-click opens the same items as a context menu, as on the
+///   preview, and a tap opens it with its menu at once; a right-click opens the same items as a context menu, as on the
 ///   panel's grid. Send (only with [onPick]) closes the sheet and hands the
 ///   sticker to the host, and the favourites ask [onLibraryEditRequested].
 /// - **Picking.** Without [previews], a tap sends at once when there is an

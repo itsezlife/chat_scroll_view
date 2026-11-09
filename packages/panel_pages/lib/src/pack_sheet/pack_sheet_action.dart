@@ -11,9 +11,7 @@ typedef PackEditRequest = ({LibraryPackEdit edit, Pack pack});
 /// confirms with one piece of feedback.
 typedef PackEditsRequested = void Function(List<PackEditRequest> requests);
 
-/// What the bottom button of a pack sheet does for the packs it shows, by
-/// the reference mobile client's rules (`StickersAlert.updateFields`,
-/// `EmojiPacksAlert.updateButton`):
+/// What the bottom button of a pack sheet does for the packs it shows:
 ///
 /// | Packs shown | Install states | Button |
 /// | --- | --- | --- |
@@ -42,8 +40,8 @@ final class PackSheetAction {
         PackInstallState.archived => PackSheetAction._([
           (edit: LibraryEdit$InstallPack(pack.id, pack.kind), pack: pack),
         ], removes: false),
-        // The reference archives an official pack where it removes any
-        // other, and words both as a removal.
+        // An official pack is archived where any other is removed, and both
+        // are worded as a removal.
         PackInstallState.installed => PackSheetAction._([
           (
             edit: pack.official

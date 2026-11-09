@@ -449,7 +449,7 @@ void main() {
     });
   });
 
-  // A phone's touch slop (Android's 8 dp) reaches the widgets through the
+  // A phone's touch slop (8 logical pixels) reaches the widgets through the
   // media query's gesture settings; the grid's own recognizers do not read
   // them.
   group('a finger on a sticker, at a phone slop', () {

@@ -71,7 +71,7 @@ void main() {
       );
     });
 
-    test('under the pointer is the reference desktop client\'s ink: a 34 x 32 '
+    test('under the pointer is the desktop ink: a 34 x 32 '
         'hover box, and nothing on a press', () {
       final pointer = ChromeCatalogTheme.dataFor(
         ChromeThemeData.fromPalette(_palette),

@@ -8,7 +8,7 @@ import 'package:flutter/widgets.dart';
 /// Loads the bytes of a bundled asset; tests replace it.
 typedef IconArtLoader = Future<ByteData> Function(String key);
 
-/// The reference client's icon art bundled with this package, as chrome icon
+/// The icon art bundled with this package, as chrome icon
 /// painters: single-colour alpha masks drawn tinted with the icon's colour.
 ///
 /// Decoded images are shared by every scope for the life of the process: a

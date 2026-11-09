@@ -11,7 +11,7 @@ typedef EmojiTabAssetLoader = IconArtLoader;
 /// The pictures of the category strip, and of the favourites tab of the
 /// stickers page's strip, as chrome icon painters.
 ///
-/// The art is the reference client's: single-colour alpha masks bundled with
+/// The art is single-colour alpha masks bundled with
 /// this package and drawn tinted with the icon's colour.
 abstract final class EmojiTabIcons {
   /// The package the art is bundled in.
@@ -27,7 +27,7 @@ abstract final class EmojiTabIcons {
     ChromeIconId('emoji.travel'): 'msg_emoji_travel',
     ChromeIconId('emoji.objects'): 'msg_emoji_objects',
     ChromeIconId('emoji.symbols'): 'msg_emoji_other',
-    // The stickers page's favourites tab (`stickerIcons[1]` of `EmojiView`).
+    // The stickers page's favourites tab.
     ChromeIconId('stickers.favourites'): 'emoji_tabs_faves',
   };
 

@@ -28,7 +28,7 @@ class ChromeCatalogTheme extends StatelessWidget {
   final Widget child;
 
   /// How far in from the start edge section titles begin, or null for the
-  /// viewport's: a kind of content whose reference list sets its titles
+  /// viewport's: a kind of content whose list sets its titles
   /// differently than another's (stickers 15, emoji 5) says so here.
   final double? headerStartInset;
 
@@ -39,7 +39,7 @@ class ChromeCatalogTheme extends StatelessWidget {
       palette.onSurface.withAlpha(0x12);
 
   /// The hover box of a cell under the pointer arrangement, centred in it
-  /// whatever its size: the reference desktop client's emoji area.
+  /// whatever its size.
   static const Size pointerHoverSize = Size(34, 32);
 
   /// The catalogue theme the chrome theme [chrome] stands for.
@@ -53,8 +53,7 @@ class ChromeCatalogTheme extends StatelessWidget {
   /// - The section title is the panel tokens' `sectionTitle`.
   /// - Under [PanelArrangement.pointer] a mouse over a cell paints the text
   ///   colour at alpha `0x12` in a [pointerHoverSize] box, and a press draws
-  ///   nothing (the box stays on the pressed cell), as the reference desktop
-  ///   client's list does; under touch nothing hovers, and a press draws the
+  ///   nothing (the box stays on the pressed cell); under touch nothing hovers, and a press draws the
   ///   press wash and shrinks the cell.
   static PanelCatalogThemeData dataFor(
     ChromeThemeData chrome, {

@@ -8,8 +8,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 
 /// The mechanism a page's strip of tabs is built from: the emoji strip and
-/// the stickers strip are one strip in the reference mobile client's look,
-/// drawn by two classes there (`EmojiTabsStrip`, `ScrollSlidingTabStrip`).
+/// the stickers strip are one strip in one look, with two sets of metrics.
 ///
 /// One row [PanelStripMetrics.height] tall, a tab every
 /// [PanelStripMetrics.pitch] from [PanelStripMetrics.padH] in; a pill
@@ -17,7 +16,7 @@ import 'package:flutter/widgets.dart';
 /// next in 350 ms ease-out quint and swelling half way; a pack's tab is its
 /// cover, over a stand-in in the theme until the cover has anything to show.
 ///
-/// What the two reference strips do differently is a field of
+/// What the two strips do differently is a field of
 /// [PanelStripMetrics]: the sizes, the swell and whether a cover plays. What
 /// only one of them has (the emoji strip's folding group, each strip's rule
 /// for scrolling a tab into view, the stickers strip's directional layout)
@@ -41,7 +40,7 @@ final class PanelStripMetrics {
   /// Height of either strip: `createFrame(MATCH_PARENT, 36)`.
   static const double height = 36;
 
-  /// Side of the pill at rest: `dp(30)` in both reference strips.
+  /// Side of the pill at rest, in both strips.
   static const double pillSide = 30;
 
   /// The pill's slide: `currentPositionAnimated` and `selectAnimator`, 350 ms.
@@ -85,11 +84,11 @@ final class PanelStripMetrics {
 /// How the pill changes shape on its way from tab to tab: widest and flattest
 /// half way, its rest size at either end.
 enum PanelStripSwell {
-  /// `EmojiTabsStrip.dispatchDraw`: `isMiddle = 4t(1 - t)`, the width times
+  /// `isMiddle = 4t(1 - t)`, the width times
   /// `1 + .3 isMiddle`, the height times `1 - .05 isMiddle`.
   emoji,
 
-  /// `ScrollSlidingTabStrip.dispatchDraw`: `far = |.5 - t| 2`, the width
+  /// The stickers swell: `far = |.5 - t| 2`, the width
   /// times `1.25 - .25 far`, the height times `.9 + .1 far`.
   stickers;
 
@@ -222,8 +221,7 @@ final class PanelStripRange {
 
 /// The pill's slide from tab to tab, in tab indices.
 ///
-/// Retargets from where the pill is, as the reference's `AnimatedFloat` and
-/// `selectAnimator` do: a new target mid-way starts a whole slide from the
+/// Retargets from where the pill is: a new target mid-way starts a whole slide from the
 /// fraction it is at. The controller runs from 0 and the curve eases its
 /// time, so a slide eases out whichever way it goes.
 final class PanelStripSlide {
@@ -376,9 +374,8 @@ class PanelStripIcon extends StatelessWidget {
 /// Until the cover has anything to show, the tab draws [standIn], a faint
 /// rounded square in the idle icon colour, never the scope's media fill
 /// (every surface of the scope shares that one, and its colour is the
-/// host's). The reference strip draws the sticker's outline in
-/// `key_emptyListPlaceholder` at 0.2 (`ScrollSlidingTabStrip`,
-/// `DocumentObject.getSvgThumb`); an outline is metadata this package never
+/// host's). The stickers strip draws the sticker's outline in the empty-list
+/// placeholder colour at 0.2; an outline is metadata this package never
 /// sees, so the shape is the square, and the colour the panel's idle icon,
 /// the strip's own quiet colour.
 ///

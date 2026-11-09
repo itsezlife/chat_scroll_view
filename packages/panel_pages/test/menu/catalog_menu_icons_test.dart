@@ -17,7 +17,7 @@ void main() {
   // have left decodes in it that never complete.
   setUpAll(EmojiTabIcons.clearCache);
 
-  test("every preview item leads with the reference's icon", () {
+  test('every preview item leads with its icon', () {
     expect(
       {
         for (final action in ContentPreviewAction.values)

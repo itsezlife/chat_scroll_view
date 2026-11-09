@@ -24,17 +24,14 @@ import 'package:panel_shell/panel_shell.dart';
 /// How a pack sheet lays its grid out: the part of a sheet that depends on
 /// what it shows.
 enum PackSheetGrid {
-  /// One pack of stickers or masks: five columns of `82` tall rows
-  /// (`StickersAlert`: `stickersPerRow = 5`, `itemHeight = dp(82)`).
+  /// One pack of stickers or masks: five columns of 82 tall rows.
   stickers,
 
-  /// One pack of custom emoji: as many square columns as fit `45` wide
-  /// (`StickersAlert.isEmoji`: `width / dp(45)`).
+  /// One pack of custom emoji: as many square columns as fit 45 wide.
   emoji,
 
   /// Several packs of custom emoji: each under its own header with an
-  /// Add or Remove button, eight to a row and two rows at most
-  /// (`EmojiPacksAlert`: 40 spans of 5, `limitCount` 16).
+  /// Add or Remove button, eight to a row and two rows at most.
   severalEmoji,
 }
 
@@ -92,78 +89,73 @@ class PackSheetView extends StatefulWidget {
 
   /// The host's handle on content previews, or null for none: with it a
   /// sticker grid previews a held or tapped sticker (an emoji grid never
-  /// does: `ContentPreviewViewer.can()` is false for an emoji set).
+  /// does).
   final ContentPreviewController? previews;
 
   /// Asked for the preview's library edits (favourites), or null for none.
   final ValueChanged<LibraryEdit>? onLibraryEditRequested;
 
-  /// An emoji drawn large above the card on touch, or null
-  /// (`EmojiPacksAlert.setPreviewEmoji`).
+  /// An emoji drawn large above the card on touch, or null.
   final ContentKey? previewEmoji;
 
   // --- Metrics --------------------------------------------------------------
 
-  /// The header band: `StickersAlert`'s title view, 50 tall.
+  /// The header band, 50 tall.
   static const double headerExtent = 50;
 
-  /// The title: 20 bold (`titleTextView.setTextSize(20)`, `bold()`).
+  /// The title: 20 bold.
   static const double titleSize = 20;
 
-  /// The weight of every bold text of the sheet: `AndroidUtilities.bold()`
-  /// is the Roboto Medium face (or the system font at weight 500), not a
-  /// bold one.
+  /// The weight of every bold text of the sheet is the medium face (weight
+  /// 500), not a bold one.
   static const FontWeight boldWeight = FontWeight.w500;
 
-  /// The title's inset from either side (`setPadding(dp(18), ...)`).
+  /// The title's inset from either side.
   static const double titleInset = 18;
 
   /// The menu button: 40 square, 5 in from the top and the end edge.
   static const double menuButtonExtent = 40;
 
-  /// The grabber: 36 x 4, radius 2 (`dp(36)`, `dp(4)`, `dp(2)`).
+  /// The grabber: 36 x 4, radius 2.
   static const Size grabberSize = Size(36, 4);
 
-  /// The header's shadow line: `dialogShadowLine`, `dp(48)` below the
-  /// header's top, `getShadowHeight()` (one density-independent pixel) tall.
+  /// The header's shadow line: 48 below the header's top, one logical pixel
+  /// tall.
   static const double shadowLineTop = 48;
 
   /// How long the shadow line takes to fade in or out (`setDuration(150)`).
   static const Duration shadowFade = Duration(milliseconds: 150);
 
-  /// The row of a sticker pack (`dp(82)`).
+  /// The row of a sticker pack.
   static const double stickerRowExtent = 82;
 
   /// The side a sticker is drawn at in its cell.
   static const double stickerExtent = 66;
 
-  /// The narrowest emoji column (`dp(45)`).
+  /// The narrowest emoji column.
   static const double emojiColumnWidth = 45;
 
-  /// Columns of a pack among several (`EmojiPacksAlert`: 40 spans / 5).
+  /// Columns of a pack among several.
   static const int severalColumns = 8;
 
-  /// Items shown of each pack among several: two rows
-  /// (`EmojiPacksAlert` `limitCount`, 16).
+  /// Items shown of each pack among several: two rows.
   static const int severalLimit = 16;
 
-  /// The grid's side padding (`gridView.setPadding(dp(10), ..., dp(10),
-  /// dp(8))`) and its bottom padding.
+  /// The grid's side padding and its bottom padding.
   static const EdgeInsets gridPadding = EdgeInsets.fromLTRB(10, 0, 10, 8);
 
-  /// The add button: 48 tall, 8 from every edge of its bar, fully rounded
-  /// (`createSimpleSelectorRoundRectDrawable(dp(24), ...)`), on a 64 bar.
+  /// The add button: 48 tall, 8 from every edge of its bar, fully rounded,
+  /// on a 64 bar.
   static const double buttonExtent = 48;
 
   /// The margin around the filled add button.
   static const double buttonMargin = 8;
 
-  /// The label of the bottom button: 14 bold (`pickerBottomLayout`
-  /// `setTextSize(dp(14))` in pixels, `bold()`).
+  /// The label of the bottom button: 14 bold.
   static const double buttonTextSize = 14;
 
-  /// The preview emoji's side (`dp(140)`), and the gap between it and the
-  /// card's top (`dp(20)`); it is drawn only while the card's top is at
+  /// The preview emoji's side (140), and the gap between it and the card's
+  /// top (20); it is drawn only while the card's top is at
   /// least both below the top of the screen (`y < sz + p` hides it).
   static const double previewEmojiExtent = 140;
 
@@ -174,8 +166,8 @@ class PackSheetView extends StatefulWidget {
   /// ms on `EASE_OUT_QUINT`); it scales from 1 to 0.6 as it fades.
   static const Duration previewEmojiFade = Duration(milliseconds: 320);
 
-  /// The tallest the grid is in a box under a pointer: the desktop client's
-  /// `stickersMaxHeight` (320) for stickers, its emoji height (197) otherwise.
+  /// The tallest the grid is in a box under a pointer: 320 for stickers, 197
+  /// for emoji.
   static double boxGridMaxHeight(PackSheetGrid grid) =>
       grid == PackSheetGrid.stickers ? 320 : 197;
 
@@ -206,8 +198,7 @@ class _PackSheetViewState extends State<PackSheetView>
   final _offset = ValueNotifier<double>(0);
   late final StreamSubscription<PanelCatalogScrollEvent> _scrolls;
 
-  /// How far an emoji card's background has closed over the status bar
-  /// (`EmojiPacksAlert`'s `statusBarT`, 350 ms on ease-out-quint).
+  /// How far an emoji card's background has closed over the status bar, over 350 ms on an ease-out quint.
   late final _closing = AnimationController(vsync: this);
 
   /// The frame of the last build, which the offset is read against.
@@ -226,7 +217,7 @@ class _PackSheetViewState extends State<PackSheetView>
   Animation<double>? _routeAnimation;
 
   /// The pack a sheet of several opened on its own by a tap on one of its
-  /// items (`EmojiPacksAlert`: a tap opens that pack alone), or null.
+  /// items, or null.
   PackId? _alone;
 
   List<PackId> get _shown => switch (_alone) {
@@ -419,8 +410,7 @@ class _PackSheetViewState extends State<PackSheetView>
       setState(() => _alone = item.pack.id);
       return;
     }
-    // A tap on a sticker opens its preview with the menu at once
-    // (`StickersAlert`: a click opens `ContentPreviewViewer` with its menu).
+    // A tap on a sticker opens its preview with the menu at once.
     if (_preview case final preview?) {
       _replaceSession(
         ContentPreviewSession.show(
@@ -440,9 +430,7 @@ class _PackSheetViewState extends State<PackSheetView>
     _pick(item);
   }
 
-  // The sheet goes and the host sends or inserts (`StickersAlert`
-  // `onStickerSelected` then `dismiss`, `EmojiPacksAlert` inserts and
-  // dismisses).
+  // The sheet goes and the host sends or inserts the pick.
   void _pick(PackSheetItem item) {
     final pick = widget.onPick;
     if (pick == null) return;
@@ -458,7 +446,7 @@ class _PackSheetViewState extends State<PackSheetView>
         controller: controller,
         assets: widget.assets,
         // Send only when opened for a composer; View Pack never, the pack is
-        // open (`StickersAlert` passes no `openSet`).
+        // open.
         actions: ContentPreviewActions(
           send: widget.onPick == null ? null : _sendPreviewed,
           editLibrary: widget.onLibraryEditRequested,
@@ -492,7 +480,7 @@ class _PackSheetViewState extends State<PackSheetView>
   }
 
   // A right-click on a sticker opens the preview's items as a context menu,
-  // as on the panel's grid (the desktop client's right-click menu).
+  // as on the panel's grid.
   void _onSecondaryTap(CatalogLeafHit hit, Offset globalPosition) {
     final preview = _preview;
     if (preview == null) return;
@@ -515,7 +503,7 @@ class _PackSheetViewState extends State<PackSheetView>
   }
 
   void _onButton(PackSheetAction action) {
-    // `StickersAlert`: the sheet is dismissed, then the set is toggled.
+    // The sheet is dismissed, then the set is toggled.
     _close();
     widget.onEditsRequested(action.requests);
   }
@@ -634,13 +622,12 @@ class _PackSheetViewState extends State<PackSheetView>
             : frame.stickersBackdrop(cardTop);
         final grabber = _isEmoji
             ? (
-                // `y += dp(10)`; alpha `clamp(y / dp(20))` before it.
+                // Lower by 10; alpha is `y / 20`, clamped, before it.
                 top: backdrop.top + 10,
                 alpha: ((boxTop + backdrop.top) / 20).clamp(0.0, 1.0),
               )
             : (
-                // `dp(6)` below the card; alpha over `dp(16)` above the
-                // status bar.
+                // 6 below the card; alpha over 16 above the status bar.
                 top: cardTop + 6,
                 alpha: ((boxTop + cardTop + 6 - frame.topInset) / 16).clamp(
                   0.0,
@@ -711,8 +698,7 @@ class _PackSheetViewState extends State<PackSheetView>
                   ),
                 ),
               ),
-            // A press above the card closes the sheet (`StickersAlert`:
-            // `ev.getY() < scrollOffsetY` on `ACTION_DOWN`).
+            // A press above the card closes the sheet.
             if (cardTop > 0)
               Positioned(
                 left: 0,
@@ -1049,8 +1035,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// The header of one pack among several (`EmojiPacksAlert.EmojiPackHeader`,
-/// not single): its title, how many emoji it holds, and a button that adds
+/// The header of one pack among several (not single): its title, how many emoji it holds, and a button that adds
 /// it (a filled pill) or removes it (accent text), which cross-fade with a
 /// scale as the pack's install state changes.
 class _PackHeader extends StatefulWidget {
@@ -1061,17 +1046,17 @@ class _PackHeader extends StatefulWidget {
     super.key,
   });
 
-  /// The header's band (`dp(56)`).
+  /// The header's band.
   static const double extent = 56;
 
-  /// The title: 17 bold, `dp(10)` down, `dp(6)` in plus its own `dp(2)`.
+  /// The title: 17 bold, 10 down, 8 in.
   static const double titleSize = 17;
 
-  /// The count: 13 in the muted colour, `dp(31.66)` down, `dp(8)` in.
+  /// The count: 13 in the muted colour, 31.66 down, 8 in.
   static const double subtitleSize = 13;
 
-  /// The button: 28 tall, `dp(15.66)` down, `dp(5.66)` from the end; the
-  /// title stops `dp(8 + 8)` short of its far edge.
+  /// The button: 28 tall, 15.66 down, 5.66 from the end; the title stops 16
+  /// short of its far edge.
   static const double buttonExtent = 28;
 
   /// How long the buttons take to trade places (`setDuration(250)`,

@@ -8,7 +8,7 @@ import 'package:panel_pages/src/preview/content_preview_item.dart';
 /// Where a content preview draws its content, the emoji above it and its
 /// menu, in the window's coordinates.
 ///
-/// The reference client's geometry (`ContentPreviewViewer.onDraw`), with
+/// The preview's geometry, with
 /// `M = min(width, height - insets)` where the insets are the window's top
 /// and bottom padding:
 ///
@@ -17,7 +17,7 @@ import 'package:panel_pages/src/preview/content_preview_item.dart';
 ///   corners of [gifRadius].
 /// - **Centre.** Across the middle of the window; down at
 ///   `max(size / 2 + top + (emoji ? 40 : 0), (height - insets - keyboard) / 2)`,
-///   where `keyboard` is the height the reference assumes a keyboard has
+///   where `keyboard` is the height assumed for a keyboard
 ///   ([defaultKeyboardHeight] until it knows better) and 40 is room for the
 ///   emoji above ([emojiRoom]); a GIF moves up from there by its swipe.
 /// - **Emoji.** Its line begins [emojiGap] above the square, [emojiWidth]
@@ -79,28 +79,28 @@ final class ContentPreviewLayout {
     required this.menuTop,
   });
 
-  /// `M - dp(40)`: how much narrower than `M` a GIF is.
+  /// `M - 40`: how much narrower than `M` a GIF is.
   static const double gifInset = 40;
 
-  /// `centerImage.setRoundRadius(dp(6))` for a GIF.
+  /// The corner radius of a GIF: 6.
   static const double gifRadius = 6;
 
-  /// `dp(40)` added to the topmost centre when an emoji line is drawn.
+  /// 40 added to the topmost centre when an emoji line is drawn.
   static const double emojiRoom = 40;
 
-  /// `dp(30)`: how far above the square the emoji line begins.
+  /// 30: how far above the square the emoji line begins.
   static const double emojiGap = 30;
 
-  /// `dp(200)`: the width the emoji line is ellipsized to.
+  /// 200: the width the emoji line is ellipsized to.
   static const double emojiWidth = 200;
 
-  /// `textPaint.setTextSize(dp(24))`: the emoji line's size.
+  /// 24: the emoji line's size.
   static const double emojiFontSize = 24;
 
-  /// `y += dp(24)`: the menu's top below the square.
+  /// 24: the menu's top below the square.
   static const double menuGap = 24;
 
-  /// `keyboardHeight = dp(200)` until a keyboard was measured.
+  /// 200 until a keyboard was measured.
   static const double defaultKeyboardHeight = 200;
 
   /// The square the content is drawn in.

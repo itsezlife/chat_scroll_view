@@ -100,7 +100,7 @@ void main() {
   });
 
   group('a sticker', () {
-    test('in the reference order: send, send without sound, favourite, view '
+    test('in order: send, send without sound, favourite, view '
         'pack, delete from recent', () {
       expect(
         ContentPreviewMenu.of(
@@ -260,7 +260,7 @@ void main() {
   group('labels', () {
     final strings = ChromeStringsPresets.english.panel;
 
-    test('are the reference texts, per kind for send', () {
+    test('are the expected texts, per kind for send', () {
       String label(ContentPreviewAction action, ContentPreviewItem item) =>
           ContentPreviewMenu.labelOf(action, item, strings);
       const emoji = ContentPreviewItem(

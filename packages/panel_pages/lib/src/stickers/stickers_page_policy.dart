@@ -14,27 +14,25 @@ import 'package:panel_shell/panel_shell.dart';
 
 /// The decisions that make a catalogue page the stickers page.
 ///
-/// The reference mobile client's sticker list (`EmojiView`'s stickers tab,
-/// `StickersGridAdapter`), as far as a list of packs goes:
+/// The sticker list, as far as a list of packs goes:
 ///
 /// - **Geometry.** As many columns as the width holds at [desiredCellWidth]
-///   (`stickersPerRow = width / dp(72)`), each row [rowExtent] tall, a
+///   (width / 72), each row [rowExtent] tall, a
 ///   sticker drawn at most [stickerExtent] square and centred in its cell,
 ///   under a [headerExtent] header whose title begins [headerStartInset] in.
 ///   The same under either arrangement.
 /// - **Sections.** The favourite stickers (`CollectionId.faved`, titled
 ///   [PanelStrings.favouriteStickersTitle]), then the recents, then one per
 ///   pack, titled by the pack; the favourites and the recents unless they
-///   are known to be empty. The order is the source's: the reference lists
-///   the favourites above the recents (`StickersGridAdapter.updateItems`).
+///   are known to be empty. The order is the source's: the favourites are
+///   listed above the recents.
 /// - **Picks.** A tap picks the sticker under its own kind, so a pick lands in
 ///   the recents of stickers (a GIF in the pack would land in those of GIFs).
 /// - **The recents header.** A clear button at its end; it asks the host to
 ///   clear the recent stickers (`PanelPageHost.requestClearRecents`), and the
-///   host confirms, as the reference client's alert does.
+///   host confirms.
 /// - **A pack's header.** Its title opens the pack: a tap asks the host for
-///   the pack the section lists (`PanelPageHost.requestPack`; `EmojiView`'s
-///   `setHeaderOnClick` calls `onShowStickerSet`).
+///   the pack the section lists (`PanelPageHost.requestPack`).
 /// - **Strip.** The [StickerPackStrip] above the catalogue.
 /// - **Preview.** Given [previews] and a [host], a press held on a sticker
 ///   opens the content preview (`ContentPreviewSession`), favourites and
@@ -60,16 +58,16 @@ final class StickersPagePolicy extends CatalogPagePolicy {
     topStrip: true,
   );
 
-  /// The narrowest a column is: `width / AndroidUtilities.dp(72)`.
+  /// The narrowest a column is 72 logical pixels.
   static const double desiredCellWidth = 72;
 
-  /// The height of a row: `StickerEmojiCell` is measured `dp(82)`.
+  /// The height of a row: 82.
   static const double rowExtent = 82;
 
   /// The largest side a sticker is drawn at: `StickerEmojiCell.STICKER_SIZE`.
   static const double stickerExtent = 66;
 
-  /// The height of a header: `StickerSetNameCell.onMeasure` `dp(27)`.
+  /// The height of a header: 27.
   static const double headerExtent = 27;
 
   /// Where a title begins: the left margin of `StickerSetNameCell`'s text
@@ -284,9 +282,7 @@ final class StickersPagePolicy extends CatalogPagePolicy {
 
   /// The page goes back to its start on a fresh open: the grid at its first
   /// section, the strip whole, its first tab (the recents, else the first
-  /// pack) marked, as the reference mobile client's emoji view does each time
-  /// it is shown (`onOpen` scrolls the stickers to position 0 and selects the
-  /// first tab).
+  /// pack) marked, each time the page is shown.
   @override
   bool get restartsOnFreshOpen => true;
 
@@ -295,9 +291,8 @@ final class StickersPagePolicy extends CatalogPagePolicy {
   @override
   double get stripExtent => StickerPackStrip.height;
 
-  /// The strip stays whole while the grid scrolls, as the reference mobile
-  /// client's stickers tabs do (`updateStickerTabsPosition` moves them by the
-  /// search's progress only, never by the grid's scroll).
+  /// The strip stays whole while the grid scrolls: it moves by the search's
+  /// progress only, never by the grid's scroll.
   @override
   bool get stripSlidesAway => false;
 

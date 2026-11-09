@@ -8,14 +8,14 @@ import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
 typedef PackSheetBackdrop = ({double top, double radius});
 
 /// Where a pack sheet's card sits in the sheet's box, and how its top follows
-/// the grid, by the reference mobile client's rules.
+/// the grid.
 ///
 /// A sheet whose content fits under 3.2/5 of the screen wraps it
-/// (`StickersAlert.onMeasure`: `contentSize < height / 5 * 3.2`). A taller one
+/// (content under `height / 5 * 3.2`). A taller one
 /// takes the whole height it needs, up to the screen, and opens part-way: the
 /// grid starts [lead] further down than its content, so the card's top is two
 /// fifths down the screen for stickers (`height / 5 * 2`) and 0.56 of it for
-/// emoji (0.3 in landscape; `EmojiPacksAlert`'s padding row). Scrolling the
+/// emoji (0.3 in landscape). Scrolling the
 /// grid takes up the lead first, raising the card, which then stays under
 /// the status bar while the grid scrolls under its header.
 ///
@@ -84,10 +84,11 @@ final class PackSheetFrame {
   /// Where it opens on a landscape screen (`.3f`).
   static const double emojiLandscapeOpenShare = 0.3;
 
-  /// The sticker card's top corners (`dp(12)`), squared on the status bar.
+  /// The sticker card's top corners (12), squared on the status bar.
   static const double stickersRadius = 12;
 
-  /// The emoji card's top corners (`dp((1f - statusBarT) * 14)`).
+  /// The emoji card's top corners: 14, shrinking to 0 as the card closes over
+  /// the status bar.
   static const double emojiRadius = 14;
 
   /// The height of the sheet's box.
@@ -107,8 +108,8 @@ final class PackSheetFrame {
   final bool fillsScreen;
 
   /// The card's top in the box under the grid's scroll [offset]: it rises
-  /// with the grid until the lead is scrolled away (`StickersAlert`
-  /// `updateLayout`: the first row's top, or 0 once it is above the grid).
+  /// with the grid until the lead is scrolled away (the first row's top, or 0
+  /// once it is above the grid).
   double cardTopAt(double offset) => topInset + math.max(0, lead - offset);
 
   /// Whether rows have scrolled under the pinned header at [offset], which
@@ -117,7 +118,7 @@ final class PackSheetFrame {
   bool scrolledUnderHeaderAt(double offset) => offset > lead;
 
   /// The sticker card's background under a card top of [cardTop]
-  /// (`StickersAlert` `onDraw`): within two status bars of the top of a
+  /// Within two status bars of the top of a
   /// sheet that fills the screen, the background grows up by the distance
   /// in, at most a status bar, and its corners square twice as fast, so the
   /// card meets the status bar square.
@@ -134,13 +135,12 @@ final class PackSheetFrame {
   }
 
   /// Whether the emoji card's background closes over the status bar at a
-  /// card top of [cardTop] (`statusBarT.set(y <= containerView
-  /// .getPaddingTop())`), which only a sheet that fills the screen reaches;
+  /// card top of [cardTop], which only a sheet that fills the screen reaches;
   /// the sheet animates [emojiBackdrop]'s progress toward it.
   bool closesAt(double cardTop) => fillsScreen && cardTop <= topInset;
 
   /// The emoji card's background at a card top of [cardTop] and a closing
-  /// progress [closed] from 0 to 1 (`EmojiPacksAlert` `dispatchDraw`: the top
+  /// progress [closed] from 0 to 1 (the top
   /// lerps to the screen's, the radius from 14 to 0).
   PackSheetBackdrop emojiBackdrop(double cardTop, double closed) => (
     top: lerpDouble(cardTop, 0, closed)!,
