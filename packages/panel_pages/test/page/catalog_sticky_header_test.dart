@@ -123,6 +123,23 @@ void main() {
       expect(header.stripOffset.value, 0);
     });
 
+    test('a pinned strip stays whole however far the user reads on, and its '
+        'hairline shows once content passes under it', () {
+      final pinned = CatalogStickyHeader(
+        stripExtent: 36,
+        searchExtent: 50,
+        pinned: true,
+      )..configure(searchOpen: false, stripShown: true, metrics: metrics);
+      addTearDown(pinned.dispose);
+      metrics.offset = 400;
+      pinned.scrolled(100, metrics);
+      expect(pinned.stripOffset.value, 0);
+      expect(pinned.stripShadow.value, isTrue);
+
+      pinned.scrolled(-40, metrics);
+      expect(pinned.stripOffset.value, 0);
+    });
+
     test('a page without a strip has nothing to slide', () {
       final bare = CatalogStickyHeader(stripExtent: 0, searchExtent: 50)
         ..configure(searchOpen: false, stripShown: false, metrics: metrics);

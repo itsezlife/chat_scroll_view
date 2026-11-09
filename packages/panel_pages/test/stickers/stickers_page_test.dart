@@ -119,6 +119,9 @@ void main() {
       origin(tester) +
       Offset(columnWidth * (column + .5), 36 + 27 + 82 * row + 41);
 
+  double stripTop(WidgetTester tester) =>
+      tester.getTopLeft(find.byType(StickerPackStrip)).dy - origin(tester).dy;
+
   CatalogPageController controller() =>
       host.controllers.peek<CatalogPageController>('stickers')!;
 
@@ -303,27 +306,41 @@ void main() {
 
       expect(controller().catalog.offset, closeTo(27 + 4 * 82 + 10, .5));
     });
+
+    // The reference client's stickers tabs follow only search, never the
+    // grid's scroll (the emoji page's strip does slide away).
+    pageTest('stays whole however far the user reads on and back', (
+      tester,
+    ) async {
+      await pumpPage(tester);
+      controller().catalog.jumpTo(27 + 4 * 82 + 100);
+      await settle(tester);
+
+      controller().catalog.scrollBy(80);
+      await settle(tester);
+      expect(stripTop(tester), 0);
+
+      controller().catalog.scrollBy(-40);
+      await settle(tester);
+      expect(stripTop(tester), 0);
+    });
   });
 
   group('a fresh open', () {
-    double stripTop(WidgetTester tester) =>
-        tester.getTopLeft(find.byType(StickerPackStrip)).dy - origin(tester).dy;
-
-    // Reads on into the second pack until the strip has slid away, as a user
-    // closing the panel there leaves it.
-    Future<void> readOnUntilTheStripIsGone(WidgetTester tester) async {
+    // Reads on into the second pack, as a user closing the panel there
+    // leaves it.
+    Future<void> readOnIntoTheSecondPack(WidgetTester tester) async {
       controller().catalog.jumpTo(27 + 4 * 82 + 100);
       await settle(tester);
       controller().catalog.scrollBy(80);
       await settle(tester);
-      expect(stripTop(tester), lessThan(-StickerPackStrip.height + 1));
       expect(selected(tester, 'Dogs'), isTrue);
     }
 
     pageTest('brings the grid to its start, the strip back whole and the '
         'first tab marked', (tester) async {
       await pumpPage(tester);
-      await readOnUntilTheStripIsGone(tester);
+      await readOnIntoTheSecondPack(tester);
 
       host
         ..visible = false
@@ -356,7 +373,7 @@ void main() {
 
     pageTest('without one, a hide and a show keep the place', (tester) async {
       await pumpPage(tester);
-      await readOnUntilTheStripIsGone(tester);
+      await readOnIntoTheSecondPack(tester);
       final offset = controller().catalog.offset;
 
       host
@@ -365,7 +382,6 @@ void main() {
       await settle(tester);
 
       expect(controller().catalog.offset, offset);
-      expect(stripTop(tester), lessThan(-StickerPackStrip.height + 1));
       expect(selected(tester, 'Dogs'), isTrue);
     });
   });

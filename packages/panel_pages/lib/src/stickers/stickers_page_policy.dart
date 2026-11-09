@@ -165,6 +165,12 @@ final class StickersPagePolicy extends CatalogPagePolicy {
   @override
   double get stripExtent => StickerPackStrip.height;
 
+  /// The strip stays whole while the grid scrolls, as the reference mobile
+  /// client's stickers tabs do (`updateStickerTabsPosition` moves them by the
+  /// search's progress only, never by the grid's scroll).
+  @override
+  bool get stripSlidesAway => false;
+
   @override
   Widget? buildStrip(BuildContext context, CatalogStripHandle strip) =>
       EmojiTabIconScope(
