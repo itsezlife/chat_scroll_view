@@ -443,6 +443,64 @@ void main() {
     expect(faults, isEmpty);
   });
 
+  // Ticket 144: a cell that really leaves gives its lease back; when it
+  // comes back it must show the frame it left on at once, never its
+  // first-frame still while a new lease earns its posts, and play on from
+  // that frame.
+  for (final away in [12, 40]) {
+    testWidgets('a cell scrolled off for ${away * 16} ms and back shows its '
+        'last frame at once and plays on from it', (tester) async {
+      await pumpPanel(tester, cells: 100);
+      await settle(tester);
+      final texture = textureOf(first)!;
+      final before = [
+        for (final job in writer.batches.expand((b) => b))
+          if (job.texture.id == texture) job.frame,
+      ].last;
+
+      // Two rows leave the attach window, the rows brought in want textures
+      // of their own (past the pool's reuse delay for the longer stay), and
+      // on the way back as many leave at the other edge.
+      controller.jumpTo(180);
+      await frame(tester);
+      await frame(tester);
+      expect(textureOf(first), isNull, reason: 'it left: its lease went');
+      for (var i = 0; i < away; i++) {
+        await frame(tester);
+      }
+
+      controller.jumpTo(0);
+      await frame(tester);
+      final back = textureOf(first);
+      expect(back, texture, reason: 'its last frame at once, not its still');
+      expect(_textures(panel(tester).debugLayer), contains(back));
+
+      final written = writer.batches.length;
+      for (var i = 0; i < 30; i++) {
+        await frame(tester);
+        expect(
+          _textures(panel(tester).debugLayer),
+          contains(textureOf(first)),
+          reason: 'frame $i after it came back shows a texture',
+        );
+      }
+      final after = [
+        for (final job in writer.batches.skip(written).expand((b) => b))
+          if (job.texture.id == textureOf(first)) job.frame,
+      ];
+      await dispose(tester);
+      expect(after, isNotEmpty, reason: 'it plays on');
+      expect(
+        after.first,
+        inInclusiveRange(before, before + 4),
+        reason: 'from the frame it left on ($before), not its start',
+      );
+      for (var i = 1; i < after.length; i++) {
+        expect(after[i], greaterThanOrEqualTo(after[i - 1]));
+      }
+    });
+  }
+
   group('a pack sheet', () {
     late BuildContext home;
 

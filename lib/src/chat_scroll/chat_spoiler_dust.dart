@@ -18,8 +18,7 @@ import 'package:flutter_md/flutter_md.dart';
 ///
 /// A pause (focus lost, a dialog over the chat) delivers no frame, and the
 /// first one after it carries the live time. Handed on as it is, the dust
-/// would jump by the whole pause; the reference client instead goes on from
-/// where it stopped, clamping the first step after the pause to one dust
+/// would jump by the whole pause; instead it goes on from where it stopped, clamping the first step after the pause to one dust
 /// frame. A gap between two frames of more than [_maxStep] is such a pause (a
 /// hitch of a few frames stays under it), and the time of the gap beyond one
 /// dust frame is cut out of what [spoilers] is told, so the time it sees still

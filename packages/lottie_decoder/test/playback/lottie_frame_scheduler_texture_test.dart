@@ -550,6 +550,70 @@ void main() {
       expect(a.texture, isNotNull);
     });
 
+    group('a lease that left the screen', () {
+      test('leaves its texture showing its frame, and the next lease of the '
+          'key shows it at once', () async {
+        await pool.warm(64, 1);
+        final a = lease('a');
+        await postThree(a, 1);
+        final texture = a.texture;
+
+        a.releaseUnlessPainted();
+        timers.elapse(Duration.zero);
+        expect(pool.keptFrames, 1);
+
+        final again = lease('a');
+        expect(again.texture, texture, reason: 'not its still');
+        scheduler.want(again, 4);
+        await tick();
+        expect(writer.batches.last.single.frame, 4);
+      });
+
+      test('keeps no frame when it was not shown yet', () async {
+        await pool.warm(64, 1);
+        final a = lease('a');
+        scheduler.want(a, 1);
+        await tick();
+
+        a.releaseUnlessPainted();
+        timers.elapse(Duration.zero);
+
+        expect(pool.keptFrames, 0);
+        expect(lease('a').texture, isNull);
+      });
+
+      test('another key takes the texture only as the last one, and shows '
+          'it after three posts', () async {
+        await pool.warm(64, 1);
+        final a = lease('a');
+        await postThree(a, 1);
+        a.releaseUnlessPainted();
+        timers.elapse(Duration.zero);
+
+        final b = lease('b');
+        expect(b.texture, isNull);
+        await postThree(b, 1);
+        expect(b.texture, isNotNull);
+      });
+
+      test('a released lease (its paintable disposed) keeps no frame, and '
+          'forget drops one kept', () async {
+        await pool.warm(64, 2);
+        final a = lease('a');
+        final b = lease('b');
+        await postThree(a, 1);
+        await postThree(b, 1);
+
+        a.release();
+        expect(pool.keptFrames, 0);
+        b.releaseUnlessPainted();
+        timers.elapse(Duration.zero);
+        expect(pool.keptFrames, 1);
+        scheduler.forget('b');
+        expect(pool.keptFrames, 0);
+      });
+    });
+
     test('dispose gives every texture back', () async {
       await pool.warm(64, 2);
       lease('a');

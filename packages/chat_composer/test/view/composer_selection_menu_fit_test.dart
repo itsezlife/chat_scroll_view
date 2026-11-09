@@ -1,5 +1,5 @@
-/// How the composer's selection menu fits its labels, by the rule of Telegram's
-/// floating toolbar: the main row and the More page are as wide as their
+/// How the composer's selection menu fits its labels, by the rule of a floating
+/// toolbar: the main row and the More page are as wide as their
 /// labels need, and no label is ellipsized or cut where the screen has the room.
 ///
 /// **Seam:** a `ComposerView` with the menu showing over a selection, in real
@@ -273,7 +273,7 @@ void main() {
   testWidgets('the Back row is whole on a page of short labels', (
     tester,
   ) async {
-    // The reference clips its Back label there; the page is as wide as it.
+    // The Back label is not clipped there; the page is as wide as it.
     final rig = await show(
       tester,
       strings: ChromeStringsPresets.russian,

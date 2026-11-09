@@ -25,7 +25,7 @@ void main() {
       );
     });
 
-    test('the formatting rows carry the reference client\'s keys', () {
+    test('the formatting rows carry the desktop keys', () {
       const expected = {
         ComposerMenuAction.bold: 'Ctrl+B',
         ComposerMenuAction.italic: 'Ctrl+I',

@@ -180,6 +180,21 @@ void main() {
       },
     );
 
+    test('a handle released keeping its frame leaves it for the next one, '
+        'until it is forgotten', () async {
+      final handle = acquire('a')!;
+      await play(handle, 18);
+      handle.release(keepFrame: true);
+
+      final again = acquire('a')!;
+      expect(again.frame, 18, reason: 'its holder goes on from it');
+      expect(again.sprite, isNotNull);
+
+      again.release(keepFrame: true);
+      atlas.forgetFrame('a');
+      expect(acquire('a')!.hasFrame, isFalse);
+    });
+
     test(
       'a second handle on the key keeps the frame while it is held',
       () async {

@@ -241,10 +241,14 @@ void main() {
     );
   });
 
-  group('symptom 1 variant: a lease that comes back shows a stale frame', () {
+  // Ticket 56 had a lease that came back draw the frame it stopped on and
+  // then jump to frame 0 of the new pass it rewound to. Since ticket 144 a
+  // clip that comes back continues: the frame it stopped on is the right
+  // one, and frame 0 is never drawn in between.
+  group('symptom 1 variant: a lease that comes back', () {
     testWidgets(
       'after the cell goes unpainted for over the sweep period, its first '
-      'sprite is frame 0 of the new pass, not the frame it stopped on',
+      'sprite is the frame it stopped on, and it never jumps back to frame 0',
       (tester) async {
         await pumpPanel(
           tester,
@@ -277,10 +281,17 @@ void main() {
           const [],
         );
         expect(
-          firstFrames.take(1),
-          [0],
-          reason: 'the restarted clip should start on its first frame',
+          firstFrames.first,
+          inInclusiveRange(before, before + 1),
+          reason: 'the clip shows the frame it stopped on at once',
         );
+        for (var i = 1; i < firstFrames.length; i++) {
+          expect(
+            firstFrames[i],
+            greaterThanOrEqualTo(firstFrames[i - 1]),
+            reason: 'it goes on from there, never back',
+          );
+        }
       },
     );
   });

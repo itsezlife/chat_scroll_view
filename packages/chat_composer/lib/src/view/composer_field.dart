@@ -63,7 +63,7 @@ import 'package:flutter/scheduler.dart';
 /// host's [linkPrompt] for the link items.
 ///
 /// **Pointer menu.** Where the [menuPolicy] has one (desktop and the web), a
-/// secondary click opens the reference desktop client's context menu at the
+/// secondary click opens the context menu at the
 /// pointer instead, and leaves the caret and the selection as they are; the
 /// Menu key and Shift+F10 open it at the caret. The floating toolbar stays for
 /// touch.
@@ -291,7 +291,7 @@ class _ComposerFieldState extends State<ComposerField> {
   }
 
   // Scrolls the field, at once, by just enough to show the whole line the
-  // caret is on, as the reference clients' fields do. The stock
+  // caret is on. The stock
   // `bringIntoView` reveals a box of the preferred line height around the
   // caret, which can stop a fraction of a pixel short of the line as laid
   // out; the line's own glyph boxes (the caret alone for an empty line) are
@@ -519,7 +519,7 @@ class _ComposerFieldState extends State<ComposerField> {
   late EditMenuStrings _editStrings;
 
   // The secondary click, from the editable. The field takes focus on the
-  // press, as the reference field does for any button, and the menu opens on
+  // press, as it does for any button, and the menu opens on
   // the edge the policy names; the caret and the selection are not touched.
   void _onSecondaryClick(ExtendedSecondaryClick click) {
     final policy = _menuPolicy;
@@ -703,7 +703,7 @@ class _ComposerFieldState extends State<ComposerField> {
           // The leaf editable's own default group is its own type,
           // which those widgets would not find.
           groupId: EditableText,
-          // The reference's handles are drawn by the composer, not the
+          // The handles are drawn by the composer, not the
           // platform's: Material on every platform.
           selectionControls: extendedMaterialTextSelectionHandleControls,
           enabled: widget.enabled,

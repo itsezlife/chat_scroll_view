@@ -297,8 +297,7 @@ changes only through the viewport fix. The release tag is `v0.2.0`.
   overlay observer skips it; before, the menu held the pause of a dialog.
 - **Fixed**: on desktop the status pill of a selected emoji-only message kept
   its resting service colour while the glyphs took the selection tint. The
-  pill now takes the same tint (the reference paints `msgServiceBgSelected`
-  there), and gives it up with the selection.
+  pill now takes the same tint (the selected service background), and gives it up with the selection.
 
 ### Pause policies: focus lost, a dialog over the chat, low power; the spoiler dust keeps its phase
 - **Changed (behaviour)**: the spoiler dust (`ChatSelectionController(spoilerClock:)`)
@@ -318,7 +317,7 @@ changes only through the viewport fix. The release tag is `v0.2.0`.
 - **Fixed**: the mobile sheet opened on an emoji-only message dimmed the chat
   around one rounded rectangle over the whole chrome box (reply panel, items,
   pill, reactions): a bubble outline the message does not have, with the gaps
-  between its parts lit. The reference clients draw the message again above a
+  between its parts lit. The message is drawn again above a
   flat dim, so only what it paints stays bright. The example now reports each
   painted part: the glyph run's or the sticker's art (square, from
   `ChatEmojiGeometry.content`, without the strip the chrome reserves), the
@@ -342,7 +341,7 @@ changes only through the viewport fix. The release tag is `v0.2.0`.
   positions that differed from the text's, showing where they were. It is now
   one rectangle per line, the line's height, behind glyphs, emoji and embeds,
   with no tint over an embed and the same rectangle at every position of a
-  hidden spoiler, as Telegram draws it (Android, iOS, Desktop; the rules and
+  hidden spoiler, on Android, iOS and Desktop; the rules and
   divergences are in the fork's `docs/rendering.md`). The tap highlight of a
   link or inline code reads the same rectangles, so its contour is the line's
   height too. Needs the `flutter_md` change that makes `boxesForRange` per line
@@ -356,8 +355,8 @@ changes only through the viewport fix. The release tag is `v0.2.0`.
   on it as on a markdown body, under the host's selection policy. A host or
   test that relied on a long press on a selected emoji-only message doing
   nothing, or on `hasBody(id)` being false for it, sees text selection instead:
-  pass `selectableText: false` for the previous behaviour (also the Desktop and
-  iOS reference clients' rule; only Android selects its large emoji, see
+  pass `selectableText: false` for the previous behaviour (also the rule on Desktop and
+  iOS; only Android selects its large emoji, see
   ADR 036). The sticker layout (one emoji resolved to a document) is unchanged
   and never text.
 - Copy of a selection is the emoji and the line breaks, plain, and structured
@@ -375,10 +374,9 @@ changes only through the viewport fix. The release tag is `v0.2.0`.
   there, in the markdown body too: it is part of the text.
 
 ### Status chrome of an emoji-only message: hover is the row's, a click selects (docs and example)
-- **Changed (host contract, no API change)**: the reference desktop client shows an
+- **Changed (host contract, no API change)**: the desktop shows an
   emoji-only message's time while the pointer is anywhere on its row and selects
-  the message on a click on the time (ADR 012, Status chrome, with the
-  citations). `ChatMessageTapBarrier` is unchanged and still keeps the press
+  the message on a click on the time (ADR 012, Status chrome). `ChatMessageTapBarrier` is unchanged and still keeps the press
   from the viewport; the example's emoji-only pill now answers a mouse click
   itself with `ChatSelectionController.toggle` and its hover region is the
   whole row. Existing hosts that wrap their pill in the barrier see no change
@@ -400,10 +398,10 @@ changes only through the viewport fix. The release tag is `v0.2.0`.
   desktop, for the host's `MarkdownThemeData.emojiScale`);
   `ChatEmojiPolicy.desktop(regularLimit:)` and
   `ChatEmojiPolicy.forPlatform(desktopRegularLimit:)`, the maximum number of
-  enlarged regular emoji on desktop and the web (3, the reference client's, by
+  enlarged regular emoji on desktop and the web (3 by
   default; Android and iOS have no cap and ignore it).
 - **BREAKING for a host that read the constant**: `ChatEmojiPolicy$Desktop.regularLimit`
-  is now the instance's cap; the reference's 3 is
+  is now the instance's cap; the default 3 is
   `ChatEmojiPolicy$Desktop.defaultRegularLimit`.
 - **ADDED** (`content_model`): `EmojiRuns.of(text)`, the ranges of the emoji a
   text draws in colour, for a renderer that enlarges them.
@@ -845,7 +843,7 @@ changes only through the viewport fix. The release tag is `v0.2.0`.
   stands in for an inline separator. The clock starts idle, so the list opens
   with the floating header hidden unless it stands in. The default `null` runs
   no clock, and activity stays at `1`.
-- **CHANGED**: Flings follow Android's `OverScroller` spline instead of
+- **CHANGED**: Flings follow the native Android spline instead of
   `ClampingScrollSimulation`. Distance and initial velocity are unchanged,
   but a fling now lasts the full native duration (about 20% longer) with a
   slow tail, so the idle delay starts as late as on a native Android list.
@@ -1879,7 +1877,7 @@ repository. Each entry says what to change.
   - A correctness suite and A/B benchmarks against SuperSliverList and
     SliverGrid live in `packages/panel_catalog/test/benchmark/`.
 - **CHANGED**: A cold open of `KeyboardPanel` no longer mounts the whole emoji
-  page in one frame. On the reference phone that single frame took 8.6 to
+  page in one frame. On the test phone that single frame took 8.6 to
   11.9 ms of build time against an 8.33 ms budget at 120 Hz (and about 8.7 ms
   on a warm reopen). The page now mounts the grid, then the search field, then
   the category strip, one frame each, inside the existing

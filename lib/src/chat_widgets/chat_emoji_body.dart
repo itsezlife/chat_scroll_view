@@ -36,8 +36,8 @@ import 'package:flutter/widgets.dart';
 typedef ChatEmojiEmbedFactory =
     InlineEmbed? Function(ContentKey content, AssetPreset preset);
 
-/// A bubble-less message of nothing but emoji, laid out the way the
-/// reference client does.
+/// A bubble-less message of nothing but emoji, laid out as an emoji-only
+/// body.
 ///
 /// The host classifies the text (`EmojiOnlyText.of`, once, when it
 /// materialises the message) and adds the facts only it has: that the message
@@ -62,20 +62,17 @@ typedef ChatEmojiEmbedFactory =
 /// as (`ChatEmojiPolicy.forPlatform`).
 ///
 /// A custom emoji is drawn through [embedFactory] and animates and loops. A
-/// unicode emoji in the text layout is a glyph at the step's font size (some
-/// clients do this; the reference client draws the first frame of the
-/// animated sticker).
+/// unicode emoji in the text layout is a glyph at the step's font size.
 ///
 /// ## Sticker playback
 ///
 /// How the sticker plays is the host's policy ([playback]), not the body's:
 /// loop, play once and rest on the first or the last frame, or stay still.
-/// The reference default plays the single unicode emoji once and loops a
-/// custom emoji ([ChatStickerPlayback.defaultFor]). A sticker that plays once
+/// The default plays the single unicode emoji once and loops a custom emoji ([ChatStickerPlayback.defaultFor]). A sticker that plays once
 /// does so the first time the open chat shows it, which the host's
 /// [playLedger] remembers per message (so a recycled row does not play it
 /// again). The body records the play when the animation is playing, not when
-/// it ends, as the reference clients do. A replay (a tap, under
+/// it ends. A replay (a tap, under
 /// [tapPolicy]) plays one more pass and never rewinds one that is running.
 /// [isActive] is the host's one visibility input: an inactive row costs no
 /// animation ticks and shows no sticker to the facade.
@@ -94,12 +91,12 @@ typedef ChatEmojiEmbedFactory =
 /// `ChatTextCopy.content`) are the markdown body's own, under the same
 /// selection policy (ADR 012, ADR 013, ADR 015). An emoji is one atomic item:
 /// a press lands on an item edge, a double click or a long press selects the
-/// one emoji under it (as a long press on an emoji span does on Android), and
+/// one emoji under it, and
 /// the highlight is a box per line under the items
 /// ([RenderChatEmojiBody.selectedItemBoxes] are the per-item boxes, for a
 /// host that styles them apart). [selectableText] turns it off for a host
-/// that keeps the reference clients' rule: only Android selects text here,
-/// Desktop and iOS draw the large emoji as media (ADR 036).
+/// that draws the large emoji as media (ADR 036) instead of as selectable
+/// text.
 ///
 /// **Sticker layout.** One emoji drawn as a sticker is not text: it registers
 /// no text, so nothing starts a range on it, a long press is message
@@ -282,7 +279,7 @@ class ChatEmojiBody extends StatefulWidget {
   /// either null the sticker layout is the [policy]'s square.
   final ChatMediaSizePolicy? mediaSizes;
 
-  /// How the sticker plays, or null for the reference default for the emoji
+  /// How the sticker plays, or null for the default for the emoji
   /// ([ChatStickerPlayback.defaultFor]). Ignored by the text layout.
   final ChatStickerPlayback? playback;
 
@@ -693,7 +690,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
   // --- Play once, recorded -------------------------------------------------
 
   // A sticker that plays once is recorded as played when its animation is
-  // playing (the reference marks at the first drawn frame), watched on the
+  // playing (it is marked at the first drawn frame), watched on the
   // embed's own signal until then.
   void _watchSticker() {
     _unwatchSticker();
@@ -734,7 +731,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
         style: _style.copyWith(fontSize: _font, height: 1),
       ),
       textDirection: TextDirection.ltr,
-      // The reference sizes ignore the reader's text scale.
+      // These sizes ignore the reader's text scale.
       textScaler: TextScaler.noScaling,
     )..layout(),
   );

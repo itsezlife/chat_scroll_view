@@ -8,6 +8,7 @@
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
@@ -207,6 +208,53 @@ void main() {
     await gesture.up();
     await tester.pump();
     expect(previews.isOpen.value, isTrue);
+  });
+
+  testWidgets('a drag up past the menu mark plays the clip on, never from '
+      'its first frame again', (tester) async {
+    final producer = FakeAssetProducer()
+      ..onProduce = (attempt) => attempt.advance(
+        AssetStage.full,
+        frames: List.filled(400, const Duration(milliseconds: 50)),
+      );
+    assets.dispose();
+    assets = PageAssets.createScope(producer: producer);
+    // A phone's window, of fractional logical size: the preview's box is
+    // computed afresh at each step of the drag.
+    tester.view
+      ..physicalSize = const Size(1080, 2337)
+      ..devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    await pumpPage(tester);
+    final gesture = await hold(tester, _first);
+    await tester.pump(const Duration(milliseconds: 16));
+    final clip = producer.attempts.last.paintables.single;
+    expect(clip.rewinds, 1, reason: 'the opening plays from the first frame');
+
+    var frame = clip.frameShown;
+    Future<void> playsOn() async {
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(clip.frameShown, greaterThan(frame));
+        frame = clip.frameShown;
+      }
+    }
+
+    await playsOn();
+    for (var i = 0; i < 12; i++) {
+      await gesture.moveBy(const Offset(0, -7));
+      await tester.pump();
+      await playsOn();
+    }
+    expect(find.text('Send GIF'), findsOneWidget);
+    await tester.pump(ContentPreviewSession.gifSwipeSettle);
+    await playsOn();
+    expect(clip.rewinds, 1);
+
+    await gesture.up();
+    await tester.pump();
+    await playsOn();
+    expect(clip.rewinds, 1);
   });
 
   testWidgets('a right click opens the same items as a context menu', (

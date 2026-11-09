@@ -49,19 +49,22 @@ final class ContentPreviewLayout {
           (window.height - insets - keyboardHeight) / 2,
         ) +
         swipe;
-    final square = Rect.fromCenter(
-      center: Offset(window.width / 2, centreY),
-      width: side,
-      height: side,
-    );
+    final center = Offset(window.width / 2, centreY);
+    final square = Rect.fromCenter(center: center, width: side, height: side);
+    final extent = switch ((kind, contentSize)) {
+      (ContentPreviewKind.gif, ContentSize(:final width, :final height))
+          when width > 0 && height > 0 =>
+        _fit(side, width / height),
+      _ => Size.square(side),
+    };
     return ContentPreviewLayout._(
       square: square,
-      content: switch ((kind, contentSize)) {
-        (ContentPreviewKind.gif, ContentSize(:final width, :final height))
-            when width > 0 && height > 0 =>
-          _fit(square, width / height),
-        _ => square,
-      },
+      content: Rect.fromCenter(
+        center: center,
+        width: extent.width,
+        height: extent.height,
+      ),
+      extent: extent,
       emoji: Rect.fromLTWH(
         window.width / 2 - emojiWidth / 2,
         square.top - emojiGap,
@@ -75,6 +78,7 @@ final class ContentPreviewLayout {
   const ContentPreviewLayout._({
     required this.square,
     required this.content,
+    required this.extent,
     required this.emoji,
     required this.menuTop,
   });
@@ -110,6 +114,12 @@ final class ContentPreviewLayout {
   /// inside it (`setAspectFit(true)`).
   final Rect content;
 
+  /// The size of [content], worked out from the window and the content alone:
+  /// the same at every swipe, where [content]'s own size (its edges'
+  /// difference) can drift in the last bits as the box moves. What the
+  /// content is drawn at, so a drag never resizes it.
+  final Size extent;
+
   /// The emoji line's box: [emojiWidth] wide, from [emojiGap] above the
   /// square to its top.
   final Rect emoji;
@@ -117,9 +127,6 @@ final class ContentPreviewLayout {
   /// The top of the menu.
   final double menuTop;
 
-  static Rect _fit(Rect square, double aspect) {
-    final width = aspect >= 1 ? square.width : square.width * aspect;
-    final height = aspect >= 1 ? square.height / aspect : square.height;
-    return Rect.fromCenter(center: square.center, width: width, height: height);
-  }
+  static Size _fit(double side, double aspect) =>
+      aspect >= 1 ? Size(side, side / aspect) : Size(side * aspect, side);
 }

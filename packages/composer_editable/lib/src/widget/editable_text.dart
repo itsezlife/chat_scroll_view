@@ -1940,7 +1940,7 @@ class ExtendedEditableText extends StatefulWidget {
 
   /// The default value for [selectionWidthStyle].
   ///
-  /// On native platforms, this defaults to [ui.BoxWidthStyle.max]: Telegram's
+  /// On native platforms, this defaults to [ui.BoxWidthStyle.max]: the
   /// composer is a platform edit field, and its highlight spans the full width
   /// of a completed line.
   ///

@@ -3,14 +3,13 @@ import 'dart:ui' show Offset, Rect, lerpDouble;
 import 'package:flutter/animation.dart';
 import 'package:flutter/widgets.dart' show MagnifierInfo;
 
-/// Android `OvershootInterpolator` with the default tension of `2.0`.
+/// An overshoot easing curve with a default tension of `2.0`.
 ///
 /// Used when scaling selection handles in via appear progress.
 class OvershootCurve extends Curve {
   /// Creates an overshoot curve.
   ///
-  /// [tension] matches `OvershootInterpolator(float tension)`; default
-  /// tension is `2.0`.
+  /// [tension] sets how far the curve overshoots; default is `2.0`.
   const OvershootCurve([this.tension = 2.0]);
 
   /// Amount of overshoot; higher values bounce further past 1.0.
@@ -29,9 +28,9 @@ const Duration kTelegramHandleMotionDuration = Duration(milliseconds: 250);
 /// Alias for settle duration (same as appear).
 const Duration kHandleSettleDuration = kTelegramHandleMotionDuration;
 
-/// AOSP `MagnifierMotionAnimator` settle time constant (~100ms).
+/// Magnifier settle time constant (~100ms).
 ///
-/// Touch editable path uses this for **both** X and Y (unified rate).
+/// The touch path uses this for **both** X and Y (unified rate).
 const double kAospMagnifierSettleMs = 100;
 
 /// @nodoc Kept for callers that still name the old X constant.
@@ -40,10 +39,10 @@ const double kTelegramMagnifierXSettleMs = kAospMagnifierSettleMs;
 /// @nodoc Legacy Y rate alias — equals [kAospMagnifierSettleMs].
 const double kTelegramMagnifierYSettleMs = kAospMagnifierSettleMs;
 
-/// Smooths [MagnifierInfo] toward [target] with AOSP-like ~100ms X/Y rates.
+/// Smooths [MagnifierInfo] toward [target] with ~100ms X/Y rates.
 ///
-/// Both axes use [kAospMagnifierSettleMs] (editable / `MagnifierMotionAnimator`
-/// parity — unified rate, not a split X/Y path).
+/// Both axes use [kAospMagnifierSettleMs]: a unified rate, not a split X/Y
+/// path.
 MagnifierInfo smoothMagnifierInfo({
   required MagnifierInfo? previous,
   required MagnifierInfo target,

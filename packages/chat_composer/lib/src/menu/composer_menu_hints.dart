@@ -17,8 +17,8 @@ enum ComposerMenuAction {
   /// Paste the clipboard.
   paste,
 
-  /// Paste the clipboard's plain text (an addition: the reference client has
-  /// the key only).
+  /// Paste the clipboard's plain text (an addition: the standard menu has only
+  /// Paste).
   pastePlain,
 
   /// Delete the selection.
@@ -86,12 +86,12 @@ enum ComposerMenuAction {
 }
 
 /// The shortcut text of each row of the pointer menu on one platform, as the
-/// reference toolkit's `QKeySequence::NativeText` writes it: glyphs on macOS
+/// platform's native text writes it: glyphs on macOS
 /// (`⇧⌘Z`, Shift before Command), `Ctrl+Shift+Z` elsewhere.
 ///
-/// The keys are the reference client's: Qt's standard keys for the edit rows
-/// and the client's own for formatting. Redo differs per platform (`Ctrl+Y` on
-/// Windows, `Ctrl+Shift+Z` on Linux). Rows the client has no key for (Delete,
+/// The keys are the standard ones for the edit rows and the composer's own
+/// for formatting. Redo differs per platform (`Ctrl+Y` on
+/// Windows, `Ctrl+Shift+Z` on Linux). Rows with no key (Delete,
 /// the Formatting row itself, and the workspace's additions) have none.
 ///
 /// **UNVERIFIED:** the macOS glyph form and the omission rule (Qt leaves a

@@ -8,9 +8,8 @@ import 'package:meta/meta.dart';
 /// the message's own line breaks.
 ///
 /// Pure geometry, so the sizes and the wrap are testable without a render
-/// tree. It is what the reference client's layout of a text made of equal boxes comes to
-/// (each emoji span reserves one square, and the line is as tall as the
-/// square).
+/// tree. It is the layout of a text made of equal boxes: each emoji span
+/// reserves one square, and the line is as tall as the square.
 @immutable
 final class ChatEmojiFlow {
   const ChatEmojiFlow._(this.size, this.rects, this.content, this.lastLine);

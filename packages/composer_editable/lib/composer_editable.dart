@@ -1,5 +1,5 @@
 /// The composer's editable: Flutter's `EditableText` and Material `TextField`
-/// with Telegram composer selection parity.
+/// with the composer's selection behaviour.
 ///
 /// A leaf package. The selection types that the copied sources would otherwise
 /// declare under Flutter's own names (`TextSelectionControls`,

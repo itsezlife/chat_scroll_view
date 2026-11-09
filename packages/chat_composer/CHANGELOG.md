@@ -100,8 +100,8 @@ is pre-1.0.
 
 ### Changed (selection menu fit and language)
 
-- The selection menu's sizes and fit are Telegram's floating toolbar
-  (`FloatingToolbar.java`), traced value by value, instead of the fixed sizes
+- The selection menu's sizes and fit follow the floating toolbar's rules,
+  each value traced, instead of the fixed sizes
   the previous port took from the message menu. The main row's buttons are 48
   dp tall (were 42) with 16 dp padding (were 12; 24 at the row's first start
   and, with no More button, its last end), 48 dp wide at least, the More
@@ -133,7 +133,7 @@ is pre-1.0.
 ### Added (desktop pointer menu)
 
 - The desktop presentation of the field's menu: a secondary click opens the
-  reference desktop client's context menu at the pointer (Undo, Redo, Cut,
+  desktop context menu at the pointer (Undo, Redo, Cut,
   Copy, Paste, Paste as plain text, Delete, Formatting, Select All, and a
   Spelling submenu when a checker is given), drawn by `chrome_foundation`'s
   `PointerMenu`, with shortcut hints per platform (`ComposerMenuHints`), greyed
@@ -191,7 +191,7 @@ is pre-1.0.
   selection touches.
 - Formatting shortcuts: `ToggleStyleIntent`, `ToggleCodeBlockIntent`,
   `ApplyLinkIntent`, `ClearFormattingIntent` and `ToggleListIntent`, bound in
-  both default maps to Telegram Desktop's keys (Ctrl or Cmd with B, I, U, K;
+  both default maps to the desktop keys (Ctrl or Cmd with B, I, U, K;
   with Shift also X, M, P, `.`, N, 7, 8). Each Action calls the
   `ComposerTextController` command the selection menu calls, and is enabled
   by `canApply`, so a key that would change nothing reaches the field. The
@@ -298,7 +298,7 @@ is pre-1.0.
   (`ContentInsertionConfiguration`, Android) goes there too;
   `receiveMedia` hands media over directly. The host completes with whether
   it sent them; a paste whose media was not sent pastes the text that came
-  with it, as the reference desktop client does. Text and media come from
+  with it. Text and media come from
   one clipboard read.
 - A paste lands nowhere when the text changed while the clipboard was read
   or the host looked at the media.

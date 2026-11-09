@@ -50,7 +50,7 @@ const Map<ShortcutActivator, Intent> _pastePlain = {
       PastePlainTextIntent(),
 };
 
-// The reference desktop client's formatting keys, with the platform's shortcut key: Command
+// The formatting keys, with the platform's shortcut key: Command
 // on Apple platforms, Control elsewhere. Both are bound, since a policy is per
 // input family, not per platform. The digit keys are the vendored list
 // editor's: 7 is numbered, 8 is bullets.
@@ -132,7 +132,7 @@ sealed class ComposerShortcutPolicy {
   const factory ComposerShortcutPolicy.mobile() = ComposerShortcutPolicy$Mobile;
 
   /// Keyboard-first platforms: Enter submits, Shift+Enter inserts a newline,
-  /// Escape dismisses the header, and the reference desktop client's formatting keys
+  /// Escape dismisses the header, and the formatting keys
   /// apply (Ctrl or Cmd with B, I, U, K; with Shift also X strikethrough,
   /// M monospace, P spoiler, `.` quote, N clear formatting, 7 numbered list,
   /// 8 bullet list). The code block has no key. The list editing keys (Tab,

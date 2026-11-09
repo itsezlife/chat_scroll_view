@@ -57,8 +57,8 @@ import 'package:meta/meta.dart';
 ///
 /// - A caret turns off every command but [applyLink] and the kinds that cover
 ///   whole lines (quote, code block), which act on the caret's line. A command
-///   at a caret arms no typing style for the next input, because no reference
-///   client has one and it makes entity edits on an IME commit ambiguous; text
+///   at a caret arms no typing style for the next input, because it makes entity
+///   edits on an IME commit ambiguous; text
 ///   typed against a run still continues it (see above).
 /// - A selection edge inside an atomic entity widens to hold it whole, so a
 ///   command never splits one.

@@ -12,8 +12,8 @@ enum ComposerMenuOpensOn {
 /// What the selection menu does with an action that cannot apply to the
 /// selection (Bold inside code, Clear formatting over plain text).
 enum ComposerUnavailableActions {
-  /// Leave it out, so the menu holds only what can be chosen. The reference
-  /// touch client builds its formatting menu this way.
+  /// Leave it out, so the menu holds only what can be chosen. The touch
+  /// formatting menu is built this way.
   hide,
 
   /// Keep it in its place, greyed and without a tap, so the menu keeps its
@@ -27,14 +27,14 @@ enum ComposerUnavailableActions {
 /// - [ComposerMenuPolicy$Mobile]: the floating toolbar over the selection
 ///   (`ComposerSelectionMenu`) for every gesture.
 /// - [ComposerMenuPolicy$Desktop]: a secondary click opens the **pointer
-///   menu**, the reference desktop client's context menu of its message field,
+///   menu**, the context menu of the message field,
 ///   at the pointer; the toolbar stays for a touch long-press on a touch
 ///   screen.
 ///
 /// Each also says what the selection menu does with the actions that cannot
 /// apply ([unavailableActions]): the mobile policy leaves them out, the
 /// desktop one greys them. A host passes the other value to either. The
-/// pointer menu follows the reference desktop client and always greys them.
+/// pointer menu always greys them.
 sealed class ComposerMenuPolicy {
   const ComposerMenuPolicy({required this.unavailableActions});
 
@@ -107,9 +107,8 @@ final class ComposerMenuPolicy$Desktop extends ComposerMenuPolicy {
   /// The platforms whose toolkit opens a context menu on the press of the
   /// secondary button (the others open it on the release).
   ///
-  /// **UNVERIFIED.** The reference client's toolkit decides this per operating
-  /// system, inside its platform layer, which no source available to the port
-  /// shows; the table is what that layer is known to do (a press on macOS and
+  /// **UNVERIFIED.** The platform decides this per operating system, inside its
+  /// platform layer, which no source available to this package shows; the table is what that layer is known to do (a press on macOS and
   /// Linux, a release on Windows). This one set is the only place the guess is
   /// written, so a device check changes one line.
   static const Set<TargetPlatform> platformsOpeningOnPress = {

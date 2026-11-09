@@ -1,5 +1,5 @@
 /// The menu's two pages and the controls they are made of, at the sizes of
-/// Telegram's floating toolbar: the 48 dp main row with its 56 dp More button,
+/// the floating toolbar's 48 dp main row with its 56 dp More button,
 /// and the More page with 42 dp tiles, list markers, a list that shows four
 /// rows and a half, and a 48 dp Back row.
 ///
@@ -621,7 +621,7 @@ void main() {
       expect(styleOf('Underline').decoration, TextDecoration.underline);
       expect(styleOf('Strike').decoration, TextDecoration.lineThrough);
       expect(styleOf('Mono').fontFamily, 'monospace');
-      // The row of the reference is medium weight: a plain row keeps it.
+      // The row is medium weight: a plain row keeps it.
       expect(styleOf('Spoiler').fontWeight, FontWeight.w500);
       expect(styleOf('Spoiler').decoration, anyOf(isNull, TextDecoration.none));
     });

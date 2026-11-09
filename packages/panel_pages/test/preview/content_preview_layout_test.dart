@@ -56,4 +56,26 @@ void main() {
     expect(layout.content.size, const Size(560, 280));
     expect(layout.content.center, layout.square.center);
   });
+
+  test('a GIF keeps one extent at every swipe, in a window of fractional '
+      'size', () {
+    ContentPreviewLayout at(double swipe) => ContentPreviewLayout(
+      window: const Size(411.43, 890.29),
+      padding: EdgeInsets.zero,
+      kind: ContentPreviewKind.gif,
+      contentSize: const ContentSize(480, 270),
+      swipe: swipe,
+    );
+    final rest = at(0);
+
+    expect(rest.extent, const Size(371.43, 371.43 * 270 / 480));
+    for (var i = 1; i <= 600; i++) {
+      final dragged = at(-i / 10);
+      expect(dragged.extent, rest.extent);
+      expect(
+        dragged.content.center.dy,
+        closeTo(rest.content.center.dy - i / 10, 1e-9),
+      );
+    }
+  });
 }
