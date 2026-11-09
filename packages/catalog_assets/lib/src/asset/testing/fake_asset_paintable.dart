@@ -75,6 +75,9 @@ final class FakeAssetPaintable extends AssetPaintable {
   /// How many times [playbackResumed] said a stopped playback goes on.
   int resumes = 0;
 
+  /// How many times [leftScreen] said no surface shows it any more.
+  int departures = 0;
+
   /// Whether the cache disposed it.
   bool get isDisposed => disposals > 0;
 
@@ -152,6 +155,9 @@ final class FakeAssetPaintable extends AssetPaintable {
 
   @override
   void playbackResumed() => resumes++;
+
+  @override
+  void leftScreen() => departures++;
 
   @override
   void dispose() => disposals++;

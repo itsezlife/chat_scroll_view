@@ -257,6 +257,59 @@ void main() {
     });
   });
 
+  group('leaving the screen', () {
+    test('the paintable hears when the last binding that shows it hides', () {
+      final a = animated();
+      final b = scope.attach(_key, _large, _plays);
+      final paintable = a.paintable as FakeAssetPaintable;
+
+      a.visible = false;
+      expect(paintable.departures, 0, reason: 'b still shows it');
+
+      b.visible = false;
+      expect(paintable.departures, 1);
+
+      b.visible = true;
+      b.visible = false;
+      expect(paintable.departures, 2, reason: 'once per departure');
+    });
+
+    test('the paintable hears when the last binding detaches', () {
+      final a = animated();
+      final b = scope.attach(_key, _large, _plays);
+      final paintable = a.paintable as FakeAssetPaintable;
+
+      a.detach();
+      expect(paintable.departures, 0);
+
+      b.detach();
+      expect(paintable.departures, 1);
+    });
+
+    test('a hidden binding that detaches is no second departure', () {
+      final binding = animated();
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      binding.visible = false;
+      binding.detach();
+
+      expect(paintable.departures, 1);
+    });
+
+    test('a held binding that hides leaves its frame kept, and the paintable '
+        'decides', () {
+      final binding = animated();
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      binding
+        ..held = true
+        ..visible = false;
+
+      expect(paintable.keepsFrame, isTrue);
+      expect(paintable.departures, 1);
+    });
+  });
+
   group('the shared clock', () {
     test('a tick signals every playing binding, once per frame', () {
       final a = animated();

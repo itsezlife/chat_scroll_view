@@ -275,6 +275,7 @@ final class AssetCacheScope {
     _unpinned[entry.tier]!.remove(entry);
     entry.bindings.add(binding);
     entry.demand.refresh(entry.bindings);
+    entry.syncShown();
     if (entry.attempt == null && !entry.isFinal) _start(entry);
     // After the start: a memory hit answered inside it needs no sibling.
     binding
@@ -523,6 +524,7 @@ final class AssetCacheScope {
     entry.bindings.remove(binding);
     entry.demand.refresh(entry.bindings);
     if (binding.held) entry.syncKeep();
+    entry.syncShown();
     if (entry.bindings.isNotEmpty) return;
     entry.attempt?.cancel();
     // Nobody draws it any more; a re-attach starts an attempt that tells.
@@ -586,6 +588,20 @@ final class _Entry {
     if (playing == _playing) return;
     _playing = playing;
     if (playing) paintable?.playbackResumed();
+  }
+
+  // Whether a binding shows the entry: one is attached and visible.
+  bool _shown = false;
+
+  // Tells the paintable when the last binding that showed it hid or
+  // detached, so it gives back what it leased for the screen now rather than
+  // at its idle sweep. Called after syncKeep wherever both change, so a
+  // binding held as it hides has its frame kept first.
+  void syncShown() {
+    final shown = bindings.any((binding) => binding.visible);
+    if (shown == _shown) return;
+    _shown = shown;
+    if (!shown) paintable?.leftScreen();
   }
 
   // Tells the bindings their download changed.
@@ -902,6 +918,7 @@ final class _EntryBinding extends AssetBindingBase {
   void onVisibleChanged() {
     entry.demand.refresh(entry.bindings);
     syncPlayback();
+    entry.syncShown();
   }
 
   @override
