@@ -135,7 +135,9 @@ void main() {
         expect(lease.texture?.id, host.liveIds.single);
         expect(lease.sprite, isNull);
 
-        expect(writer.firstPixels[1], [16, 8, 0, 200]);
+        // Frame 0 again until the texture shows it, then frame 1.
+        expect(writer.firstPixels.take(3), everyElement([0, 0, 0, 200]));
+        expect(writer.firstPixels, anyElement([16, 8, 0, 200]));
       },
     );
 
@@ -190,7 +192,8 @@ void main() {
       expect((texture.frameWidth, texture.frameHeight), (16, 8));
     });
 
-    test('the texture shows only after three posts', () async {
+    test('the texture shows only after three posts, its first frame posted '
+        'on each tick until then', () async {
       await pool.warm(64, 1);
       final lease = scheduler.acquire('a', await openClip())!;
       writer.inner.pause();
@@ -204,12 +207,17 @@ void main() {
       // The texture may still queue frames of the clip that held it, which
       // the engine would show first.
       expect(lease.texture, isNull, reason: 'one post');
-      scheduler.want(lease, const Duration(milliseconds: 34));
-      await settle();
+      scheduler.want(lease, const Duration(milliseconds: 16));
+      await tick();
       expect(lease.texture, isNull, reason: 'two posts');
-      scheduler.want(lease, const Duration(milliseconds: 67));
-      await settle();
+      scheduler.want(lease, const Duration(milliseconds: 32));
+      await tick();
       expect(lease.texture, isNotNull);
+      // No newer frame was due: the one it shows is the clip's first, posted
+      // three times, and nothing of the clip ran on unseen.
+      expect(writer.firstPixels, [
+        for (var i = 0; i < 3; i++) [0, 0, 0, 200],
+      ]);
     });
 
     test(

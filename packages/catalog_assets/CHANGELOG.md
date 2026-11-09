@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a clip that cannot go on starts over)
+
+- `FrameAtlas.keepsFrame(key)`: whether the next handle on a key shows a
+  frame at once, the one a handle released with `keepFrame` left. A video
+  clip that comes back asks it to decide whether it goes on from that frame
+  or starts over.
+
 ### Added (testing)
 
 - `FakeTextureFrameWriter.hold(id)` / `letGo(id)` hold only the batches that

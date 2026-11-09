@@ -248,9 +248,14 @@ final class VideoFrameLease {
 /// for every clip away fit [keptAheadBytes] (the clip away longest gives
 /// its frames up first). The decoder is past them and decodes in order:
 /// without them the clip would hold its frame for those frames' time and
-/// then skip them. With them it shows the next frame at its time, as if it
-/// had never left. A clip whose frames were given up goes on from its frame
-/// all the same, after that hold.
+/// then skip them, a catch-up of a few frames a moment after it is back.
+/// With them it shows the next frame at its time, as if it had never left.
+///
+/// So a clip goes on only when it can do so smoothly: its frames decoded
+/// ahead are still kept, and the new lease shows the frame it left on at
+/// once (its texture or its slot still holds it). Otherwise it starts over
+/// from its first frame, with no frame kept: the still shows, then the clip
+/// plays from its first frame, as a clip leased for the first time does.
 ///
 /// A lease [VideoFrameLease.release]d by its holder (a restart, a
 /// rewind, a pass that rests on its first frame, a disposal) starts the
@@ -327,10 +332,14 @@ final class VideoFrameScheduler {
   /// back to a slot.
   static const int lockFailureLimit = 3;
 
-  /// The default of [keptAheadBytes]: about a screen of a sticker grid's
-  /// clips (at most 160 px a side, a ring of three frames and the one being
-  /// decoded: 0.4 MiB a clip), or three clips of 512 px.
-  static const int defaultKeptAheadBytes = 12 * 1024 * 1024;
+  /// The default of [keptAheadBytes]: about a screen of GIFs on a phone
+  /// (a dozen clips of up to 384 px a side, three frames each: 1.7 MiB a
+  /// clip), or of a sticker grid's clips (0.3 MiB a clip at 160 px), as many
+  /// as the texture pool keeps frames for (`FrameTexturePool.keptFrameBytes`
+  /// is 24 MiB too). A screen of clips that leaves and comes back goes on;
+  /// clips that leave after it take the memory of the ones that left first,
+  /// and those start over when they come back.
+  static const int defaultKeptAheadBytes = 24 * 1024 * 1024;
 
   /// Slots per tick when [maxAdvancing] is not given.
   ///
@@ -427,7 +436,8 @@ final class VideoFrameScheduler {
   /// takes a slot, as [want] says.
   ///
   /// [after] is the holder's previous lease of [key], if any: when it ended
-  /// where the clip may go on from, the new lease continues it (see *Coming
+  /// where the clip may go on from, and the clip still has its frames decoded
+  /// ahead and the frame it left on, the new lease continues it (see *Coming
   /// back*); otherwise the clip starts over.
   ///
   /// Throws a [StateError] when [key] already has a lease and an
@@ -442,27 +452,30 @@ final class VideoFrameScheduler {
     if (_leases.containsKey(key)) {
       throw StateError('$key already has a lease.');
     }
-    final resumes =
-        after != null &&
-        after._resumable &&
-        after._key == key &&
-        identical(after._player._clip, clip);
+    var away = _awayPlayerOf(key, clip, after);
+    final texture = onCanvas
+        ? null
+        : _textureFor(key, clip, showing: away == null ? null : key);
+    // It goes on only where the frame it left on shows at once: on the
+    // texture that kept it, or on the slot that kept it.
+    if (away != null && !(texture?.showsFrame ?? _atlas.keepsFrame(key))) {
+      away.dispose();
+      away = null;
+    }
     // A clip that starts over shows no frame of where it was.
-    if (!resumes) forget(key);
-    final player = resumes ? _comeBack(after) : _ClipPlayer(this, clip);
+    if (away == null) forget(key);
+    final player = (away?..comeBack()) ?? _ClipPlayer(this, clip);
     final lease = VideoFrameLease._(this, key, player, _nextSeq++)
       .._wantedAt = _now
       .._servedAt = _now
       .._onCanvas = onCanvas
-      .._canvasTouched = onCanvas;
-    if (!onCanvas) {
-      final texture = lease._texture = _textureFor(
-        lease,
-        showing: resumes ? key : null,
-      );
-      if (texture != null && texture.showsFrame) {
-        lease._posts = _postsBeforeShown;
-      }
+      .._canvasTouched = onCanvas
+      .._texture = texture;
+    // A texture that shows the frame the clip goes on from is shown at once.
+    // One that shows the frame of a clip that starts over is not: until its
+    // posts push that frame out, the still shows.
+    if (texture != null && texture.showsFrame && away != null) {
+      lease._posts = _postsBeforeShown;
     }
     if (lease._texture == null) {
       final handle = _slotFor(lease) ?? _slotFromStalest(lease);
@@ -562,21 +575,23 @@ final class VideoFrameScheduler {
     }
   }
 
-  bool _mayTakeTexture(VideoFrameLease lease) {
+  bool _mayTakeTexture(VideoFrameLease lease) =>
+      _mayTakeTextureFor(lease._key, lease._player.clip);
+
+  bool _mayTakeTextureFor(Object key, VideoClip clip) {
     final pool = _textures;
     return _texturesEnabled &&
         pool != null &&
-        !_refused.contains(lease._key) &&
-        pool.classOf(lease._player.width, lease._player.height) != null;
+        !_refused.contains(key) &&
+        pool.classOf(clip.width, clip.height) != null;
   }
 
-  FrameTextureLease? _textureFor(VideoFrameLease lease, {Object? showing}) =>
-      _mayTakeTexture(lease)
-      ? _textures!.lease(
-          lease._player.width,
-          lease._player.height,
-          showing: showing,
-        )
+  FrameTextureLease? _textureFor(
+    Object key,
+    VideoClip clip, {
+    Object? showing,
+  }) => _mayTakeTextureFor(key, clip)
+      ? _textures!.lease(clip.width, clip.height, showing: showing)
       : null;
 
   FrameHandle<Object>? _slotFor(VideoFrameLease lease) => _atlas.acquire(
@@ -635,7 +650,7 @@ final class VideoFrameScheduler {
           lease._inFlight) {
         continue;
       }
-      final texture = _textureFor(lease);
+      final texture = _textureFor(lease._key, lease._player.clip);
       if (texture == null) continue;
       lease
         .._texture = texture
@@ -673,14 +688,32 @@ final class VideoFrameScheduler {
 
   // --- Coming back ---
 
-  // The player of a lease that continues [previous]: [previous]'s own,
-  // frames decoded ahead and all, while it is kept; else a new one that
-  // starts from its state.
-  _ClipPlayer _comeBack(VideoFrameLease previous) {
-    final away = _away.remove(previous._key);
-    if (identical(away, previous._player)) return away!..comeBack();
+  // The player of [after], with the frames it decoded ahead, when a lease of
+  // [key] on [clip] may go on with it: [after] ended where its clip may go
+  // on from, and its player still keeps those frames. Null when the clip
+  // starts over; any player kept for [key] is then disposed.
+  //
+  // Without its frames the clip would not go on smoothly: the decoder is past
+  // them and decodes in order, so the frame left on would hold for their time
+  // and then the clip would skip them, a catch-up of a few frames a moment
+  // after the return. Starting over from the first frame (the still shows
+  // until then) is smooth.
+  _ClipPlayer? _awayPlayerOf(
+    Object key,
+    VideoClip clip,
+    VideoFrameLease? after,
+  ) {
+    final away = _away.remove(key);
+    final goesOn =
+        away != null &&
+        after != null &&
+        after._resumable &&
+        after._key == key &&
+        identical(after._player, away) &&
+        identical(away._clip, clip);
+    if (goesOn) return away;
     away?.dispose();
-    return _ClipPlayer.after(previous._player);
+    return null;
   }
 
   // [player]'s lease ended where its clip may go on from: the player keeps
@@ -800,7 +833,12 @@ final class VideoFrameScheduler {
       lease._player.step();
       if (lease._inFlight) continue;
       if (lease._slot == null && lease._texture == null) continue;
-      final ordinal = lease._player.takeFrameToShow();
+      // A texture not shown yet is posted a frame on every tick, the last
+      // one again while no newer is due, so it shows once its posts pushed
+      // the earlier holder's frames out (`_postsBeforeShown`).
+      final ordinal = lease._player.takeFrameToShow(
+        again: lease._texture != null && !lease._shown,
+      );
       if (ordinal == null) continue;
       lease
         .._requested = ordinal
@@ -815,7 +853,10 @@ final class VideoFrameScheduler {
   // lease may be sent the next.
   void _endFrame(VideoFrameLease lease) {
     lease._inFlight = false;
-    lease._player.endFrame(lease._requested!);
+    lease._player.endFrame(
+      lease._requested!,
+      keep: lease._texture != null && !lease._shown && !lease._released,
+    );
   }
 
   Future<void> _drawSlots(List<VideoFrameLease> due) async {
@@ -985,25 +1026,6 @@ final class _ClipPlayer implements VideoFrameSource {
     if (declared != null && declared <= Duration.zero) _passLength = null;
   }
 
-  /// The player of a lease that continues [previous]'s once [previous] gave
-  /// its frames up (see *Coming back*): the same clip time and timeline, and
-  /// the decoder where it is, so no rewind unless [previous] owed one. Its
-  /// ring is not carried: those
-  /// frames are gone with its buffers, and the decoder is past them, so the
-  /// next frame decoded is a few ahead of the clip time and shows when the
-  /// clip time reaches it. A decode [previous] had in flight lands unseen,
-  /// one frame more of the same.
-  _ClipPlayer.after(_ClipPlayer previous)
-    : _owner = previous._owner,
-      _clip = previous._clip,
-      _clipTime = previous._clipTime,
-      _passBase = previous._passBase,
-      _passLength = previous._passLength,
-      _lastPts = previous._lastPts,
-      _framesInPass = previous._framesInPass,
-      _needsRewind = previous._needsRewind,
-      _number = previous._number;
-
   final VideoFrameScheduler _owner;
   final VideoClip _clip;
 
@@ -1068,7 +1090,7 @@ final class _ClipPlayer implements VideoFrameSource {
   /// ring has room and no decode is in flight.
   bool get wantsService {
     if (_dead || failed) return false;
-    if (_toShow != null) return true;
+    if (_toShow != null || _sentLast != null) return true;
     var ahead = 0;
     for (final frame in _ring) {
       if (frame.time <= _clipTime) return true;
@@ -1103,10 +1125,18 @@ final class _ClipPlayer implements VideoFrameSource {
 
   /// The number of the frame that should be drawn now, or null; moves it to
   /// the frames being drawn.
-  int? takeFrameToShow() {
-    final frame = _toShow;
+  ///
+  /// With [again], when no newer frame is due, the frame [endFrame] kept is
+  /// sent again (see there).
+  int? takeFrameToShow({bool again = false}) {
+    final frame = _toShow ?? (again ? _sentLast : null);
     if (frame == null) return null;
-    _toShow = null;
+    if (identical(frame, _toShow)) {
+      _toShow = null;
+      _dropSentLast();
+    } else {
+      _sentLast = null;
+    }
     _drawing[frame.number] = frame;
     return frame.number;
   }
@@ -1114,8 +1144,30 @@ final class _ClipPlayer implements VideoFrameSource {
   /// The draw or write of frame [number] ended: its buffer is free again.
   /// That frame alone: a lease that came back may send a frame while the
   /// one its previous lease sent is still being written.
-  void endFrame(int number) {
-    if (_drawing.remove(number) case final frame?) _recycle(frame.pixels);
+  ///
+  /// With [keep] the frame stays, to be sent again until a newer one is due
+  /// (`takeFrameToShow(again: true)`): a texture that is not shown yet needs
+  /// a few posts before its frame shows, and posting this frame again on
+  /// each tick shows it then, rather than the clip running on unseen behind
+  /// the still for as many frames of its own.
+  void endFrame(int number, {bool keep = false}) {
+    final frame = _drawing.remove(number);
+    if (frame == null) return;
+    if (!keep || _toShow != null) {
+      _recycle(frame.pixels);
+      return;
+    }
+    _dropSentLast();
+    _sentLast = frame;
+  }
+
+  // The frame kept to be sent again, see endFrame.
+  _Frame? _sentLast;
+
+  void _dropSentLast() {
+    final kept = _sentLast;
+    _sentLast = null;
+    if (kept != null) _recycle(kept.pixels);
   }
 
   /// The bytes of the buffers it holds.
@@ -1126,6 +1178,7 @@ final class _ClipPlayer implements VideoFrameSource {
   void goAway() {
     _away = true;
     slotted = false;
+    _dropSentLast();
     for (var i = 0; i < _free.length; i++) {
       _drop();
     }
@@ -1258,7 +1311,8 @@ final class _ClipPlayer implements VideoFrameSource {
         _ring.length +
         _free.length +
         _drawing.length +
-        (_toShow == null ? 0 : 1);
+        (_toShow == null ? 0 : 1) +
+        (_sentLast == null ? 0 : 1);
     for (var i = 0; i < atRest; i++) {
       _drop();
     }
@@ -1266,5 +1320,6 @@ final class _ClipPlayer implements VideoFrameSource {
     _free.clear();
     _drawing.clear();
     _toShow = null;
+    _sentLast = null;
   }
 }

@@ -6,6 +6,23 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a clip that comes back never catches up)
+
+- A clip that comes back without its frames decoded ahead (given up to the
+  budget), or without the frame it left on (its texture or slot went to
+  another clip), starts over from its first frame instead of going on from
+  where it left. Going on held the frame it came back on for three or four
+  frames' time and then skipped those frames: a screen of GIFs that left and
+  came back each jumped a few frames a moment after the return. A clip that
+  still has both goes on as before.
+- `VideoFrameScheduler.defaultKeptAheadBytes` is 24 MiB (was 12): a screen
+  of GIFs on a phone keeps its frames, as many clips as the texture pool
+  keeps frames for.
+- A texture that is not shown yet is posted the last frame again on each
+  tick that has no newer one, so it shows the frame its lease began with.
+  Before, the clip ran on unseen behind the still for its first posts, and
+  the texture first showed its third frame.
+
 ### Changed (a clip that comes back goes on at once)
 
 - A clip that left the screen keeps the frames it had decoded ahead, not only

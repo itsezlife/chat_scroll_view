@@ -249,10 +249,12 @@ void main() {
     // Plays [p] to 200 ms, leaves the screen and comes back [away] ms later
     // (telling it playback resumed unless [resumed] is false), plays 150 ms
     // more; returns the frame it left on and the frames posted after.
+    // [keepsFrame] says the texture it left on shows again at once.
     Future<({int left, List<int> after})> leaveAndComeBack(
       VideoAnimationPaintable p, {
       int away = 1800,
       bool resumed = true,
+      bool keepsFrame = true,
     }) async {
       await play(p, 0, 200);
       final texture = p.texture;
@@ -271,7 +273,11 @@ void main() {
       final back = 200 + away;
       if (resumed) p.playbackResumed();
       p.advancePlayback(AssetPaintContext(time: Duration(milliseconds: back)));
-      expect(p.texture, texture, reason: 'its last frame at once');
+      if (keepsFrame) {
+        expect(p.texture, texture, reason: 'its last frame at once');
+      } else {
+        expect(p.texture, isNull, reason: 'its still, its first frame');
+      }
       await play(p, back + 16, back + 150);
       return (left: left, after: writer.indices.skip(posted).toList());
     }
@@ -300,20 +306,24 @@ void main() {
       expect(after.first, left + 1);
     });
 
-    test('with no budget for frames decoded ahead it holds its frame, then '
-        'goes on from it', () async {
+    // Ticket 150: without them the decoder is past the frames after the one
+    // it left on, so going on from it would hold it for their time and then
+    // skip them. It starts over instead, from its still.
+    test('with no budget for frames decoded ahead it starts over from its '
+        'first frame, frame by frame', () async {
       scheduler.dispose();
       scheduler = withTextures(keptAheadBytes: 0);
       final p = paintable();
       addTearDown(p.dispose);
-      final (:left, :after) = await leaveAndComeBack(p);
+      final (left: _, :after) = await leaveAndComeBack(p, keepsFrame: false);
 
-      expect(after, isNotEmpty, reason: 'it plays on');
-      expect(
-        after.first,
-        inInclusiveRange(left + 2, left + 5),
-        reason: 'the frames it decoded ahead went: it skips them',
-      );
+      expect(after, isNotEmpty, reason: 'it plays again');
+      // Its first frame until the texture shows it, then one after another.
+      expect(after.first, 0);
+      for (var i = 1; i < after.length; i++) {
+        expect(after[i] - after[i - 1], inInclusiveRange(0, 1));
+      }
+      expect(after.last, greaterThan(0));
     });
 
     test('the clip away longest gives up its frames first', () async {
