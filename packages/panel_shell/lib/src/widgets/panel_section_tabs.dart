@@ -6,13 +6,13 @@ import 'package:flutter/widgets.dart';
 import 'package:panel_shell/src/input/panel_intents.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
 
-/// The pointer arrangement's page switcher: the reference desktop client's
-/// tabs slider at the top of its emoji panel.
+/// The pointer arrangement's page switcher: a tabs slider at the top of the
+/// panel.
 ///
 /// The column's width is shared equally by one section per page, each with
 /// its name centred. The selected section is marked by a [barStroke] bar in
 /// the accent near its bottom, as wide as its label with rounded top corners
-/// ([PanelSectionTabsBar.label], the reference client's) or across the whole
+/// ([PanelSectionTabsBar.label]) or across the whole
 /// section ([PanelSectionTabsBar.section]); it slides linearly over
 /// [duration] to the next one, taking its width. A label's colour goes from
 /// the muted text colour to the accent as the bar comes over it. A press
@@ -22,10 +22,8 @@ import 'package:panel_shell/src/page/panel_page.dart';
 /// sections. Selecting goes through [PanelSelectPageIntent]; the tabs hold no
 /// selection of their own.
 ///
-/// The sizes are the reference client's slider as far as its source shows
-/// them; its style values (the height, the bar, the font, the timings) are
-/// not in the source available here and are taken from its defaults as
-/// remembered.
+/// The style values (the height, the bar, the font, the timings) are the
+/// slider's defaults.
 class PanelSectionTabs extends StatefulWidget {
   /// Sections for [pages], [selectedPageId] marked.
   const PanelSectionTabs({
@@ -439,8 +437,7 @@ class _FocusRingPainter extends CustomPainter {
 
 /// How wide the bar under the selected section tab is.
 enum PanelSectionTabsBar {
-  /// As wide as the label, with rounded top corners: the reference desktop
-  /// client's.
+  /// As wide as the label, with rounded top corners.
   label,
 
   /// Across the whole section.

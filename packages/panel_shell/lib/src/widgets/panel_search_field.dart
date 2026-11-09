@@ -9,8 +9,7 @@ import 'package:panel_shell/src/controller/panel_shell_controller.dart';
 import 'package:panel_shell/src/widgets/panel_arrangement.dart';
 import 'package:panel_shell/src/widgets/panel_search_state_icon.dart';
 
-/// How the user leaves search mode, chosen per platform family as the
-/// reference clients do.
+/// How the user leaves search mode, chosen per platform family.
 ///
 /// Under both exits a back press and Escape close search
 /// (`PanelShellController.handleBack`) and the field's own controls (the
@@ -23,14 +22,14 @@ import 'package:panel_shell/src/widgets/panel_search_state_icon.dart';
 /// this is an enum rather than a `$Mobile` / `$Desktop` policy pair.
 enum PanelSearchExit {
   /// The back press (a phone's back gesture, Escape on a keyboard) leaves
-  /// search; the field offers no control that does. The reference Android and
-  /// desktop clients.
+  /// search; the field offers no control that does. Android and desktop use
+  /// it.
   back,
 
   /// A Cancel text button sits at the end of the field while search is open,
   /// the pill narrowing to make room for it. It closes search, which empties
   /// the query and lets go of the field's focus and with it the soft
-  /// keyboard. The reference iOS client, which has no back press.
+  /// keyboard. iOS uses this one, as it has no back press.
   cancel;
 
   /// The exit of the family of [platform]: [cancel] on iOS, [back] on every
@@ -58,8 +57,7 @@ enum PanelSearchExit {
 ///
 /// A clear control that shows with text and nothing else, under either
 /// arrangement: it empties the query and leaves search open. A cross over an
-/// empty field would have nothing to clear, and the reference clients' fields
-/// show none either.
+/// empty field would have nothing to clear, and such fields show none either.
 ///
 /// ## Leaving search
 ///
@@ -116,8 +114,7 @@ class PanelSearchField extends StatefulWidget {
   /// ([PanelSearchExit.forPlatform]).
   final PanelSearchExit? exit;
 
-  /// Size of the Cancel text of [PanelSearchExit.cancel]; the reference iOS
-  /// client's, regular weight.
+  /// Size of the Cancel text of [PanelSearchExit.cancel], at regular weight.
   static const double cancelFontSize = 17;
 
   /// Space between the pill and the Cancel text.
@@ -465,7 +462,7 @@ class _PanelSearchFieldState extends State<PanelSearchField>
   }
 
   // The Cancel button of [PanelSearchExit.cancel]. It is revealed from the
-  // pill's end as the pill narrows, as the reference's button sits just past
+  // pill's end as the pill narrows: the button sits just past
   // the pill and is uncovered by its shrinking; an unrevealed one leaves the
   // tree, so it is neither hit nor spoken.
   Widget _cancelSlot({
@@ -581,7 +578,7 @@ class _Control extends StatelessWidget {
   }
 }
 
-// The reference iOS client's Cancel: plain text in the accent, dimmed to 0.4
+// The Cancel: plain text in the accent, dimmed to 0.4
 // at once while pressed and brought back over a fade once let go.
 class _CancelButton extends StatefulWidget {
   const _CancelButton({

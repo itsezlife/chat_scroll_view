@@ -9,7 +9,7 @@ import 'package:swipe_pager/swipe_pager.dart';
 /// shell controller's selection.
 ///
 /// It is a `SwipePager` (package `swipe_pager`): a drag swipes only past the
-/// reference mobile client's slop and direction rule, so a slightly diagonal
+/// touch slop and direction rule, so a slightly diagonal
 /// drag over a page's catalogue scrolls the catalogue, and a strip that
 /// scrolls sideways in a page keeps its drags; a mouse does not drag it.
 ///
@@ -17,12 +17,11 @@ import 'package:swipe_pager/swipe_pager.dart';
 /// a tab tap or a host uses; a selection made any other way moves the pager
 /// with a jump (no scroll animation, because the tabs' capsule has its own
 /// settle), or, given a [selectSlide], slides the chosen page in next to the
-/// current one, as the reference desktop client slides its sections.
+/// current one.
 ///
 /// Pages are built lazily and, once built, kept alive for the life of the
 /// pager, so at most the registered pages are kept: a type tab switched away
-/// from keeps its page, with its cells, their frames and their positions, as
-/// the reference mobile client keeps every page of its pager. A page that is
+/// from keeps its page, with its cells, their frames and their positions. A page that is
 /// not on screen is offstage and under `TickerMode(enabled: false)`: its
 /// animations hold and a catalogue in it holds its bindings. What a page
 /// must restore after the shell itself is rebuilt still lives in the
