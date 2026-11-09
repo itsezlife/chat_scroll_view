@@ -1,4 +1,4 @@
-/// Telegram `TextSelectionHelper.isInterruptedCharacter` — letter, digit, or `_`.
+/// Whether the code unit at [index] is a letter, digit, or `_`.
 bool isInterruptedCharacter(String text, int index) {
   if (index < 0 || index >= text.length) {
     return false;

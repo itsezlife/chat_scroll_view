@@ -854,9 +854,8 @@ class ExtendedTextSelectionOverlay {
     final overlayGesturePosition =
         overlay?.globalToLocal(globalGesturePosition) ?? globalGesturePosition;
 
-    // Telegram Magnifier.show Y ≈ lineTop + 0.5 * lineHeight (after their
-    // newY = lineTop - lineHeight - 8 and show offset +1.5*lineHeight + 8).
-    // Source X is finger `lastX` clamped to the line (not caret X).
+    // The magnifier focal Y is the vertical centre of the current line. The
+    // focal X is the finger position clamped to the line (not the caret X).
     final double lineHeight = math.max(
       overlayLineBoundaries.height,
       overlayCaretRect.height,
@@ -901,14 +900,14 @@ class ExtendedTextSelectionOverlay {
   // handle always defines the selection's new extent. The drag start selection
   // provides the original position for the selection's new base. This allows
   // the selection handles to correctly swap their logical order (invert)
-  // during the drag — Telegram / MarkdownSelectable bidirectional behavior.
+  // during the drag, as in bidirectional markdown selection.
   //
-  // Stock Flutter only does this on Apple platforms; Android refuses handle
-  // order swapping ("Don't allow order swapping"), which makes drags
-  // unidirectional. We keep the Apple invert model everywhere.
+  // Stock Flutter only does this on Apple platforms; on Android handle order
+  // is not swapped, which makes drags unidirectional. We keep the Apple invert
+  // model everywhere.
   TextSelection? _dragStartSelection;
 
-  /// Telegram `movingDirectionSettling`: after long-press word select, ignore
+  /// Direction settling: after long-press word select, ignore
   /// handle extents that stay inside the initial word until the pointer exits.
   TextRange? _directionSettlingRange;
 
@@ -1059,7 +1058,7 @@ class ExtendedTextSelectionOverlay {
     _selectionOverlay.endFingerTrackedHandleDrag();
   }
 
-  /// Applies Telegram direction-settling.
+  /// Applies direction settling.
   ///
   /// Returns `null` when the update should be ignored (still settling inside
   /// the initial word).
@@ -1071,7 +1070,7 @@ class ExtendedTextSelectionOverlay {
   int? _extentForHandleDrag(int rawExtent, {required int fixedBase}) {
     final settling = _directionSettlingRange;
     if (settling != null) {
-      // Telegram: ignore only while strictly inside (start, end).
+      // Ignore only while strictly inside (start, end).
       if (rawExtent > settling.start && rawExtent < settling.end) {
         return null;
       }
@@ -1087,7 +1086,7 @@ class ExtendedTextSelectionOverlay {
     }
 
     // Explicit handle grab: clear long-press settling so shrink/expand works
-    // immediately (Telegram settling is for one-touch drag before handles).
+    // immediately (settling only applies to a one-touch drag before handles).
     clearDirectionSettling();
 
     _prepareEndHandleDragAt(details.globalPosition);
@@ -2021,7 +2020,7 @@ class ExtendedSelectionOverlay {
   final ValueNotifier<MagnifierInfo> _magnifierInfo =
       ValueNotifier<MagnifierInfo>(MagnifierInfo.empty);
 
-  // Telegram-like position smoothing toward the latest drag target.
+  // Position smoothing toward the latest drag target.
   MagnifierInfo? _magnifierTarget;
   MagnifierInfo? _smoothedMagnifierInfo;
   Duration _lastMagnifierSmoothTime = Duration.zero;
@@ -2140,7 +2139,7 @@ class ExtendedSelectionOverlay {
     var elapsed = _smoothedMagnifierInfo == null
         ? Duration.zero
         : now - _lastMagnifierSmoothTime;
-    // Same-frame updates still advance ~one 60fps tick (Telegram assumes ~16ms).
+    // Same-frame updates still advance ~one 60fps tick (16 ms).
     if (_smoothedMagnifierInfo != null && elapsed <= Duration.zero) {
       elapsed = const Duration(milliseconds: 16);
     }
@@ -3148,7 +3147,7 @@ class _SelectionHandleOverlayState extends State<_SelectionHandleOverlay>
       curve: Curves.easeOut,
       reverseCurve: Curves.easeIn,
     );
-    // Telegram: OvershootInterpolator on appear; no overshoot on hide.
+    // The handle overshoots on appear; there is no overshoot on hide.
     _scale = CurvedAnimation(
       parent: _controller,
       curve: const OvershootCurve(),
@@ -3181,7 +3180,7 @@ class _SelectionHandleOverlayState extends State<_SelectionHandleOverlay>
     if (widget.visibility?.value ?? true) {
       _controller.forward();
     } else {
-      // Telegram `clear()`: handleViewProgress = 0 instantly (no reverse).
+      // Hiding is instant: the progress drops to 0 with no reverse animation.
       _controller.value = 0;
     }
   }
