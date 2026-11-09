@@ -138,6 +138,10 @@ sealed class PanelPresentationPolicy {
   /// A panel that stands in for the keyboard is opened for one pick and
   /// starts each time from the top of what it passes through; a popup or a
   /// dock beside the content is a place the user returns to, and keeps it.
+  ///
+  /// The same kinds end a search left open when they hide, once the panel is
+  /// off the screen, so a fresh open never starts in search; the others keep
+  /// the search for the user's return.
   bool opensAfresh(PanelPresentation kind);
 
   /// How long after the pointer leaves a popup it hides, when no animation is
