@@ -143,6 +143,18 @@ abstract final class ScrollLab {
             );
           }
           return;
+        case 'pool':
+          // The texture pool now: with `bytes` at `budget` and leases on
+          // page slots, a playing asset uploads a frame page every tick.
+          if (texturePool case final pool?) {
+            _log(
+              'pool leased=${pool.leasedTextures} idle=${pool.idleTextures} '
+              'bytes=${pool.bytes} budget=${pool.budgetBytes}',
+            );
+          } else {
+            _log('pool: no texture host in this build');
+          }
+          return;
         case 'net':
           final mode = LabNetMode.values.asNameMap()[args['text']];
           if (mode == null) {
