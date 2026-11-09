@@ -150,6 +150,10 @@ _Avoid_: Freezing hover in the host, a scroll lock the host removes on its own
 The global rectangle of a cell (`PanelCatalogController.leafBoundsOf(hit)`) and of the viewport (`viewportBounds`), so a host can place a surface it opens over a cell without knowing the grid's geometry.
 _Avoid_: The host recomputing grid geometry
 
+**Overscroll sink**:
+The host's receiver for the part of a user drag the viewport cannot scroll past its top edge (`overscrollSink`), so something that moves around the grid (a sheet) can take it. At the top every tick goes to it first in both directions; away from it only the part past the top. A receiver that still holds part of a drag settles the release and no content fling starts. Drags only: never the wheel, a fling or programmatic motion.
+_Avoid_: A host gesture detector competing with the grid, a sheet that guesses what the grid consumed
+
 **Catalog snapshot**:
 The immutable list of sections the viewport renders, published through a `ValueListenable` (`package:listen`) and replaced once per logical mutation, the final snapshot assigned once.
 _Avoid_: Catalog data source with listener channels, streams as the integration contract, fetch inside the viewport
