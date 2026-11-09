@@ -9,10 +9,16 @@ import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 ///
 /// With [frameDurations] it also plays the way a frame sequence does, so the
 /// binding and the surfaces above it can be driven by a clock alone: the first
-/// paint that animates starts a pass, the frame shown follows the time since
-/// then, and a paint that does not loop holds the rest frame once the pass is
-/// over. Without them it only records, and never holds. [advancePlayback]
-/// steps the sequence like [paint] does.
+/// paint that animates starts a pass, the frame shown follows the time played
+/// since then, and a paint that does not loop holds the rest frame once the
+/// pass is over. Without them it only records, and never holds.
+/// [advancePlayback] steps the sequence like [paint] does.
+///
+/// Time played adds up the way the decoders' paintables add it: each paint
+/// adds how far the clock moved since the previous one, a step over
+/// [resumeGap] (or backwards) adds nothing, and after [playbackResumed] the
+/// next paint adds nothing ("freeze and continue"). A playback that stopped
+/// goes on from its frame, not from where the clock went meanwhile.
 final class FakeAssetPaintable extends AssetPaintable {
   /// Creates a paintable called [label] (shown in failures).
   FakeAssetPaintable({
@@ -72,6 +78,9 @@ final class FakeAssetPaintable extends AssetPaintable {
   /// How many times [restart] rewound a holding playback.
   int restarts = 0;
 
+  /// How many times [rewind] sent the playback back to the first frame.
+  int rewinds = 0;
+
   /// How many times [playbackResumed] said a stopped playback goes on.
   int resumes = 0;
 
@@ -81,7 +90,12 @@ final class FakeAssetPaintable extends AssetPaintable {
   /// Whether the cache disposed it.
   bool get isDisposed => disposals > 0;
 
-  Duration? _startedAt;
+  /// The largest clock step between two paints that counts as time played,
+  /// as in the decoders' paintables.
+  static const Duration resumeGap = Duration(milliseconds: 500);
+
+  Duration _played = Duration.zero;
+  Duration? _lastTime;
   bool _holding = false;
   int _frame = 0;
 
@@ -97,11 +111,15 @@ final class FakeAssetPaintable extends AssetPaintable {
   @override
   bool restart() {
     if (!_holding) return false;
-    _holding = false;
-    _startedAt = null;
-    _frame = 0;
+    _beginPass();
     restarts++;
     return true;
+  }
+
+  @override
+  void rewind() {
+    _beginPass();
+    rewinds++;
   }
 
   @override
@@ -127,11 +145,15 @@ final class FakeAssetPaintable extends AssetPaintable {
     if (frameDurations.isEmpty || !context.animate) return;
     if (_holding) {
       if (!context.loop) return;
-      _holding = false;
-      _startedAt = null;
+      _beginPass();
     }
-    final started = _startedAt ??= context.time;
-    final elapsed = context.time - started;
+    final last = _lastTime;
+    _lastTime = context.time;
+    if (last != null) {
+      final step = context.time - last;
+      if (!step.isNegative && step <= resumeGap) _played += step;
+    }
+    final elapsed = _played;
     final total = _passLength;
     if (elapsed >= total && !context.loop) {
       _holding = true;
@@ -150,11 +172,21 @@ final class FakeAssetPaintable extends AssetPaintable {
     }
   }
 
+  void _beginPass() {
+    _holding = false;
+    _played = Duration.zero;
+    _lastTime = null;
+    _frame = 0;
+  }
+
   @override
   void keepFrame({required bool keep}) => keepsFrame = keep;
 
   @override
-  void playbackResumed() => resumes++;
+  void playbackResumed() {
+    resumes++;
+    _lastTime = null;
+  }
 
   @override
   void leftScreen() => departures++;

@@ -395,6 +395,22 @@ void main() {
       expect(p.restart(), isFalse, reason: 'a pass in progress is not rewound');
     });
 
+    test('rewind plays from the first frame in the middle of a pass, drawing '
+        'the still until that frame lands', () async {
+      final still = _image(8);
+      final p = make(still: still);
+      await paintAndSettle(p, at(1000));
+      await paintAndSettle(p, at(1100)); // frame 3, ahead 4
+      expect(renderer.batches.last, [4]);
+
+      p.rewind();
+      final canvas = await paintAndSettle(p, at(1150));
+
+      expect(canvas.draws.single.image, same(still));
+      expect(renderer.batches.last, [1], reason: 'frame 0, ahead 1');
+      expect(p.isHolding, isFalse);
+    });
+
     test('a looping paint resumes a holding paintable', () async {
       final p = make();
       await paintAndSettle(p, at(0, loop: false));

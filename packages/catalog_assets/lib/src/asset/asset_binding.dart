@@ -122,7 +122,10 @@ abstract interface class AssetBinding implements Listenable {
   /// frame, and its paintable keeps that frame where it lives
   /// ([AssetPaintable.keepFrame]) however long the hold lasts. Releasing the
   /// hold plays on from that frame. It is the hold of one surface, where a
-  /// pause layer of the clock holds every surface of the scope.
+  /// pause layer of the clock holds every surface of the scope, and a
+  /// background hold (`AssetCacheScope.holdBackground`) every surface but the
+  /// foreground ones. This flag is the surface's own wish: it does not change
+  /// when a background hold comes or goes.
   bool get held;
   set held(bool value);
 

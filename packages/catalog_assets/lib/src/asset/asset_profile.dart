@@ -31,6 +31,7 @@ final class AssetProfile {
     this.cornerRadius = 0,
     this.fit = AssetFit.contain,
     this.halfFrameRate = false,
+    this.foreground = false,
   }) : assert(cornerRadius >= 0, 'A corner radius cannot be negative.');
 
   /// Whether the surface wants the asset to play when it is visible and no
@@ -85,6 +86,27 @@ final class AssetProfile {
   /// rate shows the frames of whichever painted last.
   final bool halfFrameRate;
 
+  /// Whether the surface stands over the others, as a content preview does
+  /// over the grid it was opened from.
+  ///
+  /// Two things follow, both the reference mobile client's preview:
+  ///
+  /// - Each attach plays its own pass from the first frame
+  ///   (`AssetPaintable.rewind` when the binding starts to play;
+  ///   `setCurrentFrame(0)` as `ContentPreviewViewer` opens). Without it a
+  ///   preview opened again on content it showed before would go on from the
+  ///   frame its entry stopped at, which the entry's cache keeps: the still
+  ///   first, then a jump to that frame once the frame lands.
+  /// - A background hold of the scope (`AssetCacheScope.holdBackground`)
+  ///   does not hold it: the others keep their frames while it plays, as
+  ///   every image below the preview's layer stops its animation
+  ///   (`stopAllHeavyOperations`).
+  ///
+  /// The decoded asset is one playback for every binding of its entry, so a
+  /// foreground surface that shares its entry with another restarts that one
+  /// too; a preview is drawn at a size of its own, and so has its own entry.
+  final bool foreground;
+
   /// The source frame rate above which [halfFrameRate] skips every second
   /// frame.
   static const double halfFrameRateAbove = 30;
@@ -98,7 +120,8 @@ final class AssetProfile {
       other.autoplayFirstFrame == autoplayFirstFrame &&
       other.cornerRadius == cornerRadius &&
       other.fit == fit &&
-      other.halfFrameRate == halfFrameRate;
+      other.halfFrameRate == halfFrameRate &&
+      other.foreground == foreground;
 
   @override
   int get hashCode => Object.hash(
@@ -109,11 +132,12 @@ final class AssetProfile {
     cornerRadius,
     fit,
     halfFrameRate,
+    foreground,
   );
 
   @override
   String toString() =>
       'AssetProfile(animate: $animate, loop: $loop, '
       'restFrame: ${restFrame.name}, autoplayFirstFrame: $autoplayFirstFrame, cornerRadius: $cornerRadius, fit: ${fit.name}, '
-      'halfFrameRate: $halfFrameRate)';
+      'halfFrameRate: $halfFrameRate, foreground: $foreground)';
 }

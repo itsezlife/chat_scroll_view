@@ -383,6 +383,26 @@ void main() {
       expect(p.isHolding, isFalse);
     });
 
+    test('rewind plays from the first frame in the middle of a pass, and '
+        'shows the still until the new pass has a frame', () async {
+      final p = paintable();
+      addTearDown(p.dispose);
+      for (var ms = 0; ms <= 80; ms += 20) {
+        await paintAt(p, ms, loop: false);
+      }
+      expect(p.sprite, isNotNull);
+
+      p.rewind();
+
+      expect(p.sprite, isNull, reason: 'the frame the pass was at is gone');
+      // 80 ms played before the rewind; 60 ms more would end a pass that went
+      // on from there.
+      for (var ms = 100; ms <= 160; ms += 20) {
+        await paintAt(p, ms, loop: false);
+      }
+      expect(p.isHolding, isFalse);
+    });
+
     test(
       'a pass that does not loop holds the rest frame, and restarts',
       () async {

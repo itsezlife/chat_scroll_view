@@ -121,10 +121,21 @@ final class ContentPreviewController {
 /// - [openMenu] opens the menu at once (after [instantMenuDelay]): a tap on a
 ///   cell of a sheet that shows the preview and its actions straight away.
 ///
-/// ## Hold
+/// ## Holds
 ///
 /// The preview stands outside the panel's box: the opener's hold on the
 /// panel's auto-hide is released by the session as it starts to close.
+///
+/// While it is open everything else [assets] draws holds its frame (the
+/// panel, the chat, a sheet under it): the session takes a background hold
+/// of the scope ([AssetCacheScope.holdBackground]) as it opens and gives it
+/// back as it starts to close, and they go on from their frames. The clock
+/// keeps running for the preview, which is drawn in the foreground
+/// (`AssetProfile.foreground`): each item it shows plays its own pass from
+/// the first frame, the first one and every one the finger slides to. The
+/// reference posts `stopAllHeavyOperations` as its preview opens and
+/// `startAllHeavyOperations` as it closes, and sets the preview's animation
+/// to frame 0 on each open.
 final class ContentPreviewSession implements CatalogLongPressSession {
   ContentPreviewSession._({
     required ContentPreviewItem item,
@@ -137,7 +148,8 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     required PanelPageHold? hold,
   }) : _item = ValueNotifier(item),
        _itemAt = itemAt,
-       _hold = hold;
+       _hold = hold,
+       _background = assets.holdBackground();
 
   /// Opens a preview of [item] over the window of [context], drawn through
   /// [assets], whose menu offers what [actions] gives.
@@ -277,6 +289,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   final ValueNotifier<ContentPreviewItem> _item;
   final ContentPreviewItem? Function(Offset globalPosition)? _itemAt;
   final PanelPageHold? _hold;
+  final AssetBackgroundHold _background;
   final _open = listen.ValueNotifier<bool>(true);
   // The menu's items while it is up, or null.
   final _menu = ValueNotifier<List<ContentPreviewAction>?>(null);
@@ -400,6 +413,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     _closing = true;
     _menuTimer?.cancel();
     _hold?.release();
+    _background.release();
     _open.value = false;
   }
 
@@ -408,6 +422,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     _closing = true;
     _menuTimer?.cancel();
     _hold?.release();
+    _background.release();
     if (_open.value) _open.value = false;
     _entry?.remove();
     _entry?.dispose();
@@ -684,6 +699,7 @@ class _PreviewContent extends StatelessWidget {
         profile: AssetProfile(
           animate: true,
           cornerRadius: gif ? ContentPreviewLayout.gifRadius : 0,
+          foreground: true,
         ),
       ),
     );

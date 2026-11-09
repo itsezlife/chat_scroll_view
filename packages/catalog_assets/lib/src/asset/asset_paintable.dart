@@ -132,6 +132,19 @@ abstract class AssetPaintable {
   /// running: a pass in progress is never rewound.
   bool restart();
 
+  /// Plays from the first frame, whatever the pass is at: a running pass is
+  /// rewound too, unlike [restart].
+  ///
+  /// For a surface that plays its own pass each time it opens
+  /// (`AssetProfile.foreground`): a content preview starts at frame 0, as the
+  /// reference client sets its animation's current frame to 0 as the preview
+  /// opens. The next paint that animates starts the pass, and until its first
+  /// frame lands the paintable draws its first frame, never the frame it was
+  /// at. Every surface of the entry sees it. Does nothing by default, which is
+  /// right for a still; a paintable that cannot seek its source (a codec that
+  /// decodes forward only) leaves it at that and goes on from its frame.
+  void rewind() {}
+
   /// Lets a paintable that plays advance before a surface reads [sprite], for
   /// a surface that draws the sprite itself and so never calls [paint].
   ///

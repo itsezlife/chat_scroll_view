@@ -58,7 +58,8 @@ import 'package:lottie_native/lottie_native.dart';
 /// A paint that does not loop plays the animation once. When the last frame's
 /// time is over it holds the rest frame (`AssetPaintContext.restFrame`), asks
 /// for nothing and says so ([isHolding]); [restart], or a paint that loops,
-/// plays another pass from the first frame.
+/// plays another pass from the first frame. [rewind] does so whatever the
+/// pass is at: a surface that plays its own pass (a content preview).
 ///
 /// ## Failure
 ///
@@ -101,7 +102,8 @@ final class LottieAnimationPaintable extends AssetPaintable {
   /// played; a longer one is a pause that ended.
   static const Duration resumeGap = Duration(milliseconds: 500);
 
-  final Object _key;
+  // Renamed by [rewind]; see there.
+  Object _key;
   final LottieSource _source;
   final LottieInfo _info;
   final LottieStillPaintable _still;
@@ -149,6 +151,19 @@ final class LottieAnimationPaintable extends AssetPaintable {
     if (!_holding) return false;
     _beginPass();
     return true;
+  }
+
+  // The lease goes with the pass, and the atlas entry with it: an idle entry
+  // keeps the frame its slot holds, and a lease taken again under the same
+  // key draws that frame (the one the pass was at) until the new pass's
+  // lands. Under a new key the still (frame 0) is drawn until then; the old
+  // entry is idle, and the pool evicts it when it wants the room.
+  @override
+  void rewind() {
+    _beginPass();
+    _lease?.release();
+    _lease = null;
+    _key = Object();
   }
 
   @override

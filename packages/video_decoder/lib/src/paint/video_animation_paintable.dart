@@ -47,7 +47,8 @@ import 'package:video_decoder/src/playback/video_frame_scheduler.dart';
 /// end it holds the rest frame (`AssetPaintContext.restFrame`) and asks for
 /// nothing ([isHolding]): the last frame stays in the slot, the first frame is
 /// the still (the slot is given back). [restart], or a paint that loops, plays
-/// another pass from the first frame.
+/// another pass from the first frame. [rewind] does so whatever the pass is
+/// at: a surface that plays its own pass (a content preview).
 ///
 /// ## Failure
 ///
@@ -123,6 +124,10 @@ final class VideoAnimationPaintable extends AssetPaintable {
     _beginPass();
     return true;
   }
+
+  // A new lease rewinds the clip (see _beginPass).
+  @override
+  void rewind() => _beginPass();
 
   @override
   void playbackResumed() => _lastTime = null;
