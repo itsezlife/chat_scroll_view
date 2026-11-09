@@ -64,6 +64,9 @@ final class VideoFrameLease {
   bool _released = false;
   bool _holding = false;
   bool _kept = false;
+  // Whether its paintable left the screen and no want came since: the lease
+  // goes when the frame is over (see releaseUnlessPainted).
+  bool _leaving = false;
 
   /// Whether the lease is kept through the sweep however long it goes
   /// unpainted, where it is (on its slot or its texture): the frame it shows
@@ -111,6 +114,14 @@ final class VideoFrameLease {
 
   /// Ends the lease. Idempotent. The entry stays in the pool, idle.
   void release() => _scheduler._release(this);
+
+  /// Ends the lease once the current frame is over, unless its holder wants
+  /// a frame before that or the lease is [kept] by then: the holder left the
+  /// screen (`AssetPaintable.leftScreen`), but a surface that hides a cell
+  /// may still paint it in the frame that hid it (a panel's cells are hidden
+  /// while a fling runs, and drawn), and giving that lease back would put
+  /// the cell on its still and rewind its clip.
+  void releaseUnlessPainted() => _scheduler._releaseUnlessPainted(this);
 }
 
 /// The one owner of a host's video frame pool: it decodes each playing clip a
@@ -181,7 +192,24 @@ final class VideoFrameLease {
 ///
 /// A clip that was not painted for [visibleWindow] is not a candidate: its
 /// cell is off screen or covered, its clock is not moving, and it takes no
-/// slot until painted again (the sweep then frees its lease).
+/// slot until painted again.
+///
+/// ## Leases: given back on leaving, taken when the pool is full, swept
+///
+/// A paint is the only sign a paintable is on screen. A lease ends in one of
+/// three ways, so the pool's slots and textures go to the clips on screen:
+///
+/// 1. Its paintable left the screen: every binding of its entry hid or
+///    detached, and the paintable called
+///    [VideoFrameLease.releaseUnlessPainted]. The lease goes when the frame
+///    is over unless it was painted in it, or kept. Without this a fling
+///    filled the pool with the leases of cells that had flown past (ticket
+///    116).
+/// 2. An [acquire] found the pool full: the leases on slots that nothing
+///    painted for [visibleWindow] give theirs up, the least recently painted
+///    first, until one is free. A kept lease is never taken, nor one painted
+///    within the window.
+/// 3. The sweep, below, the backstop for what no surface said.
 ///
 /// ## Memory
 ///
@@ -288,7 +316,8 @@ final class VideoFrameScheduler {
   /// served ahead of it.
   final Duration maxStaleness;
 
-  /// How long since its last paint a clip still counts as visible.
+  /// How long since its last paint a clip still counts as visible: it is a
+  /// candidate for a slot of the cap, and a full pool never takes its lease.
   final Duration visibleWindow;
 
   /// Decoded frames a clip keeps ahead of its clip time.
@@ -318,8 +347,12 @@ final class VideoFrameScheduler {
   final Set<int> _classesToWarm = <int>{};
   // Textures leases let go of that a write in flight still names.
   final Set<FrameTextureLease> _returnAfterWrite = {};
+  // Leases whose paintable left the screen, released when the frame is over
+  // unless painted meanwhile.
+  final Set<VideoFrameLease> _leaving = {};
   PlaybackSubscription? _following;
   Timer? _sweep;
+  Timer? _leave;
   bool _disposed = false;
   int _nextSeq = 0;
   int _bufferedBytes = 0;
@@ -340,8 +373,10 @@ final class VideoFrameScheduler {
   int get residentBytes => _atlas.residentBytes;
 
   /// A lease for frames of [clip] under [key]: on a texture when one is free,
-  /// else on a slot; null when there is no texture and every page is open and
-  /// every cell pinned: the caller keeps showing its still, never an error.
+  /// else on a slot, taken from the least recently painted lease when the
+  /// pool is full (see the class documentation); null when there is no
+  /// texture and every slot is pinned by a lease on screen or kept: the
+  /// caller keeps showing its still, never an error.
   ///
   /// [onCanvas] says the lease is for a surface that only has a canvas: it
   /// takes a slot, as [want] says.
@@ -365,7 +400,7 @@ final class VideoFrameScheduler {
       .._canvasTouched = onCanvas;
     if (!onCanvas) lease._texture = _textureFor(lease);
     if (lease._texture == null) {
-      final handle = _slotFor(lease);
+      final handle = _slotFor(lease) ?? _slotFromStalest(lease);
       if (handle == null) {
         player.dispose();
         return null;
@@ -401,8 +436,10 @@ final class VideoFrameScheduler {
   }) {
     assert(frameStep > 0, 'a clip moves by at least one frame');
     if (lease._released) return;
-    lease._touched = true;
-    lease._wantedAt = _now;
+    lease
+      .._touched = true
+      .._wantedAt = _now
+      .._leaving = false;
     lease._player
       ..frameStep = frameStep
       ..note(played);
@@ -551,6 +588,50 @@ final class VideoFrameScheduler {
 
   // --- Leases ---
 
+  // The pool is full. The leases on slots that no surface painted for the
+  // visible window are off screen whatever their bindings say (the sweep
+  // would free them within two idle periods): they give their slots up, the
+  // least recently painted first, until the pool has one for [lease]. One at
+  // a time, because a freed cell may be of another size class or pinned by
+  // a batch still drawing into it. A lease on a texture alone frees no slot,
+  // and its texture could not be leased again before the texture pool's
+  // reuse delay, so it is left to the sweep.
+  FrameHandle<Object>? _slotFromStalest(VideoFrameLease lease) {
+    final stale = [
+      for (final other in _leases.values)
+        if (other._slot != null &&
+            !other._kept &&
+            _now - other._wantedAt > visibleWindow)
+          other,
+    ]..sort((a, b) => a._wantedAt.compareTo(b._wantedAt));
+    for (final victim in stale) {
+      _release(victim);
+      if (_slotFor(lease) case final handle?) return handle;
+    }
+    return null;
+  }
+
+  void _releaseUnlessPainted(VideoFrameLease lease) {
+    if (lease._released || _disposed) return;
+    lease._leaving = true;
+    _leaving.add(lease);
+    // A zero timer runs once the event in progress is over: after the
+    // frame's paint when the paintable left at its layout.
+    _leave ??= _startTimer(Duration.zero, _releaseLeaving);
+  }
+
+  void _releaseLeaving() {
+    _leave = null;
+    final leaving = List.of(_leaving);
+    _leaving.clear();
+    for (final lease in leaving) {
+      // Painted after it left (a hidden cell still drawn), or held on screen
+      // by a surface that keeps its frame: it stays.
+      if (lease._leaving && !lease._kept) _release(lease);
+      lease._leaving = false;
+    }
+  }
+
   void _release(VideoFrameLease lease) {
     if (lease._released) return;
     lease._released = true;
@@ -569,6 +650,9 @@ final class VideoFrameScheduler {
     _following = null;
     _sweep?.cancel();
     _sweep = null;
+    _leave?.cancel();
+    _leave = null;
+    _leaving.clear();
   }
 
   void _onTick(Duration now) {
