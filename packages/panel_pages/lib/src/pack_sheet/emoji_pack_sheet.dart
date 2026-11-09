@@ -23,6 +23,11 @@ import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
 ///   insert.
 /// - **No preview.** An emoji pack's grid is never previewed (the
 ///   reference's `ContentPreviewViewer.can()` is false for one).
+/// - **The preview emoji.** With [previewEmoji] (the emoji the user tapped in
+///   a message), that emoji is drawn large above the card and moves with it,
+///   as the reference's `setPreviewEmoji` does; it fades out for good once
+///   the user scrolls the grid, the sheet closes, or there is no room for it
+///   above the card. Touch only: a box under a pointer has none.
 /// - **Unavailable.** A pack not found, or whose lookup failed, closes the
 ///   sheet and is reported to [onUnavailable] ("Emoji pack not found.").
 ///
@@ -38,6 +43,7 @@ class EmojiPackSheet extends StatelessWidget {
     this.onPick,
     this.onUnavailable,
     this.links,
+    this.previewEmoji,
     super.key,
   }) : assert(packIds.length > 0, 'A pack sheet shows at least one pack.');
 
@@ -65,6 +71,9 @@ class EmojiPackSheet extends StatelessWidget {
   /// Share and Copy Link of a single pack, or null for no menu.
   final PackSheetLinks? links;
 
+  /// The emoji to show above the sheet (the one tapped to open it), or null.
+  final ContentKey? previewEmoji;
+
   @override
   Widget build(BuildContext context) => PackSheetView(
     packIds: packIds,
@@ -78,5 +87,6 @@ class EmojiPackSheet extends StatelessWidget {
     onPick: onPick,
     onUnavailable: onUnavailable,
     links: links,
+    previewEmoji: previewEmoji,
   );
 }

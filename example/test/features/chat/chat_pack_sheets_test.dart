@@ -180,6 +180,26 @@ void main() {
       expect(tester.widget<EmojiPackSheet>(sheet).packIds, packs);
     });
 
+    testWidgets('an emoji sheet shows the emoji it was opened for', (
+      tester,
+    ) async {
+      await pump(tester);
+      const emoji = ContentKey.document('tapped');
+
+      ChatPackSheets.open(
+        home,
+        services: services,
+        pack: AnimatedEmojiPack.packId,
+        kind: PackKind.emoji,
+        arrangement: PanelArrangement.touch,
+        previewEmoji: emoji,
+      ).ignore();
+      await tester.pump();
+
+      final sheet = find.byType(EmojiPackSheet);
+      expect(tester.widget<EmojiPackSheet>(sheet).previewEmoji, emoji);
+    });
+
     testWidgets('a pack that does not exist says so', (tester) async {
       await pump(tester);
 

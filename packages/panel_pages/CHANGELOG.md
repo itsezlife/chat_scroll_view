@@ -23,6 +23,11 @@ is pre-1.0.
   these headers over the grid; the grid's section headers are blank bands.
 - A right-click on a sticker of a sheet given `previews` opens the preview's
   items as a context menu, as the panel's grid does.
+- `EmojiPackSheet.previewEmoji`: the emoji a sheet was opened for (a custom
+  emoji tapped in a message), drawn 140 px large 20 px above the card on
+  touch and moving with it. It fades out (320 ms, shrinking to 0.6) for good
+  once the user scrolls the grid, the sheet closes, or the card's top is
+  less than 160 px from the top of the screen.
 - `CatalogContextMenuHost.host` may be null, for a grid outside the panel
   with no auto-hide to hold.
 

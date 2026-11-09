@@ -73,7 +73,7 @@ emoji sheet a tap inserts the emoji.
 The chat opens the sheets too (`lib/src/features/chat/utils/chat_pack_targets.dart`):
 a tap on a sticker message opens its pack's sticker sheet, whose stickers send
 to the chat; a tap on a custom emoji, in text or alone, opens its pack's emoji
-sheet. The lone thumbs-up keeps its replay and interaction, and a GIF, a clip
+sheet, which shows a tapped emoji of the text large above it. The lone thumbs-up keeps its replay and interaction, and a GIF, a clip
 or a sticker of no pack opens nothing. The menu of a message with custom
 emoji ends with "This message contains emoji from ... pack." (one pack, by
 its title) or "... from N Packs." (several, each once), which opens one emoji

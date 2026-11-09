@@ -50,7 +50,11 @@ void main() {
   late BuildContext home;
 
   setUp(() {
-    packs = FakePackSource([_pack('a'), _pack('b', count: 20)]);
+    packs = FakePackSource([
+      _pack('a'),
+      _pack('b', count: 20),
+      _pack('big', count: 400),
+    ]);
     library = FakeContentLibrary(
       limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
     );
@@ -68,14 +72,16 @@ void main() {
     WidgetTester tester,
     List<String> ids, {
     bool canInsert = false,
+    ContentKey? previewEmoji,
+    Size screen = const Size(400, 800),
   }) async {
     tester.view
-      ..physicalSize = const Size(400, 800)
+      ..physicalSize = screen
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       PanelShellTestScope(
-        size: const Size(400, 800),
+        size: screen,
         child: Navigator(
           onGenerateRoute: (_) => PageRouteBuilder<void>(
             pageBuilder: (context, _, _) {
@@ -96,6 +102,7 @@ void main() {
         assets: assets,
         onEditsRequested: edits.add,
         onPick: canInsert ? picks.add : null,
+        previewEmoji: previewEmoji,
       ),
     ).ignore();
     await settle(tester);
@@ -236,6 +243,58 @@ void main() {
       expect(picks, isEmpty);
       expect(find.text('Pack a'), findsOneWidget);
       expect(find.text('Add 32 emoji'), findsOneWidget);
+    });
+  });
+
+  group('the preview emoji', () {
+    // The emoji tapped in a message, drawn 140 large 20 above the card.
+    Finder preview() => find.byWidgetPredicate(
+      (widget) =>
+          widget is ContentView &&
+          widget.content == const ContentKey.document('a-3'),
+    );
+
+    testWidgets('is drawn 140 large, 20 above the card, centred', (
+      tester,
+    ) async {
+      await open(tester, ['a'], previewEmoji: const ContentKey.document('a-3'));
+
+      final card = sheet(tester).top;
+      final rect = tester.getRect(preview());
+      expect(rect.size, const Size(140, 140));
+      expect(rect.bottom, card - 20);
+      expect(rect.center.dx, 200);
+    });
+
+    testWidgets('fades out once the user scrolls the grid', (tester) async {
+      await open(tester, [
+        'big',
+      ], previewEmoji: const ContentKey.document('a-3'));
+      expect(preview(), findsOneWidget);
+
+      final finger = await tester.startGesture(const Offset(200, 700));
+      for (var i = 0; i < 4; i++) {
+        await finger.moveBy(const Offset(0, -20));
+        await tester.pump();
+      }
+      await finger.up();
+      await settle(tester);
+
+      expect(preview(), findsNothing);
+    });
+
+    testWidgets('is not drawn without 160 of room above the card', (
+      tester,
+    ) async {
+      // Landscape: the card opens 0.3 of 300 down.
+      await open(
+        tester,
+        ['a'],
+        previewEmoji: const ContentKey.document('a-3'),
+        screen: const Size(400, 300),
+      );
+
+      expect(preview(), findsNothing);
     });
   });
 }

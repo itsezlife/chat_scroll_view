@@ -50,6 +50,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separa
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart'
     show
+        ContentKey,
         LibraryPackEdit,
         PackId,
         PackKind,
@@ -340,8 +341,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       // A custom emoji in the text opens its pack's emoji sheet, as the
       // reference's `didPressAnimatedEmoji` does. A long press is the
       // message's.
+      // The tapped emoji shows above the sheet (`setPreviewEmoji`).
       case ChatEmbedActivated(:final target, gesture: ChatInlineGesture.tap):
-        _openPackOf(ChatPackTargets.ofEmbed(target, widget.services.describe));
+        _openPackOf(
+          ChatPackTargets.ofEmbed(target, widget.services.describe),
+          previewEmoji: ContentKey.tryParse(target),
+        );
       case ChatEmbedActivated(gesture: ChatInlineGesture.longPress):
         break;
       case ChatStickerActivated(:final content, :final gesture):
@@ -897,7 +902,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   // sheet, a sticker sheet or an emoji sheet by what the pack holds. Its
   // stickers are sent, and its emoji inserted, through the input set as a
   // pick from the panel is; stickers only where the chat allows them.
-  Future<void> _openPack(PackId id) async {
+  Future<void> _openPack(PackId id, {ContentKey? previewEmoji}) async {
     final services = widget.services;
     final lookup = await services.packs.lookup(id);
     if (!mounted) return;
@@ -916,6 +921,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       onPick: canPick
           ? (item) => input.pickContent(item.key, kind: item.semanticKind)
           : null,
+      previewEmoji: previewEmoji,
     );
   }
 
@@ -932,8 +938,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   }
 
   // A pack named by what was tapped in the chat, if any.
-  void _openPackOf(PackId? id) {
-    if (id != null) unawaited(_openPack(id));
+  void _openPackOf(PackId? id, {ContentKey? previewEmoji}) {
+    if (id != null) unawaited(_openPack(id, previewEmoji: previewEmoji));
   }
 
   // A pack's edit asked by the panel: applied with its bulletin, a removal

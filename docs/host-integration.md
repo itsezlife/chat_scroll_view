@@ -450,8 +450,9 @@ The chat opens the same sheets with no change to the viewport: on a tapped
 `ChatStickerActivated` that is no interaction (a sticker, a custom emoji
 without an effect) and on a tapped `ChatEmbedActivated` (a custom emoji in
 text) the host reads the content's descriptor, through its `ContentResolver`,
-and opens the sheet of its pack reference (`ContentDescriptor.pack`); content
-of no pack (a GIF, a unicode emoji) opens nothing, and a lone emoji with an
+and opens the sheet of its pack reference (`ContentDescriptor.pack`), an
+emoji sheet opened from a custom emoji in text given that emoji as its
+`previewEmoji` (drawn large above the card); content of no pack (a GIF, a unicode emoji) opens nothing, and a lone emoji with an
 effect keeps its replay. The message menu's "This message contains emoji
 from N packs" is the host's too: the packs of the message's custom emoji,
 each once in the order the text names them, under the action card (a

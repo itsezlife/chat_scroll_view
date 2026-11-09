@@ -58,6 +58,7 @@ class PackSheetView extends StatefulWidget {
     this.links,
     this.previews,
     this.onLibraryEditRequested,
+    this.previewEmoji,
     super.key,
   });
 
@@ -96,6 +97,10 @@ class PackSheetView extends StatefulWidget {
 
   /// Asked for the preview's library edits (favourites), or null for none.
   final ValueChanged<LibraryEdit>? onLibraryEditRequested;
+
+  /// An emoji drawn large above the card on touch, or null
+  /// (`EmojiPacksAlert.setPreviewEmoji`).
+  final ContentKey? previewEmoji;
 
   // --- Metrics --------------------------------------------------------------
 
@@ -151,6 +156,18 @@ class PackSheetView extends StatefulWidget {
   /// The label of the bottom button: 14 bold.
   static const double buttonTextSize = 14;
 
+  /// The preview emoji's side (`dp(140)`), and the gap between it and the
+  /// card's top (`dp(20)`); it is drawn only while the card's top is at
+  /// least both below the top of the screen (`y < sz + p` hides it).
+  static const double previewEmojiExtent = 140;
+
+  /// See [previewEmojiExtent].
+  static const double previewEmojiGap = 20;
+
+  /// How long the preview emoji takes to fade out (`AnimatedFloat` of 320
+  /// ms on `EASE_OUT_QUINT`); it scales from 1 to 0.6 as it fades.
+  static const Duration previewEmojiFade = Duration(milliseconds: 320);
+
   /// The tallest the grid is in a box under a pointer: the desktop client's
   /// `stickersMaxHeight` (320) for stickers, its emoji height (197) otherwise.
   static double boxGridMaxHeight(PackSheetGrid grid) =>
@@ -161,7 +178,7 @@ class PackSheetView extends StatefulWidget {
 }
 
 class _PackSheetViewState extends State<PackSheetView>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _catalog = PanelCatalogController();
   final _snapshots = listen.ValueNotifier<CatalogSnapshot>(
     const CatalogSnapshot.empty(),
@@ -190,6 +207,18 @@ class _PackSheetViewState extends State<PackSheetView>
   /// The frame of the last build, which the offset is read against.
   PackSheetFrame _frame = const PackSheetFrame.fixed(0);
 
+  /// Where the box's top was on the screen at the last build.
+  double _boxTop = 0;
+
+  /// The preview emoji's alpha: 1 while it shows, faded to 0 once hidden,
+  /// and never shown again (`previewImageVisible` only turns false).
+  late final _previewAlpha = AnimationController(
+    vsync: this,
+    value: widget.previewEmoji == null ? 0 : 1,
+  );
+  var _previewHidden = false;
+  Animation<double>? _routeAnimation;
+
   /// The pack a sheet of several opened on its own by a tap on one of its
   /// items (`EmojiPacksAlert`: a tap opens that pack alone), or null.
   PackId? _alone;
@@ -215,9 +244,15 @@ class _PackSheetViewState extends State<PackSheetView>
       widget.packs.lookup(id).ignore();
     }
     _scrolls = _catalog.events.listen((event) {
-      if (event case PanelCatalogOffsetChanged(:final offset)) {
-        _offset.value = offset;
-        _followStatusBar();
+      switch (event) {
+        case PanelCatalogOffsetChanged(:final offset):
+          _offset.value = offset;
+          _followStatusBar();
+          _checkPreviewRoom();
+        // `onScrolled` while `scrollingByUser`: the user moved the grid.
+        case PanelCatalogUserDragStart():
+          _hidePreview();
+        case _:
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _changed());
@@ -231,12 +266,56 @@ class _PackSheetViewState extends State<PackSheetView>
     }
     _session?.cancel();
     _scrolls.cancel().ignore();
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    _previewAlpha.dispose();
     _menu.dispose();
     _catalog.dispose();
     _snapshots.dispose();
     _offset.dispose();
     _closing.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final animation = ModalRoute.of(context)?.animation;
+    if (identical(animation, _routeAnimation)) return;
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    _routeAnimation = animation?..addStatusListener(_onRouteStatus);
+  }
+
+  // The sheet is going, however it was closed (`dismiss` hides it).
+  void _onRouteStatus(AnimationStatus status) {
+    if (status == AnimationStatus.reverse) _hidePreview();
+  }
+
+  void _hidePreview() {
+    if (_previewHidden || widget.previewEmoji == null || !mounted) return;
+    _previewHidden = true;
+    final speed = ChromeMotionScope.maybeOf(context)?.speed;
+    _previewAlpha.animateTo(
+      0,
+      duration:
+          speed?.scale(PackSheetView.previewEmojiFade) ??
+          PackSheetView.previewEmojiFade,
+      curve: Curves.easeOutQuint,
+    );
+  }
+
+  // `if (y < sz + p) previewImageVisible = false`: no room above the card's
+  // background, and it goes for good.
+  void _checkPreviewRoom() {
+    if (_previewHidden || widget.previewEmoji == null) return;
+    final top =
+        _boxTop +
+        _frame
+            .emojiBackdrop(_frame.cardTopAt(_offset.value), _closing.value)
+            .top;
+    if (top <
+        PackSheetView.previewEmojiExtent + PackSheetView.previewEmojiGap) {
+      _hidePreview();
+    }
   }
 
   void _changed() {
@@ -255,6 +334,7 @@ class _PackSheetViewState extends State<PackSheetView>
   void _close() {
     if (_closed) return;
     _closed = true;
+    _hidePreview();
     Navigator.maybeOf(context)?.maybePop();
   }
 
@@ -532,9 +612,13 @@ class _PackSheetViewState extends State<PackSheetView>
     };
     // Where the box's top is on the screen: the grabber fades as the card
     // nears the status bar.
-    final boxTop = touch ? media.size.height - frame.height : 0.0;
+    final boxTop = _boxTop = touch ? media.size.height - frame.height : 0.0;
+    final previewEmoji = touch ? widget.previewEmoji : null;
+    if (previewEmoji != null && !_previewHidden) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkPreviewRoom());
+    }
     final body = ListenableBuilder(
-      listenable: Listenable.merge([_offset, _closing]),
+      listenable: Listenable.merge([_offset, _closing, _previewAlpha]),
       child: grid,
       builder: (context, grid) {
         final offset = _offset.value;
@@ -557,8 +641,26 @@ class _PackSheetViewState extends State<PackSheetView>
                   1.0,
                 ),
               );
+        final previewAlpha = _previewAlpha.value;
         return Stack(
+          // The preview emoji stands above the box.
+          clipBehavior: Clip.none,
           children: [
+            if (previewEmoji != null && previewAlpha > 0)
+              Positioned(
+                left: (width - PackSheetView.previewEmojiExtent) / 2,
+                top:
+                    backdrop.top -
+                    PackSheetView.previewEmojiGap -
+                    PackSheetView.previewEmojiExtent,
+                width: PackSheetView.previewEmojiExtent,
+                height: PackSheetView.previewEmojiExtent,
+                child: _PreviewEmoji(
+                  content: previewEmoji,
+                  assets: widget.assets,
+                  alpha: previewAlpha,
+                ),
+              ),
             Positioned.fill(
               child: CustomPaint(
                 painter: _BackdropPainter(
@@ -817,6 +919,47 @@ class _BackdropPainter extends CustomPainter {
       oldDelegate.top != top ||
       oldDelegate.radius != radius ||
       oldDelegate.color != color;
+}
+
+/// The emoji the sheet was opened for, over the dim above the card: it fades
+/// at [alpha] and shrinks to 0.6 with it (`.6f + .4f * alpha`).
+class _PreviewEmoji extends StatelessWidget {
+  const _PreviewEmoji({
+    required this.content,
+    required this.assets,
+    required this.alpha,
+  });
+
+  final ContentKey content;
+  final AssetCacheScope assets;
+  final double alpha;
+
+  @override
+  Widget build(BuildContext context) {
+    const side = PackSheetView.previewEmojiExtent;
+    final density = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
+    return IgnorePointer(
+      child: Opacity(
+        opacity: alpha.clamp(0.0, 1.0),
+        child: Transform.scale(
+          scale: 0.6 + 0.4 * alpha,
+          child: ContentView(
+            content: content,
+            scope: assets,
+            preset: AssetPreset(
+              size: const Size.square(side),
+              spec: AssetSpec.atDensity(
+                logicalWidth: side,
+                logicalHeight: side,
+                devicePixelRatio: density,
+              ),
+              profile: const AssetProfile(animate: true),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The grabber (`sheet_scrollUp`), its alpha already in [color].
