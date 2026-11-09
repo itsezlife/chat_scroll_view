@@ -6,6 +6,8 @@
 /// library and the bulletin. [ChatPackSheets.feedbackOf] is read on its own.
 library;
 
+import 'package:bulletins/bulletins.dart';
+import 'package:bulletins/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackBinding, ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
@@ -15,6 +17,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_p
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
+import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -83,13 +86,76 @@ void main() {
     });
   });
 
+  // The reference's `toggleStickerSet` runs as the bulletin's delayed
+  // action: whatever takes the bulletin away, but Undo, commits the edit,
+  // and the library's own window is only a guard.
+  group('a removal behind its bulletin', () {
+    final cats = Pack(
+      id: const PackId('cats'),
+      kind: PackKind.stickers,
+      title: 'Cats',
+      items: const [],
+    );
+    late FakeContentLibrary library;
+    late BulletinController bulletins;
+    setUp(() {
+      library = FakeContentLibrary(
+        limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
+      )..apply(LibraryEdit.installPack(cats.id, cats.kind));
+      bulletins = BulletinController(clock: ManualBulletinClock());
+    });
+    tearDown(() => bulletins.dispose());
+
+    void remove() => ChatPackSheets.apply(
+      library,
+      [(edit: LibraryEdit$RemovePack(cats.id, cats.kind), pack: cats)],
+      strings,
+      bulletins,
+    );
+
+    test('waits while the bulletin shows its Undo', () async {
+      remove();
+      await pumpEventQueue();
+
+      expect(
+        bulletins.current.value?.bulletin.action,
+        isA<BulletinAction$Undo>(),
+      );
+      expect(library.installStateOf(cats.id), PackInstallState.notInstalled);
+      expect(library.committed, hasLength(1));
+    });
+
+    test('commits when another bulletin replaces it', () async {
+      remove();
+      bulletins.show(const Bulletin(message: 'next'));
+      await pumpEventQueue();
+
+      expect(
+        library.committed.last,
+        LibraryEdit$RemovePack(cats.id, cats.kind),
+      );
+    });
+
+    test('Undo brings the pack back and commits nothing', () async {
+      remove();
+      bulletins.current.value!.pressAction();
+      await pumpEventQueue();
+
+      expect(library.installStateOf(cats.id), PackInstallState.installed);
+      expect(library.committed, hasLength(1));
+    });
+  });
+
   group('a sheet opened by the chat', () {
     late AppServices services;
     late BuildContext home;
+    late BulletinController bulletins;
 
     Future<void> pump(WidgetTester tester) async {
       services = (await tester.runAsync(createTestServices))!;
       addTearDown(services.dispose);
+      bulletins = BulletinController(policy: const BulletinPolicy.android());
+      addTearDown(bulletins.dispose);
       tester.view
         ..physicalSize = const Size(400, 800)
         ..devicePixelRatio = 1;
@@ -99,11 +165,14 @@ void main() {
           builder: (context, child) =>
               AppChrome(services: services, child: child!),
           home: Scaffold(
-            body: Builder(
-              builder: (context) {
-                home = context;
-                return const SizedBox.expand();
-              },
+            body: BulletinHost(
+              controller: bulletins,
+              child: Builder(
+                builder: (context) {
+                  home = context;
+                  return const SizedBox.expand();
+                },
+              ),
             ),
           ),
         ),
@@ -120,6 +189,7 @@ void main() {
       ChatPackSheets.open(
         home,
         services: services,
+        bulletins: bulletins,
         pack: pack,
         kind: PackKind.emoji,
         arrangement: PanelArrangement.touch,
@@ -163,6 +233,7 @@ void main() {
       ChatPackSheets.open(
         home,
         services: services,
+        bulletins: bulletins,
         pack: pack,
         kind: PackKind.emoji,
         arrangement: PanelArrangement.touch,
@@ -191,6 +262,7 @@ void main() {
       ChatPackSheets.open(
         home,
         services: services,
+        bulletins: bulletins,
         pack: pack,
         kind: PackKind.emoji,
         arrangement: PanelArrangement.touch,
@@ -218,6 +290,7 @@ void main() {
       ChatPackSheets.open(
         home,
         services: services,
+        bulletins: bulletins,
         pack: pack,
         kind: PackKind.stickers,
         arrangement: PanelArrangement.touch,
@@ -231,6 +304,29 @@ void main() {
       expect(find.text('Отменить'), findsNothing);
     });
 
+    testWidgets('a pack bulletin leads with the pack, long with Undo', (
+      tester,
+    ) async {
+      await pump(tester);
+      const pack = AnimatedEmojiPack.packId;
+
+      ChatPackSheets.open(
+        home,
+        services: services,
+        bulletins: bulletins,
+        pack: pack,
+        kind: PackKind.emoji,
+        arrangement: PanelArrangement.touch,
+      ).ignore();
+      await _settle(tester);
+      await tester.tap(find.textContaining('Удалить'));
+      await _settle(tester);
+
+      final bulletin = bulletins.current.value!.bulletin;
+      expect(bulletin.leading, isA<BulletinLeading$Thumbnail>());
+      expect(bulletin.effectiveDuration, BulletinDuration.long);
+    });
+
     testWidgets('several emoji packs share one sheet', (tester) async {
       await pump(tester);
       const packs = [AnimatedEmojiPack.packId, PackId('other')];
@@ -238,6 +334,7 @@ void main() {
       ChatPackSheets.openEmojiPacks(
         home,
         services: services,
+        bulletins: bulletins,
         packs: packs,
         arrangement: PanelArrangement.touch,
       ).ignore();
@@ -259,6 +356,7 @@ void main() {
       ChatPackSheets.open(
         home,
         services: services,
+        bulletins: bulletins,
         pack: AnimatedEmojiPack.packId,
         kind: PackKind.emoji,
         arrangement: PanelArrangement.touch,
@@ -285,6 +383,7 @@ void main() {
       ChatPackSheets.open(
         home,
         services: services,
+        bulletins: bulletins,
         pack: AnimatedEmojiPack.packId,
         kind: PackKind.emoji,
         arrangement: PanelArrangement.touch,
@@ -310,6 +409,7 @@ void main() {
       ChatPackSheets.open(
         home,
         services: services,
+        bulletins: bulletins,
         pack: AnimatedEmojiPack.packId,
         kind: PackKind.emoji,
         arrangement: PanelArrangement.touch,
@@ -329,6 +429,7 @@ void main() {
       ChatPackSheets.open(
         home,
         services: services,
+        bulletins: bulletins,
         pack: const PackId('nope'),
         kind: PackKind.stickers,
         arrangement: PanelArrangement.touch,

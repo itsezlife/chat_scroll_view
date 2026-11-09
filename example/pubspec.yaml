@@ -11,6 +11,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  bulletins:
+    path: ../packages/bulletins
   chat_scroll_view:
     path: ../
   keyboard_insets:

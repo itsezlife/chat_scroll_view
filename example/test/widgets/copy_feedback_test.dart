@@ -149,7 +149,8 @@ void main() {
     expect(selection.isTextSelectionActive, isTrue);
   }
 
-  final copied = find.text('Copied');
+  // Any of the copy bulletins: message, text, code or link.
+  final copied = find.textContaining('скопирован');
 
   Future<void> selectTwoMessages(
     WidgetTester tester,

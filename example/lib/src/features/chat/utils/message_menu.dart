@@ -337,6 +337,7 @@ final class MessageMenuActions {
     this.onCopyLink,
     this.onCopyCode,
     this.onEmojiPacks,
+    this.onNotice,
   });
 
   /// Delete one message.
@@ -378,6 +379,10 @@ final class MessageMenuActions {
   /// Opens the packs of the message's custom emoji, each once, in order
   /// ([MessageMenuActionId.emojiPacks]).
   final ValueChanged<List<PackId>>? onEmojiPacks;
+
+  /// Shows what a demo row with no handler would do (a reaction, a reply, a
+  /// pin, a forward): the host's bulletin. Nothing shows when null.
+  final ValueChanged<String>? onNotice;
 }
 
 /// Host-owned **message menu** session.
@@ -522,21 +527,13 @@ final class MessageMenu {
     required List<int> selectedSnapshot,
     required List<PackId> emojiPacks,
   }) async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-
     switch (result) {
       case ChatMessageMenuReactionResult(:final reaction):
         if (actions.onReact case final onReact?) {
           onReact(reaction);
           return;
         }
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Reacted $reaction'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        actions.onNotice?.call('Reacted $reaction');
       case ChatMessageMenuItemResult(:final itemId):
         switch (itemId) {
           case MessageMenuActionId.copySelected:
@@ -602,20 +599,19 @@ final class MessageMenu {
               onReply(request.messageId);
               return;
             }
-            _stubFeedback(messenger, MessageMenuActionId.reply);
+            actions.onNotice?.call(MessageMenuActionId.reply);
           case MessageMenuActionId.pin:
             if (actions.onPin case final onPin?) {
               onPin(request.messageId);
               return;
             }
-            _stubFeedback(messenger, MessageMenuActionId.pin);
+            actions.onNotice?.call(MessageMenuActionId.pin);
           case MessageMenuActionId.forward:
             if (actions.onForward case final onForward?) {
               onForward(request.messageId, selectedSnapshot);
               return;
             }
-            _stubFeedback(
-              messenger,
+            actions.onNotice?.call(
               request.overSelection
                   ? 'forward ${selectedSnapshot.length}'
                   : MessageMenuActionId.forward,
@@ -643,12 +639,6 @@ final class MessageMenu {
         const [],
       _ => emojiPacks.of(request.messageId),
     };
-  }
-
-  void _stubFeedback(ScaffoldMessengerState messenger, String label) {
-    messenger.showSnackBar(
-      SnackBar(content: Text(label), behavior: SnackBarBehavior.floating),
-    );
   }
 }
 
