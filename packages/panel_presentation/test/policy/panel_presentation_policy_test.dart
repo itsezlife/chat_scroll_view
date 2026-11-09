@@ -243,6 +243,27 @@ void main() {
     });
   });
 
+  group('fresh open', () {
+    test('a mobile keyboard replacement opens afresh; other mobile kinds '
+        'keep their place', () {
+      const policy = PanelPresentationPolicy$Mobile();
+      expect(policy.opensAfresh(const KeyboardReplacement()), isTrue);
+      expect(policy.opensAfresh(const AnchoredPopup()), isFalse);
+      expect(policy.opensAfresh(const Docked()), isFalse);
+    });
+
+    test('desktop never opens afresh: popup and dock keep their place', () {
+      const policy = PanelPresentationPolicy$Desktop();
+      for (final kind in <PanelPresentation>[
+        const KeyboardReplacement(),
+        const AnchoredPopup(),
+        const Docked(),
+      ]) {
+        expect(policy.opensAfresh(kind), isFalse);
+      }
+    });
+  });
+
   group('dismissal', () {
     test('mobile dismisses by back for every kind and nothing else', () {
       const policy = PanelPresentationPolicy$Mobile();

@@ -6,6 +6,19 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a fresh open)
+
+- `PanelPresentationPolicy.opensAfresh(kind)`: whether opening a hidden panel
+  as `kind` asks the pages to come back as a new open shows them. The mobile
+  policy answers yes for `KeyboardReplacement` only; the desktop policy never
+  does, so a popup and a dock keep every page's place. The host decides per
+  platform family by the policy it passes.
+- `PanelPresentationController` reports
+  `PanelShellController.reportFreshOpen` when it opens a hidden panel as a
+  kind the policy opens afresh, before the presence that shows it. A panel
+  turned back while hiding, or switched to another kind, is not opened
+  afresh.
+
 ### Changed (the panel keeps its animations)
 
 - `PanelPresentationView` keeps the last kind's subtree mounted while hidden,

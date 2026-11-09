@@ -276,6 +276,92 @@ void main() {
     });
   });
 
+  group('fresh open', () {
+    late int freshOpens;
+
+    void count() {
+      freshOpens = 0;
+      shell.freshOpen.addListener(() => freshOpens++);
+    }
+
+    test('a mobile show from hidden reports one fresh open to the shell, '
+        'before the shell sees the panel', () {
+      build(policy: mobile);
+      count();
+      bool? visibleAtSignal;
+      shell.freshOpen.addListener(
+        () => visibleAtSignal = shell.visible.value,
+      );
+
+      controller.show();
+
+      expect(freshOpens, 1);
+      expect(visibleAtSignal, isFalse);
+    });
+
+    test('every mobile show from hidden is a fresh open', () {
+      build(policy: mobile);
+      count();
+
+      controller
+        ..show()
+        ..hide()
+        ..show();
+
+      expect(freshOpens, 2);
+    });
+
+    test('a show that changes nothing, or settles, is not one', () {
+      build(policy: mobile);
+      final view = controller.attach();
+      count();
+
+      controller.show();
+      view.motionSettled(controller.state.value);
+      controller.show();
+
+      expect(freshOpens, 1);
+    });
+
+    test('a mobile panel turned back while hiding is not opened afresh', () {
+      build(policy: mobile);
+      final view = controller.attach();
+      controller.show();
+      view.motionSettled(controller.state.value);
+      count();
+
+      controller
+        ..hide()
+        ..show();
+
+      expect(controller.state.value.isShowing, isTrue);
+      expect(freshOpens, 0);
+    });
+
+    test('a desktop popup and dock keep their place: no fresh open', () {
+      build(window: wide);
+      count();
+
+      controller
+        ..show()
+        ..hide()
+        ..show(kind: const Docked())
+        ..hide();
+
+      expect(freshOpens, 0);
+    });
+
+    test('a mobile host that opens another kind gets what the policy says '
+        'for that kind', () {
+      build(policy: mobile);
+      count();
+
+      controller.show(kind: const AnchoredPopup());
+
+      expect(freshOpens, 0);
+    });
+  });
+
   group('handleBack', () {
     test('closes search before the panel, then the panel, then nothing', () {
       build().show();
