@@ -17,9 +17,8 @@ DateTime _systemClock() => DateTime.now();
 /// A tier writes and reads its own files and stamps a file's time when it
 /// uses one; the store only removes. A [sweep] removes every file no tier
 /// used for [keepFor] and then, when the host sets [limitBytes], the least
-/// recently used of the rest, across the tiers, until they fit. The reference
-/// clients keep media the same way: no size limit by default, media unused
-/// for a month deleted.
+/// recently used of the rest, across the tiers, until they fit. By default
+/// there is no size limit: media unused for a month is deleted.
 ///
 /// A sweep runs off the frame path (in an isolate of its own) and never
 /// holds a tier up: a tier never waits for one, and a file removed under a

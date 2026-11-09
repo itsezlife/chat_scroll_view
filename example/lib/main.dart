@@ -116,8 +116,8 @@ Future<AppServices> _createServices() async {
     glyphCache: glyphCache.cache,
     glyphArtVersion: glyphCache.artVersion,
     // One folder for every kind of animated media, kept a month after its
-    // last use and with no size limit, as the reference client keeps its
-    // media; pass MediaDiskCache(keepFor:, limitBytes:) to keep it otherwise.
+    // last use and with no size limit; pass MediaDiskCache(keepFor:,
+    // limitBytes:) to keep it otherwise.
     // Its first sweep deletes the folders beside it that media was kept in
     // before it (the Giphy stills and clips, the Lottie frames).
     mediaCache: environment_specific

@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 
 /// Asks the platform for its top refresh rate while the app animates.
 ///
-/// An idle Android display drops to a low rate (24 Hz on the reference
+/// An idle Android display drops to a low rate (24 Hz on the test
 /// phone). A touch raises it at once; an animation no finger started — the
 /// list scrolling to a new message, a panel opening from a key — ran its
 /// first quarter second at that rate while the system worked out that frames

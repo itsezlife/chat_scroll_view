@@ -28,7 +28,7 @@ abstract final class DemoConfig {
   );
 
   /// The most code points of plain text a message may have: the demo
-  /// backend's `message_length_max` (the reference client's default is 4096),
+  /// backend's `message_length_max` (4096 by default),
   /// from `--dart-define=MESSAGE_LENGTH_MAX`.
   ///
   /// The unit is the plain text, not the markdown body: delimiters and

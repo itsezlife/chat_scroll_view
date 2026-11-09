@@ -5,7 +5,7 @@ import 'package:panel_pages/panel_pages.dart';
 
 /// Holds the chat's animations still while a route is open over it.
 ///
-/// The reference desktop client pauses the chat under any box layer. Flutter's
+/// The chat pauses under any box layer. Flutter's
 /// `TickerMode` does not: it only reaches the routes beneath an opaque one, so
 /// a dialog or a sheet leaves the chat animating behind its barrier. This
 /// observer asks a `PlaybackActivity` for one `holdOverlay` per modal route
@@ -19,8 +19,8 @@ import 'package:panel_pages/panel_pages.dart';
 ///   on playing under it;
 /// - a pack sheet (`PackSheet.routeName`) plays its own stickers and emoji,
 ///   and the preview opened from it, so the clock is held only while the
-///   sheet moves in or out, as the reference's `BottomSheet` pauses every
-///   animation for its open and close. While it is open the opener holds the
+///   sheet moves in or out: every animation is paused for its open and
+///   close. While it is open the opener holds the
 ///   chat under it on its own (`PanelPlaybackHold.holdChat`): one clock serves
 ///   both, so pausing the chat must not pause the sheet.
 ///
