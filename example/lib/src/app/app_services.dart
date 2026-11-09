@@ -680,6 +680,12 @@ final class AppServices {
   /// a GIF saves it.
   final ContentLibrary library;
 
+  /// The panel's content previews: the one that is up (which back closes
+  /// first) and the [library] their menus read.
+  late final ContentPreviewController previews = ContentPreviewController(
+    library: library,
+  );
+
   /// The [library] as the panel shows it: as of the last
   /// [commitShownLists], except that what leaves the library leaves it at
   /// once.
@@ -928,6 +934,7 @@ final class AppServices {
     memoryPressure.dispose();
     largeEmoji.dispose();
     preferences.dispose();
+    previews.dispose();
     // Commits what is still in an undo window.
     library.dispose();
     recents.dispose();

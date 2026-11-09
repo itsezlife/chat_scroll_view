@@ -34,6 +34,7 @@ abstract final class EmojiPanelPage {
       preferences: services.preferences,
       entryOf: services.emojiSource.entryOf,
       assets: services.assets,
+      previews: services.previews,
       atlasHostFactory:
           ({
             required devicePixelRatio,
