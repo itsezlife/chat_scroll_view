@@ -589,6 +589,7 @@ class _CatalogPageState extends State<CatalogPage>
       kind: _lastKind,
       cellBounds: cell,
       viewportBounds: viewport,
+      leafAt: _catalog.leafAt,
     );
     if (session == null) return;
     _longPress = session;

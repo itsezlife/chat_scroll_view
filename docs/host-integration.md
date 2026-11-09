@@ -394,6 +394,10 @@ void onPanelEvent(PanelEvent event) {
       }
     case RecentRemoveRequested(:final key, :final kind):
       unawaited(recents.remove(key, kind: kind));
+    case LibraryEditRequested(:final edit):
+      library.apply(edit); // and the host's own feedback, if any
+    case PackRequested(:final id):
+      openPackSheet(id);
     case SearchOpened() || SearchClosed() || ActionInvoked() || PageChanged():
       break;
   }
@@ -420,6 +424,16 @@ header has no button. Which emoji have variants, and
 whether the user has chosen one, is the page's business; the host only
 supplies the `PreferenceStore` the page remembers it in (choosing the emoji as
 it is is remembered as the base itself).
+A page given a `ContentPreviewController` (`StickersPage`, `GifPage` and
+`EmojiPage` take one as `previews`) previews a held sticker, GIF or custom
+emoji. The preview's items are the same events: send is `ContentPicked`, copy
+`ContentCopyRequested`, a custom emoji's "Remove from recent"
+`RecentRemoveRequested`, favourites, saved GIFs and a recent sticker's removal
+`LibraryEditRequested`, and "View pack" `PackRequested`. The host creates one
+controller over its `ContentLibrary` (the menus read it to say "Add to" or
+"Delete from Favorites"), disposes it after the pages, and calls
+`controller.dismiss()` first in its back handling: the preview stands in an
+overlay outside any route, so back reaches the host, not the preview.
 A host that lists the recents through a `DeferredRecentsStore` view (so a pick
 does not reorder the grid under the pointer) routes `remove` and `clear` through
 the view: the emoji leaves the list at once and nothing else in it moves.

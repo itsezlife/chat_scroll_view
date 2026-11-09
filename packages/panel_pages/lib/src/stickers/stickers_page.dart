@@ -4,6 +4,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/src/page/catalog_page.dart';
 import 'package:panel_pages/src/page/listen_value_builder.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/stickers/stickers_page_policy.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -30,6 +31,7 @@ class StickersPage extends StatefulWidget {
     required this.host,
     required this.source,
     required this.assets,
+    this.previews,
     super.key,
   });
 
@@ -44,18 +46,29 @@ class StickersPage extends StatefulWidget {
   /// The asset cache the grid and the strip draw through.
   final AssetCacheScope assets;
 
+  /// The host's handle on content previews: given, a press held on a sticker
+  /// previews it (`StickersPagePolicy`); null, a long press does nothing.
+  final ContentPreviewController? previews;
+
   @override
   State<StickersPage> createState() => _StickersPageState();
 }
 
 class _StickersPageState extends State<StickersPage> {
-  late StickersPagePolicy _policy = StickersPagePolicy(assets: widget.assets);
+  late StickersPagePolicy _policy = _newPolicy();
+
+  StickersPagePolicy _newPolicy() => StickersPagePolicy(
+    assets: widget.assets,
+    host: widget.host,
+    previews: widget.previews,
+  );
 
   @override
   void didUpdateWidget(StickersPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.assets, widget.assets)) {
-      _policy = StickersPagePolicy(assets: widget.assets);
+    if (!identical(oldWidget.assets, widget.assets) ||
+        !identical(oldWidget.previews, widget.previews)) {
+      _policy = _newPolicy();
     }
   }
 

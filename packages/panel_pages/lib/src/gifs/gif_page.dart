@@ -3,9 +3,15 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_pages/src/gifs/gif_row_layout.dart';
+import 'package:panel_pages/src/menu/catalog_context_menu.dart';
+import 'package:panel_pages/src/preview/catalog_content_preview.dart';
+import 'package:panel_pages/src/preview/content_preview_item.dart';
+import 'package:panel_pages/src/preview/content_preview_menu.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/stickers/stickers_page_policy.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -99,7 +105,15 @@ import 'package:panel_shell/panel_shell.dart';
 /// provider's terms may require its name on the content it supplies, and the
 /// page knows no provider.
 ///
-/// Not ported: the category chips and the preview a long press opens.
+/// ## Preview
+///
+/// Given [previews], a press held on a clip opens the content preview
+/// (`ContentPreviewSession`): a finger after 200 ms, with its menu after 2 s
+/// or a drag up; a mouse after 500 ms, without one, and a right click opens
+/// the same items as a context menu. Its items are requests to the host
+/// (`panelPreviewActions`): send is a pick, save and delete library edits.
+///
+/// Not ported: the category chips.
 ///
 /// Requires the chrome theme, strings and motion scopes.
 class GifPage extends StatefulWidget {
@@ -113,6 +127,7 @@ class GifPage extends StatefulWidget {
     this.searchSuggestions,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
     this.attribution,
+    this.previews,
     super.key,
   });
 
@@ -146,6 +161,9 @@ class GifPage extends StatefulWidget {
   /// The line that heads the list, such as the name of the provider the clips
   /// come from, or null for none. Shown as given: it is not translated.
   final String? attribution;
+
+  /// The host's handle on content previews, or null for no preview.
+  final ContentPreviewController? previews;
 
   @override
   State<GifPage> createState() => _GifPageState();
@@ -226,6 +244,8 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
   // when the width changed or another list replaced the one shown.
   var _moveCells = false;
   late DebouncedSearch<void> _debounced;
+  final _menu = CatalogContextMenuController();
+  ContentPreviewSession? _preview;
   var _query = '';
   String? _announced;
 
@@ -302,6 +322,8 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
     _suggestions?.collections.removeListener(_onCollections);
     _host.reselected.removeListener(_onReselected);
     _host.freshOpen.removeListener(_onFreshOpen);
+    _preview?.cancel();
+    _menu.dispose();
     _appear.dispose();
     _scroll.dispose();
     _hairline.dispose();
@@ -636,6 +658,7 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
                 assets: widget.assets,
                 fresh: _fresh,
                 appear: _appear,
+                preview: _previewOf(collection),
                 move: _moveCells
                     ? ChromeMotionScope.of(
                         context,
@@ -647,25 +670,105 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
         },
       ),
     );
-    if (!searches) return list;
     // The clips start under the field and are clipped at its edge, never
     // scrolled behind it: the panel's background may be see-through (glass),
     // so a field over them would show them through it.
-    return Stack(
-      children: [
-        Positioned.fill(top: PanelSearchField.height, child: list),
-        PositionedDirectional(
-          start: 0,
-          end: 0,
-          top: 0,
-          child: ColoredBox(
-            color: PanelBackgroundScope.of(context),
-            child: PanelSearchField(shadow: _hairline),
-          ),
-        ),
-      ],
-    );
+    final page = searches
+        ? Stack(
+            children: [
+              Positioned.fill(top: PanelSearchField.height, child: list),
+              PositionedDirectional(
+                start: 0,
+                end: 0,
+                top: 0,
+                child: ColoredBox(
+                  color: PanelBackgroundScope.of(context),
+                  child: PanelSearchField(shadow: _hairline),
+                ),
+              ),
+            ],
+          )
+        : list;
+    return CatalogContextMenuHost(host: _host, controller: _menu, child: page);
   }
+
+  // --- Preview --------------------------------------------------------------
+
+  _GifPreview? _previewOf(Collection collection) => switch (widget.previews) {
+    final previews? => _GifPreview(
+      begin: (context, item, kind) {
+        _preview?.cancel();
+        _menu.close();
+        final hold = _host.holdAutoHide();
+        return _preview = ContentPreviewSession.show(
+          context: context,
+          item: item,
+          assets: widget.assets,
+          actions: _actions,
+          library: previews.library,
+          kind: kind,
+          hold: hold,
+          controller: previews,
+        );
+      },
+      menu: (item, globalPosition) {
+        final entries = ContentPreviewMenu.entriesOf(
+          item,
+          _actions,
+          ChromeStringsScope.panelOf(context),
+          library: previews.library,
+        );
+        _menu.show(
+          globalPosition: globalPosition,
+          entries: entries,
+          onSelected: (id) {
+            if (ContentPreviewAction.byId(id) case final action?) {
+              ContentPreviewMenu.perform(action, item, _actions);
+            }
+          },
+        );
+      },
+      inRecents: collection.id == CollectionId.recent,
+    ),
+    null => null,
+  };
+
+  ContentPreviewActions get _actions => panelPreviewActions(
+    _host,
+    searching: switch (_listed?.id) {
+      CollectionId$Query() => true,
+      _ => false,
+    },
+  );
+}
+
+/// What a clip's cell opens on a long press and a right click: the page's
+/// preview, given the item of the clip.
+final class _GifPreview {
+  const _GifPreview({
+    required this.begin,
+    required this.menu,
+    required this.inRecents,
+  });
+
+  final ContentPreviewSession Function(
+    BuildContext context,
+    ContentPreviewItem item,
+    PointerDeviceKind kind,
+  )
+  begin;
+
+  final void Function(ContentPreviewItem item, Offset globalPosition) menu;
+
+  final bool inRecents;
+
+  ContentPreviewItem itemOf(CollectionItem item) => ContentPreviewItem(
+    key: item.key,
+    semanticKind: SemanticKind.gif,
+    inRecents: inRecents,
+    size: item.descriptor?.size,
+    spokenName: item.descriptor?.spokenName,
+  );
 }
 
 class _Header extends StatelessWidget {
@@ -773,6 +876,7 @@ class _Row extends StatelessWidget {
     required this.fresh,
     required this.appear,
     required this.move,
+    required this.preview,
   });
 
   final GifRow row;
@@ -787,6 +891,9 @@ class _Row extends StatelessWidget {
   // How a cell that stays in this row moves to its new place, or null to put
   // it there at once.
   final MotionSpec? move;
+
+  // What a long press and a right click open, or null for nothing.
+  final _GifPreview? preview;
 
   @override
   Widget build(BuildContext context) {
@@ -814,6 +921,7 @@ class _Row extends StatelessWidget {
                   size: Size(cell.width, GifRowLayout.rowExtent),
                   onTap: () => _pick(items[cell.index]),
                   assets: assets,
+                  preview: preview,
                 ),
               ),
             ),
@@ -846,12 +954,14 @@ class _Cell extends StatefulWidget {
     required this.size,
     required this.onTap,
     required this.assets,
+    required this.preview,
   });
 
   final CollectionItem item;
   final Size size;
   final VoidCallback onTap;
   final AssetCacheScope assets;
+  final _GifPreview? preview;
 
   @override
   State<_Cell> createState() => _CellState();
@@ -863,10 +973,63 @@ class _CellState extends State<_Cell> {
   static const double _loadingRadius = 12;
 
   var _pressed = false;
+  ContentPreviewSession? _session;
 
   void _press(bool value) {
     if (_pressed != value) setState(() => _pressed = value);
   }
+
+  void _begin(LongPressStartDetails details, PointerDeviceKind kind) {
+    _press(false);
+    final preview = widget.preview;
+    if (preview == null) return;
+    _session = preview.begin(context, preview.itemOf(widget.item), kind);
+  }
+
+  // A finger and a mouse are held for different times, so each has a
+  // recognizer of its own (a recognizer's deadline is fixed when made).
+  Map<Type, GestureRecognizerFactory> _gestures() {
+    final preview = widget.preview;
+    return {
+      TapGestureRecognizer:
+          GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+            () => TapGestureRecognizer(debugOwner: this),
+            (tap) => tap
+              ..onTap = widget.onTap
+              ..onTapDown = ((_) => _press(true))
+              ..onTapUp = ((_) => _press(false))
+              ..onTapCancel = (() => _press(false))
+              ..onSecondaryTapUp = preview == null
+                  ? null
+                  : (details) {
+                      if (details.kind != PointerDeviceKind.mouse) return;
+                      preview.menu(
+                        preview.itemOf(widget.item),
+                        details.globalPosition,
+                      );
+                    },
+          ),
+      if (preview != null) ...{
+        _TouchHold: GestureRecognizerFactoryWithHandlers<_TouchHold>(
+          () => _TouchHold(debugOwner: this),
+          (hold) => _wire(hold, PointerDeviceKind.touch),
+        ),
+        _MouseHold: GestureRecognizerFactoryWithHandlers<_MouseHold>(
+          () => _MouseHold(debugOwner: this),
+          (hold) => _wire(hold, PointerDeviceKind.mouse),
+        ),
+      },
+    };
+  }
+
+  void _wire(LongPressGestureRecognizer hold, PointerDeviceKind kind) => hold
+    ..onLongPressStart = ((details) => _begin(details, kind))
+    ..onLongPressMoveUpdate = ((details) => _session?.update(details))
+    ..onLongPressEnd = ((details) {
+      _session?.end(details);
+      _session = null;
+    })
+    ..onLongPressCancel = (() => _press(false));
 
   @override
   Widget build(BuildContext context) {
@@ -881,12 +1044,9 @@ class _CellState extends State<_Cell> {
       label: label,
       onTap: widget.onTap,
       child: ExcludeSemantics(
-        child: GestureDetector(
+        child: RawGestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: widget.onTap,
-          onTapDown: (_) => _press(true),
-          onTapUp: (_) => _press(false),
-          onTapCancel: () => _press(false),
+          gestures: _gestures(),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -923,4 +1083,25 @@ class _CellState extends State<_Cell> {
       ),
     );
   }
+}
+
+/// A finger's (or a stylus's) hold on a clip: the preview's 200 ms.
+final class _TouchHold extends LongPressGestureRecognizer {
+  _TouchHold({super.debugOwner})
+    : super(
+        duration: ContentPreviewSession.touchHoldDelay,
+        supportedDevices: {
+          for (final kind in PointerDeviceKind.values)
+            if (kind != PointerDeviceKind.mouse) kind,
+        },
+      );
+}
+
+/// A mouse's hold on a clip: the desktop client's drag time.
+final class _MouseHold extends LongPressGestureRecognizer {
+  _MouseHold({super.debugOwner})
+    : super(
+        duration: ContentPreviewSession.pointerHoldDelay,
+        supportedDevices: const {PointerDeviceKind.mouse},
+      );
 }
