@@ -79,7 +79,7 @@ What has run in a browser: see "Not run" under Web in
 | thumbnail (an ordinary image) | `placeholder`, a still |
 | content, first frame only | `firstFrame`, a still; the handle is freed |
 | content, full | `firstFrame` (a still), then `full` (animated tier) |
-| content, spec above 512 px | `firstFrame`, then the same still as `full`; the render is capped at 512 and the handle freed |
+| content, spec above 512 px | as full, rendered at 512 px on the longer side; the surface scales it up |
 
 Frame 0 is drawn through `renderPixels`, not into an atlas slot (the pool may
 be full) and uploaded as premultiplied RGBA. A `FetchedFile` is read with
@@ -183,8 +183,8 @@ frames to asynchronous `dart:io` writes.
 
 `LottieDecoder(cache:)` names each animation: `FrameCacheKey(contentHash:` the
 SHA-256 of the file, `width`/`height:` the size the frames render at,
-`engineVersion: LottieNativeVersion.engine)`. A spec above 512 px does not
-animate and has no key.
+`engineVersion: LottieNativeVersion.engine)`. A spec above 512 px renders,
+and is keyed, at 512.
 
 ## Fuzzing and benchmarks
 

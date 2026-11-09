@@ -5,6 +5,15 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (an animation above the cap plays)
+
+- A `full` decode whose spec is above 512 px (`LottiePixelJob.maxEdge`) now
+  renders at 512 and reports a `LottieAnimationPaintable`, which the surface
+  draws scaled up; it used to report the first-frame still as `full`, so a
+  content preview of about 600 px stood still (native-media ticket 128). Code
+  that expected a still above the cap gets an animated paintable, and the
+  frame cache gets a key at 512 for it.
+
 ### Added (a pool of render isolates)
 
 - `IsolateLottieEngine.spawn(workers:)` starts one to `maxWorkers` (4) render

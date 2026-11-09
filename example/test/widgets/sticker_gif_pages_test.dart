@@ -110,15 +110,13 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('without a corpus the stickers page lists no demo pack and '
-      'says it has no sticker', (tester) async {
+  testWidgets('without a corpus the stickers page lists the bundled demo '
+      'packs, installed on the first run', (tester) async {
     final semantics = tester.ensureSemantics();
     await _openOn(tester, 'stickers');
 
-    for (final label in _demoLabels) {
-      expect(_has(label), isFalse, reason: label);
-    }
-    expect(find.text(demoChromeStrings.panel.stickersEmpty), findsOneWidget);
+    expect(_has(LottieStickerPack.title), isTrue);
+    expect(find.text(demoChromeStrings.panel.stickersEmpty), findsNothing);
     semantics.dispose();
   });
 
@@ -136,7 +134,8 @@ void main() {
       },
     );
 
-    tester.semantics.tap(find.semantics.byLabel(sticker.spokenName));
+    // Listed in the recents and in its installed pack: the recents first.
+    tester.semantics.tap(find.semantics.byLabel(sticker.spokenName).first);
     await tester.pump();
 
     expect(rig.sent, [StickerMessageBody.of(sticker)]);
