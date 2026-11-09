@@ -87,8 +87,8 @@ final class Pack {
   /// publisher named none and the first item serves.
   final ContentKey? cover;
 
-  /// Whether the platform itself publishes the pack. The reference offers to
-  /// archive an official pack where it offers to remove any other.
+  /// Whether the platform itself publishes the pack. Clients offer to
+  /// archive an official pack where they offer to remove any other.
   final bool official;
 
   /// How many items the pack holds.

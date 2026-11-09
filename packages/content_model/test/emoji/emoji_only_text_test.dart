@@ -1,4 +1,4 @@
-/// `EmojiOnlyText.of`: Telegram Android's emoji-only rule over `RichText`.
+/// `EmojiOnlyText.of`: the chat-client emoji-only rule over `RichText`.
 ///
 /// **Seam:** `EmojiOnlyText.of` and the `EmojiOnly` it returns.
 library;
@@ -129,7 +129,7 @@ void main() {
 
     test('a non-emoji BMP symbol in the emoji range is not an emoji', () {
       // U+2604 (comet) is an emoji and U+2605 (black star) is not, though both
-      // sit in the range Android looks at.
+      // sit in the range the rule looks at.
       expect(_of('★'), isNull);
     });
   });

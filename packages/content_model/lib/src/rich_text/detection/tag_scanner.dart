@@ -8,7 +8,7 @@ import 'package:content_model/src/rich_text/normalization.dart';
 /// Internal to [EntityDetection]: it reports candidates, and the caller
 /// decides which survive (exclusions, overlaps, the budget).
 ///
-/// - **Username** (the reference client's pattern): `@` after the start of
+/// - **Username** (the chat-client pattern): `@` after the start of
 ///   the text, whitespace or `(`, then 1 to 32 characters of `[A-Za-z0-9_]`.
 ///   The pattern would take the first 32 characters of a longer name; a name
 ///   is a whole word here, so a longer one is not a username.
