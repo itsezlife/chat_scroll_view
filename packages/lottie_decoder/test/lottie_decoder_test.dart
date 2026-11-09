@@ -515,8 +515,8 @@ void main() {
       'a spec above the largest size class plays, rendered at the cap',
       () async {
         // The content preview on a phone: M / 1.8 is about 600 px, above the
-        // 512 px class. The reference renders it at most 512 px and draws
-        // that scaled up; it still plays (ticket 128).
+        // 512 px class. It is rendered at most 512 px and drawn scaled up;
+        // it still plays (ticket 128).
         final sizes = _SizeRecordingRenderer();
         final big = _Rig(renderer: sizes);
         addTearDown(big.close);

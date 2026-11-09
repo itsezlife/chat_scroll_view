@@ -145,8 +145,8 @@ final class LottieFrameLease {
 /// waits only for its own frame: a want made while that frame runs replaces
 /// the one before it and goes out on the first tick after it ends, so a slow
 /// frame coalesces, it never queues, and it never holds back another lease's
-/// next frame (the reference client schedules each animation's next frame on
-/// its own, the same way). Batches therefore overlap: the atlas runs its own
+/// next frame (each animation schedules its own next frame). Batches
+/// therefore overlap: the atlas runs its own
 /// one after the other, and each render isolate answers in the order it was
 /// sent, an animation always on the same one, so a lease's frames land in
 /// order. Of the writes of a tick the largest frame goes first, as the one
