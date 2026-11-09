@@ -26,12 +26,12 @@ final class SelectionMenuPlacement {
   /// The tallest the card may be on the chosen side.
   final double maxHeight;
 
-  /// The widest the main row may be: the reference's 400, or the screen less
+  /// The widest the main row may be: 400, or the screen less
   /// its margins.
   final double maxWidth;
 
   /// The widest the More page may be: the screen less its margins. The
-  /// reference does not cap the page at 400, so a long label widens it.
+  /// page is not capped at 400, so a long label widens it.
   final double pageMaxWidth;
 
   /// The region the card is laid out in, inside the screen.

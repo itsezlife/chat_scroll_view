@@ -128,8 +128,8 @@ class ComposerView extends StatefulWidget {
   /// kept for touch.
   final ComposerMenuPolicy? menuPolicy;
 
-  /// How the primary action (the send) is drawn: a filled disc, as the
-  /// reference clients draw it, or the bare glyph in the send colour.
+  /// How the primary action (the send) is drawn: a filled disc (the default), or the
+  /// bare glyph in the send colour.
   final ComposerPrimaryStyle primaryStyle;
 
   /// Bottom safe-area pad inside the view, which does not count in the
@@ -162,7 +162,7 @@ class ComposerView extends StatefulWidget {
 
   /// Whether the text field takes focus the first time it is built.
   ///
-  /// As in the reference clients, the caret is there when the chat opens on
+  /// The caret is there when the chat opens on
   /// every platform, and on a touch platform the soft keyboard is not: the
   /// field attaches without a keyboard type, and the first tap on it (or
   /// `requestKeyboard`) brings the keyboard, as for a field that attached

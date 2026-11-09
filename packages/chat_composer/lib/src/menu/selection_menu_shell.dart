@@ -3,12 +3,11 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 
 /// The style every label of a row is set in, before a row's own effect: the
-/// theme's label-large at the reference's 14 dp medium, in the menu's text
+/// theme's label-large at 14 dp medium, in the menu's text
 /// colour.
 ///
 /// The theme gives the family and the line height; the size and weight are
-/// `FloatingToolbar`'s (`setTextSize(COMPLEX_UNIT_DIP, 14)` with the medium
-/// typeface) and the letter spacing is 0 as Android's text view has none, which
+/// 14 dp with the medium typeface, and the letter spacing is 0, which
 /// matters for the fit: the Material label's tracking would widen every row.
 /// The row sizing (`splitSelectionMenuRow`, `sizeSelectionMenuPage`) measures
 /// with this same style, so a box is exactly as wide as its label.
@@ -22,8 +21,7 @@ TextStyle selectionMenuLabelStyle(
   color: tokens.text,
 );
 
-/// The style of the Back row's label: 16 dp regular, the reference's
-/// `mOverflowButtonText`.
+/// The style of the Back row's label: 16 dp regular.
 TextStyle selectionMenuBackStyle(ThemeData theme, SelectionMenuTokens tokens) =>
     (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(
       fontSize: SelectionMenuMetrics.backFontSize,
@@ -316,8 +314,7 @@ class SelectionMenuTile extends StatelessWidget {
   }
 }
 
-/// The hairline at the top edge of the Back row: one device pixel thick, as
-/// the reference draws it (`1f / AndroidUtilities.density`).
+/// The hairline at the top edge of the Back row: one device pixel thick.
 class SelectionMenuDivider extends StatelessWidget {
   /// A divider in [color].
   const SelectionMenuDivider({required this.color, super.key});
@@ -335,9 +332,9 @@ class SelectionMenuDivider extends StatelessWidget {
 /// Fades the top and bottom 16 dp of [child] to nothing, so a row that runs
 /// under an edge of the list dissolves instead of being cut.
 ///
-/// The reference draws each row that reaches into either 16 dp band through a
-/// `DST_IN` gradient of eight stops shaped by `PathInterpolator(0.42, 0, 0.58,
-/// 1)` (`OverflowPanel.drawChild`, 1295-1345). One mask over the list changes
+/// A row that reaches into either 16 dp band is faded through a gradient of
+/// eight stops shaped by the cubic curve (0.42, 0, 0.58, 1). One mask over the
+/// list changes
 /// the same pixels: a row that does not reach a band has none in it.
 class SelectionMenuListFade extends StatelessWidget {
   /// Fades the edges of [child].
