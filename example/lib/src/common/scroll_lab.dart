@@ -60,6 +60,12 @@ abstract final class ScrollLab {
   /// switches it at run time.
   static final glass = ValueNotifier<bool>(true);
 
+  /// Whether the app's glass refracts at its rim (`GlassQuality.fullLiquid`)
+  /// instead of the default frosted look; off by default.
+  /// `adb shell am broadcast -a lab.SET --es key liquid --ez value true`
+  /// switches it at run time.
+  static final liquid = ValueNotifier<bool>(false);
+
   /// The on/off switch [key] names over `lab.SET`, or null when it names
   /// none (a command or a numeric switch).
   static ValueNotifier<bool>? switchNamed(String? key) => switch (key) {
@@ -68,6 +74,7 @@ abstract final class ScrollLab {
     'plain' => plainText,
     'textures' => textures,
     'glass' => glass,
+    'liquid' => liquid,
     _ => null,
   };
 
@@ -97,6 +104,7 @@ abstract final class ScrollLab {
     });
     plainText.addListener(() => _log('switch plainText=${plainText.value}'));
     glass.addListener(() => _log('switch glass=${glass.value}'));
+    liquid.addListener(() => _log('switch liquid=${liquid.value}'));
     videoCap.addListener(() => _log('switch videoCap=${videoCap.value}'));
     textures.addListener(
       () => _log(
@@ -417,6 +425,7 @@ class _ScrollLabOverlayState extends State<ScrollLabOverlay> {
                       _toggle('Pixel snap rows', ScrollLab.pixelSnap),
                       _toggle('Plain text bodies', ScrollLab.plainText),
                       _toggle('Glass capture', ScrollLab.glass),
+                      _toggle('Glass refraction', ScrollLab.liquid),
                     ],
                   ),
                 ),
