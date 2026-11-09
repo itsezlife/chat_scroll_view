@@ -46,7 +46,7 @@ export 'selection_drag_snap.dart'
 export 'selection_handle_motion.dart'
     show
         OvershootCurve,
-        kTelegramHandleMotionDuration,
+        kHandleMotionDuration,
         kHandleSettleDuration,
         kAospMagnifierSettleMs,
         settleTForElapsed,
@@ -860,13 +860,13 @@ class ExtendedTextSelectionOverlay {
       overlayLineBoundaries.height,
       overlayCaretRect.height,
     );
-    final telegramFocalY = overlayLineBoundaries.top + lineHeight * 0.5;
+    final focalY = overlayLineBoundaries.top + lineHeight * 0.5;
     final focalX = overlayGesturePosition.dx.clamp(
       overlayLineBoundaries.left,
       overlayLineBoundaries.right,
     );
-    final telegramCaretRect = Rect.fromCenter(
-      center: Offset(focalX, telegramFocalY),
+    final magnifierCaretRect = Rect.fromCenter(
+      center: Offset(focalX, focalY),
       width: math.max(overlayCaretRect.width, 1),
       height: math.max(lineHeight, 1),
     );
@@ -877,7 +877,7 @@ class ExtendedTextSelectionOverlay {
         renderEditable.paintBounds,
       ),
       globalGesturePosition: overlayGesturePosition,
-      caretRect: telegramCaretRect,
+      caretRect: magnifierCaretRect,
       currentLineBoundaries: overlayLineBoundaries,
     );
   }
@@ -3139,7 +3139,7 @@ class _SelectionHandleOverlayState extends State<_SelectionHandleOverlay>
     super.initState();
 
     _controller = AnimationController(
-      duration: kTelegramHandleMotionDuration,
+      duration: kHandleMotionDuration,
       vsync: this,
     );
     _opacity = CurvedAnimation(

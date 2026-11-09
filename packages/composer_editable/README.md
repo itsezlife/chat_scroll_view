@@ -27,7 +27,7 @@ package). A host reaches the field through `ComposerView` or `ComposerFormField`
 | `ExtendedTextSelectionControls`, `ExtendedTextSelectionHandleControls`, the `ExtendedMaterial…`, `ExtendedCupertino…` and `ExtendedDesktop…` controls and their `extended…` instances | The handle and toolbar controls, copies of Flutter's under an `Extended` name. Not assignable to Flutter's `TextSelectionControls`. |
 | `ExtendedSelectionOverlay`, `ExtendedTextSelectionOverlay`, `ExtendedClipboardStatusNotifier` | The selection overlay machinery. |
 | `ExtendedTextSelectionGestureDetectorBuilder` (+ Delegate), `ExtendedTextSelectionGestureDetector` | The gesture layer a field's state subclasses. |
-| `OvershootCurve`, `kTelegramHandleMotionDuration`, `smoothMagnifierInfo`, `computeHandleDragChrome`, … | The pure motion helpers behind the handle and magnifier, public for tests and hosts that draw their own handles. |
+| `OvershootCurve`, `kHandleMotionDuration`, `smoothMagnifierInfo`, `computeHandleDragChrome`, … | The pure motion helpers behind the handle and magnifier, public for tests and hosts that draw their own handles. |
 
 ## Host contract
 

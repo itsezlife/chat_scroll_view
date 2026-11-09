@@ -63,7 +63,7 @@ void main() {
             data: const MediaQueryData(size: _cell),
             child: ChromeThemeScope(
               palette: const ChromePalette.light(),
-              bulletin: BulletinTokens.referenceDesktop,
+              bulletin: BulletinTokens.desktop,
               child: ChromeStringsScope(
                 strings: ChromeStringsPresets.english,
                 child: ChromeMotionScope(

@@ -3,7 +3,7 @@ import 'package:bulletins/src/view/bulletin_message.dart';
 import 'package:flutter/widgets.dart';
 
 /// The desktop toast drawn as a bulletin: the builders to
-/// pair with `BulletinPolicy.desktop()` and the `BulletinTokens.referenceDesktop`
+/// pair with `BulletinPolicy.desktop()` and the `BulletinTokens.desktop`
 /// colours.
 ///
 /// The frame is the stock flat card (the toast is a plain rounded fill with

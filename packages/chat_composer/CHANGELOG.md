@@ -6,6 +6,10 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Breaking
+
+- No API change here. The README names `PointerMenuTokens.day` and `PointerMenuTokens.night` (was `referenceDay` and `referenceNight`). See the `chrome_foundation` changelog.
+
 ### Added (text actions prefetch)
 
 - `ComposerView.prefetchTextActions`: asks the platform for the field's text

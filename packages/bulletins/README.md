@@ -26,7 +26,7 @@ obstruction*).
 | `BulletinHost` | Mounts a controller over a surface: layout inside the obstruction, enter and exit, press and swipe, announcement, `surfaceGone` on unmount. |
 | `BulletinBuilders`, `BulletinView`, `BulletinCard` | How a card is drawn: `frame`, `content`, `leading`, `action`, and the host's `animation` and `thumbnail` resolvers. Each null part uses its `stock*` builder. |
 | `BulletinMessage` | The message text with its links (owns their tap recognizers) after an optional prefix. |
-| `DesktopBulletinBuilders` | The desktop toast's builders (`create(animation:, ...)`): one wrapping text block with a bold title line, up to 16 lines, an icon slot in place of the start padding. Pair with `BulletinPolicy.desktop()` and `BulletinTokens.referenceDesktop`. |
+| `DesktopBulletinBuilders` | The desktop toast's builders (`create(animation:, ...)`): one wrapping text block with a bold title line, up to 16 lines, an icon slot in place of the start padding. Pair with `BulletinPolicy.desktop()` and `BulletinTokens.desktop`. |
 | `BulletinPolicyContract` | `testing.dart`: the suite every policy passes. |
 
 ## Host contract

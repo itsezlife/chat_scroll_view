@@ -592,7 +592,7 @@ wiring beyond what the selection menu already has, plus:
 - `ChromeStrings.editMenu` (`EditMenuStrings`): the row labels. A label may
   carry a Qt-style `&` mnemonic, which the menu underlines.
 - A `ChromeThemeScope` (it supplies `PointerMenuTokens`, derived from the
-  palette; pass `PointerMenuTokens.referenceDay` or `referenceNight` to the
+  palette; pass `PointerMenuTokens.day` or `PointerMenuTokens.night` to the
   scope's `pointerMenu` for the exact desktop colours).
 - Optionally `ComposerSpec.spellChecker`: a `ComposerSpellChecker` over the
   platform's checker (the composer ships none). Without one there is no
