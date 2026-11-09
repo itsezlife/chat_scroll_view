@@ -349,8 +349,12 @@ class _EmojiStripTabsState extends State<EmojiStripTabs>
                     ),
                   ),
                 ),
+                // Keyed by pack, so a pack added or moved in front moves
+                // the others' covers with them instead of handing each its
+                // neighbour's content to load again.
                 for (final (i, pack) in widget.packs.indexed)
                   Positioned.fromRect(
+                    key: ValueKey<String>(pack.id),
                     rect: row.boundsOf(_groupIndex + 1 + i),
                     child: tab(pack),
                   ),

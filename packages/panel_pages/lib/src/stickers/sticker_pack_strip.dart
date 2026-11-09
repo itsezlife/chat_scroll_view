@@ -374,8 +374,13 @@ class _StickerPackStripState extends State<StickerPackStrip>
                         );
                       },
                     ),
+                    // Keyed by section, so a tab added or moved in front
+                    // (the recents arriving) moves the others' covers with
+                    // them; by position each cover would be handed its
+                    // neighbour's content and load again.
                     for (final (i, tab) in _tabs.indexed)
                       PositionedDirectional(
+                        key: ValueKey<String>(tab.sectionId),
                         start: strip.boundsOf(i).left,
                         top: 0,
                         width: StickerPackStrip.tabWidth,
