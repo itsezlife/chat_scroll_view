@@ -44,6 +44,7 @@ export 'src/strings/semantics_strings.dart';
 export 'src/theme/chrome_monospace.dart';
 export 'src/theme/chrome_theme_data.dart';
 export 'src/theme/chrome_theme_scope.dart';
+export 'src/theme/chrome_typography.dart';
 export 'src/tokens/action_tokens.dart';
 export 'src/tokens/bulletin_tokens.dart';
 export 'src/tokens/composer_tokens.dart';

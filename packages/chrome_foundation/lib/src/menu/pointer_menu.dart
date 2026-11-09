@@ -11,8 +11,8 @@ import 'package:chrome_foundation/src/menu/pointer_menu_row.dart';
 import 'package:chrome_foundation/src/motion/chrome_motion.dart';
 import 'package:chrome_foundation/src/motion/chrome_motion_scope.dart';
 import 'package:chrome_foundation/src/motion/pointer_menu_motion.dart';
+import 'package:chrome_foundation/src/theme/chrome_typography.dart';
 import 'package:chrome_foundation/src/tokens/pointer_menu_tokens.dart';
-import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -230,13 +230,9 @@ class _PointerMenuRootState extends State<_PointerMenuRoot>
     _scaler = media.textScaler.clamp(
       maxScaleFactor: PointerMenuMetrics.maxTextScale,
     );
-    _style = TextStyle(
-      inherit: false,
+    _style = ChromeTypography.of(context).copyWith(
       fontSize: PointerMenuMetrics.fontSize,
-      fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
       color: widget.tokens.text,
-      decoration: TextDecoration.none,
-      fontWeight: FontWeight.normal,
     );
     if (!_measured) {
       _measured = true;

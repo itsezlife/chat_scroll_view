@@ -9,6 +9,7 @@ library;
 import 'dart:async';
 
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/material.dart' show TextTheme, Theme, ThemeData;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -39,32 +40,45 @@ void main() {
             data: MediaQuery.of(
               context,
             ).copyWith(viewInsets: EdgeInsets.only(bottom: insets)),
-            child: DefaultTextStyle(
-              style: const TextStyle(
-                fontFamily: 'Fallback',
-                decoration: TextDecoration.underline,
+            // A Material app's: the host's body face in the theme, the
+            // debug style over the navigator, and the opener's own style on
+            // the page (here not the host's face either).
+            child: Theme(
+              data: ThemeData(
+                textTheme: const TextTheme(
+                  bodyMedium: TextStyle(fontFamily: 'HostFont', fontSize: 15),
+                ),
               ),
-              child: Navigator(
-                onGenerateRoute: (_) => PageRouteBuilder<void>(
-                  pageBuilder: (context, _, _) => DefaultTextStyle(
-                    style: const TextStyle(
-                      fontFamily: 'HostFont',
-                      fontSize: 14,
-                    ),
-                    child: Builder(
-                      builder: (context) {
-                        home = context;
-                        return Align(
-                          alignment: Alignment.topCenter,
-                          child: EditableText(
-                            controller: text,
-                            focusNode: field,
-                            style: const TextStyle(),
-                            cursorColor: const Color(0xFF000000),
-                            backgroundCursorColor: const Color(0xFF000000),
-                          ),
-                        );
-                      },
+              child: DefaultTextStyle(
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 48,
+                  fontWeight: FontWeight.w900,
+                  decoration: TextDecoration.underline,
+                ),
+                child: Navigator(
+                  onGenerateRoute: (_) => PageRouteBuilder<void>(
+                    pageBuilder: (context, _, _) => DefaultTextStyle(
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w900,
+                        fontSize: 48,
+                      ),
+                      child: Builder(
+                        builder: (context) {
+                          home = context;
+                          return Align(
+                            alignment: Alignment.topCenter,
+                            child: EditableText(
+                              controller: text,
+                              focusNode: field,
+                              style: const TextStyle(),
+                              cursorColor: const Color(0xFF000000),
+                              backgroundCursorColor: const Color(0xFF000000),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -90,9 +104,8 @@ void main() {
 
   for (final arrangement in PanelArrangement.values) {
     group('under ${arrangement.name}', () {
-      testWidgets('the text takes the host font and the chrome colour', (
-        tester,
-      ) async {
+      testWidgets('the text is the chrome face in the chrome colour, not '
+          "the opener's style", (tester) async {
         await pumpHome(tester);
         await open(tester, arrangement);
 
@@ -101,6 +114,8 @@ void main() {
         ).style;
         final palette = ChromeThemeScope.of(home).palette;
         expect(style.fontFamily, 'HostFont');
+        expect(style.fontSize, 15);
+        expect(style.fontWeight, FontWeight.normal);
         expect(style.color, palette.onSurface);
         expect(style.decoration, TextDecoration.none);
       });

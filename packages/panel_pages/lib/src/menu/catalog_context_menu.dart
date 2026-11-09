@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:panel_pages/src/menu/catalog_menu_icons.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -91,6 +92,8 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
   void initState() {
     super.initState();
     widget.controller._state = this;
+    // A right-click opens the menu at once: its icons are decoded ahead.
+    CatalogMenuIcons.warm();
   }
 
   @override
@@ -282,6 +285,13 @@ class CatalogContextMenuPanel extends StatefulWidget {
   /// Corner radius of the card.
   static const double radius = 8;
 
+  /// From an icon's start to its label's: the preview menu's
+  /// (`ActionBarMenuSubItem` pads its text `dp(43)` past the icon's start),
+  /// so a right-click shows the preview's items as the preview does. The
+  /// desktop client's icon menu style (`menuWithIcons`, in `lib_ui`) is not
+  /// in the reference checkout.
+  static const double labelInset = 43;
+
   @override
   State<CatalogContextMenuPanel> createState() =>
       _CatalogContextMenuPanelState();
@@ -394,29 +404,31 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
                   child: IntrinsicWidth(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          for (final entry in widget.entries)
-                            switch (entry) {
-                              final CatalogMenuItem entry => _MenuItemView(
-                                item: entry,
-                                node: _nodes[item++],
-                                palette: palette,
-                                onChoose: () => widget.onChoose(entry.id),
-                              ),
-                              CatalogMenuSeparator() => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 4,
+                      child: CatalogMenuIconScope(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final entry in widget.entries)
+                              switch (entry) {
+                                final CatalogMenuItem entry => _MenuItemView(
+                                  item: entry,
+                                  node: _nodes[item++],
+                                  palette: palette,
+                                  onChoose: () => widget.onChoose(entry.id),
                                 ),
-                                child: SizedBox(
-                                  height: 1,
-                                  child: ColoredBox(color: palette.separator),
+                                CatalogMenuSeparator() => Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
+                                  child: SizedBox(
+                                    height: 1,
+                                    child: ColoredBox(color: palette.separator),
+                                  ),
                                 ),
-                              ),
-                            },
-                        ],
+                              },
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -483,17 +495,38 @@ class _MenuItemViewState extends State<_MenuItemView> {
             color: _hovered || _focused
                 ? ChromeCatalogTheme.hoverWashOf(palette)
                 : const Color(0x00000000),
-            child: Text(
-              item.label,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.2,
-                decoration: TextDecoration.none,
-                color: item.attention ? palette.destructive : palette.onSurface,
-              ),
+            child: Row(
+              children: [
+                if (item.icon case final icon?)
+                  SizedBox(
+                    width: CatalogContextMenuPanel.labelInset,
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: ChromeIcon(
+                        icon,
+                        size: CatalogMenuIcons.sizeOf(icon),
+                        color: item.attention
+                            ? palette.destructive
+                            : palette.iconIdle,
+                      ),
+                    ),
+                  ),
+                Flexible(
+                  child: Text(
+                    item.label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: ChromeTypography.of(context).copyWith(
+                      fontSize: 14,
+                      height: 1.2,
+                      color: item.attention
+                          ? palette.destructive
+                          : palette.onSurface,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

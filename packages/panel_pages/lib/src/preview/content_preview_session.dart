@@ -9,6 +9,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:panel_pages/src/menu/catalog_menu_icons.dart';
 import 'package:panel_pages/src/overlay/chrome_overlay_scopes.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/preview/content_preview_item.dart';
@@ -172,6 +173,8 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   }) {
     final overlay = Overlay.of(context, rootOverlay: true);
     final scopes = ChromeOverlayScopes.capture(context);
+    // The menu comes up after a hold: its icons are decoded by then.
+    CatalogMenuIcons.warm();
     final session = ContentPreviewSession._(
       item: item,
       assets: assets,
@@ -731,7 +734,7 @@ final class _ChevronPainter extends CustomPainter {
 }
 
 /// The menu card under the preview: the reference's `ActionBarPopupWindow`
-/// of `ActionBarMenuSubItem`s, without their icons.
+/// of `ActionBarMenuSubItem`s, each led by its icon.
 class _PreviewMenu extends StatelessWidget {
   const _PreviewMenu({
     required this.item,
@@ -748,9 +751,16 @@ class _PreviewMenu extends StatelessWidget {
   /// The popup's padding, `dp(8)`.
   static const double padding = 8;
 
-  /// An item's text inset, `dp(18)`, and size, 16.
+  /// An item's inset, `dp(18)` each side (`setPadding(dp(18), 0, dp(18),
+  /// 0)`), and its text size, 16 (`setTextSize(COMPLEX_UNIT_DIP, 16)`) at
+  /// the regular weight.
   static const double itemInset = 18;
   static const double fontSize = 16;
+
+  /// From the icon's start to the text's: the text view is padded `dp(43)`
+  /// at the start when the item has an icon (`setTextAndIcon`), whatever the
+  /// icon's own size (`CatalogMenuIcons.sizeOf`).
+  static const double labelInset = 43;
 
   /// The narrowest the card is. Not traced.
   static const double minWidth = 200;
@@ -766,36 +776,41 @@ class _PreviewMenu extends StatelessWidget {
     return Semantics(
       container: true,
       explicitChildNodes: true,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: palette.surfaceRaised,
-          borderRadius: BorderRadius.circular(radius),
-          boxShadow: [
-            BoxShadow(
-              color: palette.shadow.withValues(alpha: 0.28),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: minWidth),
-          child: IntrinsicWidth(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: padding),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final action in actions)
-                    _PreviewMenuItem(
-                      label: ContentPreviewMenu.labelOf(action, item, strings),
-                      color: ContentPreviewMenu.isAttention(action, item)
-                          ? palette.destructive
-                          : palette.onSurface,
-                      onTap: () => onChoose(action),
-                    ),
-                ],
+      child: CatalogMenuIconScope(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: palette.surfaceRaised,
+            borderRadius: BorderRadius.circular(radius),
+            boxShadow: [
+              BoxShadow(
+                color: palette.shadow.withValues(alpha: 0.28),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: minWidth),
+            child: IntrinsicWidth(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: padding),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final action in actions)
+                      _PreviewMenuItem(
+                        label: ContentPreviewMenu.labelOf(
+                          action,
+                          item,
+                          strings,
+                        ),
+                        icon: action.icon,
+                        attention: ContentPreviewMenu.isAttention(action, item),
+                        onTap: () => onChoose(action),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -808,39 +823,65 @@ class _PreviewMenu extends StatelessWidget {
 class _PreviewMenuItem extends StatelessWidget {
   const _PreviewMenuItem({
     required this.label,
-    required this.color,
+    required this.icon,
+    required this.attention,
     required this.onTap,
   });
 
   final String label;
-  final Color color;
+  final ChromeIconId icon;
+
+  // Text and icon in the attention colour (`setColors(red, red)`); otherwise
+  // the text in `actionBarDefaultSubmenuItem` and the icon in
+  // `actionBarDefaultSubmenuItemIcon`.
+  final bool attention;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: label,
-    onTap: onTap,
-    excludeSemantics: true,
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
+  Widget build(BuildContext context) {
+    final palette = ChromeThemeScope.paletteOf(context);
+    return Semantics(
+      button: true,
+      label: label,
       onTap: onTap,
-      child: Container(
-        height: _PreviewMenu.itemExtent,
-        alignment: AlignmentDirectional.centerStart,
-        padding: const EdgeInsets.symmetric(horizontal: _PreviewMenu.itemInset),
-        child: Text(
-          label,
-          maxLines: 1,
-          softWrap: false,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: _PreviewMenu.fontSize,
-            decoration: TextDecoration.none,
-            color: color,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: _PreviewMenu.itemExtent,
+          padding: const EdgeInsets.symmetric(
+            horizontal: _PreviewMenu.itemInset,
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: _PreviewMenu.labelInset,
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: ChromeIcon(
+                    icon,
+                    size: CatalogMenuIcons.sizeOf(icon),
+                    color: attention ? palette.destructive : palette.iconIdle,
+                  ),
+                ),
+              ),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: ChromeTypography.of(context).copyWith(
+                    fontSize: _PreviewMenu.fontSize,
+                    color: attention ? palette.destructive : palette.onSurface,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

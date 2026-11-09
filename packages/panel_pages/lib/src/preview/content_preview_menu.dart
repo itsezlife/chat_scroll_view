@@ -1,42 +1,58 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show ValueChanged, immutable;
+import 'package:panel_pages/src/menu/catalog_menu_icons.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/preview/content_preview_item.dart';
 
-/// One item of a content preview's menu.
+/// One item of a content preview's menu, with the icon it leads with: the
+/// reference client's (`ContentPreviewViewer` adds each item with its
+/// drawable, named below), from [CatalogMenuIcons].
 enum ContentPreviewAction {
-  /// Send the content.
+  /// Send the content (`msg_send`).
   send('send'),
 
-  /// Send it without a notification sound.
+  /// Send it without a notification sound (`input_notify_off`).
   sendWithoutSound('send-without-sound'),
 
-  /// Add the sticker to the favourite stickers.
+  /// Add the sticker to the favourite stickers (`msg_fave`).
   favourite('favourite'),
 
-  /// Take the sticker out of the favourite stickers.
+  /// Take the sticker out of the favourite stickers (`msg_unfave`).
   unfavourite('unfavourite'),
 
-  /// Show the pack the content belongs to.
+  /// Show the pack the content belongs to (`msg_media`).
   viewPack('view-pack'),
 
-  /// Take the content out of the recents list it was opened from.
+  /// Take the content out of the recents list it was opened from
+  /// (`msg_delete`).
   removeRecent('remove-recent'),
 
-  /// Save the GIF among the saved GIFs.
+  /// Save the GIF among the saved GIFs (`msg_gif_add`).
   saveGif('save-gif'),
 
-  /// Delete the GIF from the saved GIFs.
+  /// Delete the GIF from the saved GIFs (`msg_delete`).
   unsaveGif('unsave-gif'),
 
-  /// Copy the custom emoji.
+  /// Copy the custom emoji (`msg_copy`).
   copy('copy');
 
   const ContentPreviewAction(this.id);
 
   /// The id the action has as a context menu item.
   final String id;
+
+  /// The chrome icon the item leads with.
+  ChromeIconId get icon => switch (this) {
+    send => CatalogMenuIcons.send,
+    sendWithoutSound => CatalogMenuIcons.sendWithoutSound,
+    favourite => CatalogMenuIcons.favourite,
+    unfavourite => CatalogMenuIcons.unfavourite,
+    viewPack => CatalogMenuIcons.viewPack,
+    removeRecent || unsaveGif => CatalogMenuIcons.delete,
+    saveGif => CatalogMenuIcons.saveGif,
+    copy => CatalogMenuIcons.copy,
+  };
 
   /// The action of [id], or null for an id that is none.
   static ContentPreviewAction? byId(String id) {
@@ -201,6 +217,7 @@ abstract final class ContentPreviewMenu {
         id: action.id,
         label: labelOf(action, item, strings),
         attention: isAttention(action, item),
+        icon: action.icon,
       ),
   ];
 
