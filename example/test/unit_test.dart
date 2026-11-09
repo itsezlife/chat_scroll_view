@@ -70,6 +70,7 @@ import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
 import 'features/chat/chat_messages_copy_format_test.dart'
     as chat_messages_copy_format_test;
 import 'features/chat/chat_pack_sheets_test.dart' as chat_pack_sheets_test;
+import 'features/chat/chat_pack_targets_test.dart' as chat_pack_targets_test;
 import 'features/chat/chat_texture_warmer_test.dart'
     as chat_texture_warmer_test;
 import 'features/chat/corpus_sticker_pack_test.dart'
@@ -171,6 +172,7 @@ import 'widgets/large_emoji_limit_button_test.dart'
     as large_emoji_limit_button_test;
 import 'widgets/lottie_sticker_message_test.dart'
     as lottie_sticker_message_test;
+import 'widgets/message_emoji_packs_test.dart' as message_emoji_packs_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
 import 'widgets/message_row_frame_test.dart' as message_row_frame_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
@@ -390,6 +392,10 @@ void main() {
   );
   group('features/chat/chat_pack_sheets_test.dart', chat_pack_sheets_test.main);
   group(
+    'features/chat/chat_pack_targets_test.dart',
+    chat_pack_targets_test.main,
+  );
+  group(
     'features/chat/installed_packs_source_test.dart',
     installed_packs_source_test.main,
   );
@@ -490,6 +496,7 @@ void main() {
     'widgets/large_emoji_limit_button_test.dart',
     large_emoji_limit_button_test.main,
   );
+  group('widgets/message_emoji_packs_test.dart', message_emoji_packs_test.main);
   group('widgets/message_menu_test.dart', message_menu_test.main);
   group('widgets/message_row_frame_test.dart', message_row_frame_test.main);
   group('widgets/notes_dialog_test.dart', notes_dialog_test.main);

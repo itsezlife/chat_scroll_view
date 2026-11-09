@@ -15,6 +15,7 @@ import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 import '../../support/test_services.dart';
@@ -158,6 +159,25 @@ void main() {
       expect(services.library.installStateOf(pack), PackInstallState.installed);
       expect(find.text('Стикеры добавлены.'), findsOneWidget);
       expect(find.text('Отменить'), findsNothing);
+    });
+
+    testWidgets('several emoji packs share one sheet', (tester) async {
+      await pump(tester);
+      const packs = [AnimatedEmojiPack.packId, PackId('other')];
+
+      ChatPackSheets.openEmojiPacks(
+        home,
+        services: services,
+        packs: packs,
+        arrangement: PanelArrangement.touch,
+      ).ignore();
+      // Read as it opens: the demo has one emoji pack, and a sheet with a
+      // pack that is not there closes once its lookup answers.
+      await tester.pump();
+
+      final sheet = find.byType(EmojiPackSheet);
+      expect(sheet, findsOneWidget);
+      expect(tester.widget<EmojiPackSheet>(sheet).packIds, packs);
     });
 
     testWidgets('a pack that does not exist says so', (tester) async {
