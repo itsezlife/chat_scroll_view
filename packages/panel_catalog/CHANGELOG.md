@@ -6,15 +6,16 @@ is pre-1.0.
 
 ## [Unreleased]
 
-### Fixed (a sticker on screen never starts over)
+### Fixed (a sticker on screen never starts over, and plays through a fling)
 
-- While a fling runs, an animated leaf in the painted window is held
-  (`AssetBinding.held`: its frame and its lease stay, nothing plays)
-  instead of hidden. Hiding it told its paintable it left the screen: a
-  fling armed by the pointer up gave back its lease before any paint, so
-  the leaf drew its first-frame still and then a new lease's frames, a
+- A fling no longer stops the animated leaves on screen: they play on, as
+  in the reference client's panel grids. The pool used to hide them while
+  the fling ran, which told their paintables they left the screen: a
+  fling armed by the pointer up gave back their leases before any paint,
+  so a leaf drew its first-frame still and then a new lease's frames, a
   jump back to the start on every fling and every drag let go past an
-  edge. `visible` now means in the painted window and nothing else.
+  edge. `CatalogLeafBindingPool.syncVisible` loses its `animate`
+  argument; `visible` means in the painted window and nothing else.
 
 ### Added (a header title that opens)
 
