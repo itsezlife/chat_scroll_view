@@ -25,7 +25,7 @@ Against its baseline, each vendored file changed by (git diff, lines):
 | Vendored file | Lines added | Lines removed |
 | --- | ---: | ---: |
 | `lib/src/widget/editable_text.dart` | 484 | 561 |
-| `lib/src/widget/text_selection.dart` | 1680 | 635 |
+| `lib/src/widget/text_selection.dart` | 1679 | 635 |
 | `lib/src/widget/_web_browser_detection_io.dart` | 0 | 0 |
 | `lib/src/widget/_web_browser_detection_web.dart` | 0 | 0 |
 | `lib/src/material/text_field.dart` | 162 | 50 |
