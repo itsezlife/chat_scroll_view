@@ -913,15 +913,17 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     };
     final input = _input;
     final canPick = kind == PackKind.emoji || _chatAllowsStickers;
-    await ChatPackSheets.open(
-      context,
-      services: services,
-      pack: id,
-      kind: kind,
-      onPick: canPick
-          ? (item) => input.pickContent(item.key, kind: item.semanticKind)
-          : null,
-      previewEmoji: previewEmoji,
+    await _overChat(
+      ChatPackSheets.open(
+        context,
+        services: services,
+        pack: id,
+        kind: kind,
+        onPick: canPick
+            ? (item) => input.pickContent(item.key, kind: item.semanticKind)
+            : null,
+        previewEmoji: previewEmoji,
+      ),
     );
   }
 
@@ -929,12 +931,27 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   // whose emoji insert into the composer as a pick from the panel does.
   Future<void> _openEmojiPacks(List<PackId> packs) {
     final input = _input;
-    return ChatPackSheets.openEmojiPacks(
-      context,
-      services: widget.services,
-      packs: packs,
-      onPick: (item) => input.pickContent(item.key, kind: item.semanticKind),
+    return _overChat(
+      ChatPackSheets.openEmojiPacks(
+        context,
+        services: widget.services,
+        packs: packs,
+        onPick: (item) => input.pickContent(item.key, kind: item.semanticKind),
+      ),
     );
+  }
+
+  // Holds the chat's stickers while a pack sheet is over it: the reference
+  // pauses what is under its sheets while their own stickers play. The app's
+  // route observer leaves the clock running for a pack sheet (it holds it
+  // only while the sheet moves), so the chat is held on its own.
+  Future<void> _overChat(Future<void> sheet) async {
+    final claim = _input.holdChatPlayback();
+    try {
+      await sheet;
+    } finally {
+      claim.release();
+    }
   }
 
   // A pack named by what was tapped in the chat, if any.

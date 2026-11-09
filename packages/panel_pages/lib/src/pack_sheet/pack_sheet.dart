@@ -49,6 +49,18 @@ typedef PackSheetItem = ({ContentDescriptor item, Pack pack});
 /// [StickerPackSheet]: package:panel_pages/src/pack_sheet/sticker_pack_sheet.dart
 /// [EmojiPackSheet]: package:panel_pages/src/pack_sheet/emoji_pack_sheet.dart
 abstract final class PackSheet {
+  /// The `RouteSettings.name` of the route [show] pushes, in either
+  /// arrangement.
+  ///
+  /// A host that pauses its animations under modal routes tells the sheet
+  /// apart by it: the sheet plays its own content and the preview opened
+  /// from it. The reference mobile client pauses only what is under the
+  /// sheet (`StickersAlert` and `EmojiPacksAlert` post
+  /// `stopAllHeavyOperations` for layer 4 while shown; the sheet's cells are
+  /// on layer 7 and its preview above every layer), and everything while the
+  /// sheet opens or closes (`BottomSheet`, layer 512).
+  static const String routeName = 'pack_sheet';
+
   /// The dim behind the bottom sheet: `BottomSheet`'s backDrawable alpha
   /// `0x33` of black.
   static const Color touchBarrier = Color(0x33000000);
@@ -100,7 +112,8 @@ abstract final class PackSheet {
 // --- Bottom sheet -----------------------------------------------------------
 
 final class _BottomSheetRoute extends PopupRoute<void> {
-  _BottomSheetRoute({required this.builder, this.speed});
+  _BottomSheetRoute({required this.builder, this.speed})
+    : super(settings: const RouteSettings(name: PackSheet.routeName));
 
   final WidgetBuilder builder;
   final ChromeMotionSpeed? speed;
@@ -232,7 +245,8 @@ class _DragToDismissState extends State<_DragToDismiss>
 // --- Box --------------------------------------------------------------------
 
 final class _BoxRoute extends PopupRoute<void> {
-  _BoxRoute({required this.builder, this.speed});
+  _BoxRoute({required this.builder, this.speed})
+    : super(settings: const RouteSettings(name: PackSheet.routeName));
 
   final WidgetBuilder builder;
   final ChromeMotionSpeed? speed;

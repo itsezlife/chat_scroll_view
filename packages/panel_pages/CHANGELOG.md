@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a pack sheet's route is named)
+
+- `PackSheet.routeName`: the `RouteSettings.name` of the route
+  `PackSheet.show` pushes, in either arrangement (was unnamed). A host that
+  pauses its animations under modal routes tells the sheet apart by it, so
+  the sheet's stickers and the preview opened from it play, as the
+  reference's sheets do (native-media ticket 128).
+
 ### Changed (pack sheet parity)
 
 - A tall pack sheet on touch now opens with its card two fifths down the

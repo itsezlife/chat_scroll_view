@@ -501,5 +501,20 @@ void main() {
 
       expect(sheetUp(), isFalse);
     });
+
+    // A host that pauses its animations under modal routes tells the sheet
+    // apart by it: the sheet plays its own stickers (ticket 128).
+    for (final arrangement in PanelArrangement.values) {
+      testWidgets('the ${arrangement.name} route is named for the sheet', (
+        tester,
+      ) async {
+        await open(tester, 'cats', arrangement: arrangement);
+
+        final route = ModalRoute.of(
+          tester.element(find.byType(StickerPackSheet)),
+        )!;
+        expect(route.settings.name, PackSheet.routeName);
+      });
+    }
   });
 }
