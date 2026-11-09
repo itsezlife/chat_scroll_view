@@ -19,6 +19,7 @@ void main() {
         'selectionMenuOf': ChromeThemeScope.selectionMenuOf,
         'pointerMenuOf': ChromeThemeScope.pointerMenuOf,
         'spoilerOf': ChromeThemeScope.spoilerOf,
+        'bulletinOf': ChromeThemeScope.bulletinOf,
       };
       for (final entry in lookups.entries) {
         late BuildContext context;
@@ -382,6 +383,31 @@ void main() {
     });
   });
 
+  group('bulletin group', () {
+    testWidgets('a palette supplies it and an override replaces it', (
+      tester,
+    ) async {
+      late BulletinTokens seen;
+      final custom = BulletinTokens.referenceAndroid.copyWith(
+        background: const Color(0xFF102030),
+      );
+      Widget app(BulletinTokens? bulletin) => ChromeThemeScope(
+        palette: _light,
+        bulletin: bulletin,
+        child: Builder(
+          builder: (c) {
+            seen = ChromeThemeScope.bulletinOf(c);
+            return const SizedBox();
+          },
+        ),
+      );
+      await tester.pumpWidget(app(null));
+      expect(seen, BulletinTokens.fromPalette(_light));
+      await tester.pumpWidget(app(custom));
+      expect(seen, custom);
+    });
+  });
+
   group('animated', () {
     testWidgets('interpolates between two themes', (tester) async {
       final light = ChromeThemeData.fromPalette(_light);
@@ -397,6 +423,7 @@ void main() {
         selectionMenu: data.selectionMenu,
         pointerMenu: data.pointerMenu,
         spoiler: data.spoiler,
+        bulletin: data.bulletin,
         duration: const Duration(milliseconds: 200),
         child: Builder(
           builder: (c) {

@@ -1,3 +1,4 @@
+import 'package:chrome_foundation/src/strings/bulletin_strings.dart';
 import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
 import 'package:chrome_foundation/src/strings/edit_menu_strings.dart';
@@ -174,6 +175,10 @@ abstract final class ChromeStringsPresets {
       emojiArchivedInfo: (title) => '$title has been moved to your archive.',
       undoAction: 'Undo',
     ),
+    bulletin: const BulletinStrings(
+      undoAction: 'Undo',
+      dismissAction: 'Dismiss',
+    ),
     semantics: SemanticsStrings(
       panelOpened: 'Panel opened',
       panelClosed: 'Panel closed',
@@ -348,6 +353,10 @@ abstract final class ChromeStringsPresets {
       emojiArchived: 'Эмодзи в архиве.',
       emojiArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
       undoAction: 'Отменить',
+    ),
+    bulletin: const BulletinStrings(
+      undoAction: 'Отменить',
+      dismissAction: 'Закрыть',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Панель открыта',

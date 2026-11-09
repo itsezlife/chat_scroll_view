@@ -76,6 +76,24 @@ List<_Pair> _pairs(ChromeThemeData d) {
   final composerBg = d.composer.background;
   final panelBg = d.panel.background;
   return [
+    on(
+      'bulletin text on its card',
+      d.bulletin.foreground,
+      d.bulletin.background,
+      min: _text,
+    ),
+    on(
+      'bulletin action on its card',
+      d.bulletin.accent,
+      d.bulletin.background,
+      min: _text,
+    ),
+    on(
+      'bulletin countdown on its card',
+      d.bulletin.countdown,
+      d.bulletin.background,
+      min: _icon,
+    ),
     on('composer text', d.composer.text, composerBg, min: _text),
     on('composer reply name', d.composer.replyName, composerBg, min: _text),
     on('composer reply text', d.composer.replyText, composerBg, min: _text),

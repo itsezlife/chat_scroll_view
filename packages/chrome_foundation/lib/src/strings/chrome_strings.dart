@@ -1,3 +1,4 @@
+import 'package:chrome_foundation/src/strings/bulletin_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
 import 'package:chrome_foundation/src/strings/edit_menu_strings.dart';
 import 'package:chrome_foundation/src/strings/formatting_strings.dart';
@@ -6,8 +7,8 @@ import 'package:chrome_foundation/src/strings/panel_strings.dart';
 import 'package:chrome_foundation/src/strings/semantics_strings.dart';
 
 /// All **chrome strings**: grouped, host-provided text for the panel, the
-/// composer, the formatting menu, the pointer menu, the pack sheets and
-/// assistive technology.
+/// composer, the formatting menu, the pointer menu, the pack sheets, the
+/// bulletins and assistive technology.
 ///
 /// Labels are never tokens and no package here owns a language: the host fills
 /// this from its own localisation or server language packs and supplies it
@@ -16,13 +17,14 @@ import 'package:chrome_foundation/src/strings/semantics_strings.dart';
 ///
 /// The UI locale is independent of the search language set.
 final class ChromeStrings {
-  /// Strings made of the six groups.
+  /// Strings made of the seven groups.
   const ChromeStrings({
     required this.panel,
     required this.composer,
     required this.formatting,
     required this.editMenu,
     required this.packSheet,
+    required this.bulletin,
     required this.semantics,
   });
 
@@ -40,6 +42,9 @@ final class ChromeStrings {
 
   /// Pack sheet copy, and the feedback after a pack is added or removed.
   final PackSheetStrings packSheet;
+
+  /// Bulletin chrome copy: the Undo action and the spoken dismiss.
+  final BulletinStrings bulletin;
 
   /// Announcements and labels for assistive technology.
   final SemanticsStrings semantics;
