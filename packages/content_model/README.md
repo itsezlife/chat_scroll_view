@@ -14,7 +14,7 @@ types, so it depends on no workspace package (`scripts/check` enforces both).
 | Type | Role |
 | --- | --- |
 | `ContentKey` | The one closed identity: `unicode` (the exact sequence shown or sent), `document` (opaque id), `external` (web or inline-result id). Value equality; a stable string encoding (`encoded`, `parse`, `tryParse`) for storage. |
-| `ContentDescriptor` | A key plus `SemanticKind` (what it is to the user) and `MediaForm` (how it renders), and facts known before loading: animated, tintable, locked, size, thumbnail, spoken name. |
+| `ContentDescriptor` | A key plus `SemanticKind` (what it is to the user) and `MediaForm` (how it renders), and facts known before loading: animated, tintable, locked, size, thumbnail, spoken name, and the `PackId` of the pack it belongs to (not identity). |
 | `Collection` | `CollectionId` + `CollectionMetadata` + `CollectionContents` (`idle`, `loading`, `loaded` with `CollectionItem`s and a `PageToken`, `failed`). Sets, personal lists, search results and trending are all collections. |
 | `EmojiEntry` | A base unicode key and its variants. Each variant is its own key, tagged with `EmojiModifiers` (ordered tones, gender). |
 | `InlineContentRef` | A key plus the mandatory plain-text alternative, for content embedded in text. |
@@ -27,6 +27,10 @@ types, so it depends on no workspace package (`scripts/check` enforces both).
 | `GlyphSupport` | Which unicode keys the device draws, and the identity of its emoji art. Optimistic: `true` until known missing. |
 | `KeyValueStore`, `StoredValue` | Namespaced, versioned string persistence; the only way logic packages reach durable storage. |
 | `ContentResolver` | Batched async resolution of bare keys to descriptors. |
+| `Pack`, `PackId`, `PackKind` | A published set of stickers, masks or custom emoji: id, kind, title, items in order, cover, official. Its listing is the collection `CollectionId.set(id)` (`Pack.collection`). Install state is not on it. |
+| `PackSource`, `CachingPackSource` | A pack by id: `lookup` answers `found`, `notFound` or `failed` and never throws; `peek` answers without loading. Found packs are kept, concurrent lookups share one fetch. `CachingPackSource` is that memory tier over a host `PackFetch` (its own cache, then the remote). |
+| `ContentLibrary`, `LibraryEdit`, `AppliedEdit` | The user's recent stickers, favourite stickers, saved GIFs (the GIF recents) and installed and archived packs per kind, one `ValueListenable` per list. Changed only by `apply(LibraryEdit)`, local first, with an optional undo window; edits commit in the order they were applied. |
+| `LibraryStorage`, `KeyValueLibraryStorage`, `StoredContentLibrary` | Where a library commits: the whole state plus the edit. `KeyValueLibraryStorage` writes one versioned record per list over a `KeyValueStore`; a backend adapter sends the edit. `StoredContentLibrary.load` is the reference library, loaded before use. |
 | `KeyValueRecentsStore`, `KeyValuePreferenceStore` | The reference `RecentsStore` and `PreferenceStore` over a `KeyValueStore`. Created only by their async `load`, which reads persisted state first, so no store exists unloaded. Structured, versioned JSON records, one namespace per package. |
 
 ## Testing
@@ -44,6 +48,9 @@ it and `content_model.dart` never exports it (`scripts/check` enforces both).
 | `KeywordSource` | `FakeKeywordSource` | `KeywordSourceContract.run` |
 | `GlyphSupport` | `FakeGlyphSupport` | `GlyphSupportContract.run` |
 | `ContentResolver` | `FakeContentResolver` (records batches) | `ContentResolverContract.run` |
+| `PackSource` | `FakePackSource` (scripted packs, `gate`, `failure`, `publish`, fetch counts) | `PackSourceContract.run` |
+| `ContentLibrary` | `FakeContentLibrary` (created at once, records commits, `failure`) | `ContentLibraryContract.run` |
+| `LibraryStorage` | `FakeLibraryStorage` (records edits, `gate`, `failure`) | `LibraryStorageContract.run` |
 
 A contract suite takes a factory for the implementation under test. The
 suites for sources and resolvers also take a small harness that names facts
@@ -71,6 +78,9 @@ void main() {
 | Its stores from `KeyValueRecentsStore.load` and `KeyValuePreferenceStore.load` over its `KeyValueStore`, awaited once at startup. | Try to use a store before `load` completes (there is no such store), or wrap `load` in a second layer of caching. |
 | A test for every implementation of a seam: the matching `...Contract.run` suite from `testing.dart`. | Ship a fake, or import `testing.dart`, from production code. |
 | The decision that a pick counts: it calls `RecentsStore.record` on insert or send, with the `PickSource` it came from. | Record from inside a page, or record a pick made from search results. |
+| Sticker and GIF use filed in the `ContentLibrary`: `LibraryEdit.addRecentSticker` when a sticker is sent, `LibraryEdit.saveGif` when a GIF is (the saved GIFs are the GIF recents). Emoji stay in the `RecentsStore`. | File stickers or GIFs in the `RecentsStore` as well: two lists of the same use disagree. |
+| The library's limits (`LibraryLimits`: favourite stickers and saved GIFs are the host's), the undo window of each edit it applies, and the feedback around it (a bulletin with Undo calls `AppliedEdit.undo`). | Expect the library to show anything, or to commit a removal before its window ends. |
+| A `PackId` on each descriptor of content published in a pack, and the pack's fetch credentials on its side, keyed by `PackId`. | Encode a pack in the content key, or ask the pack source for install state (the library answers it). |
 | One `KeyValueStore` namespace per package, and a version on every value it writes. | Share a namespace between packages, or expect the store to migrate or interpret a value. |
 | Disposal: whoever creates a notifier, source or store disposes it, once. A seam owner's `dispose` is idempotent; `ChangeNotifier.dispose` itself is not. | Signal from a consumer's side (only the owner type can), add a listener to a disposed owner (an assertion in debug builds), or dispose an owner from inside one of its own listeners. |
 | Listeners that tolerate being called synchronously, inside the call that changed the state, and that read the owner for the new state. | Add the same function twice and expect one call (`package:listen` does not deduplicate: it is called twice and must be removed twice), or assume a signal carries a payload (a `Listenable` has none). |
