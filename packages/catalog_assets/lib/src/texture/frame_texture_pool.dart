@@ -13,28 +13,40 @@ import 'package:flutter/foundation.dart';
 /// to the pool to idle; [discard] gives it back broken (a lock that keeps
 /// failing), and the pool destroys it instead of handing it out again.
 final class FrameTextureLease {
-  FrameTextureLease._(this.texture, this._onEnd);
+  FrameTextureLease._(this.texture, this._onEnd, {required this.showsFrame});
 
   /// The texture claimed: its id, its pixel size (the whole size class) and
   /// the size of the frame it holds.
   final AssetTexture texture;
 
-  void Function({required bool discard})? _onEnd;
+  /// Whether the texture still shows the last frame of the asset it was
+  /// leased for: the asset gave it back with `release(showing:)`, asked for
+  /// it again by the same key, and nothing was posted to it between. Every
+  /// frame queued on it is that asset's own, so it may be shown at once.
+  final bool showsFrame;
+
+  void Function({required bool discard, Object? showing})? _onEnd;
 
   /// Whether [release] or [discard] was called.
   bool get isReleased => _onEnd == null;
 
   /// Ends the claim; the texture idles in the pool. Idempotent.
-  void release() => _end(discard: false);
+  ///
+  /// [showing], when given, names the asset whose last frame the texture
+  /// shows now (its holder posted it and goes on from it later): a
+  /// [FrameTexturePool.lease] for the same asset takes this texture back
+  /// first and shows it at once, while the pool keeps the frame (see *Kept
+  /// frames* there).
+  void release({Object? showing}) => _end(discard: false, showing: showing);
 
   /// Ends the claim and destroys the texture. Idempotent, and nothing after a
   /// [release].
   void discard() => _end(discard: true);
 
-  void _end({required bool discard}) {
+  void _end({required bool discard, Object? showing}) {
     final onEnd = _onEnd;
     _onEnd = null;
-    onEnd?.call(discard: discard);
+    onEnd?.call(discard: discard, showing: showing);
   }
 }
 
@@ -70,6 +82,20 @@ final class FrameTextureLease {
 /// default of the dynamic frame pages (ADR 022), which a texture replaces for
 /// the asset that holds it.
 ///
+/// ## Kept frames
+///
+/// A texture released with the asset it shows (`release(showing:)`: a cell
+/// that left the screen) keeps that frame for the asset. A lease that names
+/// the same asset takes it back before any other and without the reuse delay
+/// (every frame queued on it is the asset's own), and its holder shows it at
+/// once instead of the first-frame still. Another asset takes such a texture
+/// only when its class has no idle texture that keeps no frame, and [warm]
+/// does not count it as idle, so the cells that come on screen get textures
+/// of their own while the ones that left keep theirs. What the kept frames
+/// cost together is bounded by [keptFrameBytes], within [budgetBytes]; past
+/// it the frame kept longest is forgotten and its texture idles like any
+/// other.
+///
 /// ## Idle textures
 ///
 /// A released texture idles for the next lease of its class, but is not
@@ -99,6 +125,7 @@ final class FrameTexturePool {
     this.budgetBytes = defaultBudgetBytes,
     this.idleLimit = defaultIdleLimit,
     this.reuseDelay = defaultReuseDelay,
+    this.keptFrameBytes = defaultKeptFrameBytes,
     Duration Function()? now,
   }) : _now = now ?? _stopwatch() {
     if (sizeClasses.isEmpty ||
@@ -131,6 +158,14 @@ final class FrameTexturePool {
   /// animated asset and than the raster pipeline.
   static const Duration defaultReuseDelay = Duration(milliseconds: 150);
 
+  /// The default of [keptFrameBytes]: half the default budget, about a
+  /// screen of a sticker grid on Android (24 cells of 256 px textures of four
+  /// buffers, 1 MiB each), as many as [defaultIdleLimit]. Scrolling back a
+  /// screen brings back the cells that left it while as many leave the other
+  /// edge. Leased textures still come first: a warm for cells on screen
+  /// that the budget does not cover leaves them to take kept ones.
+  static const int defaultKeptFrameBytes = 24 * 1024 * 1024;
+
   /// The platform's maker of textures.
   final FrameTextureHost host;
 
@@ -149,6 +184,10 @@ final class FrameTexturePool {
   /// How long a released texture idles before a lease may take it.
   final Duration reuseDelay;
 
+  /// What the idle textures that keep an asset's frame may cost together;
+  /// part of [budgetBytes], not on top of it.
+  final int keptFrameBytes;
+
   // The time since some fixed point; the reuse delay is measured on it.
   final Duration Function() _now;
 
@@ -162,6 +201,10 @@ final class FrameTexturePool {
   // When each idle texture that was leased before was released; a texture
   // that was only warmed is not here.
   final Map<int, Duration> _releasedAt = {};
+  // Idle textures that keep the last frame of an asset, kept longest ago
+  // first: id to the asset.
+  final Map<int, Object> _kept = {};
+  int _keptBytes = 0;
   // Leased textures: id to size class.
   final Map<int, int> _leased = {};
   // Creations asked of the host and not answered yet, per class.
@@ -177,6 +220,9 @@ final class FrameTexturePool {
 
   /// Textures released and waiting for a lease.
   int get idleTextures => _idle.length;
+
+  /// Idle textures that keep the last frame of the asset that released them.
+  int get keptFrames => _kept.length;
 
   /// Textures leased now.
   int get leasedTextures => _leased.length;
@@ -201,36 +247,65 @@ final class FrameTexturePool {
   ///
   /// The lease's texture names the frame it holds ([width] x [height],
   /// centred), so a surface places the frame, not the square around it.
-  FrameTextureLease? lease(int width, int height) {
+  ///
+  /// [showing] names the asset that asks: a texture it released showing its
+  /// frame is taken back first, at once, and the lease says so
+  /// ([FrameTextureLease.showsFrame]); see *Kept frames* above.
+  FrameTextureLease? lease(int width, int height, {Object? showing}) {
     if (_disposed) return null;
     final sizeClass = classOf(width, height);
     if (sizeClass == null) return null;
-    // The released longest ago of the class (the idle map is in release
-    // order) that waited the reuse delay.
-    final now = _now();
-    int? id;
-    for (final MapEntry(:key, :value) in _idle.entries) {
-      if (value != sizeClass) continue;
-      final releasedAt = _releasedAt[key];
-      if (releasedAt != null && now - releasedAt < reuseDelay) continue;
-      id = key;
-      break;
-    }
+    final own = switch (showing) {
+      final asset? => _keptFor(asset, sizeClass),
+      null => null,
+    };
+    final id = own ?? _idleOf(sizeClass);
     if (id == null) return null;
-    final leased = id;
-    _idle.remove(leased);
-    _releasedAt.remove(leased);
-    _leased[leased] = sizeClass;
+    _forget(id);
+    _idle.remove(id);
+    _releasedAt.remove(id);
+    _leased[id] = sizeClass;
     return FrameTextureLease._(
       AssetTexture(
-        id: leased,
+        id: id,
         width: sizeClass,
         height: sizeClass,
         frameWidth: width,
         frameHeight: height,
       ),
-      ({required discard}) => _ended(leased, discard: discard),
+      ({required discard, showing}) =>
+          _ended(id, discard: discard, showing: showing),
+      showsFrame: own != null,
     );
+  }
+
+  int? _keptFor(Object asset, int sizeClass) {
+    for (final MapEntry(:key, :value) in _kept.entries) {
+      if (value == asset && _idle[key] == sizeClass) return key;
+    }
+    return null;
+  }
+
+  // The released longest ago of the class (the idle map is in release order)
+  // that waited the reuse delay, one that keeps no frame before one that does.
+  int? _idleOf(int sizeClass) {
+    final now = _now();
+    int? keeping;
+    for (final MapEntry(:key, :value) in _idle.entries) {
+      if (value != sizeClass) continue;
+      final releasedAt = _releasedAt[key];
+      if (releasedAt != null && now - releasedAt < reuseDelay) continue;
+      if (!_kept.containsKey(key)) return key;
+      keeping ??= key;
+    }
+    return keeping;
+  }
+
+  // The idle texture [id] keeps no frame from now on. Before it leaves the
+  // idle map: its class is read there.
+  void _forget(int id) {
+    if (_kept.remove(id) == null) return;
+    _keptBytes -= bytesOfClass(_idle[id]!);
   }
 
   /// Creates textures of [sizeClass] until it has [count] idle ones (at most
@@ -250,8 +325,11 @@ final class FrameTexturePool {
     }
     final wanted = math.min(count, idleLimit);
     while (!_disposed) {
+      // A texture that keeps an asset's frame waits for that asset.
       final have =
-          _idle.values.where((c) => c == sizeClass).length +
+          _idle.entries
+              .where((e) => e.value == sizeClass && !_kept.containsKey(e.key))
+              .length +
           (_creating[sizeClass] ?? 0);
       if (have >= wanted) return;
       if (scrolling?.value ?? false) {
@@ -311,10 +389,22 @@ final class FrameTexturePool {
     }
     if (over > 0) return false;
     for (final id in victims) {
+      _forget(id);
       _releasedAt.remove(id);
       _destroy(id, _idle.remove(id)!);
     }
     return true;
+  }
+
+  /// Forgets the frame an idle texture keeps for [showing]: the asset will
+  /// not go on from it (it was disposed; one that takes its key starts at
+  /// its first frame). The texture idles like any other.
+  void forgetFrameOf(Object showing) {
+    final ids = [
+      for (final MapEntry(:key, :value) in _kept.entries)
+        if (value == showing) key,
+    ];
+    ids.forEach(_forget);
   }
 
   /// Destroys every idle texture: the answer to memory pressure. Leased
@@ -323,6 +413,8 @@ final class FrameTexturePool {
     final idle = List.of(_idle.entries);
     _idle.clear();
     _releasedAt.clear();
+    _kept.clear();
+    _keptBytes = 0;
     for (final MapEntry(:key, :value) in idle) {
       _destroy(key, value);
     }
@@ -337,7 +429,7 @@ final class FrameTexturePool {
     _stopWaitingForScroll();
   }
 
-  void _ended(int id, {required bool discard}) {
+  void _ended(int id, {required bool discard, Object? showing}) {
     final sizeClass = _leased.remove(id);
     if (sizeClass == null) return;
     if (discard || _disposed) {
@@ -346,10 +438,23 @@ final class FrameTexturePool {
     }
     _idle[id] = sizeClass;
     _releasedAt[id] = _now();
+    if (showing != null) _keep(id, showing, sizeClass);
     while (_idle.length > idleLimit) {
       final oldest = _idle.keys.first;
+      _forget(oldest);
       _releasedAt.remove(oldest);
       _destroy(oldest, _idle.remove(oldest)!);
+    }
+  }
+
+  // One texture keeps an asset's frame: one it kept before (lost to a canvas,
+  // say) forgets it. Past the kept budget the frame kept longest goes first.
+  void _keep(int id, Object asset, int sizeClass) {
+    forgetFrameOf(asset);
+    _kept[id] = asset;
+    _keptBytes += bytesOfClass(sizeClass);
+    while (_keptBytes > keptFrameBytes) {
+      _forget(_kept.keys.first);
     }
   }
 
