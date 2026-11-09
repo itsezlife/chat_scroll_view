@@ -87,6 +87,24 @@ abstract base class BulletinPolicy {
   /// The card's widest width; null for the whole width the margin leaves.
   double? get maxWidth;
 
+  /// The space between the card's edge and its content.
+  EdgeInsets get contentPadding;
+
+  /// The width of the leading slot, when the bulletin has a leading.
+  double get leadingWidth;
+
+  /// The size of a leading icon or animation inside its slot.
+  double get iconSize;
+
+  /// The text size of a message without a title.
+  double get messageTextSize;
+
+  /// The text size of a title.
+  double get titleTextSize;
+
+  /// The text size of a message under a title.
+  double get subtitleTextSize;
+
   /// Whether the card is drawn only inside the area the obstruction leaves,
   /// so it enters from behind the bottom obstruction rather than over it.
   bool get clipsAtObstruction;
@@ -234,6 +252,26 @@ base class BulletinPolicy$Android extends BulletinPolicy {
   @override
   double get cornerRadius => 16;
 
+  @override
+  EdgeInsets get contentPadding =>
+      const EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+
+  /// The reference's 56 dp icon box, less the 8 the card is inset by.
+  @override
+  double get leadingWidth => 48;
+
+  @override
+  double get iconSize => 24;
+
+  @override
+  double get messageTextSize => 15;
+
+  @override
+  double get titleTextSize => 14;
+
+  @override
+  double get subtitleTextSize => 13;
+
   /// The reference matches the parent on a phone and wraps on a tablet or in
   /// landscape; 400 caps a wide window without changing a phone.
   @override
@@ -294,6 +332,25 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
   double get cornerRadius => 25;
 
   @override
+  EdgeInsets get contentPadding =>
+      const EdgeInsets.symmetric(horizontal: 16, vertical: 10);
+
+  @override
+  double get leadingWidth => 38;
+
+  @override
+  double get iconSize => 28;
+
+  @override
+  double get messageTextSize => 14;
+
+  @override
+  double get titleTextSize => 14;
+
+  @override
+  double get subtitleTextSize => 14;
+
+  @override
   double? get maxWidth => null;
 
   @override
@@ -350,6 +407,24 @@ base class BulletinPolicy$Desktop extends BulletinPolicy {
 
   @override
   double get cornerRadius => 9;
+
+  @override
+  EdgeInsets get contentPadding => const EdgeInsets.fromLTRB(16, 13, 16, 12);
+
+  @override
+  double get leadingWidth => 32;
+
+  @override
+  double get iconSize => 20;
+
+  @override
+  double get messageTextSize => 13;
+
+  @override
+  double get titleTextSize => 13;
+
+  @override
+  double get subtitleTextSize => 13;
 
   @override
   double? get maxWidth => 380;

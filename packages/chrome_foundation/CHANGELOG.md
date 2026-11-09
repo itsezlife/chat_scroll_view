@@ -6,6 +6,22 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (bulletins)
+
+- `BulletinTokens`, a token group (`ChromeThemeData.bulletin`,
+  `ChromeThemeScope.bulletinOf`, `ChromeThemeAspect.bulletin`): a bulletin's
+  card, text, accent and countdown colours. `fromPalette` gives the
+  reference's dark card (`referenceAndroid`) on every palette but the
+  high-contrast presets (`highContrast`). Code that builds a
+  `ChromeThemeData` whole must now pass `bulletin`.
+- `MotionRole.bulletinShow` (255 ms, ease-out quad) and
+  `MotionRole.bulletinHide` (175 ms, ease-in quad). Code that builds a
+  `ChromeMotion` whole must now pass both.
+- `BulletinStrings`, the seventh group of `ChromeStrings` (`bulletin`,
+  `ChromeStringsScope.bulletinOf`): `undoAction` and `dismissAction`. Code
+  that builds a `ChromeStrings` must now pass `bulletin`; the presets and
+  `ChromeStringsSnapshot` include it.
+
 ### Added (pack sheet strings)
 
 - `PackSheetStrings`, the sixth group of `ChromeStrings` (`packSheet`,

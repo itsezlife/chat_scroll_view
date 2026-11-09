@@ -340,6 +340,10 @@ void main() {
     });
   });
 
+  test('BulletinExit commits on every exit but undone', () {
+    expect(BulletinExit.values.where((e) => !e.commits), [BulletinExit.undone]);
+  });
+
   group('disposal', () {
     test('show after dispose closes at once as surface gone and commits', () {
       controller.dispose();

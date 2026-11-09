@@ -43,6 +43,12 @@ abstract final class BulletinPolicyContract {
         expect(policy.minHeight, greaterThan(0));
         expect(policy.cornerRadius, greaterThanOrEqualTo(0));
         expect(policy.margin.isNonNegative, isTrue);
+        expect(policy.contentPadding.isNonNegative, isTrue);
+        expect(policy.leadingWidth, greaterThan(0));
+        expect(policy.iconSize, inInclusiveRange(1, policy.leadingWidth));
+        expect(policy.messageTextSize, greaterThan(0));
+        expect(policy.titleTextSize, greaterThan(0));
+        expect(policy.subtitleTextSize, greaterThan(0));
         if (policy.maxWidth case final maxWidth?) {
           expect(maxWidth, greaterThan(0));
         }

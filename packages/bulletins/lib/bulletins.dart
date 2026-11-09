@@ -11,3 +11,6 @@ export 'src/bulletin/bulletin.dart';
 export 'src/controller/bulletin_clock.dart';
 export 'src/controller/bulletin_controller.dart';
 export 'src/policy/bulletin_policy.dart';
+export 'src/view/bulletin_builders.dart';
+export 'src/view/bulletin_card.dart';
+export 'src/view/bulletin_host.dart';
