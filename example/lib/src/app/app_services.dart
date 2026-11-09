@@ -21,9 +21,11 @@ import 'package:chat_scroll_view_example/src/features/chat/data/deferred_library
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/installed_packs_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/joined_collection_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/library_content_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/shipped_packs_seed.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
@@ -125,7 +127,6 @@ final class AppServices {
     required this.describe,
     required this.scrolling,
     required List<CollectionSource> pageParts,
-    required CollectionSource animatedEmoji,
     required PlaybackClock clock,
     required LottiePlayback? lottiePlayback,
     required VideoPlayback? videoPlayback,
@@ -140,8 +141,7 @@ final class AppServices {
     required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
     required MediaDiskCache? mediaCache,
-  }) : _animatedEmoji = animatedEmoji,
-       _mediaCache = mediaCache,
+  }) : _mediaCache = mediaCache,
        _pageParts = pageParts,
        _clock = clock,
        _lottiePlayback = lottiePlayback,
@@ -271,6 +271,7 @@ final class AppServices {
         keyboardHeights,
         dockWidths,
         largeEmoji,
+        packSeed,
       ) = await (
         KeyValueRecentsStore.load(
           storage,
@@ -289,6 +290,7 @@ final class AppServices {
         LargeEmojiSetting.load(
           storage,
         ).then((setting) => owned(setting, (setting) => setting.dispose())),
+        ShippedPacksSeed.load(storage),
       ).wait;
       final centerBands = ChatCenterBandStore(storage);
       final drafts = ChatDraftStore(storage);
@@ -514,17 +516,6 @@ final class AppServices {
         ),
         (source) => source.dispose(),
       );
-      final animatedEmoji = owned(
-        AnimatedEmojiPack.source(),
-        (source) => source.dispose(),
-      );
-      // The animated emoji are emoji (custom emoji, picked on this page), not
-      // stickers: they stay. The demo sticker packs are not listed here.
-      final emojiPageSource = owned(
-        JoinedCollectionSource([emojiSource, animatedEmoji]),
-        (source) => source.dispose(),
-      );
-
       // A pack by the id a sticker's or custom emoji's descriptor names: the
       // bundled packs and the corpus, all in memory, so the fetch never
       // fails and the source's memory tier holds them once found.
@@ -534,6 +525,34 @@ final class AppServices {
         ),
         (source) => source.dispose(),
       );
+      // The panel lists the packs the user installed. The ones it listed
+      // before there was a library (the corpus, the animated emoji) are
+      // installed once, on the first run that ships each; the bundled demo
+      // sticker packs are the showcase chat's content, added from a sheet.
+      await packSeed.install(library, [
+        for (final pack in corpusPacks.packs)
+          (id: pack.packId, kind: PackKind.stickers),
+        (id: AnimatedEmojiPack.packId, kind: PackKind.emoji),
+      ]);
+      // Looked up now, so the panel's first open finds them loaded.
+      await Future.wait([
+        for (final kind in PackKind.values)
+          for (final id in library.installedPacks(kind).value) packs.lookup(id),
+      ]);
+      // The emoji page: the catalogue, then the installed packs of custom
+      // emoji after its categories, in the library's order.
+      final installedEmoji = owned(
+        InstalledPacksSource(
+          kind: PackKind.emoji,
+          library: library,
+          packs: packs,
+        ),
+        (source) => source.dispose(),
+      );
+      final emojiPageSource = owned(
+        JoinedCollectionSource([emojiSource, installedEmoji]),
+        (source) => source.dispose(),
+      );
       // The library as the panel lists it: caught up when the panel opens,
       // as the emoji recents are (see [libraryShown]).
       final libraryShown = owned(
@@ -541,9 +560,9 @@ final class AppServices {
         (view) => view.dispose(),
       );
       // The stickers page: the favourite stickers and the recent ones, then
-      // the local corpus, a pack each. Without a corpus (as on CI) the
-      // favourites and the recents are all it lists; the bundled demo packs
-      // are content of the showcase chat, not of the panel.
+      // the installed sticker packs in the library's order. Without a corpus
+      // (as on CI) nothing is installed at first and the favourites and the
+      // recents are all it lists; a pack added from a sheet joins them.
       final recentStickers = owned(
         LibraryContentSource.stickers(
           recentStickers: libraryShown.recentStickers,
@@ -552,12 +571,16 @@ final class AppServices {
         ),
         (source) => source.dispose(),
       );
-      final corpusSources = [
-        for (final source in corpusPacks.sources())
-          owned(source, (source) => source.dispose()),
-      ];
+      final installedStickers = owned(
+        InstalledPacksSource(
+          kind: PackKind.stickers,
+          library: library,
+          packs: packs,
+        ),
+        (source) => source.dispose(),
+      );
       final stickerPageSource = owned(
-        JoinedCollectionSource([recentStickers, ...corpusSources]),
+        JoinedCollectionSource([recentStickers, installedStickers]),
         (source) => source.dispose(),
       );
       // The GIF page: the saved GIFs as its recents, then Giphy's trending
@@ -622,9 +645,9 @@ final class AppServices {
           recentStickers,
           recentGifs,
           ?giphyTrending,
-          ...corpusSources,
+          installedStickers,
+          installedEmoji,
         ],
-        animatedEmoji: animatedEmoji,
         clock: clock,
         lottiePlayback: lottiePlayback,
         videoPlayback: videoPlayback,
@@ -748,11 +771,12 @@ final class AppServices {
   final EmojiSearchSource emojiSearch;
 
   /// What the emoji page lists: the collections of [emojiSource], then the
-  /// pack of animated emoji. It owns none.
+  /// installed packs of custom emoji in the library's order. It owns none.
   final CollectionSource emojiPageSource;
 
   /// What the stickers page lists: the favourite stickers, the recent
-  /// stickers, then the packs of the local [corpus]. It owns none.
+  /// stickers, then the installed sticker packs in the library's order. It
+  /// owns none.
   final CollectionSource stickerPageSource;
 
   /// What the GIF page lists: the saved GIFs, then Giphy's trending clips
@@ -821,7 +845,6 @@ final class AppServices {
   /// Where baked pages persist, or null to bake in memory every launch.
   final GlyphCacheStore? glyphCache;
 
-  final CollectionSource _animatedEmoji;
   final List<CollectionSource> _pageParts;
   final PlaybackClock _clock;
   final LottiePlayback? _lottiePlayback;
@@ -900,7 +923,6 @@ final class AppServices {
       part.dispose();
     }
     emojiPageSource.dispose();
-    _animatedEmoji.dispose();
     emojiSearch.dispose();
     emojiSource.dispose();
     recentsShown.dispose();
