@@ -67,11 +67,14 @@ void main() {
       );
     });
 
-    test('is a bottom card, 48 high, radius 16, inset 8', () {
+    test('is a bottom card, 48 high, radius 16, inset 16 / 8', () {
       expect(policy.placement, BulletinPlacement.bottom);
       expect(policy.minHeight, 48);
       expect(policy.cornerRadius, 16);
-      expect(policy.margin, const EdgeInsets.all(8));
+      expect(
+        policy.margin,
+        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      );
     });
 
     test('slides on the 0.8 / 400 spring, swipes, pauses on press', () {

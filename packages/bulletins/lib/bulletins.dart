@@ -7,6 +7,7 @@
 /// in `chrome_foundation`.
 library;
 
+export 'src/android/bulletin_builders_android.dart';
 export 'src/bulletin/bulletin.dart';
 export 'src/controller/bulletin_clock.dart';
 export 'src/controller/bulletin_controller.dart';
