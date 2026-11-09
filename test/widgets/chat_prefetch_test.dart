@@ -126,6 +126,29 @@ void main() {
   group('ChatScrollView prefetch', () {
     tearDown(() => RenderChatScrollView.debugPrefetchRowsPerLayout = null);
 
+    testWidgets(
+      'a short prefetch at rest resumes until the keep band is built',
+      (tester) async {
+        // A list at rest runs no scroll ticker: a layout whose prefetch ran out
+        // (a slow frame, here one row a layout) must still ask for the next.
+        Future<int> builtAtRest() async {
+          final controller = ChatScrollController()..jumpTo(_count ~/ 2);
+          addTearDown(controller.dispose);
+          await tester.pumpWidget(_harness(controller, extraBuildExtent: 400));
+          await tester.pumpAndSettle();
+          final built = _render(tester).debugSnapshot.childCount;
+          await tester.pumpWidget(const SizedBox());
+          return built;
+        }
+
+        // Unmetered: enough rows a layout to build the whole zone in one pass.
+        RenderChatScrollView.debugPrefetchRowsPerLayout = 1000;
+        final unmetered = await builtAtRest();
+        RenderChatScrollView.debugPrefetchRowsPerLayout = 1;
+        expect(await builtAtRest(), unmetered);
+      },
+    );
+
     testWidgets('a metered layout builds fewer rows at once than the zone', (
       tester,
     ) async {

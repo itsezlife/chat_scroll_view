@@ -873,7 +873,8 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   final Stopwatch _layoutClock = Stopwatch();
 
   /// Set when fan-out stopped short of the build zone because the prefetch
-  /// budget ran out; the next tick asks for a layout to build on.
+  /// budget ran out; the next tick (armed by the stop) asks for a layout to
+  /// build on.
   bool _prefetchShort = false;
 
   /// Share of the frame interval a layout pass may spend building rows past
@@ -918,6 +919,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       return true;
     }
     _prefetchShort = true;
+    // A list at rest runs no ticker; arm it so the next tick asks for the
+    // layout that resumes the prefetch.
+    _ensureTicker();
     return false;
   }
 
@@ -4949,6 +4953,9 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       // Highlight- or scrollbar-only frame: advance the fades and bail.
       if (_animator.tickHighlight(elapsed)) markNeedsPaint();
       if (_scrollbarRuntime.tick(elapsed)) markNeedsPaint();
+      // A list at rest resumes a short prefetch here; the layout re-arms
+      // the ticker if it stops short again.
+      if (_prefetchShort && !_animator.farAnimateActive) markNeedsLayout();
       _releaseMotionIfSettled();
       if (_animator.highlightTargetId == null) _stopTickerIfIdle();
       return;
