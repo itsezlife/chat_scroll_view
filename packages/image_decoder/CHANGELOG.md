@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a cell that comes back goes on at once)
+
+- After `playbackResumed`, a `PlayingImagePaintable` shows the frame it
+  stopped on for the rest of its duration, not its whole duration again, so
+  an image back on screen moves on when it would have without the stop.
+
 ### Changed (the panel keeps its animations)
 
 - `PlayingImagePaintable` keeps its first frame as a still

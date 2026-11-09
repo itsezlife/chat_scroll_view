@@ -446,7 +446,8 @@ void main() {
   // Ticket 144: a cell that really leaves gives its lease back; when it
   // comes back it must show the frame it left on at once, never its
   // first-frame still while a new lease earns its posts, and play on from
-  // that frame.
+  // that frame. Ticket 148: the next frame written is the one after it, not
+  // the kept frame drawn again.
   for (final away in [12, 40]) {
     testWidgets('a cell scrolled off for ${away * 16} ms and back shows its '
         'last frame at once and plays on from it', (tester) async {
@@ -469,13 +470,13 @@ void main() {
         await frame(tester);
       }
 
+      final written = writer.batches.length;
       controller.jumpTo(0);
       await frame(tester);
       final back = textureOf(first);
       expect(back, texture, reason: 'its last frame at once, not its still');
       expect(_textures(panel(tester).debugLayer), contains(back));
 
-      final written = writer.batches.length;
       for (var i = 0; i < 30; i++) {
         await frame(tester);
         expect(
@@ -492,8 +493,11 @@ void main() {
       expect(after, isNotEmpty, reason: 'it plays on');
       expect(
         after.first,
-        inInclusiveRange(before, before + 4),
-        reason: 'from the frame it left on ($before), not its start',
+        // At half rate the frame after the kept one is two on.
+        inInclusiveRange(before + 1, before + 2),
+        reason:
+            'the frame after the one it left on ($before), not that one '
+            'again nor its start: $after',
       );
       for (var i = 1; i < after.length; i++) {
         expect(after[i], greaterThanOrEqualTo(after[i - 1]));

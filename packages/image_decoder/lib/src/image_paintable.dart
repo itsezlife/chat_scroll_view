@@ -138,6 +138,11 @@ final class PlayingImagePaintable extends AssetPaintable {
   // Null until the first paint that animates, so the first frame lasts its
   // full duration from the moment it plays.
   Duration? _shownSince;
+  // The clock time of the last paint that animated, and how long the frame
+  // on show had been up at it when playback stopped: it counts toward the
+  // frame's duration when playback goes on.
+  Duration? _playedAt;
+  Duration _shownBefore = Duration.zero;
   Duration _shownFor;
   ui.FrameInfo? _ahead;
   bool _decoding = false;
@@ -170,10 +175,20 @@ final class PlayingImagePaintable extends AssetPaintable {
     return true;
   }
 
-  /// The frame on show lasts its whole duration again from the next paint:
-  /// the time the clock ran while nothing played this image is not shown.
+  /// The frame on show lasts the rest of its duration from the next paint:
+  /// the time the clock ran while nothing played this image is not counted,
+  /// and the time it was up before is. So a surface that stopped playing it
+  /// (a cell scrolled off, a held panel) goes on as if it had not stopped.
   @override
-  void playbackResumed() => _shownSince = null;
+  void playbackResumed() {
+    if ((_shownSince, _playedAt) case (
+      final since?,
+      final at?,
+    ) when at >= since) {
+      _shownBefore = at - since;
+    }
+    _shownSince = null;
+  }
 
   // Plays another pass: from the held first frame, or from the first frame
   // that was kept decoded behind the held last one. The first frame lasts
@@ -189,6 +204,7 @@ final class PlayingImagePaintable extends AssetPaintable {
       _index = 0;
     }
     _shownSince = null;
+    _shownBefore = Duration.zero;
     _decodeAhead();
   }
 
@@ -203,13 +219,15 @@ final class PlayingImagePaintable extends AssetPaintable {
       if (!context.loop) return;
       _resume();
     }
-    final now = context.time;
+    final now = _playedAt = context.time;
     // A clock started again is behind the time the frame went up at: the
     // frame counts from now, rather than freezing until the clock catches up.
+    // After a stop it counts from now less the time it was up before.
     final since = _shownSince = switch (_shownSince) {
       final since? when now >= since => since,
-      _ => now,
+      _ => now - _shownBefore,
     };
+    _shownBefore = Duration.zero;
     final ahead = _ahead;
     if (ahead != null && now - since >= _shownFor) {
       final passOver = _index == _codec.frameCount - 1;

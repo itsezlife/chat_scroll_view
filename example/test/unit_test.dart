@@ -121,6 +121,8 @@ import 'flicker/pack_sheet_panel_flicker_test.dart'
 import 'flicker/panel_flash_test.dart' as flicker_panel_flash_test;
 import 'flicker/panel_scroll_restart_test.dart'
     as flicker_panel_scroll_restart_test;
+import 'flicker/panel_video_return_test.dart'
+    as flicker_panel_video_return_test;
 import 'flicker/playback_starvation_test.dart'
     as flicker_playback_starvation_test;
 import 'flicker/thumbnail_fade_test.dart' as flicker_thumbnail_fade_test;
@@ -215,6 +217,10 @@ void main() {
   group(
     'flicker/panel_scroll_restart_test.dart',
     flicker_panel_scroll_restart_test.main,
+  );
+  group(
+    'flicker/panel_video_return_test.dart',
+    flicker_panel_video_return_test.main,
   );
   group(
     'flicker/playback_starvation_test.dart',
