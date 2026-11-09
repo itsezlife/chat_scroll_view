@@ -126,8 +126,8 @@ GlassSourceScope(                       // chat screen: over content + chrome
     GlassSurface(material: GlassMaterial.composerIsland, child: composer),
   ]),
 )
-// Host policy (optional; the default is fullLiquid on detected capabilities):
-GlassQualityScope(quality: GlassQuality.frosted, liteMode: batterySaver, child: ...)
+// Host policy (optional; the default is frosted on detected capabilities):
+GlassQualityScope(quality: GlassQuality.fullLiquid, liteMode: batterySaver, child: ...)
 ```
 
 `GlassSurface` picks how to draw its backdrop each build from four inputs: the
@@ -137,24 +137,43 @@ exported:
 
 | Quality | Source + sampling backend | No source, filter backend | Route moves, no source | No filters |
 | --- | --- | --- | --- | --- |
-| `fullLiquid` | sampled liquid (capture, refraction) | backdrop filter (liquid shader filter where supported, else blur) | flat | flat |
-| `frosted` | sampled frost (capture, no refraction) | backdrop filter (blur) | flat | flat |
+| `fullLiquid` | sampled liquid (capture, refraction) | backdrop filter (liquid shader filter where supported, else blur and saturation) | flat | flat |
+| `frosted` | sampled frost (capture, no shader) | backdrop filter (blur and saturation, no shader) | flat | flat |
 | `flat` | flat | flat | flat | flat |
 | `off` | nothing | nothing | nothing | nothing |
 
-- A sampled surface renders a downscaled, blurred copy of the source region
-  once per frame for every surface in the scope (regions close enough merge
-  into one capture) and never reads back the onscreen target, so route motion
+- The look. Frosted (the default): the content behind the glass at an
+  eighth of device resolution, blurred by a 40 dp radius (a Gaussian of
+  sigma 0.57735 r + 0.5 device px), its saturation tripled, under the tint at
+  0.76. Refracting (`fullLiquid`, the host's opt-in): a quarter of device
+  resolution, a 6 dp radius, saturation x3, the tint at 0.85, bent at the
+  rim (intensity 0.75, index 1.5, rim 11 dp but at most a fifth of the
+  shorter side). Flat: the tint opaque. `topPanel` never refracts.
+- A sampled surface draws a capture of the source region behind it (plus the
+  blur and refraction reach), blurred and saturated at the capture's size.
+  Regions snap out to a 2 image px grid (16 device px at an eighth) and merge
+  with nearby ones into one capture per look, which is kept while nothing
+  under it changed. It never reads back the onscreen target, so route motion
   does not matter to it.
 - A backdrop filter re-reads and re-filters everything under it on every frame
-  it moves, so a surface paints flat while its route is pushed, popped, dragged
-  by a back gesture, or covered by another route moving.
-- Shaders load on first need. Until they load a sampled surface paints its fill
-  flat; if loading fails the shader paths are dropped and the chain falls back
-  to the blur-only filter.
-- `GlassMaterial` fixes what does not vary with the theme (blur, saturation,
-  refraction, stroke widths, default corner radius); `topPanel` never refracts.
-  Pass `cornerRadius` for a different size (half the height makes a stadium).
+  it moves, so a surface paints its translucent tint flat while its route is
+  pushed, popped, dragged by a back gesture, or covered by another route
+  moving.
+- Only refraction needs fragment shaders. They load on first need; until
+  then a refracting surface draws frosted, and if loading fails it stays
+  frosted. Where shaders or `ImageFilter.shader` are unsupported (the web,
+  Skia), capabilities fall back to the scene filter (blur and saturation, no
+  shader), then to flat.
+- `GlassMaterial` fixes what does not vary with the theme: the default corner
+  radius (island 22, button 18, top panel 0), the edge width (0.5, 0.5,
+  0.55) and the shadow geometry (blur 1 at 1/3 down; a button 11/3 at 2/3
+  down). Pass `cornerRadius` for a different size (half the height makes a
+  stadium).
+- `GlassMaterialTokens.fromPalette` tints the island and buttons with
+  `surface` and the top panel with `surfaceDim`; light edges are opaque
+  white, dark ones white at 0x28 (top panel 0x20) on top and 0x14 below;
+  light shadows are the palette shadow at 0x20 (a button 0x40), dark ones
+  none.
 - Keep content fades and washes outside the `GlassSource` (or cut them out
   under the surface) so they are not sampled into the glass.
 

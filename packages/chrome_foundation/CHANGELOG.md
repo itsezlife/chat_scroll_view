@@ -6,6 +6,28 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (glass look)
+
+- The glass is frosted by default: `GlassQualityScope.quality` and a surface
+  with no scope now mean `GlassQuality.frosted`. A host that relied on
+  refraction without asking for it passes `quality: GlassQuality.fullLiquid`.
+- The frosted look samples at an eighth of device resolution with a 40 dp
+  blur radius and saturation x3, the tint at 0.76; the refracting look at a
+  quarter with a 6 dp radius, the tint at 0.85. A flat glass paints its tint
+  opaque (it was the translucent fill over unblurred content), except while
+  only a moving route keeps it flat.
+- `GlassMaterialColors.fill` is renamed `tint` (source-breaking) and is the
+  material's surface colour: the glass sets its opacity per look, and the
+  colour's own alpha multiplies it. `fromPalette` maps the panel button to
+  `surface` (was `surfaceRaised`), the light shadows to the palette shadow at
+  0x20 (a button 0x40), and the top panel's dark top edge to 0x20 white.
+- `GlassMaterial` carries `strokeWidth` (0.5, 0.5, 0.55), `shadowBlur` and
+  `shadowOffset`; the panel button's default corner radius is 18 (was 22).
+- `GlassSource.captureScale` is 1/8 (was 1/4); `refractingCaptureScale` (1/4)
+  is the scale a refracting glass captures at.
+- A frosted surface no longer needs the glass shaders, and a failed shader
+  load leaves surfaces frosted instead of on the scene filter.
+
 ### Added (stickers page copy)
 
 - `PanelStrings.stickersEmpty`, required, with English and Russian presets:
