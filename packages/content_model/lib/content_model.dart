@@ -35,3 +35,4 @@ export 'src/store/deferred_recents_store.dart';
 export 'src/store/key_value_library_storage.dart';
 export 'src/store/key_value_preference_store.dart';
 export 'src/store/key_value_recents_store.dart';
+export 'src/store/stored_content_library.dart';

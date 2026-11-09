@@ -41,8 +41,10 @@ import 'store/key_value_preference_store_test.dart'
 import 'store/key_value_recents_store_test.dart'
     as key_value_recents_store_test;
 import 'store/loaded_stores_only_test.dart' as loaded_stores_only_test;
+import 'store/stored_content_library_test.dart' as stored_content_library_test;
 import 'testing/fake_collection_source_test.dart'
     as fake_collection_source_test;
+import 'testing/fake_content_library_test.dart' as fake_content_library_test;
 import 'testing/fake_content_resolver_test.dart' as fake_content_resolver_test;
 import 'testing/fake_glyph_support_test.dart' as fake_glyph_support_test;
 import 'testing/fake_key_value_store_test.dart' as fake_key_value_store_test;
@@ -103,8 +105,16 @@ void main() {
   );
   group('store/loaded_stores_only_test.dart', loaded_stores_only_test.main);
   group(
+    'store/stored_content_library_test.dart',
+    stored_content_library_test.main,
+  );
+  group(
     'testing/fake_collection_source_test.dart',
     fake_collection_source_test.main,
+  );
+  group(
+    'testing/fake_content_library_test.dart',
+    fake_content_library_test.main,
   );
   group(
     'testing/fake_content_resolver_test.dart',

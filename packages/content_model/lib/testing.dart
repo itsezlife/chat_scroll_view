@@ -6,8 +6,10 @@
 library;
 
 export 'src/testing/collection_source_contract.dart';
+export 'src/testing/content_library_contract.dart';
 export 'src/testing/content_resolver_contract.dart';
 export 'src/testing/fake_collection_source.dart';
+export 'src/testing/fake_content_library.dart';
 export 'src/testing/fake_content_resolver.dart';
 export 'src/testing/fake_glyph_support.dart';
 export 'src/testing/fake_key_value_store.dart';
