@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart';
 ///
 /// Typography is not a token group: the face is the host's, named once in its
 /// Material text theme (`bodyMedium`), and each chrome text sets the size and
-/// weight its reference gives. Chrome text reads the face from here rather
+/// weight it needs. Chrome text reads the face from here rather
 /// than inheriting a `DefaultTextStyle`, because chrome often draws where no
 /// `Material` is above it: in an overlay entry, a popup route, or a page the
 /// host builds outside its scaffold. There the inherited style is the
@@ -17,7 +17,7 @@ abstract final class ChromeTypography {
   ///
   /// Not inheriting ([TextStyle.inherit] false), so nothing of an ambient
   /// style leaks in. The theme's letter spacing and line height are left out:
-  /// the reference draws with the platform's own spacing.
+  /// the platform's own spacing is used.
   static TextStyle of(BuildContext context) {
     final body = Theme.of(context).textTheme.bodyMedium;
     return TextStyle(

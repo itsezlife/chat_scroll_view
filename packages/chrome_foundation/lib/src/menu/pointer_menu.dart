@@ -18,7 +18,7 @@ import 'package:flutter/widgets.dart';
 
 /// Opens **pointer menus**: the popup list of rows with shortcut hints,
 /// disabled rows, separators and submenus that a secondary click opens at the
-/// pointer, drawn and driven as the reference desktop client's `Ui::PopupMenu`
+/// pointer, drawn and driven as a desktop popup menu
 /// (the plain variant, without icons).
 ///
 /// A menu is an overlay entry, so it is modal like a native one: a press
@@ -353,7 +353,7 @@ class _PointerMenuRootState extends State<_PointerMenuRoot>
     });
   }
 
-  // Drops the levels above [levelIndex] without a fade, as the reference
+  // Drops the levels above [levelIndex] without a fade, as
   // does for a submenu.
   void _closeAbove(int levelIndex) {
     if (_levels.length <= levelIndex + 1) return;

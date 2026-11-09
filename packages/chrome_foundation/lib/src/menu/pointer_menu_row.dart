@@ -314,7 +314,7 @@ class _RowPainter extends CustomPainter {
 }
 
 // The submenu chevron: a 5 x 10 stroke at x 9..14, y 7..16 of the 24 px box
-// (the reference's `menu/submenu_arrow` mask measured). The stroke width is
+// (measured from a mask). The stroke width is
 // UNVERIFIED (a mask has no stroke): 1.5.
 class _ArrowPainter extends CustomPainter {
   const _ArrowPainter({required this.color, required this.mirrored});

@@ -61,7 +61,7 @@ void main() {
     expect(style.fontFamily, 'HostFont');
     expect(style.fontFamilyFallback, ['HostFallback']);
     expect(style.fontSize, 15);
-    // The reference sets weights per text and keeps the platform's spacing.
+    // Each text sets its own weight and keeps the platform's spacing.
     expect(style.fontWeight, FontWeight.normal);
     expect(style.letterSpacing, isNull);
     expect(style.height, isNull);

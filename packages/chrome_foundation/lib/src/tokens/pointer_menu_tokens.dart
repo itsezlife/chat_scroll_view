@@ -11,9 +11,8 @@ import 'package:meta/meta.dart';
 /// `ChromeThemeScope`. The popup's geometry (corner radius, row height,
 /// padding, shadow) is not themed and lives in `PointerMenuMetrics`.
 ///
-/// [referenceDay] and [referenceNight] are the reference desktop client's own
-/// popup colours (its default and night themes), for a host that wants the
-/// reference look exactly and for the package's goldens.
+/// [referenceDay] and [referenceNight] are the day and night popup colour
+/// presets, for a host that wants that look exactly and for the package's goldens.
 @immutable
 final class PointerMenuTokens {
   /// A token group with every colour given.
@@ -58,9 +57,8 @@ final class PointerMenuTokens {
     );
   }
 
-  /// The reference client's default (day) theme: `windowBg`, `windowBgOver`,
-  /// `windowFg`, `menuFgDisabled`, `windowSubTextFg`, `menuSeparatorFg`,
-  /// `windowBgRipple` and `windowBoldFg`.
+  /// The day preset: window background and hover fill, foreground, disabled
+  /// and subtext foregrounds, separator, ripple and bold foreground.
   static const PointerMenuTokens referenceDay = PointerMenuTokens(
     background: Color(0xFFFFFFFF),
     backgroundOver: Color(0xFFF1F1F1),
@@ -75,7 +73,7 @@ final class PointerMenuTokens {
     arrow: Color(0xFF222222),
   );
 
-  /// The reference client's night theme; see [referenceDay].
+  /// The night preset; see [referenceDay].
   static const PointerMenuTokens referenceNight = PointerMenuTokens(
     background: Color(0xFF17212B),
     backgroundOver: Color(0xFF232E3C),

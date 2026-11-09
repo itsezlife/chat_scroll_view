@@ -16,7 +16,7 @@ final class PointerMenuSeparator extends PointerMenuEntry {
 /// A row: a label, an optional shortcut hint, and either an action or a
 /// submenu.
 ///
-/// A row that cannot be chosen is still shown, greyed, because the reference
+/// A row that cannot be chosen is still shown, greyed, because the desktop
 /// menus keep their shape from one state to the next; it takes no hover, no
 /// ripple, no click and is skipped by the arrow keys.
 @immutable
@@ -61,7 +61,7 @@ final class PointerMenuItem extends PointerMenuEntry {
 final class PointerMenuLabel {
   const PointerMenuLabel._(this.text, this.mnemonic);
 
-  /// Splits [raw] at its `&` marks, as the reference toolkit's menu item
+  /// Splits [raw] at its `&` marks, as a desktop menu item
   /// parser does: the first `&` before a character marks it, `&&` is one
   /// literal `&`, and any other `&` is dropped.
   factory PointerMenuLabel.parse(String raw) {

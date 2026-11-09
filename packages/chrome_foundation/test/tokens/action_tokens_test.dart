@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('fromPalette', () {
-    test('maps the light palette to the Telegram-derived floating chrome', () {
+    test('maps the light palette to the floating chrome', () {
       final tokens = ActionTokens.fromPalette(const ChromePalette.light());
       expect(tokens.floatingFill, const Color(0xFFE8EAED));
       expect(tokens.floatingSelectedFill, const Color(0xFFFFFFFF));

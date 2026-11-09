@@ -3,8 +3,7 @@ import 'package:meta/meta.dart';
 
 /// How the particles of a hidden spoiler move.
 ///
-/// The numbers are the reference client's, measured in the particle
-/// prototype: a speed and a life drawn uniformly from a range per particle,
+/// The numbers are measured in the particle prototype: a speed and a life drawn uniformly from a range per particle,
 /// and a fixed tick. Speeds are logical pixels per second, so they do not
 /// depend on the display density.
 @immutable
@@ -47,7 +46,7 @@ final class SpoilerParticleMotion {
   /// The tick under [speed], or null when the particles stand still.
   ///
   /// An instant speed (reduce-motion, lite mode) draws one frame and never
-  /// redraws, the frame-0 behaviour of both reference clients. A scaled speed
+  /// redraws, the frame-0 behaviour of the original effect. A scaled speed
   /// leaves the tick alone: it is a frame rate, and particle speeds are
   /// already per second.
   Duration? tickAt(ChromeMotionSpeed speed) => speed.isInstant ? null : tick;

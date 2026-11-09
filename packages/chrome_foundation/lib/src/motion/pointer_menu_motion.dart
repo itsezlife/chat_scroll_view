@@ -2,8 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/animation.dart';
 
-/// `easeOutCirc`: `sqrt(1 - (t - 1)^2)`, the curve the reference desktop
-/// client's popup panel grows on (`anim::easeOutCirc`).
+/// `easeOutCirc`: `sqrt(1 - (t - 1)^2)`, the curve the popup panel grows on.
 ///
 /// Flutter's `Curves` has no circular ease-out; a pointer menu's width, height
 /// and opacity each run on this curve over a fraction of one shared clock
@@ -30,7 +29,7 @@ abstract final class PointerMenuTiming {
   /// The probe may ask the user (a browser, a platform that prompts) and must
   /// not hold a menu back: the paste itself reads the clipboard again and does
   /// nothing if it is empty. **UNVERIFIED**: the value is a choice, not a
-  /// measurement; the reference menu waits for its own async hooks without
+  /// measurement; the menu waits for its own async hooks without
   /// a bound.
   static const Duration clipboardProbe = Duration(milliseconds: 300);
 
