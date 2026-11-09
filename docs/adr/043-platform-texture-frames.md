@@ -10,7 +10,8 @@ carry the frames as before.
 
 **Status**: Accepted  
 **Date**: 2026-11-08  
-**Amended**: 2026-11-09 (native-media ticket 87): a held texture keeps its last frame (row *Kept leases*); 2026-11-09 (native-media ticket 108): a warm makes room from idle textures of other classes, and a lease still on a slot asks for a texture at every sweep (row *Pool*)
+**Amended**: 2026-11-09 (native-media ticket 87): a held texture keeps its last frame (row *Kept leases*); 2026-11-09 (native-media ticket 108): a warm makes room from idle textures of other classes, and a lease still on a slot asks for a texture at every sweep (row *Pool*)  
+**Amended**: 2026-11-09 (native-media ticket 110): each lease waits only for its own frame in flight (row *Pacing*, section *Amendment: each lease waits only for its own frame*)
 **Relates to**: [ADR 022](022-asset-cache-and-media-pipeline.md) (paint surface, dynamic frame pages), [ADR 042](042-native-media-decoding.md) (engines, workers), [ADR 020](020-package-topology.md), [ADR 024](024-panel-catalog-seams.md), [ADR 030](030-testing-policy.md)
 
 ## Context
@@ -51,7 +52,7 @@ thread, and the UI isolate only places a layer.
 | Texture host seam | `catalog_assets` defines the seam and depends on no platform code: create and destroy a texture, `lock` (a pointer and a row stride) and `post` by texture id, and the host's fixed pixel format (premultiplied RGBA or BGRA, one per host). The lock and post calls run on the render isolates, so the host also gives the addresses of its C `lock` and `post` functions, which a render isolate calls through FFI; a decoder never imports the plugin. A host is registered with the asset scope at start-up. The fake in `testing.dart` backs targets with plain memory and records calls; a contract suite holds every host to the seam. |
 | Pool | Textures are square, at the edge of a size class of the dynamic pages (64, 128, 256, 384, 512 px), and pooled by class. A lease never creates a texture: it takes an idle one or answers none, and the asset keeps its page slot. The host warms a number per class when a surface that plays opens (`warm`), off the frame path; warming waits while a surface scrolls, so a texture is never created during a glide. A released texture idles in the pool; past an idle limit the oldest is destroyed, and memory pressure destroys every idle one. The pool has its own byte budget (default 48 MiB, every buffer of the platform's queue counted), apart from each decoder's page budget. A warm the budget does not cover destroys idle textures of other classes, released longest ago first, to make room (never a leased one); textures warmed for a surface that is gone would otherwise hold the budget while the surface on screen plays from pages. A lease on a slot that may take a texture asks its class to be warmed when it begins and again at every sweep, so a lease that left a canvas, or began while the budget was spent, does not stay on a slot for its whole life. |
 | Writing | The render worker writes the frame straight into the locked target at its stride, then posts: no page memory, no copy on the UI isolate. An asset that is not square is written at its fitted size with transparent margins, as on a page slot. The Lottie wrapper and the video wrapper already render into a caller buffer with a stride, so the engines do not change; the frame cache restores into the locked target the same way, reading a persisted frame from its file on the render isolate ([ADR 022](022-asset-cache-and-media-pipeline.md), *Amendment: frames read from the file*). A target that cannot be locked at once is skipped for that frame (the texture keeps its previous frame); the worker never waits for the compositor. |
-| Pacing | The scheduler that asks frames for slots asks them for textures: the same fps cap by size, the same pause layers and the same idle release. A texture is posted at most once per frame of the clock. |
+| Pacing | The scheduler that asks frames for slots asks them for textures: the same fps cap by size, the same pause layers and the same idle release. A texture is posted at most once per frame of the clock. Each lease waits only for its own frame in flight, and each texture frame is a write of its own (*Amendment: each lease waits only for its own frame*). |
 | Compositing | A consumer adds texture layers inside its own clip and in paint order: anything it paints under a cell (a press wash) stays in the picture before the layer, anything over a cell goes in a picture after it. A texture layer cannot crop and always shows its whole square, so the frame, not the square, is fitted: a cover fit (a GIF cell) gets a clip layer of its own, as does a corner radius; an opacity below one wraps the texture layer in an opacity layer. Stills and glyphs stay in the batched atlas draw; only playing assets become layers. |
 | Platforms | Android: a texture is a `SurfaceProducer` and its window (`ANativeWindow_lock` / `unlockAndPost`). iOS and macOS: a `FlutterTexture` over a small ring of IOSurface-backed `CVPixelBuffer`s (a `CVPixelBufferPool` with at most three out: the newest, the engine's previous frame, the one being written), premultiplied BGRA; the post signals `textureFrameAvailable` on the main thread. Windows and Linux: no texture host in the first build (pages with the synchronous upload where the engine has it). Web: no texture host; the worker path of ADR 042 stays. |
 | Package | One new plugin package, `frame_texture`: the Android and Apple hosts, their C entry points for the worker (`lock` / `post` by texture id), and the Dart implementation of the seam. It depends on `catalog_assets` for the seam only; the decoders do not depend on it, they see the seam. |
@@ -114,3 +115,22 @@ again. A cell that leaves the attach window gives its lease back as before;
 its entry and its position stay in the cache. Kept leases count against the
 texture and page budgets like painted ones: a kept panel can leave fewer
 textures for the chat, which then plays on page slots.
+
+## Amendment: each lease waits only for its own frame
+
+Native-media ticket 110. The schedulers kept one batch in flight for every
+lease: while it ran, every next tick was skipped for all of them, so one
+slow frame (a panel of stickers rendering, a slow video worker) cost every
+other animation that clock frame, and a batch is answered whole, so each
+texture in it was posted only when the slowest job ended. With the sticker
+panel open, a chat sticker measured about 40 changes a second at an uneven
+cadence instead of 60.
+
+| Area | Decision |
+| ---- | -------- |
+| In flight | Per lease. A lease with a frame being rendered or written is sent nothing more until it ends, and its latest want goes out on the first tick after; no lease waits for another's frame. |
+| Granularity | The leases on page slots of one tick share one atlas batch (a page is uploaded once for the cells that changed on it); each lease on a texture is a write of its own, so its post lands when its own frame is done. |
+| Overlap | Batches and writes of different ticks overlap. The atlas runs its batches one after the other; the Lottie render isolate answers requests in arrival order, and a video clip's writes go to the worker that decodes it; a lease has at most one frame out, so its frames land in order. |
+| Kept rules | A texture is posted at most once a clock frame (one frame out per lease, sent only on a tick); a texture is shown after three posts of its lease (ticket 82); a texture a lease lets go during its write goes back to the pool when that write ends; a lease with a frame in flight moves to a texture only after it ends, so a write always names the texture its lease holds. Kept leases, the parity fills and the frame-file reads are unchanged. |
+| Cost | One isolate message per texture frame instead of one per tick; the posts of a tick no longer land together, which ticket 99 (posts of a tick in one burst) has to weigh against per-lease cadence. |
+| Render isolates | With one Lottie render isolate the leases still shared its time, and the chat's sticker queued behind a panel's cells (measured worse than before, about 30 changes a second): Lottie renders on a pool of isolates, and a tick sends its largest texture frames first ([ADR 042](042-native-media-decoding.md), *Amendment: a pool of render isolates*). |

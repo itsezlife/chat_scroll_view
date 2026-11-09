@@ -6,6 +6,11 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (testing)
+
+- `FakeTextureFrameWriter.hold(id)` / `letGo(id)` hold only the batches that
+  name one texture, to model one slow asset among fast ones.
+
 ### Changed (the download shows from the start)
 
 - `ContentFetcher.needsDownload(key)` is new and every fetcher implements it:

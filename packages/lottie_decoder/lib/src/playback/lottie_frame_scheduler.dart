@@ -49,8 +49,12 @@ final class LottieFrameLease {
   // still, shows.
   int _posts = 0;
   int _missedLocks = 0;
-  // Whether a batch in flight names the texture: it goes back to the pool
-  // only when that batch ends, so no other asset's write races it.
+  // Whether this lease has a frame in flight, on its slot or its texture: it
+  // is sent nothing more until that frame ends, and no other lease waits for
+  // it.
+  bool _inFlight = false;
+  // Whether the write in flight names the texture: it goes back to the pool
+  // only when that write ends, so no other asset's write races it.
   bool _writing = false;
 
   // The frame the paintable wants now, the one last sent to the renderer, and
@@ -101,6 +105,7 @@ final class LottieFrameLease {
   bool get _needsRender =>
       !_released &&
       !_failed &&
+      !_inFlight &&
       (_slot != null || _texture != null) &&
       _wanted != null &&
       _wanted != _requested;
@@ -110,7 +115,7 @@ final class LottieFrameLease {
 }
 
 /// The one owner of a host's [FrameAtlas]: it works out, once per clock tick,
-/// which frames the visible animations want and renders them as one batch.
+/// which frames the visible animations want and sends each lease its own.
 ///
 /// Paintables are pull-driven and never schedule: at paint time one calls
 /// [want] with the frame its clock time asks for. The scheduler drives itself
@@ -120,11 +125,19 @@ final class LottieFrameLease {
 ///
 /// ## A tick
 ///
-/// If no batch is in flight and some lease wants a frame it was not sent, one
-/// [FrameAtlas.render] goes out with the latest want of each. A want made while
-/// a batch runs replaces the one before it and waits for the next tick: a slow
-/// renderer coalesces, it never queues. A want for the frame already sent is
-/// free, so a paused animation costs nothing. A paintable at half frame rate
+/// Each lease that wants a frame it was not sent, and has no frame in flight,
+/// is sent its latest want: the leases on slots together, as one
+/// [FrameAtlas.render], each lease on a texture as a write of its own. A lease
+/// waits only for its own frame: a want made while that frame runs replaces
+/// the one before it and goes out on the first tick after it ends, so a slow
+/// frame coalesces, it never queues, and it never holds back another lease's
+/// next frame (the reference client schedules each animation's next frame on
+/// its own, the same way). Batches therefore overlap: the atlas runs its own
+/// one after the other, and each render isolate answers in the order it was
+/// sent, an animation always on the same one, so a lease's frames land in
+/// order. Of the writes of a tick the largest frame goes first, as the one
+/// most in view. A want for the frame already sent is free, so a paused
+/// animation costs nothing. A paintable at half frame rate
 /// (`AssetProfile.halfFrameRate`) wants only every second frame, so its slot
 /// or texture is rendered and posted half as often, by the same rule.
 ///
@@ -155,9 +168,12 @@ final class LottieFrameLease {
 /// its slot until the texture is shown so nothing flashes.
 ///
 /// Textures are asked like slots: the same wants, the same pause layers, the
-/// same sweep. A tick sends one batch to the writer next to the one to the
-/// atlas, and no tick starts while either runs, so a texture is posted at
-/// most once a clock frame. A frame whose texture could not be locked is
+/// same sweep. A tick sends a write for each lease on a texture next to the
+/// batch to the atlas, and a lease is sent nothing while its frame runs, so a
+/// texture is posted at most once a clock frame. One write per lease, not one
+/// batch per tick: a batch is answered whole, so every lease in it would wait
+/// for its slowest frame, and a batch that ran past a clock frame would cost
+/// every lease that frame. A frame whose texture could not be locked is
 /// skipped and asked again; [lockFailureLimit] such frames in a row discard
 /// the texture and send the asset back to a page slot for the life of the
 /// scheduler (ADR 043, "Failure").
@@ -211,11 +227,10 @@ final class LottieFrameScheduler {
   final Set<Object> _refused = <Object>{};
   // Size classes a lease found no texture of since the last warm.
   final Set<int> _classesToWarm = <int>{};
-  // Textures of released leases that a batch in flight still names.
-  final List<FrameTextureLease> _returnAfterBatch = [];
+  // Textures leases let go of that a write in flight still names.
+  final Set<FrameTextureLease> _returnAfterWrite = {};
   PlaybackSubscription? _following;
   Timer? _sweep;
-  bool _inFlight = false;
   bool _disposed = false;
 
   /// Leases alive now.
@@ -290,7 +305,7 @@ final class LottieFrameScheduler {
     if (_disposed) return;
     List.of(_leases.values).forEach(_release);
     _disposed = true;
-    _returnAfterBatch
+    _returnAfterWrite
       ..forEach(_giveBack)
       ..clear();
     _atlas.dispose();
@@ -365,11 +380,13 @@ final class LottieFrameScheduler {
     if (pool == null || pool.idleTextures == 0) return;
     for (final lease in _leases.values) {
       // A kept lease stays where its frame is on screen: a move would render
-      // that frame again into the texture.
+      // that frame again into the texture. A lease with a frame in flight
+      // moves once it ends, so its write always names the texture it holds.
       if (lease._texture != null ||
           lease._failed ||
           lease._onCanvas ||
-          lease._kept) {
+          lease._kept ||
+          lease._inFlight) {
         continue;
       }
       final texture = _textureFor(lease);
@@ -409,7 +426,7 @@ final class LottieFrameScheduler {
     if (discard) {
       texture.discard();
     } else if (lease._writing) {
-      _returnAfterBatch.add(texture);
+      _returnAfterWrite.add(texture);
     } else {
       _giveBack(texture);
     }
@@ -437,7 +454,7 @@ final class LottieFrameScheduler {
     final texture = lease._texture;
     if (texture != null) {
       if (lease._writing && !_disposed) {
-        _returnAfterBatch.add(texture);
+        _returnAfterWrite.add(texture);
       } else {
         _giveBack(texture);
       }
@@ -453,30 +470,24 @@ final class LottieFrameScheduler {
   // --- A tick ---
 
   void _onTick(Duration now) {
-    if (_inFlight) return;
     _moveToTextures();
     final onSlots = <LottieFrameLease>[];
     final onTextures = <LottieFrameLease>[];
     for (final lease in _leases.values) {
       if (!lease._needsRender) continue;
-      lease._requested = lease._wanted;
+      lease
+        .._requested = lease._wanted
+        .._inFlight = true;
       (lease._texture != null ? onTextures : onSlots).add(lease);
     }
-    if (onSlots.isEmpty && onTextures.isEmpty) return;
-    _inFlight = true;
-    unawaited(
-      Future.wait([
-        if (onSlots.isNotEmpty) _renderSlots(onSlots),
-        if (onTextures.isNotEmpty) _writeTextures(onTextures),
-      ]).whenComplete(_endBatch),
-    );
-  }
-
-  void _endBatch() {
-    _inFlight = false;
-    _returnAfterBatch
-      ..forEach(_giveBack)
-      ..clear();
+    if (onSlots.isNotEmpty) unawaited(_renderSlots(onSlots));
+    // The largest frames go first: a render isolate answers in arrival
+    // order, so this puts the surface in front (a chat sticker) ahead of the
+    // small cells of a panel queued on the same isolate. The sort is stable,
+    // so leases of one size keep their order.
+    onTextures
+      ..sort((a, b) => (b._width * b._height).compareTo(a._width * a._height))
+      ..forEach(_writeTexture);
   }
 
   Future<void> _renderSlots(List<LottieFrameLease> due) async {
@@ -493,58 +504,55 @@ final class LottieFrameScheduler {
       }
     } on Object catch (error, stack) {
       _batchFailed(due, error, stack, 'while rendering a batch of frames');
+    } finally {
+      for (final lease in due) {
+        lease._inFlight = false;
+      }
     }
   }
 
-  Future<void> _writeTextures(List<LottieFrameLease> due) async {
-    for (final lease in due) {
-      lease._writing = true;
-    }
-    final textures = [for (final lease in due) lease._texture!];
+  Future<void> _writeTexture(LottieFrameLease lease) async {
+    lease._writing = true;
+    final texture = lease._texture!;
     try {
       final outcomes = await _writer!.write([
-        for (var i = 0; i < due.length; i++)
-          TextureFrameJob(
-            texture: textures[i].texture,
-            frame: due[i]._requested!,
-            width: due[i]._width,
-            height: due[i]._height,
-            source: due[i]._source,
-          ),
+        TextureFrameJob(
+          texture: texture.texture,
+          frame: lease._requested!,
+          width: lease._width,
+          height: lease._height,
+          source: lease._source,
+        ),
       ]);
-      for (var i = 0; i < due.length; i++) {
-        final lease = due[i];
-        // A lease released or moved off this texture meanwhile is not told.
-        if (lease._released || !identical(lease._texture, textures[i])) {
-          continue;
-        }
-        switch (outcomes[i]) {
-          case TextureFrameOutcome.posted:
-            lease
-              .._posts += 1
-              .._missedLocks = 0;
-            // Shown now: the slot it came from goes.
-            if (lease._shown) {
-              lease._slot?.release();
-              lease._slot = null;
-            }
-          case TextureFrameOutcome.notLocked:
-            // Skipped: the texture keeps its previous frame and the want is
-            // asked again on the next tick.
-            lease._requested = null;
-            if (++lease._missedLocks >= lockFailureLimit) {
-              _refuseTexture(lease);
-            }
-          case TextureFrameOutcome.failed:
-            lease._failed = true;
-        }
+      // A lease released or moved off this texture meanwhile is not told.
+      if (lease._released || !identical(lease._texture, texture)) return;
+      switch (outcomes.single) {
+        case TextureFrameOutcome.posted:
+          lease
+            .._posts += 1
+            .._missedLocks = 0;
+          // Shown now: the slot it came from goes.
+          if (lease._shown) {
+            lease._slot?.release();
+            lease._slot = null;
+          }
+        case TextureFrameOutcome.notLocked:
+          // Skipped: the texture keeps its previous frame and the want is
+          // asked again on the next tick.
+          lease._requested = null;
+          if (++lease._missedLocks >= lockFailureLimit) {
+            _refuseTexture(lease);
+          }
+        case TextureFrameOutcome.failed:
+          lease._failed = true;
       }
     } on Object catch (error, stack) {
-      _batchFailed(due, error, stack, 'while writing a batch of textures');
+      _batchFailed([lease], error, stack, 'while writing a texture');
     } finally {
-      for (final lease in due) {
-        lease._writing = false;
-      }
+      lease
+        .._writing = false
+        .._inFlight = false;
+      if (_returnAfterWrite.remove(texture)) _giveBack(texture);
     }
   }
 

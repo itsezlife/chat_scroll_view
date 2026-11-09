@@ -10,8 +10,9 @@ import 'package:lottie_decoder/lottie_decoder.dart';
 /// which is the probe: it throws a [LottieUnavailable] naming why when the
 /// library is missing or speaks another version.
 ///
-/// [spawn] is `IsolateLottieEngine.spawn` unless a test passes an engine of
-/// its own. The probe means "the engine could not start, for any reason": on
+/// [spawn] starts a pool of render isolates, as many as
+/// `IsolateLottieEngine.defaultWorkers` says or the `LOTTIE_WORKERS` define
+/// (1 to 4) asks, unless a test passes an engine of its own. The probe means "the engine could not start, for any reason": on
 /// any failure it logs once, with the error's type, and answers null, so
 /// nothing is registered and vector animations keep their placeholder.
 ///
@@ -21,7 +22,7 @@ import 'package:lottie_decoder/lottie_decoder.dart';
 /// unused, so the cache keeps no disk budget of its own. The playback owns
 /// the cache and disposes it on close.
 ///
-/// With [textures] (ADR 043) the render isolate also writes playing
+/// With [textures] (ADR 043) the render isolates also write playing
 /// animations into the pool's platform textures; the scroll lab's `textures`
 /// switch turns that off and on at run time.
 Future<LottiePlayback?> $startLottiePlayback({
@@ -29,7 +30,7 @@ Future<LottiePlayback?> $startLottiePlayback({
   required Listenable memoryPressure,
   FrameTexturePool? textures,
   String? cacheDirectory,
-  Future<LottieSlotEngine> Function() spawn = IsolateLottieEngine.spawn,
+  Future<LottieSlotEngine> Function() spawn = _spawnRenderPool,
 }) async {
   final LottieSlotEngine engine;
   try {
@@ -86,3 +87,14 @@ Future<LottiePlayback?> $startLottiePlayback({
     ],
   );
 }
+
+/// The `LOTTIE_WORKERS` define: the render isolates to start, 0 (unset) for
+/// the device's default. A build switch for an A/B arm, as the pool is fixed
+/// at start.
+const int _workersDefine = int.fromEnvironment('LOTTIE_WORKERS');
+
+Future<LottieSlotEngine> _spawnRenderPool() => IsolateLottieEngine.spawn(
+  workers: _workersDefine == 0
+      ? IsolateLottieEngine.defaultWorkers
+      : _workersDefine.clamp(1, IsolateLottieEngine.maxWorkers),
+);

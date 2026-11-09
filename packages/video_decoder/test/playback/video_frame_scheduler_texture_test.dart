@@ -139,6 +139,46 @@ void main() {
       },
     );
 
+    test('a slow write of one clip never delays the next frame of '
+        'another', () async {
+      await pool.warm(64, 2);
+      final slowClip = await openClip();
+      final fastClip = await openClip();
+      final slow = scheduler.acquire('slow', slowClip)!;
+      final fast = scheduler.acquire('fast', fastClip)!;
+      scheduler
+        ..want(slow, Duration.zero)
+        ..want(fast, Duration.zero);
+      await settle();
+      int idOf(VideoClip clip) => writer.inner.batches
+          .expand((batch) => batch)
+          .firstWhere((job) => (job.source as VideoFrameSource).clip == clip)
+          .texture
+          .id;
+      final slowId = idOf(slowClip);
+      final fastId = idOf(fastClip);
+      writer.inner.batches.clear();
+
+      writer.inner.hold(slowId);
+      for (final ms in const [34, 67]) {
+        scheduler
+          ..want(slow, Duration(milliseconds: ms))
+          ..want(fast, Duration(milliseconds: ms));
+        await settle();
+      }
+
+      final posted = writer.inner.posts.toList();
+      expect(
+        posted.where((id) => id == fastId),
+        hasLength(2),
+        reason: 'each of its frames while the other write is held',
+      );
+      expect(posted.where((id) => id == slowId), isEmpty);
+      writer.inner.letGo(slowId);
+      await pumpEventQueue();
+      expect(writer.inner.posts.where((id) => id == slowId), hasLength(1));
+    });
+
     test('the texture names the frame it holds, centred in it', () async {
       await pool.warm(64, 1);
       final lease = scheduler.acquire('a', await openClip())!;

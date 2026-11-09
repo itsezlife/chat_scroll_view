@@ -14,6 +14,7 @@ import 'glass/glass_public_api_test.dart' as glass_public_api_test;
 import 'glass/glass_shaders_test.dart' as glass_shaders_test;
 import 'glass/glass_source_test.dart' as glass_source_test;
 import 'glass/glass_strategy_test.dart' as glass_strategy_test;
+import 'glass/glass_style_test.dart' as glass_style_test;
 import 'glass/glass_surface_route_test.dart' as glass_surface_route_test;
 import 'glass/glass_surface_test.dart' as glass_surface_test;
 import 'icons/chrome_icon_registry_test.dart' as chrome_icon_registry_test;
@@ -59,6 +60,7 @@ void main() {
   group('glass/glass_layer_watch_test.dart', glass_layer_watch_test.main);
   group('glass/glass_source_test.dart', glass_source_test.main);
   group('glass/glass_strategy_test.dart', glass_strategy_test.main);
+  group('glass/glass_style_test.dart', glass_style_test.main);
   group('glass/glass_surface_route_test.dart', glass_surface_route_test.main);
   group('glass/glass_surface_test.dart', glass_surface_test.main);
   group('icons/chrome_icon_registry_test.dart', chrome_icon_registry_test.main);

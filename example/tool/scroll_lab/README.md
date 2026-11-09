@@ -55,6 +55,7 @@ The on/off switches (`lab_set <key> --ez value true|false`, or `LAB_ON` in
 | `plain` | yes | message bodies as plain text |
 | `textures` | no | playing Lottie and video assets on platform textures |
 | `glass` | no | the glass capture of the chat; off, every glass paints flat |
+| `liquid` | yes | the glass refracts at its rim instead of the frosted look |
 
 `video_cap` takes a number (`--es value 4`); `pool` logs the texture pool
 (`LAB pool leased=.. idle=.. bytes=.. budget=..`). An arm with the glass off:

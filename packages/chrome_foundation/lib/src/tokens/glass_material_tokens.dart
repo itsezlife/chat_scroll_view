@@ -13,14 +13,19 @@ import 'package:meta/meta.dart';
 final class GlassMaterialColors {
   /// A material with every colour given.
   const GlassMaterialColors({
-    required this.fill,
+    required this.tint,
     required this.strokeTop,
     required this.strokeBottom,
     required this.shadow,
   });
 
-  /// Tint drawn over the sampled backdrop.
-  final Color fill;
+  /// The material's surface colour, drawn over the frosted backdrop.
+  ///
+  /// The glass sets its opacity, not the theme: 0.85 over a refracting
+  /// backdrop, 0.76 over a frosted one, and opaque where no backdrop is read
+  /// (a flat glass shows none of the content it would have frosted). The
+  /// colour's own alpha multiplies that opacity.
+  final Color tint;
 
   /// Top edge highlight.
   final Color strokeTop;
@@ -33,12 +38,12 @@ final class GlassMaterialColors {
 
   /// A copy with the named colours replaced.
   GlassMaterialColors copyWith({
-    Color? fill,
+    Color? tint,
     Color? strokeTop,
     Color? strokeBottom,
     Color? shadow,
   }) => GlassMaterialColors(
-    fill: fill ?? this.fill,
+    tint: tint ?? this.tint,
     strokeTop: strokeTop ?? this.strokeTop,
     strokeBottom: strokeBottom ?? this.strokeBottom,
     shadow: shadow ?? this.shadow,
@@ -52,7 +57,7 @@ final class GlassMaterialColors {
     GlassMaterialColors b,
     double t,
   ) => GlassMaterialColors(
-    fill: Color.lerp(a.fill, b.fill, t)!,
+    tint: Color.lerp(a.tint, b.tint, t)!,
     strokeTop: Color.lerp(a.strokeTop, b.strokeTop, t)!,
     strokeBottom: Color.lerp(a.strokeBottom, b.strokeBottom, t)!,
     shadow: Color.lerp(a.shadow, b.shadow, t)!,
@@ -62,16 +67,16 @@ final class GlassMaterialColors {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is GlassMaterialColors &&
-          fill == other.fill &&
+          tint == other.tint &&
           strokeTop == other.strokeTop &&
           strokeBottom == other.strokeBottom &&
           shadow == other.shadow;
 
   @override
-  int get hashCode => Object.hash(fill, strokeTop, strokeBottom, shadow);
+  int get hashCode => Object.hash(tint, strokeTop, strokeBottom, shadow);
 
   @override
-  String toString() => 'GlassMaterialColors(fill: $fill)';
+  String toString() => 'GlassMaterialColors(tint: $tint)';
 }
 
 /// Palette-derived colours of the named glass materials.
@@ -91,28 +96,33 @@ final class GlassMaterialTokens {
 
   /// The default mapping of [palette] roles onto the named materials.
   ///
-  /// Each material tints its surface role at 85% opacity. Light strokes are
-  /// opaque white; dark strokes are faint white. The light shadow is the
-  /// palette shadow at 12.5% and dark materials cast none.
+  /// The composer island and panel buttons tint [ChromePalette.surface], the
+  /// top panel [ChromePalette.surfaceDim]. Light edges are opaque white; dark
+  /// edges are faint white, the top one stronger than the bottom. Light
+  /// materials cast the palette shadow (the island and the top panel at
+  /// 0x20, a floating button at 0x40); dark materials cast none.
   factory GlassMaterialTokens.fromPalette(ChromePalette palette) {
     final isDark = palette.brightness == Brightness.dark;
-    final strokeTop = isDark
-        ? const Color(0x28FFFFFF)
-        : const Color(0xFFFFFFFF);
-    final strokeBottom = isDark
-        ? const Color(0x14FFFFFF)
-        : const Color(0xFFFFFFFF);
-    final shadow = palette.shadow.withValues(alpha: isDark ? 0 : 0.125);
-    GlassMaterialColors material(Color surface) => GlassMaterialColors(
-      fill: surface.withValues(alpha: 0.85),
-      strokeTop: strokeTop,
-      strokeBottom: strokeBottom,
-      shadow: shadow,
+    const white = Color(0xFFFFFFFF);
+    Color shadow(int alpha) => palette.shadow.withAlpha(isDark ? 0 : alpha);
+    GlassMaterialColors material(
+      Color tint, {
+      required int darkTop,
+      required int shadowAlpha,
+    }) => GlassMaterialColors(
+      tint: tint,
+      strokeTop: isDark ? white.withAlpha(darkTop) : white,
+      strokeBottom: isDark ? white.withAlpha(0x14) : white,
+      shadow: shadow(shadowAlpha),
     );
     return GlassMaterialTokens(
-      composerIsland: material(palette.surface),
-      panelButton: material(palette.surfaceRaised),
-      topPanel: material(palette.surfaceDim),
+      composerIsland: material(
+        palette.surface,
+        darkTop: 0x28,
+        shadowAlpha: 0x20,
+      ),
+      panelButton: material(palette.surface, darkTop: 0x28, shadowAlpha: 0x40),
+      topPanel: material(palette.surfaceDim, darkTop: 0x20, shadowAlpha: 0x20),
     );
   }
 
