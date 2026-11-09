@@ -6,6 +6,15 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (pack sheet text and focus)
+
+- A pack sheet's text no longer falls back to the debug style (yellow double
+  underline, fallback font): both routes take the text style of the context
+  that opened the sheet, in the chrome palette's `onSurface`.
+- Opening a pack sheet no longer takes focus from the composer, so a raised
+  keyboard stays up; the sheet lays out above the keyboard (view insets).
+  Back and the barrier still dismiss it.
+
 ### Changed (pack sheet parity)
 
 - A tall pack sheet on touch now opens with its card two fifths down the
