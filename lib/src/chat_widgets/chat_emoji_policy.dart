@@ -102,8 +102,8 @@ sealed class ChatEmojiPolicy {
   const factory ChatEmojiPolicy.ios() = ChatEmojiPolicy$Ios;
 
   /// The desktop family's policy (also the web's). [regularLimit] is how many
-  /// regular emoji an emoji-only message may hold and still be enlarged, 3 in
-  /// the reference client; the other families have no cap, so only this one
+  /// regular emoji an emoji-only message may hold and still be enlarged, 3 by default;
+  /// the other families have no cap, so only this one
   /// takes it.
   const factory ChatEmojiPolicy.desktop({int regularLimit}) =
       ChatEmojiPolicy$Desktop;
@@ -316,7 +316,7 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
   /// The gap between two images of a line.
   static const double imageSkip = 2;
 
-  /// The reference client's cap on enlarged regular emoji.
+  /// The default cap on enlarged regular emoji.
   static const int defaultRegularLimit = 3;
 
   /// The most regular emoji an emoji-only message holds and is still
@@ -328,13 +328,12 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
   /// The sticker's side.
   static const double stickerExtent = 112;
 
-  // `0.7 * 112` and `0.52 * 112`, rounded as the reference rounds them.
+  // `0.7 * 112` and `0.52 * 112`, rounded to whole numbers.
   static const List<double> _customBoxByDimension = [112, 78, 58, 38, 38];
 
   /// The box of a custom emoji in a message of 6 or 7 along its larger side.
   ///
-  /// Unverified: the reference takes it from an emoji-size table that is not
-  /// in the checkout. It is not larger than the box a message of 4 or 5 has,
+  /// Unverified: no measured source fixes it. It is not larger than the box a message of 4 or 5 has,
   /// so the isolated value is used.
   static const double unverifiedLargeCustomBox = 38;
 
@@ -384,9 +383,8 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
   ChatEmojiHeaderPlacement headerPlacementFor(ChatEmojiLayoutKind kind) =>
       ChatEmojiHeaderPlacement.besideWhenFits;
 
-  // Unverified: the reference draws a regular emoji of a sentence as an image
-  // of the font's line, not of its glyph (the sizes are in `lib_ui`, absent
-  // from the checkout). The same box as a custom emoji in text (1.2 times the
+  // Unverified: a regular emoji of a sentence is drawn as an image of the
+  // font's line, not of its glyph. The same box as a custom emoji in text (1.2 times the
   // font's height), so that one message does not mix two sizes.
   @override
   double get inTextEmojiScale => 1.2;
