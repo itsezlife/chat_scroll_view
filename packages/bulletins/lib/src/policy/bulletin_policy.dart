@@ -168,9 +168,13 @@ sealed class BulletinTransition {
   }) = BulletinTransition$Slide;
 
   /// Fades in while growing from [fromScale], and fades out while shrinking
-  /// back to it, timed by the `bulletinShow` and `bulletinHide` motion roles.
-  const factory BulletinTransition.fadeScale({double fromScale}) =
-      BulletinTransition$FadeScale;
+  /// back to it. [enter] and [exit] time the fade and the scale apart; a
+  /// null one times both by the `bulletinShow` or `bulletinHide` motion role.
+  const factory BulletinTransition.fadeScale({
+    double fromScale,
+    BulletinFadeScaleMotion? enter,
+    BulletinFadeScaleMotion? exit,
+  }) = BulletinTransition$FadeScale;
 
   /// Fades in and out over [enter] and [exit]; a null one is timed by the
   /// `bulletinShow` or `bulletinHide` motion role.
@@ -221,17 +225,60 @@ final class BulletinTransition$Slide extends BulletinTransition {
 final class BulletinTransition$FadeScale extends BulletinTransition {
   /// A fade and scale; the default start scale is the reference iOS
   /// client's.
-  const BulletinTransition$FadeScale({this.fromScale = 0.96}) : super._();
+  const BulletinTransition$FadeScale({
+    this.fromScale = 0.96,
+    this.enter,
+    this.exit,
+  }) : super._();
 
   /// The scale the card grows from and shrinks to.
   final double fromScale;
 
-  @override
-  bool operator ==(Object other) =>
-      other is BulletinTransition$FadeScale && other.fromScale == fromScale;
+  /// How the fade and the scale run in; null for the `bulletinShow` role on
+  /// both.
+  final BulletinFadeScaleMotion? enter;
+
+  /// How they run out; null for the `bulletinHide` role on both.
+  final BulletinFadeScaleMotion? exit;
 
   @override
-  int get hashCode => Object.hash(BulletinTransition$FadeScale, fromScale);
+  bool operator ==(Object other) =>
+      other is BulletinTransition$FadeScale &&
+      other.fromScale == fromScale &&
+      other.enter == enter &&
+      other.exit == exit;
+
+  @override
+  int get hashCode =>
+      Object.hash(BulletinTransition$FadeScale, fromScale, enter, exit);
+}
+
+/// The two clocks of one direction of a [BulletinTransition.fadeScale]: the
+/// fade and the scale, each with its own duration and curve.
+///
+/// The reference iOS client runs them apart (a 0.3 s fade under a 0.5 s
+/// scale), which one motion role cannot say. Both start together; the card
+/// has entered when the longer one ends, and has left when the fade ends,
+/// since nothing is visible after it.
+@immutable
+final class BulletinFadeScaleMotion {
+  /// A fade on [opacity] and a scale on [scale].
+  const BulletinFadeScaleMotion({required this.opacity, required this.scale});
+
+  /// The fade's duration and curve.
+  final MotionSpec opacity;
+
+  /// The scale's duration and curve.
+  final MotionSpec scale;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BulletinFadeScaleMotion &&
+      other.opacity == opacity &&
+      other.scale == scale;
+
+  @override
+  int get hashCode => Object.hash(opacity, scale);
 }
 
 /// The [BulletinTransition.fade] transition.
@@ -359,15 +406,54 @@ base class BulletinPolicy$Android extends BulletinPolicy {
   double get pressScale => 0.98;
 }
 
-/// The reference iOS client's undo overlay (`UndoOverlayController`): a card
-/// at the bottom that fades and scales in and out, with no swipe and no
-/// pause.
+/// The reference iOS client's undo overlay (`UndoOverlayController`): a
+/// blurred card at the bottom (or top) that fades and scales in and out, with
+/// no swipe and no pause.
+///
+/// The constructor takes the reference's per-overlay `Appearance` and
+/// `elevatedLayout` (`UndoOverlayController.swift:86-98`), which here belong
+/// to the surface: [sideInset], [bottomInset], [elevated] and [narrow].
+///
+/// Line numbers below are in `UndoOverlayControllerNode.swift` of the
+/// reference, `submodules/UndoUI`.
 base class BulletinPolicy$IOS extends BulletinPolicy {
   /// The iOS family.
-  const BulletinPolicy$IOS();
+  const BulletinPolicy$IOS({
+    this.sideInset = 12,
+    this.bottomInset,
+    this.elevated = false,
+    this.narrow = false,
+  });
 
-  /// A plain notice stays 3 s there (copy, link copied, media saved), one
-  /// with a button 5 s.
+  /// The space between the card and the area's edges, on every side
+  /// (`sideInset ?? 12`, :1936; the same value spaces it from the bottom and
+  /// the top, :2008, :2016).
+  final double sideInset;
+
+  /// Extra space under a bottom card, over [sideInset]; null for none, or
+  /// [elevatedInset] when [elevated]. Wins over [elevated] (:1996-1999).
+  final double? bottomInset;
+
+  /// Whether the surface has a bar under the bulletin that the obstruction
+  /// does not include (a tab bar, an input panel): the card then sits
+  /// [elevatedInset] higher (`elevatedLayout`, :1998-1999).
+  final bool elevated;
+
+  /// Whether the card is [narrowWidth] wide instead of the full width
+  /// (`isNarrow`, :2004-2005).
+  final bool narrow;
+
+  /// The rise of an [elevated] card (:1999).
+  static const double elevatedInset = 49;
+
+  /// The width of a [narrow] card (:2005).
+  static const double narrowWidth = 210;
+
+  /// A plain notice stays 3 s (copy :1046, link copied :355, media saved
+  /// :1067, a sticker or `universal` without a link :953, :1152); one with
+  /// Undo 5 s (removed chat :176, archived :204, action succeeded :332).
+  /// A long text gets no more time there: copy and link copied keep 3 s
+  /// whatever their length.
   @override
   Duration timeoutOf(BulletinDurationClass duration) => switch (duration) {
     BulletinDurationClass.short => const Duration(seconds: 3),
@@ -379,24 +465,39 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
   BulletinPlacement get placement => BulletinPlacement.bottom;
 
   @override
-  EdgeInsets get margin => const EdgeInsets.fromLTRB(12, 8, 12, 8);
+  EdgeInsets get margin => EdgeInsets.fromLTRB(
+    sideInset,
+    sideInset,
+    sideInset,
+    sideInset + (bottomInset ?? (elevated ? elevatedInset : 0)),
+  );
 
+  /// `max(50, contentHeight)` (:1989).
   @override
   double get minHeight => 50;
 
+  /// :1576, drawn with the continuous corner curve (:1700).
   @override
   double get cornerRadius => 25;
 
+  /// The text block has 10 above and 10 below it (`contentHeight = 20 +
+  /// ...`, :1934); the action label ends 16 from the right edge (`rightInset`,
+  /// :1933). The left 16 applies only without a leading, a case the
+  /// reference does not have: there the text starts at the leading slot's
+  /// end.
   @override
-  EdgeInsets get contentPadding =>
-      const EdgeInsets.symmetric(horizontal: 16, vertical: 10);
+  EdgeInsets get contentPadding => const EdgeInsets.fromLTRB(16, 10, 16, 10);
 
+  /// `leftInset` (:1918): the slot runs from the card's edge and the text
+  /// starts at its end; the leading is centred in it.
   @override
-  double get leadingWidth => 38;
+  double get leadingWidth => 50;
 
+  /// An animated leading's frame (32 by 32, :2138).
   @override
-  double get iconSize => 28;
+  double get iconSize => 32;
 
+  /// Every text is 14: regular, semibold for the title (:149-150, :194).
   @override
   double get messageTextSize => 14;
 
@@ -407,13 +508,32 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
   double get subtitleTextSize => 14;
 
   @override
-  double? get maxWidth => null;
+  double? get maxWidth => narrow ? narrowWidth : null;
 
   @override
   bool get clipsAtObstruction => false;
 
+  /// In: opacity 0 to 1 in 0.3 s (the default ease-in-ease-out) and scale
+  /// 0.96 to 1 in 0.5 s on the spring curve (:2208-2212). Out: opacity to 0
+  /// in 0.25 s ease-out and scale to 0.96 in 0.5 s on the spring curve,
+  /// gone when the fade ends (:2242-2247).
   @override
-  BulletinTransition get transition => const BulletinTransition.fadeScale();
+  BulletinTransition get transition => const BulletinTransition.fadeScale(
+    enter: BulletinFadeScaleMotion(
+      opacity: MotionSpec(Duration(milliseconds: 300), Curves.easeInOut),
+      scale: MotionSpec(Duration(milliseconds: 500), springCurve),
+    ),
+    exit: BulletinFadeScaleMotion(
+      opacity: MotionSpec(Duration(milliseconds: 250), Curves.easeOut),
+      scale: MotionSpec(Duration(milliseconds: 500), springCurve),
+    ),
+  );
+
+  /// The reference's `kCAMediaTimingFunctionSpring` at 0.5 s is a Core
+  /// Animation spring whose constants live outside the reference checkout;
+  /// its own non-spring fallback draws it as this cubic
+  /// (`Display/Source/ListViewAnimation.swift:103`).
+  static const Curve springCurve = Cubic(0.23, 1, 0.32, 1);
 
   @override
   SpringDescription? get followSpring =>
@@ -433,6 +553,11 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
 
   @override
   double get pressScale => 1;
+
+  /// The overlay takes touches only with an Undo or a link; otherwise the
+  /// screen under it gets them (:1596-1605).
+  @override
+  bool get passesThroughWhenInert => true;
 }
 
 /// The reference desktop client's toast (`Ui::Toast` in the toolkit

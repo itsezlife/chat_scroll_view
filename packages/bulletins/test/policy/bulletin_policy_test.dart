@@ -186,13 +186,15 @@ void main() {
   });
 
   group('the mobile families', () {
-    for (final policy in const [
-      BulletinPolicy.android(),
-      BulletinPolicy.ios(),
+    // An inert iOS overlay lets touches through (UndoOverlayControllerNode
+    // :1596-1605); Android's bulletin catches them.
+    for (final (policy, passesThrough) in const [
+      (BulletinPolicy.android(), false),
+      (BulletinPolicy.ios(), true),
     ]) {
-      test('$policy fills the width, catches pointers, one transition', () {
+      test('$policy fills the width, one transition', () {
         expect(policy.minWidth, isNull);
-        expect(policy.passesThroughWhenInert, isFalse);
+        expect(policy.passesThroughWhenInert, passesThrough);
         for (final placement in BulletinPlacement.values) {
           expect(policy.transitionAt(placement), policy.transition);
         }

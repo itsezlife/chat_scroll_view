@@ -26,3 +26,19 @@ is pre-1.0.
   icon slot 32 → 44, minimum height 40 → 24, fade 200 ms in and 1000 ms
   out instead of the motion roles, a 160 ms slide when attached to an edge.
   A host switch over `BulletinTransition` adds the `timedSlide` case.
+- The iOS presentation: `BulletinIOS.builders()` (blurred card, leading slot,
+  multi-line text, the 17 action label) and `BulletinCountdownIOS`;
+  `BulletinPolicy$IOS` takes `sideInset`, `bottomInset`, `elevated` and
+  `narrow`.
+- `BulletinTransition.fadeScale` takes `enter` and `exit`
+  (`BulletinFadeScaleMotion`) to time the fade and the scale apart. A host
+  that compared `BulletinPolicy.ios().transition` to a plain
+  `fadeScale()` sees them differ now.
+
+### Changed
+
+- `BulletinPolicy.ios()` follows the reference: 12 from every edge (was 8
+  above and below), leading slot 50 from the card's edge (was 38 after the
+  padding), icon 32 (was 28), `passesThroughWhenInert` true (an overlay with
+  nothing to press lets touches through), and its own fade and scale timing
+  instead of the shared motion roles.
