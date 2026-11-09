@@ -6,6 +6,8 @@
 /// library and the bulletin. [ChatPackSheets.feedbackOf] is read on its own.
 library;
 
+import 'package:chat_scroll_view/chat_scroll_view.dart'
+    show ChatPreImeBackBinding, ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
@@ -201,6 +203,59 @@ void main() {
 
       final sheet = find.byType(EmojiPackSheet);
       expect(tester.widget<EmojiPackSheet>(sheet).previewEmoji, emoji);
+    });
+
+    testWidgets('back closes the sheet before the panel or keyboard under '
+        'it', (tester) async {
+      await pump(tester);
+      addTearDown(ChatPreImeBackBinding.debugReset);
+      // The panel's claim (or a raised keyboard) under the sheet.
+      var panelBacks = 0;
+      final panel = ChatPreImeBackClaim.push(() async {
+        panelBacks++;
+        return true;
+      });
+      addTearDown(panel.pop);
+
+      ChatPackSheets.open(
+        home,
+        services: services,
+        pack: AnimatedEmojiPack.packId,
+        kind: PackKind.emoji,
+        arrangement: PanelArrangement.touch,
+      ).ignore();
+      await _settle(tester);
+      expect(find.byType(EmojiPackSheet), findsOneWidget);
+
+      expect(await ChatPreImeBackBinding.handleNativeBack(), isTrue);
+      await _settle(tester);
+      expect(find.byType(EmojiPackSheet), findsNothing);
+      expect(panelBacks, 0);
+
+      expect(await ChatPreImeBackBinding.handleNativeBack(), isTrue);
+      expect(panelBacks, 1);
+    });
+
+    testWidgets('a sheet takes back before the keyboard, with no panel', (
+      tester,
+    ) async {
+      await pump(tester);
+      addTearDown(ChatPreImeBackBinding.debugReset);
+
+      ChatPackSheets.open(
+        home,
+        services: services,
+        pack: AnimatedEmojiPack.packId,
+        kind: PackKind.emoji,
+        arrangement: PanelArrangement.touch,
+      ).ignore();
+      await _settle(tester);
+
+      // Claimed pre-IME: the press never reaches the keyboard.
+      expect(await ChatPreImeBackBinding.handleNativeBack(), isTrue);
+      await _settle(tester);
+      expect(find.byType(EmojiPackSheet), findsNothing);
+      expect(await ChatPreImeBackBinding.handleNativeBack(), isFalse);
     });
 
     testWidgets('a pack that does not exist says so', (tester) async {

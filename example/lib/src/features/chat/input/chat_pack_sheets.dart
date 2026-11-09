@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:chat_scroll_view/chat_scroll_view.dart'
+    show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -105,33 +109,46 @@ abstract final class ChatPackSheets {
       final pick? => (PackSheetItem item) => pick(item.item),
       null => null,
     };
+    // Back closes the sheet first (with its own reverse animation): its claim
+    // stacks over the panel's and is taken before a raised keyboard.
+    BuildContext? sheetContext;
+    final backClaim = ChatPreImeBackClaim.push(() async {
+      if (services.previews.dismiss()) return true;
+      if (sheetContext case final sheet? when sheet.mounted) {
+        unawaited(Navigator.maybePop(sheet));
+      }
+      return true;
+    });
     return PackSheet.show(
       context,
       arrangement: arrangement ?? ChatPackSheets.arrangement,
-      builder: (_) => switch (kind) {
-        PackKind.emoji => EmojiPackSheet(
-          packIds: packs,
-          packs: services.packs,
-          library: services.library,
-          assets: services.assets,
-          onEditsRequested: edits,
-          onPick: picked,
-          onUnavailable: unavailable,
-          previewEmoji: previewEmoji,
-        ),
-        PackKind.stickers || PackKind.masks => StickerPackSheet(
-          pack: packs.single,
-          packs: services.packs,
-          library: services.library,
-          assets: services.assets,
-          onEditsRequested: edits,
-          onPick: picked,
-          onUnavailable: unavailable,
-          previews: services.previews,
-          onLibraryEditRequested: libraryEdit,
-        ),
+      builder: (sheet) {
+        sheetContext = sheet;
+        return switch (kind) {
+          PackKind.emoji => EmojiPackSheet(
+            packIds: packs,
+            packs: services.packs,
+            library: services.library,
+            assets: services.assets,
+            onEditsRequested: edits,
+            onPick: picked,
+            onUnavailable: unavailable,
+            previewEmoji: previewEmoji,
+          ),
+          PackKind.stickers || PackKind.masks => StickerPackSheet(
+            pack: packs.single,
+            packs: services.packs,
+            library: services.library,
+            assets: services.assets,
+            onEditsRequested: edits,
+            onPick: picked,
+            onUnavailable: unavailable,
+            previews: services.previews,
+            onLibraryEditRequested: libraryEdit,
+          ),
+        };
       },
-    );
+    ).whenComplete(backClaim.pop);
   }
 
   /// Applies [requests] to [library] and shows their bulletin through
