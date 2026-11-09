@@ -18,9 +18,10 @@ import 'package:panel_shell/src/scroll/page_scroll_activity.dart';
 ///
 /// **Owns:** the selected page id, the [PanelSearchState] (open, query, focus
 /// intent), the per-page controller registry, the publication of
-/// [PanelEvent]s, and the **presence** (visible, opening) a presentation
+/// [PanelEvent]s, the **presence** (visible, opening) a presentation
 /// reports so a host can wire the pause signals of work that must not run
-/// while the panel is hidden or moving.
+/// while the panel is hidden or moving, and the **fresh open** signal a
+/// presentation sends its pages ([reportFreshOpen]).
 ///
 /// **Does not own:** whether the panel is open on screen, its height, the
 /// soft keyboard or any inset; those belong to a presentation controller that
@@ -107,6 +108,7 @@ final class PanelShellController {
   final _searchBusy = ValueNotifier<bool>(false);
   final _visible = ValueNotifier<bool>(false);
   final _opening = ValueNotifier<bool>(false);
+  final _freshOpen = _Signal();
   final _events = EventPublisher<PanelEvent>();
   final _scrollActivity = EventPublisher<PageScrollActivity>();
   final _searchResultCounts = EventPublisher<int>();
@@ -158,6 +160,12 @@ final class PanelShellController {
   /// **Panel opening**: whether the panel is moving in or out. The pause
   /// signal of work that would drop frames during the motion.
   ValueListenable<bool> get opening => _opening;
+
+  /// **Fresh open**: signals each time a presentation opens the panel afresh,
+  /// asking every page to come back as a new open shows it
+  /// ([reportFreshOpen]). The same signal every host's
+  /// [PanelPageHost.freshOpen] is.
+  Listenable get freshOpen => _freshOpen;
 
   /// Whether [dispose] has been called.
   bool get isDisposed => _disposed;
@@ -293,6 +301,22 @@ final class PanelShellController {
     _opening.value = opening;
   }
 
+  /// Reports that the panel is being opened afresh: every page is to come
+  /// back as a new open shows it, which each page decides for itself (one
+  /// goes back to its start, another keeps its place), and the bottom bar is
+  /// shown.
+  ///
+  /// Called by the presentation controller that owns visibility when it
+  /// opens a hidden panel under a presentation that opens afresh, before it
+  /// reports the panel visible, so pages move while nothing of them is seen.
+  /// Whether an open is fresh is the presentation's decision, never the
+  /// shell's: a panel that keeps its place on every open never reports one.
+  /// Changes no state of the shell; after [dispose] it is silent.
+  void reportFreshOpen() {
+    if (_disposed) return;
+    _freshOpen.signal();
+  }
+
   // --- Lifecycle ------------------------------------------------------------
 
   /// Drops every listener and, if the controller created it, disposes the
@@ -305,6 +329,7 @@ final class PanelShellController {
     _searchBusy.dispose();
     _visible.dispose();
     _opening.dispose();
+    _freshOpen.dispose();
     _events.dispose();
     _scrollActivity.dispose();
     _searchResultCounts.dispose();
@@ -399,6 +424,9 @@ final class _PageHost with ChangeNotifier implements PanelPageHost {
   ValueListenable<bool> get panelOpening => _shell._opening;
 
   @override
+  Listenable get freshOpen => _shell._freshOpen;
+
+  @override
   void releaseSearchFocus() {
     if (_speaksForSelected) _shell.releaseSearchFocus();
   }
@@ -454,6 +482,12 @@ final class _Hold implements PanelPageHold {
     _released = true;
     if (_counted && !_shell._disposed) _shell._autoHideHolds.value--;
   }
+}
+
+/// A signal without a value: `notifyListeners` is protected, so the controller
+/// reaches it through this subclass.
+final class _Signal with ChangeNotifier {
+  void signal() => notifyListeners();
 }
 
 /// Whether the observed page id equals [id]; signals only when that answer

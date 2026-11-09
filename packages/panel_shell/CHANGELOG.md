@@ -6,6 +6,16 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a fresh open)
+
+- `PanelShellController.reportFreshOpen` and `freshOpen`, and
+  `PanelPageHost.freshOpen`: a presentation that opens the panel afresh tells
+  every page before it reports the panel visible, and each page decides what
+  a new open is for it (back at its start, or its place kept). The shell
+  shows the bottom bar on one. Nothing signals unless a presentation
+  reports it. An implementation of `PanelPageHost` outside this package must
+  add `freshOpen`.
+
 ### Changed (the swipe pager)
 
 - `PanelPager` is a `SwipePager` (package `swipe_pager`) instead of a

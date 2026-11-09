@@ -286,6 +286,44 @@ void main() {
       expect(controller.visible.value, isFalse);
       expect(controller.opening.value, isFalse);
     });
+
+    test('signals a fresh open to every page host, once per report', () {
+      final controller = build();
+      var emoji = 0;
+      var stickers = 0;
+      controller.hostFor('emoji').freshOpen.addListener(() => emoji++);
+      controller.hostFor('stickers').freshOpen.addListener(() => stickers++);
+
+      controller.reportFreshOpen();
+      expect((emoji, stickers), (1, 1));
+
+      controller.reportFreshOpen();
+      expect((emoji, stickers), (2, 2));
+    });
+
+    test('a fresh open changes no other state', () {
+      final controller = build()..selectPage('stickers');
+      events.clear();
+
+      controller.reportFreshOpen();
+
+      expect(controller.selectedPageId.value, 'stickers');
+      expect(controller.visible.value, isFalse);
+      expect(events, isEmpty);
+    });
+
+    test('a fresh open reported after dispose is silent', () {
+      final controller = build();
+      final host = controller.hostFor('emoji');
+      var signals = 0;
+      host.freshOpen.addListener(() => signals++);
+
+      controller
+        ..dispose()
+        ..reportFreshOpen();
+
+      expect(signals, 0);
+    });
   });
 
   group('page host', () {

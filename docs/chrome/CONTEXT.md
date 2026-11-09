@@ -90,6 +90,10 @@ _Avoid_: Focus node owned by the host, search open as a proxy for focus
 Two `ValueListenable`s (`package:listen`) the shell publishes for the host's pause signals: panel visible (on screen, including while moving) and panel opening (moving). The presentation controller reports them.
 _Avoid_: A shell that reads its own visibility, pause flags inside pages
 
+**Fresh open**:
+An open of a hidden panel after which every page comes back as a new open shows it: the presentation policy decides which kinds open afresh (the mobile keyboard replacement does, a popup or a dock does not), the presentation controller reports it to the shell before the panel is visible, and each page decides what it means for its content (back at its start, or its place kept). The shell shows the bottom bar on one.
+_Avoid_: A reset on hide, a page that reads the platform or the arrangement to decide, a reset the shell decides
+
 **Page controller registry**:
 The per-page store of controllers (scroll offsets, loaded collections) that the shell controller owns, so a presentation switch restores page state.
 _Avoid_: State kept in the page widget, `GlobalKey` reach-in

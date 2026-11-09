@@ -117,3 +117,15 @@ the instance, and stops its animations for the length of the panel's motion.
 | Kept | `PanelPresentationView` keeps the subtree of the last kind it showed while hidden: built by the strategy with `PanelVisibility.hidden`, offstage (no paint, no hit test, no semantics) and under `ExcludeFocus`. The tree has one shape shown or hidden, so nothing is remounted. A show as another kind replaces it, as before. |
 | Strategy | `build` may now be called with `hidden`, after the motion out settled: the strategy runs no motion for it and keeps its state. Its own tickers stay on: the keyboard strategy's slot still follows the soft keyboard. |
 | Shell motion | Each strategy puts the shell under `TickerMode(enabled: visibility is shown)`: while the panel moves in or out, or is hidden, the shell's tickers are off and its catalogues hold (*the pager keeps its pages*, [ADR 025](025-panel-shell-and-pages.md)). With the host's clock hold for the motion ([ADR 022](022-asset-cache-and-media-pipeline.md) *held surfaces*), nothing in the panel advances until the motion ends, and nothing it showed is reloaded. |
+
+## Amendment: a fresh open
+
+Native-media ticket 111. Pages decide what a new open is for them ([ADR
+025](025-panel-shell-and-pages.md), *a fresh open*); which open is one is the
+presentation's, because it depends on how the panel stands on the platform,
+not on what a page shows.
+
+| Area | Decision |
+| ---- | -------- |
+| Policy | `PanelPresentationPolicy.opensAfresh(kind)`. Mobile: `KeyboardReplacement` only, the panel that stands in for the keyboard for one pick (the reference mobile client resets on every show); a popup or a dock a host asks for there keeps its place. Desktop: never; a popup and a dock beside the content keep the place of every page, as the reference desktop client keeps its selector. The host decides per platform family by the policy it passes (`forFamily` by default), as for every other decision of the policy. |
+| Report | The controller reports `PanelShellController.reportFreshOpen` when it commits a state that leaves `hidden` for a kind the policy opens afresh, before `updatePresence`. A panel turned back while hiding never left, and a switch of kind keeps it on screen: neither is one. |

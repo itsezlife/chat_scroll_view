@@ -395,6 +395,54 @@ void main() {
       );
       expect(scrollable.position.pixels, 0);
     });
+
+    pageTest('is back at the start on a fresh open, at once', (tester) async {
+      source.dispose();
+      source = FakeCollectionSource([_clips('a', 'Cats', count: 80)]);
+      await pumpPage(tester);
+      await tester.drag(find.byType(GifPage), const Offset(0, -300));
+      await settle(tester);
+
+      host
+        ..visible = false
+        ..openAfresh();
+      await tester.pump();
+
+      expect(offset(tester), 0);
+    });
+
+    pageTest('is at the start when built again after a fresh open it was '
+        'not mounted for', (tester) async {
+      source.dispose();
+      source = FakeCollectionSource([_clips('a', 'Cats', count: 80)]);
+      await pumpPage(tester);
+      await tester.drag(find.byType(GifPage), const Offset(0, -300));
+      await settle(tester);
+      await tester.pumpWidget(const SizedBox.shrink());
+
+      host.openAfresh();
+      await pumpPage(tester);
+
+      expect(offset(tester), 0);
+    });
+
+    pageTest('is kept across a hide and a show that are not a fresh open', (
+      tester,
+    ) async {
+      source.dispose();
+      source = FakeCollectionSource([_clips('a', 'Cats', count: 80)]);
+      await pumpPage(tester);
+      await tester.drag(find.byType(GifPage), const Offset(0, -300));
+      await settle(tester);
+      final left = offset(tester);
+
+      host
+        ..visible = false
+        ..visible = true;
+      await settle(tester);
+
+      expect(offset(tester), left);
+    });
   });
 
   group('playback', () {

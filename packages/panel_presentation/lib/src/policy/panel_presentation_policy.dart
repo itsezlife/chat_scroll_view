@@ -27,7 +27,8 @@ enum PanelDismissal {
 }
 
 /// The **presentation policy**: which kind the panel takes, what opens it,
-/// what dismisses it, how big a popup is and which motion role animates it.
+/// what dismisses it, whether an open is a fresh one, how big a popup is and
+/// which motion role animates it.
 ///
 /// Plain values and decisions with no widgets and no platform reads, in the
 /// shape of the selection policy: a sealed family with a mobile and a desktop
@@ -130,6 +131,15 @@ sealed class PanelPresentationPolicy {
   /// How [kind] can be dismissed under this policy.
   Set<PanelDismissal> dismissalsFor(PanelPresentation kind);
 
+  /// Whether opening a hidden panel as [kind] is a **fresh open**: the pages
+  /// are asked to come back as a new open shows them
+  /// (`PanelShellController.reportFreshOpen`), and each decides what that is.
+  ///
+  /// A panel that stands in for the keyboard is opened for one pick and
+  /// starts each time from the top of what it passes through; a popup or a
+  /// dock beside the content is a place the user returns to, and keeps it.
+  bool opensAfresh(PanelPresentation kind);
+
   /// How long after the pointer leaves a popup it hides, when no animation is
   /// running.
   ///
@@ -190,6 +200,15 @@ final class PanelPresentationPolicy$Mobile extends PanelPresentationPolicy {
     PanelDismissal.back,
   };
 
+  /// Only the panel that replaces the keyboard opens afresh. A popup or a
+  /// dock a host asks for on a phone or tablet keeps its place, as on the
+  /// desktop.
+  @override
+  bool opensAfresh(PanelPresentation kind) => switch (kind) {
+    KeyboardReplacement() => true,
+    AnchoredPopup() || Docked() => false,
+  };
+
   @override
   bool operator ==(Object other) => other is PanelPresentationPolicy$Mobile;
 
@@ -235,6 +254,11 @@ final class PanelPresentationPolicy$Desktop extends PanelPresentationPolicy {
     Docked() => const {},
     KeyboardReplacement() => const {PanelDismissal.back},
   };
+
+  /// Never: every kind keeps the place of every page across a close, as the
+  /// reference desktop client's panel keeps its selector.
+  @override
+  bool opensAfresh(PanelPresentation kind) => false;
 
   @override
   bool operator ==(Object other) => other is PanelPresentationPolicy$Desktop;

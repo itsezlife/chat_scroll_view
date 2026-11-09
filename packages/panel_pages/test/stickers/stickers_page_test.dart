@@ -305,6 +305,71 @@ void main() {
     });
   });
 
+  group('a fresh open', () {
+    double stripTop(WidgetTester tester) =>
+        tester.getTopLeft(find.byType(StickerPackStrip)).dy - origin(tester).dy;
+
+    // Reads on into the second pack until the strip has slid away, as a user
+    // closing the panel there leaves it.
+    Future<void> readOnUntilTheStripIsGone(WidgetTester tester) async {
+      controller().catalog.jumpTo(27 + 4 * 82 + 100);
+      await settle(tester);
+      controller().catalog.scrollBy(80);
+      await settle(tester);
+      expect(stripTop(tester), lessThan(-StickerPackStrip.height + 1));
+      expect(selected(tester, 'Dogs'), isTrue);
+    }
+
+    pageTest('brings the grid to its start, the strip back whole and the '
+        'first tab marked', (tester) async {
+      await pumpPage(tester);
+      await readOnUntilTheStripIsGone(tester);
+
+      host
+        ..visible = false
+        ..openAfresh()
+        ..visible = true;
+      await settle(tester);
+
+      expect(controller().catalog.offset, 0);
+      expect(stripTop(tester), 0);
+      expect(selected(tester, 'Cats'), isTrue);
+      expect(selected(tester, 'Dogs'), isFalse);
+    });
+
+    pageTest('marks the recents when the page has some', (tester) async {
+      source.dispose();
+      source = FakeCollectionSource([_recents(), _pack('a', 'Cats')]);
+      await pumpPage(tester);
+      controller().catalog.jumpTo(400);
+      await settle(tester);
+
+      host.openAfresh();
+      await settle(tester);
+
+      expect(controller().catalog.offset, 0);
+      expect(
+        selected(tester, ChromeStringsPresets.english.panel.recentlyUsedTitle),
+        isTrue,
+      );
+    });
+
+    pageTest('without one, a hide and a show keep the place', (tester) async {
+      await pumpPage(tester);
+      await readOnUntilTheStripIsGone(tester);
+      final offset = controller().catalog.offset;
+
+      host
+        ..visible = false
+        ..visible = true;
+      await settle(tester);
+
+      expect(controller().catalog.offset, offset);
+      expect(stripTop(tester), lessThan(-StickerPackStrip.height + 1));
+      expect(selected(tester, 'Dogs'), isTrue);
+    });
+  });
+
   group('right to left', () {
     pageTest('fills a row from the right, the first sticker at the start', (
       tester,

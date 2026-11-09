@@ -19,7 +19,12 @@ import 'package:panel_shell/testing.dart';
 const _faces = CollectionId.set('faces');
 
 class _Policy extends CatalogPagePolicy {
-  const _Policy();
+  const _Policy({this.restarts = false});
+
+  final bool restarts;
+
+  @override
+  bool get restartsOnFreshOpen => restarts;
 
   @override
   PageCapabilities get capabilities => const PageCapabilities(search: true);
@@ -40,10 +45,10 @@ void main() {
   late PanelShellController shell;
   late List<PanelEvent> events;
   late List<PageScrollActivity> activity;
-  bool? keepsScrollOnReopen;
+  var restarts = false;
 
   setUp(() {
-    keepsScrollOnReopen = null;
+    restarts = false;
     preferences = FakePreferenceStore();
     source = FakeCollectionSource([
       FakeCollectionSpec(
@@ -77,9 +82,8 @@ void main() {
             host: host,
             source: source,
             searchSource: search,
-            policy: const _Policy(),
+            policy: _Policy(restarts: restarts),
             assets: assets,
-            keepsScrollOnReopen: keepsScrollOnReopen,
           ),
         ),
         PanelPage(
@@ -192,10 +196,12 @@ void main() {
 
   group('reopening the panel', () {
     // Scrolls the shown panel, hides it as a presentation does (presence
-    // first, then the shell goes), shows it again, and returns the offset
-    // the catalogue reopens at.
+    // first, then the shell goes), shows it again (reporting a fresh open
+    // first when [fresh], as a presentation that opens afresh does), and
+    // returns the offset the catalogue reopens at.
     Future<double> scrollCloseReopen(
       WidgetTester tester, {
+      required bool fresh,
       PanelArrangement arrangement = PanelArrangement.touch,
     }) async {
       Future<void> pumpShown() async {
@@ -221,6 +227,7 @@ void main() {
 
       shell.updatePresence(visible: false, opening: false);
       await tester.pumpWidget(const SizedBox());
+      if (fresh) shell.reportFreshOpen();
       shell.updatePresence(visible: true, opening: true);
       await pumpShown();
       shell.updatePresence(visible: true, opening: false);
@@ -231,25 +238,32 @@ void main() {
           .offset;
     }
 
-    testWidgets('under touch, the catalogue starts at the top again', (
-      tester,
-    ) async {
-      expect(await scrollCloseReopen(tester), 0);
+    testWidgets('a page that restarts on a fresh open is back at its start, '
+        'mounted or not when it came', (tester) async {
+      restarts = true;
+
+      expect(await scrollCloseReopen(tester, fresh: true), 0);
     });
 
-    testWidgets('under the pointer, it is where it was left', (tester) async {
+    testWidgets('a page that keeps its place keeps it on a fresh open', (
+      tester,
+    ) async {
+      expect(await scrollCloseReopen(tester, fresh: true), 300);
+    });
+
+    testWidgets('an open that is not fresh keeps the place of every page, '
+        'under either arrangement', (tester) async {
+      restarts = true;
+
+      expect(await scrollCloseReopen(tester, fresh: false), 300);
       expect(
-        await scrollCloseReopen(tester, arrangement: PanelArrangement.pointer),
+        await scrollCloseReopen(
+          tester,
+          fresh: false,
+          arrangement: PanelArrangement.pointer,
+        ),
         300,
       );
-    });
-
-    testWidgets('a page set to keep its place finds it under touch too', (
-      tester,
-    ) async {
-      keepsScrollOnReopen = true;
-
-      expect(await scrollCloseReopen(tester), 300);
     });
   });
 }

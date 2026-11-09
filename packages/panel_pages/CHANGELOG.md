@@ -6,6 +6,24 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a fresh open)
+
+- A page comes back from a close as the presentation's **fresh open**
+  (`PanelPageHost.freshOpen`) says, not as the arrangement does. On a fresh
+  open (the mobile keyboard replacement) the stickers page goes back to its
+  start with its strip whole and its first tab (the recents, else the first
+  pack) marked, and the GIF page goes back to its start, both whether or not
+  they are mounted then; the emoji page keeps its place. An open that is not
+  fresh (a popup, a dock) keeps the place of every page. Before, every
+  catalogue page went back to its start whenever the panel was hidden under
+  `touch`, the emoji page among them.
+- Removed `CatalogPage.keepsScrollOnReopen` and
+  `EmojiPage.keepsScrollOnReopen`; a page's policy says whether it restarts
+  (`CatalogPagePolicy.restartsOnFreshOpen`, false by default, true for
+  `StickersPagePolicy`). `CatalogPageController.followPresence` and
+  `restartsWhenHidden` are now `followFreshOpen` and `restartsOnFreshOpen`.
+- `FakePanelPageHost.openAfresh` signals its `freshOpen`.
+
 ### Changed (small covers at half rate)
 
 - A pack strip's playing cover comes from `AssetPresets.keyboardCell`, which
