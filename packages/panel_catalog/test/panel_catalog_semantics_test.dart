@@ -31,12 +31,14 @@ CatalogSection _section(
   String id,
   int count, {
   CatalogSectionAction? action,
+  String? titleAction,
   TextDirection? direction,
   String? emptyMessage,
 }) => CatalogSection(
   id: id,
   title: 'Title $id',
   action: action,
+  titleAction: titleAction,
   emptyMessage: emptyMessage,
   layout: direction == null
       ? null
@@ -396,6 +398,30 @@ void main() {
       final data = nodeLabelled(tester, 'Title a').getSemanticsData();
 
       expect(data.flagsCollection.isHeader, isTrue);
+      handle.dispose();
+    });
+
+    testWidgets('a header that opens is tapped like its title', (tester) async {
+      final handle = tester.ensureSemantics();
+      snapshots.replaceSections([_section('a', 4, titleAction: 'open')]);
+      await pumpViewport(tester);
+
+      final node = nodeLabelled(tester, 'Title a');
+      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+      perform(tester, node, SemanticsAction.tap);
+
+      expect(actions, [('a', 'open')]);
+      handle.dispose();
+    });
+
+    testWidgets('a header that opens nothing has no tap', (tester) async {
+      final handle = tester.ensureSemantics();
+      snapshots.replaceSections([_section('a', 4)]);
+      await pumpViewport(tester);
+
+      final data = nodeLabelled(tester, 'Title a').getSemanticsData();
+
+      expect(data.hasAction(SemanticsAction.tap), isFalse);
       handle.dispose();
     });
 

@@ -66,6 +66,10 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   platform's long-press delay.
 /// - **Strip.** The category strip above the catalogue, or pinned below it
 ///   under the pointer arrangement ([stripReady] defers it).
+/// - **A pack's header.** The title of a pack of custom emoji (a section of
+///   `CollectionId.set`) opens the pack through [onPackRequested]
+///   (`EmojiView`'s custom emoji pack header opens `EmojiPacksAlert`); without
+///   it a title is only a title.
 final class EmojiPagePolicy extends CatalogPagePolicy {
   /// The emoji policy of the page behind [host].
   ///
@@ -80,7 +84,11 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     this.stripReady,
     this.assets,
     this.stripLayout = EmojiStripLayout.automatic,
+    this.onPackRequested,
   });
+
+  /// The id a pack's header title reports.
+  static const String openPackActionId = 'open-pack';
 
   /// What the page declares to the shell: search, placed inline among the
   /// content so it scrolls away with it and pins when search opens; a top
@@ -188,6 +196,16 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   /// How the strip lays its icons out under the pointer arrangement.
   final EmojiStripLayout stripLayout;
 
+  /// Asked to open the pack of custom emoji whose title the user tapped, or
+  /// null for titles that do nothing.
+  final ValueChanged<PackId>? onPackRequested;
+
+  @override
+  String? titleActionOf(Collection collection) => switch (collection.id) {
+    CollectionId$Set() when onPackRequested != null => openPackActionId,
+    _ => null,
+  };
+
   @override
   PageCapabilities get capabilities => pageCapabilities;
 
@@ -285,6 +303,13 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     Rect? bounds,
     Rect? viewportBounds,
   }) {
+    if ((actionId, collection.id) case (
+      openPackActionId,
+      CollectionId$Set(:final id),
+    )) {
+      onPackRequested?.call(PackId(id));
+      return;
+    }
     if (actionId != colorAllActionId ||
         context == null ||
         bounds == null ||

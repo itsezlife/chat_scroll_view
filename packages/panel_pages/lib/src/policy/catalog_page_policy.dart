@@ -247,6 +247,14 @@ abstract class CatalogPagePolicy {
     PanelArrangement arrangement = PanelArrangement.touch,
   }) => null;
 
+  /// What a tap on the title of [collection]'s section reports to
+  /// [onSectionAction], or null for a title that does nothing, the default.
+  ///
+  /// The whole header band outside its trailing action ([actionOf]) is the
+  /// title's: a pack's header that opens the pack, as the reference mobile
+  /// client's sticker list does.
+  String? titleActionOf(Collection collection) => null;
+
   /// The tag the default [leafOf] attaches to the cell of [item]: the host's
   /// opaque data, excluded from the cell's equality and never painted.
   Object? tagOf(CollectionItem item, Collection collection) => null;
@@ -354,7 +362,8 @@ abstract class CatalogPagePolicy {
     required Rect viewportBounds,
   }) => null;
 
-  /// The user tapped the header action [actionId] of [collection]'s section.
+  /// The user tapped the header action [actionId] of [collection]'s section:
+  /// its trailing action ([actionOf]) or its title ([titleActionOf]).
   ///
   /// [host] is the page's connection to the shell, where an action that asks
   /// the host something answers (for example `host.requestClearRecents`).

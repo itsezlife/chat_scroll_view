@@ -55,6 +55,42 @@ void main() {
     });
   });
 
+  group('a pack of custom emoji', () {
+    final pack = _loaded(const CollectionId.set('cats'), ['😀']);
+
+    test('its title opens the pack when the host opens packs', () {
+      final requested = <PackId>[];
+      final opening = EmojiPagePolicy(
+        host: host,
+        entryOf: fixtures.entryOf,
+        preferences: preferences,
+        onPackRequested: requested.add,
+      );
+
+      final id = opening.titleActionOf(pack);
+      opening.onSectionAction(pack, id!, host);
+
+      expect(requested, [const PackId('cats')]);
+    });
+
+    test('a category title and a title without the host open nothing', () {
+      final opening = EmojiPagePolicy(
+        host: host,
+        entryOf: fixtures.entryOf,
+        preferences: preferences,
+        onPackRequested: (_) {},
+      );
+
+      expect(
+        opening.titleActionOf(
+          _loaded(const CollectionId.category('people'), []),
+        ),
+        isNull,
+      );
+      expect(policy.titleActionOf(pack), isNull);
+    });
+  });
+
   test('declares search, a top strip and the backspace action', () {
     expect(policy.capabilities.search, isTrue);
     expect(policy.capabilities.topStrip, isTrue);

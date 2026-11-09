@@ -169,6 +169,7 @@ class EmojiPage extends StatefulWidget {
     this.deferChrome = false,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
     this.stripLayout = EmojiStripLayout.automatic,
+    this.onPackRequested,
     super.key,
   });
 
@@ -207,6 +208,11 @@ class EmojiPage extends StatefulWidget {
   /// reference client's rule (plain with no pack, grouped with any) unless the
   /// host fixes one.
   final EmojiStripLayout stripLayout;
+
+  /// Asked to open the pack of custom emoji whose title the user tapped (the
+  /// host shows its pack sheet), or null for titles that do nothing. Read
+  /// when the page mounts.
+  final ValueChanged<PackId>? onPackRequested;
 
   /// Horizontal inset of the grid.
   static const double gridPadH = 5;
@@ -277,6 +283,7 @@ class _EmojiPageState extends State<EmojiPage> {
     stripReady: _stripReady,
     assets: widget.assets,
     stripLayout: widget.stripLayout,
+    onPackRequested: widget.onPackRequested,
   );
 
   @override

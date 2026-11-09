@@ -22,6 +22,9 @@ import 'package:panel_shell/panel_shell.dart';
 /// says [PanelStrings.stickersEmpty] in the middle, over the empty catalogue,
 /// rather than show a blank page that reads as one still loading.
 ///
+/// A tap on a pack's title asks [onPackRequested] to open that pack (the
+/// host shows its pack sheet); without it a title is only a title.
+///
 /// Requires the chrome theme, strings and motion scopes.
 class StickersPage extends StatefulWidget {
   /// The stickers page of [host], showing the packs of [source] and drawing
@@ -30,6 +33,7 @@ class StickersPage extends StatefulWidget {
     required this.host,
     required this.source,
     required this.assets,
+    this.onPackRequested,
     super.key,
   });
 
@@ -44,18 +48,27 @@ class StickersPage extends StatefulWidget {
   /// The asset cache the grid and the strip draw through.
   final AssetCacheScope assets;
 
+  /// Asked to open the pack whose title the user tapped, or null.
+  final ValueChanged<PackId>? onPackRequested;
+
   @override
   State<StickersPage> createState() => _StickersPageState();
 }
 
 class _StickersPageState extends State<StickersPage> {
-  late StickersPagePolicy _policy = StickersPagePolicy(assets: widget.assets);
+  late StickersPagePolicy _policy = _policyOf(widget);
+
+  static StickersPagePolicy _policyOf(StickersPage page) => StickersPagePolicy(
+    assets: page.assets,
+    onPackRequested: page.onPackRequested,
+  );
 
   @override
   void didUpdateWidget(StickersPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.assets, widget.assets)) {
-      _policy = StickersPagePolicy(assets: widget.assets);
+    if (!identical(oldWidget.assets, widget.assets) ||
+        oldWidget.onPackRequested != widget.onPackRequested) {
+      _policy = _policyOf(widget);
     }
   }
 

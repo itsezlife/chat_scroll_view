@@ -29,6 +29,10 @@ import 'package:panel_shell/panel_shell.dart';
 /// - **The recents header.** A clear button at its end; it asks the host to
 ///   clear the recent stickers (`PanelPageHost.requestClearRecents`), and the
 ///   host confirms, as the reference client's alert does.
+/// - **A pack's header.** Its title opens the pack: a tap asks
+///   [onPackRequested] for the pack the section lists (`EmojiView`'s
+///   `setHeaderOnClick` calls `onShowStickerSet`). Without the callback a
+///   title is only a title.
 /// - **Strip.** The [StickerPackStrip] above the catalogue.
 ///
 /// What the favourites and the recents hold (and that a favourite is not
@@ -40,8 +44,9 @@ import 'package:panel_shell/panel_shell.dart';
 /// the packs by dragging their tabs.
 final class StickersPagePolicy extends CatalogPagePolicy {
   /// The stickers policy; [assets] draws the covers of the strip's tabs (none
-  /// are drawn when it is null).
-  const StickersPagePolicy({this.assets});
+  /// are drawn when it is null), and [onPackRequested] opens a pack whose
+  /// title is tapped.
+  const StickersPagePolicy({this.assets, this.onPackRequested});
 
   /// What the page declares to the shell: a top strip, and nothing it
   /// searches or acts on.
@@ -68,8 +73,16 @@ final class StickersPagePolicy extends CatalogPagePolicy {
   /// The id of the recents header's clear button.
   static const String clearRecentsActionId = 'clear-recents';
 
+  /// The id a pack's header title reports.
+  static const String openPackActionId = 'open-pack';
+
   /// Where the strip draws pack covers from.
   final AssetCacheScope? assets;
+
+  /// Asked to open the pack whose title the user tapped, or null for titles
+  /// that do nothing. The pack is the one a section of `CollectionId.set`
+  /// lists: its `PackId` is the set's id.
+  final ValueChanged<PackId>? onPackRequested;
 
   static const SectionLayout _layout = SectionLayout.grid(
     desiredCellWidth: desiredCellWidth,
@@ -150,6 +163,14 @@ final class StickersPagePolicy extends CatalogPagePolicy {
       ..drawLine(at(16.5, 7.5), at(7.5, 16.5), pen);
   }
 
+  // --- A pack's header ------------------------------------------------------
+
+  @override
+  String? titleActionOf(Collection collection) => switch (collection.id) {
+    CollectionId$Set() when onPackRequested != null => openPackActionId,
+    _ => null,
+  };
+
   @override
   void onSectionAction(
     Collection collection,
@@ -159,8 +180,11 @@ final class StickersPagePolicy extends CatalogPagePolicy {
     Rect? bounds,
     Rect? viewportBounds,
   }) {
-    if (actionId == clearRecentsActionId) {
-      host.requestClearRecents(SemanticKind.sticker);
+    switch ((actionId, collection.id)) {
+      case (clearRecentsActionId, _):
+        host.requestClearRecents(SemanticKind.sticker);
+      case (openPackActionId, CollectionId$Set(:final id)):
+        onPackRequested?.call(PackId(id));
     }
   }
 

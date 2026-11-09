@@ -36,6 +36,7 @@ sealed class CatalogLayoutSlot {
     required String title,
     required String sectionId,
     CatalogSectionAction? action,
+    String? titleAction,
     TextDirection textDirection,
   }) = CatalogHeaderSlot;
 
@@ -99,6 +100,7 @@ final class CatalogHeaderSlot extends CatalogLayoutSlot {
     required this.title,
     required this.sectionId,
     this.action,
+    this.titleAction,
     this.textDirection = TextDirection.ltr,
   });
 
@@ -117,6 +119,9 @@ final class CatalogHeaderSlot extends CatalogLayoutSlot {
 
   /// The section's trailing action, if it has one.
   final CatalogSectionAction? action;
+
+  /// [CatalogSection.titleAction] of the section, if it has one.
+  final String? titleAction;
 
   /// The direction the title reads in: it starts at this side of the band and
   /// the action sits at the other.
@@ -470,6 +475,7 @@ final class CatalogSlotProjection {
           title: section.title,
           sectionId: section.id,
           action: section.action,
+          titleAction: section.titleAction,
           textDirection: grid.textDirection,
         ),
       );

@@ -812,7 +812,9 @@ class RenderPanelCatalog extends RenderBox
   }
 
   /// Resolves the header action under [localPosition] as `(sectionId,
-  /// actionId)`, or `null` when the point is on no action's hit area.
+  /// actionId)`, or `null` when the point is on no action's hit area: the
+  /// trailing action's, or the rest of a band whose section has a
+  /// [CatalogSection.titleAction].
   ///
   /// Binary search to the slots at the point's content y, then a scan of the
   /// few that share it: the cost follows the row, not the catalogue.
@@ -824,10 +826,24 @@ class RenderPanelCatalog extends RenderBox
     for (var i = _firstSlotIndexAtOrBelow(contentY); i < slots.length; i++) {
       final slot = slots[i];
       if (slot.top > contentY) break;
-      if (slot case final CatalogHeaderSlot header when header.action != null) {
-        final bounds = _painter.sectionActionBounds(header);
-        if (bounds != null && bounds.contains(Offset(contentX, contentY))) {
-          return (header.sectionId, header.action!.id);
+      if (slot case final CatalogHeaderSlot header) {
+        final point = Offset(contentX, contentY);
+        if (header.action case final action?) {
+          final bounds = _painter.sectionActionBounds(header);
+          if (bounds != null && bounds.contains(point)) {
+            return (header.sectionId, action.id);
+          }
+        }
+        // The rest of the band is the title's, when the title opens
+        // something; the trailing action keeps its own area above.
+        if (header.titleAction case final titleAction?
+            when Rect.fromLTWH(
+              header.left,
+              header.top,
+              header.width,
+              header.height,
+            ).contains(point)) {
+          return (header.sectionId, titleAction);
         }
       }
     }
