@@ -4,6 +4,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/frame_counter_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
@@ -42,6 +43,7 @@ void main() {
       ...LottieStickerPack.descriptors,
       ...StaticStickerPack.descriptors,
       ...VideoStickerPack.descriptors,
+      ...FrameCounterPack.descriptors,
     ]);
   });
 

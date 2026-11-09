@@ -258,6 +258,11 @@ final class FrameAtlas<K extends Object> {
   /// Whether [key] holds a slot, pinned or idle.
   bool isResident(K key) => _pool.contains(key);
 
+  /// Whether [key]'s slot holds a frame: the next handle on it shows that
+  /// frame at once. For an idle entry, the frame a handle released with
+  /// `keepFrame` left in it (and that [forgetFrame] did not drop since).
+  bool keepsFrame(K key) => _pool.contains(key) && _states[key]?.frame != null;
+
   /// A handle on [key]'s slot, or null when every page is open and every cell
   /// pinned. The caller then shows the first-frame still instead of
   /// animating: never an error.

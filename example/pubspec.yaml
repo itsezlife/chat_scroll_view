@@ -115,6 +115,9 @@ flutter:
     # Video stickers, clips and GIFs generated for the demo from synthetic
     # sources (no third-party artwork); the README there has the commands.
     - assets/video_stickers/
+    # Frame counter clips, each frame numbered in pixels; made by
+    # tool/frame_counter.dart, whose header has the frame's layout.
+    - assets/frame_counter/
     # A local corpus of third-party Lottie stickers: the folder holds only a
     # README and a .gitignore in a checkout (the files are third-party and never
     # committed), so it exists and builds without them. See the README there.

@@ -81,8 +81,10 @@ void main() {
       ),
     );
     try {
+      // Tall enough that every showcase body is laid out, the early ones
+      // these tests select included.
       tester.view
-        ..physicalSize = const Size(900, 8000)
+        ..physicalSize = const Size(900, 12000)
         ..devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       services = (await tester.runAsync(createTestServices))!;

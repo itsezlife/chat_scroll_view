@@ -18,6 +18,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/deferred_library_view.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/frame_counter_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
@@ -595,7 +596,8 @@ final class AppServices {
       // The GIF page: the saved GIFs as its recents, then Giphy's trending
       // when there is a key. Offline, trending fails and the page shows its
       // failure line with a retry; without a key the saved GIFs are all it
-      // lists. No bundled clip is listed beneath either.
+      // lists. No bundled clip is listed beneath either; a build with
+      // FRAME_COUNTER_GIFS lists the frame counter clips first.
       final recentGifs = owned(
         LibraryContentSource.gifs(
           savedGifs: libraryShown.savedGifs,
@@ -615,8 +617,13 @@ final class AppServices {
               GiphyGifSearch(client: giphy.client, content: giphy),
               (search) => search.dispose(),
             );
+      // The frame counter clips first, to read a recording by, when the
+      // build asks for them.
+      final frameCounters = DemoConfig.frameCounterGifs
+          ? owned(FrameCounterPack.source(), (source) => source.dispose())
+          : null;
       final gifPageSource = owned(
-        JoinedCollectionSource([recentGifs, ?giphyTrending]),
+        JoinedCollectionSource([?frameCounters, recentGifs, ?giphyTrending]),
         (source) => source.dispose(),
       );
 

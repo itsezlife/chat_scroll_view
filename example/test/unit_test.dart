@@ -116,6 +116,7 @@ import 'features/chat/sticker_message_body_test.dart'
     as sticker_message_body_test;
 import 'features/chat/video_sticker_pack_test.dart' as video_sticker_pack_test;
 import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
+import 'flicker/gif_return_test.dart' as flicker_gif_return_test;
 import 'flicker/pack_sheet_panel_flicker_test.dart'
     as flicker_pack_sheet_panel_flicker_test;
 import 'flicker/panel_flash_test.dart' as flicker_panel_flash_test;
@@ -209,6 +210,7 @@ void main() {
     'features/streaming/streaming_screen_test.dart',
     streaming_screen_test.main,
   );
+  group('flicker/gif_return_test.dart', flicker_gif_return_test.main);
   group(
     'flicker/pack_sheet_panel_flicker_test.dart',
     flicker_pack_sheet_panel_flicker_test.main,

@@ -184,7 +184,9 @@ void main() {
         'until it is forgotten', () async {
       final handle = acquire('a')!;
       await play(handle, 18);
+      expect(atlas.keepsFrame('a'), isTrue, reason: 'held');
       handle.release(keepFrame: true);
+      expect(atlas.keepsFrame('a'), isTrue, reason: 'kept');
 
       final again = acquire('a')!;
       expect(again.frame, 18, reason: 'its holder goes on from it');
@@ -192,7 +194,18 @@ void main() {
 
       again.release(keepFrame: true);
       atlas.forgetFrame('a');
+      expect(atlas.keepsFrame('a'), isFalse, reason: 'forgotten');
       expect(acquire('a')!.hasFrame, isFalse);
+    });
+
+    test('a handle released without keeping its frame leaves none to show '
+        'at once', () async {
+      final handle = acquire('a')!;
+      await play(handle, 3);
+      handle.release();
+
+      expect(atlas.keepsFrame('a'), isFalse);
+      expect(atlas.keepsFrame('never'), isFalse);
     });
 
     test(
