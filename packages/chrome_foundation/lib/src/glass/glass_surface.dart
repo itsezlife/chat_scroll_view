@@ -260,6 +260,12 @@ class _GlassStrokePainter extends CustomPainter {
     );
   }
 
+  // A crescent, not a stroked line: the band between the outer rounded rect
+  // (one corner radius tall) and the same rect moved in by the edge's width,
+  // filled even-odd. It is [strokeWidth] thick at the edge's middle and
+  // thins to nothing along the corners, so it has no ends to cut. A stroked
+  // rounded rect clipped to the top or bottom band was cut square where the
+  // clip crossed it, which showed as broken corners.
   void _paintStroke({
     required Canvas canvas,
     required Rect rect,
@@ -268,59 +274,65 @@ class _GlassStrokePainter extends CustomPainter {
     required Color color,
     required bool isTop,
   }) {
-    if (strokeWidth <= 0 || color.a == 0) return;
-    final half = strokeWidth / 2;
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..isAntiAlias = true;
-
-    canvas.save();
+    if (strokeWidth <= 0 || color.a == 0 || radius <= 0) return;
+    final r = radius.clamp(0.0, rect.shortestSide / 2);
+    final corner = Radius.circular(r);
+    final Path band;
     if (isTop) {
-      canvas.clipRect(
-        Rect.fromLTRB(
-          rect.left,
-          rect.top,
-          rect.right,
-          (rect.top + radius * 2).clamp(rect.top, rect.bottom),
-        ),
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(
-            rect.left - half,
-            rect.top + half,
-            rect.right + half,
-            rect.bottom + half,
+      final bottom = (rect.top + r).clamp(rect.top, rect.bottom);
+      band = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRRect(
+          RRect.fromLTRBAndCorners(
+            rect.left,
+            rect.top,
+            rect.right,
+            bottom,
+            topLeft: corner,
+            topRight: corner,
           ),
-          Radius.circular(radius),
-        ),
-        paint,
-      );
+        )
+        ..addRRect(
+          RRect.fromLTRBAndCorners(
+            rect.left,
+            (rect.top + strokeWidth).clamp(rect.top, bottom),
+            rect.right,
+            bottom,
+            topLeft: corner,
+            topRight: corner,
+          ),
+        );
     } else {
-      canvas.clipRect(
-        Rect.fromLTRB(
-          rect.left,
-          (rect.bottom - radius * 2).clamp(rect.top, rect.bottom),
-          rect.right,
-          rect.bottom,
-        ),
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(
-            rect.left - half,
-            rect.top - half,
-            rect.right + half,
-            rect.bottom - half,
+      final top = (rect.bottom - r).clamp(rect.top, rect.bottom);
+      band = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRRect(
+          RRect.fromLTRBAndCorners(
+            rect.left,
+            top,
+            rect.right,
+            rect.bottom,
+            bottomLeft: corner,
+            bottomRight: corner,
           ),
-          Radius.circular(radius),
-        ),
-        paint,
-      );
+        )
+        ..addRRect(
+          RRect.fromLTRBAndCorners(
+            rect.left,
+            top,
+            rect.right,
+            (rect.bottom - strokeWidth).clamp(top, rect.bottom),
+            bottomLeft: corner,
+            bottomRight: corner,
+          ),
+        );
     }
-    canvas.restore();
+    canvas.drawPath(
+      band,
+      Paint()
+        ..color = color
+        ..isAntiAlias = true,
+    );
   }
 
   @override
