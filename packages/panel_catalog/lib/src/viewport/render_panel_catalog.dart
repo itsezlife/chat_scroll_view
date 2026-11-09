@@ -32,6 +32,7 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_painter.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_pointer.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_press.dart';
 import 'package:panel_catalog/src/viewport/catalog_near_scroll.dart';
+import 'package:panel_catalog/src/viewport/catalog_overscroll_sink.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_physics.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_position.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
@@ -500,6 +501,14 @@ class RenderPanelCatalog extends RenderBox
   set leafLongPressDelay(
     Duration? Function(CatalogLeafHit hit, PointerDeviceKind kind)? value,
   ) => _leafPointer.leafLongPressDelay = value;
+
+  /// The receiver of the part of a drag past the top edge
+  /// ([PanelCatalogViewport.overscrollSink]). Swapping it ends nothing in
+  /// flight.
+  CatalogOverscrollSink? get overscrollSink => _handoff.sink;
+  set overscrollSink(CatalogOverscrollSink? value) => _handoff.sink = value;
+
+  final CatalogOverscrollHandoff _handoff = CatalogOverscrollHandoff();
 
   /// The cell a transient surface is open over: its hover wash stays and the
   /// wheel is ignored until it is released.
@@ -1723,11 +1732,22 @@ class RenderPanelCatalog extends RenderBox
     _cancelFling();
     _clearPressPointerRoute();
     _press?.pressOut();
+    _handoff.beginDrag();
     _controller.publish(const PanelCatalogUserDragStart());
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    final dy = details.primaryDelta ?? details.delta.dy;
+    var dy = details.primaryDelta ?? details.delta.dy;
+    // The overscroll sink takes its share first (the whole tick at the top,
+    // the part past it otherwise); content scrolls what it declines.
+    if (hasSize) {
+      dy -= _handoff.offer(
+        delta: dy,
+        pinned: _pixels <= 0,
+        room: _pixels,
+        time: details.sourceTimeStamp,
+      );
+    }
     // Drag up (negative dy) reveals content below → increase offset.
     scrollBy(-dy);
   }
@@ -1742,6 +1762,8 @@ class RenderPanelCatalog extends RenderBox
     // Finger up (negative primaryVelocity) → positive content-offset velocity.
     final contentVelocity = -fingerVelocity;
     _controller.publish(PanelCatalogUserDragEnd(contentVelocity));
+    // The sink settles a release it took part in: no content fling.
+    if (_handoff.endDrag()) return;
     if (!hasSize || maxOffset <= 0) return;
     if (contentVelocity.abs() < 50) return;
     _controller.publish(PanelCatalogFlingStart(contentVelocity));
@@ -1753,6 +1775,9 @@ class RenderPanelCatalog extends RenderBox
   void _onDragCancel() {
     if (!_userDragging) return;
     _userDragging = false;
+    // What the sink holds is released at rest, not left where the drag
+    // stopped.
+    _handoff.endDrag(cancelled: true);
     _controller.publish(const PanelCatalogUserDragCancel());
   }
 

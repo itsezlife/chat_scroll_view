@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'adaptive_grid_viewport_test.dart' as adaptive_grid_viewport_test;
 import 'benchmark/vs_supersliver_bench_test.dart' as vs_supersliver_bench_test;
+import 'catalog_overscroll_sink_test.dart' as catalog_overscroll_sink_test;
 import 'catalog_paragraph_cache_test.dart' as catalog_paragraph_cache_test;
 import 'catalog_scroll_position_contract_test.dart'
     as catalog_scroll_position_contract_test;
@@ -63,6 +64,7 @@ void main() {
     'benchmark/vs_supersliver_bench_test.dart',
     vs_supersliver_bench_test.main,
   );
+  group('catalog_overscroll_sink_test.dart', catalog_overscroll_sink_test.main);
   group('catalog_paragraph_cache_test.dart', catalog_paragraph_cache_test.main);
   group(
     'catalog_scroll_position_contract_test.dart',

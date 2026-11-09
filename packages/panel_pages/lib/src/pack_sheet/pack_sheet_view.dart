@@ -11,6 +11,7 @@ import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/menu/catalog_context_menu.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_action.dart';
+import 'package:panel_pages/src/pack_sheet/pack_sheet_drag.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_frame.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/preview/catalog_content_preview.dart';
@@ -533,6 +534,8 @@ class _PackSheetViewState extends State<PackSheetView>
     };
     if (packs != null) _publish(packs);
     final touch = arrangement == PanelArrangement.touch;
+    // The bottom sheet's drag owner; none for the box under a pointer.
+    final sheetDrag = PackSheetDragScope.maybeOf(context);
     final media = MediaQuery.of(context);
     final width = touch ? media.size.width : PackSheet.boxWidth;
     final gridExtent = _gridExtent(packs, width);
@@ -584,6 +587,7 @@ class _PackSheetViewState extends State<PackSheetView>
               onLeafLongPressStart: _onLongPressStart,
               onLeafLongPressMove: (_, details) => _session?.update(details),
               onLeafLongPressEnd: (_, details) => _session?.end(details),
+              overscrollSink: sheetDrag,
             ),
           );
     final header = _Header(
@@ -728,7 +732,14 @@ class _PackSheetViewState extends State<PackSheetView>
               right: 0,
               top: cardTop,
               height: PackSheetView.headerExtent,
-              child: header,
+              child: switch (sheetDrag) {
+                final sink? => _HeaderDrag(
+                  sink: sink,
+                  grid: _catalog,
+                  child: header,
+                ),
+                null => header,
+              },
             ),
             Positioned(
               left: 0,
@@ -1033,6 +1044,55 @@ class _Header extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The header band as a handle on the sheet: a vertical drag anywhere on it
+/// (the grabber, the title, the empty band) goes to the sheet's drag owner
+/// through [sink], before the grid under it can take the press.
+///
+/// The owner moves first, as it does for a drag on the grid at its top: a
+/// drag down pulls the sheet, a drag up first undoes the pull, and what the
+/// owner declines raises the card by scrolling [grid]. The header's buttons
+/// keep their taps; a drag that starts on one still moves the sheet.
+class _HeaderDrag extends StatelessWidget {
+  const _HeaderDrag({
+    required this.sink,
+    required this.grid,
+    required this.child,
+  });
+
+  final CatalogOverscrollSink sink;
+  final PanelCatalogController grid;
+  final Widget child;
+
+  // A mouse never drags the sheet, as it never drags the grid.
+  static const Set<PointerDeviceKind> _devices = {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.invertedStylus,
+    PointerDeviceKind.trackpad,
+  };
+
+  void _update(DragUpdateDetails details) {
+    final dy = details.primaryDelta ?? details.delta.dy;
+    final rest = dy - sink.onDelta(dy);
+    // Finger up reveals what is below: the grid's offset grows.
+    if (rest != 0) grid.scrollBy(-rest);
+  }
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    // A handle for the finger only: the sheet's semantics close it through
+    // the barrier, and scroll actions here would stand over the header's.
+    excludeFromSemantics: true,
+    supportedDevices: _devices,
+    onVerticalDragStart: (_) => sink.onStart?.call(),
+    onVerticalDragUpdate: _update,
+    onVerticalDragEnd: (details) => sink.onEnd(details.primaryVelocity ?? 0),
+    onVerticalDragCancel: () => sink.onEnd(0),
+    child: child,
+  );
 }
 
 /// The header of one pack among several (not single): its title, how many emoji it holds, and a button that adds

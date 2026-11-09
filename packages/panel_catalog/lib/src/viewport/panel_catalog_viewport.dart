@@ -11,6 +11,7 @@ import 'package:panel_catalog/src/model/section_layout.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_grid_metrics.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
+import 'package:panel_catalog/src/viewport/catalog_overscroll_sink.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 
@@ -151,6 +152,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.pinnedLeaf,
     this.onSectionAction,
     this.sectionNearExtent,
+    this.overscrollSink,
     super.key,
   });
 
@@ -362,6 +364,13 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// reach.
   final double? sectionNearExtent;
 
+  /// Where the part of a drag past the top edge goes, or null to drop it.
+  ///
+  /// A host whose catalogue sits in something that moves (a sheet a pull
+  /// lowers or closes) receives that part here; see [CatalogOverscrollSink].
+  /// Swapping it ends nothing in flight.
+  final CatalogOverscrollSink? overscrollSink;
+
   @override
   RenderPanelCatalog createRenderObject(BuildContext context) {
     final theme = PanelCatalogTheme.of(context, listen: true);
@@ -391,6 +400,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
         onSectionAction: onSectionAction,
         sectionNearExtent: sectionNearExtent,
       )
+      ..overscrollSink = overscrollSink
       ..held = _heldIn(context)
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }
@@ -431,6 +441,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..pinnedLeaf = pinnedLeaf
       ..onSectionAction = onSectionAction
       ..sectionNearExtent = sectionNearExtent
+      ..overscrollSink = overscrollSink
       ..held = _heldIn(context)
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }

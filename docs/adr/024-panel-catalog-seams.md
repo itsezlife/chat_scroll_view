@@ -9,6 +9,7 @@ attaches a position contract. This amends [ADR 006](006-panel-catalog-viewport.m
 **Date**: 2026-10-16  
 **Amended**: 2026-10-16 — the snapshot is a `package:listen` `ValueListenable` and the scroll events a synchronous broadcast `Stream` ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
 **Amended**: 2026-10-16 — mouse seams: secondary tap, per-kind long-press delay, pinned leaf, leaf bounds  
+**Amended**: 2026-11-10 — the overscroll sink: the part of a drag past the top edge goes to the host on the tick it overflows, its release at the velocity of its own share (section *Amendment: the overscroll sink*)  
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (amended), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 031](031-localization-accessibility-and-input.md)
 
 ## Decided
@@ -77,3 +78,33 @@ remainder split as a margin.
 `PanelCatalogController.sectionActionBoundsOf(sectionId)` (through
 `CatalogScrollPosition.sectionActionBounds`): the button of a section header's
 action in global coordinates, for a host to anchor what it opens.
+
+## Amendment: the overscroll sink
+
+A catalogue inside something that moves (a bottom sheet whose card is the
+grid's own lead padding) had no way to hand on a drag it could not scroll:
+`scrollBy` clamps at the top and drops the rest, so a pull down at the top
+moved nothing, and the sheet's own drag detector lost every arena to the
+grid's recognizer. Only the viewport knows whether its content is at the top
+and how much of a tick it consumed, so the hand-over is a viewport seam,
+shaped like the chat viewport's `ChatOverscrollSink`.
+
+| Area | Decision |
+| ---- | -------- |
+| Seam | `PanelCatalogViewport.overscrollSink`: a `CatalogOverscrollSink` of `onStart`, `onDelta(pixels) -> taken` and `onEnd(velocity) -> bool`, in the finger's sign (positive pulls past the top). Top edge only: the catalogue's bottom edge has no host that moves. |
+| Order | While content rests at the top (always, for content that fits) every drag tick is offered first, in both directions: the receiver moves before content until it declines, so a push up first undoes a pull. Away from the top only the part of a downward tick that content cannot scroll is offered, on the same tick that brings content to the top: nothing is held back at the edge, as a draggable sheet hands over. The return is clamped to the offer. |
+| Release | `onEnd` is called once for a drag in which the sink took something (with `0` for a cancelled one), at the velocity of the sink's own share: estimated from the pixels it took against the ticks' event times, not from the finger's whole drag. A fast scroll that reaches the top and runs a little past it, slowing, is a slow pull: a receiver that dismisses on velocity springs back instead. `true` means the receiver settles the release and no content fling starts; `false` lets the content fling (it gave everything back and the finger went on to scroll). |
+| Not offered | The mouse (it never drags the catalogue), the wheel, focus moves, a fling (one that reaches the top stops there) and programmatic motion. |
+| Tests | `FakeCatalogOverscrollSink` and `CatalogOverscrollSinkContract.run` in `testing.dart`: a receiver takes no more than it is offered, declines a push while it holds nothing, gives back what it holds before declining, and takes the release exactly when it still holds a pull. Every receiver runs it (the pack sheet's drag owner does). |
+
+Rejected: a rest before a pull (a pull past the top dropped until content
+has rested there, 200 ms, so a scroll back to the top that runs on does not
+close a sheet): on a device it read as the edge swallowing part of the drag
+before the sheet moved. Measuring the release on the sink's own share covers
+the case it was for, and a fling never reaches the sink. Also rejected:
+porting a draggable-scrollable sheet that resizes its box and
+couples through a framework `ScrollPosition` (the catalogue is not a
+`Scrollable`, and two ballistic owners plus a relayout per drag frame would
+replace a geometry that already works); a host `Listener` that guesses what
+the grid consumed; the sheet's own detector winning the arena (it would take
+every drag the grid should scroll).
