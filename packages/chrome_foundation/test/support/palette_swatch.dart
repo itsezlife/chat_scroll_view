@@ -77,7 +77,7 @@ class PaletteSwatch extends StatelessWidget {
           data.glass.composerIsland,
           data.glass.panelButton,
           data.glass.topPanel,
-        ]) ...[m.fill, m.strokeTop, m.strokeBottom, m.shadow],
+        ]) ...[m.tint, m.strokeTop, m.strokeBottom, m.shadow],
       ],
     ];
     return Directionality(

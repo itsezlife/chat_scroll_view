@@ -12,7 +12,7 @@ const String _liquidAsset =
 const String _liquidBackdropAsset =
     'packages/chrome_foundation/shaders/liquid_glass_backdrop.frag';
 
-/// Full-resolution stand-in for sampling the backdrop at 1/4 resolution.
+/// Full-resolution stand-in for sampling the backdrop at a lower resolution.
 const String _frostPrepassAsset =
     'packages/chrome_foundation/shaders/glass_frost_prepass.frag';
 
@@ -83,10 +83,14 @@ abstract final class GlassShaders {
   }
 
   /// Builds glass filter: frost? → blur → liquid (scene [BackdropFilter] path).
+  ///
+  /// [blurSigma] is in logical px; the liquid pass applies the style's
+  /// saturation.
   static ui.ImageFilter? createFilter({
     required GlassShaderPrograms programs,
     required ui.Size size,
     required GlassStyle style,
+    required double blurSigma,
     bool applyFrost = true,
   }) {
     if (!isSupported || size.isEmpty) return null;
@@ -119,10 +123,9 @@ abstract final class GlassShaders {
     liquid.setFloat(i++, fill.a);
     liquid.setFloat(i++, style.backdropSaturation);
 
-    final effectiveSigma = style.effectiveBlurSigma;
     final blur = ui.ImageFilter.blur(
-      sigmaX: effectiveSigma,
-      sigmaY: effectiveSigma,
+      sigmaX: blurSigma,
+      sigmaY: blurSigma,
       tileMode: ui.TileMode.clamp,
     );
 
@@ -180,6 +183,7 @@ abstract final class GlassShaders {
     required ui.Image image,
     required ui.Offset texOrigin,
     required double texScale,
+    double saturation = 1,
     double blurRadius = 0,
   }) {
     if (size.isEmpty || texScale <= 0) return null;
@@ -209,7 +213,7 @@ abstract final class GlassShaders {
     shader.setFloat(i++, fill.g);
     shader.setFloat(i++, fill.b);
     shader.setFloat(i++, fill.a);
-    shader.setFloat(i++, style.backdropSaturation);
+    shader.setFloat(i++, saturation);
     shader.setFloat(i++, image.width.toDouble());
     shader.setFloat(i++, image.height.toDouble());
     shader.setFloat(i++, texOrigin.dx);

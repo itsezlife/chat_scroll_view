@@ -4,38 +4,53 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('fromPalette', () {
-    test('light composer island: translucent surface, white strokes', () {
+    test('light composer island: the surface tint, white strokes, a 0x20 '
+        'shadow', () {
       final island = GlassMaterialTokens.fromPalette(
         const ChromePalette.light(),
       ).composerIsland;
-      expect(island.fill, const Color(0xFFFFFFFF).withValues(alpha: 0.85));
+      expect(island.tint, const Color(0xFFFFFFFF));
       expect(island.strokeTop, const Color(0xFFFFFFFF));
       expect(island.strokeBottom, const Color(0xFFFFFFFF));
-      expect(island.shadow, const Color(0xFF000000).withValues(alpha: 0.125));
+      expect(island.shadow, const Color(0x20000000));
     });
 
     test('dark composer island: faint strokes and no shadow', () {
       final island = GlassMaterialTokens.fromPalette(
         const ChromePalette.dark(),
       ).composerIsland;
-      expect(island.fill, const Color(0xFF20242A).withValues(alpha: 0.85));
+      expect(island.tint, const Color(0xFF20242A));
       expect(island.strokeTop, const Color(0x28FFFFFF));
       expect(island.strokeBottom, const Color(0x14FFFFFF));
       expect(island.shadow.a, 0);
     });
 
-    test('each named material tints its own surface role', () {
-      final tokens = GlassMaterialTokens.fromPalette(
+    test('a panel button tints the surface and casts a 0x40 shadow in light '
+        'only', () {
+      final light = GlassMaterialTokens.fromPalette(
         const ChromePalette.light(),
-      );
-      expect(
-        tokens.panelButton.fill.withValues(alpha: 1),
-        const Color(0xFFE8EAED),
-      );
-      expect(
-        tokens.topPanel.fill.withValues(alpha: 1),
-        const Color(0xFFF0F2F5),
-      );
+      ).panelButton;
+      final dark = GlassMaterialTokens.fromPalette(
+        const ChromePalette.dark(),
+      ).panelButton;
+      expect(light.tint, const Color(0xFFFFFFFF));
+      expect(light.shadow, const Color(0x40000000));
+      expect(dark.tint, const Color(0xFF20242A));
+      expect(dark.shadow.a, 0);
+    });
+
+    test('a top panel tints the dim surface with a fainter dark top edge', () {
+      final light = GlassMaterialTokens.fromPalette(
+        const ChromePalette.light(),
+      ).topPanel;
+      final dark = GlassMaterialTokens.fromPalette(
+        const ChromePalette.dark(),
+      ).topPanel;
+      expect(light.tint, const Color(0xFFF0F2F5));
+      expect(light.shadow, const Color(0x20000000));
+      expect(dark.strokeTop, const Color(0x20FFFFFF));
+      expect(dark.strokeBottom, const Color(0x14FFFFFF));
+      expect(dark.shadow.a, 0);
     });
   });
 
@@ -43,7 +58,7 @@ void main() {
     test('replaces one material and keeps the others', () {
       final base = GlassMaterialTokens.fromPalette(const ChromePalette.light());
       const custom = GlassMaterialColors(
-        fill: Color(0x80123456),
+        tint: Color(0x80123456),
         strokeTop: Color(0xFFFFFFFF),
         strokeBottom: Color(0xFFFFFFFF),
         shadow: Color(0x00000000),
@@ -56,7 +71,7 @@ void main() {
 
     test('a material copyWith replaces one colour', () {
       const material = GlassMaterialColors(
-        fill: Color(0x80123456),
+        tint: Color(0x80123456),
         strokeTop: Color(0xFFFFFFFF),
         strokeBottom: Color(0xFFFFFFFF),
         shadow: Color(0x00000000),
@@ -66,8 +81,8 @@ void main() {
         const Color(0x20000000),
       );
       expect(
-        material.copyWith(shadow: const Color(0x20000000)).fill,
-        material.fill,
+        material.copyWith(shadow: const Color(0x20000000)).tint,
+        material.tint,
       );
     });
   });
@@ -84,8 +99,8 @@ void main() {
     test('blends the materials halfway', () {
       final mid = GlassMaterialTokens.lerp(a, b, 0.5);
       expect(
-        mid.composerIsland.fill,
-        Color.lerp(a.composerIsland.fill, b.composerIsland.fill, 0.5),
+        mid.composerIsland.tint,
+        Color.lerp(a.composerIsland.tint, b.composerIsland.tint, 0.5),
       );
       expect(
         mid.topPanel.strokeTop,

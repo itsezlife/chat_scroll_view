@@ -8,7 +8,8 @@ import 'package:flutter/widgets.dart';
 
 /// The scene behind the surface, filtered with a backdrop filter: the liquid
 /// shader filter when [GlassStyle.enableLiquid], [programs] are loaded and the
-/// backend supports it, a plain blur under the fill otherwise.
+/// backend supports it; otherwise a blur and a saturation colour filter under
+/// the fill, which need no shader.
 ///
 /// The whole frame renders offscreen while this is on, and the first such
 /// frame after a few without one allocates that target again.
@@ -18,11 +19,15 @@ class FilterGlassBackdrop extends StatelessWidget {
     required this.style,
     required this.programs,
     required this.shaderFilter,
+    required this.devicePixelRatio,
     super.key,
   });
 
   /// Resolved material.
   final GlassStyle style;
+
+  /// Device pixel ratio, which the blur radius converts with.
+  final double devicePixelRatio;
 
   /// Loaded shaders, or null before they load or when loading failed.
   final GlassShaderPrograms? programs;
@@ -36,6 +41,7 @@ class FilterGlassBackdrop extends StatelessWidget {
 
   Widget _build(Size size) {
     final programs = this.programs;
+    final sigma = style.blurSigma(devicePixelRatio: devicePixelRatio);
     // No frost prepass: under the full-resolution blur its N×N average moves
     // sigma by a fraction of a pixel, and as a shader filter it costs a
     // full-screen pass per frame.
@@ -44,6 +50,7 @@ class FilterGlassBackdrop extends StatelessWidget {
             programs: programs,
             size: size,
             style: style,
+            blurSigma: sigma,
             applyFrost: false,
           )
         : null;
@@ -55,12 +62,20 @@ class FilterGlassBackdrop extends StatelessWidget {
       );
     }
 
+    final blur = ui.ImageFilter.blur(
+      sigmaX: sigma,
+      sigmaY: sigma,
+      tileMode: TileMode.clamp,
+    );
     return BackdropFilter(
-      filter: ui.ImageFilter.blur(
-        sigmaX: style.effectiveBlurSigma,
-        sigmaY: style.effectiveBlurSigma,
-        tileMode: TileMode.clamp,
-      ),
+      filter: style.backdropSaturation == 1
+          ? blur
+          : ui.ImageFilter.compose(
+              outer: ui.ColorFilter.matrix(
+                RenderGlassSource.saturationMatrix(style.backdropSaturation),
+              ),
+              inner: blur,
+            ),
       child: ColoredBox(color: style.fill),
     );
   }
@@ -68,13 +83,15 @@ class FilterGlassBackdrop extends StatelessWidget {
 
 /// A backdrop sampled from the [GlassSource] of the enclosing scope.
 ///
-/// Each composited frame the scope captures the region behind this box (plus
-/// the refraction reach) at 1 / [GlassStyle.sourceDownscale] resolution,
-/// blurred by [GlassStyle.blurSigma] in that space (shared with nearby
-/// backdrops of the same resolution and blur), and this box draws it through
-/// the liquid shader. Nothing reads back the onscreen target, so appearing,
-/// moving or disappearing costs no more than a still frame. Until the shaders
-/// load it paints [GlassStyle.fill] flat.
+/// Each composited frame the scope hands this box a capture of the region
+/// behind it (plus the blur and refraction reach) at 1 /
+/// [GlassStyle.sourceDownscale] resolution, blurred and saturated in that
+/// space, shared with nearby backdrops of the same look and kept while
+/// nothing under it changed. A frosted box draws the capture scaled up under
+/// its tint, with no shader; a refracting one draws it through the liquid
+/// shader, and until that loads draws it frosted. Nothing reads back the
+/// onscreen target, so appearing, moving or disappearing costs no more than a
+/// still frame.
 class SampledGlassBackdrop extends LeafRenderObjectWidget {
   /// A sampled backdrop painted per [style].
   const SampledGlassBackdrop({
@@ -208,19 +225,22 @@ class RenderSampledGlass extends RenderBox implements GlassSampler {
   double get samplePixelRatio => _pixelRatio / _style.sourceDownscale;
 
   @override
-  double get sampleBlurSigma => _style.blurSigma;
+  double get sampleBlurSigma =>
+      _style.captureBlurSigma(devicePixelRatio: _pixelRatio);
+
+  @override
+  double get sampleSaturation => _style.backdropSaturation;
 
   Rect _glassIn(RenderGlassSource source) =>
       MatrixUtils.transformRect(getTransformTo(source), Offset.zero & size);
 
   @override
   Rect? sampleRegion(RenderGlassSource source) {
-    if (_programs == null || !attached || !hasSize || size.isEmpty) {
-      return null;
-    }
+    if (!attached || !hasSize || size.isEmpty) return null;
     if (_layer.layer?.attached != true) return null;
+    final bends = _style.enableLiquid && _programs != null;
     final reach =
-        GlassShaders.backdropReach(style: _style, size: size) +
+        (bends ? GlassShaders.backdropReach(style: _style, size: size) : 0) +
         3 * sampleBlurSigma / samplePixelRatio;
     final region = _glassIn(
       source,
@@ -233,35 +253,61 @@ class RenderSampledGlass extends RenderBox implements GlassSampler {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     final rect = Offset.zero & size;
-    final shader = _shader();
-    canvas.drawRect(
-      rect,
-      shader == null
-          ? (Paint()..color = _style.fill)
-          : (Paint()..shader = shader),
-    );
-    final picture = recorder.endRecording();
-    shader?.dispose();
-    return picture;
+    final source = _link.source;
+    final capture = source == null ? null : _link.captureFor(this);
+    final programs = _programs;
+    if (source == null || capture == null) {
+      canvas.drawRect(rect, Paint()..color = _style.fill);
+    } else if (_style.enableLiquid && programs != null) {
+      final shader = _liquid(programs, source, capture);
+      canvas.drawRect(rect, Paint()..shader = shader);
+      shader?.dispose();
+    } else {
+      _frost(canvas, rect, source, capture);
+    }
+    return recorder.endRecording();
   }
 
-  ui.FragmentShader? _shader() {
-    final programs = _programs;
-    final source = _link.source;
-    if (programs == null || source == null) return null;
-    final capture = _link.captureFor(this);
-    if (capture == null) return null;
-    return GlassShaders.createBackdropShader(
-      programs: programs,
-      size: size,
-      style: _style,
-      image: capture.image,
-      texOrigin:
-          (_glassIn(source).topLeft - capture.region.topLeft) *
-          capture.pixelRatio,
-      texScale: capture.pixelRatio,
-    );
+  /// The capture under the glass, scaled up from its low resolution, under
+  /// the tint. Bilinear filtering of a capture blurred by several of its own
+  /// px leaves no visible texel.
+  void _frost(
+    Canvas canvas,
+    Rect rect,
+    RenderGlassSource source,
+    GlassCapture capture,
+  ) {
+    final glass = _glassIn(source).shift(-capture.region.topLeft);
+    final ratio = capture.pixelRatio;
+    canvas
+      ..drawImageRect(
+        capture.image,
+        Rect.fromLTRB(
+          glass.left * ratio,
+          glass.top * ratio,
+          glass.right * ratio,
+          glass.bottom * ratio,
+        ),
+        rect,
+        Paint()..filterQuality = FilterQuality.low,
+      )
+      ..drawRect(rect, Paint()..color = _style.fill);
   }
+
+  ui.FragmentShader? _liquid(
+    GlassShaderPrograms programs,
+    RenderGlassSource source,
+    GlassCapture capture,
+  ) => GlassShaders.createBackdropShader(
+    programs: programs,
+    size: size,
+    style: _style,
+    image: capture.image,
+    texOrigin:
+        (_glassIn(source).topLeft - capture.region.topLeft) *
+        capture.pixelRatio,
+    texScale: capture.pixelRatio,
+  );
 }
 
 /// Records its owner's backdrop anew on every composited frame, after paint,
