@@ -6,6 +6,16 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (a pack sheet follows the finger past its grid)
+
+- A pull down on a bottom pack sheet's grid at its top, or anywhere on its
+  header band, lowers the sheet and closes it past 0.8 cm or on a fast
+  flick; a shorter pull springs back. Before, the grid took every drag over
+  it and dropped what it could not scroll, so only the title's own glyphs
+  moved the sheet. A push up first undoes the pull, then raises the card.
+  A quick scroll back to the top does not close the sheet. Sticker and emoji
+  sheets alike; the box under a pointer is unchanged.
+
 ### Fixed (sheet and menu typography, menu icons)
 
 - The pack sheet, the content preview and the pickers and tooltips placed in

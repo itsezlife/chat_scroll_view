@@ -195,6 +195,7 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
 | Stable section ids and, where the host needs to recognise a cell, a `tag` on the leaf | Identify a cell by its content key alone (the same key can be in several sections), or key a side map by leaf instance |
 | The bake's three signals, and a listener on `controller.events` that calls the atlas (`reportScrolling` on `PanelCatalogScrollingChanged`, `prioritise` on `PanelCatalogScrollSettled`): the viewport tells no atlas anything | Start a bake on the web, or run one beside the open animation |
 | A new atlas (and cache) when the planned glyphs change, built from the old one's `retire()` so the cells do not blank | Dispose the atlas while a viewport still draws from it and expect the last frame to survive: the cells show placeholders |
+| An `overscrollSink` when the viewport sits in something a pull should move (a sheet), whose receiver passes `CatalogOverscrollSinkContract` | Wrap the viewport in a vertical drag detector of its own: the grid's recognizer wins those drags |
 
 Shell chrome (strip, search, tabs, pickers) lives outside this package.
 

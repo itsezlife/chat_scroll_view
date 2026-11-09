@@ -449,6 +449,201 @@ void main() {
     });
   });
 
+  // One owner moves the sheet: a pull past the grid's top, a drag on the
+  // header, the release that closes it or springs it back. At the default
+  // slop and at a phone's.
+  for (final slop in [null, 8.0]) {
+    group('dragging the sheet (slop ${slop ?? 'default'})', () {
+      // The sheet's translation: its box starts at the top of the screen
+      // (tall) or 350 down (short).
+      double sheetTop(WidgetTester tester) =>
+          tester.getRect(find.byType(PackSheetView)).top;
+
+      double titleCentre(WidgetTester tester) =>
+          tester.getCenter(find.text('Pack big')).dy;
+
+      // A finger down at [from] that moves [by] in steps of [step], [gap]
+      // apart in event time, and lifts held still unless [lift] is false.
+      Future<TestGesture> pull(
+        WidgetTester tester,
+        Offset from,
+        double by, {
+        double step = 10,
+        Duration gap = const Duration(milliseconds: 16),
+        bool lift = true,
+      }) async {
+        var time = Duration.zero;
+        final finger = await tester.startGesture(from);
+        for (var moved = 0.0; moved < by.abs(); moved += step) {
+          time += gap;
+          await finger.moveBy(Offset(0, step * by.sign), timeStamp: time);
+          await tester.pump(gap);
+        }
+        if (lift) {
+          // Held still before it lifts: no fling.
+          await tester.pump(const Duration(milliseconds: 200));
+          await finger.up();
+          await settle(tester);
+        }
+        return finger;
+      }
+
+      // The tall sheet's card opens at 320: its header's empty band is
+      // right of the title, its grid's first row at 370.
+      const header = Offset(300, 345);
+      const grid = Offset(200, 600);
+
+      testWidgets('a pull down on the grid at its top lowers the sheet, and '
+          'closes it past 0.8 cm', (tester) async {
+        await open(tester, 'big', touchSlop: slop);
+
+        final finger = await pull(tester, grid, 120, lift: false);
+        expect(sheetTop(tester), greaterThan(60));
+        expect(titleCentre(tester), greaterThan(320 + 25 + 60));
+
+        await finger.up();
+        await settle(tester);
+        expect(sheetUp(), isFalse);
+      });
+
+      testWidgets('a pull down on the empty header closes it', (tester) async {
+        await open(tester, 'big', touchSlop: slop);
+
+        final finger = await pull(tester, header, 120, lift: false);
+        expect(sheetTop(tester), greaterThan(60));
+
+        await finger.up();
+        await settle(tester);
+        expect(sheetUp(), isFalse);
+      });
+
+      testWidgets('a short slow pull springs back', (tester) async {
+        await open(tester, 'big', touchSlop: slop);
+
+        await pull(
+          tester,
+          grid,
+          40,
+          step: 5,
+          gap: const Duration(milliseconds: 50),
+        );
+
+        expect(sheetUp(), isTrue);
+        expect(sheetTop(tester), 0);
+        expect(titleCentre(tester), 320 + 25);
+      });
+
+      testWidgets('a fast flick down closes it whatever the distance', (
+        tester,
+      ) async {
+        await open(tester, 'big', touchSlop: slop);
+
+        // 40 down in 8 ms: a pull short of 0.8 cm, at 5000 px/s.
+        final finger = await tester.startGesture(grid);
+        for (var i = 1; i <= 8; i++) {
+          await finger.moveBy(
+            const Offset(0, 5),
+            timeStamp: Duration(milliseconds: i),
+          );
+        }
+        await finger.up();
+        await settle(tester);
+
+        expect(sheetUp(), isFalse);
+      });
+
+      testWidgets('a drag up on the empty header raises the card', (
+        tester,
+      ) async {
+        await open(tester, 'big', touchSlop: slop);
+
+        await pull(tester, header, -150);
+
+        expect(sheetUp(), isTrue);
+        expect(sheetTop(tester), 0);
+        expect(titleCentre(tester), lessThan(320 + 25 - 100));
+      });
+
+      for (final (name, from) in [('header', header), ('grid', grid)]) {
+        testWidgets('a drag up on the $name first undoes the pull, then '
+            'raises the card', (tester) async {
+          await open(tester, 'big', touchSlop: slop);
+
+          final finger = await pull(tester, from, 40, lift: false);
+          expect(sheetTop(tester), greaterThan(0));
+          for (var i = 0; i < 12; i++) {
+            await finger.moveBy(const Offset(0, -10));
+            await tester.pump();
+          }
+
+          expect(sheetTop(tester), 0);
+          expect(titleCentre(tester), lessThan(320 + 25 - 40));
+          await finger.up();
+          await settle(tester);
+          expect(sheetUp(), isTrue);
+        });
+      }
+
+      testWidgets('risen to the top, a pull brings the card back part-way, '
+          'and a pull that goes on at the top closes the sheet', (
+        tester,
+      ) async {
+        await open(tester, 'big', touchSlop: slop);
+        await pull(tester, grid, -700);
+        expect(titleCentre(tester), 25);
+
+        // Further than the grid scrolled, but the tail arrives within the
+        // rest and is dropped.
+        final finger = await pull(tester, grid, 720, lift: false);
+        expect(titleCentre(tester), 320 + 25);
+        expect(sheetTop(tester), 0);
+
+        // At rest at the top for long enough, the pull reaches the sheet.
+        var time = const Duration(seconds: 2);
+        for (var i = 0; i < 30; i++) {
+          time += const Duration(milliseconds: 16);
+          await finger.moveBy(const Offset(0, 10), timeStamp: time);
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        expect(sheetTop(tester), greaterThan(60));
+        await finger.up(timeStamp: time);
+        await settle(tester);
+        expect(sheetUp(), isFalse);
+      });
+
+      testWidgets('a fast scroll back to the top does not close it', (
+        tester,
+      ) async {
+        await open(tester, 'big', touchSlop: slop);
+        await pull(tester, grid, -200);
+        expect(titleCentre(tester), closeTo(320 + 25 - 200, 20));
+
+        await pull(
+          tester,
+          grid,
+          400,
+          step: 20,
+          gap: const Duration(milliseconds: 8),
+        );
+
+        expect(sheetUp(), isTrue);
+        expect(sheetTop(tester), 0);
+        expect(titleCentre(tester), 320 + 25);
+      });
+
+      testWidgets('a short sheet closes under a pull on its grid', (
+        tester,
+      ) async {
+        await open(tester, 'cats', touchSlop: slop);
+        expect(sheetTop(tester), 350);
+
+        await pull(tester, const Offset(200, 550), 120);
+
+        expect(sheetUp(), isFalse);
+      });
+    });
+  }
+
   // A phone's touch slop (8 logical pixels) reaches the widgets through the
   // media query's gesture settings; the grid's own recognizers do not read
   // them.
@@ -696,6 +891,24 @@ void main() {
       await settle(tester);
 
       expect(sheetUp(), isFalse);
+    });
+
+    testWidgets('under a pointer a drag neither moves nor closes the box', (
+      tester,
+    ) async {
+      await open(tester, 'cats', arrangement: PanelArrangement.pointer);
+      final before = tester.getRect(find.byType(PackSheetView));
+
+      await tester.dragFrom(before.center, const Offset(0, 150));
+      await settle(tester);
+      await tester.dragFrom(
+        before.topCenter + const Offset(0, 25),
+        const Offset(0, 150),
+      );
+      await settle(tester);
+
+      expect(sheetUp(), isTrue);
+      expect(tester.getRect(find.byType(PackSheetView)), before);
     });
 
     // A host that pauses its animations under modal routes tells the sheet

@@ -1,8 +1,8 @@
-import 'dart:math' as math;
-
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_pages/src/pack_sheet/pack_sheet_drag.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// The link of the pack [id] to share or copy, or null for a pack that has
@@ -44,6 +44,11 @@ typedef PackSheetItem = ({ContentDescriptor item, Pack pack});
 /// on touch, and a tall sheet that opens part-way and rises with its grid
 /// (`PackSheetFrame`); a close button and a bounded box under a pointer.
 ///
+/// On touch one drag owner moves the sheet: a pull down past the grid's top
+/// or on the header band lowers it, and closes it past [dismissDistance] or
+/// on a flick of [dismissVelocity]; a push up undoes the pull before the
+/// card rises with the grid. The box under a pointer is never dragged.
+///
 /// [StickerPackSheet]: package:panel_pages/src/pack_sheet/sticker_pack_sheet.dart
 /// [EmojiPackSheet]: package:panel_pages/src/pack_sheet/emoji_pack_sheet.dart
 abstract final class PackSheet {
@@ -75,13 +80,18 @@ abstract final class PackSheet {
   /// on `EASE_OUT`.
   static const Duration closeDuration = Duration(milliseconds: 250);
 
-  /// How far a drag must pull the sheet down to dismiss it: `BottomSheet`'s
-  /// `0.8 cm` (`getPixelsInCM(0.8f)`), at the 160 dpi of one logical pixel.
+  /// How far a drag must pull the sheet down to dismiss it: 0.8 cm, at the
+  /// 160 dpi of one logical pixel.
   static const double dismissDistance = 0.8 / 2.54 * 160;
 
   /// The fling that dismisses whatever the distance: 3500 physical pixels per
-  /// second (`velocityY >= 3500`).
+  /// second.
   static const double dismissVelocity = 3500;
+
+  /// How long, within one drag, the grid must have rested at its top before
+  /// a pull past it moves the sheet: a quick scroll back to the top that runs
+  /// on does not close the sheet ([CatalogOverscrollSink.restBeforePull]).
+  static const Duration pullRest = Duration(milliseconds: 200);
 
   /// The width of the box under a pointer.
   static const double boxWidth = 364;
@@ -176,10 +186,7 @@ final class _BottomSheetRoute extends PopupRoute<void> {
     arrangement: PanelArrangement.touch,
     child: Align(
       alignment: Alignment.bottomCenter,
-      child: _DragToDismiss(
-        route: this,
-        child: Builder(builder: builder),
-      ),
+      child: _SheetDrag(child: Builder(builder: builder)),
     ),
   );
 
@@ -209,67 +216,88 @@ final class _BottomSheetRoute extends PopupRoute<void> {
   }
 }
 
-/// Pulls the sheet down under a vertical drag that its scrolling grid does
-/// not take, and dismisses it past [PackSheet.dismissDistance] or on a fast
-/// fling; otherwise it springs back in `250 * (offset / distance)` ms
-/// (`BottomSheet.checkDismiss`).
-class _DragToDismiss extends StatefulWidget {
-  const _DragToDismiss({required this.route, required this.child});
+/// The bottom sheet's drag owner ([PackSheetDrag]): translates the sheet
+/// under a pull from the grid or the header, closes it past
+/// [PackSheet.dismissDistance] or on a flick of [PackSheet.dismissVelocity],
+/// and otherwise springs it back in `250 * (pull / distance)` ms on an ease
+/// out. Its sink reaches the sheet's body through [PackSheetDragScope].
+class _SheetDrag extends StatefulWidget {
+  const _SheetDrag({required this.child});
 
-  final _BottomSheetRoute route;
   final Widget child;
 
   @override
-  State<_DragToDismiss> createState() => _DragToDismissState();
+  State<_SheetDrag> createState() => _SheetDragState();
 }
 
-class _DragToDismissState extends State<_DragToDismiss>
+class _SheetDragState extends State<_SheetDrag>
     with SingleTickerProviderStateMixin {
-  late final _back = AnimationController(vsync: this);
-  var _offset = 0.0;
+  final _drag = PackSheetDrag(
+    dismissDistance: PackSheet.dismissDistance,
+    dismissVelocity: PackSheet.dismissVelocity,
+  );
+  late final AnimationController _back = AnimationController(vsync: this)
+    ..addListener(() => _moveTo(_back.value));
+  final _translation = ValueNotifier<double>(0);
+  var _dismissed = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _back.addListener(() => setState(() => _offset = _back.value));
+  late final _sink = CatalogOverscrollSink(
+    restBeforePull: PackSheet.pullRest,
+    onStart: _back.stop,
+    onDelta: (pixels) {
+      if (_dismissed) return 0;
+      final taken = _drag.take(pixels);
+      _translation.value = _drag.translation;
+      return taken;
+    },
+    onEnd: _release,
+  );
+
+  void _moveTo(double translation) {
+    _drag.translation = translation;
+    _translation.value = _drag.translation;
+  }
+
+  bool _release(double velocity) {
+    final ratio = MediaQuery.devicePixelRatioOf(context);
+    switch (_drag.release(velocity * ratio)) {
+      case PackSheetRelease.rest:
+        return false;
+      case PackSheetRelease.dismiss:
+        _dismissed = true;
+        Navigator.of(context).pop();
+      case PackSheetRelease.springBack:
+        final back =
+            PackSheet.closeDuration *
+            (_drag.translation / PackSheet.dismissDistance);
+        final speed = ChromeMotionScope.maybeOf(context)?.speed;
+        _back
+          ..value = _drag.translation
+          ..animateTo(
+            0,
+            duration: speed?.scale(back) ?? back,
+            curve: Curves.easeOut,
+          );
+    }
+    return true;
   }
 
   @override
   void dispose() {
     _back.dispose();
+    _translation.dispose();
     super.dispose();
   }
 
-  void _update(DragUpdateDetails details) {
-    _back.stop();
-    setState(() => _offset = math.max(0, _offset + details.delta.dy));
-  }
-
-  void _end(DragEndDetails details) {
-    final ratio = MediaQuery.devicePixelRatioOf(context);
-    final fling = details.velocity.pixelsPerSecond.dy * ratio;
-    if (_offset > PackSheet.dismissDistance ||
-        fling >= PackSheet.dismissVelocity) {
-      Navigator.of(context).pop();
-      return;
-    }
-    final back =
-        PackSheet.closeDuration * (_offset / PackSheet.dismissDistance);
-    final speed = ChromeMotionScope.maybeOf(context)?.speed;
-    _back
-      ..value = _offset
-      ..animateTo(
-        0,
-        duration: speed?.scale(back) ?? back,
-        curve: Curves.easeOut,
-      );
-  }
-
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onVerticalDragUpdate: _update,
-    onVerticalDragEnd: _end,
-    child: Transform.translate(offset: Offset(0, _offset), child: widget.child),
+  Widget build(BuildContext context) => PackSheetDragScope(
+    sink: _sink,
+    child: ValueListenableBuilder(
+      valueListenable: _translation,
+      child: widget.child,
+      builder: (context, translation, child) =>
+          Transform.translate(offset: Offset(0, translation), child: child),
+    ),
   );
 }
 

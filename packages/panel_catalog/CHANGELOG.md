@@ -6,6 +6,16 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the drag past the top edge goes to the host)
+
+- `PanelCatalogViewport.overscrollSink` takes a `CatalogOverscrollSink`: the
+  part of a drag the grid cannot scroll past its top goes to the host's
+  receiver (a sheet the grid sits in) instead of nowhere. At the top every
+  tick is offered first, both ways; a release the receiver takes starts no
+  content fling; `restBeforePull` keeps a quick scroll back to the top from
+  running on into the receiver. Without a sink nothing changes. Fake and
+  contract: `FakeCatalogOverscrollSink`, `CatalogOverscrollSinkContract`.
+
 ### Fixed (a sticker on screen never starts over, and plays through a fling)
 
 - A fling no longer stops the animated leaves on screen: they play on, as
