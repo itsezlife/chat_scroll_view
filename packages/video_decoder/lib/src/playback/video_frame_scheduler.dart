@@ -40,6 +40,11 @@ final class VideoFrameLease {
   // still, shows.
   int _posts = 0;
   int _missedLocks = 0;
+  // Whether this lease has a frame being drawn or written: it is sent no
+  // other until that one ends, and no other lease waits for it.
+  bool _inFlight = false;
+  // Whether the write in flight names the texture: it goes back to the pool
+  // only when that write ends, so no other asset's write races it.
   bool _writing = false;
   // Whether a surface that only has a canvas painted it since the last sweep
   // but one: such a lease keeps a slot.
@@ -109,8 +114,8 @@ final class VideoFrameLease {
 }
 
 /// The one owner of a host's video frame pool: it decodes each playing clip a
-/// few frames ahead of the clock and draws the frame the clock names, one
-/// batch per tick.
+/// few frames ahead of the clock and draws the frame the clock names on each
+/// tick, every clip waiting only for its own frame.
 ///
 /// Paintables are pull-driven and never schedule: at paint time one calls
 /// [want] with how long it has played. The scheduler drives itself with
@@ -205,11 +210,24 @@ final class VideoFrameLease {
 /// a surface that only has a canvas paints keeps a slot.
 ///
 /// The cap, the ring and the sweep are the same for both: a slotted clip's
-/// frame goes to the writer instead of the atlas, in the same tick, and no
-/// tick draws while either batch runs, so a texture is posted at most once a
-/// clock frame. A frame whose texture could not be locked is dropped (the
-/// texture keeps the one before); [lockFailureLimit] in a row discard the
-/// texture and send the clip back to a slot for the life of the scheduler.
+/// frame goes to the writer instead of the atlas, in the same tick.
+///
+/// ## Each clip waits only for its own frame
+///
+/// The clips on slots that have a frame to show are drawn as one atlas batch
+/// a tick; each clip on a texture is written on its own. A clip with a frame
+/// still being drawn or written is sent nothing (its ring goes on filling,
+/// and the newest ready frame wins once that one ends), so a texture is
+/// posted at most once a clock frame; every other clip goes on. One write per
+/// clip, not one batch per tick: a batch is answered whole, so each clip in
+/// it would wait for the slowest worker, and a batch that ran past a clock
+/// frame would cost every clip that frame. Batches overlap: the atlas runs
+/// its own one after the other, and a clip's writes go to the worker that
+/// decodes it, which answers them in order.
+///
+/// A frame whose texture could not be locked is dropped (the texture keeps
+/// the one before); [lockFailureLimit] in a row discard the texture and send
+/// the clip back to a slot for the life of the scheduler.
 ///
 /// One lease per key: the atlas names an entry once in a batch.
 ///
@@ -298,11 +316,10 @@ final class VideoFrameScheduler {
   final Set<Object> _refused = <Object>{};
   // Size classes a lease found no texture of since the last warm.
   final Set<int> _classesToWarm = <int>{};
-  // Textures a batch in flight still names, of leases that let them go.
-  final List<FrameTextureLease> _returnAfterBatch = [];
+  // Textures leases let go of that a write in flight still names.
+  final Set<FrameTextureLease> _returnAfterWrite = {};
   PlaybackSubscription? _following;
   Timer? _sweep;
-  bool _inFlight = false;
   bool _disposed = false;
   int _nextSeq = 0;
   int _bufferedBytes = 0;
@@ -405,7 +422,7 @@ final class VideoFrameScheduler {
     if (_disposed) return;
     List.of(_leases.values).forEach(_release);
     _disposed = true;
-    _returnAfterBatch
+    _returnAfterWrite
       ..forEach(_giveBack)
       ..clear();
     _atlas.dispose();
@@ -488,11 +505,13 @@ final class VideoFrameScheduler {
     if (pool == null || pool.idleTextures == 0) return;
     for (final lease in _leases.values) {
       // A kept lease stays where its frame is on screen: a move would draw
-      // that frame again into the texture.
+      // that frame again into the texture. A lease with a frame in flight
+      // moves once it ends, so its write always names the texture it holds.
       if (lease._texture != null ||
           lease._onCanvas ||
           lease.isFailed ||
-          lease._kept) {
+          lease._kept ||
+          lease._inFlight) {
         continue;
       }
       final texture = _textureFor(lease);
@@ -524,7 +543,7 @@ final class VideoFrameScheduler {
     if (discard) {
       texture.discard();
     } else if (lease._writing) {
-      _returnAfterBatch.add(texture);
+      _returnAfterWrite.add(texture);
     } else {
       _giveBack(texture);
     }
@@ -539,7 +558,7 @@ final class VideoFrameScheduler {
     lease._slot?.release();
     if (lease._texture != null) {
       if (lease._writing && !_disposed) {
-        _returnAfterBatch.add(lease._texture!);
+        _returnAfterWrite.add(lease._texture!);
       } else {
         _giveBack(lease._texture!);
       }
@@ -554,36 +573,30 @@ final class VideoFrameScheduler {
 
   void _onTick(Duration now) {
     _now = now;
-    if (!_inFlight) _moveToTextures();
+    _moveToTextures();
     final advancing = _chooseAdvancing(now);
     final onSlots = <VideoFrameLease>[];
     final onTextures = <VideoFrameLease>[];
     for (final lease in advancing) {
       lease._player.step();
-      if (_inFlight) continue;
+      if (lease._inFlight) continue;
       if (lease._slot == null && lease._texture == null) continue;
       final ordinal = lease._player.takeFrameToShow();
       if (ordinal == null) continue;
-      lease._requested = ordinal;
+      lease
+        .._requested = ordinal
+        .._inFlight = true;
       (lease._texture != null ? onTextures : onSlots).add(lease);
     }
-    if ((onSlots.isEmpty && onTextures.isEmpty) || _inFlight) return;
-    _inFlight = true;
-    final due = [...onSlots, ...onTextures];
-    unawaited(
-      Future.wait([
-        if (onSlots.isNotEmpty) _drawSlots(onSlots),
-        if (onTextures.isNotEmpty) _writeTextures(onTextures),
-      ]).whenComplete(() {
-        _inFlight = false;
-        for (final lease in due) {
-          lease._player.endBatch();
-        }
-        _returnAfterBatch
-          ..forEach(_giveBack)
-          ..clear();
-      }),
-    );
+    if (onSlots.isNotEmpty) unawaited(_drawSlots(onSlots));
+    onTextures.forEach(_writeTexture);
+  }
+
+  // A frame of [lease] ended, drawn or not: its buffer is free again and the
+  // lease may be sent the next.
+  void _endFrame(VideoFrameLease lease) {
+    lease._inFlight = false;
+    lease._player.endBatch();
   }
 
   Future<void> _drawSlots(List<VideoFrameLease> due) async {
@@ -597,58 +610,52 @@ final class VideoFrameScheduler {
       }
     } on Object catch (error, stack) {
       _batchFailed(due, error, stack, 'while drawing a batch of frames');
+    } finally {
+      due.forEach(_endFrame);
     }
   }
 
-  Future<void> _writeTextures(List<VideoFrameLease> due) async {
-    for (final lease in due) {
-      lease._writing = true;
-    }
-    final textures = [for (final lease in due) lease._texture!];
+  Future<void> _writeTexture(VideoFrameLease lease) async {
+    lease._writing = true;
+    final texture = lease._texture!;
     try {
       final outcomes = await _writer!.write([
-        for (var i = 0; i < due.length; i++)
-          TextureFrameJob(
-            texture: textures[i].texture,
-            frame: due[i]._requested!,
-            width: due[i]._player.width,
-            height: due[i]._player.height,
-            source: due[i]._player,
-          ),
+        TextureFrameJob(
+          texture: texture.texture,
+          frame: lease._requested!,
+          width: lease._player.width,
+          height: lease._player.height,
+          source: lease._player,
+        ),
       ]);
-      for (var i = 0; i < due.length; i++) {
-        final lease = due[i];
-        if (lease._released || !identical(lease._texture, textures[i])) {
-          continue;
-        }
-        switch (outcomes[i]) {
-          case TextureFrameOutcome.posted:
-            lease
-              .._posts += 1
-              .._missedLocks = 0;
-            // Shown now: the slot it came from goes.
-            if (lease._shown) {
-              lease._slot?.release();
-              lease._slot = null;
-            }
-          case TextureFrameOutcome.notLocked:
-            // The frame is dropped: the texture keeps the one before, and the
-            // ring has the next.
-            if (++lease._missedLocks >= lockFailureLimit) {
-              _refused.add(lease._key);
-              _dropTexture(lease, discard: true);
-              lease._slot ??= _slotFor(lease);
-            }
-          case TextureFrameOutcome.failed:
-            lease._player.failed = true;
-        }
+      if (lease._released || !identical(lease._texture, texture)) return;
+      switch (outcomes.single) {
+        case TextureFrameOutcome.posted:
+          lease
+            .._posts += 1
+            .._missedLocks = 0;
+          // Shown now: the slot it came from goes.
+          if (lease._shown) {
+            lease._slot?.release();
+            lease._slot = null;
+          }
+        case TextureFrameOutcome.notLocked:
+          // The frame is dropped: the texture keeps the one before, and the
+          // ring has the next.
+          if (++lease._missedLocks >= lockFailureLimit) {
+            _refused.add(lease._key);
+            _dropTexture(lease, discard: true);
+            lease._slot ??= _slotFor(lease);
+          }
+        case TextureFrameOutcome.failed:
+          lease._player.failed = true;
       }
     } on Object catch (error, stack) {
-      _batchFailed(due, error, stack, 'while writing a batch of textures');
+      _batchFailed([lease], error, stack, 'while writing a texture');
     } finally {
-      for (final lease in due) {
-        lease._writing = false;
-      }
+      lease._writing = false;
+      _endFrame(lease);
+      if (_returnAfterWrite.remove(texture)) _giveBack(texture);
     }
   }
 
@@ -852,7 +859,7 @@ final class _ClipPlayer implements VideoFrameSource {
   }
 
   /// The number of the frame that should be drawn now, or null; moves it to
-  /// the frames a batch is drawing.
+  /// the frames being drawn.
   int? takeFrameToShow() {
     final frame = _toShow;
     if (frame == null) return null;
@@ -861,7 +868,7 @@ final class _ClipPlayer implements VideoFrameSource {
     return frame.number;
   }
 
-  /// A batch ended: the frames it drew are free again.
+  /// The frame in flight ended: the frames it drew are free again.
   void endBatch() {
     for (final frame in _drawing.values) {
       _recycle(frame.pixels);

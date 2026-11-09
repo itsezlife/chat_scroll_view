@@ -10,6 +10,7 @@ uses the browser's decoder. No platform player is created per message.
 **Status**: Accepted  
 **Date**: 2026-11-06  
 **Amended**: 2026-11-09 (native-media ticket 98): the render isolate reads cached frames from their files (row Workers)  
+**Amended**: 2026-11-09 (native-media ticket 110): the render isolates take each texture frame as a request of its own, answered in arrival order, and Lottie renders on a pool of up to four of them (row Workers, section *Amendment: a pool of render isolates*)  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 022](022-asset-cache-and-media-pipeline.md) (page pool and frame cache amendment), [ADR 030](030-testing-policy.md), [ADR 021](021-content-identity-and-collections.md)  
 
 ## Context
@@ -57,7 +58,7 @@ Facts the decisions rest on:
 | Video engine | FFmpeg built `--disable-everything` as **separate shared libraries**: H.264 decoder, decoder-only libvpx VP9 (alpha), `mov` and `matroska` demuxers, swscale; LGPL only, no GPL and no non-free parts, dynamic linking. Output is display-size BGRA. Not folded into the Lottie library. |
 | Native source | In this repository. CI builds the native libraries and publishes **hash-pinned prebuilts**; the build hook downloads them. Compiling from source is an opt-in flag, so no host app needs Rust or an NDK by default. **That promise holds only once a manifest with artifacts is published**: until then (`native/prebuilts.json` is committed empty) every build compiles from source or ships no library, and a host without cargo (or without the NDK, for Android) gets no library and a warning. |
 | Targets | Android arm64-v8a and x86_64, iOS device and simulator, macOS, Windows, Linux, web. Android libraries are 16 KB page aligned. |
-| Workers | One long-lived **render isolate** owns every Lottie handle and runs the batch call on the clock's cadence. There is no cache isolate: the render isolate also compresses and decompresses frames (it owns the codec), and reads a persisted animation's frames from its file one at a time; the UI isolate keeps the cache's index and hands a finished animation's frames to asynchronous file writes, never a whole file or a checksum pass ([ADR 022](022-asset-cache-and-media-pipeline.md), *Amendment: frames read from the file*). A pool of render isolates waits on a verified thread-safety contract. Video decodes on its own workers with a fixed small pool. Hot calls are `@Native(isLeaf: true)` where the native function neither blocks long nor calls back. |
+| Workers | A pool of long-lived **render isolates** (one to four, one per core but one by default; *Amendment: a pool of render isolates*) owns the Lottie handles, each handle on the isolate that loaded it, and runs the batch call on the clock's cadence: one batch a tick for the page slots, split by isolate, and one request per texture frame, each isolate answering in arrival order, so a lease waits only for its own frame ([ADR 043](043-platform-texture-frames.md), *Amendment: each lease waits only for its own frame*). There is no cache isolate: the render isolates also compress and decompress frames (each owns a codec), and read a persisted animation's frames from its file one at a time; the UI isolate keeps the cache's index and hands a finished animation's frames to asynchronous file writes, never a whole file or a checksum pass ([ADR 022](022-asset-cache-and-media-pipeline.md), *Amendment: frames read from the file*). Video decodes on its own workers with a fixed small pool. Hot calls are `@Native(isLeaf: true)` where the native function neither blocks long nor calls back. |
 | Hardening | The wrapper checks every file before parsing: encoded size, dimensions, layer and nesting counts, a scan for features tlottie does not render, and frame-count and memory caps. A file that fails the check ends in `AssetProgress.fail`. The wrapper is fuzzed. There is no sandbox process: a native fault ends the app, so the check and the fuzz are the defence. |
 | Load failure | Each native package exposes a guarded probe (one cheap call). For Lottie the host's probe is `IsolateLottieEngine.spawn`: it starts the render isolate, which runs the binding probe, and throws `LottieUnavailable` with the reason when the library is missing or speaks another ABI version (any other failure to start surfaces as it happened). The host registers the decoder only if it passes, logging once through a diagnostics callback. Without a decoder the form stays at its placeholder ([ADR 022](022-asset-cache-and-media-pipeline.md)). Nothing retries in-process. |
 | Packages | Two pairs, per [ADR 020](020-package-topology.md): `lottie_native` and `lottie_decoder`, `video_native` and `video_decoder`. A `*_native` package is a leaf holding the crate or recipe, the build hook and the bindings, native and web behind a conditional import; a `*_decoder` package holds the `Decoder` adapter and the isolate protocol. The page pool and the renderer seam live in `catalog_assets`. |
@@ -105,7 +106,9 @@ tickets:
 - The original 269-byte malformed file and a coverage-guided fuzz run; the
   checks above are a fixed corpus, not a proof.
 - Thread safety beyond one handle per thread: a handle shared between threads
-  was not tested and is not allowed.
+  at once was not tested and is not allowed (the pool pins each handle to one
+  isolate). Different handles on different threads are verified
+  (*Amendment: a pool of render isolates*).
 - The offline build and a macOS profile build of a hook package.
 - The Apple store and LGPL relink rules, per-ABI FFmpeg sizes, the H.264
   patent position. The last is a decision for the product owner, not code.
@@ -117,3 +120,44 @@ tickets:
 
 - Glossary: [Content and assets](../content/CONTEXT.md)
 - Pause policies the playback clock already applies: [ADR 022](022-asset-cache-and-media-pipeline.md) amendments
+
+## Amendment: a pool of render isolates
+
+Native-media ticket 110. With one render isolate every Lottie frame of a
+screen queued on it: once each lease waited only for its own frame
+([ADR 043](043-platform-texture-frames.md), *Amendment: each lease waits only
+for its own frame*), the chat's sticker queued behind a panel's dozen cells
+and played at about 30 changes a second (device recording, frame gaps p50
+33 ms, against 24 ms before and 17 ms with the panel closed). The reference
+client renders each animation on a pool of four threads.
+
+| Area | Decision |
+| ---- | -------- |
+| Contract | The wrapper's: a handle is used by one thread at a time; different handles may render on different threads at once (`chat_lottie.h`). Evidence below. |
+| Pool | `IsolateLottieEngine.spawn(workers:)`, one to four isolates; `defaultWorkers` is the core count less one, at most four. Each isolate has its own binding, codec, file reader and texture calls. |
+| Placement | A handle stays on the isolate that loaded it (the fewest handles at the load), so every request naming it runs in the order sent; the handle id the engine gives out encodes the isolate (`local * workers + index`). A request over handles of several isolates is split, one request to each, and answered in job order once all answered. A restore names no handle and goes to the isolate with the fewest requests waiting; a lease has one frame out at a time, so where its restore runs does not reorder its frames. |
+| Cache | Frames of a persisted animation are read from the file by whichever isolate restores them; each reader keeps its own open files (64 per isolate). Writes and the index stay on the UI isolate (*Amendment: frames read from the file* in ADR 022), unchanged. |
+| Priority | Of the texture writes of a tick, the largest frame is sent first, so the surface in front (a chat sticker) is ahead of the small cells queued on the same isolate. |
+| Failure | One isolate ending closes the engine: its handles are gone, and the others finish what they were sent and shut down. |
+| Host | The example starts `defaultWorkers`; the `LOTTIE_WORKERS` define (1 to 4) picks the size for a comparison. |
+
+Evidence for the contract (2026-11-09, wrapper `chat_lottie` over tlottie
+rev `92df98dc20`):
+
+- The wrapper keeps no state outside a handle: `ChatLottie` is one
+  `CPURenderer`; `chat_lottie_render_batch` makes its scratch buffer per call;
+  the frame codec (`lz4_flex`, safe encode and decode) has no globals.
+- tlottie's process-wide state is read-only after first use and thread safe:
+  `OnceLock` caches of CPU features and an environment budget override, and
+  atomic CPU-feature caches. Interior mutability (`Cell`, `RefCell`, `Rc`) is
+  local to one parse or one render's budget. The renderer's pointer to the
+  caller's buffer lives for one render and is cleared after it.
+- Tests: `two_handles_on_two_threads_match_serial_output` and
+  `four_threads_load_render_and_restore_their_own_handles_at_once`
+  (`packages/lottie_native/native/tests/render.rs`): four threads load,
+  render, compress and restore their own handles at once and match one
+  thread byte for byte. On the Dart side the engine contract suite, the
+  texture writes and a disk-persisted restore run over a pool of isolates
+  against the native library.
+- Not shown: one handle on two threads at once (not allowed), and the
+  sanitizers (no ThreadSanitizer run on the wrapper).

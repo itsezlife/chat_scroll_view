@@ -140,12 +140,20 @@ final class _RecordingPort extends Stream<dynamic> implements ReceivePort {
   }
 }
 
+/// A binding whose render of [_slowFrame] waits for the file [flag], while
+/// every other frame renders at once: one slow animation among fast ones.
+LottieBinding Function() _slowFrameFactory(String flag) =>
+    () => _BlockingBinding(flag, onlyFrame: _slowFrame);
+
+const _slowFrame = 7.0;
+
 final class _BlockingBinding implements LottieBinding {
-  _BlockingBinding(this.flag) {
+  _BlockingBinding(this.flag, {this.onlyFrame}) {
     _fake.accept(_fakeBytes, _fakeInfo);
   }
 
   final String flag;
+  final double? onlyFrame;
   final _fake = FakeLottieBinding();
 
   @override
@@ -159,7 +167,9 @@ final class _BlockingBinding implements LottieBinding {
 
   @override
   List<LottieRenderStatus> renderBatch(List<LottieRenderJob> jobs) {
-    while (!File(flag).existsSync()) {
+    final only = onlyFrame;
+    final blocks = only == null || jobs.any((job) => job.frame == only);
+    while (blocks && !File(flag).existsSync()) {
       sleep(const Duration(milliseconds: 5));
     }
     return _fake.renderBatch(jobs);
@@ -197,6 +207,125 @@ void main() {
         malformedBytes: Uint8List.fromList([9]),
       ),
     );
+  });
+
+  group('on a pool of render isolates over the fake binding', () {
+    LottieSlotEngineContract.run(
+      () => LottieEngineHarness<LottieSlotEngine>(
+        open: () => IsolateLottieEngine.spawn(
+          workers: 3,
+          bindingFactory: _fakeBinding,
+          codecFactory: _fakeCodec,
+        ),
+        validBytes: _fakeBytes,
+        expectedInfo: _fakeInfo,
+        malformedBytes: Uint8List.fromList([9]),
+      ),
+    );
+  });
+
+  group('a pool of render isolates', () {
+    late Directory dir;
+    late String flag;
+    late Pointer<Uint8> page;
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('lottie_pool_');
+      flag = '${dir.path}/release';
+      page = calloc<Uint8>(64 * 64 * 4 * 4);
+    });
+    tearDown(() {
+      File(flag).createSync();
+      dir.deleteSync(recursive: true);
+      calloc.free(page);
+    });
+
+    LottieEngineJob job(LottieHandle handle, double frame, int cell) =>
+        LottieEngineJob(
+          handle: handle,
+          frame: frame,
+          width: 64,
+          height: 64,
+          address: page.address + cell * 64 * 64 * 4,
+          strideBytes: 64 * 4,
+        );
+
+    test(
+      'renders a fast animation while a slow one blocks its isolate',
+      () async {
+        final engine = await IsolateLottieEngine.spawn(
+          workers: 2,
+          bindingFactory: _slowFrameFactory(flag),
+        );
+        final slow = ((await engine.load(_fakeBytes)) as LottieLoaded).handle;
+        final fast = ((await engine.load(_fakeBytes)) as LottieLoaded).handle;
+        expect(slow, isNot(fast));
+
+        final blocked = engine.renderBatch([job(slow, _slowFrame, 0)]);
+        final quick = await engine
+            .renderBatch([job(fast, 0, 1)])
+            .timeout(const Duration(seconds: 2));
+
+        expect(quick, [LottieRenderStatus.ok]);
+        File(flag).createSync();
+        expect(await blocked, [LottieRenderStatus.ok]);
+        await engine.close();
+      },
+    );
+
+    test(
+      'one batch over handles of several isolates answers in job order',
+      () async {
+        final engine = await IsolateLottieEngine.spawn(
+          workers: 3,
+          bindingFactory: _fakeBinding,
+        );
+        addTearDown(engine.close);
+        final handles = [
+          for (var i = 0; i < 4; i++)
+            ((await engine.load(_fakeBytes)) as LottieLoaded).handle,
+        ];
+        await engine.dispose(handles[2]);
+
+        final statuses = await engine.renderBatch([
+          for (var i = 0; i < 4; i++) job(handles[i], i.toDouble(), i),
+        ]);
+
+        expect(statuses, [
+          LottieRenderStatus.ok,
+          LottieRenderStatus.ok,
+          isNot(LottieRenderStatus.ok),
+          LottieRenderStatus.ok,
+        ]);
+      },
+    );
+
+    test('one isolate ending closes the engine', () async {
+      final engine = await IsolateLottieEngine.spawn(
+        workers: 2,
+        bindingFactory: _dyingBinding,
+      );
+      await engine.load(_fakeBytes);
+
+      await expectLater(
+        engine.load(_poison),
+        throwsA(isA<LottieEngineClosed>()),
+      );
+      await expectLater(
+        engine.load(_fakeBytes),
+        throwsA(isA<LottieEngineClosed>()),
+      );
+      await expectLater(engine.close(), completes);
+    });
+
+    test('spawn refuses a pool size out of range', () {
+      expect(() => IsolateLottieEngine.spawn(workers: 0), throwsRangeError);
+      expect(
+        () => IsolateLottieEngine.spawn(
+          workers: IsolateLottieEngine.maxWorkers + 1,
+        ),
+        throwsRangeError,
+      );
+    });
   });
 
   group('in the render isolate without a usable frame codec', () {
@@ -528,6 +657,10 @@ void main() {
   final native = NativeLottieBinding.probe().isAvailable;
   for (final (name, open) in <(String, Future<LottieSlotEngine> Function())>[
     ('in the render isolate', IsolateLottieEngine.spawn),
+    (
+      'on a pool of render isolates',
+      () => IsolateLottieEngine.spawn(workers: 3),
+    ),
     (
       'in process',
       () async => InProcessLottieEngine(

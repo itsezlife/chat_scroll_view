@@ -40,6 +40,16 @@ void main() {
       bindingFactory: _binding,
       codecFactory: _codec,
     ),
+    // The handle sits on the second isolate, and a restore may go to any.
+    'on a pool of render isolates': () async {
+      final engine = await IsolateLottieEngine.spawn(
+        workers: 2,
+        bindingFactory: _binding,
+        codecFactory: _codec,
+      );
+      await engine.load(_bytes);
+      return engine;
+    },
   };
 
   for (final MapEntry(key: name, value: spawn) in engines.entries) {
