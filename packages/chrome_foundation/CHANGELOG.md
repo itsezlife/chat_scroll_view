@@ -6,6 +6,17 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (content preview strings)
+
+- `PanelStrings` gains the content preview's menu (`sendStickerAction`,
+  `sendEmojiAction`, `sendGifAction`, `sendWithoutSoundAction`,
+  `addToFavouritesAction`, `removeFromFavouritesAction`, `viewPackAction`,
+  `deleteFromRecentAction`, `copyEmojiAction`, `saveGifAction`,
+  `deleteGifAction`) and the recent stickers' own clear confirmation
+  (`clearRecentStickersTitle`, `clearRecentStickersMessage`). All required:
+  a host's `PanelStrings` must add them. The presets carry the reference's
+  English and Russian.
+
 ### Changed (glass look)
 
 - The glass is frosted by default: `GlassQualityScope.quality` and a surface
