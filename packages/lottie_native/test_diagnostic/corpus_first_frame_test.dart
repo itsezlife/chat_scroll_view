@@ -1,7 +1,7 @@
 // Diagnostic (ticket 57), not in unit_test.dart. Renders every corpus Lottie
 // file through the real native binding and counts non-empty frames.
 //
-//   CORPUS_DIR=/path/to/telegram-stickers flutter test test_diagnostic/corpus_first_frame_test.dart
+//   CORPUS_DIR=/path/to/sticker-corpus flutter test test_diagnostic/corpus_first_frame_test.dart
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';

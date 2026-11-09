@@ -35,26 +35,23 @@ void main() {
     expect(canvas.rects.single.rect, rect);
   });
 
-  test(
-    'is the context tint, or the reference photo placeholder without one',
-    () {
-      final grey = _Recording();
-      final tinted = _Recording();
+  test('is the context tint, or the flat 0xFFEDF3F7 without one', () {
+    final grey = _Recording();
+    final tinted = _Recording();
 
-      const RectPlaceholder().paint(grey, rect, const AssetPaintContext());
-      const RectPlaceholder().paint(
-        tinted,
-        rect,
-        const AssetPaintContext(tint: Color(0xFF336699), opacity: 0.5),
-      );
+    const RectPlaceholder().paint(grey, rect, const AssetPaintContext());
+    const RectPlaceholder().paint(
+      tinted,
+      rect,
+      const AssetPaintContext(tint: Color(0xFF336699), opacity: 0.5),
+    );
 
-      expect(grey.rects.single.color.toARGB32(), 0xFFEDF3F7);
-      expect(
-        tinted.rects.single.color.toARGB32(),
-        const Color(0xFF336699).withValues(alpha: 0.5).toARGB32(),
-      );
-    },
-  );
+    expect(grey.rects.single.color.toARGB32(), 0xFFEDF3F7);
+    expect(
+      tinted.rects.single.color.toARGB32(),
+      const Color(0xFF336699).withValues(alpha: 0.5).toARGB32(),
+    );
+  });
 
   test('paints nothing into an empty rectangle', () {
     final canvas = _Recording();

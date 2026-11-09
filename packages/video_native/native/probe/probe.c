@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
   const AVCodec* codec = avcodec_find_decoder(st->codecpar->codec_id);
   if (!native && st->codecpar->codec_id == AV_CODEC_ID_VP9) {
-    // Same rule as tdesktop ffmpeg_utility.cpp:457.
+    // Same forced decoder as chat_video.c: libvpx-vp9 keeps the alpha plane.
     const AVCodec* forced = avcodec_find_decoder_by_name("libvpx-vp9");
     if (forced) codec = forced;
   }

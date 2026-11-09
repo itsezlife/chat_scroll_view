@@ -46,13 +46,13 @@ enum {
 
 /* Caps. Changing one is an ABI-visible behaviour change. */
 enum {
-  CHAT_VIDEO_MAX_INPUT_BYTES = 10 * 1024 * 1024, /* tdesktop's 10 MiB gif/sticker gate */
-  CHAT_VIDEO_MAX_SOURCE_EDGE = 3840,             /* Android's per-side cap */
+  CHAT_VIDEO_MAX_INPUT_BYTES = 10 * 1024 * 1024, /* 10 MiB gif/sticker input gate */
+  CHAT_VIDEO_MAX_SOURCE_EDGE = 3840,             /* per-side cap */
   CHAT_VIDEO_MAX_SOURCE_PIXELS = 3840 * 2160,
   CHAT_VIDEO_MAX_TARGET_EDGE = 2048,
   CHAT_VIDEO_MAX_PACKETS_PER_PASS = 20000,       /* packets read between rewinds */
   CHAT_VIDEO_MAX_FRAMES_PER_PASS = 10000,        /* frames decoded between rewinds */
-  CHAT_VIDEO_MAX_SKIPPED_PACKETS = 10            /* consecutive undecodable packets tolerated (tdesktop) */
+  CHAT_VIDEO_MAX_SKIPPED_PACKETS = 10            /* consecutive undecodable packets tolerated */
 };
 
 enum { CHAT_VIDEO_ABI_VERSION = 1 };

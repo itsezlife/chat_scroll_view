@@ -14,8 +14,7 @@ enum AssetFit {
   contain,
 
   /// The rectangle is filled; the content is cut on the axis that overflows,
-  /// anchored at the centre. The reference client's grid GIF
-  /// (`ImageReceiver`, `isAspectFit` false).
+  /// anchored at the centre. A grid GIF uses it.
   cover;
 
   /// Which part of a picture of size [source] is drawn into which part of

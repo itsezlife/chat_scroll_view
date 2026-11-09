@@ -79,8 +79,8 @@ final class InlineEmbedMetrics {
   final double fontSize;
 
   /// Distance from the baseline up to the top of the line, logical pixels,
-  /// positive. With [descent] it sizes an embed the way the reference
-  /// client sizes an inline custom emoji (`AssetPresets.inlineMessage`).
+  /// positive. With [descent] it sizes an embed the way an inline custom emoji
+  /// is sized (`AssetPresets.inlineMessage`).
   final double ascent;
 
   /// Distance from the baseline down to the bottom of the line, logical

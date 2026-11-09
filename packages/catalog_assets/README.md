@@ -67,8 +67,8 @@ Behaviour that matters to a surface:
   host feeds `lowPower` (the SDK reports no battery state and the package takes
   no battery plugin) and `reducedMotion` (which does not stop playback unless
   the policy adds the layer), and holds `overlayShown` per overlay.
-  [ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md) lists what the
-  reference desktop client does that is not replicated.
+  [ADR 022](../../docs/adr/022-asset-cache-and-media-pipeline.md) lists the
+  desktop behaviours that are not replicated.
 - **Threading.** Single-threaded on the UI isolate: calls, producer reports,
   listeners and painting. Decoding may happen elsewhere; its results are
   reported here from the UI isolate.
@@ -97,7 +97,7 @@ Measured by `test/benchmark/asset_cache_churn_bench_test.dart` (run
 `flutter test test/benchmark`): a scroll trace down a catalogue and back, one
 row at a time, counting how many attaches on the way back find their entry
 still decoded. Cell sizes are decoded RGBA at 3x density; an animated entry
-costs two frame buffers, as the Android client counts a Lottie drawable.
+costs two frame buffers, the way a Lottie drawable is counted here.
 
 | Workload | 4 MiB | 8 MiB | 12 MiB | 16 MiB | 24 MiB | 32 MiB |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -114,12 +114,12 @@ costs two frame buffers, as the Android client counts a Lottie drawable.
   (pager keep-alive and scroll-back). 32 MiB of animations holds a kept
   panel's pinned attach windows (about 35 sticker cells, 10 MiB, and the emoji
   page's playing emoji, 8 MiB) and about two more sticker screens for
-  scrolling back. The still figure is within the Android client's own (a 15 to
-  30 MB bitmap cache); its 10 MiB animation cache charges only two frame
+  scrolling back. The still figure is within the range of a 15 to
+  30 MB bitmap cache; the 10 MiB animation figure charges only two frame
   buffers an animation and never recycles one a cell uses. Pinned bytes come
   out of the budget first.
 - **`PlaybackPolicy` fps caps: 30 fps up to 270 px on the longer edge (90 dp at
-  density 3, Android's rule for emoji; Desktop repaints no faster than every
+  density 3, the emoji cap; desktop repaints no faster than every
   33 ms), 60 fps above.** A cap is a ceiling, not a target: on a 120 Hz display
   an uncapped animation would repaint its surface twice as often for no visible
   gain. The benchmark's playback line shows the cap halving repaint requests
@@ -197,8 +197,8 @@ Behaviour that matters to a host:
   fetch and the decode queue. The class of content work is read live, so an
   entry that scrolls into view jumps the preloads. Running work is never
   preempted.
-- **Caps and backpressure.** At most 6 fetches and 2 decodes run; the Android
-  client runs 5 small and 2 large file loads. Fetching is held back while 16
+- **Caps and backpressure.** At most 6 fetches and 2 decodes run, small and large file loads sharing the
+  same 6 fetch slots. Fetching is held back while 16
   fetched items wait for a decode slot, so a slow decoder cannot pile up
   bytes. These are starting values from the research, not measured on a device.
 - **Cancel.** Queued work is dropped, a running fetch gets its token cancelled,
@@ -260,7 +260,7 @@ AssetCacheProvider(
 | --- | --- |
 | `AssetCacheProvider` | `InheritedWidget` handing the host's `AssetCacheScope` down; `of` throws without one, `maybeOf` is null. Never disposes the scope |
 | `ContentView` | Attaches on first build, again only when content, preset or scope change (new attach first, old one given back after, so a shared entry or glyph page is never left unheld), detaches on dispose. Sized by the preset; repaints on the binding's signal, never rebuilds for it. Follows `TickerMode` for `visible` |
-| `AssetPreset` / `AssetPresets` | Size (logical), `AssetSpec` and `AssetProfile` in one value. `keyboardCell(extent:, devicePixelRatio:, ...)` (a playing cell of up to 90 logical px plays at half rate and decodes at most 160 px, `AssetProfile.halfFrameRate`); `inlineMessage(ascent:, descent:, devicePixelRatio:)` (a square of 1.2 times the line height, rounded to device pixels, the Telegram Android rule) and `inlineFontSize(fontSize:, ...)` for text with no font metrics; `emojiOnly(step:, ...)` (one item of an emoji-only message, a font-size step plus a 4 px box) and `emojiSticker(extent:, autoplay:, restFrame:, ...)` (the single-emoji sticker, plays once then rests); `square(extent:, profile:, ...)` for any other explicit extent; hosts build their own |
+| `AssetPreset` / `AssetPresets` | Size (logical), `AssetSpec` and `AssetProfile` in one value. `keyboardCell(extent:, devicePixelRatio:, ...)` (a playing cell of up to 90 logical px plays at half rate and decodes at most 160 px, `AssetProfile.halfFrameRate`); `inlineMessage(ascent:, descent:, devicePixelRatio:)` (a square of 1.2 times the line height, rounded to device pixels, the inline emoji rule) and `inlineFontSize(fontSize:, ...)` for text with no font metrics; `emojiOnly(step:, ...)` (one item of an emoji-only message, a font-size step plus a 4 px box) and `emojiSticker(extent:, autoplay:, restFrame:, ...)` (the single-emoji sticker, plays once then rests); `square(extent:, profile:, ...)` for any other explicit extent; hosts build their own |
 | `InlineEmbed` (seam) | What a body lays out and paints: `sizeHint`, `paint(canvas, rect, context)`, a `Listenable` invalidation signal, `visible`, `dispose`. No widget, no asset type |
 | `PlayableEmbed` (seam) | An `InlineEmbed` that plays and can play again: `playback`, `replay()` (false while a pass runs). `ContentEmbed` is one; a body checks `embed is PlayableEmbed` |
 | `InlineEmbedResolver` (seam) | Maps an `InlineEmbedTarget` (scheme, id, alt) and `InlineEmbedMetrics` (font size, ascent, descent, density) to a new `InlineEmbed`, or null |

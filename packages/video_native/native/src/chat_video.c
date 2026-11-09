@@ -126,8 +126,7 @@ static int32_t open_decoder(ChatVideo *h) {
 
   const AVCodec *codec = NULL;
   if (par->codec_id == AV_CODEC_ID_VP9) {
-    /* Forced: FFmpeg's own vp9 decoder drops the alpha plane (Trac #8344),
-     * as tdesktop's ffmpeg_utility.cpp does the same. */
+    /* Forced: FFmpeg's own vp9 decoder drops the alpha plane (Trac #8344). */
     codec = avcodec_find_decoder_by_name("libvpx-vp9");
   } else {
     codec = avcodec_find_decoder(par->codec_id);
@@ -318,7 +317,7 @@ int32_t chat_video_rewind(ChatVideo *h) {
   if (!h) return CHAT_VIDEO_INVALID_ARGUMENT;
   AVStream *st = h->fmt->streams[h->stream];
   int64_t start = st->start_time != AV_NOPTS_VALUE ? st->start_time : 0;
-  /* tdesktop's fallback chain, shortened: by timestamp, by a seek window,
+  /* Fallback chain: by timestamp, by a seek window,
    * then by byte offset. */
   int r = av_seek_frame(h->fmt, h->stream, start, AVSEEK_FLAG_BACKWARD);
   if (r < 0) r = avformat_seek_file(h->fmt, h->stream, INT64_MIN, start, start, 0);

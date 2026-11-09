@@ -100,9 +100,8 @@ final class IsolateLottieEngine implements LottieSlotEngine {
     }
   }
 
-  /// The most render isolates a pool has: the reference client renders its
-  /// animations on a pool of four threads, and more would compete with the
-  /// UI and raster threads and the video workers.
+  /// The most render isolates a pool has: four threads render animations, and
+  /// more would compete with the UI and raster threads and the video workers.
   static const int maxWorkers = 4;
 
   /// The pool size for this device: one isolate per core but one, from one

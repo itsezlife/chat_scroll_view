@@ -8,10 +8,9 @@ import 'package:meta/meta.dart';
 /// from the first frame it is drawn in; content there at the attach (a memory
 /// hit) shows at once, so going back over loaded content never flickers.
 ///
-/// It is the reference client's image fade (`ImageReceiver`: a bitmap that is
-/// not a memory hit fades in over its thumbnail in
-/// `DEFAULT_CROSSFADE_DURATION`). A glyph is never faded: it is text, not an
-/// image that arrives.
+/// A bitmap that is not a memory hit fades in over its thumbnail, over
+/// [duration] (150 ms). A glyph is never faded: it is text, not an image that
+/// arrives.
 ///
 /// Internal to the package: a surface keeps one per binding and reads
 /// [opacityAt] when it paints.

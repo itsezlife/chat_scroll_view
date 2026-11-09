@@ -157,7 +157,7 @@ do_libvpx() {
     make install )
 }
 
-# Mirrors Telegram's component list (research/07), minus audio, hevc, dav1d.
+# The LGPL component list, minus audio, hevc, dav1d.
 FFMPEG_COMMON=(
   --prefix="$PREFIX"
   --enable-shared --disable-static --enable-pic --enable-small

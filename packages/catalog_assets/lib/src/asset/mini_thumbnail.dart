@@ -5,17 +5,17 @@ import 'dart:ui' as ui;
 /// Turns the bytes of a small preview still into the picture a surface shows
 /// under content that is still loading: tiny, and blurred once, here.
 ///
-/// The reference client keeps a thumbnail of at most about 40 pixels a side and
-/// stack-blurs it at radius 3 when it decodes it; the surface then stretches
-/// the tiny bitmap over the whole box with bilinear filtering. This does the
-/// same, so painting it is one image draw per frame, never a blur: the cost of
-/// the blur is paid once per thumbnail, on a bitmap of at most [maxEdge] pixels.
+/// The thumbnail is kept at most about 40 pixels a side and is stack-blurred at
+/// radius 3 when it is decoded; the surface then stretches the tiny bitmap over
+/// the whole box with bilinear filtering. Painting it is one image draw per
+/// frame, never a blur: the cost of the blur is paid once per thumbnail, on a
+/// bitmap of at most [maxEdge] pixels.
 abstract final class MiniThumbnail {
   /// The longer side the thumbnail is decoded to; a smaller still is kept as
   /// it is.
   static const int maxEdge = 40;
 
-  /// The reference client's stack-blur radius (`Utilities.blurBitmap`, 3).
+  /// The stack-blur radius (3).
   static const int stackBlurRadius = 3;
 
   /// The Gaussian sigma whose spread equals a stack blur of

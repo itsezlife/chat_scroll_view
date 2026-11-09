@@ -84,8 +84,7 @@ What has run in a browser: see "Not run" under Web in
 Frame 0 is drawn through `renderPixels`, not into an atlas slot (the pool may
 be full) and uploaded as premultiplied RGBA. A `FetchedFile` is read with
 `dart:io`; on the web it fails the decode (`UnsupportedError`). The `full` stage costs the frame
-(`w * h * 4`) plus `4 *` the encoded size for the parsed model, as the web client
-estimates. A rejected file, an engine error or a frame that does not render ends
+(`w * h * 4`) plus `4 *` the encoded size for the parsed model. A rejected file, an engine error or a frame that does not render ends
 in `fail(..., AssetFailureKind.permanent)`; `cancel` stops reporting and frees
 whatever the decode already holds. Files with image or text layers still decode;
 `LottieInfo.features` is the host's to read.

@@ -5,16 +5,14 @@ import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 
 /// A quiet stand-in for content that has no outline to show yet (a sticker in
 /// a message): a faint rounded square on the shorter side of the rectangle,
-/// in the context's tint (the reference grey when there is none).
+/// in the context's tint (`0xFF73787B` when there is none).
 ///
-/// The reference client's sticker stand-in is the sticker's own outline path
-/// at one tenth of the list-placeholder colour (`SvgDrawable.setupGradient`:
-/// `alpha / 2 * 0.2` of `key_emptyListPlaceholder`, `0xFF73787B`, truncated to
-/// 25 of 255); the outline comes with the sticker's metadata, which this
-/// package never sees, so the shape is a rounded square. [cornerFraction] is
-/// this package's own choice, not a traced measure. The reference's sweeping
-/// highlight is left out: a message body does not repaint on its own, and a
-/// placeholder that needs frames from nobody is the one that costs nothing.
+/// The fill's alpha is 25 of 255, a tenth of the placeholder colour's alpha,
+/// truncated. The outline comes with the sticker's metadata, which this package
+/// never sees, so the shape is a rounded square. [cornerFraction] is this
+/// package's own choice, not a traced measure. A sweeping highlight is left
+/// out: a message body does not repaint on its own, and a placeholder that
+/// needs frames from nobody is the one that costs nothing.
 ///
 /// Synchronous, shared, never disposed; no sprite and no animation. An
 /// embed paints it before its content has a thumbnail (`ContentEmbed.placeholder`).

@@ -3,9 +3,9 @@
 // their entry still decoded. Counts, not time, so the result is exact.
 //
 // Cell sizes are decoded RGBA at 3x density: a sticker panel cell of 64 dp,
-// a custom emoji of 34 dp (Telegram's keyboard size), an animated sticker of
-// 85 dp whose entry costs two frame buffers, as the Android client counts a
-// Lottie drawable (width * height * 4 * 2).
+// a custom emoji of 34 dp (the emoji keyboard size), an animated sticker of
+// 85 dp whose entry costs two frame buffers, the way a Lottie drawable is
+// counted (width * height * 4 * 2).
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';

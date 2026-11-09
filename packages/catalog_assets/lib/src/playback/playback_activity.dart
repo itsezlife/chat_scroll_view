@@ -13,11 +13,10 @@ typedef PlaybackTimerFactory =
 
 /// How long a change of focus must hold before a [PlaybackActivity] acts on it.
 ///
-/// Both default to zero, because that is what the reference desktop client
-/// does: it recomputes whether its window is active one event-loop turn after
-/// the window event, and the paint after that already skips the animations.
-/// Its 1 s and 5 s timers only back that up and feed the server's "online"
-/// status; they never delay the pause. The fields exist for a host that wants
+/// Both default to zero: whether the window is active is recomputed one
+/// event-loop turn after the window event, and the paint after that already
+/// skips the animations. Other timers only back that up and never delay the
+/// pause. The fields exist for a host that wants
 /// a short debounce, for example against a focus hand-off between two windows
 /// of its own.
 @immutable

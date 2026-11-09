@@ -67,9 +67,8 @@ import 'package:flutter/foundation.dart';
 /// that frame when the last hold is released. The clock keeps running, so the
 /// foreground surface (a content preview) plays while the panel, the chat and
 /// a sheet under it stand still; a pause layer of the clock would stop it
-/// too. It is the reference mobile client's `stopAllHeavyOperations` as its
-/// preview opens: every image below the preview's layer stops its animation,
-/// and `startAllHeavyOperations` as it closes starts them where they were.
+/// too. As a preview opens, every image below the preview's layer stops its
+/// animation, and as it closes they start again where they were.
 ///
 /// ## Glyphs
 ///
@@ -481,7 +480,7 @@ final class AssetCacheScope {
     final previous = entry.paintable;
     // A thumbnail replaced by content is kept for the bindings that were
     // showing it: they fade the content in over it (a bitmap thumbnail stays
-    // opaque beneath, as in the reference client) and release it when the
+    // opaque beneath) and release it when the
     // content is opaque. Without a waiting binding there is nobody to keep it
     // for; one that shows a sibling's content was not showing the thumbnail
     // and has nothing to fade over.
@@ -740,8 +739,8 @@ final class _Attempt implements AssetProgress {
   }
 
   // The download stays: a failed or cancelled one leaves the content missing,
-  // and the surfaces keep drawing it there, as the reference client keeps its
-  // arc while the file does not exist. The final stage, the last binding
+  // and the surfaces keep drawing it there, with the arc kept while the file
+  // does not exist. The final stage, the last binding
   // leaving and the next attempt clear it.
   void _end() {
     ended = true;

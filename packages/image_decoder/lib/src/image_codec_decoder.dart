@@ -28,8 +28,7 @@ import 'package:image_decoder/src/image_paintable.dart';
 /// frame's pixels for as long as the entry lives: a 100 px emoji of 90 frames
 /// is 3.6 MB that way and about 80 KB this way, and a screenful of them would
 /// not fit the animated budget. The price is a decode per shown frame, which
-/// the engine does off the UI thread, as the reference clients do for
-/// animated WebP and GIF. The codec keeps the encoded data to decode from, so
+/// the engine does off the UI thread, for animated WebP and GIF. The codec keeps the encoded data to decode from, so
 /// a playing image is counted as its two frames plus that data (about 110 KB
 /// for such an emoji).
 ///

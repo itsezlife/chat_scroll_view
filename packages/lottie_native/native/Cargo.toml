@@ -11,7 +11,7 @@ name = "chat_lottie"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# No crates.io release exists; the pin is the revision Telegram Desktop ships.
+# No crates.io release exists; the pin is a git revision of tlottie.
 tlottie = { git = "https://github.com/dkaraush/tlottie", rev = "92df98dc20" }
 # Pure-Rust inflate backend (miniz_oxide): no C toolchain needed to cross-build.
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
