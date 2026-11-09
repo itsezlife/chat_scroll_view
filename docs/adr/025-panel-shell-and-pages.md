@@ -224,3 +224,21 @@ page of its pager, with its list, for the life of the panel.
 | Off screen | A page that is not on screen (more than a page away from the pager's position) is under `TickerMode(enabled: false)`; a page during a swipe is on screen. The one signal a subtree has that it is not live is the framework's own. |
 | Catalogue | A catalogue viewport whose tickers are off holds its playback: every binding is `held` (its frame and its lease stay, [ADR 022](022-asset-cache-and-media-pipeline.md) *held surfaces*), and the binding set only grows: a leaf that leaves the attach window keeps its binding until the tickers are on again, so a layout at another size (a panel that shrinks while it closes) detaches nothing. Back on, the next sync plays the bindings from their frames and detaches the ones outside the window. The render object also keeps its bindings through a detach followed by an attach in the same frame (the move into the pager's keep-alive bucket); a detach that is not followed by one, or a dispose, gives them back. |
 | Memory | What a hidden panel or an off-screen page keeps is its bindings: the entries of its attach window, pinned, and their leases. Bounded by the registered pages times one attach window each. |
+
+## Amendment: a fresh open
+
+Native-media ticket 111. With the pages kept (above), a sticker page closed
+with its strip slid away reopened that way. The reference mobile client calls
+its panel's `onOpen` on every show: the stickers page scrolls to its start and
+marks its first tab, the GIF page goes to its start and first category, the
+emoji page keeps its place, the bottom tabs show. Its desktop client keeps its
+selector as it was.
+
+| Area | Decision |
+| ---- | -------- |
+| Hook | `PanelPageHost.freshOpen`, a `Listenable` the shell signals for every page at once when its controller is told `reportFreshOpen`. The shell decides nothing: whether an open is fresh is the presentation's ([ADR 028](028-panel-presentation.md), *a fresh open*), what it means is each page's. Like `reselected`, a signal and not a state: there is nothing to read back. |
+| Order | The signal arrives before the presence that shows the panel, so a page moves while nothing of it is seen. |
+| Pages | `CatalogPagePolicy.restartsOnFreshOpen` (false by default) says whether a catalogue page restarts: the stickers policy does, its grid at its start, its strip whole and its first tab (the recents, else the first pack) marked by the scroll it follows; the emoji policy does not. The GIF page goes to its start. A page follows the signal in the controller it keeps in the registry as well as in its widget, so a page not mounted at the open comes back at its start too. |
+| Bar | The shell shows the bottom bar on a fresh open, wherever reading on left it. |
+| Supersedes | The restart on hide under the `touch` arrangement (`keepsScrollOnReopen`, `followPresence`): it reset every catalogue page, the emoji page among them, and decided by arrangement what is the presentation's to decide. |
+| Not ported | The GIF page's categories (the page has none yet), and the emoji page's group-emoji hint. |

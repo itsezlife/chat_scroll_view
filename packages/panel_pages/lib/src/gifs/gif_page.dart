@@ -29,6 +29,11 @@ import 'package:panel_shell/panel_shell.dart';
 /// page the pager dropped for another tab, or a presentation switch rebuilt,
 /// opens where it was left (the reference client keeps one list per page).
 ///
+/// A fresh open of the panel (`PanelPageHost.freshOpen`) is the exception: the
+/// list goes back to its start at once, mounted or not, as the reference
+/// mobile client's GIF page does each time its panel is shown. A close that
+/// is followed by an open that is not fresh (a popup, a dock) keeps the place.
+///
 /// ## The bottom bar
 ///
 /// Only reading back brings the bar back: the page never reports a rest at
@@ -181,12 +186,20 @@ final class _RowLine extends _Line {
 // (their collection id).
 enum _Listed { collections, suggestions }
 
-// What the page keeps across being unmounted: the offset it was left at.
+// What the page keeps across being unmounted: the offset it was left at,
+// back at the start on a fresh open whether or not the page is mounted then.
 final class _GifPageKept implements PanelPageController {
+  _GifPageKept(this._freshOpen) {
+    _freshOpen.addListener(_onFreshOpen);
+  }
+
+  final listen.Listenable _freshOpen;
   double offset = 0;
 
+  void _onFreshOpen() => offset = 0;
+
   @override
-  void dispose() {}
+  void dispose() => _freshOpen.removeListener(_onFreshOpen);
 }
 
 class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
@@ -195,7 +208,7 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
 
   late final _GifPageKept _kept = _host.controllers.obtain(
     _host.pageId,
-    _GifPageKept.new,
+    () => _GifPageKept(_host.freshOpen),
   );
   late final _scroll = ScrollController(initialScrollOffset: _kept.offset);
   final _hairline = listen.ValueNotifier<bool>(true);
@@ -232,6 +245,7 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
     _source.collections.addListener(_onCollections);
     _suggestions?.collections.addListener(_onCollections);
     _host.reselected.addListener(_onReselected);
+    _host.freshOpen.addListener(_onFreshOpen);
     _startSearch();
     _onCollections();
   }
@@ -287,6 +301,7 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
     _source.collections.removeListener(_onCollections);
     _suggestions?.collections.removeListener(_onCollections);
     _host.reselected.removeListener(_onReselected);
+    _host.freshOpen.removeListener(_onFreshOpen);
     _appear.dispose();
     _scroll.dispose();
     _hairline.dispose();
@@ -456,6 +471,11 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
         unawaited(source.loadMore(collection.id));
       }
     }
+  }
+
+  // At once, not animated: the panel is not on screen yet.
+  void _onFreshOpen() {
+    if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
   void _onReselected() {

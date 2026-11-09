@@ -34,7 +34,9 @@ import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 /// for scrolling, and rises by the extent of the strip the page pins at the
 /// bottom ([PanelPageHost.reportBottomExtent]) so it does not cover it. The
 /// bar is gone while search is open in both, which is why a family without a
-/// back press gets a Cancel button beside the field ([searchExit]).
+/// back press gets a Cancel button beside the field ([searchExit]). A fresh
+/// open of the panel (`PanelShellController.reportFreshOpen`) shows the bar
+/// wherever reading on left it.
 ///
 /// A projection of [controller]; it keeps no selection or search state of its
 /// own, so unmounting it (a presentation switch) and mounting another shell
@@ -188,6 +190,7 @@ class _PanelShellState extends State<PanelShell> {
     controller.search.addListener(_onSearch);
     controller.selectedPageId.addListener(_onPageSelected);
     controller.visible.addListener(_onVisible);
+    controller.freshOpen.addListener(_onFreshOpen);
     _subscriptions.addAll([
       controller.scrollActivity.listen(_barVisibility.apply),
       controller.events.listen(_onEvent),
@@ -199,6 +202,7 @@ class _PanelShellState extends State<PanelShell> {
     controller.search.removeListener(_onSearch);
     controller.selectedPageId.removeListener(_onPageSelected);
     controller.visible.removeListener(_onVisible);
+    controller.freshOpen.removeListener(_onFreshOpen);
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }
@@ -210,6 +214,9 @@ class _PanelShellState extends State<PanelShell> {
   }
 
   void _onPageSelected() => _barVisibility.show();
+
+  // A panel opened afresh shows its bar, wherever reading on left it.
+  void _onFreshOpen() => _barVisibility.show();
 
   void _onEvent(PanelEvent event) {
     if (event case PageChanged(:final pageId)) {

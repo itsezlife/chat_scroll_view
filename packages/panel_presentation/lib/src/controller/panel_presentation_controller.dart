@@ -75,8 +75,11 @@ import 'package:panel_shell/panel_shell.dart';
 /// ## Shell
 ///
 /// The controller wraps [shell] without owning it: it reports presence to it
-/// ([PanelShellController.updatePresence]) after every change of visibility
-/// and turns every shell event (a page change, search opening or closing, a
+/// ([PanelShellController.updatePresence]) after every change of visibility,
+/// reports a **fresh open** ([PanelShellController.reportFreshOpen]) when it
+/// opens a hidden panel as a kind the policy opens afresh
+/// (`PanelPresentationPolicy.opensAfresh`), before the presence that shows
+/// it, and turns every shell event (a page change, search opening or closing, a
 /// pick) into a signal on [interactions]. [handleBack] steps back through the
 /// shell first.
 ///
@@ -504,8 +507,16 @@ final class PanelPresentationController {
 
   void _commit(PanelVisibility next) {
     final settled = _attachments.isEmpty ? _settle(next) : next;
-    if (settled == _state.value) return;
+    final previous = _state.value;
+    if (settled == previous) return;
     _followOccupancyOf(settled.kind ?? _idleKind());
+    // Only from hidden: a panel turned back while hiding never left, and a
+    // switch of kind keeps it on screen.
+    if (previous case PanelVisibility$Hidden()) {
+      if (settled.kind case final kind? when policy.opensAfresh(kind)) {
+        shell.reportFreshOpen();
+      }
+    }
     shell.updatePresence(visible: settled.isVisible, opening: settled.isMoving);
     _state.value = settled;
   }

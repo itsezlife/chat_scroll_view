@@ -834,6 +834,25 @@ void main() {
     });
   });
 
+  group('a fresh open', () {
+    testWidgets('keeps the grid where it was left: the emoji page does not '
+        'restart', (tester) async {
+      await pumpPage(tester);
+      controller().catalog.jumpTo(controller().catalog.maxScrollExtent / 2);
+      await tester.pumpAndSettle();
+      final left = controller().catalog.offset;
+      expect(left, greaterThan(0));
+
+      host
+        ..visible = false
+        ..openAfresh()
+        ..visible = true;
+      await tester.pumpAndSettle();
+
+      expect(controller().catalog.offset, left);
+    });
+  });
+
   group('search', () {
     testWidgets('shows results for the shell query, as one section', (
       tester,
