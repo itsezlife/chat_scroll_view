@@ -9,7 +9,7 @@ family. Colours are a token group and timings two motion roles in
 `chrome_foundation`; labels come from chrome strings. The platform visuals
 are builders the host picks, so they land without changing the core.
 
-**Status**: Proposed  
+**Status**: Accepted (owner and undo rows confirmed by the maintainer 2026-11-10; the other [confirm] items stand as defaults, the platform values to be verified in tickets 130-132)  
 **Date**: 2026-11-09  
 **Relates to**: [ADR 012](012-cross-platform-selection-policies.md) (policy shape), [ADR 020](020-package-topology.md) (amended: new leaf above `chrome_foundation`), [ADR 027](027-foundation-theme-glass-motion.md) (token group and motion roles added), [ADR 030](030-testing-policy.md) (fake clock and contract suite), [ADR 031](031-localization-accessibility-and-input.md) (strings group, announcement), [ADR 044](044-content-library-packs-and-preview.md) (an `AppliedEdit` behind an Undo bulletin)
 
@@ -51,11 +51,11 @@ the host's ([AGENTS.md](../../AGENTS.md) invariant; [ADR 044](044-content-librar
 
 | Area | Decision |
 | ---- | -------- |
-| Owner | One `BulletinController` per surface, created and disposed by the host and mounted by a `BulletinHost`. Not a global singleton: a sheet or a second window has its own. One visible app-wide (Android's static slot) is the host's choice of how many controllers it makes. **[confirm]** |
+| Owner | One `BulletinController` per surface, created and disposed by the host and mounted by a `BulletinHost`. Not a global singleton: a sheet or a second window has its own. One visible app-wide (Android's static slot) is the host's choice of how many controllers it makes (confirmed). |
 | One slot | `show(bulletin)` returns a `BulletinHandle` and takes the slot. A bulletin already showing closes as *replaced*; there is no queue (Android). The policy is fixed for the controller's life. |
 | Closing | Every handle closes exactly once, with a `BulletinExit`: `timedOut`, `replaced`, `dismissed` (the host's `dismiss`), `swiped`, `actionPressed`, `undone`, `surfaceGone` (the host unmounted, or the controller was disposed). `handle.closed` completes with it and never with an error. |
 | Commit on leave | An undo bulletin's `onCommit` runs exactly once when it closes with any exit but `undone`; `onUndo` runs once when Undo is pressed, and then `onCommit` never runs. So the commit runs on timeout, swipe, replacement, `dismiss`, an unmounted host and controller disposal (Android's `delayedAction` in `onDetach`; iOS's `.commit`). A bulletin shown on a disposed controller closes at once as `surfaceGone` and commits. |
-| Undo window and `AppliedEdit` | The bulletin, not the library's timer, ends the window: the host applies the edit with an undo window comfortably longer than the bulletin can stay (the prolonged timeout plus any pause; 30 s in the README) and wires `onUndo: applied.undo`, `onCommit: applied.commit`. Commit is idempotent there, so the longer window is only a guard. **[confirm]** (alternative: an untimed edit window in `content_model`) |
+| Undo window and `AppliedEdit` | The bulletin, not the library's timer, ends the window: the host applies the edit with an undo window comfortably longer than the bulletin can stay (the prolonged timeout plus any pause; 30 s in the README) and wires `onUndo: applied.undo`, `onCommit: applied.commit`. Commit is idempotent there, so the longer window is only a guard (confirmed; rejected: an untimed edit window in `content_model`). |
 | Timer | The timeout starts when the view reports the enter transition finished (`handle.markEntered`), not at `show` (Android posts its hide runnable after the enter, B:355). `untilDismissed` has no timer. Time comes from a `BulletinClock` seam (`system`, and `ManualBulletinClock` in `testing.dart`), never `Timer` directly. |
 | Pause | `handle.pause()` stops the timer; `resume()` starts the whole timeout again (Android re-posts the full duration on release, B:192-198). The host view pauses on press where the policy says so; a host may pause for its own reasons (an open reaction row). `remaining` is the time left while running, the full timeout before entering or while paused, and null without a timer. |
 | Change signal | `controller.current` is a `ValueListenable<BulletinHandle?>`; it notifies on show and on close. |
