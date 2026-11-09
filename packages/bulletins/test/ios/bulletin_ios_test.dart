@@ -542,5 +542,32 @@ void main() {
       await tester.tapAt(_surfaceRect(tester).center);
       expect(h.surfaceTaps, 2);
     });
+
+    testWidgets('a card with nothing to press lets taps through', (
+      tester,
+    ) async {
+      h = _Harness();
+      await tester.pumpWidget(h.app());
+      h.controller.show(const Bulletin(message: 'Copied'));
+      await tester.pumpAndSettle();
+      await tester.tapAt(_card(tester).center);
+      expect(h.surfaceTaps, 1);
+    });
+
+    testWidgets('a card with an action catches taps on its body', (
+      tester,
+    ) async {
+      h = _Harness();
+      await tester.pumpWidget(h.app());
+      h.controller.show(
+        Bulletin(
+          message: 'Pack removed',
+          action: BulletinAction.undo(onUndo: () {}),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tapAt(tester.getCenter(find.text('Pack removed')));
+      expect(h.surfaceTaps, 0);
+    });
   });
 }
