@@ -240,65 +240,51 @@ void main() {
     });
   });
 
-  group('rest before a pull', () {
-    const rest = Duration(milliseconds: 200);
-
-    testWidgets('a drag that brings the content back to the top quickly does '
-        'not pull past it', (tester) async {
-      final receiver = await pump(
-        tester,
-        receiver: FakeCatalogOverscrollSink(restBeforePull: rest),
-      );
-      controller.jumpTo(100);
+  group('a scroll that reaches the top', () {
+    testWidgets('hands its overflow over on the same tick', (tester) async {
+      final receiver = await pump(tester);
+      controller.jumpTo(30);
       await tester.pump();
+      // 20 past the slop scroll the content to 10.
+      final finger = await drag(tester, step: 10, steps: 0);
+      expect(controller.offset, 10);
+      expect(receiver.offers, isEmpty);
 
-      final finger = await drag(
-        tester,
-        step: 20,
-        steps: 10,
-        gap: const Duration(milliseconds: 8),
+      await finger.moveBy(
+        const Offset(0, 30),
+        timeStamp: const Duration(milliseconds: 32),
       );
 
       expect(controller.offset, 0);
-      expect(receiver.held, 0);
+      expect(receiver.offers, [20]);
+      expect(receiver.held, 20);
       await finger.up();
     });
 
-    testWidgets('a finger that keeps pulling at the top past the rest '
-        'reaches the receiver', (tester) async {
-      final receiver = await pump(
-        tester,
-        receiver: FakeCatalogOverscrollSink(restBeforePull: rest),
-      );
-      controller.jumpTo(100);
+    testWidgets('reports the velocity of the pull it handed over, not of '
+        'the whole drag', (tester) async {
+      final receiver = await pump(tester);
+      controller.jumpTo(340);
       await tester.pump();
 
-      // 20 + 100 bring it to the top by 96 ms, then 20 more ticks to 416 ms.
-      final finger = await drag(tester, step: 10, steps: 30);
+      // 120 px every 8 ms (15000 px/s) scroll the content to its top and 20
+      // past it; then the finger slows to 2 px every 16 ms and lifts.
+      var time = Duration.zero;
+      final finger = await tester.startGesture(_centre);
+      for (var i = 0; i < 3; i++) {
+        time += const Duration(milliseconds: 8);
+        await finger.moveBy(const Offset(0, 120), timeStamp: time);
+      }
+      for (var i = 0; i < 2; i++) {
+        time += const Duration(milliseconds: 16);
+        await finger.moveBy(const Offset(0, 2), timeStamp: time);
+      }
+      await finger.up(timeStamp: time);
+      await tester.pump();
 
-      expect(controller.offset, 0);
-      expect(receiver.held, greaterThan(0));
-      expect(receiver.held, lessThan(200));
-      await finger.up();
-    });
-
-    testWidgets('a drag that starts at the top is never held back', (
-      tester,
-    ) async {
-      final receiver = await pump(
-        tester,
-        receiver: FakeCatalogOverscrollSink(restBeforePull: rest),
-      );
-
-      final finger = await drag(
-        tester,
-        step: 10,
-        steps: 6,
-        gap: const Duration(milliseconds: 4),
-      );
-
-      expect(receiver.held, 80);
-      await finger.up();
+      final drag = events.whereType<PanelCatalogUserDragEnd>().single;
+      expect(drag.velocity.abs(), greaterThan(3500));
+      expect(receiver.releases.single, inInclusiveRange(0, 500));
     });
   });
 

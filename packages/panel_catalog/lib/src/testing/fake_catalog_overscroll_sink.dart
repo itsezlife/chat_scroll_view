@@ -7,18 +7,11 @@ import 'package:panel_catalog/src/viewport/catalog_overscroll_sink.dart';
 /// offer) gives back what is held, and nothing more. A release is taken when
 /// anything is held, and lets it go at once.
 final class FakeCatalogOverscrollSink {
-  /// A receiver that takes pulls up to [capacity] and waits [restBeforePull]
-  /// after content moved.
-  FakeCatalogOverscrollSink({
-    this.capacity = double.infinity,
-    this.restBeforePull = Duration.zero,
-  });
+  /// A receiver that takes pulls up to [capacity].
+  FakeCatalogOverscrollSink({this.capacity = double.infinity});
 
   /// The most it holds at once.
   double capacity;
-
-  /// Passed to the sink.
-  final Duration restBeforePull;
 
   /// Every offer, in order.
   final List<double> offers = [];
@@ -37,7 +30,6 @@ final class FakeCatalogOverscrollSink {
 
   /// The sink to hand the viewport.
   late final CatalogOverscrollSink sink = CatalogOverscrollSink(
-    restBeforePull: restBeforePull,
     onStart: () => starts++,
     onDelta: (pixels) {
       offers.add(pixels);

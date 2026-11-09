@@ -584,47 +584,64 @@ void main() {
         });
       }
 
-      testWidgets('risen to the top, a pull brings the card back part-way, '
-          'and a pull that goes on at the top closes the sheet', (
-        tester,
-      ) async {
+      testWidgets('risen to the top, a pull brings the card back part-way and '
+          'moves the sheet on the tick it gets there', (tester) async {
         await open(tester, 'big', touchSlop: slop);
         await pull(tester, grid, -700);
         expect(titleCentre(tester), 25);
 
-        // Further than the grid scrolled, but the tail arrives within the
-        // rest and is dropped.
-        final finger = await pull(tester, grid, 720, lift: false);
-        expect(titleCentre(tester), 320 + 25);
-        expect(sheetTop(tester), 0);
-
-        // At rest at the top for long enough, the pull reaches the sheet.
-        var time = const Duration(seconds: 2);
-        for (var i = 0; i < 30; i++) {
+        // Ticks that end with the card back part-way and the sheet unmoved:
+        // at most the one that lands on the top exactly.
+        var unmovedAtTop = 0;
+        var time = Duration.zero;
+        final finger = await tester.startGesture(grid);
+        for (var i = 0; i < 80; i++) {
           time += const Duration(milliseconds: 16);
           await finger.moveBy(const Offset(0, 10), timeStamp: time);
           await tester.pump(const Duration(milliseconds: 16));
+          final top = sheetTop(tester);
+          if (top == 0 && titleCentre(tester) == 320 + 25) unmovedAtTop++;
         }
+        expect(unmovedAtTop, lessThanOrEqualTo(1));
+        expect(titleCentre(tester) - sheetTop(tester), 320 + 25);
         expect(sheetTop(tester), greaterThan(60));
-        await finger.up(timeStamp: time);
+
+        await finger.up();
         await settle(tester);
         expect(sheetUp(), isFalse);
       });
 
-      testWidgets('a fast scroll back to the top does not close it', (
-        tester,
-      ) async {
+      testWidgets('a fast scroll that runs a little past the top, slowing, '
+          'springs back', (tester) async {
         await open(tester, 'big', touchSlop: slop);
         await pull(tester, grid, -200);
+        // The grid scrolled about 180 (the slop takes the rest).
         expect(titleCentre(tester), closeTo(320 + 25 - 200, 20));
 
-        await pull(
-          tester,
-          grid,
-          400,
-          step: 20,
-          gap: const Duration(milliseconds: 8),
+        // Past the slop slowly, then two ticks 8 ms apart bring the grid to
+        // its top and 20 past it, short of 0.8 cm; then the finger slows to
+        // 2 px in 16 ms and lifts.
+        var time = Duration.zero;
+        final finger = await tester.startGesture(grid);
+        for (var i = 0; i < 2; i++) {
+          time += const Duration(milliseconds: 16);
+          await finger.moveBy(const Offset(0, 10), timeStamp: time);
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        final offset = 320 + 25 - titleCentre(tester);
+        for (var i = 0; i < 2; i++) {
+          time += const Duration(milliseconds: 8);
+          await finger.moveBy(Offset(0, (offset + 20) / 2), timeStamp: time);
+        }
+        time += const Duration(milliseconds: 16);
+        await finger.moveBy(const Offset(0, 2), timeStamp: time);
+        await tester.pump();
+        expect(
+          sheetTop(tester),
+          inExclusiveRange(0, PackSheet.dismissDistance),
         );
+        await finger.up(timeStamp: time);
+        await settle(tester);
 
         expect(sheetUp(), isTrue);
         expect(sheetTop(tester), 0);
