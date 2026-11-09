@@ -150,10 +150,10 @@ void main() {
       await pump(tester);
       const pack = AnimatedEmojiPack.packId;
       services.library.apply(
-        LibraryEdit.installPack(const PackId('b'), PackKind.emoji),
+        const LibraryEdit.installPack(PackId('b'), PackKind.emoji),
       );
       services.library.apply(
-        LibraryEdit.installPack(const PackId('a'), PackKind.emoji),
+        const LibraryEdit.installPack(PackId('a'), PackKind.emoji),
       );
       final before = services.library.installedPacks(PackKind.emoji).value;
       expect(before.indexOf(pack), 2);
