@@ -1,5 +1,6 @@
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/frame_counter_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
@@ -52,6 +53,10 @@ abstract final class ShowcaseBodies {
     // A lone document of the video pack is played in a loop: a WebM sticker,
     // then an MP4 clip and a GIF, which are gifs to the user.
     for (final item in VideoStickerPack.items) _sticker(item),
+    // Clips whose frames carry their index, to read a recording of a GIF
+    // scrolled off and back by (`tool/frame_counter.dart`).
+    FrameCounterPack.title,
+    for (final item in FrameCounterPack.items) _sticker(item),
     '\u{1F389}\u{1F525}\u{1F680}',
     '\u{1F600}${_emoji('1f602')}\u{1F60D}${_emoji('1f929')}\u{1F970}',
     '\u{1F600}\u{1F602}\u{1F60D}\u{1F929}\u{1F970}\u{1F973}'

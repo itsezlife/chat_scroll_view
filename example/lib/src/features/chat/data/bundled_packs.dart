@@ -2,6 +2,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundle_fetcher.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/frame_counter_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
@@ -24,6 +25,7 @@ abstract final class BundledPacks {
     ...LottieStickerPack.descriptors,
     ...StaticStickerPack.descriptors,
     ...VideoStickerPack.descriptors,
+    ...FrameCounterPack.descriptors,
   ];
 
   /// The item of [key] in any pack, or null for content that is not bundled.
@@ -31,7 +33,8 @@ abstract final class BundledPacks {
       AnimatedEmojiPack.of(key) ??
       LottieStickerPack.of(key) ??
       StaticStickerPack.of(key) ??
-      VideoStickerPack.of(key);
+      VideoStickerPack.of(key) ??
+      FrameCounterPack.of(key);
 
   /// The descriptor of the item of [key] in any pack, or null: a
   /// [DescribeContent] over the bundled packs alone.

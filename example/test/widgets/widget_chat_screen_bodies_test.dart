@@ -7,6 +7,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/main.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/frame_counter_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
@@ -280,13 +281,15 @@ void main() {
     ) async {
       await openChat(tester);
       // Six messages of emoji, and one sticker each of the Lottie pack and of
-      // the static one, and one item each of the video pack.
+      // the static one, and one item each of the video pack and of the frame
+      // counter clips.
       final emojiOnly =
           6 +
           LottieStickerPack.stickers.length +
           StaticStickerPack.stickers.length +
-          VideoStickerPack.items.length;
-      expect(emojiOnly, 24);
+          VideoStickerPack.items.length +
+          FrameCounterPack.items.length;
+      expect(emojiOnly, 33);
       expect(find.byType(ChatEmojiBody), findsNWidgets(emojiOnly));
 
       await tester.tap(find.byTooltip('Large emoji: on'));

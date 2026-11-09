@@ -78,6 +78,14 @@ abstract final class DemoConfig {
   /// every playing asset keeps its slot on a dynamic page.
   static const bool frameTextures = bool.fromEnvironment('FRAME_TEXTURES');
 
+  /// Whether the panel's GIF page lists the frame counter clips first
+  /// (`FrameCounterPack`), from `--dart-define=FRAME_COUNTER_GIFS=true`: a
+  /// recording of the page scrolled off and back can then be read frame by
+  /// frame. Off by default: the page lists no bundled clip.
+  static const bool frameCounterGifs = bool.fromEnvironment(
+    'FRAME_COUNTER_GIFS',
+  );
+
   /// Whether the scroll lab is mounted: the LAB switches, the frame log and
   /// the pointer tape, from `--dart-define=SCROLL_LAB=true`. Off, the app and
   /// its tests run without them.
