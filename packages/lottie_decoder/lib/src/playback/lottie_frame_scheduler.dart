@@ -115,7 +115,7 @@ final class LottieFrameLease {
 }
 
 /// The one owner of a host's [FrameAtlas]: it works out, once per clock tick,
-/// which frames the visible animations want and renders them as one batch.
+/// which frames the visible animations want and sends each lease its own.
 ///
 /// Paintables are pull-driven and never schedule: at paint time one calls
 /// [want] with the frame its clock time asks for. The scheduler drives itself

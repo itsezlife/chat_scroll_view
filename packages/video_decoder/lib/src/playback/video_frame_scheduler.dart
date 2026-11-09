@@ -851,7 +851,7 @@ final class _ClipPlayer implements VideoFrameSource {
   }
 
   /// The number of the frame that should be drawn now, or null; moves it to
-  /// the frames a batch is drawing.
+  /// the frames being drawn.
   int? takeFrameToShow() {
     final frame = _toShow;
     if (frame == null) return null;
