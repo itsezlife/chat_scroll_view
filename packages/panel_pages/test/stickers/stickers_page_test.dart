@@ -122,6 +122,19 @@ void main() {
   double stripTop(WidgetTester tester) =>
       tester.getTopLeft(find.byType(StickerPackStrip)).dy - origin(tester).dy;
 
+  // The strip's mark at rest on the tab [label], not on its way to it.
+  void expectMarkOn(WidgetTester tester, String label) {
+    final mark = tester.getRect(find.byKey(StickerPackStrip.markKey));
+    final tab = tester.getRect(
+      find.descendant(
+        of: find.byType(StickerPackStrip),
+        matching: find.bySemanticsLabel(label),
+      ),
+    );
+    expect(mark.size, const Size(30, 30));
+    expect(mark.center.dx, closeTo(tab.center.dx, .5));
+  }
+
   CatalogPageController controller() =>
       host.controllers.peek<CatalogPageController>('stickers')!;
 
@@ -270,6 +283,15 @@ void main() {
       expect(find.bySemanticsLabel('Birds'), findsWidgets);
     });
 
+    pageTest('has its mark on the first tab from the first frames, with no '
+        'slide', (tester) async {
+      await tester.pumpWidget(page());
+      await tester.pump();
+      await tester.pump();
+
+      expectMarkOn(tester, 'Cats');
+    });
+
     pageTest('a tap on a tab scrolls the grid to the head of the pack', (
       tester,
     ) async {
@@ -352,6 +374,21 @@ void main() {
       expect(stripTop(tester), 0);
       expect(selected(tester, 'Cats'), isTrue);
       expect(selected(tester, 'Dogs'), isFalse);
+    });
+
+    pageTest('places the mark on the first tab at once, with no slide', (
+      tester,
+    ) async {
+      await pumpPage(tester);
+      await readOnIntoTheSecondPack(tester);
+
+      host
+        ..visible = false
+        ..openAfresh()
+        ..visible = true;
+      await tester.pump();
+
+      expectMarkOn(tester, 'Cats');
     });
 
     pageTest('marks the recents when the page has some', (tester) async {
