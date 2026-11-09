@@ -24,10 +24,12 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart'
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_pack_targets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_texture_warmer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_emoji_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_interaction_stub.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
@@ -335,15 +337,24 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         _showDemoSnack('Resolving username: $name');
       case ChatHashtagActivated(:final tag):
         _showDemoSnack('Search: #$tag');
-      case ChatEmbedActivated(:final target, :final alt):
-        _showDemoSnack('Emoji pack of $target ($alt)');
+      // A custom emoji in the text opens its pack's emoji sheet, as the
+      // reference's `didPressAnimatedEmoji` does. A long press is the
+      // message's.
+      case ChatEmbedActivated(:final target, gesture: ChatInlineGesture.tap):
+        _openPackOf(ChatPackTargets.ofEmbed(target, widget.services.describe));
+      case ChatEmbedActivated(gesture: ChatInlineGesture.longPress):
+        break;
       case ChatStickerActivated(:final content, :final gesture):
-        // A tap on an emoji with an effect is a direct interaction. Otherwise
-        // (a custom emoji with none) a tap opens its pack. A long press is
-        // message selection and the body's own.
+        // A tap on an emoji with an effect is a direct interaction, and the
+        // body replays it. Otherwise a tap on a sticker or a custom emoji
+        // opens its pack (`didPressImage`); a GIF or a sticker without a pack
+        // opens nothing. A long press is message selection and the body's
+        // own.
         if (!_stickerInteractions.onActivated(interaction) &&
             gesture == ChatInlineGesture.tap) {
-          _showDemoSnack('Sticker pack of ${content.encoded}');
+          _openPackOf(
+            ChatPackTargets.ofContent(content, widget.services.describe),
+          );
         }
       case ChatCodeActivated(:final gesture):
         // Host-owned copy path only when [copyCodeOnClick] is false.
@@ -522,6 +533,17 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               _showCopiedSnack(ChatCopyKind.textSelection, text),
           onCopyLink: (text) => _showCopiedSnack(ChatCopyKind.link, text),
           onCopyCode: (text) => _showCopiedSnack(ChatCopyKind.code, text),
+          onEmojiPacks: (packs) => unawaited(_openEmojiPacks(packs)),
+        ),
+        emojiPacks: MessageEmojiPacks(
+          of: (id) => switch (backend.getMessage(id)?.text) {
+            final text? => ChatPackTargets.emojiPacksOf(
+              text,
+              widget.services.describe,
+            ),
+            null => const [],
+          },
+          source: widget.services.packs,
         ),
       );
       _search?.dispose();
@@ -895,6 +917,23 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           ? (item) => input.pickContent(item.key, kind: item.semanticKind)
           : null,
     );
+  }
+
+  // The menu's "contains emoji from N packs": one emoji sheet of them all,
+  // whose emoji insert into the composer as a pick from the panel does.
+  Future<void> _openEmojiPacks(List<PackId> packs) {
+    final input = _input;
+    return ChatPackSheets.openEmojiPacks(
+      context,
+      services: widget.services,
+      packs: packs,
+      onPick: (item) => input.pickContent(item.key, kind: item.semanticKind),
+    );
+  }
+
+  // A pack named by what was tapped in the chat, if any.
+  void _openPackOf(PackId? id) {
+    if (id != null) unawaited(_openPack(id));
   }
 
   // A pack's edit asked by the panel: applied with its bulletin, a removal

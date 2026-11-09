@@ -446,6 +446,17 @@ inserts only through the `onPick` the host gives when a composer can take
 it, and closes itself before it calls it (the host does not pop it), and a sticker sheet given the `ContentPreviewController` previews its
 stickers (Send only with `onPick`, no "View pack"). A `LibraryEditRequested`
 that removes or archives a pack goes through the same bulletin.
+The chat opens the same sheets with no change to the viewport: on a tapped
+`ChatStickerActivated` that is no interaction (a sticker, a custom emoji
+without an effect) and on a tapped `ChatEmbedActivated` (a custom emoji in
+text) the host reads the content's descriptor, through its `ContentResolver`,
+and opens the sheet of its pack reference (`ContentDescriptor.pack`); content
+of no pack (a GIF, a unicode emoji) opens nothing, and a lone emoji with an
+effect keeps its replay. The message menu's "This message contains emoji
+from N packs" is the host's too: the packs of the message's custom emoji,
+each once in the order the text names them, under the action card (a
+`ChatMessageMenu.show` `menuBuilder` that keeps `ChatMessageMenuColumn`),
+opening one `EmojiPackSheet` of them all.
 A host that lists the recents through a `DeferredRecentsStore` view (so a pick
 does not reorder the grid under the pointer) routes `remove` and `clear` through
 the view: the emoji leaves the list at once and nothing else in it moves.
@@ -1063,7 +1074,8 @@ A message of nothing but emoji is shown without a bubble, large
    the text once unicode inline content is dropped to characters): the blank
    lines and spaces around the emoji are the sender's arrangement.
 7. **Taps** are `ChatEmbedActivated` for a custom emoji and `ChatStickerActivated`
-   for the lone sticker; what they mean is the host's.
+   for the lone sticker; what they mean is the host's (an interaction, or the
+   pack sheet of the content's pack, section 4).
 
 #### Sticker interaction seams
 

@@ -44,6 +44,40 @@ abstract final class ChatPackSheets {
     required PackKind kind,
     ValueChanged<ContentDescriptor>? onPick,
     PanelArrangement? arrangement,
+  }) => _show(
+    context,
+    services: services,
+    packs: [pack],
+    kind: kind,
+    onPick: onPick,
+    arrangement: arrangement,
+  );
+
+  /// Opens one emoji sheet of [packs] (each once, in order) over [context]:
+  /// the reference's `EmojiPacksAlert` over the packs of a message's custom
+  /// emoji. [onPick] takes an emoji the sheet inserts.
+  static Future<void> openEmojiPacks(
+    BuildContext context, {
+    required AppServices services,
+    required List<PackId> packs,
+    ValueChanged<ContentDescriptor>? onPick,
+    PanelArrangement? arrangement,
+  }) => _show(
+    context,
+    services: services,
+    packs: packs,
+    kind: PackKind.emoji,
+    onPick: onPick,
+    arrangement: arrangement,
+  );
+
+  static Future<void> _show(
+    BuildContext context, {
+    required AppServices services,
+    required List<PackId> packs,
+    required PackKind kind,
+    required ValueChanged<ContentDescriptor>? onPick,
+    required PanelArrangement? arrangement,
   }) {
     // Favourites from the sheet's preview: at once, as from the panel's.
     void libraryEdit(LibraryEdit edit) => services.library.apply(edit);
@@ -71,7 +105,7 @@ abstract final class ChatPackSheets {
       arrangement: arrangement ?? ChatPackSheets.arrangement,
       builder: (_) => switch (kind) {
         PackKind.emoji => EmojiPackSheet(
-          packIds: [pack],
+          packIds: packs,
           packs: services.packs,
           library: services.library,
           assets: services.assets,
@@ -80,7 +114,7 @@ abstract final class ChatPackSheets {
           onUnavailable: unavailable,
         ),
         PackKind.stickers || PackKind.masks => StickerPackSheet(
-          pack: pack,
+          pack: packs.single,
           packs: services.packs,
           library: services.library,
           assets: services.assets,
