@@ -8,10 +8,12 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'frame_counter_return_test.dart' as frame_counter_return_test;
 import 'image_codec_decoder_test.dart' as image_codec_decoder_test;
 import 'image_paintable_test.dart' as image_paintable_test;
 
 void main() {
+  group('frame_counter_return_test.dart', frame_counter_return_test.main);
   group('image_codec_decoder_test.dart', image_codec_decoder_test.main);
   group('image_paintable_test.dart', image_paintable_test.main);
 }
