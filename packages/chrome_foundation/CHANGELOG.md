@@ -6,6 +6,16 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (pack sheet strings)
+
+- `PackSheetStrings`, the sixth group of `ChromeStrings` (`packSheet`,
+  `ChromeStringsScope.packSheetOf`): a pack sheet's Add / Remove buttons by
+  kind and count, the several-packs buttons and counts, Share and Copy Link,
+  the not-found texts, and the added / removed / archived bulletins with
+  Undo, in the reference client's English. Existing code that builds a
+  `ChromeStrings` must now pass `packSheet`; the presets and
+  `ChromeStringsSnapshot` include it.
+
 ### Added (content preview strings)
 
 - `PanelStrings` gains the content preview's menu (`sendStickerAction`,

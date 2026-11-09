@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a header title that opens)
+
+- `CatalogSection.titleAction`: the header band outside its trailing action
+  reports this id through `onSectionAction`, and a screen reader taps the
+  header node for it. A drag on the band still scrolls. A section without
+  one is unchanged.
+
 ### Added (the cell under a point)
 
 - `PanelCatalogController.leafAt(globalPosition)` and
