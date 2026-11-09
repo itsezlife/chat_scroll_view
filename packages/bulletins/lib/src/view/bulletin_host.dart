@@ -205,6 +205,12 @@ class _BulletinHostState extends State<BulletinHost>
           BulletinTransition$Fade(enter: final given?):
         final spec = given.withSpeed(_motion.speed);
         run = presence.animateTo(1, duration: spec.duration, curve: spec.curve);
+      case BulletinTransition$FadeScale(:final enter?):
+        // Presence runs as linear time; each channel reads its own curve.
+        run = presence.animateTo(
+          1,
+          duration: _motion.speed.scale(enter.length),
+        );
       case BulletinTransition$FadeScale() || BulletinTransition$Fade():
         final spec = _motion.specOf(MotionRole.bulletinShow);
         run = presence.animateTo(1, duration: spec.duration, curve: spec.curve);
@@ -262,6 +268,19 @@ class _BulletinHostState extends State<BulletinHost>
             0,
             duration: spec.duration,
             curve: spec.curve,
+          );
+        case final BulletinTransition$FadeScale transition &&
+            BulletinTransition$FadeScale(:final exit?):
+          // The exit starts from what is drawn now, which mid-enter is not
+          // the resting card; without this the card would jump to the exit
+          // curve's start.
+          final from = _fadeScaleLook(entry, transition);
+          entry
+            ..leaveFrom = from
+            ..presence.value = 1;
+          run = entry.presence.animateTo(
+            0,
+            duration: _motion.speed.scale(exit.opacity.duration),
           );
         case BulletinTransition$FadeScale() || BulletinTransition$Fade():
           final spec = _motion.specOf(MotionRole.bulletinHide);
@@ -360,6 +379,9 @@ final class _Entry {
   /// the policy's.
   BulletinPlacement placementIn(BulletinPolicy policy) =>
       handle.bulletin.placement ?? policy.placement;
+
+  /// The look a fade-scale exit with its own timing started from.
+  ({double opacity, double scale})? leaveFrom;
 
   Animation<double> get drag => _drag;
 
@@ -591,13 +613,15 @@ class _EntryViewState extends State<_EntryView> {
           ),
         ),
       },
-      BulletinTransition$FadeScale(:final fromScale) => Opacity(
-        opacity: p.clamp(0, 1),
-        child: Transform.scale(
-          scale: fromScale + (1 - fromScale) * p,
-          child: child,
+      final BulletinTransition$FadeScale transition => switch (_fadeScaleLook(
+        _entry,
+        transition,
+      )) {
+        (:final opacity, :final scale) => Opacity(
+          opacity: opacity,
+          child: Transform.scale(scale: scale, child: child),
         ),
-      ),
+      },
       BulletinTransition$Fade() => Opacity(
         opacity: p.clamp(0, 1),
         child: child,
@@ -644,4 +668,53 @@ final class _Overshoot extends Curve {
     final s = t - 1;
     return s * s * ((tension + 1) * s + tension) + 1;
   }
+}
+
+// --- Fade and scale ---
+
+/// The opacity and scale [entry] is drawn with under [transition].
+///
+/// Without split timing the presence is the eased progress of both
+/// channels. With it, the presence is linear time and each channel reads its
+/// own duration and curve: entering, 0 to 1 over the longer channel;
+/// leaving, 1 to 0 over the fade, from the look the exit started at.
+({double opacity, double scale}) _fadeScaleLook(
+  _Entry entry,
+  BulletinTransition$FadeScale transition,
+) {
+  final p = entry.presence.value;
+  final rest = transition.fromScale;
+  switch ((transition.enter, transition.exit, entry.leaveFrom)) {
+    case (_, final exit?, final from?):
+      final elapsed = 1 - p;
+      final total = exit.opacity.duration;
+      final fade = _channel(exit.opacity, elapsed, total);
+      final shrink = _channel(exit.scale, elapsed, total);
+      return (
+        opacity: from.opacity * (1 - fade),
+        scale: from.scale + (rest - from.scale) * shrink,
+      );
+    case (final enter?, _, null):
+      final total = enter.length;
+      return (
+        opacity: _channel(enter.opacity, p, total),
+        scale: rest + (1 - rest) * _channel(enter.scale, p, total),
+      );
+    case _:
+      return (opacity: p.clamp(0, 1), scale: rest + (1 - rest) * p);
+  }
+}
+
+/// How far [spec]'s channel has come, by its curve, when [elapsed] of
+/// [total] has passed.
+double _channel(MotionSpec spec, double elapsed, Duration total) {
+  if (spec.duration <= Duration.zero) return 1;
+  final t = elapsed * total.inMicroseconds / spec.duration.inMicroseconds;
+  return spec.curve.transform(t.clamp(0, 1));
+}
+
+extension on BulletinFadeScaleMotion {
+  /// The time both channels take together.
+  Duration get length =>
+      opacity.duration > scale.duration ? opacity.duration : scale.duration;
 }
