@@ -69,9 +69,21 @@ void main() {
   void screenTest(
     String name,
     TargetPlatform platform,
-    Future<void> Function(WidgetTester, ChatSelectionController) body,
-  ) => testWidgets(name, (tester) async {
+    Future<void> Function(WidgetTester, ChatSelectionController) body, {
+    int androidSdk = 34,
+  }) => testWidgets(name, (tester) async {
     debugDefaultTargetPlatformOverride = platform;
+    const system = MethodChannel('chat_scroll_view_example/system');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      system,
+      (call) async => {'sdkInt': androidSdk, 'oneUi40': false},
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        system,
+        null,
+      ),
+    );
     try {
       tester.view
         ..physicalSize = const Size(900, 8000)
@@ -291,6 +303,19 @@ void main() {
       expect(copied, findsNothing);
       expect(selection.isSelectionMode, isFalse);
     });
+
+    // Below API 31 the system shows nothing: the app confirms the copy.
+    screenTest('the selection bar Copy on Android 11', TargetPlatform.android, (
+      tester,
+      selection,
+    ) async {
+      await selectTwoMessages(tester, selection);
+
+      await tapBarCopy(tester);
+
+      expect(copied, findsOneWidget);
+      expect(selection.isSelectionMode, isFalse);
+    }, androidSdk: 30);
   });
 
   group('the message menu', () {
@@ -487,6 +512,22 @@ void main() {
       expect([
         for (final kind in ChatCopyKind.values) feedback.showsToast(kind),
       ], everyElement(isFalse));
+    });
+    // AndroidUtilities.shouldShowClipboardToast: the app toasts while
+    // (SDK < 31 || !OneUI 4.0 built-in toasts) && SDK < 32.
+    test('Android confirms by itself only from 12L, or 12 on One UI 4.0', () {
+      bool confirms(int sdk, {bool oneUi = false}) =>
+          ChatCopyFeedback.androidSystemConfirms(
+            sdkInt: sdk,
+            hasBuiltInClipboardToasts: oneUi,
+          );
+
+      expect(confirms(30), isFalse);
+      expect(confirms(30, oneUi: true), isFalse);
+      expect(confirms(31), isFalse);
+      expect(confirms(31, oneUi: true), isTrue);
+      expect(confirms(32), isTrue);
+      expect(confirms(34), isTrue);
     });
   });
 }
