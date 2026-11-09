@@ -116,7 +116,11 @@ import 'features/chat/sticker_message_body_test.dart'
     as sticker_message_body_test;
 import 'features/chat/video_sticker_pack_test.dart' as video_sticker_pack_test;
 import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
+import 'flicker/pack_sheet_panel_flicker_test.dart'
+    as flicker_pack_sheet_panel_flicker_test;
 import 'flicker/panel_flash_test.dart' as flicker_panel_flash_test;
+import 'flicker/panel_scroll_restart_test.dart'
+    as flicker_panel_scroll_restart_test;
 import 'flicker/playback_starvation_test.dart'
     as flicker_playback_starvation_test;
 import 'flicker/thumbnail_fade_test.dart' as flicker_thumbnail_fade_test;
@@ -203,7 +207,15 @@ void main() {
     'features/streaming/streaming_screen_test.dart',
     streaming_screen_test.main,
   );
+  group(
+    'flicker/pack_sheet_panel_flicker_test.dart',
+    flicker_pack_sheet_panel_flicker_test.main,
+  );
   group('flicker/panel_flash_test.dart', flicker_panel_flash_test.main);
+  group(
+    'flicker/panel_scroll_restart_test.dart',
+    flicker_panel_scroll_restart_test.main,
+  );
   group(
     'flicker/playback_starvation_test.dart',
     flicker_playback_starvation_test.main,

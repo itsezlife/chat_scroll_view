@@ -201,8 +201,8 @@ abstract class AssetPaintable {
   /// so the cells a fling brought in found the pool full of cells that had
   /// flown past and showed their stills (the reference client gives a
   /// cell's drawable back the moment the cell detaches). A surface may
-  /// still paint a binding it hides for the rest of the frame (a panel's
-  /// cells while a fling runs are hidden but drawn), so the lease goes once
+  /// still paint a binding it hides for the rest of the frame (a cell at
+  /// the edge of a scrolling window), so the lease goes once
   /// the frame is over, and only if nothing painted it meanwhile. Painted
   /// again later, the paintable takes a new lease. Does nothing by default,
   /// which is right for a paintable that holds its own pixels.

@@ -122,8 +122,8 @@ final class LottieFrameLease {
   /// Ends the lease once the current frame is over, unless its holder wants
   /// a frame before that or the lease is [kept] by then: the holder left the
   /// screen (`AssetPaintable.leftScreen`), but a surface that hides a cell
-  /// may still paint it in the frame that hid it (a panel's cells are hidden
-  /// while a fling runs, and drawn), and giving that lease back would put
+  /// may still paint it in the frame that hid it (a cell at the edge of a
+  /// scrolling window), and giving that lease back would put
   /// the cell on its still while a new lease shows its first posts.
   void releaseUnlessPainted() => _scheduler._releaseUnlessPainted(this);
 }
