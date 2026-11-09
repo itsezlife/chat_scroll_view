@@ -242,3 +242,19 @@ selector as it was.
 | Bar | The shell shows the bottom bar on a fresh open, wherever reading on left it. |
 | Supersedes | The restart on hide under the `touch` arrangement (`keepsScrollOnReopen`, `followPresence`): it reset every catalogue page, the emoji page among them, and decided by arrangement what is the presentation's to decide. |
 | Not ported | The GIF page's categories (the page has none yet), and the emoji page's group-emoji hint. |
+
+## Amendment: the strip on an open and while scrolling
+
+Native-media ticket 112. Two things of the stickers strip did not match the
+reference mobile client: it slid away as the grid scrolled, and on an open its
+mark slid and its row scrolled to the first tab. The client's stickers tabs
+follow only search (`updateStickerTabsPosition`), while its emoji tabs hide by
+scroll; its `onOpen` selects the first tab with no animated change and jumps
+the grid.
+
+| Area | Decision |
+| ---- | -------- |
+| Pinned strip | `CatalogPagePolicy.stripSlidesAway` (true by default) says whether the strip of the sticky header slides away with the reading. The stickers policy answers false: the strip stays whole whatever the scroll, content passes under it with its hairline, and only search takes it away. The emoji policy keeps the slide. `CatalogStickyHeader` takes the answer as `pinned`. |
+| Placed, not slid | The stickers strip slides its mark and scrolls its row only for what the user did: a tap, or a motion of theirs (drag, fling, wheel, animated scroll) carrying the catalogue into another section. After `PanelCatalogProgrammaticJump` (a fresh open restarting the page, a host's jump) the section change is placed at once, mark, row and tab colours, until a motion of the user's starts; a new set of tabs and the first build are placed too. A command that cuts a tapped tab's jump short ends the tap, so the mark goes where the catalogue landed. The handle is unchanged: the strip reads the catalogue's events it already had. |
+| Not ported | The emoji strip: its page keeps its place on an open, so nothing jumps it there; a programmatic jump under it still slides. |
+
