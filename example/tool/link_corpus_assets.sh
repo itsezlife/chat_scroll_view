@@ -7,7 +7,7 @@
 #   example/tool/link_corpus_assets.sh /path/to/sticker-corpus
 #
 # The argument: a folder with one subfolder per pack, each holding
-# `*.json` or `*.tgs` Lottie files. Run it again to refresh; it replaces earlier copies.
+# `*.json` or `*.tgs` Lottie files, or `*.webp` still stickers. Run it again to refresh; it replaces earlier copies.
 set -euo pipefail
 
 if [[ $# -ne 1 || ! -d "$1" ]]; then
@@ -19,12 +19,12 @@ corpus="$1"
 dest="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/assets/sticker_corpus"
 
 # Only copies made by an earlier run are removed.
-find "$dest" -maxdepth 1 \( -name '*--*.json' -o -name '*--*.tgs' \) -delete
+find "$dest" -maxdepth 1 \( -name '*--*.json' -o -name '*--*.tgs' -o -name '*--*.webp' \) -delete
 
 count=0
 for pack in "$corpus"/*/; do
   name="$(basename "$pack")"
-  for file in "$pack"*.json "$pack"*.tgs; do
+  for file in "$pack"*.json "$pack"*.tgs "$pack"*.webp; do
     [[ -e "$file" ]] || continue
     cp "$file" "$dest/${name}--$(basename "$file")"
     count=$((count + 1))
