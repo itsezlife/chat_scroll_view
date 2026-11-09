@@ -101,6 +101,21 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        // What decides whether the system confirms a copy by itself
+        // (AndroidUtilities.shouldShowClipboardToast).
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SYSTEM_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            if (call.method == "clipboardToast") {
+                result.success(
+                    mapOf("sdkInt" to Build.VERSION.SDK_INT, "oneUi40" to isOneUi40()),
+                )
+            } else {
+                result.notImplemented()
+            }
+        }
+
         preImeBackChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             PRE_IME_BACK_CHANNEL,
@@ -227,6 +242,16 @@ class MainActivity : FlutterActivity() {
         vibrator.vibrate(200)
     }
 
+    /// `OneUIUtilities.hasBuiltInClipboardToasts`: One UI 4.0 exactly.
+    private fun isOneUi40(): Boolean = try {
+        val field = Build.VERSION::class.java.getDeclaredField("SEM_PLATFORM_INT")
+        field.isAccessible = true
+        val sem = field.getInt(null)
+        sem >= 100000 && sem - 90000 == 40000
+    } catch (e: Exception) {
+        false
+    }
+
     private inner class PreImeBackFrame : FrameLayout(this@MainActivity) {
         override fun dispatchKeyEventPreIme(event: KeyEvent): Boolean {
             if (interceptPreImeBack && event.keyCode == KeyEvent.KEYCODE_BACK) {
@@ -245,5 +270,6 @@ class MainActivity : FlutterActivity() {
         private const val LAB_CHANNEL = "chat_scroll_view_example/lab"
         private const val PATHS_CHANNEL = "chat_scroll_view_example/paths"
         private const val PRE_IME_BACK_CHANNEL = "chat_scroll_view_example/pre_ime_back"
+        private const val SYSTEM_CHANNEL = "chat_scroll_view_example/system"
     }
 }

@@ -488,5 +488,21 @@ void main() {
         for (final kind in ChatCopyKind.values) feedback.showsToast(kind),
       ], everyElement(isFalse));
     });
+    // AndroidUtilities.shouldShowClipboardToast: the app toasts while
+    // (SDK < 31 || !OneUI 4.0 built-in toasts) && SDK < 32.
+    test('Android confirms by itself only from 12L, or 12 on One UI 4.0', () {
+      bool confirms(int sdk, {bool oneUi = false}) =>
+          ChatCopyFeedback.androidSystemConfirms(
+            sdkInt: sdk,
+            hasBuiltInClipboardToasts: oneUi,
+          );
+
+      expect(confirms(30), isFalse);
+      expect(confirms(30, oneUi: true), isFalse);
+      expect(confirms(31), isFalse);
+      expect(confirms(31, oneUi: true), isTrue);
+      expect(confirms(32), isTrue);
+      expect(confirms(34), isTrue);
+    });
   });
 }

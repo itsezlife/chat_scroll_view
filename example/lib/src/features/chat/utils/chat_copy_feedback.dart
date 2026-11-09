@@ -65,7 +65,7 @@ sealed class ChatCopyFeedback {
   /// client's under `$Desktop`.
   ///
   /// [systemConfirms] is for a mobile platform whose system already shows its
-  /// own clipboard toast (Android 12L and later:
+  /// own clipboard toast (Android 12L and later, see [androidSystemConfirms]:
   /// `AndroidUtilities.shouldShowClipboardToast`, `AndroidUtilities.java:3598`,
   /// which `UndoView.showWithAction` consults); the app then adds none.
   factory ChatCopyFeedback.forPolicy(
@@ -76,6 +76,15 @@ sealed class ChatCopyFeedback {
       ChatCopyFeedback$Mobile(systemConfirms: systemConfirms),
     ChatSelectionPolicy$Desktop() => const ChatCopyFeedback$Desktop(),
   };
+
+  /// Whether an Android system at [sdkInt] shows its own clipboard toast:
+  /// the negation of `AndroidUtilities.shouldShowClipboardToast`
+  /// (`(SDK < 31 || !OneUIUtilities.hasBuiltInClipboardToasts()) && SDK < 32`),
+  /// so Android 12L and later, and Android 12 on One UI 4.0.
+  static bool androidSystemConfirms({
+    required int sdkInt,
+    required bool hasBuiltInClipboardToasts,
+  }) => !((sdkInt < 31 || !hasBuiltInClipboardToasts) && sdkInt < 32);
 
   /// Whether copying [kind] shows a "copied" toast.
   bool showsToast(ChatCopyKind kind);
