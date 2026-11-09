@@ -368,29 +368,31 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final textDirection = Directionality.of(context);
     return RenderPanelCatalog(
-      snapshots: snapshots,
-      assets: assets,
-      devicePixelRatio: dpr,
-      controller: controller,
-      spanCount: spanCount,
-      cellExtent: cellExtent,
-      headerExtent: headerExtent,
-      padding: padding,
-      textDirection: textDirection,
-      headerLandingInset: headerLandingInset,
-      paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
-      onLeafTap: onLeafTap,
-      onLeafSecondaryTap: onLeafSecondaryTap,
-      onLeafHover: onLeafHover,
-      onLeafLongPressStart: onLeafLongPressStart,
-      onLeafLongPressMove: onLeafLongPressMove,
-      onLeafLongPressEnd: onLeafLongPressEnd,
-      leafLongPressEligible: leafLongPressEligible,
-      leafLongPressDelay: leafLongPressDelay,
-      pinnedLeaf: pinnedLeaf,
-      onSectionAction: onSectionAction,
-      sectionNearExtent: sectionNearExtent,
-    )..held = _heldIn(context);
+        snapshots: snapshots,
+        assets: assets,
+        devicePixelRatio: dpr,
+        controller: controller,
+        spanCount: spanCount,
+        cellExtent: cellExtent,
+        headerExtent: headerExtent,
+        padding: padding,
+        textDirection: textDirection,
+        headerLandingInset: headerLandingInset,
+        paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
+        onLeafTap: onLeafTap,
+        onLeafSecondaryTap: onLeafSecondaryTap,
+        onLeafHover: onLeafHover,
+        onLeafLongPressStart: onLeafLongPressStart,
+        onLeafLongPressMove: onLeafLongPressMove,
+        onLeafLongPressEnd: onLeafLongPressEnd,
+        leafLongPressEligible: leafLongPressEligible,
+        leafLongPressDelay: leafLongPressDelay,
+        pinnedLeaf: pinnedLeaf,
+        onSectionAction: onSectionAction,
+        sectionNearExtent: sectionNearExtent,
+      )
+      ..held = _heldIn(context)
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }
 
   // A subtree whose tickers are off is not live: a hidden panel kept
@@ -429,6 +431,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..pinnedLeaf = pinnedLeaf
       ..onSectionAction = onSectionAction
       ..sectionNearExtent = sectionNearExtent
-      ..held = _heldIn(context);
+      ..held = _heldIn(context)
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }
 }

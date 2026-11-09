@@ -141,6 +141,71 @@ void main() {
       expect(services.library.installStateOf(pack), PackInstallState.installed);
     });
 
+    // The bulletin is up longer than the window it is named after: it
+    // slides in first, and its timer runs only once it is in. Undo works as
+    // long as the bulletin shows it, and the bulletin hides by itself.
+    testWidgets('Undo works while the bulletin shows it, which then hides', (
+      tester,
+    ) async {
+      await pump(tester);
+      const pack = AnimatedEmojiPack.packId;
+      services.library.apply(
+        const LibraryEdit.installPack(PackId('b'), PackKind.emoji),
+      );
+      services.library.apply(
+        const LibraryEdit.installPack(PackId('a'), PackKind.emoji),
+      );
+      final before = services.library.installedPacks(PackKind.emoji).value;
+      expect(before.indexOf(pack), 2);
+
+      ChatPackSheets.open(
+        home,
+        services: services,
+        pack: pack,
+        kind: PackKind.emoji,
+        arrangement: PanelArrangement.touch,
+      ).ignore();
+      await _settle(tester);
+      await tester.tap(find.textContaining('Удалить'));
+      // Past the window, the bulletin still up.
+      for (var i = 0; i < 29; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Отменить'), findsOneWidget);
+
+      await tester.tap(find.text('Отменить'));
+      await _settle(tester);
+
+      expect(services.library.installedPacks(PackKind.emoji).value, before);
+      expect(find.text('Отменить'), findsNothing);
+    });
+
+    testWidgets('the bulletin hides by itself and the removal holds', (
+      tester,
+    ) async {
+      await pump(tester);
+      const pack = AnimatedEmojiPack.packId;
+
+      ChatPackSheets.open(
+        home,
+        services: services,
+        pack: pack,
+        kind: PackKind.emoji,
+        arrangement: PanelArrangement.touch,
+      ).ignore();
+      await _settle(tester);
+      await tester.tap(find.textContaining('Удалить'));
+      for (var i = 0; i < 50; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(find.text('Отменить'), findsNothing);
+      expect(
+        services.library.installStateOf(pack),
+        PackInstallState.notInstalled,
+      );
+    });
+
     testWidgets('adds a pack not installed, with no Undo', (tester) async {
       await pump(tester);
       final pack = LottieStickerPack.pack.id;
