@@ -1,5 +1,8 @@
 mod common;
-use chat_lottie::{chat_lottie_render_batch, ChatLottie, ChatLottieJob};
+use chat_lottie::{
+    chat_lottie_compress_region, chat_lottie_decompress_region, chat_lottie_lz4_bound,
+    chat_lottie_render_batch, ChatLottie, ChatLottieJob,
+};
 use common::*;
 
 const GUARD: u8 = 0xAB;
@@ -204,6 +207,72 @@ fn two_handles_on_two_threads_match_serial_output() {
                 frames
                     .iter()
                     .map(|f| render_tight(&handle, *f, 48))
+                    .collect::<Vec<_>>()
+            })
+        })
+        .collect();
+    for worker in workers {
+        assert_eq!(worker.join().unwrap(), expected);
+    }
+}
+
+/// The contract a pool of render isolates rests on (ADR 042, *Workers*):
+/// handles loaded, rendered, compressed and restored on four threads at once,
+/// each its own, give what one thread gives. The wrapper keeps no state
+/// between calls but the handle, and tlottie's process-wide state is
+/// `OnceLock` / atomic caches of CPU features and env budgets.
+#[test]
+fn four_threads_load_render_and_restore_their_own_handles_at_once() {
+    let json = fixture();
+    let frames: Vec<f32> = (0..60).map(|i| i as f32).collect();
+    let serial = load(json.as_bytes());
+    let expected: Vec<Vec<u8>> = frames
+        .iter()
+        .map(|f| render_tight(&serial, *f, 64))
+        .collect();
+    let start = std::sync::Arc::new(std::sync::Barrier::new(4));
+
+    let workers: Vec<_> = (0..4)
+        .map(|_| {
+            let json = json.clone();
+            let frames = frames.clone();
+            let start = std::sync::Arc::clone(&start);
+            std::thread::spawn(move || {
+                start.wait();
+                let handle = load(json.as_bytes());
+                frames
+                    .iter()
+                    .map(|f| {
+                        let pixels = render_tight(&handle, *f, 64);
+                        let mut packed = vec![0u8; chat_lottie_lz4_bound(64, 64)];
+                        let mut len = 0usize;
+                        let packed_status = unsafe {
+                            chat_lottie_compress_region(
+                                pixels.as_ptr(),
+                                256,
+                                64,
+                                64,
+                                packed.as_mut_ptr(),
+                                packed.len(),
+                                &mut len,
+                            )
+                        };
+                        assert_eq!(packed_status, 0);
+                        let mut restored = vec![0u8; pixels.len()];
+                        let restored_status = unsafe {
+                            chat_lottie_decompress_region(
+                                packed.as_ptr(),
+                                len,
+                                restored.as_mut_ptr(),
+                                256,
+                                64,
+                                64,
+                            )
+                        };
+                        assert_eq!(restored_status, 0);
+                        assert_eq!(restored, pixels);
+                        pixels
+                    })
                     .collect::<Vec<_>>()
             })
         })
