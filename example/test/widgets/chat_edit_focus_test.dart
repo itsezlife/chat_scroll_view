@@ -4,10 +4,9 @@
 /// **Seam:** the chat's input set (with its bottom chrome, composer included)
 /// against the platform's text input channel: the type the field attached to
 /// the platform with, and whether the platform was told to show its keyboard.
-/// Reference: Android `ChatActivityEnterView.setEditingMessageObject` (focus,
-/// caret at the end, `openKeyboard`), iOS `setupEditMessage` (input mode
-/// text, `ensureInputViewFocused`), Desktop `HistoryWidget::editMessage`
-/// (cursor at the end, `setInnerFocus`).
+/// On mobile the edit focuses the field with the caret at the end and opens
+/// the keyboard (or sets the input mode on iOS); on desktop the caret goes to
+/// the end and the inner focus is set.
 library;
 
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';

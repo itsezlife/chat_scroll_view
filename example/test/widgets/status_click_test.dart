@@ -1,15 +1,13 @@
 /// The status of a message (its time, its delivery state) against the real
 /// `ChatScrollView` and the demo's real rows, with a mouse.
 ///
-/// The reference desktop client shows the status of an emoji-only message while
-/// the pointer is anywhere on the message's row, not only over the emoji box
-/// (`ListWidget::mouseActionUpdate` finds the element under the cursor by `y`
-/// alone and clamps `x` to the list; `UnwrappedMedia::needInfoDisplay` asks
-/// `isUnderCursor`). A click on that status selects the message when nothing is
-/// selected and toggles it in message selection
-/// (`ListWidget::mouseActionFinish`, `CursorState::Date`); a right click opens
-/// the message's menu. The time of an ordinary bubble keeps the tap barrier: a
-/// mouse click on it is not a message tap.
+/// On desktop the status of an emoji-only message shows while the pointer is
+/// anywhere on the message's row, not only over the emoji box: the element
+/// under the cursor is found by `y` alone and `x` is clamped to the list, and
+/// the info display asks `isUnderCursor`. A click on that status selects the
+/// message when nothing is selected and toggles it in message selection; a
+/// right click opens the message's menu. The time of an ordinary bubble keeps
+/// the tap barrier: a mouse click on it is not a message tap.
 ///
 /// These run the real viewport because its selection pointer sits above the
 /// gesture arena: a detector inside the row cannot stop it, only the
@@ -307,7 +305,7 @@ void main() {
     });
 
     chatTest('is tinted with the selection while its message is selected, as '
-        'the reference desktop client paints the selected service '
+        'the desktop paints the selected service '
         'colour', (tester) async {
       final rig = await mount(tester, [
         for (var i = 0; i < 3; i++)

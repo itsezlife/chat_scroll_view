@@ -1,6 +1,6 @@
 /// The service colour behind the pill and the headers of an emoji-only
 /// message: derived from the wallpaper per platform family, with a documented
-/// default when the host has no wallpaper (04 section 1.4, 2.4, 3.3).
+/// default when the host has no wallpaper.
 library;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
@@ -19,7 +19,7 @@ void main() {
     const policy = ChatEmojiPolicy.android();
 
     test('a flat wallpaper is darkened in HSV: s + .05 + .1 (1 - s), v x .65, '
-        'at 0x66 (AndroidUtilities.calcDrawableColor)', () {
+        'at 0x66', () {
       // #748391: h 209 deg, s .2, v .5686 -> s .33, v .3696.
       final colors = EmojiServiceColors.of(
         policy,

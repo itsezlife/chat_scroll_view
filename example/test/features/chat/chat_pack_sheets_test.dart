@@ -86,7 +86,7 @@ void main() {
     });
   });
 
-  // The reference's `toggleStickerSet` runs as the bulletin's delayed
+  // The toggle runs as the bulletin's delayed
   // action: whatever takes the bulletin away, but Undo, commits the edit,
   // and the library's own window is only a guard.
   group('a removal behind its bulletin', () {

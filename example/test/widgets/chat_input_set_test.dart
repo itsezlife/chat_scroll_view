@@ -1103,7 +1103,7 @@ void main() {
       expect(rig.services.recents.recents(SemanticKind.gif), isEmpty);
     });
 
-    // The reference records every sticker sent and saves every GIF sent,
+    // Every sticker sent is recorded and every GIF sent is saved,
     // wherever it was found; only an emoji found by search does not count.
     testWidgets('of a sticker from search is sent and recorded', (
       tester,
@@ -1244,7 +1244,7 @@ void main() {
       expect(rig.libraryEdits.single.evicted, isNull);
     });
 
-    // The reference reloads the panel's favourites and saved GIFs on an
+    // The panel reloads its favourites and saved GIFs on an
     // explicit edit while it is open (`recentDocumentsDidLoad`,
     // `gifAddedOrDeleted`); only the record of a send waits.
     testWidgets('a favourite shows in the open panel at once: the Favourites '

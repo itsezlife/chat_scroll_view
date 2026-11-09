@@ -1,13 +1,9 @@
-/// What a copy confirms and what it leaves selected, per platform family,
-/// after the reference clients (the table is in the ticket answer and in
-/// `chat_copy_feedback.dart`):
+/// What a copy confirms and what it leaves selected, per platform family:
 ///
-/// * The reference desktop client: no copy of text or of messages shows a
-///   toast, and none clears the selection (`HistoryInner::copySelectedText`).
-///   Only a click on code does (`MonospaceClickHandler::onClick`).
-/// * The reference Android client: every copy shows the "copied" bulletin, and
-///   a copy of selected messages or of selected text ends the selection
-///   (`ChatActivity` action-mode `copy`, `TextSelectionHelper.copyText`).
+/// * Desktop: no copy of text or of messages shows a toast, and none clears
+///   the selection. Only a click on code does.
+/// * Mobile: every copy shows the "copied" bulletin, and a copy of selected
+///   messages or of selected text ends the selection.
 ///
 /// **Seam:** the whole screen on a given platform, driven by real key events
 /// and taps; the clipboard is the services' `FakeRichClipboard`, read back, so
@@ -288,8 +284,8 @@ void main() {
       },
     );
 
-    // The system confirms a copy on the Android of the reference client
-    // (API 32+, `AndroidUtilities.shouldShowClipboardToast`): the app adds
+    // The system confirms a copy on Android
+    // (API 32+, its clipboard-toast rule): the app adds
     // none, but the selection still ends.
     screenTest('the selection bar Copy on Android', TargetPlatform.android, (
       tester,
@@ -352,7 +348,7 @@ void main() {
     });
   });
 
-  // The menu a mobile client opens over selected messages is out of reach of
+  // The menu opened over selected messages is out of reach of
   // a gesture here (the screen opens none in selection mode), so the session
   // is driven directly, under each policy.
   group('the menu session over selected messages', () {
@@ -438,8 +434,7 @@ void main() {
   });
 
   group('code', () {
-    // A tap on code is confirmed on every platform (tdesktop:
-    // `MonospaceClickHandler::onClick`, Android: `URLSpanMono`).
+    // A tap on code is confirmed on every platform.
     Future<void> tapCode(
       WidgetTester tester,
       ChatSelectionController selection,
@@ -513,8 +508,8 @@ void main() {
         for (final kind in ChatCopyKind.values) feedback.showsToast(kind),
       ], everyElement(isFalse));
     });
-    // AndroidUtilities.shouldShowClipboardToast: the app toasts while
-    // (SDK < 31 || !OneUI 4.0 built-in toasts) && SDK < 32.
+    // The app toasts while
+    // (SDK < 31 || !built-in toasts) && SDK < 32.
     test('Android confirms by itself only from 12L, or 12 on One UI 4.0', () {
       bool confirms(int sdk, {bool oneUi = false}) =>
           ChatCopyFeedback.androidSystemConfirms(

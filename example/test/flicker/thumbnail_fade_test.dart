@@ -13,7 +13,7 @@
 ///
 /// Contract: when the first frame arrives over a thumbnail, the thumbnail stays
 /// under the fading content until the content is opaque, then goes (a bitmap
-/// thumbnail does not fade in the reference client, `ImageReceiver.draw`), so
+/// thumbnail does not fade in, so
 /// the cell never dips back towards the stand-in colour.
 library;
 

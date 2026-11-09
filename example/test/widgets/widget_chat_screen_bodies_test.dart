@@ -203,7 +203,7 @@ void main() {
       expect(tester.widget<StickerPackSheet>(sheet).onPick, isNotNull);
     });
 
-    // The sheet plays its own stickers, as the reference's does: the clock
+    // The sheet plays its own stickers: the clock
     // is not paused under it, only the chat (ticket 128).
     screenTest('a sticker sheet leaves the clock playing', (tester) async {
       await openChat(tester);

@@ -1,6 +1,6 @@
 /// Which messages the host lets the user edit: by what the message is, not by
-/// who sent it. A sticker or a GIF has no text to edit (the reference client
-/// offers no edit action on one); text, a custom emoji and unknown content do.
+/// who sent it. A sticker or a GIF has no text to edit (no edit action is
+/// offered on one); text, a custom emoji and unknown content do.
 ///
 /// **Seam:** [MessageEditability], over a body and over a message.
 library;

@@ -73,7 +73,7 @@ void main() {
     expect(hold.chatHeld.value, isFalse);
   });
 
-  // A pack sheet over the chat: the reference pauses what is under it
+  // A pack sheet over the chat: what is under it pauses
   // while its own stickers play (ticket 128).
   test('a claim on the chat holds it until it is given back', () {
     final first = hold.holdChat();

@@ -8,9 +8,7 @@ import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
 
 /// **Seam:** [ReferenceMediaSizes], the example's media size policy. The
-/// expectations are worked from the reference client's formulas by hand
-/// (the reference Android client's `ChatMessageCell.java`, the reference
-/// desktop client `history_view_sticker.cpp` / `history_view_gif.cpp`), not
+/// expectations are worked from the formulas by hand, not
 /// from the code.
 void main() {
   ChatMediaItem sticker([ContentSize? source]) =>
