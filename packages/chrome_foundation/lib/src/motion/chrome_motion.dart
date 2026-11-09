@@ -78,6 +78,14 @@ enum MotionRole {
 
   /// A pointer menu fading out: a linear fade of the whole menu, no scale.
   pointerMenuHide,
+
+  /// A bulletin appearing by a timed transition (a fade, a fade and scale).
+  /// A bulletin that slides in on a spring takes no role: its motion is
+  /// physical.
+  bulletinShow,
+
+  /// A bulletin leaving by a timed transition.
+  bulletinHide,
 }
 
 /// The **motion role** table: one [MotionSpec] per [MotionRole].
@@ -91,8 +99,10 @@ enum MotionRole {
 /// chrome shipped, except `headerReveal`, a chosen default not yet checked
 /// against the reference client, and `popupShow` / `popupHide`, whose 200 ms
 /// durations are the reference client's (its curves are not measured here).
-/// The `menu*` roles are the composer selection menu's three motions, and
-/// `spoilerReveal` is the reference client's spoiler ripple.
+/// The `menu*` roles are the composer selection menu's three motions,
+/// `spoilerReveal` is the reference client's spoiler ripple, and the
+/// `bulletin*` roles are the reference Android client's timed bulletin
+/// transition.
 @immutable
 final class ChromeMotion {
   /// A motion table with every role given.
@@ -118,6 +128,8 @@ final class ChromeMotion {
     required this.spoilerReveal,
     required this.pointerMenuShow,
     required this.pointerMenuHide,
+    required this.bulletinShow,
+    required this.bulletinHide,
   });
 
   /// The shipped defaults.
@@ -172,6 +184,14 @@ final class ChromeMotion {
       pointerMenuHide = const MotionSpec(
         Duration(milliseconds: 150),
         Curves.linear,
+      ),
+      bulletinShow = const MotionSpec(
+        Duration(milliseconds: 255),
+        Curves.easeOutQuad,
+      ),
+      bulletinHide = const MotionSpec(
+        Duration(milliseconds: 175),
+        Curves.easeInQuad,
       );
 
   static const Duration _quarterSecond = Duration(milliseconds: 250);
@@ -249,6 +269,13 @@ final class ChromeMotion {
   /// [MotionRole.pointerMenuHide]: 150 ms, linear.
   final MotionSpec pointerMenuHide;
 
+  /// [MotionRole.bulletinShow]: 255 ms ease-out quad, the reference Android
+  /// client's timed bulletin enter.
+  final MotionSpec bulletinShow;
+
+  /// [MotionRole.bulletinHide]: 175 ms ease-in quad, its timed exit.
+  final MotionSpec bulletinHide;
+
   /// The spec playing [role].
   MotionSpec operator [](MotionRole role) => switch (role) {
     MotionRole.listTransition => listTransition,
@@ -272,6 +299,8 @@ final class ChromeMotion {
     MotionRole.spoilerReveal => spoilerReveal,
     MotionRole.pointerMenuShow => pointerMenuShow,
     MotionRole.pointerMenuHide => pointerMenuHide,
+    MotionRole.bulletinShow => bulletinShow,
+    MotionRole.bulletinHide => bulletinHide,
   };
 
   /// A copy with the named roles replaced.
@@ -297,6 +326,8 @@ final class ChromeMotion {
     MotionSpec? spoilerReveal,
     MotionSpec? pointerMenuShow,
     MotionSpec? pointerMenuHide,
+    MotionSpec? bulletinShow,
+    MotionSpec? bulletinHide,
   }) => ChromeMotion(
     listTransition: listTransition ?? this.listTransition,
     panelSlide: panelSlide ?? this.panelSlide,
@@ -319,6 +350,8 @@ final class ChromeMotion {
     spoilerReveal: spoilerReveal ?? this.spoilerReveal,
     pointerMenuShow: pointerMenuShow ?? this.pointerMenuShow,
     pointerMenuHide: pointerMenuHide ?? this.pointerMenuHide,
+    bulletinShow: bulletinShow ?? this.bulletinShow,
+    bulletinHide: bulletinHide ?? this.bulletinHide,
   );
 
   @override

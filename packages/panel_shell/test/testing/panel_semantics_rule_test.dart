@@ -48,6 +48,10 @@ ChromeStrings stringsWith({
     formatting: base.formatting,
     editMenu: base.editMenu,
     packSheet: base.packSheet,
+    bulletin: const BulletinStrings(
+      undoAction: 'Undo',
+      dismissAction: 'Dismiss',
+    ),
     semantics: SemanticsStrings(
       panelOpened: base.semantics.panelOpened,
       panelClosed: base.semantics.panelClosed,

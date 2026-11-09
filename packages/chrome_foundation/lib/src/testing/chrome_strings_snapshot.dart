@@ -16,6 +16,7 @@ abstract final class ChromeStringsSnapshot {
     final edit = strings.editMenu;
     final semantics = strings.semantics;
     final pack = strings.packSheet;
+    final bulletin = strings.bulletin;
     return {
       for (final id in _knownPageIds) 'panel.tabLabel[$id]': panel.tabLabel(id),
       for (final id in _knownCategoryIds)
@@ -162,6 +163,8 @@ abstract final class ChromeStringsSnapshot {
       'packSheet.masksArchived': pack.masksArchived,
       'packSheet.emojiArchived': pack.emojiArchived,
       'packSheet.undoAction': pack.undoAction,
+      'bulletin.undoAction': bulletin.undoAction,
+      'bulletin.dismissAction': bulletin.dismissAction,
       'semantics.panelOpened': semantics.panelOpened,
       'semantics.panelClosed': semantics.panelClosed,
       'semantics.pageSelected[label]': semantics.pageSelected('label'),

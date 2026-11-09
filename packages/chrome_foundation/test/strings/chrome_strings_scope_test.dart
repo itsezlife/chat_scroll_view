@@ -21,6 +21,7 @@ void main() {
         'panelOf': ChromeStringsScope.panelOf,
         'composerOf': ChromeStringsScope.composerOf,
         'formattingOf': ChromeStringsScope.formattingOf,
+        'bulletinOf': ChromeStringsScope.bulletinOf,
         'semanticsOf': ChromeStringsScope.semanticsOf,
       };
       for (final entry in lookups.entries) {
