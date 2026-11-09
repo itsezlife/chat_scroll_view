@@ -435,6 +435,20 @@ class RenderPanelCatalog extends RenderBox
     markCatalogNeedsUpdate();
   }
 
+  /// The device's gesture settings (its touch slop), as
+  /// `MediaQuery.gestureSettingsOf` gives them; the scroll drag starts past
+  /// that slop, as a `Scrollable`'s does. A drag recognizer of a widget
+  /// around the viewport reads the same settings, so the two start together
+  /// and the viewport, first in the arena, takes the drag; with the default
+  /// slop here and a phone's smaller one there, the outer drag would win
+  /// every drag that starts on the grid.
+  DeviceGestureSettings? _gestureSettings;
+  set gestureSettings(DeviceGestureSettings? value) {
+    if (_gestureSettings == value) return;
+    _gestureSettings = value;
+    _drag?.gestureSettings = value;
+  }
+
   /// Section-jump landing inset; null → [padding.top].
   double? _headerLandingInset;
   set headerLandingInset(double? value) {
@@ -1373,7 +1387,8 @@ class RenderPanelCatalog extends RenderBox
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
       ..onEnd = _onDragEnd
-      ..onCancel = _onDragCancel;
+      ..onCancel = _onDragCancel
+      ..gestureSettings = _gestureSettings;
     _startBakeActivity();
     // Start from the offset the controller committed, then become its one
     // position. A section jump committed while unbound is handed over here.

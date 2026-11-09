@@ -82,7 +82,8 @@ void main() {
     });
   });
 
-  Future<void> pumpHome(WidgetTester tester) {
+  // [touchSlop] is the phone's, as `MediaQuery.fromView` hands it down.
+  Future<void> pumpHome(WidgetTester tester, {double? touchSlop}) {
     tester.view
       ..physicalSize = const Size(400, 800)
       ..devicePixelRatio = 1;
@@ -90,12 +91,18 @@ void main() {
     return tester.pumpWidget(
       PanelShellTestScope(
         size: const Size(400, 800),
-        child: Navigator(
-          onGenerateRoute: (_) => PageRouteBuilder<void>(
-            pageBuilder: (context, _, _) {
-              home = context;
-              return const SizedBox.expand();
-            },
+        child: MediaQuery(
+          data: MediaQueryData(
+            size: const Size(400, 800),
+            gestureSettings: DeviceGestureSettings(touchSlop: touchSlop),
+          ),
+          child: Navigator(
+            onGenerateRoute: (_) => PageRouteBuilder<void>(
+              pageBuilder: (context, _, _) {
+                home = context;
+                return const SizedBox.expand();
+              },
+            ),
           ),
         ),
       ),
@@ -109,8 +116,9 @@ void main() {
     PanelArrangement arrangement = PanelArrangement.touch,
     ContentPreviewController? previews,
     PackSheetLinks? links,
+    double? touchSlop,
   }) async {
-    await pumpHome(tester);
+    await pumpHome(tester, touchSlop: touchSlop);
     PackSheet.show(
       home,
       arrangement: arrangement,
@@ -344,6 +352,65 @@ void main() {
 
       // The header stays where it is and nothing under it is a sticker.
       await tester.tapAt(const Offset(10 + 38, 25));
+      await settle(tester);
+      expect(picks, isEmpty);
+    });
+  });
+
+  // A phone's touch slop (Android's 8 dp) reaches the widgets through the
+  // media query's gesture settings; the grid's own recognizers do not read
+  // them.
+  group('a finger on a sticker, at a phone slop', () {
+    double titleCentre(WidgetTester tester) =>
+        tester.getCenter(find.text('Pack big')).dy;
+
+    Future<ContentPreviewController> openBig(WidgetTester tester) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(
+        tester,
+        'big',
+        canSend: true,
+        previews: previews,
+        touchSlop: 8,
+      );
+      return previews;
+    }
+
+    testWidgets('a drag up raises the sheet, opening no preview', (
+      tester,
+    ) async {
+      final previews = await openBig(tester);
+      final top = titleCentre(tester);
+
+      // Down on the first sticker, then up in small steps.
+      final finger = await tester.startGesture(Offset(10 + 38, top + 25 + 41));
+      for (var i = 0; i < 10; i++) {
+        await finger.moveBy(const Offset(0, -4));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      for (var i = 0; i < 10; i++) {
+        await finger.moveBy(const Offset(0, -10));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await finger.up();
+      await settle(tester);
+
+      expect(titleCentre(tester), lessThan(top - 100));
+      expect(previews.isOpen.value, isFalse);
+      expect(picks, isEmpty);
+      expect(sheetUp(), isTrue);
+    });
+
+    testWidgets('a hold without moving opens the preview', (tester) async {
+      final previews = await openBig(tester);
+      final top = titleCentre(tester);
+
+      final finger = await tester.startGesture(Offset(10 + 38, top + 25 + 41));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(previews.isOpen.value, isTrue);
+      await finger.up();
       await settle(tester);
       expect(picks, isEmpty);
     });
