@@ -29,6 +29,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_texture_wa
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_emoji_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_interaction_stub.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
@@ -532,6 +533,17 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               _showCopiedSnack(ChatCopyKind.textSelection, text),
           onCopyLink: (text) => _showCopiedSnack(ChatCopyKind.link, text),
           onCopyCode: (text) => _showCopiedSnack(ChatCopyKind.code, text),
+          onEmojiPacks: (packs) => unawaited(_openEmojiPacks(packs)),
+        ),
+        emojiPacks: MessageEmojiPacks(
+          of: (id) => switch (backend.getMessage(id)?.text) {
+            final text? => ChatPackTargets.emojiPacksOf(
+              text,
+              widget.services.describe,
+            ),
+            null => const [],
+          },
+          source: widget.services.packs,
         ),
       );
       _search?.dispose();
@@ -904,6 +916,18 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       onPick: canPick
           ? (item) => input.pickContent(item.key, kind: item.semanticKind)
           : null,
+    );
+  }
+
+  // The menu's "contains emoji from N packs": one emoji sheet of them all,
+  // whose emoji insert into the composer as a pick from the panel does.
+  Future<void> _openEmojiPacks(List<PackId> packs) {
+    final input = _input;
+    return ChatPackSheets.openEmojiPacks(
+      context,
+      services: widget.services,
+      packs: packs,
+      onPick: (item) => input.pickContent(item.key, kind: item.semanticKind),
     );
   }
 

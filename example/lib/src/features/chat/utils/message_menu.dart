@@ -2,8 +2,9 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_emoji_packs.dart';
 import 'package:content_model/content_model.dart' as model show RichText;
-import 'package:content_model/content_model.dart' show RichClipboard;
+import 'package:content_model/content_model.dart' show PackId, RichClipboard;
 import 'package:flutter/material.dart';
 
 /// Builds rows for a [ChatMessageMenuRequest] under a **selection policy**.
@@ -61,6 +62,10 @@ abstract final class MessageMenuActionId {
 
   /// Clear the selected set.
   static const clearSelection = 'clear_selection';
+
+  /// Open the packs of the message's custom emoji: the "contains emoji from
+  /// N packs" entry under the actions ([MessageEmojiPacks]).
+  static const emojiPacks = 'emoji_packs';
 }
 
 /// Policy- and hit-aware row / reaction catalogs driven by a
@@ -331,6 +336,7 @@ final class MessageMenuActions {
     this.onCopySelected,
     this.onCopyLink,
     this.onCopyCode,
+    this.onEmojiPacks,
   });
 
   /// Delete one message.
@@ -368,6 +374,10 @@ final class MessageMenuActions {
 
   /// After [MessageMenuActionId.copyCode] wrote the inline code payload.
   final ValueChanged<String>? onCopyCode;
+
+  /// Opens the packs of the message's custom emoji, each once, in order
+  /// ([MessageMenuActionId.emojiPacks]).
+  final ValueChanged<List<PackId>>? onEmojiPacks;
 }
 
 /// Host-owned **message menu** session.
@@ -395,6 +405,7 @@ final class MessageMenu {
     List<String>? reactions,
     this.excludeActionIds,
     this.canEdit,
+    this.emojiPacks,
   }) : itemsFor = itemsFor ?? MessageMenuCatalog.itemsFor,
        _reactionsOverride = reactions;
 
@@ -424,6 +435,10 @@ final class MessageMenu {
   /// has no text), where [excludeActionIds] is per chat.
   final bool Function(int messageId)? canEdit;
 
+  /// The packs of a message's custom emoji, offered under the actions of a
+  /// message that is not part of a selection; null offers none.
+  final MessageEmojiPacks? emojiPacks;
+
   final List<String>? _reactionsOverride;
 
   var _sessionOpen = false;
@@ -452,6 +467,7 @@ final class MessageMenu {
           : const <int>[];
       final reactions =
           _reactionsOverride ?? MessageMenuCatalog.reactionsFor(policy);
+      final packs = _emojiPacksFor(request, policy);
 
       final result = await ChatMessageMenu.show(
         context: context,
@@ -472,6 +488,17 @@ final class MessageMenu {
         ),
         reactions: reactions,
         selectionPolicy: policy,
+        menuBuilder: switch ((packs, emojiPacks)) {
+          ([_, ...], final emojiPacks?) => (context, slots) => _WithEmojiPacks(
+            slots: slots,
+            button: MessageContainsEmojiButton(
+              packs: packs,
+              source: emojiPacks.source,
+              onTap: () => slots.onSelectItem(MessageMenuActionId.emojiPacks),
+            ),
+          ),
+          _ => null,
+        },
         presence: _ChatDataSourceListenable(dataSource),
         isPresent: () => dataSource.getMessage(request.messageId) != null,
       );
@@ -481,6 +508,7 @@ final class MessageMenu {
         request: request,
         result: result,
         selectedSnapshot: selectedSnapshot,
+        emojiPacks: packs,
       );
     } finally {
       _sessionOpen = false;
@@ -492,6 +520,7 @@ final class MessageMenu {
     required ChatMessageMenuRequest request,
     required ChatMessageMenuResult result,
     required List<int> selectedSnapshot,
+    required List<PackId> emojiPacks,
   }) async {
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
@@ -564,6 +593,8 @@ final class MessageMenu {
               ...selection!.selectedIds,
               ...chain,
             });
+          case MessageMenuActionId.emojiPacks:
+            actions.onEmojiPacks?.call(emojiPacks);
           case MessageMenuActionId.clearSelection:
             selection?.clear();
           case MessageMenuActionId.reply:
@@ -595,6 +626,23 @@ final class MessageMenu {
     }
   }
 
+  // Offered on the message alone, as the reference builds the button only
+  // for the menu of one message: not over a selection, and not beside the
+  // bubble on desktop, where the menu is Select alone.
+  List<PackId> _emojiPacksFor(
+    ChatMessageMenuRequest request,
+    ChatSelectionPolicy policy,
+  ) {
+    final emojiPacks = this.emojiPacks;
+    if (emojiPacks == null ||
+        request.membership != ChatMessageMenuMembership.idle) {
+      return const [];
+    }
+    final beside = request.pointState == ChatMessageMenuPointState.outside;
+    if (beside && policy case ChatSelectionPolicy$Desktop()) return const [];
+    return emojiPacks.of(request.messageId);
+  }
+
   void _stubFeedback(ScaffoldMessengerState messenger, String label) {
     messenger.showSnackBar(
       SnackBar(content: Text(label), behavior: SnackBarBehavior.floating),
@@ -615,4 +663,30 @@ final class _ChatDataSourceListenable implements Listenable {
   @override
   void removeListener(VoidCallback listener) =>
       dataSource.removeDataListener(listener);
+}
+
+/// The default menu column with the contains-emoji entry under the action
+/// card, 8 px apart as the reference's gap.
+class _WithEmojiPacks extends StatelessWidget {
+  const _WithEmojiPacks({required this.slots, required this.button});
+
+  final ChatMessageMenuSlots slots;
+  final Widget button;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      ChatMessageMenuColumn(slots: slots),
+      const SizedBox(height: 8),
+      Padding(
+        padding: const EdgeInsets.only(
+          left: ChatMessageMenuReactions.startOverhang,
+          right: ChatMessageMenuReactions.endOverhang,
+        ),
+        child: button,
+      ),
+    ],
+  );
 }

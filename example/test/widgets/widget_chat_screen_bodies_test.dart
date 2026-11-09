@@ -194,7 +194,10 @@ void main() {
 
       final sheet = find.byType(StickerPackSheet);
       expect(sheet, findsOneWidget);
-      expect(tester.widget<StickerPackSheet>(sheet).pack, LottieStickerPack.packId);
+      expect(
+        tester.widget<StickerPackSheet>(sheet).pack,
+        LottieStickerPack.packId,
+      );
       // The chat allows stickers: the sheet can send through the composer.
       expect(tester.widget<StickerPackSheet>(sheet).onPick, isNotNull);
     });
@@ -211,6 +214,30 @@ void main() {
       expect(find.byType(StickerPackSheet), findsNothing);
       expect(find.byType(EmojiPackSheet), findsNothing);
       expect(find.byType(SnackBar), findsNothing);
+    });
+
+    screenTest('the menu of a message with custom emoji offers their pack', (
+      tester,
+    ) async {
+      final selection = await openChat(tester);
+
+      // Message 0: a tap on "Launch" opens the message's menu.
+      await tapAndRead(tester, _pointOn(selection, 0, 0, 6));
+      await settle(tester);
+      final entry = find.text(
+        'This message contains emoji from ${AnimatedEmojiPack.title} pack.',
+        findRichText: true,
+      );
+      expect(entry, findsOneWidget);
+
+      await tester.tap(entry);
+      await settle(tester);
+
+      final sheet = find.byType(EmojiPackSheet);
+      expect(sheet, findsOneWidget);
+      expect(tester.widget<EmojiPackSheet>(sheet).packIds, [
+        AnimatedEmojiPack.packId,
+      ]);
     });
 
     screenTest('a spoiler: a tap reveals it, with no host action', (

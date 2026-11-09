@@ -70,6 +70,15 @@ once, and a removal shows a bulletin with Undo for 2750 ms
 tap or a hold opens the content preview, whose Send sends the sticker; in an
 emoji sheet a tap inserts the emoji.
 
+The chat opens the sheets too (`lib/src/features/chat/utils/chat_pack_targets.dart`):
+a tap on a sticker message opens its pack's sticker sheet, whose stickers send
+to the chat; a tap on a custom emoji, in text or alone, opens its pack's emoji
+sheet. The lone thumbs-up keeps its replay and interaction, and a GIF, a clip
+or a sticker of no pack opens nothing. The menu of a message with custom
+emoji ends with "This message contains emoji from ... pack." (one pack, by
+its title) or "... from N Packs." (several, each once), which opens one emoji
+sheet of them all (`lib/src/features/chat/utils/message_emoji_packs.dart`).
+
 The bundled demo packs (Lottie, static and video stickers, MP4 clips and
 GIFs) are not installed and so are on no panel page: they stay in the app for the showcase
 chat, which shows every one of them, and one already among the recents, the
