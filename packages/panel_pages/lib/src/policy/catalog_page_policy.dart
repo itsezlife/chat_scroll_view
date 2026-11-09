@@ -370,6 +370,18 @@ abstract class CatalogPagePolicy {
     Rect? viewportBounds,
   }) {}
 
+  // --- A fresh open ---------------------------------------------------------
+
+  /// Whether the page goes back to its start, its strip whole, when the panel
+  /// is opened afresh (`PanelPageHost.freshOpen`).
+  ///
+  /// A page the user passes through on the way to one pick (stickers) starts
+  /// each open from its top, where its first section and the strip's first
+  /// tab are; a page whose place is the user's (emoji, read by category) keeps
+  /// it. Whether an open is fresh at all is the presentation's decision: an
+  /// open that is not keeps the place of every page. The default keeps it.
+  bool get restartsOnFreshOpen => false;
+
   // --- Chrome inside the page -----------------------------------------------
 
   /// Whether the strip is pinned at the bottom of the page, below the
