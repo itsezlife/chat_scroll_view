@@ -20,6 +20,10 @@ final class _FakeHold implements PanelPageHold {
   }
 }
 
+final class _FakeSignal with ChangeNotifier {
+  void signal() => notifyListeners();
+}
+
 /// A [PanelPageHost] for tests of a page: the listenables are settable and
 /// every report the page makes is recorded.
 ///
@@ -38,6 +42,7 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
   var _disposed = false;
   final _panelVisible = ValueNotifier<bool>(true);
   final _panelOpening = ValueNotifier<bool>(false);
+  final _freshOpen = _FakeSignal();
 
   @override
   final FakePageControllerRegistry controllers = FakePageControllerRegistry();
@@ -100,6 +105,14 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
   /// Whether the panel is moving; false unless a test moves it.
   @override
   ValueListenable<bool> get panelOpening => _panelOpening;
+
+  /// Signals when a test opens the panel afresh ([openAfresh]).
+  @override
+  Listenable get freshOpen => _freshOpen;
+
+  /// Opens the panel afresh, as a presentation that opens afresh does before
+  /// it shows the panel. Leaves [visible] as it is.
+  void openAfresh() => _freshOpen.signal();
 
   /// Sets whether the panel is on screen.
   set visible(bool value) => _panelVisible.value = value;
@@ -172,6 +185,7 @@ final class FakePanelPageHost with ChangeNotifier implements PanelPageHost {
     _isActive.dispose();
     _panelVisible.dispose();
     _panelOpening.dispose();
+    _freshOpen.dispose();
     super.dispose();
   }
 }

@@ -779,6 +779,22 @@ void main() {
       expect(barTop(tester), shown);
     });
 
+    testWidgets('comes back on a fresh open after reading on hid it', (
+      tester,
+    ) async {
+      build();
+      await pump(tester);
+      final shown = barTop(tester);
+      emoji.host!.reportScrollActivity(const PageScrollDrag(50));
+      await tester.pumpAndSettle();
+      expect(barTop(tester), greaterThan(shown + 40));
+
+      controller.reportFreshOpen();
+      await tester.pumpAndSettle();
+
+      expect(barTop(tester), shown);
+    });
+
     testWidgets('slides away when search opens and returns when it closes', (
       tester,
     ) async {

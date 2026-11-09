@@ -49,6 +49,10 @@ import 'package:panel_shell/panel_shell.dart';
 ///   is open. Menu and session each hold the host's auto-hide while up.
 /// - Scrolls to the start when the user selects the page's tab again, and
 ///   brings the browse offset back when search results go.
+/// - On a fresh open of the panel (`PanelPageHost.freshOpen`), goes back to
+///   its start with its strip whole where the policy says so
+///   ([CatalogPagePolicy.restartsOnFreshOpen]); otherwise keeps its place.
+///   A close, a tab switch and a swipe keep it either way.
 /// - Binds the keys of the roving focus (arrows, Home, End, Enter, Space).
 /// - Scopes the catalogue's theme from the chrome theme above
 ///   ([ChromeCatalogTheme]).
@@ -113,7 +117,6 @@ class CatalogPage extends StatefulWidget {
     this.padding = EdgeInsets.zero,
     this.sectionNearExtent,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
-    this.keepsScrollOnReopen,
     super.key,
   });
 
@@ -158,14 +161,6 @@ class CatalogPage extends StatefulWidget {
 
   /// How long typing pauses before a search runs.
   final Duration searchDebounce;
-
-  /// Whether the catalogue is where it was left when the panel is shown
-  /// again, or back at its start; null for the arrangement's way (back at the
-  /// start under touch, where it was left under the pointer).
-  ///
-  /// The panel is hidden when the shell's presence says so, not when the page
-  /// is merely swiped off or its tab left: those keep the place either way.
-  final bool? keepsScrollOnReopen;
 
   @override
   State<CatalogPage> createState() => _CatalogPageState();
@@ -232,7 +227,7 @@ class _CatalogPageState extends State<CatalogPage>
     _controller = _host.controllers.obtain(
       _host.pageId,
       CatalogPageController.new,
-    )..followPresence(_host.panelVisible);
+    )..followFreshOpen(_host.freshOpen);
     _metrics = _CatalogMetrics(_catalog);
     _reveal = AnimationController(vsync: this)..addListener(_onRevealTick);
     _reporter = PageScrollReporter(
@@ -249,6 +244,7 @@ class _CatalogPageState extends State<CatalogPage>
     _host.search.addListener(_onSearchChanged);
     widget.searchFieldReady?.addListener(_onFieldReady);
     _host.reselected.addListener(_onReselected);
+    _host.freshOpen.addListener(_onFreshOpen);
     _host.isActive.addListener(_onActiveChanged);
   }
 
@@ -310,6 +306,7 @@ class _CatalogPageState extends State<CatalogPage>
     _host.search.removeListener(_onSearchChanged);
     _host.isActive.removeListener(_onActiveChanged);
     _host.reselected.removeListener(_onReselected);
+    _host.freshOpen.removeListener(_onFreshOpen);
     _model.showsResults.removeListener(_onShowsResultsChanged);
     _reveal
       ..removeListener(_onRevealTick)
@@ -324,10 +321,10 @@ class _CatalogPageState extends State<CatalogPage>
     super.dispose();
   }
 
-  // Back at the start when the panel is shown again, unless the page keeps its
-  // place: by default only the pointer arrangement does.
-  void _syncRestart() => _controller.restartsWhenHidden =
-      !(widget.keepsScrollOnReopen ?? _arrangement == PanelArrangement.pointer);
+  // The controller restarts the catalogue on a fresh open, mounted or not; it
+  // learns whether from the policy of the page last built.
+  void _syncRestart() =>
+      _controller.restartsOnFreshOpen = widget.policy.restartsOnFreshOpen;
 
   // --- The layout the arrangement asks for -----------------------------------
 
@@ -454,6 +451,17 @@ class _CatalogPageState extends State<CatalogPage>
     } else {
       _catalog.animateTo(0);
     }
+  }
+
+  // The controller has put the catalogue back at its start (it heard the
+  // signal first, having followed it since the page was first built); what is
+  // the page's own goes back with it: the strip whole, nothing held open.
+  void _onFreshOpen() {
+    if (!widget.policy.restartsOnFreshOpen) return;
+    _cancelLongPress();
+    _tooltip.hide();
+    _menu.close();
+    _whenSafe(_revealNow);
   }
 
   Future<void> _revealThenJumpToFirstSection() async {

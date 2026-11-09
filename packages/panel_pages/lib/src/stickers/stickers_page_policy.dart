@@ -150,6 +150,16 @@ final class StickersPagePolicy extends CatalogPagePolicy {
     }
   }
 
+  // --- A fresh open ---------------------------------------------------------
+
+  /// The page goes back to its start on a fresh open: the grid at its first
+  /// section, the strip whole, its first tab (the recents, else the first
+  /// pack) marked, as the reference mobile client's emoji view does each time
+  /// it is shown (`onOpen` scrolls the stickers to position 0 and selects the
+  /// first tab).
+  @override
+  bool get restartsOnFreshOpen => true;
+
   // --- Chrome ---------------------------------------------------------------
 
   @override
