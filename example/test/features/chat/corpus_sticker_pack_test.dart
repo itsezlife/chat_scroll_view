@@ -114,6 +114,19 @@ void main() {
     });
 
     test(
+      'takes video stickers (.webm), described as an animated video',
+      () async {
+        final pack = await CorpusStickerPack.load(
+          bundle: _FakeBundle({'$_dir/clip--0.webm': 'x'}),
+        );
+
+        final sticker = pack.packs.single.stickers.single;
+        expect(sticker.descriptor.mediaForm, MediaForm.video);
+        expect(sticker.descriptor.animated, isTrue);
+      },
+    );
+
+    test(
       'ignores the folder README, the git rules and anything not a pack file',
       () async {
         final pack = await CorpusStickerPack.load(
