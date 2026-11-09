@@ -355,6 +355,41 @@ void main() {
       },
     );
 
+    // Ticket 148: a cell scrolled off for a while and back goes on from the
+    // frame it left on, for what was left of that frame's time, not its
+    // whole duration again.
+    test('back after a stop, the frame on show lasts only the rest of its '
+        'time', () async {
+      const start = Duration(seconds: 1);
+      expect(await _settledAt(paintable, start), _red);
+      // Red has been up 30 of its 40 ms when no surface plays it any more.
+      expect(
+        await _settledAt(paintable, start + const Duration(milliseconds: 30)),
+        _red,
+      );
+
+      const back = Duration(milliseconds: 1330);
+      paintable.playbackResumed();
+      expect(await _settledAt(paintable, back), _red);
+      expect(
+        await _settledAt(paintable, back + const Duration(milliseconds: 9)),
+        _red,
+      );
+      expect(
+        await _settledAt(paintable, back + const Duration(milliseconds: 10)),
+        _blue,
+      );
+      // Blue then lasts its whole 60 ms.
+      expect(
+        await _settledAt(paintable, back + const Duration(milliseconds: 69)),
+        _blue,
+      );
+      expect(
+        await _settledAt(paintable, back + const Duration(milliseconds: 70)),
+        _green,
+      );
+    });
+
     test('a surface that does not animate neither steps it nor starts its '
         'first frame, sharing it with one that plays', () async {
       // The still surface paints first, long before the playing one.
