@@ -770,9 +770,13 @@ from the keyword pack (`EmojiKeywordPack`) and puts them on its descriptors.
 **Baked glyphs.** On platforms that bake, pass `EmojiPage.atlasHostFactory`: a
 function that builds a `GlyphAtlasHost` from the parts only the host has (a
 `BakeFrameSource` such as `SchedulerBakeFrameSource(view:)`, the page's
-`devicePixelRatio`, `glyphBoxExtent`, `visible` and `opening` listenables,
-memory pressure, optional `GlyphAtlasPersistence` and glyph probe observer).
-The page plans the atlas from its collections, registers it on the shared
+`devicePixelRatio`, `glyphBoxExtent`, `visible`, `opening` and `shown`
+listenables, memory pressure, optional `GlyphAtlasPersistence` and glyph probe
+observer). Pass `shown` on as `glyphsShown:` and the host's app-wide scrolling
+signal as `scrolling:`, so the bake holds while another page is shown and
+while any surface scrolls; `pacing:` tunes how many glyphs one bake step
+draws ([ADR 022](adr/022-asset-cache-and-media-pipeline.md), *Amendment:
+glyph bake holds*). The page plans the atlas from its collections, registers it on the shared
 `assets` scope while mounted, and clears it after. Without a factory (the web)
 glyphs draw as text through `PageAssets.createScope`'s `TextGlyphProducer`.
 
