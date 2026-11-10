@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
@@ -7,9 +9,10 @@ import 'package:flutter/widgets.dart';
 /// family: the builders the host hands `ChatMessageMenu.show`.
 ///
 /// On Android a sheet menu takes the chrome's own rows ([MessageMenuRow])
-/// on the scrim menu glass ([GlassMaterial.scrimMenu]), and comes up by the
-/// bloom when it has a reaction strip and by the pop when it has none, from
-/// its top right corner (it hangs left of the press). On a desktop a popup
+/// on the message menu glass ([GlassMaterial.messageMenu]), its reaction
+/// strip on the same glass coming in on its own ([MessageMenuStripEnter]);
+/// the menu pops up from its bottom right corner (it hangs left of the
+/// press). On a desktop a popup
 /// takes the pointer menu's rows with icons ([MessageMenuPointerRow]) on its
 /// solid card ([desktopSurface]), and grows from the corner at the pointer. Elsewhere the rows and the card are the package's and a sheet
 /// plays the platform's appear motion.
@@ -48,26 +51,31 @@ abstract final class MessageMenuChrome {
     _ => null,
   };
 
-  /// The scrim menu glass, of [cornerRadius], around [child] (the action
-  /// card's rows or the reaction strip), whose content blooms with the menu.
+  /// The message menu glass around [child]: the action card's rows, or the
+  /// reaction strip, which comes in on its own ([MessageMenuStripEnter]).
   static Widget surface(
     BuildContext context,
-    double cornerRadius,
+    ChatMessageMenuSurface surface,
     Widget child,
-  ) => GlassSurface(
-    material: GlassMaterial.scrimMenu,
-    cornerRadius: cornerRadius,
-    child: AppearContent(child: child),
-  );
+  ) {
+    final glass = GlassSurface(
+      material: GlassMaterial.messageMenu,
+      cornerRadius: surface.cornerRadius,
+      child: child,
+    );
+    return switch (surface) {
+      ChatMessageMenuSurface$Card() => glass,
+      ChatMessageMenuSurface$Reactions() => MessageMenuStripEnter(child: glass),
+    };
+  }
 
   /// The desktop card around [child]: the pointer menu's background and
-  /// corners ([PointerMenuMetrics.cornerRadius], whatever [cornerRadius]
-  /// says), and the padding above and below the rows of a menu with icons
+  /// corners ([PointerMenuMetrics.cornerRadius], whatever [surface] says), and the padding above and below the rows of a menu with icons
   /// ([MessageMenuPointerRow.menuPadding]). Its shadow is drawn by the
   /// appear motion under its frame ([desktopShadowsOf]).
   static Widget desktopSurface(
     BuildContext context,
-    double cornerRadius,
+    ChatMessageMenuSurface surface,
     Widget child,
   ) {
     final tokens = ChromeThemeScope.pointerMenuOf(context);
@@ -114,11 +122,10 @@ abstract final class MessageMenuChrome {
       onHidden: transition.onHidden,
       motion: switch (transition.presentation) {
         ChatMessageMenuPresentation.popup => const AppearMotion.grow(),
-        _ when android && transition.hasReactions => const AppearMotion.bloom(),
         _ when android => const AppearMotion.pop(),
         ChatMessageMenuPresentation.sheet => null,
       },
-      origin: android ? Alignment.topRight : transition.origin,
+      origin: android ? Alignment.bottomRight : transition.origin,
       rows: transition.rows,
       borderRadius: desktop
           ? const BorderRadius.all(PointerMenuMetrics.cornerRadius)
@@ -135,8 +142,9 @@ abstract final class MessageMenuChrome {
 
 /// One action row of the Android message menu: 48 tall, its icon (24) at the
 /// start 18 in, its label 43 after the icon's start in the regular face at
-/// 16, one line; a disabled row is drawn at half opacity. The press feedback
-/// is the platform's ([ChromeInk]).
+/// 16, one line; label and icon in the palette's text colour, a destructive
+/// row too; a disabled row is drawn at half opacity. The press feedback is
+/// the platform's ([ChromeInk]).
 class MessageMenuRow extends StatelessWidget {
   /// A row for [item], chosen by [onTap] (null when the item is disabled).
   const MessageMenuRow({required this.item, required this.onTap, super.key});
@@ -168,8 +176,8 @@ class MessageMenuRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = ChromeThemeScope.paletteOf(context);
-    final label = item.isDestructive ? palette.destructive : palette.onSurface;
-    final icon = item.isDestructive ? palette.destructive : palette.iconIdle;
+    final label = palette.onSurface;
+    final icon = palette.onSurface;
     return Semantics(
       button: true,
       enabled: item.enabled,
@@ -317,4 +325,155 @@ class _MessageMenuPointerRowState extends State<MessageMenuPointerRow> {
       ),
     );
   }
+}
+
+/// How the Android message menu's reaction strip comes in, on its own while
+/// the menu pops: over 250 ms on an overshoot (tension 0.5), it scales up
+/// from nothing about a point an eighth of its width from its end, at mid
+/// height, while its shape opens from its end: its start edge comes from
+/// three quarters of the way across (a quarter of it shows from the first
+/// frame).
+class MessageMenuStripEnter extends StatefulWidget {
+  /// Brings [child], the strip, in.
+  const MessageMenuStripEnter({required this.child, super.key});
+
+  /// How long the entry takes.
+  static const Duration duration = Duration(milliseconds: 250);
+
+  /// Its curve.
+  static const Curve curve = OvershootCurve(0.5);
+
+  /// The share of the strip that shows from the first frame.
+  static const double startShown = 0.25;
+
+  /// The strip.
+  final Widget child;
+
+  @override
+  State<MessageMenuStripEnter> createState() => _MessageMenuStripEnterState();
+}
+
+class _MessageMenuStripEnterState extends State<MessageMenuStripEnter>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _clock = AnimationController(vsync: this);
+  var _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    final speed =
+        (ChromeMotionScope.maybeOf(context) ?? ChromeMotionData.standard).speed;
+    _clock
+      ..duration = speed.scale(MessageMenuStripEnter.duration)
+      ..forward().ignore();
+  }
+
+  @override
+  void dispose() {
+    _clock.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _clock,
+    builder: (context, child) {
+      if (_clock.isCompleted) return child!;
+      final p = MessageMenuStripEnter.curve.transform(_clock.value);
+      final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
+      return Transform.scale(
+        scale: p,
+        // An eighth of the width from the end, at mid height.
+        alignment: Alignment(rtl ? -0.75 : 0.75, 0),
+        child: ClipRect(
+          clipper: _StripClip(
+            shown: math.max(MessageMenuStripEnter.startShown, p),
+            rtl: rtl,
+          ),
+          child: child,
+        ),
+      );
+    },
+    child: widget.child,
+  );
+}
+
+class _StripClip extends CustomClipper<Rect> {
+  const _StripClip({required this.shown, required this.rtl});
+
+  final double shown;
+  final bool rtl;
+
+  @override
+  Rect getClip(Size size) {
+    final width = size.width * shown.clamp(0.0, 1.0);
+    return rtl
+        ? Rect.fromLTWH(0, 0, width, size.height)
+        : Rect.fromLTWH(size.width - width, 0, width, size.height);
+  }
+
+  @override
+  bool shouldReclip(_StripClip oldClipper) =>
+      oldClipper.shown != shown || oldClipper.rtl != rtl;
+}
+
+/// The band between the Android message menu's rows and an entry below them
+/// in the same card: 8 tall across the card, the text colour at 6% over the
+/// glass, with the platform's grey divider shadow (black at 8%, 4% and 1%
+/// down its top three, 1% on its bottom one).
+class MessageMenuGapBand extends StatelessWidget {
+  /// A band.
+  const MessageMenuGapBand({super.key});
+
+  /// Its height.
+  static const double height = 8;
+
+  /// The opacity of the text colour it is filled with.
+  static const double fillOpacity = 0.06;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ChromeThemeScope.paletteOf(context);
+    return SizedBox(
+      height: height,
+      child: CustomPaint(
+        painter: _GapBandPainter(
+          fill: palette.onSurface.withValues(alpha: fillOpacity),
+          shadow: palette.shadow,
+        ),
+      ),
+    );
+  }
+}
+
+class _GapBandPainter extends CustomPainter {
+  const _GapBandPainter({required this.fill, required this.shadow});
+
+  final Color fill;
+  final Color shadow;
+
+  // The divider's alpha, of 255, on its top lines and its bottom one.
+  static const List<int> _top = [20, 10, 3];
+  static const int _bottom = 3;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = fill);
+    for (var i = 0; i < _top.length; i++) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, i.toDouble(), size.width, 1),
+        Paint()..color = shadow.withAlpha(_top[i]),
+      );
+    }
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height - 1, size.width, 1),
+      Paint()..color = shadow.withAlpha(_bottom),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GapBandPainter oldDelegate) =>
+      oldDelegate.fill != fill || oldDelegate.shadow != shadow;
 }
