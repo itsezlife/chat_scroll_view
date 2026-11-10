@@ -385,6 +385,26 @@ final class AppearFrame {
     this.contentScale = 1,
   });
 
+  /// A [show] frame with a [hide] frame over it: what a surface draws when
+  /// its hide starts before its show is over, or a show turns a hide back.
+  ///
+  /// The geometry is the show's (frame, strip, content), the hide's drift
+  /// added; opacities and scales multiply. A hide over a finished show is
+  /// the hide's frame, a show under no hide is the show's.
+  factory AppearFrame.compose({
+    required AppearFrame show,
+    required AppearFrame hide,
+  }) => AppearFrame(
+    opacity: show.opacity * hide.opacity,
+    scale: show.scale * hide.scale,
+    widthFraction: show.widthFraction * hide.widthFraction,
+    heightFraction: show.heightFraction * hide.heightFraction,
+    drift: show.drift + hide.drift,
+    revealed: show.revealed * hide.revealed,
+    contentOpacity: show.contentOpacity * hide.contentOpacity,
+    contentScale: show.contentScale * hide.contentScale,
+  );
+
   /// The surface at rest: whole, opaque, in place.
   static const AppearFrame rest = AppearFrame();
 
