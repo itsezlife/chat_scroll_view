@@ -4,6 +4,7 @@ import 'package:bulletins/bulletins.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_confirm_box.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -41,6 +42,42 @@ abstract final class ChatPackSheets {
     TargetPlatform.linux => PanelArrangement.pointer,
     _ => PanelArrangement.touch,
   };
+
+  /// [arrangement], or this platform's when null.
+  static PanelArrangement arrangementOf(PanelArrangement? arrangement) =>
+      arrangement ?? ChatPackSheets.arrangement;
+
+  /// Whether the chat says a library edit (a favourite, a recent, a pack
+  /// added or removed) in a bulletin: not under the desktop toast's policy,
+  /// where the edit shows only in the lists (ADR 045).
+  static bool saysLibraryEdits(BulletinController? bulletins) =>
+      switch (bulletins?.policy) {
+        null || BulletinPolicy$Desktop() => false,
+        _ => true,
+      };
+
+  /// Whether a removal asks first: under this platform's pointer.
+  static bool get confirmsRemovals =>
+      ChatPackSheets.arrangement == PanelArrangement.pointer;
+
+  /// Whether [requests] take packs away (a removal or an archiving).
+  static bool takesAway(List<PackEditRequest> requests) => switch (requests) {
+    [(edit: LibraryEdit$InstallPack(), pack: _), ...] || [] => false,
+    _ => true,
+  };
+
+  /// The box that asks before [requests] take packs away, naming their
+  /// packs by title.
+  static ChatConfirmBoxRoute confirmRouteOf(
+    List<PackEditRequest> requests, {
+    ChatConfirmStrings strings = ChatConfirmStrings.demo,
+  }) => ChatConfirmBoxRoute(
+    question: strings.removePack(
+      requests.map((request) => request.pack.title).join(', '),
+    ),
+    confirm: strings.removeAction,
+    cancel: strings.cancelAction,
+  );
 
   /// Opens the sheet of [pack], of [kind], over [context]; [onPick] (null when
   /// nothing can be sent or inserted here) takes what the sheet picks. An
@@ -100,6 +137,7 @@ abstract final class ChatPackSheets {
     // shown at once by the panel under the sheet, with their bulletin.
     void libraryEdit(LibraryEdit edit) {
       final applied = services.libraryShown.apply(edit);
+      if (!ChatPackSheets.saysLibraryEdits(bulletins)) return;
       if (ChatBulletins.ofLibraryEdit(
             applied,
             limits: services.library.limits,
@@ -111,8 +149,30 @@ abstract final class ChatPackSheets {
     }
 
     final strings = ChromeStringsScope.packSheetOf(context);
-    void edits(List<PackEditRequest> requests) =>
-        apply(services.library, requests, strings, bulletins);
+    BuildContext? sheetContext;
+    // The confirmation that took the box's place, until it is answered: the
+    // sheet is over only then.
+    Future<void>? confirming;
+    // Under a pointer a removal asks first, in a box that takes the pack
+    // box's place.
+    void edits(List<PackEditRequest> requests) {
+      final sheet = sheetContext;
+      if (arrangementOf(arrangement) == PanelArrangement.pointer &&
+          takesAway(requests) &&
+          sheet != null &&
+          sheet.mounted) {
+        confirming = Navigator.of(sheet)
+            .pushReplacement<bool, void>(confirmRouteOf(requests))
+            .then((confirmed) {
+              if (confirmed ?? false) {
+                apply(services.library, requests, strings, bulletins);
+              }
+            });
+        return;
+      }
+      apply(services.library, requests, strings, bulletins);
+    }
+
     // `createErrorBulletin(AddStickersNotFound)`.
     void unavailable(PackLookup _) => bulletins?.show(
       ChatBulletins.error(
@@ -127,7 +187,6 @@ abstract final class ChatPackSheets {
     };
     // Back closes the sheet first (with its own reverse animation): its claim
     // stacks over the panel's and is taken before a raised keyboard.
-    BuildContext? sheetContext;
     final backClaim = ChatPreImeBackClaim.push(() async {
       if (services.previews.dismiss()) return true;
       if (sheetContext case final sheet? when sheet.mounted) {
@@ -137,7 +196,7 @@ abstract final class ChatPackSheets {
     });
     return PackSheet.show(
       context,
-      arrangement: arrangement ?? ChatPackSheets.arrangement,
+      arrangement: arrangementOf(arrangement),
       builder: (sheet) {
         sheetContext = sheet;
         return switch (kind) {
@@ -164,7 +223,7 @@ abstract final class ChatPackSheets {
           ),
         };
       },
-    ).whenComplete(backClaim.pop);
+    ).whenComplete(backClaim.pop).then((_) => confirming);
   }
 
   /// Applies [requests] to [library] and shows their bulletin through
@@ -182,8 +241,15 @@ abstract final class ChatPackSheets {
     BulletinController? bulletins,
   ) {
     if (requests.isEmpty) return;
-    final takesAway =
-        bulletins != null && requests.first.edit is! LibraryEdit$InstallPack;
+    // Under the desktop policy no bulletin says it, and a removal holds no
+    // Undo: it is done once confirmed.
+    if (bulletins == null || !saysLibraryEdits(bulletins)) {
+      for (final request in requests) {
+        library.apply(request.edit, undoWindow: Duration.zero);
+      }
+      return;
+    }
+    final takesAway = ChatPackSheets.takesAway(requests);
     final applied = [
       for (final request in requests)
         library.apply(
@@ -191,7 +257,6 @@ abstract final class ChatPackSheets {
           undoWindow: takesAway ? undoGuard : Duration.zero,
         ),
     ];
-    if (bulletins == null) return;
     final feedback = feedbackOf(requests, strings);
     final pack = requests.first.pack;
     bulletins.show(

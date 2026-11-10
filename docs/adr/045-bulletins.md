@@ -11,6 +11,7 @@ are builders the host picks, so they land without changing the core.
 
 **Status**: Accepted (owner and undo rows confirmed by the maintainer 2026-11-10; the other [confirm] items stand as defaults, the platform values to be verified in tickets 130-132)  
 **Date**: 2026-11-09  
+**Amended**: 2026-11-10 (native-media tickets 173, 174) — the desktop toast's leading slot is as tall as its icon, centred with 2 px above and below, and never makes the toast taller than its text; under the desktop policy the host says no library edit in a bulletin (see *Desktop values*)  
 **Relates to**: [ADR 012](012-cross-platform-selection-policies.md) (policy shape), [ADR 020](020-package-topology.md) (amended: new leaf above `chrome_foundation`), [ADR 027](027-foundation-theme-glass-motion.md) (token group and motion roles added), [ADR 030](030-testing-policy.md) (fake clock and contract suite), [ADR 031](031-localization-accessibility-and-input.md) (strings group, announcement), [ADR 044](044-content-library-packs-and-preview.md) (an `AppliedEdit` behind an Undo bulletin)
 
 Items marked **[confirm]** are defaults chosen without the maintainer and
@@ -109,6 +110,22 @@ the toolkit), the one timer rule all families share; a link does not
 underline on hover (the toolkit's `kLinkUnderlineActive`); colours are the
 `BulletinTokens.desktop` preset, which a desktop host puts in its
 theme, since `fromPalette` does not know the platform.
+
+Library edits under the desktop policy (ticket 174): the reference desktop
+client shows no toast when a sticker leaves the favourites or the recents,
+or a pack is added or removed (`StickersListWidget::removeFavedSticker`,
+`removeRecentSticker`; `MakeConfirmRemoveSetBox` uninstalls with no toast).
+A host under `BulletinPolicy$Desktop` therefore shows none for those edits:
+the edit shows in the lists only. A pack's removal asks first in a
+confirmation box (in the pack box's place when it comes from the box, the
+box swapped for it) and is done at once, with no Undo. The decision is the
+host's (the example's `ChatPackSheets.saysLibraryEdits`); the package
+offers the policy family it reads.
+
+The fade out stays the toolkit's 1000 ms linear (`defaultToast`
+`durationFadeOut`, `Instance::hideAnimated`), checked again in ticket 173:
+the long exit seen on a desktop came with a toast stretched to the
+surface's height, which a leading slot that took the whole height caused.
 
 ### Tokens and strings
 

@@ -438,7 +438,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   }
 
   void _onLibraryEdited(AppliedEdit applied) {
-    if (!mounted) return;
+    if (!mounted || !ChatPackSheets.saysLibraryEdits(_bulletins)) return;
     if (ChatBulletins.ofLibraryEdit(
           applied,
           limits: widget.services.library.limits,
@@ -1021,12 +1021,25 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       ChatPackSheets.applyAlone(services.library, edit);
       return;
     }
-    ChatPackSheets.apply(
-      services.library,
-      [(edit: edit, pack: pack)],
-      ChromeStringsScope.packSheetOf(context),
-      _bulletins,
-    );
+    final requests = [(edit: edit, pack: pack)];
+    final strings = ChromeStringsScope.packSheetOf(context);
+    void apply() =>
+        ChatPackSheets.apply(services.library, requests, strings, _bulletins);
+    // Under a pointer a removal asks first; the panel it came from stays up
+    // while it is asked.
+    if (ChatPackSheets.confirmsRemovals && ChatPackSheets.takesAway(requests)) {
+      final hold = _input.presentation.holdAutoHide();
+      unawaited(
+        Navigator.of(context)
+            .push(ChatPackSheets.confirmRouteOf(requests))
+            .then((confirmed) {
+              if ((confirmed ?? false) && mounted) apply();
+            })
+            .whenComplete(hold.release),
+      );
+      return;
+    }
+    apply();
   }
 
   // The demo sends no media: it shows what it would send, as a composer
