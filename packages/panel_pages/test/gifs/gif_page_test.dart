@@ -319,6 +319,64 @@ void main() {
       expect(host.picks.single.key, const ContentKey.document('a-2'));
     });
 
+    pageTest('a mouse over a saved clip shows a 14 px remove badge at its '
+        'top right; a click on it removes the clip and picks nothing', (
+      tester,
+    ) async {
+      source.dispose();
+      source = FakeCollectionSource([_recents(), _clips('a', 'Featured')]);
+      await pumpPage(tester);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+
+      await mouse.moveTo(cell(tester));
+      await tester.pump();
+      final badge = find.byWidgetPredicate(
+        (widget) =>
+            widget is CustomPaint &&
+            widget.painter.runtimeType.toString() == '_BadgePainter',
+      );
+      final box = tester.getRect(badge);
+      expect(box.size, const Size.square(14));
+      // At the top of the row, flush with the clip's right edge: before the
+      // next clip's 2 px gap.
+      expect(box.top, origin(tester).dy + 2);
+      expect(
+        tester.getRect(badge.first).right,
+        lessThan(origin(tester).dx + 400),
+      );
+
+      final corner = box.center;
+      await mouse.moveTo(corner);
+      await tester.pump();
+      await mouse.down(corner);
+      await mouse.up();
+      await tester.pump();
+      expect(host.removeRecentRequests, [
+        (key: const ContentKey.document('a-3'), kind: SemanticKind.gif),
+      ]);
+      expect(host.picks, isEmpty);
+    });
+
+    pageTest('a clip outside the saved ones shows no badge', (tester) async {
+      await pumpPage(tester);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(cell(tester));
+      await tester.pump();
+
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is CustomPaint &&
+              widget.painter.runtimeType.toString() == '_BadgePainter',
+        ),
+        findsNothing,
+      );
+    });
+
     pageTest('a cell is a button named for its clip', (tester) async {
       await pumpPage(tester);
 

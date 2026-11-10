@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:panel_catalog/panel_catalog.dart' show CatalogLeafRemoveBadge;
 import 'package:panel_pages/src/gifs/gif_row_layout.dart';
 import 'package:panel_pages/src/menu/catalog_context_menu.dart';
 import 'package:panel_pages/src/preview/catalog_content_preview.dart';
@@ -932,6 +934,13 @@ class _Row extends StatelessWidget {
                   item: items[cell.index],
                   size: Size(cell.width, GifRowLayout.rowExtent),
                   onTap: () => _pick(items[cell.index]),
+                  // A saved clip leaves the list from its badge.
+                  onRemove: collection.id == CollectionId.recent
+                      ? () => host.requestRemoveRecent(
+                          items[cell.index].key,
+                          kind: SemanticKind.gif,
+                        )
+                      : null,
                   assets: assets,
                   preview: preview,
                 ),
@@ -965,6 +974,7 @@ class _Cell extends StatefulWidget {
     required this.item,
     required this.size,
     required this.onTap,
+    required this.onRemove,
     required this.assets,
     required this.preview,
   });
@@ -972,6 +982,10 @@ class _Cell extends StatefulWidget {
   final CollectionItem item;
   final Size size;
   final VoidCallback onTap;
+
+  /// Removes the clip from its list, from the remove badge a mouse over the
+  /// cell shows; null shows none.
+  final VoidCallback? onRemove;
   final AssetCacheScope assets;
   final _GifPreview? preview;
 
@@ -982,6 +996,10 @@ class _Cell extends StatefulWidget {
 class _CellState extends State<_Cell> {
   // The loader's disc in a grid cell, whatever the cell's size.
   static const double _loadingRadius = 12;
+
+  // Whether a mouse is over the cell, and over its remove badge.
+  var _hovered = false;
+  var _badgeHovered = false;
 
   // Whether a hold took the press over: the ink draws nothing until the next
   // press.
@@ -1020,6 +1038,32 @@ class _CellState extends State<_Cell> {
           preview.itemOf(widget.item),
         _ => null,
       };
+
+  // The remove badge's look on this platform.
+  static const CatalogLeafRemoveBadge _look = kIsWeb
+      ? CatalogLeafRemoveBadge.web
+      : CatalogLeafRemoveBadge.pointer;
+
+  // The badge a mouse over a removable cell shows, while no preview is up.
+  CatalogLeafRemoveBadge? get _badge =>
+      _hovered && widget.onRemove != null && _session == null ? _look : null;
+
+  void _hover(PointerEvent event, {required bool inside}) {
+    final mouse = event.kind == PointerDeviceKind.mouse && inside;
+    var overBadge = false;
+    if (mouse) {
+      final rect = _look.rectOn(
+        Offset.zero & widget.size,
+        Directionality.of(context),
+      );
+      overBadge = rect.contains(event.localPosition);
+    }
+    if (mouse == _hovered && overBadge == _badgeHovered) return;
+    setState(() {
+      _hovered = mouse;
+      _badgeHovered = overBadge;
+    });
+  }
 
   void _begin(LongPressStartDetails details, PointerDeviceKind kind) {
     setState(() => _held = true);
@@ -1094,36 +1138,60 @@ class _CellState extends State<_Cell> {
           // The platform's press: a ripple on Android, the highlight on iOS,
           // a ripple from the press on a desktop (no hover fill), in the
           // catalogue's press colour, the text colour at 0x0F.
-          child: Listener(
-            onPointerDown: _release,
-            child: ChromeInk(
-              color: _held
-                  ? const Color(0x00000000)
-                  : palette.onSurface.withAlpha(0x0F),
-              onTap: widget.onTap,
-              child: ContentView(
-                content: widget.item.key,
-                scope: widget.assets,
-                preset: AssetPreset(
-                  size: size,
-                  spec: AssetSpec.atDensity(
-                    logicalWidth: size.width,
-                    logicalHeight: size.height,
-                    devicePixelRatio: density,
-                  ),
-                  // Silent and looping, while it is in view; the clip fills its
-                  // cell and is cut at the edge.
-                  profile: const AssetProfile(
-                    animate: true,
-                    fit: AssetFit.cover,
+          child: MouseRegion(
+            onEnter: (event) => _hover(event, inside: true),
+            onHover: (event) => _hover(event, inside: true),
+            onExit: (event) => _hover(event, inside: false),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Listener(
+                  onPointerDown: _release,
+                  child: ChromeInk(
+                    color: _held
+                        ? const Color(0x00000000)
+                        : palette.onSurface.withAlpha(0x0F),
+                    onTap: widget.onTap,
+                    child: ContentView(
+                      content: widget.item.key,
+                      scope: widget.assets,
+                      preset: AssetPreset(
+                        size: size,
+                        spec: AssetSpec.atDensity(
+                          logicalWidth: size.width,
+                          logicalHeight: size.height,
+                          devicePixelRatio: density,
+                        ),
+                        // Silent and looping, while it is in view; the clip fills its
+                        // cell and is cut at the edge.
+                        profile: const AssetProfile(
+                          animate: true,
+                          fit: AssetFit.cover,
+                        ),
+                      ),
+                      // The cell's rectangle in a quiet token until the thumbnail
+                      // arrives, under the
+                      // loader the cell has until the clip's first frame.
+                      tint: ChromeThemeScope.of(context).placeholder.skeleton,
+                      loadingRadius: _loadingRadius,
+                    ),
                   ),
                 ),
-                // The cell's rectangle in a quiet token until the thumbnail
-                // arrives, under the
-                // loader the cell has until the clip's first frame.
-                tint: ChromeThemeScope.of(context).placeholder.skeleton,
-                loadingRadius: _loadingRadius,
-              ),
+                if (_badge case final badge?)
+                  PositionedDirectional(
+                    top: badge.inset,
+                    end: badge.inset,
+                    width: badge.extent,
+                    height: badge.extent,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: widget.onRemove,
+                      child: CustomPaint(
+                        painter: _BadgePainter(badge, over: _badgeHovered),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -1151,4 +1219,20 @@ final class _MouseHold extends LongPressGestureRecognizer {
         duration: ContentPreviewSession.pointerHoldDelay,
         supportedDevices: const {PointerDeviceKind.mouse},
       );
+}
+
+// The remove badge drawn in the box it is laid out in.
+class _BadgePainter extends CustomPainter {
+  const _BadgePainter(this.badge, {required this.over});
+
+  final CatalogLeafRemoveBadge badge;
+  final bool over;
+
+  @override
+  void paint(Canvas canvas, Size size) =>
+      badge.paint(canvas, Offset.zero & size, over: over);
+
+  @override
+  bool shouldRepaint(_BadgePainter old) =>
+      old.badge != badge || old.over != over;
 }

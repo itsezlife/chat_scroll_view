@@ -240,4 +240,31 @@ void main() {
       expect(host.clearRecentsRequests, isEmpty);
     });
   });
+
+  group('the remove badge', () {
+    test('a recent or a favourite has one; a pack\'s sticker has none', () {
+      expect(policy.leafRemovable(_hit(_recents(), 0), _recents()), isTrue);
+      expect(
+        policy.leafRemovable(_hit(_favourites(), 0), _favourites()),
+        isTrue,
+      );
+      expect(policy.leafRemovable(_hit(_pack('a'), 0), _pack('a')), isFalse);
+    });
+
+    test('a recent leaves the recents, a favourite the favourites', () {
+      final host = FakePanelPageHost();
+      addTearDown(host.dispose);
+
+      policy
+        ..onLeafRemove(_hit(_recents(), 1), _recents(), host)
+        ..onLeafRemove(_hit(_favourites(), 0), _favourites(), host);
+
+      expect(host.removeRecentRequests, [
+        (key: _key('r-1'), kind: SemanticKind.sticker),
+      ]);
+      expect(host.libraryEditRequests, [
+        LibraryEdit.unfavouriteSticker(_key('f-0')),
+      ]);
+    });
+  });
 }

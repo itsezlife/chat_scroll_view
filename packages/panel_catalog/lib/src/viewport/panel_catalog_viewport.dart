@@ -7,6 +7,7 @@ import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_remove_badge.dart';
 import 'package:panel_catalog/src/model/section_layout.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_grid_metrics.dart';
@@ -145,6 +146,9 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.onLeafTap,
     this.onLeafSecondaryTap,
     this.onLeafHover,
+    this.leafRemovable,
+    this.onLeafRemove,
+    this.removeBadge = CatalogLeafRemoveBadge.pointer,
     this.onLeafLongPressStart,
     this.onLeafLongPressMove,
     this.onLeafLongPressEnd,
@@ -302,6 +306,21 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// tooltip) is the host's.
   final void Function(CatalogLeafHit? hit, Offset globalPosition)? onLeafHover;
 
+  /// Whether the cell of a hit shows the [removeBadge] under a mouse.
+  ///
+  /// The cell under a mouse that this answers true for draws the badge at
+  /// its top end corner, over its content; a primary click on the badge calls
+  /// [onLeafRemove] with the cell, and neither presses nor taps the cell.
+  /// Only a mouse shows it, and not while a preview or a pinned cell is up.
+  /// Null, or a null [onLeafRemove], shows no badge.
+  final bool Function(CatalogLeafHit hit)? leafRemovable;
+
+  /// A click on a cell's remove badge; see [leafRemovable].
+  final ValueChanged<CatalogLeafHit>? onLeafRemove;
+
+  /// What the remove badge looks like.
+  final CatalogLeafRemoveBadge removeBadge;
+
   /// Shell long-press start (picker / contextual leaf actions).
   ///
   /// Null disables the long-press recognizer. When non-null, a long-press
@@ -412,6 +431,9 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
         sectionNearExtent: sectionNearExtent,
       )
       ..leafPreview = leafPreview
+      ..leafRemovable = leafRemovable
+      ..onLeafRemove = onLeafRemove
+      ..removeBadge = removeBadge
       ..overscrollSink = overscrollSink
       ..held = _heldIn(context)
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
@@ -445,6 +467,9 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..onLeafTap = onLeafTap
       ..onLeafSecondaryTap = onLeafSecondaryTap
       ..onLeafHover = onLeafHover
+      ..leafRemovable = leafRemovable
+      ..onLeafRemove = onLeafRemove
+      ..removeBadge = removeBadge
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove
       ..onLeafLongPressEnd = onLeafLongPressEnd

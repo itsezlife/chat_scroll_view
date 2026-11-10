@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -658,6 +659,18 @@ class _CatalogPageState extends State<CatalogPage>
   void _onLeafHover(CatalogLeafHit? hit, Offset globalPosition) =>
       _tooltip.hover(hit, globalPosition, context);
 
+  bool _leafRemovable(CatalogLeafHit hit) =>
+      switch (_model.collectionOf(hit.sectionId)) {
+        final collection? => widget.policy.leafRemovable(hit, collection),
+        null => false,
+      };
+
+  void _onLeafRemove(CatalogLeafHit hit) {
+    if (_model.collectionOf(hit.sectionId) case final collection?) {
+      widget.policy.onLeafRemove(hit, collection, _host);
+    }
+  }
+
   String? _tooltipTextOf(CatalogLeafHit hit) =>
       switch (_model.collectionOf(hit.sectionId)) {
         final collection? => widget.policy.tooltipOf(hit, collection),
@@ -686,6 +699,7 @@ class _CatalogPageState extends State<CatalogPage>
     // catalogue then let through.
     final background = PanelBackgroundScope.of(context);
     final atBottom = _stripAtBottomNow;
+    final pointer = _arrangement == PanelArrangement.pointer;
     final sticky = _stripSticky;
     final browsing = sticky ? _stripShown : !_showsResults;
     final strip = browsing ? widget.policy.buildStrip(context, _strip) : null;
@@ -742,6 +756,11 @@ class _CatalogPageState extends State<CatalogPage>
                             onLeafTap: _onTap,
                             onLeafSecondaryTap: _onSecondaryTap,
                             onLeafHover: _onLeafHover,
+                            leafRemovable: pointer ? _leafRemovable : null,
+                            onLeafRemove: pointer ? _onLeafRemove : null,
+                            removeBadge: kIsWeb
+                                ? CatalogLeafRemoveBadge.web
+                                : CatalogLeafRemoveBadge.pointer,
                             leafLongPressEligible: _longPressEligible,
                             leafLongPressDelay: _longPressDelay,
                             onLeafLongPressStart: _onLongPressStart,

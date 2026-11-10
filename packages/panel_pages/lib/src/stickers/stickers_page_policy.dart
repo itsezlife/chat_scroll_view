@@ -285,6 +285,31 @@ final class StickersPagePolicy extends CatalogPagePolicy {
     }
   }
 
+  // --- The remove badge -----------------------------------------------------
+
+  /// A recent or a favourite sticker shows the remove badge under a mouse:
+  /// a recent leaves the recents, a favourite the favourites.
+  @override
+  bool leafRemovable(CatalogLeafHit hit, Collection collection) =>
+      collection.id == CollectionId.recent ||
+      collection.id == CollectionId.faved;
+
+  @override
+  void onLeafRemove(
+    CatalogLeafHit hit,
+    Collection collection,
+    PanelPageHost host,
+  ) {
+    switch (collection.id) {
+      case CollectionId.recent:
+        host.requestRemoveRecent(hit.leaf.key, kind: SemanticKind.sticker);
+      case CollectionId.faved:
+        host.requestLibraryEdit(LibraryEdit.unfavouriteSticker(hit.leaf.key));
+      default:
+        break;
+    }
+  }
+
   // --- A fresh open ---------------------------------------------------------
 
   /// The page goes back to its start on a fresh open: the grid at its first

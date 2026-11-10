@@ -16,6 +16,7 @@ import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_remove_badge.dart';
 import 'package:panel_catalog/src/model/catalog_section.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme_data.dart'
     show CatalogPressFeedback;
@@ -1529,6 +1530,8 @@ class RenderPanelCatalog extends RenderBox
     _userDragging = false;
     _leafPointer.dispose();
     _actionPointer.dispose();
+    _removeTap?.dispose();
+    _removeTap = null;
     _stopBakeActivity();
     _press?.dispose();
     _press = null;
@@ -1920,10 +1923,119 @@ class RenderPanelCatalog extends RenderBox
 
   void _hoverAt(Offset? position) {
     if (_hoverPosition == position) return;
+    final badgeWas = _removeBadgeState();
     _hoverPosition = position;
     // A pinned cell holds the wash wherever the mouse goes.
-    if (_pinnedLeaf == null && _hoverSlotKey() != _hoveredKey) markNeedsPaint();
+    if (_pinnedLeaf == null && _hoverSlotKey() != _hoveredKey) {
+      markNeedsPaint();
+    } else if (_removeBadgeState() != badgeWas) {
+      markNeedsPaint();
+    }
     _reportHover(moved: true);
+  }
+
+  // --- Remove badge ---------------------------------------------------------
+
+  /// Which cells show the remove badge under a mouse; see
+  /// `PanelCatalogViewport.leafRemovable`.
+  bool Function(CatalogLeafHit hit)? _leafRemovable;
+  set leafRemovable(bool Function(CatalogLeafHit hit)? value) {
+    if (identical(_leafRemovable, value)) return;
+    _leafRemovable = value;
+    markNeedsPaint();
+  }
+
+  /// A click on a cell's remove badge; see `PanelCatalogViewport.onLeafRemove`.
+  ValueChanged<CatalogLeafHit>? _onLeafRemove;
+  set onLeafRemove(ValueChanged<CatalogLeafHit>? value) {
+    if (identical(_onLeafRemove, value)) return;
+    _onLeafRemove = value;
+    markNeedsPaint();
+  }
+
+  /// The badge's look.
+  CatalogLeafRemoveBadge _removeBadge = CatalogLeafRemoveBadge.pointer;
+  set removeBadge(CatalogLeafRemoveBadge value) {
+    if (_removeBadge == value) return;
+    _removeBadge = value;
+    markNeedsPaint();
+  }
+
+  TapGestureRecognizer? _removeTap;
+  CatalogLeafHit? _removeDown;
+
+  /// The cell under [position] (viewport-local) and its badge's box, when the
+  /// cell shows a remove badge.
+  (CatalogLeafHit, Rect)? _removeBadgeAt(Offset? position) {
+    final removable = _leafRemovable;
+    if (position == null ||
+        removable == null ||
+        _onLeafRemove == null ||
+        _leafPreview != null ||
+        _pinnedLeaf != null) {
+      return null;
+    }
+    final slot = leafSlotAt(position);
+    if (slot == null || !removable(slot.hit)) return null;
+    final cell = Rect.fromLTWH(
+      slot.left,
+      slot.top - _pixels,
+      slot.width,
+      slot.height,
+    );
+    return (slot.hit, _removeBadge.rectOn(cell, _textDirection));
+  }
+
+  // What the badge looks like now: on which cell, and whether the mouse is on
+  // the badge itself.
+  (CatalogLeafHit, bool)? _removeBadgeState() {
+    final position = _hoverPosition;
+    return switch (_removeBadgeAt(position)) {
+      (final hit, final rect) => (hit, rect.contains(position!)),
+      null => null,
+    };
+  }
+
+  /// The box of the remove badge on screen (viewport-local), or null when the
+  /// mouse is on no cell that shows one.
+  @visibleForTesting
+  Rect? get debugRemoveBadgeRect => _removeBadgeAt(_hoverPosition)?.$2;
+
+  // Over everything the cell drew, its textures included.
+  void _paintRemoveBadge(PaintingContext context, Offset offset) {
+    final position = _hoverPosition;
+    final badge = _removeBadgeAt(position);
+    if (badge == null || position == null) return;
+    final rect = badge.$2;
+    final canvas = context.canvas
+      ..save()
+      ..clipRect(offset & size);
+    _removeBadge.paint(
+      canvas,
+      rect.shift(offset),
+      over: rect.contains(position),
+    );
+    canvas.restore();
+  }
+
+  // A primary press on a badge removes its cell on release over the badge;
+  // the cell itself is not pressed.
+  bool _pressRemoveBadge(PointerDownEvent event) {
+    if (event.kind != PointerDeviceKind.mouse ||
+        event.buttons & kPrimaryButton == 0) {
+      return false;
+    }
+    final badge = _removeBadgeAt(event.localPosition);
+    if (badge == null || !badge.$2.contains(event.localPosition)) return false;
+    _removeDown = badge.$1;
+    (_removeTap ??= TapGestureRecognizer(debugOwner: this)
+          ..onTap = () {
+            final hit = _removeDown;
+            _removeDown = null;
+            if (hit != null) _onLeafRemove?.call(hit);
+          })
+        .addPointer(event);
+    return true;
   }
 
   /// The cell last reported to [_onLeafHover], and where the cursor was.
@@ -2178,7 +2290,9 @@ class RenderPanelCatalog extends RenderBox
         }
         _drag?.addPointer(event);
         final slot = leafSlotAt(event.localPosition);
-        if (slot != null) {
+        if (!suppressLeafActions && _pressRemoveBadge(event)) {
+          // The badge's, not the cell's.
+        } else if (slot != null) {
           // Fling-cancel taps stop the coast only — no press chrome / pick.
           // Only the primary button presses a cell: a right click is the
           // host's menu, not a press, and animating it would read as one.
@@ -2250,6 +2364,7 @@ class RenderPanelCatalog extends RenderBox
       Offset.zero & size,
       needsCompositing: needsCompositing,
     );
+    _paintRemoveBadge(context, offset);
   }
 
   void _paintCanvas(PaintingContext context, Offset offset) {
