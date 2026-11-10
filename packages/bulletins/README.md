@@ -35,7 +35,7 @@ obstruction*).
 | --- | --- |
 | Scopes | A `ChromeThemeScope` (the `bulletin` token group) and a `ChromeStringsScope` (`ChromeStrings.bulletin`) above the host; a `ChromeMotionScope` with `ChromeMotionSpeed.instant` for reduce-motion. |
 | Mount | One `BulletinController` per surface, created and disposed with it; `BulletinHost(controller:, obstruction:, child:)` over the surface's content. |
-| Obstruction | A `ValueListenable<EdgeInsets>` of what covers the edges (composer, its safe inset and the keyboard at the bottom). Null: the `MediaQuery` padding and keyboard inset. |
+| Obstruction | A `ValueListenable<EdgeInsets>` of what covers the edges (composer, its safe inset and the keyboard at the bottom). Null: the `MediaQuery` padding and keyboard inset. The bulletin follows a change on the policy's follow spring; `tracksObstruction: true` sits it at the value on the frame it changes, for an obstruction that is already animated (an inset the surface's own content is laid out against). |
 | Undo | Apply the change, show `Bulletin(action: BulletinAction.undo(onUndo:, onCommit:))`. Exactly one of the two runs. |
 | Look | Replace the policy (extend a stock family) and the builders; colours through `BulletinTokens`. |
 

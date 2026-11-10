@@ -14,6 +14,7 @@ class _Harness {
   _Harness({
     BulletinPolicy policy = const BulletinPolicy.android(),
     EdgeInsets obstruction = EdgeInsets.zero,
+    this.tracksObstruction = false,
   }) : clock = ManualBulletinClock(),
        obstruction = ValueNotifier(obstruction) {
     controller = BulletinController(policy: policy, clock: clock);
@@ -22,6 +23,7 @@ class _Harness {
   final ManualBulletinClock clock;
   late final BulletinController controller;
   final ValueNotifier<EdgeInsets> obstruction;
+  final bool tracksObstruction;
   final announced = <String>[];
 
   Widget app({
@@ -45,6 +47,7 @@ class _Harness {
                     ? BulletinHost(
                         controller: controller,
                         obstruction: obstruction,
+                        tracksObstruction: tracksObstruction,
                         builders: builders,
                         announce: (_, message) => announced.add(message),
                         child: const SizedBox.expand(),
@@ -180,6 +183,44 @@ void main() {
         surface.bottom - 300 - 8,
       );
     });
+
+    testWidgets(
+      'a tracked obstruction moves the bulletin on the frame it changes',
+      (tester) async {
+        h = _Harness(
+          obstruction: const EdgeInsets.only(bottom: 100),
+          tracksObstruction: true,
+        );
+        await tester.pumpWidget(h.app());
+        h.controller.show(
+          const Bulletin(
+            message: 'Copied',
+            duration: BulletinDuration.untilDismissed,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final surface = _surfaceRect(tester);
+        // A keyboard rising and falling frame by frame: the bulletin sits 8
+        // above the obstruction on every frame, as the content under it does.
+        for (final bottom in [
+          140.0,
+          210.0,
+          290.0,
+          340.0,
+          360.0,
+          250.0,
+          100.0,
+        ]) {
+          h.obstruction.value = EdgeInsets.only(bottom: bottom);
+          await tester.pump(const Duration(milliseconds: 16));
+          expect(
+            tester.getRect(find.byType(BulletinCard)).bottom,
+            surface.bottom - bottom - 8,
+            reason: 'obstruction $bottom',
+          );
+        }
+      },
+    );
 
     testWidgets('a desktop bulletin is centred and at most 380 wide', (
       tester,

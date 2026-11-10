@@ -6,6 +6,10 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a host can track an animated obstruction)
+
+- `BulletinHost.tracksObstruction`: the bulletin sits at the obstruction's value on the frame it changes instead of following it on the policy's follow spring, so it moves with content laid out against the same animated inset rather than trailing it. Defaults to false (the spring).
+
 ### Fixed (a toast with a leading keeps its text's height)
 
 - `BulletinLeadingSlot` is as tall as its content: a card whose height is not fixed (the desktop toast) no longer grows to the surface's height when it has a leading.

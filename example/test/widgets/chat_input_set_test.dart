@@ -6,6 +6,7 @@ library;
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
+import 'package:bulletins/bulletins.dart';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
@@ -671,6 +672,33 @@ void main() {
       expect(_state(rig).kind, isA<Docked>());
       expect(rig.set.insets.inlineEnd.value, 292);
       expect(rig.set.insets.bottomPadding.value, rig.set.composer.extent.value);
+    });
+  });
+
+  group('a bulletin over the composer', () {
+    testWidgets('moves with the composer on every frame of the keyboard', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      await tester.pump();
+      rig.bulletins.show(
+        const Bulletin(
+          message: 'Copied',
+          duration: BulletinDuration.untilDismissed,
+        ),
+      );
+      await rig.settle(tester);
+      double gap() =>
+          tester.getRect(rig.island).top -
+          tester.getRect(find.byType(BulletinCard)).bottom;
+      final rest = gap();
+
+      // The keyboard rises and falls a reading a frame.
+      for (final height in [40.0, 120.0, 210.0, 280.0, 300.0, 160.0, 0.0]) {
+        rig.keyboard.move(height, animating: true);
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(gap(), closeTo(rest, 0.01), reason: 'keyboard $height');
+      }
     });
   });
 
