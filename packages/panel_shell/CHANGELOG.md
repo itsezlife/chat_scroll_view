@@ -6,6 +6,10 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (section tabs ink)
+
+- The pointer arrangement's section tabs press with `ChromeInk`'s desktop kind.
+
 ### Added (content preview requests)
 
 - `PanelEvent.libraryEditRequested(edit)` (`LibraryEditRequested`) and

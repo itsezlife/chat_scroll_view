@@ -6,6 +6,11 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (a toast with a leading keeps its text's height)
+
+- `BulletinLeadingSlot` is as tall as its content: a card whose height is not fixed (the desktop toast) no longer grows to the surface's height when it has a leading.
+- The desktop toast's leading sits with 2 px above and below and never makes the toast taller than its text and padding.
+
 ### Breaking
 
 - No API change here. The doc comments and tests now name the `chrome_foundation` tokens `BulletinTokens.desktop` and `BulletinTokens.android` (was `referenceDesktop` and `referenceAndroid`). See the `chrome_foundation` changelog.

@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (desktop panel and pack box)
+
+- Under a pointer: the sticker pack strip sits at the bottom as the emoji footer; an installed pack's header ends in a remove cross (`LibraryEdit.removePack`); recent and favourite stickers and saved GIFs show a remove badge on hover; a custom emoji's secondary click offers Copy emoji; a mouse preview has no menu and slides between GIFs.
+- The GIF page decodes a clip for its own proportions (a resized page plays on) and groups its rows at a fixed 334 under a pointer (a resized page keeps its rows); a GIF cell answers a press with `ChromeInk`.
+- The pack box under a pointer: five 64 px sticker cells or eight 42 x 39 emoji cells, the grid at most 320 or 197 tall, a 42 px button with the pack's count in a badge. `ChromeCatalogTheme.hoverSize`.
+
 ### Fixed (a strip keeps its covers through a close and an open)
 
 - A pack strip's playing covers hold their frames and leases while the

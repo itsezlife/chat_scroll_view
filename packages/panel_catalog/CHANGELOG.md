@@ -6,6 +6,10 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a remove badge on a hovered cell)
+
+- `PanelCatalogViewport.leafRemovable`, `onLeafRemove` and `removeBadge`: the cell under a mouse that the host says can be removed draws a remove badge over its content at its top end corner; a click on it removes the cell instead of picking it. `CatalogLeafRemoveBadge` holds the look, with `.pointer` and `.web` presets.
+
 ### Added (the grid under a content preview)
 
 - `PanelCatalogViewport.leafPreview` takes a `CatalogLeafPreview` while the
