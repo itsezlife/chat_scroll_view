@@ -242,6 +242,8 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
   late DebouncedSearch<void> _debounced;
   final _menu = CatalogContextMenuController();
   ContentPreviewSession? _preview;
+  // The cells laid out now, which a pointer preview slides between.
+  final _cells = <_CellState>{};
   var _query = '';
   String? _announced;
 
@@ -705,8 +707,10 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
           kind: kind,
           hold: hold,
           controller: previews,
+          itemAt: _itemAt,
         );
       },
+      cells: _cells,
       menu: (item, globalPosition) {
         final entries = ContentPreviewMenu.entriesOf(
           item,
@@ -729,6 +733,14 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
     null => null,
   };
 
+  // The clip under [globalPosition] among the cells laid out, or null.
+  ContentPreviewItem? _itemAt(Offset globalPosition) {
+    for (final cell in _cells) {
+      if (cell.itemAt(globalPosition) case final item?) return item;
+    }
+    return null;
+  }
+
   ContentPreviewActions get _actions => panelPreviewActions(
     _host,
     searching: switch (_listed?.id) {
@@ -745,7 +757,11 @@ final class _GifPreview {
     required this.begin,
     required this.menu,
     required this.inRecents,
+    required this.cells,
   });
+
+  /// The page's cells laid out now: each cell is in it while mounted.
+  final Set<_CellState> cells;
 
   final ContentPreviewSession Function(
     BuildContext context,
@@ -969,6 +985,39 @@ class _CellState extends State<_Cell> {
 
   var _pressed = false;
   ContentPreviewSession? _session;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.preview?.cells.add(this);
+  }
+
+  @override
+  void didUpdateWidget(_Cell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(oldWidget.preview?.cells, widget.preview?.cells)) return;
+    oldWidget.preview?.cells.remove(this);
+    widget.preview?.cells.add(this);
+  }
+
+  @override
+  void dispose() {
+    widget.preview?.cells.remove(this);
+    super.dispose();
+  }
+
+  /// This clip's preview item when [globalPosition] is over the cell.
+  ContentPreviewItem? itemAt(Offset globalPosition) =>
+      switch ((widget.preview, context.findRenderObject())) {
+        (final preview?, final RenderBox box)
+            when box.attached &&
+                box.hasSize &&
+                (Offset.zero & box.size).contains(
+                  box.globalToLocal(globalPosition),
+                ) =>
+          preview.itemOf(widget.item),
+        _ => null,
+      };
 
   void _press(bool value) {
     if (_pressed != value) setState(() => _pressed = value);

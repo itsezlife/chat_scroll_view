@@ -257,6 +257,60 @@ void main() {
     expect(clip.rewinds, 1);
   });
 
+  ContentKey shownClip(WidgetTester tester) => tester
+      .widget<ContentView>(
+        find.descendant(
+          of: find.byWidgetPredicate(
+            (widget) => widget.runtimeType.toString() == '_PreviewContent',
+          ),
+          matching: find.byType(ContentView),
+        ),
+      )
+      .content;
+
+  Future<TestGesture> mouseHold(WidgetTester tester, Offset at) async {
+    final gesture = await tester.startGesture(
+      at,
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(ContentPreviewSession.pointerHoldDelay);
+    await tester.pump(ContentPreviewSession.pointerShowDuration);
+    await tester.pump(const Duration(milliseconds: 16));
+    return gesture;
+  }
+
+  testWidgets('a mouse preview switches to the clip under the pointer', (
+    tester,
+  ) async {
+    await pumpPage(tester);
+    final gesture = await mouseHold(tester, _first);
+    expect(shownClip(tester), const ContentKey.document('a-0'));
+
+    await gesture.moveTo(_second);
+    await tester.pump();
+    expect(shownClip(tester), const ContentKey.document('a-1'));
+
+    await gesture.up();
+    await settleClose(tester);
+    expect(host.picks, isEmpty);
+  });
+
+  testWidgets('a mouse preview never opens the menu, by time or by a move '
+      'up', (tester) async {
+    await pumpPage(tester);
+    final gesture = await mouseHold(tester, _first);
+    for (var i = 0; i < 4; i++) {
+      await gesture.moveBy(const Offset(0, -20));
+      await tester.pump();
+    }
+    await tester.pump(ContentPreviewSession.gifMenuDelay);
+    await tester.pump(ContentPreviewSession.showDuration);
+    expect(find.text('Send GIF'), findsNothing);
+    await gesture.up();
+    await settleClose(tester);
+    expect(previews.isOpen.value, isFalse);
+  });
+
   testWidgets('a right click opens the same items as a context menu', (
     tester,
   ) async {

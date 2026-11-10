@@ -101,9 +101,10 @@ final class ContentPreviewController {
 /// - A sticker or custom emoji follows the finger: over another cell that
 ///   is previewed (`itemAt`), it shows that one instead, with a light tick
 ///   ([HapticFeedback.selectionClick]), and a menu that was up goes.
-/// - A GIF does not switch: moving up drags it up to [gifSwipeLimit], with a
-///   rubber band, and at [gifSwipeMenu] its menu opens; an arrow over it
-///   says so until then.
+/// - A GIF does not switch under a finger: moving up drags it up to
+///   [gifSwipeLimit], with a rubber band, and at [gifSwipeMenu] its menu
+///   opens; an arrow over it says so until then. Under a mouse a GIF
+///   switches as a sticker does, and never opens a menu.
 /// - The menu opens by itself after [stickerMenuDelay] (a sticker of a pack,
 ///   or a custom emoji) or [gifMenuDelay] (a GIF), when it has an item, with
 ///   the same haptic as the opening. A blur of the window fades in under it.
@@ -331,7 +332,10 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   @override
   void update(LongPressMoveUpdateDetails details) {
     if (_closing) return;
-    if (item.kind == ContentPreviewKind.gif) {
+    // A finger drags a GIF up to its menu; a mouse has no menu, and slides
+    // from clip to clip as from sticker to sticker.
+    if (item.kind == ContentPreviewKind.gif &&
+        kind != PointerDeviceKind.mouse) {
       _swipeGif(details.globalPosition.dy);
       return;
     }
