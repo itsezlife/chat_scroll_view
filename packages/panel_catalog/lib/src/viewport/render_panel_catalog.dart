@@ -22,6 +22,7 @@ import 'package:panel_catalog/src/theme/panel_catalog_theme_data.dart'
     show CatalogPressFeedback;
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
+import 'package:panel_catalog/src/viewport/catalog_action_ink.dart';
 import 'package:panel_catalog/src/viewport/catalog_action_pointer.dart';
 import 'package:panel_catalog/src/viewport/catalog_bake_activity.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
@@ -1420,6 +1421,10 @@ class RenderPanelCatalog extends RenderBox
     _snapshots.addListener(_onDataChanged);
     _pressTickers = CatalogPressTickerProvider();
     _press = CatalogLeafPress(vsync: _pressTickers!, onChanged: markNeedsPaint);
+    _actionInk = CatalogActionInk(
+      vsync: _pressTickers!,
+      onChanged: markNeedsPaint,
+    );
     _previewScale = CatalogLeafPreviewScale(
       vsync: _pressTickers!,
       onChanged: markNeedsPaint,
@@ -1483,6 +1488,8 @@ class RenderPanelCatalog extends RenderBox
     _projectedWidth = -1;
     _press?.dispose();
     _press = null;
+    _actionInk?.dispose();
+    _actionInk = null;
     _previewScale?.dispose();
     _previewScale = null;
     _pressTickers?.dispose();
@@ -1535,6 +1542,8 @@ class RenderPanelCatalog extends RenderBox
     _stopBakeActivity();
     _press?.dispose();
     _press = null;
+    _actionInk?.dispose();
+    _actionInk = null;
     _previewScale?.dispose();
     _previewScale = null;
     _pressTickers?.dispose();
@@ -1925,6 +1934,7 @@ class RenderPanelCatalog extends RenderBox
     if (_hoverPosition == position) return;
     final badgeWas = _removeBadgeState();
     _hoverPosition = position;
+    _actionInk?.hover(_inkedActionAt(position));
     // A pinned cell holds the wash wherever the mouse goes.
     if (_pinnedLeaf == null && _hoverSlotKey() != _hoveredKey) {
       markNeedsPaint();
@@ -1933,6 +1943,51 @@ class RenderPanelCatalog extends RenderBox
     }
     _reportHover(moved: true);
   }
+
+  // --- Header action ink ----------------------------------------------------
+
+  /// The hover fill and press ripple of a painted header action; see
+  /// [CatalogActionInk]. Live while attached.
+  CatalogActionInk? _actionInk;
+
+  /// The section whose painted trailing action is under [position]
+  /// (viewport-local), when the theme has a hover wash (the pointer
+  /// arrangement) and the action can be pressed; null otherwise.
+  String? _inkedActionAt(Offset? position) {
+    if (position == null ||
+        _paintTheme.leafHoverHighlightColor == null ||
+        _onSectionAction == null) {
+      return null;
+    }
+    return switch (actionAt(position)) {
+      (final sectionId, final actionId)
+          when _trailingActionId(sectionId) == actionId =>
+        sectionId,
+      _ => null,
+    };
+  }
+
+  // The id of the painted trailing action of [sectionId]'s header, or null.
+  String? _trailingActionId(String sectionId) {
+    for (final slot in _slots) {
+      if (slot case CatalogHeaderSlot(
+        sectionId: final id,
+        action: final action?,
+      ) when id == sectionId && action.painter != null) {
+        return action.id;
+      }
+    }
+    return null;
+  }
+
+  /// The section whose action the hover ink is on, or null.
+  @visibleForTesting
+  String? get debugHoveredAction => _actionInk?.hovered;
+
+  /// The press ink drawn on a header action now, or null.
+  @visibleForTesting
+  ({String sectionId, Offset origin, double grown, double alpha})?
+  get debugActionPress => _actionInk?.press;
 
   // --- Remove badge ---------------------------------------------------------
 
@@ -2301,9 +2356,20 @@ class RenderPanelCatalog extends RenderBox
           }
           _leafPointer.addPointer(event);
         } else {
+          final inked =
+              suppressLeafActions || event.buttons & kPrimaryButton == 0
+              ? null
+              : _inkedActionAt(event.localPosition);
+          if (inked case final section?) {
+            _actionInk?.pressDown(
+              section,
+              event.localPosition.translate(0, _pixels),
+            );
+          }
           _actionPointer.addPointer(event);
         }
       case PointerUpEvent() || PointerCancelEvent():
+        _actionInk?.release();
         if (_flingCancelPointer == event.pointer) {
           _flingCancelPointer = null;
           // Tap onTap fires after pointer up; defer clear so the arena still
@@ -2483,7 +2549,21 @@ class RenderPanelCatalog extends RenderBox
   }) {
     switch (slot) {
       case final CatalogHeaderSlot header:
-        _painter.paintHeader(canvas: canvas, origin: origin, header: header);
+        final ink = _actionInk;
+        _painter.paintHeader(
+          canvas: canvas,
+          origin: origin,
+          header: header,
+          actionHovered: ink?.hovered == header.sectionId,
+          actionPress: switch (ink?.press) {
+            final press? when press.sectionId == header.sectionId => (
+              origin: press.origin,
+              grown: press.grown,
+              alpha: press.alpha,
+            ),
+            _ => null,
+          },
+        );
       case final CatalogLeafSlot leaf:
         final isPressed = pressedSlotKey != null && leaf.key == pressedSlotKey;
         final focus = _focus;

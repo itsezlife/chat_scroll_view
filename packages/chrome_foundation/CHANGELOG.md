@@ -6,6 +6,10 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (ink takes the primary button only)
+
+- `ChromeInk` presses with the primary button only: a secondary click neither taps nor draws, and reaches the host's context handlers.
+
 ### Added (pack strings)
 
 - `PanelStrings.removePackAction`, and `PackSheetStrings.addStickersLabel`, `addEmojiLabel`, `removeStickersLabel`, `removeEmojiLabel` (the pack box's button words beside its count badge). Required: hosts that build their own sets add them.

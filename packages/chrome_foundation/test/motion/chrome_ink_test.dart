@@ -73,6 +73,34 @@ void main() {
     );
   });
 
+  testWidgets('a secondary click neither taps nor draws: the host\'s '
+      'context handlers have it', (tester) async {
+    await tester.pumpWidget(target(ChromeInkKind.pointer));
+    final mouse = await tester.startGesture(
+      tester.getCenter(find.byType(ChromeInk)),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(inkAlpha(tester), isNull);
+    await mouse.up();
+    await tester.pump();
+
+    expect(taps, 0);
+  });
+
+  testWidgets('the primary button still taps', (tester) async {
+    await tester.pumpWidget(target(ChromeInkKind.pointer));
+    final mouse = await tester.startGesture(
+      tester.getCenter(find.byType(ChromeInk)),
+      kind: PointerDeviceKind.mouse,
+    );
+    await mouse.up();
+    await tester.pump();
+
+    expect(taps, 1);
+  });
+
   testWidgets('a ripple comes in over 75 ms, grows from the touch over 225 ms '
       'and fades over 150 ms after the release', (tester) async {
     await tester.pumpWidget(target(ChromeInkKind.ripple));

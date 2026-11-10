@@ -170,6 +170,58 @@ void main() {
       expect(ChatPackSheets.saysLibraryEdits(bulletins), isFalse);
     });
 
+    test('a favourite is said on the web only when the full list replaced '
+        'its oldest; a desktop says none', () {
+      final added = library.apply(
+        const LibraryEdit.favouriteSticker(ContentKey.document('f0')),
+      );
+      expect(
+        ChatPackSheets.libraryEditBulletin(
+          added,
+          limits: library.limits,
+          bulletins: bulletins,
+          web: true,
+        ),
+        isNull,
+      );
+      for (var i = 1; i < 5; i++) {
+        library.apply(LibraryEdit.favouriteSticker(ContentKey.document('f$i')));
+      }
+      final replaced = library.apply(
+        const LibraryEdit.favouriteSticker(ContentKey.document('new')),
+      );
+      expect(replaced.evicted, isNotNull);
+      expect(
+        ChatPackSheets.libraryEditBulletin(
+          replaced,
+          limits: library.limits,
+          bulletins: bulletins,
+          web: true,
+        ),
+        isNotNull,
+      );
+      expect(
+        ChatPackSheets.libraryEditBulletin(
+          replaced,
+          limits: library.limits,
+          bulletins: bulletins,
+          web: false,
+        ),
+        isNull,
+      );
+    });
+
+    test('the web removes a pack at once; a desktop asks first', () {
+      expect(
+        ChatPackSheets.confirmsRemovalsIn(PanelArrangement.pointer, web: true),
+        isFalse,
+      );
+      expect(
+        ChatPackSheets.confirmsRemovalsIn(PanelArrangement.pointer, web: false),
+        isTrue,
+      );
+    });
+
     test(
       'a removal shows no bulletin and is done at once, with no Undo',
       () async {

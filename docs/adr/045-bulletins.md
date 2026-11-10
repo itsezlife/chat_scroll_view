@@ -11,6 +11,7 @@ are builders the host picks, so they land without changing the core.
 
 **Status**: Accepted (owner and undo rows confirmed by the maintainer 2026-11-10; the other [confirm] items stand as defaults, the platform values to be verified in tickets 130-132)  
 **Date**: 2026-11-09  
+**Amended**: 2026-11-10 (native-media ticket 193) — the web says only a full list's replacement and removes a pack with no confirmation (see *Desktop values*)  
 **Amended**: 2026-11-10 (native-media tickets 173, 174) — the desktop toast's leading slot is as tall as its icon, centred with 2 px above and below, and never makes the toast taller than its text; under the desktop policy the host says no library edit in a bulletin (see *Desktop values*)  
 **Relates to**: [ADR 012](012-cross-platform-selection-policies.md) (policy shape), [ADR 020](020-package-topology.md) (amended: new leaf above `chrome_foundation`), [ADR 027](027-foundation-theme-glass-motion.md) (token group and motion roles added), [ADR 030](030-testing-policy.md) (fake clock and contract suite), [ADR 031](031-localization-accessibility-and-input.md) (strings group, announcement), [ADR 044](044-content-library-packs-and-preview.md) (an `AppliedEdit` behind an Undo bulletin)
 
@@ -121,6 +122,15 @@ confirmation box (in the pack box's place when it comes from the box, the
 box swapped for it) and is done at once, with no Undo. The decision is the
 host's (the example's `ChatPackSheets.saysLibraryEdits`); the package
 offers the policy family it reads.
+
+The web (ticket 193) follows the web clients, not the desktop rule: they
+toast only a full list that replaced its oldest (a favourite sticker, a
+saved GIF: `LimitReachedFavorite*` in both web clients), and say nothing of
+an edit otherwise; a pack is removed at once from its box, with no
+confirmation, toast or Undo. The example's
+`ChatPackSheets.libraryEditBulletin` and `confirmsRemovalsIn` carry it; the
+panel's header remove cross is a desktop's only (the web clients cross the
+recents alone).
 
 The fade out stays the toolkit's 1000 ms linear (`defaultToast`
 `durationFadeOut`, `Instance::hideAnimated`), checked again in ticket 173:

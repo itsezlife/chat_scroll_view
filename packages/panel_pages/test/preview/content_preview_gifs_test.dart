@@ -326,6 +326,7 @@ void main() {
     await mouse.up();
     await tester.pump();
 
+    expect(host.picks, isEmpty, reason: 'a right click picks nothing');
     expect(find.text('Send GIF'), findsOneWidget);
     await tester.tap(find.text('Save to GIFs'));
     await tester.pump();
