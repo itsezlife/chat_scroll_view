@@ -9,7 +9,8 @@ import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 /// the mouse: a finger or a mouse moving over the cells under the preview
 /// marks none of them. The cell whose content the preview shows ([shrunk])
 /// is drawn smaller instead, at [shrunkScale], and follows the preview from
-/// cell to cell.
+/// cell to cell; under `CatalogPreviewFeedback.hover` (a pointer) it keeps
+/// the hover box instead, at its full size, and the box follows the preview.
 ///
 /// The scale moves linearly at [scaleSpeed]: a cell that becomes [shrunk]
 /// goes from where it is (its press scale, for the cell that was held) down

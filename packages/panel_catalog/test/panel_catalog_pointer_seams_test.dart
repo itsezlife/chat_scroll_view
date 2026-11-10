@@ -611,6 +611,54 @@ void main() {
       expect(scales(paint(tester)), isEmpty, reason: 'back to 1 once closed');
     });
 
+    group('shown by the hover box', () {
+      final pointerTheme = PanelCatalogThemeData.light.copyWith(
+        leafHoverHighlightColor: _hover,
+        leafPressFeedback: CatalogPressFeedback.none,
+        leafPreviewFeedback: CatalogPreviewFeedback.hover,
+      );
+
+      testWidgets('the previewed cell keeps the hover box and is not scaled; '
+          'the mouse marks no other cell', (tester) async {
+        await pumpViewport(
+          tester,
+          theme: pointerTheme,
+          leafPreview: CatalogLeafPreview(shrunk: hitOf(0)),
+        );
+        final gesture = await mouse(tester);
+        await gesture.moveTo(_second);
+        await tester.pump(const Duration(milliseconds: 200));
+
+        final canvas = paint(tester);
+        expect(washes(canvas, _hover), [
+          const Rect.fromLTWH(0, 24, 80, 40).deflate(2),
+        ]);
+        expect(scales(canvas), isEmpty, reason: 'no cell is scaled');
+      });
+
+      testWidgets('the box follows the preview to the next cell', (
+        tester,
+      ) async {
+        await pumpViewport(
+          tester,
+          theme: pointerTheme,
+          leafPreview: CatalogLeafPreview(shrunk: hitOf(0)),
+        );
+        await pumpViewport(
+          tester,
+          theme: pointerTheme,
+          leafPreview: CatalogLeafPreview(shrunk: hitOf(1)),
+        );
+        await tester.pump(const Duration(milliseconds: 40));
+
+        final canvas = paint(tester);
+        expect(washes(canvas, _hover), [
+          const Rect.fromLTWH(80, 24, 80, 40).deflate(2),
+        ]);
+        expect(scales(canvas), isEmpty);
+      });
+    });
+
     testWidgets('no hover wash, pinned or under the mouse, while a preview is '
         'open', (tester) async {
       await pumpViewport(
