@@ -194,6 +194,29 @@ void main() {
     );
   });
 
+  testWidgets('closeAll from the shown box closes the layer with that box on '
+      'it, answering it with the result and the others with null', (
+    tester,
+  ) async {
+    await pumpHost(tester);
+    final layer = await open<void>(tester, 'pack');
+    final confirm = layerOf(
+      tester,
+      'pack',
+    ).show<bool>((_) => const _Box('confirm'));
+    await tester.pump();
+
+    ChromeBoxLayer.of(boxContext(tester, 'confirm')).closeAll(true);
+    await tester.pump();
+    expect(find.textContaining('confirm'), findsOneWidget, reason: 'fading');
+    expect(find.textContaining('pack'), findsNothing, reason: 'never back');
+    await tester.pumpAndSettle();
+
+    expect(await confirm, isTrue);
+    await layer;
+    expect(barriers(tester), 0);
+  });
+
   testWidgets('maybeOf is null outside a layer', (tester) async {
     await pumpHost(tester);
     expect(ChromeBoxLayer.maybeOf(host), isNull);

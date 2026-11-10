@@ -394,8 +394,8 @@ void main() {
       expect(services.library.installStateOf(pack), PackInstallState.installed);
     });
 
-    testWidgets('under a pointer a confirmed removal brings the box back with '
-        'the pack removed; a tap on the dim closes it', (tester) async {
+    testWidgets('under a pointer a confirmed removal closes the confirmation '
+        'and the box together; the box does not come back', (tester) async {
       await pump(tester);
       bulletins = BulletinController(policy: const BulletinPolicy.desktop());
       addTearDown(bulletins.dispose);
@@ -420,14 +420,18 @@ void main() {
         services.library.installStateOf(pack),
         PackInstallState.notInstalled,
       );
-      expect(find.text('Удалить «${AnimatedEmojiPack.title}»?'), findsNothing);
-      expect(find.text('Удалить эмодзи'), findsNothing, reason: 'now adds');
-      expect(dims(tester), 1, reason: 'the box is back');
+      // The layer fades out with the confirmation on it; the box is not
+      // shown again.
+      expect(
+        find.text('Удалить «${AnimatedEmojiPack.title}»?'),
+        findsOneWidget,
+      );
+      expect(find.byType(EmojiPackSheet), findsNothing);
 
-      await tester.tapAt(const Offset(4, 4));
       await _settle(tester);
       expect(dims(tester), 0);
       expect(closed, isTrue);
+      expect(bulletins.current.value, isNull);
     });
 
     // The bulletin is up longer than the window it is named after: it

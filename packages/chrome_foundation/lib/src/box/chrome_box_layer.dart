@@ -16,7 +16,7 @@ import 'package:flutter/widgets.dart';
 /// |---|---|
 /// | `Navigator.pop(boxContext, result)`, Escape, a back button | the shown box, with `result`; the last one closes the layer |
 /// | [closeBox] | the box of the context, shown or not |
-/// | a tap on the barrier ([barrierDismissible]) | every box, and the layer |
+/// | a tap on the barrier ([barrierDismissible]), [closeAll] | every box, and the layer |
 ///
 /// Every box's future ([show]) completes once it closes: with the result it
 /// was popped with, or null when it went with the layer. The layer's own
@@ -139,20 +139,24 @@ final class ChromeBoxLayer extends PopupRoute<Object?> {
     return box.done.future.then((result) => result as T?);
   }
 
-  /// Closes every box and the layer, as a tap on the barrier does.
-  void closeAll() {
+  /// Closes every box and the layer, as a tap on the barrier does: the shown
+  /// box with [result], the others with null.
+  ///
+  /// The shown box stays on the screen as the layer fades out; none under it
+  /// is shown again. A box whose answer ends the whole flow (a confirmed
+  /// removal of what the box under it shows) closes the layer this way.
+  void closeAll([Object? result]) {
     final boxes = _boxes.value;
     if (boxes.isEmpty || !isActive) return;
-    // The shown box stays on the screen to fade out with the layer; the
-    // others go now.
     for (final box in boxes.take(boxes.length - 1)) {
       _complete(box, null);
     }
     _boxes.value = [boxes.last];
     changedInternalState();
     if (isCurrent) {
-      navigator!.pop();
+      navigator!.pop(result);
     } else {
+      _complete(boxes.last, result);
       navigator!.removeRoute(this, _firstResult);
     }
   }
