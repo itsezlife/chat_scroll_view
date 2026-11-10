@@ -276,7 +276,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       keyboard: widget.softKeyboard,
       policy: widget.presentationPolicy,
       onPastedMedia: _onPastedMedia,
-      onPackRequested: (id) => unawaited(_openPack(id)),
+      onPackRequested: _openPack,
       onPackEditRequested: _editPack,
       onLibraryEdited: _onLibraryEdited,
     );

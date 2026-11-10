@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bulletins/bulletins.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
@@ -47,6 +49,10 @@ final class InputRig {
 
   /// Every pack "View pack" asked for, in order.
   final List<PackId> packsAsked = <PackId>[];
+
+  /// One per pack asked for: the sheet that pack opened, which closes when
+  /// the test completes it.
+  final List<Completer<void>> packSheets = <Completer<void>>[];
 
   /// Every library edit the user asked for, as the set reported it.
   final List<AppliedEdit> libraryEdits = <AppliedEdit>[];
@@ -187,7 +193,12 @@ class _ScreenState extends State<_Screen> {
         _rig.pastedMedia.add(media);
         return true;
       },
-      onPackRequested: _rig.packsAsked.add,
+      onPackRequested: (id) {
+        _rig.packsAsked.add(id);
+        final sheet = Completer<void>();
+        _rig.packSheets.add(sheet);
+        return sheet.future;
+      },
       onLibraryEdited: _rig.libraryEdits.add,
       keyboard: _rig.keyboard,
       policy: widget.policy,

@@ -1316,6 +1316,22 @@ void main() {
       expect(rig.packsAsked, [const PackId('cats')]);
     });
 
+    testWidgets('a pack sheet opened from the panel holds the panel up until '
+        'it closes', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final guard = rig.set.presentation.autoHideGuard;
+      expect(guard.value, isFalse);
+
+      rig.set.shell.hostFor('stickers').requestPack(const PackId('cats'));
+      await tester.pump();
+      expect(guard.value, isTrue);
+
+      rig.packSheets.single.complete();
+      await tester.pump();
+      expect(guard.value, isFalse);
+    });
+
     testWidgets('back closes a preview that is up before the panel', (
       tester,
     ) async {
