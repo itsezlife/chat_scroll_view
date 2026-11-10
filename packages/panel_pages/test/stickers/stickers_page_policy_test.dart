@@ -61,12 +61,14 @@ CatalogLeafHit _hit(Collection collection, int index) {
 void main() {
   const policy = StickersPagePolicy();
 
-  test('declares a top strip and nothing else: no search, no actions', () {
+  test('declares a strip (at the bottom under a pointer) and nothing '
+      'else: no search, no actions', () {
     expect(policy.capabilities.topStrip, isTrue);
     expect(policy.capabilities.search, isFalse);
     expect(policy.capabilities.actions, isEmpty);
     expect(policy.stripExtent, StickerPackStrip.height);
     expect(policy.stripAtBottom(PanelArrangement.touch), isFalse);
+    expect(policy.stripAtBottom(PanelArrangement.pointer), isTrue);
   });
 
   group('geometry', () {

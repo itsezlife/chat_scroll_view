@@ -295,6 +295,12 @@ final class StickersPagePolicy extends CatalogPagePolicy {
 
   // --- Chrome ---------------------------------------------------------------
 
+  /// Under the pointer arrangement the strip is pinned at the bottom, as the
+  /// emoji page's is.
+  @override
+  bool stripAtBottom(PanelArrangement arrangement) =>
+      arrangement == PanelArrangement.pointer;
+
   @override
   double get stripExtent => StickerPackStrip.height;
 

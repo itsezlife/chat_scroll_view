@@ -24,6 +24,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
+import 'package:panel_pages/src/emoji/emoji_strip_footer.dart';
 import 'package:panel_pages/src/strip/panel_strip.dart' show PanelStripIcon;
 import 'package:panel_shell/panel_shell.dart';
 import 'package:panel_shell/testing.dart';
@@ -111,13 +112,14 @@ void main() {
     AssetCacheScope? assets,
     double devicePixelRatio = 1,
     Brightness brightness = Brightness.light,
+    PanelArrangement arrangement = PanelArrangement.touch,
   }) => tester.pumpWidget(
     PanelShellTestScope(
       speed: speed,
       brightness: brightness,
       textDirection: textDirection,
       child: PanelArrangementScope(
-        arrangement: PanelArrangement.touch,
+        arrangement: arrangement,
         child: Align(
           alignment: AlignmentDirectional.topStart,
           child: SizedBox(
@@ -250,6 +252,34 @@ void main() {
 
     expect(selected(tester, 'Dogs'), isTrue);
     expect(selected(tester, 'Recently used'), isFalse);
+  });
+
+  group('under the pointer arrangement', () {
+    testWidgets('is the emoji footer: a 30 px slot per tab from 3 px in', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await pump(tester, arrangement: PanelArrangement.pointer);
+
+      expect(find.byType(EmojiStripFooter), findsOneWidget);
+      final origin = tester.getTopLeft(find.byType(StickerPackStrip));
+      expect(
+        tester.getRect(find.bySemanticsLabel('Cats')).shift(-origin),
+        const Rect.fromLTWH(3 + 30, 0, 30, 36),
+      );
+      expect(selected(tester, 'Recently used'), isTrue);
+      semantics.dispose();
+    });
+
+    testWidgets('a click jumps to the pack\'s section', (tester) async {
+      await pump(tester, arrangement: PanelArrangement.pointer);
+
+      await tester.tap(find.bySemanticsLabel('Dogs'));
+      await tester.pump();
+
+      expect(handle.jumps, ['${const CollectionId.set('b')}']);
+      expect(selected(tester, 'Dogs'), isTrue);
+    });
   });
 
   testWidgets('follows the section the catalogue is in', (tester) async {
