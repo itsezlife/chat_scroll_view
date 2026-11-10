@@ -77,6 +77,7 @@ void main() {
     WidgetTester tester, {
     AssetCacheScope? assets,
     double? devicePixelRatio,
+    double width = 320,
   }) {
     if (devicePixelRatio != null) {
       tester.view.devicePixelRatio = devicePixelRatio;
@@ -89,7 +90,7 @@ void main() {
           child: Scaffold(
             body: Center(
               child: SizedBox(
-                width: 320,
+                width: width,
                 height: 480,
                 child: PanelCatalogViewport(
                   snapshots: snapshots,
@@ -283,6 +284,36 @@ void main() {
       final canvas = paintOnce(tester);
       expect(canvas.rrects, isEmpty);
       expect(canvas.circles.single.radius, closeTo(28.8 * 0.4, 1e-9));
+    });
+  });
+
+  group('a viewport resized (a dock dragged)', () {
+    testWidgets('asks nothing new of a sticker drawn in a fixed glyph box or '
+        'an emoji at a fixed glyph extent, so neither starts over', (
+      tester,
+    ) async {
+      final emoji = _doc(0);
+      final sticker = _sticker(1);
+      snapshots.replaceSections([
+        CatalogSection(
+          id: 'a',
+          title: 'A',
+          leaves: [emoji, sticker],
+          contentBox: CatalogContentBox.glyph,
+          layout: const SectionLayout.grid(
+            desiredCellWidth: 72,
+            glyphExtent: 24,
+          ),
+        ),
+      ]);
+      await pumpViewport(tester);
+      final attempts = producer.attempts.length;
+
+      for (final width in [330.0, 345.0, 372.0, 400.0]) {
+        await pumpViewport(tester, width: width);
+      }
+
+      expect(producer.attempts, hasLength(attempts));
     });
   });
 
