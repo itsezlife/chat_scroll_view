@@ -590,6 +590,37 @@ void main() {
       });
     });
 
+    group('the sweep', () {
+      test('ends a lease nobody wanted for a sweep', () async {
+        final lease = scheduler.acquire('a', await openClip())!;
+        scheduler.want(lease, Duration.zero);
+
+        timers.elapse(const Duration(seconds: 2));
+        expect(lease.isReleased, isTrue);
+      });
+
+      test('ends nothing while the clock is paused, nor at the first sweep '
+          'after', () async {
+        final lease = scheduler.acquire('a', await openClip())!;
+        scheduler.want(lease, Duration.zero);
+        clock.setPaused(PlaybackPauseLayer.appInactive, paused: true);
+
+        timers.elapse(const Duration(seconds: 5));
+        expect(lease.isReleased, isFalse, reason: 'unpainted only as paused');
+
+        clock.setPaused(PlaybackPauseLayer.appInactive, paused: false);
+        timers.elapse(const Duration(seconds: 1));
+        expect(
+          lease.isReleased,
+          isFalse,
+          reason: 'the pause counts as painted',
+        );
+
+        timers.elapse(const Duration(seconds: 1));
+        expect(lease.isReleased, isTrue, reason: 'two sweeps of playback');
+      });
+    });
+
     test('a decode failure fails the lease', () async {
       final clip = await openClip();
       final lease = scheduler.acquire('a', clip)!;

@@ -298,6 +298,23 @@ void main() {
       expect(timers.pending, 0);
     });
 
+    test('releases nothing while the clock is paused, nor at the first sweep '
+        'after', () {
+      final a = lease('a');
+      scheduler.want(a, 1);
+      clock.setPaused(PlaybackPauseLayer.appInactive, paused: true);
+
+      timers.elapse(const Duration(seconds: 5));
+      expect(a.isReleased, isFalse, reason: 'unpainted only because paused');
+
+      clock.setPaused(PlaybackPauseLayer.appInactive, paused: false);
+      timers.elapse(const Duration(seconds: 1));
+      expect(a.isReleased, isFalse, reason: 'the pause counts as painted');
+
+      timers.elapse(const Duration(seconds: 1));
+      expect(a.isReleased, isTrue, reason: 'two sweeps of playback unpainted');
+    });
+
     test('keeps sweeping while a lease survives', () {
       final a = lease('a');
       for (var i = 0; i < 3; i++) {
