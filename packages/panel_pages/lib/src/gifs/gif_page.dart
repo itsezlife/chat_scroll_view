@@ -1097,22 +1097,6 @@ class _CellState extends State<_Cell> {
   Map<Type, GestureRecognizerFactory> _gestures() {
     final preview = widget.preview;
     return {
-      TapGestureRecognizer:
-          GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-            () => TapGestureRecognizer(debugOwner: this),
-            // The primary tap is the ink's: this one takes the secondary
-            // click only.
-            (tap) => tap
-              ..onSecondaryTapUp = preview == null
-                  ? null
-                  : (details) {
-                      if (details.kind != PointerDeviceKind.mouse) return;
-                      preview.menu(
-                        preview.itemOf(widget.item),
-                        details.globalPosition,
-                      );
-                    },
-          ),
       if (preview != null) ...{
         _TouchHold: GestureRecognizerFactoryWithHandlers<_TouchHold>(
           () => _TouchHold(debugOwner: this),
@@ -1135,8 +1119,31 @@ class _CellState extends State<_Cell> {
     });
 
   // A new press draws its ink again; the held one faded out unseen.
-  void _release(PointerDownEvent _) {
+  void _release(PointerDownEvent event) {
+    // A secondary click is the context menu's, not a pick: the ink's tap
+    // takes every button, so it is told which one pressed.
+    _secondaryAt =
+        event.kind == PointerDeviceKind.mouse &&
+            event.buttons & kSecondaryMouseButton != 0
+        ? event.position
+        : null;
     if (_held) setState(() => _held = false);
+  }
+
+  // Where a secondary click went down, until the ink reports its tap.
+  Offset? _secondaryAt;
+
+  void _onTap() {
+    final secondary = _secondaryAt;
+    _secondaryAt = null;
+    switch ((secondary, widget.preview)) {
+      case (final at?, final preview?):
+        preview.menu(preview.itemOf(widget.item), at);
+      case (null, _):
+        widget.onTap();
+      case (_, null):
+        break;
+    }
   }
 
   @override
@@ -1177,7 +1184,7 @@ class _CellState extends State<_Cell> {
                     color: _held
                         ? const Color(0x00000000)
                         : palette.onSurface.withAlpha(0x0F),
-                    onTap: widget.onTap,
+                    onTap: _onTap,
                     child: ContentView(
                       content: widget.item.key,
                       scope: widget.assets,

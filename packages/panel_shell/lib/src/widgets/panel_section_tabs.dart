@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart' show clampDouble;
+import 'package:flutter/gestures.dart' show PointerDeviceKind, kPrimaryButton;
 import 'package:flutter/widgets.dart';
 import 'package:panel_shell/src/input/panel_intents.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
@@ -285,6 +286,7 @@ class _Section extends StatefulWidget {
 
 class _SectionState extends State<_Section> {
   var _focused = false;
+  var _primary = true;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -307,37 +309,45 @@ class _SectionState extends State<_Section> {
       },
       // The desktop ink: a ripple from the press over 650 ms, fading over
       // 200 ms; no hover fill.
-      child: ChromeInk(
-        kind: ChromeInkKind.pointer,
-        color: widget.ripple,
-        onTap: widget.onSelect,
-        child: ClipRect(
-          child: CustomPaint(
-            foregroundPainter: _focused
-                ? _FocusRingPainter(widget.accent)
-                : null,
-            child: Stack(
-              children: [
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: PanelSectionTabs.labelTop,
-                  child: Text(
-                    widget.label,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: _PanelSectionTabsState._labelStyle.copyWith(
-                      color: Color.lerp(
-                        widget.muted,
-                        widget.accent,
-                        widget.active,
+      // Only the primary button chooses: the ink takes every button.
+      child: Listener(
+        onPointerDown: (event) => _primary =
+            event.buttons & kPrimaryButton != 0 ||
+            event.kind != PointerDeviceKind.mouse,
+        child: ChromeInk(
+          kind: ChromeInkKind.pointer,
+          color: widget.ripple,
+          onTap: () {
+            if (_primary) widget.onSelect();
+          },
+          child: ClipRect(
+            child: CustomPaint(
+              foregroundPainter: _focused
+                  ? _FocusRingPainter(widget.accent)
+                  : null,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: PanelSectionTabs.labelTop,
+                    child: Text(
+                      widget.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _PanelSectionTabsState._labelStyle.copyWith(
+                        color: Color.lerp(
+                          widget.muted,
+                          widget.accent,
+                          widget.active,
+                        ),
+                        decoration: TextDecoration.none,
                       ),
-                      decoration: TextDecoration.none,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
