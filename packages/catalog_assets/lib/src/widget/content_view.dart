@@ -42,9 +42,15 @@ import 'package:flutter/widgets.dart';
 ///
 /// ## Playback
 ///
-/// The view shows its binding only while a [TickerMode] above it is enabled,
-/// so a hidden route or an offstage page stops its animation. An animated
-/// preset gets its own repaint boundary, because every frame repaints it.
+/// The view shows its binding only while a [TickerMode] above it is enabled
+/// and it is [inView], so a hidden route or an offstage page stops its
+/// animation and lets go of what it leased for the screen (a texture, a frame
+/// slot). A view that [holdsWhileTickersOff] is held instead while the
+/// [TickerMode] is off: it keeps showing its frame, not playing, and keeps
+/// what it leased, as the catalogue's cells do, so a panel kept mounted
+/// while hidden shows the same frames, from the first one, when it is back.
+/// An animated preset gets its own repaint boundary, because every frame
+/// repaints it.
 ///
 /// ## Texture
 ///
@@ -81,6 +87,8 @@ class ContentView extends StatefulWidget {
     this.loadingRadius,
     this.placeholder,
     this.placeholderTint,
+    this.inView = true,
+    this.holdsWhileTickersOff = false,
     super.key,
   }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
 
@@ -129,6 +137,17 @@ class ContentView extends StatefulWidget {
   /// The colour [placeholder] is drawn in, or null for [tint].
   final Color? placeholderTint;
 
+  /// Whether the view is in its viewport. False hides it as a disabled
+  /// [TickerMode] does, whatever [holdsWhileTickersOff] says: a cell
+  /// scrolled out of a strip.
+  final bool inView;
+
+  /// Whether a disabled [TickerMode] above holds the view rather than hiding
+  /// it: it keeps its frame on screen and what it leased for it. For a
+  /// surface whose tickers stop while it is still the one to come back (a
+  /// panel that moves or is kept mounted while hidden).
+  final bool holdsWhileTickersOff;
+
   @override
   State<ContentView> createState() => _ContentViewState();
 }
@@ -138,20 +157,40 @@ class _ContentViewState extends State<ContentView> {
   AssetCacheScope? _attachedScope;
   ContentKey? _attachedContent;
   AssetPreset? _attachedPreset;
-  bool _shown = true;
+  // Whether the tickers above are on.
+  bool _tickers = true;
+
+  // Whether the binding plays: tickers on and in view.
+  bool get _shown => _tickers && widget.inView;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _shown = TickerMode.valuesOf(context).enabled;
+    _tickers = TickerMode.valuesOf(context).enabled;
     _sync();
-    _binding!.visible = _shown;
+    _apply(_binding!);
   }
 
   @override
   void didUpdateWidget(ContentView oldWidget) {
     super.didUpdateWidget(oldWidget);
     _sync();
+    _apply(_binding!);
+  }
+
+  // A held binding stays visible; the hold goes first when it plays again,
+  // and comes last when it stops, so it is never hidden in between.
+  void _apply(AssetBinding binding) {
+    final held = widget.holdsWhileTickersOff && widget.inView && !_tickers;
+    if (held) {
+      binding
+        ..held = true
+        ..visible = true;
+    } else {
+      binding
+        ..visible = _shown
+        ..held = false;
+    }
   }
 
   @override
@@ -180,7 +219,8 @@ class _ContentViewState extends State<ContentView> {
       widget.content,
       widget.preset.spec,
       widget.preset.profile,
-    )..visible = _shown;
+    );
+    _apply(_binding!);
     previous?.detach();
   }
 

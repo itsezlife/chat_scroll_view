@@ -13,11 +13,17 @@ void main() {
   late listen.ValueNotifier<PanelVisibility> state;
   late PlaybackClock clock;
   late PanelPlaybackHold hold;
+  var keyboardUp = false;
 
   setUp(() {
+    keyboardUp = false;
     state = listen.ValueNotifier<PanelVisibility>(PanelVisibility.hidden);
     clock = PlaybackClock(ticks: ManualPlaybackTickSource());
-    hold = PanelPlaybackHold(presentation: state, clock: clock);
+    hold = PanelPlaybackHold(
+      presentation: state,
+      clock: clock,
+      keyboardIsUp: () => keyboardUp,
+    );
     addTearDown(() {
       hold.dispose();
       clock.dispose();
@@ -44,6 +50,43 @@ void main() {
       expect(moving(), isFalse);
     });
   }
+
+  test('a keyboard panel that takes the place of the keyboard, and gives it '
+      'back to the keyboard, stops nothing', () {
+    keyboardUp = true;
+    state.value = const PanelVisibility.showing(_keyboard);
+    // The keyboard goes down under the panel.
+    keyboardUp = false;
+    expect(clock.isPaused, isFalse);
+    state.value = const PanelVisibility.shown(_keyboard);
+    expect(clock.isPaused, isFalse);
+
+    state.value = const PanelVisibility.hiding(_keyboard, waitForIme: true);
+    expect(clock.isPaused, isFalse);
+    keyboardUp = true;
+    state.value = PanelVisibility.hidden;
+    expect(clock.isPaused, isFalse);
+  });
+
+  test('a keyboard panel that closes on its own, the keyboard down, stops '
+      'every animation while it moves', () {
+    keyboardUp = true;
+    state.value = const PanelVisibility.showing(_keyboard);
+    keyboardUp = false;
+    state.value = const PanelVisibility.shown(_keyboard);
+
+    state.value = const PanelVisibility.hiding(_keyboard);
+    expect(moving(), isTrue);
+    state.value = PanelVisibility.hidden;
+    expect(moving(), isFalse);
+  });
+
+  test('a panel that opens with the keyboard up but is not in its place '
+      'still stops every animation while it moves', () {
+    keyboardUp = true;
+    state.value = const PanelVisibility.showing(_popup);
+    expect(moving(), isTrue);
+  });
 
   test('the chat holds while a popup panel is on screen, and only then', () {
     expect(hold.chatHeld.value, isFalse);

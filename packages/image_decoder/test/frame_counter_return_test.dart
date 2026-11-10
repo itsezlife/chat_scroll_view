@@ -145,5 +145,36 @@ void main() {
         }
       });
     }
+
+    test('$fixture rewound mid-pass plays from frame 0, one frame of the '
+        'clip at a time', () async {
+      final paintable = await _decode(fixture);
+      addTearDown(paintable.dispose);
+      var time = const Duration(seconds: 1);
+      Future<int> frame() async {
+        time += const Duration(milliseconds: 16);
+        final index = await _indexAt(paintable, time);
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        return index;
+      }
+
+      int? left;
+      for (var i = 0; i < 40; i++) {
+        left = await frame();
+      }
+      expect(left, greaterThan(1), reason: 'the pass moved on');
+      paintable.rewind();
+      final shown = [for (var i = 0; i < 40; i++) await frame()];
+
+      expect(shown.first, 0, reason: 'shown: $shown');
+      for (var k = 1; k < shown.length; k++) {
+        expect(
+          shown[k] - shown[k - 1],
+          inInclusiveRange(0, 1),
+          reason: 'one frame at a time at display frame $k; shown: $shown',
+        );
+      }
+      expect(shown.last, greaterThan(left! ~/ 2), reason: 'shown: $shown');
+    });
   }
 }

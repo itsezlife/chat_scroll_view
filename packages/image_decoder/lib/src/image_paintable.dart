@@ -121,7 +121,9 @@ final class PlayingImagePaintable extends AssetPaintable {
   }) : _shown = first.image,
        _first = StillImagePaintable(first.image.clone(), template: template),
        _shownFor = _durationOf(first),
-       _template = template;
+       _firstFor = _durationOf(first),
+       _template = template,
+       _frameCount = _codec.frameCount;
 
   /// The shortest time a frame is shown; see the class documentation.
   static const Duration _shortestFrame = Duration(milliseconds: 10);
@@ -130,6 +132,10 @@ final class PlayingImagePaintable extends AssetPaintable {
   static const Duration _defaultFrame = Duration(milliseconds: 100);
 
   final ui.Codec _codec;
+  final int _frameCount;
+  // The index of the frame the codec decodes next: it wraps after the last.
+  int _codecAt = 1;
+  final Duration _firstFor;
   final bool _template;
   ui.Image _shown;
   // A second reference to the first frame's pixels, kept for [firstFrame]
@@ -208,6 +214,27 @@ final class PlayingImagePaintable extends AssetPaintable {
     _decodeAhead();
   }
 
+  /// Shows the first frame at once and plays on from it.
+  ///
+  /// The codec decodes forward only: the frames between where it is and the
+  /// second frame are decoded and dropped, and until the second frame lands
+  /// the first stays up, as a late decode keeps any frame up.
+  @override
+  void rewind() {
+    if (_disposed) return;
+    _holding = false;
+    _heldOnLast = false;
+    _ahead?.image.dispose();
+    _ahead = null;
+    _shown.dispose();
+    _shown = _first._image.clone();
+    _shownFor = _firstFor;
+    _index = 0;
+    _shownSince = null;
+    _shownBefore = Duration.zero;
+    _decodeAhead();
+  }
+
   @override
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
     if (context.animate) _advanceTo(context);
@@ -263,11 +290,17 @@ final class PlayingImagePaintable extends AssetPaintable {
       return;
     }
     _decoding = true;
+    final decoded = _codecAt;
+    _codecAt = (decoded + 1) % _frameCount;
     _codec.getNextFrame().then(
       (frame) {
         _decoding = false;
         if (_disposed) {
           frame.image.dispose();
+        } else if (decoded != (_index + 1) % _frameCount) {
+          // Decoded before a rewind: not the frame after the one shown.
+          frame.image.dispose();
+          _decodeAhead();
         } else {
           _ahead = frame;
         }

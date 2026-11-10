@@ -15,6 +15,7 @@ import 'package:panel_pages/src/pack_sheet/pack_sheet_drag.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_frame.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/preview/catalog_content_preview.dart';
+import 'package:panel_pages/src/preview/catalog_preview_mark.dart';
 import 'package:panel_pages/src/preview/content_preview_item.dart';
 import 'package:panel_pages/src/preview/content_preview_menu.dart';
 import 'package:panel_pages/src/preview/content_preview_session.dart';
@@ -179,6 +180,14 @@ class PackSheetView extends StatefulWidget {
 class _PackSheetViewState extends State<PackSheetView>
     with TickerProviderStateMixin {
   final _catalog = PanelCatalogController();
+  // The grid's cells under an open preview: none pressed, the shown one
+  // smaller.
+  late final _mark = CatalogPreviewMark(
+    leafAt: _catalog.leafAt,
+    onChanged: () {
+      if (mounted) setState(() {});
+    },
+  );
   final _snapshots = listen.ValueNotifier<CatalogSnapshot>(
     const CatalogSnapshot.empty(),
   );
@@ -262,6 +271,8 @@ class _PackSheetViewState extends State<PackSheetView>
     for (final list in _states) {
       list.removeListener(_changed);
     }
+    // Before the session: its closing would ask a defunct state to rebuild.
+    _mark.dispose();
     _session?.cancel();
     _scrolls.cancel().ignore();
     _routeAnimation?.removeStatusListener(_onRouteStatus);
@@ -425,6 +436,7 @@ class _PackSheetViewState extends State<PackSheetView>
           controller: preview.controller,
           itemAt: _itemAt(preview),
         ),
+        hit,
       );
       return;
     }
@@ -470,14 +482,20 @@ class _PackSheetViewState extends State<PackSheetView>
   }
 
   ContentPreviewItem? Function(Offset) _itemAt(CatalogContentPreview preview) =>
-      (global) => switch (_catalog.leafAt(global)) {
+      (global) => switch (_mark.leafAt(global)) {
         final hit? => preview.itemOf(hit),
         null => null,
       };
 
-  void _replaceSession(ContentPreviewSession? session) {
+  void _replaceSession(ContentPreviewSession? session, [CatalogLeafHit? hit]) {
     _session?.cancel();
     _session = session;
+    switch ((session, hit)) {
+      case (final session?, final hit?):
+        _mark.follow(session, hit);
+      case _:
+        _mark.clear();
+    }
   }
 
   // A right-click on a sticker opens the preview's items as a context menu,
@@ -516,7 +534,8 @@ class _PackSheetViewState extends State<PackSheetView>
     final preview = _preview;
     if (preview == null) return;
     _replaceSession(
-      preview.begin(context, hit, kind: _lastKind, leafAt: _catalog.leafAt),
+      preview.begin(context, hit, kind: _lastKind, leafAt: _mark.leafAt),
+      hit,
     );
   }
 
@@ -587,6 +606,7 @@ class _PackSheetViewState extends State<PackSheetView>
               onLeafLongPressStart: _onLongPressStart,
               onLeafLongPressMove: (_, details) => _session?.update(details),
               onLeafLongPressEnd: (_, details) => _session?.end(details),
+              leafPreview: _mark.value,
               overscrollSink: sheetDrag,
             ),
           );

@@ -31,6 +31,7 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_painter.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_pointer.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_press.dart';
+import 'package:panel_catalog/src/viewport/catalog_leaf_preview.dart';
 import 'package:panel_catalog/src/viewport/catalog_near_scroll.dart';
 import 'package:panel_catalog/src/viewport/catalog_overscroll_sink.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_physics.dart';
@@ -518,6 +519,46 @@ class RenderPanelCatalog extends RenderBox
     _pinnedLeaf = value;
     markNeedsPaint();
   }
+
+  /// The content preview open over the grid, or null; see
+  /// [CatalogLeafPreview].
+  CatalogLeafPreview? _leafPreview;
+  set leafPreview(CatalogLeafPreview? value) {
+    if (_leafPreview == value) return;
+    final opened = _leafPreview == null && value != null;
+    _leafPreview = value;
+    final shrunk = value?.shrunk;
+    // The held cell goes on from the scale its press reached, with no wash:
+    // the press is over for this grid once a preview is up.
+    final press = _press;
+    final from = switch ((press, shrunk)) {
+      (final press?, final shrunk?) when _isPressedCell(press, shrunk) =>
+        press.scale,
+      _ => 1.0,
+    };
+    if (opened) {
+      _clearPressPointerRoute();
+      press?.cancel();
+    }
+    _previewScale?.shrink(shrunk, from: from);
+    markNeedsPaint();
+  }
+
+  bool _isPressedCell(CatalogLeafPress press, CatalogLeafHit cell) {
+    final key = press.pressedSlotKey;
+    if (key == null) return false;
+    for (final slot in _slots) {
+      if (slot case CatalogLeafSlot(
+        :final sectionId,
+        :final index,
+      ) when sectionId == cell.sectionId && index == cell.index) {
+        return slot.key == key;
+      }
+    }
+    return false;
+  }
+
+  CatalogLeafPreviewScale? _previewScale;
 
   /// Shell long-press start. Null disables the long-press recognizer.
   void Function(CatalogLeafHit hit, LongPressStartDetails details)?
@@ -1378,6 +1419,10 @@ class RenderPanelCatalog extends RenderBox
     _snapshots.addListener(_onDataChanged);
     _pressTickers = CatalogPressTickerProvider();
     _press = CatalogLeafPress(vsync: _pressTickers!, onChanged: markNeedsPaint);
+    _previewScale = CatalogLeafPreviewScale(
+      vsync: _pressTickers!,
+      onChanged: markNeedsPaint,
+    )..shrink(_leafPreview?.shrunk, from: CatalogLeafPreview.shrunkScale);
     _nearScroll = CatalogNearScroll(
       vsync: _pressTickers!,
       onTick: () {
@@ -1437,6 +1482,8 @@ class RenderPanelCatalog extends RenderBox
     _projectedWidth = -1;
     _press?.dispose();
     _press = null;
+    _previewScale?.dispose();
+    _previewScale = null;
     _pressTickers?.dispose();
     _pressTickers = null;
     super.detach();
@@ -1485,6 +1532,8 @@ class RenderPanelCatalog extends RenderBox
     _stopBakeActivity();
     _press?.dispose();
     _press = null;
+    _previewScale?.dispose();
+    _previewScale = null;
     _pressTickers?.dispose();
     _pressTickers = null;
     _releasePending = false;
@@ -2327,19 +2376,23 @@ class RenderPanelCatalog extends RenderBox
         // pressed cell instead, until it is released.
         final quiet =
             _paintTheme.leafPressFeedback == CatalogPressFeedback.none;
-        final drawnPressed = isPressed && !quiet;
+        // Under an open preview no cell is pressed or hovered; the one it
+        // shows is drawn smaller.
+        final previewing = _leafPreview != null;
+        final drawnPressed = isPressed && !quiet && !previewing;
+        final previewScale = _previewScale?.scaleOf(leaf.sectionId, leaf.index);
         _painter.paintLeaf(
           canvas: canvas,
           origin: origin,
           slot: leaf,
           bound: _pool.boundFor(leaf),
-          pressScale: drawnPressed ? pressScale : 1.0,
+          pressScale: drawnPressed ? pressScale : previewScale ?? 1.0,
           pressProgress: drawnPressed ? pressProgress : 0,
           focused:
               focus != null &&
               focus.index == leaf.index &&
               focus.sectionId == leaf.sectionId,
-          hovered: (isPressed && quiet) || _isHovered(leaf),
+          hovered: !previewing && ((isPressed && quiet) || _isHovered(leaf)),
         );
       case final CatalogSkeletonSlot skeleton:
         _painter.paintSkeleton(canvas: canvas, origin: origin, slot: skeleton);

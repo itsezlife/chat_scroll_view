@@ -7,6 +7,7 @@ library;
 
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
@@ -187,6 +188,28 @@ void main() {
       rig.set.cancelEdit();
       await tester.pump(_debounce);
 
+      expect(_drafts(), isEmpty);
+    });
+
+    testWidgets('the message being edited deleted ends the edit, empties the '
+        'composer and leaves no edit draft', (tester) async {
+      await boot(tester);
+      final rig = await _open(tester);
+      final messages = GeneratedChatDataSource(messageCount: 40);
+      addTearDown(messages.dispose);
+      rig.set.bindMessages(messages);
+      rig.set.beginEdit(17, 'make it **loud**');
+      await tester.pump(_debounce);
+
+      messages.removeMessages([3]);
+      await tester.pump();
+      expect(rig.set.editing.value?.id, 17, reason: 'another message went');
+
+      messages.removeMessages([17]);
+      await tester.pump(_debounce);
+
+      expect(rig.set.editing.value, isNull);
+      expect(rig.set.composer.text.text, isEmpty);
       expect(_drafts(), isEmpty);
     });
 
