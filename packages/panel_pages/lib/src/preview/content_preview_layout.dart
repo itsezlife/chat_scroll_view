@@ -23,6 +23,12 @@ import 'package:panel_pages/src/preview/content_preview_item.dart';
 /// - **Emoji.** Its line begins [emojiGap] above the square, [emojiWidth]
 ///   wide, centred.
 /// - **Menu.** Centred across, its top [menuGap] below the square.
+///
+/// Under a pointer (a desktop) the preview has its own sizes, whatever the
+/// window: a sticker or custom emoji is a square of [pointerSide], a GIF is
+/// fitted to its proportions inside a square of twice that, up or down, and
+/// the square is in the middle of the window. A window smaller than the box
+/// takes it down to `M`.
 @immutable
 final class ContentPreviewLayout {
   /// The layout in a window of [window] size with [padding] (its top and
@@ -36,9 +42,18 @@ final class ContentPreviewLayout {
     bool emoji = false,
     double swipe = 0,
     double keyboardHeight = defaultKeyboardHeight,
+    bool pointer = false,
   }) {
     final insets = padding.top + padding.bottom;
     final m = math.min(window.width, window.height - insets);
+    if (pointer) {
+      return ContentPreviewLayout._pointer(
+        window: window,
+        kind: kind,
+        contentSize: contentSize,
+        m: m,
+      );
+    }
     final side = switch (kind) {
       ContentPreviewKind.gif => m - gifInset,
       ContentPreviewKind.sticker || ContentPreviewKind.customEmoji => m / 1.8,
@@ -75,6 +90,43 @@ final class ContentPreviewLayout {
     );
   }
 
+  factory ContentPreviewLayout._pointer({
+    required Size window,
+    required ContentPreviewKind kind,
+    required ContentSize? contentSize,
+    required double m,
+  }) {
+    final side = math.min(m, switch (kind) {
+      ContentPreviewKind.gif => 2 * pointerSide,
+      ContentPreviewKind.sticker ||
+      ContentPreviewKind.customEmoji => pointerSide,
+    });
+    final center = window.center(Offset.zero);
+    final square = Rect.fromCenter(center: center, width: side, height: side);
+    final extent = switch ((kind, contentSize)) {
+      (ContentPreviewKind.gif, ContentSize(:final width, :final height))
+          when width > 0 && height > 0 =>
+        _fit(side, width / height),
+      _ => Size.square(side),
+    };
+    return ContentPreviewLayout._(
+      square: square,
+      content: Rect.fromCenter(
+        center: center,
+        width: extent.width,
+        height: extent.height,
+      ),
+      extent: extent,
+      emoji: Rect.fromLTWH(
+        window.width / 2 - emojiWidth / 2,
+        square.top - emojiGap,
+        emojiWidth,
+        emojiGap,
+      ),
+      menuTop: square.bottom + menuGap,
+    );
+  }
+
   const ContentPreviewLayout._({
     required this.square,
     required this.content,
@@ -82,6 +134,9 @@ final class ContentPreviewLayout {
     required this.emoji,
     required this.menuTop,
   });
+
+  /// The side of a sticker's or custom emoji's square under a pointer: 224.
+  static const double pointerSide = 224;
 
   /// `M - 40`: how much narrower than `M` a GIF is.
   static const double gifInset = 40;
