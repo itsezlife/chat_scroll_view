@@ -4,6 +4,8 @@ import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pa
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/message_menu_chrome.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
@@ -61,6 +63,8 @@ ChatMessageMenuRequest _request({
   inlineHit: inlineHit,
 );
 
+const _tap = Offset(500, 300);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -92,12 +96,15 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => menu.present(context, request),
-              child: const Text('Open'),
+      ChromeThemeScope(
+        palette: const ChromePalette.dark(),
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => menu.present(context, request),
+                child: const Text('Open'),
+              ),
             ),
           ),
         ),
@@ -135,12 +142,16 @@ void main() {
         },
       );
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => menu.present(context, _request(messageId: 1)),
-                child: const Text('Open'),
+        ChromeThemeScope(
+          palette: const ChromePalette.dark(),
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () =>
+                      menu.present(context, _request(messageId: 1)),
+                  child: const Text('Open'),
+                ),
               ),
             ),
           ),
@@ -568,5 +579,112 @@ void main() {
         isNot(contains(MessageMenuActionId.addFavourite)),
       );
     });
+  });
+
+  group('the Android message menu', () {
+    // A long press at [tap] on a one-message chat, under the app's chrome
+    // theme (tests run as Android).
+    Future<void> open(WidgetTester tester, {Offset tap = _tap}) async {
+      final dataSource = _OneMessageSource();
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
+      addTearDown(dataSource.dispose);
+      addTearDown(selection.dispose);
+      final menu = MessageMenu(
+        dataSource: dataSource,
+        selection: selection,
+        actions: MessageMenuActions(onDelete: (_) {}, onEdit: (_) {}),
+        clipboard: FakeRichClipboard(),
+      );
+      await tester.pumpWidget(
+        ChromeThemeScope(
+          palette: const ChromePalette.dark(),
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => menu.present(
+                    context,
+                    ChatMessageMenuRequest(
+                      messageId: 1,
+                      slotGlobal: Rect.fromLTWH(0, tap.dy - 30, 800, 80),
+                      tapGlobal: tap,
+                    ),
+                  ),
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    Rect cardRect(WidgetTester tester) =>
+        tester.getRect(find.byType(ChatMessageMenuCard).first);
+
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+    }
+
+    testWidgets('its card is the scrim menu glass, its rows the chrome\'s: '
+        '48 tall, label 43 after the icon\'s start, 18 in', (tester) async {
+      await open(tester);
+
+      final card = find.byType(ChatMessageMenuCard).first;
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is GlassSurface &&
+                widget.material == GlassMaterial.scrimMenu,
+          ),
+        ),
+        findsOneWidget,
+      );
+      final row = find.ancestor(
+        of: find.text('Copy'),
+        matching: find.byType(MessageMenuRow),
+      );
+      expect(tester.getSize(row).height, 48);
+      expect(
+        tester.getTopLeft(find.text('Copy')).dx - tester.getTopLeft(row).dx,
+        18 + 43,
+      );
+      expect(tester.getSize(card).width, greaterThanOrEqualTo(200));
+    });
+
+    testWidgets('it blooms from its top right corner with its reaction '
+        'strip, and its card ends 64 left of the press', (tester) async {
+      await open(tester);
+
+      final appear = tester.widget<ChromeAppear>(find.byType(ChromeAppear));
+      expect(appear.motion, const AppearMotion.bloom());
+      expect(appear.origin, Alignment.topRight);
+      final card = tester.getRect(find.byType(ChatMessageMenuCard).first);
+      expect(card.right, closeTo(_tap.dx - 64, 0.01));
+    });
+
+    for (final (name, at) in <(String, Offset Function(Rect card))>[
+      ('left of it', (card) => card.centerLeft - const Offset(8, 0)),
+      ('at the screen edge', (card) => Offset(2, card.center.dy)),
+      ('right of it', (card) => card.centerRight + const Offset(8, 0)),
+    ]) {
+      testWidgets('a press $name dismisses it', (tester) async {
+        await open(tester);
+        expect(find.text('Copy'), findsOneWidget);
+
+        await tester.tapAt(at(cardRect(tester)));
+        await settle(tester);
+        expect(find.text('Copy'), findsNothing);
+      });
+    }
   });
 }

@@ -3,13 +3,13 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart'
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_emoji_packs.dart';
-import 'package:chrome_foundation/chrome_foundation.dart'
-    show AppearMotion, ChromeAppear;
+import 'package:chat_scroll_view_example/src/features/chat/widgets/message_menu_chrome.dart';
 import 'package:content_model/content_model.dart' as model show RichText;
 import 'package:content_model/content_model.dart'
     show ContentKey, LibraryEdit, PackId, RichClipboard;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 /// Builds rows for a [ChatMessageMenuRequest] under a **selection policy**.
 typedef MessageMenuItemsBuilder =
@@ -642,6 +642,8 @@ final class MessageMenu {
       final content = request.membership == ChatMessageMenuMembership.idle
           ? contentOf?.call(request.messageId)
           : null;
+      final presentation = ChatMessageMenuPresentation.forPolicy(policy);
+      final surfaceBuilder = MessageMenuChrome.surfaceBuilderFor(presentation);
 
       final result = await ChatMessageMenu.show(
         context: context,
@@ -669,24 +671,16 @@ final class MessageMenu {
               packs: packs,
               source: emojiPacks.source,
               onTap: () => slots.onSelectItem(MessageMenuActionId.emojiPacks),
+              surfaceBuilder: surfaceBuilder,
             ),
           ),
           _ => null,
         },
-        // The chrome's appear motion, as every other menu and overlay of
-        // the app: a popup grows from the pointer, a sheet plays the
-        // platform's.
-        transitionBuilder: (context, transition, menu) => ChromeAppear(
-          visible: transition.visible,
-          onHidden: transition.onHidden,
-          motion: switch (transition.presentation) {
-            ChatMessageMenuPresentation.popup => const AppearMotion.grow(),
-            ChatMessageMenuPresentation.sheet => null,
-          },
-          origin: transition.origin,
-          rows: transition.rows,
-          child: menu,
-        ),
+        // The chrome's rows, surface and appear motion, as every other menu
+        // and overlay of the app moves (MessageMenuChrome).
+        itemBuilder: MessageMenuChrome.itemBuilderFor(presentation),
+        surfaceBuilder: surfaceBuilder,
+        transitionBuilder: MessageMenuChrome.transition,
         presence: _ChatDataSourceListenable(dataSource),
         isPresent: () => dataSource.getMessage(request.messageId) != null,
       );
@@ -860,6 +854,9 @@ final class _ChatDataSourceListenable implements Listenable {
 
 /// The default menu column with the contains-emoji entry under the action
 /// card, 8 px apart.
+///
+/// As wide as the column: the entry wraps its text to the card's width and
+/// does not widen the menu.
 class _WithEmojiPacks extends StatelessWidget {
   const _WithEmojiPacks({required this.slots, required this.button});
 
@@ -867,19 +864,40 @@ class _WithEmojiPacks extends StatelessWidget {
   final Widget button;
 
   @override
-  Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      ChatMessageMenuColumn(slots: slots),
-      const SizedBox(height: 8),
-      Padding(
-        padding: const EdgeInsets.only(
-          left: ChatMessageMenuReactions.startOverhang,
-          right: ChatMessageMenuReactions.endOverhang,
+  Widget build(BuildContext context) => IntrinsicWidth(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ChatMessageMenuColumn(slots: slots),
+        const SizedBox(height: 8),
+        _NoIntrinsicWidth(
+          child: Padding(
+            padding: const EdgeInsets.only(
+              left: ChatMessageMenuReactions.startOverhang,
+              right: ChatMessageMenuReactions.endOverhang,
+            ),
+            child: button,
+          ),
         ),
-        child: button,
-      ),
-    ],
+      ],
+    ),
   );
+}
+
+/// Reports no intrinsic width, so [child] takes the width the others set.
+class _NoIntrinsicWidth extends SingleChildRenderObjectWidget {
+  const _NoIntrinsicWidth({required super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderNoIntrinsicWidth();
+}
+
+class _RenderNoIntrinsicWidth extends RenderProxyBox {
+  @override
+  double computeMinIntrinsicWidth(double height) => 0;
+
+  @override
+  double computeMaxIntrinsicWidth(double height) => 0;
 }

@@ -10,6 +10,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_emoji_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' show Pack, PackId, PackKind;
 import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
@@ -67,20 +68,23 @@ void main() {
       emojiPacks: MessageEmojiPacks(of: (_) => packs, source: source),
     );
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => menu.present(
-                context,
-                ChatMessageMenuRequest(
-                  messageId: 1,
-                  slotGlobal: const Rect.fromLTWH(0, 100, 300, 40),
-                  tapGlobal: const Offset(10, 110),
-                  membership: membership,
+      ChromeThemeScope(
+        palette: const ChromePalette.dark(),
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => menu.present(
+                  context,
+                  ChatMessageMenuRequest(
+                    messageId: 1,
+                    slotGlobal: const Rect.fromLTWH(0, 100, 300, 40),
+                    tapGlobal: const Offset(10, 110),
+                    membership: membership,
+                  ),
                 ),
+                child: const Text('Open'),
               ),
-              child: const Text('Open'),
             ),
           ),
         ),

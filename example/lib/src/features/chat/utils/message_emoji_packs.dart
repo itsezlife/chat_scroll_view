@@ -35,6 +35,7 @@ class MessageContainsEmojiButton extends StatefulWidget {
     required this.packs,
     required this.source,
     required this.onTap,
+    this.surfaceBuilder,
     super.key,
   });
 
@@ -46,6 +47,9 @@ class MessageContainsEmojiButton extends StatefulWidget {
 
   /// Opens the packs.
   final VoidCallback onTap;
+
+  /// The surface of the entry's card, or null for the package card.
+  final ChatMessageMenuSurfaceBuilder? surfaceBuilder;
 
   /// The words before the name or count.
   static const String lead = 'This message contains emoji from ';
@@ -126,17 +130,22 @@ class _MessageContainsEmojiButtonState
       ),
     };
     return ChatMessageMenuCard(
-      child: InkWell(
-        onTap: widget.onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-          child: Text.rich(
-            TextSpan(
-              style: style,
-              children: [
-                const TextSpan(text: MessageContainsEmojiButton.lead),
-                named,
-              ],
+      surfaceBuilder: widget.surfaceBuilder,
+      // Its own ink layer: a host surface is not a Material.
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: widget.onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+            child: Text.rich(
+              TextSpan(
+                style: style,
+                children: [
+                  const TextSpan(text: MessageContainsEmojiButton.lead),
+                  named,
+                ],
+              ),
             ),
           ),
         ),

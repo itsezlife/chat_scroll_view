@@ -19,6 +19,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_d
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind, kSecondaryButton;
@@ -378,20 +379,23 @@ void main() {
         ),
       );
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => menu.present(
-                  context,
-                  const ChatMessageMenuRequest(
-                    messageId: 1,
-                    slotGlobal: Rect.fromLTWH(0, 100, 400, 80),
-                    tapGlobal: Offset(140, 130),
-                    membership: ChatMessageMenuMembership.uponSelected,
+        ChromeThemeScope(
+          palette: const ChromePalette.dark(),
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => menu.present(
+                    context,
+                    const ChatMessageMenuRequest(
+                      messageId: 1,
+                      slotGlobal: Rect.fromLTWH(0, 100, 400, 80),
+                      tapGlobal: Offset(140, 130),
+                      membership: ChatMessageMenuMembership.uponSelected,
+                    ),
                   ),
+                  child: const Text('Open'),
                 ),
-                child: const Text('Open'),
               ),
             ),
           ),
