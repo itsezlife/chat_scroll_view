@@ -994,7 +994,9 @@ void main() {
       expect(find.text('👍'), findsNothing);
     });
 
-    testWidgets('popup origin follows the pointer X', (tester) async {
+    testWidgets('a popup opens 5 right of the pointer, below it', (
+      tester,
+    ) async {
       const tap = Offset(220, 140);
       await _openMenu(
         tester,
@@ -1003,9 +1005,10 @@ void main() {
         tapGlobal: tap,
       );
 
-      final menuLeft = tester.getTopLeft(find.byType(ChatMessageMenuColumn)).dx;
-      expect(menuLeft, closeTo(tap.dx, 1));
-      expect(menuLeft, isNot(ChatMessageMenuPlacement.edgeInset));
+      expect(
+        tester.getTopLeft(find.byType(ChatMessageMenuColumn)),
+        tap + const Offset(5, 0),
+      );
     });
   });
 }

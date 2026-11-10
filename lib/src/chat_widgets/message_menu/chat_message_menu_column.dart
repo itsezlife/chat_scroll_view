@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 ///
 /// The column takes the width of its widest piece: the strip, or the action
 /// card (as wide as its widest row) with the strip's overhangs beside it.
+/// Without a strip it is the card alone.
 class ChatMessageMenuColumn extends StatelessWidget {
   /// Creates the default chrome column.
   const ChatMessageMenuColumn({required this.slots, super.key});
@@ -24,10 +25,12 @@ class ChatMessageMenuColumn extends StatelessWidget {
           const SizedBox(height: ChatMessageMenuReactions.gap),
         ],
         Padding(
-          padding: const EdgeInsets.only(
-            left: ChatMessageMenuReactions.startOverhang,
-            right: ChatMessageMenuReactions.endOverhang,
-          ),
+          padding: slots.reactions.isEmpty
+              ? EdgeInsets.zero
+              : const EdgeInsets.only(
+                  left: ChatMessageMenuReactions.startOverhang,
+                  right: ChatMessageMenuReactions.endOverhang,
+                ),
           child: slots.actionList,
         ),
       ],
