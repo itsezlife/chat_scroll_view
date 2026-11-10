@@ -197,6 +197,18 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
         onSelect: (id) => _close(ChatMessageMenuResult.item(id)),
         itemBuilder: config.itemBuilder,
         surfaceBuilder: config.surfaceBuilder,
+        // A popup's card is as wide as the desktop pointer menu allows.
+        minWidth: switch (config.presentation) {
+          ChatMessageMenuPresentation.sheet =>
+            ChatMessageMenuCard.defaultMinWidth,
+          ChatMessageMenuPresentation.popup =>
+            ChatMessageMenuCard.popupMinWidth,
+        },
+        maxWidth: switch (config.presentation) {
+          ChatMessageMenuPresentation.sheet => double.infinity,
+          ChatMessageMenuPresentation.popup =>
+            ChatMessageMenuCard.popupMaxWidth,
+        },
       ),
       reactionStrip: config.reactions.isEmpty
           ? const SizedBox.shrink()

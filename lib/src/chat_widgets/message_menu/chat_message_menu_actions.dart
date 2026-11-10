@@ -28,6 +28,12 @@ class ChatMessageMenuCard extends StatelessWidget {
   /// Minimum width for the action card (logical px).
   static const double defaultMinWidth = 200;
 
+  /// Minimum width of a popup's card: the desktop pointer menu's.
+  static const double popupMinWidth = 156;
+
+  /// Maximum width of a popup's card: the desktop pointer menu's.
+  static const double popupMaxWidth = 300;
+
   /// Maximum width of the reactions strip.
   static const double defaultMaxWidth = 280;
 
@@ -126,8 +132,16 @@ class ChatMessageMenuActionList extends StatelessWidget {
     required this.onSelect,
     this.itemBuilder,
     this.surfaceBuilder,
+    this.minWidth = ChatMessageMenuCard.defaultMinWidth,
+    this.maxWidth = double.infinity,
     super.key,
   });
+
+  /// The narrowest the card is.
+  final double minWidth;
+
+  /// The widest the card is.
+  final double maxWidth;
 
   /// Rows to show.
   final List<ChatMessageMenuItem> items;
@@ -154,6 +168,8 @@ class ChatMessageMenuActionList extends StatelessWidget {
 
     return ChatMessageMenuCard(
       surfaceBuilder: surfaceBuilder,
+      minWidth: minWidth,
+      maxWidth: maxWidth,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -812,6 +812,37 @@ void main() {
       expect(find.text('Edit'), findsNothing);
     });
 
+    testWidgets('a popup card is 156 at least and 300 at most', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        presentation: ChatMessageMenuPresentation.popup,
+        reactions: const <String>[],
+        items: const <ChatMessageMenuItem>[
+          ChatMessageMenuItem(id: 'a', label: 'Copy', icon: Icons.copy),
+        ],
+      );
+      expect(tester.getSize(find.byType(ChatMessageMenuCard)).width, 156);
+    });
+
+    testWidgets('a popup card ellipsizes past 300', (tester) async {
+      const long = 'A label far longer than any desktop menu allows, and more';
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        presentation: ChatMessageMenuPresentation.popup,
+        reactions: const <String>[],
+        items: const <ChatMessageMenuItem>[
+          ChatMessageMenuItem(id: 'a', label: long, icon: Icons.copy),
+        ],
+      );
+      expect(tester.getSize(find.byType(ChatMessageMenuCard)).width, 300);
+      expect(
+        tester.renderObject<RenderParagraph>(find.text(long)).didExceedMaxLines,
+        isTrue,
+      );
+    });
+
     testWidgets('popup presentation omits the scrim', (tester) async {
       await _openMenu(
         tester,

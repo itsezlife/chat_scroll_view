@@ -10,9 +10,8 @@ import 'package:flutter/widgets.dart';
 /// on the scrim menu glass ([GlassMaterial.scrimMenu]), and comes up by the
 /// bloom when it has a reaction strip and by the pop when it has none, from
 /// its top right corner (it hangs left of the press). On a desktop a popup
-/// takes the same rows, in the pointer menu's colours, on a solid card of the
-/// pointer menu's shape ([desktopSurface]), and grows from the corner at the
-/// pointer. Elsewhere the rows and the card are the package's and a sheet
+/// takes the pointer menu's rows with icons ([MessageMenuPointerRow]) on its
+/// solid card ([desktopSurface]), and grows from the corner at the pointer. Elsewhere the rows and the card are the package's and a sheet
 /// plays the platform's appear motion.
 abstract final class MessageMenuChrome {
   /// Whether a menu of [presentation] takes the Android chrome on this
@@ -35,7 +34,7 @@ abstract final class MessageMenuChrome {
       (context, item, onSelect) => MessageMenuRow(item: item, onTap: onSelect),
     _ when isDesktopPopup(presentation) =>
       (context, item, onSelect) =>
-          MessageMenuRow.pointer(context, item: item, onTap: onSelect),
+          MessageMenuPointerRow(item: item, onTap: onSelect),
     _ => null,
   };
 
@@ -61,10 +60,10 @@ abstract final class MessageMenuChrome {
     child: AppearContent(child: child),
   );
 
-  /// The desktop card around [child]: the pointer menu's background,
+  /// The desktop card around [child]: the pointer menu's background and
   /// corners ([PointerMenuMetrics.cornerRadius], whatever [cornerRadius]
-  /// says) and padding above and below the rows
-  /// ([PointerMenuMetrics.verticalPadding]). Its shadow is drawn by the
+  /// says), and the padding above and below the rows of a menu with icons
+  /// ([MessageMenuPointerRow.menuPadding]). Its shadow is drawn by the
   /// appear motion under its frame ([desktopShadowsOf]).
   static Widget desktopSurface(
     BuildContext context,
@@ -78,7 +77,7 @@ abstract final class MessageMenuChrome {
         color: tokens.background,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            vertical: PointerMenuMetrics.verticalPadding,
+            vertical: MessageMenuPointerRow.menuPadding,
           ),
           child: child,
         ),
@@ -134,42 +133,13 @@ abstract final class MessageMenuChrome {
   }
 }
 
-/// One action row of the message menu: 48 tall, its icon (24) at the start
-/// 18 in, its label 43 after the icon's start in the regular face at 16, one
-/// line; a disabled row is drawn at half opacity. The press feedback is the
-/// platform's ([ChromeInk]).
-///
-/// Its colours are the palette's (the Android menu's) unless given: the
-/// desktop menu ([MessageMenuRow.pointer]) takes the pointer menu's.
+/// One action row of the Android message menu: 48 tall, its icon (24) at the
+/// start 18 in, its label 43 after the icon's start in the regular face at
+/// 16, one line; a disabled row is drawn at half opacity. The press feedback
+/// is the platform's ([ChromeInk]).
 class MessageMenuRow extends StatelessWidget {
   /// A row for [item], chosen by [onTap] (null when the item is disabled).
-  const MessageMenuRow({
-    required this.item,
-    required this.onTap,
-    this.labelColor,
-    this.iconColor,
-    this.inkColor,
-    this.hoverColor,
-    super.key,
-  });
-
-  /// A row in the pointer menu's colours of [context]: its text, its hint
-  /// colour for the icon, its ripple and its hover fill.
-  factory MessageMenuRow.pointer(
-    BuildContext context, {
-    required ChatMessageMenuAction item,
-    required VoidCallback? onTap,
-  }) {
-    final tokens = ChromeThemeScope.pointerMenuOf(context);
-    return MessageMenuRow(
-      item: item,
-      onTap: onTap,
-      labelColor: tokens.text,
-      iconColor: tokens.hint,
-      inkColor: tokens.ripple,
-      hoverColor: tokens.backgroundOver,
-    );
-  }
+  const MessageMenuRow({required this.item, required this.onTap, super.key});
 
   /// The row's height.
   static const double height = 48;
@@ -195,27 +165,11 @@ class MessageMenuRow extends StatelessWidget {
   /// Chooses the action.
   final VoidCallback? onTap;
 
-  /// The label's colour, or null for the palette's.
-  final Color? labelColor;
-
-  /// The icon's colour, or null for the palette's.
-  final Color? iconColor;
-
-  /// The press feedback's colour, or null for the palette's.
-  final Color? inkColor;
-
-  /// The fill under a hovering mouse, or null for none.
-  final Color? hoverColor;
-
   @override
   Widget build(BuildContext context) {
     final palette = ChromeThemeScope.paletteOf(context);
-    final label = item.isDestructive
-        ? palette.destructive
-        : labelColor ?? palette.onSurface;
-    final icon = item.isDestructive
-        ? palette.destructive
-        : iconColor ?? palette.iconIdle;
+    final label = item.isDestructive ? palette.destructive : palette.onSurface;
+    final icon = item.isDestructive ? palette.destructive : palette.iconIdle;
     return Semantics(
       button: true,
       enabled: item.enabled,
@@ -224,8 +178,7 @@ class MessageMenuRow extends StatelessWidget {
       child: Opacity(
         opacity: item.enabled ? 1 : disabledOpacity,
         child: ChromeInk(
-          color: inkColor ?? palette.onSurface.withAlpha(0x0F),
-          hoverColor: hoverColor,
+          color: palette.onSurface.withAlpha(0x0F),
           onTap: item.enabled ? onTap : null,
           child: SizedBox(
             height: height,
@@ -254,6 +207,111 @@ class MessageMenuRow extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One action row of the desktop message menu: the pointer menu's row with
+/// an icon.
+///
+/// Its label is set in the pointer menu's face at
+/// [PointerMenuMetrics.fontSize], [labelPadding] around it, so the row is
+/// the font's line height and 16 more; the icon ([iconSize]) sits at
+/// [iconOffset] from the row's top start. Text and fill are the pointer
+/// menu's ([PointerMenuTokens]): its text at rest, its over text on the over
+/// fill under the mouse, its disabled text; the icon in [PointerMenuTokens.
+/// arrow], the menu's bold colour. A destructive row takes the palette's
+/// destructive colour for both. The press is the pointer ripple
+/// ([ChromeInk], in [PointerMenuTokens.ripple]).
+class MessageMenuPointerRow extends StatefulWidget {
+  /// A row for [item], chosen by [onTap] (null when the item is disabled).
+  const MessageMenuPointerRow({
+    required this.item,
+    required this.onTap,
+    super.key,
+  });
+
+  /// The padding around the label.
+  static const EdgeInsetsDirectional labelPadding =
+      EdgeInsetsDirectional.fromSTEB(54, 8, 17, 8);
+
+  /// Where the icon's top start corner is in the row.
+  static const Offset iconOffset = Offset(15, 5);
+
+  /// The icon's size.
+  static const double iconSize = 24;
+
+  /// The padding above the first row and below the last of a menu with
+  /// icons.
+  static const double menuPadding = 5;
+
+  /// The action.
+  final ChatMessageMenuAction item;
+
+  /// Chooses the action.
+  final VoidCallback? onTap;
+
+  @override
+  State<MessageMenuPointerRow> createState() => _MessageMenuPointerRowState();
+}
+
+class _MessageMenuPointerRowState extends State<MessageMenuPointerRow> {
+  var _over = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    final tokens = ChromeThemeScope.pointerMenuOf(context);
+    final palette = ChromeThemeScope.paletteOf(context);
+    final enabled = item.enabled;
+    final over = enabled && _over;
+    final label = switch ((enabled, item.isDestructive)) {
+      (false, _) => tokens.textDisabled,
+      (true, true) => palette.destructive,
+      (true, false) => over ? tokens.textOver : tokens.text,
+    };
+    final icon = item.isDestructive ? palette.destructive : tokens.arrow;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: item.label,
+      excludeSemantics: true,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _over = true),
+        onExit: (_) => setState(() => _over = false),
+        child: ChromeInk(
+          kind: ChromeInkKind.pointer,
+          color: tokens.ripple,
+          hoverColor: tokens.backgroundOver,
+          onTap: enabled ? widget.onTap : null,
+          child: Stack(
+            children: [
+              PositionedDirectional(
+                start: MessageMenuPointerRow.iconOffset.dx,
+                top: MessageMenuPointerRow.iconOffset.dy,
+                child: Icon(
+                  item.icon,
+                  size: MessageMenuPointerRow.iconSize,
+                  color: enabled ? icon : tokens.textDisabled,
+                ),
+              ),
+              Padding(
+                padding: MessageMenuPointerRow.labelPadding,
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: ChromeTypography.of(context).copyWith(
+                    fontSize: PointerMenuMetrics.fontSize,
+                    color: label,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
