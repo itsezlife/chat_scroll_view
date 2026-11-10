@@ -16,6 +16,7 @@ carry the frames as before.
 **Amended**: 2026-11-10 (native-media ticket 144): a texture given back on leaving keeps its frame for its asset, which takes it back and shows it at once; a video clip continues on its next lease (section *Amendment: a cell that comes back keeps its frame*)
 **Amended**: 2026-11-10 (native-media ticket 148): a cell that comes back goes on from its own frame at once: a video clip keeps its decoded-ahead frames, a Lottie lease does not render its kept frame again, a playing image keeps the time its frame was up (section *Amendment: a cell that comes back goes on at once*)
 **Amended**: 2026-11-10 (native-media ticket 150): a video clip goes on from where it left only with its decoded-ahead frames and its frame shown at once; otherwise it starts over; the kept-ahead budget is 24 MiB; a texture not shown yet is posted its frame again (section *Amendment: a clip that cannot go on smoothly starts over*)
+**Amended**: 2026-11-10 (native-media ticket 151): the idle sweep releases no lease while the clock is paused, so a pause no longer sends every texture on screen through the kept-frame path ([ADR 022](022-asset-cache-and-media-pipeline.md), *Amendment: a paused clock keeps its leases; focus loss on a phone plays on*)
 **Relates to**: [ADR 022](022-asset-cache-and-media-pipeline.md) (paint surface, dynamic frame pages), [ADR 042](042-native-media-decoding.md) (engines, workers), [ADR 020](020-package-topology.md), [ADR 024](024-panel-catalog-seams.md), [ADR 030](030-testing-policy.md)
 
 ## Context
