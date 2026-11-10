@@ -48,17 +48,48 @@ abstract final class ChatPackSheets {
       arrangement ?? ChatPackSheets.arrangement;
 
   /// Whether the chat says a library edit (a favourite, a recent, a pack
-  /// added or removed) in a bulletin: not under the desktop toast's policy,
-  /// where the edit shows only in the lists (ADR 045).
+  /// added or removed) in a bulletin: not under the desktop toast's policy
+  /// (a desktop or the web), where the edit shows only in the lists (ADR
+  /// 045); the web still says a full list's replacement
+  /// ([libraryEditBulletin]).
   static bool saysLibraryEdits(BulletinController? bulletins) =>
       switch (bulletins?.policy) {
         null || BulletinPolicy$Desktop() => false,
         _ => true,
       };
 
-  /// Whether a removal asks first: under this platform's pointer.
-  static bool get confirmsRemovals =>
-      ChatPackSheets.arrangement == PanelArrangement.pointer;
+  /// The bulletin after [applied], a favourite, recent or saved GIF edit,
+  /// or null when this platform shows none: every one [saysLibraryEdits]
+  /// allows; on the [web] only a full list that replaced its oldest (the
+  /// web clients say nothing else of these edits).
+  static Bulletin? libraryEditBulletin(
+    AppliedEdit applied, {
+    required LibraryLimits limits,
+    required BulletinController? bulletins,
+    bool web = kIsWeb,
+  }) {
+    final shows = switch ((saysLibraryEdits(bulletins), web)) {
+      (true, false) => true,
+      (_, true) => bulletins != null && applied.evicted != null,
+      (false, false) => false,
+    };
+    if (!shows) return null;
+    return ChatBulletins.ofLibraryEdit(
+      applied,
+      limits: limits,
+      strings: ChatBulletinStrings.demo,
+    );
+  }
+
+  /// Whether a pack's removal asks first under [arrangement]: under a
+  /// desktop's pointer; the web removes at once, as the web clients do.
+  static bool confirmsRemovalsIn(
+    PanelArrangement arrangement, {
+    bool web = kIsWeb,
+  }) => arrangement == PanelArrangement.pointer && !web;
+
+  /// Whether a removal asks first on this platform.
+  static bool get confirmsRemovals => confirmsRemovalsIn(arrangement);
 
   /// Whether [requests] take packs away (a removal or an archiving).
   static bool takesAway(List<PackEditRequest> requests) => switch (requests) {
@@ -137,11 +168,10 @@ abstract final class ChatPackSheets {
     // shown at once by the panel under the sheet, with their bulletin.
     void libraryEdit(LibraryEdit edit) {
       final applied = services.libraryShown.apply(edit);
-      if (!ChatPackSheets.saysLibraryEdits(bulletins)) return;
-      if (ChatBulletins.ofLibraryEdit(
+      if (libraryEditBulletin(
             applied,
             limits: services.library.limits,
-            strings: ChatBulletinStrings.demo,
+            bulletins: bulletins,
           )
           case final bulletin?) {
         bulletins?.show(bulletin);
@@ -157,7 +187,7 @@ abstract final class ChatPackSheets {
     // box's place.
     void edits(List<PackEditRequest> requests) {
       final sheet = sheetContext;
-      if (arrangementOf(arrangement) == PanelArrangement.pointer &&
+      if (confirmsRemovalsIn(arrangementOf(arrangement)) &&
           takesAway(requests) &&
           sheet != null &&
           sheet.mounted) {

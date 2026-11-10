@@ -302,6 +302,18 @@ void main() {
       );
     });
 
+    test('is not there on the web, which crosses the recents only', () {
+      expect(
+        PackSectionAction.removeOf(
+          installed('a'),
+          _strings,
+          PanelArrangement.pointer,
+          web: true,
+        ),
+        isNull,
+      );
+    });
+
     test('asks the host to remove the pack, which it confirms', () {
       final host = FakePanelPageHost();
       addTearDown(host.dispose);

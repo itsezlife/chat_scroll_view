@@ -1,5 +1,6 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/painting.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -17,12 +18,15 @@ abstract final class PackSectionAction {
       collection.metadata.flags.contains(CollectionFlags.installed);
 
   /// The remove button of [collection]'s header under [arrangement], or null
-  /// where it has none: only under a pointer, and only on a [removable] pack.
+  /// where it has none: only under a desktop's pointer (the web's headers
+  /// have none: only the recents carry a cross there), and only on a
+  /// [removable] pack.
   static CatalogSectionAction? removeOf(
     Collection collection,
     PanelStrings strings,
-    PanelArrangement arrangement,
-  ) => arrangement == PanelArrangement.pointer && removable(collection)
+    PanelArrangement arrangement, {
+    bool web = kIsWeb,
+  }) => arrangement == PanelArrangement.pointer && !web && removable(collection)
       ? CatalogSectionAction(
           id: removePackActionId,
           painter: paintCross,

@@ -438,11 +438,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   }
 
   void _onLibraryEdited(AppliedEdit applied) {
-    if (!mounted || !ChatPackSheets.saysLibraryEdits(_bulletins)) return;
-    if (ChatBulletins.ofLibraryEdit(
+    if (!mounted) return;
+    if (ChatPackSheets.libraryEditBulletin(
           applied,
           limits: widget.services.library.limits,
-          strings: ChatBulletinStrings.demo,
+          bulletins: _bulletins,
         )
         case final bulletin?) {
       _bulletins.show(bulletin);
