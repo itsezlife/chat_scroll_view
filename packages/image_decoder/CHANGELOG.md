@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a preview of an animated image starts at its first frame)
+
+- `PlayingImagePaintable.rewind` shows the first frame at once and plays on
+  from it: the codec's frames up to the second are decoded and dropped. A
+  content preview of an animated custom emoji (`AssetProfile.foreground`)
+  starts at frame 0 like a sticker's.
+
 ### Changed (a cell that comes back goes on at once)
 
 - After `playbackResumed`, a `PlayingImagePaintable` shows the frame it
