@@ -287,6 +287,67 @@ void main() {
     });
   });
 
+  group('a custom emoji\'s context menu', () {
+    const pack = Collection(id: CollectionId.set('cats'));
+    const custom = CatalogLeafHit(
+      sectionId: 's',
+      index: 0,
+      leaf: CatalogLeaf(
+        key: ContentKey.document('5368'),
+        semanticKind: SemanticKind.customEmoji,
+      ),
+    );
+
+    test('is Copy emoji under a pointer, nothing under touch', () {
+      expect(
+        policy.menuOf(
+          custom,
+          pack,
+          _strings,
+          arrangement: PanelArrangement.pointer,
+        ),
+        [
+          CatalogMenuEntry.item(
+            id: EmojiPagePolicy.copyItemId,
+            label: _strings.copyEmojiAction,
+          ),
+        ],
+      );
+      expect(
+        policy.menuOf(
+          custom,
+          pack,
+          _strings,
+          arrangement: PanelArrangement.touch,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('a unicode emoji outside the recents has none', () {
+      expect(
+        policy.menuOf(
+          _hit('😀'),
+          const Collection(id: CollectionId.category('people')),
+          _strings,
+          arrangement: PanelArrangement.pointer,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('asks the host to copy it as what it is', () {
+      policy.onMenuAction(custom, pack, EmojiPagePolicy.copyItemId, host);
+
+      expect(host.copyRequests, [
+        (
+          key: const ContentKey.document('5368'),
+          kind: SemanticKind.customEmoji,
+        ),
+      ]);
+    });
+  });
+
   group('the recents context menu', () {
     const recents = Collection(id: CollectionId.recent);
     const flags = Collection(id: CollectionId.category('symbols'));

@@ -94,6 +94,24 @@ final class PackSheetAction {
         : strings.addEmojiPacks(requests.length);
   }
 
+  /// The words of the box's button (a pointer) in [strings], with the count
+  /// the box draws beside them in a badge: one sticker or emoji pack says
+  /// its kind and shows its count; anything else says what [labelIn] says,
+  /// with no badge.
+  (String label, int? count) boxLabelIn(PackSheetStrings strings) {
+    if (requests case [(:final pack, edit: _)]) {
+      final label = switch ((pack.kind, removes)) {
+        (PackKind.stickers, false) => strings.addStickersLabel,
+        (PackKind.stickers, true) => strings.removeStickersLabel,
+        (PackKind.emoji, false) => strings.addEmojiLabel,
+        (PackKind.emoji, true) => strings.removeEmojiLabel,
+        (PackKind.masks, _) => null,
+      };
+      if (label != null) return (label, pack.count);
+    }
+    return (labelIn(strings), null);
+  }
+
   @override
   bool operator ==(Object other) =>
       other is PackSheetAction &&

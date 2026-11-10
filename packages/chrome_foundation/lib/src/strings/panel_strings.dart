@@ -39,6 +39,7 @@ final class PanelStrings {
     required this.copyEmojiAction,
     required this.saveGifAction,
     required this.deleteGifAction,
+    required this.removePackAction,
   });
 
   /// The name of the panel page registered under [pageId]. Page ids are open
@@ -157,4 +158,8 @@ final class PanelStrings {
   /// Content preview item that deletes the GIF shown from the saved GIFs;
   /// shown in the attention style.
   final String deleteGifAction;
+
+  /// The button at the end of a removable pack's section header that removes
+  /// the pack (its spoken label).
+  final String removePackAction;
 }

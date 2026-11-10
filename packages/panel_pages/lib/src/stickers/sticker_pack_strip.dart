@@ -7,14 +7,22 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/emoji/emoji_categories.dart';
+import 'package:panel_pages/src/emoji/emoji_category_strip.dart'
+    show EmojiStripLayout;
+import 'package:panel_pages/src/emoji/emoji_strip_footer.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/strip/panel_strip.dart';
 import 'package:panel_shell/panel_shell.dart';
 
-/// The strip along the top of the stickers page: a tab for the favourite
+/// The strip of the stickers page: a tab for the favourite
 /// stickers and one for the recents, when the page has some, and one per
 /// pack, drawn by the pack's cover. The tabs are in the order of the page's
 /// sections, with the favourites first, drawn by [favouritesIcon].
+///
+/// Under the pointer arrangement the strip sits at the bottom of the page and
+/// is drawn as the emoji page's footer is ([EmojiStripFooter], plain: one
+/// slot per tab), with the same marker and scrolling; the rest of this
+/// describes the strip along the top under touch.
 ///
 /// The tab row: [height] tall, each tab [tabWidth] wide with the picture
 /// [iconSize] square in it, the row [padH] in from both ends and scrolling
@@ -332,6 +340,42 @@ class _StickerPackStripState extends State<StickerPackStrip>
     );
   }
 
+  // --- The pointer footer ---------------------------------------------------
+
+  // Under the pointer arrangement the strip is the emoji footer's row, one
+  // slot per tab, at the bottom of the page.
+  Widget _buildFooter(ChromeStrings strings) => Semantics(
+    container: true,
+    label: strings.semantics.stickerPackStripLabel,
+    child: EmojiStripFooter(
+      recents: null,
+      categories: const [],
+      packs: [
+        for (final tab in _tabs)
+          EmojiFooterIcon(
+            id: tab.sectionId,
+            label: _labelOf(tab, strings),
+            icon: tab.icon,
+            cover: tab.cover,
+          ),
+      ],
+      active: _active,
+      assets: widget.assets,
+      layout: EmojiStripLayout.plain,
+      onChoose: (id) {
+        for (final tab in _tabs) {
+          if (tab.sectionId == id) unawaited(_onTap(tab));
+        }
+      },
+    ),
+  );
+
+  static String _labelOf(_Tab tab, ChromeStrings strings) => tab.isFavourites
+      ? strings.panel.favouriteStickersTitle
+      : tab.isRecents
+      ? strings.panel.recentlyUsedTitle
+      : tab.collection.metadata.title ?? '';
+
   // --- The covers in view ---------------------------------------------------
 
   void _onRowScroll() {
@@ -349,6 +393,9 @@ class _StickerPackStripState extends State<StickerPackStrip>
   Widget build(BuildContext context) {
     if (_tabs.isEmpty) return const SizedBox.shrink();
     final strings = ChromeStringsScope.of(context);
+    if (PanelArrangementScope.of(context) == PanelArrangement.pointer) {
+      return _buildFooter(strings);
+    }
     final tokens = ChromeThemeScope.panelOf(context);
     final strip = _strip;
     return Semantics(
@@ -404,11 +451,7 @@ class _StickerPackStripState extends State<StickerPackStrip>
                         child: _TabButton(
                           index: i,
                           inView: _inView,
-                          label: tab.isFavourites
-                              ? strings.panel.favouriteStickersTitle
-                              : tab.isRecents
-                              ? strings.panel.recentlyUsedTitle
-                              : tab.collection.metadata.title ?? '',
+                          label: _labelOf(tab, strings),
                           icon: tab.icon,
                           cover: tab.cover,
                           selected: tab.sectionId == _active,

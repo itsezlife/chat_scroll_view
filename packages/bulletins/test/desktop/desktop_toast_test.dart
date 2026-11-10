@@ -123,6 +123,37 @@ void main() {
       expect(icon.center.dy, closeTo(card.center.dy, 0.5));
     });
 
+    testWidgets('a toast with a leading is as tall as its text', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        h.app(
+          builders: DesktopBulletinBuilders.create(
+            thumbnail: (context, source, view) => LayoutBuilder(
+              builder: (context, constraints) => SizedBox.square(
+                key: const ValueKey('thumb'),
+                dimension: constraints.biggest.shortestSide,
+              ),
+            ),
+          ),
+        ),
+      );
+      for (final leading in const [
+        BulletinLeading.icon(ChromeIconId.confirm),
+        BulletinLeading.thumbnail('sticker'),
+      ]) {
+        h.controller.show(Bulletin(message: 'Removed', leading: leading));
+        await tester.pumpAndSettle();
+        // 13 above, one 13 px line (the test font's line is its size), 12
+        // below.
+        expect(_card(tester).height, 13 + 13 + 12);
+      }
+      expect(
+        tester.getSize(find.byKey(const ValueKey('thumb'))),
+        const Size.square(20),
+      );
+    });
+
     testWidgets('the title is the bold first line of one wrapping block', (
       tester,
     ) async {

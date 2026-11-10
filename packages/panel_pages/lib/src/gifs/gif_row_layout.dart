@@ -76,11 +76,26 @@ abstract final class GifRowLayout {
   /// The gap above a row and after a cell.
   static const double gap = 2;
 
+  /// The width a pointer arrangement groups clips into rows at, whatever its
+  /// own width: the popup's 345 less its 11 start inset. A docked panel
+  /// dragged wider or narrower scales its rows and keeps their clips.
+  static const double pointerGroupWidth = 334;
+
   /// The rows the clips of [sizes] make in a row [width] wide.
-  static List<GifRow> of(List<Size> sizes, {required double width}) {
+  ///
+  /// [groupWidth], when given, is the width the clips are grouped into rows
+  /// at; the rows are then laid across [width], every cell scaled by the same
+  /// factor. A row of a resizable panel grouped at a fixed width keeps its
+  /// clips whatever the panel's width, and only its cells grow and shrink.
+  static List<GifRow> of(
+    List<Size> sizes, {
+    required double width,
+    double? groupWidth,
+  }) {
     if (sizes.isEmpty) return const [];
     // An unmeasured view is laid out as 100 wide.
     final available = width <= 0 ? 100.0 : width;
+    final grouping = groupWidth ?? available;
     final spans = List<int>.filled(sizes.length, 0);
     final rowOf = <List<int>>[];
     var row = <int>[];
@@ -110,8 +125,7 @@ abstract final class GifRowLayout {
       final size = _fixed(raw);
       final required = math.min(
         spanCount,
-        (spanCount * (size.width / size.height * rowExtent / available))
-            .floor(),
+        (spanCount * (size.width / size.height * rowExtent / grouping)).floor(),
       );
       final closes =
           spanLeft < required || (required > 33 && spanLeft < required - 15);
@@ -148,6 +162,17 @@ abstract final class GifRowLayout {
 
   // `fixSize`: a side of 0 is 100; beyond 4:1 or below 1:5 the clip is the
   // square of its longer side.
+  /// The box a clip of [size] (null: unknown) is decoded for: [rowExtent]
+  /// tall at its own proportions, as [of] lays it out.
+  ///
+  /// It depends on the clip alone, never on the width of the row: a cell
+  /// that grows or shrinks with its row keeps decoding the same pictures, so
+  /// a clip resized while it plays plays on.
+  static Size decodeBoxOf(Size? size) {
+    final fixed = _fixed(size ?? const Size(rowExtent, rowExtent));
+    return Size(rowExtent * fixed.width / fixed.height, rowExtent);
+  }
+
   static Size _fixed(Size size) {
     final width = size.width == 0 ? 100.0 : size.width;
     final height = size.height == 0 ? 100.0 : size.height;

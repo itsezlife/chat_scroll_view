@@ -10,6 +10,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
+import 'package:panel_pages/src/policy/pack_section_action.dart';
 import 'package:panel_pages/testing.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -61,12 +62,14 @@ CatalogLeafHit _hit(Collection collection, int index) {
 void main() {
   const policy = StickersPagePolicy();
 
-  test('declares a top strip and nothing else: no search, no actions', () {
+  test('declares a strip (at the bottom under a pointer) and nothing '
+      'else: no search, no actions', () {
     expect(policy.capabilities.topStrip, isTrue);
     expect(policy.capabilities.search, isFalse);
     expect(policy.capabilities.actions, isEmpty);
     expect(policy.stripExtent, StickerPackStrip.height);
     expect(policy.stripAtBottom(PanelArrangement.touch), isFalse);
+    expect(policy.stripAtBottom(PanelArrangement.pointer), isTrue);
   });
 
   group('geometry', () {
@@ -236,6 +239,82 @@ void main() {
       policy.onSectionAction(_recents(), 'other', host);
 
       expect(host.clearRecentsRequests, isEmpty);
+    });
+  });
+
+  group('the remove badge', () {
+    test('a recent or a favourite has one; a pack\'s sticker has none', () {
+      expect(policy.leafRemovable(_hit(_recents(), 0), _recents()), isTrue);
+      expect(
+        policy.leafRemovable(_hit(_favourites(), 0), _favourites()),
+        isTrue,
+      );
+      expect(policy.leafRemovable(_hit(_pack('a'), 0), _pack('a')), isFalse);
+    });
+
+    test('a recent leaves the recents, a favourite the favourites', () {
+      final host = FakePanelPageHost();
+      addTearDown(host.dispose);
+
+      policy
+        ..onLeafRemove(_hit(_recents(), 1), _recents(), host)
+        ..onLeafRemove(_hit(_favourites(), 0), _favourites(), host);
+
+      expect(host.removeRecentRequests, [
+        (key: _key('r-1'), kind: SemanticKind.sticker),
+      ]);
+      expect(host.libraryEditRequests, [
+        LibraryEdit.unfavouriteSticker(_key('f-0')),
+      ]);
+    });
+  });
+
+  group('the remove button of a pack\'s header', () {
+    Collection installed(String id) => Collection(
+      id: CollectionId.set(id),
+      metadata: const CollectionMetadata(
+        title: 'Cats',
+        flags: CollectionFlags.installed,
+      ),
+      contents: CollectionContents.loaded(const []),
+    );
+
+    test('ends an installed pack\'s header under a pointer, as a cross', () {
+      final action = policy.actionOf(
+        installed('a'),
+        _strings,
+        arrangement: PanelArrangement.pointer,
+      );
+      expect(action?.id, PackSectionAction.removePackActionId);
+      expect(action?.semanticLabel, _strings.removePackAction);
+      expect(action?.painter, isNotNull);
+    });
+
+    test('is not there under touch, nor on a pack not installed', () {
+      expect(policy.actionOf(installed('a'), _strings), isNull);
+      expect(
+        policy.actionOf(
+          _pack('a'),
+          _strings,
+          arrangement: PanelArrangement.pointer,
+        ),
+        isNull,
+      );
+    });
+
+    test('asks the host to remove the pack, which it confirms', () {
+      final host = FakePanelPageHost();
+      addTearDown(host.dispose);
+
+      policy.onSectionAction(
+        installed('a'),
+        PackSectionAction.removePackActionId,
+        host,
+      );
+
+      expect(host.libraryEditRequests, [
+        const LibraryEdit.removePack(PackId('a'), PackKind.stickers),
+      ]);
     });
   });
 }

@@ -168,6 +168,58 @@ class PackSheetView extends StatefulWidget {
   /// ms on `EASE_OUT_QUINT`); it scales from 1 to 0.6 as it fades.
   static const Duration previewEmojiFade = Duration(milliseconds: 320);
 
+  // --- The box under a pointer ---
+
+  /// Columns of the sticker grid in the box: 5.
+  static const int boxStickerColumns = 5;
+
+  /// Side of a sticker's cell in the box: 64; the sticker is drawn in it at
+  /// [boxStickerExtent].
+  static const double boxStickerCell = 64;
+
+  /// Side a sticker is drawn at in the box: its cell less a 3 px corner on
+  /// each side.
+  static const double boxStickerExtent = 58;
+
+  /// The sticker grid's padding in the box: 19 left, 13 above and below,
+  /// and the box's width less five cells on the right (the scrollbar's room).
+  static const EdgeInsets boxStickerPadding = EdgeInsets.fromLTRB(
+    19,
+    13,
+    PackSheet.boxWidth - 19 - boxStickerColumns * boxStickerCell,
+    13,
+  );
+
+  /// Columns of the emoji grid in the box: 8.
+  static const int boxEmojiColumns = 8;
+
+  /// An emoji's cell in the box: 42 wide, 39 tall.
+  static const Size boxEmojiCell = Size(42, 39);
+
+  /// Side an emoji is drawn at in its box cell.
+  static const double boxEmojiExtent = 24;
+
+  /// The emoji grid's padding in the box: 12 left, the box's width less eight
+  /// cells on the right.
+  static const EdgeInsets boxEmojiPadding = EdgeInsets.fromLTRB(
+    12,
+    0,
+    PackSheet.boxWidth - 12 - boxEmojiColumns * 42,
+    0,
+  );
+
+  /// Height of the box's bottom button: 42, with 12 above and below it and
+  /// 16 at each side.
+  static const double boxButtonExtent = 42;
+
+  /// The room around the box's bottom button.
+  static const EdgeInsets boxButtonPadding = EdgeInsets.fromLTRB(
+    16,
+    12,
+    16,
+    12,
+  );
+
   /// The tallest the grid is in a box under a pointer: 320 for stickers, 197
   /// for emoji.
   static double boxGridMaxHeight(PackSheetGrid grid) =>
@@ -362,12 +414,31 @@ class _PackSheetViewState extends State<PackSheetView>
 
   _PackSheetGridPolicy _policyFor() => _PackSheetGridPolicy(grid: _grid);
 
+  // The box under a pointer has grids of its own for one pack; several emoji
+  // packs keep the sheet's.
+  bool _boxGrid(PanelArrangement arrangement) =>
+      arrangement == PanelArrangement.pointer &&
+      _grid != PackSheetGrid.severalEmoji;
+
+  EdgeInsets _gridPaddingFor(PanelArrangement arrangement) =>
+      switch ((_boxGrid(arrangement), _grid)) {
+        (true, PackSheetGrid.stickers) => PackSheetView.boxStickerPadding,
+        (true, _) => PackSheetView.boxEmojiPadding,
+        (false, _) => PackSheetView.gridPadding,
+      };
+
   void _publish(List<Pack> packs) {
     _builder.policy = _policyFor();
-    final snapshot = _builder.build([
-      for (final pack in packs)
-        _grid == PackSheetGrid.severalEmoji ? _limited(pack) : pack.collection,
-    ], strings: ChromeStringsScope.panelOf(context));
+    final snapshot = _builder.build(
+      [
+        for (final pack in packs)
+          _grid == PackSheetGrid.severalEmoji
+              ? _limited(pack)
+              : pack.collection,
+      ],
+      strings: ChromeStringsScope.panelOf(context),
+      arrangement: PanelArrangementScope.of(context),
+    );
     // Published after the frame: the viewport listens and repaints itself.
     _snapshots.value = snapshot;
   }
@@ -557,9 +628,14 @@ class _PackSheetViewState extends State<PackSheetView>
     final sheetDrag = PackSheetDragScope.maybeOf(context);
     final media = MediaQuery.of(context);
     final width = touch ? media.size.width : PackSheet.boxWidth;
-    final gridExtent = _gridExtent(packs, width);
+    final gridPadding = _gridPaddingFor(arrangement);
+    final gridExtent = _boxGrid(arrangement)
+        ? _boxGridExtent(packs)
+        : _gridExtent(packs, width);
     final buttonBar = switch (action) {
       null => 0.0,
+      _ when !touch =>
+        PackSheetView.boxButtonExtent + PackSheetView.boxButtonPadding.vertical,
       PackSheetAction(removes: true) => PackSheetView.buttonExtent,
       _ => PackSheetView.buttonExtent + 2 * PackSheetView.buttonMargin,
     };
@@ -595,9 +671,7 @@ class _PackSheetViewState extends State<PackSheetView>
               snapshots: _snapshots,
               assets: widget.assets,
               controller: _catalog,
-              padding: PackSheetView.gridPadding.copyWith(
-                top: PackSheetView.gridPadding.top + frame.lead,
-              ),
+              padding: gridPadding.copyWith(top: gridPadding.top + frame.lead),
               onLeafTap: _onTap,
               onLeafSecondaryTap: _preview == null ? null : _onSecondaryTap,
               leafLongPressEligible: _longPressEligible,
@@ -783,17 +857,31 @@ class _PackSheetViewState extends State<PackSheetView>
                 left: 0,
                 right: 0,
                 bottom: bottomInset,
-                child: _BottomButton(
-                  label: action.labelIn(strings),
-                  removes: action.removes,
-                  onPressed: () => _onButton(action),
-                ),
+                child: touch
+                    ? _BottomButton(
+                        label: action.labelIn(strings),
+                        removes: action.removes,
+                        onPressed: () => _onButton(action),
+                      )
+                    : _BoxButton(
+                        label: action.boxLabelIn(strings),
+                        removes: action.removes,
+                        onPressed: () => _onButton(action),
+                      ),
               ),
           ],
         );
       },
     );
     return ChromeCatalogTheme(
+      // In the box a mouse marks the whole cell.
+      hoverSize: switch ((_boxGrid(arrangement), _grid)) {
+        (true, PackSheetGrid.stickers) => const Size.square(
+          PackSheetView.boxStickerCell,
+        ),
+        (true, _) => PackSheetView.boxEmojiCell,
+        (false, _) => null,
+      },
       child: CatalogContextMenuHost(
         host: null,
         controller: _menu,
@@ -810,6 +898,25 @@ class _PackSheetViewState extends State<PackSheetView>
         ),
       ),
     );
+  }
+
+  // The box's grid height for one pack: its rows of cells and the padding,
+  // at least one row.
+  double _boxGridExtent(List<Pack>? packs) {
+    final count = packs?.firstOrNull?.count ?? 0;
+    final (columns, cell, padding) = _grid == PackSheetGrid.stickers
+        ? (
+            PackSheetView.boxStickerColumns,
+            PackSheetView.boxStickerCell,
+            PackSheetView.boxStickerPadding,
+          )
+        : (
+            PackSheetView.boxEmojiColumns,
+            PackSheetView.boxEmojiCell.height,
+            PackSheetView.boxEmojiPadding,
+          );
+    final rows = math.max(1, (count / columns).ceil());
+    return rows * cell + padding.vertical;
   }
 
   // The grid's height for [packs] across [width]: at least three rows of
@@ -882,19 +989,32 @@ final class _PackSheetGridPolicy extends CatalogPagePolicy {
   SectionLayout? layoutOf(
     Collection collection, {
     PanelArrangement arrangement = PanelArrangement.touch,
-  }) => switch (grid) {
-    PackSheetGrid.stickers => const SectionLayout.grid(
+  }) => switch ((arrangement, grid)) {
+    (PanelArrangement.pointer, PackSheetGrid.stickers) =>
+      const SectionLayout.grid(
+        spanCount: PackSheetView.boxStickerColumns,
+        cellExtent: PackSheetView.boxStickerCell,
+        glyphExtent: PackSheetView.boxStickerExtent,
+        headerExtent: 0,
+      ),
+    (PanelArrangement.pointer, PackSheetGrid.emoji) => SectionLayout.grid(
+      spanCount: PackSheetView.boxEmojiColumns,
+      cellExtent: PackSheetView.boxEmojiCell.height,
+      glyphExtent: PackSheetView.boxEmojiExtent,
+      headerExtent: 0,
+    ),
+    (_, PackSheetGrid.stickers) => const SectionLayout.grid(
       spanCount: 5,
       cellExtent: PackSheetView.stickerRowExtent,
       glyphExtent: PackSheetView.stickerExtent,
       headerExtent: 0,
     ),
-    PackSheetGrid.emoji => const SectionLayout.grid(
+    (_, PackSheetGrid.emoji) => const SectionLayout.grid(
       desiredCellWidth: PackSheetView.emojiColumnWidth,
       cellAspect: 1,
       headerExtent: 0,
     ),
-    PackSheetGrid.severalEmoji => const SectionLayout.grid(
+    (_, PackSheetGrid.severalEmoji) => const SectionLayout.grid(
       spanCount: PackSheetView.severalColumns,
       cellAspect: 1,
       headerExtent: _PackHeader.extent,
@@ -1409,6 +1529,107 @@ class _MenuButtonState extends State<_MenuButton> {
         label: strings.moreOptionsLabel,
         painter: _DotsPainter(palette.onSurfaceMuted),
         onPressed: () => _menu.isOpen ? _menu.close() : _menu.open(),
+      ),
+    );
+  }
+}
+
+/// The box's bottom button: 42 tall, 16 in from each side and 12 from the
+/// grid and the edge, fully rounded; its words in semibold 13 and the pack's
+/// count in an 18 px badge 6 after them (bold 11, 5 at each side). Adding is
+/// a filled accent button with a white badge; removing a flat one in the
+/// attention colour, its badge filled with it.
+class _BoxButton extends StatelessWidget {
+  const _BoxButton({
+    required this.label,
+    required this.removes,
+    required this.onPressed,
+  });
+
+  final (String, int?) label;
+  final bool removes;
+  final VoidCallback onPressed;
+
+  static const double _badgeHeight = 18;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ChromeThemeScope.of(context).palette;
+    final (words, count) = label;
+    final foreground = removes ? palette.destructive : palette.onAccent;
+    final (badgeFill, badgeText) = removes
+        ? (palette.destructive, palette.onAccent)
+        : (palette.onAccent, palette.accent);
+    const radius = BorderRadius.all(
+      Radius.circular(PackSheetView.boxButtonExtent / 2),
+    );
+    return Padding(
+      padding: PackSheetView.boxButtonPadding,
+      child: Semantics(
+        button: true,
+        label: switch (count) {
+          final count? => '$words $count',
+          null => words,
+        },
+        excludeSemantics: true,
+        child: ChromeInk(
+          color: removes
+              ? ChromeCatalogTheme.pressInkOf(palette)
+              : palette.onAccent.withAlpha(0x24),
+          hoverColor: removes
+              ? ChromeCatalogTheme.hoverWashOf(palette)
+              : palette.onAccent.withAlpha(0x12),
+          borderRadius: radius,
+          onTap: onPressed,
+          child: Container(
+            height: PackSheetView.boxButtonExtent,
+            decoration: BoxDecoration(
+              color: removes ? null : palette.accent,
+              borderRadius: radius,
+            ),
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    words,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: foreground,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (count != null && count > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    key: const ValueKey('pack-box-count'),
+                    height: _badgeHeight,
+                    constraints: const BoxConstraints(minWidth: _badgeHeight),
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    decoration: BoxDecoration(
+                      color: badgeFill,
+                      borderRadius: BorderRadius.circular(_badgeHeight / 2),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        color: badgeText,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

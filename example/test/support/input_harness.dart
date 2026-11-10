@@ -44,6 +44,10 @@ final class InputRig {
   /// Kinds the user was asked to clear and agreed to.
   final List<SemanticKind> clearAsked = <SemanticKind>[];
 
+  /// When set, the confirmation to clear recents stays up until the test
+  /// completes it; otherwise the user agrees at once.
+  Completer<bool>? clearAnswer;
+
   /// Media the composer handed over: pasted, or inserted by a keyboard.
   final List<List<PastedMedia>> pastedMedia = <List<PastedMedia>>[];
 
@@ -187,7 +191,7 @@ class _ScreenState extends State<_Screen> {
       edit: (id, body) async => _rig.edited.add('$id:$body'),
       confirmClearRecents: (kind) async {
         _rig.clearAsked.add(kind);
-        return true;
+        return _rig.clearAnswer?.future ?? Future.value(true);
       },
       onPastedMedia: (media) async {
         _rig.pastedMedia.add(media);

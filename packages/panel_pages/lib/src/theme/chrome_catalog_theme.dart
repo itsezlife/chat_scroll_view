@@ -21,8 +21,14 @@ class ChromeCatalogTheme extends StatelessWidget {
   const ChromeCatalogTheme({
     required this.child,
     this.headerStartInset,
+    this.hoverSize,
     super.key,
   });
+
+  /// The hover box under the pointer arrangement, or null for
+  /// [pointerHoverSize]: a grid whose box is its cell (a pack box) says so
+  /// here.
+  final Size? hoverSize;
 
   /// The subtree that reads the theme.
   final Widget child;
@@ -64,6 +70,7 @@ class ChromeCatalogTheme extends StatelessWidget {
     ChromeThemeData chrome, {
     PanelArrangement arrangement = PanelArrangement.touch,
     double? headerStartInset,
+    Size? hoverSize,
   }) {
     final palette = chrome.palette;
     final base = PanelCatalogThemeData.forBrightness(palette.brightness);
@@ -81,7 +88,7 @@ class ChromeCatalogTheme extends StatelessWidget {
         PanelArrangement.touch => null,
       },
       leafHoverHighlightSize: switch (arrangement) {
-        PanelArrangement.pointer => pointerHoverSize,
+        PanelArrangement.pointer => hoverSize ?? pointerHoverSize,
         PanelArrangement.touch => null,
       },
       leafPressFeedback: switch (arrangement) {
@@ -101,6 +108,7 @@ class ChromeCatalogTheme extends StatelessWidget {
       ChromeThemeScope.of(context),
       arrangement: PanelArrangementScope.of(context),
       headerStartInset: headerStartInset,
+      hoverSize: hoverSize,
     ),
     child: child,
   );

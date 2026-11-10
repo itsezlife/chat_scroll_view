@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:panel_catalog/panel_catalog.dart' show CatalogLeafRemoveBadge;
 import 'package:panel_pages/src/gifs/gif_row_layout.dart';
 import 'package:panel_pages/src/menu/catalog_context_menu.dart';
 import 'package:panel_pages/src/preview/catalog_content_preview.dart';
@@ -228,6 +230,8 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
   final _hairline = listen.ValueNotifier<bool>(true);
   var _lines = const <_Line>[];
   var _lineKey = (<Collection>[], 0.0, null as PanelStrings?, null as String?);
+  // The width the lines' rows were grouped at, or null for their own.
+  double? _lineGroup;
   Object? _lineListed;
   // What is listed (which list, and its collections); null before the first
   // listing.
@@ -242,6 +246,8 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
   late DebouncedSearch<void> _debounced;
   final _menu = CatalogContextMenuController();
   ContentPreviewSession? _preview;
+  // The cells laid out now, which a pointer preview slides between.
+  final _cells = <_CellState>{};
   var _query = '';
   String? _announced;
 
@@ -551,10 +557,15 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
   // The lines for [width], rebuilt only when what they are a function of
   // changes: the collections listed, the width, the strings and the
   // attribution.
-  List<_Line> _linesFor(double width, PanelStrings strings) {
+  List<_Line> _linesFor(
+    double width,
+    PanelStrings strings, {
+    double? groupWidth,
+  }) {
     final listed = _listed!;
     final collections = listed.collections;
     final stale =
+        _lineGroup != groupWidth ||
         _lineKey.$2 != width ||
         !identical(_lineKey.$3, strings) ||
         _lineKey.$4 != widget.attribution ||
@@ -565,13 +576,14 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
     _moveCells = _lineKey.$2 == width && _lineListed == listed.id;
     _lineListed = listed.id;
     _lineKey = (collections, width, strings, widget.attribution);
+    _lineGroup = groupWidth;
     // A collection that failed ends its own rows with the failure, so it is
     // read where the clips would have been, not after the ones that follow.
     final rows = [
       for (final (i, collection) in collections.indexed) ...[
         if (i > 0 && (collection.metadata.title ?? '').isNotEmpty)
           _HeaderLine(collection.metadata.title!),
-        ..._rowsOf(collection, width),
+        ..._rowsOf(collection, width, groupWidth: groupWidth),
         if (collection.id != CollectionId.recent &&
             collection.contents is CollectionContents$Failed)
           _NoticeLine(strings.gifsFailed, onRetry: _retry),
@@ -603,11 +615,17 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
     return true;
   }
 
-  static Iterable<_Line> _rowsOf(Collection collection, double width) sync* {
+  static Iterable<_Line> _rowsOf(
+    Collection collection,
+    double width, {
+    double? groupWidth,
+  }) sync* {
     final items = _itemsOf(collection);
-    final rows = GifRowLayout.of([
-      for (final item in items) _sizeOf(item),
-    ], width: width);
+    final rows = GifRowLayout.of(
+      [for (final item in items) _sizeOf(item)],
+      width: width,
+      groupWidth: groupWidth,
+    );
     for (final row in rows) {
       yield _RowLine(collection, row);
     }
@@ -630,9 +648,15 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
       onNotification: _onScroll,
       child: LayoutBuilder(
         builder: (context, constraints) {
+          // Under a pointer the rows keep their clips at any width (a
+          // docked panel being resized); only the cells scale.
           final lines = _linesFor(
             constraints.maxWidth,
             ChromeStringsScope.panelOf(context),
+            groupWidth:
+                PanelArrangementScope.of(context) == PanelArrangement.pointer
+                ? GifRowLayout.pointerGroupWidth
+                : null,
           );
           return ListView.builder(
             controller: _scroll,
@@ -705,8 +729,10 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
           kind: kind,
           hold: hold,
           controller: previews,
+          itemAt: _itemAt,
         );
       },
+      cells: _cells,
       menu: (item, globalPosition) {
         final entries = ContentPreviewMenu.entriesOf(
           item,
@@ -729,6 +755,14 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
     null => null,
   };
 
+  // The clip under [globalPosition] among the cells laid out, or null.
+  ContentPreviewItem? _itemAt(Offset globalPosition) {
+    for (final cell in _cells) {
+      if (cell.itemAt(globalPosition) case final item?) return item;
+    }
+    return null;
+  }
+
   ContentPreviewActions get _actions => panelPreviewActions(
     _host,
     searching: switch (_listed?.id) {
@@ -745,7 +779,11 @@ final class _GifPreview {
     required this.begin,
     required this.menu,
     required this.inRecents,
+    required this.cells,
   });
+
+  /// The page's cells laid out now: each cell is in it while mounted.
+  final Set<_CellState> cells;
 
   final ContentPreviewSession Function(
     BuildContext context,
@@ -916,6 +954,13 @@ class _Row extends StatelessWidget {
                   item: items[cell.index],
                   size: Size(cell.width, GifRowLayout.rowExtent),
                   onTap: () => _pick(items[cell.index]),
+                  // A saved clip leaves the list from its badge.
+                  onRemove: collection.id == CollectionId.recent
+                      ? () => host.requestRemoveRecent(
+                          items[cell.index].key,
+                          kind: SemanticKind.gif,
+                        )
+                      : null,
                   assets: assets,
                   preview: preview,
                 ),
@@ -949,6 +994,7 @@ class _Cell extends StatefulWidget {
     required this.item,
     required this.size,
     required this.onTap,
+    required this.onRemove,
     required this.assets,
     required this.preview,
   });
@@ -956,6 +1002,10 @@ class _Cell extends StatefulWidget {
   final CollectionItem item;
   final Size size;
   final VoidCallback onTap;
+
+  /// Removes the clip from its list, from the remove badge a mouse over the
+  /// cell shows; null shows none.
+  final VoidCallback? onRemove;
   final AssetCacheScope assets;
   final _GifPreview? preview;
 
@@ -967,15 +1017,76 @@ class _CellState extends State<_Cell> {
   // The loader's disc in a grid cell, whatever the cell's size.
   static const double _loadingRadius = 12;
 
-  var _pressed = false;
+  // Whether a mouse is over the cell, and over its remove badge.
+  var _hovered = false;
+  var _badgeHovered = false;
+
+  // Whether a hold took the press over: the ink draws nothing until the next
+  // press.
+  var _held = false;
   ContentPreviewSession? _session;
 
-  void _press(bool value) {
-    if (_pressed != value) setState(() => _pressed = value);
+  @override
+  void initState() {
+    super.initState();
+    widget.preview?.cells.add(this);
+  }
+
+  @override
+  void didUpdateWidget(_Cell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(oldWidget.preview?.cells, widget.preview?.cells)) return;
+    oldWidget.preview?.cells.remove(this);
+    widget.preview?.cells.add(this);
+  }
+
+  @override
+  void dispose() {
+    widget.preview?.cells.remove(this);
+    super.dispose();
+  }
+
+  /// This clip's preview item when [globalPosition] is over the cell.
+  ContentPreviewItem? itemAt(Offset globalPosition) =>
+      switch ((widget.preview, context.findRenderObject())) {
+        (final preview?, final RenderBox box)
+            when box.attached &&
+                box.hasSize &&
+                (Offset.zero & box.size).contains(
+                  box.globalToLocal(globalPosition),
+                ) =>
+          preview.itemOf(widget.item),
+        _ => null,
+      };
+
+  // The remove badge's look on this platform.
+  static const CatalogLeafRemoveBadge _look = kIsWeb
+      ? CatalogLeafRemoveBadge.web
+      : CatalogLeafRemoveBadge.pointer;
+
+  // The badge a mouse over a removable cell shows, while no preview is up.
+  CatalogLeafRemoveBadge? get _badge =>
+      _hovered && widget.onRemove != null && _session == null ? _look : null;
+
+  void _hover(PointerEvent event, {required bool inside}) {
+    final mouse = event.kind == PointerDeviceKind.mouse && inside;
+    var overBadge = false;
+    if (mouse) {
+      final rect = _look.rectOn(
+        Offset.zero & widget.size,
+        Directionality.of(context),
+      );
+      overBadge = rect.contains(event.localPosition);
+    }
+    if (mouse == _hovered && overBadge == _badgeHovered) return;
+    setState(() {
+      _hovered = mouse;
+      _badgeHovered = overBadge;
+    });
   }
 
   void _begin(LongPressStartDetails details, PointerDeviceKind kind) {
-    _press(false);
+    setState(() => _held = true);
     final preview = widget.preview;
     if (preview == null) return;
     _session = preview.begin(context, preview.itemOf(widget.item), kind);
@@ -986,24 +1097,6 @@ class _CellState extends State<_Cell> {
   Map<Type, GestureRecognizerFactory> _gestures() {
     final preview = widget.preview;
     return {
-      TapGestureRecognizer:
-          GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-            () => TapGestureRecognizer(debugOwner: this),
-            (tap) => tap
-              ..onTap = widget.onTap
-              ..onTapDown = ((_) => _press(true))
-              ..onTapUp = ((_) => _press(false))
-              ..onTapCancel = (() => _press(false))
-              ..onSecondaryTapUp = preview == null
-                  ? null
-                  : (details) {
-                      if (details.kind != PointerDeviceKind.mouse) return;
-                      preview.menu(
-                        preview.itemOf(widget.item),
-                        details.globalPosition,
-                      );
-                    },
-          ),
       if (preview != null) ...{
         _TouchHold: GestureRecognizerFactoryWithHandlers<_TouchHold>(
           () => _TouchHold(debugOwner: this),
@@ -1023,14 +1116,47 @@ class _CellState extends State<_Cell> {
     ..onLongPressEnd = ((details) {
       _session?.end(details);
       _session = null;
-    })
-    ..onLongPressCancel = (() => _press(false));
+    });
+
+  // A new press draws its ink again; the held one faded out unseen.
+  void _release(PointerDownEvent event) {
+    // A secondary click is the context menu's, not a pick: the ink's tap
+    // takes every button, so it is told which one pressed.
+    _secondaryAt =
+        event.kind == PointerDeviceKind.mouse &&
+            event.buttons & kSecondaryMouseButton != 0
+        ? event.position
+        : null;
+    if (_held) setState(() => _held = false);
+  }
+
+  // Where a secondary click went down, until the ink reports its tap.
+  Offset? _secondaryAt;
+
+  void _onTap() {
+    final secondary = _secondaryAt;
+    _secondaryAt = null;
+    switch ((secondary, widget.preview)) {
+      case (final at?, final preview?):
+        preview.menu(preview.itemOf(widget.item), at);
+      case (null, _):
+        widget.onTap();
+      case (_, null):
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final palette = ChromeThemeScope.of(context).palette;
     final density = MediaQuery.devicePixelRatioOf(context);
     final size = widget.size;
+    final decode = GifRowLayout.decodeBoxOf(
+      switch (widget.item.descriptor?.size) {
+        final clip? => Size(clip.width.toDouble(), clip.height.toDouble()),
+        null => null,
+      },
+    );
     final label =
         widget.item.descriptor?.spokenName ??
         ChromeStringsScope.panelOf(context).tabLabel('gif');
@@ -1042,36 +1168,66 @@ class _CellState extends State<_Cell> {
         child: RawGestureDetector(
           behavior: HitTestBehavior.opaque,
           gestures: _gestures(),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ContentView(
-                content: widget.item.key,
-                scope: widget.assets,
-                preset: AssetPreset(
-                  size: size,
-                  spec: AssetSpec.atDensity(
-                    logicalWidth: size.width,
-                    logicalHeight: size.height,
-                    devicePixelRatio: density,
-                  ),
-                  // Silent and looping, while it is in view; the clip fills its
-                  // cell and is cut at the edge.
-                  profile: const AssetProfile(
-                    animate: true,
-                    fit: AssetFit.cover,
+          // The platform's press: a ripple on Android, the highlight on iOS,
+          // a ripple from the press on a desktop (no hover fill), in the
+          // catalogue's press colour, the text colour at 0x0F.
+          child: MouseRegion(
+            onEnter: (event) => _hover(event, inside: true),
+            onHover: (event) => _hover(event, inside: true),
+            onExit: (event) => _hover(event, inside: false),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Listener(
+                  onPointerDown: _release,
+                  child: ChromeInk(
+                    color: _held
+                        ? const Color(0x00000000)
+                        : palette.onSurface.withAlpha(0x0F),
+                    onTap: _onTap,
+                    child: ContentView(
+                      content: widget.item.key,
+                      scope: widget.assets,
+                      preset: AssetPreset(
+                        size: size,
+                        // Decoded for the clip, not for the cell: a cell
+                        // resized with its row plays on.
+                        spec: AssetSpec.atDensity(
+                          logicalWidth: decode.width,
+                          logicalHeight: decode.height,
+                          devicePixelRatio: density,
+                        ),
+                        // Silent and looping, while it is in view; the clip fills its
+                        // cell and is cut at the edge.
+                        profile: const AssetProfile(
+                          animate: true,
+                          fit: AssetFit.cover,
+                        ),
+                      ),
+                      // The cell's rectangle in a quiet token until the thumbnail
+                      // arrives, under the
+                      // loader the cell has until the clip's first frame.
+                      tint: ChromeThemeScope.of(context).placeholder.skeleton,
+                      loadingRadius: _loadingRadius,
+                    ),
                   ),
                 ),
-                // The cell's rectangle in a quiet token until the thumbnail
-                // arrives, under the
-                // loader the cell has until the clip's first frame.
-                tint: ChromeThemeScope.of(context).placeholder.skeleton,
-                loadingRadius: _loadingRadius,
-              ),
-              // The catalogue's press wash: the text colour at 0x0F.
-              if (_pressed)
-                ColoredBox(color: palette.onSurface.withAlpha(0x0F)),
-            ],
+                if (_badge case final badge?)
+                  PositionedDirectional(
+                    top: badge.inset,
+                    end: badge.inset,
+                    width: badge.extent,
+                    height: badge.extent,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: widget.onRemove,
+                      child: CustomPaint(
+                        painter: _BadgePainter(badge, over: _badgeHovered),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1098,4 +1254,20 @@ final class _MouseHold extends LongPressGestureRecognizer {
         duration: ContentPreviewSession.pointerHoldDelay,
         supportedDevices: const {PointerDeviceKind.mouse},
       );
+}
+
+// The remove badge drawn in the box it is laid out in.
+class _BadgePainter extends CustomPainter {
+  const _BadgePainter(this.badge, {required this.over});
+
+  final CatalogLeafRemoveBadge badge;
+  final bool over;
+
+  @override
+  void paint(Canvas canvas, Size size) =>
+      badge.paint(canvas, Offset.zero & size, over: over);
+
+  @override
+  bool shouldRepaint(_BadgePainter old) =>
+      old.badge != badge || old.over != over;
 }

@@ -13,6 +13,7 @@ inset-controller parts of [ADR 007](007-keyboard-panel-controller.md).
 **Amended**: 2026-10-16 — the host wires the shell's page holds to that seam ([ADR 025](025-panel-shell-and-pages.md) Amendment)  
 **Amended**: 2026-10-16 — keyboard readings include the safe area; the sheet's rounded top; the host lowers a raised keyboard when the panel takes its place  
 **Amended**: 2026-10-16 — the dock is a standing section with a width the user drags; the popup keeps a gap from the composer  
+**Amended**: 2026-11-10 (native-media ticket 187) — the popup's surface is the style's choice (`AnchoredPopupStyle.surface`: glass or solid); the reference desktop panel is solid, `emojiPanBg` with `emojiPanRadius` 8 over `defaultBoxShadow` (blur 5, offset 0/1, opacity 0.25), and the example host takes that (row *Glass*)  
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 012](012-cross-platform-selection-policies.md) (same policy shape), [ADR 025](025-panel-shell-and-pages.md), [host chrome insets](../architecture/14-host-chrome-insets.md) (amended by this ADR)
 
 ## Decided
@@ -102,7 +103,7 @@ too, so clicking one never takes the caret from the field.
 
 | Area | Decision |
 | ---- | -------- |
-| Glass | The popup, the dock and the keyboard-replacement sheet put the shell on a `GlassSurface` of the composer island's material (`GlassMaterial.composerIsland`), so the panel reads as the composer does; the shell paints no background of its own there (`PanelShell.background`). Over the chat (the popup) it blurs the messages; beside or under it (dock, sheet) it shows as the material's fill. The popup's glass takes the card's radius, the dock's is square, the sheet's clip rounds its top corners. The reference desktop client paints its panel solid: this is the product's choice. |
+| Glass | The popup, the dock and the keyboard-replacement sheet put the shell on a `GlassSurface` of the composer island's material (`GlassMaterial.composerIsland`), so the panel reads as the composer does; the shell paints no background of its own there (`PanelShell.background`). Over the chat (the popup) it blurs the messages; beside or under it (dock, sheet) it shows as the material's fill. The popup's glass takes the card's radius, the dock's is square, the sheet's clip rounds its top corners. The popup's surface is its style's: `AnchoredPopupSurface.glass` (the default) or `.solid`, where the shell fills itself with the panel background; the reference desktop client paints its panel solid, and a host matching it picks `.solid` (ticket 187). |
 | Anchor | The host reports the composer's rectangle whenever it moves, not only when the composer rebuilds: a dock that comes or goes moves a composer held at its greatest width without resizing or rebuilding it, and a popup opened later anchored to where it had been. The example reads it after every frame and reports a change (the controller ignores an equal one). |
 
 ## Amendment: the panel stays mounted while hidden

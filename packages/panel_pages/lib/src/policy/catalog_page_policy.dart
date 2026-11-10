@@ -311,6 +311,19 @@ abstract class CatalogPagePolicy {
   /// mouse arrives, and only for a mouse: a finger has no hover.
   String? tooltipOf(CatalogLeafHit hit, Collection collection) => null;
 
+  /// Whether [hit], a cell of [collection], shows the remove badge under a
+  /// mouse (the pointer arrangement only): a cross at its corner that
+  /// [onLeafRemove] answers. None by default.
+  bool leafRemovable(CatalogLeafHit hit, Collection collection) => false;
+
+  /// A click on the remove badge of [hit], a cell of [collection]: what it
+  /// asks of [host]. Called only for a cell [leafRemovable] allows.
+  void onLeafRemove(
+    CatalogLeafHit hit,
+    Collection collection,
+    PanelPageHost host,
+  ) {}
+
   /// The entries of the context menu a secondary click on [hit], a cell of
   /// [collection], opens, in the language of [strings]; empty for no menu (the
   /// click then does nothing at all).

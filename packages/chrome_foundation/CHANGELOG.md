@@ -6,6 +6,10 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (pack strings)
+
+- `PanelStrings.removePackAction`, and `PackSheetStrings.addStickersLabel`, `addEmojiLabel`, `removeStickersLabel`, `removeEmojiLabel` (the pack box's button words beside its count badge). Required: hosts that build their own sets add them.
+
 ### Breaking
 
 - `PointerMenuTokens.referenceDay` is `PointerMenuTokens.day`, and `PointerMenuTokens.referenceNight` is `PointerMenuTokens.night`.

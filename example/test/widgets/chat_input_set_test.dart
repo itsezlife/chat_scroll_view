@@ -3,6 +3,7 @@
 /// the viewport is told to reserve, and who frees what.
 library;
 
+import 'dart:async';
 import 'dart:ui' show Tristate;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -1366,6 +1367,27 @@ void main() {
       rig.packSheets.single.complete();
       await tester.pump();
       expect(guard.value, isFalse);
+    });
+
+    testWidgets('the confirmation to clear recents holds the panel up '
+        'until it is answered', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final guard = rig.set.presentation.autoHideGuard;
+      final answer = rig.clearAnswer = Completer<bool>();
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestClearRecents(SemanticKind.sticker);
+      await tester.pump();
+      expect(rig.clearAsked, [SemanticKind.sticker]);
+      expect(guard.value, isTrue);
+      expect(rig.set.isPanelVisible, isTrue);
+
+      answer.complete(false);
+      await tester.pump();
+      expect(guard.value, isFalse);
+      expect(rig.set.isPanelVisible, isTrue);
     });
 
     testWidgets('back closes a preview that is up before the panel', (

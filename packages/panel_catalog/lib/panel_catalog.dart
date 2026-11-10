@@ -31,6 +31,7 @@ export 'src/data/catalog_snapshot.dart';
 export 'src/model/catalog_glyph_box.dart' show CatalogContentBox;
 export 'src/model/catalog_leaf.dart';
 export 'src/model/catalog_leaf_hit.dart';
+export 'src/model/catalog_leaf_remove_badge.dart';
 export 'src/model/catalog_section.dart';
 export 'src/model/catalog_section_action.dart';
 export 'src/model/catalog_section_state.dart';

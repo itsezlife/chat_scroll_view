@@ -14,6 +14,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -96,17 +97,23 @@ void main() {
     });
   });
 
-  Widget page({TextDirection direction = TextDirection.ltr}) =>
-      PanelShellTestScope(
-        textDirection: direction,
-        child: Center(
-          child: SizedBox(
-            width: 400,
-            height: 480,
-            child: GifPage(host: host, source: source, assets: assets),
-          ),
+  Widget page({
+    TextDirection direction = TextDirection.ltr,
+    double width = 400,
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) => PanelShellTestScope(
+    textDirection: direction,
+    child: PanelArrangementScope(
+      arrangement: arrangement,
+      child: Center(
+        child: SizedBox(
+          width: width,
+          height: 480,
+          child: GifPage(host: host, source: source, assets: assets),
         ),
-      );
+      ),
+    ),
+  );
 
   Future<void> pumpPage(
     WidgetTester tester, {
@@ -302,6 +309,80 @@ void main() {
       expect(host.picks.single.source, PickSource.recents);
     });
 
+    pageTest('a cell answers a press with the platform ink, under a '
+        'mouse too, and a click still picks', (tester) async {
+      await pumpPage(tester);
+      expect(find.byType(ChromeInk), findsWidgets);
+
+      final mouse = await tester.startGesture(
+        cell(tester, column: 2),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+      await mouse.up();
+      await tester.pump();
+
+      expect(host.picks.single.key, const ContentKey.document('a-2'));
+    });
+
+    pageTest('a mouse over a saved clip shows a 14 px remove badge at its '
+        'top right; a click on it removes the clip and picks nothing', (
+      tester,
+    ) async {
+      source.dispose();
+      source = FakeCollectionSource([_recents(), _clips('a', 'Featured')]);
+      await pumpPage(tester);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+
+      await mouse.moveTo(cell(tester));
+      await tester.pump();
+      final badge = find.byWidgetPredicate(
+        (widget) =>
+            widget is CustomPaint &&
+            widget.painter.runtimeType.toString() == '_BadgePainter',
+      );
+      final box = tester.getRect(badge);
+      expect(box.size, const Size.square(14));
+      // At the top of the row, flush with the clip's right edge: before the
+      // next clip's 2 px gap.
+      expect(box.top, origin(tester).dy + 2);
+      expect(
+        tester.getRect(badge.first).right,
+        lessThan(origin(tester).dx + 400),
+      );
+
+      final corner = box.center;
+      await mouse.moveTo(corner);
+      await tester.pump();
+      await mouse.down(corner);
+      await mouse.up();
+      await tester.pump();
+      expect(host.removeRecentRequests, [
+        (key: const ContentKey.document('a-3'), kind: SemanticKind.gif),
+      ]);
+      expect(host.picks, isEmpty);
+    });
+
+    pageTest('a clip outside the saved ones shows no badge', (tester) async {
+      await pumpPage(tester);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(cell(tester));
+      await tester.pump();
+
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is CustomPaint &&
+              widget.painter.runtimeType.toString() == '_BadgePainter',
+        ),
+        findsNothing,
+      );
+    });
+
     pageTest('a cell is a button named for its clip', (tester) async {
       await pumpPage(tester);
 
@@ -453,6 +534,33 @@ void main() {
 
       // 480 px shows five rows of 102 (partly); 20 rows are laid out in all.
       expect(find.byType(ContentView).evaluate().length, lessThan(30));
+    });
+  });
+
+  group('a width that changes (a dock dragged wider or narrower)', () {
+    pageTest('keeps every clip playing on from where it was', (tester) async {
+      final producer = FakeAssetProducer()
+        ..onProduce = (attempt) => attempt.advance(
+          AssetStage.full,
+          frames: List.filled(400, const Duration(milliseconds: 50)),
+        );
+      assets.dispose();
+      assets = PageAssets.createScope(producer: producer);
+      await tester.pumpWidget(page());
+      await settle(tester);
+      final attempts = producer.attempts.length;
+      final clips = [
+        for (final attempt in producer.attempts) ...attempt.paintables,
+      ];
+      final rewinds = [for (final clip in clips) clip.rewinds];
+
+      for (final width in [396.0, 390.0, 384.0, 377.0]) {
+        await tester.pumpWidget(page(width: width));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(producer.attempts.length, attempts);
+      expect([for (final clip in clips) clip.rewinds], rewinds);
     });
   });
 

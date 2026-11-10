@@ -52,6 +52,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     copyEmojiAction: 'Копировать эмодзи',
     saveGifAction: 'Сохранить в GIF',
     deleteGifAction: 'Удалить',
+    removePackAction: 'Удалить набор',
   ),
   composer: ComposerStrings(
     messageHint: 'Сообщение',
@@ -131,6 +132,10 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     emojiCount: (n) => '$n эмодзи',
     addPackAction: 'Добавить',
     removePackAction: 'Удалить',
+    addStickersLabel: 'Добавить стикеры',
+    addEmojiLabel: 'Добавить эмодзи',
+    removeStickersLabel: 'Удалить стикеры',
+    removeEmojiLabel: 'Удалить эмодзи',
     closeAction: 'Закрыть',
     shareAction: 'Поделиться',
     copyLinkAction: 'Копировать ссылку',

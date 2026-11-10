@@ -15,6 +15,7 @@ import 'package:panel_pages/src/emoji/emoji_tone_picker.dart';
 import 'package:panel_pages/src/emoji/emoji_variant_picker.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/policy/pack_section_action.dart';
 import 'package:panel_pages/src/preview/catalog_content_preview.dart';
 import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
@@ -251,7 +252,8 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   // --- Section header -------------------------------------------------------
 
   /// Under a pointer, the Smileys & People header ends in a button that opens
-  /// a picker of one tone for every emoji.
+  /// a picker of one tone for every emoji, and an installed pack's header in
+  /// one that removes the pack.
   @override
   CatalogSectionAction? actionOf(
     Collection collection,
@@ -264,7 +266,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
         painter: _paintToneIcon,
         semanticLabel: strings.colorAllTitle,
       ),
-    _ => null,
+    _ => PackSectionAction.removeOf(collection, strings, arrangement),
   };
 
   // The tone-for-all button: two sliders, the upper one's
@@ -311,6 +313,10 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       CollectionId$Set(:final id),
     )) {
       host.requestPack(PackId(id));
+      return;
+    }
+    if (actionId == PackSectionAction.removePackActionId) {
+      PackSectionAction.requestRemove(collection, PackKind.emoji, host);
       return;
     }
     if (actionId != colorAllActionId ||
@@ -394,8 +400,12 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     PanelStrings strings, {
     required PanelArrangement arrangement,
   }) {
-    if (!arrangement.usesContextMenu || collection.id != CollectionId.recent) {
-      return const [];
+    if (!arrangement.usesContextMenu) return const [];
+    if (collection.id != CollectionId.recent) {
+      return switch (hit.leaf.key) {
+        ContentKey$Unicode() => const [],
+        _ => customEmojiMenu(strings),
+      };
     }
     return [
       CatalogMenuEntry.item(id: copyItemId, label: strings.copyAction),
@@ -412,6 +422,13 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     ];
   }
 
+  /// The menu of a custom emoji outside the recents, under a pointer: Copy
+  /// emoji, which copies it as itself, with its text for where it cannot be
+  /// drawn. More of the host's actions go here as they come.
+  static List<CatalogMenuEntry> customEmojiMenu(PanelStrings strings) => [
+    CatalogMenuEntry.item(id: copyItemId, label: strings.copyEmojiAction),
+  ];
+
   @override
   void onMenuAction(
     CatalogLeafHit hit,
@@ -419,7 +436,16 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     String itemId,
     PanelPageHost host,
   ) {
-    if (collection.id != CollectionId.recent) return;
+    if (collection.id != CollectionId.recent) {
+      // Only a custom emoji has a menu outside the recents.
+      if ((itemId, hit.leaf.key) case (
+        copyItemId,
+        final key,
+      ) when key is! ContentKey$Unicode) {
+        host.requestCopy(key, kind: hit.leaf.semanticKind);
+      }
+      return;
+    }
     const kind = recentsKind;
     switch (itemId) {
       // A copy is of the content, so under its own kind (a custom emoji is

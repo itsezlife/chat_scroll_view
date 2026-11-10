@@ -146,6 +146,51 @@ void main() {
     });
   });
 
+  group('under the desktop policy', () {
+    final cats = Pack(
+      id: const PackId('cats'),
+      kind: PackKind.stickers,
+      title: 'Cats',
+      items: const [],
+    );
+    late FakeContentLibrary library;
+    late BulletinController bulletins;
+    setUp(() {
+      library = FakeContentLibrary(
+        limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
+      )..apply(LibraryEdit.installPack(cats.id, cats.kind));
+      bulletins = BulletinController(
+        policy: const BulletinPolicy.desktop(),
+        clock: ManualBulletinClock(),
+      );
+    });
+    tearDown(() => bulletins.dispose());
+
+    test('says no library edit in a bulletin', () {
+      expect(ChatPackSheets.saysLibraryEdits(bulletins), isFalse);
+    });
+
+    test(
+      'a removal shows no bulletin and is done at once, with no Undo',
+      () async {
+        ChatPackSheets.apply(
+          library,
+          [(edit: LibraryEdit$RemovePack(cats.id, cats.kind), pack: cats)],
+          strings,
+          bulletins,
+        );
+        await pumpEventQueue();
+
+        expect(bulletins.current.value, isNull);
+        expect(library.installStateOf(cats.id), PackInstallState.notInstalled);
+        expect(
+          library.committed.last,
+          LibraryEdit$RemovePack(cats.id, cats.kind),
+        );
+      },
+    );
+  });
+
   group('a sheet opened by the chat', () {
     late AppServices services;
     late BuildContext home;
@@ -211,6 +256,43 @@ void main() {
       await _settle(tester);
 
       expect(services.library.installStateOf(pack), PackInstallState.installed);
+    });
+
+    testWidgets('under a pointer Remove swaps the box for a confirmation, '
+        'which removes the pack with no bulletin', (tester) async {
+      await pump(tester);
+      bulletins = BulletinController(policy: const BulletinPolicy.desktop());
+      addTearDown(bulletins.dispose);
+      const pack = AnimatedEmojiPack.packId;
+
+      ChatPackSheets.open(
+        home,
+        services: services,
+        bulletins: bulletins,
+        pack: pack,
+        kind: PackKind.emoji,
+        arrangement: PanelArrangement.pointer,
+      ).ignore();
+      await _settle(tester);
+      await tester.tap(find.text('Удалить эмодзи'));
+      await _settle(tester);
+
+      // The box is gone and the question stands in its place.
+      expect(find.text('Удалить эмодзи'), findsNothing);
+      expect(
+        find.text('Удалить «${AnimatedEmojiPack.title}»?'),
+        findsOneWidget,
+      );
+      expect(services.library.installStateOf(pack), PackInstallState.installed);
+
+      await tester.tap(find.text('Удалить'));
+      await _settle(tester);
+
+      expect(
+        services.library.installStateOf(pack),
+        PackInstallState.notInstalled,
+      );
+      expect(bulletins.current.value, isNull);
     });
 
     // The bulletin is up longer than the window it is named after: it

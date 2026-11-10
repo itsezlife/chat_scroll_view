@@ -7,6 +7,7 @@ import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/emoji/emoji_tab_icons.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/policy/pack_section_action.dart';
 import 'package:panel_pages/src/preview/catalog_content_preview.dart';
 import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/stickers/sticker_pack_strip.dart';
@@ -224,8 +225,10 @@ final class StickersPagePolicy extends CatalogPagePolicy {
     PanelPageHost host,
   ) => _preview?.perform(hit, itemId);
 
-  // --- The recents header ---------------------------------------------------
+  // --- Header buttons -------------------------------------------------------
 
+  /// The recents' header clears them; under a pointer an installed pack's
+  /// header removes the pack.
   @override
   CatalogSectionAction? actionOf(
     Collection collection,
@@ -234,31 +237,10 @@ final class StickersPagePolicy extends CatalogPagePolicy {
   }) => collection.id == CollectionId.recent
       ? CatalogSectionAction(
           id: clearRecentsActionId,
-          painter: _paintCross,
+          painter: PackSectionAction.paintCross,
           semanticLabel: strings.clearRecentAction,
         )
-      : null;
-
-  // `msg_close`: two strokes crossing, in the header's colour. One path, so
-  // a translucent colour covers the crossing once.
-  static void _paintCross(Canvas canvas, Rect box, Color color) {
-    final unit = box.width / 24;
-    final pen = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.7 * unit
-      ..strokeCap = StrokeCap.round;
-    final near = box.left + 7.5 * unit;
-    final far = box.left + 16.5 * unit;
-    final top = box.top + 7.5 * unit;
-    final bottom = box.top + 16.5 * unit;
-    final cross = Path()
-      ..moveTo(near, top)
-      ..lineTo(far, bottom)
-      ..moveTo(far, top)
-      ..lineTo(near, bottom);
-    canvas.drawPath(cross, pen);
-  }
+      : PackSectionAction.removeOf(collection, strings, arrangement);
 
   // --- A pack's header ------------------------------------------------------
 
@@ -282,6 +264,33 @@ final class StickersPagePolicy extends CatalogPagePolicy {
         host.requestClearRecents(SemanticKind.sticker);
       case (openPackActionId, CollectionId$Set(:final id)):
         host.requestPack(PackId(id));
+      case (PackSectionAction.removePackActionId, _):
+        PackSectionAction.requestRemove(collection, PackKind.stickers, host);
+    }
+  }
+
+  // --- The remove badge -----------------------------------------------------
+
+  /// A recent or a favourite sticker shows the remove badge under a mouse:
+  /// a recent leaves the recents, a favourite the favourites.
+  @override
+  bool leafRemovable(CatalogLeafHit hit, Collection collection) =>
+      collection.id == CollectionId.recent ||
+      collection.id == CollectionId.faved;
+
+  @override
+  void onLeafRemove(
+    CatalogLeafHit hit,
+    Collection collection,
+    PanelPageHost host,
+  ) {
+    switch (collection.id) {
+      case CollectionId.recent:
+        host.requestRemoveRecent(hit.leaf.key, kind: SemanticKind.sticker);
+      case CollectionId.faved:
+        host.requestLibraryEdit(LibraryEdit.unfavouriteSticker(hit.leaf.key));
+      default:
+        break;
     }
   }
 
@@ -294,6 +303,12 @@ final class StickersPagePolicy extends CatalogPagePolicy {
   bool get restartsOnFreshOpen => true;
 
   // --- Chrome ---------------------------------------------------------------
+
+  /// Under the pointer arrangement the strip is pinned at the bottom, as the
+  /// emoji page's is.
+  @override
+  bool stripAtBottom(PanelArrangement arrangement) =>
+      arrangement == PanelArrangement.pointer;
 
   @override
   double get stripExtent => StickerPackStrip.height;

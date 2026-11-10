@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart' show clampDouble;
+import 'package:flutter/gestures.dart' show PointerDeviceKind, kPrimaryButton;
 import 'package:flutter/widgets.dart';
 import 'package:panel_shell/src/input/panel_intents.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
@@ -283,33 +284,9 @@ class _Section extends StatefulWidget {
   State<_Section> createState() => _SectionState();
 }
 
-class _SectionState extends State<_Section> with TickerProviderStateMixin {
-  late final AnimationController _grow = AnimationController(
-    vsync: this,
-    duration: PanelSectionTabs.rippleShow,
-  );
-  late final AnimationController _fade = AnimationController(
-    vsync: this,
-    duration: PanelSectionTabs.rippleHide,
-    value: 1,
-  );
-  Offset? _origin;
+class _SectionState extends State<_Section> {
   var _focused = false;
-
-  @override
-  void dispose() {
-    _grow.dispose();
-    _fade.dispose();
-    super.dispose();
-  }
-
-  void _down(TapDownDetails details) {
-    setState(() => _origin = details.localPosition);
-    _fade.value = 0;
-    _grow.forward(from: 0);
-  }
-
-  void _release() => _fade.forward(from: 0);
+  var _primary = true;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -330,90 +307,53 @@ class _SectionState extends State<_Section> with TickerProviderStateMixin {
           },
         ),
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: _down,
-        onTapUp: (_) {
-          _release();
-          widget.onSelect();
-        },
-        onTapCancel: _release,
-        child: ClipRect(
-          child: CustomPaint(
-            foregroundPainter: _focused
-                ? _FocusRingPainter(widget.accent)
-                : null,
-            painter: _RipplePainter(
-              origin: _origin,
-              grow: _grow,
-              fade: _fade,
-              color: widget.ripple,
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: PanelSectionTabs.labelTop,
-                  child: Text(
-                    widget.label,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: _PanelSectionTabsState._labelStyle.copyWith(
-                      color: Color.lerp(
-                        widget.muted,
-                        widget.accent,
-                        widget.active,
+      // The desktop ink: a ripple from the press over 650 ms, fading over
+      // 200 ms; no hover fill.
+      // Only the primary button chooses: the ink takes every button.
+      child: Listener(
+        onPointerDown: (event) => _primary =
+            event.buttons & kPrimaryButton != 0 ||
+            event.kind != PointerDeviceKind.mouse,
+        child: ChromeInk(
+          kind: ChromeInkKind.pointer,
+          color: widget.ripple,
+          onTap: () {
+            if (_primary) widget.onSelect();
+          },
+          child: ClipRect(
+            child: CustomPaint(
+              foregroundPainter: _focused
+                  ? _FocusRingPainter(widget.accent)
+                  : null,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: PanelSectionTabs.labelTop,
+                    child: Text(
+                      widget.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _PanelSectionTabsState._labelStyle.copyWith(
+                        color: Color.lerp(
+                          widget.muted,
+                          widget.accent,
+                          widget.active,
+                        ),
+                        decoration: TextDecoration.none,
                       ),
-                      decoration: TextDecoration.none,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     ),
   );
-}
-
-// A circle from where the press went down, growing to cover the section and
-// fading once the press is over.
-class _RipplePainter extends CustomPainter {
-  _RipplePainter({
-    required this.origin,
-    required this.grow,
-    required this.fade,
-    required this.color,
-  }) : super(repaint: Listenable.merge([grow, fade]));
-
-  final Offset? origin;
-  final Animation<double> grow;
-  final Animation<double> fade;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = origin;
-    if (center == null || fade.value >= 1) return;
-    final reach = [
-      Offset.zero,
-      Offset(size.width, 0),
-      Offset(0, size.height),
-      Offset(size.width, size.height),
-    ].map((corner) => (corner - center).distance).reduce(math.max);
-    canvas.drawCircle(
-      center,
-      reach * Curves.easeOut.transform(grow.value),
-      Paint()..color = color.withValues(alpha: color.a * (1 - fade.value)),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_RipplePainter old) =>
-      old.origin != origin || old.color != color;
 }
 
 // The keyboard focus of a section: a ring inside its edges.

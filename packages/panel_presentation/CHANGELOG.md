@@ -6,6 +6,10 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a solid popup)
+
+- `AnchoredPopupStyle.surface` (`AnchoredPopupSurface.glass`, the default, or `.solid`): a solid popup lets the shell fill itself with the panel background.
+
 ### Added (a fresh open)
 
 - `PanelPresentationPolicy.opensAfresh(kind)`: whether opening a hidden panel
