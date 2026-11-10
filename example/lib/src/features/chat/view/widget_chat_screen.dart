@@ -542,6 +542,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       }
       // Owned from here on: `dispose()` and the catch below free it.
       _dataSource = backend;
+      // An edit ends when its message is deleted.
+      _input.bindMessages(backend);
       // The composer keeps this chat's unsent text; a chat that does not
       // outlive a relaunch keeps none.
       if (_chatKey(backend) case final key?) {

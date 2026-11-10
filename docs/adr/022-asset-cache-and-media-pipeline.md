@@ -396,3 +396,15 @@ Cause, confirmed with a device-shaped test (`example/test/flicker/shade_resume_t
 | Sweep while paused | `LottieFrameScheduler` and `VideoFrameScheduler` release nothing at a sweep that runs while their clock is paused (`PlaybackClock.isPaused`), and count every lease as painted then, so the first sweep after the pause does not take the cells on screen before they paint again. A lease therefore lives at most two idle periods of playback unpainted; a cell that leaves the screen during the pause still goes by `releaseUnlessPainted`. The leases held through a pause are the ones on screen, which the pool held anyway as kept frames. |
 | Focus loss | `PlaybackActivityPolicy.pausesOnFocusLoss` (null: the platform's default, read once when the activity starts; `pausesOnFocusLossOn(platform, web:)`). Desktop (macOS, Windows, Linux, and Fuchsia with them) and the web: `inactive` sets `appInactive`, as the reference desktop client freezes on window deactivation and a blurred tab is the user working elsewhere (*Amendment: pause policies*). Android and iOS: `inactive` alone sets nothing; there it is a system sheet over a window that stays visible (the shade, a permission dialog, a call banner, the control centre), as the reference mobile clients play on. `hidden`, `paused` and `detached` set `appInactive` and `surfaceHidden` on every platform, so leaving the app still stops playback, and `hidden -> inactive` on the way back clears both on a phone. A host passes `pausesOnFocusLoss` to choose otherwise. |
 | Not changed | The frame-rate vote of the example (the top rate while animating, withdrawn after 300 ms idle) was a suspect: on the shade it fell to no preference 0.45 s after focus loss because playback stopped. With playback going on under the shade the vote stays, and the sweep fix removes the hold on any other pause; no change to the vote. A cell without its own kept texture still takes another key's kept texture before none (*Kept frames* in `FrameTexturePool`); with the sweep held through a pause this no longer happens on resume, only when more cells return from off screen than the pool keeps frames for. |
+
+## Amendment: an animated image rewinds (2026-11-10)
+
+Native-media ticket 155. Ticket 143 made a foreground surface rewind its
+entry's paintable (`AssetPaintable.rewind`), which the Lottie and video
+paintables implement; the engine-codec paintable of an animated WebP or GIF
+(`image_decoder`'s `PlayingImagePaintable`) kept the default no-op, so a
+custom emoji's preview went on from its shared frame. It now rewinds: the
+kept first frame shows at once, and the codec, which decodes forward only,
+decodes and drops the frames up to the second. The reference sets its preview
+image to frame 0 for every kind it previews.
+

@@ -262,6 +262,24 @@ void main() {
     await gesture.up();
   });
 
+  testWidgets('the grid marks no cell pressed under the preview and draws '
+      'the previewed one smaller, following the finger', (tester) async {
+    await pumpPage(tester);
+    CatalogLeafPreview? mark() => tester
+        .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport).last)
+        .leafPreview;
+    final gesture = await hold(tester, 1);
+    expect(mark()?.shrunk?.index, 1);
+
+    await gesture.moveTo(cell(tester, 3));
+    await tester.pump();
+    expect(mark()?.shrunk?.index, 3);
+
+    await gesture.up();
+    await settleClose(tester);
+    expect(mark(), isNull);
+  });
+
   testWidgets('while it is open everything else the scope draws is held, '
       'and plays again from the close; the preview is in the foreground', (
     tester,

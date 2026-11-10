@@ -6,6 +6,22 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (a strip keeps its covers through a close and an open)
+
+- A pack strip's playing covers hold their frames and leases while the
+  panel moves or is hidden, as the grid's cells do, instead of letting them
+  go: with the chat's stickers filling the frames kept for the screen, the
+  covers lost theirs on every close and showed their stills on reopening.
+
+### Fixed (the grid under a content preview; one haptic for a tap)
+
+- While a content preview is open over the panel's grid or a pack sheet's,
+  the cells show no press or hover wash; a sticker's cell the preview shows
+  is drawn smaller and follows the finger (`CatalogLeafPreview`). A custom
+  emoji's and a GIF's cells keep their size.
+- A sticker tapped in a pack sheet, which opens its preview with the menu at
+  once, plays one haptic (the menu's), not two.
+
 ### Fixed (a pack sheet follows the finger past its grid)
 
 - A pull down on a bottom pack sheet's grid at its top, or anywhere on its

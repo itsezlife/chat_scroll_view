@@ -11,6 +11,7 @@ import 'package:panel_catalog/src/model/section_layout.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_grid_metrics.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
+import 'package:panel_catalog/src/viewport/catalog_leaf_preview.dart';
 import 'package:panel_catalog/src/viewport/catalog_overscroll_sink.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
@@ -150,6 +151,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.leafLongPressEligible,
     this.leafLongPressDelay,
     this.pinnedLeaf,
+    this.leafPreview,
     this.onSectionAction,
     this.sectionNearExtent,
     this.overscrollSink,
@@ -348,6 +350,15 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// state: the host has the interaction.
   final CatalogLeafHit? pinnedLeaf;
 
+  /// The content preview the host opened over the grid, or null.
+  ///
+  /// While set, no cell is drawn pressed or hovered (a pinned one included),
+  /// and the cell whose content it shows ([CatalogLeafPreview.shrunk]) is
+  /// drawn smaller, following the preview from cell to cell. A press under
+  /// way when it is set ends there, with no release. See
+  /// [CatalogLeafPreview].
+  final CatalogLeafPreview? leafPreview;
+
   /// Shell reaction to a tapped section header action, with the id of the
   /// [CatalogSection] and the [CatalogSectionAction.id].
   ///
@@ -400,6 +411,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
         onSectionAction: onSectionAction,
         sectionNearExtent: sectionNearExtent,
       )
+      ..leafPreview = leafPreview
       ..overscrollSink = overscrollSink
       ..held = _heldIn(context)
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
@@ -439,6 +451,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..leafLongPressEligible = leafLongPressEligible
       ..leafLongPressDelay = leafLongPressDelay
       ..pinnedLeaf = pinnedLeaf
+      ..leafPreview = leafPreview
       ..onSectionAction = onSectionAction
       ..sectionNearExtent = sectionNearExtent
       ..overscrollSink = overscrollSink

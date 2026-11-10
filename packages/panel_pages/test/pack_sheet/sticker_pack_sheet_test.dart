@@ -15,8 +15,10 @@ import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' show TextTheme, Theme, ThemeData;
+import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -390,6 +392,86 @@ void main() {
 
       expect(picks.single.item.key, const ContentKey.document('cats-0'));
       expect(sheetUp(), isFalse);
+    });
+
+    testWidgets('one tap on a sticker is one haptic and one preview opening', (
+      tester,
+    ) async {
+      final haptics = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'HapticFeedback.vibrate') {
+            haptics.add('${call.arguments}');
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      var opened = 0;
+      previews.isOpen.addListener(() {
+        if (previews.isOpen.value) opened++;
+      });
+      await open(tester, 'cats', canSend: true, previews: previews);
+
+      await tester.tapAt(firstCell(tester));
+      await settle(tester);
+
+      expect(find.text('Send Sticker'), findsOneWidget);
+      expect(opened, 1);
+      expect(haptics, hasLength(1));
+    });
+
+    testWidgets('a held sticker is drawn smaller under its preview, the mark '
+        'follows the finger, and goes with the preview', (tester) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(tester, 'cats', canSend: true, previews: previews);
+      CatalogLeafPreview? mark() => tester
+          .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport))
+          .leafPreview;
+      expect(mark(), isNull);
+
+      final finger = await tester.startGesture(firstCell(tester));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(previews.isOpen.value, isTrue);
+      expect(mark()?.shrunk?.index, 0);
+
+      await finger.moveBy(const Offset(76, 0));
+      await tester.pump();
+      expect(mark()?.shrunk?.index, 1);
+
+      await finger.up();
+      await settle(tester);
+      expect(previews.isOpen.value, isFalse);
+      expect(mark(), isNull);
+    });
+
+    testWidgets('a tapped sticker is drawn smaller under its preview', (
+      tester,
+    ) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(tester, 'cats', canSend: true, previews: previews);
+
+      await tester.tapAt(firstCell(tester));
+      await settle(tester);
+
+      expect(
+        tester
+            .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport))
+            .leafPreview
+            ?.shrunk
+            ?.index,
+        0,
+      );
     });
 
     testWidgets('without a composer the preview has no Send', (tester) async {

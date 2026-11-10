@@ -150,6 +150,18 @@ final class CatalogLeafPress {
     onChanged();
   }
 
+  /// Ends the press at once, with no release: nothing is drawn pressed from
+  /// here on, and the pointer that pressed is forgotten. For a press another
+  /// surface took over (a preview opened by holding the cell).
+  void cancel() {
+    _pointerDown = false;
+    _controller?.stop();
+    _controller?.value = 0;
+    if (_pressedSlotKey == null) return;
+    _pressedSlotKey = null;
+    onChanged();
+  }
+
   /// Drops the controller. Idempotent.
   void dispose() {
     _controller?.removeListener(onChanged);

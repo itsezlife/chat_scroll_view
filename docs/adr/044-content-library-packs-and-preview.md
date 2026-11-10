@@ -122,6 +122,15 @@ Native-media ticket 128. The example paused the shared clock under every modal r
 | Route | `PackSheet.show` pushes its route under `PackSheet.routeName`, in both arrangements, as the message menu names its own. |
 | Host | A host that pauses its animations under modal routes holds the clock for a pack sheet only while the route's transition runs (from push until open, from pop until gone), and holds the chat on its own while the sheet is open: one clock serves the chat and the sheet, so the chat is held as a surface (`ContentEmbed.held`, the path a popup panel already takes), not by a pause layer. The example's route observer and `PanelPlaybackHold.holdChat` do this. |
 
+## Amendment: one haptic for a tapped sticker (2026-11-10)
+
+Native-media ticket 153. A tap on a sticker in a pack sheet opens the preview
+with its menu at once, and both the opening and the menu played a haptic. The
+reference's `ContentPreviewViewer.showMenuFor` opens without one; only
+`showSheetRunnable`, which brings the menu 16 ms later, performs
+`LONG_PRESS`. A preview opened with its menu (`openMenu`) is felt once, by the
+menu; one opened by a hold keeps both (the hold's and, later, the menu's).
+
 ## Related
 
 - Glossary: [Content and Assets](../content/CONTEXT.md) (*Pack*, *Pack reference*, *Pack source*, *Content library*, *Library edit*, *Undo window*, *Install state*, *Favourite sticker*, *Saved GIF*, *Content preview*, *Pack sheet*)

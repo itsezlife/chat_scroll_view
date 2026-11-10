@@ -7,13 +7,17 @@ import 'package:panel_presentation/panel_presentation.dart';
 ///
 /// Two holds from the presentation's visibility, and one the host asks for:
 ///
-/// - **While the panel moves in or out** (`PanelVisibility.isMoving`, of any
-///   kind: popup, dock, keyboard replacement), [PlaybackPauseLayer.routeMoving]
-///   is set on the clock: nothing advances, decodes or uploads, every surface
-///   keeps its frame, and the frames go to the motion. The panel is painted
-///   from a snapshot for the show and hide and plays nothing in it; its
-///   notifications are locked for the panel's animation. Playback resumes
-///   when the motion settles.
+/// - **While the panel moves in or out on its own** (`PanelVisibility.isMoving`,
+///   of any kind: popup, dock, keyboard replacement),
+///   [PlaybackPauseLayer.routeMoving] is set on the clock: nothing advances,
+///   decodes or uploads, every surface keeps its frame, and the frames go to
+///   the motion. The panel is painted from a snapshot for the show and hide
+///   and plays nothing in it; its notifications are locked for the panel's
+///   animation. Playback resumes when the motion settles.
+/// - **A swap with the soft keyboard is not such a motion**: a keyboard panel
+///   shown while the keyboard is up takes its place at once, and one hidden
+///   for the keyboard (`waitForIme`) keeps the slot until the keyboard has
+///   it. The keyboard moves, the panel does not, and playback goes on.
 /// - **While a popup panel is on screen** (`AnchoredPopup`, from showing to
 ///   hidden), [chatHeld] is true: the host feeds it to the chat's embeds
 ///   (`ContentEmbed.held`), so the chat under the popup shows its frames and
@@ -31,17 +35,28 @@ import 'package:panel_presentation/panel_presentation.dart';
 /// clears only what it set.
 final class PanelPlaybackHold {
   /// Follows [presentation] and holds [clock]'s playback by it.
+  ///
+  /// [keyboardIsUp] reads whether the soft keyboard is up now (the keyboard
+  /// strategy's `keyboardIsUp`); read as a keyboard panel starts to show, it
+  /// tells a swap from a motion of the panel's own. Null: no keyboard, every
+  /// show moves.
   PanelPlaybackHold({
     required listen.ValueListenable<PanelVisibility> presentation,
     required PlaybackClock clock,
+    bool Function()? keyboardIsUp,
   }) : _presentation = presentation,
-       _clock = clock {
+       _clock = clock,
+       _keyboardIsUp = keyboardIsUp {
     presentation.addListener(_follow);
     _follow();
   }
 
   final listen.ValueListenable<PanelVisibility> _presentation;
   final PlaybackClock _clock;
+  final bool Function()? _keyboardIsUp;
+  // The visibility followed last: a swap is told as the panel starts to move.
+  PanelVisibility _last = PanelVisibility.hidden;
+  bool _swapping = false;
   final listen.ValueNotifier<bool> _chatHeld = listen.ValueNotifier(false);
   bool _popupOver = false;
   int _claims = 0;
@@ -68,7 +83,22 @@ final class PanelPlaybackHold {
   void _follow() {
     if (_disposed) return;
     final state = _presentation.value;
-    _holdMotion(state.isMoving);
+    if (state != _last) {
+      _swapping = switch (state) {
+        PanelVisibility$Showing(kind: KeyboardReplacement())
+            when !_last.isShowing =>
+          _keyboardIsUp?.call() ?? false,
+        PanelVisibility$Showing() => _swapping,
+        PanelVisibility$Hiding(
+          kind: KeyboardReplacement(),
+          :final waitForIme,
+        ) =>
+          waitForIme,
+        _ => false,
+      };
+      _last = state;
+    }
+    _holdMotion(state.isMoving && !_swapping);
     _popupOver = state.isVisible && state.kind is AnchoredPopup;
     _updateChat();
   }
