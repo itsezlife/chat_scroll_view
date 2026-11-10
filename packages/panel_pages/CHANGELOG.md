@@ -6,6 +6,10 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the emoji pack sheet's preview)
+
+- `EmojiPackSheet.previews` and `onCopyRequested`: a custom emoji held in an emoji pack sheet or box opens the content preview, as on the panel's emoji page (from frame 0, switching under the finger or pointer, Send Emoji and Copy Emoji); a right-click in the box offers Copy Emoji. A tap still inserts.
+
 ### Changed (the web's header cross)
 
 - The remove cross of an installed pack's header is a desktop's only; the web's headers keep the recents' cross alone.

@@ -8,6 +8,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_pages/src/emoji/emoji_page_policy.dart';
 import 'package:panel_pages/src/menu/catalog_context_menu.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_action.dart';
@@ -58,6 +59,7 @@ class PackSheetView extends StatefulWidget {
     this.previews,
     this.onLibraryEditRequested,
     this.previewEmoji,
+    this.onCopyRequested,
     super.key,
   });
 
@@ -90,8 +92,7 @@ class PackSheetView extends StatefulWidget {
   final PackSheetLinks? links;
 
   /// The host's handle on content previews, or null for none: with it a
-  /// sticker grid previews a held or tapped sticker (an emoji grid never
-  /// does).
+  /// grid previews a held item, and a sticker grid a tapped one too.
   final ContentPreviewController? previews;
 
   /// Asked for the preview's library edits (favourites), or null for none.
@@ -99,6 +100,9 @@ class PackSheetView extends StatefulWidget {
 
   /// An emoji drawn large above the card on touch, or null.
   final ContentKey? previewEmoji;
+
+  /// Asked to copy a previewed custom emoji, or null to offer no Copy.
+  final ValueChanged<PackSheetItem>? onCopyRequested;
 
   // --- Metrics --------------------------------------------------------------
 
@@ -496,8 +500,9 @@ class _PackSheetViewState extends State<PackSheetView>
       setState(() => _alone = item.pack.id);
       return;
     }
-    // A tap on a sticker opens its preview with the menu at once.
-    if (_preview case final preview?) {
+    // A tap on a sticker opens its preview with the menu at once; an emoji
+    // is inserted.
+    if (_preview case final preview? when _grid == PackSheetGrid.stickers) {
       _replaceSession(
         ContentPreviewSession.show(
           context: context,
@@ -525,34 +530,42 @@ class _PackSheetViewState extends State<PackSheetView>
     pick(item);
   }
 
-  /// The preview of the grid, or null where nothing is previewed: an emoji
-  /// grid, or no controller.
+  /// The preview of the grid, or null without a controller. The menu is the
+  /// one the panel shows for the kind: Send only when opened for a composer,
+  /// Copy for an emoji when the host copies, and View Pack never, the pack
+  /// is open.
   CatalogContentPreview? get _preview => switch (widget.previews) {
-    final controller? when _grid == PackSheetGrid.stickers =>
-      CatalogContentPreview(
-        controller: controller,
-        assets: widget.assets,
-        // Send only when opened for a composer; View Pack never, the pack is
-        // open.
-        actions: ContentPreviewActions(
-          send: widget.onPick == null ? null : _sendPreviewed,
-          editLibrary: widget.onLibraryEditRequested,
-        ),
-        inRecents: (_) => false,
-        packOf: (hit) => _itemOf(hit)?.pack.id,
+    final controller? => CatalogContentPreview(
+      controller: controller,
+      assets: widget.assets,
+      actions: ContentPreviewActions(
+        send: widget.onPick == null ? null : _sendPreviewed,
+        copy: widget.onCopyRequested == null ? null : _copyPreviewed,
+        editLibrary: widget.onLibraryEditRequested,
       ),
-    _ => null,
+      inRecents: (_) => false,
+      packOf: (hit) => _itemOf(hit)?.pack.id,
+    ),
+    null => null,
   };
 
   void _sendPreviewed(ContentPreviewItem previewed) {
+    if (_sheetItemOf(previewed) case final item?) _pick(item);
+  }
+
+  void _copyPreviewed(ContentPreviewItem previewed) {
+    if (_sheetItemOf(previewed) case final item?) {
+      widget.onCopyRequested?.call(item);
+    }
+  }
+
+  PackSheetItem? _sheetItemOf(ContentPreviewItem previewed) {
     for (final pack in _found ?? const <Pack>[]) {
       for (final item in pack.items) {
-        if (item.key == previewed.key) {
-          _pick((item: item, pack: pack));
-          return;
-        }
+        if (item.key == previewed.key) return (item: item, pack: pack);
       }
     }
+    return null;
   }
 
   ContentPreviewItem? Function(Offset) _itemAt(CatalogContentPreview preview) =>
@@ -572,20 +585,41 @@ class _PackSheetViewState extends State<PackSheetView>
     }
   }
 
-  // A right-click on a sticker opens the preview's items as a context menu,
-  // as on the panel's grid.
+  // A right-click opens the menu the panel's grid has for the cell: a
+  // sticker's is the preview's items, a custom emoji's Copy emoji alone.
   void _onSecondaryTap(CatalogLeafHit hit, Offset globalPosition) {
-    final preview = _preview;
-    if (preview == null) return;
-    final entries = preview.entriesOf(hit, ChromeStringsScope.panelOf(context));
-    if (entries.isEmpty) return;
+    final strings = ChromeStringsScope.panelOf(context);
+    final (entries, onSelected) = switch ((_grid, _preview)) {
+      (PackSheetGrid.stickers, final preview?) => (
+        preview.entriesOf(hit, strings),
+        (String id) => preview.perform(hit, id),
+      ),
+      (PackSheetGrid.stickers, null) => (const <CatalogMenuEntry>[], null),
+      _ when widget.onCopyRequested == null => (
+        const <CatalogMenuEntry>[],
+        null,
+      ),
+      _ => (
+        EmojiPagePolicy.customEmojiMenu(strings),
+        (String id) {
+          if (id != EmojiPagePolicy.copyItemId) return;
+          if (_itemOf(hit) case final item?) widget.onCopyRequested?.call(item);
+        },
+      ),
+    };
+    if (entries.isEmpty || onSelected == null) return;
     _replaceSession(null);
     _menu.show(
       globalPosition: globalPosition,
       entries: entries,
-      onSelected: (id) => preview.perform(hit, id),
+      onSelected: onSelected,
     );
   }
+
+  bool get _hasContextMenu => switch (_grid) {
+    PackSheetGrid.stickers => _preview != null,
+    _ => widget.onCopyRequested != null,
+  };
 
   // A pack's own button among several toggles it and leaves the sheet up.
   void _togglePack(Pack pack) {
@@ -683,7 +717,7 @@ class _PackSheetViewState extends State<PackSheetView>
               controller: _catalog,
               padding: gridPadding.copyWith(top: gridPadding.top + frame.lead),
               onLeafTap: _onTap,
-              onLeafSecondaryTap: _preview == null ? null : _onSecondaryTap,
+              onLeafSecondaryTap: _hasContextMenu ? _onSecondaryTap : null,
               leafLongPressEligible: _longPressEligible,
               leafLongPressDelay: (_, kind) =>
                   CatalogContentPreview.delayOf(kind),

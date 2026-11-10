@@ -89,7 +89,8 @@ final class ChatEditTarget {
 ///   a picked sticker is sent and put first in the content library's recent
 ///   stickers, a picked GIF sent and saved (ADR 044); backspace edits the
 ///   composer; clearing recents asks [confirmClearRecents] first. What a pack
-///   sheet picks comes back through [pickContent].
+///   sheet picks comes back through [pickContent], and what its preview
+///   copies through [copyContent].
 /// - **Pasted media.** An image or file pasted into the composer, or an
 ///   image a keyboard inserts, goes to `onPastedMedia` to send, and no text
 ///   goes in; when it is not sent, the text that came with it does.
@@ -1037,11 +1038,7 @@ final class ChatInputSet {
         unawaited(HapticFeedback.mediumImpact());
         unawaited(_clearRecents(kind));
       case ContentCopyRequested(:final key):
-        // As itself, over the text other apps paste: pasted back into the
-        // composer it is the same custom emoji.
-        if (_textOf(key) case final text?) {
-          unawaited(services.clipboard.write(ChatCopy.content(key, text)));
-        }
+        copyContent(key);
       case RecentRemoveRequested(:final key, :final kind):
         _forget(key, kind: kind);
       // A pack's edit is the host's, with its bulletin (a removal held
@@ -1072,6 +1069,16 @@ final class ChatInputSet {
   void pickContent(ContentKey key, {required SemanticKind kind}) {
     if (_disposed) return;
     _pick(key, recentsKind: kind, source: PickSource.collection);
+  }
+
+  /// Puts [key], an emoji copied from the panel or a pack sheet's preview, on
+  /// the clipboard as itself, over the text other apps paste: pasted back
+  /// into the composer it is the same custom emoji.
+  void copyContent(ContentKey key) {
+    if (_disposed) return;
+    if (_textOf(key) case final text?) {
+      unawaited(services.clipboard.write(ChatCopy.content(key, text)));
+    }
   }
 
   void _pick(

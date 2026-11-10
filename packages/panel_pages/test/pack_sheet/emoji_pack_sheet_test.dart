@@ -12,6 +12,8 @@ library;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -47,6 +49,7 @@ void main() {
   late AssetCacheScope assets;
   late List<List<PackEditRequest>> edits;
   late List<PackSheetItem> picks;
+  late List<PackSheetItem> copies;
   late BuildContext home;
 
   setUp(() {
@@ -61,6 +64,7 @@ void main() {
     assets = PageAssets.createScope();
     edits = [];
     picks = [];
+    copies = [];
     addTearDown(() {
       packs.dispose();
       library.dispose();
@@ -74,6 +78,8 @@ void main() {
     bool canInsert = false,
     ContentKey? previewEmoji,
     Size screen = const Size(400, 800),
+    PanelArrangement arrangement = PanelArrangement.touch,
+    ContentPreviewController? previews,
   }) async {
     tester.view
       ..physicalSize = screen
@@ -94,7 +100,7 @@ void main() {
     );
     PackSheet.show(
       home,
-      arrangement: PanelArrangement.touch,
+      arrangement: arrangement,
       builder: (_) => EmojiPackSheet(
         packIds: [for (final id in ids) PackId(id)],
         packs: packs,
@@ -103,6 +109,8 @@ void main() {
         onEditsRequested: edits.add,
         onPick: canInsert ? picks.add : null,
         previewEmoji: previewEmoji,
+        previews: previews,
+        onCopyRequested: copies.add,
       ),
     ).ignore();
     await settle(tester);
@@ -360,6 +368,167 @@ void main() {
       );
 
       expect(preview(), findsNothing);
+    });
+  });
+
+  // A custom emoji previews as a sticker does in its sheet: held, from its
+  // first frame, and the preview follows the finger or the held mouse.
+  group('the content preview', () {
+    // The previewed emoji, drawn in the foreground (from frame 0).
+    Finder previewOf(String id) => find.byWidgetPredicate(
+      (widget) =>
+          widget is ContentView &&
+          widget.content == ContentKey.document(id) &&
+          widget.preset.profile.foreground,
+    );
+
+    // The first cell of one pack: eight 47.5 columns on touch; in the box
+    // eight 42 x 39 cells from 12 in.
+    Offset cell(WidgetTester tester, int index, PanelArrangement arrangement) {
+      final origin = sheet(tester).topLeft;
+      return switch (arrangement) {
+        PanelArrangement.touch =>
+          origin + Offset(10 + 23 + index * 47.5, 50 + 23),
+        PanelArrangement.pointer =>
+          origin + Offset(12 + 21 + index * 42.0, 50 + 19.5),
+      };
+    }
+
+    for (final (arrangement, kind, delay) in [
+      (
+        PanelArrangement.touch,
+        PointerDeviceKind.touch,
+        ContentPreviewSession.touchHoldDelay,
+      ),
+      (
+        PanelArrangement.pointer,
+        PointerDeviceKind.mouse,
+        ContentPreviewSession.pointerHoldDelay,
+      ),
+    ]) {
+      testWidgets('a ${kind.name} held on an emoji (${arrangement.name}) '
+          'previews it from its first frame, and the preview follows it to '
+          'the next emoji', (tester) async {
+        final previews = ContentPreviewController(library: library);
+        addTearDown(previews.dispose);
+        await open(
+          tester,
+          ['a'],
+          canInsert: true,
+          arrangement: arrangement,
+          previews: previews,
+        );
+
+        final pointer = await tester.startGesture(
+          cell(tester, 0, arrangement),
+          kind: kind,
+        );
+        await tester.pump(delay);
+        await tester.pump(ContentPreviewSession.showDuration);
+
+        expect(previews.isOpen.value, isTrue);
+        expect(previewOf('a-0'), findsOneWidget);
+
+        await pointer.moveTo(cell(tester, 1, arrangement));
+        await tester.pump();
+        await tester.pump(ContentPreviewSession.showDuration);
+
+        expect(previewOf('a-1'), findsOneWidget);
+        expect(previewOf('a-0'), findsNothing);
+
+        await pointer.up();
+        await settle(tester);
+        expect(previews.isOpen.value, isFalse);
+        expect(picks, isEmpty);
+      });
+    }
+
+    testWidgets('a held emoji is felt once as it opens and once as its menu '
+        'comes up; the menu sends and copies it', (tester) async {
+      final haptics = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'HapticFeedback.vibrate') {
+            haptics.add('${call.arguments}');
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(tester, ['a'], canInsert: true, previews: previews);
+
+      final finger = await tester.startGesture(
+        cell(tester, 0, PanelArrangement.touch),
+      );
+      await tester.pump(ContentPreviewSession.touchHoldDelay);
+      await tester.pump(ContentPreviewSession.showDuration);
+      expect(haptics, hasLength(1));
+
+      await tester.pump(ContentPreviewSession.stickerMenuDelay);
+      await tester.pump(ContentPreviewSession.showDuration);
+      await finger.up();
+      await tester.pump(ContentPreviewSession.showDuration);
+
+      expect(haptics, hasLength(2));
+      expect(find.text('Send Emoji'), findsOneWidget);
+      expect(find.text('Copy Emoji'), findsOneWidget);
+      expect(find.text('Add to Favorites'), findsNothing);
+
+      await tester.tap(find.text('Copy Emoji'));
+      await settle(tester);
+      expect(copies.single.item.key, const ContentKey.document('a-0'));
+      expect(sheetUp(), isTrue);
+    });
+
+    testWidgets('a right-click in the box offers Copy Emoji alone, as the '
+        "panel's emoji page does", (tester) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(
+        tester,
+        ['a'],
+        canInsert: true,
+        arrangement: PanelArrangement.pointer,
+        previews: previews,
+      );
+
+      await tester.tapAt(
+        cell(tester, 2, PanelArrangement.pointer),
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      );
+      await settle(tester);
+
+      expect(previews.isOpen.value, isFalse);
+      expect(find.text('Send Emoji'), findsNothing);
+      await tester.tap(find.text('Copy Emoji'));
+      await settle(tester);
+
+      expect(copies.single.item.key, const ContentKey.document('a-2'));
+      expect(picks, isEmpty);
+      expect(sheetUp(), isTrue);
+    });
+
+    testWidgets('a tap still inserts the emoji, with no preview', (
+      tester,
+    ) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(tester, ['a'], canInsert: true, previews: previews);
+
+      await tester.tapAt(cell(tester, 0, PanelArrangement.touch));
+      await settle(tester);
+
+      expect(previews.isOpen.value, isFalse);
+      expect(picks.single.item.key, const ContentKey.document('a-0'));
     });
   });
 }
