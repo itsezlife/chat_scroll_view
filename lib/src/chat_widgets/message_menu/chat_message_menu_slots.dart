@@ -30,16 +30,50 @@ typedef ChatMessageMenuBuilder =
 
 /// Draws a surface of the menu around [child]: its fill, corners and shadow,
 /// in place of the package's (a host's glass, say). The action card and the
-/// reaction strip both take it, so they read as one material.
-///
-/// [cornerRadius] is the surface's: the card's
-/// (`ChatMessageMenuThemeData.cardRadius`) or the strip's (half its height
-/// unless `ChatMessageMenuThemeData.reactionsRadius` says otherwise). The
-/// builder clips [child] to that shape; its press feedback stays inside it.
-/// The card's width rules (`ChatMessageMenuCard`) still apply around the
-/// surface.
+/// reaction strip both take it, so they read as one material; [surface] says
+/// which it is and its corner radius. The builder clips [child] to that
+/// shape; its press feedback stays inside it. The card's width rules
+/// (`ChatMessageMenuCard`) still apply around the surface.
 typedef ChatMessageMenuSurfaceBuilder =
-    Widget Function(BuildContext context, double cornerRadius, Widget child);
+    Widget Function(
+      BuildContext context,
+      ChatMessageMenuSurface surface,
+      Widget child,
+    );
+
+/// Which surface of the menu a [ChatMessageMenuSurfaceBuilder] draws.
+@immutable
+sealed class ChatMessageMenuSurface {
+  const ChatMessageMenuSurface._(this.cornerRadius);
+
+  /// The action card, of [cornerRadius]
+  /// (`ChatMessageMenuThemeData.cardRadius`).
+  const factory ChatMessageMenuSurface.card({required double cornerRadius}) =
+      ChatMessageMenuSurface$Card;
+
+  /// The reaction strip, of [cornerRadius] (half its height unless
+  /// `ChatMessageMenuThemeData.reactionsRadius` says otherwise).
+  const factory ChatMessageMenuSurface.reactions({
+    required double cornerRadius,
+  }) = ChatMessageMenuSurface$Reactions;
+
+  /// The surface's corner radius.
+  final double cornerRadius;
+}
+
+/// [ChatMessageMenuSurface.card].
+final class ChatMessageMenuSurface$Card extends ChatMessageMenuSurface {
+  /// The card.
+  const ChatMessageMenuSurface$Card({required double cornerRadius})
+    : super._(cornerRadius);
+}
+
+/// [ChatMessageMenuSurface.reactions].
+final class ChatMessageMenuSurface$Reactions extends ChatMessageMenuSurface {
+  /// The strip.
+  const ChatMessageMenuSurface$Reactions({required double cornerRadius})
+    : super._(cornerRadius);
+}
 
 /// Plays the menu's enter and leave on [menu].
 ///

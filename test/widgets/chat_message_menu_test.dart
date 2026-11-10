@@ -470,7 +470,7 @@ void main() {
         ],
         // A surface as a glass is built: a stack, which lays out its child
         // loosely.
-        surfaceBuilder: (context, radius, rows) => Stack(
+        surfaceBuilder: (context, surface, rows) => Stack(
           children: [
             const Positioned.fill(child: ColoredBox(color: Color(0xFF00FF00))),
             rows,
@@ -494,7 +494,8 @@ void main() {
       await _openMenu(
         tester,
         onDone: (_) {},
-        surfaceBuilder: (context, radius, child) {
+        surfaceBuilder: (context, surface, child) {
+          final radius = surface.cornerRadius;
           radii.add(radius);
           return ColoredBox(
             key: ValueKey('surface-$radius'),
@@ -518,7 +519,7 @@ void main() {
       await _openMenu(
         tester,
         onDone: (_) {},
-        surfaceBuilder: (context, radius, rows) => ColoredBox(
+        surfaceBuilder: (context, surface, rows) => ColoredBox(
           key: const ValueKey('host-surface'),
           color: const Color(0xFF00FF00),
           child: rows,
@@ -575,6 +576,29 @@ void main() {
         await tester.pump(const Duration(milliseconds: 350));
       });
     }
+  });
+
+  testWidgets('an entry row chooses its id', (tester) async {
+    ChatMessageMenuResult? result;
+    await _openMenu(
+      tester,
+      onDone: (value) => result = value,
+      items: <ChatMessageMenuItem>[
+        ..._items,
+        ChatMessageMenuItem.entry(
+          id: 'packs',
+          builder: (context, onSelect) => GestureDetector(
+            onTap: onSelect,
+            child: const Text('Packs entry'),
+          ),
+        ),
+      ],
+    );
+
+    await tester.tap(find.text('Packs entry'));
+    await tester.pump();
+    expect(result, const ChatMessageMenuResult.item('packs'));
+    await tester.pump(const Duration(milliseconds: 350));
   });
 
   testWidgets('itemBuilder replaces package action rows', (tester) async {

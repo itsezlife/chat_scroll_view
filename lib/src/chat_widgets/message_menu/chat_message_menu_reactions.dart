@@ -142,7 +142,7 @@ class ChatMessageMenuReactions extends StatelessWidget {
     if (surfaceBuilder case final builder?) {
       return builder(
         context,
-        radius.topLeft.x,
+        ChatMessageMenuSurface.reactions(cornerRadius: radius.topLeft.x),
         Material(type: MaterialType.transparency, child: content),
       );
     }

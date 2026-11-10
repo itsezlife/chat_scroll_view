@@ -20,7 +20,18 @@ sealed class ChatMessageMenuItem {
   /// An arbitrary row. Use for chrome the package does not model.
   const factory ChatMessageMenuItem.custom({required WidgetBuilder builder}) =
       ChatMessageMenuCustom;
+
+  /// An arbitrary row that chooses [id]: [builder] gets the callback that
+  /// completes the session with [ChatMessageMenuResult.item] of [id].
+  const factory ChatMessageMenuItem.entry({
+    required String id,
+    required ChatMessageMenuEntryBuilder builder,
+  }) = ChatMessageMenuEntry;
 }
+
+/// Builds a [ChatMessageMenuEntry]; [onSelect] chooses it.
+typedef ChatMessageMenuEntryBuilder =
+    Widget Function(BuildContext context, VoidCallback onSelect);
 
 /// Tappable action row.
 @immutable
@@ -65,6 +76,20 @@ final class ChatMessageMenuCustom extends ChatMessageMenuItem {
 
   /// Builds the row in the action card.
   final WidgetBuilder builder;
+}
+
+/// Host-built row that chooses an id.
+@immutable
+final class ChatMessageMenuEntry extends ChatMessageMenuItem {
+  /// Creates an entry row.
+  const ChatMessageMenuEntry({required this.id, required this.builder})
+    : super._();
+
+  /// Stable id returned on [ChatMessageMenuResult.item].
+  final String id;
+
+  /// Builds the row in the action card.
+  final ChatMessageMenuEntryBuilder builder;
 }
 
 /// Outcome of [ChatMessageMenu.show].
