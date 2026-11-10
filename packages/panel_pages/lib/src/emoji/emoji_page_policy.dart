@@ -400,8 +400,12 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     PanelStrings strings, {
     required PanelArrangement arrangement,
   }) {
-    if (!arrangement.usesContextMenu || collection.id != CollectionId.recent) {
-      return const [];
+    if (!arrangement.usesContextMenu) return const [];
+    if (collection.id != CollectionId.recent) {
+      return switch (hit.leaf.key) {
+        ContentKey$Unicode() => const [],
+        _ => customEmojiMenu(strings),
+      };
     }
     return [
       CatalogMenuEntry.item(id: copyItemId, label: strings.copyAction),
@@ -418,6 +422,13 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     ];
   }
 
+  /// The menu of a custom emoji outside the recents, under a pointer: Copy
+  /// emoji, which copies it as itself, with its text for where it cannot be
+  /// drawn. More of the host's actions go here as they come.
+  static List<CatalogMenuEntry> customEmojiMenu(PanelStrings strings) => [
+    CatalogMenuEntry.item(id: copyItemId, label: strings.copyEmojiAction),
+  ];
+
   @override
   void onMenuAction(
     CatalogLeafHit hit,
@@ -425,7 +436,16 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     String itemId,
     PanelPageHost host,
   ) {
-    if (collection.id != CollectionId.recent) return;
+    if (collection.id != CollectionId.recent) {
+      // Only a custom emoji has a menu outside the recents.
+      if ((itemId, hit.leaf.key) case (
+        copyItemId,
+        final key,
+      ) when key is! ContentKey$Unicode) {
+        host.requestCopy(key, kind: hit.leaf.semanticKind);
+      }
+      return;
+    }
     const kind = recentsKind;
     switch (itemId) {
       // A copy is of the content, so under its own kind (a custom emoji is
