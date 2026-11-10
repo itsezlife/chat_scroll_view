@@ -24,6 +24,7 @@ final class ChatMessageMenuPresentConfig {
     this.itemBuilder,
     this.reactionBuilder,
     this.menuBuilder,
+    this.transitionBuilder,
   });
 
   /// Captured slot rect in overlay coordinates.
@@ -85,4 +86,8 @@ final class ChatMessageMenuPresentConfig {
   /// [ChatMessageMenuSlots.actionList] / [ChatMessageMenuSlots.reactionStrip]
   /// to keep the defaults.
   final ChatMessageMenuBuilder? menuBuilder;
+
+  /// Optional enter / leave motion. Null uses
+  /// `ChatMessageMenuDefaultTransition`.
+  final ChatMessageMenuTransitionBuilder? transitionBuilder;
 }

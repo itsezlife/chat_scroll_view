@@ -362,6 +362,30 @@ void main() {
     expect(previews.isOpen.value, isFalse);
   });
 
+  testWidgets('a mouse preview is a square of 224 in the middle of the '
+      'window, fading in over 150 ms without a scale', (tester) async {
+    await pumpPage(tester);
+    final mouse = await tester.startGesture(
+      cell(tester, 1),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(ContentPreviewSession.pointerHoldDelay);
+    await tester.pump(const Duration(milliseconds: 75));
+
+    final preview = _previewOf('a-1');
+    expect(
+      tester.getRect(preview),
+      Rect.fromCenter(center: const Offset(400, 300), width: 224, height: 224),
+    );
+    final opacity = tester.widget<Opacity>(
+      find.ancestor(of: preview, matching: find.byType(Opacity)).first,
+    );
+    expect(opacity.opacity, closeTo(0.5, 0.05));
+
+    await mouse.up();
+    await settleClose(tester);
+  });
+
   testWidgets('without a controller a long press does nothing', (tester) async {
     final policy = StickersPagePolicy(assets: assets, host: host);
     final hit = CatalogLeafHit(

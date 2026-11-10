@@ -4,6 +4,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pa
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
+import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -420,6 +421,152 @@ void main() {
 
     test('reactions strip is empty (hover strip elsewhere)', () {
       expect(MessageMenuCatalog.reactionsFor(policy), isEmpty);
+    });
+  });
+
+  group('content rows', () {
+    const sticker = MessageMenuContent.sticker(
+      key: ContentKey.document('s1'),
+      pack: PackId('cats'),
+      packInstalled: true,
+      favourite: false,
+    );
+    const favourite = MessageMenuContent.sticker(
+      key: ContentKey.document('s1'),
+      pack: PackId('cats'),
+      packInstalled: false,
+      favourite: true,
+    );
+    const gif = MessageMenuContent.gif(key: ContentKey.document('g1'));
+
+    List<String> ids(
+      ChatSelectionPolicy policy,
+      MessageMenuContent content, {
+      TargetPlatform platform = TargetPlatform.android,
+    }) => _actionIds(
+      MessageMenuCatalog.itemsFor(
+        _request(messageId: 1),
+        policy,
+        content: content,
+        platform: platform,
+      ),
+    );
+
+    test('Android: the sticker rows follow Copy, the pack before the '
+        'favourite', () {
+      const policy = ChatSelectionPolicy.mobile();
+      expect(ids(policy, sticker), <String>[
+        MessageMenuActionId.reply,
+        MessageMenuActionId.copy,
+        MessageMenuActionId.viewPack,
+        MessageMenuActionId.addFavourite,
+        MessageMenuActionId.forward,
+        MessageMenuActionId.pin,
+        MessageMenuActionId.edit,
+        MessageMenuActionId.delete,
+      ]);
+      final labels = _actionLabels(
+        MessageMenuCatalog.itemsFor(
+          _request(messageId: 1),
+          policy,
+          content: favourite,
+          platform: TargetPlatform.android,
+        ),
+      );
+      expect(labels[MessageMenuActionId.viewPack], 'Add to Stickers');
+      expect(
+        labels[MessageMenuActionId.removeFavourite],
+        'Delete from Favorites',
+      );
+    });
+
+    test('Android: a GIF offers Save to GIFs after Copy', () {
+      final rows = ids(const ChatSelectionPolicy.mobile(), gif);
+      expect(rows.indexOf(MessageMenuActionId.saveGif), 2);
+      expect(
+        _actionLabels(
+          MessageMenuCatalog.itemsFor(
+            _request(messageId: 1),
+            const ChatSelectionPolicy.mobile(),
+            content: gif,
+            platform: TargetPlatform.android,
+          ),
+        )[MessageMenuActionId.saveGif],
+        'Save to GIFs',
+      );
+    });
+
+    test('iOS: the favourite row comes first, the pack after Pin', () {
+      final rows = ids(
+        const ChatSelectionPolicy.mobile(),
+        sticker,
+        platform: TargetPlatform.iOS,
+      );
+      expect(rows.first, MessageMenuActionId.addFavourite);
+      expect(
+        rows.indexOf(MessageMenuActionId.viewPack),
+        rows.indexOf(MessageMenuActionId.pin) + 1,
+      );
+      final gifRows = ids(
+        const ChatSelectionPolicy.mobile(),
+        gif,
+        platform: TargetPlatform.iOS,
+      );
+      expect(
+        gifRows.indexOf(MessageMenuActionId.saveGif),
+        gifRows.indexOf(MessageMenuActionId.pin) + 1,
+      );
+    });
+
+    test('desktop: after Pin, the pack then the favourite; the pack row '
+        'adds a pack that is not installed', () {
+      const policy = ChatSelectionPolicy.desktop();
+      final rows = ids(policy, sticker, platform: TargetPlatform.macOS);
+      final pin = rows.indexOf(MessageMenuActionId.pin);
+      expect(rows[pin + 1], MessageMenuActionId.viewPack);
+      expect(rows[pin + 2], MessageMenuActionId.addFavourite);
+      String label(MessageMenuContent content, String id) => _actionLabels(
+        MessageMenuCatalog.itemsFor(
+          _request(messageId: 1),
+          policy,
+          content: content,
+          platform: TargetPlatform.macOS,
+        ),
+      )[id]!;
+      expect(label(sticker, MessageMenuActionId.viewPack), 'View sticker set');
+      expect(label(favourite, MessageMenuActionId.viewPack), 'Add stickers');
+      expect(
+        label(favourite, MessageMenuActionId.removeFavourite),
+        'Remove from Favorites',
+      );
+      expect(label(gif, MessageMenuActionId.saveGif), 'Save GIF');
+    });
+
+    test('a sticker without a pack has no pack row; a selection has no '
+        'content rows', () {
+      const loose = MessageMenuContent.sticker(
+        key: ContentKey.document('s2'),
+        pack: null,
+        packInstalled: false,
+        favourite: false,
+      );
+      expect(
+        ids(const ChatSelectionPolicy.mobile(), loose),
+        isNot(contains(MessageMenuActionId.viewPack)),
+      );
+      expect(
+        _actionIds(
+          MessageMenuCatalog.itemsFor(
+            _request(
+              messageId: 1,
+              membership: ChatMessageMenuMembership.uponSelected,
+            ),
+            const ChatSelectionPolicy.mobile(),
+            content: sticker,
+          ),
+        ),
+        isNot(contains(MessageMenuActionId.addFavourite)),
+      );
     });
   });
 }

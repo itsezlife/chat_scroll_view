@@ -85,6 +85,10 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
   var _open = false;
   Offset _at = Offset.zero;
   var _moving = false;
+  // Each opening plays its show from the start.
+  var _opening = 0;
+  // The menu is playing its hide; this takes it off the overlay at the end.
+  VoidCallback? _hideOverlay;
 
   bool get _isOpen => _open;
 
@@ -162,13 +166,36 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
     onClose: () {
       if (!_moving) _markClosed();
     },
+    onOpenRequested: (position, showOverlay) {
+      _hideOverlay = null;
+      _opening++;
+      showOverlay();
+    },
+    // The menu leaves with the appear motion's hide, then the overlay goes.
+    onCloseRequested: (hideOverlay) {
+      if (!mounted || _moving) {
+        hideOverlay();
+        return;
+      }
+      // Closed from here on: the hold goes and the focus goes back as the
+      // hide starts.
+      _markClosed();
+      setState(() => _hideOverlay = hideOverlay);
+    },
     // In the text fields' tap group, barrier included: a press on the menu
     // is not a press outside the composer.
     overlayBuilder: (context, info) => TextFieldTapRegion(
       child: _MenuSurface(
+        key: ValueKey(_opening),
         position: info.anchorRect.topLeft + (info.position ?? Offset.zero),
         overlaySize: info.overlaySize,
         entries: _entries,
+        leaving: _hideOverlay != null,
+        onHidden: () {
+          final hide = _hideOverlay;
+          _hideOverlay = null;
+          hide?.call();
+        },
         onChoose: _choose,
         onDismiss: _close,
       ),
@@ -184,39 +211,69 @@ class _MenuSurface extends StatelessWidget {
     required this.position,
     required this.overlaySize,
     required this.entries,
+    required this.leaving,
+    required this.onHidden,
     required this.onChoose,
     required this.onDismiss,
+    super.key,
   });
 
   final Offset position;
   final Size overlaySize;
   final List<CatalogMenuEntry> entries;
+  final bool leaving;
+  final VoidCallback onHidden;
   final ValueChanged<String> onChoose;
   final VoidCallback onDismiss;
 
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      Listener(
-        // Opaque: nothing below hears a press while the menu is up, so the
-        // click that closes it picks nothing. Any button closes it.
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: (_) => onDismiss(),
+  Widget build(BuildContext context) {
+    final textDirection = Directionality.of(context);
+    final layout = _MenuLayout(
+      position: position,
+      textDirection: textDirection,
+    );
+    final palette = ChromeThemeScope.paletteOf(context);
+    // A menu on its way out takes no press: the click goes where it points.
+    return IgnorePointer(
+      ignoring: leaving,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Listener(
+            // Opaque: nothing below hears a press while the menu is up, so
+            // the click that closes it picks nothing. Any button closes it.
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (_) => onDismiss(),
+          ),
+          CustomSingleChildLayout(
+            delegate: layout,
+            child: ChromeAppear(
+              visible: !leaving,
+              onHidden: onHidden,
+              motion: const AppearMotion.grow(),
+              origin: layout.originFor(
+                overlaySize,
+                CatalogContextMenuPanel.estimatedSize(entries),
+              ),
+              borderRadius: BorderRadius.circular(
+                CatalogContextMenuPanel.radius,
+              ),
+              revealColor: palette.surfaceRaised,
+              shadows: CatalogContextMenuPanel.shadowsOf(palette),
+              child: CatalogContextMenuPanel(
+                entries: entries,
+                onChoose: onChoose,
+                onDismiss: onDismiss,
+                shadowed: false,
+                leaving: leaving,
+              ),
+            ),
+          ),
+        ],
       ),
-      CustomSingleChildLayout(
-        delegate: _MenuLayout(
-          position: position,
-          textDirection: Directionality.of(context),
-        ),
-        child: CatalogContextMenuPanel(
-          entries: entries,
-          onChoose: onChoose,
-          onDismiss: onDismiss,
-        ),
-      ),
-    ],
-  );
+    );
+  }
 }
 
 // Corner at the pointer, on the side the reading direction opens to and below
@@ -230,6 +287,16 @@ class _MenuLayout extends SingleChildLayoutDelegate {
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
       constraints.loosen();
+
+  /// The corner of a menu of [childSize] at the pointer, in a window of
+  /// [size]: the one its grow starts from.
+  Alignment originFor(Size size, Size childSize) {
+    final at = getPositionForChild(size, childSize);
+    return Alignment(
+      at.dx + childSize.width / 2 < position.dx ? 1 : -1,
+      at.dy + childSize.height / 2 < position.dy ? 1 : -1,
+    );
+  }
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
@@ -264,8 +331,43 @@ class CatalogContextMenuPanel extends StatefulWidget {
     required this.entries,
     required this.onChoose,
     required this.onDismiss,
+    this.shadowed = true,
+    this.leaving = false,
     super.key,
   });
+
+  /// Whether the menu is on its way out: it gives focus back at once, not
+  /// when it leaves the tree.
+  final bool leaving;
+
+  /// Whether the card draws its own shadow; off when what shows it draws
+  /// [shadowsOf] instead.
+  final bool shadowed;
+
+  /// The card's shadows in [palette].
+  static List<BoxShadow> shadowsOf(ChromePalette palette) => [
+    BoxShadow(
+      color: palette.shadow.withValues(alpha: 0.28),
+      blurRadius: 12,
+      offset: const Offset(0, 3),
+    ),
+  ];
+
+  /// The size of a menu of [entries] before it is laid out: its height, and
+  /// its narrowest width.
+  static Size estimatedSize(List<CatalogMenuEntry> entries) {
+    var height = 2 * _padding;
+    for (final entry in entries) {
+      height += switch (entry) {
+        CatalogMenuItem() => itemExtent,
+        CatalogMenuSeparator() => 2 * _padding + 1,
+      };
+    }
+    return Size(minWidth, height);
+  }
+
+  // Above the first item and below the last, and around a separator.
+  static const double _padding = 4;
 
   /// What the menu holds, in order.
   final List<CatalogMenuEntry> entries;
@@ -297,7 +399,8 @@ class CatalogContextMenuPanel extends StatefulWidget {
 
 class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
   final _scope = FocusScopeNode(debugLabel: 'CatalogContextMenu');
-  late final FocusNode? _previous = FocusManager.instance.primaryFocus;
+  // What had focus as the menu opened, which it gives focus back to.
+  final FocusNode? _previous = FocusManager.instance.primaryFocus;
   late List<FocusNode> _nodes;
 
   static const _shortcuts = <ShortcutActivator, Intent>{
@@ -325,6 +428,7 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
   @override
   void didUpdateWidget(CatalogContextMenuPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.leaving && !oldWidget.leaving) _giveFocusBack();
     if (oldWidget.entries != widget.entries) {
       for (final node in _nodes) {
         node.dispose();
@@ -335,21 +439,23 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
 
   @override
   void dispose() {
-    final previous = _previous;
-    final restore = _scope.hasFocus;
+    _giveFocusBack();
     for (final node in _nodes) {
       node.dispose();
     }
     _scope.dispose();
-    if (restore && previous != null) {
-      // After this frame: the node that has focus is leaving the tree.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (previous.context != null && previous.canRequestFocus) {
-          previous.requestFocus();
-        }
-      });
-    }
     super.dispose();
+  }
+
+  void _giveFocusBack() {
+    final previous = _previous;
+    if (!_scope.hasFocus || previous == null) return;
+    // After this frame: the node that has focus may be leaving the tree.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (previous.context != null && previous.canRequestFocus) {
+        previous.requestFocus();
+      }
+    });
   }
 
   List<FocusNode> _nodesFor(List<CatalogMenuEntry> entries) => [
@@ -387,13 +493,9 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
                   borderRadius: BorderRadius.circular(
                     CatalogContextMenuPanel.radius,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: palette.shadow.withValues(alpha: 0.28),
-                      blurRadius: 12,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+                  boxShadow: widget.shadowed
+                      ? CatalogContextMenuPanel.shadowsOf(palette)
+                      : null,
                 ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(
@@ -401,7 +503,9 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
                   ),
                   child: IntrinsicWidth(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: CatalogContextMenuPanel._padding,
+                      ),
                       child: CatalogMenuIconScope(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -417,7 +521,7 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
                                 ),
                                 CatalogMenuSeparator() => Padding(
                                   padding: const EdgeInsets.symmetric(
-                                    vertical: 4,
+                                    vertical: CatalogContextMenuPanel._padding,
                                   ),
                                   child: SizedBox(
                                     height: 1,
@@ -483,8 +587,11 @@ class _MenuItemViewState extends State<_MenuItemView> {
             },
           ),
         },
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        // The row keeps its own hover and focus wash; the ink adds the
+        // press ripple.
+        child: ChromeInk(
+          kind: ChromeInkKind.pointer,
+          color: ChromeCatalogTheme.pressInkOf(palette),
           onTap: widget.onChoose,
           child: Container(
             height: CatalogContextMenuPanel.itemExtent,

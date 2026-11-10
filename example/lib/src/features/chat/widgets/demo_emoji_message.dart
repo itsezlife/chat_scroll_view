@@ -6,6 +6,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_reactions_row.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_service_colors.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_surface_parts.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/gif_badge.dart';
 import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
 
@@ -333,6 +334,21 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
                   top: bodyRect.top,
                   child: emojiBody,
                 ),
+                // A desktop labels a GIF under the pointer, and the user's own
+                // last one.
+                if (policy case ChatEmojiPolicy$Desktop()
+                    when media?.kind == ChatMediaKind.gif &&
+                        (widget.hovered || widget.isLastOwn))
+                  Positioned.fromRect(
+                    rect: body.content.shift(bodyRect.topLeft),
+                    child: const Align(
+                      alignment: AlignmentDirectional.topStart,
+                      child: Padding(
+                        padding: EdgeInsets.all(GifBadge.inset),
+                        child: GifBadge(),
+                      ),
+                    ),
+                  ),
                 if (pillRect != null && showsMeta)
                   Positioned.fromRect(
                     rect: pillRect,

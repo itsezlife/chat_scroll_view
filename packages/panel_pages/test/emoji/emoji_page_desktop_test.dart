@@ -254,6 +254,8 @@ void main() {
 
       await tester.tap(find.text(strings.copyAction));
       await tester.pump();
+      // The menu fades out.
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(host.copyRequests, [
         (key: fixtures.key('👍'), kind: SemanticKind.unicodeEmoji),
@@ -296,6 +298,8 @@ void main() {
 
       await tester.tapAt(origin(tester) + const Offset(300, 400));
       await tester.pump();
+      // The menu fades out.
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(menu(), findsNothing);
       expect(host.activeHolds, 0);
@@ -307,6 +311,8 @@ void main() {
 
       await tester.tapAt(cell(tester, top: smileys, column: 1));
       await tester.pump();
+      // The menu fades out.
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(menu(), findsNothing);
       expect(host.picks, isEmpty);

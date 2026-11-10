@@ -135,7 +135,7 @@ final class ChatInputSet {
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
     PanelPresentationPolicy? policy,
     Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
-    ValueChanged<PackId>? onPackRequested,
+    Future<void> Function(PackId id)? onPackRequested,
     ValueChanged<LibraryPackEdit>? onPackEditRequested,
     ValueChanged<AppliedEdit>? onLibraryEdited,
     int? messageLengthLimit = DemoConfig.messageLengthMax,
@@ -304,7 +304,7 @@ final class ChatInputSet {
     required ChatBodySender send,
     required ChatBodyEditor edit,
     required ClearRecentsConfirm confirmClearRecents,
-    required ValueChanged<PackId>? onPackRequested,
+    required Future<void> Function(PackId id)? onPackRequested,
     required ValueChanged<LibraryPackEdit>? onPackEditRequested,
     required ValueChanged<AppliedEdit>? onLibraryEdited,
     required this.messageLengthLimit,
@@ -446,8 +446,9 @@ final class ChatInputSet {
   final ChatBodyEditor _edit;
   final ClearRecentsConfirm _confirmClearRecents;
 
-  // Where "View pack" goes: the host's pack sheet, once there is one.
-  final ValueChanged<PackId>? _onPackRequested;
+  // Where "View pack" goes: the host's pack sheet, once there is one. The
+  // future completes when the sheet has closed.
+  final Future<void> Function(PackId id)? _onPackRequested;
   final ValueChanged<LibraryPackEdit>? _onPackEditRequested;
 
   // Where an edit the user asked for (a favourite, a saved GIF, a recent
@@ -1051,7 +1052,7 @@ final class ChatInputSet {
       case LibraryEditRequested(:final edit):
         _edited(services.libraryShown.apply(edit));
       case PackRequested(:final id):
-        _onPackRequested?.call(id);
+        _openPack(id);
       case SearchClosed():
         // What was picked while searching is listed once search is over.
         services.commitShownLists();
@@ -1172,6 +1173,16 @@ final class ChatInputSet {
       _autoHideHold?.release();
       _autoHideHold = null;
     }
+  }
+
+  // A pack sheet opened from the panel holds the panel up whatever the
+  // pointer does; once it closes with the pointer away, the presentation's
+  // after-hold delay runs before the panel hides.
+  void _openPack(PackId id) {
+    final open = _onPackRequested;
+    if (open == null) return;
+    final hold = presentation.holdAutoHide();
+    unawaited(open(id).whenComplete(hold.release));
   }
 
   Future<void> _clearRecents(SemanticKind kind) async {

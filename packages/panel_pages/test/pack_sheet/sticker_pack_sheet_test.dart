@@ -228,6 +228,23 @@ void main() {
       expect(style.fontWeight, FontWeight.w500);
     });
 
+    testWidgets('the bottom button and the preview menu '
+        'items answer a press with the chrome ink', (tester) async {
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      await open(tester, 'cats', canSend: true, previews: previews);
+
+      Finder inkOf(Finder target) =>
+          find.ancestor(of: target, matching: find.byType(ChromeInk));
+      expect(inkOf(find.text('Add 20 stickers')), findsOneWidget);
+
+      await tester.tapAt(firstCell(tester));
+      await settle(tester);
+      for (final label in ['Send Sticker', 'Add to Favorites']) {
+        expect(inkOf(find.text(label)), findsOneWidget, reason: label);
+      }
+    });
+
     testWidgets('the preview menu is the chrome face, 16 regular, each item '
         'with its icon', (tester) async {
       final previews = ContentPreviewController(library: library);

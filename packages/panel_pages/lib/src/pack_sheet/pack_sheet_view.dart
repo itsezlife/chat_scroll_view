@@ -1285,31 +1285,41 @@ class _HeaderButton extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => IgnorePointer(
-    // The one faded out keeps its place but takes no press.
-    ignoring: !enabled,
-    child: Semantics(
-      button: true,
-      excludeSemantics: !enabled,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onPressed,
-        child: Container(
-          height: _PackHeader.buttonExtent,
-          padding: EdgeInsets.symmetric(horizontal: padding),
-          alignment: Alignment.center,
-          decoration: switch (color) {
-            final color? => BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(_PackHeader.buttonExtent / 2),
-            ),
-            null => null,
+  Widget build(BuildContext context) {
+    final palette = ChromeThemeScope.paletteOf(context);
+    return IgnorePointer(
+      // The one faded out keeps its place but takes no press.
+      ignoring: !enabled,
+      child: Semantics(
+        button: true,
+        excludeSemantics: !enabled,
+        child: ChromeInk(
+          color: switch (color) {
+            null => ChromeCatalogTheme.pressInkOf(palette),
+            _ => palette.onAccent.withAlpha(0x24),
           },
-          child: child,
+          hoverColor: ChromeCatalogTheme.hoverWashOf(palette),
+          borderRadius: BorderRadius.circular(_PackHeader.buttonExtent / 2),
+          onTap: onPressed,
+          child: Container(
+            height: _PackHeader.buttonExtent,
+            padding: EdgeInsets.symmetric(horizontal: padding),
+            alignment: Alignment.center,
+            decoration: switch (color) {
+              final color? => BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(
+                  _PackHeader.buttonExtent / 2,
+                ),
+              ),
+              null => null,
+            },
+            child: child,
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _IconButton extends StatelessWidget {
@@ -1327,8 +1337,12 @@ class _IconButton extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     button: true,
     label: label,
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    child: ChromeInk(
+      color: ChromeCatalogTheme.pressInkOf(ChromeThemeScope.paletteOf(context)),
+      hoverColor: ChromeCatalogTheme.hoverWashOf(
+        ChromeThemeScope.paletteOf(context),
+      ),
+      circleRadius: PackSheetView.menuButtonExtent / 2,
       onTap: onPressed,
       child: SizedBox.square(
         dimension: PackSheetView.menuButtonExtent,
@@ -1373,13 +1387,22 @@ class _MenuButtonState extends State<_MenuButton> {
       overlayBuilder: (context, info) => Positioned(
         top: info.anchorRect.bottom,
         right: math.max(0, info.overlaySize.width - info.anchorRect.right),
-        child: CatalogContextMenuPanel(
-          entries: [
-            CatalogMenuEntry.item(id: _share, label: strings.shareAction),
-            CatalogMenuEntry.item(id: _copy, label: strings.copyLinkAction),
-          ],
-          onChoose: _choose,
-          onDismiss: _menu.close,
+        // Hangs from the button's end corner, with the appear motion.
+        child: ChromeAppear(
+          origin: Alignment.topRight,
+          rows: 2,
+          borderRadius: BorderRadius.circular(CatalogContextMenuPanel.radius),
+          revealColor: palette.surfaceRaised,
+          shadows: CatalogContextMenuPanel.shadowsOf(palette),
+          child: CatalogContextMenuPanel(
+            entries: [
+              CatalogMenuEntry.item(id: _share, label: strings.shareAction),
+              CatalogMenuEntry.item(id: _copy, label: strings.copyLinkAction),
+            ],
+            onChoose: _choose,
+            onDismiss: _menu.close,
+            shadowed: false,
+          ),
         ),
       ),
       child: _IconButton(
@@ -1420,16 +1443,25 @@ class _BottomButton extends StatelessWidget {
     // (`text_RedBold`).
     return Semantics(
       button: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onPressed,
-        child: removes
-            ? SizedBox(
+      child: removes
+          ? ChromeInk(
+              color: ChromeCatalogTheme.pressInkOf(palette),
+              hoverColor: ChromeCatalogTheme.hoverWashOf(palette),
+              onTap: onPressed,
+              child: SizedBox(
                 height: PackSheetView.buttonExtent,
                 child: Center(child: text),
-              )
-            : Padding(
-                padding: const EdgeInsets.all(PackSheetView.buttonMargin),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(PackSheetView.buttonMargin),
+              child: ChromeInk(
+                color: palette.onAccent.withAlpha(0x24),
+                hoverColor: palette.onAccent.withAlpha(0x12),
+                borderRadius: BorderRadius.circular(
+                  PackSheetView.buttonExtent / 2,
+                ),
+                onTap: onPressed,
                 child: Container(
                   height: PackSheetView.buttonExtent,
                   decoration: BoxDecoration(
@@ -1442,7 +1474,7 @@ class _BottomButton extends StatelessWidget {
                   child: text,
                 ),
               ),
-      ),
+            ),
     );
   }
 }
@@ -1540,7 +1572,8 @@ class _DotsPainter extends CustomPainter {
   bool shouldRepaint(_DotsPainter oldDelegate) => oldDelegate.color != color;
 }
 
-/// `ic_close_white`: two strokes crossing.
+/// `ic_close_white`: two strokes crossing, stroked as one path so a
+/// translucent colour covers the crossing once.
 class _CrossPainter extends CustomPainter {
   const _CrossPainter(this.color);
 
@@ -1558,9 +1591,12 @@ class _CrossPainter extends CustomPainter {
       width: 12,
       height: 12,
     );
-    canvas
-      ..drawLine(box.topLeft, box.bottomRight, pen)
-      ..drawLine(box.topRight, box.bottomLeft, pen);
+    final cross = Path()
+      ..moveTo(box.left, box.top)
+      ..lineTo(box.right, box.bottom)
+      ..moveTo(box.right, box.top)
+      ..lineTo(box.left, box.bottom);
+    canvas.drawPath(cross, pen);
   }
 
   @override

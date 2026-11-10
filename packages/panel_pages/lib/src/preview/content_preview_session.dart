@@ -16,6 +16,7 @@ import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/preview/content_preview_item.dart';
 import 'package:panel_pages/src/preview/content_preview_layout.dart';
 import 'package:panel_pages/src/preview/content_preview_menu.dart';
+import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// The host's handle on the content previews of its panel and its sheets:
@@ -227,6 +228,10 @@ final class ContentPreviewSession implements CatalogLongPressSession {
 
   /// How long the preview takes to come up or go: `showProgress += dt / 120`.
   static const Duration showDuration = Duration(milliseconds: 120);
+
+  /// How long a preview a mouse opened takes to fade in or out, at its full
+  /// size: 150.
+  static const Duration pointerShowDuration = Duration(milliseconds: 150);
 
   /// When the menu of a sticker or custom emoji opens on its own:
   /// `runOnUIThread(showSheetRunnable, 1300)`.
@@ -451,7 +456,9 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
     with TickerProviderStateMixin {
   late final AnimationController _show = AnimationController(
     vsync: this,
-    duration: ContentPreviewSession.showDuration,
+    duration: _pointer
+        ? ContentPreviewSession.pointerShowDuration
+        : ContentPreviewSession.showDuration,
   );
   // The blur under the menu: `blurProgress += 16 / 120f` a frame.
   late final AnimationController _blur = AnimationController(
@@ -466,6 +473,9 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
   );
 
   ContentPreviewSession get _session => widget.session;
+
+  // A mouse opened it: the desktop sizes, and a fade with no scale.
+  bool get _pointer => _session.kind == PointerDeviceKind.mouse;
 
   @override
   void initState() {
@@ -554,6 +564,7 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
               emoji: emoji != null,
               swipe: session._swipe.value,
               keyboardHeight: session.keyboardHeight,
+              pointer: _pointer,
             );
             final shown = _show.value;
             final blur = _blur.value;
@@ -583,7 +594,7 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
                 Positioned.fromRect(
                   rect: layout.content,
                   child: Transform.scale(
-                    scale: shown,
+                    scale: _pointer ? 1 : shown,
                     child: Opacity(
                       opacity: shown,
                       child: _PreviewContent(
@@ -639,8 +650,13 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
                       top: layout.menuTop,
                       bottom: media?.viewPadding.bottom ?? 0,
                     ),
-                    child: Opacity(
-                      opacity: blur,
+                    // Hangs below the preview: unfolds from its top edge.
+                    child: ChromeAppear(
+                      origin: Alignment.topCenter,
+                      rows: menu.length,
+                      borderRadius: BorderRadius.circular(_PreviewMenu.radius),
+                      revealColor: palette.surfaceRaised,
+                      shadows: _PreviewMenu.shadowsOf(palette),
                       child: _PreviewMenu(
                         item: item,
                         actions: menu,
@@ -789,6 +805,15 @@ class _PreviewMenu extends StatelessWidget {
   /// The narrowest the card is. Not traced.
   static const double minWidth = 200;
 
+  /// The card's shadows in [palette], drawn by the appear motion under it.
+  static List<BoxShadow> shadowsOf(ChromePalette palette) => [
+    BoxShadow(
+      color: palette.shadow.withValues(alpha: 0.28),
+      blurRadius: 12,
+      offset: const Offset(0, 3),
+    ),
+  ];
+
   final ContentPreviewItem item;
   final List<ContentPreviewAction> actions;
   final ValueChanged<ContentPreviewAction> onChoose;
@@ -805,35 +830,35 @@ class _PreviewMenu extends StatelessWidget {
           decoration: BoxDecoration(
             color: palette.surfaceRaised,
             borderRadius: BorderRadius.circular(radius),
-            boxShadow: [
-              BoxShadow(
-                color: palette.shadow.withValues(alpha: 0.28),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
           ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: minWidth),
-            child: IntrinsicWidth(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: padding),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final action in actions)
-                      _PreviewMenuItem(
-                        label: ContentPreviewMenu.labelOf(
-                          action,
-                          item,
-                          strings,
+          // The rows' press feedback stays inside the corners.
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radius),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: minWidth),
+              child: IntrinsicWidth(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: padding),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final action in actions)
+                        _PreviewMenuItem(
+                          label: ContentPreviewMenu.labelOf(
+                            action,
+                            item,
+                            strings,
+                          ),
+                          icon: action.icon,
+                          attention: ContentPreviewMenu.isAttention(
+                            action,
+                            item,
+                          ),
+                          onTap: () => onChoose(action),
                         ),
-                        icon: action.icon,
-                        attention: ContentPreviewMenu.isAttention(action, item),
-                        onTap: () => onChoose(action),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -868,8 +893,8 @@ class _PreviewMenuItem extends StatelessWidget {
       label: label,
       onTap: onTap,
       excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: ChromeInk(
+        color: ChromeCatalogTheme.pressInkOf(palette),
         onTap: onTap,
         child: Container(
           height: _PreviewMenu.itemExtent,

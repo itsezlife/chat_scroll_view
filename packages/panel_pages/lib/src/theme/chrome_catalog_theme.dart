@@ -38,6 +38,11 @@ class ChromeCatalogTheme extends StatelessWidget {
   static Color hoverWashOf(ChromePalette palette) =>
       palette.onSurface.withAlpha(0x12);
 
+  /// The press feedback of a row or a button on a card, in [palette]: the
+  /// text colour at alpha `0x0F`, the colour a pressed cell washes in.
+  static Color pressInkOf(ChromePalette palette) =>
+      palette.onSurface.withAlpha(0x0F);
+
   /// The hover box of a cell under the pointer arrangement, centred in it
   /// whatever its size.
   static const Size pointerHoverSize = Size(34, 32);

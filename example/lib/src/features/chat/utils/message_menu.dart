@@ -3,16 +3,69 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart'
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_emoji_packs.dart';
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show AppearMotion, ChromeAppear;
 import 'package:content_model/content_model.dart' as model show RichText;
-import 'package:content_model/content_model.dart' show PackId, RichClipboard;
+import 'package:content_model/content_model.dart'
+    show ContentKey, LibraryEdit, PackId, RichClipboard;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Builds rows for a [ChatMessageMenuRequest] under a **selection policy**.
 typedef MessageMenuItemsBuilder =
     List<ChatMessageMenuItem> Function(
       ChatMessageMenuRequest request,
-      ChatSelectionPolicy policy,
-    );
+      ChatSelectionPolicy policy, {
+      MessageMenuContent? content,
+    });
+
+/// The sticker or GIF a message is, for the rows that act on it.
+@immutable
+sealed class MessageMenuContent {
+  const MessageMenuContent._(this.key);
+
+  /// A sticker: its [pack] (null when it has none) and whether that pack is
+  /// installed, and whether the sticker is a favourite.
+  const factory MessageMenuContent.sticker({
+    required ContentKey key,
+    required PackId? pack,
+    required bool packInstalled,
+    required bool favourite,
+  }) = MessageMenuContent$Sticker;
+
+  /// A GIF.
+  const factory MessageMenuContent.gif({required ContentKey key}) =
+      MessageMenuContent$Gif;
+
+  /// The content.
+  final ContentKey key;
+}
+
+/// [MessageMenuContent.sticker].
+final class MessageMenuContent$Sticker extends MessageMenuContent {
+  /// A sticker.
+  const MessageMenuContent$Sticker({
+    required ContentKey key,
+    required this.pack,
+    required this.packInstalled,
+    required this.favourite,
+  }) : super._(key);
+
+  /// Its pack, or null.
+  final PackId? pack;
+
+  /// Whether [pack] is installed.
+  final bool packInstalled;
+
+  /// Whether the sticker is among the favourites.
+  final bool favourite;
+}
+
+/// [MessageMenuContent.gif].
+final class MessageMenuContent$Gif extends MessageMenuContent {
+  /// A GIF.
+  const MessageMenuContent$Gif({required ContentKey key}) : super._(key);
+}
 
 /// Stable action ids for [MessageMenuCatalog] rows.
 ///
@@ -66,6 +119,18 @@ abstract final class MessageMenuActionId {
   /// Open the packs of the message's custom emoji: the "contains emoji from
   /// N packs" entry under the actions ([MessageEmojiPacks]).
   static const emojiPacks = 'emoji_packs';
+
+  /// Open the pack sheet of the message's sticker.
+  static const viewPack = 'view_pack';
+
+  /// Mark the message's sticker as a favourite.
+  static const addFavourite = 'add_favourite';
+
+  /// Take the message's sticker out of the favourites.
+  static const removeFavourite = 'remove_favourite';
+
+  /// Save the message's GIF.
+  static const saveGif = 'save_gif';
 }
 
 /// Policy- and hit-aware row / reaction catalogs driven by a
@@ -190,15 +255,27 @@ abstract final class MessageMenuCatalog {
   ///
   /// [excludeActionIds] drops matching [ChatMessageMenuItem.id] after the
   /// catalog is built (capability / chat policy filter — no catalog fork).
+  ///
+  /// [content], the sticker or GIF the message is, adds its rows to the menu
+  /// of the message alone, where and as [platform] (the running one by
+  /// default) lists them:
+  ///
+  /// | | Android | iOS | desktop |
+  /// |---|---|---|---|
+  /// | sticker | after Copy: Add to Stickers, Add to / Delete from Favorites | first: Add to / Remove from Favorites; after Pin: View Pack | after Pin: View sticker set (Add stickers when not installed), Add to / Remove from Favorites |
+  /// | GIF | after Copy: Save to GIFs | after Pin: Save GIF | after Pin: Save GIF |
   static List<ChatMessageMenuItem> itemsFor(
     ChatMessageMenuRequest request,
     ChatSelectionPolicy policy, {
     Iterable<String>? excludeActionIds,
+    MessageMenuContent? content,
+    TargetPlatform? platform,
   }) {
+    final rows = _ContentRows(content, platform ?? defaultTargetPlatform);
     final items = switch (policy) {
       ChatSelectionPolicy$Mobile() ||
-      ChatSelectionPolicy$TextOnly() => _mobileItems(request),
-      ChatSelectionPolicy$Desktop() => _desktopItems(request),
+      ChatSelectionPolicy$TextOnly() => _mobileItems(request, rows),
+      ChatSelectionPolicy$Desktop() => _desktopItems(request, rows),
     };
     return excluding(items, excludeActionIds);
   }
@@ -253,6 +330,7 @@ abstract final class MessageMenuCatalog {
   /// No Select. Text Copy stays on text chrome.
   static List<ChatMessageMenuItem> _mobileItems(
     ChatMessageMenuRequest request,
+    _ContentRows content,
   ) {
     switch (request.membership) {
       case ChatMessageMenuMembership.uponSelected:
@@ -271,11 +349,14 @@ abstract final class MessageMenuCatalog {
         ];
       case ChatMessageMenuMembership.idle:
         return <ChatMessageMenuItem>[
+          ...content.first,
           ..._inlinePrefix(request),
           _reply,
           if (!request.hasTextSelection) _copy,
+          ...content.afterCopy,
           _forward,
           _pin,
+          ...content.afterPin,
           _edit,
           _delete,
         ];
@@ -286,6 +367,7 @@ abstract final class MessageMenuCatalog {
   /// Inside idle → full rows with copy rules and inline prefix.
   static List<ChatMessageMenuItem> _desktopItems(
     ChatMessageMenuRequest request,
+    _ContentRows content,
   ) {
     switch (request.membership) {
       case ChatMessageMenuMembership.uponSelected:
@@ -311,6 +393,7 @@ abstract final class MessageMenuCatalog {
           _reply,
           _edit,
           _pin,
+          ...content.afterPin,
           ..._desktopCopyRows(request),
           _forward,
           _delete,
@@ -319,6 +402,75 @@ abstract final class MessageMenuCatalog {
     }
   }
 }
+
+// The rows of a message's sticker or GIF, in the three places a platform puts
+// them.
+final class _ContentRows {
+  factory _ContentRows(MessageMenuContent? content, TargetPlatform platform) {
+    final family = switch (platform) {
+      TargetPlatform.iOS => _Family.ios,
+      TargetPlatform.macOS ||
+      TargetPlatform.windows ||
+      TargetPlatform.linux => _Family.desktop,
+      TargetPlatform.android || TargetPlatform.fuchsia => _Family.android,
+    };
+    ChatMessageMenuItem row(String id, String label, IconData icon) =>
+        ChatMessageMenuItem(id: id, label: label, icon: icon);
+    switch (content) {
+      case null:
+        return const _ContentRows._();
+      case MessageMenuContent$Gif():
+        final save = row(MessageMenuActionId.saveGif, switch (family) {
+          _Family.android => 'Save to GIFs',
+          _Family.ios || _Family.desktop => 'Save GIF',
+        }, Icons.gif_box_outlined);
+        return switch (family) {
+          _Family.android => _ContentRows._(afterCopy: [save]),
+          _Family.ios || _Family.desktop => _ContentRows._(afterPin: [save]),
+        };
+      case MessageMenuContent$Sticker(
+        :final pack,
+        :final packInstalled,
+        :final favourite,
+      ):
+        final viewPack = pack == null
+            ? null
+            : row(MessageMenuActionId.viewPack, switch (family) {
+                _Family.android => 'Add to Stickers',
+                _Family.ios => 'View Pack',
+                _Family.desktop =>
+                  packInstalled ? 'View sticker set' : 'Add stickers',
+              }, Icons.sticky_note_2_outlined);
+        final fave = favourite
+            ? row(MessageMenuActionId.removeFavourite, switch (family) {
+                _Family.android => 'Delete from Favorites',
+                _Family.ios || _Family.desktop => 'Remove from Favorites',
+              }, Icons.star_outline)
+            : row(
+                MessageMenuActionId.addFavourite,
+                'Add to Favorites',
+                Icons.star_border,
+              );
+        return switch (family) {
+          _Family.android => _ContentRows._(afterCopy: [?viewPack, fave]),
+          _Family.ios => _ContentRows._(first: [fave], afterPin: [?viewPack]),
+          _Family.desktop => _ContentRows._(afterPin: [?viewPack, fave]),
+        };
+    }
+  }
+
+  const _ContentRows._({
+    this.first = const [],
+    this.afterCopy = const [],
+    this.afterPin = const [],
+  });
+
+  final List<ChatMessageMenuItem> first;
+  final List<ChatMessageMenuItem> afterCopy;
+  final List<ChatMessageMenuItem> afterPin;
+}
+
+enum _Family { android, ios, desktop }
 
 /// Host verbs applied when a [MessageMenu] session chooses an action.
 @immutable
@@ -337,6 +489,8 @@ final class MessageMenuActions {
     this.onCopyLink,
     this.onCopyCode,
     this.onEmojiPacks,
+    this.onViewPack,
+    this.onLibraryEdit,
     this.onNotice,
   });
 
@@ -380,6 +534,13 @@ final class MessageMenuActions {
   /// ([MessageMenuActionId.emojiPacks]).
   final ValueChanged<List<PackId>>? onEmojiPacks;
 
+  /// Opens the pack of the message's sticker ([MessageMenuActionId.viewPack]).
+  final ValueChanged<PackId>? onViewPack;
+
+  /// Applies the library edit a content row asks for: a favourite added or
+  /// taken away, a GIF saved.
+  final ValueChanged<LibraryEdit>? onLibraryEdit;
+
   /// Shows what a demo row with no handler would do (a reaction, a reply, a
   /// pin, a forward): the host's bulletin. Nothing shows when null.
   final ValueChanged<String>? onNotice;
@@ -411,6 +572,7 @@ final class MessageMenu {
     this.excludeActionIds,
     this.canEdit,
     this.emojiPacks,
+    this.contentOf,
   }) : itemsFor = itemsFor ?? MessageMenuCatalog.itemsFor,
        _reactionsOverride = reactions;
 
@@ -444,6 +606,10 @@ final class MessageMenu {
   /// message that is not part of a selection; null offers none.
   final MessageEmojiPacks? emojiPacks;
 
+  /// The sticker or GIF the message with the given id is, or null; null
+  /// offers no content rows.
+  final MessageMenuContent? Function(int messageId)? contentOf;
+
   final List<String>? _reactionsOverride;
 
   var _sessionOpen = false;
@@ -473,6 +639,9 @@ final class MessageMenu {
       final reactions =
           _reactionsOverride ?? MessageMenuCatalog.reactionsFor(policy);
       final packs = _emojiPacksFor(request, policy);
+      final content = request.membership == ChatMessageMenuMembership.idle
+          ? contentOf?.call(request.messageId)
+          : null;
 
       final result = await ChatMessageMenu.show(
         context: context,
@@ -482,7 +651,7 @@ final class MessageMenu {
         surfaceShape: request.surfaceShape,
         visibleRect: request.bandGlobal,
         items: MessageMenuCatalog.excluding(
-          itemsFor(request, policy),
+          itemsFor(request, policy, content: content),
           switch (canEdit) {
             final canEdit? when !canEdit(request.messageId) => [
               ...?excludeActionIds,
@@ -504,6 +673,20 @@ final class MessageMenu {
           ),
           _ => null,
         },
+        // The chrome's appear motion, as every other menu and overlay of
+        // the app: a popup grows from the pointer, a sheet plays the
+        // platform's.
+        transitionBuilder: (context, transition, menu) => ChromeAppear(
+          visible: transition.visible,
+          onHidden: transition.onHidden,
+          motion: switch (transition.presentation) {
+            ChatMessageMenuPresentation.popup => const AppearMotion.grow(),
+            ChatMessageMenuPresentation.sheet => null,
+          },
+          origin: transition.origin,
+          rows: transition.rows,
+          child: menu,
+        ),
         presence: _ChatDataSourceListenable(dataSource),
         isPresent: () => dataSource.getMessage(request.messageId) != null,
       );
@@ -514,6 +697,7 @@ final class MessageMenu {
         result: result,
         selectedSnapshot: selectedSnapshot,
         emojiPacks: packs,
+        content: content,
       );
     } finally {
       _sessionOpen = false;
@@ -526,6 +710,7 @@ final class MessageMenu {
     required ChatMessageMenuResult result,
     required List<int> selectedSnapshot,
     required List<PackId> emojiPacks,
+    required MessageMenuContent? content,
   }) async {
     switch (result) {
       case ChatMessageMenuReactionResult(:final reaction):
@@ -592,6 +777,22 @@ final class MessageMenu {
             });
           case MessageMenuActionId.emojiPacks:
             actions.onEmojiPacks?.call(emojiPacks);
+          case MessageMenuActionId.viewPack:
+            if (content case MessageMenuContent$Sticker(:final pack?)) {
+              actions.onViewPack?.call(pack);
+            }
+          case MessageMenuActionId.addFavourite:
+            if (content case MessageMenuContent$Sticker(:final key)) {
+              actions.onLibraryEdit?.call(LibraryEdit.favouriteSticker(key));
+            }
+          case MessageMenuActionId.removeFavourite:
+            if (content case MessageMenuContent$Sticker(:final key)) {
+              actions.onLibraryEdit?.call(LibraryEdit.unfavouriteSticker(key));
+            }
+          case MessageMenuActionId.saveGif:
+            if (content case MessageMenuContent$Gif(:final key)) {
+              actions.onLibraryEdit?.call(LibraryEdit.saveGif(key));
+            }
           case MessageMenuActionId.clearSelection:
             selection?.clear();
           case MessageMenuActionId.reply:

@@ -78,4 +78,59 @@ void main() {
       );
     }
   });
+
+  group('under a pointer', () {
+    const desktop = Size(1400, 900);
+
+    test('a sticker or a custom emoji is a square of 224, in the middle of '
+        'the window', () {
+      for (final kind in [
+        ContentPreviewKind.sticker,
+        ContentPreviewKind.customEmoji,
+      ]) {
+        final layout = ContentPreviewLayout(
+          window: desktop,
+          padding: EdgeInsets.zero,
+          kind: kind,
+          pointer: true,
+        );
+
+        expect(layout.square.size, const Size(224, 224));
+        expect(layout.square.center, const Offset(700, 450));
+        expect(layout.content, layout.square);
+      }
+    });
+
+    test('a GIF is fitted to its proportions inside 448, up or down', () {
+      final wide = ContentPreviewLayout(
+        window: desktop,
+        padding: EdgeInsets.zero,
+        kind: ContentPreviewKind.gif,
+        contentSize: const ContentSize(200, 100),
+        pointer: true,
+      );
+      expect(wide.content.size, const Size(448, 224));
+      expect(wide.content.center, const Offset(700, 450));
+
+      final tall = ContentPreviewLayout(
+        window: desktop,
+        padding: EdgeInsets.zero,
+        kind: ContentPreviewKind.gif,
+        contentSize: const ContentSize(600, 1200),
+        pointer: true,
+      );
+      expect(tall.content.size, const Size(224, 448));
+    });
+
+    test('a window smaller than the box takes the box down to it', () {
+      final layout = ContentPreviewLayout(
+        window: const Size(300, 200),
+        padding: EdgeInsets.zero,
+        kind: ContentPreviewKind.gif,
+        contentSize: const ContentSize(100, 100),
+        pointer: true,
+      );
+      expect(layout.content.size, const Size(200, 200));
+    });
+  });
 }

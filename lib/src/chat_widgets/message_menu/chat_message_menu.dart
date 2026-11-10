@@ -9,6 +9,8 @@ import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 import 'package:flutter/material.dart';
 
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_actions.dart';
+export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_appearance.dart'
+    show ChatMessageMenuDefaultTransition;
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_column.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
 export 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_placement.dart'
@@ -69,7 +71,8 @@ abstract final class ChatMessageMenu {
   /// Restyle chrome with [ChatMessageMenuThemeData] (or
   /// [ChatScrollThemeData.menu]). Replace rows or the floating column
   /// with [itemBuilder] / [reactionBuilder] / [menuBuilder] — session,
-  /// presentation chrome, placement, and back stay package-owned.
+  /// presentation chrome, placement, and back stay package-owned. Give the
+  /// enter / leave motion with [transitionBuilder].
   static Future<ChatMessageMenuResult?> show({
     required BuildContext context,
     required Rect messageRect,
@@ -87,6 +90,7 @@ abstract final class ChatMessageMenu {
     ChatMessageMenuItemBuilder? itemBuilder,
     ChatMessageMenuReactionBuilder? reactionBuilder,
     ChatMessageMenuBuilder? menuBuilder,
+    ChatMessageMenuTransitionBuilder? transitionBuilder,
   }) async {
     final media = MediaQuery.of(context);
     final resolvedPresentation =
@@ -111,6 +115,7 @@ abstract final class ChatMessageMenu {
       itemBuilder: itemBuilder,
       reactionBuilder: reactionBuilder,
       menuBuilder: menuBuilder,
+      transitionBuilder: transitionBuilder,
     );
 
     final previousFocus = FocusManager.instance.primaryFocus;
