@@ -191,10 +191,18 @@ void main() {
       expect(pop.showAt(1), AppearFrame.rest);
     });
 
-    test('leaves as the bloom does', () {
+    test('leaves over the bloom\'s 220 ms, moving 5 away from its anchor', () {
       const bloom = AppearMotion.bloom();
       for (final t in [0.0, 0.3, 0.7, 1.0]) {
-        expect(pop.hideAt(t), bloom.hideAt(t));
+        expect(pop.hideAt(t).opacity, bloom.hideAt(t).opacity);
+        expect(pop.hideAt(t).drift, -bloom.hideAt(t).drift);
+      }
+    });
+
+    test('does not scale its content apart from its surface', () {
+      for (final t in [0.0, 0.3, 0.7]) {
+        expect(pop.showAt(t).contentScale, 1);
+        expect(pop.showAt(t).contentOpacity, 1);
       }
     });
   });

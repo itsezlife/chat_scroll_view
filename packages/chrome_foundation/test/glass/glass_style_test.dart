@@ -75,11 +75,11 @@ void main() {
     });
   });
 
-  group('the scrim menu', () {
+  group('the message menu', () {
     test('tints the raised surface at 0.85 in a dark theme, over an 80 dp '
         'blur saturated x2, whatever the finish', () {
       for (final finish in [GlassFinish.frosted, GlassFinish.refracting]) {
-        final style = _resolve(GlassMaterial.scrimMenu, finish);
+        final style = _resolve(GlassMaterial.messageMenu, finish);
         expect(
           style.fill,
           const ChromePalette.dark().surfaceRaised.withValues(alpha: 0.85),
@@ -90,34 +90,44 @@ void main() {
       }
     });
 
-    test('at 0.76 in a light theme, saturated x3', () {
+    test('at 0.825 in a light theme, saturated x3', () {
       final style = _resolve(
-        GlassMaterial.scrimMenu,
+        GlassMaterial.messageMenu,
         GlassFinish.refracting,
         palette: const ChromePalette.light(),
       );
       expect(
         style.fill,
-        const ChromePalette.light().surfaceRaised.withValues(alpha: 0.76),
+        const ChromePalette.light().surfaceRaised.withValues(alpha: 0.825),
       );
       expect(style.backdropSaturation, 3);
     });
 
-    test(
-      '12 dp corners, a 0x26 shadow of 4 dp all round, no visible edges',
-      () {
-        final style = _resolve(GlassMaterial.scrimMenu, GlassFinish.frosted);
-        expect(style.cornerRadius, 12);
-        expect(style.shadowColor, const Color(0x26000000));
-        expect(style.shadowBlur, 4);
-        expect(style.shadowOffset, Offset.zero);
-        expect(style.strokeTop.a, 0);
-        expect(style.strokeBottom.a, 0);
-      },
-    );
+    test('12 dp corners; light: white edges at 0x44 and 0x22 of 2/3 dp, a '
+        '0x38 shadow of 3.5 dp all round', () {
+      final style = _resolve(
+        GlassMaterial.messageMenu,
+        GlassFinish.frosted,
+        palette: const ChromePalette.light(),
+      );
+      expect(style.cornerRadius, 12);
+      expect(style.strokeTop, const Color(0x44FFFFFF));
+      expect(style.strokeBottom, const Color(0x22FFFFFF));
+      expect((style.strokeWidthTop, style.strokeWidthBottom), (2 / 3, 2 / 3));
+      expect(style.shadowColor, const Color(0x38000000));
+      expect(style.shadowBlur, 3.5);
+      expect(style.shadowOffset, Offset.zero);
+    });
+
+    test('dark: no edges, no shadow', () {
+      final style = _resolve(GlassMaterial.messageMenu, GlassFinish.frosted);
+      expect(style.strokeTop.a, 0);
+      expect(style.strokeBottom.a, 0);
+      expect(style.shadowColor.a, 0);
+    });
 
     test('opaque when flat', () {
-      final style = _resolve(GlassMaterial.scrimMenu, GlassFinish.flat);
+      final style = _resolve(GlassMaterial.messageMenu, GlassFinish.flat);
       expect(style.fill, const ChromePalette.dark().surfaceRaised);
     });
   });

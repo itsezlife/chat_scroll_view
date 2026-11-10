@@ -585,7 +585,11 @@ void main() {
   group('the Android message menu', () {
     // A long press at [tap] on a one-message chat, under the app's chrome
     // theme (tests run as Android).
-    Future<void> open(WidgetTester tester, {Offset tap = _tap}) async {
+    Future<void> open(
+      WidgetTester tester, {
+      Offset tap = _tap,
+      bool settle = true,
+    }) async {
       final dataSource = _OneMessageSource();
       final selection = ChatSelectionController(
         policy: const ChatSelectionPolicy.mobile(),
@@ -622,7 +626,11 @@ void main() {
       );
       await tester.tap(find.text('Open'));
       await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+      if (settle) {
+        await tester.pump(const Duration(seconds: 1));
+      } else {
+        await tester.pump(const Duration(milliseconds: 40));
+      }
     }
 
     Rect cardRect(WidgetTester tester) =>
@@ -645,7 +653,7 @@ void main() {
           matching: find.byWidgetPredicate(
             (widget) =>
                 widget is GlassSurface &&
-                widget.material == GlassMaterial.scrimMenu,
+                widget.material == GlassMaterial.messageMenu,
           ),
         ),
         findsOneWidget,
@@ -662,13 +670,61 @@ void main() {
       expect(tester.getSize(card).width, greaterThanOrEqualTo(200));
     });
 
+    testWidgets('its rows draw label and icon in the text colour, the '
+        'Delete row too', (tester) async {
+      await open(tester);
+
+      for (final label in ['Copy', 'Delete']) {
+        final row = find
+            .ancestor(
+              of: find.text(label),
+              matching: find.byType(MessageMenuRow),
+            )
+            .first;
+        final icon = tester.widget<Icon>(
+          find.descendant(of: row, matching: find.byType(Icon)),
+        );
+        expect(icon.color, const ChromePalette.dark().onSurface, reason: label);
+        expect(
+          tester.widget<Text>(find.text(label)).style?.color,
+          const ChromePalette.dark().onSurface,
+          reason: label,
+        );
+      }
+    });
+
+    testWidgets('its reaction strip comes in on its own: scaled up from its '
+        'end, opening from it, over 250 ms', (tester) async {
+      await open(tester, settle: false);
+
+      final enter = find.byType(MessageMenuStripEnter);
+      expect(enter, findsOneWidget);
+      final scale = tester.widget<Transform>(
+        find.descendant(of: enter, matching: find.byType(Transform)).first,
+      );
+      expect(scale.transform.storage[0], lessThan(1));
+      expect(scale.alignment, const Alignment(0.75, 0));
+
+      await tester.pump(const Duration(milliseconds: 300));
+      // Whole and at rest: no scale but 1 anywhere in it.
+      for (final transform in tester.widgetList<Transform>(
+        find.descendant(of: enter, matching: find.byType(Transform)),
+      )) {
+        expect(transform.transform.storage[0], 1);
+      }
+      expect(
+        tester.getSize(find.byType(ChatMessageMenuReactions)),
+        tester.getSize(enter),
+      );
+    });
+
     testWidgets('its reaction strip is the same glass', (tester) async {
       await open(tester);
 
       final glass = find.byWidgetPredicate(
         (widget) =>
             widget is GlassSurface &&
-            widget.material == GlassMaterial.scrimMenu,
+            widget.material == GlassMaterial.messageMenu,
       );
       expect(
         find.ancestor(
@@ -686,13 +742,16 @@ void main() {
       );
     });
 
-    testWidgets('it blooms from its top right corner with its reaction '
-        'strip, and its card ends 64 left of the press', (tester) async {
+    testWidgets('it pops from its bottom right corner, its rows never '
+        'scaling apart from the card, and its card ends 64 left of the press', (
+      tester,
+    ) async {
       await open(tester);
 
       final appear = tester.widget<ChromeAppear>(find.byType(ChromeAppear));
-      expect(appear.motion, const AppearMotion.bloom());
-      expect(appear.origin, Alignment.topRight);
+      expect(appear.motion, const AppearMotion.pop());
+      expect(appear.origin, Alignment.bottomRight);
+      expect(find.byType(AppearContent), findsNothing);
       final card = tester.getRect(find.byType(ChatMessageMenuCard).first);
       expect(card.right, closeTo(_tap.dx - 64, 0.01));
     });

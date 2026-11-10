@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 
@@ -36,8 +37,13 @@ class MessageContainsEmojiButton extends StatefulWidget {
     required this.source,
     required this.onTap,
     this.surfaceBuilder,
+    this.inCard = false,
     super.key,
   });
+
+  /// Whether the entry is a row of the menu's own card (the Android menu,
+  /// below a gap band) rather than a card of its own under it.
+  final bool inCard;
 
   /// The packs the message's custom emoji come from.
   final List<PackId> packs;
@@ -129,26 +135,32 @@ class _MessageContainsEmojiButtonState
         ],
       ),
     };
+    final text = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+      child: Text.rich(
+        TextSpan(
+          style: style,
+          children: [
+            const TextSpan(text: MessageContainsEmojiButton.lead),
+            named,
+          ],
+        ),
+      ),
+    );
+    if (widget.inCard) {
+      final palette = ChromeThemeScope.paletteOf(context);
+      return ChromeInk(
+        color: palette.onSurface.withAlpha(0x0F),
+        onTap: widget.onTap,
+        child: text,
+      );
+    }
     return ChatMessageMenuCard(
       surfaceBuilder: widget.surfaceBuilder,
       // Its own ink layer: a host surface is not a Material.
       child: Material(
         type: MaterialType.transparency,
-        child: InkWell(
-          onTap: widget.onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-            child: Text.rich(
-              TextSpan(
-                style: style,
-                children: [
-                  const TextSpan(text: MessageContainsEmojiButton.lead),
-                  named,
-                ],
-              ),
-            ),
-          ),
-        ),
+        child: InkWell(onTap: widget.onTap, child: text),
       ),
     );
   }

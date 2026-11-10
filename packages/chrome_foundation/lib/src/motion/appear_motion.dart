@@ -32,16 +32,18 @@ import 'package:flutter/widgets.dart';
 ///
 /// Two Android variants belong to the message menu, which a host names:
 ///
-/// - [AppearMotion.bloom]: the menu that comes with a reaction strip. Its
+/// - [AppearMotion.bloom]: the menu that comes with a reaction strip, on a
+///   device fast enough for the smooth entry. Its
 ///   frame opens from the origin corner while its content (an
 ///   `AppearContent`) fades in and scales up from half about that corner, all
 ///   on one overshooting clock (tension 0.5) over 250 ms; it goes over
 ///   220 ms, drifting 5 toward its anchor as it fades, accelerating then
 ///   decelerating.
-/// - [AppearMotion.pop]: the menu without one. It fades in over 150 ms,
-///   accelerating then decelerating, while it scales up from 0.95 about its
-///   origin on an overshoot (tension 2) over 200 ms; it goes as the bloom
-///   does.
+/// - [AppearMotion.pop]: the menu otherwise, anchored at its bottom right.
+///   It fades in over 150 ms, accelerating then decelerating, while it
+///   scales up from 0.95 about that corner on an overshoot (tension 2) over
+///   200 ms; its content does not scale apart. It goes over 220 ms as the
+///   bloom does, but moves 5 away from its anchor (up) as it fades.
 ///
 /// The rows of an unfolding menu do not fade in one by one: the whole surface
 /// fades with its frame.
@@ -246,7 +248,7 @@ abstract final class _MessageMenuHide {
 
   static const double drift = 5;
 
-  static AppearFrame at(double t) {
+  static AppearFrame at(double t, {double drift = drift}) {
     final eased = AccelerateDecelerateCurve.instance.transform(
       t.clamp(0.0, 1.0),
     );
@@ -323,8 +325,9 @@ final class AppearMotion$Pop extends AppearMotion {
   /// The hide.
   static const Duration hide = _MessageMenuHide.duration;
 
-  /// How far the surface drifts toward its anchor as it goes.
-  static const double hideDrift = _MessageMenuHide.drift;
+  /// How far the surface drifts as it goes: away from its bottom anchor,
+  /// so up.
+  static const double hideDrift = -_MessageMenuHide.drift;
 
   @override
   Duration showDuration(ChromeMotionData motion, {int rows = 0}) =>
@@ -348,7 +351,7 @@ final class AppearMotion$Pop extends AppearMotion {
   }
 
   @override
-  AppearFrame hideAt(double t) => _MessageMenuHide.at(t);
+  AppearFrame hideAt(double t) => _MessageMenuHide.at(t, drift: hideDrift);
 
   @override
   bool operator ==(Object other) => other is AppearMotion$Pop;

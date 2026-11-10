@@ -644,6 +644,10 @@ final class MessageMenu {
           : null;
       final presentation = ChatMessageMenuPresentation.forPolicy(policy);
       final surfaceBuilder = MessageMenuChrome.surfaceBuilderFor(presentation);
+      // The Android menu holds the contains-emoji entry in its own card,
+      // under a gap band; elsewhere it is a card under the menu.
+      final packsInCard = MessageMenuChrome.isAndroidSheet(presentation);
+      final packsSource = emojiPacks?.source;
 
       final result = await ChatMessageMenu.show(
         context: context,
@@ -652,19 +656,39 @@ final class MessageMenu {
         surfaceRect: request.surfaceGlobal,
         surfaceShape: request.surfaceShape,
         visibleRect: request.bandGlobal,
-        items: MessageMenuCatalog.excluding(
-          itemsFor(request, policy, content: content),
-          switch (canEdit) {
-            final canEdit? when !canEdit(request.messageId) => [
-              ...?excludeActionIds,
-              MessageMenuActionId.edit,
-            ],
-            _ => excludeActionIds,
-          },
-        ),
+        items: [
+          ...MessageMenuCatalog.excluding(
+            itemsFor(request, policy, content: content),
+            switch (canEdit) {
+              final canEdit? when !canEdit(request.messageId) => [
+                ...?excludeActionIds,
+                MessageMenuActionId.edit,
+              ],
+              _ => excludeActionIds,
+            },
+          ),
+          if (packsInCard && packs.isNotEmpty && packsSource != null) ...[
+            ChatMessageMenuItem.custom(
+              builder: (_) => const MessageMenuGapBand(),
+            ),
+            ChatMessageMenuItem.entry(
+              id: MessageMenuActionId.emojiPacks,
+              // Wraps to the card's width; it does not widen it.
+              builder: (context, onSelect) => _NoIntrinsicWidth(
+                child: MessageContainsEmojiButton(
+                  packs: packs,
+                  source: packsSource,
+                  onTap: onSelect,
+                  inCard: true,
+                ),
+              ),
+            ),
+          ],
+        ],
         reactions: reactions,
         selectionPolicy: policy,
         menuBuilder: switch ((packs, emojiPacks)) {
+          _ when packsInCard => null,
           ([_, ...], final emojiPacks?) => (context, slots) => _WithEmojiPacks(
             slots: slots,
             button: MessageContainsEmojiButton(

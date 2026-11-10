@@ -58,7 +58,9 @@ class ChatMessageMenuCard extends StatelessWidget {
     final surface = switch (surfaceBuilder) {
       final builder? => builder(
         context,
-        ChatScrollTheme.menuOf(context).cardRadius ?? 12,
+        ChatMessageMenuSurface.card(
+          cornerRadius: ChatScrollTheme.menuOf(context).cardRadius ?? 12,
+        ),
         // The rows' ink layer: a host surface is not a Material.
         Material(type: MaterialType.transparency, child: rows),
       ),
@@ -184,6 +186,10 @@ class ChatMessageMenuActionList extends StatelessWidget {
                     colorScheme.outlineVariant.withValues(alpha: 0.45),
               ),
               ChatMessageMenuCustom(:final builder) => builder(context),
+              ChatMessageMenuEntry(:final id, :final builder) => builder(
+                context,
+                () => onSelect(id),
+              ),
               ChatMessageMenuAction() =>
                 itemBuilder?.call(
                       context,

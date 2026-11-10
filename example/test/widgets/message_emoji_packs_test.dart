@@ -10,6 +10,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_emoji_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/message_menu_chrome.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' show Pack, PackId, PackKind;
 import 'package:content_model/testing.dart';
@@ -111,6 +112,39 @@ void main() {
       [_cats],
     ]);
     expect(find.byType(ChatMessageMenuActionList), findsNothing);
+  });
+
+  testWidgets('on Android it is a row of the menu card, under a gap band '
+      'across it, and it does not widen the card', (tester) async {
+    await openMenu(tester, [_cats]);
+
+    // The card's surface: the card widget itself may be stretched wider in
+    // the menu's column, its surface held at its start.
+    final card = find.descendant(
+      of: find.byType(ChatMessageMenuCard),
+      matching: find.byType(GlassSurface),
+    );
+    expect(card, findsOneWidget);
+    final entry = find.text(
+      'This message contains emoji from Cats pack.',
+      findRichText: true,
+    );
+    expect(find.descendant(of: card, matching: entry), findsOneWidget);
+    final band = find.descendant(
+      of: card,
+      matching: find.byType(MessageMenuGapBand),
+    );
+    expect(tester.getSize(band).height, 8);
+    expect(tester.getSize(band).width, tester.getSize(card).width);
+    expect(
+      tester.getTopLeft(entry).dy,
+      greaterThan(tester.getBottomLeft(band).dy),
+    );
+    // The card keeps the width of its rows: the entry wraps.
+    expect(
+      tester.getSize(card).width,
+      lessThan(tester.getSize(entry).width + 200),
+    );
   });
 
   testWidgets('counts several packs and opens them all', (tester) async {
