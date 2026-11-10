@@ -130,3 +130,17 @@ not on what a page shows.
 | Policy | `PanelPresentationPolicy.opensAfresh(kind)`. Mobile: `KeyboardReplacement` only, the panel that stands in for the keyboard for one pick (the reference mobile client resets on every show); a popup or a dock a host asks for there keeps its place. Desktop: never; a popup and a dock beside the content keep the place of every page, as the reference desktop client keeps its selector. The host decides per platform family by the policy it passes (`forFamily` by default), as for every other decision of the policy. |
 | Report | The controller reports `PanelShellController.reportFreshOpen` when it commits a state that leaves `hidden` for a kind the policy opens afresh, before `updatePresence`. A panel turned back while hiding never left, and a switch of kind keeps it on screen: neither is one. |
 | Search (ticket 112) | A panel of a kind the policy opens afresh ends a search left open when it hides: the controller calls `PanelShellController.closeSearch` (query cleared) when it commits `hidden` from such a kind, before `updatePresence`, so the search does not close on screen and the next show starts outside it. The reference mobile client closes search when its panel is toggled away while searching (`setSearchingTypeInternal(0, true)`, `closeSearch`). A panel turned back while hiding keeps its search; a desktop popup and dock keep it across a hide, as the reference desktop client only gives the field's focus back (`beforeHiding`). |
+
+## Amendment: a swap with the keyboard plays on (2026-11-10)
+
+Native-media ticket 157. The host paused playback (`routeMoving`) whenever the
+panel was showing or hiding, a swap with the soft keyboard included. The
+reference mobile client locks its animation notifications for the panel only
+when the panel moves on its own: `ChatActivityEnterView.showPopup` runs and
+locks `panelAnimation` under `smoothKeyboard && !keyboardVisible`, and a hide
+for the keyboard (`show == 2`) takes the branch without an animation.
+
+| Area | Decision |
+| ---- | -------- |
+| Swap | A keyboard-replacement panel shown while the keyboard is up (the slot goes `replacing`, read through `KeyboardReplacementStrategy.keyboardIsUp` as the show starts) and one hiding with `waitForIme` do not move on their own: the host does not pause playback for them. |
+| Motion | A panel that slides in or out with no keyboard (any kind) still pauses while it moves. |
