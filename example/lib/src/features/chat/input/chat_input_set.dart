@@ -1185,8 +1185,17 @@ final class ChatInputSet {
     unawaited(open(id).whenComplete(hold.release));
   }
 
+  // The confirmation holds the panel up as a pack sheet does: the panel
+  // stays while it is asked, whatever the pointer does over its barrier.
   Future<void> _clearRecents(SemanticKind kind) async {
-    if (!await _confirmClearRecents(kind) || _disposed) return;
+    final hold = presentation.holdAutoHide();
+    final bool confirmed;
+    try {
+      confirmed = await _confirmClearRecents(kind);
+    } finally {
+      hold.release();
+    }
+    if (!confirmed || _disposed) return;
     // The library has no edit that clears a list: one removal per key, each
     // leaving the panel's view at once.
     final inLibrary = switch (kind) {
