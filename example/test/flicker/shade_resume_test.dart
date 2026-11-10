@@ -14,7 +14,10 @@
 /// by frame, what every cell composites.
 ///
 /// The panel is a phone's: more cells on screen than the pool keeps frames
-/// for when they all let go of their textures at once.
+/// for when they all let go of their textures at once. Focus loss pauses
+/// here as it does on desktop; on a phone it leaves playback alone by
+/// default (`PlaybackActivityPolicy.pausesOnFocusLoss`), and hiding pauses
+/// everywhere.
 library;
 
 import 'dart:typed_data';
@@ -300,7 +303,13 @@ final class _Rig {
       made: made,
       scope: AssetCacheScope(producer: producer, clock: clock),
       lifecycle: lifecycle,
-      activity: PlaybackActivity(clock: clock, lifecycle: lifecycle),
+      // Focus loss pauses, as on desktop: on a phone it does not by
+      // default, and these tests are about what a pause leaves behind.
+      activity: PlaybackActivity(
+        clock: clock,
+        lifecycle: lifecycle,
+        policy: const PlaybackActivityPolicy(pausesOnFocusLoss: true),
+      ),
       tearDown: tearDown,
     );
   }

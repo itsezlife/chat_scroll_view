@@ -11,21 +11,41 @@ import 'package:flutter/foundation.dart';
 typedef PlaybackTimerFactory =
     Timer Function(Duration delay, void Function() callback);
 
-/// How long a change of focus must hold before a [PlaybackActivity] acts on it.
+/// Whether focus loss alone pauses, and how long a change of focus must hold
+/// before a [PlaybackActivity] acts on it.
 ///
-/// Both default to zero: whether the window is active is recomputed one
-/// event-loop turn after the window event, and the paint after that already
-/// skips the animations. Other timers only back that up and never delay the
-/// pause. The fields exist for a host that wants
-/// a short debounce, for example against a focus hand-off between two windows
-/// of its own.
+/// ## Focus loss
+///
+/// What `inactive` means differs by platform. On desktop and the web it is
+/// the window or the tab losing focus to another app: the user works
+/// elsewhere, and playback stops ([pausesOnFocusLoss] true). On a phone it
+/// is something of the system's over a window that is still visible and
+/// still the user's: the notification shade, a permission dialog, a call
+/// banner, the control centre. Playback goes on under it, so the app does
+/// not freeze each time the shade is pulled ([pausesOnFocusLoss] false).
+/// Leaving the app is never focus loss alone: the platform reports `hidden`
+/// after `inactive`, and that pauses on every platform.
+///
+/// ## Grace
+///
+/// Both graces default to zero: whether the window is active is recomputed
+/// one event-loop turn after the window event, and the paint after that
+/// already skips the animations. Other timers only back that up and never
+/// delay the pause. The fields exist for a host that wants a short debounce,
+/// for example against a focus hand-off between two windows of its own.
 @immutable
 final class PlaybackActivityPolicy {
   /// Creates a policy.
   const PlaybackActivityPolicy({
+    this.pausesOnFocusLoss,
     this.unfocusedGrace = Duration.zero,
     this.focusedGrace = Duration.zero,
   });
+
+  /// Whether losing focus while visible (`inactive`) sets
+  /// [PlaybackPauseLayer.appInactive]; null for the default of the platform
+  /// the activity starts on ([pausesOnFocusLossOn]).
+  final bool? pausesOnFocusLoss;
 
   /// How long the app must stay without focus before
   /// [PlaybackPauseLayer.appInactive] is set. Losing visibility (`hidden`) does
@@ -35,6 +55,20 @@ final class PlaybackActivityPolicy {
   /// How long the app must stay focused before [PlaybackPauseLayer.appInactive]
   /// is cleared.
   final Duration focusedGrace;
+
+  /// Whether focus loss alone pauses by default on [platform], or in a
+  /// browser when [web]: yes on desktop and the web, no on a phone (see
+  /// *Focus loss* above).
+  static bool pausesOnFocusLossOn(TargetPlatform platform, {bool web = false}) {
+    if (web) return true;
+    return switch (platform) {
+      TargetPlatform.android || TargetPlatform.iOS => false,
+      TargetPlatform.fuchsia ||
+      TargetPlatform.linux ||
+      TargetPlatform.macOS ||
+      TargetPlatform.windows => true,
+    };
+  }
 }
 
 /// One claim on the chat being covered, released exactly once.
@@ -68,7 +102,7 @@ final class PlaybackOverlayHold {
 ///
 /// | Input | Layer |
 /// |---|---|
-/// | [lifecycle] `inactive` | [PlaybackPauseLayer.appInactive] |
+/// | [lifecycle] `inactive` | [PlaybackPauseLayer.appInactive], where focus loss pauses ([PlaybackActivityPolicy.pausesOnFocusLoss]) |
 /// | [lifecycle] `hidden`, `paused`, `detached` | `appInactive` and [PlaybackPauseLayer.surfaceHidden] |
 /// | `lowPower` | [PlaybackPauseLayer.lowPower] |
 /// | `reducedMotion` | [PlaybackPauseLayer.reducedMotion] |
@@ -98,6 +132,9 @@ final class PlaybackActivity {
   /// [lifecycle] is `WidgetsPlaybackLifecycleSource` in production. [lowPower]
   /// and [reducedMotion] are host-fed: the activity reads their value now and
   /// follows them, and disposes neither. [startTimer] is for tests.
+  ///
+  /// A [policy] that leaves [PlaybackActivityPolicy.pausesOnFocusLoss] null
+  /// takes the default of `defaultTargetPlatform`, read here once.
   PlaybackActivity({
     required PlaybackClock clock,
     PlaybackLifecycleSource? lifecycle,
@@ -109,7 +146,13 @@ final class PlaybackActivity {
        _lifecycle = lifecycle,
        _lowPower = lowPower,
        _reducedMotion = reducedMotion,
-       _startTimer = startTimer {
+       _startTimer = startTimer,
+       _pausesOnFocusLoss =
+           policy.pausesOnFocusLoss ??
+           PlaybackActivityPolicy.pausesOnFocusLossOn(
+             defaultTargetPlatform,
+             web: kIsWeb,
+           ) {
     lifecycle?.addListener(_onLifecycle);
     lowPower?.addListener(_onLowPower);
     reducedMotion?.addListener(_onReducedMotion);
@@ -126,6 +169,7 @@ final class PlaybackActivity {
   final ValueListenable<bool>? _lowPower;
   final ValueListenable<bool>? _reducedMotion;
   final PlaybackTimerFactory _startTimer;
+  final bool _pausesOnFocusLoss;
 
   // The layers this object has set and not yet cleared: what dispose gives
   // back, so it never clears one the host raised itself.
@@ -181,8 +225,10 @@ final class PlaybackActivity {
         _set(PlaybackPauseLayer.surfaceHidden, on: false);
         _followFocus(inactive: false);
       case AppLifecycleState.inactive:
+        // Visible without focus: a pause only where focus loss is one.
+        // Coming back from hidden through here clears it either way.
         _set(PlaybackPauseLayer.surfaceHidden, on: false);
-        _followFocus(inactive: true);
+        _followFocus(inactive: _pausesOnFocusLoss);
       case AppLifecycleState.hidden ||
           AppLifecycleState.paused ||
           AppLifecycleState.detached:

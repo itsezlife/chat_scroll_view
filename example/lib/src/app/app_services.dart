@@ -447,8 +447,10 @@ final class AppServices {
       );
       // The pause policies (ADR 022): one object turns what the app and the
       // platform report into layers of the clock the chat and the panel share.
-      // Dust and emoji alike stop when the window loses focus, is minimised,
-      // is covered by a dialog, or the switch below says power is short.
+      // Dust and emoji alike stop when the app is hidden or minimised, is
+      // covered by a dialog, or the switch below says power is short, and on
+      // desktop and the web when the window loses focus; a phone's system
+      // sheet over the app (the shade, a permission dialog) leaves them be.
       final lifecycleSource = owned(
         WidgetsPlaybackLifecycleSource(),
         (source) => source.dispose(),
