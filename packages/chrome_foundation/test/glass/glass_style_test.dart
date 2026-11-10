@@ -75,6 +75,53 @@ void main() {
     });
   });
 
+  group('the scrim menu', () {
+    test('tints the raised surface at 0.85 in a dark theme, over an 80 dp '
+        'blur saturated x2, whatever the finish', () {
+      for (final finish in [GlassFinish.frosted, GlassFinish.refracting]) {
+        final style = _resolve(GlassMaterial.scrimMenu, finish);
+        expect(
+          style.fill,
+          const ChromePalette.dark().surfaceRaised.withValues(alpha: 0.85),
+        );
+        expect(style.blurRadius, 80);
+        expect(style.backdropSaturation, 2);
+        expect(style.enableLiquid, isFalse);
+      }
+    });
+
+    test('at 0.76 in a light theme, saturated x3', () {
+      final style = _resolve(
+        GlassMaterial.scrimMenu,
+        GlassFinish.refracting,
+        palette: const ChromePalette.light(),
+      );
+      expect(
+        style.fill,
+        const ChromePalette.light().surfaceRaised.withValues(alpha: 0.76),
+      );
+      expect(style.backdropSaturation, 3);
+    });
+
+    test(
+      '12 dp corners, a 0x26 shadow of 4 dp all round, no visible edges',
+      () {
+        final style = _resolve(GlassMaterial.scrimMenu, GlassFinish.frosted);
+        expect(style.cornerRadius, 12);
+        expect(style.shadowColor, const Color(0x26000000));
+        expect(style.shadowBlur, 4);
+        expect(style.shadowOffset, Offset.zero);
+        expect(style.strokeTop.a, 0);
+        expect(style.strokeBottom.a, 0);
+      },
+    );
+
+    test('opaque when flat', () {
+      final style = _resolve(GlassMaterial.scrimMenu, GlassFinish.flat);
+      expect(style.fill, const ChromePalette.dark().surfaceRaised);
+    });
+  });
+
   test('a flat glass is opaque: it reads no backdrop to tint', () {
     final style = _resolve(GlassMaterial.composerIsland, GlassFinish.flat);
 

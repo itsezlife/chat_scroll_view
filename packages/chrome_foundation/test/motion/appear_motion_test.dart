@@ -129,12 +129,84 @@ void main() {
     });
   });
 
+  group('the bloom', () {
+    const bloom = AppearMotion.bloom();
+    const overshoot = OvershootCurve(0.5);
+
+    test('takes 250 ms in and 220 ms out', () {
+      expect(bloom.showDuration(motion), const Duration(milliseconds: 250));
+      expect(bloom.hideDuration(motion), const Duration(milliseconds: 220));
+    });
+
+    test('opens its frame from the corner while the content fades in and '
+        'scales up from half, on one overshooting clock', () {
+      final start = bloom.showAt(0);
+      expect((start.widthFraction, start.heightFraction), (0, 0));
+      expect((start.contentOpacity, start.contentScale), (0, 0.5));
+      expect(start.opacity, 1);
+
+      final p = overshoot.transform(0.6);
+      final mid = bloom.showAt(0.6);
+      expect(mid.widthFraction, closeTo(p, 1e-9));
+      expect(mid.heightFraction, closeTo(p, 1e-9));
+      expect(mid.contentOpacity, closeTo(p.clamp(0, 1), 1e-9));
+      expect(mid.contentScale, closeTo(0.5 + 0.5 * p, 1e-9));
+      // Past full size before it settles.
+      expect(bloom.showAt(0.85).contentScale, greaterThan(1));
+      expect(bloom.showAt(1), AppearFrame.rest);
+    });
+
+    test('leaves by drifting 5 toward its anchor and fading, accelerating '
+        'then decelerating', () {
+      final quarter = bloom.hideAt(0.25);
+      expect(quarter.opacity, closeTo(1 - _accelerateDecelerate(0.25), 1e-9));
+      expect(quarter.drift, closeTo(5 * _accelerateDecelerate(0.25), 1e-9));
+      expect(bloom.hideAt(1).opacity, 0);
+      expect(bloom.hideAt(1).drift, 5);
+    });
+  });
+
+  group('the pop', () {
+    const pop = AppearMotion.pop();
+
+    test('takes 200 ms in and 220 ms out', () {
+      expect(pop.showDuration(motion), const Duration(milliseconds: 200));
+      expect(pop.hideDuration(motion), const Duration(milliseconds: 220));
+    });
+
+    test('fades in over 150 ms while it scales up from 0.95 on an '
+        'overshoot', () {
+      expect(pop.showAt(0).opacity, 0);
+      expect(pop.showAt(0).scale, closeTo(0.95, 1e-9));
+      expect(
+        pop.showAt(0.375).opacity,
+        closeTo(_accelerateDecelerate(0.5), 1e-9),
+      );
+      expect(pop.showAt(0.75).opacity, 1);
+      expect(
+        pop.showAt(0.5).scale,
+        closeTo(0.95 + 0.05 * const OvershootCurve().transform(0.5), 1e-9),
+      );
+      expect(pop.showAt(0.8).scale, greaterThan(1));
+      expect(pop.showAt(1), AppearFrame.rest);
+    });
+
+    test('leaves as the bloom does', () {
+      const bloom = AppearMotion.bloom();
+      for (final t in [0.0, 0.3, 0.7, 1.0]) {
+        expect(pop.hideAt(t), bloom.hideAt(t));
+      }
+    });
+  });
+
   test('a speed reaches every duration', () {
     const instant = ChromeMotionData(speed: ChromeMotionSpeed.instant);
     for (final appear in const [
       AppearMotion.grow(),
       AppearMotion.unfold(),
       AppearMotion.spring(),
+      AppearMotion.bloom(),
+      AppearMotion.pop(),
     ]) {
       expect(appear.showDuration(instant, rows: 3), Duration.zero);
       expect(appear.hideDuration(instant), Duration.zero);
@@ -186,6 +258,45 @@ void main() {
       expect(hidden, 0);
       await tester.pump(const Duration(milliseconds: 80));
       expect(hidden, 1);
+    });
+
+    testWidgets('an AppearContent inside fades and scales the content over '
+        'the surface, about the origin', (tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: ChromeAppear(
+              motion: AppearMotion.bloom(),
+              origin: Alignment.topRight,
+              child: ColoredBox(
+                color: Color(0xFFFFFFFF),
+                child: AppearContent(child: SizedBox(width: 100, height: 60)),
+              ),
+            ),
+          ),
+        ),
+      );
+      Opacity contentOpacity() => tester.widget<Opacity>(
+        find.descendant(
+          of: find.byType(AppearContent),
+          matching: find.byType(Opacity),
+        ),
+      );
+      Transform contentScale() => tester.widget<Transform>(
+        find.descendant(
+          of: find.byType(AppearContent),
+          matching: find.byType(Transform),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      final p = const OvershootCurve(0.5).transform(100 / 250);
+      expect(contentOpacity().opacity, closeTo(p.clamp(0, 1), 1e-6));
+      expect(contentScale().alignment, Alignment.topRight);
+      expect(contentScale().transform.storage[0], closeTo(0.5 + 0.5 * p, 1e-6));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(contentOpacity().opacity, 1);
+      expect(contentScale().transform.storage[0], 1);
     });
 
     testWidgets('under an instant speed shows and hides at once', (

@@ -213,7 +213,11 @@ class AppearFrameView extends StatelessWidget {
                   origin: origin,
                   color: revealColor,
                 ),
-                child: child,
+                child: _AppearContentScope(
+                  frame: frame,
+                  origin: origin,
+                  child: child,
+                ),
               ),
             ),
           ),
@@ -221,6 +225,56 @@ class AppearFrameView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The content of a surface an appear motion plays on: the part that fades
+/// and scales over the surface's own background
+/// (`AppearFrame.contentOpacity`, `AppearFrame.contentScale`), about the
+/// motion's origin.
+///
+/// A surface whose background and content move apart (a menu whose panel
+/// opens while its rows come in) wraps its content in this, inside the
+/// background. Outside an appear motion, or under one that does not move the
+/// content, it draws [child] as is.
+class AppearContent extends StatelessWidget {
+  /// The content [child].
+  const AppearContent({required this.child, super.key});
+
+  /// The content.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<_AppearContentScope>();
+    final frame = scope?.frame ?? AppearFrame.rest;
+    // One shape whatever the frame, so the content keeps its state.
+    return Opacity(
+      opacity: frame.contentOpacity.clamp(0.0, 1.0),
+      child: Transform.scale(
+        scale: frame.contentScale,
+        alignment: scope?.origin ?? Alignment.center,
+        child: child,
+      ),
+    );
+  }
+}
+
+class _AppearContentScope extends InheritedWidget {
+  const _AppearContentScope({
+    required this.frame,
+    required this.origin,
+    required super.child,
+  });
+
+  final AppearFrame frame;
+  final Alignment origin;
+
+  @override
+  bool updateShouldNotify(_AppearContentScope oldWidget) =>
+      oldWidget.frame.contentOpacity != frame.contentOpacity ||
+      oldWidget.frame.contentScale != frame.contentScale ||
+      oldWidget.origin != origin;
 }
 
 class _FrameClip extends SingleChildRenderObjectWidget {
