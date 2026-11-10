@@ -765,8 +765,8 @@ void main() {
   });
 
   testWidgets(
-    'the desktop menu takes the mobile rows on the pointer menu\'s solid card, '
-    'growing from the corner at the pointer',
+    'the desktop menu is the pointer menu with icons: its rows, card and '
+    'motion, growing from the corner at the pointer',
     (tester) async {
       final dataSource = _OneMessageSource();
       final selection = ChatSelectionController(
@@ -811,24 +811,36 @@ void main() {
       final row = find
           .ancestor(
             of: find.text('Select'),
-            matching: find.byType(MessageMenuRow),
+            matching: find.byType(MessageMenuPointerRow),
           )
           .first;
-      expect(tester.getSize(row).height, 48);
-      expect(
-        tester.widget<Text>(find.text('Select')).style?.color,
-        PointerMenuTokens.night.text,
-      );
+      final label = tester.getRect(find.text('Select'));
+      final rowRect = tester.getRect(row);
+      // The label 54 in, 8 above and below it.
+      expect(label.left - rowRect.left, 54);
+      expect(label.top - rowRect.top, 8);
+      expect(rowRect.bottom - label.bottom, 8);
+      final text = tester.widget<Text>(find.text('Select'));
+      expect(text.style?.color, PointerMenuTokens.night.text);
+      expect(text.style?.fontSize, 13);
+      // The icon, 24, 15 in and 5 down, in the menu's bold colour.
+      final icon = find.descendant(of: row, matching: find.byType(Icon));
+      expect(tester.getTopLeft(icon) - rowRect.topLeft, const Offset(15, 5));
+      expect(tester.widget<Icon>(icon).size, 24);
+      expect(tester.widget<Icon>(icon).color, PointerMenuTokens.night.arrow);
       final appear = tester.widget<ChromeAppear>(find.byType(ChromeAppear));
       expect(appear.motion, const AppearMotion.grow());
       expect(appear.origin, Alignment.topLeft);
       final card = tester.getRect(find.byType(ChatMessageMenuCard));
       expect(card.topLeft, click + const Offset(5, 0));
-      // The pointer menu's padding above the first row.
+      // The padding above the first row of a menu with icons.
       expect(
-        tester.getTopLeft(find.byType(MessageMenuRow).first).dy - card.top,
-        8,
+        tester.getTopLeft(find.byType(MessageMenuPointerRow).first).dy -
+            card.top,
+        5,
       );
+      // As wide as its widest row, 156 at least.
+      expect(card.width, greaterThanOrEqualTo(156));
       expect(
         find.descendant(
           of: find.byType(ChatMessageMenuCard),
