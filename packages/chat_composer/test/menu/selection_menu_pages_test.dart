@@ -231,45 +231,45 @@ void main() {
       expect(find.byType(Tooltip), findsNothing);
     });
 
-    testWidgets('pressing the More button washes it in the icon colour at the '
-        'Material pressed opacity', (tester) async {
+    testWidgets('pressing the More button lights a 40 dp disc with the '
+        'platform\'s press feedback, in the list selector colour', (
+      tester,
+    ) async {
       await pumpPage(tester, (c) => root(c, [cut, copy]));
-      final ink = find
-          .ancestor(
-            of: find.byKey(SelectionMenuRootPage.moreKey),
-            matching: find.byWidgetPredicate(
-              (widget) => widget.runtimeType.toString() == '_InkFeatures',
-            ),
-          )
-          .first;
+      final more = find.byKey(SelectionMenuRootPage.moreKey);
+      final ink = find.descendant(of: more, matching: find.byType(ChromeInk));
+      expect(tester.widget<ChromeInk>(ink).circleRadius, 20);
+      expect(tester.widget<ChromeInk>(ink).color, tokens.text.withAlpha(0x0F));
 
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.byKey(SelectionMenuRootPage.moreKey)),
-      );
-      // The press shows after the tap-down delay, then fades in over the next
-      // frames.
-      await tester.pump(const Duration(milliseconds: 150));
+      final gesture = await tester.startGesture(tester.getCenter(more));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      // M3's pressed state layer is 10% of the foreground; a theme's own
-      // splash and highlight are transparent, which left the button dead.
+      await tester.pump(const Duration(milliseconds: 300));
       expect(
-        tester.renderObject(ink),
+        ink,
         paints..something((method, arguments) {
-          final paint = arguments.whereType<Paint>().firstOrNull;
-          if (paint == null) return false;
-          // Ink quantizes the alpha to a byte.
-          final drawn = paint.color;
-          final wash = tokens.text.withValues(alpha: 0.1);
-          return (drawn.a - wash.a).abs() < 1 / 255 &&
-              drawn.r == wash.r &&
-              drawn.g == wash.g &&
-              drawn.b == wash.b;
+          if (method != #drawCircle) return false;
+          final paint = arguments.last as Paint;
+          final ink = tokens.text.withAlpha(0x0F);
+          return (paint.color.a - ink.a).abs() < 1e-3 && paint.color.r == ink.r;
         }),
       );
       await gesture.up();
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('a press dragged off a button cancels it: no item is chosen', (
+      tester,
+    ) async {
+      await pumpPage(tester, (c) => root(c, [cut, copy]));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('Copy')),
+      );
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 120));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(tapped, isEmpty);
     });
 
     testWidgets('there is no More button without a page to open', (
