@@ -1520,7 +1520,8 @@ class _DotsPainter extends CustomPainter {
   bool shouldRepaint(_DotsPainter oldDelegate) => oldDelegate.color != color;
 }
 
-/// `ic_close_white`: two strokes crossing.
+/// `ic_close_white`: two strokes crossing, stroked as one path so a
+/// translucent colour covers the crossing once.
 class _CrossPainter extends CustomPainter {
   const _CrossPainter(this.color);
 
@@ -1538,9 +1539,12 @@ class _CrossPainter extends CustomPainter {
       width: 12,
       height: 12,
     );
-    canvas
-      ..drawLine(box.topLeft, box.bottomRight, pen)
-      ..drawLine(box.topRight, box.bottomLeft, pen);
+    final cross = Path()
+      ..moveTo(box.left, box.top)
+      ..lineTo(box.right, box.bottom)
+      ..moveTo(box.right, box.top)
+      ..lineTo(box.left, box.bottom);
+    canvas.drawPath(cross, pen);
   }
 
   @override

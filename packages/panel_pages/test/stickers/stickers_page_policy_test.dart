@@ -6,6 +6,7 @@ library;
 
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -196,6 +197,19 @@ void main() {
         _strings.clearRecentAction,
       );
       expect(policy.actionOf(_pack('a'), _strings), isNull);
+    });
+
+    test('paints its cross as one stroked path, so the crossing is not '
+        'covered twice by a translucent colour', () {
+      final canvas = TestRecordingCanvas();
+      policy.actionOf(_recents(), _strings)!.painter!(
+        canvas,
+        const Rect.fromLTWH(0, 0, 24, 24),
+        const Color(0x80FFFFFF),
+      );
+      final calls = canvas.invocations.map((i) => i.invocation.memberName);
+      expect(calls, isNot(contains(#drawLine)));
+      expect(calls.where((name) => name == #drawPath), hasLength(1));
     });
 
     test('is the only one: the favourites header has no button', () {

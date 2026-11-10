@@ -239,7 +239,8 @@ final class StickersPagePolicy extends CatalogPagePolicy {
         )
       : null;
 
-  // `msg_close`: two strokes crossing, in the header's colour.
+  // `msg_close`: two strokes crossing, in the header's colour. One path, so
+  // a translucent colour covers the crossing once.
   static void _paintCross(Canvas canvas, Rect box, Color color) {
     final unit = box.width / 24;
     final pen = Paint()
@@ -247,10 +248,16 @@ final class StickersPagePolicy extends CatalogPagePolicy {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.7 * unit
       ..strokeCap = StrokeCap.round;
-    Offset at(double x, double y) => box.topLeft + Offset(x, y) * unit;
-    canvas
-      ..drawLine(at(7.5, 7.5), at(16.5, 16.5), pen)
-      ..drawLine(at(16.5, 7.5), at(7.5, 16.5), pen);
+    final near = box.left + 7.5 * unit;
+    final far = box.left + 16.5 * unit;
+    final top = box.top + 7.5 * unit;
+    final bottom = box.top + 16.5 * unit;
+    final cross = Path()
+      ..moveTo(near, top)
+      ..lineTo(far, bottom)
+      ..moveTo(far, top)
+      ..lineTo(near, bottom);
+    canvas.drawPath(cross, pen);
   }
 
   // --- A pack's header ------------------------------------------------------
