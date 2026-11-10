@@ -1009,6 +1009,39 @@ void main() {
       expect(sheetUp(), isFalse);
     });
 
+    testWidgets('under a pointer the box lays five 64 px cells from 19 in, '
+        'its grid at most 320 tall, its button 42 tall with the count in a '
+        'badge', (tester) async {
+      await open(
+        tester,
+        'big',
+        arrangement: PanelArrangement.pointer,
+        canSend: true,
+      );
+
+      final box = tester.getRect(find.byType(PackSheetView));
+      // The header, the grid at its most, the button and its 12 above and
+      // below.
+      expect(box.height, PackSheetView.headerExtent + 320 + 12 + 42 + 12);
+      expect(find.text('Add Stickers'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('pack-box-count')),
+          matching: find.text('60'),
+        ),
+        findsOneWidget,
+      );
+
+      // A cell is 64 square from 19 in and 13 under the header: the sixth
+      // sticker starts the second row, at the first column's edge.
+      await tester.tapAt(box.topLeft + const Offset(19 + 2, 50 + 13 + 64 + 2));
+      await settle(tester);
+      expect(
+        [for (final pick in picks) pick.item.key],
+        [const ContentKey.document('big-5')],
+      );
+    });
+
     testWidgets('under a pointer a drag neither moves nor closes the box', (
       tester,
     ) async {

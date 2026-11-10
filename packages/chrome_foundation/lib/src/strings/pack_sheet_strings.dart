@@ -21,6 +21,10 @@ final class PackSheetStrings {
     required this.emojiCount,
     required this.addPackAction,
     required this.removePackAction,
+    required this.addStickersLabel,
+    required this.addEmojiLabel,
+    required this.removeStickersLabel,
+    required this.removeEmojiLabel,
     required this.closeAction,
     required this.shareAction,
     required this.copyLinkAction,
@@ -88,6 +92,19 @@ final class PackSheetStrings {
 
   /// The button beside one pack of several that removes it.
   final String removePackAction;
+
+  /// The box's button that adds a sticker pack, its count drawn beside it in
+  /// a badge (a pointer).
+  final String addStickersLabel;
+
+  /// The box's button that adds an emoji pack, with its count badge.
+  final String addEmojiLabel;
+
+  /// The box's button that removes a sticker pack, with its count badge.
+  final String removeStickersLabel;
+
+  /// The box's button that removes an emoji pack, with its count badge.
+  final String removeEmojiLabel;
 
   // --- Header and menu ------------------------------------------------------
 
