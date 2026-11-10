@@ -174,3 +174,47 @@ The desktop client opens the message context menu with `st::popupMenuWithIcons` 
 | Card | `popupMenuWithIcons` (`PopupMenu(defaultPopupMenu)`): `scrollPadding` 5 above and below the rows (not the plain menu's 8), `radius` 8, `menuBg` fill, `defaultBoxShadow` (blur 5, offset (0, 1), opacity 0.25). |
 | Separator | `defaultMenuSeparator`: 1 px of `menuSeparatorFg` with 5 above and below. The message menu's catalog has none on desktop; the package divider stays. |
 | Motion | `defaultPanelAnimation` over `showDuration` 200, out by opacity over `duration` 150: `AppearMotion.grow` from the corner at the pointer (the 181 placement). |
+
+## Amendment: the emoji-pack entry in the desktop card, hover under the label (native-media 194)
+
+| Area | Decision |
+| ---- | -------- |
+| Entry | The desktop client adds the "contains emoji from …" entry to the message menu itself (`AddEmojiPacksAction`, `history_view_context_menu.cpp`): `menu->addSeparator()` when the menu has rows, then a `Ui::Menu::MultilineAction` with `st::historyHasCustomEmoji` (`FlatLabel(defaultFlatLabel)`, 11 px `defaultTextStyle`, `textFg` `windowFg`) at `st::historyHasCustomEmojiPosition` (12, 4); the row is the label's height and 4 above and below (`MultilineAction::contentHeight`), its right skip the same 12 (no icon). Ours drew the entry as a card of its own under the menu. The example's `MessageContainsEmojiLook.pointerRow` is that row (the pointer menu's text colour, the name bold in it), under `MessageMenuPointerSeparator` (`defaultMenuSeparator`: 1 px `menuSeparatorFg`, 5 above and below); the card's own 5 below the rows follows it. |
+| Hover | `MultilineAction::paintEvent` and `Action::paint` fill `itemBgOver`, then paint the ripple, then the text: the fill and the ripple are under the label. `ChromeInk` painted its hover fill and ripple as a foreground, so the opaque `backgroundOver` (night `#232E3C`) and `ripple` hid the label of the hovered row. `ChromeInk.behindChild` paints them behind the child; the desktop rows and the entry take it. The label keeps `itemFgOver` (`windowFgOver`, the pointer menu's `textOver`). |
+
+## Amendment: sticker cell hover, press and preview per platform (native-media 195, 197)
+
+| Area | Decision |
+| ---- | -------- |
+| Panel sticker hover (195) | `StickersListWidget::paintSticker` fills `_overBg` (`Ui::RoundRect(st::roundRadiusLarge, st().overBg)`: radius 6, `emojiPanHover` = `windowBgOver`) over `QRect(tl, _singleSize)`, the whole cell, before the sticker. Ours used the emoji's 34 x 32 box (`emojiPanArea`, radius `emojiPanRadius` 8) for every cell, so on a sticker it was a small square hidden behind the sticker. `CatalogCellFeedback` (panel_pages) names the hover per kind of content: `emoji` keeps 34 x 32 at 8, `sticker` is the whole cell at 6; the page policy says which (`CatalogPagePolicy.cellFeedback`). The colour stays the chrome's hover wash. |
+| Pack box hover | `StickerSetBox::Inner::paintSticker` fills the whole `_singleSize` cell with `Ui::StickerHoverCorners` (`st::roundRadiusSmall`, 3): the box's cells (177's cell sizes) take radius 3. |
+| GIF and emoji | The GIF list (`GifsListWidget`, `inline_bot_layout_internal.cpp`) paints no hover square, only the remove badge on hover: unchanged (the GIF page draws no fill). Emoji cells unchanged. |
+| Desktop preview (197) | Under a pointer an open preview no longer shrinks the previewed cell (154's 0.8 is the touch grid's): `CatalogPreviewFeedback.hover` keeps the hover box on the cell the preview shows, at full size, and moves it with the preview; the mouse marks no other cell. |
+| Touch sticker press (197) | The mobile reference shows no highlight on a sticker cell on a tap or a hold, only the preview's scale: sticker cells on touch take `CatalogPressFeedback.none` (no wash, no press scale) and the previewed cell scales from 1, not from a press scale it never showed. Emoji cells keep their press; the GIF page is its own grid and is unchanged. |
+
+## Amendment: layered boxes (native-media 196, supersedes 174's box swap)
+
+The desktop client shows boxes on one layer stack (`lib_ui/ui/layers/layer_widget.cpp`, `LayerStackWidget`): `Show::showBox` defaults to `LayerOption::KeepOther`, which `appendLayer`s the box: `pushLayer` hides the shown layer and shows the new one with no animation when another is up (`_layers.size() > 1`); only the first box runs the background's show animation and only the last one's close runs the hide. `closeLayer` on the shown box pops it and shows the one under it at once; on a box under it, it is erased silently. `BoxLayerWidget::keyPressEvent` closes the focused (shown) box on Escape; a press on the background (`backgroundClicked` → `hideCurrent` → `hideLayers` → `clearLayers`) closes every box. `LayerOption::CloseOther` (`replaceLayer`) pushes the box and drops every box under it; `ShowAfterOther` (`prependLayer`) inserts it hidden at the bottom. The sticker set box's Remove (`sticker_set_box.cpp`) shows `MakeConfirmRemoveSetBox` with the default `KeepOther`; its confirm calls `close()`, which closes the confirmation only, and the pack box, listening to `stickers().updated()`, comes back with its buttons updated. 174 swapped the box with `Navigator.pushReplacement` and a 200 ms fade: the pack box was gone for good, and the swap animated.
+
+`ChromeBoxLayer` (chrome_foundation) is that layer:
+
+```dart
+final layer = ChromeBoxLayer.open<T>(context, builder: …, barrierColor: …, transitionDuration: …); // first box
+ChromeBoxLayer.of(boxContext).show<R>((_) => box);   // keep other: at once, the shown box kept
+Navigator.pop(boxContext, result);                  // the shown box; Escape and back do the same
+ChromeBoxLayer.closeBox(boxContext, result);         // that box, shown or not
+ChromeBoxLayer.isShown(boxContext);                  // false once another box covers it
+layer.closeAll();                                    // every box; a tap on the barrier
+```
+
+The pack box opens on a layer (`PackSheet.show` under a pointer); Remove shows the confirmation box (`ChatConfirmBox`) on it; Cancel and Remove both close the confirmation and bring the pack box back, now saying Add after a removal; a tap on the dim closes both. A pack sheet's button asks its host first and closes only if it is still the shown box. The panel's own removal and the clear-recents question open a layer with the confirmation alone (the clear-recents one under a pointer; touch keeps the platform dialog).
+
+| Facet | |
+| ----- | - |
+| Philosophy | A box answered by another box is one modal moment, not two: one dim, one route, and the first box survives the second. |
+| Thinking | What it is: a state (a stack of boxes) owned by a boundary (one modal route). Who knows: the host shows boxes; a box knows only its layer through its context; the navigator knows one route. Repeating: the reference reaches for box-over-box everywhere a box asks (remove, rename, report, inform after error); here today the pack box Remove, the panel removal and clear recents. Tool: the navigator's internal pop (`Route.willHandlePopInternally` / `didPop`, the mechanism `LocalHistoryRoute` uses) gives Escape, back and `maybePop` closing the shown box for free; `Visibility(maintainState: true)` keeps a covered box's state without ticking or taking focus. What can go wrong: a pop that should close one box closing the layer (guarded by `didPop`); a barrier that pops only the shown box (the barrier is overridden to close all); a host showing a box after the sheet closed itself (the sheet asks first, then closes only if still shown). |
+| Style | The route is the layer (`ChromeBoxLayer extends PopupRoute`), so `Navigator.push` / `pop` read as everywhere else; boxes are plain widgets; results are the box's own future. |
+| Design | In chrome_foundation, the leaf that holds the chrome's surfaces and motion: panel_pages (pack box) and the host (confirmations) both depend on it already; no dependency direction of ADR 020 changes. Durations come from the caller (motion roles), not from the layer. |
+| Criticality | Justified: three real call sites now, and the reference's box flows are the model for more. Not added: `CloseOther` and `ShowAfterOther` (no call site yet; `CloseOther` is `closeBox` of each box under, `ShowAfterOther` is a later need), per-box outside-click and Escape opt-outs (`setCloseByOutsideClick`, `setCloseByEscape`). |
+| Application | `packages/chrome_foundation/lib/src/box/chrome_box_layer.dart`; `PackSheet.show` (pointer); `ChatConfirmBox` and `ChatPackSheets` in the example. |
+| Exceptions | The touch pack sheet stays a bottom-sheet route (a drag owner, not a box). The confirmation on touch for clear recents stays the platform dialog. The layer centres its box; a box that needs another placement is not a box of this layer. |
