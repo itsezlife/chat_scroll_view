@@ -938,7 +938,12 @@ void main() {
         initial: AppLifecycleState.resumed,
       );
       addTearDown(lifecycle.dispose);
-      final activity = PlaybackActivity(clock: clock, lifecycle: lifecycle);
+      // A window that pauses on focus loss, as on desktop.
+      final activity = PlaybackActivity(
+        clock: clock,
+        lifecycle: lifecycle,
+        policy: const PlaybackActivityPolicy(pausesOnFocusLoss: true),
+      );
       addTearDown(activity.dispose);
       final selection = newSelection(spoilerClock: clock);
       await pump(tester, selection, {1: 'x ||secret|| y'});
