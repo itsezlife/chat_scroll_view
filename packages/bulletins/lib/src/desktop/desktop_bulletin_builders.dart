@@ -15,7 +15,9 @@ import 'package:flutter/widgets.dart';
 ///   bulletin names none (the stock content takes one, or two under a
 ///   title);
 /// - a leading icon sits in a slot that takes the place of the start
-///   padding, so an icon toast starts at the icon's own 12 px gap.
+///   padding, so an icon toast starts at the icon's own 12 px gap; the
+///   icon is centred with 2 px above and below and never makes the toast
+///   taller than its text and padding.
 abstract final class DesktopBulletinBuilders {
   /// The most lines of a toast's text when the bulletin names none.
   static const int maxLines = 16;
@@ -78,24 +80,39 @@ abstract final class DesktopBulletinBuilders {
         },
       ),
     );
+    // The padding is the text's: the icon is centred on the card with 2 px
+    // above and below it, and never makes the card taller than the text.
     return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(
-        bulletin.leading == null ? padding.left : 0,
-        padding.top,
-        padding.right,
-        padding.bottom,
+      padding: EdgeInsetsDirectional.only(
+        start: bulletin.leading == null ? padding.left : 0,
+        end: padding.right,
       ),
       child: Row(
         children: [
           if (bulletin.leading != null)
             BulletinLeadingSlot(
               width: policy.leadingWidth,
-              child: switch (builders.leading) {
-                final leading? => leading(context, view),
-                null => BulletinBuilders.stockLeading(context, view, builders),
-              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: switch (builders.leading) {
+                  final leading? => leading(context, view),
+                  null => BulletinBuilders.stockLeading(
+                    context,
+                    view,
+                    builders,
+                  ),
+                },
+              ),
             ),
-          Expanded(child: text),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: padding.top,
+                bottom: padding.bottom,
+              ),
+              child: text,
+            ),
+          ),
           if (bulletin.action != null)
             (builders.action ?? BulletinBuilders.stockAction)(context, view),
         ],

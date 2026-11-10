@@ -252,7 +252,9 @@ final class BulletinBuilders {
   }
 }
 
-/// The fixed-width slot before a bulletin's text; its content is centred.
+/// The fixed-width slot before a bulletin's text; its content is centred
+/// across the slot and is as tall as its content, so a card whose height is
+/// not fixed (the desktop toast) stays as tall as its text.
 class BulletinLeadingSlot extends StatelessWidget {
   /// A slot [width] wide around [child].
   const BulletinLeadingSlot({
@@ -270,7 +272,7 @@ class BulletinLeadingSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: width,
-    child: Center(child: child),
+    child: Center(heightFactor: 1, child: child),
   );
 }
 
