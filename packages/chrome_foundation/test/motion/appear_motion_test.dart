@@ -299,6 +299,45 @@ void main() {
       expect(contentScale().transform.storage[0], 1);
     });
 
+    testWidgets('a press on what the surface leaves transparent reaches '
+        'what is under it', (tester) async {
+      var under = 0;
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => under++,
+                ),
+              ),
+              const Center(
+                child: ChromeAppear(
+                  motion: AppearMotion.unfold(),
+                  shadows: [BoxShadow(blurRadius: 4)],
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 40),
+                    child: ColoredBox(
+                      color: Color(0xFFFFFFFF),
+                      child: SizedBox(width: 100, height: 60),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tapAt(
+        tester.getTopLeft(find.byType(ChromeAppear)) + const Offset(20, 30),
+      );
+      expect(under, 1);
+    });
+
     testWidgets('under an instant speed shows and hides at once', (
       tester,
     ) async {

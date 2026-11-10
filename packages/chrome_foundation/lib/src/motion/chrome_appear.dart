@@ -378,6 +378,11 @@ class _ShadowPainter extends CustomPainter {
     }
   }
 
+  // The shadow takes no press: what the surface leaves transparent stays
+  // open to what is under it (the dismiss layer of a menu).
+  @override
+  bool hitTest(Offset position) => false;
+
   @override
   bool shouldRepaint(_ShadowPainter oldDelegate) =>
       oldDelegate.frame != frame ||
