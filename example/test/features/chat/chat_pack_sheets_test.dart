@@ -347,6 +347,89 @@ void main() {
       expect(bulletins.current.value, isNull);
     });
 
+    // The dim of the layer: one for the box and the confirmation together.
+    int dims(WidgetTester tester) => find
+        .byWidgetPredicate(
+          (widget) =>
+              widget is ModalBarrier &&
+              widget.dismissible &&
+              widget.color == PackSheet.pointerBarrier,
+        )
+        .evaluate()
+        .length;
+
+    testWidgets('under a pointer the confirmation stands on the box\'s layer, '
+        'and Cancel brings the box back at once', (tester) async {
+      await pump(tester);
+      bulletins = BulletinController(policy: const BulletinPolicy.desktop());
+      addTearDown(bulletins.dispose);
+      const pack = AnimatedEmojiPack.packId;
+
+      var closed = false;
+      ChatPackSheets.open(
+        home,
+        services: services,
+        bulletins: bulletins,
+        pack: pack,
+        kind: PackKind.emoji,
+        arrangement: PanelArrangement.pointer,
+      ).whenComplete(() => closed = true).ignore();
+      await _settle(tester);
+      await tester.tap(find.text('Удалить эмодзи'));
+      await tester.pump();
+
+      expect(
+        find.text('Удалить «${AnimatedEmojiPack.title}»?'),
+        findsOneWidget,
+      );
+      expect(dims(tester), 1, reason: 'one layer, one dim');
+
+      await tester.tap(find.text('Отмена'));
+      await tester.pump();
+
+      expect(find.text('Удалить эмодзи'), findsOneWidget, reason: 'box back');
+      expect(find.text('Удалить «${AnimatedEmojiPack.title}»?'), findsNothing);
+      expect(dims(tester), 1);
+      expect(closed, isFalse);
+      expect(services.library.installStateOf(pack), PackInstallState.installed);
+    });
+
+    testWidgets('under a pointer a confirmed removal brings the box back with '
+        'the pack removed; a tap on the dim closes it', (tester) async {
+      await pump(tester);
+      bulletins = BulletinController(policy: const BulletinPolicy.desktop());
+      addTearDown(bulletins.dispose);
+      const pack = AnimatedEmojiPack.packId;
+
+      var closed = false;
+      ChatPackSheets.open(
+        home,
+        services: services,
+        bulletins: bulletins,
+        pack: pack,
+        kind: PackKind.emoji,
+        arrangement: PanelArrangement.pointer,
+      ).whenComplete(() => closed = true).ignore();
+      await _settle(tester);
+      await tester.tap(find.text('Удалить эмодзи'));
+      await tester.pump();
+      await tester.tap(find.text('Удалить'));
+      await tester.pump();
+
+      expect(
+        services.library.installStateOf(pack),
+        PackInstallState.notInstalled,
+      );
+      expect(find.text('Удалить «${AnimatedEmojiPack.title}»?'), findsNothing);
+      expect(find.text('Удалить эмодзи'), findsNothing, reason: 'now adds');
+      expect(dims(tester), 1, reason: 'the box is back');
+
+      await tester.tapAt(const Offset(4, 4));
+      await _settle(tester);
+      expect(dims(tester), 0);
+      expect(closed, isTrue);
+    });
+
     // The bulletin is up longer than the window it is named after: it
     // slides in first, and its timer runs only once it is in. Undo works as
     // long as the bulletin shows it, and the bulletin hides by itself.

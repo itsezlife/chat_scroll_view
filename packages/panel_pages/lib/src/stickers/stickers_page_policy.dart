@@ -11,6 +11,7 @@ import 'package:panel_pages/src/policy/pack_section_action.dart';
 import 'package:panel_pages/src/preview/catalog_content_preview.dart';
 import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/stickers/sticker_pack_strip.dart';
+import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// The decisions that make a catalogue page the stickers page.
@@ -102,6 +103,13 @@ final class StickersPagePolicy extends CatalogPagePolicy {
 
   @override
   double? get headerStartInset => headerStartInsetValue;
+
+  /// The sticker list's cells: [CatalogCellFeedback.sticker].
+  static const CatalogCellFeedback cellFeedbackValue =
+      CatalogCellFeedback.sticker;
+
+  @override
+  CatalogCellFeedback get cellFeedback => cellFeedbackValue;
 
   // --- Sections -------------------------------------------------------------
 

@@ -21,14 +21,14 @@ class ChromeCatalogTheme extends StatelessWidget {
   const ChromeCatalogTheme({
     required this.child,
     this.headerStartInset,
-    this.hoverSize,
+    this.cells = CatalogCellFeedback.emoji,
     super.key,
   });
 
-  /// The hover box under the pointer arrangement, or null for
-  /// [pointerHoverSize]: a grid whose box is its cell (a pack box) says so
-  /// here.
-  final Size? hoverSize;
+  /// How the grid's cells answer the mouse, a press and a preview: a kind of
+  /// content whose cells answer differently than an emoji's (a sticker's,
+  /// a pack box's) says so here.
+  final CatalogCellFeedback cells;
 
   /// The subtree that reads the theme.
   final Widget child;
@@ -63,15 +63,17 @@ class ChromeCatalogTheme extends StatelessWidget {
   /// - Keyboard focus is drawn in the accent.
   /// - The section title is the panel tokens' `sectionTitle`.
   /// - Under [PanelArrangement.pointer] a mouse over a cell paints the text
-  ///   colour at alpha `0x12` in a [pointerHoverSize] box, and a press draws
-  ///   nothing (the box stays on the pressed cell); under touch nothing hovers, and a press draws the
-  ///   press wash and shrinks the cell.
+  ///   colour at alpha `0x12` in the box [cells] says, a press draws nothing
+  ///   (the box stays on the pressed cell), and an open preview keeps the box
+  ///   on the cell it shows. Under touch nothing hovers, a press draws what
+  ///   [cells] says, and an open preview draws the cell it shows smaller.
   static PanelCatalogThemeData dataFor(
     ChromeThemeData chrome, {
     PanelArrangement arrangement = PanelArrangement.touch,
     double? headerStartInset,
-    Size? hoverSize,
+    CatalogCellFeedback cells = CatalogCellFeedback.emoji,
   }) {
+    final pointer = arrangement == PanelArrangement.pointer;
     final palette = chrome.palette;
     final base = PanelCatalogThemeData.forBrightness(palette.brightness);
     final skeleton = chrome.placeholder.skeleton;
@@ -87,14 +89,13 @@ class ChromeCatalogTheme extends StatelessWidget {
         PanelArrangement.pointer => hoverWashOf(palette),
         PanelArrangement.touch => null,
       },
-      leafHoverHighlightSize: switch (arrangement) {
-        PanelArrangement.pointer => hoverSize ?? pointerHoverSize,
-        PanelArrangement.touch => null,
-      },
-      leafPressFeedback: switch (arrangement) {
-        PanelArrangement.pointer => CatalogPressFeedback.none,
-        PanelArrangement.touch => CatalogPressFeedback.inkAndScale,
-      },
+      leafHoverHighlightSize: pointer ? cells.hoverSize : null,
+      leafHoverHighlightRadius: cells.hoverRadius,
+      leafHoverHighlightInset: 0,
+      leafPressFeedback: pointer ? CatalogPressFeedback.none : cells.touchPress,
+      leafPreviewFeedback: pointer
+          ? CatalogPreviewFeedback.hover
+          : CatalogPreviewFeedback.scale,
       sectionHeaderStyle: base.sectionHeaderStyle.copyWith(
         color: chrome.panel.sectionTitle,
       ),
@@ -108,8 +109,59 @@ class ChromeCatalogTheme extends StatelessWidget {
       ChromeThemeScope.of(context),
       arrangement: PanelArrangementScope.of(context),
       headerStartInset: headerStartInset,
-      hoverSize: hoverSize,
+      cells: cells,
     ),
     child: child,
   );
+}
+
+/// How a grid's cells answer the mouse, a press and a preview, per kind of
+/// content.
+///
+/// Under a pointer the hover box is [hoverSize] centred in the cell, or the
+/// whole cell when null, with corners of [hoverRadius]; on touch a press
+/// draws [touchPress].
+@immutable
+final class CatalogCellFeedback {
+  /// Cells with a hover box of [hoverSize] (null: the whole cell) and
+  /// [hoverRadius], whose press on touch draws [touchPress].
+  const CatalogCellFeedback({
+    required this.hoverRadius,
+    this.hoverSize,
+    this.touchPress = CatalogPressFeedback.inkAndScale,
+  });
+
+  /// An emoji cell: a 34 x 32 box of radius 8 centred in the cell; on touch
+  /// a press washes and shrinks it.
+  static const CatalogCellFeedback emoji = CatalogCellFeedback(
+    hoverSize: ChromeCatalogTheme.pointerHoverSize,
+    hoverRadius: 8,
+  );
+
+  /// A sticker cell in the panel: the whole cell, radius 6, the sticker drawn
+  /// over it; on touch a press draws nothing (only an open preview scales
+  /// the cell).
+  static const CatalogCellFeedback sticker = CatalogCellFeedback(
+    hoverRadius: 6,
+    touchPress: CatalogPressFeedback.none,
+  );
+
+  /// The hover box, centred in the cell, or null for the whole cell.
+  final Size? hoverSize;
+
+  /// The hover box's corner radius.
+  final double hoverRadius;
+
+  /// What a press draws on touch.
+  final CatalogPressFeedback touchPress;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CatalogCellFeedback &&
+      other.hoverSize == hoverSize &&
+      other.hoverRadius == hoverRadius &&
+      other.touchPress == touchPress;
+
+  @override
+  int get hashCode => Object.hash(hoverSize, hoverRadius, touchPress);
 }

@@ -46,21 +46,43 @@ String _englishRemovePack(String title) => 'Remove «$title»?';
 
 String _russianRemovePack(String title) => 'Удалить «$title»?';
 
-/// A desktop confirmation box: a question and two text buttons, the
-/// confirming one in the attention colour, in a box the pack box's width
-/// over the pack box's dim, fading in and out over 200 ms.
+/// A desktop confirmation box: an optional bold [title], a question and two
+/// text buttons, the confirming one in the attention colour, as wide as the
+/// pack box.
 ///
-/// Pushed in place of a pack box (`Navigator.pushReplacement`) the box is
-/// swapped where it stands, on the same layer; pushed alone it stands over
-/// the chat. Pops with true when confirmed, false or null otherwise.
-final class ChatConfirmBoxRoute extends PopupRoute<bool> {
+/// A box of a `ChromeBoxLayer`: shown from a pack box
+/// (`ChromeBoxLayer.of(context).show`) it takes that box's place at once,
+/// and the pack box comes back when it closes; opened alone ([open]) it is
+/// the only box of its own layer over the chat. Its buttons pop it with true
+/// (confirmed) or false; Escape pops it with null.
+class ChatConfirmBox extends StatelessWidget {
   /// A box asking [question], confirmed by [confirm] and dismissed by
   /// [cancel].
-  ChatConfirmBoxRoute({
+  const ChatConfirmBox({
     required this.question,
     required this.confirm,
     required this.cancel,
-  }) : super(requestFocus: true);
+    this.title,
+    super.key,
+  });
+
+  /// How long the box's own layer takes to fade in or out.
+  static const Duration fade = Duration(milliseconds: 200);
+
+  /// Opens [box] alone on a layer of its own over [context], over the pack
+  /// box's dim; completes with what it was answered with.
+  static Future<bool> open(BuildContext context, ChatConfirmBox box) async =>
+      await ChromeBoxLayer.open<bool>(
+        context,
+        barrierColor: PackSheet.pointerBarrier,
+        barrierLabel: box.cancel,
+        transitionDuration: fade,
+        builder: (_) => box,
+      ) ??
+      false;
+
+  /// The line above the question, or null for none.
+  final String? title;
 
   /// What is asked.
   final String question;
@@ -71,85 +93,60 @@ final class ChatConfirmBoxRoute extends PopupRoute<bool> {
   /// The dismissing button's words.
   final String cancel;
 
-  static const Duration _fade = Duration(milliseconds: 200);
-
-  @override
-  Color get barrierColor => PackSheet.pointerBarrier;
-
-  @override
-  bool get barrierDismissible => true;
-
-  @override
-  String? get barrierLabel => cancel;
-
-  @override
-  Duration get transitionDuration => _fade;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) => Center(
-    child: SizedBox(
-      width: PackSheet.boxWidth,
-      child: _ConfirmBox(route: this),
-    ),
-  );
-
-  @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) => FadeTransition(opacity: animation, child: child);
-}
-
-class _ConfirmBox extends StatelessWidget {
-  const _ConfirmBox({required this.route});
-
-  final ChatConfirmBoxRoute route;
-
   @override
   Widget build(BuildContext context) {
     final palette = ChromeThemeScope.of(context).palette;
-    return Material(
-      type: MaterialType.transparency,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: palette.surface,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 22, 12, 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(right: 12, bottom: 18),
-                child: Text(
-                  route.question,
-                  style: TextStyle(color: palette.onSurface, fontSize: 14),
+    return SizedBox(
+      width: PackSheet.boxWidth,
+      child: Material(
+        type: MaterialType.transparency,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: palette.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 22, 12, 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (title case final title?)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12, bottom: 12),
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        color: palette.onSurface,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12, bottom: 18),
+                  child: Text(
+                    question,
+                    style: TextStyle(color: palette.onSurface, fontSize: 14),
+                  ),
                 ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  _Button(
-                    label: route.cancel,
-                    color: palette.accent,
-                    onTap: () => Navigator.of(context).pop(false),
-                  ),
-                  _Button(
-                    label: route.confirm,
-                    color: palette.destructive,
-                    onTap: () => Navigator.of(context).pop(true),
-                  ),
-                ],
-              ),
-            ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _Button(
+                      label: cancel,
+                      color: palette.accent,
+                      onTap: () => Navigator.of(context).pop(false),
+                    ),
+                    _Button(
+                      label: confirm,
+                      color: palette.destructive,
+                      onTap: () => Navigator.of(context).pop(true),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

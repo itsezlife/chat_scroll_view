@@ -199,6 +199,9 @@ class PackSheetView extends StatefulWidget {
   /// Side an emoji is drawn at in its box cell.
   static const double boxEmojiExtent = 24;
 
+  /// The corner radius of the box's hover box, which is the whole cell.
+  static const double boxHoverRadius = 3;
+
   /// The emoji grid's padding in the box: 12 left, the box's width less eight
   /// cells on the right.
   static const EdgeInsets boxEmojiPadding = EdgeInsets.fromLTRB(
@@ -594,8 +597,15 @@ class _PackSheetViewState extends State<PackSheetView>
 
   void _onButton(PackSheetAction action) {
     // The sheet is dismissed, then the set is toggled.
-    _close();
+    if (ChromeBoxLayer.maybeOf(context) == null) {
+      _close();
+      widget.onEditsRequested(action.requests);
+      return;
+    }
+    // A box: the host may ask first, in a box it shows over this one; this
+    // box then stays, to come back when that one closes.
     widget.onEditsRequested(action.requests);
+    if (mounted && ChromeBoxLayer.isShown(context)) _close();
   }
 
   bool _longPressEligible(CatalogLeafHit hit) =>
@@ -874,13 +884,19 @@ class _PackSheetViewState extends State<PackSheetView>
       },
     );
     return ChromeCatalogTheme(
-      // In the box a mouse marks the whole cell.
-      hoverSize: switch ((_boxGrid(arrangement), _grid)) {
-        (true, PackSheetGrid.stickers) => const Size.square(
-          PackSheetView.boxStickerCell,
+      // In the box a mouse marks the whole cell, at the small radius; a
+      // sticker cell answers a touch press with nothing, as the panel's does.
+      cells: switch ((_boxGrid(arrangement), _grid)) {
+        (true, PackSheetGrid.stickers) => const CatalogCellFeedback(
+          hoverSize: Size.square(PackSheetView.boxStickerCell),
+          hoverRadius: PackSheetView.boxHoverRadius,
         ),
-        (true, _) => PackSheetView.boxEmojiCell,
-        (false, _) => null,
+        (true, _) => const CatalogCellFeedback(
+          hoverSize: PackSheetView.boxEmojiCell,
+          hoverRadius: PackSheetView.boxHoverRadius,
+        ),
+        (false, PackSheetGrid.stickers) => CatalogCellFeedback.sticker,
+        (false, _) => CatalogCellFeedback.emoji,
       },
       child: CatalogContextMenuHost(
         host: null,

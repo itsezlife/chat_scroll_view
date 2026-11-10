@@ -92,6 +92,7 @@ class ChromeInk extends StatefulWidget {
     this.hoverColor,
     this.borderRadius = BorderRadius.zero,
     this.circleRadius,
+    this.behindChild = false,
     super.key,
   });
 
@@ -116,6 +117,14 @@ class ChromeInk extends StatefulWidget {
   /// Draw the feedback in a circle of this radius around the centre instead
   /// of the box.
   final double? circleRadius;
+
+  /// Whether the hover fill and the press are painted behind [child] rather
+  /// than over it.
+  ///
+  /// Over the child (the default) a translucent feedback tints whatever the
+  /// child draws, an opaque icon or image included. A menu row whose fill is
+  /// opaque takes it behind: over its label, an opaque fill would hide it.
+  final bool behindChild;
 
   @override
   State<ChromeInk> createState() => _ChromeInkState();
@@ -238,6 +247,16 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final enabled = widget.onTap != null;
     final hover = _kind == ChromeInkKind.pointer ? widget.hoverColor : null;
+    final ink = _InkPainter(
+      grow: _grow,
+      alpha: _alpha,
+      kind: _kind,
+      origin: _origin,
+      color: widget.color,
+      hover: enabled && _hovered ? hover : null,
+      radius: widget.borderRadius.resolve(Directionality.maybeOf(context)),
+      circleRadius: widget.circleRadius,
+    );
     return MouseRegion(
       cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
       onEnter: (event) {
@@ -266,18 +285,8 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
                   ),
           },
           child: CustomPaint(
-            foregroundPainter: _InkPainter(
-              grow: _grow,
-              alpha: _alpha,
-              kind: _kind,
-              origin: _origin,
-              color: widget.color,
-              hover: enabled && _hovered ? hover : null,
-              radius: widget.borderRadius.resolve(
-                Directionality.maybeOf(context),
-              ),
-              circleRadius: widget.circleRadius,
-            ),
+            painter: widget.behindChild ? ink : null,
+            foregroundPainter: widget.behindChild ? null : ink,
             child: widget.child,
           ),
         ),

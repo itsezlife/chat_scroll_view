@@ -914,4 +914,80 @@ void main() {
     },
     variant: TargetPlatformVariant.only(TargetPlatform.macOS),
   );
+
+  testWidgets(
+    'a hovered desktop row keeps its label: the over fill is painted under '
+    'it, in the over text colour',
+    (tester) async {
+      final dataSource = _OneMessageSource();
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.desktop(),
+      );
+      addTearDown(dataSource.dispose);
+      addTearDown(selection.dispose);
+      final menu = MessageMenu(
+        dataSource: dataSource,
+        selection: selection,
+        actions: MessageMenuActions(onDelete: (_) {}, onEdit: (_) {}),
+        clipboard: FakeRichClipboard(),
+      );
+      await tester.pumpWidget(
+        ChromeThemeScope(
+          palette: const ChromePalette.dark(),
+          pointerMenu: PointerMenuTokens.night,
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => menu.present(
+                    context,
+                    const ChatMessageMenuRequest(
+                      messageId: 1,
+                      slotGlobal: Rect.fromLTWH(0, 170, 800, 60),
+                      tapGlobal: Offset(300, 200),
+                    ),
+                  ),
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.text('Select')));
+      await tester.pump();
+
+      const over = PointerMenuTokens.night;
+      final label = tester.widget<Text>(find.text('Select'));
+      expect(label.style?.color, over.textOver);
+      expect(label.style?.color, isNot(over.backgroundOver));
+      final row = find
+          .ancestor(
+            of: find.text('Select'),
+            matching: find.byType(MessageMenuPointerRow),
+          )
+          .first;
+      expect(
+        tester.renderObject(row),
+        paints
+          ..something(
+            (method, arguments) =>
+                method == #drawPaint &&
+                // A paint keeps its colour in single precision.
+                (arguments.single as Paint).color.toARGB32() ==
+                    over.backgroundOver.toARGB32(),
+          )
+          ..paragraph(),
+        reason: 'the fill first, then the label over it',
+      );
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+  );
 }

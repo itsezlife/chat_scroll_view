@@ -43,6 +43,10 @@ abstract final class ChatPackSheets {
     _ => PanelArrangement.touch,
   };
 
+  /// Whether this platform asks its questions in boxes on a box layer (a
+  /// desktop or the web) rather than in the platform's dialog.
+  static bool get asksInBoxes => arrangement == PanelArrangement.pointer;
+
   /// [arrangement], or this platform's when null.
   static PanelArrangement arrangementOf(PanelArrangement? arrangement) =>
       arrangement ?? ChatPackSheets.arrangement;
@@ -99,10 +103,10 @@ abstract final class ChatPackSheets {
 
   /// The box that asks before [requests] take packs away, naming their
   /// packs by title.
-  static ChatConfirmBoxRoute confirmRouteOf(
+  static ChatConfirmBox confirmBoxOf(
     List<PackEditRequest> requests, {
     ChatConfirmStrings strings = ChatConfirmStrings.demo,
-  }) => ChatConfirmBoxRoute(
+  }) => ChatConfirmBox(
     question: strings.removePack(
       requests.map((request) => request.pack.title).join(', '),
     ),
@@ -180,24 +184,22 @@ abstract final class ChatPackSheets {
 
     final strings = ChromeStringsScope.packSheetOf(context);
     BuildContext? sheetContext;
-    // The confirmation that took the box's place, until it is answered: the
-    // sheet is over only then.
-    Future<void>? confirming;
     // Under a pointer a removal asks first, in a box that takes the pack
-    // box's place.
+    // box's place on its layer; answered either way, the pack box comes
+    // back, its button saying what the library now holds.
     void edits(List<PackEditRequest> requests) {
       final sheet = sheetContext;
       if (confirmsRemovalsIn(arrangementOf(arrangement)) &&
           takesAway(requests) &&
           sheet != null &&
           sheet.mounted) {
-        confirming = Navigator.of(sheet)
-            .pushReplacement<bool, void>(confirmRouteOf(requests))
-            .then((confirmed) {
-              if (confirmed ?? false) {
-                apply(services.library, requests, strings, bulletins);
-              }
-            });
+        ChromeBoxLayer.of(sheet).show<bool>((_) => confirmBoxOf(requests)).then(
+          (confirmed) {
+            if (confirmed ?? false) {
+              apply(services.library, requests, strings, bulletins);
+            }
+          },
+        ).ignore();
         return;
       }
       apply(services.library, requests, strings, bulletins);
@@ -253,7 +255,7 @@ abstract final class ChatPackSheets {
           ),
         };
       },
-    ).whenComplete(backClaim.pop).then((_) => confirming);
+    ).whenComplete(backClaim.pop);
   }
 
   /// Applies [requests] to [library] and shows their bulletin through

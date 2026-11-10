@@ -42,6 +42,7 @@ class CatalogLeafPaintTheme {
     this.leafHoverHighlightInset = 2,
     this.leafHoverHighlightSize,
     this.leafPressFeedback = CatalogPressFeedback.inkAndScale,
+    this.leafPreviewFeedback = CatalogPreviewFeedback.scale,
   });
 
   /// Builds a paint snapshot from [data] and [devicePixelRatio].
@@ -70,6 +71,7 @@ class CatalogLeafPaintTheme {
     leafHoverHighlightInset: data.leafHoverHighlightInset,
     leafHoverHighlightSize: data.leafHoverHighlightSize,
     leafPressFeedback: data.leafPressFeedback,
+    leafPreviewFeedback: data.leafPreviewFeedback,
     sectionHeaderStyle: data.sectionHeaderStyle,
     sectionHeaderStartInset: data.sectionHeaderStartInset,
   );
@@ -124,6 +126,9 @@ class CatalogLeafPaintTheme {
   /// What a press draws.
   final CatalogPressFeedback leafPressFeedback;
 
+  /// How the previewed cell is told apart.
+  final CatalogPreviewFeedback leafPreviewFeedback;
+
   /// Section header title style.
   final TextStyle sectionHeaderStyle;
 
@@ -148,6 +153,7 @@ class CatalogLeafPaintTheme {
       other.leafHoverHighlightInset == leafHoverHighlightInset &&
       other.leafHoverHighlightSize == leafHoverHighlightSize &&
       other.leafPressFeedback == leafPressFeedback &&
+      other.leafPreviewFeedback == leafPreviewFeedback &&
       other.sectionHeaderStyle == sectionHeaderStyle &&
       other.sectionHeaderStartInset == sectionHeaderStartInset;
 
@@ -168,6 +174,7 @@ class CatalogLeafPaintTheme {
     leafHoverHighlightInset,
     leafHoverHighlightSize,
     leafPressFeedback,
+    leafPreviewFeedback,
     sectionHeaderStyle,
     sectionHeaderStartInset,
   );

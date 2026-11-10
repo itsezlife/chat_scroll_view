@@ -19,7 +19,7 @@ import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_remove_badge.dart';
 import 'package:panel_catalog/src/model/catalog_section.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme_data.dart'
-    show CatalogPressFeedback;
+    show CatalogPressFeedback, CatalogPreviewFeedback;
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_action_ink.dart';
@@ -531,10 +531,14 @@ class RenderPanelCatalog extends RenderBox
     _leafPreview = value;
     final shrunk = value?.shrunk;
     // The held cell goes on from the scale its press reached, with no wash:
-    // the press is over for this grid once a preview is up.
+    // the press is over for this grid once a preview is up. A press that
+    // draws nothing showed no scale: the cell starts from 1.
     final press = _press;
+    final scaled =
+        _paintTheme.leafPressFeedback == CatalogPressFeedback.inkAndScale;
     final from = switch ((press, shrunk)) {
-      (final press?, final shrunk?) when _isPressedCell(press, shrunk) =>
+      (final press?, final shrunk?)
+          when scaled && _isPressedCell(press, shrunk) =>
         press.scale,
       _ => 1.0,
     };
@@ -2572,10 +2576,20 @@ class RenderPanelCatalog extends RenderBox
         final quiet =
             _paintTheme.leafPressFeedback == CatalogPressFeedback.none;
         // Under an open preview no cell is pressed or hovered; the one it
-        // shows is drawn smaller.
-        final previewing = _leafPreview != null;
+        // shows is drawn smaller, or, for a pointer, under the hover box.
+        final preview = _leafPreview;
+        final previewing = preview != null;
         final drawnPressed = isPressed && !quiet && !previewing;
-        final previewScale = _previewScale?.scaleOf(leaf.sectionId, leaf.index);
+        final boxed =
+            _paintTheme.leafPreviewFeedback == CatalogPreviewFeedback.hover;
+        final previewScale = boxed
+            ? null
+            : _previewScale?.scaleOf(leaf.sectionId, leaf.index);
+        final previewed = switch (preview?.shrunk) {
+          final shown? =>
+            shown.sectionId == leaf.sectionId && shown.index == leaf.index,
+          null => false,
+        };
         _painter.paintLeaf(
           canvas: canvas,
           origin: origin,
@@ -2587,7 +2601,9 @@ class RenderPanelCatalog extends RenderBox
               focus != null &&
               focus.index == leaf.index &&
               focus.sectionId == leaf.sectionId,
-          hovered: !previewing && ((isPressed && quiet) || _isHovered(leaf)),
+          hovered: previewing
+              ? boxed && previewed
+              : (isPressed && quiet) || _isHovered(leaf),
         );
       case final CatalogSkeletonSlot skeleton:
         _painter.paintSkeleton(canvas: canvas, origin: origin, slot: skeleton);

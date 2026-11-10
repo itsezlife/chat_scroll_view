@@ -55,6 +55,11 @@ import 'package:flutter/painting.dart';
 /// ([CatalogPressFeedback.none]: a desktop list, where the hover box stays on
 /// the pressed cell until it is released).
 ///
+/// [leafPreviewFeedback] says how the cell an open preview shows is told
+/// apart: drawn smaller ([CatalogPreviewFeedback.scale], the default, for a
+/// touch grid) or under the hover box ([CatalogPreviewFeedback.hover], for a
+/// pointer, where a held mouse moves the box from cell to cell).
+///
 /// [sectionHeaderStyle] and [sectionHeaderStartInset] control section title
 /// paint inside the header band; they do not change content extent.
 ///
@@ -87,6 +92,7 @@ class PanelCatalogThemeData {
     this.leafHoverHighlightInset = _defaultHoverInset,
     this.leafHoverHighlightSize,
     this.leafPressFeedback = CatalogPressFeedback.inkAndScale,
+    this.leafPreviewFeedback = CatalogPreviewFeedback.scale,
     this.leafPressSelectorRadiusNominalDp = _defaultSelectorRadiusNominalDp,
     this.sectionHeaderStartInset = _defaultSectionHeaderStartInset,
   });
@@ -161,6 +167,9 @@ class PanelCatalogThemeData {
       t,
     ),
     leafPressFeedback: t < 0.5 ? a.leafPressFeedback : b.leafPressFeedback,
+    leafPreviewFeedback: t < 0.5
+        ? a.leafPreviewFeedback
+        : b.leafPreviewFeedback,
     leafPressSelectorRadiusNominalDp: lerpDouble(
       a.leafPressSelectorRadiusNominalDp,
       b.leafPressSelectorRadiusNominalDp,
@@ -284,6 +293,9 @@ class PanelCatalogThemeData {
   /// What a press draws.
   final CatalogPressFeedback leafPressFeedback;
 
+  /// How the cell an open preview shows is told apart.
+  final CatalogPreviewFeedback leafPreviewFeedback;
+
   /// Nominal corner radius in dp for [selectorRadiusLogicalPx].
   ///
   /// Some hosts apply density twice (nominal dp passed into a callee that
@@ -326,6 +338,7 @@ class PanelCatalogThemeData {
     double? leafHoverHighlightInset,
     Size? leafHoverHighlightSize,
     CatalogPressFeedback? leafPressFeedback,
+    CatalogPreviewFeedback? leafPreviewFeedback,
     double? leafPressSelectorRadiusNominalDp,
     TextStyle? sectionHeaderStyle,
     double? sectionHeaderStartInset,
@@ -351,6 +364,7 @@ class PanelCatalogThemeData {
     leafHoverHighlightSize:
         leafHoverHighlightSize ?? this.leafHoverHighlightSize,
     leafPressFeedback: leafPressFeedback ?? this.leafPressFeedback,
+    leafPreviewFeedback: leafPreviewFeedback ?? this.leafPreviewFeedback,
     leafPressSelectorRadiusNominalDp:
         leafPressSelectorRadiusNominalDp ??
         this.leafPressSelectorRadiusNominalDp,
@@ -376,6 +390,7 @@ class PanelCatalogThemeData {
       other.leafHoverHighlightInset == leafHoverHighlightInset &&
       other.leafHoverHighlightSize == leafHoverHighlightSize &&
       other.leafPressFeedback == leafPressFeedback &&
+      other.leafPreviewFeedback == leafPreviewFeedback &&
       other.leafPressSelectorRadiusNominalDp ==
           leafPressSelectorRadiusNominalDp &&
       other.sectionHeaderStyle == sectionHeaderStyle &&
@@ -397,6 +412,7 @@ class PanelCatalogThemeData {
     leafHoverHighlightInset,
     leafHoverHighlightSize,
     leafPressFeedback,
+    leafPreviewFeedback,
     leafPressSelectorRadiusNominalDp,
     sectionHeaderStyle,
     sectionHeaderStartInset,
@@ -411,4 +427,16 @@ enum CatalogPressFeedback {
 
   /// Nothing: the leaf is chosen on release, as a desktop list does.
   none,
+}
+
+/// How the cell an open preview shows ([CatalogLeafPreview.shrunk]) is told
+/// apart from the others.
+enum CatalogPreviewFeedback {
+  /// Drawn smaller, at [CatalogLeafPreview.shrunkScale]: a touch grid,
+  /// where the finger hides the cell.
+  scale,
+
+  /// Drawn under the hover box, at its full size: a pointer grid, where the
+  /// box follows the held mouse to the previewed cell.
+  hover,
 }

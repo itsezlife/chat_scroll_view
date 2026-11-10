@@ -165,6 +165,47 @@ void main() {
     );
   });
 
+  testWidgets('behind its child the hover fill and the press are painted '
+      'first, the child over them; by default over it', (tester) async {
+    Widget row({required bool behind}) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: Center(
+        child: ChromeInk(
+          kind: ChromeInkKind.pointer,
+          color: _color,
+          hoverColor: _hover,
+          behindChild: behind,
+          onTap: () {},
+          child: const Text('Row'),
+        ),
+      ),
+    );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    bool fill(Symbol method, List<dynamic> arguments) =>
+        method == #drawPaint && (arguments.single as Paint).color == _hover;
+
+    await tester.pumpWidget(row(behind: true));
+    await mouse.moveTo(tester.getCenter(find.byType(ChromeInk)));
+    await tester.pump();
+    expect(
+      find.byType(ChromeInk),
+      paints
+        ..something(fill)
+        ..paragraph(),
+    );
+
+    await tester.pumpWidget(row(behind: false));
+    await tester.pump();
+    expect(
+      find.byType(ChromeInk),
+      paints
+        ..paragraph()
+        ..something(fill),
+    );
+  });
+
   testWidgets('a ripple dragged off its target fades over 150 ms and does '
       'not tap', (tester) async {
     await tester.pumpWidget(target(ChromeInkKind.ripple));

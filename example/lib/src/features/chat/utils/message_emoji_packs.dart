@@ -22,14 +22,29 @@ final class MessageEmojiPacks {
   final PackSource source;
 }
 
-/// The menu's "contains emoji" entry: a block of its own under the action
-/// card.
+/// Where the menu's "contains emoji" entry stands and how it is set.
+enum MessageContainsEmojiLook {
+  /// A card of its own under the action card: 13 px text, padding 13 by 8.
+  card,
+
+  /// A row of the Android menu's card, below a gap band: set as [card], in
+  /// the platform's press feedback.
+  androidRow,
+
+  /// A row of the desktop menu's card, below a separator: 11 px text in the
+  /// pointer menu's text colour, inset by
+  /// [MessageContainsEmojiButton.pointerInset]; the pointer menu's over fill
+  /// and ripple are painted under the text.
+  pointerRow,
+}
+
+/// The menu's "contains emoji" entry, set as [look] says.
 ///
 /// One pack is named by its title once its source has it (looked up when
 /// the entry shows; a placeholder holds its place meanwhile), several by
-/// their count. The name or count is bold in the accent colour; 13 px text,
-/// padding 13 by 8. The entry leaves out the pack's cover emoji before a lone
-/// title.
+/// their count. The name or count is bold, in the accent colour except on a
+/// desktop, where it keeps the text colour. The entry leaves out the pack's
+/// cover emoji before a lone title.
 class MessageContainsEmojiButton extends StatefulWidget {
   /// The entry for [packs] (at least one), titled from [source].
   const MessageContainsEmojiButton({
@@ -37,13 +52,22 @@ class MessageContainsEmojiButton extends StatefulWidget {
     required this.source,
     required this.onTap,
     this.surfaceBuilder,
-    this.inCard = false,
+    this.look = MessageContainsEmojiLook.card,
     super.key,
   });
 
-  /// Whether the entry is a row of the menu's own card (the Android menu,
-  /// below a gap band) rather than a card of its own under it.
-  final bool inCard;
+  /// Where the entry stands and how it is set.
+  final MessageContainsEmojiLook look;
+
+  /// The text's inset in a desktop row: 12 from the sides, 4 from the top
+  /// and the bottom.
+  static const EdgeInsets pointerInset = EdgeInsets.symmetric(
+    horizontal: 12,
+    vertical: 4,
+  );
+
+  /// The desktop row's font size.
+  static const double pointerFontSize = 11;
 
   /// The packs the message's custom emoji come from.
   final List<PackId> packs;
@@ -97,10 +121,17 @@ class _MessageContainsEmojiButtonState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final style = TextStyle(fontSize: 13, color: colors.onSurface);
+    final pointer = widget.look == MessageContainsEmojiLook.pointerRow;
+    final tokens = ChromeThemeScope.pointerMenuOf(context);
+    final style = pointer
+        ? ChromeTypography.of(context).copyWith(
+            fontSize: MessageContainsEmojiButton.pointerFontSize,
+            color: tokens.text,
+          )
+        : TextStyle(fontSize: 13, color: colors.onSurface);
     final accent = TextStyle(
       fontWeight: FontWeight.w600,
-      color: colors.primary,
+      color: pointer ? tokens.text : colors.primary,
     );
     final InlineSpan named = switch (_lone) {
       final id? => switch (widget.source.peek(id)) {
@@ -136,7 +167,9 @@ class _MessageContainsEmojiButtonState
       ),
     };
     final text = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+      padding: pointer
+          ? MessageContainsEmojiButton.pointerInset
+          : const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
       child: Text.rich(
         TextSpan(
           style: style,
@@ -147,21 +180,31 @@ class _MessageContainsEmojiButtonState
         ),
       ),
     );
-    if (widget.inCard) {
-      final palette = ChromeThemeScope.paletteOf(context);
-      return ChromeInk(
-        color: palette.onSurface.withAlpha(0x0F),
-        onTap: widget.onTap,
-        child: text,
-      );
+    switch (widget.look) {
+      case MessageContainsEmojiLook.pointerRow:
+        return ChromeInk(
+          kind: ChromeInkKind.pointer,
+          color: tokens.ripple,
+          hoverColor: tokens.backgroundOver,
+          behindChild: true,
+          onTap: widget.onTap,
+          child: text,
+        );
+      case MessageContainsEmojiLook.androidRow:
+        return ChromeInk(
+          color: ChromeThemeScope.paletteOf(context).onSurface.withAlpha(0x0F),
+          onTap: widget.onTap,
+          child: text,
+        );
+      case MessageContainsEmojiLook.card:
+        return ChatMessageMenuCard(
+          surfaceBuilder: widget.surfaceBuilder,
+          // Its own ink layer: a host surface is not a Material.
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(onTap: widget.onTap, child: text),
+          ),
+        );
     }
-    return ChatMessageMenuCard(
-      surfaceBuilder: widget.surfaceBuilder,
-      // Its own ink layer: a host surface is not a Material.
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(onTap: widget.onTap, child: text),
-      ),
-    );
   }
 }
