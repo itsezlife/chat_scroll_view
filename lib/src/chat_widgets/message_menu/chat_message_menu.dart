@@ -72,7 +72,8 @@ abstract final class ChatMessageMenu {
   /// [ChatScrollThemeData.menu]). Replace rows or the floating column
   /// with [itemBuilder] / [reactionBuilder] / [menuBuilder] — session,
   /// presentation chrome, placement, and back stay package-owned. Give the
-  /// enter / leave motion with [transitionBuilder].
+  /// enter / leave motion with [transitionBuilder] and the action card's
+  /// surface (its fill, corners and shadow) with [surfaceBuilder].
   static Future<ChatMessageMenuResult?> show({
     required BuildContext context,
     required Rect messageRect,
@@ -91,6 +92,7 @@ abstract final class ChatMessageMenu {
     ChatMessageMenuReactionBuilder? reactionBuilder,
     ChatMessageMenuBuilder? menuBuilder,
     ChatMessageMenuTransitionBuilder? transitionBuilder,
+    ChatMessageMenuSurfaceBuilder? surfaceBuilder,
   }) async {
     final media = MediaQuery.of(context);
     final resolvedPresentation =
@@ -116,6 +118,7 @@ abstract final class ChatMessageMenu {
       reactionBuilder: reactionBuilder,
       menuBuilder: menuBuilder,
       transitionBuilder: transitionBuilder,
+      surfaceBuilder: surfaceBuilder,
     );
 
     final previousFocus = FocusManager.instance.primaryFocus;

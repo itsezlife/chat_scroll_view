@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:chrome_foundation/src/menu/pointer_menu_reveal.dart';
 import 'package:chrome_foundation/src/motion/chrome_motion.dart';
 import 'package:chrome_foundation/src/motion/chrome_motion_scope.dart';
+import 'package:chrome_foundation/src/motion/overshoot_curve.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
 
@@ -29,6 +30,19 @@ import 'package:flutter/widgets.dart';
 ///   104, mass 1) cut at 420 ms, opaque after its first 50 ms; it goes over
 ///   200 ms, shrinking back to 0.01 as it fades, easing in and out.
 ///
+/// Two Android variants belong to the message menu, which a host names:
+///
+/// - [AppearMotion.bloom]: the menu that comes with a reaction strip. Its
+///   frame opens from the origin corner while its content (an
+///   `AppearContent`) fades in and scales up from half about that corner, all
+///   on one overshooting clock (tension 0.5) over 250 ms; it goes over
+///   220 ms, drifting 5 toward its anchor as it fades, accelerating then
+///   decelerating.
+/// - [AppearMotion.pop]: the menu without one. It fades in over 150 ms,
+///   accelerating then decelerating, while it scales up from 0.95 about its
+///   origin on an overshoot (tension 2) over 200 ms; it goes as the bloom
+///   does.
+///
 /// The rows of an unfolding menu do not fade in one by one: the whole surface
 /// fades with its frame.
 @immutable
@@ -43,6 +57,12 @@ sealed class AppearMotion {
 
   /// The iOS context menu's spring from its origin.
   const factory AppearMotion.spring() = AppearMotion$Spring;
+
+  /// The Android message menu's bloom from its corner, with a reaction strip.
+  const factory AppearMotion.bloom() = AppearMotion$Bloom;
+
+  /// The Android message menu's pop, without a reaction strip.
+  const factory AppearMotion.pop() = AppearMotion$Pop;
 
   /// The motion of [platform]'s family: [grow] on a desktop, [spring] on iOS,
   /// [unfold] elsewhere.
@@ -219,6 +239,124 @@ final class AppearMotion$Spring extends AppearMotion {
   int get hashCode => (AppearMotion$Spring).hashCode;
 }
 
+/// The hide the message menu variants share: 220 ms, drifting toward the
+/// anchor as the surface fades, accelerating then decelerating.
+abstract final class _MessageMenuHide {
+  static const Duration duration = Duration(milliseconds: 220);
+
+  static const double drift = 5;
+
+  static AppearFrame at(double t) {
+    final eased = AccelerateDecelerateCurve.instance.transform(
+      t.clamp(0.0, 1.0),
+    );
+    return AppearFrame(opacity: 1 - eased, drift: drift * eased);
+  }
+}
+
+/// [AppearMotion.bloom].
+final class AppearMotion$Bloom extends AppearMotion {
+  /// The bloom.
+  const AppearMotion$Bloom() : super._();
+
+  /// The show.
+  static const Duration show = Duration(milliseconds: 250);
+
+  /// The overshoot the show runs on.
+  static const Curve curve = OvershootCurve(0.5);
+
+  /// The scale the content comes from.
+  static const double contentStartScale = 0.5;
+
+  /// The hide.
+  static const Duration hide = _MessageMenuHide.duration;
+
+  /// How far the surface drifts toward its anchor as it goes.
+  static const double hideDrift = _MessageMenuHide.drift;
+
+  @override
+  Duration showDuration(ChromeMotionData motion, {int rows = 0}) =>
+      motion.speed.scale(show);
+
+  @override
+  Duration hideDuration(ChromeMotionData motion) => motion.speed.scale(hide);
+
+  @override
+  AppearFrame showAt(double t) {
+    if (t >= 1) return AppearFrame.rest;
+    final p = curve.transform(t.clamp(0.0, 1.0));
+    return AppearFrame(
+      widthFraction: p,
+      heightFraction: p,
+      contentOpacity: p.clamp(0.0, 1.0),
+      contentScale: contentStartScale + (1 - contentStartScale) * p,
+    );
+  }
+
+  @override
+  AppearFrame hideAt(double t) => _MessageMenuHide.at(t);
+
+  @override
+  bool operator ==(Object other) => other is AppearMotion$Bloom;
+
+  @override
+  int get hashCode => (AppearMotion$Bloom).hashCode;
+}
+
+/// [AppearMotion.pop].
+final class AppearMotion$Pop extends AppearMotion {
+  /// The pop.
+  const AppearMotion$Pop() : super._();
+
+  /// The show: the scale's length.
+  static const Duration show = Duration(milliseconds: 200);
+
+  /// How long the fade in takes.
+  static const Duration showFade = Duration(milliseconds: 150);
+
+  /// The overshoot the scale runs on.
+  static const Curve scaleCurve = OvershootCurve();
+
+  /// The scale the surface comes from.
+  static const double startScale = 0.95;
+
+  /// The hide.
+  static const Duration hide = _MessageMenuHide.duration;
+
+  /// How far the surface drifts toward its anchor as it goes.
+  static const double hideDrift = _MessageMenuHide.drift;
+
+  @override
+  Duration showDuration(ChromeMotionData motion, {int rows = 0}) =>
+      motion.speed.scale(show);
+
+  @override
+  Duration hideDuration(ChromeMotionData motion) => motion.speed.scale(hide);
+
+  @override
+  AppearFrame showAt(double t) {
+    if (t >= 1) return AppearFrame.rest;
+    final clock = t.clamp(0.0, 1.0);
+    final fade = (clock * show.inMicroseconds / showFade.inMicroseconds).clamp(
+      0.0,
+      1.0,
+    );
+    return AppearFrame(
+      opacity: AccelerateDecelerateCurve.instance.transform(fade),
+      scale: startScale + (1 - startScale) * scaleCurve.transform(clock),
+    );
+  }
+
+  @override
+  AppearFrame hideAt(double t) => _MessageMenuHide.at(t);
+
+  @override
+  bool operator ==(Object other) => other is AppearMotion$Pop;
+
+  @override
+  int get hashCode => (AppearMotion$Pop).hashCode;
+}
+
 /// `cos((t + 1)·π) / 2 + 0.5`: starts and ends slowly, Android's default
 /// interpolator.
 class AccelerateDecelerateCurve extends Curve {
@@ -243,6 +381,8 @@ final class AppearFrame {
     this.heightFraction = 1,
     this.drift = 0,
     this.revealed = 1,
+    this.contentOpacity = 1,
+    this.contentScale = 1,
   });
 
   /// The surface at rest: whole, opaque, in place.
@@ -269,6 +409,14 @@ final class AppearFrame {
   /// the top: 0 hides it all, 1 shows it all.
   final double revealed;
 
+  /// The opacity of the surface's content (what an `AppearContent` wraps),
+  /// over its background.
+  final double contentOpacity;
+
+  /// The scale of the surface's content about the origin, inside its
+  /// background.
+  final double contentScale;
+
   /// Whether the frame cuts the surface.
   bool get clips => widthFraction < 1 || heightFraction < 1;
 
@@ -292,7 +440,9 @@ final class AppearFrame {
       other.widthFraction == widthFraction &&
       other.heightFraction == heightFraction &&
       other.drift == drift &&
-      other.revealed == revealed;
+      other.revealed == revealed &&
+      other.contentOpacity == contentOpacity &&
+      other.contentScale == contentScale;
 
   @override
   int get hashCode => Object.hash(
@@ -302,11 +452,13 @@ final class AppearFrame {
     heightFraction,
     drift,
     revealed,
+    contentOpacity,
+    contentScale,
   );
 
   @override
   String toString() =>
       'AppearFrame(opacity: $opacity, scale: $scale, '
       'frame: ${widthFraction}x$heightFraction, drift: $drift, '
-      'revealed: $revealed)';
+      'revealed: $revealed, content: $contentOpacity x$contentScale)';
 }

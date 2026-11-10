@@ -50,21 +50,25 @@ class GlassStyle {
 
   /// The style of [material] in [colors] under [finish].
   ///
-  /// A material that never refracts ([GlassMaterial.topPanel]) keeps the
+  /// A material that never refracts ([GlassMaterial.refracts] off) keeps the
   /// frosted blur under a refracting finish, at the refracting opacity: the
-  /// opacity follows the host's choice of look, the blur the surface's.
+  /// opacity follows the host's choice of look, the blur the surface's. A
+  /// material's own blur ([GlassMaterial.blurRadius]) replaces the frosted
+  /// one, and colours that fix their tint opacity
+  /// ([GlassMaterialColors.tintOpacity]) keep it under any finish but the
+  /// flat one.
   factory GlassStyle.resolve({
     required GlassMaterial material,
     required GlassMaterialColors colors,
     required double cornerRadius,
     required GlassFinish finish,
   }) {
-    final refracts =
-        finish == GlassFinish.refracting && material != GlassMaterial.topPanel;
-    final opacity = switch (finish) {
-      GlassFinish.refracting => refractingTintOpacity,
-      GlassFinish.frosted => frostedTintOpacity,
-      GlassFinish.flat => 1.0,
+    final refracts = finish == GlassFinish.refracting && material.refracts;
+    final opacity = switch ((finish, colors.tintOpacity)) {
+      (GlassFinish.flat, _) => 1.0,
+      (_, final fixed?) => fixed,
+      (GlassFinish.refracting, null) => refractingTintOpacity,
+      (GlassFinish.frosted, null) => frostedTintOpacity,
     };
     return GlassStyle(
       fill: colors.tint.withValues(alpha: colors.tint.a * opacity),
@@ -72,7 +76,10 @@ class GlassStyle {
       strokeBottom: colors.strokeBottom,
       shadowColor: colors.shadow,
       cornerRadius: cornerRadius,
-      blurRadius: refracts ? refractingBlurRadius : frostedBlurRadius,
+      blurRadius: refracts
+          ? refractingBlurRadius
+          : material.blurRadius ?? frostedBlurRadius,
+      backdropSaturation: colors.backdropSaturation,
       sourceDownscale: refracts
           ? refractingSourceDownscale
           : frostedSourceDownscale,

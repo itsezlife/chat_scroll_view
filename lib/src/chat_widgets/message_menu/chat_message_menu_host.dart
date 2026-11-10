@@ -184,6 +184,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
       tapGlobal: config.tapGlobal,
       safePadding: config.safePadding,
       presentation: config.presentation,
+      hasReactions: config.reactions.isNotEmpty,
     );
     final slots = ChatMessageMenuSlots(
       items: config.items,
@@ -195,6 +196,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
         items: config.items,
         onSelect: (id) => _close(ChatMessageMenuResult.item(id)),
         itemBuilder: config.itemBuilder,
+        surfaceBuilder: config.surfaceBuilder,
       ),
       reactionStrip: config.reactions.isEmpty
           ? const SizedBox.shrink()
@@ -235,17 +237,18 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
                     fitsAbove: placement.fitsAbove,
                   ),
                   rows: config.items.length,
+                  hasReactions: config.reactions.isNotEmpty,
                   transitionBuilder: config.transitionBuilder,
                   child: KeyedSubtree(
                     key: _menuKey,
+                    // As wide as its widest row, up to the screen.
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxWidth: math.min(
-                          ChatMessageMenuCard.defaultMinWidth +
-                              ChatMessageMenuReactions.startOverhang +
-                              ChatMessageMenuReactions.endOverhang,
+                        maxWidth: math.max(
+                          0,
                           screenSize.width -
-                              2 * ChatMessageMenuPlacement.edgeInset,
+                              config.safePadding.horizontal -
+                              2 * ChatMessageMenuPlacement.sheetScreenInset,
                         ),
                       ),
                       child:

@@ -1,36 +1,74 @@
+import 'dart:math' as math;
+
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_theme.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_slots.dart';
 import 'package:flutter/material.dart';
 
 /// Card without M3 elevation overlays.
+///
+/// The card takes the width of its widest row ([child]'s intrinsic width),
+/// no narrower than [minWidth] and no wider than [maxWidth] or the room it
+/// is given; a row wider than that ellipsizes. Every row reports its
+/// intrinsic width (a `LayoutBuilder` or a scrollable row cannot).
+///
+/// [surfaceBuilder], when given, draws the card's surface in place of the
+/// package fill, corners and shadow (a host's glass): it gets the rows and
+/// clips them to its own shape.
 class ChatMessageMenuCard extends StatelessWidget {
   /// Creates a menu card.
   const ChatMessageMenuCard({
     required this.child,
-    this.maxWidth = defaultMaxWidth,
+    this.maxWidth = double.infinity,
     this.minWidth = defaultMinWidth,
+    this.surfaceBuilder,
     super.key,
   });
 
   /// Minimum width for the action card (logical px).
   static const double defaultMinWidth = 200;
 
-  /// Maximum width for the action card and reactions strip.
-  ///
-  /// The popup wraps action rows; reactions stretch to that width. Capping
-  /// here keeps the column from expanding to the screen and pinning to the
-  /// left inset.
+  /// Maximum width of the reactions strip.
   static const double defaultMaxWidth = 280;
 
   /// Menu body.
   final Widget child;
 
-  /// Max bubble width.
+  /// Max card width.
   final double maxWidth;
 
-  /// Minimum bubble width.
+  /// Minimum card width.
   final double minWidth;
+
+  /// The host's surface around the rows, or null for the package card.
+  final ChatMessageMenuSurfaceBuilder? surfaceBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = IntrinsicWidth(child: child);
+    final surface = switch (surfaceBuilder) {
+      final builder? => builder(context, rows),
+      null => _PackageSurface(child: rows),
+    };
+    return Align(
+      alignment: AlignmentDirectional.topStart,
+      widthFactor: 1,
+      heightFactor: 1,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minWidth: minWidth,
+          maxWidth: math.max(minWidth, maxWidth),
+        ),
+        child: surface,
+      ),
+    );
+  }
+}
+
+class _PackageSurface extends StatelessWidget {
+  const _PackageSurface({required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -46,35 +84,27 @@ class ChatMessageMenuCard extends StatelessWidget {
           colorScheme.surface,
         );
 
-    return Align(
-      alignment: Alignment.topLeft,
-      widthFactor: 1,
-      heightFactor: 1,
-      child: SizedBox(
-        width: minWidth.clamp(0, maxWidth),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            boxShadow:
-                menuTheme.cardShadow ??
-                const <BoxShadow>[
-                  BoxShadow(
-                    color: Color.fromRGBO(0, 0, 0, 0.35),
-                    blurRadius: 12,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-          ),
-          child: Material(
-            elevation: 0,
-            shadowColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            borderRadius: radius,
-            clipBehavior: Clip.antiAlias,
-            color: fill,
-            child: child,
-          ),
-        ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow:
+            menuTheme.cardShadow ??
+            const <BoxShadow>[
+              BoxShadow(
+                color: Color.fromRGBO(0, 0, 0, 0.35),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
+            ],
+      ),
+      child: Material(
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        color: fill,
+        child: child,
       ),
     );
   }
@@ -87,6 +117,7 @@ class ChatMessageMenuActionList extends StatelessWidget {
     required this.items,
     required this.onSelect,
     this.itemBuilder,
+    this.surfaceBuilder,
     super.key,
   });
 
@@ -98,6 +129,9 @@ class ChatMessageMenuActionList extends StatelessWidget {
 
   /// Optional custom row. Null uses the package row.
   final ChatMessageMenuItemBuilder? itemBuilder;
+
+  /// Optional surface around the rows. Null uses the package card.
+  final ChatMessageMenuSurfaceBuilder? surfaceBuilder;
 
   static const double _tileHeight = 48;
   static const double _tilePadding = 18;
@@ -111,6 +145,7 @@ class ChatMessageMenuActionList extends StatelessWidget {
     final error = menuTheme.destructiveColor ?? colorScheme.error;
 
     return ChatMessageMenuCard(
+      surfaceBuilder: surfaceBuilder,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

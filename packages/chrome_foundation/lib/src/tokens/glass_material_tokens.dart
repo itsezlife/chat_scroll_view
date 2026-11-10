@@ -17,6 +17,8 @@ final class GlassMaterialColors {
     required this.strokeTop,
     required this.strokeBottom,
     required this.shadow,
+    this.tintOpacity,
+    this.backdropSaturation = 3,
   });
 
   /// The material's surface colour, drawn over the frosted backdrop.
@@ -26,6 +28,14 @@ final class GlassMaterialColors {
   /// (a flat glass shows none of the content it would have frosted). The
   /// colour's own alpha multiplies that opacity.
   final Color tint;
+
+  /// The opacity of [tint] over a backdrop whatever the finish, or null to
+  /// let the finish set it. A flat glass is opaque either way.
+  final double? tintOpacity;
+
+  /// The backdrop's saturation: 1 leaves its colours, 3 triples their
+  /// distance from grey.
+  final double backdropSaturation;
 
   /// Top edge highlight.
   final Color strokeTop;
@@ -42,11 +52,15 @@ final class GlassMaterialColors {
     Color? strokeTop,
     Color? strokeBottom,
     Color? shadow,
+    double? tintOpacity,
+    double? backdropSaturation,
   }) => GlassMaterialColors(
     tint: tint ?? this.tint,
     strokeTop: strokeTop ?? this.strokeTop,
     strokeBottom: strokeBottom ?? this.strokeBottom,
     shadow: shadow ?? this.shadow,
+    tintOpacity: tintOpacity ?? this.tintOpacity,
+    backdropSaturation: backdropSaturation ?? this.backdropSaturation,
   );
 
   /// Interpolates every colour between [a] and [b].
@@ -61,6 +75,13 @@ final class GlassMaterialColors {
     strokeTop: Color.lerp(a.strokeTop, b.strokeTop, t)!,
     strokeBottom: Color.lerp(a.strokeBottom, b.strokeBottom, t)!,
     shadow: Color.lerp(a.shadow, b.shadow, t)!,
+    tintOpacity: switch ((a.tintOpacity, b.tintOpacity)) {
+      (final from?, final to?) => from + (to - from) * t,
+      (final from, final to) => t < 0.5 ? from : to,
+    },
+    backdropSaturation:
+        a.backdropSaturation +
+        (b.backdropSaturation - a.backdropSaturation) * t,
   );
 
   @override
@@ -70,10 +91,19 @@ final class GlassMaterialColors {
           tint == other.tint &&
           strokeTop == other.strokeTop &&
           strokeBottom == other.strokeBottom &&
-          shadow == other.shadow;
+          shadow == other.shadow &&
+          tintOpacity == other.tintOpacity &&
+          backdropSaturation == other.backdropSaturation;
 
   @override
-  int get hashCode => Object.hash(tint, strokeTop, strokeBottom, shadow);
+  int get hashCode => Object.hash(
+    tint,
+    strokeTop,
+    strokeBottom,
+    shadow,
+    tintOpacity,
+    backdropSaturation,
+  );
 
   @override
   String toString() => 'GlassMaterialColors(tint: $tint)';
@@ -92,6 +122,7 @@ final class GlassMaterialTokens {
     required this.composerIsland,
     required this.panelButton,
     required this.topPanel,
+    required this.scrimMenu,
   });
 
   /// The default mapping of [palette] roles onto the named materials.
@@ -101,6 +132,10 @@ final class GlassMaterialTokens {
   /// edges are faint white, the top one stronger than the bottom. Light
   /// materials cast the palette shadow (the island and the top panel at
   /// 0x20, a floating button at 0x40); dark materials cast none.
+  ///
+  /// The scrim menu tints [ChromePalette.surfaceRaised] at 0.85 in a dark
+  /// theme and 0.76 in a light one, over a backdrop saturated x2 and x3, with
+  /// invisible edges and a 0x26 black shadow in both.
   factory GlassMaterialTokens.fromPalette(ChromePalette palette) {
     final isDark = palette.brightness == Brightness.dark;
     const white = Color(0xFFFFFFFF);
@@ -123,6 +158,14 @@ final class GlassMaterialTokens {
       ),
       panelButton: material(palette.surface, darkTop: 0x28, shadowAlpha: 0x40),
       topPanel: material(palette.surfaceDim, darkTop: 0x20, shadowAlpha: 0x20),
+      scrimMenu: GlassMaterialColors(
+        tint: palette.surfaceRaised,
+        strokeTop: white.withAlpha(0),
+        strokeBottom: white.withAlpha(0),
+        shadow: const Color(0x26000000),
+        tintOpacity: isDark ? 0.85 : 0.76,
+        backdropSaturation: isDark ? 2 : 3,
+      ),
     );
   }
 
@@ -135,11 +178,15 @@ final class GlassMaterialTokens {
   /// The bar docked at the top of the panel.
   final GlassMaterialColors topPanel;
 
+  /// A menu over a dimmed screen.
+  final GlassMaterialColors scrimMenu;
+
   /// The colours of [material].
   GlassMaterialColors colorsOf(GlassMaterial material) => switch (material) {
     GlassMaterial.composerIsland => composerIsland,
     GlassMaterial.panelButton => panelButton,
     GlassMaterial.topPanel => topPanel,
+    GlassMaterial.scrimMenu => scrimMenu,
   };
 
   /// A copy with the named materials replaced.
@@ -147,10 +194,12 @@ final class GlassMaterialTokens {
     GlassMaterialColors? composerIsland,
     GlassMaterialColors? panelButton,
     GlassMaterialColors? topPanel,
+    GlassMaterialColors? scrimMenu,
   }) => GlassMaterialTokens(
     composerIsland: composerIsland ?? this.composerIsland,
     panelButton: panelButton ?? this.panelButton,
     topPanel: topPanel ?? this.topPanel,
+    scrimMenu: scrimMenu ?? this.scrimMenu,
   );
 
   /// Interpolates every material between [a] and [b].
@@ -168,6 +217,7 @@ final class GlassMaterialTokens {
     ),
     panelButton: GlassMaterialColors.lerp(a.panelButton, b.panelButton, t),
     topPanel: GlassMaterialColors.lerp(a.topPanel, b.topPanel, t),
+    scrimMenu: GlassMaterialColors.lerp(a.scrimMenu, b.scrimMenu, t),
   );
 
   @override
@@ -176,10 +226,12 @@ final class GlassMaterialTokens {
       other is GlassMaterialTokens &&
           composerIsland == other.composerIsland &&
           panelButton == other.panelButton &&
-          topPanel == other.topPanel;
+          topPanel == other.topPanel &&
+          scrimMenu == other.scrimMenu;
 
   @override
-  int get hashCode => Object.hash(composerIsland, panelButton, topPanel);
+  int get hashCode =>
+      Object.hash(composerIsland, panelButton, topPanel, scrimMenu);
 
   @override
   String toString() => 'GlassMaterialTokens(composerIsland: $composerIsland)';

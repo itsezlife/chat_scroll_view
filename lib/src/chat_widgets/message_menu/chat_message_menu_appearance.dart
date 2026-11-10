@@ -16,6 +16,7 @@ class ChatMessageMenuAppearance extends StatefulWidget {
     required this.origin,
     required this.rows,
     required this.child,
+    this.hasReactions = false,
     this.transitionBuilder,
     super.key,
   });
@@ -29,6 +30,9 @@ class ChatMessageMenuAppearance extends StatefulWidget {
   /// How many action rows the menu has.
   final int rows;
 
+  /// Whether the menu shows a reaction strip.
+  final bool hasReactions;
+
   /// The host's motion, or null for the package's.
   final ChatMessageMenuTransitionBuilder? transitionBuilder;
 
@@ -36,8 +40,9 @@ class ChatMessageMenuAppearance extends StatefulWidget {
   final Widget child;
 
   /// The origin of a menu whose top left is [menuOrigin], placed for a press
-  /// at [tap]: the corner at the pointer for a popup, the edge facing the
-  /// message (the bottom when the menu sits above it) for a sheet.
+  /// at [tap]: the corner at the pointer for a popup; for a sheet, which
+  /// hangs to the left of the press, its right corner on the side facing the
+  /// message (the bottom when the menu sits above it).
   static Alignment originFor({
     required ChatMessageMenuPresentation presentation,
     required Offset menuOrigin,
@@ -46,7 +51,7 @@ class ChatMessageMenuAppearance extends StatefulWidget {
   }) {
     final y = fitsAbove ? 1.0 : -1.0;
     return switch (presentation) {
-      ChatMessageMenuPresentation.sheet => Alignment(-1, y),
+      ChatMessageMenuPresentation.sheet => Alignment(1, y),
       ChatMessageMenuPresentation.popup => Alignment(
         tap != null && menuOrigin.dx < tap.dx - 0.5 ? 1 : -1,
         y,
@@ -92,6 +97,7 @@ class ChatMessageMenuAppearanceState extends State<ChatMessageMenuAppearance> {
       presentation: widget.presentation,
       origin: widget.origin,
       rows: widget.rows,
+      hasReactions: widget.hasReactions,
     );
     return switch (widget.transitionBuilder) {
       final builder? => builder(context, transition, widget.child),

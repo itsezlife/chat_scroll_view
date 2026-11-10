@@ -34,6 +34,20 @@ enum GlassMaterial {
     strokeWidth: 0.55,
     shadowBlur: 1,
     shadowOffset: Offset(0, 1 / 3),
+    refracts: false,
+  ),
+
+  /// A menu over a dimmed screen (the message menu): 12 dp corners, a soft
+  /// 4 dp shadow all round, no visible edges, and a blur stronger than the
+  /// frosted one (80 dp), never refracting. Its tint opacity and backdrop
+  /// saturation follow the theme's brightness (`GlassMaterialColors`).
+  scrimMenu(
+    cornerRadius: 12,
+    strokeWidth: 2 / 3,
+    shadowBlur: 4,
+    shadowOffset: Offset.zero,
+    refracts: false,
+    blurRadius: 80,
   );
 
   const GlassMaterial({
@@ -41,6 +55,8 @@ enum GlassMaterial {
     required this.strokeWidth,
     required this.shadowBlur,
     required this.shadowOffset,
+    this.refracts = true,
+    this.blurRadius,
   });
 
   /// The corner radius (logical px) used when a surface names none.
@@ -54,4 +70,12 @@ enum GlassMaterial {
 
   /// Offset (logical px) of the drop shadow.
   final Offset shadowOffset;
+
+  /// Whether the material bends the view at its rim under a refracting
+  /// finish; one that does not keeps the frosted blur there.
+  final bool refracts;
+
+  /// The backdrop blur radius (logical px) of the material, or null for its
+  /// finish's.
+  final double? blurRadius;
 }
