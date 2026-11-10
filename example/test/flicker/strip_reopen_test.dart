@@ -214,10 +214,7 @@ void main() {
                       scope: scope,
                       preset: const AssetPreset(
                         size: Size.square(120),
-                        spec: AssetSpec(
-                          pixelWidth: 512,
-                          pixelHeight: 512,
-                        ),
+                        spec: AssetSpec(pixelWidth: 512, pixelHeight: 512),
                         profile: AssetProfile(animate: true),
                       ),
                     ),
