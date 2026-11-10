@@ -46,6 +46,7 @@ import 'panel_catalog_texture_layers_test.dart'
     as panel_catalog_texture_layers_test;
 import 'panel_catalog_theme_test.dart' as panel_catalog_theme_test;
 import 'panel_catalog_viewport_test.dart' as panel_catalog_viewport_test;
+import 'section_action_ink_test.dart' as section_action_ink_test;
 import 'section_actions_test.dart' as section_actions_test;
 import 'section_layout_viewport_test.dart' as section_layout_viewport_test;
 import 'section_near_viewport_test.dart' as section_near_viewport_test;
@@ -129,6 +130,7 @@ void main() {
   );
   group('panel_catalog_theme_test.dart', panel_catalog_theme_test.main);
   group('panel_catalog_viewport_test.dart', panel_catalog_viewport_test.main);
+  group('section_action_ink_test.dart', section_action_ink_test.main);
   group('section_actions_test.dart', section_actions_test.main);
   group('section_layout_viewport_test.dart', section_layout_viewport_test.main);
   group('section_near_viewport_test.dart', section_near_viewport_test.main);

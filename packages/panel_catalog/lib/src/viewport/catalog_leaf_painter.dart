@@ -289,10 +289,17 @@ final class CatalogLeafPainter {
   /// edge (left in a left-to-right header, right in a right-to-left one) and
   /// ends where the action's hit area begins, or at the band's end edge when
   /// there is no action; the action sits at the end edge.
+  ///
+  /// Under a theme with a hover wash, a painted action icon has ink:
+  /// [actionHovered] fills the circle it sits in with the hover wash, and
+  /// [actionPress] draws the press ripple in the press colour, clipped to
+  /// that circle, from where it went down (content coordinates).
   void paintHeader({
     required Canvas canvas,
     required Offset origin,
     required CatalogHeaderSlot header,
+    bool actionHovered = false,
+    ({Offset origin, double grown, double alpha})? actionPress,
   }) {
     final theme = _theme;
     final inset = theme.sectionHeaderStartInset;
@@ -336,6 +343,7 @@ final class CatalogLeafPainter {
         CatalogSectionAction.iconExtent,
         CatalogSectionAction.iconExtent,
       );
+      _paintActionInk(canvas, box, origin, actionHovered, actionPress);
       paint(
         canvas,
         box,
@@ -356,6 +364,41 @@ final class CatalogLeafPainter {
       );
       x += part.maxIntrinsicWidth + _kActionPartGap;
     }
+  }
+
+  // The ink of a painted action icon in [box]: the hover wash in the circle
+  // the icon sits in, and the press ripple clipped to it.
+  void _paintActionInk(
+    Canvas canvas,
+    Rect box,
+    Offset origin,
+    bool hovered,
+    ({Offset origin, double grown, double alpha})? press,
+  ) {
+    final hover = _theme.leafHoverHighlightColor;
+    if (hover == null) return;
+    final circle = Path()..addOval(box);
+    if (hovered && hover.a > 0) {
+      canvas.drawPath(circle, Paint()..color = hover);
+    }
+    if (press == null || press.alpha <= 0) return;
+    final color = _theme.leafPressHighlightColor;
+    final from = origin + press.origin;
+    final reach = [
+      box.topLeft,
+      box.topRight,
+      box.bottomLeft,
+      box.bottomRight,
+    ].map((corner) => (corner - from).distance).reduce(math.max);
+    canvas
+      ..save()
+      ..clipPath(circle)
+      ..drawCircle(
+        from,
+        reach * press.grown,
+        Paint()..color = color.withValues(alpha: color.a * press.alpha),
+      )
+      ..restore();
   }
 
   /// The hit area of [header]'s trailing action in content coordinates, or null
