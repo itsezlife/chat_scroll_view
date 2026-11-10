@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -458,11 +459,66 @@ void main() {
       expect(card.right, lessThanOrEqualTo(800));
     });
 
+    testWidgets('stretches every row across the card, short labels too, '
+        'under a host surface that loosens its child', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        items: const <ChatMessageMenuItem>[
+          ChatMessageMenuItem(id: 'a', label: 'Copy', icon: Icons.copy),
+          ChatMessageMenuItem(id: 'b', label: 'Pin', icon: Icons.push_pin),
+        ],
+        // A surface as a glass is built: a stack, which lays out its child
+        // loosely.
+        surfaceBuilder: (context, radius, rows) => Stack(
+          children: [
+            const Positioned.fill(child: ColoredBox(color: Color(0xFF00FF00))),
+            rows,
+          ],
+        ),
+      );
+
+      final card = tester.getRect(find.byType(ChatMessageMenuCard));
+      expect(card.width, ChatMessageMenuCard.defaultMinWidth);
+      for (final label in ['Copy', 'Pin']) {
+        final row = find
+            .ancestor(of: find.text(label), matching: find.byType(InkWell))
+            .first;
+        expect(tester.getRect(row).width, card.width, reason: label);
+      }
+    });
+
+    testWidgets('the reaction strip takes the same host surface, at its '
+        'own corners', (tester) async {
+      final radii = <double>[];
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        surfaceBuilder: (context, radius, child) {
+          radii.add(radius);
+          return ColoredBox(
+            key: ValueKey('surface-$radius'),
+            color: const Color(0xFF00FF00),
+            child: child,
+          );
+        },
+      );
+
+      expect(radii, containsAll(<double>[12, 22]));
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('surface-22.0')),
+          matching: find.text('👍'),
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('takes the host surface around its rows', (tester) async {
       await _openMenu(
         tester,
         onDone: (_) {},
-        surfaceBuilder: (context, rows) => ColoredBox(
+        surfaceBuilder: (context, radius, rows) => ColoredBox(
           key: const ValueKey('host-surface'),
           color: const Color(0xFF00FF00),
           child: rows,
@@ -482,7 +538,9 @@ void main() {
           // The package fill; the rows keep their transparent ink layers.
           matching: find.byWidgetPredicate(
             (widget) =>
-                widget is Material && widget.color != Colors.transparent,
+                widget is Material &&
+                widget.type != MaterialType.transparency &&
+                widget.color != Colors.transparent,
           ),
         ),
         findsNothing,
@@ -732,6 +790,28 @@ void main() {
       expect(find.text('Edit'), findsOneWidget);
     });
 
+    testWidgets('a second secondary click on the message closes the popup', (
+      tester,
+    ) async {
+      var done = false;
+      ChatMessageMenuResult? result = const ChatMessageMenuResult.item('x');
+      await _openMenu(
+        tester,
+        onDone: (value) {
+          done = true;
+          result = value;
+        },
+        presentation: ChatMessageMenuPresentation.popup,
+      );
+
+      await tester.tapAt(const Offset(60, 140), buttons: kSecondaryButton);
+      await tester.pump();
+      expect(done, isTrue);
+      expect(result, isNull);
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('Edit'), findsNothing);
+    });
+
     testWidgets('popup presentation omits the scrim', (tester) async {
       await _openMenu(
         tester,
@@ -914,7 +994,9 @@ void main() {
       expect(find.text('👍'), findsNothing);
     });
 
-    testWidgets('popup origin follows the pointer X', (tester) async {
+    testWidgets('a popup opens 5 right of the pointer, below it', (
+      tester,
+    ) async {
       const tap = Offset(220, 140);
       await _openMenu(
         tester,
@@ -923,9 +1005,10 @@ void main() {
         tapGlobal: tap,
       );
 
-      final menuLeft = tester.getTopLeft(find.byType(ChatMessageMenuColumn)).dx;
-      expect(menuLeft, closeTo(tap.dx, 1));
-      expect(menuLeft, isNot(ChatMessageMenuPlacement.edgeInset));
+      expect(
+        tester.getTopLeft(find.byType(ChatMessageMenuColumn)),
+        tap + const Offset(5, 0),
+      );
     });
   });
 }

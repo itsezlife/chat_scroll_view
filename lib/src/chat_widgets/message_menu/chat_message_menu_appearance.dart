@@ -39,26 +39,6 @@ class ChatMessageMenuAppearance extends StatefulWidget {
   /// Menu column.
   final Widget child;
 
-  /// The origin of a menu whose top left is [menuOrigin], placed for a press
-  /// at [tap]: the corner at the pointer for a popup; for a sheet, which
-  /// hangs to the left of the press, its right corner on the side facing the
-  /// message (the bottom when the menu sits above it).
-  static Alignment originFor({
-    required ChatMessageMenuPresentation presentation,
-    required Offset menuOrigin,
-    required Offset? tap,
-    required bool fitsAbove,
-  }) {
-    final y = fitsAbove ? 1.0 : -1.0;
-    return switch (presentation) {
-      ChatMessageMenuPresentation.sheet => Alignment(1, y),
-      ChatMessageMenuPresentation.popup => Alignment(
-        tap != null && menuOrigin.dx < tap.dx - 0.5 ? 1 : -1,
-        y,
-      ),
-    };
-  }
-
   @override
   State<ChatMessageMenuAppearance> createState() =>
       ChatMessageMenuAppearanceState();

@@ -43,9 +43,8 @@ void main() {
   });
 
   group('a sheet hangs left of the press', () {
-    // The default column: a card 200 wide with the strip's overhangs (24
-    // before, 48 after) beside it.
-    const menu = Size(272, 160);
+    // The default column: a card 200 wide, with the strip's overhangs (24
+    // before, 48 after) beside it when there is a strip.
     const card = 200.0;
 
     double cardLeftFor(
@@ -58,12 +57,12 @@ void main() {
           screenSize: Size(screenWidth, 800),
           keyboardHeight: 0,
           messageRect: const Rect.fromLTWH(0, 200, 400, 60),
-          menuSize: menu,
+          menuSize: Size(hasReactions ? card + 72 : card, 160),
           tapGlobal: Offset(tapX, 230),
           safePadding: safePadding,
           hasReactions: hasReactions,
         ).menuOrigin.dx +
-        24;
+        (hasReactions ? 24 : 0);
 
     test('without reactions its card ends 28 left of the press', () {
       expect(cardLeftFor(300, hasReactions: false) + card, 300 - 28);
@@ -105,33 +104,48 @@ void main() {
     });
   });
 
-  test('popup X follows the tap within edge clamps', () {
-    final placement = ChatMessageMenuPlacement.compute(
-      screenSize: const Size(400, 800),
-      keyboardHeight: 0,
-      messageRect: const Rect.fromLTWH(100, 200, 180, 40),
-      menuSize: const Size(200, 160),
-      tapGlobal: const Offset(120, 210),
-      presentation: ChatMessageMenuPresentation.popup,
-    );
+  group('a popup is placed as a desktop pointer menu', () {
+    ChatMessageMenuPlacement at(Offset pointer, {double keyboard = 0}) =>
+        ChatMessageMenuPlacement.compute(
+          screenSize: const Size(400, 800),
+          keyboardHeight: keyboard,
+          messageRect: const Rect.fromLTWH(0, 200, 400, 40),
+          menuSize: const Size(200, 160),
+          tapGlobal: pointer,
+          presentation: ChatMessageMenuPresentation.popup,
+        );
 
-    expect(placement.menuOrigin.dx, 120);
-    expect(placement.menuOrigin.dy, 210);
-  });
+    test('below and right of the pointer, 5 from it, growing from its top '
+        'left corner', () {
+      final placement = at(const Offset(120, 210));
+      expect(placement.menuOrigin, const Offset(125, 210));
+      expect(placement.origin, Alignment.topLeft);
+    });
 
-  test('popup X clamps near the trailing edge', () {
-    final placement = ChatMessageMenuPlacement.compute(
-      screenSize: const Size(400, 800),
-      keyboardHeight: 0,
-      messageRect: const Rect.fromLTWH(100, 200, 180, 40),
-      menuSize: const Size(200, 160),
-      tapGlobal: const Offset(390, 210),
-      presentation: ChatMessageMenuPresentation.popup,
-    );
+    test('left of the pointer when there is no room right, from its top '
+        'right corner', () {
+      final placement = at(const Offset(390, 210));
+      expect(placement.menuOrigin, const Offset(390 - 5 - 200, 210));
+      expect(placement.origin, Alignment.topRight);
+    });
 
-    expect(
-      placement.menuOrigin.dx,
-      400 - 200 - ChatMessageMenuPlacement.edgeInset,
-    );
+    test('above the pointer when there is no room below, its bottom at the '
+        'pointer, from its bottom corner', () {
+      final placement = at(const Offset(120, 700));
+      expect(placement.menuOrigin, const Offset(125, 700 - 160));
+      expect(placement.origin, Alignment.bottomLeft);
+      expect(placement.fitsAbove, isTrue);
+      expect(at(const Offset(390, 700)).origin, Alignment.bottomRight);
+    });
+
+    test('above the keyboard', () {
+      final placement = at(const Offset(120, 500), keyboard: 300);
+      expect(placement.menuOrigin.dy, 500 - 160);
+    });
+
+    test('inside the screen when it fits neither way', () {
+      final placement = at(const Offset(120, 100), keyboard: 650);
+      expect(placement.menuOrigin.dy, 0);
+    });
   });
 }

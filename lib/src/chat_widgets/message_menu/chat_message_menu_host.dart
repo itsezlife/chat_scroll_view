@@ -205,6 +205,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
               onReaction: (emoji) =>
                   _close(ChatMessageMenuResult.reaction(emoji)),
               reactionBuilder: config.reactionBuilder,
+              surfaceBuilder: config.surfaceBuilder,
             ),
     );
 
@@ -230,12 +231,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
                 child: ChatMessageMenuAppearance(
                   key: _appearanceKey,
                   presentation: config.presentation,
-                  origin: ChatMessageMenuAppearance.originFor(
-                    presentation: config.presentation,
-                    menuOrigin: placement.menuOrigin,
-                    tap: config.tapGlobal,
-                    fitsAbove: placement.fitsAbove,
-                  ),
+                  origin: placement.origin,
                   rows: config.items.length,
                   hasReactions: config.reactions.isNotEmpty,
                   transitionBuilder: config.transitionBuilder,

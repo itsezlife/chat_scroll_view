@@ -338,6 +338,96 @@ void main() {
       expect(under, 1);
     });
 
+    testWidgets('a hide during the show fades from where the surface is', (
+      tester,
+    ) async {
+      var hidden = 0;
+      await tester.pumpWidget(host(visible: true));
+      await tester.pump(const Duration(milliseconds: 75));
+      final before = opacityOf(tester);
+      expect(before, closeTo(0.5, 0.01));
+
+      await tester.pumpWidget(host(visible: false, onHidden: () => hidden++));
+      // No jump: the next frame is where the show was.
+      expect(opacityOf(tester), closeTo(before, 0.02));
+      // The show goes on under the fade: each frame follows the last.
+      var last = before;
+      for (var i = 0; i < 14; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+        final now = opacityOf(tester);
+        expect((now - last).abs(), lessThan(0.15));
+        last = now;
+      }
+      await tester.pump(const Duration(milliseconds: 20));
+      expect(hidden, 1);
+      expect(opacityOf(tester), 0);
+    });
+
+    testWidgets('a show during the hide turns it back from where it is', (
+      tester,
+    ) async {
+      var hidden = 0;
+      await tester.pumpWidget(host(visible: true));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpWidget(host(visible: false, onHidden: () => hidden++));
+      await tester.pump(const Duration(milliseconds: 75));
+      final half = opacityOf(tester);
+      expect(half, closeTo(0.5, 0.01));
+
+      await tester.pumpWidget(host(visible: true, onHidden: () => hidden++));
+      expect(opacityOf(tester), closeTo(half, 0.02));
+      var last = half;
+      for (var i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+        final now = opacityOf(tester);
+        expect(now, greaterThanOrEqualTo(last - 1e-9));
+        last = now;
+      }
+      expect(last, 1);
+      expect(hidden, 0);
+    });
+
+    test('the composed frame is the show under the hide', () {
+      const show = AppearFrame(
+        opacity: 0.5,
+        widthFraction: 0.6,
+        heightFraction: 0.4,
+        revealed: 0.3,
+      );
+      const hide = AppearFrame(opacity: 0.5, drift: 2);
+      final frame = AppearFrame.compose(show: show, hide: hide);
+      expect(frame.opacity, 0.25);
+      expect((frame.widthFraction, frame.heightFraction), (0.6, 0.4));
+      expect(frame.revealed, 0.3);
+      expect(frame.drift, 2);
+      expect(AppearFrame.compose(show: AppearFrame.rest, hide: hide), hide);
+      expect(AppearFrame.compose(show: show, hide: AppearFrame.rest), show);
+    });
+
+    testWidgets('a grow hidden while it grows keeps growing as it fades', (
+      tester,
+    ) async {
+      final clock = AppearController(vsync: const TestVSync());
+      addTearDown(clock.dispose);
+      const grow = AppearMotion.grow();
+      clock
+          .show(
+            showDuration: const Duration(milliseconds: 200),
+            hideDuration: const Duration(milliseconds: 150),
+          )
+          .ignore();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      final growing = clock.frameOf(grow);
+      clock.hide(hideDuration: const Duration(milliseconds: 150)).ignore();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      final later = clock.frameOf(grow);
+      expect(later.heightFraction, greaterThan(growing.heightFraction));
+      expect(later.opacity, lessThan(1));
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+
     testWidgets('under an instant speed shows and hides at once', (
       tester,
     ) async {
