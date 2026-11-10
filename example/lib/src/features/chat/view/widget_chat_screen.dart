@@ -984,6 +984,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         onPick: canPick
             ? (item) => input.pickContent(item.key, kind: item.semanticKind)
             : null,
+        onCopy: (item) => input.copyContent(item.key),
         previewEmoji: previewEmoji,
       ),
     );
@@ -1000,6 +1001,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         bulletins: _bulletins,
         packs: packs,
         onPick: (item) => input.pickContent(item.key, kind: item.semanticKind),
+        onCopy: (item) => input.copyContent(item.key),
       ),
     );
   }

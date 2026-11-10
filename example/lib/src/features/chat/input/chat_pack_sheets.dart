@@ -115,7 +115,8 @@ abstract final class ChatPackSheets {
   );
 
   /// Opens the sheet of [pack], of [kind], over [context]; [onPick] (null when
-  /// nothing can be sent or inserted here) takes what the sheet picks. An
+  /// nothing can be sent or inserted here) takes what the sheet picks, and
+  /// [onCopy] what an emoji sheet's preview copies. An
   /// emoji sheet opened from a custom emoji in a message shows that emoji,
   /// [previewEmoji], above it.
   static Future<void> open(
@@ -125,6 +126,7 @@ abstract final class ChatPackSheets {
     required PackId pack,
     required PackKind kind,
     ValueChanged<ContentDescriptor>? onPick,
+    ValueChanged<ContentDescriptor>? onCopy,
     PanelArrangement? arrangement,
     ContentKey? previewEmoji,
   }) => _show(
@@ -134,19 +136,21 @@ abstract final class ChatPackSheets {
     packs: [pack],
     kind: kind,
     onPick: onPick,
+    onCopy: onCopy,
     arrangement: arrangement,
     previewEmoji: previewEmoji,
   );
 
   /// Opens one emoji sheet of [packs] (each once, in order) over [context]:
   /// the packs of a message's custom emoji. [onPick] takes an emoji the sheet
-  /// inserts.
+  /// inserts, and [onCopy] one its preview copies.
   static Future<void> openEmojiPacks(
     BuildContext context, {
     required AppServices services,
     required BulletinController? bulletins,
     required List<PackId> packs,
     ValueChanged<ContentDescriptor>? onPick,
+    ValueChanged<ContentDescriptor>? onCopy,
     PanelArrangement? arrangement,
   }) => _show(
     context,
@@ -155,6 +159,7 @@ abstract final class ChatPackSheets {
     packs: packs,
     kind: PackKind.emoji,
     onPick: onPick,
+    onCopy: onCopy,
     arrangement: arrangement,
   );
 
@@ -166,6 +171,7 @@ abstract final class ChatPackSheets {
     required PackKind kind,
     required ValueChanged<ContentDescriptor>? onPick,
     required PanelArrangement? arrangement,
+    ValueChanged<ContentDescriptor>? onCopy,
     ContentKey? previewEmoji,
   }) {
     // Favourites from the sheet's preview: at once, as from the panel's, and
@@ -241,6 +247,11 @@ abstract final class ChatPackSheets {
             onPick: picked,
             onUnavailable: unavailable,
             previewEmoji: previewEmoji,
+            previews: services.previews,
+            onCopyRequested: switch (onCopy) {
+              final copy? => (item) => copy(item.item),
+              null => null,
+            },
           ),
           PackKind.stickers || PackKind.masks => StickerPackSheet(
             pack: packs.single,

@@ -589,6 +589,41 @@ void main() {
       expect(tester.widget<EmojiPackSheet>(sheet).previewEmoji, emoji);
     });
 
+    testWidgets("an emoji sheet previews through the app's previews, and "
+        'its Copy reaches the host', (tester) async {
+      await pump(tester);
+      final copied = <ContentDescriptor>[];
+
+      ChatPackSheets.open(
+        home,
+        services: services,
+        bulletins: bulletins,
+        pack: AnimatedEmojiPack.packId,
+        kind: PackKind.emoji,
+        arrangement: PanelArrangement.touch,
+        onCopy: copied.add,
+      ).ignore();
+      await tester.pump();
+
+      final sheet = tester.widget<EmojiPackSheet>(find.byType(EmojiPackSheet));
+      expect(sheet.previews, same(services.previews));
+      final item = (
+        item: const ContentDescriptor(
+          key: ContentKey.document('copied'),
+          semanticKind: SemanticKind.customEmoji,
+          mediaForm: MediaForm.still,
+        ),
+        pack: Pack(
+          id: AnimatedEmojiPack.packId,
+          kind: PackKind.emoji,
+          title: '',
+          items: const [],
+        ),
+      );
+      sheet.onCopyRequested!(item);
+      expect(copied, [item.item]);
+    });
+
     testWidgets('back closes the sheet before the panel or keyboard under '
         'it', (tester) async {
       await pump(tester);
