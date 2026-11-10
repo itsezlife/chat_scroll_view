@@ -79,9 +79,10 @@ class SelectionMenuCard extends StatelessWidget {
 Color _pressInk(Color color) => color.withAlpha(0x0F);
 
 /// The Material ink a menu row's own button keeps: only the keyboard focus
-/// highlight. Presses and hover are drawn by the row's `ChromeInk`, the
-/// platform's feedback, which takes the pointer; the button underneath
-/// takes the keyboard (focus, activation).
+/// highlight. Presses are drawn by the row's `ChromeInk`, the platform's
+/// feedback; the button underneath still takes the tap (it wins the press
+/// over the `ChromeInk`, whose feedback then ends as a release does) and the
+/// keyboard (focus, activation).
 WidgetStateProperty<Color?> _focusOnlyOverlay(Color color) =>
     WidgetStateProperty.resolveWith(
       (states) => states.contains(WidgetState.focused)
@@ -135,31 +136,29 @@ class SelectionMenuButton extends StatelessWidget {
       child: ChromeInk(
         color: _pressInk(color),
         onTap: onPressed,
-        child: IgnorePointer(
-          child: TextButton(
-            onPressed: onPressed,
-            style: TextButton.styleFrom(
-              foregroundColor: color,
-              disabledForegroundColor: color.withValues(alpha: 0.38),
-              padding: EdgeInsetsDirectional.only(
-                start: startPadding,
-                end: endPadding,
-              ),
-              minimumSize: const Size(
-                SelectionMenuMetrics.buttonMinWidth,
-                SelectionMenuMetrics.rowHeight,
-              ),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              textStyle: style,
-              shape: const RoundedRectangleBorder(),
-              splashFactory: NoSplash.splashFactory,
-            ).copyWith(overlayColor: _focusOnlyOverlay(color)),
-            child: Text(
-              label,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
+        child: TextButton(
+          onPressed: onPressed,
+          style: TextButton.styleFrom(
+            foregroundColor: color,
+            disabledForegroundColor: color.withValues(alpha: 0.38),
+            padding: EdgeInsetsDirectional.only(
+              start: startPadding,
+              end: endPadding,
             ),
+            minimumSize: const Size(
+              SelectionMenuMetrics.buttonMinWidth,
+              SelectionMenuMetrics.rowHeight,
+            ),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: style,
+            shape: const RoundedRectangleBorder(),
+            splashFactory: NoSplash.splashFactory,
+          ).copyWith(overlayColor: _focusOnlyOverlay(color)),
+          child: Text(
+            label,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),
@@ -198,8 +197,8 @@ class SelectionMenuMoreButton extends StatelessWidget {
     label: label,
     onTap: onPressed,
     excludeSemantics: true,
-    // The frame takes the press and lights the 40 dp disc in its middle;
-    // the IconButton inside takes the keyboard only.
+    // The frame lights the 40 dp disc in its middle and takes a press around
+    // it; the IconButton inside takes a press on the disc and the keyboard.
     child: ChromeInk(
       color: _pressInk(color),
       onTap: onPressed,
@@ -208,23 +207,22 @@ class SelectionMenuMoreButton extends StatelessWidget {
         width: SelectionMenuMetrics.moreButtonWidth,
         height: SelectionMenuMetrics.rowHeight,
         child: Center(
-          child: IgnorePointer(
-            child: IconButton(
-              onPressed: onPressed,
-              tooltip: null,
-              icon: const Icon(
-                Icons.more_vert,
-                size: SelectionMenuMetrics.iconSize,
-              ),
-              color: color,
-              padding: EdgeInsets.zero,
-              style: IconButton.styleFrom(
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ).copyWith(overlayColor: _focusOnlyOverlay(color)),
-              constraints: const BoxConstraints.tightFor(
-                width: SelectionMenuMetrics.moreButtonInkDiameter,
-                height: SelectionMenuMetrics.moreButtonInkDiameter,
-              ),
+          child: IconButton(
+            onPressed: onPressed,
+            tooltip: null,
+            icon: const Icon(
+              Icons.more_vert,
+              size: SelectionMenuMetrics.iconSize,
+            ),
+            color: color,
+            padding: EdgeInsets.zero,
+            style: IconButton.styleFrom(
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              splashFactory: NoSplash.splashFactory,
+            ).copyWith(overlayColor: _focusOnlyOverlay(color)),
+            constraints: const BoxConstraints.tightFor(
+              width: SelectionMenuMetrics.moreButtonInkDiameter,
+              height: SelectionMenuMetrics.moreButtonInkDiameter,
             ),
           ),
         ),
@@ -296,52 +294,50 @@ class SelectionMenuTile extends StatelessWidget {
       child: ChromeInk(
         color: _pressInk(color),
         onTap: onTap,
-        child: IgnorePointer(
-          child: Material(
-            color: Colors.transparent,
-            // The keyboard's: focus and activation. The press is the
-            // ChromeInk's.
-            child: InkWell(
-              onTap: onTap,
-              splashFactory: NoSplash.splashFactory,
-              highlightColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              focusColor: color.withValues(alpha: 0.1),
-              child: SizedBox(
-                height: height,
-                child: Padding(
-                  padding: padding,
-                  child: Row(
-                    children: [
-                      if (leading != null) ...[
-                        IconTheme(
-                          data: IconThemeData(
-                            color: enabled
-                                ? iconColor
-                                : iconColor.withValues(alpha: 0.38),
-                            size: SelectionMenuMetrics.iconSize,
-                          ),
-                          child: leading!,
+        child: Material(
+          color: Colors.transparent,
+          // The tap and the keyboard's focus; the press feedback is the
+          // ChromeInk's.
+          child: InkWell(
+            onTap: onTap,
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            focusColor: color.withValues(alpha: 0.1),
+            child: SizedBox(
+              height: height,
+              child: Padding(
+                padding: padding,
+                child: Row(
+                  children: [
+                    if (leading != null) ...[
+                      IconTheme(
+                        data: IconThemeData(
+                          color: enabled
+                              ? iconColor
+                              : iconColor.withValues(alpha: 0.38),
+                          size: SelectionMenuMetrics.iconSize,
                         ),
-                        SizedBox(width: leadingGap),
-                      ],
-                      // The page is as wide as its widest label, so this only
-                      // ellipsizes where the room across is shorter than that.
-                      Expanded(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          softWrap: false,
-                          style: enabled
-                              ? style
-                              : style.copyWith(
-                                  color: color.withValues(alpha: 0.38),
-                                ),
-                        ),
+                        child: leading!,
                       ),
+                      SizedBox(width: leadingGap),
                     ],
-                  ),
+                    // The page is as wide as its widest label, so this only
+                    // ellipsizes where the room across is shorter than that.
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: enabled
+                            ? style
+                            : style.copyWith(
+                                color: color.withValues(alpha: 0.38),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
