@@ -5,6 +5,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenable.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -63,6 +64,9 @@ final class InputRig {
 
   /// The set under test, once the first frame is built.
   late ChatInputSet set;
+
+  /// The screen's bulletins, mounted over the stack as the chat mounts its.
+  late BulletinController bulletins;
 
   final GlobalKey _island = GlobalKey();
   final GlobalKey _space = GlobalKey();
@@ -173,8 +177,12 @@ class _Screen extends StatefulWidget {
 class _ScreenState extends State<_Screen> {
   ChatInputSet? _input;
 
-  /// The screen's bulletins, mounted over the stack as the chat mounts its.
-  final BulletinController _bulletins = BulletinController();
+  late final BulletinController _bulletins = _rig.bulletins =
+      BulletinController();
+
+  /// The bulletins' obstruction: the chat's bottom padding, as the screen
+  /// gives it.
+  MappedValueListenable<double, EdgeInsets>? _obstruction;
 
   InputRig get _rig => widget.rig;
 
@@ -208,6 +216,9 @@ class _ScreenState extends State<_Screen> {
       policy: widget.policy,
       messageLengthLimit: widget.messageLengthLimit,
     );
+    _obstruction ??= input.insets.bottomPadding.map(
+      (bottom) => EdgeInsets.only(bottom: bottom),
+    );
     final safe = MediaQuery.viewPaddingOf(context);
     input
       ..updateEnvironment(
@@ -220,6 +231,7 @@ class _ScreenState extends State<_Screen> {
 
   @override
   void dispose() {
+    _obstruction?.dispose();
     _input?.dispose();
     _bulletins.dispose();
     super.dispose();
@@ -232,6 +244,8 @@ class _ScreenState extends State<_Screen> {
       resizeToAvoidBottomInset: false,
       body: BulletinHost(
         controller: _bulletins,
+        obstruction: _obstruction,
+        tracksObstruction: true,
         child: Stack(
           key: _rig._space,
           children: [

@@ -37,6 +37,7 @@ class BulletinHost extends StatefulWidget {
     required this.controller,
     required this.child,
     this.obstruction,
+    this.tracksObstruction = false,
     this.builders = const BulletinBuilders(),
     this.announce,
     super.key,
@@ -51,6 +52,17 @@ class BulletinHost extends StatefulWidget {
   /// policy's follow spring. Null uses the `MediaQuery` view padding and,
   /// at the bottom, the keyboard inset.
   final ValueListenable<EdgeInsets>? obstruction;
+
+  /// Whether the bulletin sits at [obstruction]'s value on the frame it
+  /// changes instead of following it on the policy's follow spring.
+  ///
+  /// For an obstruction that already moves frame by frame, such as the
+  /// inset a surface lays its own content out against while the keyboard or
+  /// a panel slides: the bulletin then moves with that content rather than
+  /// trailing it. False follows on the spring, which smooths an obstruction
+  /// that jumps. Without an [obstruction] the `MediaQuery` fallback is
+  /// tracked the same way when true.
+  final bool tracksObstruction;
 
   /// How the card is drawn.
   final BulletinBuilders builders;
@@ -80,11 +92,15 @@ class _BulletinHostState extends State<BulletinHost>
 
   ChromeMotionData get _motion => ChromeMotionScope.of(context);
 
-  EdgeInsets get _insets => EdgeInsets.lerp(
-    _$followFrom,
-    _$followTo ?? EdgeInsets.zero,
-    _$follow.value,
-  )!;
+  /// The insets the bulletin is laid out in this frame: the obstruction
+  /// itself when tracked, else where the follow spring has come to.
+  EdgeInsets get _insets => widget.tracksObstruction
+      ? _targetInsets()
+      : EdgeInsets.lerp(
+          _$followFrom,
+          _$followTo ?? EdgeInsets.zero,
+          _$follow.value,
+        )!;
 
   @override
   void initState() {
@@ -143,7 +159,10 @@ class _BulletinHostState extends State<BulletinHost>
   void _followTo(EdgeInsets target, {bool jump = false}) {
     if (target == _$followTo) return;
     final spring = _policy.followSpring;
-    if (jump || spring == null || _motion.speed.isInstant) {
+    if (jump ||
+        widget.tracksObstruction ||
+        spring == null ||
+        _motion.speed.isInstant) {
       _$followFrom = target;
       _$followTo = target;
       _$follow.value = 1;
@@ -315,7 +334,9 @@ class _BulletinHostState extends State<BulletinHost>
         if (_$entries.isNotEmpty)
           Positioned.fill(
             child: AnimatedBuilder(
-              animation: _$follow,
+              // A tracked obstruction rebuilds the padding on the frame it
+              // changes, in the build that precedes the content's layout.
+              animation: Listenable.merge([_$follow, ?widget.obstruction]),
               builder: (context, child) => Padding(
                 padding: _insets,
                 child: policy.clipsAtObstruction

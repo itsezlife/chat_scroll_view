@@ -1200,12 +1200,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                                 ),
                               },
                               // The bulletins over the chat, above the
-                              // composer and its keyboard or panel.
+                              // composer and its keyboard or panel. They sit
+                              // at the chat's bottom padding on the frame it
+                              // changes, so they move with the composer.
                               child: ChromeIconScope(
                                 icons: ChatBulletins.icons,
                                 child: BulletinHost(
                                   controller: _bulletins,
                                   obstruction: _bulletinObstruction,
+                                  tracksObstruction: true,
                                   builders: _bulletinBuilders,
                                   child: _buildChatRegion(
                                     search: search,
