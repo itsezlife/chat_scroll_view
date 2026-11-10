@@ -531,10 +531,14 @@ class RenderPanelCatalog extends RenderBox
     _leafPreview = value;
     final shrunk = value?.shrunk;
     // The held cell goes on from the scale its press reached, with no wash:
-    // the press is over for this grid once a preview is up.
+    // the press is over for this grid once a preview is up. A press that
+    // draws nothing showed no scale: the cell starts from 1.
     final press = _press;
+    final scaled =
+        _paintTheme.leafPressFeedback == CatalogPressFeedback.inkAndScale;
     final from = switch ((press, shrunk)) {
-      (final press?, final shrunk?) when _isPressedCell(press, shrunk) =>
+      (final press?, final shrunk?)
+          when scaled && _isPressedCell(press, shrunk) =>
         press.scale,
       _ => 1.0,
     };

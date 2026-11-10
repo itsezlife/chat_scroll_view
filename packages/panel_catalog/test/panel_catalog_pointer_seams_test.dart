@@ -611,6 +611,38 @@ void main() {
       expect(scales(paint(tester)), isEmpty, reason: 'back to 1 once closed');
     });
 
+    testWidgets('a held cell whose press draws nothing starts its shrink from '
+        '1, not from a press scale it never showed', (tester) async {
+      final quiet = touchTheme.copyWith(
+        leafPressFeedback: CatalogPressFeedback.none,
+      );
+      await pumpViewport(
+        tester,
+        theme: quiet,
+        onLeafTap: (_) {},
+        onLongPressStart: (_, _) {},
+        onLongPressEnd: (_, _) {},
+      );
+      final finger = await tester.startGesture(_first);
+      addTearDown(finger.up);
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      expect(washes(paint(tester), press), isEmpty, reason: 'no press wash');
+      expect(scales(paint(tester)), isEmpty, reason: 'no press scale');
+
+      await pumpViewport(
+        tester,
+        theme: quiet,
+        onLeafTap: (_) {},
+        onLongPressStart: (_, _) {},
+        onLongPressEnd: (_, _) {},
+        leafPreview: CatalogLeafPreview(shrunk: hitOf(0)),
+      );
+      await tester.pump(const Duration(milliseconds: 40));
+
+      // Halfway from 1 to 0.8 at 0.2 per 80 ms.
+      expect(scales(paint(tester)), [closeTo(0.9, 0.02)]);
+    });
+
     group('shown by the hover box', () {
       final pointerTheme = PanelCatalogThemeData.light.copyWith(
         leafHoverHighlightColor: _hover,
