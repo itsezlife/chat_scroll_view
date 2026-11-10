@@ -371,14 +371,16 @@ final class ChatInputSet {
     }
   }
 
-  // The desktop popup: 345 wide, nine columns of 37.
+  // The desktop popup: 345 wide, nine columns of 37, a solid panel with
+  // corners of 8 over a shadow of 5 blur, 1 down, black at 0.25.
   static const AnchoredPopupStyle _popupStyle = AnchoredPopupStyle(
     width: 345,
-    cornerRadius: 14,
+    cornerRadius: 8,
     // The room between the popup and the composer corner it floats over.
     edgeGap: 10,
+    surface: AnchoredPopupSurface.solid,
     shadows: <BoxShadow>[
-      BoxShadow(color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 8)),
+      BoxShadow(color: Color(0x40000000), blurRadius: 5, offset: Offset(0, 1)),
     ],
   );
 

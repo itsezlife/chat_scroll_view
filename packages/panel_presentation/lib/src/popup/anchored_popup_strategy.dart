@@ -510,12 +510,9 @@ class _PopupBodyState extends State<_PopupBody>
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(style.cornerRadius),
-          // The composer's glass, so the panel over the chat reads as the
-          // composer does.
-          child: GlassSurface(
-            material: GlassMaterial.composerIsland,
-            cornerRadius: style.cornerRadius,
-            child: Shortcuts(
+          child: _surface(
+            style,
+            Shortcuts(
               shortcuts: AnchoredPopupShortcuts.standard,
               child: AnchoredPopupActions(
                 controller: _controller,
@@ -528,7 +525,10 @@ class _PopupBodyState extends State<_PopupBody>
                     child: PanelShell(
                       controller: _controller.shell,
                       arrangement: PanelArrangement.pointer,
-                      background: const Color(0x00000000),
+                      background: switch (style.surface) {
+                        AnchoredPopupSurface.glass => const Color(0x00000000),
+                        AnchoredPopupSurface.solid => null,
+                      },
                     ),
                   ),
                 ),
@@ -539,4 +539,16 @@ class _PopupBodyState extends State<_PopupBody>
       ),
     ),
   );
+
+  // The composer's glass, or the shell's own solid background (the shell
+  // fills itself when it is given no background).
+  static Widget _surface(AnchoredPopupStyle style, Widget child) =>
+      switch (style.surface) {
+        AnchoredPopupSurface.glass => GlassSurface(
+          material: GlassMaterial.composerIsland,
+          cornerRadius: style.cornerRadius,
+          child: child,
+        ),
+        AnchoredPopupSurface.solid => child,
+      };
 }

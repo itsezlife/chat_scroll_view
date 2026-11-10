@@ -64,6 +64,34 @@ void main() {
     );
   });
 
+  testWidgets('a solid style draws no glass: the shell fills itself', (
+    tester,
+  ) async {
+    final rig = PopupRig(
+      style: const AnchoredPopupStyle(
+        width: 300,
+        cornerRadius: 8,
+        surface: AnchoredPopupSurface.solid,
+      ),
+    );
+    await rig.pump(tester);
+
+    rig.controller.show();
+    await settleMotion(tester);
+
+    expect(
+      find.ancestor(
+        of: find.byType(PanelShell),
+        matching: find.byType(GlassSurface),
+      ),
+      findsNothing,
+    );
+    expect(
+      tester.widget<PanelShell>(find.byType(PanelShell)).background,
+      isNull,
+    );
+  });
+
   group('geometry', () {
     testWidgets('sits on the composer top, end edges aligned (LTR)', (
       tester,

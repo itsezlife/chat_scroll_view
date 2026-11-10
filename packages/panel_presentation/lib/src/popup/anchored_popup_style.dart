@@ -1,8 +1,18 @@
 import 'package:chrome_foundation/chrome_foundation.dart' show AppearMotion;
 import 'package:flutter/widgets.dart';
 
-/// How an anchored popup looks: its width, corners, shadow and the motion it
-/// appears and leaves with.
+/// What an anchored popup's surface is drawn as.
+enum AnchoredPopupSurface {
+  /// The composer's glass, so the panel over the chat reads as the composer
+  /// does.
+  glass,
+
+  /// A solid fill of the panel's background colour.
+  solid,
+}
+
+/// How an anchored popup looks: its width, corners, shadow, surface and the
+/// motion it appears and leaves with.
 ///
 /// The width is required and the other fields default to nothing drawn. No
 /// dimensions are shipped here: a host passes the ones its
@@ -18,6 +28,7 @@ final class AnchoredPopupStyle {
     this.appear = const AppearMotion.grow(),
     this.hoverGutter = 10,
     this.edgeGap = 0,
+    this.surface = AnchoredPopupSurface.glass,
   }) : assert(width > 0, 'width must be positive'),
        assert(cornerRadius >= 0, 'cornerRadius must not be negative'),
        assert(hoverGutter >= 0, 'hoverGutter must not be negative'),
@@ -52,6 +63,9 @@ final class AnchoredPopupStyle {
   /// between the two where the pointer is over neither.
   final double hoverGutter;
 
+  /// What the popup's surface is drawn as: glass by default.
+  final AnchoredPopupSurface surface;
+
   @override
   bool operator ==(Object other) =>
       other is AnchoredPopupStyle &&
@@ -60,6 +74,7 @@ final class AnchoredPopupStyle {
       other.appear == appear &&
       other.hoverGutter == hoverGutter &&
       other.edgeGap == edgeGap &&
+      other.surface == surface &&
       _sameShadows(other.shadows, shadows);
 
   @override
@@ -69,6 +84,7 @@ final class AnchoredPopupStyle {
     appear,
     hoverGutter,
     edgeGap,
+    surface,
     Object.hashAll(shadows),
   );
 
