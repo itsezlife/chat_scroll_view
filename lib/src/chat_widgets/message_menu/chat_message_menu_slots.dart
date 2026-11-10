@@ -28,6 +28,15 @@ typedef ChatMessageMenuReactionBuilder =
 typedef ChatMessageMenuBuilder =
     Widget Function(BuildContext context, ChatMessageMenuSlots slots);
 
+/// Draws the surface of the action card around [rows]: its fill, corners and
+/// shadow, in place of the package card's (a host's glass, say).
+///
+/// The builder clips [rows] to its shape; their press feedback stays inside
+/// it. The card's width rules (`ChatMessageMenuCard`) still apply around the
+/// surface.
+typedef ChatMessageMenuSurfaceBuilder =
+    Widget Function(BuildContext context, Widget rows);
+
 /// Plays the menu's enter and leave on [menu].
 ///
 /// The builder shows [menu] when [ChatMessageMenuTransition.visible] is true,
@@ -51,6 +60,7 @@ final class ChatMessageMenuTransition {
     required this.presentation,
     required this.origin,
     required this.rows,
+    this.hasReactions = false,
   });
 
   /// Whether the menu is up; false once the session is closing.
@@ -62,13 +72,16 @@ final class ChatMessageMenuTransition {
   /// How the menu is presented.
   final ChatMessageMenuPresentation presentation;
 
-  /// Where the menu is anchored: the corner at the pointer for a popup, the
-  /// edge facing the message for a sheet (the bottom when the menu sits above
-  /// the message).
+  /// Where the menu is anchored: the corner at the pointer for a popup; for a
+  /// sheet, which hangs to the left of the press, its right corner on the side
+  /// facing the message (the bottom when the menu sits above the message).
   final Alignment origin;
 
   /// How many action rows the menu has.
   final int rows;
+
+  /// Whether the menu shows a reaction strip above its actions.
+  final bool hasReactions;
 }
 
 /// Default chrome pieces and the data they were built from.

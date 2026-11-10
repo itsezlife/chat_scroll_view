@@ -14,9 +14,6 @@ void main() {
     );
 
     expect(placement.menuOrigin.dy, 210);
-    // Outer stack sits on the leading inset; the action card is inset
-    // further by the reactions overhang (host layout), not by X here.
-    expect(placement.menuOrigin.dx, ChatMessageMenuPlacement.edgeInset);
   });
 
   test('placement keeps the menu above the keyboard inset', () {
@@ -28,7 +25,6 @@ void main() {
       tapGlobal: const Offset(200, 520),
     );
 
-    expect(placement.menuOrigin.dx, ChatMessageMenuPlacement.edgeInset);
     expect(placement.menuOrigin.dy + 250, lessThanOrEqualTo(800 - 300));
   });
 
@@ -46,28 +42,67 @@ void main() {
     expect(placement.menuOrigin.dy, greaterThanOrEqualTo(24 + 24));
   });
 
-  test('sheet X is independent of tap X and of outgoing vs incoming', () {
-    const size = Size(384, 832);
-    const rect = Rect.fromLTWH(0, -115, 384, 699);
-    const menu = Size(252, 345);
-    const pad = EdgeInsets.only(top: 34, bottom: 48);
+  group('a sheet hangs left of the press', () {
+    // The default column: a card 200 wide with the strip's overhangs (24
+    // before, 48 after) beside it.
+    const menu = Size(272, 160);
+    const card = 200.0;
 
-    Offset originAt(double tapX) => ChatMessageMenuPlacement.compute(
-      screenSize: size,
-      keyboardHeight: 0,
-      messageRect: rect,
-      menuSize: menu,
-      tapGlobal: Offset(tapX, 314),
-      safePadding: pad,
-      presentation: ChatMessageMenuPresentation.sheet,
-    ).menuOrigin;
+    double cardLeftFor(
+      double tapX, {
+      required bool hasReactions,
+      double screenWidth = 400,
+      EdgeInsets safePadding = EdgeInsets.zero,
+    }) =>
+        ChatMessageMenuPlacement.compute(
+          screenSize: Size(screenWidth, 800),
+          keyboardHeight: 0,
+          messageRect: const Rect.fromLTWH(0, 200, 400, 60),
+          menuSize: menu,
+          tapGlobal: Offset(tapX, 230),
+          safePadding: safePadding,
+          hasReactions: hasReactions,
+        ).menuOrigin.dx +
+        24;
 
-    expect(originAt(51.6).dx, originAt(308.3).dx);
-    expect(originAt(51.6).dx, ChatMessageMenuPlacement.edgeInset);
-    expect(
-      originAt(308.3).dx,
-      isNot(384 - ChatMessageMenuPlacement.edgeInset - 252),
-    );
+    test('without reactions its card ends 28 left of the press', () {
+      expect(cardLeftFor(300, hasReactions: false) + card, 300 - 28);
+    });
+
+    test('with reactions its card ends 64 left of the press, the strip '
+        'margins beside it', () {
+      expect(cardLeftFor(330, hasReactions: true) + card, 330 - 64);
+    });
+
+    test('its box stays 6 inside the screen: the card 14 from the start '
+        'without reactions, 30 with them', () {
+      expect(cardLeftFor(40, hasReactions: false), 14);
+      expect(cardLeftFor(40, hasReactions: true), 30);
+    });
+
+    test('and 6 inside the end of a safe inset: the card 14 from it without '
+        'reactions, 50 with them', () {
+      const inset = EdgeInsets.only(right: 40);
+      expect(
+        cardLeftFor(399, hasReactions: false, safePadding: inset) + card,
+        360 - 14,
+      );
+      expect(
+        cardLeftFor(399, hasReactions: true, safePadding: inset) + card,
+        360 - 50,
+      );
+    });
+
+    test('inside the safe insets', () {
+      expect(
+        cardLeftFor(
+          40,
+          hasReactions: false,
+          safePadding: const EdgeInsets.only(left: 30),
+        ),
+        44,
+      );
+    });
   });
 
   test('popup X follows the tap within edge clamps', () {
