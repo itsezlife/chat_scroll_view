@@ -45,7 +45,10 @@ class ChatMessageMenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = IntrinsicWidth(child: child);
+    // The rows fill the card whatever constraints the surface hands them (a
+    // stack lays its child out loosely), so their ink spans it; the card's
+    // width is measured around the surface.
+    final rows = SizedBox(width: double.infinity, child: child);
     final surface = switch (surfaceBuilder) {
       final builder? => builder(context, rows),
       null => _PackageSurface(child: rows),
@@ -59,7 +62,7 @@ class ChatMessageMenuCard extends StatelessWidget {
           minWidth: minWidth,
           maxWidth: math.max(minWidth, maxWidth),
         ),
-        child: surface,
+        child: IntrinsicWidth(child: surface),
       ),
     );
   }

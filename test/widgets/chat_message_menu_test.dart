@@ -459,6 +459,35 @@ void main() {
       expect(card.right, lessThanOrEqualTo(800));
     });
 
+    testWidgets('stretches every row across the card, short labels too, '
+        'under a host surface that loosens its child', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        items: const <ChatMessageMenuItem>[
+          ChatMessageMenuItem(id: 'a', label: 'Copy', icon: Icons.copy),
+          ChatMessageMenuItem(id: 'b', label: 'Pin', icon: Icons.push_pin),
+        ],
+        // A surface as a glass is built: a stack, which lays out its child
+        // loosely.
+        surfaceBuilder: (context, rows) => Stack(
+          children: [
+            const Positioned.fill(child: ColoredBox(color: Color(0xFF00FF00))),
+            rows,
+          ],
+        ),
+      );
+
+      final card = tester.getRect(find.byType(ChatMessageMenuCard));
+      expect(card.width, ChatMessageMenuCard.defaultMinWidth);
+      for (final label in ['Copy', 'Pin']) {
+        final row = find
+            .ancestor(of: find.text(label), matching: find.byType(InkWell))
+            .first;
+        expect(tester.getRect(row).width, card.width, reason: label);
+      }
+    });
+
     testWidgets('takes the host surface around its rows', (tester) async {
       await _openMenu(
         tester,
