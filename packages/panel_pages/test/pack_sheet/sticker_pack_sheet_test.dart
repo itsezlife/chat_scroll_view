@@ -14,6 +14,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter/material.dart' show TextTheme, Theme, ThemeData;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -373,6 +374,41 @@ void main() {
 
       expect(picks.single.item.key, const ContentKey.document('cats-0'));
       expect(sheetUp(), isFalse);
+    });
+
+    testWidgets('one tap on a sticker is one haptic and one preview opening', (
+      tester,
+    ) async {
+      final haptics = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'HapticFeedback.vibrate') {
+            haptics.add('${call.arguments}');
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final previews = ContentPreviewController(library: library);
+      addTearDown(previews.dispose);
+      var opened = 0;
+      previews.isOpen.addListener(() {
+        if (previews.isOpen.value) opened++;
+      });
+      await open(tester, 'cats', canSend: true, previews: previews);
+
+      await tester.tapAt(firstCell(tester));
+      await settle(tester);
+
+      expect(find.text('Send Sticker'), findsOneWidget);
+      expect(opened, 1);
+      expect(haptics, hasLength(1));
     });
 
     testWidgets('without a composer the preview has no Send', (tester) async {

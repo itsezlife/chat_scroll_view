@@ -119,6 +119,7 @@ final class ContentPreviewController {
 ///   ([ContentPreviewMenu.entriesOf]).
 /// - [openMenu] opens the menu at once (after [instantMenuDelay]): a tap on a
 ///   cell of a sheet that shows the preview and its actions straight away.
+///   It is felt once, as its menu comes up; the opening itself plays none.
 ///
 /// ## Holds
 ///
@@ -204,7 +205,10 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     );
     overlay.insert(session._entry!);
     controller?._attach(session);
-    if (kind != PointerDeviceKind.mouse) unawaited(HapticFeedback.vibrate());
+    // Opened with its menu, the preview is felt once: by the menu.
+    if (kind != PointerDeviceKind.mouse && !openMenu) {
+      unawaited(HapticFeedback.vibrate());
+    }
     if (openMenu) {
       session._scheduleMenu(instantMenuDelay);
     } else {
