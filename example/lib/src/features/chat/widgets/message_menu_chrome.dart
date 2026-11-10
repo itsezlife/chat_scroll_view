@@ -9,8 +9,10 @@ import 'package:flutter/widgets.dart';
 /// On Android a sheet menu takes the chrome's own rows ([MessageMenuRow])
 /// on the scrim menu glass ([GlassMaterial.scrimMenu]), and comes up by the
 /// bloom when it has a reaction strip and by the pop when it has none, from
-/// its top right corner (it hangs left of the press). Elsewhere the rows and
-/// the card are the package's, a popup grows from the pointer and a sheet
+/// its top right corner (it hangs left of the press). On a desktop a popup
+/// takes the same rows, in the pointer menu's colours, on a solid card of the
+/// pointer menu's shape ([desktopSurface]), and grows from the corner at the
+/// pointer. Elsewhere the rows and the card are the package's and a sheet
 /// plays the platform's appear motion.
 abstract final class MessageMenuChrome {
   /// Whether a menu of [presentation] takes the Android chrome on this
@@ -19,18 +21,33 @@ abstract final class MessageMenuChrome {
       presentation == ChatMessageMenuPresentation.sheet &&
       ChromeInkKind.forPlatform(defaultTargetPlatform) == ChromeInkKind.ripple;
 
+  /// Whether a menu of [presentation] takes the desktop chrome on this
+  /// platform.
+  static bool isDesktopPopup(ChatMessageMenuPresentation presentation) =>
+      presentation == ChatMessageMenuPresentation.popup &&
+      ChromeInkKind.forPlatform(defaultTargetPlatform) == ChromeInkKind.pointer;
+
   /// The rows of a menu of [presentation], or null for the package's.
   static ChatMessageMenuItemBuilder? itemBuilderFor(
     ChatMessageMenuPresentation presentation,
-  ) => isAndroidSheet(presentation)
-      ? (context, item, onSelect) => MessageMenuRow(item: item, onTap: onSelect)
-      : null;
+  ) => switch (presentation) {
+    _ when isAndroidSheet(presentation) =>
+      (context, item, onSelect) => MessageMenuRow(item: item, onTap: onSelect),
+    _ when isDesktopPopup(presentation) =>
+      (context, item, onSelect) =>
+          MessageMenuRow.pointer(context, item: item, onTap: onSelect),
+    _ => null,
+  };
 
   /// The action card's surface for [presentation], or null for the
   /// package's.
   static ChatMessageMenuSurfaceBuilder? surfaceBuilderFor(
     ChatMessageMenuPresentation presentation,
-  ) => isAndroidSheet(presentation) ? surface : null;
+  ) => switch (presentation) {
+    _ when isAndroidSheet(presentation) => surface,
+    _ when isDesktopPopup(presentation) => desktopSurface,
+    _ => null,
+  };
 
   /// The scrim menu glass, of [cornerRadius], around [child] (the action
   /// card's rows or the reaction strip), whose content blooms with the menu.
@@ -44,6 +61,46 @@ abstract final class MessageMenuChrome {
     child: AppearContent(child: child),
   );
 
+  /// The desktop card around [child]: the pointer menu's background,
+  /// corners ([PointerMenuMetrics.cornerRadius], whatever [cornerRadius]
+  /// says) and padding above and below the rows
+  /// ([PointerMenuMetrics.verticalPadding]). Its shadow is drawn by the
+  /// appear motion under its frame ([desktopShadowsOf]).
+  static Widget desktopSurface(
+    BuildContext context,
+    double cornerRadius,
+    Widget child,
+  ) {
+    final tokens = ChromeThemeScope.pointerMenuOf(context);
+    return ClipRRect(
+      borderRadius: const BorderRadius.all(PointerMenuMetrics.cornerRadius),
+      child: ColoredBox(
+        color: tokens.background,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: PointerMenuMetrics.verticalPadding,
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  /// The pointer menu's shadow in [tokens]: its colour at
+  /// [PointerMenuMetrics.shadowOpacity], blurred by
+  /// [PointerMenuMetrics.shadowBlur] (a sigma of half of it), moved by
+  /// [PointerMenuMetrics.shadowOffset].
+  static List<BoxShadow> desktopShadowsOf(PointerMenuTokens tokens) => [
+    BoxShadow(
+      color: tokens.shadow.withValues(
+        alpha: tokens.shadow.a * PointerMenuMetrics.shadowOpacity,
+      ),
+      // A blur radius r is a sigma of 0.57735 r + 0.5.
+      blurRadius: (PointerMenuMetrics.shadowBlur / 2 - 0.5) / 0.57735,
+      offset: PointerMenuMetrics.shadowOffset,
+    ),
+  ];
+
   /// The menu's enter and leave.
   static Widget transition(
     BuildContext context,
@@ -51,6 +108,8 @@ abstract final class MessageMenuChrome {
     Widget menu,
   ) {
     final android = isAndroidSheet(transition.presentation);
+    final desktop = isDesktopPopup(transition.presentation);
+    final tokens = desktop ? ChromeThemeScope.pointerMenuOf(context) : null;
     return ChromeAppear(
       visible: transition.visible,
       onHidden: transition.onHidden,
@@ -62,18 +121,55 @@ abstract final class MessageMenuChrome {
       },
       origin: android ? Alignment.topRight : transition.origin,
       rows: transition.rows,
+      borderRadius: desktop
+          ? const BorderRadius.all(PointerMenuMetrics.cornerRadius)
+          : BorderRadius.zero,
+      revealColor: tokens?.background,
+      shadows: switch (tokens) {
+        final tokens? => desktopShadowsOf(tokens),
+        null => const <BoxShadow>[],
+      },
       child: menu,
     );
   }
 }
 
-/// One action row of the Android message menu: 48 tall, its icon (24) at the
-/// start 18 in, its label 43 after the icon's start in the regular face at
-/// 16, one line; a disabled row is drawn at half opacity. The press feedback
-/// is the platform's ([ChromeInk]).
+/// One action row of the message menu: 48 tall, its icon (24) at the start
+/// 18 in, its label 43 after the icon's start in the regular face at 16, one
+/// line; a disabled row is drawn at half opacity. The press feedback is the
+/// platform's ([ChromeInk]).
+///
+/// Its colours are the palette's (the Android menu's) unless given: the
+/// desktop menu ([MessageMenuRow.pointer]) takes the pointer menu's.
 class MessageMenuRow extends StatelessWidget {
   /// A row for [item], chosen by [onTap] (null when the item is disabled).
-  const MessageMenuRow({required this.item, required this.onTap, super.key});
+  const MessageMenuRow({
+    required this.item,
+    required this.onTap,
+    this.labelColor,
+    this.iconColor,
+    this.inkColor,
+    this.hoverColor,
+    super.key,
+  });
+
+  /// A row in the pointer menu's colours of [context]: its text, its hint
+  /// colour for the icon, its ripple and its hover fill.
+  factory MessageMenuRow.pointer(
+    BuildContext context, {
+    required ChatMessageMenuAction item,
+    required VoidCallback? onTap,
+  }) {
+    final tokens = ChromeThemeScope.pointerMenuOf(context);
+    return MessageMenuRow(
+      item: item,
+      onTap: onTap,
+      labelColor: tokens.text,
+      iconColor: tokens.hint,
+      inkColor: tokens.ripple,
+      hoverColor: tokens.backgroundOver,
+    );
+  }
 
   /// The row's height.
   static const double height = 48;
@@ -99,11 +195,27 @@ class MessageMenuRow extends StatelessWidget {
   /// Chooses the action.
   final VoidCallback? onTap;
 
+  /// The label's colour, or null for the palette's.
+  final Color? labelColor;
+
+  /// The icon's colour, or null for the palette's.
+  final Color? iconColor;
+
+  /// The press feedback's colour, or null for the palette's.
+  final Color? inkColor;
+
+  /// The fill under a hovering mouse, or null for none.
+  final Color? hoverColor;
+
   @override
   Widget build(BuildContext context) {
     final palette = ChromeThemeScope.paletteOf(context);
-    final label = item.isDestructive ? palette.destructive : palette.onSurface;
-    final icon = item.isDestructive ? palette.destructive : palette.iconIdle;
+    final label = item.isDestructive
+        ? palette.destructive
+        : labelColor ?? palette.onSurface;
+    final icon = item.isDestructive
+        ? palette.destructive
+        : iconColor ?? palette.iconIdle;
     return Semantics(
       button: true,
       enabled: item.enabled,
@@ -112,7 +224,8 @@ class MessageMenuRow extends StatelessWidget {
       child: Opacity(
         opacity: item.enabled ? 1 : disabledOpacity,
         child: ChromeInk(
-          color: palette.onSurface.withAlpha(0x0F),
+          color: inkColor ?? palette.onSurface.withAlpha(0x0F),
+          hoverColor: hoverColor,
           onTap: item.enabled ? onTap : null,
           child: SizedBox(
             height: height,

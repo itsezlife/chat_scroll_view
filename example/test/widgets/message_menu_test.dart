@@ -763,4 +763,84 @@ void main() {
     expect(find.text('Select'), findsNothing);
     expect(menu.isPresenting, isFalse);
   });
+
+  testWidgets(
+    'the desktop menu takes the mobile rows on the pointer menu\'s solid card, '
+    'growing from the corner at the pointer',
+    (tester) async {
+      final dataSource = _OneMessageSource();
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.desktop(),
+      );
+      addTearDown(dataSource.dispose);
+      addTearDown(selection.dispose);
+      final menu = MessageMenu(
+        dataSource: dataSource,
+        selection: selection,
+        actions: MessageMenuActions(onDelete: (_) {}, onEdit: (_) {}),
+        clipboard: FakeRichClipboard(),
+      );
+      const click = Offset(300, 200);
+      await tester.pumpWidget(
+        ChromeThemeScope(
+          palette: const ChromePalette.dark(),
+          pointerMenu: PointerMenuTokens.night,
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => menu.present(
+                    context,
+                    const ChatMessageMenuRequest(
+                      messageId: 1,
+                      slotGlobal: Rect.fromLTWH(0, 170, 800, 60),
+                      tapGlobal: click,
+                    ),
+                  ),
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      final row = find
+          .ancestor(
+            of: find.text('Select'),
+            matching: find.byType(MessageMenuRow),
+          )
+          .first;
+      expect(tester.getSize(row).height, 48);
+      expect(
+        tester.widget<Text>(find.text('Select')).style?.color,
+        PointerMenuTokens.night.text,
+      );
+      final appear = tester.widget<ChromeAppear>(find.byType(ChromeAppear));
+      expect(appear.motion, const AppearMotion.grow());
+      expect(appear.origin, Alignment.topLeft);
+      final card = tester.getRect(find.byType(ChatMessageMenuCard));
+      expect(card.topLeft, click + const Offset(5, 0));
+      // The pointer menu's padding above the first row.
+      expect(
+        tester.getTopLeft(find.byType(MessageMenuRow).first).dy - card.top,
+        8,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(ChatMessageMenuCard),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is ColoredBox &&
+                widget.color == PointerMenuTokens.night.background,
+          ),
+        ),
+        findsOneWidget,
+      );
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+  );
 }
