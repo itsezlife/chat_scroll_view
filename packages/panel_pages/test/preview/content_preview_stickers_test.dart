@@ -9,6 +9,7 @@
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
@@ -121,10 +122,11 @@ void main() {
         Offset(72 * (index % 5 + .5), 36 + 27 + 82 * (index ~/ 5) + 41);
   }
 
-  // The way out takes its fade, then a frame to leave the overlay.
+  // The way out takes the menu's hide, which outlasts the preview's fade,
+  // then a frame to leave the overlay.
   Future<void> settleClose(WidgetTester tester) async {
     await tester.pump();
-    await tester.pump(ContentPreviewSession.showDuration);
+    await tester.pump(AppearMotion$Unfold.hide);
     await tester.pump(const Duration(milliseconds: 16));
     await tester.pump();
   }
@@ -327,6 +329,42 @@ void main() {
     expect(previews.isOpen.value, isFalse);
     expect(find.text('Send Sticker'), findsNothing);
     expect(previews.dismiss(), isFalse);
+  });
+
+  testWidgets('the menu goes with the preview: its hide starts on the same '
+      'frame, and the preview stays until it is over', (tester) async {
+    await pumpPage(tester);
+    final gesture = await hold(tester, 0);
+    await tester.pump(ContentPreviewSession.stickerMenuDelay);
+    await gesture.up();
+    await tester.pump(const Duration(seconds: 1));
+
+    AppearFrame menuFrame() => tester
+        .widget<AppearFrameView>(
+          find.ancestor(
+            of: find.text('Send Sticker'),
+            matching: find.byType(AppearFrameView),
+          ),
+        )
+        .frame;
+    expect(menuFrame(), AppearFrame.rest);
+
+    const motion = AppearMotion.unfold();
+    final hide = motion.hideDuration(ChromeMotionData.standard);
+    expect(previews.dismiss(), isTrue);
+    await tester.pump();
+    await tester.pump(hide ~/ 2);
+    expect(menuFrame(), motion.hideAt(0.5));
+
+    // Past the preview's own fade, the menu is still going.
+    await tester.pump(hide ~/ 2 - const Duration(milliseconds: 10));
+    expect(find.text('Send Sticker'), findsOneWidget);
+    expect(menuFrame().opacity, lessThan(0.05));
+
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump();
+    expect(find.text('Send Sticker'), findsNothing);
+    expect(previews.isOpen.value, isFalse);
   });
 
   testWidgets('a press elsewhere closes it after the menu', (tester) async {
