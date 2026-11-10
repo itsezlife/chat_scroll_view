@@ -85,6 +85,54 @@ void main() {
       expect(data.leafHoverHighlightSize, isNull);
     });
 
+    test('a sticker cell: under the pointer the hover box is the whole cell '
+        'at radius 6 and a preview keeps it on the previewed cell; on touch '
+        'a press draws nothing and a preview scales the cell', () {
+      final chrome = ChromeThemeData.fromPalette(_palette);
+      final pointer = ChromeCatalogTheme.dataFor(
+        chrome,
+        arrangement: PanelArrangement.pointer,
+        cells: CatalogCellFeedback.sticker,
+      );
+      final touch = ChromeCatalogTheme.dataFor(
+        chrome,
+        cells: CatalogCellFeedback.sticker,
+      );
+
+      expect(pointer.leafHoverHighlightSize, isNull);
+      expect(pointer.leafHoverHighlightInset, 0);
+      expect(pointer.leafHoverHighlightRadius, 6);
+      expect(pointer.leafPressFeedback, CatalogPressFeedback.none);
+      expect(pointer.leafPreviewFeedback, CatalogPreviewFeedback.hover);
+      expect(touch.leafPressFeedback, CatalogPressFeedback.none);
+      expect(touch.leafPreviewFeedback, CatalogPreviewFeedback.scale);
+    });
+
+    test('an emoji cell keeps its press on touch; any cell under the pointer '
+        'shows a preview with the hover box', () {
+      final chrome = ChromeThemeData.fromPalette(_palette);
+
+      expect(data.leafPreviewFeedback, CatalogPreviewFeedback.scale);
+      expect(
+        ChromeCatalogTheme.dataFor(
+          chrome,
+          arrangement: PanelArrangement.pointer,
+        ).leafPreviewFeedback,
+        CatalogPreviewFeedback.hover,
+      );
+    });
+
+    test('the sticker list asks for sticker cells, the emoji list for emoji '
+        'cells', () {
+      expect(StickersPagePolicy.cellFeedbackValue, CatalogCellFeedback.sticker);
+      expect(CatalogCellFeedback.emoji.hoverSize, const Size(34, 32));
+      expect(CatalogCellFeedback.emoji.hoverRadius, 8);
+      expect(
+        CatalogCellFeedback.emoji.touchPress,
+        CatalogPressFeedback.inkAndScale,
+      );
+    });
+
     test('draws keyboard focus in the accent', () {
       expect(data.leafFocusHighlightColor, _palette.accent.withAlpha(0x40));
     });

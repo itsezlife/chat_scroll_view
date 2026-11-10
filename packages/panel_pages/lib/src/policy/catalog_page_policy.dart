@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
+import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// What a page reports when the user picks a cell.
@@ -212,6 +213,11 @@ abstract class CatalogPagePolicy {
   /// null for the viewport's default. A list sets it per kind of
   /// content (the sticker list's titles sit 15 in, the emoji list's 5).
   double? get headerStartInset => null;
+
+  /// How the cells answer the mouse, a press and a preview: an emoji's by
+  /// default. A list of another kind of content says so (the sticker list's
+  /// hover box is the whole cell, and a touch press on it draws nothing).
+  CatalogCellFeedback get cellFeedback => CatalogCellFeedback.emoji;
 
   /// The geometry of the section under [arrangement], or null for the
   /// viewport's defaults.
