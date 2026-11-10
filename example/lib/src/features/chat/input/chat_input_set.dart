@@ -6,7 +6,7 @@ import 'dart:ui' show FlutterView;
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
-    show ChatPreImeBackClaim;
+    show ChatDataSource, ChatMutation, ChatPreImeBackClaim, RemoveBatchMutation;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
@@ -103,7 +103,8 @@ final class ChatEditTarget {
 /// - **Send and edit.** A send downgrades the mentions the host did not
 ///   resolve, detects URLs, names and tags, and encodes ([submit]); an edit
 ///   loads with the detected entities stripped ([beginEdit]); a text over
-///   [messageLengthLimit] is refused, never cut.
+///   [messageLengthLimit] is refused, never cut. An edit whose message is
+///   deleted ends, its text with it ([bindMessages]).
 /// - **Drafts.** [bindDrafts] restores the chat's unsent text, edit mode
 ///   included, and keeps it saved while the user types.
 /// - **Soft keyboard.** While a keyboard-replacement panel is on screen the
@@ -683,6 +684,26 @@ final class ChatInputSet {
     );
   }
 
+  /// Follows the messages of [source]: when the message being edited is
+  /// deleted there (by the user, or by a change that arrives), the edit ends
+  /// and the composer is emptied, as [cancelEdit] does. A source bound
+  /// earlier is let go; [dispose] lets go of the last.
+  void bindMessages(ChatDataSource source) {
+    if (_disposed || identical(source, _messages)) return;
+    _messages?.removeMutationListener(_onMessages);
+    _messages = source..addMutationListener(_onMessages);
+  }
+
+  ChatDataSource? _messages;
+
+  void _onMessages(ChatMutation mutation) {
+    if (mutation case RemoveBatchMutation(
+      :final ids,
+    ) when ids.contains(_editing.value?.id)) {
+      cancelEdit();
+    }
+  }
+
   /// Writes the draft now, for the moments the user may not return from (the
   /// app hiding).
   void flushDraft() => _draftSync?.flush();
@@ -1245,6 +1266,8 @@ final class ChatInputSet {
     _draftSync?.dispose();
     _draftSync = null;
     _disposed = true;
+    _messages?.removeMutationListener(_onMessages);
+    _messages = null;
     _backClaim?.pop();
     _backClaim = null;
     unawaited(_imeHeights.cancel());
