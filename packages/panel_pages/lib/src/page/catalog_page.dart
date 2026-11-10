@@ -21,6 +21,7 @@ import 'package:panel_pages/src/page/catalog_sticky_header.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/page/listen_value_builder.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/preview/catalog_preview_mark.dart';
 import 'package:panel_pages/src/scroll/page_scroll_reporter.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -190,6 +191,14 @@ class _CatalogPageState extends State<CatalogPage>
   Curve _revealCurve = Curves.linear;
   CatalogLongPressSession? _longPress;
   CatalogLeafHit? _pinned;
+  // The grid's cells under an open content preview: none pressed, the shown
+  // one smaller.
+  late final _mark = CatalogPreviewMark(
+    leafAt: (global) => _catalog.leafAt(global),
+    onChanged: () {
+      if (mounted) setState(() {});
+    },
+  );
   // The kind of the pointer that went down last: the long-press callbacks
   // carry none, and what a long press opens depends on it.
   var _lastKind = PointerDeviceKind.touch;
@@ -313,6 +322,7 @@ class _CatalogPageState extends State<CatalogPage>
     _reveal
       ..removeListener(_onRevealTick)
       ..dispose();
+    _mark.dispose();
     _cancelLongPress(unpin: false);
     _tooltip.dispose();
     _menu.dispose();
@@ -589,10 +599,11 @@ class _CatalogPageState extends State<CatalogPage>
       kind: _lastKind,
       cellBounds: cell,
       viewportBounds: viewport,
-      leafAt: _catalog.leafAt,
+      leafAt: _mark.leafAt,
     );
     if (session == null) return;
     _longPress = session;
+    _mark.follow(session, hit);
     session.isOpen.addListener(_onSessionOpenChanged);
     // A session that was over before it came back to us leaves nothing to pin.
     if (session.isOpen.value) setState(() => _pinned = hit);
@@ -737,6 +748,7 @@ class _CatalogPageState extends State<CatalogPage>
                             onLeafLongPressMove: _onLongPressMove,
                             onLeafLongPressEnd: _onLongPressEnd,
                             pinnedLeaf: _pinned,
+                            leafPreview: _mark.value,
                             onSectionAction: _onSectionAction,
                           ),
                         ),

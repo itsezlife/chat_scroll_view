@@ -6,6 +6,15 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (the grid under a content preview; one haptic for a tap)
+
+- While a content preview is open over the panel's grid or a pack sheet's,
+  the cells show no press or hover wash; a sticker's cell the preview shows
+  is drawn smaller and follows the finger (`CatalogLeafPreview`). A custom
+  emoji's and a GIF's cells keep their size.
+- A sticker tapped in a pack sheet, which opens its preview with the menu at
+  once, plays one haptic (the menu's), not two.
+
 ### Fixed (a pack sheet follows the finger past its grid)
 
 - A pull down on a bottom pack sheet's grid at its top, or anywhere on its

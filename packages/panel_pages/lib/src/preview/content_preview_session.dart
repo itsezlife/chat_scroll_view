@@ -5,6 +5,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -304,6 +305,15 @@ final class ContentPreviewSession implements CatalogLongPressSession {
 
   /// What the preview shows now.
   ContentPreviewItem get item => _item.value;
+
+  /// What the preview shows, told as it follows the finger to another cell.
+  ValueListenable<ContentPreviewItem> get shown => _item;
+
+  /// Whether the grid under the preview draws the cell of [kind] it shows
+  /// smaller while it is open: a sticker's. A custom emoji's and a GIF's
+  /// cells keep their size.
+  static bool shrinksCellOf(ContentPreviewKind kind) =>
+      kind == ContentPreviewKind.sticker;
 
   /// The items of the menu while it is up, or null.
   List<ContentPreviewAction>? get menu => _menu.value;

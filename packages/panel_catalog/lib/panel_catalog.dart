@@ -37,6 +37,7 @@ export 'src/model/catalog_section_state.dart';
 export 'src/model/section_layout.dart';
 export 'src/theme/panel_catalog_theme.dart';
 export 'src/viewport/catalog_focus.dart';
+export 'src/viewport/catalog_leaf_preview.dart' show CatalogLeafPreview;
 export 'src/viewport/catalog_overscroll_sink.dart' show CatalogOverscrollSink;
 export 'src/viewport/catalog_scroll_position.dart';
 export 'src/viewport/catalog_section_navigation.dart'

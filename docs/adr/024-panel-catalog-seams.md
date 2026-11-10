@@ -73,6 +73,27 @@ remainder split as a margin.
 | Hover | `PanelCatalogThemeData.leafHoverHighlightSize` paints the hover wash as a box of that size centred in the cell (held to it) instead of the inset cell. The reference desktop client's is 34 x 32, radius 8, whatever the cell. |
 | Press | `leafPressFeedback`: `inkAndScale` (the default: the press wash and the 0.8 shrink, a touch grid) or `none` (a desktop list: no wash, no shrink, the hover box stays on the pressed cell until release, and the leaf is chosen on release). |
 
+## Amendment: the grid under a content preview (2026-11-10)
+
+Native-media ticket 154. While a content preview was open the grid kept its
+own feedback: the held cell's press wash and shrink until the finger left it,
+and a pointer's pinned or hover wash. The reference mobile client draws no
+selector under its preview; it scales the cell the preview shows instead:
+`ContentPreviewViewer` calls `setScaled(true)` on the previewed
+`StickerEmojiCell` / `StickerCell` as it opens (and `setScaled(false)` on the
+one it leaves as the finger slides on), and those cells move `scale` toward
+0.8 by `dt / 400` per frame (linear, 80 ms from 1 to 0.8) and back to 1 at
+the same rate. A `ContextLinkCell` is not scaled for a GIF
+(`contentType != CONTENT_TYPE_GIF`), and custom emoji cells
+(`EmojiView.ImageViewEmoji`, `EmojiPacksAlert.EmojiImageView`) only keep
+their own press scale.
+
+| Area | Decision |
+| ---- | -------- |
+| Seam | `PanelCatalogViewport.leafPreview`: a `CatalogLeafPreview` while the host has a preview open over the grid, with the cell it shows as `shrunk` (or none). |
+| Paint | While set: no press wash, no press scale and no hover wash on any cell, the pinned one included. A press under way when it is set ends there, with no release spring. The `shrunk` cell is drawn at 0.8, reached linearly at 1/400 per ms from where it was (the held cell's press scale); a cell let go returns to 1 at the same pace. |
+| Pages | `panel_pages` follows the session (the cell the finger was over when the preview changed what it shows). A sticker's cell is shrunk; a custom emoji's and a GIF's are not, as in the reference. |
+
 ## Amendment: where a header action is
 
 `PanelCatalogController.sectionActionBoundsOf(sectionId)` (through

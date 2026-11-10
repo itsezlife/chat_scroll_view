@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the grid under a content preview)
+
+- `PanelCatalogViewport.leafPreview` takes a `CatalogLeafPreview` while the
+  host has a preview open over the grid: no cell is drawn pressed or hovered
+  (a pinned one included), a press under way ends without its release, and
+  the cell the preview shows (`shrunk`) is drawn at 0.8, reached linearly
+  in 80 ms, following the preview from cell to cell.
+
 ### Added (the drag past the top edge goes to the host)
 
 - `PanelCatalogViewport.overscrollSink` takes a `CatalogOverscrollSink`: the
