@@ -14,6 +14,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -300,6 +301,22 @@ void main() {
 
       expect(host.picks.single.key, const ContentKey.document('a-3'));
       expect(host.picks.single.source, PickSource.recents);
+    });
+
+    pageTest('a cell answers a press with the platform ink, under a '
+        'mouse too, and a click still picks', (tester) async {
+      await pumpPage(tester);
+      expect(find.byType(ChromeInk), findsWidgets);
+
+      final mouse = await tester.startGesture(
+        cell(tester, column: 2),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+      await mouse.up();
+      await tester.pump();
+
+      expect(host.picks.single.key, const ContentKey.document('a-2'));
     });
 
     pageTest('a cell is a button named for its clip', (tester) async {

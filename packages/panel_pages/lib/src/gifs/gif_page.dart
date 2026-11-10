@@ -983,7 +983,9 @@ class _CellState extends State<_Cell> {
   // The loader's disc in a grid cell, whatever the cell's size.
   static const double _loadingRadius = 12;
 
-  var _pressed = false;
+  // Whether a hold took the press over: the ink draws nothing until the next
+  // press.
+  var _held = false;
   ContentPreviewSession? _session;
 
   @override
@@ -1019,12 +1021,8 @@ class _CellState extends State<_Cell> {
         _ => null,
       };
 
-  void _press(bool value) {
-    if (_pressed != value) setState(() => _pressed = value);
-  }
-
   void _begin(LongPressStartDetails details, PointerDeviceKind kind) {
-    _press(false);
+    setState(() => _held = true);
     final preview = widget.preview;
     if (preview == null) return;
     _session = preview.begin(context, preview.itemOf(widget.item), kind);
@@ -1038,11 +1036,9 @@ class _CellState extends State<_Cell> {
       TapGestureRecognizer:
           GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
             () => TapGestureRecognizer(debugOwner: this),
+            // The primary tap is the ink's: this one takes the secondary
+            // click only.
             (tap) => tap
-              ..onTap = widget.onTap
-              ..onTapDown = ((_) => _press(true))
-              ..onTapUp = ((_) => _press(false))
-              ..onTapCancel = (() => _press(false))
               ..onSecondaryTapUp = preview == null
                   ? null
                   : (details) {
@@ -1072,8 +1068,12 @@ class _CellState extends State<_Cell> {
     ..onLongPressEnd = ((details) {
       _session?.end(details);
       _session = null;
-    })
-    ..onLongPressCancel = (() => _press(false));
+    });
+
+  // A new press draws its ink again; the held one faded out unseen.
+  void _release(PointerDownEvent _) {
+    if (_held) setState(() => _held = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1091,10 +1091,17 @@ class _CellState extends State<_Cell> {
         child: RawGestureDetector(
           behavior: HitTestBehavior.opaque,
           gestures: _gestures(),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ContentView(
+          // The platform's press: a ripple on Android, the highlight on iOS,
+          // a ripple from the press on a desktop (no hover fill), in the
+          // catalogue's press colour, the text colour at 0x0F.
+          child: Listener(
+            onPointerDown: _release,
+            child: ChromeInk(
+              color: _held
+                  ? const Color(0x00000000)
+                  : palette.onSurface.withAlpha(0x0F),
+              onTap: widget.onTap,
+              child: ContentView(
                 content: widget.item.key,
                 scope: widget.assets,
                 preset: AssetPreset(
@@ -1117,10 +1124,7 @@ class _CellState extends State<_Cell> {
                 tint: ChromeThemeScope.of(context).placeholder.skeleton,
                 loadingRadius: _loadingRadius,
               ),
-              // The catalogue's press wash: the text colour at 0x0F.
-              if (_pressed)
-                ColoredBox(color: palette.onSurface.withAlpha(0x0F)),
-            ],
+            ),
           ),
         ),
       ),
