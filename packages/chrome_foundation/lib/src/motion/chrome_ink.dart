@@ -72,7 +72,9 @@ abstract final class ChromeInkTiming {
 ///
 /// [color] is the ripple's or the highlight's colour; [hoverColor], when
 /// given, fills the target while a mouse is over it (only for
-/// [ChromeInkKind.pointer]). A null [onTap] draws nothing and takes no
+/// [ChromeInkKind.pointer]). Only the primary button presses; a secondary
+/// click is left to the host's context handlers. A null [onTap] draws
+/// nothing and takes no
 /// press. Under an instant motion speed nothing ripples: the target shows the
 /// highlight while pressed.
 ///
@@ -284,7 +286,8 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
   }
 }
 
-/// One press on a [ChromeInk]: reported at once on the pointer's down,
+/// One press on a [ChromeInk], of the primary button only: reported at once
+/// on the pointer's down,
 /// followed as it moves, and ended by its up, or cancelled when another
 /// recognizer takes the pointer (a scroll or a drag that moves first) or the
 /// pointer is cancelled.
@@ -304,6 +307,12 @@ final class _PressRecognizer extends PrimaryPointerGestureRecognizer {
 
   var _won = false;
   Offset? _upAt;
+
+  // Only the primary button presses (a finger's or a stylus's contact is
+  // one): a secondary or middle click is for the host's context handlers.
+  @override
+  bool isPointerAllowed(PointerDownEvent event) =>
+      event.buttons & kPrimaryButton != 0 && super.isPointerAllowed(event);
 
   @override
   void addAllowedPointer(PointerDownEvent event) {
