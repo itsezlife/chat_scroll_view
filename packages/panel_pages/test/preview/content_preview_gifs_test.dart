@@ -9,6 +9,7 @@ library;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
@@ -99,9 +100,11 @@ void main() {
     return gesture;
   }
 
+  // The way out takes the menu's hide, which outlasts the preview's fade,
+  // then a frame to leave the overlay.
   Future<void> settleClose(WidgetTester tester) async {
     await tester.pump();
-    await tester.pump(ContentPreviewSession.showDuration);
+    await tester.pump(AppearMotion$Unfold.hide);
     await tester.pump(const Duration(milliseconds: 16));
     await tester.pump();
   }

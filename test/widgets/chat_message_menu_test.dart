@@ -1,5 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,6 +27,7 @@ Future<void> _openMenu(
   ChatMessageMenuItemBuilder? itemBuilder,
   ChatMessageMenuBuilder? menuBuilder,
   ChatMessageMenuTransitionBuilder? transitionBuilder,
+  ChatMessageMenuSurfaceBuilder? surfaceBuilder,
   List<ChatMessageMenuItem> items = _items,
   ChatMessageMenuPresentation presentation = ChatMessageMenuPresentation.sheet,
   ChatSelectionPolicy? selectionPolicy,
@@ -62,6 +65,7 @@ Future<void> _openMenu(
                     itemBuilder: itemBuilder,
                     menuBuilder: menuBuilder,
                     transitionBuilder: transitionBuilder,
+                    surfaceBuilder: surfaceBuilder,
                   );
                   onDone(result);
                 },
@@ -398,6 +402,181 @@ void main() {
     expect(card.color, fill);
   });
 
+  group('the action card', () {
+    const long = 'Copy Selected as Text, all of it';
+
+    testWidgets('is as wide as its widest row: a longer label widens it '
+        'instead of ellipsizing', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        items: const <ChatMessageMenuItem>[
+          ChatMessageMenuItem(id: 'a', label: 'Copy', icon: Icons.copy),
+          ChatMessageMenuItem(id: 'b', label: long, icon: Icons.copy),
+        ],
+      );
+
+      final label = tester.renderObject<RenderParagraph>(find.text(long));
+      expect(label.didExceedMaxLines, isFalse);
+      expect(
+        tester.getSize(find.byType(ChatMessageMenuCard)).width,
+        greaterThan(ChatMessageMenuCard.defaultMinWidth),
+      );
+    });
+
+    testWidgets('is never narrower than 200', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        items: const <ChatMessageMenuItem>[
+          ChatMessageMenuItem(id: 'a', label: 'Copy', icon: Icons.copy),
+        ],
+      );
+
+      expect(
+        tester.getSize(find.byType(ChatMessageMenuCard)).width,
+        ChatMessageMenuCard.defaultMinWidth,
+      );
+    });
+
+    testWidgets('ellipsizes a row only past the screen', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        items: <ChatMessageMenuItem>[
+          ChatMessageMenuItem(id: 'a', label: long * 6, icon: Icons.copy),
+        ],
+      );
+
+      expect(
+        tester
+            .renderObject<RenderParagraph>(find.text(long * 6))
+            .didExceedMaxLines,
+        isTrue,
+      );
+      final card = tester.getRect(find.byType(ChatMessageMenuCard));
+      expect(card.left, greaterThanOrEqualTo(0));
+      expect(card.right, lessThanOrEqualTo(800));
+    });
+
+    testWidgets('stretches every row across the card, short labels too, '
+        'under a host surface that loosens its child', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        items: const <ChatMessageMenuItem>[
+          ChatMessageMenuItem(id: 'a', label: 'Copy', icon: Icons.copy),
+          ChatMessageMenuItem(id: 'b', label: 'Pin', icon: Icons.push_pin),
+        ],
+        // A surface as a glass is built: a stack, which lays out its child
+        // loosely.
+        surfaceBuilder: (context, radius, rows) => Stack(
+          children: [
+            const Positioned.fill(child: ColoredBox(color: Color(0xFF00FF00))),
+            rows,
+          ],
+        ),
+      );
+
+      final card = tester.getRect(find.byType(ChatMessageMenuCard));
+      expect(card.width, ChatMessageMenuCard.defaultMinWidth);
+      for (final label in ['Copy', 'Pin']) {
+        final row = find
+            .ancestor(of: find.text(label), matching: find.byType(InkWell))
+            .first;
+        expect(tester.getRect(row).width, card.width, reason: label);
+      }
+    });
+
+    testWidgets('the reaction strip takes the same host surface, at its '
+        'own corners', (tester) async {
+      final radii = <double>[];
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        surfaceBuilder: (context, radius, child) {
+          radii.add(radius);
+          return ColoredBox(
+            key: ValueKey('surface-$radius'),
+            color: const Color(0xFF00FF00),
+            child: child,
+          );
+        },
+      );
+
+      expect(radii, containsAll(<double>[12, 22]));
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('surface-22.0')),
+          matching: find.text('👍'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('takes the host surface around its rows', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        surfaceBuilder: (context, radius, rows) => ColoredBox(
+          key: const ValueKey('host-surface'),
+          color: const Color(0xFF00FF00),
+          child: rows,
+        ),
+      );
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('host-surface')),
+          matching: find.text('Edit'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(ChatMessageMenuCard),
+          // The package fill; the rows keep their transparent ink layers.
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Material &&
+                widget.type != MaterialType.transparency &&
+                widget.color != Colors.transparent,
+          ),
+        ),
+        findsNothing,
+      );
+    });
+  });
+
+  group('a press anywhere outside the menu dismisses it', () {
+    for (final (name, at) in <(String, Offset Function(Rect card))>[
+      ('left of the card', (card) => card.centerLeft - const Offset(6, 0)),
+      ('right of the card', (card) => card.centerRight + const Offset(6, 0)),
+      ('below the card', (card) => card.bottomCenter + const Offset(0, 6)),
+    ]) {
+      testWidgets(name, (tester) async {
+        var done = false;
+        ChatMessageMenuResult? result = const ChatMessageMenuResult.item('x');
+        await _openMenu(
+          tester,
+          onDone: (value) {
+            done = true;
+            result = value;
+          },
+          tapGlobal: const Offset(400, 140),
+        );
+        final card = tester.getRect(find.byType(ChatMessageMenuCard));
+
+        await tester.tapAt(at(card));
+        await tester.pump();
+
+        expect(done, isTrue);
+        expect(result, isNull);
+        await tester.pump(const Duration(milliseconds: 350));
+      });
+    }
+  });
+
   testWidgets('itemBuilder replaces package action rows', (tester) async {
     await _openMenu(
       tester,
@@ -472,12 +651,12 @@ void main() {
       expect(find.text('Edit'), findsNothing);
     });
 
-    testWidgets('a sheet unfolds from the edge facing the message', (
-      tester,
-    ) async {
+    testWidgets('a sheet, hanging left of the press, plays from its right '
+        'corner, and says whether it has reactions', (tester) async {
       await _openMenu(tester, onDone: (_) {}, transitionBuilder: builder);
 
-      expect(played.last.origin.x, -1);
+      expect(played.last.origin.x, 1);
+      expect(played.last.hasReactions, isTrue);
     });
   });
 
@@ -609,6 +788,59 @@ void main() {
 
       expect(find.byType(ChatMessageMenuScrim), findsOneWidget);
       expect(find.text('Edit'), findsOneWidget);
+    });
+
+    testWidgets('a second secondary click on the message closes the popup', (
+      tester,
+    ) async {
+      var done = false;
+      ChatMessageMenuResult? result = const ChatMessageMenuResult.item('x');
+      await _openMenu(
+        tester,
+        onDone: (value) {
+          done = true;
+          result = value;
+        },
+        presentation: ChatMessageMenuPresentation.popup,
+      );
+
+      await tester.tapAt(const Offset(60, 140), buttons: kSecondaryButton);
+      await tester.pump();
+      expect(done, isTrue);
+      expect(result, isNull);
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('Edit'), findsNothing);
+    });
+
+    testWidgets('a popup card is 156 at least and 300 at most', (tester) async {
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        presentation: ChatMessageMenuPresentation.popup,
+        reactions: const <String>[],
+        items: const <ChatMessageMenuItem>[
+          ChatMessageMenuItem(id: 'a', label: 'Copy', icon: Icons.copy),
+        ],
+      );
+      expect(tester.getSize(find.byType(ChatMessageMenuCard)).width, 156);
+    });
+
+    testWidgets('a popup card ellipsizes past 300', (tester) async {
+      const long = 'A label far longer than any desktop menu allows, and more';
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        presentation: ChatMessageMenuPresentation.popup,
+        reactions: const <String>[],
+        items: const <ChatMessageMenuItem>[
+          ChatMessageMenuItem(id: 'a', label: long, icon: Icons.copy),
+        ],
+      );
+      expect(tester.getSize(find.byType(ChatMessageMenuCard)).width, 300);
+      expect(
+        tester.renderObject<RenderParagraph>(find.text(long)).didExceedMaxLines,
+        isTrue,
+      );
     });
 
     testWidgets('popup presentation omits the scrim', (tester) async {
@@ -793,7 +1025,9 @@ void main() {
       expect(find.text('👍'), findsNothing);
     });
 
-    testWidgets('popup origin follows the pointer X', (tester) async {
+    testWidgets('a popup opens 5 right of the pointer, below it', (
+      tester,
+    ) async {
       const tap = Offset(220, 140);
       await _openMenu(
         tester,
@@ -802,9 +1036,10 @@ void main() {
         tapGlobal: tap,
       );
 
-      final menuLeft = tester.getTopLeft(find.byType(ChatMessageMenuColumn)).dx;
-      expect(menuLeft, closeTo(tap.dx, 1));
-      expect(menuLeft, isNot(ChatMessageMenuPlacement.edgeInset));
+      expect(
+        tester.getTopLeft(find.byType(ChatMessageMenuColumn)),
+        tap + const Offset(5, 0),
+      );
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:chrome_foundation/src/menu/pointer_menu_metrics.dart';
+import 'package:chrome_foundation/src/motion/appear_controller.dart';
 import 'package:chrome_foundation/src/motion/appear_motion.dart';
 import 'package:chrome_foundation/src/motion/chrome_motion_scope.dart';
 import 'package:flutter/foundation.dart';
@@ -12,9 +13,11 @@ import 'package:flutter/widgets.dart';
 ///
 /// It shows when it first builds. Turning [visible] off plays the hide and
 /// then calls [onHidden], once; the owner removes the surface from there.
-/// Turning it on again during the hide shows the surface again from the
-/// start. The durations come from the nearest `ChromeMotionScope`, so an
-/// instant speed shows and hides at once.
+/// Turning it on again during the hide turns the hide back from where it is,
+/// and turning it off during the show fades the surface from where it is
+/// while the show goes on beneath ([AppearController]); after a hide that
+/// ran to its end it shows from the start. The durations come from the
+/// nearest `ChromeMotionScope`, so an instant speed shows and hides at once.
 ///
 /// The motion is relative to [origin]: the corner a pointer menu grows from,
 /// the edge a popup unfolds from (top for a menu that hangs below what it
@@ -75,10 +78,9 @@ class ChromeAppear extends StatefulWidget {
 }
 
 class _ChromeAppearState extends State<ChromeAppear>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _clock = AnimationController(vsync: this);
+    with TickerProviderStateMixin {
+  late final AppearController _clock = AppearController(vsync: this);
   var _started = false;
-  var _hiding = false;
 
   AppearMotion get _motion =>
       widget.motion ?? AppearMotion.forPlatform(defaultTargetPlatform);
@@ -116,26 +118,27 @@ class _ChromeAppearState extends State<ChromeAppear>
   }
 
   void _show() {
-    _hiding = false;
-    _clock.duration = _motion.showDuration(_speed, rows: widget.rows);
-    _clock.forward(from: 0).ignore();
+    _clock
+        .show(
+          showDuration: _motion.showDuration(_speed, rows: widget.rows),
+          hideDuration: _motion.hideDuration(_speed),
+        )
+        .ignore();
   }
 
   void _hide() {
-    _hiding = true;
-    _clock.duration = _motion.hideDuration(_speed);
-    _clock.forward(from: 0).orCancel.then((_) {
-      if (mounted && _hiding) widget.onHidden?.call();
-    }, onError: (Object _) {}).ignore();
+    _clock.hide(hideDuration: _motion.hideDuration(_speed)).then((_) {
+      if (mounted && _clock.isHiding && _clock.hideProgress >= 1) {
+        widget.onHidden?.call();
+      }
+    }).ignore();
   }
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _clock,
     builder: (context, child) => AppearFrameView(
-      frame: _hiding
-          ? _motion.hideAt(_clock.value)
-          : _motion.showAt(_clock.value),
+      frame: _clock.frameOf(_motion),
       origin: widget.origin,
       borderRadius: widget.borderRadius,
       revealColor: widget.revealColor,
@@ -213,7 +216,11 @@ class AppearFrameView extends StatelessWidget {
                   origin: origin,
                   color: revealColor,
                 ),
-                child: child,
+                child: _AppearContentScope(
+                  frame: frame,
+                  origin: origin,
+                  child: child,
+                ),
               ),
             ),
           ),
@@ -221,6 +228,56 @@ class AppearFrameView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The content of a surface an appear motion plays on: the part that fades
+/// and scales over the surface's own background
+/// (`AppearFrame.contentOpacity`, `AppearFrame.contentScale`), about the
+/// motion's origin.
+///
+/// A surface whose background and content move apart (a menu whose panel
+/// opens while its rows come in) wraps its content in this, inside the
+/// background. Outside an appear motion, or under one that does not move the
+/// content, it draws [child] as is.
+class AppearContent extends StatelessWidget {
+  /// The content [child].
+  const AppearContent({required this.child, super.key});
+
+  /// The content.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<_AppearContentScope>();
+    final frame = scope?.frame ?? AppearFrame.rest;
+    // One shape whatever the frame, so the content keeps its state.
+    return Opacity(
+      opacity: frame.contentOpacity.clamp(0.0, 1.0),
+      child: Transform.scale(
+        scale: frame.contentScale,
+        alignment: scope?.origin ?? Alignment.center,
+        child: child,
+      ),
+    );
+  }
+}
+
+class _AppearContentScope extends InheritedWidget {
+  const _AppearContentScope({
+    required this.frame,
+    required this.origin,
+    required super.child,
+  });
+
+  final AppearFrame frame;
+  final Alignment origin;
+
+  @override
+  bool updateShouldNotify(_AppearContentScope oldWidget) =>
+      oldWidget.frame.contentOpacity != frame.contentOpacity ||
+      oldWidget.frame.contentScale != frame.contentScale ||
+      oldWidget.origin != origin;
 }
 
 class _FrameClip extends SingleChildRenderObjectWidget {
@@ -323,6 +380,11 @@ class _ShadowPainter extends CustomPainter {
       );
     }
   }
+
+  // The shadow takes no press: what the surface leaves transparent stays
+  // open to what is under it (the dismiss layer of a menu).
+  @override
+  bool hitTest(Offset position) => false;
 
   @override
   bool shouldRepaint(_ShadowPainter oldDelegate) =>

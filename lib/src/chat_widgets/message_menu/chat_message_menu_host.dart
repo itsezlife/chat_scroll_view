@@ -184,6 +184,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
       tapGlobal: config.tapGlobal,
       safePadding: config.safePadding,
       presentation: config.presentation,
+      hasReactions: config.reactions.isNotEmpty,
     );
     final slots = ChatMessageMenuSlots(
       items: config.items,
@@ -195,6 +196,19 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
         items: config.items,
         onSelect: (id) => _close(ChatMessageMenuResult.item(id)),
         itemBuilder: config.itemBuilder,
+        surfaceBuilder: config.surfaceBuilder,
+        // A popup's card is as wide as the desktop pointer menu allows.
+        minWidth: switch (config.presentation) {
+          ChatMessageMenuPresentation.sheet =>
+            ChatMessageMenuCard.defaultMinWidth,
+          ChatMessageMenuPresentation.popup =>
+            ChatMessageMenuCard.popupMinWidth,
+        },
+        maxWidth: switch (config.presentation) {
+          ChatMessageMenuPresentation.sheet => double.infinity,
+          ChatMessageMenuPresentation.popup =>
+            ChatMessageMenuCard.popupMaxWidth,
+        },
       ),
       reactionStrip: config.reactions.isEmpty
           ? const SizedBox.shrink()
@@ -203,6 +217,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
               onReaction: (emoji) =>
                   _close(ChatMessageMenuResult.reaction(emoji)),
               reactionBuilder: config.reactionBuilder,
+              surfaceBuilder: config.surfaceBuilder,
             ),
     );
 
@@ -228,24 +243,20 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
                 child: ChatMessageMenuAppearance(
                   key: _appearanceKey,
                   presentation: config.presentation,
-                  origin: ChatMessageMenuAppearance.originFor(
-                    presentation: config.presentation,
-                    menuOrigin: placement.menuOrigin,
-                    tap: config.tapGlobal,
-                    fitsAbove: placement.fitsAbove,
-                  ),
+                  origin: placement.origin,
                   rows: config.items.length,
+                  hasReactions: config.reactions.isNotEmpty,
                   transitionBuilder: config.transitionBuilder,
                   child: KeyedSubtree(
                     key: _menuKey,
+                    // As wide as its widest row, up to the screen.
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxWidth: math.min(
-                          ChatMessageMenuCard.defaultMinWidth +
-                              ChatMessageMenuReactions.startOverhang +
-                              ChatMessageMenuReactions.endOverhang,
+                        maxWidth: math.max(
+                          0,
                           screenSize.width -
-                              2 * ChatMessageMenuPlacement.edgeInset,
+                              config.safePadding.horizontal -
+                              2 * ChatMessageMenuPlacement.sheetScreenInset,
                         ),
                       ),
                       child:

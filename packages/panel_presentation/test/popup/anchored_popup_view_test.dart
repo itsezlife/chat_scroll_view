@@ -295,6 +295,47 @@ void main() {
       expect(_popupRect(tester).width, 300);
     });
 
+    testWidgets('a hide that cuts the show, and a show that cuts the hide, '
+        'turn back from where the popup is', (tester) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      double opacity() => tester
+          .widget<Opacity>(
+            find.ancestor(
+              of: find.byType(PanelShell),
+              matching: find.byType(Opacity),
+            ),
+          )
+          .opacity;
+
+      rig.controller.show();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      var last = opacity();
+      expect(last, greaterThan(0));
+
+      // The pointer leaves and comes back, twice over: every frame follows
+      // the last, with no jump.
+      for (final toggle in [
+        rig.controller.hide,
+        rig.controller.show,
+        rig.controller.hide,
+        rig.controller.show,
+      ]) {
+        toggle();
+        for (var i = 0; i < 4; i++) {
+          await tester.pump(const Duration(milliseconds: 10));
+          final now = opacity();
+          expect((now - last).abs(), lessThan(0.15));
+          last = now;
+        }
+      }
+      await settleMotion(tester);
+      expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+      expect(opacity(), 1);
+      expect(_popupRect(tester).width, 300);
+    });
+
     testWidgets('showing lasts the popupShow role, hiding the popupHide role', (
       tester,
     ) async {

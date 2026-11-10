@@ -13,6 +13,7 @@ class ChatMessageMenuReactions extends StatelessWidget {
     required this.onReaction,
     this.maxWidth,
     this.reactionBuilder,
+    this.surfaceBuilder,
     super.key,
   });
 
@@ -27,6 +28,9 @@ class ChatMessageMenuReactions extends StatelessWidget {
 
   /// Optional custom slot. Null uses the package emoji slot.
   final ChatMessageMenuReactionBuilder? reactionBuilder;
+
+  /// The host's surface for the strip, or null for the package pill.
+  final ChatMessageMenuSurfaceBuilder? surfaceBuilder;
 
   /// Slot size.
   static const double slot = 36;
@@ -68,99 +72,105 @@ class ChatMessageMenuReactions extends StatelessWidget {
       Radius.circular(menuTheme.reactionsRadius ?? height / 2),
     );
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cap = math.min(
-          maxWidth ?? ChatMessageMenuCard.defaultMaxWidth,
-          MediaQuery.widthOf(context) - 12,
-        );
-        final maxAvailable = constraints.maxWidth.isFinite
-            ? math.min(constraints.maxWidth, cap)
-            : cap;
-        final contentWidth = contentWidthForCount(reactions.length);
-        final width = math.min(contentWidth, maxAvailable);
-        final fits = contentWidth <= maxAvailable;
+    // Sized from the screen, not from the room it is given, so the strip
+    // reports its width to a menu that shrink-wraps its rows.
+    final maxAvailable = math.max<double>(
+      0,
+      math.min(
+        maxWidth ?? ChatMessageMenuCard.defaultMaxWidth,
+        MediaQuery.widthOf(context) - 12,
+      ),
+    );
+    final contentWidth = contentWidthForCount(reactions.length);
+    final width = math.min(contentWidth, maxAvailable);
+    final fits = contentWidth <= maxAvailable;
 
-        Widget slots;
-        if (fits) {
-          slots = Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (var i = 0; i < reactions.length; i++) ...<Widget>[
-                if (i > 0) const SizedBox(width: gapSlots),
-                reactionBuilder?.call(
-                      context,
-                      reactions[i],
-                      () => onReaction(reactions[i]),
-                    ) ??
-                    _ReactionSlot(
-                      emoji: reactions[i],
-                      onTap: () => onReaction(reactions[i]),
-                    ),
-              ],
-            ],
-          );
-        } else {
-          slots = ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-              horizontal: pad,
-              vertical: padVertical,
-            ),
-            itemCount: reactions.length,
-            separatorBuilder: (_, _) => const SizedBox(width: gapSlots),
-            itemBuilder: (context, index) =>
-                reactionBuilder?.call(
+    Widget slots;
+    if (fits) {
+      slots = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (var i = 0; i < reactions.length; i++) ...<Widget>[
+            if (i > 0) const SizedBox(width: gapSlots),
+            reactionBuilder?.call(
                   context,
-                  reactions[index],
-                  () => onReaction(reactions[index]),
+                  reactions[i],
+                  () => onReaction(reactions[i]),
                 ) ??
                 _ReactionSlot(
-                  emoji: reactions[index],
-                  onTap: () => onReaction(reactions[index]),
+                  emoji: reactions[i],
+                  onTap: () => onReaction(reactions[i]),
                 ),
-          );
-        }
-
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            boxShadow: const <BoxShadow>[
-              BoxShadow(
-                color: Color.fromRGBO(0, 0, 0, 0.35),
-                blurRadius: 12,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Material(
-            elevation: 0,
-            shadowColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            borderRadius: radius,
-            color:
-                menuTheme.reactionsColor ??
-                Color.alphaBlend(
-                  colorScheme.onSurface.withValues(alpha: 0.08),
-                  colorScheme.surface,
-                ),
-            clipBehavior: Clip.antiAlias,
-            child: SizedBox(
-              width: width,
-              height: ChatMessageMenuReactions.height,
-              child: Padding(
-                padding: !fits
-                    ? EdgeInsets.zero
-                    : const EdgeInsets.symmetric(
-                        horizontal: pad,
-                        vertical: padVertical,
-                      ),
-                child: slots,
-              ),
+          ],
+        ],
+      );
+    } else {
+      slots = ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(
+          horizontal: pad,
+          vertical: padVertical,
+        ),
+        itemCount: reactions.length,
+        separatorBuilder: (_, _) => const SizedBox(width: gapSlots),
+        itemBuilder: (context, index) =>
+            reactionBuilder?.call(
+              context,
+              reactions[index],
+              () => onReaction(reactions[index]),
+            ) ??
+            _ReactionSlot(
+              emoji: reactions[index],
+              onTap: () => onReaction(reactions[index]),
             ),
+      );
+    }
+
+    final content = SizedBox(
+      width: width,
+      height: ChatMessageMenuReactions.height,
+      child: Padding(
+        padding: !fits
+            ? EdgeInsets.zero
+            : const EdgeInsets.symmetric(
+                horizontal: pad,
+                vertical: padVertical,
+              ),
+        child: slots,
+      ),
+    );
+    if (surfaceBuilder case final builder?) {
+      return builder(
+        context,
+        radius.topLeft.x,
+        Material(type: MaterialType.transparency, child: content),
+      );
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.35),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
-        );
-      },
+        ],
+      ),
+      child: Material(
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        borderRadius: radius,
+        color:
+            menuTheme.reactionsColor ??
+            Color.alphaBlend(
+              colorScheme.onSurface.withValues(alpha: 0.08),
+              colorScheme.surface,
+            ),
+        clipBehavior: Clip.antiAlias,
+        child: content,
+      ),
     );
   }
 }

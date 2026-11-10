@@ -503,13 +503,28 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
     super.dispose();
   }
 
+  // The preview's fade out and the menu's hide run from the same frame; the
+  // overlay goes once both are over.
+  var _previewGone = false;
+  var _menuGone = true;
+
   void _onOpenChanged() {
     if (_session._open.value) return;
-    setState(() {});
+    setState(() => _menuGone = _session._menu.value == null);
     unawaited(_blur.reverse());
     _show.reverse().whenComplete(() {
-      if (mounted) _session._finish();
+      _previewGone = true;
+      _finishWhenGone();
     });
+  }
+
+  void _onMenuHidden() {
+    _menuGone = true;
+    _finishWhenGone();
+  }
+
+  void _finishWhenGone() {
+    if (mounted && _previewGone && _menuGone) _session._finish();
   }
 
   void _onMenuChanged() {
@@ -656,6 +671,8 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
                     ),
                     // Hangs below the preview: unfolds from its top edge.
                     child: ChromeAppear(
+                      visible: session._open.value,
+                      onHidden: _onMenuHidden,
                       origin: Alignment.topCenter,
                       rows: menu.length,
                       borderRadius: BorderRadius.circular(_PreviewMenu.radius),

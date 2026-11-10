@@ -4,8 +4,11 @@ import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pa
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/message_menu_chrome.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -61,6 +64,8 @@ ChatMessageMenuRequest _request({
   inlineHit: inlineHit,
 );
 
+const _tap = Offset(500, 300);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -92,12 +97,15 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => menu.present(context, request),
-              child: const Text('Open'),
+      ChromeThemeScope(
+        palette: const ChromePalette.dark(),
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => menu.present(context, request),
+                child: const Text('Open'),
+              ),
             ),
           ),
         ),
@@ -135,12 +143,16 @@ void main() {
         },
       );
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => menu.present(context, _request(messageId: 1)),
-                child: const Text('Open'),
+        ChromeThemeScope(
+          palette: const ChromePalette.dark(),
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () =>
+                      menu.present(context, _request(messageId: 1)),
+                  child: const Text('Open'),
+                ),
               ),
             ),
           ),
@@ -569,4 +581,278 @@ void main() {
       );
     });
   });
+
+  group('the Android message menu', () {
+    // A long press at [tap] on a one-message chat, under the app's chrome
+    // theme (tests run as Android).
+    Future<void> open(WidgetTester tester, {Offset tap = _tap}) async {
+      final dataSource = _OneMessageSource();
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.mobile(),
+      );
+      addTearDown(dataSource.dispose);
+      addTearDown(selection.dispose);
+      final menu = MessageMenu(
+        dataSource: dataSource,
+        selection: selection,
+        actions: MessageMenuActions(onDelete: (_) {}, onEdit: (_) {}),
+        clipboard: FakeRichClipboard(),
+      );
+      await tester.pumpWidget(
+        ChromeThemeScope(
+          palette: const ChromePalette.dark(),
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => menu.present(
+                    context,
+                    ChatMessageMenuRequest(
+                      messageId: 1,
+                      slotGlobal: Rect.fromLTWH(0, tap.dy - 30, 800, 80),
+                      tapGlobal: tap,
+                    ),
+                  ),
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    Rect cardRect(WidgetTester tester) =>
+        tester.getRect(find.byType(ChatMessageMenuCard).first);
+
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+    }
+
+    testWidgets('its card is the scrim menu glass, its rows the chrome\'s: '
+        '48 tall, label 43 after the icon\'s start, 18 in', (tester) async {
+      await open(tester);
+
+      final card = find.byType(ChatMessageMenuCard).first;
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is GlassSurface &&
+                widget.material == GlassMaterial.scrimMenu,
+          ),
+        ),
+        findsOneWidget,
+      );
+      final row = find.ancestor(
+        of: find.text('Copy'),
+        matching: find.byType(MessageMenuRow),
+      );
+      expect(tester.getSize(row).height, 48);
+      expect(
+        tester.getTopLeft(find.text('Copy')).dx - tester.getTopLeft(row).dx,
+        18 + 43,
+      );
+      expect(tester.getSize(card).width, greaterThanOrEqualTo(200));
+    });
+
+    testWidgets('its reaction strip is the same glass', (tester) async {
+      await open(tester);
+
+      final glass = find.byWidgetPredicate(
+        (widget) =>
+            widget is GlassSurface &&
+            widget.material == GlassMaterial.scrimMenu,
+      );
+      expect(
+        find.ancestor(
+          of: find.byType(ChatMessageMenuReactions),
+          matching: glass,
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(ChatMessageMenuReactions),
+          matching: glass,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('it blooms from its top right corner with its reaction '
+        'strip, and its card ends 64 left of the press', (tester) async {
+      await open(tester);
+
+      final appear = tester.widget<ChromeAppear>(find.byType(ChromeAppear));
+      expect(appear.motion, const AppearMotion.bloom());
+      expect(appear.origin, Alignment.topRight);
+      final card = tester.getRect(find.byType(ChatMessageMenuCard).first);
+      expect(card.right, closeTo(_tap.dx - 64, 0.01));
+    });
+
+    for (final (name, at) in <(String, Offset Function(Rect card))>[
+      ('left of it', (card) => card.centerLeft - const Offset(8, 0)),
+      ('at the screen edge', (card) => Offset(2, card.center.dy)),
+      ('right of it', (card) => card.centerRight + const Offset(8, 0)),
+    ]) {
+      testWidgets('a press $name dismisses it', (tester) async {
+        await open(tester);
+        expect(find.text('Copy'), findsOneWidget);
+
+        await tester.tapAt(at(cardRect(tester)));
+        await settle(tester);
+        expect(find.text('Copy'), findsNothing);
+      });
+    }
+  });
+
+  testWidgets('a second secondary click where the menu was opened closes it '
+      '(desktop)', (tester) async {
+    final dataSource = _OneMessageSource();
+    final selection = ChatSelectionController(
+      policy: const ChatSelectionPolicy.desktop(),
+    );
+    addTearDown(dataSource.dispose);
+    addTearDown(selection.dispose);
+    final menu = MessageMenu(
+      dataSource: dataSource,
+      selection: selection,
+      actions: MessageMenuActions(onDelete: (_) {}, onEdit: (_) {}),
+      clipboard: FakeRichClipboard(),
+    );
+    const click = Offset(300, 200);
+    await tester.pumpWidget(
+      ChromeThemeScope(
+        palette: const ChromePalette.dark(),
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => menu.present(
+                  context,
+                  const ChatMessageMenuRequest(
+                    messageId: 1,
+                    slotGlobal: Rect.fromLTWH(0, 170, 800, 60),
+                    tapGlobal: click,
+                  ),
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Select'), findsOneWidget);
+
+    // The menu grows from the pointer: the second click lands on its edge.
+    await tester.tapAt(click + const Offset(4, 4), buttons: kSecondaryButton);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    expect(find.text('Select'), findsNothing);
+    expect(menu.isPresenting, isFalse);
+  });
+
+  testWidgets(
+    'the desktop menu is the pointer menu with icons: its rows, card and '
+    'motion, growing from the corner at the pointer',
+    (tester) async {
+      final dataSource = _OneMessageSource();
+      final selection = ChatSelectionController(
+        policy: const ChatSelectionPolicy.desktop(),
+      );
+      addTearDown(dataSource.dispose);
+      addTearDown(selection.dispose);
+      final menu = MessageMenu(
+        dataSource: dataSource,
+        selection: selection,
+        actions: MessageMenuActions(onDelete: (_) {}, onEdit: (_) {}),
+        clipboard: FakeRichClipboard(),
+      );
+      const click = Offset(300, 200);
+      await tester.pumpWidget(
+        ChromeThemeScope(
+          palette: const ChromePalette.dark(),
+          pointerMenu: PointerMenuTokens.night,
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => menu.present(
+                    context,
+                    const ChatMessageMenuRequest(
+                      messageId: 1,
+                      slotGlobal: Rect.fromLTWH(0, 170, 800, 60),
+                      tapGlobal: click,
+                    ),
+                  ),
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      final row = find
+          .ancestor(
+            of: find.text('Select'),
+            matching: find.byType(MessageMenuPointerRow),
+          )
+          .first;
+      final label = tester.getRect(find.text('Select'));
+      final rowRect = tester.getRect(row);
+      // The label 54 in, 8 above and below it.
+      expect(label.left - rowRect.left, 54);
+      expect(label.top - rowRect.top, 8);
+      expect(rowRect.bottom - label.bottom, 8);
+      final text = tester.widget<Text>(find.text('Select'));
+      expect(text.style?.color, PointerMenuTokens.night.text);
+      expect(text.style?.fontSize, 13);
+      // The icon, 24, 15 in and 5 down, in the menu's bold colour.
+      final icon = find.descendant(of: row, matching: find.byType(Icon));
+      expect(tester.getTopLeft(icon) - rowRect.topLeft, const Offset(15, 5));
+      expect(tester.widget<Icon>(icon).size, 24);
+      expect(tester.widget<Icon>(icon).color, PointerMenuTokens.night.arrow);
+      final appear = tester.widget<ChromeAppear>(find.byType(ChromeAppear));
+      expect(appear.motion, const AppearMotion.grow());
+      expect(appear.origin, Alignment.topLeft);
+      final card = tester.getRect(find.byType(ChatMessageMenuCard));
+      expect(card.topLeft, click + const Offset(5, 0));
+      // The padding above the first row of a menu with icons.
+      expect(
+        tester.getTopLeft(find.byType(MessageMenuPointerRow).first).dy -
+            card.top,
+        5,
+      );
+      // As wide as its widest row, 156 at least.
+      expect(card.width, greaterThanOrEqualTo(156));
+      expect(
+        find.descendant(
+          of: find.byType(ChatMessageMenuCard),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is ColoredBox &&
+                widget.color == PointerMenuTokens.night.background,
+          ),
+        ),
+        findsOneWidget,
+      );
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+  );
 }

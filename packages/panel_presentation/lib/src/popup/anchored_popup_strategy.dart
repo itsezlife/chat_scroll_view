@@ -259,9 +259,13 @@ class _PopupBody extends StatefulWidget {
   State<_PopupBody> createState() => _PopupBodyState();
 }
 
-class _PopupBodyState extends State<_PopupBody>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _motion = AnimationController(vsync: this);
+class _PopupBodyState extends State<_PopupBody> with TickerProviderStateMixin {
+  // The show and the hide run on clocks of their own, so a hide that cuts a
+  // show (or a show a hide) turns back from where the popup is.
+  late final AppearController _motion = AppearController(
+    vsync: this,
+    shown: !widget.view.visibility.isShowing,
+  );
   final _scope = FocusScopeNode(debugLabel: 'AnchoredPopup');
   final _regionKey = GlobalKey();
   PanelAutoHideHold? _dragHold;
@@ -287,7 +291,6 @@ class _PopupBodyState extends State<_PopupBody>
     _unexemptRegion = _hover.registerExempt(
       () => _globalBounds(_regionKey.currentContext ?? context),
     );
-    _motion.value = widget.view.visibility.isShowing ? 0 : 1;
     _scrollActivity = _controller.shell.scrollActivity.listen(_onScroll);
   }
 
@@ -344,13 +347,18 @@ class _PopupBodyState extends State<_PopupBody>
     final motion = ChromeMotionScope.of(context);
     switch (visibility) {
       case PanelVisibility$Showing(:final kind):
-        final spec = motion.specOf(policy.showRole(kind));
-        _motion.duration = spec.duration;
-        _motion.forward().whenCompleteOrCancel(() => _settled(view));
+        _motion
+            .show(
+              showDuration: motion.specOf(policy.showRole(kind)).duration,
+              hideDuration: motion.specOf(policy.hideRole(kind)).duration,
+            )
+            .whenComplete(() => _settled(view))
+            .ignore();
       case PanelVisibility$Hiding(:final kind):
-        final spec = motion.specOf(policy.hideRole(kind));
-        _motion.reverseDuration = spec.duration;
-        _motion.reverse().whenCompleteOrCancel(() => _settled(view));
+        _motion
+            .hide(hideDuration: motion.specOf(policy.hideRole(kind)).duration)
+            .whenComplete(() => _settled(view))
+            .ignore();
       case PanelVisibility$Shown() || PanelVisibility$Hidden():
         break;
     }
@@ -497,11 +505,8 @@ class _PopupBodyState extends State<_PopupBody>
         animation: _motion,
         builder: (context, child) => IgnorePointer(
           ignoring: widget.view.visibility.isHiding,
-          // The show runs the controller up, the hide runs it back down.
           child: AppearFrameView(
-            frame: widget.view.visibility.isHiding
-                ? style.appear.hideAt(1 - _motion.value)
-                : style.appear.showAt(_motion.value),
+            frame: _motion.frameOf(style.appear),
             origin: AlignmentDirectional.bottomEnd,
             borderRadius: BorderRadius.circular(style.cornerRadius),
             shadows: style.shadows,
