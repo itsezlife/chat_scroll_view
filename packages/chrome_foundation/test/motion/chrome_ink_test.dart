@@ -137,6 +137,132 @@ void main() {
     );
   });
 
+  testWidgets('a ripple dragged off its target fades over 150 ms and does '
+      'not tap', (tester) async {
+    await tester.pumpWidget(target(ChromeInkKind.ripple));
+    final box = tester.getRect(find.byType(ChromeInk));
+    final gesture = await tester.startGesture(box.center);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 225));
+    expect(inkAlpha(tester), 1);
+
+    // Past the touch slop outside the box.
+    await gesture.moveTo(box.centerRight + const Offset(40, 0));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 75));
+    expect(inkAlpha(tester), closeTo(0.5, 0.05));
+    await tester.pump(const Duration(milliseconds: 80));
+    expect(inkAlpha(tester), isNull);
+
+    // Back over the target: an Android press does not come back.
+    await gesture.moveTo(box.center);
+    await tester.pump();
+    expect(inkAlpha(tester), isNull);
+    await gesture.up();
+    await tester.pump();
+    expect(taps, 0);
+  });
+
+  testWidgets('a ripple moved within the touch slop of its box stays', (
+    tester,
+  ) async {
+    await tester.pumpWidget(target(ChromeInkKind.ripple));
+    final box = tester.getRect(find.byType(ChromeInk));
+    final gesture = await tester.startGesture(box.center);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 225));
+    await gesture.moveTo(box.centerRight + const Offset(6, 0));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(inkAlpha(tester), 1);
+    await gesture.up();
+    await tester.pump();
+    expect(taps, 1);
+  });
+
+  testWidgets('a scroll that takes the press cancels the ripple and the tap', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: ListView(
+          children: [
+            const SizedBox(height: 100),
+            Center(
+              child: ChromeInk(
+                kind: ChromeInkKind.ripple,
+                color: _color,
+                onTap: () => taps++,
+                child: const SizedBox(width: 100, height: 40),
+              ),
+            ),
+            const SizedBox(height: 2000),
+          ],
+        ),
+      ),
+    );
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(ChromeInk)),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 225));
+    expect(inkAlpha(tester), 1);
+
+    // A drag along the list, still over the target, wins the press for the
+    // scroll.
+    for (var i = 0; i < 4; i++) {
+      await gesture.moveBy(const Offset(0, -8));
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 160));
+    expect(inkAlpha(tester), isNull);
+    await gesture.up();
+    await tester.pump();
+    expect(taps, 0);
+  });
+
+  testWidgets('a highlight drops when the finger leaves the target, comes '
+      'back with it, and taps on a lift over it', (tester) async {
+    await tester.pumpWidget(target(ChromeInkKind.highlight));
+    final box = tester.getRect(find.byType(ChromeInk));
+    final gesture = await tester.startGesture(box.center);
+    await tester.pump();
+    expect(inkAlpha(tester), 1);
+
+    // Within 70 of the box it stays.
+    await gesture.moveTo(box.centerRight + const Offset(60, 0));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(inkAlpha(tester), 1);
+
+    await gesture.moveTo(box.centerRight + const Offset(80, 0));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(inkAlpha(tester), closeTo(0.5, 0.05));
+
+    await gesture.moveTo(box.center);
+    await tester.pump();
+    expect(inkAlpha(tester), 1);
+
+    await gesture.up();
+    await tester.pump();
+    expect(taps, 1);
+  });
+
+  testWidgets('a highlight lifted away from the target does not tap', (
+    tester,
+  ) async {
+    await tester.pumpWidget(target(ChromeInkKind.highlight));
+    final box = tester.getRect(find.byType(ChromeInk));
+    final gesture = await tester.startGesture(box.center);
+    await tester.pump();
+    await gesture.moveTo(box.centerRight + const Offset(120, 0));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 310));
+    expect(inkAlpha(tester), isNull);
+    expect(taps, 0);
+  });
+
   testWidgets('without a tap it draws nothing and takes no tap', (
     tester,
   ) async {

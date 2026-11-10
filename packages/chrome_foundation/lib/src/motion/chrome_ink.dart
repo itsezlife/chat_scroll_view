@@ -11,16 +11,21 @@ import 'package:flutter/widgets.dart';
 enum ChromeInkKind {
   /// Android: a ripple grows from the touch over 225 ms (fast out, slow in),
   /// its colour fading in over the first 75 ms, and fades over 150 ms once
-  /// the press ends.
+  /// the press ends. The press ends for good, with no tap, once the finger
+  /// moves more than [ChromeInkTiming.rippleSlop] outside the target.
   ripple,
 
   /// iOS: the highlight fills the target at once while pressed and fades
-  /// over 300 ms once the press ends.
+  /// over 300 ms once the press ends. A finger more than
+  /// [ChromeInkTiming.highlightSlop] outside the target drops the highlight
+  /// (the same fade); back within it, the highlight returns at once, and a
+  /// lift there taps.
   highlight,
 
   /// A desktop: the hover fill while the mouse is over the target, and a
   /// ripple from the press that grows over 650 ms (ease out quint) and fades
-  /// over 200 ms once the press ends.
+  /// over 200 ms once the press ends. Leaving the target ends the press, with
+  /// no click.
   pointer;
 
   /// The kind of [platform]'s family.
@@ -52,6 +57,13 @@ abstract final class ChromeInkTiming {
 
   /// How long an iOS highlight takes to fade once the press ends.
   static const Duration highlightFade = Duration(milliseconds: 300);
+
+  /// How far outside its target an Android press may move and stay pressed:
+  /// the platform's touch slop.
+  static const double rippleSlop = 8;
+
+  /// How far outside its target an iOS press may move and stay highlighted.
+  static const double highlightSlop = 70;
 }
 
 /// A target that answers a press with the platform's [ChromeInkKind]
@@ -63,6 +75,11 @@ abstract final class ChromeInkTiming {
 /// [ChromeInkKind.pointer]). A null [onTap] draws nothing and takes no
 /// press. Under an instant motion speed nothing ripples: the target shows the
 /// highlight while pressed.
+///
+/// A press cancels as the platform's does: moving off the target (as each
+/// [ChromeInkKind] says), a scroll or a drag that takes the pointer, or a
+/// cancelled pointer ends the feedback as a release does, and no tap
+/// follows.
 class ChromeInk extends StatefulWidget {
   /// A pressable [child].
   const ChromeInk({
@@ -109,7 +126,10 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
   late final AnimationController _alpha = AnimationController(vsync: this);
   Offset _origin = Offset.zero;
   var _hovered = false;
+  // A press is down; for a highlight it may be away from the target.
   var _pressed = false;
+  // The feedback shows: the press is over the target.
+  var _shown = false;
 
   ChromeInkKind get _kind =>
       widget.kind ?? ChromeInkKind.forPlatform(defaultTargetPlatform);
@@ -126,10 +146,11 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _down(PointerDownEvent event) {
+  void _down(Offset position) {
     if (widget.onTap == null) return;
     _pressed = true;
-    setState(() => _origin = event.localPosition);
+    _shown = true;
+    setState(() => _origin = position);
     if (_instant) {
       _grow.value = 1;
       _alpha.value = 1;
@@ -154,9 +175,51 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
     }
   }
 
-  void _up(PointerEvent _) {
+  // Whether [position] is near enough to the target to keep the press.
+  bool _over(Offset position) {
+    final size = context.size;
+    if (size == null) return false;
+    final slop = switch (_kind) {
+      ChromeInkKind.ripple => ChromeInkTiming.rippleSlop,
+      ChromeInkKind.highlight => ChromeInkTiming.highlightSlop,
+      ChromeInkKind.pointer => 0.0,
+    };
+    return (Offset.zero & size).inflate(slop).contains(position);
+  }
+
+  void _move(Offset position) {
+    if (!_pressed) return;
+    final over = _over(position);
+    if (over == _shown) return;
+    switch (_kind) {
+      case ChromeInkKind.highlight:
+        _shown = over;
+        if (over) {
+          _alpha.value = 1;
+        } else {
+          _fade();
+        }
+      case ChromeInkKind.ripple || ChromeInkKind.pointer:
+        // Off the target the press is over; it does not come back.
+        _cancel();
+    }
+  }
+
+  void _up(Offset position) {
+    if (!_pressed) return;
+    final tap = _shown && _over(position);
+    _cancel();
+    if (tap) widget.onTap?.call();
+  }
+
+  void _cancel() {
     if (!_pressed) return;
     _pressed = false;
+    if (_shown) _fade();
+    _shown = false;
+  }
+
+  void _fade() {
     if (_instant) {
       _alpha.value = 0;
       return;
@@ -183,13 +246,23 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
       onExit: (_) {
         if (_hovered) setState(() => _hovered = false);
       },
-      child: Listener(
-        onPointerDown: _down,
-        onPointerUp: _up,
-        onPointerCancel: _up,
-        child: GestureDetector(
+      child: Semantics(
+        onTap: widget.onTap,
+        child: RawGestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: widget.onTap,
+          excludeFromSemantics: true,
+          gestures: <Type, GestureRecognizerFactory>{
+            if (enabled)
+              _PressRecognizer:
+                  GestureRecognizerFactoryWithHandlers<_PressRecognizer>(
+                    () => _PressRecognizer(debugOwner: this),
+                    (recognizer) => recognizer
+                      ..onDown = _down
+                      ..onMove = _move
+                      ..onUp = _up
+                      ..onCancel = _cancel,
+                  ),
+          },
           child: CustomPaint(
             foregroundPainter: _InkPainter(
               grow: _grow,
@@ -209,6 +282,89 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
       ),
     );
   }
+}
+
+/// One press on a [ChromeInk]: reported at once on the pointer's down,
+/// followed as it moves, and ended by its up, or cancelled when another
+/// recognizer takes the pointer (a scroll or a drag that moves first) or the
+/// pointer is cancelled.
+///
+/// It competes for the pointer until it moves past the touch slop; once it
+/// holds the pointer it keeps it wherever it goes, so the target can follow
+/// a finger that leaves and comes back. An up is reported once the pointer
+/// is won, as a tap's is.
+final class _PressRecognizer extends PrimaryPointerGestureRecognizer {
+  _PressRecognizer({super.debugOwner})
+    : super(preAcceptSlopTolerance: kTouchSlop, postAcceptSlopTolerance: null);
+
+  ValueChanged<Offset>? onDown;
+  ValueChanged<Offset>? onMove;
+  ValueChanged<Offset>? onUp;
+  VoidCallback? onCancel;
+
+  var _won = false;
+  Offset? _upAt;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    // One press at a time.
+    if (state != GestureRecognizerState.ready) return;
+    _won = false;
+    _upAt = null;
+    super.addAllowedPointer(event);
+    onDown?.call(event.localPosition);
+  }
+
+  @override
+  void handlePrimaryPointer(PointerEvent event) {
+    switch (event) {
+      case PointerMoveEvent(:final localPosition):
+        onMove?.call(localPosition);
+      case PointerUpEvent(:final localPosition):
+        _upAt = localPosition;
+        if (_won) _finish();
+      case PointerCancelEvent():
+        _end();
+      default:
+        break;
+    }
+  }
+
+  @override
+  void acceptGesture(int pointer) {
+    super.acceptGesture(pointer);
+    if (pointer != primaryPointer) return;
+    _won = true;
+    if (_upAt != null) _finish();
+  }
+
+  @override
+  void rejectGesture(int pointer) {
+    super.rejectGesture(pointer);
+    if (pointer == primaryPointer) _end();
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {
+    // An up still waiting for the arena is told when it resolves; anything
+    // else that stops the tracking ends the press.
+    if (_upAt == null) onCancel?.call();
+    super.didStopTrackingLastPointer(pointer);
+  }
+
+  void _finish() {
+    final at = _upAt;
+    _upAt = null;
+    if (at != null) onUp?.call(at);
+  }
+
+  void _end() {
+    _upAt = null;
+    onCancel?.call();
+  }
+
+  @override
+  String get debugDescription => 'chrome ink press';
 }
 
 class _InkPainter extends CustomPainter {
