@@ -470,7 +470,7 @@ void main() {
         ],
         // A surface as a glass is built: a stack, which lays out its child
         // loosely.
-        surfaceBuilder: (context, rows) => Stack(
+        surfaceBuilder: (context, radius, rows) => Stack(
           children: [
             const Positioned.fill(child: ColoredBox(color: Color(0xFF00FF00))),
             rows,
@@ -488,11 +488,37 @@ void main() {
       }
     });
 
+    testWidgets('the reaction strip takes the same host surface, at its '
+        'own corners', (tester) async {
+      final radii = <double>[];
+      await _openMenu(
+        tester,
+        onDone: (_) {},
+        surfaceBuilder: (context, radius, child) {
+          radii.add(radius);
+          return ColoredBox(
+            key: ValueKey('surface-$radius'),
+            color: const Color(0xFF00FF00),
+            child: child,
+          );
+        },
+      );
+
+      expect(radii, containsAll(<double>[12, 22]));
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('surface-22.0')),
+          matching: find.text('👍'),
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('takes the host surface around its rows', (tester) async {
       await _openMenu(
         tester,
         onDone: (_) {},
-        surfaceBuilder: (context, rows) => ColoredBox(
+        surfaceBuilder: (context, radius, rows) => ColoredBox(
           key: const ValueKey('host-surface'),
           color: const Color(0xFF00FF00),
           child: rows,
@@ -512,7 +538,9 @@ void main() {
           // The package fill; the rows keep their transparent ink layers.
           matching: find.byWidgetPredicate(
             (widget) =>
-                widget is Material && widget.color != Colors.transparent,
+                widget is Material &&
+                widget.type != MaterialType.transparency &&
+                widget.color != Colors.transparent,
           ),
         ),
         findsNothing,

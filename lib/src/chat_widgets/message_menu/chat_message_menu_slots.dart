@@ -28,14 +28,18 @@ typedef ChatMessageMenuReactionBuilder =
 typedef ChatMessageMenuBuilder =
     Widget Function(BuildContext context, ChatMessageMenuSlots slots);
 
-/// Draws the surface of the action card around [rows]: its fill, corners and
-/// shadow, in place of the package card's (a host's glass, say).
+/// Draws a surface of the menu around [child]: its fill, corners and shadow,
+/// in place of the package's (a host's glass, say). The action card and the
+/// reaction strip both take it, so they read as one material.
 ///
-/// The builder clips [rows] to its shape; their press feedback stays inside
-/// it. The card's width rules (`ChatMessageMenuCard`) still apply around the
+/// [cornerRadius] is the surface's: the card's
+/// (`ChatMessageMenuThemeData.cardRadius`) or the strip's (half its height
+/// unless `ChatMessageMenuThemeData.reactionsRadius` says otherwise). The
+/// builder clips [child] to that shape; its press feedback stays inside it.
+/// The card's width rules (`ChatMessageMenuCard`) still apply around the
 /// surface.
 typedef ChatMessageMenuSurfaceBuilder =
-    Widget Function(BuildContext context, Widget rows);
+    Widget Function(BuildContext context, double cornerRadius, Widget child);
 
 /// Plays the menu's enter and leave on [menu].
 ///

@@ -662,6 +662,30 @@ void main() {
       expect(tester.getSize(card).width, greaterThanOrEqualTo(200));
     });
 
+    testWidgets('its reaction strip is the same glass', (tester) async {
+      await open(tester);
+
+      final glass = find.byWidgetPredicate(
+        (widget) =>
+            widget is GlassSurface &&
+            widget.material == GlassMaterial.scrimMenu,
+      );
+      expect(
+        find.ancestor(
+          of: find.byType(ChatMessageMenuReactions),
+          matching: glass,
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(ChatMessageMenuReactions),
+          matching: glass,
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('it blooms from its top right corner with its reaction '
         'strip, and its card ends 64 left of the press', (tester) async {
       await open(tester);

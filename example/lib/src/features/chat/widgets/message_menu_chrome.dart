@@ -32,11 +32,16 @@ abstract final class MessageMenuChrome {
     ChatMessageMenuPresentation presentation,
   ) => isAndroidSheet(presentation) ? surface : null;
 
-  /// The scrim menu glass around [rows], whose content blooms with the
-  /// menu.
-  static Widget surface(BuildContext context, Widget rows) => GlassSurface(
+  /// The scrim menu glass, of [cornerRadius], around [child] (the action
+  /// card's rows or the reaction strip), whose content blooms with the menu.
+  static Widget surface(
+    BuildContext context,
+    double cornerRadius,
+    Widget child,
+  ) => GlassSurface(
     material: GlassMaterial.scrimMenu,
-    child: AppearContent(child: rows),
+    cornerRadius: cornerRadius,
+    child: AppearContent(child: child),
   );
 
   /// The menu's enter and leave.

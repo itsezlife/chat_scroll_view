@@ -13,6 +13,7 @@ class ChatMessageMenuReactions extends StatelessWidget {
     required this.onReaction,
     this.maxWidth,
     this.reactionBuilder,
+    this.surfaceBuilder,
     super.key,
   });
 
@@ -27,6 +28,9 @@ class ChatMessageMenuReactions extends StatelessWidget {
 
   /// Optional custom slot. Null uses the package emoji slot.
   final ChatMessageMenuReactionBuilder? reactionBuilder;
+
+  /// The host's surface for the strip, or null for the package pill.
+  final ChatMessageMenuSurfaceBuilder? surfaceBuilder;
 
   /// Slot size.
   static const double slot = 36;
@@ -122,6 +126,26 @@ class ChatMessageMenuReactions extends StatelessWidget {
       );
     }
 
+    final content = SizedBox(
+      width: width,
+      height: ChatMessageMenuReactions.height,
+      child: Padding(
+        padding: !fits
+            ? EdgeInsets.zero
+            : const EdgeInsets.symmetric(
+                horizontal: pad,
+                vertical: padVertical,
+              ),
+        child: slots,
+      ),
+    );
+    if (surfaceBuilder case final builder?) {
+      return builder(
+        context,
+        radius.topLeft.x,
+        Material(type: MaterialType.transparency, child: content),
+      );
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: radius,
@@ -145,19 +169,7 @@ class ChatMessageMenuReactions extends StatelessWidget {
               colorScheme.surface,
             ),
         clipBehavior: Clip.antiAlias,
-        child: SizedBox(
-          width: width,
-          height: ChatMessageMenuReactions.height,
-          child: Padding(
-            padding: !fits
-                ? EdgeInsets.zero
-                : const EdgeInsets.symmetric(
-                    horizontal: pad,
-                    vertical: padVertical,
-                  ),
-            child: slots,
-          ),
-        ),
+        child: content,
       ),
     );
   }

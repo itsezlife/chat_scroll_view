@@ -205,6 +205,7 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
               onReaction: (emoji) =>
                   _close(ChatMessageMenuResult.reaction(emoji)),
               reactionBuilder: config.reactionBuilder,
+              surfaceBuilder: config.surfaceBuilder,
             ),
     );
 
