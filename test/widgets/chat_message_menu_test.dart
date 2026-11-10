@@ -24,6 +24,7 @@ Future<void> _openMenu(
   ChatMessageMenuThemeData? menuTheme,
   ChatMessageMenuItemBuilder? itemBuilder,
   ChatMessageMenuBuilder? menuBuilder,
+  ChatMessageMenuTransitionBuilder? transitionBuilder,
   List<ChatMessageMenuItem> items = _items,
   ChatMessageMenuPresentation presentation = ChatMessageMenuPresentation.sheet,
   ChatSelectionPolicy? selectionPolicy,
@@ -60,6 +61,7 @@ Future<void> _openMenu(
                     selectionPolicy: selectionPolicy,
                     itemBuilder: itemBuilder,
                     menuBuilder: menuBuilder,
+                    transitionBuilder: transitionBuilder,
                   );
                   onDone(result);
                 },
@@ -419,6 +421,64 @@ void main() {
 
     expect(find.text('extra-slot'), findsOneWidget);
     expect(find.text('Edit'), findsOneWidget);
+  });
+
+  group('transitionBuilder', () {
+    late List<ChatMessageMenuTransition> played;
+    VoidCallback? hide;
+
+    Widget builder(
+      BuildContext context,
+      ChatMessageMenuTransition transition,
+      Widget menu,
+    ) {
+      played.add(transition);
+      hide = transition.onHidden;
+      return menu;
+    }
+
+    setUp(() {
+      played = [];
+      hide = null;
+    });
+
+    testWidgets('plays the host\'s motion from the corner at the pointer, '
+        'and the session waits for its leave', (tester) async {
+      ChatMessageMenuResult? result;
+      await _openMenu(
+        tester,
+        onDone: (value) => result = value,
+        presentation: ChatMessageMenuPresentation.popup,
+        transitionBuilder: builder,
+      );
+
+      final shown = played.last;
+      expect(shown.visible, isTrue);
+      expect(shown.presentation, ChatMessageMenuPresentation.popup);
+      expect(shown.rows, _items.length);
+      expect(shown.origin, Alignment.topLeft);
+
+      await tester.tap(find.text('Edit'));
+      await tester.pump();
+      expect(result, const ChatMessageMenuResult.item('edit'));
+      expect(played.last.visible, isFalse);
+
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('Edit'), findsOneWidget, reason: 'until it is hidden');
+
+      hide!();
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Edit'), findsNothing);
+    });
+
+    testWidgets('a sheet unfolds from the edge facing the message', (
+      tester,
+    ) async {
+      await _openMenu(tester, onDone: (_) {}, transitionBuilder: builder);
+
+      expect(played.last.origin.x, -1);
+    });
   });
 
   testWidgets('destructive rows do not insert a divider', (tester) async {

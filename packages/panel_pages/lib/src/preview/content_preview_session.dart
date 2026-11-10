@@ -625,8 +625,13 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
                       top: layout.menuTop,
                       bottom: media?.viewPadding.bottom ?? 0,
                     ),
-                    child: Opacity(
-                      opacity: blur,
+                    // Hangs below the preview: unfolds from its top edge.
+                    child: ChromeAppear(
+                      origin: Alignment.topCenter,
+                      rows: menu.length,
+                      borderRadius: BorderRadius.circular(_PreviewMenu.radius),
+                      revealColor: palette.surfaceRaised,
+                      shadows: _PreviewMenu.shadowsOf(palette),
                       child: _PreviewMenu(
                         item: item,
                         actions: menu,
@@ -775,6 +780,15 @@ class _PreviewMenu extends StatelessWidget {
   /// The narrowest the card is. Not traced.
   static const double minWidth = 200;
 
+  /// The card's shadows in [palette], drawn by the appear motion under it.
+  static List<BoxShadow> shadowsOf(ChromePalette palette) => [
+    BoxShadow(
+      color: palette.shadow.withValues(alpha: 0.28),
+      blurRadius: 12,
+      offset: const Offset(0, 3),
+    ),
+  ];
+
   final ContentPreviewItem item;
   final List<ContentPreviewAction> actions;
   final ValueChanged<ContentPreviewAction> onChoose;
@@ -791,13 +805,6 @@ class _PreviewMenu extends StatelessWidget {
           decoration: BoxDecoration(
             color: palette.surfaceRaised,
             borderRadius: BorderRadius.circular(radius),
-            boxShadow: [
-              BoxShadow(
-                color: palette.shadow.withValues(alpha: 0.28),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minWidth: minWidth),

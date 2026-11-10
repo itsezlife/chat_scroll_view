@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_item.dart';
+import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu_presentation.dart';
 import 'package:flutter/widgets.dart';
 
 /// Builds one action row. [onSelect] is null when the item is disabled.
@@ -26,6 +27,49 @@ typedef ChatMessageMenuReactionBuilder =
 /// [ChatMessageMenuSlots.actionList] to keep the defaults.
 typedef ChatMessageMenuBuilder =
     Widget Function(BuildContext context, ChatMessageMenuSlots slots);
+
+/// Plays the menu's enter and leave on [menu].
+///
+/// The builder shows [menu] when [ChatMessageMenuTransition.visible] is true,
+/// and when it turns false plays the leave and then calls
+/// [ChatMessageMenuTransition.onHidden], once; the session removes the menu
+/// from there. Scrim, placement, back and presence stay package-owned.
+typedef ChatMessageMenuTransitionBuilder =
+    Widget Function(
+      BuildContext context,
+      ChatMessageMenuTransition transition,
+      Widget menu,
+    );
+
+/// What a [ChatMessageMenuTransitionBuilder] plays.
+@immutable
+final class ChatMessageMenuTransition {
+  /// A transition.
+  const ChatMessageMenuTransition({
+    required this.visible,
+    required this.onHidden,
+    required this.presentation,
+    required this.origin,
+    required this.rows,
+  });
+
+  /// Whether the menu is up; false once the session is closing.
+  final bool visible;
+
+  /// Called by the builder once the leave is over.
+  final VoidCallback onHidden;
+
+  /// How the menu is presented.
+  final ChatMessageMenuPresentation presentation;
+
+  /// Where the menu is anchored: the corner at the pointer for a popup, the
+  /// edge facing the message for a sheet (the bottom when the menu sits above
+  /// the message).
+  final Alignment origin;
+
+  /// How many action rows the menu has.
+  final int rows;
+}
 
 /// Default chrome pieces and the data they were built from.
 @immutable

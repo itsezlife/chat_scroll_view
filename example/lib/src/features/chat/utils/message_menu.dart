@@ -3,6 +3,8 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart'
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_emoji_packs.dart';
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show AppearMotion, ChromeAppear;
 import 'package:content_model/content_model.dart' as model show RichText;
 import 'package:content_model/content_model.dart' show PackId, RichClipboard;
 import 'package:flutter/material.dart';
@@ -504,6 +506,20 @@ final class MessageMenu {
           ),
           _ => null,
         },
+        // The chrome's appear motion, as every other menu and overlay of
+        // the app: a popup grows from the pointer, a sheet plays the
+        // platform's.
+        transitionBuilder: (context, transition, menu) => ChromeAppear(
+          visible: transition.visible,
+          onHidden: transition.onHidden,
+          motion: switch (transition.presentation) {
+            ChatMessageMenuPresentation.popup => const AppearMotion.grow(),
+            ChatMessageMenuPresentation.sheet => null,
+          },
+          origin: transition.origin,
+          rows: transition.rows,
+          child: menu,
+        ),
         presence: _ChatDataSourceListenable(dataSource),
         isPresent: () => dataSource.getMessage(request.messageId) != null,
       );

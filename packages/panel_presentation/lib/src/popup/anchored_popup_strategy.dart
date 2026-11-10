@@ -269,7 +269,6 @@ class _PopupBodyState extends State<_PopupBody>
   final _pressedPointers = <int>{};
   late final StreamSubscription<PageScrollActivity> _scrollActivity;
   late final void Function() _unexemptRegion;
-  Curve _curve = Curves.linear;
   // How far the hover area reaches below the popup, to touch the toggle.
   var _bridge = 0.0;
   var _bridgeScheduled = false;
@@ -346,12 +345,10 @@ class _PopupBodyState extends State<_PopupBody>
     switch (visibility) {
       case PanelVisibility$Showing(:final kind):
         final spec = motion.specOf(policy.showRole(kind));
-        _curve = spec.curve;
         _motion.duration = spec.duration;
         _motion.forward().whenCompleteOrCancel(() => _settled(view));
       case PanelVisibility$Hiding(:final kind):
         final spec = motion.specOf(policy.hideRole(kind));
-        _curve = spec.curve;
         _motion.reverseDuration = spec.duration;
         _motion.reverse().whenCompleteOrCancel(() => _settled(view));
       case PanelVisibility$Shown() || PanelVisibility$Hidden():
@@ -498,47 +495,40 @@ class _PopupBodyState extends State<_PopupBody>
       onPointerCancel: _onPointerEnd,
       child: AnimatedBuilder(
         animation: _motion,
-        builder: (context, child) {
-          final t = _curve.transform(_motion.value);
-          return IgnorePointer(
-            ignoring: widget.view.visibility.isHiding,
-            child: Opacity(
-              opacity: t.clamp(0.0, 1.0),
-              child: Transform.scale(
-                scale: style.scaleBegin + (1 - style.scaleBegin) * t,
-                alignment: AlignmentDirectional.bottomEnd,
-                child: child,
-              ),
-            ),
-          );
-        },
-        child: DecoratedBox(
-          decoration: BoxDecoration(
+        builder: (context, child) => IgnorePointer(
+          ignoring: widget.view.visibility.isHiding,
+          // The show runs the controller up, the hide runs it back down.
+          child: AppearFrameView(
+            frame: widget.view.visibility.isHiding
+                ? style.appear.hideAt(1 - _motion.value)
+                : style.appear.showAt(_motion.value),
+            origin: AlignmentDirectional.bottomEnd,
             borderRadius: BorderRadius.circular(style.cornerRadius),
-            boxShadow: style.shadows,
+            shadows: style.shadows,
+            child: child!,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(style.cornerRadius),
-            // The composer's glass, so the panel over the chat reads as the
-            // composer does.
-            child: GlassSurface(
-              material: GlassMaterial.composerIsland,
-              cornerRadius: style.cornerRadius,
-              child: Shortcuts(
-                shortcuts: AnchoredPopupShortcuts.standard,
-                child: AnchoredPopupActions(
-                  controller: _controller,
-                  child: FocusScope(
-                    node: _scope,
-                    // Only at rest: while the popup moves or is hidden the
-                    // panel's content holds.
-                    child: TickerMode(
-                      enabled: widget.view.visibility is PanelVisibility$Shown,
-                      child: PanelShell(
-                        controller: _controller.shell,
-                        arrangement: PanelArrangement.pointer,
-                        background: const Color(0x00000000),
-                      ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(style.cornerRadius),
+          // The composer's glass, so the panel over the chat reads as the
+          // composer does.
+          child: GlassSurface(
+            material: GlassMaterial.composerIsland,
+            cornerRadius: style.cornerRadius,
+            child: Shortcuts(
+              shortcuts: AnchoredPopupShortcuts.standard,
+              child: AnchoredPopupActions(
+                controller: _controller,
+                child: FocusScope(
+                  node: _scope,
+                  // Only at rest: while the popup moves or is hidden the
+                  // panel's content holds.
+                  child: TickerMode(
+                    enabled: widget.view.visibility is PanelVisibility$Shown,
+                    child: PanelShell(
+                      controller: _controller.shell,
+                      arrangement: PanelArrangement.pointer,
+                      background: const Color(0x00000000),
                     ),
                   ),
                 ),

@@ -227,7 +227,15 @@ class _ChatMessageMenuHostState extends State<ChatMessageMenuHost>
                 top: placement.menuOrigin.dy,
                 child: ChatMessageMenuAppearance(
                   key: _appearanceKey,
-                  fitsAbove: placement.fitsAbove,
+                  presentation: config.presentation,
+                  origin: ChatMessageMenuAppearance.originFor(
+                    presentation: config.presentation,
+                    menuOrigin: placement.menuOrigin,
+                    tap: config.tapGlobal,
+                    fitsAbove: placement.fitsAbove,
+                  ),
+                  rows: config.items.length,
+                  transitionBuilder: config.transitionBuilder,
                   child: KeyedSubtree(
                     key: _menuKey,
                     child: ConstrainedBox(

@@ -207,9 +207,8 @@ void main() {
   });
 
   group('motion', () {
-    testWidgets('grows from the bottom-end corner and fades in', (
-      tester,
-    ) async {
+    testWidgets('grows from the bottom-end corner and fades in, drawn at its '
+        'final size', (tester) async {
       final rig = PopupRig();
       await rig.pump(tester);
 
@@ -217,22 +216,55 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 20));
 
+      expect(rig.controller.state.value, isA<PanelVisibility$Showing>());
+      final card = _popupRect(tester);
+      expect(card.width, 300);
+      expect(card.bottomRight, const Offset(800, 640));
       final opacity = tester.widget<Opacity>(
         find.ancestor(
           of: find.byType(PanelShell),
           matching: find.byType(Opacity),
         ),
       );
-      expect(rig.controller.state.value, isA<PanelVisibility$Showing>());
-      final early = _popupRect(tester);
-      expect(early.width, lessThan(300));
-      expect(early.bottomRight, const Offset(800, 640));
-      expect(opacity.opacity, inExclusiveRange(0, 1));
+      final reveal = PointerMenuReveal.at(20 / 200);
+      expect(opacity.opacity, closeTo(reveal.opacity, 1e-9));
+      final width = card.width * reveal.widthFraction;
+      final height = card.height * reveal.heightFraction;
+      // Its frame, held at the bottom-end corner.
+      expect(
+        find.byType(AppearFrameView),
+        paints..something((method, arguments) {
+          if (method != #clipRRect) return false;
+          final frame = (arguments.first as RRect).outerRect;
+          return (frame.left - (card.width - width)).abs() < 0.01 &&
+              (frame.top - (card.height - height)).abs() < 0.01 &&
+              (frame.right - card.width).abs() < 0.01 &&
+              (frame.bottom - card.height).abs() < 0.01;
+        }),
+      );
 
       await settleMotion(tester);
-      final settled = _popupRect(tester);
-      expect(settled.width, 300);
-      expect(settled.bottomRight, const Offset(800, 640));
+      expect(_popupRect(tester).bottomRight, const Offset(800, 640));
+    });
+
+    testWidgets('leaves by a linear fade at full size', (tester) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      rig.controller.show();
+      await settleMotion(tester);
+
+      rig.controller.hide();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final opacity = tester.widget<Opacity>(
+        find.ancestor(
+          of: find.byType(PanelShell),
+          matching: find.byType(Opacity),
+        ),
+      );
+      expect(opacity.opacity, closeTo(0.75, 1e-9));
+      expect(_popupRect(tester).width, 300);
     });
 
     testWidgets('showing lasts the popupShow role, hiding the popupHide role', (

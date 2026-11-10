@@ -1,7 +1,8 @@
+import 'package:chrome_foundation/chrome_foundation.dart' show AppearMotion;
 import 'package:flutter/widgets.dart';
 
-/// How an anchored popup looks: its width, corners, shadow and the scale it
-/// grows from.
+/// How an anchored popup looks: its width, corners, shadow and the motion it
+/// appears and leaves with.
 ///
 /// The width is required and the other fields default to nothing drawn. No
 /// dimensions are shipped here: a host passes the ones its
@@ -14,15 +15,11 @@ final class AnchoredPopupStyle {
     required this.width,
     this.cornerRadius = 0,
     this.shadows = const <BoxShadow>[],
-    this.scaleBegin = 0.9,
+    this.appear = const AppearMotion.grow(),
     this.hoverGutter = 10,
     this.edgeGap = 0,
   }) : assert(width > 0, 'width must be positive'),
        assert(cornerRadius >= 0, 'cornerRadius must not be negative'),
-       assert(
-         scaleBegin > 0 && scaleBegin <= 1,
-         'scaleBegin must be in (0, 1]',
-       ),
        assert(hoverGutter >= 0, 'hoverGutter must not be negative'),
        assert(edgeGap >= 0, 'edgeGap must not be negative');
 
@@ -35,11 +32,11 @@ final class AnchoredPopupStyle {
   /// The shadows drawn behind the popup.
   final List<BoxShadow> shadows;
 
-  /// The scale the popup has when it starts to appear and when it has
-  /// finished disappearing, around its bottom-end corner. `1` only fades.
-  ///
-  /// A chosen default.
-  final double scaleBegin;
+  /// The **appear motion** the popup comes up and goes with, from its
+  /// bottom-end corner, the one at the toggle: by default the desktop
+  /// panel's grow. Its frames run over the presentation's show and hide
+  /// roles.
+  final AppearMotion appear;
 
   /// The room left between the popup and the composer it anchors to: above the
   /// composer's top edge and inside its end edge. The room is the same
@@ -60,7 +57,7 @@ final class AnchoredPopupStyle {
       other is AnchoredPopupStyle &&
       other.width == width &&
       other.cornerRadius == cornerRadius &&
-      other.scaleBegin == scaleBegin &&
+      other.appear == appear &&
       other.hoverGutter == hoverGutter &&
       other.edgeGap == edgeGap &&
       _sameShadows(other.shadows, shadows);
@@ -69,7 +66,7 @@ final class AnchoredPopupStyle {
   int get hashCode => Object.hash(
     width,
     cornerRadius,
-    scaleBegin,
+    appear,
     hoverGutter,
     edgeGap,
     Object.hashAll(shadows),
