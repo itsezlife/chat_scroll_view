@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (a strip keeps its covers through a close and an open)
+
+- A pack strip's playing covers hold their frames and leases while the
+  panel moves or is hidden, as the grid's cells do, instead of letting them
+  go: with the chat's stickers filling the frames kept for the screen, the
+  covers lost theirs on every close and showed their stills on reopening.
+
 ### Fixed (the grid under a content preview; one haptic for a tap)
 
 - While a content preview is open over the panel's grid or a pack sheet's,

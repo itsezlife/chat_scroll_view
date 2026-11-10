@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a view held while its tickers are off)
+
+- `ContentView.holdsWhileTickersOff`: a disabled `TickerMode` above holds
+  the view (its frame stays on screen, with what it leased for it) instead
+  of hiding it. `ContentView.inView` hides a view scrolled out of its
+  viewport whatever the tickers say.
+
 ### Changed (a phone plays on under a system sheet)
 
 - `PlaybackActivity` no longer pauses on focus loss alone (`inactive`) on

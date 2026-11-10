@@ -384,8 +384,11 @@ class PanelStripIcon extends StatelessWidget {
 /// A cover that [plays] is the whole content, looping on the shared clock
 /// and decoded at its size on the screen as every animated cell is, and
 /// plays only while [inView] holds [index] (a tab scrolled away neither
-/// repaints nor keeps its frame lease). One that does not is a still of its
-/// first frame: a still entry holds no decoder. The view repaints through its
+/// repaints nor keeps its frame lease). While the panel's tickers are off (it
+/// moves, or is kept mounted while hidden) a cover holds its frame and its
+/// lease, as the grid's cells do, so a panel shown again shows the frames it
+/// left on at once. One that does not play is a still of its first frame: a
+/// still entry holds no decoder. The view repaints through its
 /// binding, so the strip is never rebuilt for a frame.
 class PanelStripCover extends StatelessWidget {
   /// [content] from [scope].
@@ -431,7 +434,7 @@ class PanelStripCover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-    Widget view = ContentView(
+    Widget cover({bool inView = true}) => ContentView(
       content: content,
       scope: scope,
       preset: plays
@@ -451,22 +454,27 @@ class PanelStripCover extends StatelessWidget {
             ),
       placeholder: standIn,
       placeholderTint: tokens.categoryIcon,
+      inView: inView,
+      // The panel's tickers stop while it moves or is hidden: the cover
+      // holds its frame and its lease then, as the grid's cells do.
+      holdsWhileTickersOff: true,
     );
-    if (inView case final range?) {
-      view = ValueListenableBuilder<PanelStripRange>(
-        valueListenable: range,
-        builder: (context, shown, view) =>
-            TickerMode(enabled: shown.contains(index), child: view!),
-        child: view,
-      );
-    }
-    view = SizedBox.square(dimension: size, child: view);
-    if (radius case final radius?) {
-      view = ClipRRect(
+    final view = SizedBox.square(
+      dimension: size,
+      child: switch (inView) {
+        final range? => ValueListenableBuilder<PanelStripRange>(
+          valueListenable: range,
+          builder: (context, shown, _) => cover(inView: shown.contains(index)),
+        ),
+        null => cover(),
+      },
+    );
+    return switch (radius) {
+      final radius? => ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: view,
-      );
-    }
-    return view;
+      ),
+      null => view,
+    };
   }
 }
