@@ -97,17 +97,23 @@ void main() {
     });
   });
 
-  Widget page({TextDirection direction = TextDirection.ltr}) =>
-      PanelShellTestScope(
-        textDirection: direction,
-        child: Center(
-          child: SizedBox(
-            width: 400,
-            height: 480,
-            child: GifPage(host: host, source: source, assets: assets),
-          ),
+  Widget page({
+    TextDirection direction = TextDirection.ltr,
+    double width = 400,
+    PanelArrangement arrangement = PanelArrangement.touch,
+  }) => PanelShellTestScope(
+    textDirection: direction,
+    child: PanelArrangementScope(
+      arrangement: arrangement,
+      child: Center(
+        child: SizedBox(
+          width: width,
+          height: 480,
+          child: GifPage(host: host, source: source, assets: assets),
         ),
-      );
+      ),
+    ),
+  );
 
   Future<void> pumpPage(
     WidgetTester tester, {
@@ -528,6 +534,33 @@ void main() {
 
       // 480 px shows five rows of 102 (partly); 20 rows are laid out in all.
       expect(find.byType(ContentView).evaluate().length, lessThan(30));
+    });
+  });
+
+  group('a width that changes (a dock dragged wider or narrower)', () {
+    pageTest('keeps every clip playing on from where it was', (tester) async {
+      final producer = FakeAssetProducer()
+        ..onProduce = (attempt) => attempt.advance(
+          AssetStage.full,
+          frames: List.filled(400, const Duration(milliseconds: 50)),
+        );
+      assets.dispose();
+      assets = PageAssets.createScope(producer: producer);
+      await tester.pumpWidget(page());
+      await settle(tester);
+      final attempts = producer.attempts.length;
+      final clips = [
+        for (final attempt in producer.attempts) ...attempt.paintables,
+      ];
+      final rewinds = [for (final clip in clips) clip.rewinds];
+
+      for (final width in [396.0, 390.0, 384.0, 377.0]) {
+        await tester.pumpWidget(page(width: width));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(producer.attempts.length, attempts);
+      expect([for (final clip in clips) clip.rewinds], rewinds);
     });
   });
 

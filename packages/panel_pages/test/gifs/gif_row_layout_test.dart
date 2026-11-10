@@ -152,4 +152,43 @@ void main() {
       expect(row.cells.last.left + row.cells.last.width, closeTo(360, .001));
     }
   });
+
+  group('grouped at a width of its own', () {
+    test('keeps every row\'s clips at any width and scales the cells', () {
+      final sizes = [
+        for (var i = 0; i < 12; i++) Size(100.0 + 37 * (i % 4), 100),
+      ];
+      final at = GifRowLayout.of(sizes, width: 334, groupWidth: 334);
+      for (final width in [300.0, 420.0, 520.0]) {
+        final rows = GifRowLayout.of(sizes, width: width, groupWidth: 334);
+        expect(
+          [
+            for (final row in rows) [for (final c in row.cells) c.index],
+          ],
+          [
+            for (final row in at) [for (final c in row.cells) c.index],
+          ],
+        );
+        for (final (r, row) in rows.indexed) {
+          for (final (c, cell) in row.cells.indexed) {
+            final was = at[r].cells[c];
+            expect(cell.left, closeTo(was.left * width / 334, 1e-9));
+          }
+        }
+      }
+    });
+
+    test('decodes a clip for its own proportions at the row height', () {
+      expect(
+        GifRowLayout.decodeBoxOf(const Size(200, 100)),
+        const Size(200, 100),
+      );
+      expect(GifRowLayout.decodeBoxOf(null), const Size(100, 100));
+      // Beyond 4:1 a clip is the square of its longer side.
+      expect(
+        GifRowLayout.decodeBoxOf(const Size(500, 100)),
+        const Size(100, 100),
+      );
+    });
+  });
 }

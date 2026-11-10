@@ -230,6 +230,8 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
   final _hairline = listen.ValueNotifier<bool>(true);
   var _lines = const <_Line>[];
   var _lineKey = (<Collection>[], 0.0, null as PanelStrings?, null as String?);
+  // The width the lines' rows were grouped at, or null for their own.
+  double? _lineGroup;
   Object? _lineListed;
   // What is listed (which list, and its collections); null before the first
   // listing.
@@ -555,10 +557,15 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
   // The lines for [width], rebuilt only when what they are a function of
   // changes: the collections listed, the width, the strings and the
   // attribution.
-  List<_Line> _linesFor(double width, PanelStrings strings) {
+  List<_Line> _linesFor(
+    double width,
+    PanelStrings strings, {
+    double? groupWidth,
+  }) {
     final listed = _listed!;
     final collections = listed.collections;
     final stale =
+        _lineGroup != groupWidth ||
         _lineKey.$2 != width ||
         !identical(_lineKey.$3, strings) ||
         _lineKey.$4 != widget.attribution ||
@@ -569,13 +576,14 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
     _moveCells = _lineKey.$2 == width && _lineListed == listed.id;
     _lineListed = listed.id;
     _lineKey = (collections, width, strings, widget.attribution);
+    _lineGroup = groupWidth;
     // A collection that failed ends its own rows with the failure, so it is
     // read where the clips would have been, not after the ones that follow.
     final rows = [
       for (final (i, collection) in collections.indexed) ...[
         if (i > 0 && (collection.metadata.title ?? '').isNotEmpty)
           _HeaderLine(collection.metadata.title!),
-        ..._rowsOf(collection, width),
+        ..._rowsOf(collection, width, groupWidth: groupWidth),
         if (collection.id != CollectionId.recent &&
             collection.contents is CollectionContents$Failed)
           _NoticeLine(strings.gifsFailed, onRetry: _retry),
@@ -607,11 +615,17 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
     return true;
   }
 
-  static Iterable<_Line> _rowsOf(Collection collection, double width) sync* {
+  static Iterable<_Line> _rowsOf(
+    Collection collection,
+    double width, {
+    double? groupWidth,
+  }) sync* {
     final items = _itemsOf(collection);
-    final rows = GifRowLayout.of([
-      for (final item in items) _sizeOf(item),
-    ], width: width);
+    final rows = GifRowLayout.of(
+      [for (final item in items) _sizeOf(item)],
+      width: width,
+      groupWidth: groupWidth,
+    );
     for (final row in rows) {
       yield _RowLine(collection, row);
     }
@@ -634,9 +648,15 @@ class _GifPageState extends State<GifPage> with SingleTickerProviderStateMixin {
       onNotification: _onScroll,
       child: LayoutBuilder(
         builder: (context, constraints) {
+          // Under a pointer the rows keep their clips at any width (a
+          // docked panel being resized); only the cells scale.
           final lines = _linesFor(
             constraints.maxWidth,
             ChromeStringsScope.panelOf(context),
+            groupWidth:
+                PanelArrangementScope.of(context) == PanelArrangement.pointer
+                ? GifRowLayout.pointerGroupWidth
+                : null,
           );
           return ListView.builder(
             controller: _scroll,
@@ -1124,6 +1144,12 @@ class _CellState extends State<_Cell> {
     final palette = ChromeThemeScope.of(context).palette;
     final density = MediaQuery.devicePixelRatioOf(context);
     final size = widget.size;
+    final decode = GifRowLayout.decodeBoxOf(
+      switch (widget.item.descriptor?.size) {
+        final clip? => Size(clip.width.toDouble(), clip.height.toDouble()),
+        null => null,
+      },
+    );
     final label =
         widget.item.descriptor?.spokenName ??
         ChromeStringsScope.panelOf(context).tabLabel('gif');
@@ -1157,9 +1183,11 @@ class _CellState extends State<_Cell> {
                       scope: widget.assets,
                       preset: AssetPreset(
                         size: size,
+                        // Decoded for the clip, not for the cell: a cell
+                        // resized with its row plays on.
                         spec: AssetSpec.atDensity(
-                          logicalWidth: size.width,
-                          logicalHeight: size.height,
+                          logicalWidth: decode.width,
+                          logicalHeight: decode.height,
                           devicePixelRatio: density,
                         ),
                         // Silent and looping, while it is in view; the clip fills its
