@@ -37,14 +37,15 @@ enum GlassMaterial {
     refracts: false,
   ),
 
-  /// A menu over a dimmed screen (the message menu): 12 dp corners, a soft
-  /// 4 dp shadow all round, no visible edges, and a blur stronger than the
-  /// frosted one (80 dp), never refracting. Its tint opacity and backdrop
-  /// saturation follow the theme's brightness (`GlassMaterialColors`).
-  scrimMenu(
+  /// The message menu and its reaction strip over a dimmed screen: 12 dp
+  /// corners, 2/3 dp edges, a soft 3.5 dp shadow all round, and a blur
+  /// stronger than the frosted one (80 dp), never refracting. Its tint
+  /// opacity, edges, shadow and backdrop saturation follow the theme's
+  /// brightness (`GlassMaterialColors`).
+  messageMenu(
     cornerRadius: 12,
     strokeWidth: 2 / 3,
-    shadowBlur: 4,
+    shadowBlur: 3.5,
     shadowOffset: Offset.zero,
     refracts: false,
     blurRadius: 80,

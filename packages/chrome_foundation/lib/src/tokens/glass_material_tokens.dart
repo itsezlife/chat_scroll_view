@@ -122,7 +122,7 @@ final class GlassMaterialTokens {
     required this.composerIsland,
     required this.panelButton,
     required this.topPanel,
-    required this.scrimMenu,
+    required this.messageMenu,
   });
 
   /// The default mapping of [palette] roles onto the named materials.
@@ -133,9 +133,10 @@ final class GlassMaterialTokens {
   /// materials cast the palette shadow (the island and the top panel at
   /// 0x20, a floating button at 0x40); dark materials cast none.
   ///
-  /// The scrim menu tints [ChromePalette.surfaceRaised] at 0.85 in a dark
-  /// theme and 0.76 in a light one, over a backdrop saturated x2 and x3, with
-  /// invisible edges and a 0x26 black shadow in both.
+  /// The message menu tints [ChromePalette.surfaceRaised] at 0.85 in a dark
+  /// theme and 0.825 in a light one, over a backdrop saturated x2 and x3. A
+  /// light menu has a white top edge at 0x44, a bottom one at 0x22 and a
+  /// 0x38 black shadow; a dark one has neither.
   factory GlassMaterialTokens.fromPalette(ChromePalette palette) {
     final isDark = palette.brightness == Brightness.dark;
     const white = Color(0xFFFFFFFF);
@@ -158,12 +159,12 @@ final class GlassMaterialTokens {
       ),
       panelButton: material(palette.surface, darkTop: 0x28, shadowAlpha: 0x40),
       topPanel: material(palette.surfaceDim, darkTop: 0x20, shadowAlpha: 0x20),
-      scrimMenu: GlassMaterialColors(
+      messageMenu: GlassMaterialColors(
         tint: palette.surfaceRaised,
-        strokeTop: white.withAlpha(0),
-        strokeBottom: white.withAlpha(0),
-        shadow: const Color(0x26000000),
-        tintOpacity: isDark ? 0.85 : 0.76,
+        strokeTop: white.withAlpha(isDark ? 0 : 0x44),
+        strokeBottom: white.withAlpha(isDark ? 0 : 0x22),
+        shadow: Color(isDark ? 0x00000000 : 0x38000000),
+        tintOpacity: isDark ? 0.85 : 0.825,
         backdropSaturation: isDark ? 2 : 3,
       ),
     );
@@ -179,14 +180,14 @@ final class GlassMaterialTokens {
   final GlassMaterialColors topPanel;
 
   /// A menu over a dimmed screen.
-  final GlassMaterialColors scrimMenu;
+  final GlassMaterialColors messageMenu;
 
   /// The colours of [material].
   GlassMaterialColors colorsOf(GlassMaterial material) => switch (material) {
     GlassMaterial.composerIsland => composerIsland,
     GlassMaterial.panelButton => panelButton,
     GlassMaterial.topPanel => topPanel,
-    GlassMaterial.scrimMenu => scrimMenu,
+    GlassMaterial.messageMenu => messageMenu,
   };
 
   /// A copy with the named materials replaced.
@@ -194,12 +195,12 @@ final class GlassMaterialTokens {
     GlassMaterialColors? composerIsland,
     GlassMaterialColors? panelButton,
     GlassMaterialColors? topPanel,
-    GlassMaterialColors? scrimMenu,
+    GlassMaterialColors? messageMenu,
   }) => GlassMaterialTokens(
     composerIsland: composerIsland ?? this.composerIsland,
     panelButton: panelButton ?? this.panelButton,
     topPanel: topPanel ?? this.topPanel,
-    scrimMenu: scrimMenu ?? this.scrimMenu,
+    messageMenu: messageMenu ?? this.messageMenu,
   );
 
   /// Interpolates every material between [a] and [b].
@@ -217,7 +218,7 @@ final class GlassMaterialTokens {
     ),
     panelButton: GlassMaterialColors.lerp(a.panelButton, b.panelButton, t),
     topPanel: GlassMaterialColors.lerp(a.topPanel, b.topPanel, t),
-    scrimMenu: GlassMaterialColors.lerp(a.scrimMenu, b.scrimMenu, t),
+    messageMenu: GlassMaterialColors.lerp(a.messageMenu, b.messageMenu, t),
   );
 
   @override
@@ -227,11 +228,11 @@ final class GlassMaterialTokens {
           composerIsland == other.composerIsland &&
           panelButton == other.panelButton &&
           topPanel == other.topPanel &&
-          scrimMenu == other.scrimMenu;
+          messageMenu == other.messageMenu;
 
   @override
   int get hashCode =>
-      Object.hash(composerIsland, panelButton, topPanel, scrimMenu);
+      Object.hash(composerIsland, panelButton, topPanel, messageMenu);
 
   @override
   String toString() => 'GlassMaterialTokens(composerIsland: $composerIsland)';
