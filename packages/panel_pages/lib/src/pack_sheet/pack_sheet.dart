@@ -91,22 +91,33 @@ abstract final class PackSheet {
   /// The width of the box under a pointer.
   static const double boxWidth = 364;
 
+  /// How long the box takes to fade in or out.
+  static const Duration boxFade = Duration(milliseconds: 200);
+
   /// Shows the sheet [builder] builds over [context]'s navigator, arranged for
   /// [arrangement]. Completes when the sheet has gone.
+  ///
+  /// Under a pointer the box is the first box of a `ChromeBoxLayer`: a box
+  /// the sheet's host shows from it (`ChromeBoxLayer.of(sheetContext)`), such
+  /// as a confirmation, takes the box's place at once on the same layer, and
+  /// the box comes back when that one closes.
   static Future<void> show(
     BuildContext context, {
     required PanelArrangement arrangement,
     required WidgetBuilder builder,
-  }) => Navigator.of(context).push(switch (arrangement) {
-    PanelArrangement.touch => _BottomSheetRoute(
-      builder: builder,
-      speed: ChromeMotionScope.maybeOf(context)?.speed,
-    ),
-    PanelArrangement.pointer => _BoxRoute(
-      builder: builder,
-      speed: ChromeMotionScope.maybeOf(context)?.speed,
-    ),
-  });
+  }) {
+    final speed = ChromeMotionScope.maybeOf(context)?.speed;
+    return switch (arrangement) {
+      PanelArrangement.touch => Navigator.of(
+        context,
+      ).push(_BottomSheetRoute(builder: builder, speed: speed)),
+      PanelArrangement.pointer => _showBox(
+        context,
+        builder: builder,
+        speed: speed,
+      ),
+    };
+  }
 }
 
 /// The root of both routes' pages: the arrangement, the text style and room
@@ -297,50 +308,23 @@ class _SheetDragState extends State<_SheetDrag>
 
 // --- Box --------------------------------------------------------------------
 
-final class _BoxRoute extends PopupRoute<void> {
-  _BoxRoute({required this.builder, this.speed})
-    : super(
-        requestFocus: false,
-        settings: const RouteSettings(name: PackSheet.routeName),
-      );
-
-  final WidgetBuilder builder;
-  final ChromeMotionSpeed? speed;
-
-  static const Duration _fade = Duration(milliseconds: 200);
-
-  @override
-  Color get barrierColor => PackSheet.pointerBarrier;
-
-  @override
-  bool get barrierDismissible => true;
-
-  @override
-  String? get barrierLabel => null;
-
-  @override
-  Duration get transitionDuration => speed?.scale(_fade) ?? _fade;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) => _SheetRoot(
+// The box opens a box layer: a confirmation shown from the box takes its
+// place on the same layer, and the box comes back when it closes.
+Future<void> _showBox(
+  BuildContext context, {
+  required WidgetBuilder builder,
+  required ChromeMotionSpeed? speed,
+}) => ChromeBoxLayer.open<void>(
+  context,
+  barrierColor: PackSheet.pointerBarrier,
+  transitionDuration: speed?.scale(PackSheet.boxFade) ?? PackSheet.boxFade,
+  requestFocus: false,
+  settings: const RouteSettings(name: PackSheet.routeName),
+  builder: (context) => _SheetRoot(
     arrangement: PanelArrangement.pointer,
-    child: Center(
-      child: SizedBox(
-        width: PackSheet.boxWidth,
-        child: Builder(builder: builder),
-      ),
+    child: SizedBox(
+      width: PackSheet.boxWidth,
+      child: Builder(builder: builder),
     ),
-  );
-
-  @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) => FadeTransition(opacity: animation, child: child);
-}
+  ),
+);

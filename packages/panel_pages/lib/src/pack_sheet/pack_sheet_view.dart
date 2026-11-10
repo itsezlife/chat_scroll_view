@@ -594,8 +594,15 @@ class _PackSheetViewState extends State<PackSheetView>
 
   void _onButton(PackSheetAction action) {
     // The sheet is dismissed, then the set is toggled.
-    _close();
+    if (ChromeBoxLayer.maybeOf(context) == null) {
+      _close();
+      widget.onEditsRequested(action.requests);
+      return;
+    }
+    // A box: the host may ask first, in a box it shows over this one; this
+    // box then stays, to come back when that one closes.
     widget.onEditsRequested(action.requests);
+    if (mounted && ChromeBoxLayer.isShown(context)) _close();
   }
 
   bool _longPressEligible(CatalogLeafHit hit) =>

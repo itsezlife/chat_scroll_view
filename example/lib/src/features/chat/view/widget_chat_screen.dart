@@ -20,6 +20,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_p
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_confirm_box.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
@@ -925,6 +926,19 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       ),
       _ => (panel.clearRecentsTitle, panel.clearRecentsMessage),
     };
+    // Under a pointer the question is a box on a layer of its own, as a pack
+    // removal's is; on touch the platform's dialog.
+    if (ChatPackSheets.asksInBoxes) {
+      return ChatConfirmBox.open(
+        context,
+        ChatConfirmBox(
+          title: title,
+          question: message,
+          confirm: panel.clearAction,
+          cancel: panel.cancelAction,
+        ),
+      );
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1030,10 +1044,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     if (ChatPackSheets.confirmsRemovals && ChatPackSheets.takesAway(requests)) {
       final hold = _input.presentation.holdAutoHide();
       unawaited(
-        Navigator.of(context)
-            .push(ChatPackSheets.confirmRouteOf(requests))
+        ChatConfirmBox.open(context, ChatPackSheets.confirmBoxOf(requests))
             .then((confirmed) {
-              if ((confirmed ?? false) && mounted) apply();
+              if (confirmed && mounted) apply();
             })
             .whenComplete(hold.release),
       );

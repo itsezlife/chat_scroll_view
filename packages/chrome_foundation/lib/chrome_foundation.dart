@@ -3,6 +3,7 @@
 /// registry.
 library;
 
+export 'src/box/chrome_box_layer.dart';
 export 'src/glass/glass_capabilities.dart';
 export 'src/glass/glass_material.dart';
 export 'src/glass/glass_quality.dart';
