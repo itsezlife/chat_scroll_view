@@ -474,7 +474,10 @@ void main() {
         ),
       );
       expect(labels[MessageMenuActionId.viewPack], 'Add to Stickers');
-      expect(labels[MessageMenuActionId.removeFavourite], 'Delete from Favorites');
+      expect(
+        labels[MessageMenuActionId.removeFavourite],
+        'Delete from Favorites',
+      );
     });
 
     test('Android: a GIF offers Save to GIFs after Copy', () {
