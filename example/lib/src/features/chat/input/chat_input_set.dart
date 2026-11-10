@@ -253,6 +253,7 @@ final class ChatInputSet {
         PanelPlaybackHold(
           presentation: presentation.state,
           clock: services.assets.clock,
+          keyboardIsUp: () => keyboardStrategy.keyboardIsUp,
         ),
         (hold) => hold.dispose(),
       );

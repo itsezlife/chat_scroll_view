@@ -235,6 +235,42 @@ void main() {
       expect(rig.set.composer.hasFocus, isTrue);
     });
 
+    testWidgets('swapping the panel with the keyboard, both ways, never stops '
+        'playback; opening it cold does while it moves', (tester) async {
+      final rig = await _mobileRig(tester);
+      final clock = rig.services.assets.clock;
+      final paused = <bool>[];
+      void watch() => paused.add(
+        clock.pausedLayers.contains(PlaybackPauseLayer.routeMoving),
+      );
+      rig.set.presentation.state.addListener(watch);
+      addTearDown(() => rig.set.presentation.state.removeListener(watch));
+      rig.set.composer.requestFocus();
+      rig.keyboard.rest(300);
+      await rig.settle(tester);
+
+      await _open(tester, rig);
+      expect(_state(rig), isA<PanelVisibility$Shown>());
+      // The keyboard goes down under the panel.
+      rig.keyboard.rest(0);
+      await rig.settle(tester);
+      rig.set.handOffToKeyboard();
+      await rig.settle(tester);
+      rig.keyboard.rest(300);
+      await rig.settle(tester);
+      expect(_state(rig), isA<PanelVisibility$Hidden>());
+      expect(paused, isNotEmpty);
+      expect(paused, everyElement(isFalse));
+
+      paused.clear();
+      rig.set.composer.unfocus();
+      rig.keyboard.rest(0);
+      await rig.settle(tester);
+      await _open(tester, rig);
+      expect(paused, contains(isTrue));
+      expect(paused.last, isFalse);
+    });
+
     testWidgets('the field declares no soft keyboard while the panel is up and '
         'a keyboard again once it leaves', (tester) async {
       final rig = await _mobileRig(tester);
