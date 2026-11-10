@@ -6,6 +6,10 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the web's header cross)
+
+- The remove cross of an installed pack's header is a desktop's only; the web's headers keep the recents' cross alone.
+
 ### Changed (desktop panel and pack box)
 
 - Under a pointer: the sticker pack strip sits at the bottom as the emoji footer; an installed pack's header ends in a remove cross (`LibraryEdit.removePack`); recent and favourite stickers and saved GIFs show a remove badge on hover; a custom emoji's secondary click offers Copy emoji; a mouse preview has no menu and slides between GIFs.

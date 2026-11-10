@@ -6,6 +6,10 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (header action ink)
+
+- A painted section-header action has the desktop ink where the theme has a hover wash: the hover wash in the circle its icon sits in, and a ripple in the press colour from the press, growing over 650 ms and fading over 200 ms.
+
 ### Added (a remove badge on a hovered cell)
 
 - `PanelCatalogViewport.leafRemovable`, `onLeafRemove` and `removeBadge`: the cell under a mouse that the host says can be removed draws a remove badge over its content at its top end corner; a click on it removes the cell instead of picking it. `CatalogLeafRemoveBadge` holds the look, with `.pointer` and `.web` presets.
