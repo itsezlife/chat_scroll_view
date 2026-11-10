@@ -191,3 +191,20 @@ Bisected with a device-shaped test (`example/test/flicker/gif_return_test.dart`:
 | First frame on a fresh texture | A texture is shown after three posts of its lease (the producer queue may still hold an earlier holder's frames). A clip that starts over posts its first frame on the first tick and had nothing newer for the next two, so the texture showed only its third frame, after the still. The lease now posts its last frame again on each tick with no newer one until the texture is shown, so the texture shows the frame the clip is on (the player keeps that buffer, `_sentLast`, until a newer frame is sent or the texture is shown). A lease that moves from a slot to a texture gains the same: its slot holds its frame two display frames longer, not three of the clip's. |
 | Image codec | Unchanged: the frame counter GIF and WebP played by `PlayingImagePaintable`, stopped 300 ms and 1 s and resumed, go on from the frame left, one at a time (`packages/image_decoder/test/frame_counter_return_test.dart`). |
 | Measuring | The demo's frame counter clips (`example/assets/frame_counter/`, made by `example/tool/frame_counter.dart make`) carry their index in a binary bar; `dart run tool/frame_counter.dart read <recording>` prints, per clip and return, the frame left on, the first frame back and any step but one or frame held too long. |
+
+## Amendment: a panel's strip holds while the panel is away (2026-11-10)
+
+Native-media ticket 152. The covers of a pack strip are `ContentView`s, and a
+view under a disabled `TickerMode` was hidden: as the panel moved out (its
+shell's tickers off, ADR 028) each cover's lease was released and its frame
+kept in the pool, under `keptFrameBytes`. The grid's cells are held over the
+same span and keep their leases. With stickers playing in the chat, those the
+panel covers leave the screen as it opens again, after the covers released
+theirs, and their kept frames (4 MiB each at four buffers) pushed the covers'
+out of the bound, oldest first: every reopen showed the covers' stills for
+three posts. With nothing playing in the chat the bound was never reached.
+
+| Area | Decision |
+| ---- | -------- |
+| View | `ContentView.holdsWhileTickersOff`: a disabled `TickerMode` holds the view (`AssetBinding.held`: frame on screen, lease kept) instead of hiding it. `ContentView.inView` hides a view out of its viewport whatever the tickers say. |
+| Strip | `PanelStripCover` holds while the panel's tickers are off, and hides only a tab scrolled out of the strip, so the covers, like the grid's cells, come back on the textures they left on. |
