@@ -12,7 +12,7 @@ host, and the host edits the library and shows the feedback.
 
 **Status**: Accepted  
 **Date**: 2026-11-09  
-**Amended**: 2026-11-09 (native-media ticket 128): a pack sheet's route is named, and a host pauses only the chat under it (section *Amendment: a pack sheet plays*)  
+**Amended**: 2026-11-09 (native-media ticket 128): a pack sheet's route is named, and a host pauses only the chat under it (section *Amendment: a pack sheet plays*); 2026-11-10 (native-media tickets 158, 161, 162): the message menu's content rows, the desktop preview sizes, a pack sheet holds the panel (section *Amendment: message menu content rows, desktop preview, panel hold*)  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 023](023-data-layering-and-persistence.md) (amended: recents order), [ADR 024](024-panel-catalog-seams.md), [ADR 025](025-panel-shell-and-pages.md), [ADR 029](029-host-integration.md), [ADR 030](030-testing-policy.md)
 
 ## Context
@@ -126,3 +126,12 @@ Native-media ticket 128. The example paused the shared clock under every modal r
 
 - Glossary: [Content and Assets](../content/CONTEXT.md) (*Pack*, *Pack reference*, *Pack source*, *Content library*, *Library edit*, *Undo window*, *Install state*, *Favourite sticker*, *Saved GIF*, *Content preview*, *Pack sheet*)
 - Tickets: `.scratch/native-media-ffi/issues/120` to `124`
+
+## Amendment: message menu content rows, desktop preview, panel hold
+
+| Area | Decision |
+| ---- | -------- |
+| Message menu content rows | The host's message menu offers rows for a message that is one sticker or one GIF, on the message alone (not over a selection), from the content library and the pack source, in each platform's order. Android (`ChatActivity.createMenu`, message types 7 and 4): after Copy, "Add to Stickers" (opens the pack sheet; only for a sticker with a pack) then "Add to Favorites" / "Delete from Favorites"; for a GIF, "Save to GIFs". iOS (`ChatInterfaceStateContextMenus`): "Add to Favorites" / "Remove from Favorites" first (`Stickers_AddToFavorites` / `Stickers_RemoveFromFavorites`), and after Pin "View Pack" (`StickerPack_ViewPack`, **label UNVERIFIED**: no strings file is checked out) or "Save GIF" (`Conversation_SaveGif`). Desktop (`history_view_context_menu.cpp`, `AddDocumentActions` after `AddTopMessageActions`): after Pin, "Save GIF" (`lng_context_save_gif`), "View sticker set" or "Add stickers" when the pack is not installed (`lng_context_pack_info` / `lng_context_pack_add`), "Add to Favorites" / "Remove from Favorites" (`lng_faved_stickers_add` / `_remove`). Downloads, Share, Show in Folder and the other document rows are left out: the demo has no files. The rows are the example host's (`MessageMenuCatalog`); the viewport menu only shows them. |
+| Desktop preview | A preview a mouse opens takes the desktop client's `MediaPreviewWidget` sizes: a sticker or custom emoji fits a 224 box (`maxStickerSize`), a GIF fits 448 (twice it), scaled up or down to its proportions, in the middle of the window; it fades in and out over 150 ms (`stickerPreviewDuration`) with no scale (the scale code is commented out there). A window smaller than the box takes it down. |
+| Panel hold | A pack sheet opened from the panel holds the hover panel up whatever the pointer does (the desktop client's `TabbedSelector::Inner::preventHideWithBox`); when it closes with the pointer away, the presentation's after-hold delay runs (3 s, `kDelayedHideTimeoutMs`, which `afterHoldDelay` already was) before the panel hides. The example host takes `PanelPresentationController.holdAutoHide` while the sheet's future is pending. |
+

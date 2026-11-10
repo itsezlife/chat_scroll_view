@@ -36,6 +36,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/message_editabi
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_emoji_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_interaction_stub.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/unread_boundary_sender_run_layout.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/body_prefill.dart';
@@ -55,10 +56,12 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart'
     show
         AppliedEdit,
+        ContentDescriptor,
         ContentKey,
         LibraryPackEdit,
         PackId,
         PackKind,
+        PackInstallState,
         PackLookup$Found,
         PastedMedia,
         SemanticKind;
@@ -413,6 +416,27 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   // An edit of the user's lists asked from the panel: its bulletin, if one
   // is shown.
+  // The sticker or GIF a message body is, for the message menu's rows.
+  MessageMenuContent? _menuContentOf(String body) {
+    final key = StickerMessageBody.keyOf(body);
+    if (key == null) return null;
+    final library = widget.services.library;
+    return switch (widget.services.describe(key)) {
+      ContentDescriptor(semanticKind: SemanticKind.sticker, :final pack) =>
+        MessageMenuContent.sticker(
+          key: key,
+          pack: pack,
+          packInstalled:
+              pack != null &&
+              library.installStateOf(pack) == PackInstallState.installed,
+          favourite: library.favouriteStickers.value.contains(key),
+        ),
+      ContentDescriptor(semanticKind: SemanticKind.gif) =>
+        MessageMenuContent.gif(key: key),
+      _ => null,
+    };
+  }
+
   void _onLibraryEdited(AppliedEdit applied) {
     if (!mounted) return;
     if (ChatBulletins.ofLibraryEdit(
@@ -559,8 +583,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           onCopyLink: (text) => _showCopied(ChatCopyKind.link, text),
           onCopyCode: (text) => _showCopied(ChatCopyKind.code, text),
           onEmojiPacks: (packs) => unawaited(_openEmojiPacks(packs)),
+          onViewPack: (pack) => unawaited(_openPack(pack)),
+          onLibraryEdit: (edit) =>
+              _onLibraryEdited(widget.services.libraryShown.apply(edit)),
           onNotice: _showNotice,
         ),
+        contentOf: (id) => switch (backend.getMessage(id)?.text) {
+          final text? => _menuContentOf(text),
+          null => null,
+        },
         emojiPacks: MessageEmojiPacks(
           of: (id) => switch (backend.getMessage(id)?.text) {
             final text? => ChatPackTargets.emojiPacksOf(

@@ -32,6 +32,16 @@ abstract final class StickerMessageBody {
     };
   }
 
+  /// The content key a message body of [of] or [ofKey] sends, or null for
+  /// any other body: the reverse of the two.
+  static ContentKey? keyOf(String body) =>
+      switch (_lone.firstMatch(body.trim())?.group(1)) {
+        final target? => ContentKey.tryParse(target),
+        null => null,
+      };
+
+  static final RegExp _lone = RegExp(r'^!\[[^\]]*\]\(([^)\s]+)\)$');
+
   // A name from outside may hold what ends the alt text of an image or the
   // line; it is read aloud, so dropping those characters costs nothing.
   static String _body(String? name, ContentKey key) =>

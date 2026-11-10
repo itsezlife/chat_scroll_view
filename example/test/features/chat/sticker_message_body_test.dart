@@ -83,4 +83,19 @@ void main() {
       );
     });
   });
+
+  group('keyOf', () {
+    test('reads back the key of a body it made', () {
+      const key = ContentKey.document('giphy:abc');
+      expect(
+        StickerMessageBody.keyOf('![cat typing GIF](document:giphy:abc)'),
+        key,
+      );
+    });
+
+    test('is null for text, or a document among other text', () {
+      expect(StickerMessageBody.keyOf('hello'), isNull);
+      expect(StickerMessageBody.keyOf('hi ![a](document:1)'), isNull);
+    });
+  });
 }
