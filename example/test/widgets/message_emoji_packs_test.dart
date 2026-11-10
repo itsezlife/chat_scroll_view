@@ -45,11 +45,10 @@ void main() {
     WidgetTester tester,
     List<PackId> packs, {
     ChatMessageMenuMembership membership = ChatMessageMenuMembership.idle,
+    ChatSelectionPolicy policy = const ChatSelectionPolicy.mobile(),
   }) async {
     final dataSource = _OneMessageSource();
-    final selection = ChatSelectionController(
-      policy: const ChatSelectionPolicy.mobile(),
-    );
+    final selection = ChatSelectionController(policy: policy);
     final source = FakePackSource([
       Pack(id: _cats, kind: PackKind.emoji, title: 'Cats', items: const []),
     ]);
@@ -71,6 +70,7 @@ void main() {
     await tester.pumpWidget(
       ChromeThemeScope(
         palette: const ChromePalette.dark(),
+        pointerMenu: PointerMenuTokens.night,
         child: MaterialApp(
           home: Scaffold(
             body: Builder(
@@ -146,6 +146,59 @@ void main() {
       lessThan(tester.getSize(entry).width + 200),
     );
   });
+
+  testWidgets(
+    'on a desktop it is a row of the menu card, under a separator: 11 px '
+    'text 12 in and 4 down, no card of its own',
+    (tester) async {
+      final shown = await openMenu(tester, [
+        _cats,
+      ], policy: const ChatSelectionPolicy.desktop());
+
+      expect(find.byType(ChatMessageMenuCard), findsOneWidget);
+      final card = find.byType(ChatMessageMenuCard);
+      final entry = find.text(
+        'This message contains emoji from Cats pack.',
+        findRichText: true,
+      );
+      expect(find.descendant(of: card, matching: entry), findsOneWidget);
+      final row = find.byType(MessageContainsEmojiButton);
+      expect(
+        tester.getTopLeft(entry) - tester.getTopLeft(row),
+        const Offset(12, 4),
+      );
+      expect(tester.getBottomLeft(row).dy - tester.getBottomLeft(entry).dy, 4);
+      final text = tester.widget<RichText>(
+        find.descendant(of: row, matching: find.byType(RichText)),
+      );
+      // The entry's own span, under the one the default style wraps it in.
+      final span = (text.text as TextSpan).children!.single;
+      expect(span.style?.fontSize, 11);
+      expect(span.style?.color, PointerMenuTokens.night.text);
+      // The separator above it: a 1 px line in the separator colour.
+      final line = find.descendant(
+        of: card,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is ColoredBox &&
+              widget.color == PointerMenuTokens.night.separator,
+        ),
+      );
+      expect(line, findsOneWidget);
+      expect(tester.getSize(line).height, 1);
+      expect(tester.getTopLeft(row).dy - tester.getBottomLeft(line).dy, 5);
+      // No band of the card's own colour after the entry: the card ends 5
+      // below it.
+      expect(tester.getRect(card).bottom - tester.getBottomLeft(row).dy, 5);
+
+      await tester.tap(entry);
+      await tester.pumpAndSettle();
+      expect(shown, [
+        [_cats],
+      ]);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+  );
 
   testWidgets('counts several packs and opens them all', (tester) async {
     final shown = await openMenu(tester, [_cats, _dogs]);

@@ -233,7 +233,8 @@ class MessageMenuRow extends StatelessWidget {
 /// fill under the mouse, its disabled text; the icon in [PointerMenuTokens.
 /// arrow], the menu's bold colour. A destructive row takes the palette's
 /// destructive colour for both. The press is the pointer ripple
-/// ([ChromeInk], in [PointerMenuTokens.ripple]).
+/// ([ChromeInk], in [PointerMenuTokens.ripple]); the fill and the ripple are
+/// painted under the label and the icon.
 class MessageMenuPointerRow extends StatefulWidget {
   /// A row for [item], chosen by [onTap] (null when the item is disabled).
   const MessageMenuPointerRow({
@@ -294,6 +295,8 @@ class _MessageMenuPointerRowState extends State<MessageMenuPointerRow> {
           kind: ChromeInkKind.pointer,
           color: tokens.ripple,
           hoverColor: tokens.backgroundOver,
+          // The over fill and the ripple are opaque: under the label.
+          behindChild: true,
           onTap: enabled ? widget.onTap : null,
           child: Stack(
             children: [
@@ -325,6 +328,29 @@ class _MessageMenuPointerRowState extends State<MessageMenuPointerRow> {
       ),
     );
   }
+}
+
+/// A separator between the desktop message menu's rows and an entry below
+/// them: the pointer menu's, a [PointerMenuMetrics.separatorLine] line in
+/// [PointerMenuTokens.separator] across the card, 5 above it and 5 below.
+class MessageMenuPointerSeparator extends StatelessWidget {
+  /// A separator.
+  const MessageMenuPointerSeparator({super.key});
+
+  /// The room above and below the line.
+  static const double padding = 5;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: padding),
+    child: SizedBox(
+      height: PointerMenuMetrics.separatorLine,
+      width: double.infinity,
+      child: ColoredBox(
+        color: ChromeThemeScope.pointerMenuOf(context).separator,
+      ),
+    ),
+  );
 }
 
 /// How the Android message menu's reaction strip comes in, on its own while

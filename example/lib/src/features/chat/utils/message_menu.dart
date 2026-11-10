@@ -645,8 +645,16 @@ final class MessageMenu {
       final presentation = ChatMessageMenuPresentation.forPolicy(policy);
       final surfaceBuilder = MessageMenuChrome.surfaceBuilderFor(presentation);
       // The Android menu holds the contains-emoji entry in its own card,
-      // under a gap band; elsewhere it is a card under the menu.
-      final packsInCard = MessageMenuChrome.isAndroidSheet(presentation);
+      // under a gap band, and the desktop menu under a separator; elsewhere
+      // it is a card under the menu.
+      final packsLook = switch (presentation) {
+        _ when MessageMenuChrome.isAndroidSheet(presentation) =>
+          MessageContainsEmojiLook.androidRow,
+        _ when MessageMenuChrome.isDesktopPopup(presentation) =>
+          MessageContainsEmojiLook.pointerRow,
+        _ => MessageContainsEmojiLook.card,
+      };
+      final packsInCard = packsLook != MessageContainsEmojiLook.card;
       final packsSource = emojiPacks?.source;
 
       final result = await ChatMessageMenu.show(
@@ -669,7 +677,11 @@ final class MessageMenu {
           ),
           if (packsInCard && packs.isNotEmpty && packsSource != null) ...[
             ChatMessageMenuItem.custom(
-              builder: (_) => const MessageMenuGapBand(),
+              builder: (_) => switch (packsLook) {
+                MessageContainsEmojiLook.pointerRow =>
+                  const MessageMenuPointerSeparator(),
+                _ => const MessageMenuGapBand(),
+              },
             ),
             ChatMessageMenuItem.entry(
               id: MessageMenuActionId.emojiPacks,
@@ -679,7 +691,7 @@ final class MessageMenu {
                   packs: packs,
                   source: packsSource,
                   onTap: onSelect,
-                  inCard: true,
+                  look: packsLook,
                 ),
               ),
             ),
