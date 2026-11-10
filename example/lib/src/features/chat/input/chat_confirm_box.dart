@@ -51,10 +51,11 @@ String _russianRemovePack(String title) => 'Удалить «$title»?';
 /// pack box.
 ///
 /// A box of a `ChromeBoxLayer`: shown from a pack box
-/// (`ChromeBoxLayer.of(context).show`) it takes that box's place at once,
-/// and the pack box comes back when it closes; opened alone ([open]) it is
-/// the only box of its own layer over the chat. Its buttons pop it with true
-/// (confirmed) or false; Escape pops it with null.
+/// (`ChromeBoxLayer.of(context).show`) it takes that box's place at once;
+/// opened alone ([open]) it is the only box of its own layer over the chat.
+/// Cancel pops it with false (and Escape with null), bringing back a box
+/// under it; confirming answers true and closes the whole layer, a box
+/// under it included.
 class ChatConfirmBox extends StatelessWidget {
   /// A box asking [question], confirmed by [confirm] and dismissed by
   /// [cancel].
@@ -141,7 +142,9 @@ class ChatConfirmBox extends StatelessWidget {
                     _Button(
                       label: confirm,
                       color: palette.destructive,
-                      onTap: () => Navigator.of(context).pop(true),
+                      // Confirmed, the flow is over: the layer closes with
+                      // every box on it, a pack box under this one too.
+                      onTap: () => ChromeBoxLayer.of(context).closeAll(true),
                     ),
                   ],
                 ),

@@ -185,8 +185,8 @@ abstract final class ChatPackSheets {
     final strings = ChromeStringsScope.packSheetOf(context);
     BuildContext? sheetContext;
     // Under a pointer a removal asks first, in a box that takes the pack
-    // box's place on its layer; answered either way, the pack box comes
-    // back, its button saying what the library now holds.
+    // box's place on its layer. Cancelled, the pack box comes back;
+    // confirmed, the layer closes with both and the pack is removed.
     void edits(List<PackEditRequest> requests) {
       final sheet = sheetContext;
       if (confirmsRemovalsIn(arrangementOf(arrangement)) &&
