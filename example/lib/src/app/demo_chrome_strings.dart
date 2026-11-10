@@ -52,6 +52,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     copyEmojiAction: 'Копировать эмодзи',
     saveGifAction: 'Сохранить в GIF',
     deleteGifAction: 'Удалить',
+    removePackAction: 'Удалить набор',
   ),
   composer: ComposerStrings(
     messageHint: 'Сообщение',

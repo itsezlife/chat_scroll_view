@@ -15,6 +15,7 @@ import 'package:panel_pages/src/emoji/emoji_tone_picker.dart';
 import 'package:panel_pages/src/emoji/emoji_variant_picker.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/policy/pack_section_action.dart';
 import 'package:panel_pages/src/preview/catalog_content_preview.dart';
 import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
@@ -251,7 +252,8 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   // --- Section header -------------------------------------------------------
 
   /// Under a pointer, the Smileys & People header ends in a button that opens
-  /// a picker of one tone for every emoji.
+  /// a picker of one tone for every emoji, and an installed pack's header in
+  /// one that removes the pack.
   @override
   CatalogSectionAction? actionOf(
     Collection collection,
@@ -264,7 +266,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
         painter: _paintToneIcon,
         semanticLabel: strings.colorAllTitle,
       ),
-    _ => null,
+    _ => PackSectionAction.removeOf(collection, strings, arrangement),
   };
 
   // The tone-for-all button: two sliders, the upper one's
@@ -311,6 +313,10 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       CollectionId$Set(:final id),
     )) {
       host.requestPack(PackId(id));
+      return;
+    }
+    if (actionId == PackSectionAction.removePackActionId) {
+      PackSectionAction.requestRemove(collection, PackKind.emoji, host);
       return;
     }
     if (actionId != colorAllActionId ||

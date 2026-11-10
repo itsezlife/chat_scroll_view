@@ -65,6 +65,7 @@ abstract final class ChromeStringsPresets {
       copyEmojiAction: 'Copy Emoji',
       saveGifAction: 'Save to GIFs',
       deleteGifAction: 'Delete',
+      removePackAction: 'Remove pack',
     ),
     composer: ComposerStrings(
       messageHint: 'Message',
@@ -244,6 +245,7 @@ abstract final class ChromeStringsPresets {
       copyEmojiAction: 'Копировать эмодзи',
       saveGifAction: 'Сохранить в GIF',
       deleteGifAction: 'Удалить',
+      removePackAction: 'Удалить набор',
     ),
     composer: ComposerStrings(
       messageHint: 'Сообщение',

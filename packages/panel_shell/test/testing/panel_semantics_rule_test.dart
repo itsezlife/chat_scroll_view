@@ -43,6 +43,7 @@ ChromeStrings stringsWith({
       copyEmojiAction: base.panel.copyEmojiAction,
       saveGifAction: base.panel.saveGifAction,
       deleteGifAction: base.panel.deleteGifAction,
+      removePackAction: base.panel.removePackAction,
     ),
     composer: base.composer,
     formatting: base.formatting,

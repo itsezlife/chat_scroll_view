@@ -51,6 +51,7 @@ abstract final class ChromeStringsSnapshot {
       'panel.copyEmojiAction': panel.copyEmojiAction,
       'panel.saveGifAction': panel.saveGifAction,
       'panel.deleteGifAction': panel.deleteGifAction,
+      'panel.removePackAction': panel.removePackAction,
       'composer.messageHint': composer.messageHint,
       'composer.sendAction': composer.sendAction,
       'composer.confirmEditAction': composer.confirmEditAction,
