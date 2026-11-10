@@ -437,6 +437,7 @@ void main() {
       final activity = PlaybackActivity(
         clock: scope.clock,
         lifecycle: lifecycle,
+        policy: const PlaybackActivityPolicy(pausesOnFocusLoss: true),
       );
       addTearDown(activity.dispose);
       final binding = animated();

@@ -584,8 +584,10 @@ void main() {
     Set<PlaybackPauseLayer> layers(AppServices services) =>
         services.assets.clock.pausedLayers;
 
-    test('the window losing focus pauses the shared clock and getting it '
-        'back resumes', () async {
+    test('on a desktop the window losing focus pauses the shared clock and '
+        'getting it back resumes', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
       final services = await createTestServices();
       addTearDown(services.dispose);
       binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
@@ -594,6 +596,22 @@ void main() {
       binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       expect(layers(services), {PlaybackPauseLayer.appInactive});
       expect(services.assets.clock.isPaused, isTrue);
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      expect(layers(services), isEmpty);
+    });
+
+    test('on a phone a system sheet over the app (focus lost, still shown) '
+        'leaves playback alone', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      expect(layers(services), isEmpty);
+      expect(services.assets.clock.isPaused, isFalse);
 
       binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       expect(layers(services), isEmpty);
@@ -654,10 +672,12 @@ void main() {
     test('disposing the services gives the clock back running', () async {
       final services = await createTestServices();
       final clock = services.assets.clock;
-      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       services.lowPower.value = true;
       services.activity.holdOverlay();
-      expect(clock.pausedLayers, hasLength(3));
+      expect(clock.pausedLayers, hasLength(4));
 
       services.dispose();
 

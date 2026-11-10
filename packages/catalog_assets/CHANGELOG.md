@@ -6,6 +6,19 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a phone plays on under a system sheet)
+
+- `PlaybackActivity` no longer pauses on focus loss alone (`inactive`) on
+  Android and iOS: there it is a system sheet over a visible app (the
+  notification shade, a permission dialog, a call banner), and every
+  animation froze each time the shade was pulled. Desktop and the web pause
+  as before. Hiding (`hidden`, `paused`, `detached`) pauses on every
+  platform. Existing code that expected `appInactive` on a phone's
+  `inactive` sees no layer; pass
+  `PlaybackActivityPolicy(pausesOnFocusLoss: true)` to keep it.
+- `PlaybackActivityPolicy.pausesOnFocusLoss` (null: the platform's default)
+  and `PlaybackActivityPolicy.pausesOnFocusLossOn(platform, web:)` are new.
+
 ### Added (a clip that cannot go on starts over)
 
 - `FrameAtlas.keepsFrame(key)`: whether the next handle on a key shows a

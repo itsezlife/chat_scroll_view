@@ -182,7 +182,13 @@ final class LottieFrameLease {
 /// 3. The sweep, the backstop for what no surface said: one timer, alive only
 ///    while leases exist, runs every [idleRelease], and a lease that was not
 ///    wanted since the previous sweep is released. A lease therefore lives at
-///    most twice [idleRelease] unpainted.
+///    most twice [idleRelease] unpainted. Not while the clock is paused:
+///    then nothing is painted, on screen or not, and a sweep then released
+///    every lease on screen, so on resume each cell took a new one, and
+///    past the frames the texture pool keeps, every cell showed its still
+///    for three posts and then skipped ahead (ticket 151). A sweep while
+///    paused releases nothing and counts every lease as painted, so a lease
+///    lives at most twice [idleRelease] of playback unpainted.
 ///
 /// A released lease's slot stays in the pool idle (evictable, not evicted),
 /// and its texture idles in the texture pool for its reuse delay, so a cell
@@ -713,6 +719,10 @@ final class LottieFrameScheduler {
 
   void _onSweep() {
     _sweep = null;
+    if (_clock.isPaused) {
+      _sweepPaused();
+      return;
+    }
     for (final lease in List.of(_leases.values)) {
       if (lease._kept) continue;
       if (!lease._canvasTouched) lease._onCanvas = false;
@@ -730,5 +740,16 @@ final class LottieFrameScheduler {
       if (lease._texture == null && !lease._failed) _warmFor(lease);
     }
     if (_leases.isNotEmpty) _sweep = _startTimer(idleRelease, _onSweep);
+  }
+
+  // A paused clock paints nothing, so an unpainted lease says nothing about
+  // the screen: none is released, and each counts as painted up to now, so
+  // the first sweep after the pause does not take the cells on screen before
+  // they paint again.
+  void _sweepPaused() {
+    for (final lease in _leases.values) {
+      lease._touched = true;
+    }
+    _sweep = _startTimer(idleRelease, _onSweep);
   }
 }

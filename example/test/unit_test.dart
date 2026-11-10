@@ -126,6 +126,7 @@ import 'flicker/panel_video_return_test.dart'
     as flicker_panel_video_return_test;
 import 'flicker/playback_starvation_test.dart'
     as flicker_playback_starvation_test;
+import 'flicker/shade_resume_test.dart' as flicker_shade_resume_test;
 import 'flicker/thumbnail_fade_test.dart' as flicker_thumbnail_fade_test;
 import 'frame_rate_boost_test.dart' as frame_rate_boost_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
@@ -228,6 +229,7 @@ void main() {
     'flicker/playback_starvation_test.dart',
     flicker_playback_starvation_test.main,
   );
+  group('flicker/shade_resume_test.dart', flicker_shade_resume_test.main);
   group('flicker/thumbnail_fade_test.dart', flicker_thumbnail_fade_test.main);
   group('app/app_services_test.dart', app_services_test.main);
   group('app/boot_test.dart', boot_test.main);

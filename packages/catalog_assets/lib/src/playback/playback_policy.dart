@@ -23,10 +23,12 @@ enum PlaybackPauseLayer {
   /// backgrounded).
   surfaceHidden,
 
-  /// The app is visible but is not the one the user is working in: its window
-  /// lost focus (on desktop another app took it; on a phone a call or a
-  /// system sheet is on top). On desktop, stickers, emoji and spoiler dust
-  /// freeze the same moment the window deactivates.
+  /// The app is not the one the user is working in: its window lost focus to
+  /// another app (desktop, a blurred tab on the web), or it is hidden. On
+  /// desktop, stickers, emoji and spoiler dust freeze the same moment the
+  /// window deactivates. A `PlaybackActivity` on a phone leaves it clear
+  /// for a call or a system sheet over the visible app
+  /// (`PlaybackActivityPolicy.pausesOnFocusLoss`).
   appInactive,
 
   /// The user asked the system for less motion. Not in the standard pausing

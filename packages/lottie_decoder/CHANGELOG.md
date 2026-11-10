@@ -5,6 +5,15 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (playback that resumes goes on at once)
+
+- The idle sweep releases nothing while the playback clock is paused, and
+  counts the pause as painted. A paused clock paints nothing, so after a
+  second or two every lease on screen looked unwanted and went: on resume
+  each cell took a new lease, and with more cells on screen than the texture
+  pool keeps frames for, they took each other's kept textures, so every cell
+  showed its still for three posts (about 100 ms) and then skipped ahead.
+
 ### Changed (a cell that comes back goes on at once)
 
 - A lease that takes its kept texture back renders the frame after the one

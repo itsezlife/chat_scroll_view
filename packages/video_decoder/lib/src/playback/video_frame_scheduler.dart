@@ -232,6 +232,12 @@ final class VideoFrameLease {
 /// since the previous sweep is released, so a clip that is cached but off
 /// screen frees its slot, which stays in the pool, idle.
 ///
+/// Not while the clock is paused: then nothing is painted, on screen or not.
+/// A sweep then released every clip on screen, and on resume each took a new
+/// lease; past the frames the texture pool and [keptAheadBytes] keep, every
+/// clip started over from its first frame (ticket 151). A sweep while paused
+/// releases nothing and counts every lease as painted.
+///
 /// ## Coming back
 ///
 /// A lease that ended because its clip left the screen or went unpainted
@@ -986,6 +992,10 @@ final class VideoFrameScheduler {
 
   void _onSweep() {
     _sweep = null;
+    if (_clock.isPaused) {
+      _sweepPaused();
+      return;
+    }
     for (final lease in List.of(_leases.values)) {
       if (lease._kept) continue;
       if (!lease._canvasTouched) lease._onCanvas = false;
@@ -1003,6 +1013,17 @@ final class VideoFrameScheduler {
       if (lease._texture == null && !lease.isFailed) _warmFor(lease);
     }
     if (_leases.isNotEmpty) _sweep = _startTimer(idleRelease, _onSweep);
+  }
+
+  // A paused clock paints nothing, so an unpainted lease says nothing about
+  // the screen: none is released, and each counts as painted up to now, so
+  // the first sweep after the pause does not take the clips on screen before
+  // they paint again.
+  void _sweepPaused() {
+    for (final lease in _leases.values) {
+      lease._touched = true;
+    }
+    _sweep = _startTimer(idleRelease, _onSweep);
   }
 }
 

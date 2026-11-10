@@ -6,6 +6,14 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (playback that resumes goes on at once)
+
+- The idle sweep releases nothing while the playback clock is paused, and
+  counts the pause as painted. A paused clock paints nothing, so after a
+  second or two every clip on screen looked unwanted and its lease went: on
+  resume, past the frames the texture pool and `keptAheadBytes` keep, every
+  clip started over from its first frame.
+
 ### Changed (a clip that comes back never catches up)
 
 - A clip that comes back without its frames decoded ahead (given up to the
