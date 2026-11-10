@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -730,6 +731,28 @@ void main() {
 
       expect(find.byType(ChatMessageMenuScrim), findsOneWidget);
       expect(find.text('Edit'), findsOneWidget);
+    });
+
+    testWidgets('a second secondary click on the message closes the popup', (
+      tester,
+    ) async {
+      var done = false;
+      ChatMessageMenuResult? result = const ChatMessageMenuResult.item('x');
+      await _openMenu(
+        tester,
+        onDone: (value) {
+          done = true;
+          result = value;
+        },
+        presentation: ChatMessageMenuPresentation.popup,
+      );
+
+      await tester.tapAt(const Offset(60, 140), buttons: kSecondaryButton);
+      await tester.pump();
+      expect(done, isTrue);
+      expect(result, isNull);
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('Edit'), findsNothing);
     });
 
     testWidgets('popup presentation omits the scrim', (tester) async {

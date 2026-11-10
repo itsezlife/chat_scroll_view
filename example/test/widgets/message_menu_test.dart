@@ -8,6 +8,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/message_menu_
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -686,5 +687,56 @@ void main() {
         expect(find.text('Copy'), findsNothing);
       });
     }
+  });
+
+  testWidgets('a second secondary click where the menu was opened closes it '
+      '(desktop)', (tester) async {
+    final dataSource = _OneMessageSource();
+    final selection = ChatSelectionController(
+      policy: const ChatSelectionPolicy.desktop(),
+    );
+    addTearDown(dataSource.dispose);
+    addTearDown(selection.dispose);
+    final menu = MessageMenu(
+      dataSource: dataSource,
+      selection: selection,
+      actions: MessageMenuActions(onDelete: (_) {}, onEdit: (_) {}),
+      clipboard: FakeRichClipboard(),
+    );
+    const click = Offset(300, 200);
+    await tester.pumpWidget(
+      ChromeThemeScope(
+        palette: const ChromePalette.dark(),
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => menu.present(
+                  context,
+                  const ChatMessageMenuRequest(
+                    messageId: 1,
+                    slotGlobal: Rect.fromLTWH(0, 170, 800, 60),
+                    tapGlobal: click,
+                  ),
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Select'), findsOneWidget);
+
+    // The menu grows from the pointer: the second click lands on its edge.
+    await tester.tapAt(click + const Offset(4, 4), buttons: kSecondaryButton);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    expect(find.text('Select'), findsNothing);
+    expect(menu.isPresenting, isFalse);
   });
 }
