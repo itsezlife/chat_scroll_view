@@ -587,8 +587,11 @@ class _MenuItemViewState extends State<_MenuItemView> {
             },
           ),
         },
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        // The row keeps its own hover and focus wash; the ink adds the
+        // press ripple.
+        child: ChromeInk(
+          kind: ChromeInkKind.pointer,
+          color: ChromeCatalogTheme.pressInkOf(palette),
           onTap: widget.onChoose,
           child: Container(
             height: CatalogContextMenuPanel.itemExtent,

@@ -15,6 +15,7 @@ import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/preview/content_preview_item.dart';
 import 'package:panel_pages/src/preview/content_preview_layout.dart';
 import 'package:panel_pages/src/preview/content_preview_menu.dart';
+import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// The host's handle on the content previews of its panel and its sheets:
@@ -816,27 +817,34 @@ class _PreviewMenu extends StatelessWidget {
             color: palette.surfaceRaised,
             borderRadius: BorderRadius.circular(radius),
           ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: minWidth),
-            child: IntrinsicWidth(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: padding),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final action in actions)
-                      _PreviewMenuItem(
-                        label: ContentPreviewMenu.labelOf(
-                          action,
-                          item,
-                          strings,
+          // The rows' press feedback stays inside the corners.
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radius),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: minWidth),
+              child: IntrinsicWidth(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: padding),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final action in actions)
+                        _PreviewMenuItem(
+                          label: ContentPreviewMenu.labelOf(
+                            action,
+                            item,
+                            strings,
+                          ),
+                          icon: action.icon,
+                          attention: ContentPreviewMenu.isAttention(
+                            action,
+                            item,
+                          ),
+                          onTap: () => onChoose(action),
                         ),
-                        icon: action.icon,
-                        attention: ContentPreviewMenu.isAttention(action, item),
-                        onTap: () => onChoose(action),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -871,8 +879,8 @@ class _PreviewMenuItem extends StatelessWidget {
       label: label,
       onTap: onTap,
       excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: ChromeInk(
+        color: ChromeCatalogTheme.pressInkOf(palette),
         onTap: onTap,
         child: Container(
           height: _PreviewMenu.itemExtent,

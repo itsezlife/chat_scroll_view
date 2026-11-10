@@ -24,6 +24,7 @@ export 'src/menu/pointer_menu_row.dart'
     show PointerMenuPanelKey, PointerMenuRowKey;
 export 'src/motion/appear_motion.dart';
 export 'src/motion/chrome_appear.dart';
+export 'src/motion/chrome_ink.dart';
 export 'src/motion/chrome_motion.dart';
 export 'src/motion/chrome_motion_scope.dart';
 export 'src/motion/chrome_motion_speed.dart';
