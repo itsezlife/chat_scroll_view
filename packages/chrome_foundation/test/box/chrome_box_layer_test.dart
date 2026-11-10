@@ -197,5 +197,23 @@ void main() {
   testWidgets('maybeOf is null outside a layer', (tester) async {
     await pumpHost(tester);
     expect(ChromeBoxLayer.maybeOf(host), isNull);
+    expect(ChromeBoxLayer.isShown(host), isFalse);
+  });
+
+  testWidgets('a box is shown until another box covers it, and again once '
+      'that one closes', (tester) async {
+    await pumpHost(tester);
+    await open<void>(tester, 'pack');
+    final pack = boxContext(tester, 'pack');
+    expect(ChromeBoxLayer.isShown(pack), isTrue);
+
+    ChromeBoxLayer.of(pack).show<void>((_) => const _Box('confirm')).ignore();
+    await tester.pump();
+    expect(ChromeBoxLayer.isShown(pack), isFalse);
+    expect(ChromeBoxLayer.isShown(boxContext(tester, 'confirm')), isTrue);
+
+    Navigator.pop(boxContext(tester, 'confirm'));
+    await tester.pump();
+    expect(ChromeBoxLayer.isShown(pack), isTrue);
   });
 }
