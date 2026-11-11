@@ -725,6 +725,13 @@ void main() {
             expect(find.text('over'), findsOneWidget);
             expect(hostOf(tester, 'over'), isNot(same(bulletins)));
             expect(bulletins.current.value, isNull);
+            // The text environment of the chat's bulletins (the app's body
+            // style), never the framework's debug one.
+            final style = DefaultTextStyle.of(
+              tester.element(find.text('over')),
+            ).style;
+            expect(style, DefaultTextStyle.of(home).style);
+            expect(style.decoration, isNot(TextDecoration.underline));
           },
         );
       }
