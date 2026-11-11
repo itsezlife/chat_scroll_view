@@ -1199,14 +1199,21 @@ class ChatSelectionController implements Listenable {
   /// desktop arm-for-entry) — everywhere, or only in the range's own message
   /// under [ChatSelectionPolicy.scopesTextRangeSuppressionToSubject] — or
   /// under mobile **message selection** mode.
+  ///
+  /// In **message selection** mode under any policy, a hit on a body that
+  /// paints no text (a sticker, a GIF, an emoji-only body; see
+  /// [putNonTextBody]) does not activate either: the body is the message, so
+  /// a click on it toggles the message, as on a text message. Links and code
+  /// in text keep [ChatSelectionPolicy.suppressesLinkTapInMessageSelection].
   bool _suppressesInlineActivation(int messageId) {
     if (_hasLiveTextRange &&
         (!selectionPolicy.scopesTextRangeSuppressionToSubject ||
             _text.subjectId == messageId)) {
       return true;
     }
-    return selectionPolicy.suppressesLinkTapInMessageSelection &&
-        isSelectionMode;
+    if (!isSelectionMode) return false;
+    return selectionPolicy.suppressesLinkTapInMessageSelection ||
+        _text.nonTextBodyOf(messageId) != null;
   }
 
   /// True when the facade owns a copyable character-range (not arm-only).

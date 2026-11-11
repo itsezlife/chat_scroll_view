@@ -8,7 +8,9 @@ this policy; inline hits; deferred desktop drag-out promotion); 2026-10-18
 inline activation only in its own message); 2026-10-18 (every text body is
 under the policy, the emoji-only text layout included); 2026-10-19 (status
 chrome: the desktop click on an emoji-only message's time selects it, as the
-reference does)  
+reference does); 2026-11-12 (native-media-ffi ticket 215: in message
+selection a hit on a body that is not text toggles the message on desktop
+too)  
 **Supersedes**: [ADR 010](010-message-then-text-selection.md)
 
 Chat-list **message selection** and **text selection** are two modes under one
@@ -238,6 +240,14 @@ character-range suppresses inline activation only inside its own message (the
 **text selection subject**). A link or code chrome in another message
 activates, and dismisses the range as any click away from it does. Idle link and code taps
 still activate.
+
+A body that is not text (a sticker, a GIF, an emoji-only body: a body
+registered with `putNonTextBody`) is the message itself, so in **message
+selection** its hits (`ChatInlineHit.sticker`, an emoji-only body's
+`ChatInlineHit.embed`) do not activate under either policy: the click falls
+through to the toggle, as on a text message. Telegram Desktop does the same:
+its media answer `toggleSelectionByHandlerClick` with true, while a text link
+does not.
 
 ## Considered options
 
