@@ -1,6 +1,6 @@
 /// The stack blur a backdrop still is made with, on the CPU.
 ///
-/// **Seam:** `stackBlurRgba` over small RGBA buffers, against a direct
+/// **Seam:** `StackBlur.blurRgba` over small RGBA buffers, against a direct
 /// evaluation of the same tent: each pixel the weighted sum of the pixels
 /// up to the radius away along the line, the edge pixel repeated past the
 /// edges, divided by (radius + 1)², truncated, across the rows and then down
@@ -76,7 +76,7 @@ void main() {
     final blue = [for (var i = 0; i < width * height; i++) random.nextInt(256)];
     for (final radius in [0, 1, 2, 5, 15]) {
       final rgba = _opaque(red, green, blue);
-      stackBlurRgba(rgba, width, height, radius: radius);
+      StackBlur.blurRgba(rgba, width, height, radius: radius);
       expect(_channel(rgba, 0), _direct(red, width, height, radius));
       expect(_channel(rgba, 1), _direct(green, width, height, radius));
       expect(_channel(rgba, 2), _direct(blue, width, height, radius));
@@ -86,10 +86,10 @@ void main() {
 
   test('a single row or column is blurred along its length alone', () {
     final row = _opaque([0, 0, 255, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]);
-    stackBlurRgba(row, 5, 1, radius: 1);
+    StackBlur.blurRgba(row, 5, 1, radius: 1);
     expect(_channel(row, 0), _direct([0, 0, 255, 0, 0], 5, 1, 1));
     final column = _opaque([0, 0, 255, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]);
-    stackBlurRgba(column, 1, 5, radius: 1);
+    StackBlur.blurRgba(column, 1, 5, radius: 1);
     expect(_channel(column, 0), _direct([0, 0, 255, 0, 0], 1, 5, 1));
   });
 
@@ -97,13 +97,13 @@ void main() {
       'opaque', () {
     // Premultiplied: a red at half alpha, and nothing.
     final rgba = Uint8List.fromList([128, 0, 0, 128, 0, 0, 0, 0]);
-    stackBlurRgba(rgba, 2, 1, radius: 0, background: 0x0000FF);
+    StackBlur.blurRgba(rgba, 2, 1, radius: 0, background: 0x0000FF);
     expect(rgba, [128, 0, 127, 255, 0, 0, 255, 255]);
   });
 
   test('the tone is applied after the blur, in levels of 255', () {
     final rgba = _opaque([128], [128], [128]);
-    stackBlurRgba(
+    StackBlur.blurRgba(
       rgba,
       1,
       1,
@@ -129,7 +129,7 @@ void main() {
     for (var run = 0; run < 30; run++) {
       rgba.setAll(0, source);
       final watch = Stopwatch()..start();
-      stackBlurRgba(rgba, width, height, radius: 15, tone: tone);
+      StackBlur.blurRgba(rgba, width, height, radius: 15, tone: tone);
       watch.stop();
       if (run == 10 || (run > 10 && watch.elapsed < best)) best = watch.elapsed;
     }

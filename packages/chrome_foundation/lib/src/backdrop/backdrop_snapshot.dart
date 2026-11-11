@@ -162,7 +162,7 @@ final class BackdropSnapshot implements Listenable {
       if (data == null || _disposed) return;
       // About a millisecond for a phone's window at 1/15: off the UI
       // isolate where there is another.
-      final pixels = await compute(_blurPixels, (
+      final pixels = await compute(_Blur.apply, (
         pixels: data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
         width: width,
         height: height,
@@ -215,20 +215,21 @@ final class _Blur {
   final int radius;
   final int background;
   final List<double>? tone;
-}
 
-Uint8List _blurPixels(
-  ({Uint8List pixels, int width, int height, _Blur blur}) job,
-) {
-  stackBlurRgba(
-    job.pixels,
-    job.width,
-    job.height,
-    radius: job.blur.radius,
-    background: job.blur.background,
-    tone: job.blur.tone,
-  );
-  return job.pixels;
+  /// Makes the still's pixels from the capture's, in place.
+  static Uint8List apply(
+    ({Uint8List pixels, int width, int height, _Blur blur}) job,
+  ) {
+    StackBlur.blurRgba(
+      job.pixels,
+      job.width,
+      job.height,
+      radius: job.blur.radius,
+      background: job.blur.background,
+      tone: job.blur.tone,
+    );
+    return job.pixels;
+  }
 }
 
 /// Draws a [BackdropSnapshot] stretched over its box at [opacity], once its
