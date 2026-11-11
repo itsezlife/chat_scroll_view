@@ -8,6 +8,8 @@ is pre-1.0.
 
 ### Fixed (the blur under a preview's menu)
 
+- The still under a preview's menu no longer shows a grid of blocks: it is captured at 1/15 of the device pixels as before, but made at 1/3 (`ContentPreviewSession.backdropUpscale`, 5), so it is drawn stretched 3 times rather than 15. The blur's strength is unchanged.
+
 - The still under a preview's menu covers the whole window: its edges no longer fade to clear over the sharp window (see `chrome_foundation`). Where the window painted nothing, the still shows the theme's surface.
 
 ### Changed (the blur under a preview's menu is a still)

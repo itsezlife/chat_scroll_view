@@ -155,16 +155,20 @@ void main() {
         ..devicePixelRatio = density;
     });
 
-    // What the window shows: the still over the checkerboard, read back at
-    // its device pixels.
+    // What the window shows: the still over [window] (the checkerboard),
+    // read back at its device pixels. [nearest]: the still is stretched with
+    // nearest-neighbour sampling, as the coarsest backend draws it, in place
+    // of the view.
     Future<({Uint8List rgba, int width, int height})> shown(
       WidgetTester tester, {
-      Color background = const Color(0xFF000000),
+      CustomPainter window = const _Checkerboard(8),
+      int upscale = 1,
+      bool nearest = false,
     }) async {
       late BuildContext inner;
       final boundary = GlobalKey();
       BackdropSnapshot? snapshot;
-      Widget window() => RepaintBoundary(
+      Widget build() => RepaintBoundary(
         key: boundary,
         child: Directionality(
           textDirection: TextDirection.ltr,
@@ -173,7 +177,7 @@ void main() {
             children: [
               BackdropSnapshotSource(
                 child: CustomPaint(
-                  painter: const _Checkerboard(8),
+                  painter: window,
                   child: Builder(
                     builder: (context) {
                       inner = context;
@@ -183,22 +187,28 @@ void main() {
                 ),
               ),
               if (snapshot case final snapshot?)
-                BackdropSnapshotView(
-                  snapshot: snapshot,
-                  opacity: const AlwaysStoppedAnimation(1),
-                ),
+                nearest
+                    ? RawImage(
+                        image: snapshot.image,
+                        fit: BoxFit.fill,
+                        filterQuality: FilterQuality.none,
+                      )
+                    : BackdropSnapshotView(
+                        snapshot: snapshot,
+                        opacity: const AlwaysStoppedAnimation(1),
+                      ),
             ],
           ),
         ),
       );
-      await tester.pumpWidget(window());
+      await tester.pumpWidget(build());
       snapshot = BackdropSnapshot.capture(
         inner,
         blurSigma: 6.5,
-        background: background,
+        upscale: upscale,
       );
       addTearDown(snapshot!.dispose);
-      await tester.pumpWidget(window());
+      await tester.pumpWidget(build());
       final render =
           boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       final image = render.toImageSync(pixelRatio: density);
@@ -233,6 +243,71 @@ void main() {
       }
       expect(clear, 0, reason: 'pixels the still leaves see-through');
       expect(sharp, 0, reason: 'pixels left unblurred, first at $sharpAt');
+    });
+
+    // The largest change between two neighbouring device pixels of what the
+    // window shows, in levels of 255, and where.
+    ({int step, (int, int) at}) steepest(
+      ({Uint8List rgba, int width, int height}) shot,
+    ) {
+      final (:rgba, :width, :height) = shot;
+      var step = 0;
+      var at = (0, 0);
+      for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+          final here = rgba[(y * width + x) * 4];
+          for (final (dx, dy) in [(1, 0), (0, 1)]) {
+            if (x + dx >= width || y + dy >= height) continue;
+            final there = rgba[((y + dy) * width + x + dx) * 4];
+            if ((here - there).abs() > step) {
+              step = (here - there).abs();
+              at = (x, y);
+            }
+          }
+        }
+      }
+      return (step: step, at: at);
+    }
+
+    // A step of 255 blurred by 6.5 x 15 device pixels climbs about 1 level
+    // per device pixel: a still stretched 3 times, nearest-neighbour, steps
+    // about 3 at its pixel boundaries, one stretched 15 times about 16.
+    const smooth = 6;
+
+    testWidgets('upscaled once as it is made, the still shows no step at its '
+        'pixel boundaries even where it is stretched nearest-neighbour', (
+      tester,
+    ) async {
+      final (:step, :at) = steepest(
+        await shown(tester, window: const _Halves(), upscale: 5, nearest: true),
+      );
+      expect(step, lessThanOrEqualTo(smooth), reason: 'a step at $at');
+    });
+
+    testWidgets('a still made at the captured pixels, stretched '
+        'nearest-neighbour, shows its pixels as blocks', (tester) async {
+      final (:step, at: _) = steepest(
+        await shown(tester, window: const _Halves(), nearest: true),
+      );
+      expect(step, greaterThan(smooth));
+    });
+
+    testWidgets('the view draws an upscaled still smoothly', (tester) async {
+      final (:step, :at) = steepest(
+        await shown(tester, window: const _Halves(), upscale: 5),
+      );
+      expect(step, lessThanOrEqualTo(smooth), reason: 'a step at $at');
+    });
+
+    testWidgets('an upscaled still is the capture at upscale times its '
+        'pixels, still opaque and evenly blurred', (tester) async {
+      final (:rgba, :width, :height) = await shown(tester, upscale: 5);
+      expect((width, height), (1080, 2400));
+      var off = 0;
+      for (var at = 0; at < rgba.length; at += 4) {
+        if (rgba[at + 3] != 255 || (rgba[at] - 128).abs() > 56) off++;
+      }
+      expect(off, 0);
     });
 
     testWidgets('where the source painted nothing, the still shows the '
@@ -297,4 +372,23 @@ final class _Checkerboard extends CustomPainter {
 
   @override
   bool shouldRepaint(_Checkerboard old) => old.side != side;
+}
+
+// Black above and to the left of the middle, white elsewhere: two sharp
+// edges across the window, which the blur turns into its steepest ramps.
+final class _Halves extends CustomPainter {
+  const _Halves();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas
+      ..drawRect(Offset.zero & size, Paint()..color = const Color(0xFFFFFFFF))
+      ..drawRect(
+        Offset.zero & size / 2,
+        Paint()..color = const Color(0xFF000000),
+      );
+  }
+
+  @override
+  bool shouldRepaint(_Halves old) => false;
 }
