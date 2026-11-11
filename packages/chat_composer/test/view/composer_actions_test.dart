@@ -118,6 +118,98 @@ void main() {
     });
   });
 
+  group('press feedback', () {
+    ChromeInk? inkOf(WidgetTester tester, String id) {
+      final found = find.descendant(
+        of: button(id),
+        matching: find.byType(ChromeInk),
+      );
+      return found.evaluate().isEmpty ? null : tester.widget<ChromeInk>(found);
+    }
+
+    bool scales(String id) => find
+        .descendant(of: button(id), matching: find.byType(ScalePressable))
+        .evaluate()
+        .isNotEmpty;
+
+    double glyphOpacity(WidgetTester tester, String id) {
+      final opacity = find.ancestor(
+        of: find.descendant(
+          of: button(id),
+          matching: find.byType(AnimatedChromeIcon),
+        ),
+        matching: find.byType(FadeTransition),
+      );
+      return tester.widget<FadeTransition>(opacity.first).opacity.value;
+    }
+
+    ComposerSpec spec({VoidCallback? onTap}) => ComposerSpec(
+      actions: [
+        _action('attach', placement: ActionPlacement.leading, onTap: onTap),
+        _action('send', primary: true, onTap: () {}),
+      ],
+    );
+
+    testWidgets('on Android an action ripples in a 40 dp disc in the list '
+        'selector colour, and the primary bounces instead', (tester) async {
+      await show(tester, spec(onTap: () {}));
+
+      final ink = inkOf(tester, 'attach')!;
+      expect(ink.kind, ChromeInkKind.ripple);
+      expect(ink.circleRadius, 20);
+      expect(ink.color.a, closeTo(0x0F / 0xFF, 0.001));
+      expect(scales('attach'), isFalse);
+
+      expect(inkOf(tester, 'send'), isNull);
+      expect(scales('send'), isTrue);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+    testWidgets('on iOS a press dims the glyph to 0.4 and it comes back over '
+        '0.2 s; the tap still lands', (tester) async {
+      var taps = 0;
+      await show(tester, spec(onTap: () => taps++));
+      expect(inkOf(tester, 'attach')!.kind, ChromeInkKind.highlight);
+      expect(glyphOpacity(tester, 'attach'), 1);
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(button('attach')),
+      );
+      await tester.pump();
+      expect(glyphOpacity(tester, 'attach'), 0.4);
+
+      await gesture.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(glyphOpacity(tester, 'attach'), closeTo(0.7, 0.05));
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(glyphOpacity(tester, 'attach'), 1);
+      expect(taps, 1);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+    testWidgets('on a desktop every action, the primary too, takes the '
+        'pointer ripple in a 40 px disc and does not scale', (tester) async {
+      await show(tester, spec(onTap: () {}));
+
+      for (final id in ['attach', 'send']) {
+        final ink = inkOf(tester, id)!;
+        expect(ink.kind, ChromeInkKind.pointer, reason: id);
+        expect(ink.circleRadius, 20, reason: id);
+        expect(ink.hoverColor, isNull, reason: 'the glyph is the hover');
+        expect(scales(id), isFalse, reason: id);
+      }
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+    testWidgets(
+      'an action that cannot act takes no press',
+      (tester) async {
+        await show(tester, spec());
+
+        expect(inkOf(tester, 'attach')?.onTap, isNull);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.android),
+    );
+  });
+
   group('visibility and enabled', () {
     testWidgets('an invisible action takes no part in the layout', (
       tester,

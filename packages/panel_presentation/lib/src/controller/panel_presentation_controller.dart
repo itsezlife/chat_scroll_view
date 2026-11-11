@@ -309,10 +309,18 @@ final class PanelPresentationController {
   /// hides, if its kind is dismissed by back (a dock is not). A panel that is
   /// already hiding still consumes the press, so a second back does not leave
   /// the screen mid-animation. A hidden panel consumes nothing.
+  ///
+  /// A panel hiding for the soft keyboard (`hide(waitForIme: true)`) stops
+  /// waiting for it: back acts at once, the panel closes from where it is,
+  /// and the host lowers the keyboard that was on its way up.
   bool handleBack() {
     if (_disposed) return false;
     if (shell.handleBack()) return true;
     final current = _state.value;
+    if (current case PanelVisibility$Hiding(:final kind, waitForIme: true)) {
+      _commit(PanelVisibility.hiding(kind));
+      return true;
+    }
     if (current.kind case final kind?
         when current.isVisible &&
             policy.dismissalsFor(kind).contains(PanelDismissal.back)) {

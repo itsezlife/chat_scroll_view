@@ -317,6 +317,42 @@ void main() {
     expect(taps, 1);
   });
 
+  testWidgets('the host is told when the feedback shows and when it goes, '
+      'so it can draw a press of its own', (tester) async {
+    final shown = <bool>[];
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Center(
+          child: ChromeInk(
+            kind: ChromeInkKind.highlight,
+            color: _color,
+            onTap: () => taps++,
+            onHighlightChanged: shown.add,
+            child: const SizedBox(width: 100, height: 40),
+          ),
+        ),
+      ),
+    );
+    final box = tester.getRect(find.byType(ChromeInk));
+    final gesture = await tester.startGesture(box.center);
+    await tester.pump();
+    expect(shown, [true]);
+
+    await gesture.moveTo(box.centerRight + const Offset(80, 0));
+    await tester.pump();
+    expect(shown, [true, false]);
+
+    await gesture.moveTo(box.center);
+    await tester.pump();
+    expect(shown, [true, false, true]);
+
+    await gesture.up();
+    await tester.pump();
+    expect(shown, [true, false, true, false]);
+    expect(taps, 1);
+  });
+
   testWidgets('a highlight lifted away from the target does not tap', (
     tester,
   ) async {

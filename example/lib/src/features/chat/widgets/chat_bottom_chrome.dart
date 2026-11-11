@@ -31,7 +31,7 @@ class ChatBottomChrome extends StatefulWidget {
   /// The chat's input set.
   final ChatInputSet input;
 
-  /// While a selection is active the composer is hidden.
+  /// While a selection is active the composer is hidden on touch platforms.
   final ChatSelectionController selection;
 
   /// Key of the composer's glass island.

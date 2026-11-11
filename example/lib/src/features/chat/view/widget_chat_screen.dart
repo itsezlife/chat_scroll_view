@@ -280,6 +280,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       confirmClearRecents: _confirmClearRecents,
       keyboard: widget.softKeyboard,
       policy: widget.presentationPolicy,
+      selection: _selection,
       onPastedMedia: _onPastedMedia,
       onPackRequested: _openPack,
       onPackEditRequested: _editPack,

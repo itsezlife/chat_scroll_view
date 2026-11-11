@@ -6,7 +6,12 @@ import 'dart:ui' show FlutterView;
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
-    show ChatDataSource, ChatMutation, ChatPreImeBackClaim, RemoveBatchMutation;
+    show
+        ChatDataSource,
+        ChatMutation,
+        ChatPreImeBackClaim,
+        ChatSelectionController,
+        RemoveBatchMutation;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
@@ -128,6 +133,7 @@ final class ChatInputSet {
   /// [view] is the screen's view (the atlas bakes on its frames), [keyboard]
   /// the soft keyboard's readings and commands. [send] and [edit] take the
   /// markdown body of a message. [policy] defaults to the one of the platform.
+  /// [selection] is the chat's: back clears it before it closes the panel.
   factory ChatInputSet({
     required AppServices services,
     required FlutterView view,
@@ -136,6 +142,7 @@ final class ChatInputSet {
     required ClearRecentsConfirm confirmClearRecents,
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
     PanelPresentationPolicy? policy,
+    ChatSelectionController? selection,
     Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
     Future<void> Function(PackId id)? onPackRequested,
     ValueChanged<LibraryPackEdit>? onPackEditRequested,
@@ -281,6 +288,7 @@ final class ChatInputSet {
         onPackRequested: onPackRequested,
         onPackEditRequested: onPackEditRequested,
         onLibraryEdited: onLibraryEdited,
+        selection: selection,
         messageLengthLimit: messageLengthLimit,
         ime: ime,
         window: window,
@@ -314,6 +322,7 @@ final class ChatInputSet {
     required Future<void> Function(PackId id)? onPackRequested,
     required ValueChanged<LibraryPackEdit>? onPackEditRequested,
     required ValueChanged<AppliedEdit>? onLibraryEdited,
+    required ChatSelectionController? selection,
     required this.messageLengthLimit,
     required this.ime,
     required listen.ValueNotifier<PanelWindow> window,
@@ -339,6 +348,7 @@ final class ChatInputSet {
        _onPackRequested = onPackRequested,
        _onPackEditRequested = onPackEditRequested,
        _onLibraryEdited = onLibraryEdited,
+       _selection = selection,
        _window = window,
        _text = text,
        linkPreview = ChatLinkPreview(text: text) {
@@ -463,6 +473,9 @@ final class ChatInputSet {
   // Where an edit the user asked for (a favourite, a saved GIF, a recent
   // forgotten) is reported once the library took it: the host's bulletin.
   final ValueChanged<AppliedEdit>? _onLibraryEdited;
+
+  // The chat's selection, which back clears before the panel.
+  final ChatSelectionController? _selection;
   final listen.ValueNotifier<PanelWindow> _window;
   final ComposerTextController _text;
 
@@ -921,6 +934,15 @@ final class ChatInputSet {
     });
   }
 
+  // Whether the panel is giving its slot to the keyboard: search shrinking
+  // back first, or the emptied panel waiting for the keyboard to rise.
+  bool get _handingOff =>
+      _leaving.value ||
+      switch (presentation.state.value) {
+        PanelVisibility$Hiding(:final waitForIme) => waitForIme,
+        _ => false,
+      };
+
   bool get _panelReplacesKeyboard =>
       isPanelOpening && presentation.state.value.kind is KeyboardReplacement;
 
@@ -1005,13 +1027,42 @@ final class ChatInputSet {
     );
   }
 
-  /// Back: with search focused over a raised keyboard, the keyboard goes
-  /// first; then search closes; then the panel. True when it consumed the
-  /// press.
+  /// Back: a content preview over the panel goes first; then the chat's
+  /// selection (a text selection, then the selected messages), as the panel
+  /// is the chrome around the chat and the selection is what the user is
+  /// doing in it; a hand-off to the keyboard under way ends with both going
+  /// down, at once; with search focused over a raised keyboard, the keyboard
+  /// goes next; then search closes; then the panel. True when it consumed
+  /// the press.
+  ///
+  /// The panel's back is taken ahead of the soft keyboard while it is up, so
+  /// this is the one place that orders the chat's selection against it.
   Future<bool> handleBack() async {
     if (_disposed) return false;
     // A content preview over the panel goes first, menu and all.
     if (services.previews.dismiss()) return true;
+    if (_selection case final selection?) {
+      if (selection.isTextSelectionActive) {
+        selection.clearTextSelection();
+        return true;
+      }
+      if (selection.isSelectionMode) {
+        selection.clear();
+        return true;
+      }
+    }
+    // Back while the panel hands its slot to the keyboard acts at once, not
+    // once the keyboard has risen: the hand-off ends, the keyboard on its
+    // way up goes down from where it is, and the panel closes from where it
+    // is (the presentation stops waiting for the keyboard).
+    if (_handingOff) {
+      _handOffRun++;
+      _leaving.value = false;
+      unawaited(_keyboardPort.hide());
+      shell.closeSearch();
+      presentation.handleBack();
+      return true;
+    }
     if (shell.search.value.isOpen && ime.samples.value.height > 1) {
       await _keyboardPort.hide();
       return true;
