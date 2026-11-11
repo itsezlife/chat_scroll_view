@@ -768,6 +768,39 @@ void main() {
     Rect slot(WidgetTester tester) =>
         tester.getRect(find.byType(ComposerField));
 
+    // Taking the padding into the field moves no text: the text and the hint
+    // sit where the padding around the field put them, on every platform (a
+    // desktop's compact density included).
+    for (final inset in [0.0, 12.0]) {
+      testWidgets(
+        'the text and the hint sit at the field pads, start inset $inset',
+        (tester) async {
+          await tester.pumpWidget(
+            composerHarness(
+              ComposerView(
+                controller: controller,
+                spec: ComposerSpec(),
+                autofocus: false,
+                fieldStartInset: inset,
+              ),
+            ),
+          );
+          final island = tester.getRect(find.byType(GlassSurface));
+          final hint = ChromeStringsPresets.english.composer.messageHint;
+          // The row's 2 px side pad, then the start inset; the top pad.
+          final expected = Offset(2 + inset, ComposerMetrics.fieldTopPad);
+
+          expect(
+            tester.getTopLeft(find.byType(ExtendedEditableText)) -
+                island.topLeft,
+            expected,
+          );
+          expect(tester.getTopLeft(find.text(hint)) - island.topLeft, expected);
+        },
+        variant: TargetPlatformVariant.all(),
+      );
+    }
+
     Future<void> expectFocusesAt(WidgetTester tester, Offset at) async {
       controller.unfocus();
       await tester.pump();

@@ -684,6 +684,10 @@ class _ComposerFieldState extends State<ComposerField> {
                 bottom: ComposerMetrics.fieldBottomPad,
                 end: ComposerMetrics.fieldEndPad,
               ),
+              // The pads are the island's metrics, exact on every platform:
+              // the theme's density (compact on a desktop) would take 4 px
+              // off the vertical ones and lift the text.
+              visualDensity: VisualDensity.standard,
             );
       case ComposerFieldLayout$Form(:final style):
         // The text field's own default style, which the gutter's markers
