@@ -3,6 +3,7 @@ import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenabl
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/material.dart' show Material, MaterialType;
 import 'package:flutter/widgets.dart';
 
 /// The bulletins of one modal sheet: while the sheet is up, a bulletin it
@@ -115,14 +116,22 @@ class _SheetBulletinLayerState extends State<_SheetBulletinLayer> {
     super.dispose();
   }
 
+  // The chat's bulletins sit in the screen's `Material`, whose body style
+  // their text inherits; a sheet's layer has none above it, so it gets the
+  // same one here (without, the text takes the framework's debug style). The
+  // card is the chat's: the reference shows the same notice over a sheet as
+  // over the screen.
   @override
-  Widget build(BuildContext context) => ChromeIconScope(
-    icons: ChatBulletins.icons,
-    child: BulletinHost(
-      controller: _controller,
-      obstruction: _obstruction,
-      builders: _builders,
-      child: widget.child,
+  Widget build(BuildContext context) => Material(
+    type: MaterialType.transparency,
+    child: ChromeIconScope(
+      icons: ChatBulletins.icons,
+      child: BulletinHost(
+        controller: _controller,
+        obstruction: _obstruction,
+        builders: _builders,
+        child: widget.child,
+      ),
     ),
   );
 }

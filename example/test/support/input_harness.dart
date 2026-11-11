@@ -73,7 +73,8 @@ final class InputRig {
   final GlobalKey _space = GlobalKey();
 
   /// Pumps the rig into [tester]. [policy] is the platform's unless given,
-  /// and so is [selectionPolicy]; [size] is the window.
+  /// and so is [selectionPolicy]; [size] is the window. [chat], when given,
+  /// fills the space under the composer where the screen has its chat.
   static Future<InputRig> pump(
     WidgetTester tester, {
     required AppServices services,
@@ -83,6 +84,7 @@ final class InputRig {
     FakeSoftKeyboard? keyboard,
     bool Function()? failSends,
     int? messageLengthLimit = DemoConfig.messageLengthMax,
+    Widget? chat,
   }) async {
     final rig = InputRig._(
       services,
@@ -106,6 +108,7 @@ final class InputRig {
           rig: rig,
           policy: policy,
           messageLengthLimit: messageLengthLimit,
+          chat: chat,
         ),
       ),
     );
@@ -166,11 +169,13 @@ class _Screen extends StatefulWidget {
     required this.rig,
     required this.policy,
     required this.messageLengthLimit,
+    this.chat,
   });
 
   final InputRig rig;
   final PanelPresentationPolicy? policy;
   final int? messageLengthLimit;
+  final Widget? chat;
 
   @override
   State<_Screen> createState() => _ScreenState();
@@ -252,6 +257,7 @@ class _ScreenState extends State<_Screen> {
         child: Stack(
           key: _rig._space,
           children: [
+            if (widget.chat case final chat?) Positioned.fill(child: chat),
             Positioned.fill(
               // The chat gives a docked section its room, as the screen does:
               // only the padding follows the inset, the chat is not rebuilt.

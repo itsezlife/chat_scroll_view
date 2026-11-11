@@ -12,8 +12,10 @@ is pre-1.0.
   from `viewport_scroll`): with no cell focused, the up and down arrows
   scroll a line, Page Up and Page Down most of the viewport, Home and End to
   the start and the end; the page keys scroll with a cell focused too. A
-  mouse press on the catalogue gives it the keys without focusing a cell,
-  unless a node beside it (a composer) holds the focus. Tab still enters
+  mouse over the catalogue, or a mouse press on it, gives it the keys
+  without focusing a cell, taking them from the chat beside it but never
+  from a text field (a composer); the hover's focus goes back when the
+  mouse leaves. Tab still enters
   the grid on a cell, and the arrows then move by cell.
 
 ### Added (a host layer over a pack sheet)

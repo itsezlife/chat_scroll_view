@@ -24,9 +24,12 @@ class CatalogMoveFocusIntent extends Intent {
 ///
 /// Mounted above the viewport by [CatalogPage]. The bindings are scoped to the
 /// subtree that holds focus, so a text field elsewhere keeps its own arrows.
-/// A mouse press on the catalogue gives it the keys without focusing a cell,
-/// unless a node outside it holds the focus (a composer the user types in
-/// while picking keeps it). The controller owns the roving focus itself (it
+/// On a desktop the catalogue under the mouse has the keys: while the mouse
+/// is over it, and after a mouse press on it, it holds the focus without a
+/// focused cell, so the keys scroll it and not the chat beside it. A text
+/// field that holds the focus (the composer the user types in while
+/// picking) keeps it and its keys. Focus the hover took goes back to where
+/// it was when the mouse leaves, unless a press or a cell kept it. The controller owns the roving focus itself (it
 /// lives in the viewport); this widget only turns keys into the controller's
 /// `moveFocus`, `activateFocusedLeaf` and scroll calls, enters the grid when
 /// the focus arrives by traversal, and ends roving focus when it leaves.
@@ -84,9 +87,13 @@ class _CatalogKeyboardFocusState extends State<CatalogKeyboardFocus> {
 
   final FocusNode _node = FocusNode(debugLabel: 'CatalogKeyboardFocus');
 
-  // The focus requested is a mouse press's: no cell is focused for it. The
+  // The focus requested is the mouse's: no cell is focused for it. The
   // focus change arrives after the request, which it consumes.
   var _pressing = false;
+
+  // Where the focus the hover took was, to go back to when the mouse leaves;
+  // null when a press took it, or nothing had it.
+  FocusNode? _returnTo;
 
   @override
   void dispose() {
@@ -95,13 +102,60 @@ class _CatalogKeyboardFocusState extends State<CatalogKeyboardFocus> {
   }
 
   void _onPointerDown(PointerDownEvent event) {
-    if (event.kind != PointerDeviceKind.mouse || _node.hasFocus) return;
-    // A node beside the catalogue that holds the focus keeps it; one above
-    // it (the route's scope) holds it for nobody.
+    if (event.kind != PointerDeviceKind.mouse) return;
+    // A press keeps the keys here once the mouse leaves.
+    _returnTo = null;
+    _takeKeys();
+  }
+
+  void _onEnter(PointerEnterEvent event) {
+    if (event.kind != PointerDeviceKind.mouse) return;
     final primary = FocusManager.instance.primaryFocus;
-    if (primary != null && !_node.ancestors.contains(primary)) return;
+    if (_takeKeys()) {
+      _returnTo = primary is FocusScopeNode ? null : primary;
+    }
+  }
+
+  void _onExit(PointerExitEvent event) {
+    final back = _returnTo;
+    _returnTo = null;
+    // A cell focused meanwhile (by Tab) keeps the keys here.
+    if (back == null || widget.controller.focusedLeaf != null) return;
+    if (!_node.hasFocus && !_pressing) return;
+    if (back.context != null && back.canRequestFocus) back.requestFocus();
+  }
+
+  // Takes the focus for the mouse, unless it is here already or a text
+  // field holds it; returns whether it asked for it.
+  bool _takeKeys() {
+    if (_node.hasFocus) return false;
+    final primary = FocusManager.instance.primaryFocus;
+    if (_typesText(primary)) return false;
     _pressing = true;
     _node.requestFocus();
+    return true;
+  }
+
+  // Whether [node] is a text field's: its keys are the text's.
+  static bool _typesText(FocusNode? node) {
+    final context = node?.context;
+    if (context == null) return false;
+    if (context case StatefulElement(
+      :final state,
+    ) when state is TextInputClient) {
+      return true;
+    }
+    var found = false;
+    context.visitAncestorElements((element) {
+      if (element case StatefulElement(
+        :final state,
+      ) when state is TextInputClient) {
+        found = true;
+        return false;
+      }
+      return true;
+    });
+    return found;
   }
 
   void _onFocusChange(bool hasFocus) {
@@ -131,10 +185,15 @@ class _CatalogKeyboardFocusState extends State<CatalogKeyboardFocus> {
           child: Focus(
             focusNode: _node,
             onFocusChange: _onFocusChange,
-            child: Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: _onPointerDown,
-              child: widget.child,
+            child: MouseRegion(
+              opaque: false,
+              onEnter: _onEnter,
+              onExit: _onExit,
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: _onPointerDown,
+                child: widget.child,
+              ),
             ),
           ),
         ),
