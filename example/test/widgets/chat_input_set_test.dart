@@ -514,6 +514,23 @@ void main() {
       expect(await rig.set.handleBack(), isFalse);
     });
 
+    testWidgets('back clears a message selection first, then closes the '
+        'panel', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      rig.selection.startSelection(1);
+      expect(rig.selection.isSelectionMode, isTrue);
+
+      expect(await rig.set.handleBack(), isTrue);
+      await rig.settle(tester);
+      expect(rig.selection.isSelectionMode, isFalse);
+      expect(_state(rig), isA<PanelVisibility$Shown>());
+
+      expect(await rig.set.handleBack(), isTrue);
+      await rig.settle(tester);
+      expect(_state(rig), isA<PanelVisibility$Hidden>());
+    });
+
     testWidgets('back with search focused over a raised keyboard lowers the '
         'keyboard first', (tester) async {
       final rig = await _mobileRig(tester);

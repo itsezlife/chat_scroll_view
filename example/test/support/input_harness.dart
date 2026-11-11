@@ -31,7 +31,8 @@ final class InputRig {
   /// The soft keyboard.
   final FakeSoftKeyboard keyboard;
 
-  /// The chat's selection, to hide the composer.
+  /// The chat's selection, which hides the composer and which back clears
+  /// before the panel.
   final ChatSelectionController selection;
 
   bool Function()? _failSends;
@@ -212,6 +213,7 @@ class _ScreenState extends State<_Screen> {
         return sheet.future;
       },
       onLibraryEdited: _rig.libraryEdits.add,
+      selection: _rig.selection,
       keyboard: _rig.keyboard,
       policy: widget.policy,
       messageLengthLimit: widget.messageLengthLimit,
