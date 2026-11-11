@@ -434,6 +434,23 @@ void main() {
       expect(pool.bytes, 0);
     });
 
+    test('counts the warms it left short, and the leases that found none, '
+        'and reads its classes', () async {
+      await pool.warm(64, 6);
+      for (var i = 0; i < 6; i++) {
+        pool.lease(64, 64);
+      }
+      expect(pool.warmsShortOfRoom, 0);
+
+      await pool.warm(128, 1);
+      expect(pool.lease(100, 100), isNull);
+
+      expect(pool.warmsShortOfRoom, 1);
+      expect(pool.missedLeases, 1);
+      expect(pool.classCounts()[64], (leased: 6, idle: 0, kept: 0));
+      expect(pool.classCounts()[128], (leased: 0, idle: 0, kept: 0));
+    });
+
     test('a budget below the smallest texture is an error', () {
       expect(
         () => FrameTexturePool(host: host, budgetBytes: 2 * 64 * 64 * 4 - 1),

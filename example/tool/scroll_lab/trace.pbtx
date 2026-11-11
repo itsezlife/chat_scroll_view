@@ -27,4 +27,9 @@ data_sources {
     process_stats_config { scan_all_processes_on_start: true } }
 }
 data_sources { config { name: "android.surfaceflinger.frametimeline" } }
-duration_ms: 300000
+duration_ms: 330000
+# Written to the file as it runs (the ring is drained every second), so a
+# 5 min session is kept whole; a ring alone kept only its last minute.
+write_into_file: true
+file_write_period_ms: 1000
+flush_period_ms: 5000

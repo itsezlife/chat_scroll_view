@@ -290,6 +290,41 @@ final class LottieFrameScheduler {
   /// Leases alive now.
   int get leaseCount => _leases.length;
 
+  /// Where the leases alive now play, counted when read: on a texture
+  /// ([onTextures], one moving from its slot included), on a page slot alone
+  /// ([onSlots]: a page upload whenever the frame changes, with [slotKeys]
+  /// naming them), of those the ones a canvas paints ([forCanvas]), and how
+  /// many of all are [kept]. A profiler's reading; nothing here depends on it.
+  ({
+    int onTextures,
+    int onSlots,
+    int forCanvas,
+    int kept,
+    List<Object> slotKeys,
+  })
+  leasePlaces() {
+    var onTextures = 0;
+    var forCanvas = 0;
+    var kept = 0;
+    final slotKeys = <Object>[];
+    for (final MapEntry(:key, value: lease) in _leases.entries) {
+      if (lease._kept) kept++;
+      if (lease._texture != null) {
+        onTextures++;
+      } else if (lease._slot != null) {
+        slotKeys.add(key);
+        if (lease._onCanvas) forCanvas++;
+      }
+    }
+    return (
+      onTextures: onTextures,
+      onSlots: slotKeys.length,
+      forCanvas: forCanvas,
+      kept: kept,
+      slotKeys: slotKeys,
+    );
+  }
+
   /// Whether the scheduler is following the clock.
   bool get isFollowing => _following != null;
 

@@ -227,6 +227,29 @@ final class FrameTexturePool {
   /// Textures leased now.
   int get leasedTextures => _leased.length;
 
+  /// Leases that found no texture of their class (and so stayed on, or took,
+  /// a page slot) since the pool was made; a lease above the largest class
+  /// is not counted. A profiler's reading of how often textures ran short.
+  int get missedLeases => _missedLeases;
+  int _missedLeases = 0;
+
+  /// Warms that stopped short because the budget held only leased textures
+  /// and textures of their own class, since the pool was made: the class
+  /// stays on page slots until a lease ends.
+  int get warmsShortOfRoom => _warmsShortOfRoom;
+  int _warmsShortOfRoom = 0;
+
+  /// The textures of each size class now: leased, idle, and of the idle ones
+  /// those that keep an asset's frame. Counted when read.
+  Map<int, ({int leased, int idle, int kept})> classCounts() => {
+    for (final sizeClass in sizeClasses)
+      sizeClass: (
+        leased: _leased.values.where((c) => c == sizeClass).length,
+        idle: _idle.values.where((c) => c == sizeClass).length,
+        kept: _kept.keys.where((id) => _idle[id] == sizeClass).length,
+      ),
+  };
+
   /// What one texture of [sizeClass] costs.
   int bytesOfClass(int sizeClass) =>
       sizeClass * sizeClass * 4 * host.buffersPerTexture;
@@ -260,7 +283,10 @@ final class FrameTexturePool {
       null => null,
     };
     final id = own ?? _idleOf(sizeClass);
-    if (id == null) return null;
+    if (id == null) {
+      _missedLeases++;
+      return null;
+    }
     _forget(id);
     _idle.remove(id);
     _releasedAt.remove(id);
@@ -337,7 +363,10 @@ final class FrameTexturePool {
         continue;
       }
       final cost = bytesOfClass(sizeClass);
-      if (!_makeRoom(cost, sizeClass)) return;
+      if (!_makeRoom(cost, sizeClass)) {
+        _warmsShortOfRoom++;
+        return;
+      }
       _bytes += cost;
       _creating[sizeClass] = (_creating[sizeClass] ?? 0) + 1;
       int? id;

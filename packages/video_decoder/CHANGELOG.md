@@ -6,6 +6,14 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (readings for a profiler)
+
+- `VideoFrameScheduler.leasePlaces()`: how many leases play on textures,
+  on page slots alone (naming them), on slots for a canvas, and kept.
+- `VideoFrameAtlas.create(uploadTrace:)`, passed to `FrameAtlas`.
+- A playing clip's lease key reads as its content and size
+  (`<content>@<w>x<h>`).
+
 ### Fixed (playback that resumes goes on at once)
 
 - The idle sweep releases nothing while the playback clock is paused, and

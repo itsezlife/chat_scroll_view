@@ -162,6 +162,10 @@ final class FrameAtlas<K extends Object> {
   /// fires; [dispose] stops listening. [forgetIdleFrames] says what an idle
   /// entry remembers, see there.
   ///
+  /// [uploadTrace], when given, wraps each page upload and is told the keys
+  /// of the entries whose frames changed on the page; without one nothing
+  /// is collected.
+  ///
   /// A factory: the pool's callbacks close over the states and the images, so
   /// those are built first, in order, and the private constructor receives
   /// finished objects.
@@ -174,9 +178,18 @@ final class FrameAtlas<K extends Object> {
     FramePageUploader upload = FramePageImages.engineUpload,
     Listenable? memoryPressure,
     bool forgetIdleFrames = false,
+    FramePageUploadTrace? uploadTrace,
   }) {
     final states = <K, _FrameState>{};
-    final images = FramePageImages(memory: memory, upload: upload);
+    // The keys whose frames changed on each page in the batch being
+    // uploaded; filled only for a trace.
+    final pageKeys = <int, List<Object>>{};
+    final images = FramePageImages(
+      memory: memory,
+      upload: upload,
+      trace: uploadTrace,
+      keysOf: uploadTrace == null ? null : (page) => pageKeys[page] ?? const [],
+    );
     final pool = FramePool<K>(
       pageSideFor: pageSideFor,
       budgetBytes: budgetBytes,
@@ -193,6 +206,7 @@ final class FrameAtlas<K extends Object> {
       pool,
       memoryPressure,
       forgetIdleFrames,
+      uploadTrace == null ? null : pageKeys,
     );
   }
 
@@ -205,6 +219,7 @@ final class FrameAtlas<K extends Object> {
     this._pool,
     this._memoryPressure,
     this.forgetIdleFrames,
+    this._pageKeys,
   ) {
     _memoryPressure?.addListener(releaseUnpinned);
   }
@@ -249,6 +264,9 @@ final class FrameAtlas<K extends Object> {
   final FramePool<K> _pool;
   final Map<K, _FrameState> _states;
   final Listenable? _memoryPressure;
+  // The keys of the batch being uploaded, per page: only with an upload
+  // trace, which names them.
+  final Map<int, List<Object>>? _pageKeys;
   Future<void> _chain = Future<void>.value();
   bool _disposed = false;
 
@@ -385,7 +403,14 @@ final class FrameAtlas<K extends Object> {
           failed.add(handle);
         }
       }
+      if (_pageKeys case final pageKeys?) {
+        pageKeys.clear();
+        for (final handle in rendered) {
+          (pageKeys[handle._lease.slot.pageIndex] ??= []).add(handle.key);
+        }
+      }
       await _images.flush();
+      _pageKeys?.clear();
       if (_disposed) return (rendered: rendered, failed: failed);
       // The pages hold the frames now. A handle released meanwhile shows
       // nothing, so its frame is not admitted.

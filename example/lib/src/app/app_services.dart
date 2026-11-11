@@ -9,6 +9,7 @@ import 'package:chat_scroll_view_example/src/app/system_reduced_motion.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_probe.dart';
+import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/lab_net.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
@@ -337,7 +338,10 @@ final class AppServices {
               FrameTexturePool(host: textureHost, scrolling: scrolling),
               (pool) => pool.dispose(),
             );
-      if (DemoConfig.scrollLab) ScrollLab.texturePool = textures;
+      if (DemoConfig.scrollLab) {
+        ScrollLab.texturePool = textures;
+        LabMediaTrace.pool = textures;
+      }
       // The Lottie playback is probed by starting its engine. None (no
       // library here) leaves vector animations at their placeholder.
       final lottiePlayback = await startLottie(
@@ -364,11 +368,21 @@ final class AppServices {
       final decoders = DecoderRegistry()
         ..register(MediaForm.still, const ImageCodecDecoder())
         ..register(MediaForm.animatedImage, const ImageCodecDecoder());
+      // The lab marks each decode start with whose content it is.
+      Decoder traced(Decoder decoder, MediaForm form) => DemoConfig.scrollLab
+          ? LabMediaTrace.traceDecodes(decoder, form)
+          : decoder;
       if (lottiePlayback != null) {
-        decoders.register(MediaForm.vectorAnimation, lottiePlayback.decoder);
+        decoders.register(
+          MediaForm.vectorAnimation,
+          traced(lottiePlayback.decoder, MediaForm.vectorAnimation),
+        );
       }
       if (videoPlayback != null) {
-        decoders.register(MediaForm.video, videoPlayback.decoder);
+        decoders.register(
+          MediaForm.video,
+          traced(videoPlayback.decoder, MediaForm.video),
+        );
       }
       // Content that is not bundled: the local corpus, found in the bundle
       // and in the directory the build was given, and Giphy, only with a key.

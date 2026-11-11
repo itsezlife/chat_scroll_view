@@ -474,4 +474,46 @@ void main() {
       expect(sized.residentBytes, 96 * 1024);
     });
   });
+
+  group('upload trace', () {
+    test('wraps each page upload, naming the page, its rows and the keys '
+        'whose frames changed on it', () async {
+      final traced = <FramePageUpload>[];
+      var uploads = 0;
+      final atlas = FrameAtlas<String>(
+        renderer: FakeFrameRenderer(),
+        memory: ListFramePageMemory(),
+        upload: (pixels, side) {
+          uploads++;
+          return _upload(pixels, side);
+        },
+        uploadTrace: (upload, run) {
+          traced.add(upload);
+          return run();
+        },
+      );
+      addTearDown(atlas.dispose);
+      FrameHandle<String> sticker(String key, int edge) =>
+          atlas.acquire(key, source: 'ok', width: edge, height: edge)!;
+      final a = sticker('a', 60);
+      final b = sticker('b', 60);
+      final large = sticker('large', 500);
+
+      final batch = await atlas.render([
+        (handle: a, frame: 0),
+        (handle: b, frame: 0),
+        (handle: large, frame: 0),
+      ]);
+
+      expect(batch.rendered, hasLength(3));
+      expect(uploads, 2, reason: 'the trace calls the upload once a page');
+      final bySide = {for (final upload in traced) upload.side: upload};
+      expect(bySide.keys, unorderedEquals([128, 1024]));
+      expect(bySide[128]!.keys, unorderedEquals(['a', 'b']));
+      expect(bySide[1024]!.keys, ['large']);
+      expect(bySide[1024]!.rows, 500);
+      expect(bySide[1024]!.bytes, 1024 * 500 * 4);
+      expect(a.hasFrame && b.hasFrame && large.hasFrame, isTrue);
+    });
+  });
 }

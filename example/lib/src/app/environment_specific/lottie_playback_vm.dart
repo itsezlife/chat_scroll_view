@@ -1,6 +1,8 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/frame_pool.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
 import 'package:l/l.dart';
@@ -63,12 +65,16 @@ Future<LottiePlayback?> $startLottiePlayback({
       renderer: renderer,
       memory: memory,
       memoryPressure: memoryPressure,
+      uploadTrace: DemoConfig.scrollLab ? LabMediaTrace.traceUpload : null,
     ),
     clock: clock,
     textures: textures,
     textureWriter: textures == null ? null : renderer,
   )..texturesEnabled = ScrollLab.textures.value;
   void applyTextures() => scheduler.texturesEnabled = ScrollLab.textures.value;
+  if (DemoConfig.scrollLab) {
+    LabMediaTrace.schedulers['lottie'] = scheduler.leasePlaces;
+  }
   ScrollLab.textures.addListener(applyTextures);
   // The atlas goes first: its last batch may still be rendering. The cache
   // goes before the engine: it finishes the writes under way, and a render

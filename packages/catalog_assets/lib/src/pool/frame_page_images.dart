@@ -14,6 +14,28 @@ import 'package:catalog_assets/src/pool/pixel_upload.dart';
 typedef FramePageUploader =
     Future<ui.Image> Function(Uint8List pixels, int side);
 
+/// One page upload as a [FramePageUploadTrace] sees it: the page, its edge,
+/// the rows from the top that go up, their bytes, and the entries whose
+/// frames changed on it (the keys of the atlas that asked, or empty when the
+/// owner does not say).
+typedef FramePageUpload = ({
+  int pageIndex,
+  int side,
+  int rows,
+  int bytes,
+  List<Object> keys,
+});
+
+/// Wraps each page upload of a [FramePageImages]: called with what the upload
+/// is and the upload itself, which it must call once and whose image it
+/// returns. A profiler marks the call on its timeline; nothing else needs it,
+/// and without one an upload costs nothing more.
+typedef FramePageUploadTrace =
+    Future<ui.Image> Function(
+      FramePageUpload upload,
+      Future<ui.Image> Function() run,
+    );
+
 /// The images of the dynamic pages, made from their bytes when they change.
 ///
 /// A renderer writes into [FramePageMemory]; nothing is drawable until the
@@ -60,10 +82,17 @@ typedef FramePageUploader =
 /// of its own, so the copies of a flush do not hold off a frame together.
 final class FramePageImages {
   /// Creates images over [memory], uploading with [upload].
+  ///
+  /// [trace], when given, wraps every upload (see [FramePageUploadTrace]);
+  /// [keysOf] names the entries that changed on a page for it.
   FramePageImages({
     required this.memory,
     FramePageUploader upload = engineUpload,
-  }) : _upload = upload;
+    FramePageUploadTrace? trace,
+    List<Object> Function(int pageIndex)? keysOf,
+  }) : _upload = upload,
+       _trace = trace,
+       _keysOf = keysOf;
 
   /// The engine's upload of a page of [format] pixels (RGBA unless told
   /// otherwise), through [PixelUpload], which copies the bytes when called:
@@ -87,6 +116,8 @@ final class FramePageImages {
   final FramePageMemory memory;
 
   final FramePageUploader _upload;
+  final FramePageUploadTrace? _trace;
+  final List<Object> Function(int pageIndex)? _keysOf;
   final Map<int, ui.Image> _images = <int, ui.Image>{};
 
   /// The bytes each image was made of.
@@ -183,10 +214,19 @@ final class FramePageImages {
     final rows = (_rows[pageIndex] ?? side).clamp(1, side);
     final bytes = side * rows * FramePageMemory.bytesPerPixel;
     final page = memory.page(pageIndex, side: side);
-    final image = await _upload(
-      bytes == page.length ? page : Uint8List.sublistView(page, 0, bytes),
-      side,
-    );
+    final pixels = bytes == page.length
+        ? page
+        : Uint8List.sublistView(page, 0, bytes);
+    final trace = _trace;
+    final image = await (trace == null
+        ? _upload(pixels, side)
+        : trace((
+            pageIndex: pageIndex,
+            side: side,
+            rows: rows,
+            bytes: bytes,
+            keys: _keysOf?.call(pageIndex) ?? const [],
+          ), () => _upload(pixels, side)));
     if (_disposed || (_epochs[pageIndex] ?? 0) != epoch) {
       image.dispose();
       return;

@@ -12,7 +12,7 @@ the user's own gestures, replayed, and a count of the hitches they would see.
 
 | Script | Does |
 |---|---|
-| `watch.sh start\|stop <session>` | Records the user's gestures as a tape, with a trace and raw touches |
+| `watch.sh start\|stop <session>` | Records the user's gestures as a tape, with a trace, raw touches and the streamed LAB log; `RECORD=1` adds one screen recording of at most 170 s |
 | `replay.sh <tape> <session> [jump-id]` | Replays a tape under a trace |
 | `ab.sh <label> <tape> [dart-defines...]` | One A/B arm: a clean profile build, `RUNS` replays, battery temperature per run |
 | `scenario.sh open\|jump <session> ...` | From a fresh process: a cold open by tap, or a jump to a message |
@@ -58,10 +58,43 @@ The on/off switches (`lab_set <key> --ez value true|false`, or `LAB_ON` in
 | `liquid` | yes | the glass refracts at its rim instead of the frosted look |
 
 `video_cap` takes a number (`--es value 4`); `pool` logs the texture pool
-(`LAB pool leased=.. idle=.. bytes=.. budget=..`). An arm with the glass off:
+and where the frame schedulers' leases play (a `LAB pool asked` line, below).
+An arm with the glass off:
 
 ```shell
 adb shell am broadcast -a lab.SET --es key glass --ez value false
+```
+
+## The media path
+
+`lib/src/common/lab_media_trace.dart` follows what reaches the GPU as a page
+upload (`decodeImageFromPixelsSync`, whose raster half is the trace's
+`SnapshotImage`), whose content it is, and the texture pool around the
+panel's show and hide. The chat's content is every key its message bodies
+embed; anything else (the panel, its strip, the composer) is `other`.
+
+| Mark or line | Where | Says |
+|---|---|---|
+| `LABup <side>x<rows> <KiB>K chat\|other <keys>` | trace slice around each page upload call | the page edge, the rows sent, and the keys (`<content>@<w>x<h>`) whose frames changed on it |
+| `LABdecode <form> <part> chat\|other <content> <w>x<h>` | trace instant at each decode start | a decode, and whether it is the chat's |
+| `LABpanel showing\|shown\|hiding\|hidden @<ms>` | trace instant and `LAB panel` line | the panel's visibility |
+| `LAB media up=.. upKiB=.. chatUp=.. chatUpKiB=.. decodes=.. chatDecodes=..` | log, once a second while any happened | uploads and decodes in that second |
+| `LAB pool <when> leased=.. idle=.. kept=.. MiB=../.. missed=+.. shortOfRoom=+.. classes=<class>:<leased>/<idle>/<kept>,.. \| lottie tex=.. slot=.. canvas=.. kept=.. chatOnSlots=.. [..] \| video ..` | log, as the panel shows and at `hidden+0s`, `+1s`, `+2s` | the texture pool by class; leases that found no texture (`missed`) and warms the budget could not cover (`shortOfRoom`) since the last line; per scheduler, leases on textures, on page slots alone (each a page upload per frame), on slots for a canvas, kept, and the chat's on slots, named |
+
+Every `LAB` line ends with `@<ms>`, the monotonic time of the timeline (the
+clock of the trace's Dart marks); a `slow` line also gives its frame's
+`at=<vsync ms>` on the same clock. A `LABpanel` mark carries its own `@<ms>`,
+so its trace timestamp gives the offset that maps every line onto the trace.
+
+A post-panel session on a device:
+
+```shell
+flutter run --profile --dart-define=SCROLL_LAB=true \
+  --dart-define=FRAME_TEXTURES=true --dart-define=DISK_CACHE=false \
+  --dart-define-from-file=../config/development.json
+RECORD=1 tool/scroll_lab/watch.sh start p1   # open the panel, fling it, Back, fling the chat
+tool/scroll_lab/watch.sh stop p1
+grep -E 'LAB (pool|panel|media)' perf/lab/p1/lab.txt
 ```
 
 Before trusting a number:
