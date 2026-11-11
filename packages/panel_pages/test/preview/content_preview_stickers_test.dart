@@ -8,6 +8,8 @@
 /// columns of 72 x 82 under a 27 px header.
 library;
 
+import 'dart:typed_data';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
@@ -80,32 +82,38 @@ void main() {
     WidgetTester tester, {
     List<FakeCollectionSpec>? specs,
     PanelArrangement arrangement = PanelArrangement.touch,
+    Brightness brightness = Brightness.light,
+    Color window = const Color(0x00000000),
   }) async {
     final source = FakeCollectionSource(specs ?? [_pack('a'), _pack('b')]);
     addTearDown(source.dispose);
     await tester.pumpWidget(
       PanelShellTestScope(
         size: const Size(800, 600),
+        brightness: brightness,
         child: PanelArrangementScope(
           arrangement: arrangement,
           child: BackdropSnapshotSource(
-            child: Overlay(
-              initialEntries: [
-                OverlayEntry(
-                  builder: (context) => Center(
-                    child: SizedBox(
-                      width: 360,
-                      height: 480,
-                      child: StickersPage(
-                        host: host,
-                        source: source,
-                        assets: assets,
-                        previews: previews,
+            child: ColoredBox(
+              color: window,
+              child: Overlay(
+                initialEntries: [
+                  OverlayEntry(
+                    builder: (context) => Center(
+                      child: SizedBox(
+                        width: 360,
+                        height: 480,
+                        child: StickersPage(
+                          host: host,
+                          source: source,
+                          assets: assets,
+                          previews: previews,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -499,6 +507,69 @@ void main() {
     await settleClose(tester);
     expect(first.isDisposed, isTrue);
   });
+
+  // A mid-grey window under the menu, as the window shows it once the menu
+  // is up: the still toned for the theme, under the dim.
+  for (final (brightness, tone, dim) in [
+    (
+      Brightness.light,
+      ContentPreviewSession.backdropToneLight,
+      ContentPreviewSession.dimLight,
+    ),
+    (
+      Brightness.dark,
+      ContentPreviewSession.backdropToneDark,
+      ContentPreviewSession.dimDark,
+    ),
+  ]) {
+    testWidgets('over a ${brightness.name} theme the window under the menu is '
+        'the still, toned once, under the dim', (tester) async {
+      const grey = 0x80;
+      await pumpPage(
+        tester,
+        brightness: brightness,
+        window: const Color(0xFF000000 | grey << 16 | grey << 8 | grey),
+      );
+      final gesture = await hold(tester, 2);
+      await tester.pump(ContentPreviewSession.stickerMenuDelay);
+      await tester.pump(ContentPreviewSession.showDuration);
+      await tester.pump(ContentPreviewSession.showDuration);
+      expect(find.text('Send Sticker'), findsOneWidget);
+
+      // The window as it painted, read back at its full size.
+      final window = BackdropSnapshot.capture(
+        tester.element(find.byType(StickersPage)),
+        downscale: 1,
+        tone: BackdropSnapshot.identityTone,
+      )!;
+      addTearDown(window.dispose);
+      final bytes = await tester.runAsync(window.image.toByteData);
+      final rgba = Uint8List.sublistView(bytes!);
+      final toned = grey + tone.brightness * 255;
+      final dimAlpha = dim.a * ContentPreviewSession.dimAlpha / 255;
+      final expected = toned * (1 - dimAlpha) + dim.r * 255 * dimAlpha;
+      // The corners and edges, away from the page and the menu.
+      final width = window.image.width;
+      final height = window.image.height;
+      for (final (x, y) in [
+        (0, 0),
+        (width - 1, 0),
+        (0, height - 1),
+        (width - 1, height - 1),
+        (width ~/ 2, 0),
+        (0, height ~/ 2),
+      ]) {
+        final at = (y * width + x) * 4;
+        expect(rgba[at + 3], 255, reason: 'alpha at ($x, $y)');
+        expect(rgba[at], closeTo(expected, 3), reason: 'red at ($x, $y)');
+        expect(rgba[at + 2], closeTo(expected, 3), reason: 'blue at ($x, $y)');
+      }
+
+      await gesture.up();
+      expect(previews.dismiss(), isTrue);
+      await settleClose(tester);
+    });
+  }
 
   testWidgets('with the blur off the menu is over the dim alone', (
     tester,

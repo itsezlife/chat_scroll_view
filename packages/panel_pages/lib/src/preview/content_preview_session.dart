@@ -312,14 +312,16 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   );
 
   static BackdropSnapshot? _captureBackdrop(BuildContext context) {
-    final tone =
-        ChromeThemeScope.paletteOf(context).brightness == Brightness.dark
+    final palette = ChromeThemeScope.paletteOf(context);
+    final tone = palette.brightness == Brightness.dark
         ? backdropToneDark
         : backdropToneLight;
     return BackdropSnapshot.capture(
       context,
       downscale: backdropDownscale,
       blurSigma: backdropBlurSigma,
+      // Where the window painted nothing: its base fill.
+      background: palette.surface,
       tone: BackdropSnapshot.toneMatrix(
         saturation: tone.saturation,
         brightness: tone.brightness,
