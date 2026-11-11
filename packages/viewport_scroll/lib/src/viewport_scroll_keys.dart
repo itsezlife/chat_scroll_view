@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -250,15 +251,16 @@ class _ScrollAction extends Action<ViewportScrollIntent> {
 /// | Focus | ArrowUp / ArrowDown | PageUp / PageDown | Home / End |
 /// |---|---|---|---|
 /// | A text field, empty | target | target | target |
-/// | A text field, collapsed caret at the start (Up) or the end (Down) | target | target | the field |
-/// | A text field, caret elsewhere or a selection | the field | target | the field |
+/// | A text field, collapsed caret at the start (Up) or the end (Down) | target | target | the field (a Mac: target) |
+/// | A text field, caret elsewhere or a selection | the field | target | the field (a Mac: target) |
 /// | A viewport's keys (a chat, a pressed catalogue) | target | target | target |
 /// | Anything else under the router | target | target | target |
 ///
 /// The target is the [ViewportScrollRole.pointer] viewport under the mouse,
 /// else the [ViewportScrollRole.primary] one. A text field gives up only
 /// what it cannot use: its arrows move its caret until the caret is at the
-/// end it moves toward, and Home and End move it in any text; the page keys
+/// end it moves toward, and Home and End move it in any text, except on
+/// Apple platforms, where they move no caret and so always scroll; the page keys
 /// do nothing for a one-paragraph field, so they always scroll.
 ///
 /// With [holdsFocus] the router keeps the keys from falling to nobody: when
@@ -470,9 +472,18 @@ class _RouterAction extends Action<ViewportScrollIntent> {
       ViewportScrollStep.pageUp || ViewportScrollStep.pageDown => true,
       ViewportScrollStep.lineUp => caret == 0,
       ViewportScrollStep.lineDown => caret == value.text.length,
-      ViewportScrollStep.start || ViewportScrollStep.end => false,
+      ViewportScrollStep.start || ViewportScrollStep.end => !_homeEndEdit,
     };
   }
+
+  // Whether Home and End move a text field's caret on this platform. On
+  // Apple platforms they scroll a text view and leave the caret (the
+  // caret's line ends are Cmd+Left / Cmd+Right), so a field has no use for
+  // them; elsewhere they take the caret to its line's start and end.
+  static bool get _homeEndEdit => switch (defaultTargetPlatform) {
+    TargetPlatform.macOS || TargetPlatform.iOS => false,
+    _ => true,
+  };
 
   // The text field [node] belongs to, or null when it is none's.
   static TextInputClient? _fieldOf(FocusNode? node) {

@@ -304,8 +304,8 @@ mouse to get them (ticket 224), and the field keeps those it edits with.
 | Focus | Up / Down | Page Up / Page Down | Home / End |
 | ----- | --------- | ------------------- | ---------- |
 | Composer field, empty | target | target | target |
-| Composer field, collapsed caret at the start (Up) / at the end (Down) | target | target | field |
-| Composer field, caret elsewhere, or a selection in it | field | target | field |
+| Composer field, collapsed caret at the start (Up) / at the end (Down) | target | target | field (macOS: target) |
+| Composer field, caret elsewhere, or a selection in it | field | target | field (macOS: target) |
 | Router's node (field left, a selection) | target | target | target |
 | The chat's node | target | target | target (Home: newest, End: oldest) |
 | The catalogue (pressed) | its roving focus when a cell has it, else the catalogue | the catalogue | as Up / Down |
@@ -315,3 +315,23 @@ modified key stay the field's. Deviation from the reference: the page keys
 always scroll (the reference moves the caret to the field's start or end
 first), as the composer is a short field; Home / End scroll from an empty
 field.
+
+Amended 2026-11-12 (native-media ticket 227): on macOS Home and End
+(Fn+Left / Fn+Right on a laptop keyboard) move no caret in a text field (the
+platform scrolls a text view with them; the caret's line ends are
+Cmd+Left / Cmd+Right), so a field with text hands them to the target too, as
+an empty one does. With a draft in the composer they did nothing. Home still
+goes to the newest message and End to the oldest, as before the router. No
+Cmd+Up / Cmd+Down binding: the reference desktop client gives that key
+(Ctrl+Up as Qt reports it on a Mac) to replying to the previous message, not
+to scrolling.
+
+Amended 2026-11-12 (native-media ticket 228): on a desktop a click in the
+history (on a message or between messages) keeps the composer's field
+focused, so typing goes on after it. The reference's history takes the
+focus only when a text selection or a drag selection starts in it
+(`HistoryInner`: `setFocus` at the first selected text and at a drag
+selection's start). The host marks the history as inside the field's tap
+region on a desktop; a selection the press starts moves the keys as the
+router says (the router's node holds them while a selection is live). On
+touch a tap on the history still lets the field go, with its keyboard.
