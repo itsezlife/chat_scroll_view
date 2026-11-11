@@ -1,11 +1,10 @@
 import 'dart:math' as math;
 
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_motion.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
-import 'package:chat_scroll_view/src/util/logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
+import 'package:viewport_scroll/src/viewport_scroll_motion.dart';
+import 'package:viewport_scroll/src/viewport_scroll_physics.dart';
 
 /// **Rubber-band** edge-effect state: the edge translate over a clamped
 /// chat viewport.
@@ -15,7 +14,7 @@ import 'package:flutter/rendering.dart';
 /// only the unconsumed remainder at a reached pin.
 ///
 /// **Pull**: [displacement] is always the band of some finger pull `x`: `d·c·x / (d + c·x)`, with `d` the viewport height and
-/// `c` the [ChatEdgeEffect$RubberBand.resistance]. [pull] and [claim] map
+/// `c` the [ViewportEdgeEffect$RubberBand.resistance]. [pull] and [claim] map
 /// the displacement back to its pull, add the new motion, and map forward
 /// again — so resistance depends only on where the layer is, never on how
 /// it got there (a drag, a caught spring, or a fling overshoot). That round
@@ -32,18 +31,18 @@ import 'package:flutter/rendering.dart';
 /// content fling. [absorbImpact]
 /// launches the same spring from the pin with a fling's leftover velocity.
 /// A spring ends at the pin; it never crosses into the opposite edge.
-@internal
-final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
+final class ViewportRubberBandOverscroll implements ViewportEdgeEffectState {
   /// Idle rubber-band tuned by [effect].
-  ChatRubberBandOverscroll([this.effect = const ChatEdgeEffect$RubberBand()])
-    : _spring = SpringDescription.withDampingRatio(
-        mass: 1,
-        stiffness: effect.naturalFrequency * effect.naturalFrequency,
-        ratio: effect.dampingRatio,
-      );
+  ViewportRubberBandOverscroll([
+    this.effect = const ViewportEdgeEffect$RubberBand(),
+  ]) : _spring = SpringDescription.withDampingRatio(
+         mass: 1,
+         stiffness: effect.naturalFrequency * effect.naturalFrequency,
+         ratio: effect.dampingRatio,
+       );
 
   /// Parameters this rubber-band runs with.
-  final ChatEdgeEffect$RubberBand effect;
+  final ViewportEdgeEffect$RubberBand effect;
 
   final SpringDescription _spring;
 
@@ -57,7 +56,7 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
   double _viewportHeight = 0;
 
   SpringSimulation? _simulation;
-  final ChatSpringClock _clock = ChatSpringClock();
+  final ViewportSpringClock _clock = ViewportSpringClock();
 
   /// Side of rest the running spring started on (`±1`). The spring stops
   /// when the displacement reaches or crosses rest from this side.
@@ -86,9 +85,6 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
   void onDragStart() {
     _stopSpring();
     if (_displacement.abs() <= _restPx) _displacement = 0;
-    Log.fine(.overscroll, 'band.drag.start', {
-      'offset': LogFormat.f(_displacement),
-    });
   }
 
   /// Consumes motion toward content along the band curve. Returns `0`
@@ -130,12 +126,6 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
         unconsumedPx;
     _displacement =
         signedPull.sign * _displacementFor(signedPull.abs(), viewportHeight);
-    Log.fine(.overscroll, 'band.pull', {
-      'unconsumed': LogFormat.f(unconsumedPx),
-      'fits': fits,
-      'vh': LogFormat.f(viewportHeight),
-      'offset': LogFormat.f(_displacement),
-    });
   }
 
   /// Returns `true` when the layer is at rest, or when [velocity] flicks
@@ -156,25 +146,15 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
     if (_displacement.abs() <= _restPx) {
       _displacement = 0;
       _stopSpring();
-      Log.fine(.overscroll, 'band.drag.end.idle', {'v': LogFormat.f(velocity)});
       return true;
     }
     if (velocity.abs() >= _minImpactVelocity &&
         velocity.sign != _displacement.sign) {
       _stopSpring();
-      Log.fine(.overscroll, 'band.drag.end.carry', {
-        'v': LogFormat.f(velocity),
-        'from': LogFormat.f(_displacement),
-      });
       return true;
     }
     final layerVelocity = velocity * _slopeAt(_displacement.abs());
     _startSpring(layerVelocity);
-    Log.fine(.overscroll, 'band.drag.end.spring', {
-      'v': LogFormat.f(velocity),
-      'layerV': LogFormat.f(layerVelocity),
-      'from': LogFormat.f(_displacement),
-    });
     return false;
   }
 
@@ -183,16 +163,11 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
   void absorbImpact(double velocity) {
     if (velocity.abs() < _minImpactVelocity) return;
     _startSpring(velocity);
-    Log.fine(.overscroll, 'band.absorb', {
-      'v': LogFormat.f(velocity),
-      'from': LogFormat.f(_displacement),
-    });
   }
 
   @override
   void reset() {
     if (!isActive && _displacement == 0) return;
-    Log.fine(.overscroll, 'band.reset', {'from': LogFormat.f(_displacement)});
     _displacement = 0;
     _stopSpring();
   }
@@ -207,20 +182,12 @@ final class ChatRubberBandOverscroll implements ChatEdgeEffectState {
     final seconds = _clock.secondsAt(elapsed);
     final x = simulation.x(seconds);
     if (simulation.isDone(seconds) || (seconds > 0 && x * _springSide <= 0)) {
-      Log.fine(.overscroll, 'band.spring.done', {
-        't': LogFormat.ratio(seconds),
-      });
       _displacement = 0;
       _stopSpring();
       return false;
     }
     _displacement = x;
-    if (++_tickFrame % 8 == 1) {
-      Log.fine(.overscroll, 'band.spring.tick', {
-        't': LogFormat.ratio(seconds),
-        'offset': LogFormat.f(_displacement),
-      });
-    }
+    if (++_tickFrame % 8 == 1) {}
     return true;
   }
 

@@ -30,6 +30,7 @@ workspace:
   - packages/swipe_pager
   - packages/video_decoder
   - packages/video_native
+  - packages/viewport_scroll
   - example
   - scripts
 
@@ -41,12 +42,15 @@ environment:
   flutter: 3.41.7
 
 dependencies:
-  # The embed adapter (catalog_assets) and the emoji-only body's input
-  # (content_model); ADR 020. Neither depends on this package.
+  # The embed adapter (catalog_assets), the emoji-only body's input
+  # (content_model) and the scroll physics and keys the panel catalogue
+  # shares (viewport_scroll); ADR 020. None depends on this package.
   catalog_assets:
     path: packages/catalog_assets
   content_model:
     path: packages/content_model
+  viewport_scroll:
+    path: packages/viewport_scroll
   flutter:
     sdk: flutter
   meta: ^1.17.0

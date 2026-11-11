@@ -1,13 +1,13 @@
 import 'dart:math' as math;
 
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:flutter/widgets.dart' show ClampingScrollSimulation;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viewport_scroll/src/viewport_scroll_physics.dart';
 
 void main() {
   group('fling', () {
     test('starts flinging and settles to idle', () {
-      final physics = ChatFlingMotion()..startFling(1200);
+      final physics = ViewportFlingMotion()..startFling(1200);
       expect(physics.isFlinging, isTrue);
 
       var elapsed = Duration.zero;
@@ -21,7 +21,7 @@ void main() {
     });
 
     test('cancelFling stops immediately', () {
-      final physics = ChatFlingMotion()
+      final physics = ViewportFlingMotion()
         ..startFling(800)
         ..cancelFling();
       expect(physics.isFlinging, isFalse);
@@ -29,7 +29,7 @@ void main() {
     });
   });
 
-  group('ChatSplineFlingSimulation', () {
+  group('ViewportSplineFlingSimulation', () {
     final decelerationRate = math.log(0.78) / math.log(0.9);
 
     test('lasts the Android OverScroller duration', () {
@@ -38,7 +38,7 @@ void main() {
       for (final velocity in [800.0, 3000.0, 8000.0]) {
         final l = math.log(0.35 * velocity / coeff);
         final expected = math.exp(l / (decelerationRate - 1));
-        final sim = ChatSplineFlingSimulation(velocity: velocity);
+        final sim = ViewportSplineFlingSimulation(velocity: velocity);
         expect(sim.duration, closeTo(expected, 1e-9));
         expect(sim.isDone(sim.duration - 0.001), isFalse);
         expect(sim.isDone(sim.duration), isTrue);
@@ -47,7 +47,7 @@ void main() {
 
     test('travels as far as ClampingScrollSimulation, over a longer time', () {
       for (final velocity in [800.0, 3000.0, -8000.0]) {
-        final sim = ChatSplineFlingSimulation(velocity: velocity);
+        final sim = ViewportSplineFlingSimulation(velocity: velocity);
         final clamping = ClampingScrollSimulation(
           position: 0,
           velocity: velocity,
@@ -62,7 +62,7 @@ void main() {
     });
 
     test('starts at the fling velocity and eases out monotonically', () {
-      final sim = ChatSplineFlingSimulation(velocity: 3000);
+      final sim = ViewportSplineFlingSimulation(velocity: 3000);
       expect(sim.dx(0), closeTo(3000, 3000 * 0.02));
       var last = 0.0;
       for (var t = 0.0; t <= sim.duration; t += 1 / 120) {
@@ -74,7 +74,7 @@ void main() {
     });
 
     test('a zero velocity is already done', () {
-      final sim = ChatSplineFlingSimulation(velocity: 0);
+      final sim = ViewportSplineFlingSimulation(velocity: 0);
       expect(sim.isDone(0), isTrue);
       expect(sim.x(1), 0);
       expect(sim.dx(0), 0);
