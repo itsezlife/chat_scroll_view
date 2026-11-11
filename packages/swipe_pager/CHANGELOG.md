@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (an off-screen page says it is invisible)
+
+- A page that is not on screen is under an invisible `Visibility` that keeps
+  its state, in place of bare `Offstage` and `TickerMode`: still offstage,
+  out of focus and with its tickers off, and `Visibility.of` is now false in
+  it. Content that reads it (a catalogue) gives back what it plays on while
+  the page is away. A page sliding in is visible from its first step.
+
 ### Added
 
 - `SwipePager`, a horizontal pager whose swipe is claimed past a slop and a

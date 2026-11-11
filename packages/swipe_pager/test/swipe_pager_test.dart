@@ -173,6 +173,33 @@ void main() {
       );
     });
 
+    testWidgets('a kept page says it is invisible; a page on screen, even '
+        'half way in, says it is visible', (tester) async {
+      await pump(tester);
+      await visit(tester, [1]);
+
+      final kept = find.text('page 0', skipOffstage: false);
+      expect(Visibility.of(tester.element(kept)), isFalse);
+      expect(Visibility.of(tester.element(find.text('page 1'))), isTrue);
+
+      // A slide back brings page 0 in: visible from its first step.
+      unawaited(controller.animateTo(0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(controller.position, inExclusiveRange(0, 1));
+      expect(Visibility.of(tester.element(kept)), isTrue);
+      expect(
+        Visibility.of(tester.element(find.text('page 1', skipOffstage: false))),
+        isTrue,
+      );
+
+      await tester.pumpAndSettle();
+      expect(
+        Visibility.of(tester.element(find.text('page 1', skipOffstage: false))),
+        isFalse,
+      );
+    });
+
     testWidgets('none: a page left is disposed and built anew', (tester) async {
       await pump(tester, keepAlive: const SwipePagerKeepAlive.none());
       await visit(tester, [1, 0]);

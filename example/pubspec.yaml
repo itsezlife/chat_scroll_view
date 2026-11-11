@@ -92,6 +92,9 @@ dev_dependencies:
   vm_service: ^15.0.0
   panel_catalog:
     path: ../packages/panel_catalog
+  # The pager whose off-screen pages a flicker test switches.
+  swipe_pager:
+    path: ../packages/swipe_pager
   freezed: ^3.2.5
   # Compiles the wallpaper pattern SVG to vector graphics (asset transformer).
   vector_graphics_compiler: ^1.1.19

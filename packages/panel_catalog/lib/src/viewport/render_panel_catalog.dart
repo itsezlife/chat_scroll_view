@@ -388,8 +388,15 @@ class RenderPanelCatalog extends RenderBox
   /// its frame lives on for the surfaces on screen
   /// ([CatalogLeafBindingPool.offstage]). The widget sets it from
   /// [Visibility.of].
+  ///
+  /// While offstage the body paints nothing (see [paint]); shown again it
+  /// repaints, since its own layer holds whatever it last painted.
   bool get offstage => _pool.offstage;
-  set offstage(bool value) => _pool.offstage = value;
+  set offstage(bool value) {
+    if (_pool.offstage == value) return;
+    _pool.offstage = value;
+    markNeedsPaint();
+  }
 
   /// Density of the view this body sits in. Bindings are asked for pixels at
   /// it, so a change swaps every attached binding for one at the new size.
@@ -2430,11 +2437,19 @@ class RenderPanelCatalog extends RenderBox
   ///
   /// Records [debugLastPaintDuration] each pass.
   ///
+  /// An [offstage] body paints nothing. Its layer is its own, and a repaint
+  /// boundary marked dirty in the frame its ancestor goes offstage (the held
+  /// flag set with the offstage one: a page the pager switches away from) is
+  /// still painted in that frame, while the layer it painted last is
+  /// attached: the leaves drawn then would want their frames again after
+  /// they left the screen, and keep their textures.
+  ///
   /// A leaf whose asset exposes a platform texture is a texture layer added
   /// after the pass's picture, inside the same viewport clip (ADR 043): the
   /// viewport is a repaint boundary, so it always composites.
   @override
   void paint(PaintingContext context, Offset offset) {
+    if (offstage) return;
     _paintCanvas(context, offset);
     _painter.compositeTextures(
       context,

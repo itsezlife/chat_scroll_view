@@ -437,9 +437,10 @@ class _PagerView {
 ///
 /// **Pages.** Pages are identified by index. [keepAlive] chooses which
 /// pages stay built off screen ([SwipePagerKeepAlive]); a kept page is
-/// offstage, out of focus traversal and semantics, and under
-/// `TickerMode(enabled: false)`, and so is every page while it is not on
-/// screen. A host that reorders pages gives the pager a new key.
+/// offstage, out of focus traversal and semantics, under
+/// `TickerMode(enabled: false)` and under an invisible [Visibility] that
+/// keeps its state ([Visibility.of] is false in it), and so is every page
+/// while it is not on screen. A host that reorders pages gives the pager a new key.
 ///
 /// **Reading direction.** In a right-to-left [Directionality] the first page
 /// is at the right and the swipes mirror.
@@ -744,7 +745,8 @@ class _SwipePagerState extends State<SwipePager>
 }
 
 /// One built page: placed by the controller's view, and offstage, out of
-/// focus and under `TickerMode(enabled: false)` while not on screen.
+/// focus, under `TickerMode(enabled: false)` and under an invisible
+/// [Visibility] while not on screen.
 ///
 /// Its wrappers keep one shape whatever the page's state, so a page that
 /// leaves the screen and comes back keeps its element and state; only the
@@ -799,17 +801,18 @@ class _PageSlotState extends State<_PageSlot> {
     final view = widget.controller._view;
     final shown = view.shows(widget.index);
     final offset = view.offsetOf(widget.index);
-    return TickerMode(
-      enabled: shown,
-      child: Offstage(
-        offstage: !shown,
-        child: ExcludeFocus(
-          excluding: !shown,
-          child: FractionalTranslation(
-            translation: Offset(widget.mirrored ? -offset : offset, 0),
-            child: RepaintBoundary(child: widget.child),
-          ),
-        ),
+    // Offstage, out of focus and with its tickers off while not shown, under
+    // a [Visibility] rather than bare `Offstage` and `TickerMode`: content
+    // that asks [Visibility.of] learns that nothing of the page is on
+    // screen, so a catalogue in it gives back what its frames live on (a
+    // platform texture) while keeping the frames, which tickers off alone
+    // read as a surface held on screen.
+    return Visibility(
+      visible: shown,
+      maintainState: true,
+      child: FractionalTranslation(
+        translation: Offset(widget.mirrored ? -offset : offset, 0),
+        child: RepaintBoundary(child: widget.child),
       ),
     );
   }

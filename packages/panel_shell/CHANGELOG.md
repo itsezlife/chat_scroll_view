@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (off-screen pages give their textures back)
+
+- A page of the pager that is not on screen is under an invisible
+  `Visibility` (`swipe_pager`), so a catalogue in it gives back its cells'
+  textures keeping their frames; brought back, the cells show those frames
+  at once.
+
 ### Changed (section tabs ink)
 
 - The pointer arrangement's section tabs press with `ChromeInk`'s desktop kind.
