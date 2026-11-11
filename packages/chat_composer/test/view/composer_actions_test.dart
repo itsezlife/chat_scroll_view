@@ -127,10 +127,17 @@ void main() {
       return found.evaluate().isEmpty ? null : tester.widget<ChromeInk>(found);
     }
 
-    bool scales(String id) => find
-        .descendant(of: button(id), matching: find.byType(ScalePressable))
-        .evaluate()
-        .isNotEmpty;
+    // Whether a press on [id] bounces it: its scale takes the press.
+    bool scales(WidgetTester tester, String id) =>
+        tester
+            .widget<ScalePressable>(
+              find.descendant(
+                of: button(id),
+                matching: find.byType(ScalePressable),
+              ),
+            )
+            .onPressed !=
+        null;
 
     double glyphOpacity(WidgetTester tester, String id) {
       final opacity = find.ancestor(
@@ -158,10 +165,10 @@ void main() {
       expect(ink.kind, ChromeInkKind.ripple);
       expect(ink.circleRadius, 20);
       expect(ink.color.a, closeTo(0x0F / 0xFF, 0.001));
-      expect(scales('attach'), isFalse);
+      expect(scales(tester, 'attach'), isFalse);
 
-      expect(inkOf(tester, 'send'), isNull);
-      expect(scales('send'), isTrue);
+      expect(inkOf(tester, 'send')!.onTap, isNull, reason: 'no ripple');
+      expect(scales(tester, 'send'), isTrue);
     }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
     testWidgets('on iOS a press dims the glyph to 0.4 and it comes back over '
@@ -195,7 +202,7 @@ void main() {
         expect(ink.kind, ChromeInkKind.pointer, reason: id);
         expect(ink.circleRadius, 20, reason: id);
         expect(ink.hoverColor, isNull, reason: 'the glyph is the hover');
-        expect(scales(id), isFalse, reason: id);
+        expect(scales(tester, id), isFalse, reason: id);
       }
     }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
@@ -308,6 +315,39 @@ void main() {
 
       expect(tester.element(button('main')), same(element));
     });
+
+    testWidgets(
+      'turning primary with its icon keeps the glyph, so the icon morphs '
+      'from the one to the other',
+      (tester) async {
+        Finder glyph() => find.descendant(
+          of: button('main'),
+          matching: find.byType(AnimatedChromeIcon),
+        );
+        await show(
+          tester,
+          ComposerSpec(actions: [_action('main', icon: ChromeIconId.voice)]),
+        );
+        final before = tester.element(glyph());
+
+        await show(
+          tester,
+          ComposerSpec(
+            actions: [_action('main', icon: ChromeIconId.send, primary: true)],
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(tester.element(glyph()), same(before), reason: 'to primary');
+
+        await show(
+          tester,
+          ComposerSpec(actions: [_action('main', icon: ChromeIconId.voice)]),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(tester.element(glyph()), same(before), reason: 'and back');
+      },
+      variant: TargetPlatformVariant.all(),
+    );
   });
 
   group('placement', () {
