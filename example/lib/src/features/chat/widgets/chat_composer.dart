@@ -15,9 +15,13 @@ import 'package:flutter/widgets.dart' hide RichText;
 /// The chat's composer island: a [ComposerView] over the chat's
 /// [ChatInputSet].
 ///
-/// Hidden while a selection is active (the actions live on the selection app
-/// bar, not on a morph of this island); starting a selection leaves edit mode
-/// and takes focus away. Builds the [ComposerSpec] of the moment from the
+/// Hidden while a message selection is active under a touch selection policy
+/// (the actions live on the selection app bar, not on a morph of this
+/// island), and starting one leaves edit mode. Under the desktop policy the
+/// composer stays, draft and edit included, as the reference desktop client
+/// keeps its field while messages are selected (the actions are on the
+/// selection bar at the top there too). Either way starting a selection
+/// takes focus away from the field. Builds the [ComposerSpec] of the moment from the
 /// input set and the strings of the chrome, and on platforms with an anchored
 /// popup reports where the island is so the popup can sit on it.
 class ChatComposer extends StatefulWidget {
@@ -36,7 +40,8 @@ class ChatComposer extends StatefulWidget {
   /// The chat's input set.
   final ChatInputSet input;
 
-  /// When a selection is active the island is hidden.
+  /// When a selection is active the island is hidden, unless the selection's
+  /// policy is the desktop one.
   final ChatSelectionController selection;
 
   /// Key of the glass island, for the bottom fade's cutout.
@@ -139,16 +144,24 @@ class _ChatComposerState extends State<ChatComposer> {
     SchedulerBinding.instance.addPostFrameCallback((_) => offer.dismiss());
   }
 
+  // Whether a message selection takes the island away: on touch, where the
+  // selection bar stands in for the composer; not on desktop.
+  bool get _hidesForSelection => switch (widget.selection.selectionPolicy) {
+    ChatSelectionPolicy$Desktop() => false,
+    ChatSelectionPolicy$Mobile() || ChatSelectionPolicy$TextOnly() => true,
+  };
+
   void _onSelectionChanged() {
     final mode = widget.selection.isSelectionMode;
     if (mode == _selectionMode) return;
     if (mode) {
-      _input
-        ..cancelEdit()
-        ..composer.unfocus();
+      if (_hidesForSelection) _input.cancelEdit();
+      _input.composer.unfocus();
     }
     setState(() => _selectionMode = mode);
   }
+
+  bool get _hidden => _selectionMode && _hidesForSelection;
 
   // --- Popup anchor ---------------------------------------------------------
 
@@ -168,7 +181,7 @@ class _ChatComposerState extends State<ChatComposer> {
       _anchorWatched = false;
       return;
     }
-    if (widget.anchorSpace != null && !_selectionMode) _reportAnchor();
+    if (widget.anchorSpace != null && !_hidden) _reportAnchor();
     SchedulerBinding.instance.addPostFrameCallback(_onAnchorFrame);
   }
 
@@ -189,7 +202,7 @@ class _ChatComposerState extends State<ChatComposer> {
 
   @override
   Widget build(BuildContext context) {
-    if (_selectionMode) return const SizedBox.shrink();
+    if (_hidden) return const SizedBox.shrink();
     final strings = ChromeStringsScope.of(context);
     final composer = _input.composer;
     final inset = _input.composerSafeInset;

@@ -411,6 +411,28 @@ void main() {
       await tearDownTree(tester);
     });
 
+    testWidgets('back while the keyboard is still rising closes the panel '
+        'from where it is, without waiting for the keyboard', (tester) async {
+      await openThenHide(tester);
+      ime.report(const ImeSample(height: 120, animating: true));
+      await tester.pump();
+      expect(controller.state.value, isA<PanelVisibility$Hiding>());
+
+      expect(controller.handleBack(), isTrue);
+      await tester.pump();
+      expect(
+        controller.state.value,
+        const PanelVisibility.hiding(KeyboardReplacement()),
+      );
+
+      // The host lowers the keyboard: the slot shrinks with it, no waiting.
+      ime.rampTo(0, steps: 3);
+      await finishMotion(tester);
+      expect(controller.state.value, PanelVisibility.hidden);
+      expect(bottom(), 0);
+      await tearDownTree(tester);
+    });
+
     testWidgets('showing again restores the content without a flash', (
       tester,
     ) async {

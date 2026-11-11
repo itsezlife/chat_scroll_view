@@ -658,20 +658,33 @@ class _ComposerFieldState extends State<ComposerField> {
         );
         ownStyle = fieldStyle;
         final hintSize = widget.hintFontSize ?? fontSize;
-        decoration = InputDecoration.collapsed(
-          hintText: strings.messageHint,
-          hintMaxLines: widget.hintMaxLines,
-          hintStyle: TextStyle(
-            color: placeholder.fieldHint,
-            fontSize: hintSize,
-            // Keeps the line box of the field's own line, so the smaller hint
-            // sits on the caret's line instead of riding at the top of it.
-            height: fontSize * lineHeight / hintSize,
-            overflow: widget.hintMaxLines == null
-                ? null
-                : TextOverflow.ellipsis,
-          ),
-        );
+        // The pads to the island's edges and the action slots are the
+        // decoration's, not a box around the field: inside the text field
+        // they are part of its tap target, so a tap anywhere in the slot
+        // focuses the field and places the caret, as the reference's field
+        // takes its padding up to the buttons beside it.
+        decoration =
+            InputDecoration.collapsed(
+              hintText: strings.messageHint,
+              hintMaxLines: widget.hintMaxLines,
+              hintStyle: TextStyle(
+                color: placeholder.fieldHint,
+                fontSize: hintSize,
+                // Keeps the line box of the field's own line, so the smaller hint
+                // sits on the caret's line instead of riding at the top of it.
+                height: fontSize * lineHeight / hintSize,
+                overflow: widget.hintMaxLines == null
+                    ? null
+                    : TextOverflow.ellipsis,
+              ),
+            ).copyWith(
+              contentPadding: EdgeInsetsDirectional.only(
+                start: widget.startInset,
+                top: ComposerMetrics.fieldTopPad,
+                bottom: ComposerMetrics.fieldBottomPad,
+                end: ComposerMetrics.fieldEndPad,
+              ),
+            );
       case ComposerFieldLayout$Form(:final style):
         // The text field's own default style, which the gutter's markers
         // must match; the field itself gets only the host's style, so its
@@ -782,20 +795,13 @@ class _ComposerFieldState extends State<ComposerField> {
       onPointerCancel: (_) => widget.onPointerEnd?.call(),
       child: switch (layout) {
         // The island's row: as tall as the island at least, padded to the
-        // action slots, its height reported for the row's animation.
+        // action slots through the decoration, its height reported for the
+        // row's animation.
         ComposerFieldLayout$Island() => ConstrainedBox(
           constraints: const BoxConstraints(
             minHeight: ComposerMetrics.islandHeight,
           ),
-          child: Padding(
-            padding: EdgeInsetsDirectional.only(
-              start: widget.startInset,
-              top: ComposerMetrics.fieldTopPad,
-              bottom: ComposerMetrics.fieldBottomPad,
-              end: ComposerMetrics.fieldEndPad,
-            ),
-            child: input,
-          ),
+          child: input,
         ),
         // A form lays the field out itself, through the decoration.
         ComposerFieldLayout$Form() => input,
