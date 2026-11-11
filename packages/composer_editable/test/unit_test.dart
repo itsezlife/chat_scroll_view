@@ -16,6 +16,7 @@ import 'finger_tracked_handle_test.dart' as finger_tracked_handle_test;
 import 'ios_restored_paths_test.dart' as ios_restored_paths_test;
 import 'nested_overscroll_handoff_test.dart' as nested_overscroll_handoff_test;
 import 'process_text_actions_test.dart' as process_text_actions_test;
+import 'process_text_query_cache_test.dart' as process_text_query_cache_test;
 import 'release_parity_test.dart' as release_parity_test;
 import 'revendor_test.dart' as revendor_test;
 import 'secondary_click_test.dart' as secondary_click_test;
@@ -43,6 +44,10 @@ void main() {
   group('release_parity_test.dart', release_parity_test.main);
   group('revendor_test.dart', revendor_test.main);
   group('process_text_actions_test.dart', process_text_actions_test.main);
+  group(
+    'process_text_query_cache_test.dart',
+    process_text_query_cache_test.main,
+  );
   group('secondary_click_test.dart', secondary_click_test.main);
   group('select_all_page_scroll_test.dart', select_all_page_scroll_test.main);
   group('selection_drag_snap_test.dart', selection_drag_snap_test.main);

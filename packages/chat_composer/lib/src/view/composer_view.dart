@@ -17,9 +17,10 @@ import 'package:chat_composer/src/view/composer_primary_style.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:composer_editable/composer_editable.dart'
-    show ExtendedEditableTextState;
+    show ExtendedEditableTextState, ProcessTextQueryCache;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Material, MaterialType;
+import 'package:flutter/services.dart' show BinaryMessenger;
 import 'package:flutter/widgets.dart';
 
 /// The composer: a glass island holding a header strip, a row of actions
@@ -91,6 +92,17 @@ class ComposerView extends StatefulWidget {
   /// its first frame. Calls after the first do nothing.
   static void prefetchTextActions() =>
       ExtendedEditableTextState.prefetchProcessTextActions();
+
+  /// The app's messenger to the platform, [platform], with the text
+  /// processing actions query answered once per app run for every text field
+  /// of the app: the stock ones too (a panel's search field), which ask on
+  /// every mount and have no hook of their own.
+  ///
+  /// A host returns it from its binding's `createBinaryMessenger`; the
+  /// query [prefetchTextActions] makes is then the only one the platform
+  /// sees, and a field that mounts later costs no platform call.
+  static BinaryMessenger shareTextActions(BinaryMessenger platform) =>
+      ProcessTextQueryCache(platform);
 
   /// The input state: text, focus, selection, soft keyboard mode. Its
   /// `extent` and `fieldHeight` receive what the view measures.

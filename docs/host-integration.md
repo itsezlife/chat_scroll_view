@@ -176,6 +176,16 @@ of the pointer menu comes from `ChromeStrings`, so an app that has no Material
 delegate for its own language still shows its language in them. `PanelShell`
 builds on `EditableText` and needs no Material ancestor.
 
+Every text field asks the platform for its text processing actions; on
+Android the query blocks the UI thread (tens of milliseconds warm, more
+cold). The composer's field asks once per app run, and
+`ComposerView.prefetchTextActions` makes that query at an idle moment (after
+the first frame). The stock `EditableText` of `PanelSearchField` asks on every
+mount, after every page switch: a host's binding whose `createBinaryMessenger`
+returns `ComposerView.shareTextActions(super.createBinaryMessenger())` answers
+every field from the first reply. Made in place of
+`WidgetsFlutterBinding.ensureInitialized`, first thing in `main`.
+
 ### Stills and animated images
 
 A sticker is a semantic kind, not a media form: a static sticker is a
