@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -139,6 +140,129 @@ void main() {
     expect(tester.widget<RawImage>(find.byType(RawImage)).opacity!.value, 0.75);
   });
 
+  group('over a sharp window', () {
+    // A phone: 1080 x 2400 device pixels at 2.625, the session's 1/15 and
+    // 6.5. The source is a checkerboard of 8 px squares, black and white, so
+    // every pixel of a still that is evenly blurred is mid-grey, and any of
+    // the window that shows through is black or white.
+    const physical = Size(1080, 2400);
+    const density = 2.625;
+
+    // After the file's own setUp, whose tear-down resets the view.
+    setUp(() {
+      TestWidgetsFlutterBinding.instance.platformDispatcher.views.single
+        ..physicalSize = physical
+        ..devicePixelRatio = density;
+    });
+
+    // What the window shows: the still over the checkerboard, read back at
+    // its device pixels.
+    Future<({Uint8List rgba, int width, int height})> shown(
+      WidgetTester tester, {
+      Color background = const Color(0xFF000000),
+    }) async {
+      late BuildContext inner;
+      final boundary = GlobalKey();
+      BackdropSnapshot? snapshot;
+      Widget window() => RepaintBoundary(
+        key: boundary,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              BackdropSnapshotSource(
+                child: CustomPaint(
+                  painter: const _Checkerboard(8),
+                  child: Builder(
+                    builder: (context) {
+                      inner = context;
+                      return const SizedBox.expand();
+                    },
+                  ),
+                ),
+              ),
+              if (snapshot case final snapshot?)
+                BackdropSnapshotView(
+                  snapshot: snapshot,
+                  opacity: const AlwaysStoppedAnimation(1),
+                ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpWidget(window());
+      snapshot = BackdropSnapshot.capture(
+        inner,
+        blurSigma: 6.5,
+        background: background,
+      );
+      addTearDown(snapshot!.dispose);
+      await tester.pumpWidget(window());
+      final render =
+          boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      final image = render.toImageSync(pixelRatio: density);
+      addTearDown(image.dispose);
+      final bytes = await tester.runAsync(image.toByteData);
+      return (
+        rgba: Uint8List.sublistView(bytes!),
+        width: image.width,
+        height: image.height,
+      );
+    }
+
+    testWidgets('the still covers the whole window, opaque and evenly '
+        'blurred out to its edges', (tester) async {
+      final (:rgba, :width, :height) = await shown(tester);
+      expect((width, height), (1080, 2400));
+      var clear = 0;
+      var sharp = 0;
+      final sharpAt = <(int, int)>[];
+      for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+          final at = (y * width + x) * 4;
+          if (rgba[at + 3] != 255) clear++;
+          // Mid-grey is 128; the clamped edges of the still lean a little
+          // toward the squares they hold. The window showing through is 0
+          // or 255.
+          if ((rgba[at] - 128).abs() > 56) {
+            sharp++;
+            if (sharpAt.length < 4) sharpAt.add((x, y));
+          }
+        }
+      }
+      expect(clear, 0, reason: 'pixels the still leaves see-through');
+      expect(sharp, 0, reason: 'pixels left unblurred, first at $sharpAt');
+    });
+
+    testWidgets('where the source painted nothing, the still shows the '
+        'background', (tester) async {
+      late BuildContext inner;
+      await tester.pumpWidget(
+        BackdropSnapshotSource(
+          child: Builder(
+            builder: (context) {
+              inner = context;
+              return const SizedBox.expand();
+            },
+          ),
+        ),
+      );
+      final snapshot = BackdropSnapshot.capture(
+        inner,
+        blurSigma: 6.5,
+        background: const Color(0xFF204060),
+      )!;
+      addTearDown(snapshot.dispose);
+      for (final (x, y) in [(0, 0), (36, 80), (71, 159)]) {
+        final pixel = await pixelOf(tester, snapshot.image, x, y);
+        expect(pixel.a, 1);
+        expect(pixel.r * 255, closeTo(0x20, 2));
+        expect(pixel.b * 255, closeTo(0x60, 2));
+      }
+    });
+  });
+
   test('the tone matrix: saturation about the luminance, brightness as an '
       'offset of 255', () {
     expect(BackdropSnapshot.toneMatrix(), BackdropSnapshot.identityTone);
@@ -149,4 +273,28 @@ void main() {
     expect(darker[4], closeTo(-25.5, 1e-9));
     expect(darker[19], 0);
   });
+}
+
+// Black and white squares of [side] logical pixels.
+final class _Checkerboard extends CustomPainter {
+  const _Checkerboard(this.side);
+
+  final double side;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = const Color(0xFF000000),
+    );
+    final white = Paint()..color = const Color(0xFFFFFFFF);
+    for (var row = 0; row * side < size.height; row++) {
+      for (var x = row.isEven ? 0 : 1; x * side < size.width; x += 2) {
+        canvas.drawRect(Rect.fromLTWH(x * side, row * side, side, side), white);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_Checkerboard old) => old.side != side;
 }

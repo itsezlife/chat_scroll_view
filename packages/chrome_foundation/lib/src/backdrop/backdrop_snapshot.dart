@@ -49,10 +49,15 @@ final class BackdropSnapshot {
   BackdropSnapshot._(this._image);
 
   /// Captures what the [BackdropSnapshotSource] above [context] painted in
-  /// the last frame at 1/[downscale] of its device pixels, blurs it by
-  /// [blurSigma] (in the snapshot's own pixels) and applies [tone] (a colour
-  /// matrix, see [toneMatrix]), once. Null when no source is above
-  /// [context], or it has not painted yet.
+  /// the last frame at 1/[downscale] of its device pixels, over
+  /// [background], blurs it by [blurSigma] (in the snapshot's own pixels)
+  /// and applies [tone] (a colour matrix, see [toneMatrix]), once. Null when
+  /// no source is above [context], or it has not painted yet.
+  ///
+  /// A blurred or toned still is opaque and blurred evenly out to its edges,
+  /// which hold the colour of the window's own edges: whatever is drawn
+  /// under it never shows through. [background] is what it shows where the
+  /// source painted nothing; it is drawn opaque.
   ///
   /// Called between frames, before what the caller is about to show paints,
   /// the still is of the window without it.
@@ -61,6 +66,7 @@ final class BackdropSnapshot {
     double downscale = 15,
     double blurSigma = 0,
     List<double>? tone,
+    Color background = const Color(0xFF000000),
   }) {
     assert(downscale >= 1, 'A snapshot is never larger than the window.');
     final source = context
@@ -70,21 +76,44 @@ final class BackdropSnapshot {
     final raw = source._capture(density / downscale);
     if (raw == null) return null;
     if (blurSigma <= 0 && tone == null) return BackdropSnapshot._(raw);
+    final bounds =
+        Offset.zero & Size(raw.width.toDouble(), raw.height.toDouble());
+    // The blur reads 3 sigma past each pixel. How a backend treats what lies
+    // past the edge of a blur's input varies (some leave it clear, whatever
+    // tile mode is asked for, and the edges of the still then fade to clear
+    // over the window's sharp content), so the input is the still's own edge
+    // pixels carried out that far, by an image shader's clamp: what the blur
+    // makes of the input's own edge falls outside the still. The blur asks
+    // for the clear edge itself, so every backend draws the same still.
+    final margin = bounds.inflate((blurSigma * 3).ceilToDouble());
+    final opaque = background.withAlpha(255);
     final recorder = ui.PictureRecorder();
-    final paint = Paint()..filterQuality = FilterQuality.low;
+    final canvas = Canvas(recorder, bounds)..drawColor(opaque, BlendMode.src);
+    final layer = Paint();
     if (blurSigma > 0) {
-      // Clamped: the edges keep their colour instead of fading to clear.
-      paint.imageFilter = ui.ImageFilter.blur(
+      layer.imageFilter = ui.ImageFilter.blur(
         sigmaX: blurSigma,
         sigmaY: blurSigma,
-        tileMode: TileMode.clamp,
+        tileMode: TileMode.decal,
       );
     }
-    if (tone != null) paint.colorFilter = ColorFilter.matrix(tone);
-    Canvas(recorder).drawImage(raw, Offset.zero, paint);
+    if (tone != null) layer.colorFilter = ColorFilter.matrix(tone);
+    final edges = ImageShader(
+      raw,
+      TileMode.clamp,
+      TileMode.clamp,
+      Matrix4.identity().storage,
+      filterQuality: FilterQuality.low,
+    );
+    canvas
+      ..saveLayer(margin, layer)
+      ..drawRect(margin, Paint()..color = opaque)
+      ..drawRect(margin, Paint()..shader = edges)
+      ..restore();
     final picture = recorder.endRecording();
     final image = picture.toImageSync(raw.width, raw.height);
     picture.dispose();
+    edges.dispose();
     raw.dispose();
     return BackdropSnapshot._(image);
   }
