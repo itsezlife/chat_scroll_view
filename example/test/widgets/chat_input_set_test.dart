@@ -368,6 +368,62 @@ void main() {
         expect(rig.set.presentation.occupancy.value.bottom, grid);
       });
 
+      testWidgets('back while the keyboard rises to take the slot acts at '
+          'once: the keyboard goes down and the panel closes from where it '
+          'is', (tester) async {
+        final rig = await _mobileRig(tester);
+        await _open(tester, rig);
+        final hiddenBefore = rig.keyboard.hideCount;
+
+        await rig.tapAction(tester, ChatComposerActions.panel);
+        rig.keyboard.move(120, animating: true);
+        await tester.pump();
+        expect(_state(rig), isA<PanelVisibility$Hiding>());
+
+        expect(await rig.set.handleBack(), isTrue);
+        await tester.pump();
+
+        expect(rig.keyboard.hideCount, hiddenBefore + 1);
+        expect(
+          (_state(rig) as PanelVisibility$Hiding).waitForIme,
+          isFalse,
+          reason: 'the panel no longer waits for the keyboard',
+        );
+
+        rig.keyboard.move(60, animating: true);
+        await tester.pump();
+        rig.keyboard.rest(0);
+        await rig.settle(tester);
+        expect(_state(rig), isA<PanelVisibility$Hidden>());
+        expect(rig.set.presentation.occupancy.value.bottom, 0);
+        expect(rig.set.composer.hasFocus, isTrue);
+        // The hand-off that was under way does not ask for the keyboard
+        // again.
+        expect(rig.keyboard.hideCount, hiddenBefore + 1);
+      });
+
+      testWidgets('back while the keyboard is still going down under the '
+          'panel that replaces it closes the panel at once', (tester) async {
+        final rig = await _mobileRig(tester);
+        rig.set.composer.requestFocus();
+        rig.keyboard.rest(300);
+        await rig.settle(tester);
+
+        await rig.tapAction(tester, ChatComposerActions.panel);
+        rig.keyboard.move(200, animating: true);
+        await tester.pump();
+        expect(_state(rig).isVisible, isTrue);
+
+        expect(await rig.set.handleBack(), isTrue);
+        await tester.pump();
+        expect(_state(rig), isA<PanelVisibility$Hiding>());
+
+        rig.keyboard.rest(0);
+        await rig.settle(tester);
+        expect(_state(rig), isA<PanelVisibility$Hidden>());
+        expect(rig.set.presentation.occupancy.value.bottom, 0);
+      });
+
       for (final presses in [2, 3, 4, 5]) {
         testWidgets('$presses presses one frame apart end as the last asked', (
           tester,
