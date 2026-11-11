@@ -254,67 +254,43 @@ abstract final class BulletinBuilders$Android {
 // --- Action ---
 
 /// The undo button with text: the label 14 medium
-/// in the accent, padded 12 / 8 inside a box 8 from its neighbours, with a
-/// 6-radius highlight of the accent at 0x19 while pressed (the ripple's
-/// colour and mask). A custom button is the same with its own label.
-class _ActionButton$Android extends StatefulWidget {
+/// in the accent, padded 12 / 8 inside a box 8 from its neighbours, pressed
+/// with the chrome ink in the accent at 0x19 inside a 6 radius (the
+/// ripple's colour and mask). A custom button is the same with its own
+/// label.
+///
+/// The ink takes the pointer at once on its down, so the press shows while
+/// the card's horizontal drag still competes for it.
+class _ActionButton$Android extends StatelessWidget {
   const _ActionButton$Android({required this.view});
 
   final BulletinView view;
 
   @override
-  State<_ActionButton$Android> createState() => _ActionButton$AndroidState();
-}
-
-class _ActionButton$AndroidState extends State<_ActionButton$Android> {
-  bool _pressed = false;
-
-  void _press(bool pressed) {
-    if (pressed == _pressed) return;
-    setState(() => _pressed = pressed);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final view = widget.view;
     final label = switch (view.bulletin.action) {
       BulletinAction$Undo() => view.strings.undoAction,
       BulletinAction$Button(:final label) => label,
       null => '',
     };
     final accent = view.tokens.accent;
-    // A pointer listener, not the tap's down callback: the card's horizontal
-    // drag shares the arena, which holds a tap down back until it resolves,
-    // while the pressed state shows at once.
     return Semantics(
       button: true,
-      child: Listener(
-        onPointerDown: (_) => _press(true),
-        onPointerUp: (_) => _press(false),
-        onPointerCancel: (_) => _press(false),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: ChromeInk(
+          color: accent.withAlpha(0x19),
+          hoverColor: accent.withAlpha(0x0F),
+          borderRadius: BorderRadius.circular(6),
           onTap: view.handle.pressAction,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: accent.withAlpha(_pressed ? 0x19 : 0),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: 14,
-                    fontWeight: BulletinBuilders$Android._medium,
-                  ),
-                ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: accent,
+                fontSize: 14,
+                fontWeight: BulletinBuilders$Android._medium,
               ),
             ),
           ),
