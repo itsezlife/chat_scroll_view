@@ -155,6 +155,24 @@ void main() {
     expect(made.map((p) => p.departures), everyElement(2));
   });
 
+  testWidgets('hidden in the frame its tickers go off, no leaf is painted '
+      'or played after it left (a page the pager switches away '
+      'from)', (tester) async {
+    await pump(tester);
+    int drawn() =>
+        made.fold(0, (sum, p) => sum + p.paints.length + p.advances.length);
+    final before = drawn();
+
+    await pump(tester, tickers: false, visible: false);
+
+    expect(made.map((p) => p.departures), everyElement(1));
+    expect(drawn(), before, reason: 'a leaf painted after it left stays');
+
+    // Shown again, it paints its leaves at once.
+    await pump(tester, tickers: false);
+    expect(drawn(), greaterThan(before));
+  });
+
   testWidgets('held on screen, no leaf leaves it', (tester) async {
     await pump(tester);
 

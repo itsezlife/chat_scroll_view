@@ -121,6 +121,8 @@ import 'flicker/hidden_panel_textures_test.dart'
     as flicker_hidden_panel_textures_test;
 import 'flicker/pack_sheet_panel_flicker_test.dart'
     as flicker_pack_sheet_panel_flicker_test;
+import 'flicker/pager_page_textures_test.dart'
+    as flicker_pager_page_textures_test;
 import 'flicker/panel_flash_test.dart' as flicker_panel_flash_test;
 import 'flicker/panel_scroll_restart_test.dart'
     as flicker_panel_scroll_restart_test;
@@ -222,6 +224,10 @@ void main() {
   group(
     'flicker/pack_sheet_panel_flicker_test.dart',
     flicker_pack_sheet_panel_flicker_test.main,
+  );
+  group(
+    'flicker/pager_page_textures_test.dart',
+    flicker_pager_page_textures_test.main,
   );
   group('flicker/panel_flash_test.dart', flicker_panel_flash_test.main);
   group(

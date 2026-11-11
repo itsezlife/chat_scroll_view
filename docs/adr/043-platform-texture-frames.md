@@ -228,7 +228,7 @@ reproduces it at the default sizes and budgets.
 
 | Area | Decision |
 | ---- | -------- |
-| Signal | A hidden panel is offstage *and* held. The presentation view hides the panel under a `Visibility` that keeps its state (`maintainState`, `maintainAnimation`: the strategy owns the tickers), so its content can read `Visibility.of`. The catalogue sets every binding invisible while it is false (`CatalogLeafBindingPool.offstage`); a held binding stays held. Tickers off alone (a panel moving in or out, a sheet over it) still mean held on screen. A bare `Offstage` says nothing: a pager's off-screen page is unchanged. |
+| Signal | A hidden panel is offstage *and* held. The presentation view hides the panel under a `Visibility` that keeps its state (`maintainState`, `maintainAnimation`: the strategy owns the tickers), so its content can read `Visibility.of`. The catalogue sets every binding invisible while it is false (`CatalogLeafBindingPool.offstage`); a held binding stays held. Tickers off alone (a panel moving in or out, a sheet over it) still mean held on screen. A bare `Offstage` says nothing. *Amended by ticket 203*: a pager's off-screen page is under an invisible `Visibility` too (below). |
 | Leases | A kept lease whose paintable left the screen (`releaseUnlessPainted` after `kept`) is parked: it gives its texture back with `release(showing:)`, as a lease that ends does, and stays kept, with its slot if it has one. Its next want takes the texture back with `FrameTexturePool.leaseKept`, which hands out only that asset's own kept texture, shown at once with no render. Lottie and video alike. |
 | Reshow | The panel shows again held (it moves in): the held paint wants the frame it was held on, the cell takes its kept texture back and composites it from the first frame (`example/test/flicker/hidden_panel_textures_test.dart`). Cells past `keptFrameBytes` (24 MiB, 24 cells of 1 MiB; the idle limit of 24 destroys the rest of the class's textures) play from page slots until textures are free: their still, then their frame on a slot. They never take a neighbour's kept texture (`lease` would hand one out when no plain idle texture is left). |
 | Chat | The kept textures are idle: a warm of the chat's class makes room by destroying them, oldest first, as any idle texture of another class. The chat under a popup is held on screen and keeps its textures. |
@@ -236,3 +236,18 @@ reproduces it at the default sizes and budgets.
 | Pages | The 512 px class opens a page of one cell (`FrameAtlas.oneCellFrom`): a 512 px frame that plays from a page uploads 1 MiB a frame, not 2. The other classes keep pages of four. |
 | Not changed | The pool's warm still waits for a scroll to end before it creates; whether that delays the chat's texture after a close is left to the device data. |
 | Device check | Back from a hidden panel, the first chat fling should show no page uploads of the chat's 512 px stickers in the scroll lab's upload marks, and no growth of `warmsShortOfRoom`; the panel's reopen should show every cell within the budget on its frame at once. |
+
+## Amendment: a pager's off-screen pages give their textures back (2026-11-12)
+
+Native-media ticket 203. A page of the panel's pager that was not on screen
+was offstage under `TickerMode(enabled: false)` alone, which the catalogue
+reads as held on screen: every cell of every page switched away from kept a
+leased texture while the panel was shown, spending the budget on pages
+nobody saw.
+
+| Area | Decision |
+| ---- | -------- |
+| Signal | `SwipePager` puts a page that is not on screen under an invisible `Visibility` that keeps its state (offstage, out of focus, tickers off, as before). A catalogue in it reads `Visibility.of` and parks its leases as a hidden panel's do: their textures go back keeping their frames. A page sliding in is visible from its first step. |
+| Paint | An offstage catalogue paints nothing. A repaint boundary marked dirty in the frame its ancestor goes offstage is still painted in that frame (its old layer is attached until the parent repaints): the held flag, set with the offstage one on a page switch, marked it, and the leaves painted then wanted their frames again after they left, so they kept their textures. Shown again, it repaints. |
+| Reshow | A page brought back composites its cells' kept textures from the first frame it shows, for the cells within `keptFrameBytes` (`example/test/flicker/pager_page_textures_test.dart`). The kept textures of pages switched away from earlier are older, so a warm or the bound destroys theirs first. |
+| Device check | With the panel open on one page after visiting others, `leasePlaces` should count textures for the page on screen (and the strip) only; switching back to a visited page should show its cells at once, without stills, for those within the bound. |

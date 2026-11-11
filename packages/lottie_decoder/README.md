@@ -8,7 +8,8 @@ memory a render isolate can write, and a `FrameRenderer` that draws into it.
 `package:lottie_decoder/lottie_decoder.dart` compiles for the web: the neutral
 files are exported plainly, and the files that need `dart:ffi`, `dart:io` or
 `dart:isolate` (`LottieSlotEngine`, the two engines, `NativeFramePageMemory`,
-`LottieFrameRenderer`, `DirectoryFrameCacheFiles`) only where they exist, as in
+`LottieFrameRenderer`, `DirectoryFrameCacheFiles`, `LottieContentHashWorker`)
+only where they exist, as in
 `lottie_native`.
 
 ## Types
@@ -184,6 +185,12 @@ frames to asynchronous `dart:io` writes.
 SHA-256 of the file, `width`/`height:` the size the frames render at,
 `engineVersion: LottieNativeVersion.engine)`. A spec above 512 px renders,
 and is keyed, at 512.
+
+The hash runs off the UI isolate. By default every decoder shares one
+long-lived worker isolate, `LottieContentHashWorker.shared`, spawned at the
+first hash and never closed; it hashes one file at a time. A host that wants
+its own lifetime passes `hashContent: worker.hash` and closes the worker
+itself. On the web the hash runs on the calling thread.
 
 ## Fuzzing and benchmarks
 

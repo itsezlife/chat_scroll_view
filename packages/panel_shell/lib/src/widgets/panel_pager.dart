@@ -22,8 +22,10 @@ import 'package:swipe_pager/swipe_pager.dart';
 /// Pages are built lazily and, once built, kept alive for the life of the
 /// pager, so at most the registered pages are kept: a type tab switched away
 /// from keeps its page, with its cells, their frames and their positions. A page that is
-/// not on screen is offstage and under `TickerMode(enabled: false)`: its
-/// animations hold and a catalogue in it holds its bindings. What a page
+/// not on screen is offstage, under `TickerMode(enabled: false)` and under
+/// an invisible `Visibility`: its animations hold, and a catalogue in it
+/// holds its bindings and gives back the textures their frames are on,
+/// keeping the frames. What a page
 /// must restore after the shell itself is rebuilt still lives in the
 /// controller's registry.
 ///

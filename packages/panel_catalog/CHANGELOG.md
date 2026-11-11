@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (an offstage catalogue paints nothing)
+
+- A catalogue under an invisible `Visibility` paints nothing, and repaints
+  when shown again. A page switched away from was painted once more in the
+  frame it went offstage (its tickers went off with it, which marks a
+  repaint), so its leaves wanted their frames after they left the screen
+  and kept their textures.
+
 ### Changed (a hidden panel gives its textures back)
 
 - A catalogue under an invisible `Visibility` (`Visibility.of` false: a
