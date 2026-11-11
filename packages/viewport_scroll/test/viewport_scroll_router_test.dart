@@ -6,6 +6,8 @@
 /// the field's caret and focus.
 library;
 
+import 'package:flutter/foundation.dart'
+    show debugDefaultTargetPlatformOverride;
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -164,6 +166,27 @@ void main() {
     await press(tester, LogicalKeyboardKey.pageDown);
 
     expect(calls, ['chat -60.0', 'chat 60.0', 'chat 100.0']);
+  });
+
+  testWidgets('on a Mac a field with text hands on Home / End: they move no '
+      'caret there', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      await pump(tester);
+      field.requestFocus();
+      text.value = const TextEditingValue(
+        text: 'abc',
+        selection: TextSelection.collapsed(offset: 1),
+      );
+      await tester.pump();
+
+      await press(tester, LogicalKeyboardKey.home);
+      await press(tester, LogicalKeyboardKey.end);
+
+      expect(calls, ['chat start', 'chat end']);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('holding the focus: the fallback has it when the surface '

@@ -139,6 +139,65 @@ void main() {
     }
   });
 
+  // Home and End as a MacBook sends them: Fn held with the left and right
+  // arrows, which arrive as the Home and End keys.
+  Future<void> fnKey(WidgetTester tester, LogicalKeyboardKey key) async {
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.fn, platform: 'macos');
+    await tester.sendKeyEvent(key, platform: 'macos');
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.fn, platform: 'macos');
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+
+  macTest('Home goes to the newest message and End to the oldest, as before '
+      'the router: from the field, empty or with a draft, a field left and a '
+      'selection, Fn held or not', (tester) async {
+    await openChat(tester);
+    final view = tester.widget<ChatScrollView>(find.byType(ChatScrollView));
+    final controller = view.controller;
+    final jumps = <int>[];
+    controller.addScrollListener((event) {
+      if (event case ChatProgrammaticJump(:final targetId)) {
+        jumps.add(targetId);
+      }
+    });
+    final oldest = controller.oldestKnownId!;
+    final newest = controller.newestKnownId!;
+    expect(oldest, isNot(newest));
+
+    Future<void> both({required String reason, bool fn = false}) async {
+      jumps.clear();
+      await (fn ? fnKey : key)(tester, LogicalKeyboardKey.end);
+      await settle(tester);
+      expect(controller.isAtTail.value, isFalse, reason: '$reason: End');
+      await (fn ? fnKey : key)(tester, LogicalKeyboardKey.home);
+      await settle(tester);
+      expect(controller.isAtTail.value, isTrue, reason: '$reason: Home');
+      expect(jumps, [oldest, newest], reason: reason);
+    }
+
+    expect(composer(tester).focusNode.hasFocus, isTrue);
+    await both(reason: 'empty field');
+    await both(reason: 'empty field, Fn', fn: true);
+
+    // A draft in the field: on a Mac, Home and End move no caret in a
+    // text, so they still go to the chat.
+    composer(tester).insertText('draft');
+    await tester.pump();
+    await both(reason: 'draft', fn: true);
+    expect(composer(tester).text.text, 'draft');
+    composer(tester).clear();
+    await tester.pump();
+
+    composer(tester).focusNode.unfocus();
+    await tester.pump();
+    await tester.pump();
+    await both(reason: 'field left');
+
+    view.selectionController!.startSelection(newest);
+    await settle(tester);
+    await both(reason: 'selection');
+  });
+
   macTest('the field keeps the keys that edit its text, and hands the chat '
       'those it cannot use', (tester) async {
     final scrolls = await openChat(tester);
@@ -154,10 +213,6 @@ void main() {
     expect(scrolls, isEmpty);
     // At the start, up is the chat's.
     await key(tester, LogicalKeyboardKey.arrowUp);
-    expect(scrolls, hasLength(1));
-    // Home and End belong to a field with text.
-    await key(tester, LogicalKeyboardKey.end);
-    await key(tester, LogicalKeyboardKey.home);
     expect(scrolls, hasLength(1));
     // Down takes the caret to the end, then is the chat's.
     await key(tester, LogicalKeyboardKey.arrowDown);
