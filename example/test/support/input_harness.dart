@@ -13,6 +13,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_presentation/panel_presentation.dart';
+import 'package:viewport_scroll/viewport_scroll.dart' show ViewportScrollRouter;
 
 import 'fake_soft_keyboard.dart';
 
@@ -254,36 +255,41 @@ class _ScreenState extends State<_Screen> {
         controller: _bulletins,
         obstruction: _obstruction,
         tracksObstruction: true,
-        child: Stack(
-          key: _rig._space,
-          children: [
-            if (widget.chat case final chat?) Positioned.fill(child: chat),
-            Positioned.fill(
-              // The chat gives a docked section its room, as the screen does:
-              // only the padding follows the inset, the chat is not rebuilt.
-              child: ValueListenableBuilder<double>(
-                valueListenable: input.insets.inlineEnd,
-                builder: (context, inlineEnd, child) => Padding(
-                  padding: EdgeInsetsDirectional.only(end: inlineEnd),
-                  child: child,
-                ),
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: ChatBottomChrome(
-                    input: input,
-                    selection: _rig.selection,
-                    islandKey: _rig._island,
-                    anchorSpace: _rig._space,
-                    bulletins: _bulletins,
+        // The screen's key routing: the panel under the mouse takes the
+        // scroll keys, else the chat. The rig leaves the focus where tests
+        // put it (no focus holding).
+        child: ViewportScrollRouter(
+          child: Stack(
+            key: _rig._space,
+            children: [
+              if (widget.chat case final chat?) Positioned.fill(child: chat),
+              Positioned.fill(
+                // The chat gives a docked section its room, as the screen does:
+                // only the padding follows the inset, the chat is not rebuilt.
+                child: ValueListenableBuilder<double>(
+                  valueListenable: input.insets.inlineEnd,
+                  builder: (context, inlineEnd, child) => Padding(
+                    padding: EdgeInsetsDirectional.only(end: inlineEnd),
+                    child: child,
+                  ),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: ChatBottomChrome(
+                      input: input,
+                      selection: _rig.selection,
+                      islandKey: _rig._island,
+                      anchorSpace: _rig._space,
+                      bulletins: _bulletins,
+                    ),
                   ),
                 ),
               ),
-            ),
-            if (!ChatBottomChrome.replacesKeyboard(input))
-              Positioned.fill(
-                child: PanelPresentationView(controller: input.presentation),
-              ),
-          ],
+              if (!ChatBottomChrome.replacesKeyboard(input))
+                Positioned.fill(
+                  child: PanelPresentationView(controller: input.presentation),
+                ),
+            ],
+          ),
         ),
       ),
     );

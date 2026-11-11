@@ -278,6 +278,9 @@ class _ChatKeyboardShortcutsState extends State<ChatKeyboardShortcuts> {
     lineExtent: widget.lineExtent,
     pageExtent: widget.pageExtent,
     pageFraction: widget.pageFraction,
+    // The surface's main viewport: under a router it takes the keys nobody
+    // nearer the focus took.
+    role: ViewportScrollRole.primary,
     child: Shortcuts(
       shortcuts: _kShortcuts,
       child: Actions(

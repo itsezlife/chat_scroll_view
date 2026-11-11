@@ -24,12 +24,13 @@ class CatalogMoveFocusIntent extends Intent {
 ///
 /// Mounted above the viewport by [CatalogPage]. The bindings are scoped to the
 /// subtree that holds focus, so a text field elsewhere keeps its own arrows.
-/// On a desktop the catalogue under the mouse has the keys: while the mouse
-/// is over it, and after a mouse press on it, it holds the focus without a
-/// focused cell, so the keys scroll it and not the chat beside it. A text
-/// field that holds the focus (the composer the user types in while
-/// picking) keeps it and its keys. Focus the hover took goes back to where
-/// it was when the mouse leaves, unless a press or a cell kept it. The controller owns the roving focus itself (it
+/// On a desktop the catalogue under the mouse has the scroll keys: its keys
+/// are the pointer viewport of the surface's `ViewportScrollRouter`, which
+/// sends it the keys while the mouse is over it whoever holds the focus (a
+/// text field keeps those it edits with). A mouse press on it also takes
+/// the focus, without a focused cell, unless a text field holds it (the
+/// composer the user types in while picking keeps it). The controller owns
+/// the roving focus itself (it
 /// lives in the viewport); this widget only turns keys into the controller's
 /// `moveFocus`, `activateFocusedLeaf` and scroll calls, enters the grid when
 /// the focus arrives by traversal, and ends roving focus when it leaves.
@@ -91,10 +92,6 @@ class _CatalogKeyboardFocusState extends State<CatalogKeyboardFocus> {
   // focus change arrives after the request, which it consumes.
   var _pressing = false;
 
-  // Where the focus the hover took was, to go back to when the mouse leaves;
-  // null when a press took it, or nothing had it.
-  FocusNode? _returnTo;
-
   @override
   void dispose() {
     _node.dispose();
@@ -102,38 +99,11 @@ class _CatalogKeyboardFocusState extends State<CatalogKeyboardFocus> {
   }
 
   void _onPointerDown(PointerDownEvent event) {
-    if (event.kind != PointerDeviceKind.mouse) return;
-    // A press keeps the keys here once the mouse leaves.
-    _returnTo = null;
-    _takeKeys();
-  }
-
-  void _onEnter(PointerEnterEvent event) {
-    if (event.kind != PointerDeviceKind.mouse) return;
-    final primary = FocusManager.instance.primaryFocus;
-    if (_takeKeys()) {
-      _returnTo = primary is FocusScopeNode ? null : primary;
-    }
-  }
-
-  void _onExit(PointerExitEvent event) {
-    final back = _returnTo;
-    _returnTo = null;
-    // A cell focused meanwhile (by Tab) keeps the keys here.
-    if (back == null || widget.controller.focusedLeaf != null) return;
-    if (!_node.hasFocus && !_pressing) return;
-    if (back.context != null && back.canRequestFocus) back.requestFocus();
-  }
-
-  // Takes the focus for the mouse, unless it is here already or a text
-  // field holds it; returns whether it asked for it.
-  bool _takeKeys() {
-    if (_node.hasFocus) return false;
-    final primary = FocusManager.instance.primaryFocus;
-    if (_typesText(primary)) return false;
+    if (event.kind != PointerDeviceKind.mouse || _node.hasFocus) return;
+    // A text field keeps the focus (the composer the user types in).
+    if (_typesText(FocusManager.instance.primaryFocus)) return;
     _pressing = true;
     _node.requestFocus();
-    return true;
   }
 
   // Whether [node] is a text field's: its keys are the text's.
@@ -178,6 +148,7 @@ class _CatalogKeyboardFocusState extends State<CatalogKeyboardFocus> {
       onScrollBy: controller.scrollBy,
       onScrollToStart: () => controller.jumpTo(0),
       onScrollToEnd: () => controller.jumpTo(controller.maxScrollExtent),
+      role: ViewportScrollRole.pointer,
       child: Shortcuts(
         shortcuts: CatalogKeyboardFocus.shortcuts,
         child: Actions(
@@ -185,15 +156,10 @@ class _CatalogKeyboardFocusState extends State<CatalogKeyboardFocus> {
           child: Focus(
             focusNode: _node,
             onFocusChange: _onFocusChange,
-            child: MouseRegion(
-              opaque: false,
-              onEnter: _onEnter,
-              onExit: _onExit,
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: _onPointerDown,
-                child: widget.child,
-              ),
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: _onPointerDown,
+              child: widget.child,
             ),
           ),
         ),

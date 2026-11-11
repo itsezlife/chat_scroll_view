@@ -9,6 +9,11 @@
   longer exports them. The panel catalogue viewport takes the same physics.
 - **ADDED**: `ViewportScrollKeys`, the arrow, page and Home / End scroll keys
   `ChatKeyboardShortcuts` binds, shared with the panel catalogue.
+- **ADDED**: `ChatKeyboardShortcuts` registers the chat as the primary
+  viewport of a `ViewportScrollRouter` above it: a host that mounts one
+  over the chat, its composer and a panel gets every scroll key routed
+  (the panel under the mouse, else the chat; a focused field keeps the keys
+  it edits with), and on a desktop a focus that never rests on nobody.
 
 ### Selection policy
 - **CHANGED** (breaking): `ChatSelectionPolicy.forPlatform` and

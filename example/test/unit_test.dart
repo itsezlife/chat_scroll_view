@@ -183,6 +183,7 @@ import 'widgets/demo_message_edit_transition_test.dart'
 import 'widgets/demo_message_markdown_registration_test.dart'
     as demo_message_markdown_registration_test;
 import 'widgets/desktop_copy_shortcut_test.dart' as desktop_copy_shortcut_test;
+import 'widgets/desktop_key_focus_test.dart' as desktop_key_focus_test;
 import 'widgets/emoji_selection_clear_test.dart' as emoji_selection_clear_test;
 import 'widgets/glyph_warmup_test.dart' as glyph_warmup_test;
 import 'widgets/large_emoji_limit_button_test.dart'
@@ -532,6 +533,7 @@ void main() {
     'widgets/desktop_copy_shortcut_test.dart',
     desktop_copy_shortcut_test.main,
   );
+  group('widgets/desktop_key_focus_test.dart', desktop_key_focus_test.main);
   group(
     'widgets/emoji_selection_clear_test.dart',
     emoji_selection_clear_test.main,

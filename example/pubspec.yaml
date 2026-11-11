@@ -61,6 +61,8 @@ dependencies:
     path: ../packages/video_decoder
   video_native:
     path: ../packages/video_native
+  viewport_scroll:
+    path: ../packages/viewport_scroll
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git

@@ -119,12 +119,21 @@ void main() {
     await mouse.moveTo(tester.getCenter(viewport));
     await tester.pump();
 
-    // With the caret in the composer, its keys stay there.
+    // With the caret inside a text in the composer, the field keeps the
+    // arrows it moves the caret with; the page keys still reach the panel.
     rig.set.composer.requestFocus();
     await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    rig.set.composer
+      ..insertText('ab')
+      ..select(const TextSelection.collapsed(offset: 1));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pump();
     expect(catalog().offset, 0);
+    expect(rig.set.composer.selection.baseOffset, 2);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pump();
+    expect(catalog().offset, greaterThan(0));
     expect(rig.set.composer.hasFocus, isTrue);
   }, variant: _macOS);
 }
