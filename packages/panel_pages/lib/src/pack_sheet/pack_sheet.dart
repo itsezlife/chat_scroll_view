@@ -1,6 +1,8 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
+import 'package:meta/meta.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_drag.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -31,6 +33,47 @@ final class PackSheetLinks {
   /// The user chose Copy Link for the link; the host writes the clipboard and
   /// confirms it (`PackSheetStrings.linkCopied`).
   final ValueChanged<Uri> onCopy;
+}
+
+/// What a host lays over a pack sheet's whole layer: [child] is the layer
+/// (the sheet with its open and close motion, or the box with its fade), and
+/// the builder returns it with the host's own layer on top, which neither
+/// moves nor fades with it.
+///
+/// [bottomBar] is how far up from the layer's bottom edge the bottom sheet's
+/// own bar reaches: its button bar, the safe inset under it and a raised
+/// keyboard; `0` for the box, and until the sheet has laid out. A bulletin
+/// host over the sheet keeps clear of it, as one over a screen keeps clear
+/// of its composer, so a notice raised while the sheet is up shows above the
+/// sheet rather than under it.
+typedef PackSheetLayerBuilder =
+    Widget Function(
+      BuildContext context,
+      ValueListenable<double> bottomBar,
+      Widget child,
+    );
+
+/// Where a bottom sheet's view reports its [PackSheetLayerBuilder] bottom
+/// bar: the route's notifier, above the sheet.
+@internal
+final class PackSheetBottomBar extends InheritedWidget {
+  /// Puts [extent] above [child].
+  const PackSheetBottomBar({
+    required this.extent,
+    required super.child,
+    super.key,
+  });
+
+  /// The route's bottom bar extent.
+  final ValueNotifier<double> extent;
+
+  /// The nearest route's notifier, or null outside a bottom sheet.
+  static ValueNotifier<double>? maybeOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<PackSheetBottomBar>()?.extent;
+
+  @override
+  bool updateShouldNotify(PackSheetBottomBar oldWidget) =>
+      !identical(extent, oldWidget.extent);
 }
 
 /// One item of a pack sheet's grid, with the pack it is shown in.
@@ -99,20 +142,25 @@ abstract final class PackSheet {
   /// the sheet's host shows from it (`ChromeBoxLayer.of(sheetContext)`), such
   /// as a confirmation, takes the box's place at once on the same layer, and
   /// the box comes back when that one closes.
+  ///
+  /// [layer] puts the host's own layer over the sheet's (a bulletin host):
+  /// see [PackSheetLayerBuilder].
   static Future<void> show(
     BuildContext context, {
     required PanelArrangement arrangement,
     required WidgetBuilder builder,
+    PackSheetLayerBuilder? layer,
   }) {
     final speed = ChromeMotionScope.maybeOf(context)?.speed;
     return switch (arrangement) {
       PanelArrangement.touch => Navigator.of(
         context,
-      ).push(_BottomSheetRoute(builder: builder, speed: speed)),
+      ).push(_BottomSheetRoute(builder: builder, speed: speed, layer: layer)),
       PanelArrangement.pointer => _showBox(
         context,
         builder: builder,
         speed: speed,
+        layer: layer,
       ),
     };
   }
@@ -154,7 +202,7 @@ class _SheetRoot extends StatelessWidget {
 // --- Bottom sheet -----------------------------------------------------------
 
 final class _BottomSheetRoute extends PopupRoute<void> {
-  _BottomSheetRoute({required this.builder, this.speed})
+  _BottomSheetRoute({required this.builder, this.speed, this.layer})
     : super(
         requestFocus: false,
         settings: const RouteSettings(name: PackSheet.routeName),
@@ -162,6 +210,14 @@ final class _BottomSheetRoute extends PopupRoute<void> {
 
   final WidgetBuilder builder;
   final ChromeMotionSpeed? speed;
+  final PackSheetLayerBuilder? layer;
+  final ValueNotifier<double> _bottomBar = ValueNotifier(0);
+
+  @override
+  void dispose() {
+    _bottomBar.dispose();
+    super.dispose();
+  }
 
   @override
   Color get barrierColor => PackSheet.touchBarrier;
@@ -186,11 +242,14 @@ final class _BottomSheetRoute extends PopupRoute<void> {
     BuildContext context,
     Animation<double> animation,
     Animation<double> secondaryAnimation,
-  ) => _SheetRoot(
-    arrangement: PanelArrangement.touch,
-    child: Align(
-      alignment: Alignment.bottomCenter,
-      child: _SheetDrag(child: Builder(builder: builder)),
+  ) => PackSheetBottomBar(
+    extent: _bottomBar,
+    child: _SheetRoot(
+      arrangement: PanelArrangement.touch,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: _SheetDrag(child: Builder(builder: builder)),
+      ),
     ),
   );
 
@@ -209,7 +268,7 @@ final class _BottomSheetRoute extends PopupRoute<void> {
       curve: Interval(delay, 1, curve: Curves.easeOutQuint),
       reverseCurve: Curves.easeOut,
     );
-    return AnimatedBuilder(
+    final sheet = AnimatedBuilder(
       animation: curved,
       child: child,
       builder: (context, child) => FractionalTranslation(
@@ -217,6 +276,10 @@ final class _BottomSheetRoute extends PopupRoute<void> {
         child: child,
       ),
     );
+    return switch (layer) {
+      final layer? => layer(context, _bottomBar, sheet),
+      null => sheet,
+    };
   }
 }
 
@@ -312,12 +375,21 @@ Future<void> _showBox(
   BuildContext context, {
   required WidgetBuilder builder,
   required ChromeMotionSpeed? speed,
+  required PackSheetLayerBuilder? layer,
 }) => ChromeBoxLayer.open<void>(
   context,
   barrierColor: PackSheet.pointerBarrier,
   transitionDuration: speed?.scale(PackSheet.boxFade) ?? PackSheet.boxFade,
   requestFocus: false,
   settings: const RouteSettings(name: PackSheet.routeName),
+  overlay: switch (layer) {
+    final layer? => (context, child) => layer(
+      context,
+      const AlwaysStoppedAnimation<double>(0),
+      child ?? const SizedBox.shrink(),
+    ),
+    null => null,
+  },
   builder: (context) => _SheetRoot(
     arrangement: PanelArrangement.pointer,
     child: SizedBox(

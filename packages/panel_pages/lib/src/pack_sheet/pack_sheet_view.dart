@@ -392,11 +392,13 @@ class _PackSheetViewState extends State<PackSheetView>
     setState(() {});
   }
 
-  void _close() {
+  /// Closes the sheet; completes once the navigator has decided, so the sheet
+  /// has started to go (or stays, when its route refused).
+  Future<void> _close() async {
     if (_closed) return;
     _closed = true;
     _hidePreview();
-    Navigator.maybeOf(context)?.maybePop();
+    await Navigator.maybeOf(context)?.maybePop();
   }
 
   /// The packs found so far, in order, or null while any is still loading.
@@ -609,6 +611,16 @@ class _PackSheetViewState extends State<PackSheetView>
     );
   }
 
+  // What a host layer over the sheet keeps clear of (`PackSheetLayerBuilder`):
+  // written after the frame, as the layer is built above this one.
+  void _reportBottomBar(double extent) {
+    final bar = PackSheetBottomBar.maybeOf(context);
+    if (bar == null || bar.value == extent) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) bar.value = extent;
+    });
+  }
+
   bool get _hasContextMenu => switch (_grid) {
     PackSheetGrid.stickers => _preview != null,
     _ => widget.onCopyRequested != null,
@@ -623,10 +635,12 @@ class _PackSheetViewState extends State<PackSheetView>
   }
 
   void _onButton(PackSheetAction action) {
-    // The sheet is dismissed, then the set is toggled.
+    // The sheet is dismissed, then the set is toggled: the edit comes once
+    // the sheet has started to go, so what the host says of it shows under
+    // the sheet, on the screen it goes back to.
     if (ChromeBoxLayer.maybeOf(context) == null) {
-      _close();
-      widget.onEditsRequested(action.requests);
+      final requested = widget.onEditsRequested;
+      _close().then((_) => requested(action.requests)).ignore();
       return;
     }
     // A box: the host may ask first, in a box it shows over this one; this
@@ -676,6 +690,8 @@ class _PackSheetViewState extends State<PackSheetView>
         PackSheetView.buttonMetrics.barExtentOf(destructive: removes),
     };
     final bottomInset = touch ? media.padding.bottom : 0.0;
+    if (touch)
+      _reportBottomBar(buttonBar + bottomInset + media.viewInsets.bottom);
     final frame = _frame = touch
         ? PackSheetFrame.touch(
             screen: media.size,

@@ -239,4 +239,43 @@ void main() {
     await tester.pump();
     expect(ChromeBoxLayer.isShown(pack), isTrue);
   });
+
+  testWidgets('an overlay covers the whole layer above the box and does not '
+      'fade with it', (tester) async {
+    await pumpHost(tester);
+    const over = Key('over');
+    ChromeBoxLayer.open<void>(
+      host,
+      barrierColor: _barrier,
+      transitionDuration: _fade,
+      builder: (_) => const _Box('pack'),
+      overlay: (context, child) => Stack(
+        children: [
+          ?child,
+          const Positioned.fill(child: SizedBox(key: over)),
+        ],
+      ),
+    ).ignore();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      tester.getSize(find.byKey(over)),
+      tester.view.physicalSize / tester.view.devicePixelRatio,
+    );
+    expect(
+      find.ancestor(
+        of: find.byKey(over),
+        matching: find.byType(FadeTransition),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(
+        of: find.textContaining('pack'),
+        matching: find.byType(FadeTransition),
+      ),
+      findsWidgets,
+    );
+  });
 }

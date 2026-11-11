@@ -40,6 +40,7 @@ final class ChromeBoxLayer extends PopupRoute<Object?> {
     required this.transitionDuration,
     this.barrierLabel,
     this.barrierDismissible = true,
+    this.overlay,
     super.requestFocus,
     super.settings,
   }) : _first = _LayerBox(builder) {
@@ -57,6 +58,7 @@ final class ChromeBoxLayer extends PopupRoute<Object?> {
     bool barrierDismissible = true,
     bool? requestFocus,
     RouteSettings? settings,
+    TransitionBuilder? overlay,
   }) async {
     final result = await Navigator.of(context).push(
       ChromeBoxLayer(
@@ -65,6 +67,7 @@ final class ChromeBoxLayer extends PopupRoute<Object?> {
         transitionDuration: transitionDuration,
         barrierLabel: barrierLabel,
         barrierDismissible: barrierDismissible,
+        overlay: overlay,
         requestFocus: requestFocus,
         settings: settings,
       ),
@@ -116,6 +119,12 @@ final class ChromeBoxLayer extends PopupRoute<Object?> {
 
   @override
   final Duration transitionDuration;
+
+  /// What the host lays over the layer's whole area, above the barrier and
+  /// the shown box: given the faded boxes as its child, it returns them
+  /// with its own layer on top (a bulletin host, so a notice raised while
+  /// the layer is up shows over it). It does not fade with the boxes.
+  final TransitionBuilder? overlay;
 
   final _boxes = ValueNotifier<List<_LayerBox>>(const []);
 
@@ -256,7 +265,13 @@ final class ChromeBoxLayer extends PopupRoute<Object?> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
     Widget child,
-  ) => FadeTransition(opacity: animation, child: child);
+  ) => switch (overlay) {
+    final overlay? => overlay(
+      context,
+      FadeTransition(opacity: animation, child: child),
+    ),
+    null => FadeTransition(opacity: animation, child: child),
+  };
 }
 
 final class _LayerBox {
