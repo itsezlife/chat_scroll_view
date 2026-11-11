@@ -469,8 +469,9 @@ void main() {
       1,
     );
     expect(find.byType(BackdropFilter), findsNothing);
-    // 1/15 of the 800 x 600 window at a device pixel ratio of 3.
-    expect(snapshot.image.width, 160);
+    // Captured at 1/15 of the 800 x 600 window at a device pixel ratio of 3,
+    // made at 5 times that.
+    expect(snapshot.image.width, 800);
 
     await gesture.up();
     await tester.pump(ContentPreviewSession.showDuration);

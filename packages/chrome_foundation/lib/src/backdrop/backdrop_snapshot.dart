@@ -39,9 +39,8 @@ final class _RenderBackdropSnapshotSource extends RenderProxyBox {
 /// A full-window `BackdropFilter` blurs at full resolution on every frame it
 /// is up, allocates its offscreen targets anew each time it appears, and new
 /// ones on every frame its sigma animates. A still costs one small capture
-/// and one small blur, made once ([capture]); drawn stretched
-/// ([BackdropSnapshotView]) the upscale itself adds softness, and only its
-/// opacity animates. The price is that the still does not follow the content:
+/// and one blur, made once ([capture]); it is drawn stretched
+/// ([BackdropSnapshotView]), and only its opacity animates. The price is that the still does not follow the content:
 /// it suits a scrim over a background that is frozen while it is up.
 ///
 /// The caller owns the snapshot and [dispose]s it when its scrim is gone.
@@ -50,9 +49,16 @@ final class BackdropSnapshot {
 
   /// Captures what the [BackdropSnapshotSource] above [context] painted in
   /// the last frame at 1/[downscale] of its device pixels, over
-  /// [background], blurs it by [blurSigma] (in the snapshot's own pixels)
-  /// and applies [tone] (a colour matrix, see [toneMatrix]), once. Null when
-  /// no source is above [context], or it has not painted yet.
+  /// [background], blurs it by [blurSigma] (in those captured pixels) and
+  /// applies [tone] (a colour matrix, see [toneMatrix]), once. Null when no
+  /// source is above [context], or it has not painted yet.
+  ///
+  /// The still is made at [upscale] times the captured pixels, the capture
+  /// stretched and blurred there, so it is drawn stretched by
+  /// [downscale] / [upscale] rather than by [downscale]. A stretch of a few
+  /// pixels shows no grid of the still's pixels, however coarsely the
+  /// backend samples it; a stretch of 15 does on some. The capture and the
+  /// blur's strength stay as small: only the still is larger.
   ///
   /// A blurred or toned still is opaque and blurred evenly out to its edges,
   /// which hold the colour of the window's own edges: whatever is drawn
@@ -67,17 +73,27 @@ final class BackdropSnapshot {
     double blurSigma = 0,
     List<double>? tone,
     Color background = const Color(0xFF000000),
+    int upscale = 1,
   }) {
-    assert(downscale >= 1, 'A snapshot is never larger than the window.');
+    assert(
+      downscale >= 1 && upscale >= 1 && upscale <= downscale,
+      'A snapshot is never larger than the window.',
+    );
     final source = context
         .findAncestorRenderObjectOfType<_RenderBackdropSnapshotSource>();
     if (source == null) return null;
     final density = View.maybeOf(context)?.devicePixelRatio ?? 1;
     final raw = source._capture(density / downscale);
     if (raw == null) return null;
-    if (blurSigma <= 0 && tone == null) return BackdropSnapshot._(raw);
-    final bounds =
-        Offset.zero & Size(raw.width.toDouble(), raw.height.toDouble());
+    if (blurSigma <= 0 && tone == null && upscale == 1) {
+      return BackdropSnapshot._(raw);
+    }
+    final width = raw.width * upscale;
+    final height = raw.height * upscale;
+    final bounds = Offset.zero & Size(width.toDouble(), height.toDouble());
+    // Blurred where it is made: that same blur also smooths away however
+    // the backend sampled the stretched capture.
+    final sigma = blurSigma * upscale;
     // The blur reads 3 sigma past each pixel. How a backend treats what lies
     // past the edge of a blur's input varies (some leave it clear, whatever
     // tile mode is asked for, and the edges of the still then fade to clear
@@ -85,15 +101,15 @@ final class BackdropSnapshot {
     // pixels carried out that far, by an image shader's clamp: what the blur
     // makes of the input's own edge falls outside the still. The blur asks
     // for the clear edge itself, so every backend draws the same still.
-    final margin = bounds.inflate((blurSigma * 3).ceilToDouble());
+    final margin = bounds.inflate((sigma * 3).ceilToDouble());
     final opaque = background.withAlpha(255);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, bounds)..drawColor(opaque, BlendMode.src);
     final layer = Paint();
-    if (blurSigma > 0) {
+    if (sigma > 0) {
       layer.imageFilter = ui.ImageFilter.blur(
-        sigmaX: blurSigma,
-        sigmaY: blurSigma,
+        sigmaX: sigma,
+        sigmaY: sigma,
         tileMode: TileMode.decal,
       );
     }
@@ -102,7 +118,11 @@ final class BackdropSnapshot {
       raw,
       TileMode.clamp,
       TileMode.clamp,
-      Matrix4.identity().storage,
+      Matrix4.diagonal3Values(
+        upscale.toDouble(),
+        upscale.toDouble(),
+        1,
+      ).storage,
       filterQuality: FilterQuality.low,
     );
     canvas
@@ -111,7 +131,7 @@ final class BackdropSnapshot {
       ..drawRect(margin, Paint()..shader = edges)
       ..restore();
     final picture = recorder.endRecording();
-    final image = picture.toImageSync(raw.width, raw.height);
+    final image = picture.toImageSync(width, height);
     picture.dispose();
     edges.dispose();
     raw.dispose();

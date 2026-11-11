@@ -287,14 +287,19 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   /// alpha.
   static const int dimAlpha = 180;
 
-  /// The blur under the menu is a still of the window at 1/15 of its device
-  /// pixels, blurred once ([backdropBlurSigma]) and toned
-  /// ([backdropToneDark] or [backdropToneLight]), then drawn stretched under
-  /// the dim. Only its opacity animates, over [showDuration], as the menu
-  /// comes and goes.
+  /// The blur under the menu is a still of the window captured at 1/15 of
+  /// its device pixels, blurred once ([backdropBlurSigma]) and toned
+  /// ([backdropToneDark] or [backdropToneLight]), made at [backdropUpscale]
+  /// times that, then drawn stretched under the dim. Only its opacity
+  /// animates, over [showDuration], as the menu comes and goes.
   static const double backdropDownscale = 15;
 
-  /// The blur of the still, in its own pixels: 6.5.
+  /// How many times the captured pixels the still is made at: 5, so it is
+  /// 1/3 of the device pixels and drawn stretched 3 times, which shows no
+  /// grid of its pixels.
+  static const int backdropUpscale = 5;
+
+  /// The blur of the still, in the captured pixels: 6.5.
   static const double backdropBlurSigma = 6.5;
 
   /// The still's tone over a dark theme: saturation up 0.04, brightness
@@ -319,6 +324,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     return BackdropSnapshot.capture(
       context,
       downscale: backdropDownscale,
+      upscale: backdropUpscale,
       blurSigma: backdropBlurSigma,
       // Where the window painted nothing: its base fill.
       background: palette.surface,
