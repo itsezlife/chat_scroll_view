@@ -54,6 +54,9 @@ final class LottieContentHashWorker {
 
   final LottieHashWorkerSpawner _spawn;
   Future<_Running>? _running;
+  // The isolate once it is up, so a close ends it without waiting on (or
+  // catching the failure of) a start.
+  _Running? _live;
   final _pending = <int, Completer<String>>{};
   var _nextId = 0;
   var _closed = false;
@@ -73,19 +76,15 @@ final class LottieContentHashWorker {
   }
 
   /// Ends the isolate. Hashes not answered yet fail with a [StateError], and
-  /// so does every later [hash]. Idempotent.
+  /// so does every later [hash]. An isolate still starting is ended as soon
+  /// as it is up. Idempotent.
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
-    final running = _running;
     _running = null;
     _failPending('The content hash worker is closed.');
-    if (running == null) return;
-    try {
-      (await running).end();
-    } on Object {
-      // It never started; there is nothing to end.
-    }
+    _live?.end();
+    _live = null;
   }
 
   Future<_Running> _start() async {
@@ -113,7 +112,10 @@ final class LottieContentHashWorker {
       if (!ready.isCompleted) {
         ready.completeError(StateError('The content hash worker ended.'));
       }
-      if (running != null) _running = null;
+      if (running != null) {
+        _running = null;
+        _live = null;
+      }
       _failPending('The content hash worker ended.');
     });
     try {
@@ -122,7 +124,13 @@ final class LottieContentHashWorker {
         replies.sendPort,
         onExit: exits.sendPort,
       );
-      return running = _Running(isolate, await ready.future, replies, exits);
+      running = _Running(isolate, await ready.future, replies, exits);
+      if (_closed) {
+        // Closed while it started: nothing will use it.
+        running.end();
+        throw StateError('The content hash worker is closed.');
+      }
+      return _live = running;
     } on Object {
       replies.close();
       exits.close();

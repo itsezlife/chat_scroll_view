@@ -59,6 +59,28 @@ void main() {
     expect(spawned, hasLength(1));
   });
 
+  test('closed while it starts, it ends the isolate once that is up', () async {
+    final exited = ReceivePort();
+    addTearDown(exited.close);
+    final starting = LottieContentHashWorker(
+      spawn: (entryPoint, message, {required onExit}) async {
+        final isolate = await Isolate.spawn(
+          entryPoint,
+          message,
+          onExit: onExit,
+        );
+        isolate.addOnExitListener(exited.sendPort);
+        return isolate;
+      },
+    );
+
+    final first = starting.hash(Uint8List(0));
+    await starting.close();
+
+    await expectLater(first, throwsStateError);
+    await expectLater(exited.first, completes);
+  });
+
   test(
     'an isolate that ends on its own is replaced at the next hash',
     () async {

@@ -20,7 +20,9 @@ package is pre-1.0.
 
 - `LottieContentHashWorker` (VM only): `hash(bytes)` and `close()`, with an
   injectable spawner (`LottieHashWorkerSpawner`). An isolate that ends on
-  its own fails the hashes it had and is replaced at the next hash.
+  its own fails the hashes it had and is replaced at the next hash. A
+  `close()` while the isolate is still starting returns at once and ends
+  the isolate as soon as it is up.
 
 ### Changed (a hidden panel gives its textures back)
 

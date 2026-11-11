@@ -70,7 +70,7 @@ final class AppearController implements Listenable {
     if (_hide.value > 0) {
       clocks.add(_hide.animateBack(0, duration: hideDuration).orCancel);
     }
-    _settle(done, clocks);
+    unawaited(_settle(done, clocks));
     return done.future;
   }
 
@@ -79,9 +79,12 @@ final class AppearController implements Listenable {
   Future<void> hide({required Duration hideDuration}) {
     _hiding = true;
     final done = _replace();
-    _settle(done, [
-      if (_hide.value < 1) _hide.animateTo(1, duration: hideDuration).orCancel,
-    ]);
+    unawaited(
+      _settle(done, [
+        if (_hide.value < 1)
+          _hide.animateTo(1, duration: hideDuration).orCancel,
+      ]),
+    );
     return done.future;
   }
 
@@ -91,18 +94,17 @@ final class AppearController implements Listenable {
     return _pending = Completer<void>();
   }
 
-  void _settle(Completer<void> done, List<Future<void>> clocks) {
-    Future.wait(clocks)
-        .then<void>(
-          (_) {
-            if (!done.isCompleted) done.complete();
-          },
-          onError: (Object _) {
-            // A clock stopped by a newer request: that request completed this.
-            if (!done.isCompleted) done.complete();
-          },
-        )
-        .ignore();
+  // Completes [done] once [clocks] end. A clock stopped early (a newer
+  // request turned it, or the controller was disposed) fails with
+  // [TickerCanceled]; whoever stopped it completed [done] already. Any other
+  // error is not this controller's to hide and is left to the zone.
+  Future<void> _settle(Completer<void> done, List<Future<void>> clocks) async {
+    try {
+      await Future.wait(clocks);
+    } on TickerCanceled {
+      // Stopped by a newer request or by dispose.
+    }
+    if (!done.isCompleted) done.complete();
   }
 
   /// Stops both clocks.
