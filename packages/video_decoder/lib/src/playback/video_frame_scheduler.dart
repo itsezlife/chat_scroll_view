@@ -216,7 +216,10 @@ final class VideoFrameLease {
 /// 1. Its paintable left the screen: every binding of its entry hid or
 ///    detached, and the paintable called
 ///    [VideoFrameLease.releaseUnlessPainted]. The lease goes when the frame
-///    is over unless it was painted in it, or kept. Without this a fling
+///    is over unless it was painted in it. A kept one stays (its surface
+///    holds it, but shows nothing of it: a hidden panel) and gives back only
+///    its texture, keeping its frame on it, which it takes back when painted
+///    again; the surfaces on screen get the budget. Without this a fling
 ///    filled the pool with the leases of cells that had flown past (ticket
 ///    116).
 /// 2. An [acquire] found the pool full: the leases on slots that nothing
