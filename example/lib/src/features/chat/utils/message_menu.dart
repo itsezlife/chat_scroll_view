@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
@@ -642,7 +643,8 @@ final class MessageMenu {
       final content = request.membership == ChatMessageMenuMembership.idle
           ? contentOf?.call(request.messageId)
           : null;
-      final presentation = ChatMessageMenuPresentation.forPolicy(policy);
+      final presentation = AppPlatformPolicy.current()
+          .messageMenuPresentationFor(policy);
       final surfaceBuilder = MessageMenuChrome.surfaceBuilderFor(presentation);
       // The Android menu holds the contains-emoji entry in its own card,
       // under a gap band, and the desktop menu under a separator; elsewhere
@@ -659,6 +661,7 @@ final class MessageMenu {
 
       final result = await ChatMessageMenu.show(
         context: context,
+        presentation: presentation,
         messageRect: request.slotGlobal,
         tapGlobal: request.tapGlobal,
         surfaceRect: request.surfaceGlobal,

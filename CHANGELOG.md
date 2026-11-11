@@ -1,5 +1,14 @@
 ## Unreleased
 
+### Selection policy
+- **CHANGED** (breaking): `ChatSelectionPolicy.forPlatform` and
+  `ChatMessageMenuPresentation.forPlatform` drop `isWeb`. A browser takes the
+  policy of the device under it: on Android or iOS `$Mobile` (a tap opens the
+  message menu, a long press selects), elsewhere `$Desktop`, as in an app.
+  Before, every browser took `$Desktop`, so a phone's browser was given the
+  mouse's gestures (a drag selects text, a secondary click opens the message
+  menu) on a touch screen. A caller that passed `isWeb` drops the argument.
+
 ### `flutter_md` 0.9.3
 - **CHANGED**: `flutter_md` is pinned to `itsezlife/md` tag `v0.9.3`. Its
   code highlighter tokenizes in linear time: a long fenced block (50,000 lines
