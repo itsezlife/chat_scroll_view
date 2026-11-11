@@ -710,15 +710,24 @@ void main() {
       'a mouse press leaves the keys with a field focused elsewhere',
       (tester) async {
         final field = FocusNode();
+        final text = TextEditingController();
         addTearDown(field.dispose);
-        // A focusable beside the page, as the composer is.
+        addTearDown(text.dispose);
+        // A text field beside the page, as the composer is.
         await tester.pumpWidget(
           PanelShellTestScope(
             child: Column(
               children: [
-                Focus(
-                  focusNode: field,
-                  child: const SizedBox(width: 20, height: 20),
+                SizedBox(
+                  width: 200,
+                  height: 20,
+                  child: EditableText(
+                    controller: text,
+                    focusNode: field,
+                    style: const TextStyle(),
+                    cursorColor: const Color(0xFF000000),
+                    backgroundCursorColor: const Color(0xFF000000),
+                  ),
                 ),
                 SizedBox(
                   width: 320,
@@ -744,6 +753,47 @@ void main() {
         expect(field.hasFocus, isTrue);
       },
     );
+
+    testWidgets('a mouse press takes the keys from a focus beside it that '
+        'types no text (the chat)', (tester) async {
+      final chat = FocusNode();
+      addTearDown(chat.dispose);
+      final long = _source(faces: const [400]);
+      addTearDown(long.dispose);
+      await tester.pumpWidget(
+        PanelShellTestScope(
+          child: Column(
+            children: [
+              Focus(
+                focusNode: chat,
+                child: const SizedBox(width: 20, height: 20),
+              ),
+              SizedBox(
+                width: 320,
+                height: 480,
+                child: CatalogPage(
+                  host: host,
+                  source: long,
+                  policy: policy,
+                  assets: assets,
+                  bake: bake,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      chat.requestFocus();
+      await tester.pump();
+
+      await pressWithMouse(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+
+      expect(chat.hasFocus, isFalse);
+      expect(catalog().offset, 60);
+    });
 
     testWidgets('with roving focus the page keys still scroll', (tester) async {
       await pumpLong(tester);

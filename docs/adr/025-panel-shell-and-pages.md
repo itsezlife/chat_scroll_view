@@ -15,6 +15,7 @@ top strip. This supersedes the controller and widget-API parts of
 **Amended**: 2026-10-17 — the touch strip with packs is the reference mobile client's ([Amendment](#amendment-the-touch-strip-with-packs))  
 **Amended**: 2026-11-09 — a family without a back press leaves search by a Cancel button beside the field ([Amendment](#amendment-leaving-search-without-a-back-press))  
 **Amended**: 2026-11-12 (native-media ticket 220) — the catalogue page binds the chat's scroll keys (`ViewportScrollKeys`, [ADR 020](020-package-topology.md) amended) under its roving focus: with no cell focused the arrows and Home / End scroll; the page keys always do; a mouse press gives the page the keys without a focused cell, unless a node beside it holds the focus
+**Amended**: 2026-11-12 (native-media ticket 224) — on a desktop the catalogue under the mouse has the scroll keys: hovering or pressing it takes the focus (no focused cell) from any node but a text field, so the keys scroll the panel and not the chat beside it; the hover's focus goes back when the mouse leaves. The maintainer's call: the reference desktop client gives its panel no key focus (its scroll area takes none), and its keys go to the history
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 020](020-package-topology.md), [ADR 023](023-data-layering-and-persistence.md), [ADR 024](024-panel-catalog-seams.md), [ADR 028](028-panel-presentation.md)
 
 ## Decided

@@ -197,6 +197,7 @@ import 'widgets/panel_keeps_composer_focus_test.dart'
     as panel_keeps_composer_focus_test;
 import 'widgets/panel_menu_holds_popup_test.dart'
     as panel_menu_holds_popup_test;
+import 'widgets/panel_scroll_keys_test.dart' as panel_scroll_keys_test;
 import 'widgets/static_sticker_message_test.dart'
     as static_sticker_message_test;
 import 'widgets/status_click_test.dart' as status_click_test;
@@ -548,6 +549,7 @@ void main() {
     'widgets/panel_keeps_composer_focus_test.dart',
     panel_keeps_composer_focus_test.main,
   );
+  group('widgets/panel_scroll_keys_test.dart', panel_scroll_keys_test.main);
   group(
     'widgets/panel_menu_holds_popup_test.dart',
     panel_menu_holds_popup_test.main,
