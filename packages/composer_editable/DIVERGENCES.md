@@ -296,6 +296,14 @@ the next run. A host can make the query earlier, at an idle moment, with
 in the frame the first field shows in. Tests reset it with
 `debugResetProcessTextActions`.
 
+The once covers this package's fields only: a stock `EditableText` beside
+them (a search field) still asks on every mount, and stock has no hook to
+hand it an answer. `ProcessTextQueryCache` is the app-wide once: a binary
+messenger over the platform's that answers the query from its first reply.
+A host returns it from its binding's `createBinaryMessenger` (through
+`ComposerView.shareTextActions`, since a host reaches this package only
+through the composer).
+
 ### Seams not in stock
 
 - `clipboardTextBuilder` / `pasteTextTransformer` (`ExtendedClipboardTextBuilder`,

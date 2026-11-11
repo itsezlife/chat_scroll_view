@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 
 import 'package:chat_composer/chat_composer.dart' show ComposerView;
 import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatDataSource;
+import 'package:chat_scroll_view_example/src/app/app_binding.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
@@ -31,7 +32,8 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_the
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat_list/view/chat_list_screen.dart';
-import 'package:chrome_foundation/chrome_foundation.dart' show GlassSource;
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show BackdropSnapshotSource, GlassSource;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
@@ -43,7 +45,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 void main() => l.capture<void>(
   () => runZonedGuarded<void>(
     () async {
-      WidgetsFlutterBinding.ensureInitialized();
+      AppBinding();
       if (DemoConfig.scrollLab) ScrollLab.install();
       FrameRateBoost.install();
       // In a browser a right-click opens the browser's own menu over the
@@ -245,7 +247,9 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
           ),
         ),
       );
-      final backed = MouseBackButton(child: app);
+      // The window a content preview's menu blurs a still of: everything
+      // but the lab's own overlay.
+      final backed = MouseBackButton(child: BackdropSnapshotSource(child: app));
       return DemoConfig.scrollLab ? ScrollLabOverlay(child: backed) : backed;
     },
     navigatorObservers: [_overlays],

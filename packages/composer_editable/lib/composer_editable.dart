@@ -40,6 +40,7 @@ export 'src/widget/editable_text.dart'
         ExtendedEditableTextState,
         ExtendedPasteTextTransformer;
 export 'src/widget/padded_viewport_offset.dart' show PaddedViewportOffset;
+export 'src/widget/process_text_query_cache.dart' show ProcessTextQueryCache;
 export 'src/widget/render_editable.dart'
     show ExtendedRenderEditable, gutterClipRect;
 export 'src/widget/secondary_click.dart'

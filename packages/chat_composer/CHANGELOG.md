@@ -10,6 +10,10 @@ is pre-1.0.
 
 - No API change here. The README names `PointerMenuTokens.day` and `PointerMenuTokens.night` (was `referenceDay` and `referenceNight`). See the `chrome_foundation` changelog.
 
+### Added (text actions shared with every field)
+
+- `ComposerView.shareTextActions`: wraps the app's platform messenger so the text processing actions query reaches the platform once per app run for every text field, the stock ones too (a panel page's search field asked on every mount, a UI thread freeze of 50 to 180 ms on Android after a page switch). A host returns it from its binding's `createBinaryMessenger`; the composer's prefetch is then the one query.
+
 ### Added (text actions prefetch)
 
 - `ComposerView.prefetchTextActions`: asks the platform for the field's text

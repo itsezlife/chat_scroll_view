@@ -1,7 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
-
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -38,6 +36,14 @@ final class ContentPreviewController {
   /// The content library the previews' menus read: whether a sticker is a
   /// favourite, a GIF saved. Read only; every edit is asked of the host.
   final ContentLibrary? library;
+
+  /// Whether the window under a preview's menu is blurred (on by default);
+  /// off, the menu is over the dim alone. Read as each preview opens.
+  ///
+  /// The blur is a still of the window, taken as the preview opens from the
+  /// `BackdropSnapshotSource` the host placed above its panel; with no source
+  /// there is no blur either way.
+  bool blursBackground = true;
 
   final _open = listen.ValueNotifier<bool>(false);
   ContentPreviewSession? _session;
@@ -107,7 +113,8 @@ final class ContentPreviewController {
 ///   switches as a sticker does, and never opens a menu.
 /// - The menu opens by itself after [stickerMenuDelay] (a sticker of a pack,
 ///   or a custom emoji) or [gifMenuDelay] (a GIF), when it has an item, with
-///   the same haptic as the opening. A blur of the window fades in under it.
+///   the same haptic as the opening. A blur of the window fades in under it
+///   (see [backdropDownscale]).
 ///
 /// ## Ending
 ///
@@ -148,7 +155,9 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     required this.keyboardHeight,
     required ContentPreviewItem? Function(Offset globalPosition)? itemAt,
     required PanelPageHold? hold,
+    required BackdropSnapshot? backdrop,
   }) : _item = ValueNotifier(item),
+       _backdrop = backdrop,
        _itemAt = itemAt,
        _hold = hold,
        _background = assets.holdBackground();
@@ -189,6 +198,13 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     final scopes = ChromeOverlayScopes.capture(context);
     // The menu comes up after a hold: its icons are decoded by then.
     CatalogMenuIcons.warm();
+    // The still under the menu is taken now, between frames, before the
+    // preview paints, and long before the menu: the window it shows is held
+    // from here on. A mouse gets no menu, and so no still.
+    final blurs = controller?.blursBackground ?? true;
+    final backdrop = blurs && (kind != PointerDeviceKind.mouse || openMenu)
+        ? _captureBackdrop(context)
+        : null;
     final session = ContentPreviewSession._(
       item: item,
       assets: assets,
@@ -198,6 +214,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
       keyboardHeight: keyboardHeight,
       itemAt: itemAt,
       hold: hold,
+      backdrop: backdrop,
     );
     session._entry = OverlayEntry(
       // In the text fields' tap group: a press that closes the preview is not
@@ -270,9 +287,45 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   /// alpha.
   static const int dimAlpha = 180;
 
-  /// How strong the blur under the menu is at its end, applied to a
-  /// downscaled bitmap of the window.
-  static const double menuBlurSigma = 12;
+  /// The blur under the menu is a still of the window at 1/15 of its device
+  /// pixels, blurred once ([backdropBlurSigma]) and toned
+  /// ([backdropToneDark] or [backdropToneLight]), then drawn stretched under
+  /// the dim. Only its opacity animates, over [showDuration], as the menu
+  /// comes and goes.
+  static const double backdropDownscale = 15;
+
+  /// The blur of the still, in its own pixels: 6.5.
+  static const double backdropBlurSigma = 6.5;
+
+  /// The still's tone over a dark theme: saturation up 0.04, brightness
+  /// down 0.04.
+  static const ({double saturation, double brightness}) backdropToneDark = (
+    saturation: 0.04,
+    brightness: -0.04,
+  );
+
+  /// The still's tone over a light theme: saturation up 0.25, brightness
+  /// down 0.07.
+  static const ({double saturation, double brightness}) backdropToneLight = (
+    saturation: 0.25,
+    brightness: -0.07,
+  );
+
+  static BackdropSnapshot? _captureBackdrop(BuildContext context) {
+    final tone =
+        ChromeThemeScope.paletteOf(context).brightness == Brightness.dark
+        ? backdropToneDark
+        : backdropToneLight;
+    return BackdropSnapshot.capture(
+      context,
+      downscale: backdropDownscale,
+      blurSigma: backdropBlurSigma,
+      tone: BackdropSnapshot.toneMatrix(
+        saturation: tone.saturation,
+        brightness: tone.brightness,
+      ),
+    );
+  }
 
   /// The draws the content is resized from: the cache's.
   final AssetCacheScope assets;
@@ -293,6 +346,8 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   final ContentPreviewItem? Function(Offset globalPosition)? _itemAt;
   final PanelPageHold? _hold;
   final AssetBackgroundHold _background;
+  // The still under the menu, or null; let go as the overlay goes.
+  final BackdropSnapshot? _backdrop;
   final _open = listen.ValueNotifier<bool>(true);
   // The menu's items while it is up, or null.
   final _menu = ValueNotifier<List<ContentPreviewAction>?>(null);
@@ -441,6 +496,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     _entry?.remove();
     _entry?.dispose();
     _entry = null;
+    _backdrop?.dispose();
   }
 }
 
@@ -461,7 +517,7 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
         ? ContentPreviewSession.pointerShowDuration
         : ContentPreviewSession.showDuration,
   );
-  // The blur under the menu, over the show's 120 ms.
+  // The opacity of the blurred still under the menu, over the show's 120 ms.
   late final AnimationController _blur = AnimationController(
     vsync: this,
     duration: ContentPreviewSession.showDuration,
@@ -588,14 +644,8 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
             return Stack(
               fit: StackFit.expand,
               children: [
-                if (blur > 0)
-                  BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: ContentPreviewSession.menuBlurSigma * blur,
-                      sigmaY: ContentPreviewSession.menuBlurSigma * blur,
-                    ),
-                    child: const SizedBox.expand(),
-                  ),
+                if (session._backdrop case final backdrop? when blur > 0)
+                  BackdropSnapshotView(snapshot: backdrop, opacity: _blur),
                 ColoredBox(
                   color: dim.withAlpha(
                     (dim.a * ContentPreviewSession.dimAlpha * shown).round(),
