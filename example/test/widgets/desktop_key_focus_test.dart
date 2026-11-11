@@ -16,6 +16,7 @@ import 'package:chat_scroll_view_example/main.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
@@ -196,6 +197,33 @@ void main() {
     view.selectionController!.startSelection(newest);
     await settle(tester);
     await both(reason: 'selection');
+  });
+
+  macTest('a click in the history, on a message or between them, keeps the '
+      'field focused: typing goes on into it', (tester) async {
+    await openChat(tester);
+    expect(composer(tester).focusNode.hasFocus, isTrue);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: const Offset(4, 4));
+    addTearDown(mouse.removePointer);
+    Future<void> click(Offset at) async {
+      await mouse.moveTo(at);
+      await mouse.down(at);
+      await mouse.up();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    final history = tester.getRect(find.byType(ChatScrollView));
+    // Between messages, at the history's left edge.
+    await click(Offset(history.left + 4, history.center.dy));
+    expect(composer(tester).focusNode.hasFocus, isTrue, reason: 'blank');
+    // On a message bubble.
+    await click(tester.getCenter(find.byType(DemoMessageBubble).last));
+    expect(composer(tester).focusNode.hasFocus, isTrue, reason: 'message');
+
+    tester.testTextInput.enterText('typed on');
+    await tester.pump();
+    expect(composer(tester).text.text, 'typed on');
   });
 
   macTest('the field keeps the keys that edit its text, and hands the chat '

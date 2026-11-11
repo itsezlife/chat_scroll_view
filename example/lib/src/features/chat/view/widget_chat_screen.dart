@@ -1270,6 +1270,18 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     );
   }
 
+  /// On a desktop a click in the history is inside the composer's field for
+  /// its focus, as in the reference desktop client, where the history never
+  /// takes the focus from the field: typing goes on after it. A text or
+  /// message selection the press starts moves the keys as the scroll
+  /// router says (ADR 012, desktop key routing). On touch a tap on the
+  /// history lets the field go, and the soft keyboard with it.
+  Widget _historyKeepsField(Widget history) =>
+      switch (AppPlatformPolicy.current()) {
+        AppPlatformPolicy$Desktop() => TextFieldTapRegion(child: history),
+        _ => history,
+      };
+
   /// The chat, its chrome and the composer, in the box the docked panel
   /// leaves.
   Widget _buildChatRegion({
@@ -1292,37 +1304,39 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                   dataSource: _dataSource!,
                   selection: _selection,
                   embedResolver: _bodies.embedResolver,
-                  child: ChatKeyboardShortcuts(
-                    controller: _controller,
-                    selectionController: _selection,
-                    reverse: true,
-                    preserveExternalFocus: true,
-                    child: ChatScrollView(
-                      reverse: true,
-                      dataSource: _dataSource!,
+                  child: _historyKeepsField(
+                    ChatKeyboardShortcuts(
                       controller: _controller,
                       selectionController: _selection,
-                      onIdleMessageTap: _presentMessageMenu,
-                      onSecondaryMessageTap: _presentMessageMenu,
-                      isSelfMessage: _isSelfMessage,
-                      bottomPadding: insets.bottomPadding,
-                      topPadding: insets.topPadding,
-                      messageBuilder: _buildMessage,
-                      chunkErrorBuilder: _buildChunkError,
-                      emptyBuilder: _buildEmpty,
-                      loadingBuilder: _buildInitialSkeleton,
-                      scrollActivityTiming: const ChatScrollActivityTiming(),
-                      dayHeaderDelegate: const ChatPushingDayHeader(),
-                      dateSeparatorBuilder: (context, bucket, date) =>
-                          DateSeparator(date: date),
-                      unreadBoundary: _unreadBoundary,
-                      unreadSeparatorBuilder: _buildUnreadSeparator,
-                      senderRunLayout: switch (_unreadBoundary) {
-                        final boundary? => UnreadBoundarySenderRunLayout(
-                          boundary: boundary,
-                        ),
-                        null => DefaultChatSenderRunLayout.instance,
-                      },
+                      reverse: true,
+                      preserveExternalFocus: true,
+                      child: ChatScrollView(
+                        reverse: true,
+                        dataSource: _dataSource!,
+                        controller: _controller,
+                        selectionController: _selection,
+                        onIdleMessageTap: _presentMessageMenu,
+                        onSecondaryMessageTap: _presentMessageMenu,
+                        isSelfMessage: _isSelfMessage,
+                        bottomPadding: insets.bottomPadding,
+                        topPadding: insets.topPadding,
+                        messageBuilder: _buildMessage,
+                        chunkErrorBuilder: _buildChunkError,
+                        emptyBuilder: _buildEmpty,
+                        loadingBuilder: _buildInitialSkeleton,
+                        scrollActivityTiming: const ChatScrollActivityTiming(),
+                        dayHeaderDelegate: const ChatPushingDayHeader(),
+                        dateSeparatorBuilder: (context, bucket, date) =>
+                            DateSeparator(date: date),
+                        unreadBoundary: _unreadBoundary,
+                        unreadSeparatorBuilder: _buildUnreadSeparator,
+                        senderRunLayout: switch (_unreadBoundary) {
+                          final boundary? => UnreadBoundarySenderRunLayout(
+                            boundary: boundary,
+                          ),
+                          null => DefaultChatSenderRunLayout.instance,
+                        },
+                      ),
                     ),
                   ),
                 ),

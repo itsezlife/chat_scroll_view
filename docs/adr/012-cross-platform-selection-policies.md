@@ -325,3 +325,13 @@ goes to the newest message and End to the oldest, as before the router. No
 Cmd+Up / Cmd+Down binding: the reference desktop client gives that key
 (Ctrl+Up as Qt reports it on a Mac) to replying to the previous message, not
 to scrolling.
+
+Amended 2026-11-12 (native-media ticket 228): on a desktop a click in the
+history (on a message or between messages) keeps the composer's field
+focused, so typing goes on after it. The reference's history takes the
+focus only when a text selection or a drag selection starts in it
+(`HistoryInner`: `setFocus` at the first selected text and at a drag
+selection's start). The host marks the history as inside the field's tap
+region on a desktop; a selection the press starts moves the keys as the
+router says (the router's node holds them while a selection is live). On
+touch a tap on the history still lets the field go, with its keyboard.
