@@ -6,6 +6,10 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (backdrop snapshot)
+
+- `BackdropSnapshotSource`, `BackdropSnapshot` and `BackdropSnapshotView`: a small still of what the source last painted, captured once at a fraction of its device pixels (`downscale`), blurred and toned once (`blurSigma`, `tone`, `BackdropSnapshot.toneMatrix`), and drawn stretched with only its opacity animated. For a scrim over a background that holds still while it is up, in place of a live full-window `BackdropFilter`. The caller disposes the snapshot.
+
 ### Added (chrome buttons)
 
 - `ChromeIconButton`, `ChromePillButton`, `ChromeBarButton` (with `ChromeBarButtonMetrics`), `ChromeBadgeButton` (with `ChromeBadgeButtonMetrics`), `ChromeSpinner`, `ChromeCrossPainter`, `ChromeDotsPainter`, and `ChromeButtonInks` (the press and hover colours of a button on the surface or on the accent). The pack sheet's buttons, spinner and glyphs, made reusable; they draw as the sheet drew them.

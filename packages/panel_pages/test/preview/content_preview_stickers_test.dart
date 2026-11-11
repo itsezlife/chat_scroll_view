@@ -88,23 +88,25 @@ void main() {
         size: const Size(800, 600),
         child: PanelArrangementScope(
           arrangement: arrangement,
-          child: Overlay(
-            initialEntries: [
-              OverlayEntry(
-                builder: (context) => Center(
-                  child: SizedBox(
-                    width: 360,
-                    height: 480,
-                    child: StickersPage(
-                      host: host,
-                      source: source,
-                      assets: assets,
-                      previews: previews,
+          child: BackdropSnapshotSource(
+            child: Overlay(
+              initialEntries: [
+                OverlayEntry(
+                  builder: (context) => Center(
+                    child: SizedBox(
+                      width: 360,
+                      height: 480,
+                      child: StickersPage(
+                        host: host,
+                        source: source,
+                        assets: assets,
+                        previews: previews,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -421,6 +423,138 @@ void main() {
     expect(opacity.opacity, closeTo(0.5, 0.05));
 
     await mouse.up();
+    await settleClose(tester);
+  });
+
+  // --- The blur under the menu ---------------------------------------------
+
+  Finder backdrop() => find.byType(BackdropSnapshotView);
+  BackdropSnapshot snapshotShown(WidgetTester tester) =>
+      tester.widget<BackdropSnapshotView>(backdrop()).snapshot;
+
+  testWidgets('the blur under the menu is one still, taken as the preview '
+      'opens, faded in and out by its opacity alone, and let go on close', (
+    tester,
+  ) async {
+    await pumpPage(tester);
+    final gesture = await hold(tester, 2);
+    // Taken already, not shown until the menu.
+    expect(backdrop(), findsNothing);
+
+    await tester.pump(ContentPreviewSession.stickerMenuDelay);
+    await tester.pump(ContentPreviewSession.showDuration ~/ 2);
+    final snapshot = snapshotShown(tester);
+    final half = tester.widget<RawImage>(
+      find.descendant(of: backdrop(), matching: find.byType(RawImage)),
+    );
+    expect(half.opacity!.value, closeTo(0.5, 0.1));
+    expect(find.byType(BackdropFilter), findsNothing);
+
+    await tester.pump(ContentPreviewSession.showDuration);
+    expect(
+      tester
+          .widget<RawImage>(
+            find.descendant(of: backdrop(), matching: find.byType(RawImage)),
+          )
+          .opacity!
+          .value,
+      1,
+    );
+    expect(find.byType(BackdropFilter), findsNothing);
+    // 1/15 of the 800 x 600 window at a device pixel ratio of 3.
+    expect(snapshot.image.width, 160);
+
+    await gesture.up();
+    await tester.pump(ContentPreviewSession.showDuration);
+    expect(previews.dismiss(), isTrue);
+    await tester.pump();
+    await tester.pump(ContentPreviewSession.showDuration ~/ 2);
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(snapshot.isDisposed, isFalse);
+
+    await settleClose(tester);
+    expect(previews.isOpen.value, isFalse);
+    expect(snapshot.isDisposed, isTrue);
+  });
+
+  testWidgets('a menu that goes and comes back as the finger slides shows '
+      'the same still', (tester) async {
+    await pumpPage(tester);
+    final gesture = await hold(tester, 0);
+    await tester.pump(ContentPreviewSession.stickerMenuDelay);
+    await tester.pump(ContentPreviewSession.showDuration);
+    final first = snapshotShown(tester);
+
+    await gesture.moveTo(cell(tester, 1));
+    await tester.pump();
+    await tester.pump(ContentPreviewSession.showDuration);
+    expect(backdrop(), findsNothing);
+    await tester.pump(ContentPreviewSession.stickerMenuDelay);
+    await tester.pump(ContentPreviewSession.showDuration);
+    expect(snapshotShown(tester), same(first));
+    expect(first.isDisposed, isFalse);
+
+    await gesture.up();
+    expect(previews.dismiss(), isTrue);
+    await settleClose(tester);
+    expect(first.isDisposed, isTrue);
+  });
+
+  testWidgets('with the blur off the menu is over the dim alone', (
+    tester,
+  ) async {
+    previews.blursBackground = false;
+    await pumpPage(tester);
+    final gesture = await hold(tester, 2);
+    await tester.pump(ContentPreviewSession.stickerMenuDelay);
+    await tester.pump(ContentPreviewSession.showDuration);
+    expect(find.text('Send Sticker'), findsOneWidget);
+    expect(backdrop(), findsNothing);
+    expect(find.byType(BackdropFilter), findsNothing);
+    await gesture.up();
+    expect(previews.dismiss(), isTrue);
+    await settleClose(tester);
+  });
+
+  testWidgets('a host with no snapshot source gets the dim alone', (
+    tester,
+  ) async {
+    final source = FakeCollectionSource([_pack('a')]);
+    addTearDown(source.dispose);
+    await tester.pumpWidget(
+      PanelShellTestScope(
+        size: const Size(800, 600),
+        child: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => Center(
+                child: SizedBox(
+                  width: 360,
+                  height: 480,
+                  child: StickersPage(
+                    host: host,
+                    source: source,
+                    assets: assets,
+                    previews: previews,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    final gesture = await hold(tester, 2);
+    await tester.pump(ContentPreviewSession.stickerMenuDelay);
+    await tester.pump(ContentPreviewSession.showDuration);
+    expect(find.text('Send Sticker'), findsOneWidget);
+    expect(backdrop(), findsNothing);
+    expect(find.byType(BackdropFilter), findsNothing);
+    await gesture.up();
+    expect(previews.dismiss(), isTrue);
     await settleClose(tester);
   });
 

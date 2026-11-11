@@ -31,7 +31,8 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_the
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat_list/view/chat_list_screen.dart';
-import 'package:chrome_foundation/chrome_foundation.dart' show GlassSource;
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show BackdropSnapshotSource, GlassSource;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
@@ -245,7 +246,9 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
           ),
         ),
       );
-      final backed = MouseBackButton(child: app);
+      // The window a content preview's menu blurs a still of: everything
+      // but the lab's own overlay.
+      final backed = MouseBackButton(child: BackdropSnapshotSource(child: app));
       return DemoConfig.scrollLab ? ScrollLabOverlay(child: backed) : backed;
     },
     navigatorObservers: [_overlays],

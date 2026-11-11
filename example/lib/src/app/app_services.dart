@@ -737,9 +737,19 @@ final class AppServices {
 
   /// The panel's content previews: the one that is up (which back closes
   /// first) and the [library] their menus read.
-  late final ContentPreviewController previews = ContentPreviewController(
-    library: library,
-  );
+  late final ContentPreviewController previews = () {
+    final previews = ContentPreviewController(library: library);
+    if (DemoConfig.scrollLab) {
+      // The lab's `preview_blur` switch: off, a preview's menu is over the
+      // dim alone, the ceiling a blur is measured against.
+      previews.blursBackground = ScrollLab.previewBlur.value;
+      ScrollLab.previewBlur.addListener(_applyPreviewBlur);
+    }
+    return previews;
+  }();
+
+  void _applyPreviewBlur() =>
+      previews.blursBackground = ScrollLab.previewBlur.value;
 
   /// The [library] as the panel shows it: as of the last
   /// [commitShownLists], except that what leaves the library leaves it at
@@ -989,6 +999,9 @@ final class AppServices {
     memoryPressure.dispose();
     largeEmoji.dispose();
     preferences.dispose();
+    if (DemoConfig.scrollLab) {
+      ScrollLab.previewBlur.removeListener(_applyPreviewBlur);
+    }
     previews.dispose();
     // Commits what is still in an undo window.
     library.dispose();

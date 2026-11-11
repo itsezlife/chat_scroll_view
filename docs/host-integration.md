@@ -434,6 +434,11 @@ controller over its `ContentLibrary` (the menus read it to say "Add to" or
 "Delete from Favorites"), disposes it after the pages, and calls
 `controller.dismiss()` first in its back handling: the preview stands in an
 overlay outside any route, so back reaches the host, not the preview.
+The blur under a preview's menu is a still of the window, taken as the
+preview opens from the `BackdropSnapshotSource` (chrome_foundation) the host
+places once above its navigator (in the app's `builder`, around the
+navigator's child); without one the menu is over the dim alone, as it is with
+`controller.blursBackground` off.
 A tap on a pack's title (the stickers page, a pack of custom emoji on the
 emoji page) is `PackRequested` too. The host answers it with a pack sheet
 (`StickerPackSheet` or `EmojiPackSheet` by the pack's kind, shown with
