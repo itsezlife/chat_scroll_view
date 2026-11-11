@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -229,6 +230,49 @@ void main() {
         ),
       );
       expect(source.frameCount, _info.frameCount);
+    });
+
+    test('decodes hash on one long-lived worker: the first spawns it, the '
+        'rest spawn nothing', () async {
+      var spawns = 0;
+      final worker = LottieContentHashWorker(
+        spawn: (entryPoint, message, {required onExit}) {
+          spawns++;
+          return Isolate.spawn(entryPoint, message, onExit: onExit);
+        },
+      );
+      addTearDown(worker.close);
+      final rig = _Rig(
+        renderer: recorder,
+        cache: cache,
+        hashContent: worker.hash,
+      );
+      addTearDown(rig.close);
+      const spec = AssetSpec(pixelWidth: 64, pixelHeight: 64);
+
+      await paintOnce(rig, _fakeBytes, spec);
+      expect(spawns, 1, reason: 'the first hash starts the worker');
+
+      const decodes = 20;
+      for (var i = 1; i <= decodes; i++) {
+        final bytes = Uint8List.fromList([i, 2, 3]);
+        rig.binding.accept(bytes, _info);
+        await paintOnce(rig, bytes, spec);
+      }
+
+      expect(spawns, 1, reason: 'no isolate per decode after the first');
+      final hashes = {
+        for (final job in recorder.jobs)
+          (job.source as LottieSource).cacheKey!.contentHash,
+      };
+      expect(hashes, hasLength(decodes), reason: 'one name per content');
+      expect(
+        hashes,
+        contains(
+          // SHA-256 of the bytes 01 02 03, from `shasum -a 256`.
+          '039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81',
+        ),
+      );
     });
 
     test('the content hash comes from the hasher, which the decode awaits '

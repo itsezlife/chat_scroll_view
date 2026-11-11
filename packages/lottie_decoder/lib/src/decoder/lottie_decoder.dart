@@ -3,11 +3,12 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lottie_decoder/src/cache/frame_cache.dart';
 import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
 import 'package:lottie_decoder/src/engine/lottie_engine.dart';
+import 'package:lottie_decoder/src/environment_specific/hash_content.dart'
+    as hash_content;
 import 'package:lottie_decoder/src/environment_specific/read_file_bytes.dart'
     as environment_specific;
 import 'package:lottie_decoder/src/paint/lottie_animation_paintable.dart';
@@ -27,7 +28,8 @@ typedef LottiePixelUploader =
 
 /// Names the content of a Lottie file for the frame cache: a digest of
 /// [bytes] made of letters, digits and `-` (a [FrameCacheKey.contentHash]).
-/// The default is the file's SHA-256, computed on another isolate.
+/// The default is the file's SHA-256, computed on a long-lived worker
+/// isolate ([LottieDecoder.sha256OffIsolate]).
 typedef LottieContentHasher = Future<String> Function(Uint8List bytes);
 
 Future<ui.Image> _imageFromList(Uint8List bytes) {
@@ -129,18 +131,17 @@ final class LottieDecoder implements Decoder {
        _decodeImage = decodeImage,
        _uploadPixels = uploadPixels;
 
-  /// SHA-256 of [bytes] in hex, on a short-lived isolate (on the web,
-  /// inline): the default [LottieContentHasher].
+  /// SHA-256 of [bytes] in hex, on the shared long-lived worker isolate
+  /// (`LottieContentHashWorker.shared`; on the web, inline): the default
+  /// [LottieContentHasher].
   ///
   /// Hashing a sticker file on the calling isolate took 2-10 ms at a time on
   /// a phone, between frames: a grid that scrolls new stickers in decodes
   /// several per second, and each hash made the next frame start a vsync
-  /// late. The bytes are copied to the worker, which is a memory copy and far
-  /// cheaper.
+  /// late. A short-lived isolate per hash spawned dozens a second; the worker
+  /// is spawned once.
   static Future<String> sha256OffIsolate(Uint8List bytes) =>
-      compute(_sha256Hex, bytes, debugLabel: 'lottie content hash');
-
-  static String _sha256Hex(Uint8List bytes) => sha256.convert(bytes).toString();
+      hash_content.$hashContent(bytes);
 
   final LottieEngine _engine;
   final LottieFrameScheduler _scheduler;

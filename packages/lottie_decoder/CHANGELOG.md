@@ -5,6 +5,23 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (one worker isolate hashes every file)
+
+- The default content hasher (`LottieDecoder.sha256OffIsolate`) runs on one
+  long-lived worker isolate shared by every decoder,
+  `LottieContentHashWorker.shared`, instead of a `compute` isolate per
+  decode. A panel that scrolls new stickers in spawned dozens of isolates a
+  second, each costing helper-thread time and allocations in the shared
+  isolate group; now the first hash spawns the worker and none after it
+  spawns anything. The hash stays off the UI isolate and the web still
+  hashes inline.
+
+### Added (a hash worker)
+
+- `LottieContentHashWorker` (VM only): `hash(bytes)` and `close()`, with an
+  injectable spawner (`LottieHashWorkerSpawner`). An isolate that ends on
+  its own fails the hashes it had and is replaced at the next hash.
+
 ### Changed (a hidden panel gives its textures back)
 
 - A kept lease whose paintable leaves the screen (a held surface that shows
