@@ -190,6 +190,10 @@ _Avoid_: A semantic node for every leaf, page-level semantics only, asking the g
 The one leaf cell that holds keyboard focus, owned by the attached viewport and driven through the controller (`focusLeaf`, `moveFocus`, `activateFocusedLeaf`, `clearFocus`). Arrow moves are physical, next and previous follow reading order; a vertical move keeps the screen column across sections; the focused cell scrolls into view and is painted with the focus highlight; activating reports the hit a tap would. Focus ends with the viewport and with the cell.
 _Avoid_: A focus node per leaf, a focus the host mirrors in its own state, key bindings inside the viewport (a page maps keys to moves)
 
+**Scroll keys**:
+The chat's keyboard scrolling on the catalogue (`ViewportScrollKeys`): with no cell in roving focus the up and down arrows step a line and Home and End go to the start and the end; the page keys step most of the viewport whether or not a cell is focused. A page binds them with roving focus, which wins while a cell has it. A mouse press gives the catalogue the keys without focusing a cell, unless a node beside it holds them.
+_Avoid_: A copy of the chat's key map, entering roving focus on a click
+
 **Focus highlight**:
 The press-highlight wash on the full cell of the focused leaf, at full alpha and under the content (a baked sprite is flushed after it). It follows the press highlight token unless the theme names a focus token.
 _Avoid_: A new colour scale, a highlight drawn over the sprite

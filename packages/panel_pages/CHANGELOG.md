@@ -6,6 +6,23 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the catalogue's scroll keys)
+
+- `CatalogKeyboardFocus` binds the chat's scroll keys (`ViewportScrollKeys`
+  from `viewport_scroll`): with no cell focused, the up and down arrows
+  scroll a line, Page Up and Page Down most of the viewport, Home and End to
+  the start and the end; the page keys scroll with a cell focused too. A
+  mouse press on the catalogue gives it the keys without focusing a cell,
+  unless a node beside it (a composer) holds the focus. Tab still enters
+  the grid on a cell, and the arrows then move by cell.
+
+### Added (a host layer over a pack sheet)
+
+- `PackSheet.show(layer:)` lays the host's own layer over the whole sheet
+  layer, with the bottom sheet's bar as a listenable; a host mounts a
+  bulletin host there so a notice raised while the sheet is up shows over
+  it. The sheet's button applies its edit once the sheet has started to go.
+
 ### Changed (the blur under a preview's menu is a still)
 
 - The content preview no longer puts a full-window `BackdropFilter` under its menu with an animated sigma. As it opens, the preview takes one small still of the window (`BackdropSnapshot.capture`, 1/15 of the device pixels, stack-blurred on the CPU by a radius of 15 of its pixels and toned for the theme; where the window painted nothing, the theme's surface) and fades it in and out under the dim with the menu; the still is let go as the preview closes. The menu never waits for the still: until it is made, the menu is over the dim alone. The host places a `BackdropSnapshotSource` above its navigator: without one the menu is over the dim alone. `ContentPreviewController.blursBackground` (on by default) turns the blur off. The look changes: the blur is stronger and slightly toned. Breaking: `ContentPreviewSession.menuBlurSigma` is gone; `backdropDownscale`, `backdropBlurRadius`, `backdropToneDark` and `backdropToneLight` replace it.
