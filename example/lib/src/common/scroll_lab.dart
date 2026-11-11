@@ -12,6 +12,7 @@ import 'package:catalog_assets/catalog_assets.dart'
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatScrollController, ChatScrollEvent, ChatViewportScrolled;
 import 'package:chat_scroll_view/experiments.dart';
+import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/lab_net.dart';
 import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:chat_scroll_view_example/src/common/tape_system_events.dart';
@@ -94,6 +95,7 @@ abstract final class ScrollLab {
   static void install() {
     if (_installed) return;
     _installed = true;
+    LabMediaTrace.log = _log;
     resampling.addListener(() {
       GestureBinding.instance.resamplingEnabled = resampling.value;
       _log('switch resampling=${resampling.value}');
@@ -154,14 +156,7 @@ abstract final class ScrollLab {
         case 'pool':
           // The texture pool now: with `bytes` at `budget` and leases on
           // page slots, a playing asset uploads a frame page every tick.
-          if (texturePool case final pool?) {
-            _log(
-              'pool leased=${pool.leasedTextures} idle=${pool.idleTextures} '
-              'bytes=${pool.bytes} budget=${pool.budgetBytes}',
-            );
-          } else {
-            _log('pool: no texture host in this build');
-          }
+          LabMediaTrace.reportPool('asked');
           return;
         case 'net':
           final mode = LabNetMode.values.asNameMap()[args['text']];
@@ -284,6 +279,7 @@ abstract final class ScrollLab {
       if (t.totalSpan.inMicroseconds > budget) {
         _log(
           'slow #${t.frameNumber} span=${_ms(t.totalSpan.inMicroseconds)} '
+          'at=${_ms(t.timestampInMicroseconds(FramePhase.vsyncStart))} '
           'vsync=${_ms(t.vsyncOverhead.inMicroseconds)} '
           'build=${_ms(build)} raster=${_ms(raster)} '
           'queue=${_ms(t.timestampInMicroseconds(FramePhase.rasterStart) - t.timestampInMicroseconds(FramePhase.buildFinish))}',
@@ -331,7 +327,11 @@ abstract final class ScrollLab {
 
   static String _ms(int micros) => (micros / 1000).toStringAsFixed(1);
 
-  static void _log(String message) => debugPrint('LAB $message');
+  // Every line ends with the monotonic time it was written, in ms, on the
+  // clock of the timeline and of `FrameTiming` (a slow line's `at=`), so a
+  // line maps onto a trace through any `LABpanel` mark, which carries its own.
+  static void _log(String message) =>
+      debugPrint('LAB $message @${LabMediaTrace.nowMs()}');
 
   static double _scrolled = 0;
 

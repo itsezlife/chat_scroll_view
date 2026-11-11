@@ -6,6 +6,8 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
         ChatMediaKind,
         ChatMediaSizePolicy,
         ChatStickerPlayback;
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart'
     show DescribeContent;
@@ -54,22 +56,28 @@ final class ChatBodyHost {
     DescribeContent? describe,
     listen.ValueListenable<bool>? held,
     ChatMediaSizePolicy? mediaSizes,
-  }) : embedResolver = ContentEmbedResolver(scope: assets, held: held),
-       embedFactory = ((content, preset) => ContentEmbed(
-         scope: assets,
-         content: content,
-         preset: preset,
-         held: held,
-         // A document here is a sticker, a custom emoji drawn large or a GIF;
-         // the scope's circle is the stand-in of a glyph.
-         placeholder: switch (content) {
-           ContentKey$Document() =>
-             describe?.call(content)?.semanticKind == SemanticKind.gif
-                 ? const RectPlaceholder()
-                 : const SoftPlaceholder(),
-           _ => null,
-         },
-       )),
+  }) : embedResolver = DemoConfig.scrollLab
+           ? _LabChatResolver(ContentEmbedResolver(scope: assets, held: held))
+           : ContentEmbedResolver(scope: assets, held: held),
+       embedFactory = ((content, preset) {
+         // The lab tells the chat's uploads and decodes from the panel's.
+         if (DemoConfig.scrollLab) LabMediaTrace.noteChat(content);
+         return ContentEmbed(
+           scope: assets,
+           content: content,
+           preset: preset,
+           held: held,
+           // A document here is a sticker, a custom emoji drawn large or a GIF;
+           // the scope's circle is the stand-in of a glyph.
+           placeholder: switch (content) {
+             ContentKey$Document() =>
+               describe?.call(content)?.semanticKind == SemanticKind.gif
+                   ? const RectPlaceholder()
+                   : const SoftPlaceholder(),
+             _ => null,
+           },
+         );
+       }),
        plays = plays ?? StickerPlayMemory(),
        mediaSizes = mediaSizes ?? ReferenceMediaSizes.forPlatform(),
        _stickerFor = stickerFor,
@@ -129,4 +137,21 @@ final class ChatBodyHost {
     },
     _ => null,
   };
+}
+
+/// The chat's resolver in a scroll lab build: notes each content key the
+/// markdown bodies embed, so the lab tells the chat's uploads and decodes
+/// from the panel's.
+final class _LabChatResolver implements InlineEmbedResolver {
+  _LabChatResolver(this._resolver);
+
+  final InlineEmbedResolver _resolver;
+
+  @override
+  InlineEmbed? resolve(InlineEmbedTarget target, InlineEmbedMetrics metrics) {
+    if (ContentKey.tryParse('${target.scheme}:${target.id}') case final key?) {
+      LabMediaTrace.noteChat(key);
+    }
+    return _resolver.resolve(target, metrics);
+  }
 }

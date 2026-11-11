@@ -6,6 +6,16 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (readings for a profiler)
+
+- `FrameAtlas.uploadTrace` (and `FramePageImages.trace`): wraps each page
+  upload and names the page, its edge, the rows sent and the keys whose
+  frames changed on it (`FramePageUpload`, `FramePageUploadTrace`). Without
+  one nothing is collected.
+- `FrameTexturePool.classCounts()`, `missedLeases` and `warmsShortOfRoom`:
+  the textures of each class (leased, idle, keeping a frame), the leases
+  that found no texture, and the warms the budget could not cover.
+
 ### Added (a view held while its tickers are off)
 
 - `ContentView.holdsWhileTickersOff`: a disabled `TickerMode` above holds

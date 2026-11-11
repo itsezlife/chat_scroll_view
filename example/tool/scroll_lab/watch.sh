@@ -4,9 +4,11 @@
 #   tool/scroll_lab/watch.sh start <session>   # then the user scrolls
 #   tool/scroll_lab/watch.sh stop <session>
 #
-# Captures a system trace (at most 5 min), the raw touches (getevent), the
-# in-app pointer tape and the LAB log. Stop prints a sanity line; push the
-# tape back with `replay.sh <session>`.
+# Captures a system trace (at most 5.5 min, written to the file as it runs),
+# the raw touches (getevent), the in-app pointer tape and the LAB log
+# (streamed, so a long session keeps every line). RECORD=1 also records the
+# screen, once, for at most 170 s from the start. Stop prints a sanity line;
+# push the tape back with `replay.sh <session>`.
 source "$(dirname "$0")/lab.sh"
 
 cmd=${1:?start|stop}
@@ -16,7 +18,9 @@ dir=$(session_dir "$name")
 case $cmd in
   start)
     D logcat -c
+    logcat_start "$dir"
     trace_start "$dir"
+    if [[ "${RECORD:-0}" == 1 ]]; then record_start "$dir"; fi
     D shell getevent -lt >"$dir/getevent.txt" 2>/dev/null &
     echo $! >"$dir/getevent.hostpid"
     lab_set record --ez value true --es name "$name"
@@ -28,7 +32,9 @@ case $cmd in
     lab_set record --ez value false --es name "$name"
     wait_log "tape saved $name" 10
     trace_stop "$dir"
+    record_stop "$dir"
     kill "$(cat "$dir/getevent.hostpid")" 2>/dev/null || true
+    logcat_stop "$dir"
     lab_log "$dir"
     D pull "/sdcard/Android/data/$PKG/files/$name.json" "$dir/tape.json" >/dev/null
     touches=$(grep -c ABS_MT_POSITION_Y "$dir/getevent.txt" || true)

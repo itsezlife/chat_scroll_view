@@ -9,6 +9,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatDataSource, ChatMutation, ChatPreImeBackClaim, RemoveBatchMutation;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
@@ -250,6 +251,11 @@ final class ChatInputSet {
         ),
         (presentation) => presentation.dispose(),
       );
+      // The lab marks the panel's show and hide and reads the texture pool
+      // around them.
+      if (DemoConfig.scrollLab) {
+        owned(LabMediaTrace.watchPanel(presentation.state), (stop) => stop());
+      }
       final playbackHold = owned(
         PanelPlaybackHold(
           presentation: presentation.state,

@@ -286,7 +286,7 @@ final class _LottieDecode implements AssetTask {
     // The still of the final stage is a second reference to the pixels, taken
     // before the first stage goes out: the cache may dispose that one at once.
     final finalImage = image.clone();
-    final key = Object();
+    final key = _LeaseKey(_request.descriptor.key, width, height);
     _progress
       ..advance(
         AssetStage.firstFrame,
@@ -355,4 +355,18 @@ final class _LottieDecode implements AssetTask {
           ),
     );
   }
+}
+
+/// The key a playing paintable's leases go under: its own identity (no two
+/// decodes share one), named after the content and its size, so a profiler
+/// that lists the keys of a page upload can tell whose frames those are.
+final class _LeaseKey {
+  _LeaseKey(this.content, this.width, this.height);
+
+  final Object content;
+  final int width;
+  final int height;
+
+  @override
+  String toString() => '$content@${width}x$height';
 }

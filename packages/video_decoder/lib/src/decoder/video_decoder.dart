@@ -230,7 +230,7 @@ final class _VideoDecode implements AssetTask {
       ..advance(
         AssetStage.full,
         VideoAnimationPaintable(
-          key: Object(),
+          key: _LeaseKey(_request.descriptor.key, clip.width, clip.height),
           clip: clip,
           firstFrame: animationStill,
           scheduler: _owner._scheduler,
@@ -303,4 +303,18 @@ final class _VideoDecode implements AssetTask {
           ),
     );
   }
+}
+
+/// The key a playing paintable's leases go under: its own identity (no two
+/// decodes share one), named after the content and its size, so a profiler
+/// that lists the keys of a page upload can tell whose frames those are.
+final class _LeaseKey {
+  _LeaseKey(this.content, this.width, this.height);
+
+  final Object content;
+  final int width;
+  final int height;
+
+  @override
+  String toString() => '$content@${width}x$height';
 }

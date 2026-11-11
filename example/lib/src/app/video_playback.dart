@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/video_playback.dart'
     as environment_specific;
+import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
 import 'package:l/l.dart';
@@ -77,7 +79,10 @@ final class VideoPlayback {
     }
     final scheduler = VideoFrameScheduler(
       engine: engine,
-      atlas: VideoFrameAtlas.create(memoryPressure: memoryPressure),
+      atlas: VideoFrameAtlas.create(
+        memoryPressure: memoryPressure,
+        uploadTrace: DemoConfig.scrollLab ? LabMediaTrace.traceUpload : null,
+      ),
       clock: clock,
       maxAdvancing: ScrollLab.videoCap.value,
       textures: textures,
@@ -89,6 +94,9 @@ final class VideoPlayback {
     void applyTextures() =>
         scheduler.texturesEnabled = ScrollLab.textures.value;
     ScrollLab.videoCap.addListener(applyCap);
+    if (DemoConfig.scrollLab) {
+      LabMediaTrace.schedulers['video'] = scheduler.leasePlaces;
+    }
     ScrollLab.textures.addListener(applyTextures);
     // The scheduler goes first: it may still be asking the engine for frames.
     // The engine is disposed last and frees every clip still open.

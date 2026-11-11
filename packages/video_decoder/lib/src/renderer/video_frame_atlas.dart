@@ -41,7 +41,8 @@ abstract final class VideoFrameAtlas {
   /// [memory] holds the pages (Dart heap by default). [upload] turns a page
   /// into an image and defaults to [uploadBgraFramePage]; a test passes a
   /// stub. [memoryPressure], when given, evicts idle entries each time it
-  /// fires.
+  /// fires. [uploadTrace], when given, wraps each page upload
+  /// (`FrameAtlas.uploadTrace`).
   ///
   /// [ADR 042]: ../../../../docs/adr/042-native-media-decoding.md
   static FrameAtlas<Object> create({
@@ -51,6 +52,7 @@ abstract final class VideoFrameAtlas {
     FramePageMemory? memory,
     FramePageUploader upload = uploadBgraFramePage,
     Listenable? memoryPressure,
+    FramePageUploadTrace? uploadTrace,
   }) => FrameAtlas<Object>(
     renderer: const VideoFrameRenderer(),
     memory: memory ?? ListFramePageMemory(),
@@ -59,6 +61,7 @@ abstract final class VideoFrameAtlas {
     pageSideFor: pageSideFor,
     upload: upload,
     memoryPressure: memoryPressure,
+    uploadTrace: uploadTrace,
     // A clip leased again restarts at its first frame, so the frame it stopped
     // on must not be drawn while it does.
     forgetIdleFrames: true,

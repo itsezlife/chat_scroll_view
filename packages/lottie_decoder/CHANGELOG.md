@@ -5,6 +5,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (readings for a profiler)
+
+- `LottieFrameScheduler.leasePlaces()`: how many leases play on textures,
+  on page slots alone (naming them), on slots for a canvas, and kept.
+- A playing animation's lease key reads as its content and size
+  (`<content>@<w>x<h>`), so a page upload's keys say whose frames they are.
+
 ### Fixed (playback that resumes goes on at once)
 
 - The idle sweep releases nothing while the playback clock is paused, and
