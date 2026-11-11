@@ -433,8 +433,7 @@ base class BulletinPolicy$IOS extends BulletinPolicy {
   /// [elevatedInset] higher.
   final bool elevated;
 
-  /// Whether the card is [narrowWidth] wide instead of the full width
-  /// (`isNarrow`).
+  /// Whether the card is [narrowWidth] wide instead of the full width.
   final bool narrow;
 
   /// The rise of an [elevated] card.

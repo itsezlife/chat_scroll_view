@@ -8,6 +8,11 @@ package is pre-1.0.
 
 ### Breaking
 
-- `kTelegramHandleMotionDuration` is `kHandleMotionDuration`.
-- `kTelegramMagnifierXSettleMs` is `kMagnifierXSettleMs`, and `kTelegramMagnifierYSettleMs` is `kMagnifierYSettleMs`. Both are internal and were never exported. `kAospMagnifierSettleMs` is unchanged; it names the platform default.
-- The local names in `text_selection.dart` changed (`telegramFocalY` is `focalY`, `telegramCaretRect` is `magnifierCaretRect`); they are not API.
+- The handle motion duration is `kHandleMotionDuration`; the former constant
+  named after another client is gone.
+- The magnifier's settle rate is `kMagnifierSettleMs`, named by its role; the
+  per-axis aliases are `kMagnifierXSettleMs` and `kMagnifierYSettleMs`. The
+  former constants are gone (the per-axis ones were internal and never
+  exported).
+- Local names in `text_selection.dart` changed to `focalY` and
+  `magnifierCaretRect`; they are not API.

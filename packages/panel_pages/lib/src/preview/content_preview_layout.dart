@@ -166,7 +166,7 @@ final class ContentPreviewLayout {
   final Rect square;
 
   /// The content's own box: the square, or for a GIF its proportions fitted
-  /// inside it (`setAspectFit(true)`).
+  /// inside it.
   final Rect content;
 
   /// The size of [content], worked out from the window and the content alone:

@@ -113,8 +113,8 @@ final class PackSheetFrame {
   double cardTopAt(double offset) => topInset + math.max(0, lead - offset);
 
   /// Whether rows have scrolled under the pinned header at [offset], which
-  /// is when the header's shadow line shows (`runShadowAnimation(0, true)`
-  /// once the first row's top is above the grid).
+  /// is when the header's shadow line shows (once the first
+  /// row's top is above the grid).
   bool scrolledUnderHeaderAt(double offset) => offset > lead;
 
   /// The sticker card's background under a card top of [cardTop]

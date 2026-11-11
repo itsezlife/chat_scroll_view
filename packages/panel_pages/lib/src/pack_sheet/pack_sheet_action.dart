@@ -62,7 +62,7 @@ final class PackSheetAction {
           (edit: LibraryEdit$InstallPack(pack.id, pack.kind), pack: pack),
       ], removes: false);
     }
-    // `removeMultipleStickerSets`: removed, not archived, official or not.
+    // Several packs are removed, not archived, official or not.
     return PackSheetAction._([
       for (final pack in packs)
         (edit: LibraryEdit$RemovePack(pack.id, pack.kind), pack: pack),

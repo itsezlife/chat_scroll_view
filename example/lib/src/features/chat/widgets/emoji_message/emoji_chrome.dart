@@ -361,13 +361,13 @@ final class EmojiChrome$Android extends EmojiChrome {
   /// Creates the strategy.
   const EmojiChrome$Android();
 
-  /// The pill's height: `max(dp(17), timeTextSize + dp(5))`.
+  /// The pill's height: 17, or the time text's size plus 5 where that is taller.
   static const double pillHeight = 17;
 
   /// The time text's size.
   static const double timeSize = 12;
 
-  /// The pill's corner radius: `dp(4) + dp(8)` for any kind of sticker, the
+  /// The pill's corner radius: 4 plus 8 for any kind of sticker, the
   /// emoji text layout included.
   static const double radius = 12;
 
@@ -417,7 +417,7 @@ final class EmojiChrome$Android extends EmojiChrome {
   /// The same for a sticker-layout pill.
   static const double errorInsetSticker = 4.5;
 
-  /// The views icon's height: `timeTextSize - 2dp`.
+  /// The views icon's height: the time text's size less 2.
   static const double viewsIconHeight = 10;
 
   /// The gap between the views icon and its count.
@@ -719,16 +719,16 @@ final class EmojiChrome$Ios extends EmojiChrome {
   /// The pill's left stops 3 pt inside the frame; the body is 6 further in.
   static const double displayLeftOffset = -6;
 
-  /// The strip under the text: `imageBottomPadding`.
+  /// The strip under the text.
   static const double textStrip = 20;
 
-  /// The text frame's top padding: `imageTopPadding`.
+  /// The text frame's top padding.
   static const double textTopPadding = 16;
 
   /// A header's top, below the frame's top.
   static const double headerTop = 8;
 
-  /// An outgoing header's left: `leftInset + edgeInset + 11`.
+  /// An outgoing header's left: the bubble's start and edge insets plus 11.
   static const double outgoingHeaderLeft = 14;
 
   /// An incoming header's end, from the row's right: `edgeInset + 9`.
@@ -845,8 +845,8 @@ final class EmojiChrome$Ios extends EmojiChrome {
 
     Rect? status;
     if (outgoing) {
-      // x = leftInset + impression + date + 5 + 13 - checkW - 6, the full
-      // check; the partial one is [checkGap] after it (`DS:610-665`).
+      // x = start inset + views + date + 5 + 13 - check width - 6, the full
+      // check; the partial one is [checkGap] after it.
       final first =
           inset + impression + date + 5 + statusWidth - checkWidth - checkGap;
       status = switch (state) {
@@ -910,7 +910,7 @@ final class EmojiChrome$Ios extends EmojiChrome {
     required EmojiHeaderShape shape,
     required EmojiHeaderText text,
   }) {
-    // `size.width = max(title, text) + leftInset 11 + 6`.
+    // The width: the wider of the title and the text, plus 11 inset and 6.
     final reply = math.max(text.nameWidth, text.textWidth) + 17;
     final forward = text.forwardWidth + 14;
     return switch (shape) {
@@ -1023,7 +1023,7 @@ final class EmojiChrome$Desktop extends EmojiChrome {
   /// The margin between an above header and the content.
   static const double headerMarginBelow = 2;
 
-  /// The least height of the large-emoji row: `largeEmojiSize + outline`.
+  /// The least height of the large-emoji row: the emoji's size and its outline.
   static const double largeRow = 38;
 
   /// The space between the pill and the content above it.

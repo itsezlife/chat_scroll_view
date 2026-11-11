@@ -404,8 +404,8 @@ void main() {
   });
 
   group('placed at once on an open', () {
-    // `onOpen` selects the tab with `firstTabUpdate` set (no animated
-    // change) and jumps the grid; only a tap or the user's own scroll slides.
+    // An open selects the tab without an animated change and jumps the
+    // grid; only a tap or the user's own scroll slides.
     void expectMarkOn(WidgetTester tester, String label) {
       final mark = tester.getRect(find.byKey(StickerPackStrip.markKey));
       final tab = tester.getRect(find.bySemanticsLabel(label));

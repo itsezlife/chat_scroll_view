@@ -99,8 +99,7 @@ final class AssetProfile {
   ///   first, then a jump to that frame once the frame lands.
   /// - A background hold of the scope (`AssetCacheScope.holdBackground`)
   ///   does not hold it: the others keep their frames while it plays, as
-  ///   every image below the preview's layer stops its animation
-  ///   (`stopAllHeavyOperations`).
+  ///   every image below the preview's layer stops its animation.
   ///
   /// The decoded asset is one playback for every binding of its entry, so a
   /// foreground surface that shares its entry with another restarts that one

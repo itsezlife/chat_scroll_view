@@ -53,7 +53,7 @@ abstract final class BulletinBuilders$Android {
   /// A message beside a custom button: 14, up to three lines.
   static const double _buttonMessageSize = 14;
 
-  /// The weight of `AndroidUtilities.bold()`: the medium face (500).
+  /// The weight Android chrome draws bold text at: the medium face (500).
   static const FontWeight _medium = FontWeight.w500;
 
   // --- The set ---

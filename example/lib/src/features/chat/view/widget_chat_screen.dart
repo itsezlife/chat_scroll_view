@@ -383,7 +383,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       case ChatStickerActivated(:final content, :final gesture):
         // A tap on an emoji with an effect is a direct interaction, and the
         // body replays it. Otherwise a tap on a sticker or a custom emoji
-        // opens its pack (`didPressImage`); a GIF or a sticker without a pack
+        // opens its pack; a GIF or a sticker without a pack
         // opens nothing. A long press is message selection and the body's
         // own.
         if (!_stickerInteractions.onActivated(interaction) &&

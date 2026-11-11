@@ -1310,8 +1310,7 @@ void main() {
     });
 
     // The panel reloads its favourites and saved GIFs on an
-    // explicit edit while it is open (`recentDocumentsDidLoad`,
-    // `gifAddedOrDeleted`); only the record of a send waits.
+    // explicit edit while it is open; only the record of a send waits.
     testWidgets('a favourite shows in the open panel at once: the Favourites '
         'section and its strip tab appear', (tester) async {
       final rig = await _mobileRig(tester);

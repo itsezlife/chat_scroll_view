@@ -62,22 +62,20 @@ abstract final class PackSheet {
   /// the sheet opens or closes.
   static const String routeName = 'pack_sheet';
 
-  /// The dim behind the bottom sheet: `BottomSheet`'s backDrawable alpha
-  /// `0x33` of black.
+  /// The dim behind the bottom sheet: black at alpha `0x33`.
   static const Color touchBarrier = Color(0x33000000);
 
   /// The dim behind the box: `#0000007f`.
   static const Color pointerBarrier = Color(0x7F000000);
 
-  /// How long the bottom sheet takes to open: `BottomSheet.startOpenAnimation`
-  /// runs 400 ms on `EASE_OUT_QUINT` after a 20 ms delay.
+  /// How long the bottom sheet takes to open: 400 ms on an ease out
+  /// (quintic) after a 20 ms delay.
   static const Duration openDuration = Duration(milliseconds: 420);
 
   /// The delay inside [openDuration] before the sheet moves.
   static const Duration openDelay = Duration(milliseconds: 20);
 
-  /// How long the bottom sheet takes to close: `dismissInternal` runs 250 ms
-  /// on `EASE_OUT`.
+  /// How long the bottom sheet takes to close: 250 ms on an ease out.
   static const Duration closeDuration = Duration(milliseconds: 250);
 
   /// How far a drag must pull the sheet down to dismiss it: 0.8 cm, at the

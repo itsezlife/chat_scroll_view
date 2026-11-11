@@ -4,7 +4,7 @@
 /// On desktop the status of an emoji-only message shows while the pointer is
 /// anywhere on the message's row, not only over the emoji box: the element
 /// under the cursor is found by `y` alone and `x` is clamped to the list, and
-/// the info display asks `isUnderCursor`. A click on that status selects the
+/// the info display asks whether it is under the cursor. A click on that status selects the
 /// message when nothing is selected and toggles it in message selection; a
 /// right click opens the message's menu. The time of an ordinary bubble keeps
 /// the tap barrier: a mouse click on it is not a message tap.

@@ -25,8 +25,8 @@ typedef PackFeedback = ({String title, String info});
 /// `BulletinController` (a sheet's bulletins show on the screen under it),
 /// with Undo when they took packs away. The bulletin's layout: the pack's
 /// cover leads it, a removal or an archiving
-/// stays `DURATION_LONG` (2750 ms) and an addition `DURATION_SHORT`
-/// (1500 ms).
+/// stays [BulletinDuration.long] (2750 ms) and an addition
+/// [BulletinDuration.short] (1500 ms).
 abstract final class ChatPackSheets {
   /// The library's undo window of a removal or an archiving: only a guard
   /// (ADR 045, *Undo window*). The bulletin ends the window, committing the
@@ -211,7 +211,7 @@ abstract final class ChatPackSheets {
       apply(services.library, requests, strings, bulletins);
     }
 
-    // `createErrorBulletin(AddStickersNotFound)`.
+    // A pack that cannot be found is said in an error bulletin.
     void unavailable(PackLookup _) => bulletins?.show(
       ChatBulletins.error(
         kind == PackKind.emoji

@@ -35,7 +35,7 @@ Built by `pointerLineMagnifierTarget` / `computeHandleDragChrome` in
 
 ## Smoothing
 
-**~100ms** unified rate for X and Y (`kAospMagnifierSettleMs`). The composer
+**~100ms** unified rate for X and Y (`kMagnifierSettleMs`). The composer
 does not use a split 100ms X / 200ms Y rate.
 
 Clock: `currentSystemFrameTimeStamp` (not frame timestamp) — see

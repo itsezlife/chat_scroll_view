@@ -258,8 +258,7 @@ final class LottieAnimationPaintable extends AssetPaintable {
 
   // At half rate only every second frame is asked for, counted from the
   // first of the pass, so a want changes at most every second frame of the
-  // source and the scheduler renders and posts half as many (`limitFps`:
-  // every second frame). Rounding the
+  // source and the scheduler renders and posts half as many. Rounding the
   // frame ahead down keeps the frame shown within one source frame of the
   // time, on either side.
   static int _onStep(int frame, int step) => frame - frame % step;

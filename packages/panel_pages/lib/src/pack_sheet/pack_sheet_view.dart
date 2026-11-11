@@ -129,7 +129,7 @@ class PackSheetView extends StatefulWidget {
   /// tall.
   static const double shadowLineTop = 48;
 
-  /// How long the shadow line takes to fade in or out (`setDuration(150)`).
+  /// How long the shadow line takes to fade in or out.
   static const Duration shadowFade = Duration(milliseconds: 150);
 
   /// The row of a sticker pack.
@@ -168,8 +168,8 @@ class PackSheetView extends StatefulWidget {
   /// See [previewEmojiExtent].
   static const double previewEmojiGap = 20;
 
-  /// How long the preview emoji takes to fade out (`AnimatedFloat` of 320
-  /// ms on `EASE_OUT_QUINT`); it scales from 1 to 0.6 as it fades.
+  /// How long the preview emoji takes to fade out (320 ms on an ease out,
+  /// quintic); it scales from 1 to 0.6 as it fades.
   static const Duration previewEmojiFade = Duration(milliseconds: 320);
 
   // --- The box under a pointer ---
@@ -277,7 +277,7 @@ class _PackSheetViewState extends State<PackSheetView>
   double _boxTop = 0;
 
   /// The preview emoji's alpha: 1 while it shows, faded to 0 once hidden,
-  /// and never shown again (`previewImageVisible` only turns false).
+  /// and never shown again once hidden.
   late final _previewAlpha = AnimationController(
     vsync: this,
     value: widget.previewEmoji == null ? 0 : 1,
@@ -315,7 +315,7 @@ class _PackSheetViewState extends State<PackSheetView>
           _offset.value = offset;
           _followStatusBar();
           _checkPreviewRoom();
-        // `onScrolled` while `scrollingByUser`: the user moved the grid.
+        // The user moved the grid.
         case PanelCatalogUserDragStart():
           _hidePreview();
         case _:
@@ -371,8 +371,9 @@ class _PackSheetViewState extends State<PackSheetView>
     );
   }
 
-  // `if (y < sz + p) previewImageVisible = false`: no room above the card's
-  // background, and it goes for good.
+  // Once the card's top is less than the emoji and its gap below the
+  // screen's top there is no room above the card's background, and the
+  // emoji goes for good.
   void _checkPreviewRoom() {
     if (_previewHidden || widget.previewEmoji == null) return;
     final top =
@@ -476,7 +477,7 @@ class _PackSheetViewState extends State<PackSheetView>
 
   // An emoji card's background closes over the status bar once its top
   // reaches it, and opens again when it leaves: animated, not tied to the
-  // offset (`statusBarT` is an `AnimatedFloat`).
+  // offset.
   void _followStatusBar() {
     if (!_isEmoji) return;
     final target = _frame.closesAt(_frame.cardTopAt(_offset.value)) ? 1.0 : 0.0;
@@ -1155,7 +1156,7 @@ class _PreviewEmoji extends StatelessWidget {
   }
 }
 
-/// The grabber (`sheet_scrollUp`), its alpha already in [color].
+/// The grabber, its alpha already in [color].
 class _Grabber extends StatelessWidget {
   const _Grabber({required this.color});
 
@@ -1309,8 +1310,7 @@ class _PackHeader extends StatefulWidget {
   /// short of its far edge.
   static const double buttonExtent = 28;
 
-  /// How long the buttons take to trade places (`setDuration(250)`,
-  /// `EASE_OUT_QUINT`).
+  /// How long the buttons take to trade places, on an ease out (quintic).
   static const Duration toggleDuration = Duration(milliseconds: 250);
 
   final Pack pack;
@@ -1323,7 +1323,7 @@ class _PackHeader extends StatefulWidget {
 
 class _PackHeaderState extends State<_PackHeader>
     with SingleTickerProviderStateMixin {
-  // 0 shows Add, 1 shows Remove (`toggleT`).
+  // 0 shows Add, 1 shows Remove.
   late final _toggle = AnimationController(
     vsync: this,
     value: widget.installed ? 1 : 0,
@@ -1709,9 +1709,8 @@ class _BottomButton extends StatelessWidget {
         fontWeight: PackSheetView.boldWeight,
       ),
     );
-    // Added: a filled pill inset 8 (`featuredStickers_addButton`); removed:
-    // a flat bar the full width, its text in the attention colour
-    // (`text_RedBold`).
+    // Added: a filled pill inset 8; removed: a flat bar the
+    // full width, its text in the attention colour.
     return Semantics(
       button: true,
       child: removes
@@ -1750,7 +1749,7 @@ class _BottomButton extends StatelessWidget {
   }
 }
 
-/// `RadialProgressView`: an arc turning in the accent while the packs load.
+/// An arc turning in the accent while the packs load.
 class _Spinner extends StatefulWidget {
   const _Spinner();
 
@@ -1760,7 +1759,7 @@ class _Spinner extends StatefulWidget {
 
 class _SpinnerState extends State<_Spinner>
     with SingleTickerProviderStateMixin {
-  // `RadialProgressView` turns once a second; reduce motion stops it.
+  // It turns once a second; reduce motion stops it.
   static const _turnPeriod = Duration(seconds: 1);
 
   late final _turn = AnimationController(vsync: this, duration: _turnPeriod);
@@ -1824,7 +1823,7 @@ class _ArcPainter extends CustomPainter {
   bool shouldRepaint(_ArcPainter oldDelegate) => oldDelegate.color != color;
 }
 
-/// `ic_ab_other`: three dots in a column.
+/// Three dots in a column.
 class _DotsPainter extends CustomPainter {
   const _DotsPainter(this.color);
 
@@ -1843,7 +1842,7 @@ class _DotsPainter extends CustomPainter {
   bool shouldRepaint(_DotsPainter oldDelegate) => oldDelegate.color != color;
 }
 
-/// `ic_close_white`: two strokes crossing, stroked as one path so a
+/// Two strokes crossing, stroked as one path so a
 /// translucent colour covers the crossing once.
 class _CrossPainter extends CustomPainter {
   const _CrossPainter(this.color);

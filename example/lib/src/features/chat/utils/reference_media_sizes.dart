@@ -150,13 +150,13 @@ final class ReferenceMediaSizes$Desktop extends ReferenceMediaSizes {
   /// Creates the policy.
   const ReferenceMediaSizes$Desktop();
 
-  /// The box a sticker fits in (`st::maxStickerSize`).
+  /// The box a sticker fits in.
   static const double stickerBox = 224;
 
-  /// The box a GIF fits in (`st::maxGifSize`).
+  /// The box a GIF fits in.
   static const double gifBox = 320;
 
-  /// The least width and height of a GIF (`st::minPhotoSize`).
+  /// The least width and height of a GIF.
   static const double minGifSide = 100;
 
   @override
