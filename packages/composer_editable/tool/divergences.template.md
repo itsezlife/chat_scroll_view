@@ -138,7 +138,7 @@ system loupe.
 - Always tracks the dragged end; suppressed during the one-touch phase; keeps
   following the finger while selection offsets are frozen by direction settling.
 - Time-smoothed toward the latest target at one rate for both axes
-  (`kAospMagnifierSettleMs = 100`), on `currentSystemFrameTimeStamp`.
+  (`kMagnifierSettleMs = 100`), on `currentSystemFrameTimeStamp`.
 - The moving handle stays visible under the loupe. Hiding it is not implemented.
 
 ### H. Touch gesture matrix

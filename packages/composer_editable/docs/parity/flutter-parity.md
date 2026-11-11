@@ -37,7 +37,7 @@ Status key: **Done** | **Not implemented** | **Dropped**
 | Behavior | Status | Notes |
 | -------- | ------ | ----- |
 | Pointer-line focal (X clamp, Y line center) | **Done** | `pointerLineMagnifierTarget`, `ExtendedSelectionOverlay` |
-| ~100ms unified smoothing | **Done** | `smoothMagnifierInfo`, `kAospMagnifierSettleMs` |
+| ~100ms unified smoothing | **Done** | `smoothMagnifierInfo`, `kMagnifierSettleMs` |
 | Hide the moving handle under the loupe | **Not implemented** | The handle stays visible |
 | Suppress during one-touch | **Done** | |
 | Direction settling: loupe follows finger | **Done** | |

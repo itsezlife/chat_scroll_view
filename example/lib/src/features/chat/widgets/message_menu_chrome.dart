@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// How the message menu looks and moves in the app's chrome, per platform
@@ -18,16 +18,16 @@ import 'package:flutter/widgets.dart';
 /// plays the platform's appear motion.
 abstract final class MessageMenuChrome {
   /// Whether a menu of [presentation] takes the Android chrome on this
-  /// platform.
+  /// platform ([AppPlatformPolicy.inkKind]).
   static bool isAndroidSheet(ChatMessageMenuPresentation presentation) =>
       presentation == ChatMessageMenuPresentation.sheet &&
-      ChromeInkKind.forPlatform(defaultTargetPlatform) == ChromeInkKind.ripple;
+      AppPlatformPolicy.current().inkKind == ChromeInkKind.ripple;
 
   /// Whether a menu of [presentation] takes the desktop chrome on this
-  /// platform.
+  /// platform ([AppPlatformPolicy.inkKind]).
   static bool isDesktopPopup(ChatMessageMenuPresentation presentation) =>
       presentation == ChatMessageMenuPresentation.popup &&
-      ChromeInkKind.forPlatform(defaultTargetPlatform) == ChromeInkKind.pointer;
+      AppPlatformPolicy.current().inkKind == ChromeInkKind.pointer;
 
   /// The rows of a menu of [presentation], or null for the package's.
   static ChatMessageMenuItemBuilder? itemBuilderFor(
@@ -122,7 +122,7 @@ abstract final class MessageMenuChrome {
       onHidden: transition.onHidden,
       motion: switch (transition.presentation) {
         ChatMessageMenuPresentation.popup => const AppearMotion.grow(),
-        _ when android => const AppearMotion.pop(),
+        _ when android => const AppearMotion.zoom(),
         ChatMessageMenuPresentation.sheet => null,
       },
       origin: android ? Alignment.bottomRight : transition.origin,

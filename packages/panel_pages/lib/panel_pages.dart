@@ -43,6 +43,7 @@ export 'src/page/catalog_page_controller.dart';
 export 'src/page/catalog_page_model.dart';
 export 'src/page/catalog_strip.dart';
 export 'src/policy/catalog_page_policy.dart';
+export 'src/policy/catalog_pointer_policy.dart';
 export 'src/preview/catalog_content_preview.dart';
 export 'src/preview/content_preview_item.dart';
 export 'src/preview/content_preview_layout.dart';

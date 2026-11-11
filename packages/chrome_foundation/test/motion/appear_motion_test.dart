@@ -129,80 +129,80 @@ void main() {
     });
   });
 
-  group('the bloom', () {
-    const bloom = AppearMotion.bloom();
+  group('the burst', () {
+    const burst = AppearMotion.burst();
     const overshoot = OvershootCurve(0.5);
 
     test('takes 250 ms in and 220 ms out', () {
-      expect(bloom.showDuration(motion), const Duration(milliseconds: 250));
-      expect(bloom.hideDuration(motion), const Duration(milliseconds: 220));
+      expect(burst.showDuration(motion), const Duration(milliseconds: 250));
+      expect(burst.hideDuration(motion), const Duration(milliseconds: 220));
     });
 
     test('opens its frame from the corner while the content fades in and '
         'scales up from half, on one overshooting clock', () {
-      final start = bloom.showAt(0);
+      final start = burst.showAt(0);
       expect((start.widthFraction, start.heightFraction), (0, 0));
       expect((start.contentOpacity, start.contentScale), (0, 0.5));
       expect(start.opacity, 1);
 
       final p = overshoot.transform(0.6);
-      final mid = bloom.showAt(0.6);
+      final mid = burst.showAt(0.6);
       expect(mid.widthFraction, closeTo(p, 1e-9));
       expect(mid.heightFraction, closeTo(p, 1e-9));
       expect(mid.contentOpacity, closeTo(p.clamp(0, 1), 1e-9));
       expect(mid.contentScale, closeTo(0.5 + 0.5 * p, 1e-9));
       // Past full size before it settles.
-      expect(bloom.showAt(0.85).contentScale, greaterThan(1));
-      expect(bloom.showAt(1), AppearFrame.rest);
+      expect(burst.showAt(0.85).contentScale, greaterThan(1));
+      expect(burst.showAt(1), AppearFrame.rest);
     });
 
     test('leaves by drifting 5 toward its anchor and fading, accelerating '
         'then decelerating', () {
-      final quarter = bloom.hideAt(0.25);
+      final quarter = burst.hideAt(0.25);
       expect(quarter.opacity, closeTo(1 - _accelerateDecelerate(0.25), 1e-9));
       expect(quarter.drift, closeTo(5 * _accelerateDecelerate(0.25), 1e-9));
-      expect(bloom.hideAt(1).opacity, 0);
-      expect(bloom.hideAt(1).drift, 5);
+      expect(burst.hideAt(1).opacity, 0);
+      expect(burst.hideAt(1).drift, 5);
     });
   });
 
-  group('the pop', () {
-    const pop = AppearMotion.pop();
+  group('the zoom', () {
+    const zoom = AppearMotion.zoom();
 
     test('takes 200 ms in and 220 ms out', () {
-      expect(pop.showDuration(motion), const Duration(milliseconds: 200));
-      expect(pop.hideDuration(motion), const Duration(milliseconds: 220));
+      expect(zoom.showDuration(motion), const Duration(milliseconds: 200));
+      expect(zoom.hideDuration(motion), const Duration(milliseconds: 220));
     });
 
     test('fades in over 150 ms while it scales up from 0.95 on an '
         'overshoot', () {
-      expect(pop.showAt(0).opacity, 0);
-      expect(pop.showAt(0).scale, closeTo(0.95, 1e-9));
+      expect(zoom.showAt(0).opacity, 0);
+      expect(zoom.showAt(0).scale, closeTo(0.95, 1e-9));
       expect(
-        pop.showAt(0.375).opacity,
+        zoom.showAt(0.375).opacity,
         closeTo(_accelerateDecelerate(0.5), 1e-9),
       );
-      expect(pop.showAt(0.75).opacity, 1);
+      expect(zoom.showAt(0.75).opacity, 1);
       expect(
-        pop.showAt(0.5).scale,
+        zoom.showAt(0.5).scale,
         closeTo(0.95 + 0.05 * const OvershootCurve().transform(0.5), 1e-9),
       );
-      expect(pop.showAt(0.8).scale, greaterThan(1));
-      expect(pop.showAt(1), AppearFrame.rest);
+      expect(zoom.showAt(0.8).scale, greaterThan(1));
+      expect(zoom.showAt(1), AppearFrame.rest);
     });
 
-    test('leaves over the bloom\'s 220 ms, moving 5 away from its anchor', () {
-      const bloom = AppearMotion.bloom();
+    test('leaves over the burst\'s 220 ms, moving 5 away from its anchor', () {
+      const burst = AppearMotion.burst();
       for (final t in [0.0, 0.3, 0.7, 1.0]) {
-        expect(pop.hideAt(t).opacity, bloom.hideAt(t).opacity);
-        expect(pop.hideAt(t).drift, -bloom.hideAt(t).drift);
+        expect(zoom.hideAt(t).opacity, burst.hideAt(t).opacity);
+        expect(zoom.hideAt(t).drift, -burst.hideAt(t).drift);
       }
     });
 
     test('does not scale its content apart from its surface', () {
       for (final t in [0.0, 0.3, 0.7]) {
-        expect(pop.showAt(t).contentScale, 1);
-        expect(pop.showAt(t).contentOpacity, 1);
+        expect(zoom.showAt(t).contentScale, 1);
+        expect(zoom.showAt(t).contentOpacity, 1);
       }
     });
   });
@@ -213,8 +213,8 @@ void main() {
       AppearMotion.grow(),
       AppearMotion.unfold(),
       AppearMotion.spring(),
-      AppearMotion.bloom(),
-      AppearMotion.pop(),
+      AppearMotion.burst(),
+      AppearMotion.zoom(),
     ]) {
       expect(appear.showDuration(instant, rows: 3), Duration.zero);
       expect(appear.hideDuration(instant), Duration.zero);
@@ -275,7 +275,7 @@ void main() {
           textDirection: TextDirection.ltr,
           child: Center(
             child: ChromeAppear(
-              motion: AppearMotion.bloom(),
+              motion: AppearMotion.burst(),
               origin: Alignment.topRight,
               child: ColoredBox(
                 color: Color(0xFFFFFFFF),

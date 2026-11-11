@@ -30,7 +30,7 @@ class EmojiTicksPainter extends CustomPainter {
   /// Whether the checks are iOS's vector ones.
   final bool vector;
 
-  /// The error square's fill (`key_chat_sentError`).
+  /// The error square's fill.
   final Color errorColor;
 
   // Android: the check, in a 12 x 12 box.

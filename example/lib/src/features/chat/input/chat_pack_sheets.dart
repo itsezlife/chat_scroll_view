@@ -3,15 +3,14 @@ import 'dart:async';
 import 'package:bulletins/bulletins.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackClaim;
+import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_confirm_box.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:panel_pages/panel_pages.dart';
-import 'package:panel_shell/panel_shell.dart';
 
 /// What the feedback after a pack sheet's edits says: a title, and a line
 /// under it.
@@ -25,8 +24,8 @@ typedef PackFeedback = ({String title, String info});
 /// `BulletinController` (a sheet's bulletins show on the screen under it),
 /// with Undo when they took packs away. The bulletin's layout: the pack's
 /// cover leads it, a removal or an archiving
-/// stays `DURATION_LONG` (2750 ms) and an addition `DURATION_SHORT`
-/// (1500 ms).
+/// stays [BulletinDuration.long] (2750 ms) and an addition
+/// [BulletinDuration.short] (1500 ms).
 abstract final class ChatPackSheets {
   /// The library's undo window of a removal or an archiving: only a guard
   /// (ADR 045, *Undo window*). The bulletin ends the window, committing the
@@ -34,49 +33,21 @@ abstract final class ChatPackSheets {
   /// than the bulletin can stay (its timeout and a press that holds it).
   static const Duration undoGuard = Duration(seconds: 30);
 
-  /// The arrangement a sheet opens in on this platform: a centred box on
-  /// desktop, a bottom sheet elsewhere.
-  static PanelArrangement get arrangement => switch (defaultTargetPlatform) {
-    TargetPlatform.macOS ||
-    TargetPlatform.windows ||
-    TargetPlatform.linux => PanelArrangement.pointer,
-    _ => PanelArrangement.touch,
-  };
-
-  /// Whether this platform asks its questions in boxes on a box layer (a
-  /// desktop or the web) rather than in the platform's dialog.
-  static bool get asksInBoxes => arrangement == PanelArrangement.pointer;
-
-  /// [arrangement], or this platform's when null.
-  static PanelArrangement arrangementOf(PanelArrangement? arrangement) =>
-      arrangement ?? ChatPackSheets.arrangement;
-
-  /// Whether the chat says a library edit (a favourite, a recent, a pack
-  /// added or removed) in a bulletin: not under the desktop toast's policy
-  /// (a desktop or the web), where the edit shows only in the lists (ADR
-  /// 045); the web still says a full list's replacement
-  /// ([libraryEditBulletin]).
-  static bool saysLibraryEdits(BulletinController? bulletins) =>
-      switch (bulletins?.policy) {
-        null || BulletinPolicy$Desktop() => false,
-        _ => true,
-      };
-
   /// The bulletin after [applied], a favourite, recent or saved GIF edit,
-  /// or null when this platform shows none: every one [saysLibraryEdits]
-  /// allows; on the [web] only a full list that replaced its oldest (the
-  /// web clients say nothing else of these edits).
+  /// or null when [platform] (this app's when null) shows none: every one
+  /// where it says library edits, and elsewhere only a full list that
+  /// replaced its oldest where it says those.
   static Bulletin? libraryEditBulletin(
     AppliedEdit applied, {
     required LibraryLimits limits,
     required BulletinController? bulletins,
-    bool web = kIsWeb,
+    AppPlatformPolicy? platform,
   }) {
-    final shows = switch ((saysLibraryEdits(bulletins), web)) {
-      (true, false) => true,
-      (_, true) => bulletins != null && applied.evicted != null,
-      (false, false) => false,
-    };
+    final policy = platform ?? AppPlatformPolicy.current();
+    final shows =
+        bulletins != null &&
+        (policy.saysLibraryEdits ||
+            (policy.saysListReplacements && applied.evicted != null));
     if (!shows) return null;
     return ChatBulletins.ofLibraryEdit(
       applied,
@@ -84,16 +55,6 @@ abstract final class ChatPackSheets {
       strings: ChatBulletinStrings.demo,
     );
   }
-
-  /// Whether a pack's removal asks first under [arrangement]: under a
-  /// desktop's pointer; the web removes at once, as the web clients do.
-  static bool confirmsRemovalsIn(
-    PanelArrangement arrangement, {
-    bool web = kIsWeb,
-  }) => arrangement == PanelArrangement.pointer && !web;
-
-  /// Whether a removal asks first on this platform.
-  static bool get confirmsRemovals => confirmsRemovalsIn(arrangement);
 
   /// Whether [requests] take packs away (a removal or an archiving).
   static bool takesAway(List<PackEditRequest> requests) => switch (requests) {
@@ -127,7 +88,7 @@ abstract final class ChatPackSheets {
     required PackKind kind,
     ValueChanged<ContentDescriptor>? onPick,
     ValueChanged<ContentDescriptor>? onCopy,
-    PanelArrangement? arrangement,
+    AppPlatformPolicy? platform,
     ContentKey? previewEmoji,
   }) => _show(
     context,
@@ -137,7 +98,7 @@ abstract final class ChatPackSheets {
     kind: kind,
     onPick: onPick,
     onCopy: onCopy,
-    arrangement: arrangement,
+    platform: platform ?? AppPlatformPolicy.current(),
     previewEmoji: previewEmoji,
   );
 
@@ -151,7 +112,7 @@ abstract final class ChatPackSheets {
     required List<PackId> packs,
     ValueChanged<ContentDescriptor>? onPick,
     ValueChanged<ContentDescriptor>? onCopy,
-    PanelArrangement? arrangement,
+    AppPlatformPolicy? platform,
   }) => _show(
     context,
     services: services,
@@ -160,7 +121,7 @@ abstract final class ChatPackSheets {
     kind: PackKind.emoji,
     onPick: onPick,
     onCopy: onCopy,
-    arrangement: arrangement,
+    platform: platform ?? AppPlatformPolicy.current(),
   );
 
   static Future<void> _show(
@@ -170,7 +131,7 @@ abstract final class ChatPackSheets {
     required List<PackId> packs,
     required PackKind kind,
     required ValueChanged<ContentDescriptor>? onPick,
-    required PanelArrangement? arrangement,
+    required AppPlatformPolicy platform,
     ValueChanged<ContentDescriptor>? onCopy,
     ContentKey? previewEmoji,
   }) {
@@ -182,6 +143,7 @@ abstract final class ChatPackSheets {
             applied,
             limits: services.library.limits,
             bulletins: bulletins,
+            platform: platform,
           )
           case final bulletin?) {
         bulletins?.show(bulletin);
@@ -195,23 +157,29 @@ abstract final class ChatPackSheets {
     // confirmed, the layer closes with both and the pack is removed.
     void edits(List<PackEditRequest> requests) {
       final sheet = sheetContext;
-      if (confirmsRemovalsIn(arrangementOf(arrangement)) &&
+      if (platform.confirmsPackRemovals &&
           takesAway(requests) &&
           sheet != null &&
           sheet.mounted) {
         ChromeBoxLayer.of(sheet).show<bool>((_) => confirmBoxOf(requests)).then(
           (confirmed) {
             if (confirmed ?? false) {
-              apply(services.library, requests, strings, bulletins);
+              apply(
+                services.library,
+                requests,
+                strings,
+                bulletins,
+                platform: platform,
+              );
             }
           },
         ).ignore();
         return;
       }
-      apply(services.library, requests, strings, bulletins);
+      apply(services.library, requests, strings, bulletins, platform: platform);
     }
 
-    // `createErrorBulletin(AddStickersNotFound)`.
+    // A pack that cannot be found is said in an error bulletin.
     void unavailable(PackLookup _) => bulletins?.show(
       ChatBulletins.error(
         kind == PackKind.emoji
@@ -234,7 +202,7 @@ abstract final class ChatPackSheets {
     });
     return PackSheet.show(
       context,
-      arrangement: arrangementOf(arrangement),
+      arrangement: platform.packSheetArrangement,
       builder: (sheet) {
         sheetContext = sheet;
         return switch (kind) {
@@ -275,18 +243,21 @@ abstract final class ChatPackSheets {
   /// A removal is held for as long as its bulletin shows Undo: the
   /// bulletin's commit on leave commits the edits (timed out, replaced by
   /// another, swiped away, the chat gone), and Undo takes them back. The
-  /// library's own window, [undoGuard], is only a bound. With no [bulletins]
-  /// there is no Undo, and the edits commit at once.
+  /// library's own window, [undoGuard], is only a bound. With no [bulletins],
+  /// or where [platform] (this app's when null) says no library edits, there
+  /// is no Undo, and the edits commit at once.
   static void apply(
     ContentLibrary library,
     List<PackEditRequest> requests,
     PackSheetStrings strings,
-    BulletinController? bulletins,
-  ) {
+    BulletinController? bulletins, {
+    AppPlatformPolicy? platform,
+  }) {
     if (requests.isEmpty) return;
-    // Under the desktop policy no bulletin says it, and a removal holds no
-    // Undo: it is done once confirmed.
-    if (bulletins == null || !saysLibraryEdits(bulletins)) {
+    // Where no bulletin says it, a removal holds no Undo: it is done once
+    // confirmed.
+    if (bulletins == null ||
+        !(platform ?? AppPlatformPolicy.current()).saysLibraryEdits) {
       for (final request in requests) {
         library.apply(request.edit, undoWindow: Duration.zero);
       }

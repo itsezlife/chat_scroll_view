@@ -48,7 +48,7 @@ export 'selection_handle_motion.dart'
         OvershootCurve,
         kHandleMotionDuration,
         kHandleSettleDuration,
-        kAospMagnifierSettleMs,
+        kMagnifierSettleMs,
         settleTForElapsed,
         smoothMagnifierInfo,
         magnifierInfoSettled;

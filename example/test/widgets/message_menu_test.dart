@@ -749,7 +749,7 @@ void main() {
       await open(tester);
 
       final appear = tester.widget<ChromeAppear>(find.byType(ChromeAppear));
-      expect(appear.motion, const AppearMotion.pop());
+      expect(appear.motion, const AppearMotion.zoom());
       expect(appear.origin, Alignment.bottomRight);
       expect(find.byType(AppearContent), findsNothing);
       final card = tester.getRect(find.byType(ChatMessageMenuCard).first);

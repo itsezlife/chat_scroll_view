@@ -1,5 +1,6 @@
 import 'package:bulletins/bulletins.dart';
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chat_scroll_view_example/src/common/utils/russian_plural.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -68,42 +69,40 @@ final class ChatBulletinStrings {
   /// The set the demo shows: [russian], the language of its chrome strings.
   static const ChatBulletinStrings demo = russian;
 
-  /// A sticker became a favourite (`AddedToFavorites`).
+  /// A sticker became a favourite.
   final String favouriteAdded;
 
-  /// A sticker stopped being one (`RemovedFromFavorites`).
+  /// A sticker stopped being one.
   final String favouriteRemoved;
 
-  /// A sticker left the recents (`RemovedFromRecent`).
+  /// A sticker left the recents.
   final String recentRemoved;
 
-  /// The favourites are full at this many (`LimitReachedFavoriteStickers`).
+  /// The favourites are full at this many.
   final String Function(int limit) favouritesLimit;
 
-  /// The oldest favourite made room
-  /// (`LimitReachedFavoriteStickersSubtitlePremium`).
+  /// The oldest favourite made room.
   final String favouriteReplaced;
 
-  /// The saved GIFs are full at this many (`LimitReachedFavoriteGifs`).
+  /// The saved GIFs are full at this many.
   final String Function(int limit) gifsLimit;
 
-  /// The oldest saved GIF made room
-  /// (`LimitReachedFavoriteGifsSubtitlePremium`).
+  /// The oldest saved GIF made room.
   final String gifReplaced;
 
-  /// A GIF was saved (`GifSavedHint`).
+  /// A GIF was saved.
   final String gifSaved;
 
-  /// A message was copied (`MessageCopied`).
+  /// A message was copied.
   final String messageCopied;
 
-  /// Selected text or messages were copied (`TextCopied`).
+  /// Selected text or messages were copied.
   final String textCopied;
 
-  /// Code was copied (`CodeCopied`).
+  /// Code was copied.
   final String codeCopied;
 
-  /// A link was copied (`LinkCopied`).
+  /// A link was copied.
   final String linkCopied;
 
   /// The offer to apply the formatting of a plain paste.
@@ -115,18 +114,9 @@ String _englishFavouritesLimit(int limit) => 'Limit of $limit Stickers Reached';
 String _englishGifsLimit(int limit) => 'Limit of $limit GIFs Reached';
 
 String _russianFavouritesLimit(int limit) =>
-    'Достигнут лимит в $limit ${_russianPlural(limit, 'стикер', 'стикера', 'стикеров')}';
+    'Достигнут лимит в $limit ${RussianPlural.wordOf(limit, 'стикер', 'стикера', 'стикеров')}';
 
 String _russianGifsLimit(int limit) => 'Достигнут лимит в $limit GIF';
-
-// The CLDR one / few / many word of [n] in Russian (as `demoChromeStrings`).
-String _russianPlural(int n, String one, String few, String many) {
-  final mod10 = n % 10;
-  final mod100 = n % 100;
-  if (mod10 == 1 && mod100 != 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
-}
 
 /// The chat's bulletins: what each says, what leads it, and how long it
 /// stays. Values only; the chat screen shows them through its
@@ -138,13 +128,13 @@ abstract final class ChatBulletins {
   /// A copy.
   static const ChromeIconId copyIcon = ChromeIconId('bulletin.copy');
 
-  /// A copied link (`voip_invite`).
+  /// A copied link.
   static const ChromeIconId linkIcon = ChromeIconId('bulletin.link');
 
-  /// A saved GIF (`ic_save_to_gifs`).
+  /// A saved GIF.
   static const ChromeIconId savedGifIcon = ChromeIconId.gif;
 
-  /// An error (`chats_infotip`).
+  /// An error.
   static const ChromeIconId infoIcon = ChromeIconId('bulletin.info');
 
   /// The painters of the ids above that the chrome does not have; the host
@@ -164,8 +154,8 @@ abstract final class ChatBulletins {
   /// or null when none is shown (a GIF unsaved, a pack's edit:
   /// that is the pack sheet host's). [limits] names the full list.
   ///
-  /// Each is `DURATION_SHORT`, written out: the factory's length rule would
-  /// make these texts long.
+  /// Each is [BulletinDuration.short], written out: the factory's length
+  /// rule would make these texts long.
   static Bulletin? ofLibraryEdit(
     AppliedEdit applied, {
     required LibraryLimits limits,
@@ -207,7 +197,6 @@ abstract final class ChatBulletins {
         strings.gifsLimit(limits.savedGifs),
         strings.gifReplaced,
       ),
-      // `createDownloadBulletin(FileType.GIF)`.
       (LibraryEdit$SaveGif(), null) => Bulletin(
         message: strings.gifSaved,
         leading: const BulletinLeading.icon(savedGifIcon),
@@ -224,8 +213,8 @@ abstract final class ChatBulletins {
     };
   }
 
-  /// The bulletin after a copy of [kind] (`createCopyBulletin`,
-  /// `createCopyLinkBulletin`): short, with the copy or the link icon.
+  /// The bulletin after a copy of [kind]: short, with the copy or the link
+  /// icon.
   /// Whether one shows at all is `ChatCopyFeedback`'s.
   static Bulletin copied(ChatCopyKind kind, ChatBulletinStrings strings) =>
       switch (kind) {
@@ -247,7 +236,7 @@ abstract final class ChatBulletins {
         ),
       };
 
-  /// An error (`createErrorBulletin`): short, with the info icon.
+  /// An error: short, with the info icon.
   static Bulletin error(String message) => Bulletin(
     message: message,
     leading: const BulletinLeading.icon(infoIcon),

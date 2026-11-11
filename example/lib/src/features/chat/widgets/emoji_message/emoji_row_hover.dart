@@ -6,7 +6,7 @@ import 'package:flutter/widgets.dart';
 ///
 /// On desktop the row alone decides it: the element under the cursor is found
 /// by `y` and `x` is clamped to the list, and the media's info display shows the
-/// time while that element `isUnderCursor`. A region around the box would hide
+/// time while that element is under the cursor. A region around the box would hide
 /// the time again on the empty side of the row, where the pointer rests most of
 /// the time.
 ///

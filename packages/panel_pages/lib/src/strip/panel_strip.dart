@@ -49,7 +49,7 @@ final class PanelStripMetrics {
   /// A scroll that brings a tab into view.
   static const Duration scrollDuration = Duration(milliseconds: 250);
 
-  /// The curve of every strip motion, `CubicBezierInterpolator.EASE_OUT_QUINT`.
+  /// The curve of every strip motion: an ease out (quintic).
   static const Curve curve = Curves.easeOutQuint;
 
   /// Width of a tab's touch area.
@@ -84,8 +84,8 @@ final class PanelStripMetrics {
 /// How the pill changes shape on its way from tab to tab: widest and flattest
 /// half way, its rest size at either end.
 enum PanelStripSwell {
-  /// `isMiddle = 4t(1 - t)`, the width times
-  /// `1 + .3 isMiddle`, the height times `1 - .05 isMiddle`.
+  /// The emoji swell: `mid = 4t(1 - t)`, the width times
+  /// `1 + .3 mid`, the height times `1 - .05 mid`.
   emoji,
 
   /// The stickers swell: `far = |.5 - t| 2`, the width

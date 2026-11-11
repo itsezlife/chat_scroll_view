@@ -4,12 +4,19 @@
 library;
 
 export 'src/box/chrome_box_layer.dart';
+export 'src/button/chrome_badge_button.dart';
+export 'src/button/chrome_bar_button.dart';
+export 'src/button/chrome_button_inks.dart';
+export 'src/button/chrome_icon_button.dart';
+export 'src/button/chrome_pill_button.dart';
 export 'src/glass/glass_capabilities.dart';
 export 'src/glass/glass_material.dart';
 export 'src/glass/glass_quality.dart';
 export 'src/glass/glass_quality_scope.dart';
 export 'src/glass/glass_source.dart' show GlassSource, GlassSourceScope;
 export 'src/glass/glass_surface.dart';
+export 'src/icons/chrome_cross_painter.dart';
+export 'src/icons/chrome_dots_painter.dart';
 export 'src/icons/chrome_icon.dart';
 export 'src/icons/chrome_icon_id.dart';
 export 'src/icons/chrome_icon_painter.dart';
@@ -30,6 +37,7 @@ export 'src/motion/chrome_ink.dart';
 export 'src/motion/chrome_motion.dart';
 export 'src/motion/chrome_motion_scope.dart';
 export 'src/motion/chrome_motion_speed.dart';
+export 'src/motion/chrome_spinner.dart';
 export 'src/motion/motion_spec.dart';
 export 'src/motion/overshoot_curve.dart';
 export 'src/motion/pointer_menu_motion.dart';

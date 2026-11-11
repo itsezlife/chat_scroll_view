@@ -220,14 +220,13 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     return session;
   }
 
-  /// How long a finger holds a cell before the preview opens:
-  /// `runOnUIThread(openPreviewRunnable, 200)`.
+  /// How long a finger holds a cell before the preview opens: 200 ms.
   static const Duration touchHoldDelay = Duration(milliseconds: 200);
 
   /// How long a mouse button holds a cell before the preview opens.
   static const Duration pointerHoldDelay = Duration(milliseconds: 500);
 
-  /// How long the preview takes to come up or go: `showProgress += dt / 120`.
+  /// How long the preview takes to come up or go: 120 ms.
   static const Duration showDuration = Duration(milliseconds: 120);
 
   /// How long a preview a mouse opened takes to fade in or out, at its full
@@ -235,11 +234,10 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   static const Duration pointerShowDuration = Duration(milliseconds: 150);
 
   /// When the menu of a sticker or custom emoji opens on its own:
-  /// `runOnUIThread(showSheetRunnable, 1300)`.
+  /// 1300 ms after the preview.
   static const Duration stickerMenuDelay = Duration(milliseconds: 1300);
 
-  /// When a GIF's menu opens on its own: `runOnUIThread(showSheetRunnable,
-  /// 2000)`.
+  /// When a GIF's menu opens on its own: 2000 ms after the preview.
   static const Duration gifMenuDelay = Duration(milliseconds: 2000);
 
   /// When the menu of a preview opened by a tap comes up: one frame.
@@ -252,11 +250,10 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   static const double gifSwipeMenu = 55;
 
   /// How long a dragged GIF takes to settle back once its menu is up:
-  /// `valueAnimator.setDuration(350)` in `showSheetRunnable`.
+  /// 350 ms.
   static const Duration gifSwipeSettle = Duration(milliseconds: 350);
 
-  /// The curve of that settling: `CubicBezierInterpolator.DEFAULT`,
-  /// (0.25, 0.1, 0.25, 1).
+  /// The curve of that settling: the cubic (0.25, 0.1, 0.25, 1).
   static const Curve gifSwipeSettleCurve = Curves.ease;
 
   /// The rubber band's factor: 200.
@@ -268,9 +265,9 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   /// The dim over a light theme: `0x64E6E6E6`.
   static const Color dimLight = Color(0x64E6E6E6);
 
-  /// The alpha the dim is drawn at, of 255, when the preview is up:
-  /// `backgroundDrawable.setAlpha((int) (180 * showProgress))`, which a
-  /// `ColorDrawable` multiplies into its colour's own alpha.
+  /// The alpha the dim is drawn at, of 255, when the preview is up,
+  /// scaled by the show's progress and multiplied into the colour's own
+  /// alpha.
   static const int dimAlpha = 180;
 
   /// How strong the blur under the menu is at its end, applied to a
@@ -350,7 +347,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     }
   }
 
-  // `currentMoveY` follows the finger, kept within [-limit, 0], and the GIF
+  // The drag offset follows the finger, kept within [-limit, 0], and the GIF
   // is drawn at its rubber-banded value; past the menu's mark the menu opens.
   void _swipeGif(double y) {
     if (_menu.value != null || !_up) return;
@@ -464,13 +461,13 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
         ? ContentPreviewSession.pointerShowDuration
         : ContentPreviewSession.showDuration,
   );
-  // The blur under the menu: `blurProgress += 16 / 120f` a frame.
+  // The blur under the menu, over the show's 120 ms.
   late final AnimationController _blur = AnimationController(
     vsync: this,
     duration: ContentPreviewSession.showDuration,
   );
-  // A dragged GIF going back to rest once its menu is up: `moveY` from
-  // `startMoveY` to 0.
+  // A dragged GIF going back to rest once its menu is up: its offset from
+  // where the drag left it to 0.
   late final AnimationController _settle = AnimationController(
     vsync: this,
     duration: ContentPreviewSession.gifSwipeSettle,

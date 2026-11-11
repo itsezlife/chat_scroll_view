@@ -34,7 +34,7 @@ abstract final class SelectionMenuMetrics {
   /// `RIPPLE_MASK_CIRCLE_20DP`, a 20 dp radius.
   static const double moreButtonInkDiameter = 40;
 
-  /// Widest the main row may be: the toolbar's default `dp(400)` (952) before
+  /// Widest the main row may be: the toolbar's default 400 before
   /// the screen's own limit.
   static const double rowMaxWidth = 400;
 

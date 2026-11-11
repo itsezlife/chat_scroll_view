@@ -1026,7 +1026,7 @@ void main() {
       expect(find.text('Add Stickers'), findsOneWidget);
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('pack-box-count')),
+          of: find.byKey(ChromeBadgeButton.countKey),
           matching: find.text('60'),
         ),
         findsOneWidget,

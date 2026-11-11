@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the pack sheet's buttons come from the chrome)
+
+- The pack sheet draws its header, menu and close buttons, its bottom and box buttons, its spinner and its glyphs with `chrome_foundation`'s `ChromePillButton`, `ChromeIconButton`, `ChromeBarButton`, `ChromeBadgeButton`, `ChromeSpinner`, `ChromeCrossPainter` and `ChromeDotsPainter`; the pixels are unchanged. `ChromeCatalogTheme.pressInkOf` and `hoverWashOf` answer `ChromeButtonInks`' colours. Breaking for code that read the sheet's internals: `PackSheetView.buttonExtent`, `buttonMargin`, `boxButtonExtent` and `boxButtonPadding` are `PackSheetView.buttonMetrics` and `boxButtonMetrics`, and the box count badge's key is `ChromeBadgeButton.countKey`.
+
+### Added (the pointer policy)
+
+- `CatalogPointerPolicy` (`.desktop()`, `.web()`, `current`): what a page offers a mouse for taking content out of the library, as properties: `packHeaderRemoves` (an installed pack's header cross) and `removeBadge` (the hovered cell's badge look). The pages read `CatalogPointerPolicy.current` where they read the platform before; the header cross's helper takes a policy instead of a web flag. Behaviour unchanged.
+
 ### Added (the emoji pack sheet's preview)
 
 - `EmojiPackSheet.previews` and `onCopyRequested`: a custom emoji held in an emoji pack sheet or box opens the content preview, as on the panel's emoji page (from frame 0, switching under the finger or pointer, Send Emoji and Copy Emoji); a right-click in the box offers Copy Emoji. A tap still inserts.

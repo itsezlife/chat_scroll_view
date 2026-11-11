@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'app/app_platform_policy_test.dart' as app_platform_policy_test;
 import 'app/app_services_test.dart' as app_services_test;
 import 'app/boot_test.dart' as boot_test;
 import 'app/cache_directory_test.dart' as cache_directory_test;
@@ -55,6 +56,7 @@ import 'common/lab_net_test.dart' as lab_net_test;
 import 'common/lab_texture_host_test.dart' as lab_texture_host_test;
 import 'common/mouse_back_button_test.dart' as mouse_back_button_test;
 import 'common/pointer_tape_test.dart' as pointer_tape_test;
+import 'common/russian_plural_test.dart' as russian_plural_test;
 import 'common/scroll_lab_glass_test.dart' as scroll_lab_glass_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
@@ -245,6 +247,7 @@ void main() {
   group('flicker/shade_resume_test.dart', flicker_shade_resume_test.main);
   group('flicker/strip_reopen_test.dart', flicker_strip_reopen_test.main);
   group('flicker/thumbnail_fade_test.dart', flicker_thumbnail_fade_test.main);
+  group('app/app_platform_policy_test.dart', app_platform_policy_test.main);
   group('app/app_services_test.dart', app_services_test.main);
   group('app/boot_test.dart', boot_test.main);
   group('app/cache_directory_test.dart', cache_directory_test.main);
@@ -330,6 +333,7 @@ void main() {
   group('common/lab_net_test.dart', lab_net_test.main);
   group('common/lab_texture_host_test.dart', lab_texture_host_test.main);
   group('common/pointer_tape_test.dart', pointer_tape_test.main);
+  group('common/russian_plural_test.dart', russian_plural_test.main);
   group('common/scroll_lab_glass_test.dart', scroll_lab_glass_test.main);
   group('common/mouse_back_button_test.dart', mouse_back_button_test.main);
   group(

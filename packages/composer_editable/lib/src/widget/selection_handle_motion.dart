@@ -31,17 +31,17 @@ const Duration kHandleSettleDuration = kHandleMotionDuration;
 /// Magnifier settle time constant (~100ms).
 ///
 /// The touch path uses this for **both** X and Y (unified rate).
-const double kAospMagnifierSettleMs = 100;
+const double kMagnifierSettleMs = 100;
 
 /// @nodoc Kept for callers that still name the old X constant.
-const double kMagnifierXSettleMs = kAospMagnifierSettleMs;
+const double kMagnifierXSettleMs = kMagnifierSettleMs;
 
-/// @nodoc Legacy Y rate alias — equals [kAospMagnifierSettleMs].
-const double kMagnifierYSettleMs = kAospMagnifierSettleMs;
+/// @nodoc Legacy Y rate alias — equals [kMagnifierSettleMs].
+const double kMagnifierYSettleMs = kMagnifierSettleMs;
 
 /// Smooths [MagnifierInfo] toward [target] with ~100ms X/Y rates.
 ///
-/// Both axes use [kAospMagnifierSettleMs]: a unified rate, not a split X/Y
+/// Both axes use [kMagnifierSettleMs]: a unified rate, not a split X/Y
 /// path.
 MagnifierInfo smoothMagnifierInfo({
   required MagnifierInfo? previous,
@@ -57,7 +57,7 @@ MagnifierInfo smoothMagnifierInfo({
     return previous;
   }
 
-  final alpha = (ms / kAospMagnifierSettleMs).clamp(0.0, 1.0);
+  final alpha = (ms / kMagnifierSettleMs).clamp(0.0, 1.0);
 
   final gesture = Offset(
     lerpDouble(
