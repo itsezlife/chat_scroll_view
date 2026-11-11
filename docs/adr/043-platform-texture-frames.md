@@ -121,6 +121,10 @@ its entry and its position stay in the cache. Kept leases count against the
 texture and page budgets like painted ones: a kept panel can leave fewer
 textures for the chat, which then plays on page slots.
 
+*Amended by ticket 201* (*Amendment: a hidden panel gives its textures
+back*): a panel held on screen (moving, under a sheet) still keeps its
+textures; a hidden one gives them back keeping their frames.
+
 ## Amendment: each lease waits only for its own frame
 
 Native-media ticket 110. The schedulers kept one batch in flight for every
@@ -208,3 +212,27 @@ three posts. With nothing playing in the chat the bound was never reached.
 | ---- | -------- |
 | View | `ContentView.holdsWhileTickersOff`: a disabled `TickerMode` holds the view (`AssetBinding.held`: frame on screen, lease kept) instead of hiding it. `ContentView.inView` hides a view out of its viewport whatever the tickers say. |
 | Strip | `PanelStripCover` holds while the panel's tickers are off, and hides only a tab scrolled out of the strip, so the covers, like the grid's cells, come back on the textures they left on. |
+
+## Amendment: a hidden panel gives its textures back (2026-11-12)
+
+Native-media ticket 201, from the jank analysis of ticket 200: after heavy
+panel use, the chat's first fling missed refreshes, most of them behind
+raster-thread page uploads. A hidden panel's cells were held (*leases of a
+kept panel*) and kept their textures, a texture per cell; the panel's warm
+had destroyed the chat sticker's idle texture for room, and when the sticker
+came back the budget held only leased textures and textures of the cells'
+class. A 512 px sticker then played from a page slot, uploading the top half
+of a 1024 px page, 2 MiB, on every frame. The proposal test
+(`packages/lottie_decoder/test/playback/lottie_kept_panel_texture_test.dart`)
+reproduces it at the default sizes and budgets.
+
+| Area | Decision |
+| ---- | -------- |
+| Signal | A hidden panel is offstage *and* held. The presentation view hides the panel under a `Visibility` that keeps its state (`maintainState`, `maintainAnimation`: the strategy owns the tickers), so its content can read `Visibility.of`. The catalogue sets every binding invisible while it is false (`CatalogLeafBindingPool.offstage`); a held binding stays held. Tickers off alone (a panel moving in or out, a sheet over it) still mean held on screen. A bare `Offstage` says nothing: a pager's off-screen page is unchanged. |
+| Leases | A kept lease whose paintable left the screen (`releaseUnlessPainted` after `kept`) is parked: it gives its texture back with `release(showing:)`, as a lease that ends does, and stays kept, with its slot if it has one. Its next want takes the texture back with `FrameTexturePool.leaseKept`, which hands out only that asset's own kept texture, shown at once with no render. Lottie and video alike. |
+| Reshow | The panel shows again held (it moves in): the held paint wants the frame it was held on, the cell takes its kept texture back and composites it from the first frame (`example/test/flicker/hidden_panel_textures_test.dart`). Cells past `keptFrameBytes` (24 MiB, 24 cells of 1 MiB; the idle limit of 24 destroys the rest of the class's textures) play from page slots until textures are free: their still, then their frame on a slot. They never take a neighbour's kept texture (`lease` would hand one out when no plain idle texture is left). |
+| Chat | The kept textures are idle: a warm of the chat's class makes room by destroying them, oldest first, as any idle texture of another class. The chat under a popup is held on screen and keeps its textures. |
+| Strip | The strip's covers (`ContentView.holdsWhileTickersOff`, ticket 152) do not read `Visibility.of`: they keep their leases while the panel is hidden, small textures, so the grid's kept frames cannot push theirs out of the bound. |
+| Pages | The 512 px class opens a page of one cell (`FrameAtlas.oneCellFrom`): a 512 px frame that plays from a page uploads 1 MiB a frame, not 2. The other classes keep pages of four. |
+| Not changed | The pool's warm still waits for a scroll to end before it creates; whether that delays the chat's texture after a close is left to the device data. |
+| Device check | Back from a hidden panel, the first chat fling should show no page uploads of the chat's 512 px stickers in the scroll lab's upload marks, and no growth of `warmsShortOfRoom`; the panel's reopen should show every cell within the budget on its frame at once. |

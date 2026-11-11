@@ -5,6 +5,18 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a hidden panel gives its textures back)
+
+- A kept lease whose paintable leaves the screen (a held surface that shows
+  nothing of it: a hidden panel) gives its texture back keeping its frame,
+  and stays, kept. It used to keep the texture, so a hidden panel held a
+  texture per cell, the pool's budget was spent on them, and a chat sticker
+  that came back played from a page, uploading it on every frame. Its next
+  want takes that texture back and shows it at once, rendering nothing; one
+  whose frame the pool forgot (past `keptFrameBytes`, or taken for room)
+  plays from a page slot until a texture is free. A kept lease on screen
+  (not left) keeps its texture as before.
+
 ### Added (readings for a profiler)
 
 - `LottieFrameScheduler.leasePlaces()`: how many leases play on textures,

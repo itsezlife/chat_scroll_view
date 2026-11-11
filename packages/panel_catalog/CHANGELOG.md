@@ -6,6 +6,15 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a hidden panel gives its textures back)
+
+- A catalogue under an invisible `Visibility` (`Visibility.of` false: a
+  hidden panel kept mounted) hides every binding while it holds them, so
+  each keeps its frame but gives back the texture it lives on; shown again,
+  each binding is as visible as its window says. A held catalogue on screen
+  (tickers off while it moves) is unchanged. A bare `Offstage` is not read:
+  the host says the subtree is invisible through `Visibility`.
+
 ### Added (header action ink)
 
 - A painted section-header action has the desktop ink where the theme has a hover wash: the hover wash in the circle its icon sits in, and a ripple in the press colour from the press, growing over 650 ms and fading over 200 ms.
