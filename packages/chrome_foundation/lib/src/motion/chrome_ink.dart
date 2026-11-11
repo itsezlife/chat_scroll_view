@@ -93,6 +93,7 @@ class ChromeInk extends StatefulWidget {
     this.borderRadius = BorderRadius.zero,
     this.circleRadius,
     this.behindChild = false,
+    this.onHighlightChanged,
     super.key,
   });
 
@@ -126,6 +127,14 @@ class ChromeInk extends StatefulWidget {
   /// opaque takes it behind: over its label, an opaque fill would hide it.
   final bool behindChild;
 
+  /// Told whether the feedback shows: true when a press lands or comes back
+  /// over the target, false when it leaves, ends or is cancelled.
+  ///
+  /// For a target whose press is drawn on its child as well (a glyph that
+  /// dims while pressed), which then follows the same press, slop and
+  /// cancel as the feedback.
+  final ValueChanged<bool>? onHighlightChanged;
+
   @override
   State<ChromeInk> createState() => _ChromeInkState();
 }
@@ -157,10 +166,16 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  void _setShown(bool shown) {
+    if (_shown == shown) return;
+    _shown = shown;
+    widget.onHighlightChanged?.call(shown);
+  }
+
   void _down(Offset position) {
     if (widget.onTap == null) return;
     _pressed = true;
-    _shown = true;
+    _setShown(true);
     setState(() => _origin = position);
     if (_instant) {
       _grow.value = 1;
@@ -204,7 +219,7 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
     if (over == _shown) return;
     switch (_kind) {
       case ChromeInkKind.highlight:
-        _shown = over;
+        _setShown(over);
         if (over) {
           _alpha.value = 1;
         } else {
@@ -227,7 +242,7 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
     if (!_pressed) return;
     _pressed = false;
     if (_shown) _fade();
-    _shown = false;
+    _setShown(false);
   }
 
   void _fade() {
