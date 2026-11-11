@@ -58,6 +58,14 @@ abstract final class ChromeInkTiming {
   /// How long an iOS highlight takes to fade once the press ends.
   static const Duration highlightFade = Duration(milliseconds: 300);
 
+  /// The opacity of an iOS glyph button's glyph while pressed: the bar
+  /// buttons beside a text field press by dimming their glyph, not with a
+  /// fill (see [ChromeInk.onHighlightChanged]).
+  static const double glyphDimOpacity = 0.4;
+
+  /// How long such a glyph takes to come back once the press ends.
+  static const Duration glyphRestore = Duration(milliseconds: 200);
+
   /// How far outside its target an Android press may move and stay pressed:
   /// the platform's touch slop.
   static const double rippleSlop = 8;
