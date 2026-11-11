@@ -200,9 +200,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   ChatInputSet get _input => _inputSet!;
 
-  /// The chat's bulletins: one slot for the screen and the pack sheets over
-  /// it, on the
-  /// policy of the platform. Mounted over the chat region; disposed with the
+  /// The chat's bulletins: one slot for the screen, on the policy of the
+  /// platform. A pack sheet over it shows its own while it is up
+  /// (`ChatSheetBulletins`). Mounted over the chat region; disposed with the
   /// screen, which commits an Undo still showing.
   final BulletinController _bulletins = BulletinController();
 

@@ -385,6 +385,27 @@ void main() {
       expect(handle.exit, BulletinExit.actionPressed);
     });
 
+    testWidgets('the stock action presses with the chrome ink in the accent', (
+      tester,
+    ) async {
+      h = _Harness();
+      await tester.pumpWidget(h.app());
+      h.controller.show(
+        Bulletin(
+          message: 'GIF saved',
+          action: BulletinAction.button(label: 'View', onPressed: () {}),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final ink = tester.widget<ChromeInk>(
+        find.ancestor(of: find.text('View'), matching: find.byType(ChromeInk)),
+      );
+      expect(ink.color.a, lessThan(1));
+      expect(ink.onTap, isNotNull);
+      h.controller.dismiss();
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('the spoken dismiss action dismisses', (tester) async {
       h = _Harness();
       final semantics = tester.ensureSemantics();

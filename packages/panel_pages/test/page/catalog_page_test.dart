@@ -656,6 +656,108 @@ void main() {
     });
   });
 
+  group('scroll keys', () {
+    // A catalogue far taller than the page: 100 rows of faces.
+    Future<void> pumpLong(WidgetTester tester) async {
+      final long = _source(faces: const [400]);
+      addTearDown(long.dispose);
+      await pumpPage(tester, withSource: long);
+    }
+
+    // A mouse press on the header band, away from every cell.
+    Future<void> pressWithMouse(WidgetTester tester) async {
+      final mouse = await tester.startGesture(
+        origin(tester) + const Offset(300, 4),
+        kind: PointerDeviceKind.mouse,
+      );
+      await mouse.up();
+      await tester.pump();
+    }
+
+    testWidgets('a mouse press gives the catalogue the keys, with no roving '
+        'focus: the arrows, the page keys, Home and End scroll it', (
+      tester,
+    ) async {
+      await pumpLong(tester);
+      expect(catalog().maxScrollExtent, greaterThan(400));
+
+      await pressWithMouse(tester);
+      expect(catalog().focusedLeaf, isNull);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      expect(catalog().offset, 60);
+      expect(catalog().focusedLeaf, isNull);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      expect(catalog().offset, 0);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+      await tester.pump();
+      expect(catalog().offset, closeTo(catalog().viewportExtent * 0.85, 1));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.end);
+      await tester.pump();
+      expect(catalog().offset, catalog().maxScrollExtent);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.home);
+      await tester.pump();
+      expect(catalog().offset, 0);
+    });
+
+    testWidgets(
+      'a mouse press leaves the keys with a field focused elsewhere',
+      (tester) async {
+        final field = FocusNode();
+        addTearDown(field.dispose);
+        // A focusable beside the page, as the composer is.
+        await tester.pumpWidget(
+          PanelShellTestScope(
+            child: Column(
+              children: [
+                Focus(
+                  focusNode: field,
+                  child: const SizedBox(width: 20, height: 20),
+                ),
+                SizedBox(
+                  width: 320,
+                  height: 480,
+                  child: CatalogPage(
+                    host: host,
+                    source: source,
+                    policy: policy,
+                    assets: assets,
+                    bake: bake,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        field.requestFocus();
+        await tester.pump();
+
+        await pressWithMouse(tester);
+
+        expect(field.hasFocus, isTrue);
+      },
+    );
+
+    testWidgets('with roving focus the page keys still scroll', (tester) async {
+      await pumpLong(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(catalog().focusedLeaf, isNotNull);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+      await tester.pump();
+
+      expect(catalog().offset, greaterThan(0));
+    });
+  });
+
   group('across a presentation switch', () {
     testWidgets('a remounted page finds its scroll position', (tester) async {
       source.dispose();

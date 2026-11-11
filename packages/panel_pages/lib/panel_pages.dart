@@ -35,7 +35,7 @@ export 'src/input/catalog_keyboard_focus.dart';
 export 'src/menu/catalog_context_menu.dart';
 export 'src/menu/catalog_menu_icons.dart';
 export 'src/pack_sheet/emoji_pack_sheet.dart';
-export 'src/pack_sheet/pack_sheet.dart';
+export 'src/pack_sheet/pack_sheet.dart' hide PackSheetBottomBar;
 export 'src/pack_sheet/pack_sheet_action.dart';
 export 'src/pack_sheet/sticker_pack_sheet.dart';
 export 'src/page/catalog_page.dart';

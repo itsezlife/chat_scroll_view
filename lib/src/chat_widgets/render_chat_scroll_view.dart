@@ -20,11 +20,8 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_motion.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_stretch_overscroll.dart';
 import 'package:chat_scroll_view/src/chat_scroll/navigation_placement.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_data_source_ext.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_opacity_paint.dart';
@@ -49,6 +46,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:meta/meta.dart' show internal, visibleForTesting;
+import 'package:viewport_scroll/engine.dart';
+import 'package:viewport_scroll/viewport_scroll.dart';
 
 /// Parent data for a viewport child.
 ///
@@ -209,8 +208,8 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     VoidCallback? onBackgroundTap,
     ChatMessageMenuRequestCallback? onSecondaryMessageTap,
     bool Function(IChatMessage message)? isSelfMessage,
-    ChatScrollPhysics physics = const ChatScrollPhysics.stretch(),
-  }) : _motion = ChatScrollMotion(physics),
+    ViewportScrollPhysics physics = const ViewportScrollPhysics.stretch(),
+  }) : _motion = ViewportScrollMotion(physics),
        _dataSource = dataSource,
        _controller = controller,
        _selectionController = selectionController,
@@ -478,12 +477,12 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
   /// An equal value is a no-op. An unequal value cancels a fling in flight
   /// (emitting [ChatFlingEnd]), drops the edge effect to rest, and replaces
   /// the runtime; a drag in progress continues on the new pair.
-  ChatScrollPhysics get physics => _motion.physics;
-  set physics(ChatScrollPhysics value) {
+  ViewportScrollPhysics get physics => _motion.physics;
+  set physics(ViewportScrollPhysics value) {
     if (_motion.physics == value) return;
     _cancelFling();
     _cancelOverscroll();
-    _motion = ChatScrollMotion(value);
+    _motion = ViewportScrollMotion(value);
     if (hasSize) _resolveRowChromeFrame();
     markNeedsPaint();
   }
@@ -965,7 +964,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
 
   /// Runtime of [physics]: the fling runner and the edge-effect state.
   /// Replaced whole on an unequal [physics] swap.
-  ChatScrollMotion _motion;
+  ViewportScrollMotion _motion;
 
   VerticalDragGestureRecognizer? _drag;
 
@@ -1518,7 +1517,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     lastId: _children.isEmpty ? null : _children.lastKey(),
     builtMessageIds: _children.keys.toSet(),
     stretchOverscroll: switch (_motion.edge) {
-      final ChatStretchOverscroll stretch => stretch.overscroll,
+      final ViewportStretchOverscroll stretch => stretch.overscroll,
       _ => 0,
     },
     hasFloatingHeader: _floatingHeader != null,

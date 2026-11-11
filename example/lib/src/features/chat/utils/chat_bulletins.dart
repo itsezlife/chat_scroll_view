@@ -263,23 +263,26 @@ abstract final class ChatBulletins {
   /// content key drawn through the asset cache (a sticker is its own
   /// thumbnail): the Android card as glass over the chat (the card turns to
   /// glass in a chat only), the iOS blurred card, the
-  /// desktop toast.
-  static BulletinBuilders buildersFor(BulletinPolicy policy) =>
-      switch (policy) {
-        BulletinPolicy$IOS() => BulletinIOS.builders(
-          animation: _content,
-          thumbnail: _content,
-        ),
-        BulletinPolicy$Desktop() => DesktopBulletinBuilders.create(
-          animation: _content,
-          thumbnail: _content,
-        ),
-        _ => BulletinBuilders$Android.create(
-          glass: true,
-          animation: _content,
-          thumbnail: _content,
-        ),
-      };
+  /// desktop toast. Over anything but the chat ([overChat] false: a sheet)
+  /// the Android card is the plain one.
+  static BulletinBuilders buildersFor(
+    BulletinPolicy policy, {
+    bool overChat = true,
+  }) => switch (policy) {
+    BulletinPolicy$IOS() => BulletinIOS.builders(
+      animation: _content,
+      thumbnail: _content,
+    ),
+    BulletinPolicy$Desktop() => DesktopBulletinBuilders.create(
+      animation: _content,
+      thumbnail: _content,
+    ),
+    _ => BulletinBuilders$Android.create(
+      glass: overChat,
+      animation: _content,
+      thumbnail: _content,
+    ),
+  };
 
   // A content key, drawn by the asset cache over the box the builder gives
   // its leading; any other source keeps the slot empty.

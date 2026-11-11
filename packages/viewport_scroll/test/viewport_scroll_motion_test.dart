@@ -1,103 +1,109 @@
 import 'dart:math' as math;
 
-import 'package:chat_scroll_view/src/chat_scroll/chat_rubber_band_overscroll.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_motion.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_stretch_overscroll.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viewport_scroll/src/rubber_band_overscroll.dart';
+import 'package:viewport_scroll/src/stretch_overscroll.dart';
+import 'package:viewport_scroll/src/viewport_scroll_motion.dart';
+import 'package:viewport_scroll/src/viewport_scroll_physics.dart';
 
 void main() {
-  group('ChatScrollPhysics', () {
+  group('ViewportScrollPhysics', () {
     test('stretch preset pairs the spline fling with stretch', () {
-      const physics = ChatScrollPhysics.stretch();
-      expect(physics.fling, const ChatFling.spline());
-      expect(physics.edgeEffect, const ChatEdgeEffect.stretch());
+      const physics = ViewportScrollPhysics.stretch();
+      expect(physics.fling, const ViewportFling.spline());
+      expect(physics.edgeEffect, const ViewportEdgeEffect.stretch());
     });
 
     test('is value-equal across instances', () {
       // Non-const on purpose: equality must not lean on const identity.
       // ignore: prefer_const_constructors
-      final fling = ChatFling$Spline();
+      final fling = ViewportFling$Spline();
       // ignore: prefer_const_constructors
-      final edgeEffect = ChatEdgeEffect$Stretch();
-      final custom = ChatScrollPhysics(fling: fling, edgeEffect: edgeEffect);
-      expect(custom, const ChatScrollPhysics.stretch());
-      expect(custom.hashCode, const ChatScrollPhysics.stretch().hashCode);
+      final edgeEffect = ViewportEdgeEffect$Stretch();
+      final custom = ViewportScrollPhysics(
+        fling: fling,
+        edgeEffect: edgeEffect,
+      );
+      expect(custom, const ViewportScrollPhysics.stretch());
+      expect(custom.hashCode, const ViewportScrollPhysics.stretch().hashCode);
     });
 
     test('differs when any parameter differs', () {
-      const stretch = ChatScrollPhysics.stretch();
+      const stretch = ViewportScrollPhysics.stretch();
       expect(
-        const ChatScrollPhysics(
-          fling: ChatFling.spline(friction: 0.03),
-          edgeEffect: ChatEdgeEffect.stretch(),
+        const ViewportScrollPhysics(
+          fling: ViewportFling.spline(friction: 0.03),
+          edgeEffect: ViewportEdgeEffect.stretch(),
         ),
         isNot(stretch),
       );
       expect(
-        const ChatScrollPhysics(
-          fling: ChatFling.spline(),
-          edgeEffect: ChatEdgeEffect.stretch(intensity: 0.03),
+        const ViewportScrollPhysics(
+          fling: ViewportFling.spline(),
+          edgeEffect: ViewportEdgeEffect.stretch(intensity: 0.03),
         ),
         isNot(stretch),
       );
       expect(
-        const ChatScrollPhysics(
-          fling: ChatFling.spline(),
-          edgeEffect: ChatEdgeEffect.stretch(dampingRatio: 0.5),
+        const ViewportScrollPhysics(
+          fling: ViewportFling.spline(),
+          edgeEffect: ViewportEdgeEffect.stretch(dampingRatio: 0.5),
         ),
         isNot(stretch),
       );
     });
 
     test('rubber-band preset pairs the decay fling with rubber-band', () {
-      const physics = ChatScrollPhysics.rubberBand();
-      expect(physics.fling, const ChatFling.decay());
-      expect(physics.edgeEffect, const ChatEdgeEffect.rubberBand());
+      const physics = ViewportScrollPhysics.rubberBand();
+      expect(physics.fling, const ViewportFling.decay());
+      expect(physics.edgeEffect, const ViewportEdgeEffect.rubberBand());
     });
 
     test('clamped preset pairs the spline fling with no edge effect', () {
-      const physics = ChatScrollPhysics.clamped();
-      expect(physics.fling, const ChatFling.spline());
-      expect(physics.edgeEffect, const ChatEdgeEffect.none());
+      const physics = ViewportScrollPhysics.clamped();
+      expect(physics.fling, const ViewportFling.spline());
+      expect(physics.edgeEffect, const ViewportEdgeEffect.none());
     });
 
     test('new variants are value-equal and parameter-sensitive', () {
       // ignore: prefer_const_constructors
-      expect(ChatFling$Decay(), const ChatFling.decay());
+      expect(ViewportFling$Decay(), const ViewportFling.decay());
       expect(
-        const ChatFling.decay(decelerationRate: 0.99),
-        isNot(const ChatFling.decay()),
+        const ViewportFling.decay(decelerationRate: 0.99),
+        isNot(const ViewportFling.decay()),
       );
       // ignore: prefer_const_constructors
-      expect(ChatEdgeEffect$RubberBand(), const ChatEdgeEffect.rubberBand());
       expect(
-        const ChatEdgeEffect.rubberBand(resistance: 0.3),
-        isNot(const ChatEdgeEffect.rubberBand()),
+        const ViewportEdgeEffect$RubberBand(),
+        const ViewportEdgeEffect.rubberBand(),
+      );
+      expect(
+        const ViewportEdgeEffect.rubberBand(resistance: 0.3),
+        isNot(const ViewportEdgeEffect.rubberBand()),
       );
       // ignore: prefer_const_constructors
-      expect(ChatEdgeEffect$None(), const ChatEdgeEffect.none());
+      expect(ViewportEdgeEffect$None(), const ViewportEdgeEffect.none());
       expect(
-        const ChatEdgeEffect.none(),
-        isNot(const ChatEdgeEffect.rubberBand()),
+        const ViewportEdgeEffect.none(),
+        isNot(const ViewportEdgeEffect.rubberBand()),
       );
     });
 
     test('platform default follows the OS family', () {
-      const expected = <TargetPlatform, ChatScrollPhysics>{
-        TargetPlatform.android: ChatScrollPhysics.stretch(),
-        TargetPlatform.fuchsia: ChatScrollPhysics.stretch(),
-        TargetPlatform.iOS: ChatScrollPhysics.rubberBand(),
-        TargetPlatform.macOS: ChatScrollPhysics.rubberBand(),
-        TargetPlatform.windows: ChatScrollPhysics.clamped(),
-        TargetPlatform.linux: ChatScrollPhysics.clamped(),
+      const expected = <TargetPlatform, ViewportScrollPhysics>{
+        TargetPlatform.android: ViewportScrollPhysics.stretch(),
+        TargetPlatform.fuchsia: ViewportScrollPhysics.stretch(),
+        TargetPlatform.iOS: ViewportScrollPhysics.rubberBand(),
+        TargetPlatform.macOS: ViewportScrollPhysics.rubberBand(),
+        TargetPlatform.windows: ViewportScrollPhysics.clamped(),
+        TargetPlatform.linux: ViewportScrollPhysics.clamped(),
       };
       for (final MapEntry(key: platform, value: physics) in expected.entries) {
         expect(
-          ChatScrollPhysics.forPlatform(platform: platform),
+          ViewportScrollPhysics.forPlatform(platform: platform),
           physics,
           reason: '$platform',
         );
@@ -108,14 +114,14 @@ void main() {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       addTearDown(() => debugDefaultTargetPlatformOverride = null);
       expect(
-        ChatScrollPhysics.forPlatform(),
-        const ChatScrollPhysics.rubberBand(),
+        ViewportScrollPhysics.forPlatform(),
+        const ViewportScrollPhysics.rubberBand(),
       );
     });
   });
 
-  group('ChatFlingMotion', () {
-    double travel(ChatFlingMotion motion, double velocity) {
+  group('ViewportFlingMotion', () {
+    double travel(ViewportFlingMotion motion, double velocity) {
       motion.startFling(velocity);
       var elapsed = Duration.zero;
       var total = 0.0;
@@ -127,19 +133,22 @@ void main() {
     }
 
     test('spline friction tunes travel distance', () {
-      final standard = travel(ChatFlingMotion(), 3000);
+      final standard = travel(ViewportFlingMotion(), 3000);
       final heavy = travel(
-        ChatFlingMotion(const ChatFling.spline(friction: 0.03)),
+        ViewportFlingMotion(const ViewportFling.spline(friction: 0.03)),
         3000,
       );
       expect(
         standard,
-        closeTo(ChatSplineFlingSimulation(velocity: 3000).distance, 0.5),
+        closeTo(ViewportSplineFlingSimulation(velocity: 3000).distance, 0.5),
       );
       expect(
         heavy,
         closeTo(
-          ChatSplineFlingSimulation(velocity: 3000, friction: 0.03).distance,
+          ViewportSplineFlingSimulation(
+            velocity: 3000,
+            friction: 0.03,
+          ).distance,
           0.5,
         ),
       );
@@ -147,7 +156,10 @@ void main() {
     });
 
     test('decay travels as far as the ideal friction curve', () {
-      final normal = travel(ChatFlingMotion(const ChatFling.decay()), 3000);
+      final normal = travel(
+        ViewportFlingMotion(const ViewportFling.decay()),
+        3000,
+      );
       final ideal = FrictionSimulation(0.135, 0, 3000).finalX;
       // The tail below the stop velocity is dropped: v / ln(1 / drag) px.
       expect(normal, lessThan(ideal));
@@ -155,7 +167,8 @@ void main() {
     });
 
     test('decay ends once speed falls below 10 px/s', () {
-      final motion = ChatFlingMotion(const ChatFling.decay())..startFling(3000);
+      final motion = ViewportFlingMotion(const ViewportFling.decay())
+        ..startFling(3000);
       var elapsed = Duration.zero;
       motion.tickFling(elapsed);
       while (motion.isFlinging) {
@@ -168,9 +181,12 @@ void main() {
     });
 
     test('decay deceleration rate tunes travel', () {
-      final normal = travel(ChatFlingMotion(const ChatFling.decay()), 3000);
+      final normal = travel(
+        ViewportFlingMotion(const ViewportFling.decay()),
+        3000,
+      );
       final fast = travel(
-        ChatFlingMotion(const ChatFling.decay(decelerationRate: 0.99)),
+        ViewportFlingMotion(const ViewportFling.decay(decelerationRate: 0.99)),
         3000,
       );
       expect(fast, lessThan(normal / 3));
@@ -178,7 +194,7 @@ void main() {
 
     test('a fling counted from the release frame moves on its first tick', () {
       const release = Duration(milliseconds: 500);
-      final motion = ChatFlingMotion()..startFling(3000, since: release);
+      final motion = ViewportFlingMotion()..startFling(3000, since: release);
       final first = motion.tickFling(
         release + const Duration(microseconds: 8333),
       );
@@ -187,7 +203,7 @@ void main() {
     });
 
     test('a fling without a release frame starts on its first tick', () {
-      final motion = ChatFlingMotion()
+      final motion = ViewportFlingMotion()
         ..startFling(3000, since: const Duration(seconds: 2));
       // A `since` past the first tick (a restarted ticker) is ignored.
       expect(motion.tickFling(const Duration(milliseconds: 100)), 0);
@@ -195,7 +211,7 @@ void main() {
     });
 
     test('decay velocity decays by the rate per millisecond', () {
-      final motion = ChatFlingMotion(const ChatFling.decay())
+      final motion = ViewportFlingMotion(const ViewportFling.decay())
         ..startFling(3000)
         ..tickFling(Duration.zero);
       expect(motion.flingVelocity(Duration.zero), closeTo(3000, 1e-6));
@@ -206,29 +222,35 @@ void main() {
     });
   });
 
-  group('ChatScrollMotion', () {
+  group('ViewportScrollMotion', () {
     test('stretch physics runs a stretch edge effect', () {
-      final motion = ChatScrollMotion(const ChatScrollPhysics.stretch());
-      expect(motion.physics, const ChatScrollPhysics.stretch());
-      expect(motion.edge, isA<ChatStretchOverscroll>());
+      final motion = ViewportScrollMotion(
+        const ViewportScrollPhysics.stretch(),
+      );
+      expect(motion.physics, const ViewportScrollPhysics.stretch());
+      expect(motion.edge, isA<ViewportStretchOverscroll>());
       expect(motion.fling.isFlinging, isFalse);
     });
 
     test('rubber-band physics runs a rubber-band edge effect', () {
-      final motion = ChatScrollMotion(const ChatScrollPhysics.rubberBand());
-      expect(motion.edge, isA<ChatRubberBandOverscroll>());
-      expect(motion.fling.fling, const ChatFling.decay());
+      final motion = ViewportScrollMotion(
+        const ViewportScrollPhysics.rubberBand(),
+      );
+      expect(motion.edge, isA<ViewportRubberBandOverscroll>());
+      expect(motion.fling.fling, const ViewportFling.decay());
     });
 
     test('clamped physics runs the no-overscroll state', () {
-      final motion = ChatScrollMotion(const ChatScrollPhysics.clamped());
-      expect(motion.edge, isA<ChatNoOverscroll>());
+      final motion = ViewportScrollMotion(
+        const ViewportScrollPhysics.clamped(),
+      );
+      expect(motion.edge, isA<ViewportNoOverscroll>());
     });
   });
 
   group('none edge effect contract', () {
     test('never paints, never claims, always allows the fling', () {
-      const none = ChatNoOverscroll();
+      const none = ViewportNoOverscroll();
       none
         ..onDragStart()
         ..pull(400, 800)
@@ -245,7 +267,7 @@ void main() {
   group('rubber-band edge effect contract', () {
     /// Ticks [band] at 60 Hz until its spring stops; returns the peak
     /// displacement magnitude seen on the way.
-    double runSpring(ChatRubberBandOverscroll band) {
+    double runSpring(ViewportRubberBandOverscroll band) {
       var elapsed = Duration.zero;
       var peak = band.displacement.abs();
       while (band.tick(elapsed)) {
@@ -257,8 +279,8 @@ void main() {
     }
 
     test('pull translates with growing resistance', () {
-      final small = ChatRubberBandOverscroll()..pull(100, 800);
-      final large = ChatRubberBandOverscroll()..pull(400, 800);
+      final small = ViewportRubberBandOverscroll()..pull(100, 800);
+      final large = ViewportRubberBandOverscroll()..pull(400, 800);
       expect(small.displacement, greaterThan(0));
       expect(small.displacement, lessThan(100));
       expect(large.displacement, greaterThan(small.displacement));
@@ -275,13 +297,13 @@ void main() {
     test('pull follows the band curve d·c·x / (d + c·x)', () {
       const c = 0.55;
       const d = 800.0;
-      final band = ChatRubberBandOverscroll()..pull(-300, d);
+      final band = ViewportRubberBandOverscroll()..pull(-300, d);
       expect(band.displacement, closeTo(-(d * c * 300) / (d + c * 300), 1e-9));
     });
 
     test('pull is path-independent', () {
-      final once = ChatRubberBandOverscroll()..pull(300, 800);
-      final steps = ChatRubberBandOverscroll();
+      final once = ViewportRubberBandOverscroll()..pull(300, 800);
+      final steps = ViewportRubberBandOverscroll();
       for (var i = 0; i < 30; i++) {
         steps.pull(10, 800);
       }
@@ -289,15 +311,15 @@ void main() {
     });
 
     test('resistance tunes the pull response', () {
-      final standard = ChatRubberBandOverscroll()..pull(300, 800);
-      final stiff = ChatRubberBandOverscroll(
-        const ChatEdgeEffect$RubberBand(resistance: 0.3),
+      final standard = ViewportRubberBandOverscroll()..pull(300, 800);
+      final stiff = ViewportRubberBandOverscroll(
+        const ViewportEdgeEffect$RubberBand(resistance: 0.3),
       )..pull(300, 800);
       expect(stiff.displacement, lessThan(standard.displacement));
     });
 
     test('claim consumes reverse motion before content travels', () {
-      final band = ChatRubberBandOverscroll()..pull(300, 800);
+      final band = ViewportRubberBandOverscroll()..pull(300, 800);
       final before = band.displacement;
       expect(band.claim(-50, 800, travel: 50), 0);
       expect(band.displacement, greaterThan(0));
@@ -306,30 +328,30 @@ void main() {
     });
 
     test('claim returns the reverse motion left past the pin', () {
-      final band = ChatRubberBandOverscroll()..pull(300, 800);
+      final band = ViewportRubberBandOverscroll()..pull(300, 800);
       expect(band.claim(-500, 800, travel: 500), closeTo(-200, 1e-9));
       expect(band.displacement, 0);
       expect(band.isActive, isFalse);
     });
 
     test('claim leaves motion toward the pressed edge alone', () {
-      final band = ChatRubberBandOverscroll()..pull(300, 800);
+      final band = ViewportRubberBandOverscroll()..pull(300, 800);
       final before = band.displacement;
       expect(band.claim(10, 800, travel: 0), 10);
       expect(band.displacement, before);
     });
 
     test('claim at rest is a pass-through', () {
-      expect(ChatRubberBandOverscroll().claim(-10, 800, travel: 10), -10);
+      expect(ViewportRubberBandOverscroll().claim(-10, 800, travel: 10), -10);
     });
 
     test('onDragEnd at rest allows the content fling', () {
-      expect(ChatRubberBandOverscroll().onDragEnd(3000), isTrue);
+      expect(ViewportRubberBandOverscroll().onDragEnd(3000), isTrue);
     });
 
     test('a still or outward release springs back and blocks the fling', () {
       for (final velocity in [-40.0, 0.0, 3000.0]) {
-        final band = ChatRubberBandOverscroll()..pull(300, 800);
+        final band = ViewportRubberBandOverscroll()..pull(300, 800);
         expect(band.onDragEnd(velocity), isFalse, reason: 'v=$velocity');
         expect(band.isSpringing, isTrue);
         runSpring(band);
@@ -339,7 +361,7 @@ void main() {
     });
 
     test('a flick toward content keeps the displacement for the fling', () {
-      final band = ChatRubberBandOverscroll()..pull(300, 800);
+      final band = ViewportRubberBandOverscroll()..pull(300, 800);
       final pulled = band.displacement;
       expect(band.onDragEnd(-3000), isTrue);
       expect(band.isSpringing, isFalse);
@@ -352,7 +374,7 @@ void main() {
     });
 
     test('an outward release launches at the layer speed, not the finger', () {
-      final band = ChatRubberBandOverscroll()..pull(300, 800);
+      final band = ViewportRubberBandOverscroll()..pull(300, 800);
       final pulled = band.displacement;
       // Band slope at displacement b: c · ((d − b) / d)².
       final slope = 0.55 * math.pow((800 - pulled) / 800, 2);
@@ -365,7 +387,7 @@ void main() {
     });
 
     test('a spring starts at the previous frame, never a stale one', () {
-      final band = ChatRubberBandOverscroll()..pull(300, 800);
+      final band = ViewportRubberBandOverscroll()..pull(300, 800);
       final pulled = band.displacement;
       band
         ..tick(const Duration(milliseconds: 1000))
@@ -373,14 +395,14 @@ void main() {
         ..tick(const Duration(milliseconds: 1016));
       expect(band.displacement, lessThan(pulled), reason: 'one frame in');
 
-      final restarted = ChatRubberBandOverscroll()..pull(300, 800);
+      final restarted = ViewportRubberBandOverscroll()..pull(300, 800);
       restarted
         ..tick(const Duration(seconds: 5))
         ..onDragEnd(0)
         ..tick(Duration.zero);
       expect(restarted.displacement, pulled, reason: 'ticker restarted');
 
-      final idled = ChatRubberBandOverscroll()..pull(300, 800);
+      final idled = ViewportRubberBandOverscroll()..pull(300, 800);
       idled
         ..tick(Duration.zero)
         ..onDragEnd(0)
@@ -389,8 +411,8 @@ void main() {
     });
 
     test('the return from a still release is critically damped', () {
-      expect(const ChatEdgeEffect$RubberBand().dampingRatio, 1);
-      final band = ChatRubberBandOverscroll()..pull(300, 800);
+      expect(const ViewportEdgeEffect$RubberBand().dampingRatio, 1);
+      final band = ViewportRubberBandOverscroll()..pull(300, 800);
       band.onDragEnd(0);
       var elapsed = Duration.zero;
       while (band.tick(elapsed)) {
@@ -403,15 +425,15 @@ void main() {
     test('a faster impact always bounces further', () {
       final peaks = [
         for (final v in [3000.0, 5500.0, 8000.0])
-          runSpring(ChatRubberBandOverscroll()..absorbImpact(v)),
+          runSpring(ViewportRubberBandOverscroll()..absorbImpact(v)),
       ];
       expect(peaks[1], greaterThan(peaks[0] * 1.5));
       expect(peaks[2], greaterThan(peaks[1] * 1.3));
     });
 
     test('the return never crosses rest into the opposite edge', () {
-      final band = ChatRubberBandOverscroll(
-        const ChatEdgeEffect$RubberBand(dampingRatio: 0.3),
+      final band = ViewportRubberBandOverscroll(
+        const ViewportEdgeEffect$RubberBand(dampingRatio: 0.3),
       )..pull(300, 800);
       band.onDragEnd(0);
       var elapsed = Duration.zero;
@@ -423,8 +445,8 @@ void main() {
     });
 
     test('absorbImpact overshoots by leftover velocity, then settles', () {
-      final slow = ChatRubberBandOverscroll()..absorbImpact(1000);
-      final fast = ChatRubberBandOverscroll()..absorbImpact(4000);
+      final slow = ViewportRubberBandOverscroll()..absorbImpact(1000);
+      final fast = ViewportRubberBandOverscroll()..absorbImpact(4000);
       final slowPeak = runSpring(slow);
       final fastPeak = runSpring(fast);
       expect(slowPeak, greaterThan(1));
@@ -433,7 +455,7 @@ void main() {
     });
 
     test('absorbImpact moves toward the pin it hit', () {
-      final bottom = ChatRubberBandOverscroll()..absorbImpact(-3000);
+      final bottom = ViewportRubberBandOverscroll()..absorbImpact(-3000);
       bottom
         ..tick(Duration.zero)
         ..tick(const Duration(milliseconds: 50));
@@ -441,12 +463,12 @@ void main() {
     });
 
     test('absorbImpact ignores a near-zero leftover velocity', () {
-      final band = ChatRubberBandOverscroll()..absorbImpact(10);
+      final band = ViewportRubberBandOverscroll()..absorbImpact(10);
       expect(band.isActive, isFalse);
     });
 
     test('onDragStart during a spring freezes the displacement', () {
-      final band = ChatRubberBandOverscroll()..pull(300, 800);
+      final band = ViewportRubberBandOverscroll()..pull(300, 800);
       band
         ..onDragEnd(0)
         ..tick(Duration.zero)
@@ -460,16 +482,16 @@ void main() {
     });
 
     test('a caught displacement resumes on the same curve', () {
-      final caught = ChatRubberBandOverscroll()..pull(300, 800);
+      final caught = ViewportRubberBandOverscroll()..pull(300, 800);
       caught
         ..onDragStart()
         ..pull(100, 800);
-      final straight = ChatRubberBandOverscroll()..pull(400, 800);
+      final straight = ViewportRubberBandOverscroll()..pull(400, 800);
       expect(caught.displacement, closeTo(straight.displacement, 1e-9));
     });
 
     test('reset drops the displacement and the spring', () {
-      final band = ChatRubberBandOverscroll()
+      final band = ViewportRubberBandOverscroll()
         ..pull(300, 800)
         ..onDragEnd(0)
         ..reset();
@@ -478,7 +500,7 @@ void main() {
     });
 
     test('paintTransform translates the message layer', () {
-      final band = ChatRubberBandOverscroll()..pull(-300, 800);
+      final band = ViewportRubberBandOverscroll()..pull(-300, 800);
       final matrix = band.paintTransform(const Size(400, 800))!;
       expect(
         MatrixUtils.transformPoint(matrix, const Offset(10, 700)),
@@ -489,7 +511,7 @@ void main() {
 
   group('stretch edge effect contract', () {
     test('a spring starts at the previous frame, never a stale one', () {
-      final stretch = ChatStretchOverscroll()..pull(400, 800);
+      final stretch = ViewportStretchOverscroll()..pull(400, 800);
       final pulled = stretch.overscroll;
       stretch
         ..tick(const Duration(milliseconds: 1000))
@@ -497,7 +519,7 @@ void main() {
         ..tick(const Duration(milliseconds: 1016));
       expect(stretch.overscroll, lessThan(pulled), reason: 'one frame in');
 
-      final restarted = ChatStretchOverscroll()..pull(400, 800);
+      final restarted = ViewportStretchOverscroll()..pull(400, 800);
       restarted
         ..tick(const Duration(seconds: 5))
         ..onDragEnd(0)
@@ -506,20 +528,20 @@ void main() {
     });
 
     test('claim passes reverse motion through and starts the release', () {
-      final stretch = ChatStretchOverscroll()..pull(400, 800);
+      final stretch = ViewportStretchOverscroll()..pull(400, 800);
       expect(stretch.overscroll, greaterThan(0));
       expect(stretch.claim(-10, 800, travel: 10), -10);
       expect(stretch.isSpringing, isTrue);
     });
 
     test('claim leaves motion toward the pressed edge alone', () {
-      final stretch = ChatStretchOverscroll()..pull(400, 800);
+      final stretch = ViewportStretchOverscroll()..pull(400, 800);
       expect(stretch.claim(10, 800, travel: 10), 10);
       expect(stretch.isSpringing, isFalse);
     });
 
     test('claim does not release on sub-pixel travel into content', () {
-      final stretch = ChatStretchOverscroll()..pull(400, 800);
+      final stretch = ViewportStretchOverscroll()..pull(400, 800);
       expect(stretch.claim(-0.5, 800, travel: 0.5), -0.5);
       expect(stretch.isSpringing, isFalse);
     });
@@ -527,31 +549,31 @@ void main() {
     test('claim does not release when reverse motion spills past a pin', () {
       // Short content: no travel either way, so the reverse delta lands as
       // pull at the opposite edge instead.
-      final stretch = ChatStretchOverscroll()..pull(400, 800);
+      final stretch = ViewportStretchOverscroll()..pull(400, 800);
       expect(stretch.claim(-10, 800, travel: 0), -10);
       expect(stretch.isSpringing, isFalse);
     });
 
     test('claim at rest is a pass-through', () {
-      final stretch = ChatStretchOverscroll();
+      final stretch = ViewportStretchOverscroll();
       expect(stretch.claim(-10, 800, travel: 10), -10);
       expect(stretch.isActive, isFalse);
     });
 
     test('onDragEnd answers whether a content fling may start', () {
-      expect(ChatStretchOverscroll().onDragEnd(2000), isTrue);
+      expect(ViewportStretchOverscroll().onDragEnd(2000), isTrue);
       expect(
-        (ChatStretchOverscroll()..pull(-400, 800)).onDragEnd(4000),
+        (ViewportStretchOverscroll()..pull(-400, 800)).onDragEnd(4000),
         isTrue,
         reason: 'reverse velocity clears the stretch so content can fling',
       );
       expect(
-        (ChatStretchOverscroll()..pull(-400, 800)).onDragEnd(-4000),
+        (ViewportStretchOverscroll()..pull(-400, 800)).onDragEnd(-4000),
         isFalse,
         reason: 'same-direction velocity absorbs into the stretch',
       );
       expect(
-        (ChatStretchOverscroll()..pull(-400, 800)).onDragEnd(0),
+        (ViewportStretchOverscroll()..pull(-400, 800)).onDragEnd(0),
         isFalse,
         reason: 'a soft release springs back from the stretch',
       );
@@ -559,14 +581,14 @@ void main() {
 
     test('paintTransform is null at rest', () {
       expect(
-        ChatStretchOverscroll().paintTransform(const Size(400, 800)),
+        ViewportStretchOverscroll().paintTransform(const Size(400, 800)),
         isNull,
       );
     });
 
     test('paintTransform scales from the pressed edge', () {
       const size = Size(400, 800);
-      final top = ChatStretchOverscroll()..pull(400, 800);
+      final top = ViewportStretchOverscroll()..pull(400, 800);
       final topMatrix = top.paintTransform(size)!;
       expect(MatrixUtils.transformPoint(topMatrix, Offset.zero).dy, 0);
       expect(
@@ -574,7 +596,7 @@ void main() {
         closeTo(100 * (1 + top.overscroll), 1e-9),
       );
 
-      final bottom = ChatStretchOverscroll()..pull(-400, 800);
+      final bottom = ViewportStretchOverscroll()..pull(-400, 800);
       final bottomMatrix = bottom.paintTransform(size)!;
       expect(
         MatrixUtils.transformPoint(bottomMatrix, const Offset(0, 800)).dy,
@@ -587,7 +609,7 @@ void main() {
     });
 
     test('onDragStart during a spring freezes the stretch in place', () {
-      final stretch = ChatStretchOverscroll()..pull(400, 800);
+      final stretch = ViewportStretchOverscroll()..pull(400, 800);
       stretch
         ..onDragEnd(0)
         ..tick(const Duration(milliseconds: 16))
@@ -602,9 +624,9 @@ void main() {
     });
 
     test('intensity tunes the pull response', () {
-      final standard = ChatStretchOverscroll()..pull(400, 800);
-      final doubled = ChatStretchOverscroll(
-        const ChatEdgeEffect$Stretch(intensity: 0.032),
+      final standard = ViewportStretchOverscroll()..pull(400, 800);
+      final doubled = ViewportStretchOverscroll(
+        const ViewportEdgeEffect$Stretch(intensity: 0.032),
       )..pull(400, 800);
       expect(doubled.overscroll, closeTo(standard.overscroll * 2, 1e-9));
     });

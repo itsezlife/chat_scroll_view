@@ -18,6 +18,7 @@ API.
 **Amended**: 2026-11-09 — a `swipe_pager` leaf: the horizontal pager with the reference mobile client's swipe rules, depended on by `panel_shell`; held by convention (the dependency lint is not extended for it)  
 **Amended**: 2026-11-09 — `content_model` gains the `PackSource`, `ContentLibrary` and `LibraryStorage` seams; `panel_pages` holds the content preview and the pack sheets ([ADR 044](044-content-library-packs-and-preview.md)); no edge changes  
 **Amended**: 2026-11-09 — a `bulletins` package: transient notices over a surface ([ADR 045](045-bulletins.md)), depending on `chrome_foundation` only; held by convention (the dependency lint is not extended for it)  
+**Amended**: 2026-11-12 (native-media tickets 218, 220) — a `viewport_scroll` leaf: the scroll physics (value, fling runner, edge-effect seam and strategies, formerly the root package's `ChatScrollPhysics` family, renamed `ViewportScrollPhysics`) and the keyboard scroll keys, depended on by the root package and `panel_catalog` (the panel catalogue scrolls as the chat does) and by `panel_pages` (its keys); held by convention (the dependency lint is not extended for it)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (package list in its Decided table is replaced by this one), [ADR 007](007-keyboard-panel-controller.md), [ADR 012](012-cross-platform-selection-policies.md)
 
 ## Decided
@@ -27,7 +28,8 @@ API.
 | `content_model` | Pure-Dart leaf (its only non-SDK dependencies are `meta` and `listen`, which are not workspace packages). Content identity, collections, data seams (`CollectionSource`, `SearchSource`, `RecentsStore`, `PreferenceStore`, `KeywordSource`, `GlyphSupport`, `KeyValueStore`, `ContentResolver`, `RichClipboard`, `PackSource`, `ContentLibrary`, `LibraryStorage`), reference stores, fakes and contract suites, the inline content ref and the rich-text value, opt-in `markdown.dart` | none |
 | `chrome_foundation` | Leaf. Palette, token groups, theme scope, motion roles, strings scope, icon registry, glass. Nothing chat-specific | none |
 | `catalog_assets` | Asset cache core: paintable, spec and profile, staged readiness, tiered LRU, playback clock, fetcher and decoder seams, baked glyph atlas, scope, content embed | `content_model` |
-| `panel_catalog` | Catalog viewport. Public seams per [ADR 024](024-panel-catalog-seams.md) | `content_model`, `catalog_assets` |
+| `viewport_scroll` | Leaf. A viewport's user-driven scroll: the scroll physics (fling and edge effect, a preset per platform family), their runtime for a viewport that runs them (`engine.dart`), and the keyboard scroll keys. Nothing chat or panel specific | none (`flutter` only) |
+| `panel_catalog` | Catalog viewport. Public seams per [ADR 024](024-panel-catalog-seams.md) | `content_model`, `catalog_assets`, `viewport_scroll` |
 | `emoji_data` | Emoji-specific logic only: structure and keyword loaders, emoji `CollectionSource`, merged search, variants, pure-Dart glyph probe. No assets, no native code | `content_model` |
 | `emoji_catalog_pack` | Catalog structure and per-locale keyword pack assets, plus the pinned generator under `tool/` | `content_model` |
 | `kv_shared_preferences` | `shared_preferences`-backed `KeyValueStore` adapter | `content_model` |
@@ -46,7 +48,7 @@ API.
 | `chat_composer` | Slot-based composer, input-only controller, entity-aware text controller with formatting commands, selection menu, input query; renders through `composer_editable` | `chrome_foundation`, `content_model`, `catalog_assets`, `composer_editable` |
 | `bulletins` | Bulletins: the bulletin value, the per-surface controller with commit on leave, the host mount with the bottom obstruction seam, the per-platform presentation policy and the stock builders ([ADR 045](045-bulletins.md)). Nothing chat, panel or content specific | `chrome_foundation` |
 | `golden_baseline` | Leaf, test support only. `useGoldenBaselines` and the comparator that holds golden baselines to the CI runner | none (`flutter`, `flutter_test`) |
-| `chat_scroll_view` (repo root) | The anchor viewport and its markdown bodies: message and text selection, inline hits, the embed adapter, spoiler wiring, `ChatEmojiBody`. Consumes the markdown engine fork by git ref ([ADR 035](035-markdown-engine-fork.md)), which is not a workspace package | `catalog_assets`, `content_model` |
+| `chat_scroll_view` (repo root) | The anchor viewport and its markdown bodies: message and text selection, inline hits, the embed adapter, spoiler wiring, `ChatEmojiBody`. Consumes the markdown engine fork by git ref ([ADR 035](035-markdown-engine-fork.md)), which is not a workspace package | `catalog_assets`, `content_model`, `viewport_scroll` |
 
 Codec and fetcher adapters (Lottie, WebM, WebP, network, disk) are separate
 packages created when needed; the Lottie and video decoders are specified in

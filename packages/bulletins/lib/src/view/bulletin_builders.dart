@@ -223,7 +223,8 @@ final class BulletinBuilders {
   }
 
   /// The action as accent text: Undo labelled from the strings, a button
-  /// with its own label. Pressing it presses the handle's action.
+  /// with its own label. Pressing it presses the handle's action, with the
+  /// platform's chrome ink in the accent.
   static Widget stockAction(BuildContext context, BulletinView view) {
     final label = switch (view.bulletin.action) {
       BulletinAction$Undo() => view.strings.undoAction,
@@ -231,17 +232,20 @@ final class BulletinBuilders {
       null => null,
     };
     if (label == null) return const SizedBox.shrink();
+    final accent = view.tokens.accent;
     return Semantics(
       button: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: ChromeInk(
+        color: accent.withAlpha(0x19),
+        hoverColor: accent.withAlpha(0x0F),
+        borderRadius: BorderRadius.circular(6),
         onTap: view.handle.pressAction,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text(
             label,
             style: TextStyle(
-              color: view.tokens.accent,
+              color: accent,
               fontSize: view.policy.titleTextSize,
               fontWeight: FontWeight.w600,
             ),

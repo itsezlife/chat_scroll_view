@@ -198,10 +198,14 @@ class _PasteChip extends StatelessWidget {
           child: Transform.scale(scale: 0.7 + 0.3 * curved.value, child: child),
         ),
       ),
-      child: Material(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        child: InkWell(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: ChromeInk(
+          color: color.withValues(alpha: 0.12),
+          hoverColor: color.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(6),
           onTap: onTap,
           child: SizedBox(

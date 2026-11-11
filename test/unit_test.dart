@@ -24,10 +24,7 @@ import 'chat_range_fetch_test.dart' as chat_range_fetch_test;
 import 'chat_scroll_activity_clock_test.dart'
     as chat_scroll_activity_clock_test;
 import 'chat_scroll_chunk_test.dart' as chat_scroll_chunk_test;
-import 'chat_scroll_motion_test.dart' as chat_scroll_motion_test;
-import 'chat_scroll_physics_test.dart' as chat_scroll_physics_test;
 import 'chat_sender_run_layout_test.dart' as chat_sender_run_layout_test;
-import 'chat_stretch_overscroll_test.dart' as chat_stretch_overscroll_test;
 import 'emoji/chat_emoji_body_test.dart' as chat_emoji_body_test;
 import 'emoji/chat_emoji_body_viewport_test.dart'
     as chat_emoji_body_viewport_test;
@@ -209,10 +206,7 @@ void main() {
     chat_scroll_activity_clock_test.main,
   );
   group('chat_scroll_chunk_test.dart', chat_scroll_chunk_test.main);
-  group('chat_scroll_motion_test.dart', chat_scroll_motion_test.main);
-  group('chat_scroll_physics_test.dart', chat_scroll_physics_test.main);
   group('chat_sender_run_layout_test.dart', chat_sender_run_layout_test.main);
-  group('chat_stretch_overscroll_test.dart', chat_stretch_overscroll_test.main);
   group('emoji/chat_emoji_body_test.dart', chat_emoji_body_test.main);
   group(
     'emoji/chat_emoji_body_viewport_test.dart',

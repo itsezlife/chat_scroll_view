@@ -348,36 +348,28 @@ void main() {
       expect(handle.exit, BulletinExit.undone);
     });
 
-    testWidgets('a pressed action shows the accent highlight', (tester) async {
+    testWidgets('the action presses with the chrome ink: the accent at 0x19 '
+        'in a 6 radius', (tester) async {
       h = AndroidHarness();
+      var presses = 0;
       await show(
         tester,
         Bulletin(
           message: 'GIF saved',
-          action: BulletinAction.button(label: 'View', onPressed: () {}),
+          action: BulletinAction.button(
+            label: 'View',
+            onPressed: () => presses++,
+          ),
         ),
       );
-      Color? highlight() {
-        final box = tester.widget<DecoratedBox>(
-          find
-              .ancestor(
-                of: find.text('View'),
-                matching: find.byType(DecoratedBox),
-              )
-              .first,
-        );
-        return (box.decoration as BoxDecoration).color;
-      }
-
-      expect(highlight()?.a ?? 0, 0);
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.text('View')),
+      final ink = tester.widget<ChromeInk>(
+        find.ancestor(of: find.text('View'), matching: find.byType(ChromeInk)),
       );
-      await tester.pump();
-      expect(highlight(), const Color(0x1985CAFF));
-      await gesture.cancel();
-      await tester.pump();
-      expect(highlight()?.a ?? 0, 0);
+      expect(ink.color, const Color(0x1985CAFF));
+      expect(ink.borderRadius, BorderRadius.circular(6));
+
+      await tester.tap(find.text('View'));
+      expect(presses, 1);
     });
   });
 }

@@ -6,6 +6,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
 import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_confirm_box.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_sheet_bulletins.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -20,9 +21,10 @@ typedef PackFeedback = ({String title, String info});
 /// bulletin after it, and what the sheet picks.
 ///
 /// The sheet asks; the host applies each edit to [AppServices.library] and
-/// shows one bulletin for the button's edits through the chat's
-/// `BulletinController` (a sheet's bulletins show on the screen under it),
-/// with Undo when they took packs away. The bulletin's layout: the pack's
+/// shows one bulletin for the button's edits, with Undo when they took packs
+/// away. A bulletin raised while the sheet is up shows over the sheet, above
+/// its bottom bar ([ChatSheetBulletins]); one raised as it closes (the
+/// button's) on the chat, through the chat's `BulletinController`. The bulletin's layout: the pack's
 /// cover leads it, a removal or an archiving
 /// stays [BulletinDuration.long] (2750 ms) and an addition
 /// [BulletinDuration.short] (1500 ms).
@@ -135,18 +137,22 @@ abstract final class ChatPackSheets {
     ValueChanged<ContentDescriptor>? onCopy,
     ContentKey? previewEmoji,
   }) {
+    // A bulletin raised while the sheet is up shows over it, above its
+    // bottom bar; one raised as it closes (the button's edit) on the screen.
+    final sheetBulletins = ChatSheetBulletins(bulletins);
     // Favourites from the sheet's preview: at once, as from the panel's, and
     // shown at once by the panel under the sheet, with their bulletin.
     void libraryEdit(LibraryEdit edit) {
       final applied = services.libraryShown.apply(edit);
+      final target = sheetBulletins.target;
       if (libraryEditBulletin(
             applied,
             limits: services.library.limits,
-            bulletins: bulletins,
+            bulletins: target,
             platform: platform,
           )
           case final bulletin?) {
-        bulletins?.show(bulletin);
+        target?.show(bulletin);
       }
     }
 
@@ -168,7 +174,7 @@ abstract final class ChatPackSheets {
                 services.library,
                 requests,
                 strings,
-                bulletins,
+                sheetBulletins.target,
                 platform: platform,
               );
             }
@@ -176,10 +182,17 @@ abstract final class ChatPackSheets {
         ).ignore();
         return;
       }
-      apply(services.library, requests, strings, bulletins, platform: platform);
+      apply(
+        services.library,
+        requests,
+        strings,
+        sheetBulletins.target,
+        platform: platform,
+      );
     }
 
-    // A pack that cannot be found is said in an error bulletin.
+    // A pack that cannot be found is said in an error bulletin, on the screen
+    // the sheet closes back to.
     void unavailable(PackLookup _) => bulletins?.show(
       ChatBulletins.error(
         kind == PackKind.emoji
@@ -203,6 +216,7 @@ abstract final class ChatPackSheets {
     return PackSheet.show(
       context,
       arrangement: platform.packSheetArrangement,
+      layer: sheetBulletins.layer,
       builder: (sheet) {
         sheetContext = sheet;
         return switch (kind) {

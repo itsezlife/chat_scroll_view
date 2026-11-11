@@ -10,6 +10,7 @@ attaches a position contract. This amends [ADR 006](006-panel-catalog-viewport.m
 **Amended**: 2026-10-16 — the snapshot is a `package:listen` `ValueListenable` and the scroll events a synchronous broadcast `Stream` ([ADR 023](023-data-layering-and-persistence.md) Amendment)  
 **Amended**: 2026-10-16 — mouse seams: secondary tap, per-kind long-press delay, pinned leaf, leaf bounds  
 **Amended**: 2026-11-10 — the overscroll sink: the part of a drag past the top edge goes to the host on the tick it overflows, its release at the velocity of its own share (section *Amendment: the overscroll sink*)  
+**Amended**: 2026-11-12 (native-media ticket 218) — `physics`: the viewport scrolls with the chat's scroll physics (`ViewportScrollPhysics` from the `viewport_scroll` leaf, [ADR 020](020-package-topology.md) amended), the platform's preset by default; the overscroll sink is still offered a drag first at the top, and the edge effect takes what it declines
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (amended), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md), [ADR 031](031-localization-accessibility-and-input.md)
 
 ## Decided

@@ -1,5 +1,15 @@
 ## Unreleased
 
+### Scroll physics
+- **CHANGED** (breaking): the scroll physics live in the `viewport_scroll`
+  package and lose the chat prefix: `ChatScrollPhysics` is
+  `ViewportScrollPhysics`, `ChatFling` is `ViewportFling`, `ChatEdgeEffect` is
+  `ViewportEdgeEffect` (with the same variants and presets). A host imports
+  `package:viewport_scroll/viewport_scroll.dart` for them; this package no
+  longer exports them. The panel catalogue viewport takes the same physics.
+- **ADDED**: `ViewportScrollKeys`, the arrow, page and Home / End scroll keys
+  `ChatKeyboardShortcuts` binds, shared with the panel catalogue.
+
 ### Selection policy
 - **CHANGED** (breaking): `ChatSelectionPolicy.forPlatform` and
   `ChatMessageMenuPresentation.forPlatform` drop `isWeb`. A browser takes the

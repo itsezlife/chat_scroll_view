@@ -26,27 +26,27 @@ import 'package:flutter/physics.dart'
 /// emits its usual fling-end scroll event — and drops the current edge
 /// effect at once; the next gesture runs on the new pair.
 @immutable
-final class ChatScrollPhysics {
+final class ViewportScrollPhysics {
   /// Pairs [fling] with [edgeEffect].
-  const ChatScrollPhysics({required this.fling, required this.edgeEffect});
+  const ViewportScrollPhysics({required this.fling, required this.edgeEffect});
 
   /// The spline fling with the stretch edge effect, both at default
   /// parameters.
-  const ChatScrollPhysics.stretch()
-    : fling = const ChatFling.spline(),
-      edgeEffect = const ChatEdgeEffect.stretch();
+  const ViewportScrollPhysics.stretch()
+    : fling = const ViewportFling.spline(),
+      edgeEffect = const ViewportEdgeEffect.stretch();
 
   /// The decay fling with the rubber-band edge effect, both at default
   /// parameters.
-  const ChatScrollPhysics.rubberBand()
-    : fling = const ChatFling.decay(),
-      edgeEffect = const ChatEdgeEffect.rubberBand();
+  const ViewportScrollPhysics.rubberBand()
+    : fling = const ViewportFling.decay(),
+      edgeEffect = const ViewportEdgeEffect.rubberBand();
 
   /// The spline fling with no edge effect: motion stops hard at a reached
   /// edge.
-  const ChatScrollPhysics.clamped()
-    : fling = const ChatFling.spline(),
-      edgeEffect = const ChatEdgeEffect.none();
+  const ViewportScrollPhysics.clamped()
+    : fling = const ViewportFling.spline(),
+      edgeEffect = const ViewportEdgeEffect.none();
 
   /// The preset matching the OS family of [platform], or of
   /// [defaultTargetPlatform] when [platform] is `null`:
@@ -65,25 +65,25 @@ final class ChatScrollPhysics {
   /// [platform] (or set `debugDefaultTargetPlatformOverride`) to pin the
   /// row. Each row returns a constant, so repeated calls on one platform
   /// are equal and a rebuild that re-resolves the default changes nothing.
-  factory ChatScrollPhysics.forPlatform({TargetPlatform? platform}) =>
+  factory ViewportScrollPhysics.forPlatform({TargetPlatform? platform}) =>
       switch (platform ?? defaultTargetPlatform) {
         TargetPlatform.android ||
-        TargetPlatform.fuchsia => const ChatScrollPhysics.stretch(),
+        TargetPlatform.fuchsia => const ViewportScrollPhysics.stretch(),
         TargetPlatform.iOS ||
-        TargetPlatform.macOS => const ChatScrollPhysics.rubberBand(),
+        TargetPlatform.macOS => const ViewportScrollPhysics.rubberBand(),
         TargetPlatform.windows ||
-        TargetPlatform.linux => const ChatScrollPhysics.clamped(),
+        TargetPlatform.linux => const ViewportScrollPhysics.clamped(),
       };
 
   /// Inertial travel after a release with velocity.
-  final ChatFling fling;
+  final ViewportFling fling;
 
   /// Paint-only response when user motion presses past a reached edge.
-  final ChatEdgeEffect edgeEffect;
+  final ViewportEdgeEffect edgeEffect;
 
   @override
   bool operator ==(Object other) =>
-      other is ChatScrollPhysics &&
+      other is ViewportScrollPhysics &&
       other.fling == fling &&
       other.edgeEffect == edgeEffect;
 
@@ -92,24 +92,25 @@ final class ChatScrollPhysics {
 
   @override
   String toString() =>
-      'ChatScrollPhysics(fling: $fling, edgeEffect: $edgeEffect)';
+      'ViewportScrollPhysics(fling: $fling, edgeEffect: $edgeEffect)';
 }
 
 /// **Fling**: inertial travel after a release with velocity, following one
 /// deceleration curve.
 ///
 /// A fling stops at a boundary pin; its leftover velocity at that frame goes
-/// to the paired [ChatEdgeEffect]. A fling never starts when the whole
+/// to the paired [ViewportEdgeEffect]. A fling never starts when the whole
 /// conversation fits in the scroll band.
 @immutable
-sealed class ChatFling {
-  const ChatFling();
+sealed class ViewportFling {
+  const ViewportFling();
 
-  /// Spline curve with a long tail — see [ChatFling$Spline].
-  const factory ChatFling.spline({double friction}) = ChatFling$Spline;
+  /// Spline curve with a long tail — see [ViewportFling$Spline].
+  const factory ViewportFling.spline({double friction}) = ViewportFling$Spline;
 
-  /// Exponential decay — see [ChatFling$Decay].
-  const factory ChatFling.decay({double decelerationRate}) = ChatFling$Decay;
+  /// Exponential decay — see [ViewportFling$Decay].
+  const factory ViewportFling.decay({double decelerationRate}) =
+      ViewportFling$Decay;
 }
 
 /// **Spline** fling: travel follows a fixed spline shape stretched over a
@@ -119,9 +120,9 @@ sealed class ChatFling {
 /// the travel happens early; the curve then eases into a long, slow tail, so
 /// the fling — and any chrome that waits for scrolling to go idle — settles
 /// only at the very end of that tail.
-final class ChatFling$Spline extends ChatFling {
+final class ViewportFling$Spline extends ViewportFling {
   /// Spline fling decelerating with [friction].
-  const ChatFling$Spline({this.friction = 0.015})
+  const ViewportFling$Spline({this.friction = 0.015})
     : assert(friction > 0, 'friction must be positive');
 
   /// Scroll friction; default `0.015`.
@@ -132,13 +133,13 @@ final class ChatFling$Spline extends ChatFling {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatFling$Spline && other.friction == friction;
+      other is ViewportFling$Spline && other.friction == friction;
 
   @override
-  int get hashCode => Object.hash(ChatFling$Spline, friction);
+  int get hashCode => Object.hash(ViewportFling$Spline, friction);
 
   @override
-  String toString() => 'ChatFling.spline(friction: $friction)';
+  String toString() => 'ViewportFling.spline(friction: $friction)';
 }
 
 /// **Decay** fling: velocity decays exponentially, losing the same fraction
@@ -148,9 +149,9 @@ final class ChatFling$Spline extends ChatFling {
 /// Travel from release
 /// velocity `v` approaches `v / ln(1 / drag)`; the fling ends once speed
 /// falls below 10 px/s, dropping the last few pixels of an asymptotic tail.
-final class ChatFling$Decay extends ChatFling {
+final class ViewportFling$Decay extends ViewportFling {
   /// Decay fling losing `1 − decelerationRate` of its velocity per ms.
-  const ChatFling$Decay({this.decelerationRate = 0.998})
+  const ViewportFling$Decay({this.decelerationRate = 0.998})
     : assert(
         decelerationRate > 0 && decelerationRate < 1,
         'decelerationRate must lie in (0, 1)',
@@ -164,13 +165,15 @@ final class ChatFling$Decay extends ChatFling {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatFling$Decay && other.decelerationRate == decelerationRate;
+      other is ViewportFling$Decay &&
+      other.decelerationRate == decelerationRate;
 
   @override
-  int get hashCode => Object.hash(ChatFling$Decay, decelerationRate);
+  int get hashCode => Object.hash(ViewportFling$Decay, decelerationRate);
 
   @override
-  String toString() => 'ChatFling.decay(decelerationRate: $decelerationRate)';
+  String toString() =>
+      'ViewportFling.decay(decelerationRate: $decelerationRate)';
 }
 
 /// **Edge effect**: the paint-only response of the message layer when user
@@ -180,25 +183,25 @@ final class ChatFling$Decay extends ChatFling {
 /// layer moves. Short content (the whole conversation fits) still shows the
 /// effect on drag.
 @immutable
-sealed class ChatEdgeEffect {
-  const ChatEdgeEffect();
+sealed class ViewportEdgeEffect {
+  const ViewportEdgeEffect();
 
-  /// Scale from the pressed edge — see [ChatEdgeEffect$Stretch].
-  const factory ChatEdgeEffect.stretch({
+  /// Scale from the pressed edge — see [ViewportEdgeEffect$Stretch].
+  const factory ViewportEdgeEffect.stretch({
     double intensity,
     double naturalFrequency,
     double dampingRatio,
-  }) = ChatEdgeEffect$Stretch;
+  }) = ViewportEdgeEffect$Stretch;
 
-  /// Translate past the pressed edge — see [ChatEdgeEffect$RubberBand].
-  const factory ChatEdgeEffect.rubberBand({
+  /// Translate past the pressed edge — see [ViewportEdgeEffect$RubberBand].
+  const factory ViewportEdgeEffect.rubberBand({
     double resistance,
     double naturalFrequency,
     double dampingRatio,
-  }) = ChatEdgeEffect$RubberBand;
+  }) = ViewportEdgeEffect$RubberBand;
 
-  /// No edge effect — see [ChatEdgeEffect$None].
-  const factory ChatEdgeEffect.none() = ChatEdgeEffect$None;
+  /// No edge effect — see [ViewportEdgeEffect$None].
+  const factory ViewportEdgeEffect.none() = ViewportEdgeEffect$None;
 }
 
 /// **Stretch**: scales the message layer from the pressed edge.
@@ -209,9 +212,9 @@ sealed class ChatEdgeEffect {
 /// edge clears the stretch so content can fling; velocity into the edge, or
 /// a fling that reaches it, deepens the stretch briefly before it springs
 /// back.
-final class ChatEdgeEffect$Stretch extends ChatEdgeEffect {
+final class ViewportEdgeEffect$Stretch extends ViewportEdgeEffect {
   /// Stretch at the default intensity and spring.
-  const ChatEdgeEffect$Stretch({
+  const ViewportEdgeEffect$Stretch({
     this.intensity = 0.016,
     this.naturalFrequency = 24.657,
     this.dampingRatio = 0.98,
@@ -232,14 +235,14 @@ final class ChatEdgeEffect$Stretch extends ChatEdgeEffect {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatEdgeEffect$Stretch &&
+      other is ViewportEdgeEffect$Stretch &&
       other.intensity == intensity &&
       other.naturalFrequency == naturalFrequency &&
       other.dampingRatio == dampingRatio;
 
   @override
   int get hashCode => Object.hash(
-    ChatEdgeEffect$Stretch,
+    ViewportEdgeEffect$Stretch,
     intensity,
     naturalFrequency,
     dampingRatio,
@@ -247,7 +250,7 @@ final class ChatEdgeEffect$Stretch extends ChatEdgeEffect {
 
   @override
   String toString() =>
-      'ChatEdgeEffect.stretch(intensity: $intensity, '
+      'ViewportEdgeEffect.stretch(intensity: $intensity, '
       'naturalFrequency: $naturalFrequency, dampingRatio: $dampingRatio)';
 }
 
@@ -269,9 +272,9 @@ final class ChatEdgeEffect$Stretch extends ChatEdgeEffect {
 /// spring, launched by its leftover velocity, so a faster fling bounces
 /// further. A spring never carries the layer past rest into the opposite
 /// edge.
-final class ChatEdgeEffect$RubberBand extends ChatEdgeEffect {
+final class ViewportEdgeEffect$RubberBand extends ViewportEdgeEffect {
   /// Rubber-band at the default resistance and spring.
-  const ChatEdgeEffect$RubberBand({
+  const ViewportEdgeEffect$RubberBand({
     this.resistance = 0.55,
     this.naturalFrequency = 14.142135623730951,
     this.dampingRatio = 1,
@@ -295,14 +298,14 @@ final class ChatEdgeEffect$RubberBand extends ChatEdgeEffect {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatEdgeEffect$RubberBand &&
+      other is ViewportEdgeEffect$RubberBand &&
       other.resistance == resistance &&
       other.naturalFrequency == naturalFrequency &&
       other.dampingRatio == dampingRatio;
 
   @override
   int get hashCode => Object.hash(
-    ChatEdgeEffect$RubberBand,
+    ViewportEdgeEffect$RubberBand,
     resistance,
     naturalFrequency,
     dampingRatio,
@@ -310,7 +313,7 @@ final class ChatEdgeEffect$RubberBand extends ChatEdgeEffect {
 
   @override
   String toString() =>
-      'ChatEdgeEffect.rubberBand(resistance: $resistance, '
+      'ViewportEdgeEffect.rubberBand(resistance: $resistance, '
       'naturalFrequency: $naturalFrequency, dampingRatio: $dampingRatio)';
 }
 
@@ -318,32 +321,31 @@ final class ChatEdgeEffect$RubberBand extends ChatEdgeEffect {
 ///
 /// The message layer never moves past the pin, and a fling that reaches an
 /// edge ends there with its leftover velocity discarded.
-final class ChatEdgeEffect$None extends ChatEdgeEffect {
+final class ViewportEdgeEffect$None extends ViewportEdgeEffect {
   /// The hard-clamped edge.
-  const ChatEdgeEffect$None();
+  const ViewportEdgeEffect$None();
 
   @override
-  bool operator ==(Object other) => other is ChatEdgeEffect$None;
+  bool operator ==(Object other) => other is ViewportEdgeEffect$None;
 
   @override
-  int get hashCode => (ChatEdgeEffect$None).hashCode;
+  int get hashCode => (ViewportEdgeEffect$None).hashCode;
 
   @override
-  String toString() => 'ChatEdgeEffect.none()';
+  String toString() => 'ViewportEdgeEffect.none()';
 }
 
-/// Runs one [ChatFling] at a time on the viewport ticker.
+/// Runs one [ViewportFling] at a time on the viewport ticker.
 ///
 /// Owns the simulation start / tick / cancel and nothing else: boundary
 /// handling, fling events, and the edge effect stay with the render object
 /// and its edge-effect state.
-@internal
-final class ChatFlingMotion {
+final class ViewportFlingMotion {
   /// Fling runner for [fling]; defaults to the spline.
-  ChatFlingMotion([this.fling = const ChatFling.spline()]);
+  ViewportFlingMotion([this.fling = const ViewportFling.spline()]);
 
   /// Curve every [startFling] follows.
-  final ChatFling fling;
+  final ViewportFling fling;
 
   Simulation? _simulation;
 
@@ -386,11 +388,11 @@ final class ChatFlingMotion {
   /// which then stands still.
   void startFling(double velocity, {Duration? since}) {
     _simulation = switch (fling) {
-      ChatFling$Spline(:final friction) => ChatSplineFlingSimulation(
+      ViewportFling$Spline(:final friction) => ViewportSplineFlingSimulation(
         velocity: velocity,
         friction: friction,
       ),
-      ChatFling$Decay(:final decelerationRate) => FrictionSimulation(
+      ViewportFling$Decay(:final decelerationRate) => FrictionSimulation(
         math.pow(decelerationRate, 1000).toDouble(),
         0,
         velocity,
@@ -439,9 +441,12 @@ final class ChatFlingMotion {
 /// tail. `ClampingScrollSimulation` fits a power curve that ends after about
 /// 0.83 of that duration, so a fling there settles, and idle-driven chrome
 /// hides, noticeably sooner than on a native Android list.
-final class ChatSplineFlingSimulation extends Simulation {
+final class ViewportSplineFlingSimulation extends Simulation {
   /// A fling starting at position `0` with [velocity] in px/s.
-  ChatSplineFlingSimulation({required double velocity, this.friction = 0.015}) {
+  ViewportSplineFlingSimulation({
+    required double velocity,
+    this.friction = 0.015,
+  }) {
     final speed = velocity.abs();
     if (speed == 0) return;
     final l = math.log(_inflexion * speed / (friction * _physicalCoeff));

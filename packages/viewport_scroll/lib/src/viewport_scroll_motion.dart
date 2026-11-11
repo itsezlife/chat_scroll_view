@@ -1,10 +1,9 @@
-import 'package:chat_scroll_view/src/chat_scroll/chat_rubber_band_overscroll.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_stretch_overscroll.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:viewport_scroll/src/rubber_band_overscroll.dart';
+import 'package:viewport_scroll/src/stretch_overscroll.dart';
+import 'package:viewport_scroll/src/viewport_scroll_physics.dart';
 
-/// Per-viewport runtime of one [ChatScrollPhysics]: the [fling] runner and
+/// Per-viewport runtime of one [ViewportScrollPhysics]: the [fling] runner and
 /// the [edge] effect state, both mutable and driven by the viewport ticker.
 ///
 /// The render object owns exactly one and replaces it whole when the host
@@ -12,25 +11,27 @@ import 'package:flutter/rendering.dart';
 /// pairings never run together. Replacing it does not stop anything by
 /// itself — the owner cancels the old fling (emitting fling end) and resets
 /// the old edge effect first.
-@internal
-final class ChatScrollMotion {
+final class ViewportScrollMotion {
   /// Fresh, idle runtime for [physics].
-  ChatScrollMotion(this.physics)
-    : fling = ChatFlingMotion(physics.fling),
+  ViewportScrollMotion(this.physics)
+    : fling = ViewportFlingMotion(physics.fling),
       edge = switch (physics.edgeEffect) {
-        final ChatEdgeEffect$Stretch stretch => ChatStretchOverscroll(stretch),
-        final ChatEdgeEffect$RubberBand band => ChatRubberBandOverscroll(band),
-        ChatEdgeEffect$None() => const ChatNoOverscroll(),
+        final ViewportEdgeEffect$Stretch stretch => ViewportStretchOverscroll(
+          stretch,
+        ),
+        final ViewportEdgeEffect$RubberBand band =>
+          ViewportRubberBandOverscroll(band),
+        ViewportEdgeEffect$None() => const ViewportNoOverscroll(),
       };
 
   /// The description this runtime was created from.
-  final ChatScrollPhysics physics;
+  final ViewportScrollPhysics physics;
 
-  /// Inertial travel runner for [ChatScrollPhysics.fling].
-  final ChatFlingMotion fling;
+  /// Inertial travel runner for [ViewportScrollPhysics.fling].
+  final ViewportFlingMotion fling;
 
-  /// Edge-effect state for [ChatScrollPhysics.edgeEffect].
-  final ChatEdgeEffectState edge;
+  /// Edge-effect state for [ViewportScrollPhysics.edgeEffect].
+  final ViewportEdgeEffectState edge;
 }
 
 /// Contract between the render object and one edge-effect strategy.
@@ -47,8 +48,7 @@ final class ChatScrollMotion {
 /// Only the drag path (touch, stylus, trackpad pan) and the fling feed this
 /// contract. Wheel, keyboard, scrollbar, and programmatic scrolling never
 /// call [claim], [pull], or [absorbImpact].
-@internal
-abstract interface class ChatEdgeEffectState {
+abstract interface class ViewportEdgeEffectState {
   /// Whether the effect is painted or its spring is running — the viewport
   /// ticker MUST keep running while this is `true`.
   bool get isActive;
@@ -102,7 +102,7 @@ abstract interface class ChatEdgeEffectState {
   ///
   /// Callers tick on every scroll frame, spring or not, so a spring
   /// launched between frames starts at the previous one (see
-  /// [ChatSpringClock]).
+  /// [ViewportSpringClock]).
   bool tick(Duration elapsed);
 
   /// Drops the effect to rest at once — jump, scroll-by, animate, overlay,
@@ -125,8 +125,7 @@ abstract interface class ChatEdgeEffectState {
 /// the first frame after a launch already moves instead of repeating the
 /// launch position. A previous tick more than [maxHeadStart] back (or
 /// ahead, after a ticker restart) is stale; the spring then starts now.
-@internal
-final class ChatSpringClock {
+final class ViewportSpringClock {
   /// Longest gap back to the previous tick a new spring may start from.
   static const Duration maxHeadStart = Duration(milliseconds: 34);
 
@@ -159,10 +158,9 @@ final class ChatSpringClock {
 /// Motion past a reached edge is dropped, every release may fling, and a
 /// fling's leftover velocity at the pin is discarded. Stateless, so one
 /// constant instance serves every viewport.
-@internal
-final class ChatNoOverscroll implements ChatEdgeEffectState {
+final class ViewportNoOverscroll implements ViewportEdgeEffectState {
   /// The hard-clamped edge.
-  const ChatNoOverscroll();
+  const ViewportNoOverscroll();
 
   @override
   bool get isActive => false;

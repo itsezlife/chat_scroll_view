@@ -114,7 +114,7 @@ A local geometric constraint on the oldest or newest built row when that convers
 _Avoid_: Clamp to extents, correctBy, min/max pixels
 
 **Scroll physics**:
-The host-chosen pairing of a **fling** and an **edge effect** that governs user-driven motion. Presets are named after their edge effect, and the platform default picks one per OS family; a custom pairing is just a different pair.
+The host-chosen pairing of a **fling** and an **edge effect** that governs user-driven motion. Presets are named after their edge effect, and the platform default picks one per OS family; a custom pairing is just a different pair. The value and its runtime are the `viewport_scroll` package's (`ViewportScrollPhysics`), shared with the panel catalogue viewport.
 _Avoid_: ScrollBehavior, overscroll mode, parent physics chain
 
 **Fling**:

@@ -240,9 +240,9 @@ neighbor handoff after top-of-tall delete without tail/list re-stack.
 
 ## 21. Edge effect is paint-only and owns its release rules
 
-The host's `ChatScrollPhysics` selects one fling and one edge effect. The
-render object holds their runtime (`ChatScrollMotion`) and talks to the edge
-effect only through `ChatEdgeEffectState`:
+The host's `ViewportScrollPhysics` selects one fling and one edge effect. The
+render object holds their runtime (`ViewportScrollMotion`) and talks to the edge
+effect only through `ViewportEdgeEffectState`:
 
 1. The edge effect MUST NOT move the anchor or skip a pin. Layout stays
    clamped, and it only contributes a message-layer paint transform.

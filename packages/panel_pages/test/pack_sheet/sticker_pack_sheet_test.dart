@@ -13,6 +13,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/testing.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' show TextTheme, Theme, ThemeData;
 import 'package:flutter/services.dart' show SystemChannels;
@@ -151,11 +152,13 @@ void main() {
     ContentPreviewController? previews,
     PackSheetLinks? links,
     double? touchSlop,
+    PackSheetLayerBuilder? layer,
   }) async {
     await pumpHome(tester, touchSlop: touchSlop);
     PackSheet.show(
       home,
       arrangement: arrangement,
+      layer: layer,
       builder: (_) => StickerPackSheet(
         pack: PackId(id),
         packs: packs,
@@ -1074,5 +1077,74 @@ void main() {
         expect(route.settings.name, PackSheet.routeName);
       });
     }
+  });
+
+  group('a host layer', () {
+    const over = Key('over');
+    late ValueListenable<double> bar;
+    Widget layer(
+      BuildContext context,
+      ValueListenable<double> bottom,
+      Widget child,
+    ) {
+      bar = bottom;
+      return Stack(
+        children: [
+          child,
+          const Positioned.fill(
+            child: IgnorePointer(child: SizedBox(key: over)),
+          ),
+        ],
+      );
+    }
+
+    testWidgets('lies over the whole screen above the bottom sheet, which is '
+        'still pressed through it, and learns its button bar', (tester) async {
+      await open(tester, 'cats', layer: layer);
+
+      expect(
+        tester.getRect(find.byKey(over)),
+        Offset.zero & const Size(400, 800),
+      );
+      // The button bar: 48 tall, 8 from every edge of a 64 bar.
+      expect(
+        bar.value,
+        PackSheetView.buttonMetrics.barExtentOf(destructive: false),
+      );
+
+      await tester.tap(find.text('Add 20 stickers'));
+      await settle(tester);
+      expect(edits, hasLength(1));
+    });
+
+    testWidgets('does not move with the sheet as it closes', (tester) async {
+      await open(tester, 'cats', layer: layer);
+      final before = tester.getRect(find.byKey(over));
+
+      Navigator.maybePop(
+        tester.element(find.byType(StickerPackSheet)),
+      ).ignore();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(tester.getRect(find.byKey(over)), before);
+    });
+
+    testWidgets('lies over the whole screen above the box, with no bar', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        'cats',
+        arrangement: PanelArrangement.pointer,
+        layer: layer,
+      );
+
+      expect(
+        tester.getRect(find.byKey(over)),
+        Offset.zero & const Size(400, 800),
+      );
+      expect(bar.value, 0);
+    });
   });
 }

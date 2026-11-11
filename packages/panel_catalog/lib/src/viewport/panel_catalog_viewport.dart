@@ -16,6 +16,7 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_preview.dart';
 import 'package:panel_catalog/src/viewport/catalog_overscroll_sink.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
+import 'package:viewport_scroll/viewport_scroll.dart';
 
 /// Extent-scroll catalog body with recycled paint leaves.
 ///
@@ -159,6 +160,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.onSectionAction,
     this.sectionNearExtent,
     this.overscrollSink,
+    this.physics,
     super.key,
   });
 
@@ -401,6 +403,14 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// Swapping it ends nothing in flight.
   final CatalogOverscrollSink? overscrollSink;
 
+  /// The fling and edge effect user motion follows: the chat's scroll
+  /// physics. Null is [ViewportScrollPhysics.forPlatform], resolved on every
+  /// build, so a platform override is followed.
+  ///
+  /// A drag past the top goes to [overscrollSink] first; the edge effect
+  /// takes only what the sink declines.
+  final ViewportScrollPhysics? physics;
+
   @override
   RenderPanelCatalog createRenderObject(BuildContext context) {
     final theme = PanelCatalogTheme.of(context, listen: true);
@@ -429,6 +439,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
         pinnedLeaf: pinnedLeaf,
         onSectionAction: onSectionAction,
         sectionNearExtent: sectionNearExtent,
+        physics: physics ?? ViewportScrollPhysics.forPlatform(),
       )
       ..leafPreview = leafPreview
       ..leafRemovable = leafRemovable
@@ -488,6 +499,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..onSectionAction = onSectionAction
       ..sectionNearExtent = sectionNearExtent
       ..overscrollSink = overscrollSink
+      ..physics = physics ?? ViewportScrollPhysics.forPlatform()
       ..held = _heldIn(context)
       ..offstage = _offstageIn(context)
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);

@@ -62,6 +62,7 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `packages/composer_editable`             | Leaf: the composer's one editable (patched Flutter text field)            | field gestures, handles, magnifier, re-vendor                                    |
 | `packages/bulletins`                     | Bulletins: per-surface controller (commit on leave), host mount, platform policy, builders | transient notices, Undo feedback ([ADR 045](docs/adr/045-bulletins.md))           |
 | `packages/golden_baseline`              | Test support: golden baselines held to the CI runner (`useGoldenBaselines`) | adding or regenerating a golden test                                              |
+| `packages/viewport_scroll`               | Leaf: scroll physics (fling, edge effect) and their runtime, keyboard scroll keys; shared by the chat and the panel catalogue | fling, overscroll edge effect, arrow / page / Home / End scrolling |
 | `example/`                               | Demo host only — not the portable contract                                | wiring demos                                                                     |
 | `scripts/`                               | `scripts/check` entry + the workspace lints (`workspace_check` package)   | CI gates, dependency direction, re-export / fakes rules                          |
 | `tdesktop/`                              | Read-only Telegram Desktop reference checkout                             | desktop selection parity analysis                                                |

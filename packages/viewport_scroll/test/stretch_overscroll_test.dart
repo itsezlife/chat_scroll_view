@@ -1,9 +1,9 @@
-import 'package:chat_scroll_view/src/chat_scroll/chat_stretch_overscroll.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viewport_scroll/src/stretch_overscroll.dart';
 
 void main() {
   test('onDragEnd with velocity but zero stretch does not arm a spring', () {
-    final stretch = ChatStretchOverscroll();
+    final stretch = ViewportStretchOverscroll();
     stretch.onDragEnd(2000);
     expect(stretch.isActive, isFalse);
     expect(stretch.tick(const Duration(milliseconds: 16)), isFalse);
@@ -11,7 +11,7 @@ void main() {
   });
 
   test('pull then onDragEnd arms a return spring', () {
-    final stretch = ChatStretchOverscroll()..pull(400, 800);
+    final stretch = ViewportStretchOverscroll()..pull(400, 800);
     expect(stretch.overscroll, isNot(0));
     stretch.onDragEnd(0);
     expect(stretch.isActive, isTrue);
@@ -25,21 +25,21 @@ void main() {
   });
 
   test('releaseIntoContent is a no-op at rest', () {
-    final stretch = ChatStretchOverscroll();
+    final stretch = ViewportStretchOverscroll();
     stretch.releaseIntoContent();
     expect(stretch.isActive, isFalse);
     expect(stretch.overscroll, 0);
   });
 
   test('absorbImpact ignores tiny leftover velocity', () {
-    final stretch = ChatStretchOverscroll();
+    final stretch = ViewportStretchOverscroll();
     stretch.absorbImpact(20);
     expect(stretch.isActive, isFalse);
     expect(stretch.overscroll, 0);
   });
 
   test('tiny leftover stretch does not arm a spring on drag end', () {
-    final stretch = ChatStretchOverscroll()..pull(8, 832);
+    final stretch = ViewportStretchOverscroll()..pull(8, 832);
     expect(stretch.overscroll.abs(), lessThan(0.004));
     stretch.onDragEnd(800);
     expect(stretch.isActive, isFalse);
@@ -47,7 +47,7 @@ void main() {
   });
 
   test('releaseIntoContent does not restart a running spring', () {
-    final stretch = ChatStretchOverscroll()..pull(400, 800);
+    final stretch = ViewportStretchOverscroll()..pull(400, 800);
     stretch.releaseIntoContent();
     stretch.tick(const Duration(milliseconds: 80));
     final mid = stretch.overscroll.abs();
@@ -58,14 +58,14 @@ void main() {
   });
 
   test('onDragStart snaps leftover below paint threshold', () {
-    final stretch = ChatStretchOverscroll()..pull(8, 832);
+    final stretch = ViewportStretchOverscroll()..pull(8, 832);
     stretch.onDragStart();
     expect(stretch.overscroll, 0);
     expect(stretch.isActive, isFalse);
   });
 
   test('reverse fling into content drops stretch instead of springing', () {
-    final stretch = ChatStretchOverscroll()..pull(-400, 800);
+    final stretch = ViewportStretchOverscroll()..pull(-400, 800);
     expect(stretch.overscroll, lessThan(0));
     // Finger flings down (into history) while stretch is on the newest edge.
     stretch.onDragEnd(4000);
@@ -74,7 +74,7 @@ void main() {
   });
 
   test('same-direction release absorbs then returns without slamming', () {
-    final stretch = ChatStretchOverscroll()..pull(-400, 800);
+    final stretch = ViewportStretchOverscroll()..pull(-400, 800);
     final atRelease = stretch.overscroll;
     expect(atRelease, lessThan(0));
     stretch.onDragEnd(-5000);
@@ -92,7 +92,7 @@ void main() {
   });
 
   test('soft release with zero velocity settles from current stretch', () {
-    final stretch = ChatStretchOverscroll()..pull(-400, 800);
+    final stretch = ViewportStretchOverscroll()..pull(-400, 800);
     final atRelease = stretch.overscroll.abs();
     stretch.onDragEnd(0);
     stretch.tick(const Duration(milliseconds: 16));

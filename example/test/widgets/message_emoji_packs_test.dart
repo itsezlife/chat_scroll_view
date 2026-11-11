@@ -14,6 +14,8 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/message_menu_
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' show Pack, PackId, PackKind;
 import 'package:content_model/testing.dart';
+import 'package:flutter/foundation.dart'
+    show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -112,6 +114,28 @@ void main() {
       [_cats],
     ]);
     expect(find.byType(ChatMessageMenuActionList), findsNothing);
+  });
+
+  testWidgets('its own card (iOS) presses with the chrome ink, not a '
+      'Material ink', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    await openMenu(tester, [_cats]);
+    expect(find.byType(ChatMessageMenuCard), findsNWidgets(2));
+
+    final entry = find.text(
+      'This message contains emoji from Cats pack.',
+      findRichText: true,
+    );
+    expect(
+      find.ancestor(of: entry, matching: find.byType(ChromeInk)),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(of: entry, matching: find.byType(InkWell)),
+      findsNothing,
+    );
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('on Android it is a row of the menu card, under a gap band '

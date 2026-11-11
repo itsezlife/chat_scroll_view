@@ -199,10 +199,12 @@ class _MessageContainsEmojiButtonState
       case MessageContainsEmojiLook.card:
         return ChatMessageMenuCard(
           surfaceBuilder: widget.surfaceBuilder,
-          // Its own ink layer: a host surface is not a Material.
-          child: Material(
-            type: MaterialType.transparency,
-            child: InkWell(onTap: widget.onTap, child: text),
+          child: ChromeInk(
+            color: ChromeThemeScope.paletteOf(
+              context,
+            ).onSurface.withAlpha(0x14),
+            onTap: widget.onTap,
+            child: text,
           ),
         );
     }

@@ -16,12 +16,14 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_sheet_bulletins.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_pages/panel_pages.dart';
+import 'package:panel_shell/panel_shell.dart' show PanelArrangement;
 
 import '../../support/test_services.dart';
 
@@ -683,6 +685,77 @@ void main() {
       await _settle(tester);
       expect(find.byType(EmojiPackSheet), findsNothing);
       expect(await ChatPreImeBackBinding.handleNativeBack(), isFalse);
+    });
+
+    group('a bulletin raised while a sheet is up', () {
+      Future<ChatSheetBulletins> openSheet(
+        WidgetTester tester,
+        PanelArrangement arrangement,
+      ) async {
+        await pump(tester);
+        final sheet = ChatSheetBulletins(bulletins);
+        PackSheet.show(
+          home,
+          arrangement: arrangement,
+          layer: sheet.layer,
+          builder: (_) => const SizedBox(height: 300, width: 300),
+        ).ignore();
+        await _settle(tester);
+        return sheet;
+      }
+
+      BulletinController hostOf(WidgetTester tester, String text) => tester
+          .widget<BulletinHost>(
+            find.ancestor(
+              of: find.text(text),
+              matching: find.byType(BulletinHost),
+            ),
+          )
+          .controller;
+
+      for (final arrangement in PanelArrangement.values) {
+        testWidgets(
+          'shows over the sheet, not under it (${arrangement.name})',
+          (tester) async {
+            final sheet = await openSheet(tester, arrangement);
+
+            sheet.target!.show(const Bulletin(message: 'over'));
+            await _settle(tester);
+
+            expect(find.text('over'), findsOneWidget);
+            expect(hostOf(tester, 'over'), isNot(same(bulletins)));
+            expect(bulletins.current.value, isNull);
+          },
+        );
+      }
+
+      testWidgets('leaves as the sheet closes, committing its Undo, and the '
+          'next shows on the screen', (tester) async {
+        final sheet = await openSheet(tester, PanelArrangement.touch);
+        var committed = 0;
+        sheet.target!.show(
+          Bulletin(
+            message: 'removed',
+            action: BulletinAction.undo(
+              onUndo: () {},
+              onCommit: () => committed++,
+            ),
+          ),
+        );
+        await _settle(tester);
+
+        Navigator.maybePop(home).ignore();
+        await tester.pump();
+        expect(sheet.target, same(bulletins));
+        await _settle(tester);
+
+        expect(find.text('removed'), findsNothing);
+        expect(committed, 1);
+
+        sheet.target!.show(const Bulletin(message: 'after'));
+        await _settle(tester);
+        expect(hostOf(tester, 'after'), same(bulletins));
+      });
     });
 
     testWidgets('a pack that does not exist says so', (tester) async {
