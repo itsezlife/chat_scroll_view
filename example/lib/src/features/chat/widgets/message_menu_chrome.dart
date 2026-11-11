@@ -122,7 +122,7 @@ abstract final class MessageMenuChrome {
       onHidden: transition.onHidden,
       motion: switch (transition.presentation) {
         ChatMessageMenuPresentation.popup => const AppearMotion.grow(),
-        _ when android => const AppearMotion.pop(),
+        _ when android => const AppearMotion.zoom(),
         ChatMessageMenuPresentation.sheet => null,
       },
       origin: android ? Alignment.bottomRight : transition.origin,

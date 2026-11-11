@@ -18,6 +18,7 @@ package is pre-1.0.
 
 - `PointerMenuTokens.referenceDay` is `PointerMenuTokens.day`, and `PointerMenuTokens.referenceNight` is `PointerMenuTokens.night`.
 - `BulletinTokens.referenceAndroid` is `BulletinTokens.android`, and `BulletinTokens.referenceDesktop` is `BulletinTokens.desktop`. The rename covers the unreleased `BulletinTokens` group too; no alias is kept.
+- `AppearMotion.bloom` is `AppearMotion.burst` (`AppearMotion$Burst`), and `AppearMotion.pop` is `AppearMotion.zoom` (`AppearMotion$Zoom`): the corner popup variants are named by the motion they play, not by the surface that first used them. Same values; no alias is kept.
 
 ### Added (chrome typography)
 

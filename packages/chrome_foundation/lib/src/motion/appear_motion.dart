@@ -30,20 +30,20 @@ import 'package:flutter/widgets.dart';
 ///   104, mass 1) cut at 420 ms, opaque after its first 50 ms; it goes over
 ///   200 ms, shrinking back to 0.01 as it fades, easing in and out.
 ///
-/// Two Android variants belong to the message menu, which a host names:
+/// Two more Android variants are for a popup anchored at a corner, which a
+/// host names (no platform picks them):
 ///
-/// - [AppearMotion.bloom]: the menu that comes with a reaction strip, on a
-///   device fast enough for the smooth entry. Its
-///   frame opens from the origin corner while its content (an
-///   `AppearContent`) fades in and scales up from half about that corner, all
-///   on one overshooting clock (tension 0.5) over 250 ms; it goes over
-///   220 ms, drifting 5 toward its anchor as it fades, accelerating then
-///   decelerating.
-/// - [AppearMotion.pop]: the menu otherwise, anchored at its bottom right.
-///   It fades in over 150 ms, accelerating then decelerating, while it
-///   scales up from 0.95 about that corner on an overshoot (tension 2) over
-///   200 ms; its content does not scale apart. It goes over 220 ms as the
-///   bloom does, but moves 5 away from its anchor (up) as it fades.
+/// - [AppearMotion.burst]: the frame opens from the origin corner while its
+///   content (an `AppearContent`) fades in and scales up from half about that
+///   corner, all on one overshooting clock (tension 0.5) over 250 ms. It suits
+///   a surface that comes with a companion strip, on a device fast enough
+///   for it. It goes over 220 ms, drifting 5 toward its anchor as it fades,
+///   accelerating then decelerating.
+/// - [AppearMotion.zoom]: the surface fades in over 150 ms, accelerating then
+///   decelerating, while it scales up from 0.95 about its origin on an
+///   overshoot (tension 2) over 200 ms; its content does not scale apart. It
+///   goes over 220 ms as the burst does, but moves 5 away from its anchor as
+///   it fades.
 ///
 /// The rows of an unfolding menu do not fade in one by one: the whole surface
 /// fades with its frame.
@@ -60,11 +60,11 @@ sealed class AppearMotion {
   /// The iOS context menu's spring from its origin.
   const factory AppearMotion.spring() = AppearMotion$Spring;
 
-  /// The Android message menu's bloom from its corner, with a reaction strip.
-  const factory AppearMotion.bloom() = AppearMotion$Bloom;
+  /// A corner popup's frame bursting open while its content scales up.
+  const factory AppearMotion.burst() = AppearMotion$Burst;
 
-  /// The Android message menu's pop, without a reaction strip.
-  const factory AppearMotion.pop() = AppearMotion$Pop;
+  /// A corner popup's fade in while it zooms from just below full size.
+  const factory AppearMotion.zoom() = AppearMotion$Zoom;
 
   /// The motion of [platform]'s family: [grow] on a desktop, [spring] on iOS,
   /// [unfold] elsewhere.
@@ -241,9 +241,10 @@ final class AppearMotion$Spring extends AppearMotion {
   int get hashCode => (AppearMotion$Spring).hashCode;
 }
 
-/// The hide the message menu variants share: 220 ms, drifting toward the
-/// anchor as the surface fades, accelerating then decelerating.
-abstract final class _MessageMenuHide {
+/// The hide [AppearMotion.burst] and [AppearMotion.zoom] share: 220 ms,
+/// drifting by a distance as the surface fades, accelerating then
+/// decelerating.
+abstract final class _DriftFade {
   static const Duration duration = Duration(milliseconds: 220);
 
   static const double drift = 5;
@@ -256,10 +257,10 @@ abstract final class _MessageMenuHide {
   }
 }
 
-/// [AppearMotion.bloom].
-final class AppearMotion$Bloom extends AppearMotion {
-  /// The bloom.
-  const AppearMotion$Bloom() : super._();
+/// [AppearMotion.burst].
+final class AppearMotion$Burst extends AppearMotion {
+  /// The burst.
+  const AppearMotion$Burst() : super._();
 
   /// The show.
   static const Duration show = Duration(milliseconds: 250);
@@ -271,10 +272,10 @@ final class AppearMotion$Bloom extends AppearMotion {
   static const double contentStartScale = 0.5;
 
   /// The hide.
-  static const Duration hide = _MessageMenuHide.duration;
+  static const Duration hide = _DriftFade.duration;
 
   /// How far the surface drifts toward its anchor as it goes.
-  static const double hideDrift = _MessageMenuHide.drift;
+  static const double hideDrift = _DriftFade.drift;
 
   @override
   Duration showDuration(ChromeMotionData motion, {int rows = 0}) =>
@@ -296,19 +297,19 @@ final class AppearMotion$Bloom extends AppearMotion {
   }
 
   @override
-  AppearFrame hideAt(double t) => _MessageMenuHide.at(t);
+  AppearFrame hideAt(double t) => _DriftFade.at(t);
 
   @override
-  bool operator ==(Object other) => other is AppearMotion$Bloom;
+  bool operator ==(Object other) => other is AppearMotion$Burst;
 
   @override
-  int get hashCode => (AppearMotion$Bloom).hashCode;
+  int get hashCode => (AppearMotion$Burst).hashCode;
 }
 
-/// [AppearMotion.pop].
-final class AppearMotion$Pop extends AppearMotion {
-  /// The pop.
-  const AppearMotion$Pop() : super._();
+/// [AppearMotion.zoom].
+final class AppearMotion$Zoom extends AppearMotion {
+  /// The zoom.
+  const AppearMotion$Zoom() : super._();
 
   /// The show: the scale's length.
   static const Duration show = Duration(milliseconds: 200);
@@ -323,11 +324,11 @@ final class AppearMotion$Pop extends AppearMotion {
   static const double startScale = 0.95;
 
   /// The hide.
-  static const Duration hide = _MessageMenuHide.duration;
+  static const Duration hide = _DriftFade.duration;
 
   /// How far the surface drifts as it goes: away from its bottom anchor,
   /// so up.
-  static const double hideDrift = -_MessageMenuHide.drift;
+  static const double hideDrift = -_DriftFade.drift;
 
   @override
   Duration showDuration(ChromeMotionData motion, {int rows = 0}) =>
@@ -351,13 +352,13 @@ final class AppearMotion$Pop extends AppearMotion {
   }
 
   @override
-  AppearFrame hideAt(double t) => _MessageMenuHide.at(t, drift: hideDrift);
+  AppearFrame hideAt(double t) => _DriftFade.at(t, drift: hideDrift);
 
   @override
-  bool operator ==(Object other) => other is AppearMotion$Pop;
+  bool operator ==(Object other) => other is AppearMotion$Zoom;
 
   @override
-  int get hashCode => (AppearMotion$Pop).hashCode;
+  int get hashCode => (AppearMotion$Zoom).hashCode;
 }
 
 /// `cos((t + 1)·π) / 2 + 0.5`: starts and ends slowly, Android's default

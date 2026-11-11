@@ -82,3 +82,9 @@ The reference checkout moved from 12.9.0 to 13.2.1. `ChatActivity.createMenu` no
 | Contains-emoji entry (183) | A separate card under the menu. | A row of the same card: a `GapView` 8 dp across it, coloured `key_actionBarDefaultSubmenuItem` at 6% (`ItemOptions.setGapBackgroundColor`) with the `greydivider` shadow (black at 20, 10, 3 of 255 down its top three dp, 3 on its bottom one), then `MessageContainsEmojiButton`: 13 dp text in the item colour, padding 13 by 8, the pack name bold in `key_windowBackgroundWhiteBlueText`. It wraps to the card and does not widen it. The package gains `ChatMessageMenuItem.entry` (a host row that chooses an id) and tells a surface builder which surface it draws (`ChatMessageMenuSurface`). |
 | Unchanged | | Placement (`popupX`, `popupY`, the 240 rule), the 200 minimum and content width, rows of 48 with 18 / 43 and 16 sp text, the 0.2 dim without blur behind (`dimBehindView(v, true)`). |
 | Not ported | | The glass samples the screen captured before the dim; ours filters the scene behind it, which includes the 0.2 dim. |
+
+## Amendment: names by role (native-media 204)
+
+| Area | Decision |
+| ---- | -------- |
+| Corner popup motions | The two Android variants named after the message menu are named by the motion they play: `bloom` is `AppearMotion.burst`, `pop` is `AppearMotion.zoom`, and the hide they share is the drift fade. Values unchanged. A host still names them; `forPlatform` picks neither. |
