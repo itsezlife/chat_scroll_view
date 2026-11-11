@@ -6,15 +6,9 @@ is pre-1.0.
 
 ## [Unreleased]
 
-### Fixed (the blur under a preview's menu)
-
-- The still under a preview's menu no longer shows a grid of blocks: it is captured at 1/15 of the device pixels as before, but made at 1/3 (`ContentPreviewSession.backdropUpscale`, 5), so it is drawn stretched 3 times rather than 15. The blur's strength is unchanged.
-
-- The still under a preview's menu covers the whole window: its edges no longer fade to clear over the sharp window (see `chrome_foundation`). Where the window painted nothing, the still shows the theme's surface.
-
 ### Changed (the blur under a preview's menu is a still)
 
-- The content preview no longer puts a full-window `BackdropFilter` under its menu with an animated sigma. As it opens, the preview takes one small still of the window (`BackdropSnapshot.capture`, 1/15 of the device pixels, blurred by 6.5 of its pixels and toned for the theme) and fades it in and out under the dim with the menu; the still is let go as the preview closes. The host places a `BackdropSnapshotSource` above its navigator: without one the menu is over the dim alone. `ContentPreviewController.blursBackground` (on by default) turns the blur off. The look changes: the blur is stronger and slightly toned. Breaking: `ContentPreviewSession.menuBlurSigma` is gone; `backdropDownscale`, `backdropBlurSigma`, `backdropToneDark` and `backdropToneLight` replace it.
+- The content preview no longer puts a full-window `BackdropFilter` under its menu with an animated sigma. As it opens, the preview takes one small still of the window (`BackdropSnapshot.capture`, 1/15 of the device pixels, stack-blurred on the CPU by a radius of 15 of its pixels and toned for the theme; where the window painted nothing, the theme's surface) and fades it in and out under the dim with the menu; the still is let go as the preview closes. The menu never waits for the still: until it is made, the menu is over the dim alone. The host places a `BackdropSnapshotSource` above its navigator: without one the menu is over the dim alone. `ContentPreviewController.blursBackground` (on by default) turns the blur off. The look changes: the blur is stronger and slightly toned. Breaking: `ContentPreviewSession.menuBlurSigma` is gone; `backdropDownscale`, `backdropBlurRadius`, `backdropToneDark` and `backdropToneLight` replace it.
 
 ### Changed (the pack sheet's buttons come from the chrome)
 

@@ -8,6 +8,7 @@
 /// columns of 72 x 82 under a 27 px header.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -439,6 +440,63 @@ void main() {
   Finder backdrop() => find.byType(BackdropSnapshotView);
   BackdropSnapshot snapshotShown(WidgetTester tester) =>
       tester.widget<BackdropSnapshotView>(backdrop()).snapshot;
+  Finder still() =>
+      find.descendant(of: backdrop(), matching: find.byType(RawImage));
+
+  // Lets [snapshot]'s still be made, off the fake clock: real time for the
+  // engine and the blur, frames between that move no animation.
+  Future<void> settle(WidgetTester tester, BackdropSnapshot snapshot) async {
+    var done = false;
+    unawaited(snapshot.ready.then((_) => done = true));
+    for (var turn = 0; !done && turn < 200; turn++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
+    }
+    expect(done, isTrue, reason: 'the still was never made');
+  }
+
+  // The window as it last painted, at its device pixels.
+  Future<({Uint8List rgba, int width, int height})> windowShown(
+    WidgetTester tester,
+  ) async {
+    final window = BackdropSnapshot.capture(
+      tester.element(find.byType(StickersPage)),
+      downscale: 1,
+    )!;
+    addTearDown(window.dispose);
+    await settle(tester, window);
+    final image = window.image!;
+    final bytes = await tester.runAsync(image.toByteData);
+    return (
+      rgba: Uint8List.sublistView(bytes!),
+      width: image.width,
+      height: image.height,
+    );
+  }
+
+  // The red and blue of the window's corners and edges, away from the page
+  // and the menu, each expected to be [expected] and opaque.
+  void expectEdges(
+    ({Uint8List rgba, int width, int height}) window,
+    double expected,
+  ) {
+    final (:rgba, :width, :height) = window;
+    for (final (x, y) in [
+      (0, 0),
+      (width - 1, 0),
+      (0, height - 1),
+      (width - 1, height - 1),
+      (width ~/ 2, 0),
+      (0, height ~/ 2),
+    ]) {
+      final at = (y * width + x) * 4;
+      expect(rgba[at + 3], 255, reason: 'alpha at ($x, $y)');
+      expect(rgba[at], closeTo(expected, 3), reason: 'red at ($x, $y)');
+      expect(rgba[at + 2], closeTo(expected, 3), reason: 'blue at ($x, $y)');
+    }
+  }
 
   testWidgets('the blur under the menu is one still, taken as the preview '
       'opens, faded in and out by its opacity alone, and let go on close', (
@@ -450,28 +508,20 @@ void main() {
     expect(backdrop(), findsNothing);
 
     await tester.pump(ContentPreviewSession.stickerMenuDelay);
-    await tester.pump(ContentPreviewSession.showDuration ~/ 2);
+    // The fade's first frame puts the view up.
+    await tester.pump(const Duration(milliseconds: 1));
     final snapshot = snapshotShown(tester);
-    final half = tester.widget<RawImage>(
-      find.descendant(of: backdrop(), matching: find.byType(RawImage)),
-    );
+    await settle(tester, snapshot);
+    await tester.pump(ContentPreviewSession.showDuration ~/ 2);
+    final half = tester.widget<RawImage>(still());
     expect(half.opacity!.value, closeTo(0.5, 0.1));
     expect(find.byType(BackdropFilter), findsNothing);
 
     await tester.pump(ContentPreviewSession.showDuration);
-    expect(
-      tester
-          .widget<RawImage>(
-            find.descendant(of: backdrop(), matching: find.byType(RawImage)),
-          )
-          .opacity!
-          .value,
-      1,
-    );
+    expect(tester.widget<RawImage>(still()).opacity!.value, 1);
     expect(find.byType(BackdropFilter), findsNothing);
-    // Captured at 1/15 of the 800 x 600 window at a device pixel ratio of 3,
-    // made at 5 times that.
-    expect(snapshot.image.width, 800);
+    // 1/15 of the 800 x 600 window at a device pixel ratio of 3.
+    expect(snapshot.image!.width, 160);
 
     await gesture.up();
     await tester.pump(ContentPreviewSession.showDuration);
@@ -533,44 +583,58 @@ void main() {
       );
       final gesture = await hold(tester, 2);
       await tester.pump(ContentPreviewSession.stickerMenuDelay);
+      await tester.pump(const Duration(milliseconds: 1));
+      await settle(tester, snapshotShown(tester));
       await tester.pump(ContentPreviewSession.showDuration);
       await tester.pump(ContentPreviewSession.showDuration);
       expect(find.text('Send Sticker'), findsOneWidget);
 
-      // The window as it painted, read back at its full size.
-      final window = BackdropSnapshot.capture(
-        tester.element(find.byType(StickersPage)),
-        downscale: 1,
-        tone: BackdropSnapshot.identityTone,
-      )!;
-      addTearDown(window.dispose);
-      final bytes = await tester.runAsync(window.image.toByteData);
-      final rgba = Uint8List.sublistView(bytes!);
       final toned = grey + tone.brightness * 255;
       final dimAlpha = dim.a * ContentPreviewSession.dimAlpha / 255;
-      final expected = toned * (1 - dimAlpha) + dim.r * 255 * dimAlpha;
-      // The corners and edges, away from the page and the menu.
-      final width = window.image.width;
-      final height = window.image.height;
-      for (final (x, y) in [
-        (0, 0),
-        (width - 1, 0),
-        (0, height - 1),
-        (width - 1, height - 1),
-        (width ~/ 2, 0),
-        (0, height ~/ 2),
-      ]) {
-        final at = (y * width + x) * 4;
-        expect(rgba[at + 3], 255, reason: 'alpha at ($x, $y)');
-        expect(rgba[at], closeTo(expected, 3), reason: 'red at ($x, $y)');
-        expect(rgba[at + 2], closeTo(expected, 3), reason: 'blue at ($x, $y)');
-      }
+      expectEdges(
+        await windowShown(tester),
+        toned * (1 - dimAlpha) + dim.r * 255 * dimAlpha,
+      );
 
       await gesture.up();
       expect(previews.dismiss(), isTrue);
       await settleClose(tester);
     });
   }
+
+  testWidgets('the menu never waits for the still: until it is made, the '
+      'menu is over the dim alone', (tester) async {
+    const grey = 0x80;
+    await pumpPage(
+      tester,
+      window: const Color(0xFF000000 | grey << 16 | grey << 8 | grey),
+    );
+    final gesture = await hold(tester, 2);
+    await tester.pump(ContentPreviewSession.stickerMenuDelay);
+    await tester.pump(ContentPreviewSession.showDuration);
+    await tester.pump(ContentPreviewSession.showDuration);
+    expect(find.text('Send Sticker'), findsOneWidget);
+    final snapshot = snapshotShown(tester);
+    expect(snapshot.image, isNull);
+    expect(still(), findsNothing);
+
+    // The window as it painted then: grey under the dim, no still.
+    const dim = ContentPreviewSession.dimLight;
+    final dimAlpha = dim.a * ContentPreviewSession.dimAlpha / 255;
+    expectEdges(
+      await windowShown(tester),
+      grey * (1 - dimAlpha) + dim.r * 255 * dimAlpha,
+    );
+
+    // Made, it comes in under the menu as it is.
+    await settle(tester, snapshot);
+    await tester.pump();
+    expect(still(), findsOneWidget);
+
+    await gesture.up();
+    expect(previews.dismiss(), isTrue);
+    await settleClose(tester);
+  });
 
   testWidgets('with the blur off the menu is over the dim alone', (
     tester,

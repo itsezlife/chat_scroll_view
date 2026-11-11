@@ -8,15 +8,7 @@ package is pre-1.0.
 
 ### Added (backdrop snapshot)
 
-- `BackdropSnapshotSource`, `BackdropSnapshot` and `BackdropSnapshotView`: a small still of what the source last painted, captured once at a fraction of its device pixels (`downscale`), blurred and toned once (`blurSigma`, `tone`, `BackdropSnapshot.toneMatrix`), and drawn stretched with only its opacity animated. For a scrim over a background that holds still while it is up, in place of a live full-window `BackdropFilter`. The caller disposes the snapshot.
-
-### Added (backdrop snapshot upscale)
-
-- `BackdropSnapshot.capture` takes an `upscale`: the still is made at that many times the captured pixels, the capture stretched and blurred there once, so it is drawn stretched by `downscale / upscale`. A still drawn stretched 15 times showed a grid of its pixels on some backends; stretched a few times it shows none, however the backend samples it. The capture and the blur's strength (`blurSigma`, still in the captured pixels) are unchanged.
-
-### Fixed (backdrop snapshot edges)
-
-- A blurred or toned `BackdropSnapshot` is opaque and blurred evenly out to its edges on every backend. Where a backend left the blur's input clear past its edge, the still faded to clear toward the edges of the window and the sharp content under it showed through. The blur's input is now the capture's own edge pixels carried 3 sigma out, over an opaque fill. `BackdropSnapshot.capture` takes a `background` (black by default): what the still shows where the source painted nothing.
+- `BackdropSnapshotSource`, `BackdropSnapshot` and `BackdropSnapshotView`: a small still of what the source last painted, captured once at a fraction of its device pixels (`downscale`), then laid over an opaque `background`, stack-blurred (`blurRadius`) and toned (`tone`, `BackdropSnapshot.toneMatrix`) once on the CPU, off the UI isolate where there is one, and drawn stretched (bilinear) with only its opacity animated. For a scrim over a background that holds still while it is up, in place of a live full-window `BackdropFilter`. The still is made a few frames after the capture: the snapshot is a `Listenable` whose `image` is null until then (`ready` completes then too), and the view draws nothing until then. The still is opaque, smooth and blurred evenly out to its edges on every backend: the edges repeat the capture's own edge pixels. The caller disposes the snapshot; one disposed before its still is made lets the still go as it comes.
 
 ### Added (chrome buttons)
 
