@@ -199,27 +199,25 @@ class _ComposerButtonState extends State<ComposerButton>
       child: face,
     );
     final kind = ChromeInkKind.forPlatform(defaultTargetPlatform);
-    final pressable = switch (kind) {
-      ChromeInkKind.ripple || ChromeInkKind.highlight when widget.primary =>
-        ScalePressable(onPressed: tap, child: box),
-      ChromeInkKind.highlight => ChromeInk(
-        kind: kind,
-        // The press is the glyph's dim, not a fill.
-        color: const Color(0x00000000),
-        onTap: tap,
-        onHighlightChanged: _onHighlight,
-        child: box,
-      ),
-      ChromeInkKind.ripple || ChromeInkKind.pointer => ChromeInk(
-        kind: kind,
-        color: ChromeThemeScope.composerOf(
-          context,
-        ).text.withAlpha(ComposerButton.inkAlpha),
-        circleRadius: ComposerButton.inkRadius,
-        onTap: tap,
-        child: box,
-      ),
-    };
+    // A primary button on a touch platform bounces; every other press is
+    // the ink's. One tree for both, each part idle when the other takes the
+    // press: a button that turns primary with its icon (voice to send) keeps
+    // its glyph, which then morphs from the one icon to the other.
+    final bounces = widget.primary && kind != ChromeInkKind.pointer;
+    final highlight = kind == ChromeInkKind.highlight;
+    final pressable = ChromeInk(
+      kind: kind,
+      color: highlight
+          // The press is the glyph's dim, not a fill.
+          ? const Color(0x00000000)
+          : ChromeThemeScope.composerOf(
+              context,
+            ).text.withAlpha(ComposerButton.inkAlpha),
+      circleRadius: highlight ? null : ComposerButton.inkRadius,
+      onTap: bounces ? null : tap,
+      onHighlightChanged: highlight ? _onHighlight : null,
+      child: ScalePressable(onPressed: bounces ? tap : null, child: box),
+    );
     return Semantics(
       container: true,
       button: true,
