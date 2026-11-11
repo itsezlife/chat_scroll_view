@@ -48,6 +48,7 @@ import 'page/catalog_page_model_test.dart' as catalog_page_model_test;
 import 'page/catalog_page_sticky_test.dart' as catalog_page_sticky_test;
 import 'page/catalog_page_test.dart' as catalog_page_test;
 import 'page/catalog_sticky_header_test.dart' as catalog_sticky_header_test;
+import 'policy/catalog_pointer_policy_test.dart' as catalog_pointer_policy_test;
 import 'preview/content_preview_emoji_test.dart' as content_preview_emoji_test;
 import 'preview/content_preview_gifs_test.dart' as content_preview_gifs_test;
 import 'preview/content_preview_layout_test.dart'
@@ -128,6 +129,10 @@ void main() {
   group(
     'page/catalog_sticky_header_test.dart',
     catalog_sticky_header_test.main,
+  );
+  group(
+    'policy/catalog_pointer_policy_test.dart',
+    catalog_pointer_policy_test.main,
   );
   group(
     'preview/content_preview_emoji_test.dart',

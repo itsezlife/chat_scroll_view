@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'app/app_platform_policy_test.dart' as app_platform_policy_test;
 import 'app/app_services_test.dart' as app_services_test;
 import 'app/boot_test.dart' as boot_test;
 import 'app/cache_directory_test.dart' as cache_directory_test;
@@ -246,6 +247,7 @@ void main() {
   group('flicker/shade_resume_test.dart', flicker_shade_resume_test.main);
   group('flicker/strip_reopen_test.dart', flicker_strip_reopen_test.main);
   group('flicker/thumbnail_fade_test.dart', flicker_thumbnail_fade_test.main);
+  group('app/app_platform_policy_test.dart', app_platform_policy_test.main);
   group('app/app_services_test.dart', app_services_test.main);
   group('app/boot_test.dart', boot_test.main);
   group('app/cache_directory_test.dart', cache_directory_test.main);

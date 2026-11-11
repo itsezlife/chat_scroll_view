@@ -308,7 +308,7 @@ void main() {
           installed('a'),
           _strings,
           PanelArrangement.pointer,
-          web: true,
+          pointer: const CatalogPointerPolicy.web(),
         ),
         isNull,
       );

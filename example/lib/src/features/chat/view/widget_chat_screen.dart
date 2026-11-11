@@ -4,6 +4,7 @@ import 'dart:developer' as dev;
 import 'package:bulletins/bulletins.dart';
 import 'package:chat_composer/chat_composer.dart' show ComposerBottomFade;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/android_clipboard_toast.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
@@ -928,7 +929,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     };
     // Under a pointer the question is a box on a layer of its own, as a pack
     // removal's is; on touch the platform's dialog.
-    if (ChatPackSheets.asksInBoxes) {
+    if (AppPlatformPolicy.current().asksInBoxes) {
       return ChatConfirmBox.open(
         context,
         ChatConfirmBox(
@@ -1043,7 +1044,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         ChatPackSheets.apply(services.library, requests, strings, _bulletins);
     // Under a pointer a removal asks first; the panel it came from stays up
     // while it is asked.
-    if (ChatPackSheets.confirmsRemovals && ChatPackSheets.takesAway(requests)) {
+    if (AppPlatformPolicy.current().confirmsPackRemovals &&
+        ChatPackSheets.takesAway(requests)) {
       final hold = _input.presentation.holdAutoHide();
       unawaited(
         ChatConfirmBox.open(context, ChatPackSheets.confirmBoxOf(requests))

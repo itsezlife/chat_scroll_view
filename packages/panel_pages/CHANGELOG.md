@@ -6,6 +6,10 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the pointer policy)
+
+- `CatalogPointerPolicy` (`.desktop()`, `.web()`, `current`): what a page offers a mouse for taking content out of the library, as properties: `packHeaderRemoves` (an installed pack's header cross) and `removeBadge` (the hovered cell's badge look). The pages read `CatalogPointerPolicy.current` where they read the platform before; the header cross's helper takes a policy instead of a web flag. Behaviour unchanged.
+
 ### Added (the emoji pack sheet's preview)
 
 - `EmojiPackSheet.previews` and `onCopyRequested`: a custom emoji held in an emoji pack sheet or box opens the content preview, as on the panel's emoji page (from frame 0, switching under the finger or pointer, Send Emoji and Copy Emoji); a right-click in the box offers Copy Emoji. A tap still inserts.

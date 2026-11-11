@@ -11,6 +11,7 @@ import 'package:bulletins/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackBinding, ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
+import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
@@ -21,7 +22,6 @@ import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_pages/panel_pages.dart';
-import 'package:panel_shell/panel_shell.dart';
 
 import '../../support/test_services.dart';
 
@@ -167,7 +167,18 @@ void main() {
     tearDown(() => bulletins.dispose());
 
     test('says no library edit in a bulletin', () {
-      expect(ChatPackSheets.saysLibraryEdits(bulletins), isFalse);
+      final added = library.apply(
+        const LibraryEdit.favouriteSticker(ContentKey.document('f0')),
+      );
+      expect(
+        ChatPackSheets.libraryEditBulletin(
+          added,
+          limits: library.limits,
+          bulletins: bulletins,
+          platform: const AppPlatformPolicy.desktop(),
+        ),
+        isNull,
+      );
     });
 
     test('a favourite is said on the web only when the full list replaced '
@@ -180,7 +191,7 @@ void main() {
           added,
           limits: library.limits,
           bulletins: bulletins,
-          web: true,
+          platform: const AppPlatformPolicy.web(),
         ),
         isNull,
       );
@@ -196,7 +207,7 @@ void main() {
           replaced,
           limits: library.limits,
           bulletins: bulletins,
-          web: true,
+          platform: const AppPlatformPolicy.web(),
         ),
         isNotNull,
       );
@@ -205,21 +216,15 @@ void main() {
           replaced,
           limits: library.limits,
           bulletins: bulletins,
-          web: false,
+          platform: const AppPlatformPolicy.desktop(),
         ),
         isNull,
       );
     });
 
     test('the web removes a pack at once; a desktop asks first', () {
-      expect(
-        ChatPackSheets.confirmsRemovalsIn(PanelArrangement.pointer, web: true),
-        isFalse,
-      );
-      expect(
-        ChatPackSheets.confirmsRemovalsIn(PanelArrangement.pointer, web: false),
-        isTrue,
-      );
+      expect(const AppPlatformPolicy.web().confirmsPackRemovals, isFalse);
+      expect(const AppPlatformPolicy.desktop().confirmsPackRemovals, isTrue);
     });
 
     test(
@@ -230,6 +235,7 @@ void main() {
           [(edit: LibraryEdit$RemovePack(cats.id, cats.kind), pack: cats)],
           strings,
           bulletins,
+          platform: const AppPlatformPolicy.desktop(),
         );
         await pumpEventQueue();
 
@@ -289,7 +295,7 @@ void main() {
         bulletins: bulletins,
         pack: pack,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
       ).ignore();
       await _settle(tester);
       final remove = find.textContaining('Удалить');
@@ -323,7 +329,7 @@ void main() {
         bulletins: bulletins,
         pack: pack,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.pointer,
+        platform: const AppPlatformPolicy.desktop(),
       ).ignore();
       await _settle(tester);
       await tester.tap(find.text('Удалить эмодзи'));
@@ -372,7 +378,7 @@ void main() {
         bulletins: bulletins,
         pack: pack,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.pointer,
+        platform: const AppPlatformPolicy.desktop(),
       ).whenComplete(() => closed = true).ignore();
       await _settle(tester);
       await tester.tap(find.text('Удалить эмодзи'));
@@ -408,7 +414,7 @@ void main() {
         bulletins: bulletins,
         pack: pack,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.pointer,
+        platform: const AppPlatformPolicy.desktop(),
       ).whenComplete(() => closed = true).ignore();
       await _settle(tester);
       await tester.tap(find.text('Удалить эмодзи'));
@@ -457,7 +463,7 @@ void main() {
         bulletins: bulletins,
         pack: pack,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
       ).ignore();
       await _settle(tester);
       await tester.tap(find.textContaining('Удалить'));
@@ -486,7 +492,7 @@ void main() {
         bulletins: bulletins,
         pack: pack,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
       ).ignore();
       await _settle(tester);
       await tester.tap(find.textContaining('Удалить'));
@@ -514,7 +520,7 @@ void main() {
         bulletins: bulletins,
         pack: pack,
         kind: PackKind.stickers,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
       ).ignore();
       await _settle(tester);
       await tester.tap(find.textContaining('Добавить'));
@@ -537,7 +543,7 @@ void main() {
         bulletins: bulletins,
         pack: pack,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
       ).ignore();
       await _settle(tester);
       await tester.tap(find.textContaining('Удалить'));
@@ -557,7 +563,7 @@ void main() {
         services: services,
         bulletins: bulletins,
         packs: packs,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
       ).ignore();
       // Read as it opens: the demo has one emoji pack, and a sheet with a
       // pack that is not there closes once its lookup answers.
@@ -580,7 +586,7 @@ void main() {
         bulletins: bulletins,
         pack: AnimatedEmojiPack.packId,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
         previewEmoji: emoji,
       ).ignore();
       await tester.pump();
@@ -600,7 +606,7 @@ void main() {
         bulletins: bulletins,
         pack: AnimatedEmojiPack.packId,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
         onCopy: copied.add,
       ).ignore();
       await tester.pump();
@@ -642,7 +648,7 @@ void main() {
         bulletins: bulletins,
         pack: AnimatedEmojiPack.packId,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
       ).ignore();
       await _settle(tester);
       expect(find.byType(EmojiPackSheet), findsOneWidget);
@@ -668,7 +674,7 @@ void main() {
         bulletins: bulletins,
         pack: AnimatedEmojiPack.packId,
         kind: PackKind.emoji,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
       ).ignore();
       await _settle(tester);
 
@@ -688,7 +694,7 @@ void main() {
         bulletins: bulletins,
         pack: const PackId('nope'),
         kind: PackKind.stickers,
-        arrangement: PanelArrangement.touch,
+        platform: const AppPlatformPolicy.android(),
       ).ignore();
       await _settle(tester);
 

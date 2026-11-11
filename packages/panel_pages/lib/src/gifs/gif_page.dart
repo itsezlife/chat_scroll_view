@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart' show CatalogLeafRemoveBadge;
 import 'package:panel_pages/src/gifs/gif_row_layout.dart';
 import 'package:panel_pages/src/menu/catalog_context_menu.dart';
+import 'package:panel_pages/src/policy/catalog_pointer_policy.dart';
 import 'package:panel_pages/src/preview/catalog_content_preview.dart';
 import 'package:panel_pages/src/preview/content_preview_item.dart';
 import 'package:panel_pages/src/preview/content_preview_menu.dart';
@@ -1060,9 +1060,8 @@ class _CellState extends State<_Cell> {
       };
 
   // The remove badge's look on this platform.
-  static const CatalogLeafRemoveBadge _look = kIsWeb
-      ? CatalogLeafRemoveBadge.web
-      : CatalogLeafRemoveBadge.pointer;
+  static final CatalogLeafRemoveBadge _look =
+      CatalogPointerPolicy.current.removeBadge;
 
   // The badge a mouse over a removable cell shows, while no preview is up.
   CatalogLeafRemoveBadge? get _badge =>

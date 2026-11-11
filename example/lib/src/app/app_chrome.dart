@@ -1,10 +1,10 @@
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -28,16 +28,6 @@ class AppChrome extends StatelessWidget {
   /// The app.
   final Widget child;
 
-  static bool get _desktopBulletins =>
-      kIsWeb ||
-      switch (defaultTargetPlatform) {
-        TargetPlatform.macOS ||
-        TargetPlatform.windows ||
-        TargetPlatform.linux ||
-        TargetPlatform.fuchsia => true,
-        TargetPlatform.android || TargetPlatform.iOS => false,
-      };
-
   @override
   Widget build(BuildContext context) => ChromeThemeScope(
     palette: const ChromePalette.dark(),
@@ -50,10 +40,9 @@ class AppChrome extends StatelessWidget {
     // The desktop pointer menu of the composer's field is drawn in the
     // night colours of its own preset.
     pointerMenu: PointerMenuTokens.night,
-    // The bulletins' desktop toast in the toolkit's own colours, where the
-    // bulletin policy is the desktop one (the web included); the dark card
-    // preset elsewhere (ADR 045, *Desktop values*).
-    bulletin: _desktopBulletins ? BulletinTokens.desktop : null,
+    // The bulletins' desktop toast in the toolkit's own colours on a
+    // desktop (the web included); the dark card preset elsewhere.
+    bulletin: AppPlatformPolicy.current().bulletinTokens,
     child: ChromeStringsScope(
       strings: demoChromeStrings,
       child: ChromeMotionScope(

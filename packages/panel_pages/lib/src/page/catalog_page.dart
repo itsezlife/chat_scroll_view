@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -22,6 +21,7 @@ import 'package:panel_pages/src/page/catalog_sticky_header.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/page/listen_value_builder.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/policy/catalog_pointer_policy.dart';
 import 'package:panel_pages/src/preview/catalog_preview_mark.dart';
 import 'package:panel_pages/src/scroll/page_scroll_reporter.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
@@ -759,9 +759,8 @@ class _CatalogPageState extends State<CatalogPage>
                             onLeafHover: _onLeafHover,
                             leafRemovable: pointer ? _leafRemovable : null,
                             onLeafRemove: pointer ? _onLeafRemove : null,
-                            removeBadge: kIsWeb
-                                ? CatalogLeafRemoveBadge.web
-                                : CatalogLeafRemoveBadge.pointer,
+                            removeBadge:
+                                CatalogPointerPolicy.current.removeBadge,
                             leafLongPressEligible: _longPressEligible,
                             leafLongPressDelay: _longPressDelay,
                             onLeafLongPressStart: _onLongPressStart,
