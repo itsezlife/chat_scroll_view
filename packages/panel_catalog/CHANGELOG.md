@@ -6,6 +6,17 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the chat's scroll physics)
+
+- `PanelCatalogViewport.physics` takes a `ViewportScrollPhysics` (from
+  `viewport_scroll`), the chat's: the platform's preset by default (the
+  stretch on Android, the rubber band on iOS and macOS, a hard edge on
+  Windows and Linux), with its fling in place of the clamping simulation.
+  A drag past an end the overscroll sink does not take pulls the edge
+  effect, which moves the painted layer only; a fling that reaches an end
+  hands it its leftover speed. A press while it springs back catches it and
+  taps nothing.
+
 ### Changed (an offstage catalogue paints nothing)
 
 - A catalogue under an invisible `Visibility` paints nothing, and repaints

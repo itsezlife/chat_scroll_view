@@ -41,6 +41,8 @@ import 'panel_catalog_scroll_events_test.dart'
     as panel_catalog_scroll_events_test;
 import 'panel_catalog_scroll_hardening_test.dart'
     as panel_catalog_scroll_hardening_test;
+import 'panel_catalog_scroll_physics_test.dart'
+    as panel_catalog_scroll_physics_test;
 import 'panel_catalog_semantics_test.dart' as panel_catalog_semantics_test;
 import 'panel_catalog_texture_layers_test.dart'
     as panel_catalog_texture_layers_test;
@@ -122,6 +124,10 @@ void main() {
   group(
     'panel_catalog_scroll_hardening_test.dart',
     panel_catalog_scroll_hardening_test.main,
+  );
+  group(
+    'panel_catalog_scroll_physics_test.dart',
+    panel_catalog_scroll_physics_test.main,
   );
   group('panel_catalog_semantics_test.dart', panel_catalog_semantics_test.main);
   group(
