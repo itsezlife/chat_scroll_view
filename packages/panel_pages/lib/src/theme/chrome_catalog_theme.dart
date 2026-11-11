@@ -42,12 +42,12 @@ class ChromeCatalogTheme extends StatelessWidget {
   /// colour at alpha `0x12`. The one recipe the cell hover, the variant
   /// picker and the context menu share.
   static Color hoverWashOf(ChromePalette palette) =>
-      palette.onSurface.withAlpha(0x12);
+      ChromeButtonInks.hoverOf(palette);
 
   /// The press feedback of a row or a button on a card, in [palette]: the
   /// text colour at alpha `0x0F`, the colour a pressed cell washes in.
   static Color pressInkOf(ChromePalette palette) =>
-      palette.onSurface.withAlpha(0x0F);
+      ChromeButtonInks.pressOf(palette);
 
   /// The hover box of a cell under the pointer arrangement, centred in it
   /// whatever its size.

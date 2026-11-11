@@ -9,6 +9,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'box/chrome_box_layer_test.dart' as chrome_box_layer_test;
+import 'button/chrome_buttons_test.dart' as chrome_buttons_test;
 import 'glass/glass_flat_golden_test.dart' as glass_flat_golden_test;
 import 'glass/glass_layer_watch_test.dart' as glass_layer_watch_test;
 import 'glass/glass_public_api_test.dart' as glass_public_api_test;
@@ -61,6 +62,7 @@ import 'tokens/spoiler_tokens_test.dart' as spoiler_tokens_test;
 
 void main() {
   group('box/chrome_box_layer_test.dart', chrome_box_layer_test.main);
+  group('button/chrome_buttons_test.dart', chrome_buttons_test.main);
   group('glass/glass_flat_golden_test.dart', glass_flat_golden_test.main);
   group('glass/glass_public_api_test.dart', glass_public_api_test.main);
   group('glass/glass_shaders_test.dart', glass_shaders_test.main);

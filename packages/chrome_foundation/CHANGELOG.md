@@ -6,6 +6,10 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (chrome buttons)
+
+- `ChromeIconButton`, `ChromePillButton`, `ChromeBarButton` (with `ChromeBarButtonMetrics`), `ChromeBadgeButton` (with `ChromeBadgeButtonMetrics`), `ChromeSpinner`, `ChromeCrossPainter`, `ChromeDotsPainter`, and `ChromeButtonInks` (the press and hover colours of a button on the surface or on the accent). The pack sheet's buttons, spinner and glyphs, made reusable; they draw as the sheet drew them.
+
 ### Fixed (ink takes the primary button only)
 
 - `ChromeInk` presses with the primary button only: a secondary click neither taps nor draws, and reaches the host's context handlers.

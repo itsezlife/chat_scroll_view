@@ -83,8 +83,9 @@ The reference checkout moved from 12.9.0 to 13.2.1. `ChatActivity.createMenu` no
 | Unchanged | | Placement (`popupX`, `popupY`, the 240 rule), the 200 minimum and content width, rows of 48 with 18 / 43 and 16 sp text, the 0.2 dim without blur behind (`dimBehindView(v, true)`). |
 | Not ported | | The glass samples the screen captured before the dim; ours filters the scene behind it, which includes the 0.2 dim. |
 
-## Amendment: names by role (native-media 204)
+## Amendment: names by role, chrome buttons (native-media 204)
 
 | Area | Decision |
 | ---- | -------- |
 | Corner popup motions | The two Android variants named after the message menu are named by the motion they play: `bloom` is `AppearMotion.burst`, `pop` is `AppearMotion.zoom`, and the hide they share is the drift fade. Values unchanged. A host still names them; `forPlatform` picks neither. |
+| Chrome buttons | The pack sheet's private buttons, spinner and glyphs are chrome primitives in this package (`ChromeIconButton`, `ChromePillButton`, `ChromeBarButton`, `ChromeBadgeButton`, `ChromeSpinner`, `ChromeCrossPainter`, `ChromeDotsPainter`), so a page or a host draws the same button without copying it. Their press and hover colours derive from the palette (`ChromeButtonInks`, which the catalog theme's press and hover answer). Their geometry follows the *Metrics* row: component-owned constants, gathered in a const metrics value per button (`ChromeBarButtonMetrics`, `ChromeBadgeButtonMetrics`, or a size parameter) that a use may replace; it is not a theme group. The spinner's turn is a loop, not a transition, and lives with the motion widgets. |

@@ -120,7 +120,7 @@ class PackSheetView extends StatefulWidget {
   static const double titleInset = 18;
 
   /// The menu button: 40 square, 5 in from the top and the end edge.
-  static const double menuButtonExtent = 40;
+  static const double menuButtonExtent = ChromeIconButton.defaultExtent;
 
   /// The grabber: 36 x 4, radius 2.
   static const Size grabberSize = Size(36, 4);
@@ -150,14 +150,12 @@ class PackSheetView extends StatefulWidget {
   /// The grid's side padding and its bottom padding.
   static const EdgeInsets gridPadding = EdgeInsets.fromLTRB(10, 0, 10, 8);
 
-  /// The add button: 48 tall, 8 from every edge of its bar, fully rounded,
-  /// on a 64 bar.
-  static const double buttonExtent = 48;
+  /// The bottom button on touch: 48 tall, 8 from every edge of its bar,
+  /// fully rounded, on a 64 bar; its label 14 bold.
+  static const ChromeBarButtonMetrics buttonMetrics =
+      ChromeBarButtonMetrics.standard;
 
-  /// The margin around the filled add button.
-  static const double buttonMargin = 8;
-
-  /// The label of the bottom button: 14 bold.
+  /// The label of a pack header's button: 14 bold.
   static const double buttonTextSize = 14;
 
   /// The preview emoji's side (140), and the gap between it and the card's
@@ -215,17 +213,11 @@ class PackSheetView extends StatefulWidget {
     0,
   );
 
-  /// Height of the box's bottom button: 42, with 12 above and below it and
-  /// 16 at each side.
-  static const double boxButtonExtent = 42;
-
-  /// The room around the box's bottom button.
-  static const EdgeInsets boxButtonPadding = EdgeInsets.fromLTRB(
-    16,
-    12,
-    16,
-    12,
-  );
+  /// The box's bottom button: 42 tall, with 12 above and below it and 16
+  /// at each side; its words semibold 13 and the pack's count in an 18 px
+  /// badge 6 after them (bold 11, 5 at each side).
+  static const ChromeBadgeButtonMetrics boxButtonMetrics =
+      ChromeBadgeButtonMetrics.standard;
 
   /// The tallest the grid is in a box under a pointer: 320 for stickers, 197
   /// for emoji.
@@ -679,10 +671,9 @@ class _PackSheetViewState extends State<PackSheetView>
         : _gridExtent(packs, width);
     final buttonBar = switch (action) {
       null => 0.0,
-      _ when !touch =>
-        PackSheetView.boxButtonExtent + PackSheetView.boxButtonPadding.vertical,
-      PackSheetAction(removes: true) => PackSheetView.buttonExtent,
-      _ => PackSheetView.buttonExtent + 2 * PackSheetView.buttonMargin,
+      _ when !touch => PackSheetView.boxButtonMetrics.barExtent,
+      PackSheetAction(:final removes) =>
+        PackSheetView.buttonMetrics.barExtentOf(destructive: removes),
     };
     final bottomInset = touch ? media.padding.bottom : 0.0;
     final frame = _frame = touch
@@ -708,7 +699,7 @@ class _PackSheetViewState extends State<PackSheetView>
       _ => '',
     };
     final grid = packs == null
-        ? const Center(child: _Spinner())
+        ? const Center(child: ChromeSpinner())
         : Listener(
             behavior: HitTestBehavior.translucent,
             onPointerDown: (event) => _lastKind = event.kind,
@@ -903,16 +894,21 @@ class _PackSheetViewState extends State<PackSheetView>
                 right: 0,
                 bottom: bottomInset,
                 child: touch
-                    ? _BottomButton(
+                    ? ChromeBarButton(
                         label: action.labelIn(strings),
-                        removes: action.removes,
+                        destructive: action.removes,
+                        metrics: PackSheetView.buttonMetrics,
                         onPressed: () => _onButton(action),
                       )
-                    : _BoxButton(
-                        label: action.boxLabelIn(strings),
-                        removes: action.removes,
-                        onPressed: () => _onButton(action),
-                      ),
+                    : switch (action.boxLabelIn(strings)) {
+                        (final label, final count) => ChromeBadgeButton(
+                          label: label,
+                          count: count,
+                          destructive: action.removes,
+                          metrics: PackSheetView.boxButtonMetrics,
+                          onPressed: () => _onButton(action),
+                        ),
+                      },
               ),
           ],
         );
@@ -1224,9 +1220,9 @@ class _Header extends StatelessWidget {
               if (links case (final links, final link))
                 _MenuButton(links: links, link: link),
               if (close)
-                _IconButton(
+                ChromeIconButton(
                   label: strings.closeAction,
-                  painter: _CrossPainter(palette.onSurfaceMuted),
+                  painter: ChromeCrossPainter(palette.onSurfaceMuted),
                   onPressed: () => Navigator.maybeOf(context)?.maybePop(),
                 ),
             ],
@@ -1306,10 +1302,6 @@ class _PackHeader extends StatefulWidget {
   /// The count: 13 in the muted colour, 31.66 down, 8 in.
   static const double subtitleSize = 13;
 
-  /// The button: 28 tall, 15.66 down, 5.66 from the end; the title stops 16
-  /// short of its far edge.
-  static const double buttonExtent = 28;
-
   /// How long the buttons take to trade places, on an ease out (quintic).
   static const Duration toggleDuration = Duration(milliseconds: 250);
 
@@ -1372,14 +1364,14 @@ class _PackHeaderState extends State<_PackHeader>
       fontSize: PackSheetView.buttonTextSize,
       fontWeight: PackSheetView.boldWeight,
     );
-    final add = _HeaderButton(
+    final add = ChromePillButton(
       enabled: !installed,
       onPressed: widget.onToggle,
       padding: 18,
-      color: palette.accent,
+      fill: palette.accent,
       child: Text(strings.addPackAction, style: label(palette.onAccent)),
     );
-    final remove = _HeaderButton(
+    final remove = ChromePillButton(
       enabled: installed,
       onPressed: widget.onToggle,
       padding: 12,
@@ -1437,91 +1429,6 @@ class _PackHeaderState extends State<_PackHeader>
   }
 }
 
-/// One of a pack header's buttons: [child] in a 28 tall band, [padding] in
-/// from either side, on a fully rounded [color] fill when there is one.
-class _HeaderButton extends StatelessWidget {
-  const _HeaderButton({
-    required this.enabled,
-    required this.onPressed,
-    required this.padding,
-    required this.child,
-    this.color,
-  });
-
-  final bool enabled;
-  final VoidCallback onPressed;
-  final double padding;
-  final Color? color;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = ChromeThemeScope.paletteOf(context);
-    return IgnorePointer(
-      // The one faded out keeps its place but takes no press.
-      ignoring: !enabled,
-      child: Semantics(
-        button: true,
-        excludeSemantics: !enabled,
-        child: ChromeInk(
-          color: switch (color) {
-            null => ChromeCatalogTheme.pressInkOf(palette),
-            _ => palette.onAccent.withAlpha(0x24),
-          },
-          hoverColor: ChromeCatalogTheme.hoverWashOf(palette),
-          borderRadius: BorderRadius.circular(_PackHeader.buttonExtent / 2),
-          onTap: onPressed,
-          child: Container(
-            height: _PackHeader.buttonExtent,
-            padding: EdgeInsets.symmetric(horizontal: padding),
-            alignment: Alignment.center,
-            decoration: switch (color) {
-              final color? => BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(
-                  _PackHeader.buttonExtent / 2,
-                ),
-              ),
-              null => null,
-            },
-            child: child,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _IconButton extends StatelessWidget {
-  const _IconButton({
-    required this.label,
-    required this.painter,
-    required this.onPressed,
-  });
-
-  final String label;
-  final CustomPainter painter;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: label,
-    child: ChromeInk(
-      color: ChromeCatalogTheme.pressInkOf(ChromeThemeScope.paletteOf(context)),
-      hoverColor: ChromeCatalogTheme.hoverWashOf(
-        ChromeThemeScope.paletteOf(context),
-      ),
-      circleRadius: PackSheetView.menuButtonExtent / 2,
-      onTap: onPressed,
-      child: SizedBox.square(
-        dimension: PackSheetView.menuButtonExtent,
-        child: CustomPaint(painter: painter),
-      ),
-    ),
-  );
-}
-
 class _MenuButton extends StatefulWidget {
   const _MenuButton({required this.links, required this.link});
 
@@ -1575,300 +1482,11 @@ class _MenuButtonState extends State<_MenuButton> {
           ),
         ),
       ),
-      child: _IconButton(
+      child: ChromeIconButton(
         label: strings.moreOptionsLabel,
-        painter: _DotsPainter(palette.onSurfaceMuted),
+        painter: ChromeDotsPainter(palette.onSurfaceMuted),
         onPressed: () => _menu.isOpen ? _menu.close() : _menu.open(),
       ),
     );
   }
-}
-
-/// The box's bottom button: 42 tall, 16 in from each side and 12 from the
-/// grid and the edge, fully rounded; its words in semibold 13 and the pack's
-/// count in an 18 px badge 6 after them (bold 11, 5 at each side). Adding is
-/// a filled accent button with a white badge; removing a flat one in the
-/// attention colour, its badge filled with it.
-class _BoxButton extends StatelessWidget {
-  const _BoxButton({
-    required this.label,
-    required this.removes,
-    required this.onPressed,
-  });
-
-  final (String, int?) label;
-  final bool removes;
-  final VoidCallback onPressed;
-
-  static const double _badgeHeight = 18;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = ChromeThemeScope.of(context).palette;
-    final (words, count) = label;
-    final foreground = removes ? palette.destructive : palette.onAccent;
-    final (badgeFill, badgeText) = removes
-        ? (palette.destructive, palette.onAccent)
-        : (palette.onAccent, palette.accent);
-    const radius = BorderRadius.all(
-      Radius.circular(PackSheetView.boxButtonExtent / 2),
-    );
-    return Padding(
-      padding: PackSheetView.boxButtonPadding,
-      child: Semantics(
-        button: true,
-        label: switch (count) {
-          final count? => '$words $count',
-          null => words,
-        },
-        excludeSemantics: true,
-        child: ChromeInk(
-          color: removes
-              ? ChromeCatalogTheme.pressInkOf(palette)
-              : palette.onAccent.withAlpha(0x24),
-          hoverColor: removes
-              ? ChromeCatalogTheme.hoverWashOf(palette)
-              : palette.onAccent.withAlpha(0x12),
-          borderRadius: radius,
-          onTap: onPressed,
-          child: Container(
-            height: PackSheetView.boxButtonExtent,
-            decoration: BoxDecoration(
-              color: removes ? null : palette.accent,
-              borderRadius: radius,
-            ),
-            alignment: Alignment.center,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    words,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: foreground,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                if (count != null && count > 0) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    key: const ValueKey('pack-box-count'),
-                    height: _badgeHeight,
-                    constraints: const BoxConstraints(minWidth: _badgeHeight),
-                    padding: const EdgeInsets.symmetric(horizontal: 5),
-                    decoration: BoxDecoration(
-                      color: badgeFill,
-                      borderRadius: BorderRadius.circular(_badgeHeight / 2),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '$count',
-                      style: TextStyle(
-                        color: badgeText,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomButton extends StatelessWidget {
-  const _BottomButton({
-    required this.label,
-    required this.removes,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool removes;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = ChromeThemeScope.of(context).palette;
-    final text = Text(
-      label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        color: removes ? palette.destructive : palette.onAccent,
-        fontSize: PackSheetView.buttonTextSize,
-        fontWeight: PackSheetView.boldWeight,
-      ),
-    );
-    // Added: a filled pill inset 8; removed: a flat bar the
-    // full width, its text in the attention colour.
-    return Semantics(
-      button: true,
-      child: removes
-          ? ChromeInk(
-              color: ChromeCatalogTheme.pressInkOf(palette),
-              hoverColor: ChromeCatalogTheme.hoverWashOf(palette),
-              onTap: onPressed,
-              child: SizedBox(
-                height: PackSheetView.buttonExtent,
-                child: Center(child: text),
-              ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(PackSheetView.buttonMargin),
-              child: ChromeInk(
-                color: palette.onAccent.withAlpha(0x24),
-                hoverColor: palette.onAccent.withAlpha(0x12),
-                borderRadius: BorderRadius.circular(
-                  PackSheetView.buttonExtent / 2,
-                ),
-                onTap: onPressed,
-                child: Container(
-                  height: PackSheetView.buttonExtent,
-                  decoration: BoxDecoration(
-                    color: palette.accent,
-                    borderRadius: BorderRadius.circular(
-                      PackSheetView.buttonExtent / 2,
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: text,
-                ),
-              ),
-            ),
-    );
-  }
-}
-
-/// An arc turning in the accent while the packs load.
-class _Spinner extends StatefulWidget {
-  const _Spinner();
-
-  @override
-  State<_Spinner> createState() => _SpinnerState();
-}
-
-class _SpinnerState extends State<_Spinner>
-    with SingleTickerProviderStateMixin {
-  // It turns once a second; reduce motion stops it.
-  static const _turnPeriod = Duration(seconds: 1);
-
-  late final _turn = AnimationController(vsync: this, duration: _turnPeriod);
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final speed = ChromeMotionScope.maybeOf(context)?.speed;
-    if (speed == null || !speed.isInstant) {
-      if (!_turn.isAnimating) _turn.repeat();
-    } else {
-      _turn.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _turn.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    // A busy region, not a button: nothing here takes input.
-    container: true,
-    child: SizedBox.square(
-      dimension: 40,
-      child: CustomPaint(
-        painter: _ArcPainter(
-          _turn,
-          ChromeThemeScope.of(context).palette.accent,
-        ),
-      ),
-    ),
-  );
-}
-
-class _ArcPainter extends CustomPainter {
-  _ArcPainter(this.turn, this.color) : super(repaint: turn);
-
-  final Animation<double> turn;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final pen = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(
-      (Offset.zero & size).deflate(4),
-      turn.value * 2 * math.pi,
-      math.pi * 1.5,
-      false,
-      pen,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_ArcPainter oldDelegate) => oldDelegate.color != color;
-}
-
-/// Three dots in a column.
-class _DotsPainter extends CustomPainter {
-  const _DotsPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    final centre = size.center(Offset.zero);
-    for (final dy in const [-6.0, 0.0, 6.0]) {
-      canvas.drawCircle(centre.translate(0, dy), 2, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DotsPainter oldDelegate) => oldDelegate.color != color;
-}
-
-/// Two strokes crossing, stroked as one path so a
-/// translucent colour covers the crossing once.
-class _CrossPainter extends CustomPainter {
-  const _CrossPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final pen = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    final box = Rect.fromCenter(
-      center: size.center(Offset.zero),
-      width: 12,
-      height: 12,
-    );
-    final cross = Path()
-      ..moveTo(box.left, box.top)
-      ..lineTo(box.right, box.bottom)
-      ..moveTo(box.right, box.top)
-      ..lineTo(box.left, box.bottom);
-    canvas.drawPath(cross, pen);
-  }
-
-  @override
-  bool shouldRepaint(_CrossPainter oldDelegate) => oldDelegate.color != color;
 }
