@@ -276,3 +276,42 @@ when touch is supported (`contextMenu.ts`, `IS_TOUCH_SUPPORTED`).
 | Rule | The policy follows `TargetPlatform` alone: Android and iOS are `$Mobile`, everything else `$Desktop`, in an app and in a browser. A browser derives the platform from its user agent (an iPad that reports a Mac is detected by its touch points), which stands in for the references' coarse-pointer test. The `isWeb` parameter of `forPlatform` (and of `ChatMessageMenuPresentation.forPlatform`) is gone. |
 | Window | Not read: a narrowed desktop browser is still driven by a mouse and keeps `$Desktop`, and the policy of a live facade never changes (see above), so a resize cannot swap it. |
 | Menu | The presentation of the message menu stays the host's: the demo host draws a popup at the press in any browser, as both web clients do on a phone. |
+
+## Amendment: desktop key routing (2026-11-12)
+
+Native-media tickets 225, 226. On a desktop the scroll keys worked only
+sometimes: after a chat opened nobody, or the composer's field, held the
+focus, and the chat's keys (`ChatKeyboardShortcuts`) were reached only once a
+click or a selection happened to focus them; the field took every arrow and
+page key for itself; the host's copy action did not cover the panel.
+
+The reference desktop client focuses its message field when it shows a chat
+(`HistoryWidget::setInnerFocus`), and the history while messages or text are
+selected. The field passes a key on when it cannot use it: Up / Down (and
+Page Up / Page Down) go on to the history when the caret did not move
+(`InputField::keyPressEventInner`: at the start for Up, at the end for
+Down), and the history scrolls by them (`HistoryWidget::keyPressEvent`);
+Home / End stay in the field. Its scroll area never takes the focus itself,
+so its panel gets no keys; the maintainer asked for the panel under the
+mouse to get them (ticket 224), and the field keeps those it edits with.
+
+| Area | Decision |
+| ---- | -------- |
+| Router | The host mounts a `ViewportScrollRouter` (`viewport_scroll`) over the chat, the composer and the panel; the chat's keys register as its primary viewport, the catalogue's as its pointer viewport. The target of a scroll key is the catalogue under the mouse, else the chat. |
+| Who holds the focus | On a desktop (`holdsFocus`): the composer's field when the chat shows; the router's node while messages or text are selected, and when the field is left with nothing else focused; the field again when the selection ends. A press on the catalogue gives it the focus unless a text field holds it. The chat's own node keeps the focus a message selection gives it. |
+| Copy and Escape | The host's copy action covers the router, so Cmd / Ctrl+C copies a message or text selection from the chat, the composer (with no selection of its own), the router or the catalogue. Escape clears a selection from any focus (the viewport's key handler). |
+
+| Focus | Up / Down | Page Up / Page Down | Home / End |
+| ----- | --------- | ------------------- | ---------- |
+| Composer field, empty | target | target | target |
+| Composer field, collapsed caret at the start (Up) / at the end (Down) | target | target | field |
+| Composer field, caret elsewhere, or a selection in it | field | target | field |
+| Router's node (field left, a selection) | target | target | target |
+| The chat's node | target | target | target (Home: newest, End: oldest) |
+| The catalogue (pressed) | its roving focus when a cell has it, else the catalogue | the catalogue | as Up / Down |
+
+Target: the catalogue under the mouse, else the chat. Left / Right and every
+modified key stay the field's. Deviation from the reference: the page keys
+always scroll (the reference moves the caret to the field's start or end
+first), as the composer is a short field; Home / End scroll from an empty
+field.

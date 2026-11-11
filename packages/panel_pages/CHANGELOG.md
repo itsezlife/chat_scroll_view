@@ -11,11 +11,11 @@ is pre-1.0.
 - `CatalogKeyboardFocus` binds the chat's scroll keys (`ViewportScrollKeys`
   from `viewport_scroll`): with no cell focused, the up and down arrows
   scroll a line, Page Up and Page Down most of the viewport, Home and End to
-  the start and the end; the page keys scroll with a cell focused too. A
-  mouse over the catalogue, or a mouse press on it, gives it the keys
-  without focusing a cell, taking them from the chat beside it but never
-  from a text field (a composer); the hover's focus goes back when the
-  mouse leaves. Tab still enters
+  the start and the end; the page keys scroll with a cell focused too.
+  Under a `ViewportScrollRouter` the catalogue is the pointer viewport: the
+  mouse over it sends it the scroll keys whoever holds the focus (a field
+  keeps those it edits with). A mouse press on it gives it the focus
+  without focusing a cell, never from a text field. Tab still enters
   the grid on a cell, and the arrows then move by cell.
 
 ### Added (a host layer over a pack sheet)

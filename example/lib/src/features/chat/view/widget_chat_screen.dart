@@ -77,6 +77,7 @@ import 'package:flutter_md/flutter_md.dart'
         MarkdownPainterCacheScope,
         MarkdownSpoilerController;
 import 'package:panel_presentation/panel_presentation.dart';
+import 'package:viewport_scroll/viewport_scroll.dart' show ViewportScrollRouter;
 
 /// Supplies the message source of a [WidgetChatScreen].
 typedef ChatDataSourceLoader = Future<ChatDataSource> Function();
@@ -1119,9 +1120,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     final messageTheme = chatScrollTheme.message;
     final newMessageTheme = messageTheme?.copyWith(bubbleRadius: _bubbleRadius);
     final search = _search!;
-    final input = _input;
-    final insets = input.insets;
-    final mobilePanel = input.panelInKeyboardPlace;
+    final mobilePanel = _input.panelInKeyboardPlace;
 
     return ControllerScope.value(
       search,
@@ -1146,8 +1145,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             _selection.clear();
             return;
           }
-          if (input.isPanelVisible) {
-            unawaited(input.handleBack());
+          if (_input.isPanelVisible) {
+            unawaited(_input.handleBack());
             return;
           }
           // Nothing of the chat's own is left to close: leave the chat
@@ -1174,60 +1173,43 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               body: StateConsumer<ChatSearchController, ChatSearchState>(
                 listener: _onSearchStateChanged,
                 child: DemoChatSurface(
-                  child: GlassSourceScope(
-                    child: Stack(
-                      key: _presentationSpace,
-                      children: <Widget>[
-                        // A docked panel takes width from the chat region; the
-                        // popup and the dock draw above it.
-                        Positioned.fill(
-                          child: ValueListenableBuilder<double>(
-                            valueListenable: insets.inlineEnd,
-                            builder: (context, inlineEnd, child) => Padding(
-                              padding: EdgeInsetsDirectional.only(
-                                end: inlineEnd,
-                              ),
-                              child: child,
-                            ),
-                            // Above the chat and the composer both: the copy
-                            // shortcut reaches here from either one's focus.
-                            // The composer's own copy sits below and wins when
-                            // it has a selection; otherwise its action is
-                            // disabled and the intent comes up to this one.
-                            child: Actions(
-                              actions: <Type, Action<Intent>>{
-                                CopySelectionTextIntent: _CopySelectedAction(
-                                  selection: _selection,
-                                  onCopy: _copySelected,
-                                ),
-                              },
-                              // The bulletins over the chat, above the
-                              // composer and its keyboard or panel. They sit
-                              // at the chat's bottom padding on the frame it
-                              // changes, so they move with the composer.
-                              child: ChromeIconScope(
-                                icons: ChatBulletins.icons,
-                                child: BulletinHost(
-                                  controller: _bulletins,
-                                  obstruction: _bulletinObstruction,
-                                  tracksObstruction: true,
-                                  builders: _bulletinBuilders,
-                                  child: _buildChatRegion(
-                                    search: search,
-                                    mobilePanel: mobilePanel,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (!mobilePanel)
-                          Positioned.fill(
-                            child: PanelPresentationView(
-                              controller: input.presentation,
-                            ),
-                          ),
-                      ],
+                  // Above the chat, the composer and the panel: the copy
+                  // shortcut reaches here from any one's focus. The
+                  // composer's own copy sits below and wins when it has a
+                  // selection; otherwise its action is disabled and the
+                  // intent comes up to this one.
+                  child: Actions(
+                    actions: <Type, Action<Intent>>{
+                      CopySelectionTextIntent: _CopySelectedAction(
+                        selection: _selection,
+                        onCopy: _copySelected,
+                      ),
+                    },
+                    // Every scroll key has an owner (ADR 012, desktop key
+                    // routing): the field keeps those it edits with, the
+                    // panel under the mouse takes the rest, else the chat.
+                    // On a desktop nobody is left with the focus: the router
+                    // takes it when the field is left.
+                    // The field is that fallback, as the reference desktop
+                    // client focuses its field when it shows a chat and
+                    // keeps it there while the history is clicked; with
+                    // messages selected the history holds the keys (the
+                    // router's own node, under the copy action).
+                    child: ViewportScrollRouter(
+                      holdsFocus: switch (AppPlatformPolicy.current()) {
+                        AppPlatformPolicy$Desktop() => true,
+                        _ => false,
+                      },
+                      focusFallback: () =>
+                          _selection.isSelectionMode ||
+                              _selection.isTextSelectionActive
+                          ? null
+                          : _input.composer.focusNode,
+                      refocusOn: _selection,
+                      child: _buildScreenBody(
+                        search: search,
+                        mobilePanel: mobilePanel,
+                      ),
                     ),
                   ),
                 ),
@@ -1235,6 +1217,55 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// The chat region with its bulletins, and the popup or docked panel over
+  /// it.
+  Widget _buildScreenBody({
+    required ChatSearchController search,
+    required bool mobilePanel,
+  }) {
+    final input = _input;
+    final insets = input.insets;
+    return GlassSourceScope(
+      child: Stack(
+        key: _presentationSpace,
+        children: <Widget>[
+          // A docked panel takes width from the chat region; the
+          // popup and the dock draw above it.
+          Positioned.fill(
+            child: ValueListenableBuilder<double>(
+              valueListenable: insets.inlineEnd,
+              builder: (context, inlineEnd, child) => Padding(
+                padding: EdgeInsetsDirectional.only(end: inlineEnd),
+                child: child,
+              ),
+              // The bulletins over the chat, above the
+              // composer and its keyboard or panel. They sit
+              // at the chat's bottom padding on the frame it
+              // changes, so they move with the composer.
+              child: ChromeIconScope(
+                icons: ChatBulletins.icons,
+                child: BulletinHost(
+                  controller: _bulletins,
+                  obstruction: _bulletinObstruction,
+                  tracksObstruction: true,
+                  builders: _bulletinBuilders,
+                  child: _buildChatRegion(
+                    search: search,
+                    mobilePanel: mobilePanel,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (!mobilePanel)
+            Positioned.fill(
+              child: PanelPresentationView(controller: input.presentation),
+            ),
+        ],
       ),
     );
   }

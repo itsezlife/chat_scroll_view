@@ -191,8 +191,8 @@ The one leaf cell that holds keyboard focus, owned by the attached viewport and 
 _Avoid_: A focus node per leaf, a focus the host mirrors in its own state, key bindings inside the viewport (a page maps keys to moves)
 
 **Scroll keys**:
-The chat's keyboard scrolling on the catalogue (`ViewportScrollKeys`): with no cell in roving focus the up and down arrows step a line and Home and End go to the start and the end; the page keys step most of the viewport whether or not a cell is focused. A page binds them with roving focus, which wins while a cell has it. On a desktop the catalogue under the mouse has the keys: hovering it or pressing it gives it the focus without a focused cell, taking it from the chat beside it but never from a text field (the composer); focus the hover took goes back when the mouse leaves.
-_Avoid_: A copy of the chat's key map, entering roving focus on a click, taking the composer's keys
+The chat's keyboard scrolling on the catalogue (`ViewportScrollKeys`): with no cell in roving focus the up and down arrows step a line and Home and End go to the start and the end; the page keys step most of the viewport whether or not a cell is focused. A page binds them with roving focus, which wins while a cell has it. On a desktop the catalogue under the mouse has the scroll keys whoever holds the focus: its keys are the pointer viewport of the surface's scroll router ([ADR 012](../adr/012-cross-platform-selection-policies.md), desktop key routing), and a focused field keeps only those it edits with. A press on it gives it the focus without a focused cell, never from a text field.
+_Avoid_: A copy of the chat's key map, entering roving focus on a click, taking the composer's focus on hover
 
 **Focus highlight**:
 The press-highlight wash on the full cell of the focused leaf, at full alpha and under the content (a baked sprite is flushed after it). It follows the press highlight token unless the theme names a focus token.
