@@ -527,9 +527,17 @@ final class ChatInputSet {
   bool get isPanelDocked =>
       isPanelOpening && presentation.state.value.kind is Docked;
 
+  /// Whether the panel takes the soft keyboard's place in the window the set
+  /// was last told of ([updateEnvironment]): always on a phone, never on a
+  /// desktop, and in a browser only in a handheld window, so a resize across
+  /// that line moves it.
+  bool get panelInKeyboardPlace =>
+      presentation.policy.defaultKind(window: presentation.window.value)
+          is KeyboardReplacement;
+
   /// Whether the panel is a popup or a dock beside the composer, as opposed
   /// to a panel that replaces the soft keyboard.
-  bool get hasPopup => presentation.policy is! PanelPresentationPolicy$Mobile;
+  bool get hasPopup => !panelInKeyboardPlace;
 
   /// Where the composer puts the panel's toggle: at the start edge where the
   /// panel replaces the keyboard, and at the end edge where a popup anchors
@@ -560,12 +568,11 @@ final class ChatInputSet {
   ChromeIconId get pageIcon => shell.selectedPage.tab.icon;
 
   /// The part of the bottom safe area the keyboard presentation's occupancy
-  /// has not covered yet: the composer's bottom pad. A host of a platform
-  /// with no keyboard presentation leaves the composer its default pad.
+  /// has not covered yet: the composer's bottom pad. Where the panel does not
+  /// take the keyboard's place ([panelInKeyboardPlace]) the composer keeps
+  /// its default pad.
   listen.ValueListenable<double>? get composerSafeInset =>
-      presentation.policy is PanelPresentationPolicy$Mobile
-      ? keyboardStrategy.composerSafeInset
-      : null;
+      panelInKeyboardPlace ? keyboardStrategy.composerSafeInset : null;
 
   // --- Environment ----------------------------------------------------------
 

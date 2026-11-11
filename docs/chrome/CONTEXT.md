@@ -126,7 +126,7 @@ The sealed kind of host for the panel: keyboard replacement, anchored popup, doc
 _Avoid_: Platform-only fixed pair, open registry of presentations
 
 **Presentation policy**:
-A pure-Dart `$Mobile` / `$Desktop` strategy owning open triggers, dismissal, sizing and animation roles. Defaults come from OS family and window class.
+A pure-Dart `$Mobile` / `$Desktop` strategy owning open triggers, dismissal, sizing and animation roles, with a browser `$Web` variant that is the mobile one in a handheld window (up to 600 logical pixels wide) and the desktop one in a wider window, and moves a panel it opened when a resize crosses that line. Defaults come from OS family and the window.
 _Avoid_: `_vm` / `_js` forks, switching by last pointer kind
 
 **Occupancy**:

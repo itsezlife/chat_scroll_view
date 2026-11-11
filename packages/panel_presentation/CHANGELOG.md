@@ -6,6 +6,20 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a phone's browser shows the panel as a phone does)
+
+- `PanelPresentationPolicy$Web` (`PanelPresentationPolicy.web()`), the
+  default for `PanelOsFamily.web`: the mobile policy in a window up to 600
+  logical pixels wide (`handheldMaxWidth`, inclusive), the desktop policy in
+  a wider one. A browser used to get the desktop policy whatever its window,
+  so a phone's browser opened a popup over the composer; it now replaces the
+  keyboard. A host that passed `PanelPresentationPolicy.desktop()` keeps the
+  old behaviour.
+- `PanelPresentationController.updateWindow` moves a visible panel the
+  policy chose to the kind the policy chooses in the new window (a popup to
+  the keyboard's place and back), as a switch of kind. A kind the host named
+  in `show` stays, and a dock follows only its own rule.
+
 ### Changed (a hidden panel says so to its content)
 
 - `PanelPresentationView` hides the panel under a `Visibility` that keeps

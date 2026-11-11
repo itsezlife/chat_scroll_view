@@ -1120,8 +1120,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     final search = _search!;
     final input = _input;
     final insets = input.insets;
-    final mobilePanel =
-        input.presentation.policy is PanelPresentationPolicy$Mobile;
+    final mobilePanel = input.panelInKeyboardPlace;
 
     return ControllerScope.value(
       search,

@@ -48,6 +48,7 @@ Future<AppServices> _services(WidgetTester tester) async {
 
 const _mobile = PanelPresentationPolicy$Mobile();
 const _desktop = PanelPresentationPolicy$Desktop();
+const _web = PanelPresentationPolicy$Web();
 
 PanelVisibility _state(InputRig rig) => rig.set.presentation.state.value;
 
@@ -672,6 +673,68 @@ void main() {
       expect(_state(rig).kind, isA<Docked>());
       expect(rig.set.insets.inlineEnd.value, 292);
       expect(rig.set.insets.bottomPadding.value, rig.set.composer.extent.value);
+    });
+  });
+
+  group('the panel in a browser', () {
+    Future<InputRig> browser(WidgetTester tester, Size size) async =>
+        InputRig.pump(
+          tester,
+          services: await _services(tester),
+          policy: _web,
+          size: size,
+        );
+
+    testWidgets('takes the keyboard\'s place in a handheld window', (
+      tester,
+    ) async {
+      final rig = await browser(tester, const Size(400, 800));
+      await tester.pump();
+
+      expect(rig.set.panelInKeyboardPlace, isTrue);
+      expect(rig.set.panelPlacement, ActionPlacement.leading);
+      await _open(tester, rig);
+
+      expect(_state(rig).kind, isA<KeyboardReplacement>());
+      expect(find.byType(PanelCatalogViewport), findsOneWidget);
+      expect(rig.set.composerSafeInset, isNotNull);
+    });
+
+    testWidgets('is a popup over the composer in a wider window', (
+      tester,
+    ) async {
+      final rig = await browser(tester, const Size(1000, 800));
+      await tester.pump();
+
+      expect(rig.set.panelInKeyboardPlace, isFalse);
+      expect(rig.set.panelPlacement, ActionPlacement.trailing);
+      await _open(tester, rig);
+
+      expect(_state(rig).kind, isA<AnchoredPopup>());
+      expect(find.byType(PanelCatalogViewport), findsOneWidget);
+      expect(rig.set.composerSafeInset, isNull);
+    });
+
+    testWidgets('moves to the keyboard\'s place when the window narrows past '
+        'the line, and back', (tester) async {
+      final rig = await browser(tester, const Size(1000, 800));
+      await tester.pump();
+      await _open(tester, rig);
+      expect(_state(rig).kind, isA<AnchoredPopup>());
+
+      tester.view.physicalSize = const Size(400, 800);
+      await rig.settle(tester);
+
+      expect(_state(rig).kind, isA<KeyboardReplacement>());
+      expect(_state(rig).isVisible, isTrue);
+      expect(rig.set.panelPlacement, ActionPlacement.leading);
+      expect(find.byType(PanelCatalogViewport), findsOneWidget);
+
+      tester.view.physicalSize = const Size(1000, 800);
+      await rig.settle(tester);
+
+      expect(_state(rig).kind, isA<AnchoredPopup>());
+      expect(find.byType(PanelCatalogViewport), findsOneWidget);
     });
   });
 
