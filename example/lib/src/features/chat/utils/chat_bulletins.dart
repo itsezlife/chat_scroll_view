@@ -1,5 +1,6 @@
 import 'package:bulletins/bulletins.dart';
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chat_scroll_view_example/src/common/utils/russian_plural.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -113,18 +114,9 @@ String _englishFavouritesLimit(int limit) => 'Limit of $limit Stickers Reached';
 String _englishGifsLimit(int limit) => 'Limit of $limit GIFs Reached';
 
 String _russianFavouritesLimit(int limit) =>
-    'Достигнут лимит в $limit ${_russianPlural(limit, 'стикер', 'стикера', 'стикеров')}';
+    'Достигнут лимит в $limit ${RussianPlural.wordOf(limit, 'стикер', 'стикера', 'стикеров')}';
 
 String _russianGifsLimit(int limit) => 'Достигнут лимит в $limit GIF';
-
-// The CLDR one / few / many word of [n] in Russian (as `demoChromeStrings`).
-String _russianPlural(int n, String one, String few, String many) {
-  final mod10 = n % 10;
-  final mod100 = n % 100;
-  if (mod10 == 1 && mod100 != 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
-}
 
 /// The chat's bulletins: what each says, what leads it, and how long it
 /// stays. Values only; the chat screen shows them through its

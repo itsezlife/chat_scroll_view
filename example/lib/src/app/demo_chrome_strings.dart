@@ -1,3 +1,4 @@
+import 'package:chat_scroll_view_example/src/common/utils/russian_plural.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 
 /// The demo's language for every string the chrome packages draw: Russian.
@@ -118,17 +119,19 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
   ),
   packSheet: PackSheetStrings(
     addStickers: (n) =>
-        'Добавить $n ${_ru(n, 'стикер', 'стикера', 'стикеров')}',
+        'Добавить $n ${RussianPlural.wordOf(n, 'стикер', 'стикера', 'стикеров')}',
     removeStickers: (n) =>
-        'Удалить $n ${_ru(n, 'стикер', 'стикера', 'стикеров')}',
-    addMasks: (n) => 'Добавить $n ${_ru(n, 'маску', 'маски', 'масок')}',
-    removeMasks: (n) => 'Удалить $n ${_ru(n, 'маску', 'маски', 'масок')}',
+        'Удалить $n ${RussianPlural.wordOf(n, 'стикер', 'стикера', 'стикеров')}',
+    addMasks: (n) =>
+        'Добавить $n ${RussianPlural.wordOf(n, 'маску', 'маски', 'масок')}',
+    removeMasks: (n) =>
+        'Удалить $n ${RussianPlural.wordOf(n, 'маску', 'маски', 'масок')}',
     addEmoji: (n) => 'Добавить $n эмодзи',
     removeEmoji: (n) => 'Удалить $n эмодзи',
     addEmojiPacks: (n) =>
-        'Добавить $n ${_ru(n, 'набор', 'набора', 'наборов')} эмодзи',
+        'Добавить $n ${RussianPlural.wordOf(n, 'набор', 'набора', 'наборов')} эмодзи',
     removeEmojiPacks: (n) =>
-        'Удалить $n ${_ru(n, 'набор', 'набора', 'наборов')} эмодзи',
+        'Удалить $n ${RussianPlural.wordOf(n, 'набор', 'набора', 'наборов')} эмодзи',
     emojiCount: (n) => '$n эмодзи',
     addPackAction: 'Добавить',
     removePackAction: 'Удалить',
@@ -175,10 +178,10 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     panelClosed: 'Панель закрыта',
     pageSelected: (label) => 'Выбрано: $label',
     searchFieldLabel: 'Поиск',
-    searchResultCount: (count) => switch (_pluralOf(count)) {
-      _Plural.one => '$count результат',
-      _Plural.few => '$count результата',
-      _Plural.many => '$count результатов',
+    searchResultCount: (count) => switch (RussianPlural.of(count)) {
+      RussianPlural.one => '$count результат',
+      RussianPlural.few => '$count результата',
+      RussianPlural.many => '$count результатов',
     },
     backspaceAction: 'Удалить',
     variantsAction: 'Показать варианты',
@@ -186,25 +189,3 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     stickerPackStripLabel: 'Наборы стикеров',
   ),
 );
-
-enum _Plural { one, few, many }
-
-// CLDR cardinal rules of Russian for integers: one for 1, 21, 31 (not 11),
-// few for 2-4, 22-24 (not 12-14), many otherwise, zero included.
-_Plural _pluralOf(int n) {
-  final mod10 = n % 10;
-  final mod100 = n % 100;
-  if (mod10 == 1 && mod100 != 11) return _Plural.one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-    return _Plural.few;
-  }
-  return _Plural.many;
-}
-
-// The word of [n] in its one / few / many form.
-String _ru(int n, String one, String few, String many) =>
-    switch (_pluralOf(n)) {
-      _Plural.one => one,
-      _Plural.few => few,
-      _Plural.many => many,
-    };
