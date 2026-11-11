@@ -19,7 +19,9 @@ import 'package:panel_presentation/src/view/listen_value_builder.dart';
 ///
 /// Hidden, the view keeps the subtree of the last kind it showed: the
 /// strategy builds it with [PanelVisibility.hidden], and the view puts it
-/// offstage (no paint, no hit test, no semantics) and under [ExcludeFocus].
+/// offstage (no paint, no hit test, no semantics) and out of focus, under an
+/// invisible [Visibility] that keeps its state: content that asks
+/// [Visibility.of] learns that nothing of it is on screen.
 /// The tree has one shape shown or hidden, so a hide and a show remount
 /// nothing: the shell, its pages and their cells keep their state, and the
 /// cells their frames, and its views are kept while it is removed from the
@@ -81,20 +83,22 @@ class _PanelPresentationViewState extends State<PanelPresentationView> {
       );
       if (strategy == null) return const SizedBox.shrink();
       _kept = kind;
-      final hidden = !visibility.isVisible;
-      return Offstage(
-        offstage: hidden,
-        child: ExcludeFocus(
-          excluding: hidden,
-          child: KeyedSubtree(
-            key: ValueKey<String>(kind.name),
-            child: strategy.build(
-              context,
-              PanelStrategyContext(
-                controller: widget.controller,
-                visibility: visibility,
-                onMotionSettled: _attachment.motionSettled,
-              ),
+      // Offstage and out of focus while hidden, and [Visibility.of] says
+      // so to the content: what plays in it gives back what it plays on for
+      // the surfaces on screen, which a panel held on screen while it moves
+      // does not. The tickers are the strategy's (off unless shown).
+      return Visibility(
+        visible: visibility.isVisible,
+        maintainState: true,
+        maintainAnimation: true,
+        child: KeyedSubtree(
+          key: ValueKey<String>(kind.name),
+          child: strategy.build(
+            context,
+            PanelStrategyContext(
+              controller: widget.controller,
+              visibility: visibility,
+              onMotionSettled: _attachment.motionSettled,
             ),
           ),
         ),

@@ -383,6 +383,14 @@ class RenderPanelCatalog extends RenderBox
     markNeedsPaint();
   }
 
+  /// Whether nothing of the body is on screen though it stays mounted (a
+  /// hidden panel): every binding is hidden, so a held one gives back what
+  /// its frame lives on for the surfaces on screen
+  /// ([CatalogLeafBindingPool.offstage]). The widget sets it from
+  /// [Visibility.of].
+  bool get offstage => _pool.offstage;
+  set offstage(bool value) => _pool.offstage = value;
+
   /// Density of the view this body sits in. Bindings are asked for pixels at
   /// it, so a change swaps every attached binding for one at the new size.
   double _devicePixelRatio;

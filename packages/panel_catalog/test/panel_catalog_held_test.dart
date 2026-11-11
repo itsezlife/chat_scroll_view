@@ -84,6 +84,7 @@ void main() {
     WidgetTester tester, {
     bool tickers = true,
     bool offstage = false,
+    bool visible = true,
     double height = 640,
   }) => tester.pumpWidget(
     MaterialApp(
@@ -91,11 +92,16 @@ void main() {
         data: PanelCatalogThemeData.light,
         child: Align(
           alignment: Alignment.topLeft,
-          child: Offstage(
-            offstage: offstage,
-            child: TickerMode(
-              enabled: tickers,
-              child: SizedBox(width: 160, height: height, child: viewport()),
+          child: Visibility(
+            visible: visible,
+            maintainState: true,
+            maintainAnimation: true,
+            child: Offstage(
+              offstage: offstage,
+              child: TickerMode(
+                enabled: tickers,
+                child: SizedBox(width: 160, height: height, child: viewport()),
+              ),
             ),
           ),
         ),
@@ -126,6 +132,36 @@ void main() {
     expect(made.map((p) => p.isDisposed), everyElement(isFalse));
     expect(made.map((p) => p.keepsFrame), everyElement(isFalse));
     expect(ticks.isRunning, isTrue, reason: 'playing again');
+  });
+
+  testWidgets('hidden from view (a Visibility), every leaf leaves the screen '
+      'and keeps its frame; shown, they are on screen again', (tester) async {
+    await pump(tester);
+
+    await pump(tester, tickers: false, visible: false);
+
+    expect(render(tester).attachedLeafCount, _leaves);
+    expect(made.map((p) => p.keepsFrame), everyElement(isTrue));
+    expect(made.map((p) => p.departures), everyElement(1));
+    expect(made.map((p) => p.isDisposed), everyElement(isFalse));
+
+    // Shown, still held while it moves in: on screen, nothing reloaded.
+    await pump(tester, tickers: false);
+    expect(producer.attempts, hasLength(_leaves));
+    expect(made.map((p) => p.keepsFrame), everyElement(isTrue));
+
+    // They are on screen again: hidden once more, they leave again.
+    await pump(tester, tickers: false, visible: false);
+    expect(made.map((p) => p.departures), everyElement(2));
+  });
+
+  testWidgets('held on screen, no leaf leaves it', (tester) async {
+    await pump(tester);
+
+    await pump(tester, tickers: false);
+
+    expect(made.map((p) => p.keepsFrame), everyElement(isTrue));
+    expect(made.map((p) => p.departures), everyElement(0));
   });
 
   testWidgets('held, a smaller layout detaches nothing; let go, it does', (

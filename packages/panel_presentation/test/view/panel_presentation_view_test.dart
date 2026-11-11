@@ -189,6 +189,34 @@ void main() {
       expect(keyboard.lastContext!.visibility, PanelVisibility.hidden);
     });
 
+    // Ticket 201: what plays in the panel tells a hidden panel, which shows
+    // nothing, from one held on screen while it moves.
+    testWidgets('its content reads itself invisible while hidden, and only '
+        'then', (tester) async {
+      build(autoSettle: false);
+      await pump(tester);
+      bool visible() => Visibility.of(
+        tester.element(find.byType(PanelShell, skipOffstage: false)),
+      );
+      controller.show();
+      await tester.pump();
+      expect(visible(), isTrue, reason: 'showing');
+      keyboard.lastContext!.motionSettled();
+      await tester.pump();
+
+      controller.hide();
+      await tester.pump();
+      expect(visible(), isTrue, reason: 'hiding, still on screen');
+
+      keyboard.lastContext!.motionSettled();
+      await tester.pump();
+      expect(visible(), isFalse);
+
+      controller.show();
+      await tester.pump();
+      expect(visible(), isTrue);
+    });
+
     // Ticket 100: a hide keeps the shell, its pages and their cells, so a
     // show continues them instead of loading them again.
     testWidgets('hidden and shown again, the panel is the same subtree', (
