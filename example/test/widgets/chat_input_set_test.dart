@@ -9,6 +9,7 @@ import 'dart:ui' show Tristate;
 import 'package:bulletins/bulletins.dart';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/chat_composer.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatSelectionPolicy;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
@@ -835,6 +836,49 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
         expect(gap(), closeTo(rest, 0.01), reason: 'keyboard $height');
       }
+    });
+  });
+
+  group('the composer during message selection', () {
+    testWidgets('is hidden under the mobile selection policy', (tester) async {
+      final rig = await InputRig.pump(
+        tester,
+        services: await _services(tester),
+        policy: _mobile,
+        selectionPolicy: const ChatSelectionPolicy.mobile(),
+      );
+      expect(rig.island, findsOneWidget);
+
+      rig.selection.startSelection(1);
+      await tester.pump();
+
+      expect(rig.island, findsNothing);
+    });
+
+    testWidgets('stays under the desktop selection policy, its draft and the '
+        'message being edited kept', (tester) async {
+      final rig = await InputRig.pump(
+        tester,
+        services: await _services(tester),
+        policy: _desktop,
+        selectionPolicy: const ChatSelectionPolicy.desktop(),
+        size: const Size(1000, 800),
+      );
+      await rig.typeInField(tester, 'draft');
+      expect(rig.set.composer.hasFocus, isTrue);
+
+      rig.selection.startSelection(1);
+      await tester.pump();
+
+      expect(rig.island, findsOneWidget);
+      expect(rig.action(ChatComposerActions.panel), findsOneWidget);
+      expect(rig.set.composer.text.text, 'draft');
+      // Focus goes to the chat, as a click on a message takes it there.
+      expect(rig.set.composer.hasFocus, isFalse);
+
+      rig.selection.clear();
+      await tester.pump();
+      expect(rig.island, findsOneWidget);
     });
   });
 

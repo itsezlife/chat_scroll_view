@@ -31,7 +31,7 @@ final class InputRig {
   /// The soft keyboard.
   final FakeSoftKeyboard keyboard;
 
-  /// The chat's selection, which hides the composer and which back clears
+  /// The chat's selection, which hides the composer on touch and which back clears
   /// before the panel.
   final ChatSelectionController selection;
 
@@ -72,12 +72,13 @@ final class InputRig {
   final GlobalKey _island = GlobalKey();
   final GlobalKey _space = GlobalKey();
 
-  /// Pumps the rig into [tester]. [policy] is the platform's unless given;
-  /// [size] is the window.
+  /// Pumps the rig into [tester]. [policy] is the platform's unless given,
+  /// and so is [selectionPolicy]; [size] is the window.
   static Future<InputRig> pump(
     WidgetTester tester, {
     required AppServices services,
     PanelPresentationPolicy? policy,
+    ChatSelectionPolicy? selectionPolicy,
     Size size = const Size(400, 800),
     FakeSoftKeyboard? keyboard,
     bool Function()? failSends,
@@ -86,7 +87,7 @@ final class InputRig {
     final rig = InputRig._(
       services,
       keyboard ?? FakeSoftKeyboard(),
-      ChatSelectionController(),
+      ChatSelectionController(policy: selectionPolicy),
     ).._failSends = failSends;
     addTearDown(() async {
       rig.selection.dispose();
