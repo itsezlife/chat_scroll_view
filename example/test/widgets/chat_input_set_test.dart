@@ -9,7 +9,8 @@ import 'dart:ui' show Tristate;
 import 'package:bulletins/bulletins.dart';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/chat_composer.dart';
-import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatSelectionPolicy;
+import 'package:chat_scroll_view/chat_scroll_view.dart'
+    show ChatSelectionPolicy;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
