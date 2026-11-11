@@ -3763,24 +3763,22 @@ void main() {
   });
 
   group('ChatSelectionPolicy.forPlatform', () {
-    test('iOS and Android map to mobile', () {
-      expect(
-        ChatSelectionPolicy.forPlatform(
-          platform: TargetPlatform.iOS,
-          isWeb: false,
-        ),
-        isA<ChatSelectionPolicy$Mobile>(),
-      );
-      expect(
-        ChatSelectionPolicy.forPlatform(
-          platform: TargetPlatform.android,
-          isWeb: false,
-        ),
-        isA<ChatSelectionPolicy$Mobile>(),
-      );
+    // A browser reports the platform of the device under it, so these hold
+    // in an app and in a browser alike: a phone's browser is touched.
+    test('iOS and Android map to mobile, in an app or a browser', () {
+      for (final platform in <TargetPlatform>[
+        TargetPlatform.iOS,
+        TargetPlatform.android,
+      ]) {
+        expect(
+          ChatSelectionPolicy.forPlatform(platform: platform),
+          isA<ChatSelectionPolicy$Mobile>(),
+          reason: '$platform → mobile',
+        );
+      }
     });
 
-    test('desktop OSes map to desktop', () {
+    test('desktop OSes map to desktop, in an app or a browser', () {
       for (final platform in <TargetPlatform>[
         TargetPlatform.macOS,
         TargetPlatform.windows,
@@ -3788,21 +3786,11 @@ void main() {
         TargetPlatform.fuchsia,
       ]) {
         expect(
-          ChatSelectionPolicy.forPlatform(platform: platform, isWeb: false),
+          ChatSelectionPolicy.forPlatform(platform: platform),
           isA<ChatSelectionPolicy$Desktop>(),
           reason: '$platform → desktop',
         );
       }
-    });
-
-    test('web maps to desktop regardless of TargetPlatform', () {
-      expect(
-        ChatSelectionPolicy.forPlatform(
-          platform: TargetPlatform.android,
-          isWeb: true,
-        ),
-        isA<ChatSelectionPolicy$Desktop>(),
-      );
     });
   });
 

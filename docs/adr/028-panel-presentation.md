@@ -145,3 +145,43 @@ for the keyboard (`show == 2`) takes the branch without an animation.
 | ---- | -------- |
 | Swap | A keyboard-replacement panel shown while the keyboard is up (the slot goes `replacing`, read through `KeyboardReplacementStrategy.keyboardIsUp` as the show starts) and one hiding with `waitForIme` do not move on their own: the host does not pause playback for them. |
 | Motion | A panel that slides in or out with no keyboard (any kind) still pauses while it moves. |
+
+## Amendment: a phone's browser shows the panel as a phone does (2026-11-12)
+
+Native-media ticket 208, after ticket 204 gave the web its own policy objects.
+Every web build took the desktop policy, so a phone's browser opened the panel
+as a popup over the composer. The maintainer asked for what the web clients do
+on a phone.
+
+**The reference's rule.** Both web clients decide the layout by the width of
+the window alone and decide again as it is resized; the device and its pointer
+are separate signals, read for gestures and hover, not for layout.
+
+- tweb: `src/helpers/mediaSizes.ts` puts `ScreenSize.mobile` at `innerWidth <=
+  600` (`MOBILE_SIZE`, the same 600 px as `$small-screen` behind
+  `respond-to(handhelds)` in `src/scss/mixins/_respondTo.scss`), recomputed on
+  every `resize` (one per animation frame) and announced by `changeScreen`.
+  Touch is `IS_TOUCH_SUPPORTED` (`src/environment/touchSupport.ts`,
+  `'ontouchstart' in window`), the device `IS_MOBILE` (user agent and touch
+  points, `src/environment/userAgent.ts`).
+- telegram-tt: `src/hooks/useAppLayout.ts` sets `isMobile` from a media query
+  on `MOBILE_SCREEN_MAX_WIDTH = 600` (`src/config.ts`), listening for its
+  changes; touch is `(pointer: coarse)` (`isTouchScreen`, and the constant
+  `IS_TOUCH_ENV` in `src/util/browser/windowEnvironment.ts`). The query also
+  names a landscape clause, `(max-width: 950px and max-height: 450px)`, which
+  is not a valid media feature and so never matches: the line is the width.
+
+**Which surfaces switch on a phone.**
+
+| Surface | Reference | Here |
+| ------- | --------- | ---- |
+| Panel placement | telegram-tt: `SymbolMenu.tsx` renders the menu as `mobile-menu` in a portal at the bottom, in the keyboard's place, under `isMobile`, and as a popup over the composer otherwise; the open menu re-renders as the other when the window crosses the line. tweb keeps its dropdown over the input at every width (`_emojiDropdown.scss`, `max-width: calc(100% - 1rem)`) and blurs the input on a touch open so the keyboard goes. | The telegram-tt placement, the one that matches a phone: `PanelPresentationPolicy$Web` (`PanelPresentationPolicy.web()`, the default for `PanelOsFamily.web`) is the mobile policy in a window up to `handheldMaxWidth` = 600 logical pixels wide inclusive (a browser's logical pixel is its CSS pixel) and the desktop policy in a wider one. `PanelPresentationController.updateWindow` moves a visible panel the policy chose to the kind of the new window (popup to keyboard replacement and back) as a switch of kind; a kind the host named in `show` stays, and a dock keeps its own rule (a window without the room hides it). The host reads the same answer (`ChatInputSet.panelInKeyboardPlace`) to put the panel's view in the composer's flow or over the screen, the toggle at the start or the end edge, and the composer's bottom pad. |
+| Hover badges, header cross | telegram-tt `StickerButton.tsx` shows the remove cross only `!IS_TOUCH_ENV`. | Follows: a keyboard-replacement panel is a touch arrangement, which offers neither (`CatalogPointerPolicy` is read only under the pointer arrangement). A popup in a wide touch browser keeps them; a mouse is needed to hover them anyway. |
+| Hover open | tweb listens for hover only `!IS_TOUCH_SUPPORTED` (`emoticonsDropdown/index.ts`). | Flutter reports the kind of every pointer, so a touch never hovers; the browser policy's hover opens a popup only where the window's default is one. |
+| Message gestures and menu | telegram-tt `useOuterHandlers.ts`: on touch a tap opens the context menu and Android's long press selects the message; tweb attaches a long-press context menu on touch (`contextMenu.ts`). Both draw a floating menu at the press with the reaction bar on a phone (`MessageContextMenu.tsx`, no dimming scrim). | By the device, not the window ([ADR 012](012-cross-platform-selection-policies.md) amendment): a browser on Android or iOS takes the mobile selection policy. The demo host draws the message menu as a popup at the press in any browser (`AppPlatformPolicy.messageMenuPresentationFor`). |
+| Pack sheet | tweb `PopupStickers` stays a centred box on handhelds (`partials/popups/_stickers.scss`: four per row); telegram-tt `StickerSetModal.scss` keeps its modal, narrowed to 20.375rem under 600 px. | Unchanged: a box ([ADR 044](044-content-library-packs-and-preview.md)). |
+| Bulletins | tweb's `.toasts-container` centres the toast at every width (`src/scss/base.scss`); telegram-tt's notifications do not change with `isMobile`. | Unchanged: the web's toast ([ADR 045](045-bulletins.md)), and which edits it says (ticket 193). |
+| Media sizes | tweb switches `mediaSizes.active` to the handheld sizes under 600 px. | Not switched here: the bodies' sizes are fixed when the chat's body host is made, and resizing them live is its own change. |
+
+Native platforms are unchanged: Android and iOS keep the mobile policy, the
+desktop operating systems the desktop one.

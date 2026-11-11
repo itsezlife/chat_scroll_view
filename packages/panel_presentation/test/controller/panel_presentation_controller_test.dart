@@ -519,6 +519,61 @@ void main() {
     });
   });
 
+  group('a window crossing the browser policy\'s handheld line', () {
+    const web = PanelPresentationPolicy$Web();
+    const phone = PanelWindow(width: 390, height: 844);
+
+    test('moves a popup up to the keyboard\'s place, and back', () {
+      build(policy: web, window: wide).show();
+      expect(controller.state.value.kind, const AnchoredPopup());
+
+      controller.updateWindow(phone);
+      expect(
+        controller.state.value,
+        const PanelVisibility.shown(KeyboardReplacement()),
+      );
+
+      controller.updateWindow(wide);
+      expect(
+        controller.state.value,
+        const PanelVisibility.shown(AnchoredPopup()),
+      );
+    });
+
+    test('opens the kind of the window it is in', () {
+      build(policy: web, window: wide).updateWindow(phone);
+      controller.show();
+      expect(controller.state.value.kind, const KeyboardReplacement());
+    });
+
+    test('keeps a kind the host asked for', () {
+      build(policy: web, window: wide).show(kind: const KeyboardReplacement());
+      controller.updateWindow(narrow);
+      expect(controller.state.value.kind, const KeyboardReplacement());
+      controller.updateWindow(wide);
+      expect(controller.state.value.kind, const KeyboardReplacement());
+    });
+
+    test('takes a dock away as any narrowing window does', () {
+      build(policy: web, window: wide, dockPreferred: true).show();
+      expect(controller.state.value.kind, const Docked());
+      controller.updateWindow(phone);
+      expect(controller.state.value, PanelVisibility.hidden);
+    });
+
+    test('leaves a hidden panel hidden', () {
+      build(policy: web, window: wide).updateWindow(phone);
+      expect(controller.state.value, PanelVisibility.hidden);
+    });
+
+    test('changes nothing under a policy whose kind does not follow the '
+        'window', () {
+      build(window: wide).show();
+      controller.updateWindow(phone);
+      expect(controller.state.value.kind, const AnchoredPopup());
+    });
+  });
+
   group('occupancy', () {
     test('is zero without a strategy for the kind', () {
       build(with_: []).show();

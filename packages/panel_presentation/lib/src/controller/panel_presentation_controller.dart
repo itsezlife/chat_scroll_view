@@ -62,6 +62,15 @@ import 'package:panel_shell/panel_shell.dart';
 /// kept is the wish ([dockWanted]); the width a dock has in a window is the
 /// policy's (`dockWidthIn`), so a window that widens gives the wish back.
 ///
+/// ## A kind that follows the window
+///
+/// Where the policy's default kind depends on the window (the browser policy,
+/// `PanelPresentationPolicy$Web`, replaces the keyboard in a handheld window
+/// and opens a popup in a wider one), a panel the policy chose moves to the
+/// kind of the window it is now in when [updateWindow] crosses the line,
+/// where it stands, as a switch of kind. A kind the host named in [show]
+/// stays until the panel hides, and a dock follows only its own rule above.
+///
 /// ## Dock preference
 ///
 /// With a [PreferenceStore] the controller starts from its `dockPreferred`,
@@ -177,6 +186,9 @@ final class PanelPresentationController {
   // Whether the dock stood at the last sync: what a change of the answer is
   // measured against.
   var _dockStood = false;
+  // Whether the visible kind is one the host named in `show`: a window that
+  // changes the policy's default leaves it where it is.
+  var _hostKind = false;
   listen.ValueListenable<PanelOccupancy>? _followed;
 
   // --- State ----------------------------------------------------------------
@@ -246,12 +258,15 @@ final class PanelPresentationController {
     final current = _state.value;
     switch (current) {
       case PanelVisibility$Hidden():
+        _hostKind = kind != null;
         _commit(PanelVisibility.showing(target));
       case PanelVisibility$Showing() || PanelVisibility$Shown():
         if (kind != null && current.kind != target) {
+          _hostKind = true;
           _commit(current.withKind(target));
         }
       case PanelVisibility$Hiding(kind: final active):
+        if (kind != null) _hostKind = true;
         _commit(
           PanelVisibility.showing(switch (kind) {
             null => active,
@@ -318,12 +333,15 @@ final class PanelPresentationController {
   /// wide it is, its height how tall a popup is.
   ///
   /// A standing dock follows: a window that no longer has the room for it
-  /// takes it away, one that has again brings it back (see the class
+  /// takes it away, one that has again brings it back; and a panel the policy
+  /// chose takes the kind the policy chooses in the new window (see the class
   /// documentation).
   void updateWindow(PanelWindow window) {
     if (_disposed) return;
+    final before = _idleKind();
     _window.value = window;
     _syncDock();
+    _followWindowKind(before);
     _followOccupancyOf(_state.value.kind ?? _idleKind());
   }
 
@@ -463,6 +481,23 @@ final class PanelPresentationController {
       }
     } else if (current.kind case Docked() when current.isVisible) {
       hide();
+    }
+  }
+
+  // Moves a visible panel the policy chose from [before], the default kind of
+  // the previous window, to the default of this one. Not a dock on either
+  // side: `_syncDock` alone brings a dock and takes it away, and a dock taken
+  // away hides rather than turning into anything.
+  void _followWindowKind(PanelPresentation before) {
+    final after = _idleKind();
+    if (_hostKind || after == before || before is Docked || after is Docked) {
+      return;
+    }
+    final current = _state.value;
+    if (current
+        case PanelVisibility$Showing(:final kind) ||
+            PanelVisibility$Shown(:final kind) when kind == before) {
+      _commit(current.withKind(after));
     }
   }
 

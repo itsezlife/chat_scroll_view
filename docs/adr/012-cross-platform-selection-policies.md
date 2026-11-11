@@ -18,7 +18,8 @@ text vs **span gesture** is engine-owned under the active strategy — not a
 host **span yield** predicate as the named entry mechanism.
 
 Hosts supply the policy (sealed strategy variants, e.g. `$Mobile` / `$Desktop`);
-default maps OS family (iOS/Android → mobile; desktop + web → desktop). Copy
+default maps OS family (iOS/Android → mobile; desktop → desktop; a browser
+by the device under it, see the 2026-11-12 amendment). Copy
 success is observable via typed listeners and an optional callback; **copy
 feedback UI** stays app-side. Conditional `_vm` / `_js` imports are only for
 real native/web spirit forks — not for splitting these pure-Dart policies.
@@ -247,3 +248,21 @@ still activate.
 - **Pointer-kind policy switching** — rejected as default (surprising on
   phone + mouse); hosts may still override.
 - **Cross-platform modes + host-overridable policy strategies** — accepted.
+
+## Amendment: a browser takes the policy of its device (2026-11-12)
+
+Native-media ticket 208. `ChatSelectionPolicy.forPlatform` gave every browser
+`$Desktop`, so a phone's browser was given the mouse's gestures (a drag
+selects text, a secondary click opens the message menu, no timed long press)
+on a touch screen. The web clients read the
+device for gestures and the window only for layout ([ADR
+028](028-panel-presentation.md), 2026-11-12 amendment): telegram-tt opens the
+context menu on a tap and selects on Android's long press when the pointer is
+coarse (`useOuterHandlers.ts`, `IS_TOUCH_ENV`), tweb opens it on a long press
+when touch is supported (`contextMenu.ts`, `IS_TOUCH_SUPPORTED`).
+
+| Area | Decision |
+| ---- | -------- |
+| Rule | The policy follows `TargetPlatform` alone: Android and iOS are `$Mobile`, everything else `$Desktop`, in an app and in a browser. A browser derives the platform from its user agent (an iPad that reports a Mac is detected by its touch points), which stands in for the references' coarse-pointer test. The `isWeb` parameter of `forPlatform` (and of `ChatMessageMenuPresentation.forPlatform`) is gone. |
+| Window | Not read: a narrowed desktop browser is still driven by a mouse and keeps `$Desktop`, and the policy of a live facade never changes (see above), so a resize cannot swap it. |
+| Menu | The presentation of the message menu stays the host's: the demo host draws a popup at the press in any browser, as both web clients do on a phone. |

@@ -49,9 +49,10 @@ class ChatBottomChrome extends StatefulWidget {
   /// The voice button.
   final VoidCallback? onVoicePressed;
 
-  /// Whether the panel replaces the soft keyboard under [input]'s policy.
+  /// Whether the panel replaces the soft keyboard under [input]'s policy, in
+  /// the window it was last told of.
   static bool replacesKeyboard(ChatInputSet input) =>
-      input.presentation.policy is PanelPresentationPolicy$Mobile;
+      input.panelInKeyboardPlace;
 
   @override
   State<ChatBottomChrome> createState() => _ChatBottomChromeState();

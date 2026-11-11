@@ -1,3 +1,4 @@
+import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -8,10 +9,17 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// The one place the host reads the platform for its chrome choices: the
 /// bulletin colours, the pack sheet's arrangement and its questions, which
-/// library edits a bulletin says, and the message menu's chrome. The
-/// packages' own policies (bulletins, panel presentation, appear motion) pick
-/// their families themselves; this one agrees with them: Android and iOS are
-/// mobile, every other operating system and the web is a desktop.
+/// library edits a bulletin says, and the message menu's presentation and
+/// chrome. The packages' own policies (bulletins, panel presentation, appear
+/// motion, selection) pick their families themselves.
+///
+/// A browser is one family whatever its window or device: on a phone it
+/// keeps these choices (a pack sheet stays a box, a bulletin the same toast,
+/// the message menu a popup at the press). What a
+/// phone's browser does change is decided where it is read: the panel takes
+/// the keyboard's place in a handheld window (the panel presentation
+/// policy), and a touched browser selects and opens the message menu as a
+/// phone does (the selection policy).
 @immutable
 sealed class AppPlatformPolicy {
   const AppPlatformPolicy._();
@@ -72,6 +80,13 @@ sealed class AppPlatformPolicy {
   /// Whether a full list replacing its oldest entry is said in a bulletin,
   /// even where [saysLibraryEdits] is false.
   bool get saysListReplacements;
+
+  /// How the message menu is presented under the selection [policy]: as the
+  /// policy has it in an app, and a popup at the press in a browser, which
+  /// draws one even where a touch opens it.
+  ChatMessageMenuPresentation messageMenuPresentationFor(
+    ChatSelectionPolicy policy,
+  ) => ChatMessageMenuPresentation.forPolicy(policy);
 
   /// The press feedback of the platform, which also picks the message menu's
   /// chrome: the Android rows and glass for [ChromeInkKind.ripple], the
@@ -152,6 +167,13 @@ final class AppPlatformPolicy$Desktop extends AppPlatformPolicy {
 
   @override
   bool get saysListReplacements => web;
+
+  @override
+  ChatMessageMenuPresentation messageMenuPresentationFor(
+    ChatSelectionPolicy policy,
+  ) => web
+      ? ChatMessageMenuPresentation.popup
+      : super.messageMenuPresentationFor(policy);
 
   @override
   ChromeInkKind get inkKind => ChromeInkKind.pointer;
