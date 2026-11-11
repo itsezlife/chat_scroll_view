@@ -6,7 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// Hosts [child] bottom-anchored the way a chat screen does, inside every
 /// scope the composer requires; [anchoredTop] pins it to the top instead, for
-/// a test of what opens below it. [locale], [localizationsDelegates] and
+/// a test of what opens below it. [behind] fills the screen under the
+/// composer, the way the chat list does. [locale], [localizationsDelegates] and
 /// [supportedLocales] are the host's own localisation, which a test of the
 /// chrome's language sets to a locale the Material delegates do not speak.
 Widget composerHarness(
@@ -17,6 +18,7 @@ Widget composerHarness(
   EdgeInsets viewPadding = EdgeInsets.zero,
   ChromeMotionSpeed? motionSpeed,
   bool anchoredTop = false,
+  Widget? behind,
   Locale? locale,
   Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
   Iterable<Locale>? supportedLocales,
@@ -47,6 +49,10 @@ Widget composerHarness(
       backgroundColor: palette.surfaceDim,
       body: Stack(
         children: [
+          ?switch (behind) {
+            final behind? => Positioned.fill(child: behind),
+            null => null,
+          },
           Positioned(
             left: 0,
             right: 0,
