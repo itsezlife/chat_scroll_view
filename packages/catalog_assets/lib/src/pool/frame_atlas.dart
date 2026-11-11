@@ -156,7 +156,8 @@ typedef FrameBatch<K extends Object> = ({
 /// Single-threaded on the UI isolate; the renderer may work elsewhere.
 final class FrameAtlas<K extends Object> {
   /// Creates an atlas of the pages [budgetBytes] pays for, each class opening
-  /// a page of [pageSideFor] pixels (twice the class edge by default).
+  /// a page of [pageSideFor] pixels (twice the class edge by default, one
+  /// cell from the 512 px class up).
   ///
   /// [memoryPressure], when given, releases every idle entry each time it
   /// fires; [dispose] stops listening. [forgetIdleFrames] says what an idle
@@ -225,15 +226,24 @@ final class FrameAtlas<K extends Object> {
   }
 
   /// The page edge a size class opens: twice the class edge, so a page holds
-  /// at most four cells.
+  /// at most four cells; from [oneCellFrom] up, the class edge, one cell.
   ///
   /// A page is uploaded whole, so its size is what one changed frame costs on
   /// the GPU path. The playback benchmark measured one 128 px sticker
   /// uploading a 4 MiB page every tick, 64 times the bytes that changed; with
   /// this the same sticker uploads 256 KiB, and a few stickers of one class
   /// share a page. A page of one cell would upload least but opens a page (and
-  /// an image) per sticker; four is the compromise.
-  static int pageSideFor(int sizeClass) => 2 * sizeClass;
+  /// an image) per sticker; four is the compromise for the small classes.
+  ///
+  /// A 512 px frame is a chat's lone sticker or a content preview, a few on
+  /// screen, and plays from a page only when the texture pool has none for
+  /// it. On a page of four it uploaded the page's top half, 2 MiB, on every
+  /// frame; on a page of its own it uploads 1 MiB.
+  static int pageSideFor(int sizeClass) =>
+      sizeClass >= oneCellFrom ? sizeClass : 2 * sizeClass;
+
+  /// The smallest class whose default page holds one cell ([pageSideFor]).
+  static const int oneCellFrom = 512;
 
   /// Default byte budget of the pages, apart from the glyph pages' own.
   static const int defaultBudgetBytes = 48 * 1024 * 1024;

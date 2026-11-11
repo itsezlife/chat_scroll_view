@@ -6,6 +6,14 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a hidden panel gives its textures back)
+
+- A kept lease whose paintable leaves the screen (a hidden panel) gives its
+  texture back keeping its frame, and stays, kept, with its clip where it
+  is; its next want takes the texture back and shows it at once. One whose
+  frame the pool forgot goes on from a page slot. As for Lottie, a hidden
+  panel no longer holds a texture per clip.
+
 ### Added (readings for a profiler)
 
 - `VideoFrameScheduler.leasePlaces()`: how many leases play on textures,

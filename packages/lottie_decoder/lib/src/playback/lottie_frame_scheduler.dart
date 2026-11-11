@@ -75,12 +75,20 @@ final class LottieFrameLease {
   bool _released = false;
   bool _failed = false;
   bool _kept = false;
+  // Whether the lease is kept but its paintable left the screen (a hidden
+  // panel): it gave its texture back keeping its frame, and takes that
+  // texture back at its next want (see `LottieFrameScheduler._park`).
+  bool _parked = false;
 
   /// Whether the lease is kept through the sweep however long it goes
   /// unpainted, where it is (on its slot or its texture), rendering nothing
   /// new: the frame it shows is on screen under a surface that holds its
   /// playback (`AssetPaintable.keepFrame`). Letting go leaves it to the sweep
   /// again, from the next one.
+  ///
+  /// A kept lease whose paintable left the screen ([releaseUnlessPainted]:
+  /// a held surface that shows nothing now, a hidden panel) stays, but gives
+  /// its texture back keeping its frame, and takes it back at its next want.
   bool get kept => _kept;
   set kept(bool value) {
     if (_kept == value) return;
@@ -170,7 +178,10 @@ final class LottieFrameLease {
 /// 1. Its paintable left the screen: every binding of its entry hid or
 ///    detached, and the paintable called
 ///    [LottieFrameLease.releaseUnlessPainted]. The lease goes when the frame
-///    is over unless it was painted in it, or kept. Without this a fling
+///    is over unless it was painted in it. A kept one stays (its surface
+///    holds it, but shows nothing of it: a hidden panel) and gives back only
+///    its texture, keeping its frame on it, which it takes back when painted
+///    again; the surfaces on screen get the budget. Without this a fling
 ///    filled the pool with the leases of cells that had flown past, and the
 ///    cells it brought in showed their stills for seconds (ticket 116).
 /// 2. An [acquire] found the pool full: the leases on slots that nothing
@@ -389,6 +400,7 @@ final class LottieFrameScheduler {
   /// texture until a whole sweep period passes without such a want.
   void want(LottieFrameLease lease, int frame, {bool onCanvas = false}) {
     if (lease._released) return;
+    if (lease._parked) _unpark(lease);
     lease
       .._wanted = frame
       .._touched = true
@@ -478,6 +490,7 @@ final class LottieFrameScheduler {
           .where(
             (lease) =>
                 lease._texture == null &&
+                !lease._parked &&
                 !lease._failed &&
                 !lease._onCanvas &&
                 _mayTakeTexture(lease) &&
@@ -595,11 +608,74 @@ final class LottieFrameScheduler {
     final leaving = List.of(_leaving);
     _leaving.clear();
     for (final lease in leaving) {
-      // Painted after it left (a hidden cell still drawn), or held on screen
-      // by a surface that keeps its frame: it stays.
-      if (lease._leaving && !lease._kept) _release(lease, keepFrame: true);
+      // Painted after it left (a hidden cell still drawn): it stays.
+      if (lease._leaving) {
+        if (lease._kept) {
+          _park(lease);
+        } else {
+          _release(lease, keepFrame: true);
+        }
+      }
       lease._leaving = false;
     }
+  }
+
+  // A kept lease that left the screen: its surface holds it but shows
+  // nothing of it (a hidden panel, a cell outside a held window). Its frame
+  // is on no screen, so its texture goes back to the pool keeping that frame
+  // for the lease's key, as a lease that ends does (`_release`): an idle
+  // texture, which a warm for a surface on screen may destroy for room. The
+  // lease stays, kept, with its slot if it has one; its next want takes the
+  // texture back (`_unpark`). Without this a hidden panel held a texture per
+  // cell, the budget was spent on them, and a chat sticker that came back
+  // played from a page, uploading it on every frame.
+  void _park(LottieFrameLease lease) {
+    final texture = lease._texture;
+    if (texture == null) return;
+    final showing = lease._shown && !lease._failed ? lease._key : null;
+    if (showing != null) {
+      if (lease._requested case final frame?) _keptFrames[showing] = frame;
+    }
+    lease
+      .._parked = true
+      .._texture = null
+      .._posts = 0;
+    if (lease._writing) {
+      _returnAfterWrite[texture] = showing;
+    } else {
+      _giveBack(texture, showing);
+    }
+  }
+
+  // A parked lease is painted again: it takes back the texture that kept its
+  // frame and shows it at once, as a lease of a cell that comes back does
+  // (`acquire`). Only that texture: a cell whose frame the pool forgot does
+  // not take the kept texture of a neighbour shown in the same frame. Such a
+  // cell plays from a slot, the frame on it (a lease that kept one) or the
+  // still until its frame is rendered there, and moves to a texture once it
+  // is no longer kept.
+  void _unpark(LottieFrameLease lease) {
+    lease._parked = false;
+    final kept = _keptFrames.remove(lease._key);
+    final texture = _mayTakeTexture(lease)
+        ? _textures!.leaseKept(lease._width, lease._height, showing: lease._key)
+        : null;
+    if (texture != null) {
+      lease
+        .._texture = texture
+        .._posts = _postsBeforeShown
+        .._missedLocks = 0
+        .._requested = kept;
+      lease._slot?.release();
+      lease._slot = null;
+      return;
+    }
+    if (lease._slot == null) {
+      lease
+        .._slot = _slotFor(lease) ?? _slotFromStalest(lease)
+        .._requested = null;
+    }
+    _warmFor(lease);
   }
 
   // [keepFrame] says the paintable may come back and go on from the frame
@@ -611,6 +687,11 @@ final class LottieFrameScheduler {
     if (lease._released) return;
     lease._released = true;
     lease._slot?.release();
+    // A parked lease that ends for good keeps nothing for its key.
+    if (lease._parked && !keepFrame) {
+      _textures?.forgetFrameOf(lease._key);
+      _keptFrames.remove(lease._key);
+    }
     final texture = lease._texture;
     if (texture != null) {
       final showing = keepFrame && lease._shown && !lease._failed

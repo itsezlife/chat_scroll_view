@@ -94,7 +94,9 @@ final class FrameTextureLease {
 /// of their own while the ones that left keep theirs. What the kept frames
 /// cost together is bounded by [keptFrameBytes], within [budgetBytes]; past
 /// it the frame kept longest is forgotten and its texture idles like any
-/// other.
+/// other. [leaseKept] takes back only the asset's own kept texture, never
+/// another. A kept texture is idle all the same: a warm of another class
+/// destroys it for room, as any idle texture.
 ///
 /// ## Idle textures
 ///
@@ -287,6 +289,38 @@ final class FrameTexturePool {
       _missedLeases++;
       return null;
     }
+    return _handOut(id, sizeClass, width, height, showsFrame: own != null);
+  }
+
+  /// The texture [showing] released keeping its frame, for an asset of
+  /// [width] x [height] pixels, or null when the pool no longer keeps it:
+  /// never another texture.
+  ///
+  /// For a holder that goes on from its own frame or not at all: a cell of
+  /// a surface shown again, whose neighbours take their kept frames back in
+  /// the same frame. A [lease] that found none of its own would take the
+  /// kept texture of one of them, which then shows its still for three
+  /// posts. The lease always [FrameTextureLease.showsFrame].
+  FrameTextureLease? leaseKept(
+    int width,
+    int height, {
+    required Object showing,
+  }) {
+    if (_disposed) return null;
+    final sizeClass = classOf(width, height);
+    if (sizeClass == null) return null;
+    final id = _keptFor(showing, sizeClass);
+    if (id == null) return null;
+    return _handOut(id, sizeClass, width, height, showsFrame: true);
+  }
+
+  FrameTextureLease _handOut(
+    int id,
+    int sizeClass,
+    int width,
+    int height, {
+    required bool showsFrame,
+  }) {
     _forget(id);
     _idle.remove(id);
     _releasedAt.remove(id);
@@ -301,7 +335,7 @@ final class FrameTexturePool {
       ),
       ({required discard, showing}) =>
           _ended(id, discard: discard, showing: showing),
-      showsFrame: own != null,
+      showsFrame: showsFrame,
     );
   }
 

@@ -436,6 +436,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..removeBadge = removeBadge
       ..overscrollSink = overscrollSink
       ..held = _heldIn(context)
+      ..offstage = _offstageIn(context)
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }
 
@@ -444,6 +445,13 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   // holds what it shows there instead of detaching it.
   static bool _heldIn(BuildContext context) =>
       !TickerMode.valuesOf(context).enabled;
+
+  // A subtree an invisible [Visibility] keeps mounted (a hidden panel) shows
+  // nothing, so the catalogue gives back what its frames live on, while a
+  // held one on screen (moving, under a sheet) keeps it: its layer still
+  // composites them. A bare `Offstage` does not say so, and tickers off
+  // under it read as on screen.
+  static bool _offstageIn(BuildContext context) => !Visibility.of(context);
 
   @override
   void updateRenderObject(
@@ -481,6 +489,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..sectionNearExtent = sectionNearExtent
       ..overscrollSink = overscrollSink
       ..held = _heldIn(context)
+      ..offstage = _offstageIn(context)
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }
 }

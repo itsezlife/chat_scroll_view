@@ -6,6 +6,13 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a hidden panel says so to its content)
+
+- `PanelPresentationView` hides the panel under a `Visibility` that keeps
+  its state (offstage and out of focus, as before), so the content can read
+  `Visibility.of`: a catalogue gives back the textures of a hidden panel,
+  and keeps them while the panel only moves.
+
 ### Added (a solid popup)
 
 - `AnchoredPopupStyle.surface` (`AnchoredPopupSurface.glass`, the default, or `.solid`): a solid popup lets the shell fill itself with the panel background.

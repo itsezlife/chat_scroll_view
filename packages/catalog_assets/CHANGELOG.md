@@ -6,6 +6,18 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a hidden panel gives its textures back)
+
+- `FrameTexturePool.leaseKept`: takes back the texture an asset released
+  keeping its frame, and never another. A cell of a surface shown again uses
+  it, so a cell whose frame the pool forgot does not take a neighbour's.
+- `FrameAtlas.pageSideFor` gives the 512 px class a page of one cell
+  (`FrameAtlas.oneCellFrom`), 512 px instead of 1024. A 512 px frame that
+  plays from a page (a chat sticker with no texture free) uploaded 2 MiB a
+  frame, the top half of a page of four; it uploads 1 MiB. The other classes
+  keep pages of four cells. Code that assumed a 1024 px page for the 512 px
+  class sees four times as many pages of a quarter the size.
+
 ### Added (readings for a profiler)
 
 - `FrameAtlas.uploadTrace` (and `FramePageImages.trace`): wraps each page

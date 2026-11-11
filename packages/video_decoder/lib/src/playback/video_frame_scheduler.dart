@@ -68,6 +68,10 @@ final class VideoFrameLease {
   bool _resumable = false;
   bool _holding = false;
   bool _kept = false;
+  // Whether the lease is kept but its paintable left the screen (a hidden
+  // panel): it gave its texture back keeping its frame, and takes that
+  // texture back at its next want (see `VideoFrameScheduler._park`).
+  bool _parked = false;
   // Whether its paintable left the screen and no want came since: the lease
   // goes when the frame is over (see releaseUnlessPainted).
   bool _leaving = false;
@@ -77,6 +81,11 @@ final class VideoFrameLease {
   /// is on screen under a surface that holds its playback
   /// (`AssetPaintable.keepFrame`). Its clip time stands still, as nothing
   /// paints it. Letting go leaves it to the sweep again, from the next one.
+  ///
+  /// A kept lease whose paintable left the screen ([releaseUnlessPainted]:
+  /// a held surface that shows nothing now, a hidden panel) stays, with its
+  /// clip where it is, but gives its texture back keeping its frame, and
+  /// takes it back at its next want.
   bool get kept => _kept;
   set kept(bool value) {
     if (_kept == value) return;
@@ -207,7 +216,10 @@ final class VideoFrameLease {
 /// 1. Its paintable left the screen: every binding of its entry hid or
 ///    detached, and the paintable called
 ///    [VideoFrameLease.releaseUnlessPainted]. The lease goes when the frame
-///    is over unless it was painted in it, or kept. Without this a fling
+///    is over unless it was painted in it. A kept one stays (its surface
+///    holds it, but shows nothing of it: a hidden panel) and gives back only
+///    its texture, keeping its frame on it, which it takes back when painted
+///    again; the surfaces on screen get the budget. Without this a fling
 ///    filled the pool with the leases of cells that had flown past (ticket
 ///    116).
 /// 2. An [acquire] found the pool full: the leases on slots that nothing
@@ -555,6 +567,7 @@ final class VideoFrameScheduler {
   }) {
     assert(frameStep > 0, 'a clip moves by at least one frame');
     if (lease._released) return;
+    if (lease._parked) _unpark(lease);
     lease
       .._touched = true
       .._wantedAt = _now
@@ -666,6 +679,7 @@ final class VideoFrameScheduler {
           .where(
             (lease) =>
                 lease._texture == null &&
+                !lease._parked &&
                 !lease._onCanvas &&
                 !lease.isFailed &&
                 _mayTakeTexture(lease) &&
@@ -820,11 +834,67 @@ final class VideoFrameScheduler {
     final leaving = List.of(_leaving);
     _leaving.clear();
     for (final lease in leaving) {
-      // Painted after it left (a hidden cell still drawn), or held on screen
-      // by a surface that keeps its frame: it stays.
-      if (lease._leaving && !lease._kept) _release(lease, keepFrame: true);
+      // Painted after it left (a hidden cell still drawn): it stays.
+      if (lease._leaving) {
+        if (lease._kept) {
+          _park(lease);
+        } else {
+          _release(lease, keepFrame: true);
+        }
+      }
       lease._leaving = false;
     }
+  }
+
+  // A kept lease that left the screen: its surface holds it but shows
+  // nothing of it (a hidden panel, a cell outside a held window). Its frame
+  // is on no screen, so its texture goes back to the pool keeping that
+  // frame for the lease's key, as a lease that ends does (`_release`): an
+  // idle texture, which a warm for a surface on screen may destroy for room.
+  // The lease stays, kept, with its player and its slot if it has one; its
+  // next want takes the texture back (`_unpark`). Without this a hidden
+  // panel held a texture per clip, and the chat's clips played from pages.
+  void _park(VideoFrameLease lease) {
+    final texture = lease._texture;
+    if (texture == null) return;
+    final showing = lease._shown && !lease.isFailed ? lease._key : null;
+    lease
+      .._parked = true
+      .._texture = null
+      .._posts = 0;
+    if (lease._writing) {
+      _returnAfterWrite[texture] = showing;
+    } else {
+      _giveBack(texture, showing);
+    }
+  }
+
+  // A parked lease is painted again: it takes back the texture that kept its
+  // frame and shows it at once; the clip goes on from that frame. Only that
+  // texture: a clip whose frame the pool forgot does not take the kept
+  // texture of a neighbour shown in the same frame. Such a clip goes on
+  // from a slot, or a texture that is idle once it is no longer kept,
+  // showing its still until its frame is drawn there.
+  void _unpark(VideoFrameLease lease) {
+    lease._parked = false;
+    final texture = _mayTakeTexture(lease)
+        ? _textures!.leaseKept(
+            lease._player.clip.width,
+            lease._player.clip.height,
+            showing: lease._key,
+          )
+        : null;
+    if (texture != null) {
+      lease
+        .._texture = texture
+        .._posts = _postsBeforeShown
+        .._missedLocks = 0;
+      lease._slot?.release();
+      lease._slot = null;
+      return;
+    }
+    lease._slot ??= _slotFor(lease) ?? _slotFromStalest(lease);
+    _warmFor(lease);
   }
 
   // [keepFrame] says the clip may come back and go on from where it is (it
@@ -835,6 +905,8 @@ final class VideoFrameScheduler {
   void _release(VideoFrameLease lease, {bool keepFrame = false}) {
     if (lease._released) return;
     final keeps = keepFrame && !lease.isFailed;
+    // A parked lease that ends for good keeps nothing for its key.
+    if (lease._parked && !keeps) _textures?.forgetFrameOf(lease._key);
     lease
       .._released = true
       .._resumable = keeps;

@@ -109,6 +109,17 @@ final class CatalogBoundLeaf {
 /// was. Let go, the next [syncVisible] detaches what is outside the window.
 /// The set stays bounded by the largest window synced while held.
 ///
+/// ## Offstage
+///
+/// While [offstage] (the viewport is kept mounted but nothing of it is on
+/// screen: a hidden panel) every binding is hidden ([AssetBinding.visible]
+/// false) whatever the window says, so a held one keeps its frame and its
+/// lease but gives back what its frame lives on (a platform texture) for the
+/// surfaces on screen; its paintable takes that back when it is painted
+/// again. A held viewport on screen (one moving, or under a sheet) keeps
+/// what it shows: its layer still composites it. Shown again, each binding
+/// is as visible as the last sync left it.
+///
 /// ## Lifecycle
 ///
 /// [detachAll] MUST run when the owning render object detaches or disposes so
@@ -167,6 +178,18 @@ final class CatalogLeafBindingPool {
     _held = value;
     for (final bound in _all) {
       bound.binding.held = value;
+    }
+  }
+
+  /// Whether nothing of the viewport is on screen; see the class
+  /// documentation.
+  bool get offstage => _offstage;
+  bool _offstage = false;
+  set offstage(bool value) {
+    if (_offstage == value) return;
+    _offstage = value;
+    for (final bound in _all) {
+      bound.binding.visible = bound._shown && !value;
     }
   }
 
@@ -231,7 +254,7 @@ final class CatalogLeafBindingPool {
         _remove(bound, at: i);
         detached++;
       } else if (bound._seen) {
-        bound.binding.visible = bound._shown;
+        bound.binding.visible = bound._shown && !_offstage;
       }
     }
     if (LogCategory.binding.enabled && (_all.isNotEmpty || detached > 0)) {

@@ -68,11 +68,15 @@ void main() {
       expect(FrameAtlas.defaultBudgetBytes, 48 * 1024 * 1024);
     });
 
-    test('a class opens a page of twice its edge', () {
+    test('a class opens a page of twice its edge, up to the 384 px class', () {
       expect(FrameAtlas.pageSideFor(64), 128);
       expect(FrameAtlas.pageSideFor(128), 256);
       expect(FrameAtlas.pageSideFor(256), 512);
-      expect(FrameAtlas.pageSideFor(512), 1024);
+      expect(FrameAtlas.pageSideFor(384), 768);
+    });
+
+    test('the 512 px class opens a page of one cell', () {
+      expect(FrameAtlas.pageSideFor(512), 512);
     });
 
     test('every default size class divides its default page', () {
@@ -81,12 +85,13 @@ void main() {
       }
     });
 
-    test('the default budget pays for the largest page twelve times', () {
-      final largest = FrameAtlas.pageSideFor(
-        FrameAtlas.defaultSizeClasses.last,
-      );
+    test('the default budget pays for the largest page 21 times', () {
+      final largest = FrameAtlas.defaultSizeClasses
+          .map(FrameAtlas.pageSideFor)
+          .reduce((a, b) => a > b ? a : b);
 
-      expect(FrameAtlas.defaultBudgetBytes ~/ (largest * largest * 4), 12);
+      expect(largest, 768);
+      expect(FrameAtlas.defaultBudgetBytes ~/ (largest * largest * 4), 21);
     });
   });
 
@@ -409,8 +414,8 @@ void main() {
         (handle: large, frame: 0),
       ]);
 
-      // Rows down to each frame's bottom: 60 of 128, 500 of 1024.
-      expect(uploaded, unorderedEquals([128 * 60 * 4, 1024 * 500 * 4]));
+      // Rows down to each frame's bottom: 60 of 128, 500 of 512.
+      expect(uploaded, unorderedEquals([128 * 60 * 4, 512 * 500 * 4]));
     });
 
     test('one 128 px sticker uploads 128 KiB a tick, not 4 MiB', () async {
@@ -508,11 +513,11 @@ void main() {
       expect(batch.rendered, hasLength(3));
       expect(uploads, 2, reason: 'the trace calls the upload once a page');
       final bySide = {for (final upload in traced) upload.side: upload};
-      expect(bySide.keys, unorderedEquals([128, 1024]));
+      expect(bySide.keys, unorderedEquals([128, 512]));
       expect(bySide[128]!.keys, unorderedEquals(['a', 'b']));
-      expect(bySide[1024]!.keys, ['large']);
-      expect(bySide[1024]!.rows, 500);
-      expect(bySide[1024]!.bytes, 1024 * 500 * 4);
+      expect(bySide[512]!.keys, ['large']);
+      expect(bySide[512]!.rows, 500);
+      expect(bySide[512]!.bytes, 512 * 500 * 4);
       expect(a.hasFrame && b.hasFrame && large.hasFrame, isTrue);
     });
   });

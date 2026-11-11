@@ -343,4 +343,55 @@ void main() {
       expect(lease.isReleased, isTrue);
     });
   });
+
+  group('a kept clip whose surface hides it (a hidden panel)', () {
+    Future<VideoFrameLease> hidden() async {
+      await pool.warm(64, 1);
+      final lease = scheduler.acquire('a', await openClip())!;
+      await playThree(lease);
+      expect(lease.texture, isNotNull);
+      lease
+        ..kept = true
+        ..releaseUnlessPainted();
+      timers.elapse(Duration.zero);
+      return lease;
+    }
+
+    test('gives its texture back keeping its frame, and its lease '
+        'stays', () async {
+      final lease = await hidden();
+
+      expect(lease.isReleased, isFalse);
+      expect(lease.texture, isNull);
+      expect(pool.leasedTextures, 0);
+      expect(pool.keptFrames, 1);
+    });
+
+    test('shown again, takes its texture back and shows it at once, '
+        'posting nothing', () async {
+      final lease = await hidden();
+      final id = host.liveIds.single;
+      final writes = writer.inner.batches.length;
+
+      scheduler.want(lease, const Duration(milliseconds: 67));
+
+      expect(lease.texture?.id, id);
+      expect(pool.keptFrames, 0);
+      await tick();
+      expect(writer.inner.batches, hasLength(writes));
+    });
+
+    test('shown again after the pool forgot its frame, it does not take a '
+        'texture that keeps none, and plays from a slot', () async {
+      final lease = await hidden();
+      // The kept budget, or another clip, took its frame.
+      pool.forgetFrameOf('a');
+
+      scheduler.want(lease, const Duration(milliseconds: 67));
+
+      expect(lease.texture, isNull);
+      expect(lease.isReleased, isFalse);
+      expect(scheduler.leasePlaces().slotKeys, ['a']);
+    });
+  });
 }
