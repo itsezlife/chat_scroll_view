@@ -163,6 +163,39 @@ void main() {
       expect(pool.lease(100, 100, showing: 'a')!.showsFrame, isFalse);
     });
 
+    test('leaseKept takes back only the asset\'s own kept texture', () async {
+      await pool.warm(128, 2);
+      final kept = pool.lease(100, 100)!;
+      pool.lease(100, 100)!.release();
+      kept.release(showing: 'a');
+
+      expect(pool.leaseKept(100, 100, showing: 'b'), isNull);
+      final back = pool.leaseKept(100, 100, showing: 'a')!;
+      expect(back.texture.id, kept.texture.id);
+      expect(back.showsFrame, isTrue);
+      expect(pool.leaseKept(100, 100, showing: 'a'), isNull);
+      expect(pool.missedLeases, 0, reason: 'not a lease that ran short');
+    });
+
+    test('a warm of another class destroys kept textures for room', () async {
+      final tight = FrameTexturePool(
+        host: host,
+        reuseDelay: Duration.zero,
+        budgetBytes: 4 * 128 * 128 * 4,
+      );
+      addTearDown(tight.dispose);
+      await tight.warm(128, 4);
+      final leases = [for (var i = 0; i < 4; i++) tight.lease(100, 100)!];
+      for (final (i, lease) in leases.indexed) {
+        lease.release(showing: i);
+      }
+
+      await tight.warm(256, 1);
+
+      expect(tight.classCounts()[256]!.idle, 1);
+      expect(tight.keptFrames, 0);
+    });
+
     test('memory pressure destroys kept textures too', () async {
       await pool.warm(128, 1);
       pool.lease(100, 100)!.release(showing: 'a');

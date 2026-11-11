@@ -61,7 +61,8 @@ final class FrameSlot {
 /// ## Pages sized by class
 ///
 /// [pageSideFor] gives the edge of the page a class opens (the atlas's
-/// default is twice the class edge, so at most four cells). A page reaches the
+/// default is twice the class edge, so at most four cells, and one cell from
+/// the 512 px class up). A page reaches the
 /// GPU whole, so a page much larger than the cells that change makes every
 /// tick upload bytes nobody asked for: with one page for every class, one
 /// playing 128 px sticker uploaded 64 times what changed. The budget is

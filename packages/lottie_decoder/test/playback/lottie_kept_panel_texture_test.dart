@@ -13,17 +13,17 @@ import 'package:lottie_decoder/lottie_decoder.dart';
 ///
 /// The chat's sticker is 512 px (a lone sticker on a phone is fitted in about
 /// 206 dp, past the 512 px render cap at 3x), so its texture costs 4 MiB and
-/// its page slot sits on a 1024 px page. The panel's cells are 240 px, the
-/// 256 px class: 1 MiB a texture.
+/// its page slot sits on a 512 px page of its own. The panel's cells are
+/// 240 px, the 256 px class: 1 MiB a texture.
 ///
 /// The panel docks beside the chat, so the chat plays while it is open. When
 /// it opens, the chat's viewport shrinks and the sticker leaves the screen;
 /// its texture idles, keeping its frame. The panel's cells fill the budget,
-/// which destroys that idle texture for room. When the panel hides, its
-/// cells are held (their surface keeps its frames, ADR 043 *Amendment:
-/// leases of a kept panel*): they keep their textures. The sticker comes
-/// back into the chat and finds no texture of its class, and none can be
-/// made: the budget is all leased textures.
+/// which destroys that idle texture for room. A panel that moves, or sits
+/// under a sheet, holds its cells on screen (ADR 043 *Amendment: leases of a
+/// kept panel*): they keep their textures. A hidden panel shows nothing: its
+/// cells give their textures back keeping their frames, and keep their
+/// leases.
 void main() {
   const chatEdge = 512;
   const cellEdge = 240;
@@ -92,9 +92,9 @@ void main() {
     clock.dispose();
   });
 
-  // Up to the panel's close: the chat's sticker away, the panel's cells on
-  // textures and held. Returns the cells.
-  Future<List<LottieFrameLease>> openPanelAndClose() async {
+  // The panel open beside the chat: the chat's sticker away, the panel's
+  // cells playing on textures. Returns the cells.
+  Future<List<LottieFrameLease>> openPanel() async {
     await pool.warm(chatEdge, 1);
     final chat = scheduler.acquire('chat', 'src', chatEdge, chatEdge)!;
     for (var frame = 0; frame < 3; frame++) {
@@ -131,44 +131,57 @@ void main() {
       (leased: 0, idle: 0, kept: 0),
       reason: "the panel's warm destroyed the chat's idle texture for room",
     );
-
-    // The panel hides: its cells are held, and keep their textures.
-    for (final cell in panel) {
-      cell.kept = true;
-    }
     return panel;
   }
 
+  // The panel's surface holds its cells: on screen (moving, or under a
+  // sheet), or hidden, where every cell also left the screen.
+  void hold(List<LottieFrameLease> panel, {required bool hidden}) {
+    for (final cell in panel) {
+      cell.kept = true;
+      if (hidden) cell.releaseUnlessPainted();
+    }
+    timers.elapse(Duration.zero);
+  }
+
+  // Up to the panel's close: the chat's sticker away, the panel's cells
+  // held, hidden unless [hidden] is false. Returns the cells.
+  Future<List<LottieFrameLease>> openPanelAndClose({bool hidden = true}) async {
+    final panel = await openPanel();
+    hold(panel, hidden: hidden);
+    return panel;
+  }
+
+  // What the kept budget holds of the panel's cells, 1 MiB each.
+  int keptCells() => pool.keptFrameBytes ~/ pool.bytesOfClass(256);
+
   group('the chat after a panel closes', () {
-    test(
-      'a chat sticker that comes back plays from a 1024 px page, uploaded on '
-      'every frame, while the hidden panel holds the texture budget',
-      () async {
-        await openPanelAndClose();
+    test('a chat sticker that comes back while the panel is held on screen '
+        'plays from a 512 px page of its own, 1 MiB an upload', () async {
+      await openPanelAndClose(hidden: false);
 
-        final back = scheduler.acquire('chat', 'src', chatEdge, chatEdge)!;
-        uploads.clear();
-        for (var frame = 3; frame < 9; frame++) {
-          scheduler.want(back, frame);
-          await tick();
-          if (frame.isOdd) await sweep();
-        }
+      final back = scheduler.acquire('chat', 'src', chatEdge, chatEdge)!;
+      uploads.clear();
+      for (var frame = 3; frame < 9; frame++) {
+        scheduler.want(back, frame);
+        await tick();
+        if (frame.isOdd) await sweep();
+      }
 
-        expect(back.texture, isNull);
-        expect(back.sprite, isNotNull, reason: 'it plays on its page slot');
-        expect(scheduler.leasePlaces().slotKeys, ['chat']);
-        // One upload a frame, of the top 512 rows of a 1024 px page: 2 MiB.
-        expect(uploads, hasLength(6));
-        expect(uploads.toSet(), {(side: 1024, rows: chatEdge)});
-        // Every sweep asked for a texture of its class, and the pool could
-        // not make room: the budget is spent, on the panel's held cells and
-        // three idle textures of their class, which together free 3 MiB of
-        // the 4 a 512 px texture costs.
-        expect(pool.warmsShortOfRoom, greaterThanOrEqualTo(3));
-        expect(pool.bytes, pool.budgetBytes);
-        expect(pool.classCounts()[256], (leased: cells, idle: 3, kept: 0));
-      },
-    );
+      expect(back.texture, isNull);
+      expect(back.sprite, isNotNull, reason: 'it plays on its page slot');
+      expect(scheduler.leasePlaces().slotKeys, ['chat']);
+      // One upload a frame, of a 512 px page that holds this cell alone.
+      expect(uploads, hasLength(6));
+      expect(uploads.toSet(), {(side: chatEdge, rows: chatEdge)});
+      // Every sweep asked for a texture of its class, and the pool could
+      // not make room: the budget is spent, on the panel's held cells and
+      // three idle textures of their class, which together free 3 MiB of
+      // the 4 a 512 px texture costs.
+      expect(pool.warmsShortOfRoom, greaterThanOrEqualTo(3));
+      expect(pool.bytes, pool.budgetBytes);
+      expect(pool.classCounts()[256], (leased: cells, idle: 3, kept: 0));
+    });
 
     test(
       'a chat sticker that comes back takes a texture from the hidden panel',
@@ -183,11 +196,101 @@ void main() {
         }
 
         expect(back.texture, isNotNull);
+        expect(scheduler.leasePlaces().slotKeys, isEmpty);
       },
-      // The fix proposed in native-media ticket 200: a warm for a lease on
-      // screen may take textures from held leases (a hidden panel's), which
-      // then show their kept frame from a slot or their still on return.
-      skip: 'ticket 200: held leases keep their textures against the chat',
     );
+
+    test('a warm for the chat takes the textures the hidden panel kept '
+        'frames on, when nothing else makes room', () async {
+      final panel = await openPanelAndClose();
+      // The budget held by the panel's kept frames and the chat's warm.
+      final room = pool.budgetBytes - pool.bytes;
+      final chats = room ~/ pool.bytesOfClass(chatEdge) + 1;
+
+      await pool.warm(chatEdge, chats);
+
+      expect(pool.classCounts()[chatEdge]!.idle, chats);
+      expect(pool.keptFrames, lessThan(keptCells()));
+      expect(panel.map((cell) => cell.isReleased), everyElement(isFalse));
+    });
+  });
+
+  group('a hidden panel', () {
+    test(
+      'gives its textures back keeping their frames, and its leases stay',
+      () async {
+        final panel = await openPanelAndClose();
+
+        expect(panel.map((cell) => cell.isReleased), everyElement(isFalse));
+        expect(scheduler.leasePlaces().onTextures, 0);
+        expect(pool.leasedTextures, 0);
+        // As many frames as the kept budget holds; the idle limit destroyed
+        // the other textures of the class.
+        expect(pool.classCounts()[256], (
+          leased: 0,
+          idle: keptCells(),
+          kept: keptCells(),
+        ));
+        expect(pool.bytes, keptCells() * pool.bytesOfClass(256));
+      },
+    );
+
+    test('shown again, its cells within the kept budget show their frames at '
+        'once, rendering nothing', () async {
+      final panel = await openPanelAndClose();
+      writer.batches.clear();
+
+      // The panel shows again, still held while it moves in: each cell is
+      // painted at the frame it was held on.
+      for (final cell in panel) {
+        scheduler.want(cell, 3);
+      }
+      await tick();
+
+      // The cells that gave their textures back last kept their frames.
+      final back = panel.sublist(cells - keptCells());
+      expect(back.map((cell) => cell.texture), everyElement(isNotNull));
+      expect(writer.batches, isEmpty, reason: 'no frame rendered again');
+      // The others play on page slots until textures are free for them.
+      final lost = panel.sublist(0, cells - keptCells());
+      expect(lost.map((cell) => cell.texture), everyElement(isNull));
+      expect(scheduler.leasePlaces().onTextures, keptCells());
+    });
+
+    test("a cell that lost its frame does not take another cell's", () async {
+      final panel = await openPanelAndClose();
+
+      // The first cell lost its frame to the budget; it is painted first.
+      scheduler
+        ..want(panel.first, 3)
+        ..want(panel.last, 3);
+
+      expect(panel.first.texture, isNull);
+      expect(panel.last.texture, isNotNull);
+    });
+
+    test('a cell painted in the frame that hid it keeps its texture', () async {
+      final panel = await openPanel();
+      for (final cell in panel) {
+        cell
+          ..kept = true
+          ..releaseUnlessPainted();
+      }
+      scheduler.want(panel.first, 3);
+      timers.elapse(Duration.zero);
+
+      expect(panel.first.texture, isNotNull);
+      expect(scheduler.leasePlaces().onTextures, 1);
+    });
+
+    test('a cell disposed while hidden forgets its kept frame', () async {
+      final panel = await openPanelAndClose();
+      final kept = pool.keptFrames;
+
+      panel.last.release();
+      scheduler.forget('cell${cells - 1}');
+
+      expect(pool.keptFrames, kept - 1);
+    });
   });
 }
