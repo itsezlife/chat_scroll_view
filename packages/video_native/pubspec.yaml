@@ -17,9 +17,12 @@ environment:
 dependencies:
   # code_assets and hooks are for hook/build.dart: hook dependencies go under
   # dependencies, not dev_dependencies.
-  code_assets: ^1.0.0
+  # The same span as lottie_native: code_assets 2.x needs hooks 2.2, which
+  # needs a meta above the one Flutter 3.41 pins, so 1.1 (the first on hooks
+  # 2) up to 2.x resolves on 3.41 and beside packages that need hooks 2.2.
+  code_assets: ">=1.1.0 <3.0.0"
   ffi: ^2.1.0
-  hooks: ^1.0.0
+  hooks: ^2.0.0
   # Only lib/testing.dart needs this: the contract suite is written with the
   # test framework, and a library cannot import a dev dependency (the same
   # arrangement as lottie_native). Production entry points never import it.

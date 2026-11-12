@@ -18,11 +18,15 @@ environment:
 dependencies:
   # All of these are for hook/build.dart: hook dependencies go under dependencies,
   # not dev_dependencies.
-  code_assets: ^1.0.0
+  # hooks 2.x, with code_assets spanning 1.1 (the first on hooks 2) to 2.x:
+  # code_assets 2.x needs hooks 2.2, which needs meta 1.19, above the meta
+  # that Flutter 3.41 pins. The span resolves on 3.41 and, on a newer
+  # Flutter, beside packages that need hooks 2.2.
+  code_assets: ">=1.1.0 <3.0.0"
   # SHA-256 of the sources and of a downloaded prebuilt library.
   crypto: ^3.0.6
   ffi: ^2.1.0
-  hooks: ^1.0.0
+  hooks: ^2.0.0
   # Only lib/testing.dart needs this: the contract suite is written with the
   # test framework, and a library cannot import a dev dependency (the same
   # arrangement as catalog_assets). Production entry points never import it.

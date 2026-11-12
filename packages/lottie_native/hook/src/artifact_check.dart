@@ -29,7 +29,13 @@ String? artifactProblem(Uint8List bytes, LottieNativeTarget target) =>
 
 // --- ELF -------------------------------------------------------------------
 
-const _elfMachines = {Architecture.arm64: 0xb7, Architecture.x64: 0x3e};
+// Switches, not const maps: from code_assets 2.0 `Architecture` overrides
+// `==`, which a const map key may not do.
+int? _elfMachine(Architecture arch) => switch (arch) {
+  Architecture.arm64 => 0xb7,
+  Architecture.x64 => 0x3e,
+  _ => null,
+};
 const _ptLoad = 1;
 const _sixteenKb = 0x4000;
 
@@ -51,7 +57,7 @@ String? _elfProblem(
   }
   final data = ByteData.sublistView(bytes);
   final machine = data.getUint16(0x12, Endian.little);
-  final expected = _elfMachines[arch];
+  final expected = _elfMachine(arch);
   if (machine != expected) {
     return 'the library is built for ELF machine 0x${machine.toRadixString(16)} '
         'but the target needs 0x${expected?.toRadixString(16)} ($arch)';
@@ -84,13 +90,14 @@ String? _elfProblem(
 
 // --- Mach-O ----------------------------------------------------------------
 
-const _cpuTypes = {
-  Architecture.arm64: 0x0100000c,
-  Architecture.x64: 0x01000007,
+int? _cpuType(Architecture arch) => switch (arch) {
+  Architecture.arm64 => 0x0100000c,
+  Architecture.x64 => 0x01000007,
+  _ => null,
 };
 
 String? _machOProblem(Uint8List bytes, Architecture arch) {
-  final expected = _cpuTypes[arch]!;
+  final expected = _cpuType(arch)!;
   if (bytes.length < 8) return 'the library is not a 64-bit Mach-O file';
   final data = ByteData.sublistView(bytes);
 
@@ -124,7 +131,11 @@ String? _machOProblem(Uint8List bytes, Architecture arch) {
 
 // --- PE --------------------------------------------------------------------
 
-const _peMachines = {Architecture.x64: 0x8664, Architecture.arm64: 0xaa64};
+int? _peMachine(Architecture arch) => switch (arch) {
+  Architecture.x64 => 0x8664,
+  Architecture.arm64 => 0xaa64,
+  _ => null,
+};
 
 String? _peProblem(Uint8List bytes, Architecture arch) {
   const notPe = 'the library is not a PE file';
@@ -140,7 +151,7 @@ String? _peProblem(Uint8List bytes, Architecture arch) {
     return notPe;
   }
   final machine = data.getUint16(at + 4, Endian.little);
-  final expected = _peMachines[arch];
+  final expected = _peMachine(arch);
   if (machine != expected) {
     return 'the library is built for PE machine 0x${machine.toRadixString(16)} '
         'but the target needs 0x${expected?.toRadixString(16)} ($arch)';
