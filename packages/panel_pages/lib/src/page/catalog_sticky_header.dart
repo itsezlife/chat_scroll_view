@@ -44,7 +44,7 @@ abstract interface class CatalogScrollMetrics {
 ///   scrolled and reading back brings it back at once, but not while the
 ///   field's band is still under it (the page is within `searchExtent` of its
 ///   start) and never during a jump to a section. At the very top it is fully
-///   shown.
+///   shown. A [pinned] strip never slides: only search takes it away.
 /// * **Search open.** The field is pinned (`searchOffset = 0`), the strip is
 ///   not shown, and the field's hairline shows exactly while content has
 ///   scrolled under it.
@@ -58,13 +58,23 @@ abstract interface class CatalogScrollMetrics {
 final class CatalogStickyHeader {
   /// A header whose strip is [stripExtent] tall and whose field is
   /// [searchExtent] tall; an extent of 0 says there is none of that part.
-  CatalogStickyHeader({required this.stripExtent, required this.searchExtent});
+  /// A [pinned] strip stays whole whatever the scroll.
+  CatalogStickyHeader({
+    required this.stripExtent,
+    required this.searchExtent,
+    this.pinned = false,
+  });
 
   /// Height of the strip, or 0 for a page without one.
   final double stripExtent;
 
   /// Height of the field's band, or 0 for a page that places none.
   final double searchExtent;
+
+  /// Whether the strip stays whole whatever the scroll, rather than sliding
+  /// away as the user reads on. Content still passes under it, so its
+  /// hairline follows the same rule.
+  final bool pinned;
 
   final _stripOffset = ValueNotifier<double>(0);
   final _searchOffset = ValueNotifier<double>(0);
@@ -163,6 +173,7 @@ final class CatalogStickyHeader {
 
   void _hideOrReveal(double delta, CatalogScrollMetrics metrics) {
     if (!_hasStrip ||
+        pinned ||
         !_stripShown ||
         metrics.isSectionJumpActive ||
         delta == 0) {

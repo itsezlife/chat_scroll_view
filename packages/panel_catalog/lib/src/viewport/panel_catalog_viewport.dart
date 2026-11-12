@@ -7,12 +7,16 @@ import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_remove_badge.dart';
 import 'package:panel_catalog/src/model/section_layout.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_grid_metrics.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
+import 'package:panel_catalog/src/viewport/catalog_leaf_preview.dart';
+import 'package:panel_catalog/src/viewport/catalog_overscroll_sink.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
+import 'package:viewport_scroll/viewport_scroll.dart';
 
 /// Extent-scroll catalog body with recycled paint leaves.
 ///
@@ -143,14 +147,20 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.onLeafTap,
     this.onLeafSecondaryTap,
     this.onLeafHover,
+    this.leafRemovable,
+    this.onLeafRemove,
+    this.removeBadge = CatalogLeafRemoveBadge.pointer,
     this.onLeafLongPressStart,
     this.onLeafLongPressMove,
     this.onLeafLongPressEnd,
     this.leafLongPressEligible,
     this.leafLongPressDelay,
     this.pinnedLeaf,
+    this.leafPreview,
     this.onSectionAction,
     this.sectionNearExtent,
+    this.overscrollSink,
+    this.physics,
     super.key,
   });
 
@@ -296,8 +306,22 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// leaves. Only a mouse hovers, and the report does not depend on the
   /// theme's hover wash. Null reports nothing. What the hover shows (a
   /// tooltip) is the host's.
-  final void Function(CatalogLeafHit? hit, Offset globalPosition)?
-  onLeafHover;
+  final void Function(CatalogLeafHit? hit, Offset globalPosition)? onLeafHover;
+
+  /// Whether the cell of a hit shows the [removeBadge] under a mouse.
+  ///
+  /// The cell under a mouse that this answers true for draws the badge at
+  /// its top end corner, over its content; a primary click on the badge calls
+  /// [onLeafRemove] with the cell, and neither presses nor taps the cell.
+  /// Only a mouse shows it, and not while a preview or a pinned cell is up.
+  /// Null, or a null [onLeafRemove], shows no badge.
+  final bool Function(CatalogLeafHit hit)? leafRemovable;
+
+  /// A click on a cell's remove badge; see [leafRemovable].
+  final ValueChanged<CatalogLeafHit>? onLeafRemove;
+
+  /// What the remove badge looks like.
+  final CatalogLeafRemoveBadge removeBadge;
 
   /// Shell long-press start (picker / contextual leaf actions).
   ///
@@ -347,6 +371,15 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// state: the host has the interaction.
   final CatalogLeafHit? pinnedLeaf;
 
+  /// The content preview the host opened over the grid, or null.
+  ///
+  /// While set, no cell is drawn pressed or hovered (a pinned one included),
+  /// and the cell whose content it shows ([CatalogLeafPreview.shrunk]) is
+  /// drawn smaller, following the preview from cell to cell. A press under
+  /// way when it is set ends there, with no release. See
+  /// [CatalogLeafPreview].
+  final CatalogLeafPreview? leafPreview;
+
   /// Shell reaction to a tapped section header action, with the id of the
   /// [CatalogSection] and the [CatalogSectionAction.id].
   ///
@@ -363,36 +396,73 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// reach.
   final double? sectionNearExtent;
 
+  /// Where the part of a drag past the top edge goes, or null to drop it.
+  ///
+  /// A host whose catalogue sits in something that moves (a sheet a pull
+  /// lowers or closes) receives that part here; see [CatalogOverscrollSink].
+  /// Swapping it ends nothing in flight.
+  final CatalogOverscrollSink? overscrollSink;
+
+  /// The fling and edge effect user motion follows: the chat's scroll
+  /// physics. Null is [ViewportScrollPhysics.forPlatform], resolved on every
+  /// build, so a platform override is followed.
+  ///
+  /// A drag past the top goes to [overscrollSink] first; the edge effect
+  /// takes only what the sink declines.
+  final ViewportScrollPhysics? physics;
+
   @override
   RenderPanelCatalog createRenderObject(BuildContext context) {
     final theme = PanelCatalogTheme.of(context, listen: true);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final textDirection = Directionality.of(context);
     return RenderPanelCatalog(
-      snapshots: snapshots,
-      assets: assets,
-      devicePixelRatio: dpr,
-      controller: controller,
-      spanCount: spanCount,
-      cellExtent: cellExtent,
-      headerExtent: headerExtent,
-      padding: padding,
-      textDirection: textDirection,
-      headerLandingInset: headerLandingInset,
-      paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
-      onLeafTap: onLeafTap,
-      onLeafSecondaryTap: onLeafSecondaryTap,
-      onLeafHover: onLeafHover,
-      onLeafLongPressStart: onLeafLongPressStart,
-      onLeafLongPressMove: onLeafLongPressMove,
-      onLeafLongPressEnd: onLeafLongPressEnd,
-      leafLongPressEligible: leafLongPressEligible,
-      leafLongPressDelay: leafLongPressDelay,
-      pinnedLeaf: pinnedLeaf,
-      onSectionAction: onSectionAction,
-      sectionNearExtent: sectionNearExtent,
-    );
+        snapshots: snapshots,
+        assets: assets,
+        devicePixelRatio: dpr,
+        controller: controller,
+        spanCount: spanCount,
+        cellExtent: cellExtent,
+        headerExtent: headerExtent,
+        padding: padding,
+        textDirection: textDirection,
+        headerLandingInset: headerLandingInset,
+        paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
+        onLeafTap: onLeafTap,
+        onLeafSecondaryTap: onLeafSecondaryTap,
+        onLeafHover: onLeafHover,
+        onLeafLongPressStart: onLeafLongPressStart,
+        onLeafLongPressMove: onLeafLongPressMove,
+        onLeafLongPressEnd: onLeafLongPressEnd,
+        leafLongPressEligible: leafLongPressEligible,
+        leafLongPressDelay: leafLongPressDelay,
+        pinnedLeaf: pinnedLeaf,
+        onSectionAction: onSectionAction,
+        sectionNearExtent: sectionNearExtent,
+        physics: physics ?? ViewportScrollPhysics.forPlatform(),
+      )
+      ..leafPreview = leafPreview
+      ..leafRemovable = leafRemovable
+      ..onLeafRemove = onLeafRemove
+      ..removeBadge = removeBadge
+      ..overscrollSink = overscrollSink
+      ..held = _heldIn(context)
+      ..offstage = _offstageIn(context)
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }
+
+  // A subtree whose tickers are off is not live: a hidden panel kept
+  // mounted, a page off screen, a panel moving in or out. The catalogue
+  // holds what it shows there instead of detaching it.
+  static bool _heldIn(BuildContext context) =>
+      !TickerMode.valuesOf(context).enabled;
+
+  // A subtree an invisible [Visibility] keeps mounted (a hidden panel) shows
+  // nothing, so the catalogue gives back what its frames live on, while a
+  // held one on screen (moving, under a sheet) keeps it: its layer still
+  // composites them. A bare `Offstage` does not say so, and tickers off
+  // under it read as on screen.
+  static bool _offstageIn(BuildContext context) => !Visibility.of(context);
 
   @override
   void updateRenderObject(
@@ -416,13 +486,22 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..onLeafTap = onLeafTap
       ..onLeafSecondaryTap = onLeafSecondaryTap
       ..onLeafHover = onLeafHover
+      ..leafRemovable = leafRemovable
+      ..onLeafRemove = onLeafRemove
+      ..removeBadge = removeBadge
       ..onLeafLongPressStart = onLeafLongPressStart
       ..onLeafLongPressMove = onLeafLongPressMove
       ..onLeafLongPressEnd = onLeafLongPressEnd
       ..leafLongPressEligible = leafLongPressEligible
       ..leafLongPressDelay = leafLongPressDelay
       ..pinnedLeaf = pinnedLeaf
+      ..leafPreview = leafPreview
       ..onSectionAction = onSectionAction
-      ..sectionNearExtent = sectionNearExtent;
+      ..sectionNearExtent = sectionNearExtent
+      ..overscrollSink = overscrollSink
+      ..physics = physics ?? ViewportScrollPhysics.forPlatform()
+      ..held = _heldIn(context)
+      ..offstage = _offstageIn(context)
+      ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }
 }

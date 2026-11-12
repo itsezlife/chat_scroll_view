@@ -1,4 +1,4 @@
-/// The tone picker a finger opens: the reference mobile client's, a card with
+/// The tone picker a finger opens: a card with
 /// an arrow under the pressed emoji, its options followed by the finger, with
 /// haptics.
 ///
@@ -177,9 +177,8 @@ void main() {
       expect(picker(), findsNothing);
     });
 
-    // As Flutter maps them on Android: the long press of the reference client
-    // is `vibrate` (no type), its cursor tick `selectionClick`, its key tap
-    // `mediumImpact`.
+    // As Flutter maps them on Android: the long press is `vibrate` (no type),
+    // its cursor tick `selectionClick`, its key tap `mediumImpact`.
     testWidgets('a long-press buzz on open, a tick per change and a key tap '
         'on the choice', (tester) async {
       await pumpPage(tester);

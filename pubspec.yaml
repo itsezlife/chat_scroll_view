@@ -7,6 +7,7 @@ publish_to: none
 # here; scripts/check reads the list literally (no globs) and fails when a
 # package under packages/ or example/ is missing from it.
 workspace:
+  - packages/bulletins
   - packages/catalog_assets
   - packages/chat_composer
   - packages/chat_wallpaper
@@ -26,8 +27,10 @@ workspace:
   - packages/panel_presentation
   - packages/panel_shell
   - packages/rich_clipboard
+  - packages/swipe_pager
   - packages/video_decoder
   - packages/video_native
+  - packages/viewport_scroll
   - example
   - scripts
 
@@ -46,6 +49,8 @@ dependencies:
     path: packages/catalog_assets
   content_model:
     path: packages/content_model
+  viewport_scroll:
+    path: packages/viewport_scroll
   flutter:
     sdk: flutter
   meta: ^1.17.0

@@ -6,6 +6,71 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (off-screen pages give their textures back)
+
+- A page of the pager that is not on screen is under an invisible
+  `Visibility` (`swipe_pager`), so a catalogue in it gives back its cells'
+  textures keeping their frames; brought back, the cells show those frames
+  at once.
+
+### Changed (section tabs ink)
+
+- The pointer arrangement's section tabs press with `ChromeInk`'s desktop kind.
+
+### Added (content preview requests)
+
+- `PanelEvent.libraryEditRequested(edit)` (`LibraryEditRequested`) and
+  `PanelEvent.packRequested(id)` (`PackRequested`), published by
+  `PanelPageHost.requestLibraryEdit` and `requestPack`: a page's content
+  preview asks the host to favourite a sticker, save a GIF or forget a recent
+  sticker, and to show a pack. The host applies the edit to its content
+  library and opens its pack sheet. A host's exhaustive switch over
+  `PanelEvent`, and an implementation of `PanelPageHost` outside this
+  package, must add them.
+
+### Added (a fresh open)
+
+- `PanelShellController.reportFreshOpen` and `freshOpen`, and
+  `PanelPageHost.freshOpen`: a presentation that opens the panel afresh tells
+  every page before it reports the panel visible, and each page decides what
+  a new open is for it (back at its start, or its place kept). The shell
+  shows the bottom bar on one. Nothing signals unless a presentation
+  reports it. An implementation of `PanelPageHost` outside this package must
+  add `freshOpen`.
+
+### Changed (the swipe pager)
+
+- `PanelPager` is a `SwipePager` (package `swipe_pager`) instead of a
+  `PageView`. A drag swipes only once it moved about 18.9 px sideways before
+  8 px up or down, so a drag more than about 23 degrees off the horizontal
+  scrolls the page's catalogue instead of changing the page; a strip that
+  scrolls sideways keeps its drags; a quick flick still swipes. A release
+  goes on from a third of a page or a fast fling and settles in 150..600 ms.
+  A slide to a far page brings it in next to the current one without the
+  pager passing over the pages between, so the slide no longer jumps to the
+  neighbouring page first. Tests that read the pager through `PageView` read
+  `SwipePager.controller` instead.
+
+### Changed (the panel keeps its animations)
+
+- The pager keeps every page it built alive for its own life (at most the
+  registered pages) instead of dropping the ones off screen, and puts a page
+  that is not on screen under `TickerMode(enabled: false)`. A type tab
+  switched away from keeps its cells, their frames and positions. Code that
+  expected an off-screen page's state to be disposed now sees it kept.
+- `FakePanelPage` counts `mounts` and `disposals` of its body and records
+  whether its tickers were on (`tickersEnabled`).
+
+### Added
+
+- `PanelSearchExit` and `PanelShell.searchExit`: how search is left. Under
+  `cancel`, the iOS default, the field shows a Cancel text button at its end
+  while search is open and the pill narrows for it; it closes search and
+  lowers the keyboard. Before, a platform with no back press had no way out of
+  search: the bottom bar with the tabs is hidden while it is open. `back`, the
+  default elsewhere, is the field as it was. `PanelSearchField.exit` and
+  `PanelSearchFieldScope.exit` carry it to a field a page places itself.
+
 ### Changed
 
 - `ContentPicked` says what the content is and which recents list it is
@@ -28,7 +93,7 @@ is pre-1.0.
 - `PanelShell.sectionTabsBar` (`PanelSectionTabsBar.label`, the default, or
   `section`): the underline as wide as the label, rounded on top.
 - A press on the focused search field raises its keyboard again.
-- Under `pointer` the page switcher is the reference desktop client's tabs
+- Under `pointer` the page switcher is a tabs
   slider (equal sections, a sliding accent bar, labels following it, a ripple,
   choice on release, a line under it), and choosing a page slides the pages
   over 200 ms. The pill stays in the bottom bar under `touch`.

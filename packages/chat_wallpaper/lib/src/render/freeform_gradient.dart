@@ -77,7 +77,7 @@ abstract final class FreeformGradient {
   ///
   /// [phase] must be in `[0, phaseCount)` and [progress] in `[0, 1]`.
   ///
-  /// The reference output: [image] and [imageInBackground] decode exactly
+  /// The canonical output: [image] and [imageInBackground] decode exactly
   /// these bytes.
   static Uint8List pixels(
     ChatWallpaper$Freeform wallpaper, {

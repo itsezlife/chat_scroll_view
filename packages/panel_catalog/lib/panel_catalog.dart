@@ -9,7 +9,8 @@
 /// [PanelCatalogController] ([jumpTo], [scrollBy],
 /// [PanelCatalogController.jumpToSection], [PanelCatalogController.events],
 /// roving focus: [PanelCatalogController.moveFocus] with [CatalogFocusMove]),
-/// [PanelCatalogThemeData], [PanelCatalogTheme], the leaf value
+/// [PanelCatalogThemeData], [PanelCatalogTheme], the drag hand-over past
+/// the top edge ([CatalogOverscrollSink]), the leaf value
 /// ([CatalogLeaf], [CatalogLeafHit]) and the section models ([CatalogSection],
 /// [SectionLayout], [CatalogSectionState], [CatalogSectionAction]), the
 /// near-viewport event ([PanelCatalogSectionNearViewport]), and section
@@ -30,12 +31,15 @@ export 'src/data/catalog_snapshot.dart';
 export 'src/model/catalog_glyph_box.dart' show CatalogContentBox;
 export 'src/model/catalog_leaf.dart';
 export 'src/model/catalog_leaf_hit.dart';
+export 'src/model/catalog_leaf_remove_badge.dart';
 export 'src/model/catalog_section.dart';
 export 'src/model/catalog_section_action.dart';
 export 'src/model/catalog_section_state.dart';
 export 'src/model/section_layout.dart';
 export 'src/theme/panel_catalog_theme.dart';
 export 'src/viewport/catalog_focus.dart';
+export 'src/viewport/catalog_leaf_preview.dart' show CatalogLeafPreview;
+export 'src/viewport/catalog_overscroll_sink.dart' show CatalogOverscrollSink;
 export 'src/viewport/catalog_scroll_position.dart';
 export 'src/viewport/catalog_section_navigation.dart'
     show CatalogSectionNavigation;

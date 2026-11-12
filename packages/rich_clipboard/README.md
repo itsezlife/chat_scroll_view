@@ -30,7 +30,7 @@ Media (`readWithMedia`, one read with the text): files a file manager
 copied, with no text (their text is their names), else image data. macOS
 file URLs or GIF / PNG / JPEG / TIFF (as PNG), checked on the real
 pasteboard; iOS item images saved to temporary files; Android content URIs
-copied into the app cache, as the reference client copies a pasted image;
+copied into the app cache;
 Windows `CF_HDROP`, `PNG` or `CF_DIB` (as BMP); Linux URI lists or the GTK
 image (as PNG); web `ClipboardItem` images. Saved files live in the system's
 temporary or cache directory, which the system clears.

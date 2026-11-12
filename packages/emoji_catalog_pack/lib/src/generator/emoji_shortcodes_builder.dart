@@ -8,15 +8,15 @@ import 'package:emoji_catalog_pack/src/structure/emoji_catalog_structure.dart';
 /// shortcodes of the catalog.
 ///
 /// Only the toolkit's JSON is read, for its `shortname`s; its artwork is under
-/// a licence of its own and never used. The shortnames are the alpha codes the
-/// reference desktop client shows.
+/// a licence of its own and never used. The shortnames are the alpha codes
+/// users see.
 abstract final class EmojiShortcodesBuilder {
   /// Builds the shortcodes of [structure] from [toolkitJson], the text of the
   /// toolkit's `emoji.json`, labelled with [source].
   ///
   /// A code exists for the same keys a keyword pack has a record for: every
   /// entry's base and every variant without a skin tone. A tone variant shows
-  /// its entry's code, as the reference client does. A key the toolkit has no
+  /// its entry's code. A key the toolkit has no
   /// code for gets none: the toolkit lags Unicode by a version or two, and a
   /// missing code only costs a hint.
   ///

@@ -1,4 +1,4 @@
-import 'dart:async' show Completer, Future, unawaited;
+import 'dart:async' show Completer, Future, scheduleMicrotask, unawaited;
 import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart';
@@ -16,11 +16,13 @@ import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
+import 'package:panel_catalog/src/model/catalog_leaf_remove_badge.dart';
 import 'package:panel_catalog/src/model/catalog_section.dart';
 import 'package:panel_catalog/src/theme/panel_catalog_theme_data.dart'
-    show CatalogPressFeedback;
+    show CatalogPressFeedback, CatalogPreviewFeedback;
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
+import 'package:panel_catalog/src/viewport/catalog_action_ink.dart';
 import 'package:panel_catalog/src/viewport/catalog_action_pointer.dart';
 import 'package:panel_catalog/src/viewport/catalog_bake_activity.dart';
 import 'package:panel_catalog/src/viewport/catalog_far_stitch.dart';
@@ -31,8 +33,9 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_painter.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_pointer.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_press.dart';
+import 'package:panel_catalog/src/viewport/catalog_leaf_preview.dart';
 import 'package:panel_catalog/src/viewport/catalog_near_scroll.dart';
-import 'package:panel_catalog/src/viewport/catalog_scroll_physics.dart';
+import 'package:panel_catalog/src/viewport/catalog_overscroll_sink.dart';
 import 'package:panel_catalog/src/viewport/catalog_scroll_position.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_navigation.dart';
 import 'package:panel_catalog/src/viewport/catalog_section_proximity.dart';
@@ -40,6 +43,8 @@ import 'package:panel_catalog/src/viewport/catalog_semantics.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_controller.dart';
 import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
+import 'package:viewport_scroll/engine.dart';
+import 'package:viewport_scroll/viewport_scroll.dart';
 
 /// Paint-leaf render object for the panel catalog body.
 ///
@@ -108,9 +113,8 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 ///
 /// Drag (`VerticalDragGestureRecognizer`) and pointer-wheel
 /// ([PointerScrollEvent]) both call [PanelCatalogController.scrollBy]. A
-/// mouse never drags: it scrolls by its wheel and the scrollbar, as the
-/// reference desktop client's grid does, and a press-and-move of it is a
-/// press on a cell, not a scroll ([_dragDevices]).
+/// mouse never drags: it scrolls by its wheel and the scrollbar, and a
+/// press-and-move of it is a press on a cell, not a scroll ([_dragDevices]).
 /// Drag-up (negative primary delta) reveals content below → positive delta
 /// on the controller. Drag start cancels fling and clears in-flight press.
 ///
@@ -122,14 +126,19 @@ import 'package:panel_catalog/src/viewport/panel_catalog_scroll_events.dart';
 /// that pending delta into the drag origin so the first applied scroll is
 /// only post-acceptance motion.
 ///
-/// ## Fling physics
+/// ## Scroll physics
 ///
-/// Drag-end with sufficient velocity starts a ballistic fling
-/// ([CatalogScrollPhysics] / [ClampingScrollSimulation]) in content offset
-/// space. Each tick applies [PanelCatalogController.scrollBy] until the
-/// simulation ends or offset hits `[0, maxOffset]`. Fling cancels on drag
-/// start, wheel, [jumpTo], [PanelCatalogController.jumpToSection], scroll wall,
-/// or pointer-down while flinging.
+/// The chat's scroll physics ([physics], a [ViewportScrollPhysics]): a
+/// drag-end with sufficient velocity starts its fling in content offset
+/// space, and each tick applies [PanelCatalogController.scrollBy] until the
+/// curve ends or the offset reaches `[0, maxOffset]`, where the leftover
+/// velocity goes to the edge effect. A drag past an end that the overscroll
+/// sink does not take pulls the edge effect, which is paint only: the offset
+/// stays at the end and the whole layer (cells, textures, badge) is
+/// transformed. A fling cancels on drag start, wheel, [jumpTo],
+/// [PanelCatalogController.jumpToSection], scroll wall, or pointer-down while
+/// flinging; a pointer-down while the edge effect springs back catches it and
+/// taps nothing, as one that stops a fling.
 ///
 /// ## Section jump
 ///
@@ -265,7 +274,11 @@ class RenderPanelCatalog extends RenderBox
     CatalogLeafHit? pinnedLeaf,
     void Function(String sectionId, String actionId)? onSectionAction,
     double? sectionNearExtent,
-  }) : _snapshots = snapshots,
+    ViewportScrollPhysics? physics,
+  }) : _motion = ViewportScrollMotion(
+         physics ?? ViewportScrollPhysics.forPlatform(),
+       ),
+       _snapshots = snapshots,
        _controller = controller,
        _pixels = controller.offset,
        _spanCount = spanCount,
@@ -368,6 +381,33 @@ class RenderPanelCatalog extends RenderBox
     markCatalogNeedsUpdate();
   }
 
+  /// Whether the body holds its playback: every binding keeps its frame and
+  /// its lease and plays nothing, and none is detached until it is let go
+  /// ([CatalogLeafBindingPool.held]). The widget sets it while its tickers
+  /// are off ([TickerMode]). Let go, the next layout syncs the window again.
+  bool get held => _pool.held;
+  set held(bool value) {
+    if (_pool.held == value) return;
+    _pool.held = value;
+    if (!value) markNeedsLayout();
+    markNeedsPaint();
+  }
+
+  /// Whether nothing of the body is on screen though it stays mounted (a
+  /// hidden panel): every binding is hidden, so a held one gives back what
+  /// its frame lives on for the surfaces on screen
+  /// ([CatalogLeafBindingPool.offstage]). The widget sets it from
+  /// [Visibility.of].
+  ///
+  /// While offstage the body paints nothing (see [paint]); shown again it
+  /// repaints, since its own layer holds whatever it last painted.
+  bool get offstage => _pool.offstage;
+  set offstage(bool value) {
+    if (_pool.offstage == value) return;
+    _pool.offstage = value;
+    markNeedsPaint();
+  }
+
   /// Density of the view this body sits in. Bindings are asked for pixels at
   /// it, so a change swaps every attached binding for one at the new size.
   double _devicePixelRatio;
@@ -423,6 +463,20 @@ class RenderPanelCatalog extends RenderBox
     markCatalogNeedsUpdate();
   }
 
+  /// The device's gesture settings (its touch slop), as
+  /// `MediaQuery.gestureSettingsOf` gives them; the scroll drag starts past
+  /// that slop, as a `Scrollable`'s does. A drag recognizer of a widget
+  /// around the viewport reads the same settings, so the two start together
+  /// and the viewport, first in the arena, takes the drag; with the default
+  /// slop here and a phone's smaller one there, the outer drag would win
+  /// every drag that starts on the grid.
+  DeviceGestureSettings? _gestureSettings;
+  set gestureSettings(DeviceGestureSettings? value) {
+    if (_gestureSettings == value) return;
+    _gestureSettings = value;
+    _drag?.gestureSettings = value;
+  }
+
   /// Section-jump landing inset; null → [padding.top].
   double? _headerLandingInset;
   set headerLandingInset(double? value) {
@@ -476,6 +530,14 @@ class RenderPanelCatalog extends RenderBox
     Duration? Function(CatalogLeafHit hit, PointerDeviceKind kind)? value,
   ) => _leafPointer.leafLongPressDelay = value;
 
+  /// The receiver of the part of a drag past the top edge
+  /// ([PanelCatalogViewport.overscrollSink]). Swapping it ends nothing in
+  /// flight.
+  CatalogOverscrollSink? get overscrollSink => _handoff.sink;
+  set overscrollSink(CatalogOverscrollSink? value) => _handoff.sink = value;
+
+  final CatalogOverscrollHandoff _handoff = CatalogOverscrollHandoff();
+
   /// The cell a transient surface is open over: its hover wash stays and the
   /// wheel is ignored until it is released.
   CatalogLeafHit? _pinnedLeaf;
@@ -484,6 +546,50 @@ class RenderPanelCatalog extends RenderBox
     _pinnedLeaf = value;
     markNeedsPaint();
   }
+
+  /// The content preview open over the grid, or null; see
+  /// [CatalogLeafPreview].
+  CatalogLeafPreview? _leafPreview;
+  set leafPreview(CatalogLeafPreview? value) {
+    if (_leafPreview == value) return;
+    final opened = _leafPreview == null && value != null;
+    _leafPreview = value;
+    final shrunk = value?.shrunk;
+    // The held cell goes on from the scale its press reached, with no wash:
+    // the press is over for this grid once a preview is up. A press that
+    // draws nothing showed no scale: the cell starts from 1.
+    final press = _press;
+    final scaled =
+        _paintTheme.leafPressFeedback == CatalogPressFeedback.inkAndScale;
+    final from = switch ((press, shrunk)) {
+      (final press?, final shrunk?)
+          when scaled && _isPressedCell(press, shrunk) =>
+        press.scale,
+      _ => 1.0,
+    };
+    if (opened) {
+      _clearPressPointerRoute();
+      press?.cancel();
+    }
+    _previewScale?.shrink(shrunk, from: from);
+    markNeedsPaint();
+  }
+
+  bool _isPressedCell(CatalogLeafPress press, CatalogLeafHit cell) {
+    final key = press.pressedSlotKey;
+    if (key == null) return false;
+    for (final slot in _slots) {
+      if (slot case CatalogLeafSlot(
+        :final sectionId,
+        :final index,
+      ) when sectionId == cell.sectionId && index == cell.index) {
+        return slot.key == key;
+      }
+    }
+    return false;
+  }
+
+  CatalogLeafPreviewScale? _previewScale;
 
   /// Shell long-press start. Null disables the long-press recognizer.
   void Function(CatalogLeafHit hit, LongPressStartDetails details)?
@@ -611,8 +717,27 @@ class RenderPanelCatalog extends RenderBox
   /// The section last published as current, by index and id.
   (int, String)? _currentSection;
 
-  /// Ballistic scroll simulation and tick integration in content offset space.
-  final CatalogScrollPhysics _physics = CatalogScrollPhysics();
+  /// The runtime of [physics]: the fling (in content offset space) and the
+  /// edge effect (in finger sign: positive presses the top edge).
+  ViewportScrollMotion _motion;
+
+  /// The fling and edge effect user motion follows.
+  ///
+  /// An unequal value stops a fling in flight (publishing its end) and drops
+  /// the edge effect at once; the next gesture runs on the new pair.
+  ViewportScrollPhysics get physics => _motion.physics;
+  set physics(ViewportScrollPhysics value) {
+    if (_motion.physics == value) return;
+    _cancelFling();
+    _motion.edge.reset();
+    _motion = ViewportScrollMotion(value);
+    markNeedsPaint();
+  }
+
+  /// The edge effect's transform of the painted layer, or null at rest.
+  @visibleForTesting
+  Matrix4? get edgeTransform =>
+      hasSize ? _motion.edge.paintTransform(size) : null;
 
   /// Near-path section jump animation; null after [detach] / [dispose].
   CatalogNearScroll? _nearScroll;
@@ -635,7 +760,8 @@ class RenderPanelCatalog extends RenderBox
   /// Press-scale controller; null after [detach] / [dispose].
   CatalogLeafPress? _press;
 
-  /// Drives [_onFlingTick] while [_physics.isFlinging]; stopped on cancel.
+  /// Drives [_onMotionTick] while a fling runs or the edge effect is active;
+  /// stopped once both rest.
   Ticker? _flingTicker;
 
   /// Active press pointer and its viewport-local leaf rect for move-out cancel.
@@ -728,7 +854,7 @@ class RenderPanelCatalog extends RenderBox
   void debugDetachBindings() => _pool.detachAll();
 
   /// Whether a ballistic fling is currently driving [PanelCatalogController.offset].
-  bool get isFlinging => _physics.isFlinging;
+  bool get isFlinging => _motion.fling.isFlinging;
 
   /// Cell currently receiving press-scale feedback, or `null` when idle.
   ///
@@ -800,7 +926,9 @@ class RenderPanelCatalog extends RenderBox
   }
 
   /// Resolves the header action under [localPosition] as `(sectionId,
-  /// actionId)`, or `null` when the point is on no action's hit area.
+  /// actionId)`, or `null` when the point is on no action's hit area: the
+  /// trailing action's, or the rest of a band whose section has a
+  /// [CatalogSection.titleAction].
   ///
   /// Binary search to the slots at the point's content y, then a scan of the
   /// few that share it: the cost follows the row, not the catalogue.
@@ -812,10 +940,24 @@ class RenderPanelCatalog extends RenderBox
     for (var i = _firstSlotIndexAtOrBelow(contentY); i < slots.length; i++) {
       final slot = slots[i];
       if (slot.top > contentY) break;
-      if (slot case final CatalogHeaderSlot header when header.action != null) {
-        final bounds = _painter.sectionActionBounds(header);
-        if (bounds != null && bounds.contains(Offset(contentX, contentY))) {
-          return (header.sectionId, header.action!.id);
+      if (slot case final CatalogHeaderSlot header) {
+        final point = Offset(contentX, contentY);
+        if (header.action case final action?) {
+          final bounds = _painter.sectionActionBounds(header);
+          if (bounds != null && bounds.contains(point)) {
+            return (header.sectionId, action.id);
+          }
+        }
+        // The rest of the band is the title's, when the title opens
+        // something; the trailing action keeps its own area above.
+        if (header.titleAction case final titleAction?
+            when Rect.fromLTWH(
+              header.left,
+              header.top,
+              header.width,
+              header.height,
+            ).contains(point)) {
+          return (header.sectionId, titleAction);
         }
       }
     }
@@ -874,6 +1016,7 @@ class RenderPanelCatalog extends RenderBox
       ..publish(PanelCatalogOffsetChanged(pixels, delta));
     _cancelSectionJumpMotion();
     _cancelFling();
+    _resetEdgeEffect();
     _onNavigation();
     if (LogCategory.scroll.enabled) {
       Log.fine(.scroll, 'jump', {'offset': LogFormat.f(_pixels)});
@@ -943,6 +1086,7 @@ class RenderPanelCatalog extends RenderBox
     }
     // A request that never started (no size yet) is superseded, not leaked.
     _completePendingSectionJump();
+    _resetEdgeEffect();
     final completer = Completer<void>();
     _pendingSectionJump = (sectionIndex, completer);
     unawaited(_handleSectionJump(sectionIndex));
@@ -972,6 +1116,7 @@ class RenderPanelCatalog extends RenderBox
     final pending = _pendingAnimateTo;
     if (pending == null) return;
     final (target, duration, curve, completer) = pending;
+    _resetEdgeEffect();
 
     if (!attached) {
       _completePendingAnimateTo();
@@ -1328,6 +1473,14 @@ class RenderPanelCatalog extends RenderBox
     _snapshots.addListener(_onDataChanged);
     _pressTickers = CatalogPressTickerProvider();
     _press = CatalogLeafPress(vsync: _pressTickers!, onChanged: markNeedsPaint);
+    _actionInk = CatalogActionInk(
+      vsync: _pressTickers!,
+      onChanged: markNeedsPaint,
+    );
+    _previewScale = CatalogLeafPreviewScale(
+      vsync: _pressTickers!,
+      onChanged: markNeedsPaint,
+    )..shrink(_leafPreview?.shrunk, from: CatalogLeafPreview.shrunkScale);
     _nearScroll = CatalogNearScroll(
       vsync: _pressTickers!,
       onTick: () {
@@ -1345,12 +1498,14 @@ class RenderPanelCatalog extends RenderBox
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
       ..onEnd = _onDragEnd
-      ..onCancel = _onDragCancel;
+      ..onCancel = _onDragCancel
+      ..gestureSettings = _gestureSettings;
     _startBakeActivity();
     // Start from the offset the controller committed, then become its one
     // position. A section jump committed while unbound is handed over here.
     _pixels = _controller.offset;
     _controller.attach(this);
+    _releasePending = false;
     // Keep-alive pager leave/return reattaches without a constraint change —
     // force layout so [syncVisible] re-binds before the first paint.
     markNeedsLayout();
@@ -1365,6 +1520,8 @@ class RenderPanelCatalog extends RenderBox
     _cancelSectionJumpMotion();
     _endSectionJump();
     _cancelFling();
+    _motion.edge.reset();
+    _stopMotionTicker();
     _flingTicker = null;
     _nearScroll?.dispose();
     _nearScroll = null;
@@ -1378,18 +1535,40 @@ class RenderPanelCatalog extends RenderBox
     _drag = null;
     _userDragging = false;
     _stopBakeActivity();
+    _releaseAfterDetach();
     // Back in a tree the same edges are near again and are announced again.
     _proximity.reset();
     _currentSection = null;
     _projectedWidth = -1;
     _press?.dispose();
     _press = null;
+    _actionInk?.dispose();
+    _actionInk = null;
+    _previewScale?.dispose();
+    _previewScale = null;
     _pressTickers?.dispose();
     _pressTickers = null;
-    // Drop every attach so cache refcounts fall when this viewport leaves
-    // the tree — even if the same cache is shared with another surface.
-    _pool.detachAll();
     super.detach();
+  }
+
+  // Whether a detach is waiting to give the bindings back.
+  bool _releasePending = false;
+
+  // Drops every attach so cache refcounts fall when this viewport leaves the
+  // tree, even if the same cache is shared with another surface; but not in
+  // the frame of the detach. A sliver that moves a child into its keep-alive
+  // bucket (a pager page off screen) detaches and attaches it again at once,
+  // and releasing then would unpin every cell and drop its held frame and
+  // lease. A detach not followed by an attach before the frame ends gives
+  // them back; a dispose gives them back at once.
+  void _releaseAfterDetach() {
+    if (_releasePending) return;
+    _releasePending = true;
+    scheduleMicrotask(() {
+      if (!_releasePending) return;
+      _releasePending = false;
+      if (!attached) _pool.detachAll();
+    });
   }
 
   @override
@@ -1398,6 +1577,8 @@ class RenderPanelCatalog extends RenderBox
     _cancelSectionJumpMotion();
     _endSectionJump();
     _cancelFling();
+    _motion.edge.reset();
+    _stopMotionTicker();
     _flingTicker = null;
     _nearScroll?.dispose();
     _nearScroll = null;
@@ -1412,11 +1593,20 @@ class RenderPanelCatalog extends RenderBox
     _userDragging = false;
     _leafPointer.dispose();
     _actionPointer.dispose();
+    _removeTap?.dispose();
+    _removeTap = null;
     _stopBakeActivity();
     _press?.dispose();
     _press = null;
+    _actionInk?.dispose();
+    _actionInk = null;
+    _previewScale?.dispose();
+    _previewScale = null;
     _pressTickers?.dispose();
     _pressTickers = null;
+    _releasePending = false;
+    _edgeClip.layer = null;
+    _edgeTransformLayer.layer = null;
     _pool.detachAll();
     _painter.dispose();
     super.dispose();
@@ -1436,7 +1626,9 @@ class RenderPanelCatalog extends RenderBox
       events: _controller.events,
       publish: _controller.publish,
       isAnimating: () =>
-          _physics.isFlinging || isSectionJumpAnimating || isFarStitchActive,
+          _motion.fling.isFlinging ||
+          isSectionJumpAnimating ||
+          isFarStitchActive,
       visibleKeys: _visibleLeafKeys,
     );
   }
@@ -1646,7 +1838,6 @@ class RenderPanelCatalog extends RenderBox
       end: _slotIndexAfter(bottom),
       paintTop: paintTop,
       paintBottom: paintBottom,
-      animate: !_physics.isFlinging,
       top: top,
       bottom: bottom,
       pinnedKeys: _stitchPinnedKeys.isEmpty ? null : _stitchPinnedKeys,
@@ -1655,23 +1846,68 @@ class RenderPanelCatalog extends RenderBox
 
   // --- Scroll — drag --------------------------------------------------------
 
-  /// Cancels fling and press before a new drag gesture owns the pointer.
+  /// Cancels fling and press before a new drag gesture owns the pointer; a
+  /// visible edge effect is caught where it is.
   void _onDragStart(DragStartDetails details) {
     _userDragging = true;
     _cancelSectionJumpMotion();
     _cancelFling();
     _clearPressPointerRoute();
     _press?.pressOut();
+    _motion.edge.onDragStart();
+    _handoff.beginDrag();
     _controller.publish(const PanelCatalogUserDragStart());
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    final dy = details.primaryDelta ?? details.delta.dy;
+    var dy = details.primaryDelta ?? details.delta.dy;
+    if (!hasSize) {
+      scrollBy(-dy);
+      return;
+    }
+    // The overscroll sink takes its share first (the whole tick at the top,
+    // the part past it otherwise); content scrolls what it declines.
+    dy -= _handoff.offer(
+      delta: dy,
+      pinned: _pixels <= 0,
+      room: _pixels,
+      time: details.sourceTimeStamp,
+    );
+    if (dy == 0) return;
+    // Finger sign: a finger moving down (positive) presses the top edge.
+    // Motion back toward content walks a displaced edge effect back first.
+    final edge = _motion.edge;
+    dy = edge.claim(
+      dy,
+      size.height,
+      travel: math.min(dy.abs(), _roomToward(dy)),
+    );
+    final consumed = dy.sign * math.min(dy.abs(), _roomToward(dy));
+    final unconsumed = dy - consumed;
     // Drag up (negative dy) reveals content below → increase offset.
-    scrollBy(-dy);
+    if (consumed != 0) scrollBy(-consumed);
+    // Sub-pixel remainders at an end are rounding, not a press past it.
+    if (unconsumed.abs() > 1) {
+      edge.pull(
+        unconsumed,
+        size.height,
+        travel: consumed.abs(),
+        fits: maxOffset <= 0,
+      );
+    }
+    if (edge.isActive) {
+      _ensureFlingTicker();
+      markNeedsPaint();
+    }
   }
 
-  /// Starts a fling when release velocity exceeds the physics threshold.
+  /// How far the content can still scroll before the end a finger moving by
+  /// [fingerDelta] presses: the top for a finger moving down.
+  double _roomToward(double fingerDelta) =>
+      fingerDelta > 0 ? _pixels : math.max(0, maxOffset - _pixels);
+
+  /// Starts a fling when release velocity exceeds the physics threshold and
+  /// the edge effect lets it.
   ///
   /// No-op when [maxOffset] is `0` (nothing to scroll) or velocity is below
   /// the minimum. Finger-up velocity is negated into content-offset space.
@@ -1681,7 +1917,16 @@ class RenderPanelCatalog extends RenderBox
     // Finger up (negative primaryVelocity) → positive content-offset velocity.
     final contentVelocity = -fingerVelocity;
     _controller.publish(PanelCatalogUserDragEnd(contentVelocity));
-    if (!hasSize || maxOffset <= 0) return;
+    final edge = _motion.edge;
+    // The sink settles a release it took part in: no content fling.
+    if (_handoff.endDrag()) {
+      edge.onDragEnd(0);
+      if (edge.isActive) _ensureFlingTicker();
+      return;
+    }
+    final flingAllowed = edge.onDragEnd(fingerVelocity);
+    if (edge.isActive) _ensureFlingTicker();
+    if (!flingAllowed || !hasSize || maxOffset <= 0) return;
     if (contentVelocity.abs() < 50) return;
     _controller.publish(PanelCatalogFlingStart(contentVelocity));
     _startFling(contentVelocity);
@@ -1692,28 +1937,46 @@ class RenderPanelCatalog extends RenderBox
   void _onDragCancel() {
     if (!_userDragging) return;
     _userDragging = false;
+    // What the sink holds is released at rest, not left where the drag
+    // stopped; so is the edge effect.
+    _handoff.endDrag(cancelled: true);
+    _motion.edge.onDragEnd(0);
+    if (_motion.edge.isActive) _ensureFlingTicker();
     _controller.publish(const PanelCatalogUserDragCancel());
   }
 
-  // --- Scroll — fling -------------------------------------------------------
+  // --- Scroll — fling and edge effect ---------------------------------------
 
-  /// Arms [_physics] and ensures the fling ticker is running.
+  /// Arms the fling and ensures the motion ticker is running.
   void _startFling(double contentVelocity) {
-    _physics.startFling(contentVelocity);
+    _motion.fling.startFling(contentVelocity, since: _lastMotionTick);
     _ensureFlingTicker();
-    // Animated leaves stop playing while the coast runs.
-    _syncVisibleBindings();
   }
 
-  /// Stops simulation and ticker; safe when already idle.
+  /// Stops the fling; the ticker stops once the edge effect rests too. Safe
+  /// when already idle.
   void _cancelFling() {
-    final wasFlinging = _physics.isFlinging;
-    _physics.cancelFling();
+    final wasFlinging = _motion.fling.isFlinging;
+    _motion.fling.cancelFling();
+    if (!_motion.edge.isActive) _stopMotionTicker();
+    if (wasFlinging) _controller.publish(const PanelCatalogFlingEnd());
+  }
+
+  /// Drops the edge effect at once: motion that is not the user's (a jump,
+  /// the wheel, a section jump) moves no displaced layer.
+  void _resetEdgeEffect() {
+    if (!_motion.edge.isActive) return;
+    _motion.edge.reset();
+    markNeedsPaint();
+  }
+
+  /// The ticker `elapsed` of the last motion frame, which a fling started
+  /// between frames counts from.
+  Duration? _lastMotionTick;
+
+  void _stopMotionTicker() {
     _flingTicker?.stop();
-    if (wasFlinging) {
-      _syncVisibleBindings();
-      _controller.publish(const PanelCatalogFlingEnd());
-    }
+    _lastMotionTick = null;
   }
 
   /// Lazily creates and starts [_flingTicker] on [_pressTickers].
@@ -1723,41 +1986,70 @@ class RenderPanelCatalog extends RenderBox
   void _ensureFlingTicker() {
     final tickers = _pressTickers;
     if (tickers == null) return;
-    _flingTicker ??= tickers.createTicker(_onFlingTick);
+    _flingTicker ??= tickers.createTicker(_onMotionTick);
     if (!(_flingTicker?.isActive ?? false)) {
       _flingTicker!.start();
     }
   }
 
-  /// Applies one fling simulation step via [PanelCatalogController.scrollBy].
-  ///
-  /// Cancels when simulation ends, delta is zero, applied scroll is zero
-  /// (wall hit), or offset reaches `[0, maxOffset]`.
-  void _onFlingTick(Duration elapsed) {
-    if (!_physics.isFlinging || !hasSize) {
+  /// One motion frame: a fling step via [PanelCatalogController.scrollBy],
+  /// whose leftover at an end goes to the edge effect, then the edge
+  /// effect's spring.
+  void _onMotionTick(Duration elapsed) {
+    _lastMotionTick = elapsed;
+    if (!hasSize) {
       _cancelFling();
+      _stopMotionTicker();
       return;
     }
-    final delta = _physics.tickFling(elapsed);
-    if (delta == 0) {
-      if (!_physics.isFlinging) {
-        _flingTicker?.stop();
-        _syncVisibleBindings();
+    final fling = _motion.fling;
+    final edge = _motion.edge;
+    if (fling.isFlinging) {
+      final velocity = fling.flingVelocity(elapsed);
+      final delta = fling.tickFling(elapsed);
+      if (!fling.isFlinging) {
         _controller.publish(const PanelCatalogFlingEnd());
       }
-      return;
+      if (delta != 0) {
+        // A fling toward content unwinds a displaced edge effect first; the
+        // edge effect speaks the finger's sign, the fling the offset's.
+        final finger = edge.claim(
+          -delta,
+          size.height,
+          travel: math.min(delta.abs(), _roomToward(-delta)),
+        );
+        final step = -finger;
+        final before = _pixels;
+        final target = (before + step).clamp(0.0, maxOffset);
+        final applied = target - before;
+        if (applied != 0) scrollBy(applied);
+        final unconsumed = step - applied;
+        if (unconsumed.abs() > 1) {
+          // The fling reached an end: its leftover velocity, toward the end
+          // it hit, goes to the edge effect.
+          edge.absorbImpact(-unconsumed.sign * velocity.abs());
+        }
+        if (unconsumed.abs() > 0.5 || target <= 0 || target >= maxOffset) {
+          _cancelFling();
+        }
+      }
     }
-    final before = _pixels;
-    final target = (before + delta).clamp(0.0, maxOffset);
-    final applied = target - before;
-    if (applied == 0) {
-      _cancelFling();
-      return;
+    // An edge effect left displaced with no drag, no fling carrying it and
+    // no press holding it releases where it is.
+    if (!_userDragging &&
+        !fling.isFlinging &&
+        _flingCancelPointer == null &&
+        edge.isActive &&
+        !edge.isSpringing) {
+      edge.onDragEnd(0);
     }
-    scrollBy(applied);
-    if (target <= 0 || target >= maxOffset) {
-      _cancelFling();
+    if (edge.tick(elapsed) || edge.isActive) {
+      markNeedsPaint();
+    } else if (_edgePainted) {
+      // The frame the spring comes to rest draws the layer back in place.
+      markNeedsPaint();
     }
+    if (!fling.isFlinging && !edge.isActive) _stopMotionTicker();
   }
 
   // --- Hover ----------------------------------------------------------------
@@ -1791,10 +2083,165 @@ class RenderPanelCatalog extends RenderBox
 
   void _hoverAt(Offset? position) {
     if (_hoverPosition == position) return;
+    final badgeWas = _removeBadgeState();
     _hoverPosition = position;
+    _actionInk?.hover(_inkedActionAt(position));
     // A pinned cell holds the wash wherever the mouse goes.
-    if (_pinnedLeaf == null && _hoverSlotKey() != _hoveredKey) markNeedsPaint();
+    if (_pinnedLeaf == null && _hoverSlotKey() != _hoveredKey) {
+      markNeedsPaint();
+    } else if (_removeBadgeState() != badgeWas) {
+      markNeedsPaint();
+    }
     _reportHover(moved: true);
+  }
+
+  // --- Header action ink ----------------------------------------------------
+
+  /// The hover fill and press ripple of a painted header action; see
+  /// [CatalogActionInk]. Live while attached.
+  CatalogActionInk? _actionInk;
+
+  /// The section whose painted trailing action is under [position]
+  /// (viewport-local), when the theme has a hover wash (the pointer
+  /// arrangement) and the action can be pressed; null otherwise.
+  String? _inkedActionAt(Offset? position) {
+    if (position == null ||
+        _paintTheme.leafHoverHighlightColor == null ||
+        _onSectionAction == null) {
+      return null;
+    }
+    return switch (actionAt(position)) {
+      (final sectionId, final actionId)
+          when _trailingActionId(sectionId) == actionId =>
+        sectionId,
+      _ => null,
+    };
+  }
+
+  // The id of the painted trailing action of [sectionId]'s header, or null.
+  String? _trailingActionId(String sectionId) {
+    for (final slot in _slots) {
+      if (slot case CatalogHeaderSlot(
+        sectionId: final id,
+        action: final action?,
+      ) when id == sectionId && action.painter != null) {
+        return action.id;
+      }
+    }
+    return null;
+  }
+
+  /// The section whose action the hover ink is on, or null.
+  @visibleForTesting
+  String? get debugHoveredAction => _actionInk?.hovered;
+
+  /// The press ink drawn on a header action now, or null.
+  @visibleForTesting
+  ({String sectionId, Offset origin, double grown, double alpha})?
+  get debugActionPress => _actionInk?.press;
+
+  // --- Remove badge ---------------------------------------------------------
+
+  /// Which cells show the remove badge under a mouse; see
+  /// `PanelCatalogViewport.leafRemovable`.
+  bool Function(CatalogLeafHit hit)? _leafRemovable;
+  set leafRemovable(bool Function(CatalogLeafHit hit)? value) {
+    if (identical(_leafRemovable, value)) return;
+    _leafRemovable = value;
+    markNeedsPaint();
+  }
+
+  /// A click on a cell's remove badge; see `PanelCatalogViewport.onLeafRemove`.
+  ValueChanged<CatalogLeafHit>? _onLeafRemove;
+  set onLeafRemove(ValueChanged<CatalogLeafHit>? value) {
+    if (identical(_onLeafRemove, value)) return;
+    _onLeafRemove = value;
+    markNeedsPaint();
+  }
+
+  /// The badge's look.
+  CatalogLeafRemoveBadge _removeBadge = CatalogLeafRemoveBadge.pointer;
+  set removeBadge(CatalogLeafRemoveBadge value) {
+    if (_removeBadge == value) return;
+    _removeBadge = value;
+    markNeedsPaint();
+  }
+
+  TapGestureRecognizer? _removeTap;
+  CatalogLeafHit? _removeDown;
+
+  /// The cell under [position] (viewport-local) and its badge's box, when the
+  /// cell shows a remove badge.
+  (CatalogLeafHit, Rect)? _removeBadgeAt(Offset? position) {
+    final removable = _leafRemovable;
+    if (position == null ||
+        removable == null ||
+        _onLeafRemove == null ||
+        _leafPreview != null ||
+        _pinnedLeaf != null) {
+      return null;
+    }
+    final slot = leafSlotAt(position);
+    if (slot == null || !removable(slot.hit)) return null;
+    final cell = Rect.fromLTWH(
+      slot.left,
+      slot.top - _pixels,
+      slot.width,
+      slot.height,
+    );
+    return (slot.hit, _removeBadge.rectOn(cell, _textDirection));
+  }
+
+  // What the badge looks like now: on which cell, and whether the mouse is on
+  // the badge itself.
+  (CatalogLeafHit, bool)? _removeBadgeState() {
+    final position = _hoverPosition;
+    return switch (_removeBadgeAt(position)) {
+      (final hit, final rect) => (hit, rect.contains(position!)),
+      null => null,
+    };
+  }
+
+  /// The box of the remove badge on screen (viewport-local), or null when the
+  /// mouse is on no cell that shows one.
+  @visibleForTesting
+  Rect? get debugRemoveBadgeRect => _removeBadgeAt(_hoverPosition)?.$2;
+
+  // Over everything the cell drew, its textures included.
+  void _paintRemoveBadge(PaintingContext context, Offset offset) {
+    final position = _hoverPosition;
+    final badge = _removeBadgeAt(position);
+    if (badge == null || position == null) return;
+    final rect = badge.$2;
+    final canvas = context.canvas
+      ..save()
+      ..clipRect(offset & size);
+    _removeBadge.paint(
+      canvas,
+      rect.shift(offset),
+      over: rect.contains(position),
+    );
+    canvas.restore();
+  }
+
+  // A primary press on a badge removes its cell on release over the badge;
+  // the cell itself is not pressed.
+  bool _pressRemoveBadge(PointerDownEvent event) {
+    if (event.kind != PointerDeviceKind.mouse ||
+        event.buttons & kPrimaryButton == 0) {
+      return false;
+    }
+    final badge = _removeBadgeAt(event.localPosition);
+    if (badge == null || !badge.$2.contains(event.localPosition)) return false;
+    _removeDown = badge.$1;
+    (_removeTap ??= TapGestureRecognizer(debugOwner: this)
+          ..onTap = () {
+            final hit = _removeDown;
+            _removeDown = null;
+            if (hit != null) _onLeafRemove?.call(hit);
+          })
+        .addPointer(event);
+    return true;
   }
 
   /// The cell last reported to [_onLeafHover], and where the cursor was.
@@ -2037,8 +2484,11 @@ class RenderPanelCatalog extends RenderBox
     switch (event) {
       case PointerDownEvent():
         var suppressLeafActions = false;
-        if (_physics.isFlinging) {
+        if (_motion.fling.isFlinging || _motion.edge.isSpringing) {
+          // A press that stops a fling or catches the edge effect's spring
+          // stops the motion only.
           _cancelFling();
+          _motion.edge.onDragStart();
           _flingCancelSuppressesLeaf = true;
           _flingCancelPointer = event.pointer;
           suppressLeafActions = true;
@@ -2049,7 +2499,9 @@ class RenderPanelCatalog extends RenderBox
         }
         _drag?.addPointer(event);
         final slot = leafSlotAt(event.localPosition);
-        if (slot != null) {
+        if (!suppressLeafActions && _pressRemoveBadge(event)) {
+          // The badge's, not the cell's.
+        } else if (slot != null) {
           // Fling-cancel taps stop the coast only — no press chrome / pick.
           // Only the primary button presses a cell: a right click is the
           // host's menu, not a press, and animating it would read as one.
@@ -2058,11 +2510,27 @@ class RenderPanelCatalog extends RenderBox
           }
           _leafPointer.addPointer(event);
         } else {
+          final inked =
+              suppressLeafActions || event.buttons & kPrimaryButton == 0
+              ? null
+              : _inkedActionAt(event.localPosition);
+          if (inked case final section?) {
+            _actionInk?.pressDown(
+              section,
+              event.localPosition.translate(0, _pixels),
+            );
+          }
           _actionPointer.addPointer(event);
         }
       case PointerUpEvent() || PointerCancelEvent():
+        _actionInk?.release();
         if (_flingCancelPointer == event.pointer) {
           _flingCancelPointer = null;
+          // A caught edge effect no drag took over releases where it is.
+          if (!_userDragging && _motion.edge.isActive) {
+            _motion.edge.onDragEnd(0);
+            _ensureFlingTicker();
+          }
           // Tap onTap fires after pointer up; defer clear so the arena still
           // sees suppress when the tap resolves.
           SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -2074,6 +2542,7 @@ class RenderPanelCatalog extends RenderBox
       case PointerScrollEvent(:final scrollDelta):
         if (_pinnedLeaf != null) return;
         _cancelFling();
+        _resetEdgeEffect();
         scrollBy(scrollDelta.dy);
       case PointerHoverEvent(
         kind: PointerDeviceKind.mouse,
@@ -2108,8 +2577,63 @@ class RenderPanelCatalog extends RenderBox
   /// The cell under [pressedSlotKey] is drawn with [CatalogLeafPress.scale].
   ///
   /// Records [debugLastPaintDuration] each pass.
+  ///
+  /// An [offstage] body paints nothing. Its layer is its own, and a repaint
+  /// boundary marked dirty in the frame its ancestor goes offstage (the held
+  /// flag set with the offstage one: a page the pager switches away from) is
+  /// still painted in that frame, while the layer it painted last is
+  /// attached: the leaves drawn then would want their frames again after
+  /// they left the screen, and keep their textures.
+  ///
+  /// A leaf whose asset exposes a platform texture is a texture layer added
+  /// after the pass's picture, inside the same viewport clip (ADR 043): the
+  /// viewport is a repaint boundary, so it always composites.
+  ///
+  /// The edge effect's transform ([physics]) moves the whole layer, the
+  /// textures and the badge with the cells, clipped to the viewport.
   @override
   void paint(PaintingContext context, Offset offset) {
+    if (offstage) return;
+    final transform = _motion.edge.paintTransform(size);
+    _edgePainted = transform != null;
+    if (transform == null) {
+      _edgeClip.layer = null;
+      _edgeTransformLayer.layer = null;
+      _paintLayer(context, offset);
+      return;
+    }
+    _edgeClip.layer = context.pushClipRect(
+      needsCompositing,
+      offset,
+      Offset.zero & size,
+      (context, offset) => _edgeTransformLayer.layer = context.pushTransform(
+        needsCompositing,
+        offset,
+        transform,
+        _paintLayer,
+        oldLayer: _edgeTransformLayer.layer,
+      ),
+      oldLayer: _edgeClip.layer,
+    );
+  }
+
+  /// Whether the last paint drew the layer under an edge effect's transform.
+  var _edgePainted = false;
+  final _edgeClip = LayerHandle<ClipRectLayer>();
+  final _edgeTransformLayer = LayerHandle<TransformLayer>();
+
+  void _paintLayer(PaintingContext context, Offset offset) {
+    _paintCanvas(context, offset);
+    _painter.compositeTextures(
+      context,
+      offset,
+      Offset.zero & size,
+      needsCompositing: needsCompositing,
+    );
+    _paintRemoveBadge(context, offset);
+  }
+
+  void _paintCanvas(PaintingContext context, Offset offset) {
     final sw = Stopwatch()..start();
     final canvas = context.canvas;
     canvas.save();
@@ -2225,7 +2749,21 @@ class RenderPanelCatalog extends RenderBox
   }) {
     switch (slot) {
       case final CatalogHeaderSlot header:
-        _painter.paintHeader(canvas: canvas, origin: origin, header: header);
+        final ink = _actionInk;
+        _painter.paintHeader(
+          canvas: canvas,
+          origin: origin,
+          header: header,
+          actionHovered: ink?.hovered == header.sectionId,
+          actionPress: switch (ink?.press) {
+            final press? when press.sectionId == header.sectionId => (
+              origin: press.origin,
+              grown: press.grown,
+              alpha: press.alpha,
+            ),
+            _ => null,
+          },
+        );
       case final CatalogLeafSlot leaf:
         final isPressed = pressedSlotKey != null && leaf.key == pressedSlotKey;
         final focus = _focus;
@@ -2233,19 +2771,35 @@ class RenderPanelCatalog extends RenderBox
         // pressed cell instead, until it is released.
         final quiet =
             _paintTheme.leafPressFeedback == CatalogPressFeedback.none;
-        final drawnPressed = isPressed && !quiet;
+        // Under an open preview no cell is pressed or hovered; the one it
+        // shows is drawn smaller, or, for a pointer, under the hover box.
+        final preview = _leafPreview;
+        final previewing = preview != null;
+        final drawnPressed = isPressed && !quiet && !previewing;
+        final boxed =
+            _paintTheme.leafPreviewFeedback == CatalogPreviewFeedback.hover;
+        final previewScale = boxed
+            ? null
+            : _previewScale?.scaleOf(leaf.sectionId, leaf.index);
+        final previewed = switch (preview?.shrunk) {
+          final shown? =>
+            shown.sectionId == leaf.sectionId && shown.index == leaf.index,
+          null => false,
+        };
         _painter.paintLeaf(
           canvas: canvas,
           origin: origin,
           slot: leaf,
           bound: _pool.boundFor(leaf),
-          pressScale: drawnPressed ? pressScale : 1.0,
+          pressScale: drawnPressed ? pressScale : previewScale ?? 1.0,
           pressProgress: drawnPressed ? pressProgress : 0,
           focused:
               focus != null &&
               focus.index == leaf.index &&
               focus.sectionId == leaf.sectionId,
-          hovered: (isPressed && quiet) || _isHovered(leaf),
+          hovered: previewing
+              ? boxed && previewed
+              : (isPressed && quiet) || _isHovered(leaf),
         );
       case final CatalogSkeletonSlot skeleton:
         _painter.paintSkeleton(canvas: canvas, origin: origin, slot: skeleton);
@@ -2574,6 +3128,16 @@ class RenderPanelCatalog extends RenderBox
   Rect? get viewportBounds => hasSize
       ? MatrixUtils.transformRect(getTransformTo(null), Offset.zero & size)
       : null;
+
+  // Asked as a finger moves over a surface that follows it, so no more than a
+  // hit test of the visible slots.
+  @override
+  CatalogLeafHit? leafAtGlobal(Offset globalPosition) {
+    if (!hasSize) return null;
+    final local = globalToLocal(globalPosition);
+    if (!(Offset.zero & size).contains(local)) return null;
+    return leafAt(local);
+  }
 
   // A scan of the slots, once per call: asked when a surface opens, not per
   // frame.

@@ -13,14 +13,29 @@ import 'package:meta/meta.dart';
 final class GlassMaterialColors {
   /// A material with every colour given.
   const GlassMaterialColors({
-    required this.fill,
+    required this.tint,
     required this.strokeTop,
     required this.strokeBottom,
     required this.shadow,
+    this.tintOpacity,
+    this.backdropSaturation = 3,
   });
 
-  /// Tint drawn over the sampled backdrop.
-  final Color fill;
+  /// The material's surface colour, drawn over the frosted backdrop.
+  ///
+  /// The glass sets its opacity, not the theme: 0.85 over a refracting
+  /// backdrop, 0.76 over a frosted one, and opaque where no backdrop is read
+  /// (a flat glass shows none of the content it would have frosted). The
+  /// colour's own alpha multiplies that opacity.
+  final Color tint;
+
+  /// The opacity of [tint] over a backdrop whatever the finish, or null to
+  /// let the finish set it. A flat glass is opaque either way.
+  final double? tintOpacity;
+
+  /// The backdrop's saturation: 1 leaves its colours, 3 triples their
+  /// distance from grey.
+  final double backdropSaturation;
 
   /// Top edge highlight.
   final Color strokeTop;
@@ -33,15 +48,19 @@ final class GlassMaterialColors {
 
   /// A copy with the named colours replaced.
   GlassMaterialColors copyWith({
-    Color? fill,
+    Color? tint,
     Color? strokeTop,
     Color? strokeBottom,
     Color? shadow,
+    double? tintOpacity,
+    double? backdropSaturation,
   }) => GlassMaterialColors(
-    fill: fill ?? this.fill,
+    tint: tint ?? this.tint,
     strokeTop: strokeTop ?? this.strokeTop,
     strokeBottom: strokeBottom ?? this.strokeBottom,
     shadow: shadow ?? this.shadow,
+    tintOpacity: tintOpacity ?? this.tintOpacity,
+    backdropSaturation: backdropSaturation ?? this.backdropSaturation,
   );
 
   /// Interpolates every colour between [a] and [b].
@@ -52,26 +71,42 @@ final class GlassMaterialColors {
     GlassMaterialColors b,
     double t,
   ) => GlassMaterialColors(
-    fill: Color.lerp(a.fill, b.fill, t)!,
+    tint: Color.lerp(a.tint, b.tint, t)!,
     strokeTop: Color.lerp(a.strokeTop, b.strokeTop, t)!,
     strokeBottom: Color.lerp(a.strokeBottom, b.strokeBottom, t)!,
     shadow: Color.lerp(a.shadow, b.shadow, t)!,
+    tintOpacity: switch ((a.tintOpacity, b.tintOpacity)) {
+      (final from?, final to?) => from + (to - from) * t,
+      (final from, final to) => t < 0.5 ? from : to,
+    },
+    backdropSaturation:
+        a.backdropSaturation +
+        (b.backdropSaturation - a.backdropSaturation) * t,
   );
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is GlassMaterialColors &&
-          fill == other.fill &&
+          tint == other.tint &&
           strokeTop == other.strokeTop &&
           strokeBottom == other.strokeBottom &&
-          shadow == other.shadow;
+          shadow == other.shadow &&
+          tintOpacity == other.tintOpacity &&
+          backdropSaturation == other.backdropSaturation;
 
   @override
-  int get hashCode => Object.hash(fill, strokeTop, strokeBottom, shadow);
+  int get hashCode => Object.hash(
+    tint,
+    strokeTop,
+    strokeBottom,
+    shadow,
+    tintOpacity,
+    backdropSaturation,
+  );
 
   @override
-  String toString() => 'GlassMaterialColors(fill: $fill)';
+  String toString() => 'GlassMaterialColors(tint: $tint)';
 }
 
 /// Palette-derived colours of the named glass materials.
@@ -87,32 +122,51 @@ final class GlassMaterialTokens {
     required this.composerIsland,
     required this.panelButton,
     required this.topPanel,
+    required this.messageMenu,
   });
 
   /// The default mapping of [palette] roles onto the named materials.
   ///
-  /// Each material tints its surface role at 85% opacity. Light strokes are
-  /// opaque white; dark strokes are faint white. The light shadow is the
-  /// palette shadow at 12.5% and dark materials cast none.
+  /// The composer island and panel buttons tint [ChromePalette.surface], the
+  /// top panel [ChromePalette.surfaceDim]. Light edges are opaque white; dark
+  /// edges are faint white, the top one stronger than the bottom. Light
+  /// materials cast the palette shadow (the island and the top panel at
+  /// 0x20, a floating button at 0x40); dark materials cast none.
+  ///
+  /// The message menu tints [ChromePalette.surfaceRaised] at 0.85 in a dark
+  /// theme and 0.825 in a light one, over a backdrop saturated x2 and x3. A
+  /// light menu has a white top edge at 0x44, a bottom one at 0x22 and a
+  /// 0x38 black shadow; a dark one has neither.
   factory GlassMaterialTokens.fromPalette(ChromePalette palette) {
     final isDark = palette.brightness == Brightness.dark;
-    final strokeTop = isDark
-        ? const Color(0x28FFFFFF)
-        : const Color(0xFFFFFFFF);
-    final strokeBottom = isDark
-        ? const Color(0x14FFFFFF)
-        : const Color(0xFFFFFFFF);
-    final shadow = palette.shadow.withValues(alpha: isDark ? 0 : 0.125);
-    GlassMaterialColors material(Color surface) => GlassMaterialColors(
-      fill: surface.withValues(alpha: 0.85),
-      strokeTop: strokeTop,
-      strokeBottom: strokeBottom,
-      shadow: shadow,
+    const white = Color(0xFFFFFFFF);
+    Color shadow(int alpha) => palette.shadow.withAlpha(isDark ? 0 : alpha);
+    GlassMaterialColors material(
+      Color tint, {
+      required int darkTop,
+      required int shadowAlpha,
+    }) => GlassMaterialColors(
+      tint: tint,
+      strokeTop: isDark ? white.withAlpha(darkTop) : white,
+      strokeBottom: isDark ? white.withAlpha(0x14) : white,
+      shadow: shadow(shadowAlpha),
     );
     return GlassMaterialTokens(
-      composerIsland: material(palette.surface),
-      panelButton: material(palette.surfaceRaised),
-      topPanel: material(palette.surfaceDim),
+      composerIsland: material(
+        palette.surface,
+        darkTop: 0x28,
+        shadowAlpha: 0x20,
+      ),
+      panelButton: material(palette.surface, darkTop: 0x28, shadowAlpha: 0x40),
+      topPanel: material(palette.surfaceDim, darkTop: 0x20, shadowAlpha: 0x20),
+      messageMenu: GlassMaterialColors(
+        tint: palette.surfaceRaised,
+        strokeTop: white.withAlpha(isDark ? 0 : 0x44),
+        strokeBottom: white.withAlpha(isDark ? 0 : 0x22),
+        shadow: Color(isDark ? 0x00000000 : 0x38000000),
+        tintOpacity: isDark ? 0.85 : 0.825,
+        backdropSaturation: isDark ? 2 : 3,
+      ),
     );
   }
 
@@ -125,11 +179,15 @@ final class GlassMaterialTokens {
   /// The bar docked at the top of the panel.
   final GlassMaterialColors topPanel;
 
+  /// A menu over a dimmed screen.
+  final GlassMaterialColors messageMenu;
+
   /// The colours of [material].
   GlassMaterialColors colorsOf(GlassMaterial material) => switch (material) {
     GlassMaterial.composerIsland => composerIsland,
     GlassMaterial.panelButton => panelButton,
     GlassMaterial.topPanel => topPanel,
+    GlassMaterial.messageMenu => messageMenu,
   };
 
   /// A copy with the named materials replaced.
@@ -137,10 +195,12 @@ final class GlassMaterialTokens {
     GlassMaterialColors? composerIsland,
     GlassMaterialColors? panelButton,
     GlassMaterialColors? topPanel,
+    GlassMaterialColors? messageMenu,
   }) => GlassMaterialTokens(
     composerIsland: composerIsland ?? this.composerIsland,
     panelButton: panelButton ?? this.panelButton,
     topPanel: topPanel ?? this.topPanel,
+    messageMenu: messageMenu ?? this.messageMenu,
   );
 
   /// Interpolates every material between [a] and [b].
@@ -158,6 +218,7 @@ final class GlassMaterialTokens {
     ),
     panelButton: GlassMaterialColors.lerp(a.panelButton, b.panelButton, t),
     topPanel: GlassMaterialColors.lerp(a.topPanel, b.topPanel, t),
+    messageMenu: GlassMaterialColors.lerp(a.messageMenu, b.messageMenu, t),
   );
 
   @override
@@ -166,10 +227,12 @@ final class GlassMaterialTokens {
       other is GlassMaterialTokens &&
           composerIsland == other.composerIsland &&
           panelButton == other.panelButton &&
-          topPanel == other.topPanel;
+          topPanel == other.topPanel &&
+          messageMenu == other.messageMenu;
 
   @override
-  int get hashCode => Object.hash(composerIsland, panelButton, topPanel);
+  int get hashCode =>
+      Object.hash(composerIsland, panelButton, topPanel, messageMenu);
 
   @override
   String toString() => 'GlassMaterialTokens(composerIsland: $composerIsland)';

@@ -87,7 +87,9 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   kind (`Duration.zero` opens at once, a click that lifts sooner stays a tap);
   `pinnedLeaf` keeps one cell's hover wash and stops the wheel while a host
   surface is open over it; `PanelCatalogController.leafBoundsOf` and
-  `viewportBounds` give the global rectangles to place that surface by
+  `viewportBounds` give the global rectangles to place that surface by, and
+  `leafAt` the cell under a global point for a surface that follows a finger
+  from cell to cell
 - **Cursor** — the viewport asks for the click cursor over a leaf the shell can
   tap or long-press and over a header action it listens to, and defers
   elsewhere
@@ -150,8 +152,10 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   A `CatalogSection` may override it (`contentBox`) and the placeholder style
   (`placeholderStyle`) for all its leaves
 - **Painting what a binding has reached** — a paintable with a sprite is
-  queued and drawn in one batched atlas draw per page; any other paints
-  itself. Content that was not there at attach fades in over its placeholder
+  queued and drawn in one batched atlas draw per page image; any other paints
+  itself. An animated paintable is advanced (`advancePlayback`) before its
+  sprite is read, so its frame is batched too; the sprite is fitted by
+  contain into the leaf's box and fades in with the content. Content that was not there at attach fades in over its placeholder
   (150 ms); content that was (a memory hit) does not. A leaf that fails or
   hangs keeps its placeholder: there is no failed stand-in and no failed token
 - **Baked glyphs** — a scope whose glyph source is an atlas gives every unicode
@@ -172,7 +176,8 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   (glyph, until baked), shaped wash (sticker: one gradient per paint pass
   sweeps every wash on screen together, and stops while the scope's clock is
   paused), thumb-first (other media: the binding's own thumbnail once it has
-  one)
+  one); a GIF leaf's sprite and thumbnail cover the cell (cropped through the
+  source rectangle, still one draw per page)
 
 ## Host contract
 
@@ -190,6 +195,7 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
 | Stable section ids and, where the host needs to recognise a cell, a `tag` on the leaf | Identify a cell by its content key alone (the same key can be in several sections), or key a side map by leaf instance |
 | The bake's three signals, and a listener on `controller.events` that calls the atlas (`reportScrolling` on `PanelCatalogScrollingChanged`, `prioritise` on `PanelCatalogScrollSettled`): the viewport tells no atlas anything | Start a bake on the web, or run one beside the open animation |
 | A new atlas (and cache) when the planned glyphs change, built from the old one's `retire()` so the cells do not blank | Dispose the atlas while a viewport still draws from it and expect the last frame to survive: the cells show placeholders |
+| An `overscrollSink` when the viewport sits in something a pull should move (a sheet), whose receiver passes `CatalogOverscrollSinkContract` | Wrap the viewport in a vertical drag detector of its own: the grid's recognizer wins those drags |
 
 Shell chrome (strip, search, tabs, pickers) lives outside this package.
 

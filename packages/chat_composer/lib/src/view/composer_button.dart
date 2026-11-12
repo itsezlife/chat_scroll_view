@@ -1,6 +1,7 @@
 import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chat_composer/src/view/composer_primary_style.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -13,6 +14,15 @@ import 'package:flutter/widgets.dart';
 /// mouse press outside that region) keeps it too; keyboard users reach it
 /// through traversal and activate it with Enter or Space. A [primary] button
 /// is drawn in its [primaryStyle]: a filled disc, or the bare accent glyph.
+///
+/// A press answers as the platform family's composer does
+/// ([ChromeInkKind.forPlatform]): on Android a ripple in a disc of
+/// [inkRadius] in the list selector colour ([inkAlpha] of the composer's
+/// text), and a [primary] button bounces instead; on iOS the glyph dims to
+/// `ChromeInkTiming.glyphDimOpacity` at once and comes back over
+/// `ChromeInkTiming.glyphRestore` (a [primary] button bounces); on a desktop
+/// every button, the primary too, takes the pointer ripple in the same disc,
+/// its hover being the glyph's colour, not a fill.
 class ComposerButton extends StatefulWidget {
   /// A button showing [icon], announced as [semanticLabel].
   const ComposerButton({
@@ -76,11 +86,19 @@ class ComposerButton extends StatefulWidget {
   /// Hit target height.
   final double height;
 
+  /// Radius of the disc a press ripples in, around the button's centre.
+  static const double inkRadius = 20;
+
+  /// Alpha of the press ripple over the composer's text colour (the list
+  /// selector's).
+  static const int inkAlpha = 0x0F;
+
   @override
   State<ComposerButton> createState() => _ComposerButtonState();
 }
 
-class _ComposerButtonState extends State<ComposerButton> {
+class _ComposerButtonState extends State<ComposerButton>
+    with SingleTickerProviderStateMixin {
   static const _activate = <ShortcutActivator, Intent>{
     SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
     SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
@@ -92,7 +110,38 @@ class _ComposerButtonState extends State<ComposerButton> {
   var _focusHighlight = false;
   var _hovered = false;
 
+  // How far the glyph is back from an iOS press: 0 dimmed, 1 at rest.
+  late final AnimationController _glyph = AnimationController(
+    vsync: this,
+    value: 1,
+    duration: ChromeInkTiming.glyphRestore,
+  );
+  late final Animation<double> _glyphOpacity = Tween<double>(
+    begin: ChromeInkTiming.glyphDimOpacity,
+    end: 1,
+  ).chain(CurveTween(curve: Curves.easeInOut)).animate(_glyph);
+
   bool get _active => widget.enabled && widget.onTap != null;
+
+  @override
+  void dispose() {
+    _glyph.dispose();
+    super.dispose();
+  }
+
+  void _onHighlight(bool shown) {
+    final instant =
+        (ChromeMotionScope.maybeOf(context) ?? ChromeMotionData.standard)
+            .speed
+            .isInstant;
+    if (shown) {
+      _glyph.value = 0;
+    } else if (instant) {
+      _glyph.value = 1;
+    } else {
+      _glyph.animateTo(1).ignore();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +149,7 @@ class _ComposerButtonState extends State<ComposerButton> {
     final own = widget.fill != null;
     final dim = _active || own ? 1.0 : _disabledOpacity;
     // A mouse over a button that would act turns its glyph to the hover
-    // colour, as the reference client's does; the accent of an active button
+    // colour; the accent of an active button
     // and the send disc keep their own.
     final disc =
         widget.primary && widget.primaryStyle == ComposerPrimaryStyle.disc;
@@ -133,8 +182,41 @@ class _ComposerButtonState extends State<ComposerButton> {
               color: tokens.floatingSelectedFill,
             ),
           ),
-        AnimatedChromeIcon(widget.icon, size: widget.iconSize, color: glyph),
+        FadeTransition(
+          opacity: _glyphOpacity,
+          child: AnimatedChromeIcon(
+            widget.icon,
+            size: widget.iconSize,
+            color: glyph,
+          ),
+        ),
       ],
+    );
+    final tap = _active ? widget.onTap : null;
+    final box = SizedBox(
+      width: widget.width,
+      height: widget.height,
+      child: face,
+    );
+    final kind = ChromeInkKind.forPlatform(defaultTargetPlatform);
+    // A primary button on a touch platform bounces; every other press is
+    // the ink's. One tree for both, each part idle when the other takes the
+    // press: a button that turns primary with its icon (voice to send) keeps
+    // its glyph, which then morphs from the one icon to the other.
+    final bounces = widget.primary && kind != ChromeInkKind.pointer;
+    final highlight = kind == ChromeInkKind.highlight;
+    final pressable = ChromeInk(
+      kind: kind,
+      color: highlight
+          // The press is the glyph's dim, not a fill.
+          ? const Color(0x00000000)
+          : ChromeThemeScope.composerOf(
+              context,
+            ).text.withAlpha(ComposerButton.inkAlpha),
+      circleRadius: highlight ? null : ComposerButton.inkRadius,
+      onTap: bounces ? null : tap,
+      onHighlightChanged: highlight ? _onHighlight : null,
+      child: ScalePressable(onPressed: bounces ? tap : null, child: box),
     );
     return Semantics(
       container: true,
@@ -169,14 +251,7 @@ class _ComposerButtonState extends State<ComposerButton> {
           child: MouseRegion(
             onEnter: (_) => setState(() => _hovered = true),
             onExit: (_) => setState(() => _hovered = false),
-            child: ScalePressable(
-              onPressed: _active ? widget.onTap : null,
-              child: SizedBox(
-                width: widget.width,
-                height: widget.height,
-                child: face,
-              ),
-            ),
+            child: pressable,
           ),
         ),
       ),

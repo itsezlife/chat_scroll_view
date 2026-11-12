@@ -82,6 +82,7 @@ final class CatalogSnapshotBuilder {
       skeletonCount: loaded ? null : policy.skeletonCountOf(collection),
       emptyMessage: loaded ? policy.emptyMessageOf(collection, strings) : null,
       action: policy.actionOf(collection, strings, arrangement: arrangement),
+      titleAction: policy.titleActionOf(collection),
     );
   }
 }

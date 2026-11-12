@@ -1,11 +1,8 @@
 /// The selection menu's geometry, in logical pixels.
 ///
-/// Row sizes, paddings, label sizes and the page's sizing rule are Telegram
-/// Android's floating toolbar (`ui/ActionBar/FloatingToolbar.java`), traced to
-/// the site that lays each one out; `dp(N)` there is a final single conversion,
-/// so N dp is N logical pixels. The line numbers are the local checkout's.
-/// What the port keeps from elsewhere (the swipe-back page turn, the 150 ms /
-/// 220 ms motion, the card's elevation) is not here and is recorded in ADR 026.
+/// Row sizes, paddings, label sizes and the page's sizing rule are stated here
+/// in dp, one dp being one logical pixel. What is not here (the swipe-back page
+/// turn, the 150 ms / 220 ms motion, the card's elevation) is recorded in ADR 026.
 ///
 /// One set of constants: nothing differs between platforms, and the colours and
 /// durations are tokens and motion roles (ADR 027).
@@ -37,7 +34,7 @@ abstract final class SelectionMenuMetrics {
   /// `RIPPLE_MASK_CIRCLE_20DP`, a 20 dp radius.
   static const double moreButtonInkDiameter = 40;
 
-  /// Widest the main row may be: the toolbar's default `dp(400)` (952) before
+  /// Widest the main row may be: the toolbar's default 400 before
   /// the screen's own limit.
   static const double rowMaxWidth = 400;
 
@@ -87,7 +84,7 @@ abstract final class SelectionMenuMetrics {
   static const double iconSize = 24;
 
   /// Width of the leading column of a list tile, so a bullet and a number keep
-  /// their labels aligned. The port's own addition: Telegram has no list items.
+  /// their labels aligned.
   static const double listMarkerWidth = 16;
 
   /// Space between a list marker and its label.
@@ -104,9 +101,8 @@ abstract final class SelectionMenuMetrics {
 
   // --- Labels ---
 
-  /// Font size of a row's label: `setTextSize(COMPLEX_UNIT_DIP, 14)` (1425),
-  /// the same builder for both pages. DIP, so Android does not scale it by the
-  /// system font size; the menu follows the app's text scale up to
+  /// Font size of a row's label: 14 dp, the same for both pages. DIP, so the
+  /// system font size does not scale it; the menu follows the app's text scale up to
   /// [maxTextScale] instead (ADR 031).
   static const double labelFontSize = 14;
 

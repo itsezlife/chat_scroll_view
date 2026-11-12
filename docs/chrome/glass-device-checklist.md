@@ -19,11 +19,11 @@ Record device model, OS version, engine (Impeller or not), platform, build mode
 | ----- | --- | ------ |
 | Detected capabilities | Print `GlassCapabilities.detect()` | the three flags |
 | Sampled liquid draws | `GlassSourceScope` + `GlassSource` over scrolling content, `fullLiquid` | looks right: tint, rim refraction, strokes; no black or stale frames |
-| Sampled frost draws | Same, `frosted` | no refraction, same blur and tint |
+| Sampled frost draws | Same, `frosted` (the default) | no refraction; strong blur, saturated, tint at 0.76 |
 | Backdrop filter draws | No `GlassSourceScope`, `fullLiquid` then `frosted` | looks right |
-| Flat draws | `flat`, and lite mode on | fill, strokes, shadow only |
+| Flat draws | `flat`, and lite mode on | opaque tint, strokes, shadow only |
 | Off draws nothing | `off` | only the child |
-| Shaders load | Cold start, first frame with glass | first frame flat is acceptable; no flicker after load |
+| Shaders load | Cold start, first frame with `fullLiquid` glass | frosted until the shader loads, then refraction; no flat frame |
 | Route motion | Push, pop and back-gesture a route holding a no-source surface | flat while moving, glass on settle, no jump larger than the tint |
 | Sampled stays on | Same with a source | no flat flash |
 | Brightness switch | Light to dark through `AnimatedChromeThemeScope` | material colours animate |

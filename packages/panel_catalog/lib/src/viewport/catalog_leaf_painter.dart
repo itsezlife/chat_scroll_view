@@ -1,9 +1,10 @@
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/rendering.dart';
 import 'package:meta/meta.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart'
@@ -15,6 +16,13 @@ import 'package:panel_catalog/src/viewport/catalog_leaf_binding_pool.dart';
 import 'package:panel_catalog/src/viewport/catalog_leaf_paint_theme.dart';
 import 'package:panel_catalog/src/viewport/catalog_paragraph_cache.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
+import 'package:panel_catalog/src/viewport/catalog_texture_layers.dart';
+
+// [DEBUG-fl01] ticket 55 diagnosis probe; remove with `grep -rn DEBUG-fl01`.
+const bool _fl01 = bool.fromEnvironment('DEBUG_FL01');
+void _fl01Log(String message) =>
+    // ignore: avoid_print
+    print('[DEBUG-fl01] t=${developer.Timeline.now} $message');
 
 /// Most text paragraphs one painter keeps; a paragraph is keyed by text, style
 /// and layout width, so a resize adds a few per visible header per step (title,
@@ -27,6 +35,10 @@ const double _kActionPartGap = 4;
 
 /// An action icon is drawn this much larger than the header text.
 const double _kActionIconScale = 1.3;
+
+/// Radius of the disc of the radial progress over a loading GIF: 12 logical
+/// pixels, inside a 24 logical pixel box, whatever the size of the cell.
+const double _kProgressRadius = 12;
 
 /// Paints catalog headers and leaves onto a [Canvas].
 ///
@@ -75,11 +87,12 @@ const double _kActionIconScale = 1.3;
 ///
 /// | The binding | Paint |
 /// | ----------- | ----- |
-/// | has a paintable with a **sprite** (a baked glyph on an atlas page) | queued; [endPass] draws every queued sprite of one page with one batched atlas draw. The pressed cell is queued scaled about its centre, so it needs no canvas transform and stays in its page's batch |
+/// | has a playing paintable with a **texture** (a platform texture its worker writes frames into, ADR 043) | queued; [compositeTextures] adds one texture layer per queued cell after the pass's picture, inside the viewport clip, wrapped in an opacity layer while it fades in. What the cell painted under its content (washes, the placeholder under a fade) stays under it. Never painted, and its sprite is not read |
+/// | has a paintable with a **sprite** (a baked glyph, or the frame an animation was advanced to, on a page) | queued; [endPass] draws every queued sprite of one page with one batched atlas draw. The pressed cell is queued scaled about its centre, so it needs no canvas transform and stays in its page's batch |
 /// | none, or stage `none` | the placeholder of the leaf's style |
 /// | stage `placeholder` of a glyph (a glyph not baked yet) | the circle |
 /// | stage `placeholder` of other content | the binding's stand-in paintable (its thumbnail) |
-/// | stage `firstFrame` or `full` | the binding's paintable, faded in over the placeholder when the content was not there at attach |
+/// | stage `firstFrame` or `full` | the binding's paintable, faded in when the content was not there at attach: over the thumbnail the binding kept (opaque until the content is, then released), or over the style's placeholder fading out when there was none |
 ///
 /// A paintable without a sprite paints itself. Where emoji are baked a glyph
 /// is never in that row (unbaked is the circle, never text), so
@@ -96,6 +109,19 @@ const double _kActionIconScale = 1.3;
 ///
 /// The wash is one gradient per pass in viewport coordinates, so every wash on
 /// screen shimmers together and costs one shader however many there are.
+///
+/// ## Loading GIFs
+///
+/// A GIF leaf that is not drawn yet (no stage, or its thumbnail) and whose
+/// binding downloads its content (`AssetBinding.downloadProgress`) also gets
+/// the download indicator ([RadialProgress]) over its
+/// centre, and it fades out with the content's fade. A leaf whose content is
+/// known to be missing shows it from its first paint, and a failed download
+/// keeps it while the content is still missing; a leaf served from a cache
+/// shows none. Each binding has its own indicator, kept beside it for as
+/// long as the binding reports a download; the arc steps with the pass's frame time:
+/// the pass asks for frames only while one shows, and not while the host
+/// paused playback, when the arc rests.
 ///
 /// ## Press highlight
 ///
@@ -134,6 +160,35 @@ final class CatalogLeafPainter {
   final CatalogParagraphCache<_TextPaintKey> _textParagraphs =
       CatalogParagraphCache(limit: _kHeaderParagraphCacheLimit);
   final CatalogGlyphSpriteBatch _glyphSprites = CatalogGlyphSpriteBatch();
+  final CatalogTextureLayers _textures = CatalogTextureLayers();
+
+  // [DEBUG-fl01] the last signature printed per leaf.
+  final Map<Object, String> _fl01Seen = {};
+
+  // [DEBUG-fl01] prints a leaf's paint signature when it changes: what kind of
+  // draw (sprite, image, stand-in), the stage, the sprite's page image identity
+  // and source rect, whether the content fade runs. Reads no state it could advance.
+  void _fl01Leaf(
+    CatalogLeafSlot slot,
+    String kind,
+    String stage, {
+    AtlasSprite? sprite,
+    bool fading = false,
+  }) {
+    final signature = '$kind $stage rect=${sprite?.source} fading=$fading';
+    final key = slot.leaf.key;
+    if (_fl01Seen[key] == signature) return;
+    _fl01Seen[key] = signature;
+    _fl01Log(
+      'paint leaf=${key.hashCode} $signature '
+      'page=${sprite == null ? '-' : identityHashCode(sprite.page)} '
+      'pageIndex=${sprite?.pageIndex}',
+    );
+  }
+
+  // The download indicator of each binding whose download shows, dropped
+  // with the binding or when its download ends.
+  final Expando<RadialProgress> _indicators = Expando('download indicator');
 
   // State of the open pass.
   Duration _frameTime = Duration.zero;
@@ -187,17 +242,37 @@ final class CatalogLeafPainter {
     _viewport = viewport;
     _animateWash = animateWash;
     _needsFrame = false;
+    _textures.clear();
   }
 
   /// Closes the pass: draws the glyph sprites queued by [paintLeaf], one
   /// batched atlas draw per page, with the same clip and transform as the
   /// pass. Returns whether something drawn moves with time, so another frame
   /// is needed.
+  ///
+  /// The textures [paintLeaf] queued wait for [compositeTextures], once the
+  /// pass's canvas is closed.
   bool endPass(Canvas canvas) {
     _glyphSprites.flush(canvas);
     _releaseWashShader();
     return _needsFrame;
   }
+
+  /// Adds a texture layer for each leaf of the closed pass whose asset
+  /// exposed a texture, in paint order, inside [clipRect] (the viewport, in
+  /// the coordinates of [offset]): after the pass's picture, so what the
+  /// leaves painted under their content stays under it.
+  void compositeTextures(
+    PaintingContext context,
+    Offset offset,
+    Rect clipRect, {
+    required bool needsCompositing,
+  }) => _textures.composite(
+    context,
+    offset,
+    clipRect,
+    needsCompositing: needsCompositing,
+  );
 
   void _releaseWashShader() {
     _washShader?.dispose();
@@ -214,10 +289,17 @@ final class CatalogLeafPainter {
   /// edge (left in a left-to-right header, right in a right-to-left one) and
   /// ends where the action's hit area begins, or at the band's end edge when
   /// there is no action; the action sits at the end edge.
+  ///
+  /// Under a theme with a hover wash, a painted action icon has ink:
+  /// [actionHovered] fills the circle it sits in with the hover wash, and
+  /// [actionPress] draws the press ripple in the press colour, clipped to
+  /// that circle, from where it went down (content coordinates).
   void paintHeader({
     required Canvas canvas,
     required Offset origin,
     required CatalogHeaderSlot header,
+    bool actionHovered = false,
+    ({Offset origin, double grown, double alpha})? actionPress,
   }) {
     final theme = _theme;
     final inset = theme.sectionHeaderStartInset;
@@ -261,6 +343,7 @@ final class CatalogLeafPainter {
         CatalogSectionAction.iconExtent,
         CatalogSectionAction.iconExtent,
       );
+      _paintActionInk(canvas, box, origin, actionHovered, actionPress);
       paint(
         canvas,
         box,
@@ -281,6 +364,41 @@ final class CatalogLeafPainter {
       );
       x += part.maxIntrinsicWidth + _kActionPartGap;
     }
+  }
+
+  // The ink of a painted action icon in [box]: the hover wash in the circle
+  // the icon sits in, and the press ripple clipped to it.
+  void _paintActionInk(
+    Canvas canvas,
+    Rect box,
+    Offset origin,
+    bool hovered,
+    ({Offset origin, double grown, double alpha})? press,
+  ) {
+    final hover = _theme.leafHoverHighlightColor;
+    if (hover == null) return;
+    final circle = Path()..addOval(box);
+    if (hovered && hover.a > 0) {
+      canvas.drawPath(circle, Paint()..color = hover);
+    }
+    if (press == null || press.alpha <= 0) return;
+    final color = _theme.leafPressHighlightColor;
+    final from = origin + press.origin;
+    final reach = [
+      box.topLeft,
+      box.topRight,
+      box.bottomLeft,
+      box.bottomRight,
+    ].map((corner) => (corner - from).distance).reduce(math.max);
+    canvas
+      ..save()
+      ..clipPath(circle)
+      ..drawCircle(
+        from,
+        reach * press.grown,
+        Paint()..color = color.withValues(alpha: color.a * press.alpha),
+      )
+      ..restore();
   }
 
   /// The hit area of [header]'s trailing action in content coordinates, or null
@@ -502,16 +620,68 @@ final class CatalogLeafPainter {
     // Read once: for a baked glyph this asks the atlas, which queues the reload
     // of a released page, so it is neither free nor to be repeated per leaf.
     final binding = bound?.binding;
-    final sprite = binding?.paintable.sprite;
-    if (sprite != null) {
+    final paintable = binding?.paintable;
+    // An animation's sprite is its leased frame, and the lease is taken and the
+    // frame asked for by advancing it, which only a paint did before: a leaf
+    // that takes the sprite path never paints, so it advances here first.
+    final animated = paintable != null && paintable.isAnimated;
+    if (animated) binding!.advancePlayback();
+    // A playing asset whose worker writes into a platform texture is a layer
+    // of its own (ADR 043); it is read after the advance, which is when a
+    // paintable takes or gives back its texture. Its sprite is not read: the
+    // texture replaces it.
+    final texture = animated ? paintable.texture : null;
+    final sprite = texture == null ? paintable?.sprite : null;
+    if (_fl01 && animated) {
+      _fl01Leaf(
+        slot,
+        sprite != null ? 'sprite' : 'no-sprite',
+        '${binding!.readiness.stage.name}/${paintable.runtimeType}',
+        sprite: sprite,
+        fading: bound!.isFadingAt(_frameTime),
+      );
+    }
+    if (sprite != null || texture != null) {
       // A queued sprite carries the press scale in its own transform, so it
       // needs no canvas save and restore and stays in its page's batch.
-      final center = cellRect.center;
+      // Placed like the paintable places itself: as the leaf's fit says,
+      // centred in the glyph box (a baked glyph is square, so for it this is
+      // the box); a GIF covers the box, cropped through the sprite's source.
+      var opacity = 1.0;
+      if (animated) {
+        // Animated content fades in over its stand-in like any content that was
+        // not there at attach; a baked glyph is never faded.
+        opacity = bound!.opacityAt(_frameTime);
+        if (opacity < 1) {
+          _needsFrame = true;
+          final standIn = Rect.fromCenter(
+            center: glyphRect.center,
+            width: glyphRect.width * pressScale,
+            height: glyphRect.height * pressScale,
+          );
+          _paintUnderContent(canvas, binding!, slot, standIn, opacity);
+        } else {
+          binding!.releaseStandIn();
+        }
+      }
+      if (texture != null) {
+        _textures.add(
+          texture,
+          box: glyphRect,
+          fit: slot.leaf.contentFit,
+          anchor: cellRect.center,
+          pressScale: pressScale,
+          opacity: opacity,
+        );
+        return;
+      }
       _glyphSprites.add(
-        sprite,
-        left: center.dx + (glyphRect.left - center.dx) * pressScale,
-        top: center.dy + (glyphRect.top - center.dy) * pressScale,
-        scale: glyphRect.width / sprite.source.width * pressScale,
+        sprite!,
+        box: glyphRect,
+        fit: slot.leaf.contentFit,
+        anchor: cellRect.center,
+        pressScale: pressScale,
+        opacity: opacity,
       );
       return;
     }
@@ -529,22 +699,31 @@ final class CatalogLeafPainter {
     switch (binding?.readiness.stage) {
       case null || AssetStage.none:
         _paintStandIn(canvas, style, glyphRect);
+        _paintLoadingProgress(canvas, binding, slot, glyphRect);
       case AssetStage.placeholder:
         if (style == CatalogPlaceholderStyle.circle) {
           _paintStandIn(canvas, style, glyphRect);
         } else {
           binding!.paint(canvas, glyphRect);
         }
+        _paintLoadingProgress(canvas, binding, slot, glyphRect);
       case AssetStage.firstFrame || AssetStage.full:
         final opacity = bound!.opacityAt(_frameTime);
         if (opacity < 1) {
           _needsFrame = true;
-          _paintStandIn(canvas, style, glyphRect, alpha: 1 - opacity);
+          _paintUnderContent(canvas, binding!, slot, glyphRect, opacity);
         }
         if (slot.leaf.key case ContentKey$Unicode()) {
           PanelCatalogDiagnostics.glyphParagraphDraws++;
         }
         binding!.paint(canvas, glyphRect, opacity: opacity);
+        _paintLoadingProgress(
+          canvas,
+          binding,
+          slot,
+          glyphRect,
+          opacity: 1 - opacity,
+        );
     }
 
     if (scaled) {
@@ -598,6 +777,54 @@ final class CatalogLeafPainter {
           _wash(),
         );
     }
+  }
+
+  /// What shows under content that fades in over [rect]: the thumbnail the
+  /// [binding] kept, fully opaque (a bitmap thumbnail does not fade in the
+  /// the content rises over it and it is dropped when the content is opaque), or, with no thumbnail, the
+  /// style's placeholder fading out as the content rises.
+  void _paintUnderContent(
+    Canvas canvas,
+    AssetBinding binding,
+    CatalogLeafSlot slot,
+    Rect rect,
+    double opacity,
+  ) {
+    if (binding.paintStandIn(canvas, rect)) return;
+    _paintStandIn(canvas, slot.placeholderStyle, rect, alpha: 1 - opacity);
+  }
+
+  /// The download indicator of a GIF whose [binding] downloads, centred in
+  /// [box] at [opacity]; nothing for other content or no download. See the
+  /// class doc.
+  void _paintLoadingProgress(
+    Canvas canvas,
+    AssetBinding? binding,
+    CatalogLeafSlot slot,
+    Rect box, {
+    double opacity = 1,
+  }) {
+    if (binding == null || slot.leaf.semanticKind != SemanticKind.gif) return;
+    final downloaded = binding.downloadProgress;
+    if (downloaded == null) {
+      _indicators[binding] = null;
+      return;
+    }
+    if (opacity <= 0) return;
+    final indicator = switch (_indicators[binding]) {
+      final shown? => shown..setProgress(downloaded),
+      null => _indicators[binding] = RadialProgress(progress: downloaded),
+    };
+    if (_animateWash) {
+      _needsFrame = true;
+      indicator.advance(_frameTime);
+    }
+    indicator.paint(
+      canvas,
+      box.center,
+      radius: _kProgressRadius,
+      opacity: opacity,
+    );
   }
 
   /// The placeholder of [style] in [glyphRect], at [alpha] of its colour.

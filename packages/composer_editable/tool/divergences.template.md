@@ -114,10 +114,10 @@ selection, the moving extent is nudged off the fixed base when they would
 coincide (`_avoidCollapseExtent`), bouncing back to the side it came from, so a
 drag never collapses to a caret.
 
-### F. Telegram-Android handle motion (without a drag scale)
+### F. Handle motion (without a drag scale)
 
-Parity target: the Telegram Android **composer** (AOSP `Editor`), not the
-message-bubble helper and not the iOS system loupe.
+Scope: the **composer** only, not message-bubble selection and not the iOS
+system loupe.
 
 - Appear: 250 ms fade and scale with `OvershootCurve` (tension 2.0), on every
   platform. Hide: **instant**.
@@ -138,9 +138,8 @@ message-bubble helper and not the iOS system loupe.
 - Always tracks the dragged end; suppressed during the one-touch phase; keeps
   following the finger while selection offsets are frozen by direction settling.
 - Time-smoothed toward the latest target at one rate for both axes
-  (`kAospMagnifierSettleMs = 100`), on `currentSystemFrameTimeStamp`.
-- The moving handle stays visible under the loupe (AOSP hides it; not
-  implemented).
+  (`kMagnifierSettleMs = 100`), on `currentSystemFrameTimeStamp`.
+- The moving handle stays visible under the loupe. Hiding it is not implemented.
 
 ### H. Touch gesture matrix
 
@@ -200,8 +199,8 @@ Everything else about the highlight is stock: the boxes come from
 `selectionWidthStyle`, `selectionColor` is the colour (null without focus), and
 the `painter` slot is free for a host. The paint sits where stock's does, under
 the text and under any host `painter`. Plain rects, no rounded joins: the
-reference composer is a platform edit field, whose highlight is a path of one
-rect per line.
+composer is a platform edit field, whose highlight is a path of one rect per
+line.
 
 ### K. Secondary click seam (no selection change)
 
@@ -209,9 +208,8 @@ Stock treats a secondary mouse click as a selection gesture: on Apple platforms
 it selects the word under the pointer, elsewhere it selects a position when the
 field is unfocused, and it then shows the field's own toolbar on the
 release. A host that draws a context menu of its own at the pointer needs the
-click to leave the caret and the selection alone, as the reference desktop
-client's text field does (its toolkit ignores the right button in the text
-control), so `ExtendedEditableText.onSecondaryClick` (and the same parameter on
+click to leave the caret and the selection alone, as a desktop text field does
+(it ignores the right button in its text control), so `ExtendedEditableText.onSecondaryClick` (and the same parameter on
 `ExtendedTextField`) is a seam:
 
 - **Null** keeps stock behaviour on every platform.
@@ -219,8 +217,7 @@ control), so `ExtendedEditableText.onSecondaryClick` (and the same parameter on
   (`ExtendedSecondaryClick`: phase `down` or `up`, the global position, the
   text position under the pointer) and does nothing else: no selection change,
   no toolbar, no handles. The host picks the edge that opens its menu; which
-  edge the reference toolkit uses per operating system is not verifiable from
-  source.
+  edge a platform toolkit uses per operating system is not verified.
 - **macOS divergence from stock, on purpose.** Stock selects the word on a
   secondary click; with the seam set it does not.
 - The press is recorded in `lastSecondaryTapDownPosition` as stock does, so the
@@ -239,6 +236,14 @@ the next run. A host can make the query earlier, at an idle moment, with
 `ExtendedEditableTextState.prefetchProcessTextActions`, so it does not land
 in the frame the first field shows in. Tests reset it with
 `debugResetProcessTextActions`.
+
+The once covers this package's fields only: a stock `EditableText` beside
+them (a search field) still asks on every mount, and stock has no hook to
+hand it an answer. `ProcessTextQueryCache` is the app-wide once: a binary
+messenger over the platform's that answers the query from its first reply.
+A host returns it from its binding's `createBinaryMessenger` (through
+`ComposerView.shareTextActions`, since a host reaches this package only
+through the composer).
 
 ### Seams not in stock
 

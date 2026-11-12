@@ -21,6 +21,8 @@ import 'package:panel_pages/src/page/catalog_sticky_header.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/page/listen_value_builder.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/policy/catalog_pointer_policy.dart';
+import 'package:panel_pages/src/preview/catalog_preview_mark.dart';
 import 'package:panel_pages/src/scroll/page_scroll_reporter.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -49,6 +51,10 @@ import 'package:panel_shell/panel_shell.dart';
 ///   is open. Menu and session each hold the host's auto-hide while up.
 /// - Scrolls to the start when the user selects the page's tab again, and
 ///   brings the browse offset back when search results go.
+/// - On a fresh open of the panel (`PanelPageHost.freshOpen`), goes back to
+///   its start with its strip whole where the policy says so
+///   ([CatalogPagePolicy.restartsOnFreshOpen]); otherwise keeps its place.
+///   A close, a tab switch and a swipe keep it either way.
 /// - Binds the keys of the roving focus (arrows, Home, End, Enter, Space).
 /// - Scopes the catalogue's theme from the chrome theme above
 ///   ([ChromeCatalogTheme]).
@@ -77,7 +83,8 @@ import 'package:panel_shell/panel_shell.dart';
 /// their extent so its first row starts under both.
 ///
 /// - The **strip** (above the field) slides away as the user reads on and
-///   comes back as they read back; a tap on one of its entries lands the
+///   comes back as they read back, unless the policy pins it
+///   ([CatalogPagePolicy.stripSlidesAway]); a tap on one of its entries lands the
 ///   section's header right under it ([PanelCatalogViewport.headerLandingInset]).
 ///   It is not part of the page while search is open or results show.
 /// - The **field** is the first thing in the content: it scrolls away with it,
@@ -113,7 +120,6 @@ class CatalogPage extends StatefulWidget {
     this.padding = EdgeInsets.zero,
     this.sectionNearExtent,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
-    this.keepsScrollOnReopen,
     super.key,
   });
 
@@ -159,14 +165,6 @@ class CatalogPage extends StatefulWidget {
   /// How long typing pauses before a search runs.
   final Duration searchDebounce;
 
-  /// Whether the catalogue is where it was left when the panel is shown
-  /// again, or back at its start; null for the arrangement's way (back at the
-  /// start under touch, where it was left under the pointer).
-  ///
-  /// The panel is hidden when the shell's presence says so, not when the page
-  /// is merely swiped off or its tab left: those keep the place either way.
-  final bool? keepsScrollOnReopen;
-
   @override
   State<CatalogPage> createState() => _CatalogPageState();
 }
@@ -188,11 +186,20 @@ class _CatalogPageState extends State<CatalogPage>
   // policy asks for another one.
   double _headerStripExtent = -1;
   bool? _headerInline;
+  bool? _headerPinned;
   late final AnimationController _reveal;
   var _revealFrom = 0.0;
   Curve _revealCurve = Curves.linear;
   CatalogLongPressSession? _longPress;
   CatalogLeafHit? _pinned;
+  // The grid's cells under an open content preview: none pressed, the shown
+  // one smaller.
+  late final _mark = CatalogPreviewMark(
+    leafAt: (global) => _catalog.leafAt(global),
+    onChanged: () {
+      if (mounted) setState(() {});
+    },
+  );
   // The kind of the pointer that went down last: the long-press callbacks
   // carry none, and what a long press opens depends on it.
   var _lastKind = PointerDeviceKind.touch;
@@ -232,7 +239,7 @@ class _CatalogPageState extends State<CatalogPage>
     _controller = _host.controllers.obtain(
       _host.pageId,
       CatalogPageController.new,
-    )..followPresence(_host.panelVisible);
+    )..followFreshOpen(_host.freshOpen);
     _metrics = _CatalogMetrics(_catalog);
     _reveal = AnimationController(vsync: this)..addListener(_onRevealTick);
     _reporter = PageScrollReporter(
@@ -249,6 +256,7 @@ class _CatalogPageState extends State<CatalogPage>
     _host.search.addListener(_onSearchChanged);
     widget.searchFieldReady?.addListener(_onFieldReady);
     _host.reselected.addListener(_onReselected);
+    _host.freshOpen.addListener(_onFreshOpen);
     _host.isActive.addListener(_onActiveChanged);
   }
 
@@ -310,10 +318,12 @@ class _CatalogPageState extends State<CatalogPage>
     _host.search.removeListener(_onSearchChanged);
     _host.isActive.removeListener(_onActiveChanged);
     _host.reselected.removeListener(_onReselected);
+    _host.freshOpen.removeListener(_onFreshOpen);
     _model.showsResults.removeListener(_onShowsResultsChanged);
     _reveal
       ..removeListener(_onRevealTick)
       ..dispose();
+    _mark.dispose();
     _cancelLongPress(unpin: false);
     _tooltip.dispose();
     _menu.dispose();
@@ -324,10 +334,10 @@ class _CatalogPageState extends State<CatalogPage>
     super.dispose();
   }
 
-  // Back at the start when the panel is shown again, unless the page keeps its
-  // place: by default only the pointer arrangement does.
-  void _syncRestart() => _controller.restartsWhenHidden =
-      !(widget.keepsScrollOnReopen ?? _arrangement == PanelArrangement.pointer);
+  // The controller restarts the catalogue on a fresh open, mounted or not; it
+  // learns whether from the policy of the page last built.
+  void _syncRestart() =>
+      _controller.restartsOnFreshOpen = widget.policy.restartsOnFreshOpen;
 
   // --- The layout the arrangement asks for -----------------------------------
 
@@ -346,16 +356,21 @@ class _CatalogPageState extends State<CatalogPage>
         widget.searchSource != null;
     _syncStripPlacement();
     final stripExtent = _stripExtent;
-    if (_headerInline == _inlineSearch && _headerStripExtent == stripExtent) {
+    final pinned = !widget.policy.stripSlidesAway;
+    if (_headerInline == _inlineSearch &&
+        _headerStripExtent == stripExtent &&
+        _headerPinned == pinned) {
       return;
     }
     final first = _headerInline == null;
     final old = first ? null : _header;
     _headerInline = _inlineSearch;
     _headerStripExtent = stripExtent;
+    _headerPinned = pinned;
     _header = CatalogStickyHeader(
       stripExtent: stripExtent,
       searchExtent: _inlineSearch ? PanelSearchField.height : 0,
+      pinned: pinned,
     );
     _configureHeader();
     if (old != null) {
@@ -454,6 +469,17 @@ class _CatalogPageState extends State<CatalogPage>
     } else {
       _catalog.animateTo(0);
     }
+  }
+
+  // The controller has put the catalogue back at its start (it heard the
+  // signal first, having followed it since the page was first built); what is
+  // the page's own goes back with it: the strip whole, nothing held open.
+  void _onFreshOpen() {
+    if (!widget.policy.restartsOnFreshOpen) return;
+    _cancelLongPress();
+    _tooltip.hide();
+    _menu.close();
+    _whenSafe(_revealNow);
   }
 
   Future<void> _revealThenJumpToFirstSection() async {
@@ -574,9 +600,11 @@ class _CatalogPageState extends State<CatalogPage>
       kind: _lastKind,
       cellBounds: cell,
       viewportBounds: viewport,
+      leafAt: _mark.leafAt,
     );
     if (session == null) return;
     _longPress = session;
+    _mark.follow(session, hit);
     session.isOpen.addListener(_onSessionOpenChanged);
     // A session that was over before it came back to us leaves nothing to pin.
     if (session.isOpen.value) setState(() => _pinned = hit);
@@ -631,6 +659,18 @@ class _CatalogPageState extends State<CatalogPage>
   void _onLeafHover(CatalogLeafHit? hit, Offset globalPosition) =>
       _tooltip.hover(hit, globalPosition, context);
 
+  bool _leafRemovable(CatalogLeafHit hit) =>
+      switch (_model.collectionOf(hit.sectionId)) {
+        final collection? => widget.policy.leafRemovable(hit, collection),
+        null => false,
+      };
+
+  void _onLeafRemove(CatalogLeafHit hit) {
+    if (_model.collectionOf(hit.sectionId) case final collection?) {
+      widget.policy.onLeafRemove(hit, collection, _host);
+    }
+  }
+
   String? _tooltipTextOf(CatalogLeafHit hit) =>
       switch (_model.collectionOf(hit.sectionId)) {
         final collection? => widget.policy.tooltipOf(hit, collection),
@@ -659,6 +699,7 @@ class _CatalogPageState extends State<CatalogPage>
     // catalogue then let through.
     final background = PanelBackgroundScope.of(context);
     final atBottom = _stripAtBottomNow;
+    final pointer = _arrangement == PanelArrangement.pointer;
     final sticky = _stripSticky;
     final browsing = sticky ? _stripShown : !_showsResults;
     final strip = browsing ? widget.policy.buildStrip(context, _strip) : null;
@@ -673,6 +714,8 @@ class _CatalogPageState extends State<CatalogPage>
     );
     final fieldMounted = widget.searchFieldReady?.value ?? true;
     return ChromeCatalogTheme(
+      headerStartInset: widget.policy.headerStartInset,
+      cells: widget.policy.cellFeedback,
       child: CatalogContextMenuHost(
         host: _host,
         controller: _menu,
@@ -714,12 +757,17 @@ class _CatalogPageState extends State<CatalogPage>
                             onLeafTap: _onTap,
                             onLeafSecondaryTap: _onSecondaryTap,
                             onLeafHover: _onLeafHover,
+                            leafRemovable: pointer ? _leafRemovable : null,
+                            onLeafRemove: pointer ? _onLeafRemove : null,
+                            removeBadge:
+                                CatalogPointerPolicy.current.removeBadge,
                             leafLongPressEligible: _longPressEligible,
                             leafLongPressDelay: _longPressDelay,
                             onLeafLongPressStart: _onLongPressStart,
                             onLeafLongPressMove: _onLongPressMove,
                             onLeafLongPressEnd: _onLongPressEnd,
                             pinnedLeaf: _pinned,
+                            leafPreview: _mark.value,
                             onSectionAction: _onSectionAction,
                           ),
                         ),

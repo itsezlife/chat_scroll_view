@@ -6,6 +6,58 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (a phone's browser shows the panel as a phone does)
+
+- `PanelPresentationPolicy$Web` (`PanelPresentationPolicy.web()`), the
+  default for `PanelOsFamily.web`: the mobile policy in a window up to 600
+  logical pixels wide (`handheldMaxWidth`, inclusive), the desktop policy in
+  a wider one. A browser used to get the desktop policy whatever its window,
+  so a phone's browser opened a popup over the composer; it now replaces the
+  keyboard. A host that passed `PanelPresentationPolicy.desktop()` keeps the
+  old behaviour.
+- `PanelPresentationController.updateWindow` moves a visible panel the
+  policy chose to the kind the policy chooses in the new window (a popup to
+  the keyboard's place and back), as a switch of kind. A kind the host named
+  in `show` stays, and a dock follows only its own rule.
+
+### Changed (a hidden panel says so to its content)
+
+- `PanelPresentationView` hides the panel under a `Visibility` that keeps
+  its state (offstage and out of focus, as before), so the content can read
+  `Visibility.of`: a catalogue gives back the textures of a hidden panel,
+  and keeps them while the panel only moves.
+
+### Added (a solid popup)
+
+- `AnchoredPopupStyle.surface` (`AnchoredPopupSurface.glass`, the default, or `.solid`): a solid popup lets the shell fill itself with the panel background.
+
+### Added (a fresh open)
+
+- `PanelPresentationPolicy.opensAfresh(kind)`: whether opening a hidden panel
+  as `kind` asks the pages to come back as a new open shows them. The mobile
+  policy answers yes for `KeyboardReplacement` only; the desktop policy never
+  does, so a popup and a dock keep every page's place. The host decides per
+  platform family by the policy it passes.
+- `PanelPresentationController` reports
+  `PanelShellController.reportFreshOpen` when it opens a hidden panel as a
+  kind the policy opens afresh, before the presence that shows it. A panel
+  turned back while hiding, or switched to another kind, is not opened
+  afresh.
+
+### Changed (the panel keeps its animations)
+
+- `PanelPresentationView` keeps the last kind's subtree mounted while hidden,
+  offstage and under `ExcludeFocus`, instead of building nothing: a hide and
+  a show remount nothing, so the shell, its pages and their cells keep their
+  state and frames. Before the first show it still builds nothing. Code that
+  expected a hidden panel's state to be disposed now sees it kept; a finder
+  that skips offstage widgets still finds nothing.
+- `PanelPresentationStrategy.build` is also called with
+  `PanelVisibility.hidden` once the motion out settles.
+- The keyboard-replacement, popup and dock strategies put the shell under
+  `TickerMode(enabled: visibility is shown)`: while the panel moves in or out,
+  or is hidden, its content holds.
+
 ### Changed
 
 - Source-breaking: the contract suites in `testing.dart` are statics on a
@@ -79,7 +131,7 @@ this package is pre-1.0.
   Code that relied on Escape working with no focus anywhere after opening by
   click must now have focus in the composer (the host wraps it in
   `AnchoredPopupActions`) or in the popup.
-- **The hover machine follows the reference client.** Leaving the toggle hides
+- **The hover machine's leave is immediate.** Leaving the toggle hides
   at the next event pass (it used to wait 300 ms), cancelled by entering the
   popup; the popup's hover area now includes a transparent gutter and a bridge
   down to the toggle, so the pointer never crosses a gap. Leaving the popup

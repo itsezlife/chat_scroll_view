@@ -15,11 +15,14 @@ abstract final class ChromeStringsSnapshot {
     final formatting = strings.formatting;
     final edit = strings.editMenu;
     final semantics = strings.semantics;
+    final pack = strings.packSheet;
+    final bulletin = strings.bulletin;
     return {
       for (final id in _knownPageIds) 'panel.tabLabel[$id]': panel.tabLabel(id),
       for (final id in _knownCategoryIds)
         'panel.categoryTitle[$id]': panel.categoryTitle(id),
       'panel.recentlyUsedTitle': panel.recentlyUsedTitle,
+      'panel.favouriteStickersTitle': panel.favouriteStickersTitle,
       'panel.searchResultsTitle': panel.searchResultsTitle,
       'panel.searchHint': panel.searchHint,
       'panel.searchEmpty': panel.searchEmpty,
@@ -31,6 +34,24 @@ abstract final class ChromeStringsSnapshot {
       'panel.removeRecentAction': panel.removeRecentAction,
       'panel.clearRecentAction': panel.clearRecentAction,
       'panel.colorAllTitle': panel.colorAllTitle,
+      'panel.gifsEmpty': panel.gifsEmpty,
+      'panel.stickersEmpty': panel.stickersEmpty,
+      'panel.gifsFailed': panel.gifsFailed,
+      'panel.retryAction': panel.retryAction,
+      'panel.clearRecentStickersTitle': panel.clearRecentStickersTitle,
+      'panel.clearRecentStickersMessage': panel.clearRecentStickersMessage,
+      'panel.sendStickerAction': panel.sendStickerAction,
+      'panel.sendEmojiAction': panel.sendEmojiAction,
+      'panel.sendGifAction': panel.sendGifAction,
+      'panel.sendWithoutSoundAction': panel.sendWithoutSoundAction,
+      'panel.addToFavouritesAction': panel.addToFavouritesAction,
+      'panel.removeFromFavouritesAction': panel.removeFromFavouritesAction,
+      'panel.viewPackAction': panel.viewPackAction,
+      'panel.deleteFromRecentAction': panel.deleteFromRecentAction,
+      'panel.copyEmojiAction': panel.copyEmojiAction,
+      'panel.saveGifAction': panel.saveGifAction,
+      'panel.deleteGifAction': panel.deleteGifAction,
+      'panel.removePackAction': panel.removePackAction,
       'composer.messageHint': composer.messageHint,
       'composer.sendAction': composer.sendAction,
       'composer.confirmEditAction': composer.confirmEditAction,
@@ -87,6 +108,68 @@ abstract final class ChromeStringsSnapshot {
       'editMenu.addToDictionaryAction': edit.addToDictionaryAction,
       'editMenu.ignoreWordAction': edit.ignoreWordAction,
       'editMenu.removeFromDictionaryAction': edit.removeFromDictionaryAction,
+      for (final count in _pluralSamples)
+        'packSheet.addStickers[$count]': pack.addStickers(count),
+      for (final count in _pluralSamples)
+        'packSheet.removeStickers[$count]': pack.removeStickers(count),
+      for (final count in _pluralSamples)
+        'packSheet.addMasks[$count]': pack.addMasks(count),
+      for (final count in _pluralSamples)
+        'packSheet.removeMasks[$count]': pack.removeMasks(count),
+      for (final count in _pluralSamples)
+        'packSheet.addEmoji[$count]': pack.addEmoji(count),
+      for (final count in _pluralSamples)
+        'packSheet.removeEmoji[$count]': pack.removeEmoji(count),
+      for (final count in _pluralSamples)
+        'packSheet.addEmojiPacks[$count]': pack.addEmojiPacks(count),
+      for (final count in _pluralSamples)
+        'packSheet.removeEmojiPacks[$count]': pack.removeEmojiPacks(count),
+      for (final count in _pluralSamples)
+        'packSheet.emojiCount[$count]': pack.emojiCount(count),
+      for (final count in _pluralSamples)
+        'packSheet.emojiPacksAddedInfo[$count]': pack.emojiPacksAddedInfo(
+          count,
+        ),
+      for (final count in _pluralSamples)
+        'packSheet.emojiPacksRemovedInfo[$count]': pack.emojiPacksRemovedInfo(
+          count,
+        ),
+      'packSheet.stickersAddedInfo[title]': pack.stickersAddedInfo('title'),
+      'packSheet.masksAddedInfo[title]': pack.masksAddedInfo('title'),
+      'packSheet.emojiAddedInfo[title]': pack.emojiAddedInfo('title'),
+      'packSheet.stickersRemovedInfo[title]': pack.stickersRemovedInfo('title'),
+      'packSheet.masksRemovedInfo[title]': pack.masksRemovedInfo('title'),
+      'packSheet.emojiRemovedInfo[title]': pack.emojiRemovedInfo('title'),
+      'packSheet.stickersArchivedInfo[title]': pack.stickersArchivedInfo(
+        'title',
+      ),
+      'packSheet.masksArchivedInfo[title]': pack.masksArchivedInfo('title'),
+      'packSheet.emojiArchivedInfo[title]': pack.emojiArchivedInfo('title'),
+      'packSheet.addPackAction': pack.addPackAction,
+      'packSheet.removePackAction': pack.removePackAction,
+      'packSheet.addStickersLabel': pack.addStickersLabel,
+      'packSheet.addEmojiLabel': pack.addEmojiLabel,
+      'packSheet.removeStickersLabel': pack.removeStickersLabel,
+      'packSheet.removeEmojiLabel': pack.removeEmojiLabel,
+      'packSheet.closeAction': pack.closeAction,
+      'packSheet.shareAction': pack.shareAction,
+      'packSheet.copyLinkAction': pack.copyLinkAction,
+      'packSheet.moreOptionsLabel': pack.moreOptionsLabel,
+      'packSheet.linkCopied': pack.linkCopied,
+      'packSheet.stickersNotFound': pack.stickersNotFound,
+      'packSheet.emojiNotFound': pack.emojiNotFound,
+      'packSheet.stickersAdded': pack.stickersAdded,
+      'packSheet.masksAdded': pack.masksAdded,
+      'packSheet.emojiAdded': pack.emojiAdded,
+      'packSheet.stickersRemoved': pack.stickersRemoved,
+      'packSheet.masksRemoved': pack.masksRemoved,
+      'packSheet.emojiRemoved': pack.emojiRemoved,
+      'packSheet.stickersArchived': pack.stickersArchived,
+      'packSheet.masksArchived': pack.masksArchived,
+      'packSheet.emojiArchived': pack.emojiArchived,
+      'packSheet.undoAction': pack.undoAction,
+      'bulletin.undoAction': bulletin.undoAction,
+      'bulletin.dismissAction': bulletin.dismissAction,
       'semantics.panelOpened': semantics.panelOpened,
       'semantics.panelClosed': semantics.panelClosed,
       'semantics.pageSelected[label]': semantics.pageSelected('label'),
@@ -98,6 +181,7 @@ abstract final class ChromeStringsSnapshot {
       'semantics.backspaceAction': semantics.backspaceAction,
       'semantics.variantsAction': semantics.variantsAction,
       'semantics.categoryStripLabel': semantics.categoryStripLabel,
+      'semantics.stickerPackStripLabel': semantics.stickerPackStripLabel,
     };
   }
 }

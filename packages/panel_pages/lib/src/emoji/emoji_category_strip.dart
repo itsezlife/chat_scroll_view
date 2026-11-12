@@ -36,11 +36,11 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// Under the touch arrangement the strip is a row of round tabs above the
 /// catalogue, scrolling sideways when they do not fit. Laid out grouped (see
-/// [EmojiStripLayout]) it is the reference mobile client's strip with packs
+/// [EmojiStripLayout]) it is the touch strip with packs
 /// ([EmojiStripTabs]): the recents, the categories folded into one tab that
 /// opens while one of them is active, then a tab per pack drawn by its cover,
 /// or its first item, from [assets]. Under the pointer arrangement it is pinned below the catalogue as
-/// the reference desktop client's footer ([EmojiStripFooter]): the recents,
+/// the footer ([EmojiStripFooter]): the recents,
 /// the categories folded into one icon that opens into theirs while one of
 /// them is active, then a slot per pack (a section of a `CollectionId.set`,
 /// drawn by its cover, or its first item, from [assets]), 30 px each,
@@ -318,8 +318,7 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     }
   }
 
-  // The strip under the touch arrangement with packs: the reference mobile
-  // client's.
+  // The strip under the touch arrangement with packs.
   Widget _buildGroupedTouch(ChromeStrings strings) => Semantics(
     container: true,
     label: strings.semantics.categoryStripLabel,
@@ -354,8 +353,7 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
     ),
   );
 
-  // The strip under the pointer arrangement: the reference desktop client's
-  // footer.
+  // The strip under the pointer arrangement: the footer.
   Widget _buildPinned(ChromeStrings strings) {
     EmojiFooterIcon iconOf(_StripTab tab) => _iconOf(tab, strings);
     return Semantics(
@@ -391,12 +389,11 @@ class _EmojiCategoryStripState extends State<EmojiCategoryStrip> {
 
 /// How the emoji strip lays its icons out, under either arrangement.
 ///
-/// Grouped as soon as there is a pack of custom emoji, as the reference
-/// clients group; plain otherwise. [automatic] does that; a host can fix
+/// Grouped as soon as there is a pack of custom emoji; plain otherwise. [automatic] does that; a host can fix
 /// either. Under the touch arrangement plain is the row of category tabs and
 /// grouped is [EmojiStripTabs].
 enum EmojiStripLayout {
-  /// Plain with no pack, grouped with any: the reference client's rule.
+  /// Plain with no pack, grouped with any.
   automatic,
 
   /// Under the pointer, every icon in a 30 px slot of its own, as the

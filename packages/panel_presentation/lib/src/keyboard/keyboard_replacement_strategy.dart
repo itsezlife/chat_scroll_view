@@ -320,7 +320,17 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
                   children: <Widget>[
                     // Emptied, not removed, while the keyboard takes over: the
                     // sheet stays and the shell keeps its state.
-                    Offstage(offstage: handingOff, child: _shellView),
+                    Offstage(
+                      offstage: handingOff,
+                      // Only at rest: while the sheet moves or is hidden
+                      // the panel's content holds (its catalogues keep
+                      // their cells and frames).
+                      child: TickerMode(
+                        enabled:
+                            widget.view.visibility is PanelVisibility$Shown,
+                        child: _shellView,
+                      ),
+                    ),
                     if (safe > 0)
                       Positioned(
                         left: 0,

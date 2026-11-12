@@ -20,9 +20,13 @@ import 'package:flutter/widgets.dart';
 /// [GlassSourceScope] is present, and route motion:
 ///
 /// - Under a [GlassSourceScope] on a backend that can capture, the surface
-///   samples the scope's [GlassSource]: each frame it draws a downscaled,
-///   blurred copy of the source region behind it, shared with nearby surfaces.
-///   Nothing reads back the onscreen target.
+///   samples the scope's [GlassSource]: it draws a downscaled, blurred and
+///   saturated copy of the source region behind it, shared with nearby
+///   surfaces and captured again only when something under it changed.
+///   Nothing reads back the onscreen target. A frosted surface draws it with
+///   no shader; a refracting one (`GlassQuality.fullLiquid`) bends it at the
+///   rim with a fragment shader, frosted until the shader loads and for good
+///   if it fails to.
 /// - Otherwise it filters the scene behind it. While the enclosing route
 ///   moves (pushed, popped, dragged by a back gesture, or shifted by a route
 ///   transitioning above it) it paints the material's fill flat instead, since
@@ -30,7 +34,11 @@ import 'package:flutter/widgets.dart';
 ///   frame, which costs several frame budgets per frame on mobile GPUs. The
 ///   glass returns when the route settles.
 /// - Under lite mode, `GlassQuality.flat` or a backend with no filters, the
-///   fill is painted flat; under `GlassQuality.off` nothing is painted.
+///   material's tint is painted opaque; under `GlassQuality.off` nothing is
+///   painted.
+///
+/// With no `GlassQualityScope` the surface is frosted; refraction is the
+/// host's opt-in.
 ///
 /// A chrome fade or wash painted over the content should sit outside the
 /// [GlassSource], or have a cutout under the surface, so it is not sampled
@@ -131,37 +139,47 @@ class _GlassSurfaceState extends State<GlassSurface> {
   @override
   Widget build(BuildContext context) {
     final policy = GlassQualityScope.maybeOf(context);
-    final quality = policy?.quality ?? GlassQuality.fullLiquid;
-    var capabilities = policy?.capabilities ?? GlassCapabilities.detect();
-    // Shaders that failed to load take every shader path away.
-    if (_shadersFailed) {
-      capabilities = capabilities.copyWith(
-        sampledBackdrop: false,
-        shaderFilter: false,
-      );
+    var quality = policy?.quality ?? GlassQuality.frosted;
+    // Shaders that failed to load take refraction away; the frosted paths
+    // need none.
+    if (_shadersFailed && quality == GlassQuality.fullLiquid) {
+      quality = GlassQuality.frosted;
     }
+    final capabilities = policy?.capabilities ?? GlassCapabilities.detect();
     final link = GlassSourceLink.of(context);
-    final strategy = GlassStrategy.select(
+    GlassStrategy select({required bool routeMoving}) => GlassStrategy.select(
       quality: quality,
       liteMode: policy?.liteMode ?? false,
       capabilities: capabilities,
       hasSource: link != null,
-      routeMoving: !_routeSettled,
+      routeMoving: routeMoving,
     );
+    final strategy = select(routeMoving: !_routeSettled);
     if (strategy == GlassStrategy.none) return widget.child;
 
+    // A glass that is flat only while its route moves keeps its translucent
+    // tint, so the backdrop's return is not a jump from opaque; one that is
+    // flat for good (quality, lite mode, backend) is opaque, as no backdrop
+    // is read for the tint to sit on.
+    final finish = switch (strategy) {
+      GlassStrategy.flat when select(routeMoving: false) == strategy =>
+        GlassFinish.flat,
+      _ when quality == GlassQuality.fullLiquid => GlassFinish.refracting,
+      _ => GlassFinish.frosted,
+    };
     final colors = ChromeThemeScope.glassOf(context).colorsOf(widget.material);
     final style = GlassStyle.resolve(
       material: widget.material,
       colors: colors,
       cornerRadius: widget.cornerRadius ?? widget.material.cornerRadius,
-      liquid: quality == GlassQuality.fullLiquid,
+      finish: finish,
     );
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
 
     final needsShaders =
-        strategy == GlassStrategy.sampledLiquid ||
-        strategy == GlassStrategy.sampledFrost ||
-        (strategy == GlassStrategy.backdropFilter && style.enableLiquid);
+        style.enableLiquid &&
+        (strategy == GlassStrategy.sampledLiquid ||
+            strategy == GlassStrategy.backdropFilter);
     if (needsShaders && _programs == null && !_loading) {
       _loadShaders().ignore();
     }
@@ -172,12 +190,13 @@ class _GlassSurfaceState extends State<GlassSurface> {
         link: link!,
         style: style,
         programs: _programs,
-        pixelRatio: MediaQuery.devicePixelRatioOf(context),
+        pixelRatio: pixelRatio,
       ),
       GlassStrategy.backdropFilter => FilterGlassBackdrop(
         style: style,
         programs: _programs,
         shaderFilter: capabilities.shaderFilter,
+        devicePixelRatio: pixelRatio,
       ),
       GlassStrategy.flat || GlassStrategy.none => ColoredBox(color: style.fill),
     };
@@ -241,6 +260,12 @@ class _GlassStrokePainter extends CustomPainter {
     );
   }
 
+  // A crescent, not a stroked line: the band between the outer rounded rect
+  // (one corner radius tall) and the same rect moved in by the edge's width,
+  // filled even-odd. It is [strokeWidth] thick at the edge's middle and
+  // thins to nothing along the corners, so it has no ends to cut. A stroked
+  // rounded rect clipped to the top or bottom band was cut square where the
+  // clip crossed it, which showed as broken corners.
   void _paintStroke({
     required Canvas canvas,
     required Rect rect,
@@ -249,59 +274,65 @@ class _GlassStrokePainter extends CustomPainter {
     required Color color,
     required bool isTop,
   }) {
-    if (strokeWidth <= 0 || color.a == 0) return;
-    final half = strokeWidth / 2;
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..isAntiAlias = true;
-
-    canvas.save();
+    if (strokeWidth <= 0 || color.a == 0 || radius <= 0) return;
+    final r = radius.clamp(0.0, rect.shortestSide / 2);
+    final corner = Radius.circular(r);
+    final Path band;
     if (isTop) {
-      canvas.clipRect(
-        Rect.fromLTRB(
-          rect.left,
-          rect.top,
-          rect.right,
-          (rect.top + radius * 2).clamp(rect.top, rect.bottom),
-        ),
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(
-            rect.left - half,
-            rect.top + half,
-            rect.right + half,
-            rect.bottom + half,
+      final bottom = (rect.top + r).clamp(rect.top, rect.bottom);
+      band = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRRect(
+          RRect.fromLTRBAndCorners(
+            rect.left,
+            rect.top,
+            rect.right,
+            bottom,
+            topLeft: corner,
+            topRight: corner,
           ),
-          Radius.circular(radius),
-        ),
-        paint,
-      );
+        )
+        ..addRRect(
+          RRect.fromLTRBAndCorners(
+            rect.left,
+            (rect.top + strokeWidth).clamp(rect.top, bottom),
+            rect.right,
+            bottom,
+            topLeft: corner,
+            topRight: corner,
+          ),
+        );
     } else {
-      canvas.clipRect(
-        Rect.fromLTRB(
-          rect.left,
-          (rect.bottom - radius * 2).clamp(rect.top, rect.bottom),
-          rect.right,
-          rect.bottom,
-        ),
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTRB(
-            rect.left - half,
-            rect.top - half,
-            rect.right + half,
-            rect.bottom - half,
+      final top = (rect.bottom - r).clamp(rect.top, rect.bottom);
+      band = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRRect(
+          RRect.fromLTRBAndCorners(
+            rect.left,
+            top,
+            rect.right,
+            rect.bottom,
+            bottomLeft: corner,
+            bottomRight: corner,
           ),
-          Radius.circular(radius),
-        ),
-        paint,
-      );
+        )
+        ..addRRect(
+          RRect.fromLTRBAndCorners(
+            rect.left,
+            top,
+            rect.right,
+            (rect.bottom - strokeWidth).clamp(top, rect.bottom),
+            bottomLeft: corner,
+            bottomRight: corner,
+          ),
+        );
     }
-    canvas.restore();
+    canvas.drawPath(
+      band,
+      Paint()
+        ..color = color
+        ..isAntiAlias = true,
+    );
   }
 
   @override

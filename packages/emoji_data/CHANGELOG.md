@@ -61,7 +61,7 @@ is pre-1.0.
 ### Added
 
 - `EmojiSection` and `EmojiCollectionSource(sections:)`: the collections are the
-  reference client's seven categories by default (`EmojiSection.reference`),
+  seven categories by default (`EmojiSection.reference`),
   folded from the catalogue's groups; a group no section names keeps a section
   of its own.
 

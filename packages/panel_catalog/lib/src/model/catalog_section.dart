@@ -32,7 +32,9 @@ import 'package:panel_catalog/src/model/section_layout.dart';
 /// ## Action
 ///
 /// [action] is the optional trailing header action, reported through the
-/// viewport's `onSectionAction(id, actionId)`.
+/// viewport's `onSectionAction(id, actionId)`. [titleAction] makes the rest of
+/// the header band one more: a tap on the title reports it the same way (a
+/// pack's header that opens the pack).
 ///
 /// This type is immutable by convention: replace the section (or the whole
 /// sections list) on mutation rather than editing [leaves] in place after the
@@ -54,10 +56,12 @@ final class CatalogSection {
     this.skeletonCount,
     this.emptyMessage,
     this.action,
+    this.titleAction,
   }) : assert(
          skeletonCount == null || skeletonCount >= 0,
          'A skeleton count cannot be negative.',
-       );
+       ),
+       assert(titleAction != '', 'A title action is reported by its id.');
 
   /// Stable section identity (category / pack id).
   ///
@@ -109,4 +113,12 @@ final class CatalogSection {
 
   /// The header's trailing action, or null for a title alone.
   final CatalogSectionAction? action;
+
+  /// What `onSectionAction` reports for a tap on the header outside its
+  /// trailing [action], or null for a header whose title does nothing.
+  ///
+  /// Nothing is painted for it: the title is the button (a tap opens the
+  /// pack). The band still scrolls
+  /// under a drag, and a screen reader taps the header node.
+  final String? titleAction;
 }

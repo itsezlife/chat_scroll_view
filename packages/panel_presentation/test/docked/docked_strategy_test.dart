@@ -39,20 +39,20 @@ void main() {
     rig.controller.show(kind: const Docked());
     await settleDock(tester);
 
-      final glass = find.ancestor(
-        of: find.byType(PanelShell),
-        matching: find.byType(GlassSurface),
-      );
-      expect(glass, findsOneWidget);
-      expect(
-        tester.widget<GlassSurface>(glass).material,
-        GlassMaterial.composerIsland,
-      );
-      expect(
-        tester.widget<PanelShell>(find.byType(PanelShell)).background,
-        const Color(0x00000000),
-        reason: 'the glass shows through the shell',
-      );
+    final glass = find.ancestor(
+      of: find.byType(PanelShell),
+      matching: find.byType(GlassSurface),
+    );
+    expect(glass, findsOneWidget);
+    expect(
+      tester.widget<GlassSurface>(glass).material,
+      GlassMaterial.composerIsland,
+    );
+    expect(
+      tester.widget<PanelShell>(find.byType(PanelShell)).background,
+      const Color(0x00000000),
+      reason: 'the glass shows through the shell',
+    );
   });
 
   group('layout', () {
@@ -517,5 +517,32 @@ void main() {
       expect(handle(), findsNothing);
       expect(rig.controller.state.value, PanelVisibility.hidden);
     });
+  });
+
+  // Ticket 100: nothing in the panel advances while it moves or is hidden.
+  testWidgets('the shell\'s tickers are on only while the panel rests', (
+    tester,
+  ) async {
+    bool shellTickers() => TickerMode.valuesOf(
+      tester.element(find.byType(PanelShell, skipOffstage: false)),
+    ).enabled;
+    final rig = DockedRig();
+    await rig.pump(tester);
+
+    rig.controller.show(kind: const Docked());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(shellTickers(), isFalse, reason: 'showing');
+
+    await settleDock(tester);
+    expect(shellTickers(), isTrue, reason: 'shown');
+
+    rig.controller.hide();
+    await tester.pump();
+    expect(shellTickers(), isFalse, reason: 'hiding');
+
+    await settleDock(tester);
+    expect(rig.controller.state.value, PanelVisibility.hidden);
+    expect(shellTickers(), isFalse, reason: 'hidden');
   });
 }

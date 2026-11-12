@@ -6,7 +6,7 @@ import 'package:golden_baseline/golden_baseline.dart';
 
 // Regenerate with `scripts/goldens --update` (baselines are the CI runner's).
 // The goldens are drawn with the test font (every glyph a square), so they
-// check geometry, the hover and disabled states and the reference colours;
+// check geometry, the hover and disabled states and the preset colours;
 // rounded edges and the blurred shadow are anti-aliased, hence the 1% pixel
 // tolerance.
 const _size = Size(640, 340);
@@ -115,7 +115,7 @@ void main() {
   ) async {
     await shoot(
       tester,
-      tokens: PointerMenuTokens.referenceDay,
+      tokens: PointerMenuTokens.day,
       page: const Color(0xFFE6EBEE),
       golden: 'day',
       hover: 'cut',
@@ -125,7 +125,7 @@ void main() {
   testWidgets('day: the Formatting submenu beside its row', (tester) async {
     await shoot(
       tester,
-      tokens: PointerMenuTokens.referenceDay,
+      tokens: PointerMenuTokens.day,
       page: const Color(0xFFE6EBEE),
       golden: 'day_submenu',
       submenu: true,
@@ -135,7 +135,7 @@ void main() {
   testWidgets('night', (tester) async {
     await shoot(
       tester,
-      tokens: PointerMenuTokens.referenceNight,
+      tokens: PointerMenuTokens.night,
       page: const Color(0xFF0E1621),
       golden: 'night',
       hover: 'copy',
@@ -145,7 +145,7 @@ void main() {
   testWidgets('right-to-left mirrors the menu and its arrow', (tester) async {
     await shoot(
       tester,
-      tokens: PointerMenuTokens.referenceDay,
+      tokens: PointerMenuTokens.day,
       page: const Color(0xFFE6EBEE),
       golden: 'rtl',
       direction: TextDirection.rtl,

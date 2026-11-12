@@ -1,3 +1,4 @@
+import 'package:catalog_assets/catalog_assets.dart' show AssetFit;
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
@@ -67,12 +68,7 @@ final class CatalogLeaf {
   /// empty. The leaf is a [MediaForm.glyph] of kind
   /// [SemanticKind.unicodeEmoji]: its stand-in is a circle. [spokenName] is the
   /// name in the active language, when the host has one.
-  CatalogLeaf.unicode(
-    String glyph, {
-    this.spokenName,
-    this.shortcode,
-    this.tag,
-  })
+  CatalogLeaf.unicode(String glyph, {this.spokenName, this.shortcode, this.tag})
     : key = ContentKey.unicode(glyph),
       semanticKind = SemanticKind.unicodeEmoji,
       mediaForm = MediaForm.glyph,
@@ -157,6 +153,17 @@ final class CatalogLeaf {
     SemanticKind.mask ||
     SemanticKind.gif => CatalogContentBox.cell,
     _ => CatalogContentBox.glyph,
+  };
+
+  /// How this leaf's content fills its box: a GIF fills its cell and is cut at
+  /// the edge (not aspect-fit); everything else, a sticker included, is shown whole.
+  ///
+  /// A grid lays a GIF out in a cell of its own proportion, so the two differ
+  /// only where the cell is not (a clip beyond 4:1 or below 1:5 is laid out as
+  /// a square), and there a bar would leave the cell half empty.
+  AssetFit get contentFit => switch (semanticKind) {
+    SemanticKind.gif => AssetFit.cover,
+    _ => AssetFit.contain,
   };
 
   /// The stand-in for this leaf's content, from [mediaForm] and

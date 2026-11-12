@@ -4,51 +4,114 @@ import 'package:chrome_foundation/src/glass/glass_material.dart';
 import 'package:chrome_foundation/src/tokens/glass_material_tokens.dart';
 import 'package:flutter/foundation.dart';
 
-/// Resolved paint parameters of one glass surface: the material's colours from
-/// the theme plus the shape constants of its effect. Internal.
+/// What a surface draws behind its child, as far as the look goes. Internal.
+enum GlassFinish {
+  /// A lightly blurred backdrop bent at the rim.
+  refracting,
+
+  /// A strongly blurred backdrop.
+  frosted,
+
+  /// No backdrop: the tint alone, opaque.
+  flat,
+}
+
+/// Resolved paint parameters of one glass surface: the material's colours
+/// from the theme, its geometry, and the effect of its [GlassFinish]. Internal.
 ///
-/// Composer island: radius 22 on height 44 gives a stadium; fill alpha about
-/// 0.85; backdrop sampled at 1/4 resolution, blurred with sigma 4 in that
-/// space, saturation x3; liquid thickness 11.
+/// The frosted look renders the content behind the glass at an eighth of
+/// device resolution, blurs it by a 40 dp radius and triples its saturation,
+/// then draws the tint over it at 0.76. The refracting look samples at a
+/// quarter with a 6 dp radius (the rim's bend carries the rest), tints at
+/// 0.85, and bends the view at the rim (intensity 0.75, index 1.5, a rim 11 dp
+/// thick but no thicker than a fifth of the shorter side).
 @immutable
 class GlassStyle {
-  /// Creates a style with every colour given.
+  /// Creates a style with every colour given; the rest defaults to the
+  /// frosted look of a composer island.
   const GlassStyle({
     required this.fill,
     required this.strokeTop,
     required this.strokeBottom,
     required this.shadowColor,
     this.cornerRadius = 22,
-    this.blurSigma = 4,
+    this.blurRadius = frostedBlurRadius,
     this.backdropSaturation = 3,
-    this.sourceDownscale = defaultSourceDownscale,
+    this.sourceDownscale = frostedSourceDownscale,
     this.liquidThickness = 11,
     this.liquidIntensity = 0.75,
     this.liquidIndex = 1.5,
-    this.strokeWidthTop = 1,
-    this.strokeWidthBottom = 2 / 3,
+    this.strokeWidthTop = 0.5,
+    this.strokeWidthBottom = 0.5,
     this.shadowBlur = 1,
     this.shadowOffset = const Offset(0, 1 / 3),
-    this.enableLiquid = true,
+    this.enableLiquid = false,
   });
 
-  /// The style of [material] in [colors]. [liquid] is false when the
-  /// effective quality has no refraction.
+  /// The style of [material] in [colors] under [finish].
+  ///
+  /// A material that never refracts ([GlassMaterial.refracts] off) keeps the
+  /// frosted blur under a refracting finish, at the refracting opacity: the
+  /// opacity follows the host's choice of look, the blur the surface's. A
+  /// material's own blur ([GlassMaterial.blurRadius]) replaces the frosted
+  /// one, and colours that fix their tint opacity
+  /// ([GlassMaterialColors.tintOpacity]) keep it under any finish but the
+  /// flat one.
   factory GlassStyle.resolve({
     required GlassMaterial material,
     required GlassMaterialColors colors,
     required double cornerRadius,
-    required bool liquid,
-  }) => GlassStyle(
-    fill: colors.fill,
-    strokeTop: colors.strokeTop,
-    strokeBottom: colors.strokeBottom,
-    shadowColor: colors.shadow,
-    cornerRadius: cornerRadius,
-    enableLiquid: liquid && material != GlassMaterial.topPanel,
-  );
+    required GlassFinish finish,
+  }) {
+    final refracts = finish == GlassFinish.refracting && material.refracts;
+    final opacity = switch ((finish, colors.tintOpacity)) {
+      (GlassFinish.flat, _) => 1.0,
+      (_, final fixed?) => fixed,
+      (GlassFinish.refracting, null) => refractingTintOpacity,
+      (GlassFinish.frosted, null) => frostedTintOpacity,
+    };
+    return GlassStyle(
+      fill: colors.tint.withValues(alpha: colors.tint.a * opacity),
+      strokeTop: colors.strokeTop,
+      strokeBottom: colors.strokeBottom,
+      shadowColor: colors.shadow,
+      cornerRadius: cornerRadius,
+      blurRadius: refracts
+          ? refractingBlurRadius
+          : material.blurRadius ?? frostedBlurRadius,
+      backdropSaturation: colors.backdropSaturation,
+      sourceDownscale: refracts
+          ? refractingSourceDownscale
+          : frostedSourceDownscale,
+      strokeWidthTop: material.strokeWidth,
+      strokeWidthBottom: material.strokeWidth,
+      shadowBlur: material.shadowBlur,
+      shadowOffset: material.shadowOffset,
+      enableLiquid: refracts,
+    );
+  }
 
-  /// Tint drawn over the refracted backdrop.
+  /// Opacity of the tint over a refracting backdrop.
+  static const double refractingTintOpacity = 0.85;
+
+  /// Opacity of the tint over a frosted backdrop: lower than the refracting
+  /// one, since the strong blur already hides the content's detail.
+  static const double frostedTintOpacity = 0.76;
+
+  /// Blur radius (logical px) of the frosted look.
+  static const double frostedBlurRadius = 40;
+
+  /// Blur radius (logical px) of the refracting look.
+  static const double refractingBlurRadius = 6;
+
+  /// How much smaller than device resolution the frosted look samples.
+  static const double frostedSourceDownscale = 8;
+
+  /// How much smaller than device resolution the refracting look samples:
+  /// the rim bends detail into view, so it needs more of it.
+  static const double refractingSourceDownscale = 4;
+
+  /// Tint drawn over the backdrop, its opacity already the finish's.
   final Color fill;
 
   /// Top edge highlight.
@@ -63,31 +126,38 @@ class GlassStyle {
   /// Painted corner radius (logical px).
   final double cornerRadius;
 
-  /// Backdrop blur sigma in the downscaled sample (image px at
-  /// 1 / [sourceDownscale] of device resolution).
-  ///
-  /// A captured backdrop is blurred after downscaling, so sigma 4 there spans
-  /// about 4 x [sourceDownscale] device px.
-  final double blurSigma;
+  /// Backdrop blur as a radius (logical px), the convention in which a blur
+  /// radius r is a Gaussian of sigma 0.57735 r + 0.5 device px ([blurSigma]).
+  final double blurRadius;
 
-  /// Backdrop saturation applied in the liquid sample.
+  /// Backdrop saturation: 1 leaves the colours, 3 triples their distance
+  /// from grey.
   final double backdropSaturation;
 
   /// How much smaller than device resolution the backdrop is sampled.
   ///
-  /// A captured backdrop renders at 1/N, blurs, and upsamples in the shader.
-  /// A scene backdrop filter cannot change resolution, so it blurs at full
-  /// resolution with [effectiveBlurSigma].
+  /// A captured backdrop renders at 1/N, blurs at that size, and is scaled
+  /// back up when drawn. A scene backdrop filter cannot change resolution,
+  /// so it blurs at full resolution with the same [blurSigma].
   final double sourceDownscale;
 
-  /// The [sourceDownscale] of every style that does not set one, those of
-  /// [GlassStyle.resolve] among them.
-  static const double defaultSourceDownscale = 4;
+  /// Gaussian sigma (logical px) of [blurRadius] on a screen of
+  /// [devicePixelRatio].
+  ///
+  /// The 0.57735 r + 0.5 conversion is in device px; the half pixel makes the
+  /// logical sigma a little larger on a coarser screen.
+  double blurSigma({required double devicePixelRatio}) =>
+      blurRadius > 0 ? _sigmaScale * blurRadius + 0.5 / devicePixelRatio : 0;
 
-  /// Full-resolution Gaussian sigma (logical px) standing in for the
-  /// downscale then blur chain on the scene-filter path.
-  double get effectiveBlurSigma =>
-      blurSigma * (sourceDownscale > 1 ? sourceDownscale : 1);
+  /// [blurSigma] in the px of a capture at 1 / [sourceDownscale] of device
+  /// resolution: 40 dp is a sigma of 8 such px on a 2.75 screen.
+  double captureBlurSigma({required double devicePixelRatio}) =>
+      blurSigma(devicePixelRatio: devicePixelRatio) *
+      devicePixelRatio /
+      sourceDownscale;
+
+  // 1 / sqrt(3): the radius-to-sigma factor of the blur radius convention.
+  static const double _sigmaScale = 0.57735;
 
   /// Liquid rim thickness.
   final double liquidThickness;
@@ -133,7 +203,7 @@ class GlassStyle {
           strokeBottom == other.strokeBottom &&
           shadowColor == other.shadowColor &&
           cornerRadius == other.cornerRadius &&
-          blurSigma == other.blurSigma &&
+          blurRadius == other.blurRadius &&
           backdropSaturation == other.backdropSaturation &&
           sourceDownscale == other.sourceDownscale &&
           liquidThickness == other.liquidThickness &&
@@ -152,7 +222,7 @@ class GlassStyle {
     strokeBottom,
     shadowColor,
     cornerRadius,
-    blurSigma,
+    blurRadius,
     backdropSaturation,
     sourceDownscale,
     liquidThickness,
@@ -166,5 +236,7 @@ class GlassStyle {
   ]);
 
   @override
-  String toString() => 'GlassStyle(fill: $fill, cornerRadius: $cornerRadius)';
+  String toString() =>
+      'GlassStyle(fill: $fill, cornerRadius: $cornerRadius, '
+      'blurRadius: $blurRadius, liquid: $enableLiquid)';
 }

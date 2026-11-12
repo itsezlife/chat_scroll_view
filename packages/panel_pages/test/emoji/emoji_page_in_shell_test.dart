@@ -62,16 +62,27 @@ void main() {
                   required glyphBoxExtent,
                   required visible,
                   required opening,
+                  required shown,
                 }) => GlyphAtlasHost(
                   frames: frames,
                   devicePixelRatio: devicePixelRatio,
                   glyphBoxExtent: glyphBoxExtent,
                   visible: visible,
                   opening: opening,
+                  glyphsShown: shown,
                   rasteriser: FakeGlyphRasteriser(),
                   newStore: FakeGlyphPageStore.new,
                 ),
           ),
+        ),
+        PanelPage(
+          id: 'stickers',
+          tab: const PanelTab(
+            icon: ChromeIconId.stickers,
+            labelKey: 'stickers',
+          ),
+          capabilities: PageCapabilities.none,
+          builder: (context, host) => const SizedBox(),
         ),
       ],
       preferences: preferences,
@@ -216,6 +227,23 @@ void main() {
       shell.updatePresence(visible: true, opening: false);
       await tester.pump();
       expect(frames.hasPendingRequest, isTrue, reason: 'at rest');
+    });
+
+    testWidgets('holds the bake while another page is selected, and resumes '
+        'when the emoji page is back', (tester) async {
+      await pumpShell(tester);
+      await tester.pumpAndSettle();
+      shell.updatePresence(visible: true, opening: false);
+      await tester.pump();
+      expect(frames.hasPendingRequest, isTrue);
+
+      shell.selectPage('stickers');
+      await tester.pump();
+      expect(frames.hasPendingRequest, isFalse, reason: 'its glyphs unseen');
+
+      shell.selectPage('emoji');
+      await tester.pump();
+      expect(frames.hasPendingRequest, isTrue);
     });
   });
 

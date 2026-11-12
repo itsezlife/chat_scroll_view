@@ -17,16 +17,18 @@ under a host quality policy
 | Type | Role |
 | --- | --- |
 | `ChromePalette` | The **chrome palette**: 15 semantic colour roles (surfaces, text, icons, accent, separator, ...) plus a brightness. Constructors: custom (every role), `light`, `dark`, `highContrastLight`, `highContrastDark`, `forBrightness`, `fromColorScheme`. |
-| `ComposerTokens`, `PanelTokens`, `ActionTokens`, `PlaceholderTokens`, `GlassMaterialTokens`, `SelectionMenuTokens`, `PointerMenuTokens`, `SpoilerTokens` | **Token groups**: immutable colours per component, each derived from a palette by `fromPalette`, with `copyWith` and `lerp`. `GlassMaterialTokens.colorsOf(material)` is what `GlassSurface` reads. `SelectionMenuTokens` is the selection menu's card, text, divider, shadow and page dim (the palette's raised surface and on-surface colour, its separator at half opacity, black at 0.45 and a black dim of `0x18` light or `0x40` dark; elevation 3 and radius 12 are constants on the class). `SpoilerTokens` is the spoiler particle colour (null follows the text colour; `colorOver(text)` resolves it) and its `SpoilerParticleMotion`. |
+| `ComposerTokens`, `PanelTokens`, `ActionTokens`, `PlaceholderTokens`, `GlassMaterialTokens`, `SelectionMenuTokens`, `PointerMenuTokens`, `SpoilerTokens`, `BulletinTokens` | **Token groups**: immutable colours per component, each derived from a palette by `fromPalette`, with `copyWith` and `lerp`. `GlassMaterialTokens.colorsOf(material)` is what `GlassSurface` reads. `SelectionMenuTokens` is the selection menu's card, text, divider, shadow and page dim (the palette's raised surface and on-surface colour, its separator at half opacity, black at 0.45 and a black dim of `0x18` light or `0x40` dark; elevation 3 and radius 12 are constants on the class). `SpoilerTokens` is the spoiler particle colour (null follows the text colour; `colorOver(text)` resolves it) and its `SpoilerParticleMotion`. `BulletinTokens` is a bulletin's card, text, accent and countdown colours (the dark card on every palette, an opaque one on the high-contrast presets). |
 | `ChromeThemeData` | A palette plus one value of every group: what a root scope carries and what two themes are interpolated between. |
 | `ChromeThemeScope` | The **chrome theme scope** (`InheritedModel`). Required: a lookup with no supplier fails. Nested scopes override only the parts they supply. `of`, `paletteOf`, `composerOf`, ... |
 | `AnimatedChromeThemeScope` | A scope that interpolates to new tokens with each part's `lerp`. |
 | `ChromeContrast` | WCAG contrast ratio and the AA thresholds, for palette tests. |
-| `MotionRole`, `MotionSpec`, `ChromeMotion` | The **motion role** table: one duration and curve per named thing chrome animates (list transition 250 ms on the Android cubic, panel slide, search, header reveal, press, release, fade, popup show / hide, presentation switch, theme switch, the 400 ms `selectionSlide` of a selection marker, the 900 ms `loop` of an indeterminate ring, which stands still under an instant speed, the three `menu*` roles of the selection menu (`menuEnter` 150 ms ease out, `menuLeave` 220 ms ease in, `menuPage` 300 ms on the CSS ease cubic for a page turn) and the 300 ms `spoilerReveal`). Immutable, overridable with `copyWith`. |
+| `MotionRole`, `MotionSpec`, `ChromeMotion` | The **motion role** table: one duration and curve per named thing chrome animates (list transition 250 ms on the Android cubic, panel slide, search, header reveal, press, release, fade, popup show / hide, presentation switch, theme switch, the 400 ms `selectionSlide` of a selection marker, the 900 ms `loop` of an indeterminate ring, which stands still under an instant speed, the three `menu*` roles of the selection menu (`menuEnter` 150 ms ease out, `menuLeave` 220 ms ease in, `menuPage` 300 ms on the CSS ease cubic for a page turn) the 300 ms `spoilerReveal`, and `bulletinShow` 255 ms ease-out quad / `bulletinHide` 175 ms ease-in quad for a bulletin's timed transitions). Immutable, overridable with `copyWith`. |
 | `SpoilerParticleMotion` | Motion that is not a role: the spoiler particles' speed (4-10 dp/s), life (1-3 s) and 30 fps tick (`tickAt(speed)` is null under an instant speed: static particles). |
 | `ChromeMotionSpeed`, `ChromeMotionScope`, `ChromeMotionData` | The speed scale (`normal`, `times(n)`, `instant`) and the nestable scope that supplies roles and speed. Components call `ChromeMotionScope.of(context).specOf(role)`. |
 | `ScalePressable`, `OvershootCurve` | Press-scale hit target driven by the `press` / `release` roles, and the overshoot easing (Android's `OvershootInterpolator`). |
-| `PointerMenu`, `PointerMenuEntry` (`PointerMenuItem`, `PointerMenuSeparator`), `PointerMenuTokens` | The **pointer menu**: the reference desktop client's popup list opened at the pointer by `PointerMenu.show` into the root overlay. Rows carry a label with an `&` mnemonic (drawn underlined), a shortcut hint, an enabled flag, an action or a submenu; a row that cannot be chosen is greyed, takes no hover and is skipped by the keys. Modal like a native popup: a press elsewhere closes it and is swallowed, Escape closes a submenu then the menu, every other key is swallowed. Hover opens a submenu at once, with a 300 ms aim hold toward it. The panel grows from the corner at the pointer (200 ms) and fades out (150 ms), both roles of the motion table. Placement, the reveal, the aim triangle and the navigation are pure (`PointerMenuPlacements`, `PointerMenuReveal`, `PointerMenuAim`, `PointerMenuNavigation`); the geometry is `PointerMenuMetrics` (each number verified, derived or UNVERIFIED). `PointerMenuTokens.referenceDay` and `referenceNight` are the reference's own colours. |
+| `ChromeIconButton`, `ChromePillButton`, `ChromeBarButton`, `ChromeBadgeButton`, `ChromeButtonInks` | Chrome buttons pressed with `ChromeInk`: a round icon button (40), a small pill (28, filled or plain, can stand disabled in place to trade places with another), the full-width button along a sheet's bottom (a filled pill inset in its bar, or a flat destructive bar) and a rounded button whose words carry a count badge. Geometry is a const metrics value per button (`ChromeBarButtonMetrics`, `ChromeBadgeButtonMetrics`, or a size parameter), overridable per use; the press and hover colours derive from the palette (`ChromeButtonInks`). |
+| `ChromeSpinner`, `ChromeCrossPainter`, `ChromeDotsPainter` | A busy arc in the accent that turns once a second and stands still under an instant speed; the close and more-options glyphs as painters in a given colour. |
+| `PointerMenu`, `PointerMenuEntry` (`PointerMenuItem`, `PointerMenuSeparator`), `PointerMenuTokens` | The **pointer menu**: a popup list opened at the pointer by `PointerMenu.show` into the root overlay. Rows carry a label with an `&` mnemonic (drawn underlined), a shortcut hint, an enabled flag, an action or a submenu; a row that cannot be chosen is greyed, takes no hover and is skipped by the keys. Modal like a native popup: a press elsewhere closes it and is swallowed, Escape closes a submenu then the menu, every other key is swallowed. Hover opens a submenu at once, with a 300 ms aim hold toward it. The panel grows from the corner at the pointer (200 ms) and fades out (150 ms), both roles of the motion table. Placement, the reveal, the aim triangle and the navigation are pure (`PointerMenuPlacements`, `PointerMenuReveal`, `PointerMenuAim`, `PointerMenuNavigation`); the geometry is `PointerMenuMetrics` (each number verified, derived or UNVERIFIED). `PointerMenuTokens.day` and `PointerMenuTokens.night` are the preset colours. |
 | `ChromeStrings` (`PanelStrings`, `ComposerStrings`, `FormattingStrings`, `EditMenuStrings`, `SemanticsStrings`) | The **chrome strings**: grouped, host-provided text, with functions for plural and data-dependent wording. `FormattingStrings` holds the selection menu's item labels (Quote, Spoiler, Bold, Italic, Mono, Strikethrough, Underline, Create / Edit / Remove Link, Code block, Bullet / Numbered list, Regular), the "More" and "Back" labels and the semantics labels of a bullet and a numbered list item. |
 | `ChromeStringsScope` | Required scope supplying `ChromeStrings`; a lookup with no scope fails in debug builds. |
 | `ChromeIconId`, `ChromeIconPainter`, `ChromeIconRegistry` | A **chrome icon** is a semantic id; the registry maps ids to painters (font glyph or paint callback). `ChromeIconRegistry.stock` paints the chrome's own ids; an unknown id draws a neutral fallback glyph. |
@@ -36,7 +38,7 @@ under a host quality policy
 | `GlassSourceScope`, `GlassSource` | Marks the content that sampled glass reads. A scope above the content and the surfaces, a source around the content. |
 | `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `ChromeStringsSnapshot.of` for completeness checks. Tests and demos only. |
 
-Geometry is not a token here: metrics taken from the reference client stay constants owned by
+Geometry is not a token here: the menu metrics stay constants owned by
 the component that draws them. Labels are host strings, never tokens. Motion is
 a role table with a speed scale, not a colour-style group, so it has no `lerp`.
 
@@ -126,8 +128,8 @@ GlassSourceScope(                       // chat screen: over content + chrome
     GlassSurface(material: GlassMaterial.composerIsland, child: composer),
   ]),
 )
-// Host policy (optional; the default is fullLiquid on detected capabilities):
-GlassQualityScope(quality: GlassQuality.frosted, liteMode: batterySaver, child: ...)
+// Host policy (optional; the default is frosted on detected capabilities):
+GlassQualityScope(quality: GlassQuality.fullLiquid, liteMode: batterySaver, child: ...)
 ```
 
 `GlassSurface` picks how to draw its backdrop each build from four inputs: the
@@ -137,24 +139,43 @@ exported:
 
 | Quality | Source + sampling backend | No source, filter backend | Route moves, no source | No filters |
 | --- | --- | --- | --- | --- |
-| `fullLiquid` | sampled liquid (capture, refraction) | backdrop filter (liquid shader filter where supported, else blur) | flat | flat |
-| `frosted` | sampled frost (capture, no refraction) | backdrop filter (blur) | flat | flat |
+| `fullLiquid` | sampled liquid (capture, refraction) | backdrop filter (liquid shader filter where supported, else blur and saturation) | flat | flat |
+| `frosted` | sampled frost (capture, no shader) | backdrop filter (blur and saturation, no shader) | flat | flat |
 | `flat` | flat | flat | flat | flat |
 | `off` | nothing | nothing | nothing | nothing |
 
-- A sampled surface renders a downscaled, blurred copy of the source region
-  once per frame for every surface in the scope (regions close enough merge
-  into one capture) and never reads back the onscreen target, so route motion
+- The look. Frosted (the default): the content behind the glass at an
+  eighth of device resolution, blurred by a 40 dp radius (a Gaussian of
+  sigma 0.57735 r + 0.5 device px), its saturation tripled, under the tint at
+  0.76. Refracting (`fullLiquid`, the host's opt-in): a quarter of device
+  resolution, a 6 dp radius, saturation x3, the tint at 0.85, bent at the
+  rim (intensity 0.75, index 1.5, rim 11 dp but at most a fifth of the
+  shorter side). Flat: the tint opaque. `topPanel` never refracts.
+- A sampled surface draws a capture of the source region behind it (plus the
+  blur and refraction reach), blurred and saturated at the capture's size.
+  Regions snap out to a 2 image px grid (16 device px at an eighth) and merge
+  with nearby ones into one capture per look, which is kept while nothing
+  under it changed. It never reads back the onscreen target, so route motion
   does not matter to it.
 - A backdrop filter re-reads and re-filters everything under it on every frame
-  it moves, so a surface paints flat while its route is pushed, popped, dragged
-  by a back gesture, or covered by another route moving.
-- Shaders load on first need. Until they load a sampled surface paints its fill
-  flat; if loading fails the shader paths are dropped and the chain falls back
-  to the blur-only filter.
-- `GlassMaterial` fixes what does not vary with the theme (blur, saturation,
-  refraction, stroke widths, default corner radius); `topPanel` never refracts.
-  Pass `cornerRadius` for a different size (half the height makes a stadium).
+  it moves, so a surface paints its translucent tint flat while its route is
+  pushed, popped, dragged by a back gesture, or covered by another route
+  moving.
+- Only refraction needs fragment shaders. They load on first need; until
+  then a refracting surface draws frosted, and if loading fails it stays
+  frosted. Where shaders or `ImageFilter.shader` are unsupported (the web,
+  Skia), capabilities fall back to the scene filter (blur and saturation, no
+  shader), then to flat.
+- `GlassMaterial` fixes what does not vary with the theme: the default corner
+  radius (island 22, button 18, top panel 0), the edge width (0.5, 0.5,
+  0.55) and the shadow geometry (blur 1 at 1/3 down; a button 11/3 at 2/3
+  down). Pass `cornerRadius` for a different size (half the height makes a
+  stadium).
+- `GlassMaterialTokens.fromPalette` tints the island and buttons with
+  `surface` and the top panel with `surfaceDim`; light edges are opaque
+  white, dark ones white at 0x28 (top panel 0x20) on top and 0x14 below;
+  light shadows are the palette shadow at 0x20 (a button 0x40), dark ones
+  none.
 - Keep content fades and washes outside the `GlassSource` (or cut them out
   under the surface) so they are not sampled into the glass.
 
@@ -170,7 +191,7 @@ Android, Windows, Linux).
 Presets keep the text and icon pairings at WCAG AA (4.5:1 text, 3:1 icons;
 7:1 text in the high-contrast presets). Where an earlier flat colour class
 failed that, the preset uses the nearest value that passes. The values were
-not re-derived from a reference client, so a fidelity review of the shipped
+not re-derived from the original measurements, so a fidelity review of the shipped
 colours is open. The field-by-field mapping from that class, with the old and
 shipped value of each, is in
 [docs/chrome/palette-migration.md](../../docs/chrome/palette-migration.md).
@@ -199,7 +220,7 @@ this package.
   key non-empty in each preset, same keys in both, snapshot lists every
   declared member) and plural wording.
 - Menu and spoiler: the light menu colours and role durations against the
-  reference client's literal values, the two curves against worked values, the
+  fixed literal values, the two curves against worked values, the
   morph-duration ratios, the static spoiler tick under an instant speed, and the
   menu text on its card at AA in all four presets.
 - Icons: registry lookup, custom registration, fallback, scope nesting and

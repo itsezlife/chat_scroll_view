@@ -1,0 +1,36 @@
+name: bulletins
+description: >
+  Bulletins: short notices shown over a surface for a few seconds, with an
+  optional Undo or button. The bulletin value, a per-surface controller with
+  one slot and commit on leave, the host mount with a bottom obstruction seam,
+  and a pure-Dart presentation policy per platform family.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.32.0'
+
+dependencies:
+  chrome_foundation:
+    path: ../chrome_foundation
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+  # Only lib/testing.dart needs this: the policy contract suite is written
+  # with the test framework, and a library cannot import a dev dependency.
+  # Production entry points never import it.
+  flutter_test:
+    sdk: flutter
+
+dev_dependencies:
+  # Golden baselines are the CI runner's: compared and regenerated there only.
+  golden_baseline:
+    path: ../golden_baseline
+
+flutter:
+  # The stock chrome icons draw Material icon glyphs, and widget tests that
+  # paint an icon leading need the font in the test bundle.
+  uses-material-design: true

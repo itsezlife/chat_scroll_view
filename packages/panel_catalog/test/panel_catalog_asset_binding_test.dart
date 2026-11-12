@@ -40,10 +40,11 @@ CatalogLeaf _doc(int i, {bool animated = false, bool tintable = false}) =>
       tintable: tintable,
     );
 
-CatalogLeaf _sticker(int i) => CatalogLeaf.document(
+CatalogLeaf _sticker(int i, {bool animated = false}) => CatalogLeaf.document(
   'sticker-$i',
   semanticKind: SemanticKind.sticker,
   mediaForm: MediaForm.still,
+  animated: animated,
 );
 
 CatalogSection _section(List<CatalogLeaf> leaves) =>
@@ -76,6 +77,7 @@ void main() {
     WidgetTester tester, {
     AssetCacheScope? assets,
     double? devicePixelRatio,
+    double width = 320,
   }) {
     if (devicePixelRatio != null) {
       tester.view.devicePixelRatio = devicePixelRatio;
@@ -88,7 +90,7 @@ void main() {
           child: Scaffold(
             body: Center(
               child: SizedBox(
-                width: 320,
+                width: width,
                 height: 480,
                 child: PanelCatalogViewport(
                   snapshots: snapshots,
@@ -197,9 +199,9 @@ void main() {
       expect(overscan.demand.priority, AssetPriority.preload);
     });
 
-    testWidgets('an animated leaf plays only while no fling runs', (
-      tester,
-    ) async {
+    // Animated leaves in a panel grid never stop their drawables for a scroll
+    // (ticket 141).
+    testWidgets('an animated leaf plays on while a fling runs', (tester) async {
       producer.onProduce = (attempt) =>
           attempt.advance(AssetStage.full, animated: true);
       final leaves = [for (var i = 0; i < 400; i++) _doc(i, animated: true)];
@@ -214,7 +216,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 16));
       expect(render(tester).isFlinging, isTrue);
-      expect(ticks.isRunning, isFalse);
+      expect(ticks.isRunning, isTrue);
 
       await tester.pumpAndSettle();
       expect(render(tester).isFlinging, isFalse);
@@ -282,6 +284,71 @@ void main() {
       final canvas = paintOnce(tester);
       expect(canvas.rrects, isEmpty);
       expect(canvas.circles.single.radius, closeTo(28.8 * 0.4, 1e-9));
+    });
+  });
+
+  group('a viewport resized (a dock dragged)', () {
+    testWidgets('asks nothing new of a sticker drawn in a fixed glyph box or '
+        'an emoji at a fixed glyph extent, so neither starts over', (
+      tester,
+    ) async {
+      final emoji = _doc(0);
+      final sticker = _sticker(1);
+      snapshots.replaceSections([
+        CatalogSection(
+          id: 'a',
+          title: 'A',
+          leaves: [emoji, sticker],
+          contentBox: CatalogContentBox.glyph,
+          layout: const SectionLayout.grid(
+            desiredCellWidth: 72,
+            glyphExtent: 24,
+          ),
+        ),
+      ]);
+      await pumpViewport(tester);
+      final attempts = producer.attempts.length;
+
+      for (final width in [330.0, 345.0, 372.0, 400.0]) {
+        await pumpViewport(tester, width: width);
+      }
+
+      expect(producer.attempts, hasLength(attempts));
+    });
+  });
+
+  group('a small playing cell', () {
+    testWidgets('plays at half rate and decodes at most 160 px, a still '
+        'keeps its pixels and every frame', (tester) async {
+      final playing = _sticker(0, animated: true);
+      final still = _sticker(1);
+      producer.onProduce = (attempt) =>
+          attempt.advance(AssetStage.full, animated: true);
+      snapshots.replaceSections([
+        _section([playing, still]),
+      ]);
+      // The 40 px cell is 200 physical px at 5x.
+      await pumpViewport(tester, devicePixelRatio: 5);
+      paintOnce(tester);
+
+      expect(requestOf(playing).spec.pixelWidth, 160);
+      expect(requestOf(still).spec.pixelWidth, 200);
+      FakeAssetPaintable paintableOf(CatalogLeaf leaf) =>
+          producer.attemptsFor(requestOf(leaf)).single.paintables.single;
+      final played = paintableOf(playing);
+      expect(
+        [
+          ...played.advances,
+          ...played.paints.map((paint) => paint.context),
+        ].every((context) => context.halfFrameRate),
+        isTrue,
+      );
+      expect(played.advances, isNotEmpty);
+      final shown = paintableOf(still);
+      expect(
+        shown.paints.map((paint) => paint.context.halfFrameRate),
+        everyElement(isFalse),
+      );
     });
   });
 

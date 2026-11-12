@@ -15,7 +15,7 @@ import 'package:listen/listen.dart';
 ///
 /// [collections] lists `CollectionId.recent` first, then
 /// `CollectionId.category(sectionId)` for each of the [sections]: the
-/// reference client's seven by default, a fold of the catalogue's groups. A
+/// default seven, a fold of the catalogue's groups. A
 /// group no section names gets a section of its own, with the group's id, after
 /// the rest, so a catalogue that gains a group shows it. The collections carry
 /// no title and no cover: naming and icons of categories belong to the page. A
@@ -42,7 +42,7 @@ import 'package:listen/listen.dart';
 /// ## Custom emoji in the recents
 ///
 /// The recents list holds every emoji picked on the emoji page, custom emoji
-/// (document keys) among the unicode ones, as the reference clients keep one
+/// (document keys) among the unicode ones, in a single
 /// list. The catalogue describes only unicode keys; the others are described
 /// by the host's [ContentResolver], asked in one batch for the keys it has
 /// not answered yet whenever the recents are derived:

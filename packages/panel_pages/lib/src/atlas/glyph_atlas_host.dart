@@ -41,9 +41,16 @@ typedef GlyphAtlasFactory = GlyphAtlas? Function(GlyphAtlasRequest request);
 ///
 /// ## Pause signals
 ///
-/// The atlas bakes only while the panel is [visible] and not [opening]; the
-/// host mirrors the two listenables it is given (published by the shell,
-/// which has them from the presentation) into the notifiers the atlas takes.
+/// The atlas bakes only while the panel is [visible] and not [opening], the
+/// page that draws the glyphs is shown ([glyphsShown], the page's selection),
+/// and nothing moves: neither a surface of the page (reported through
+/// [reportScrolling]) nor any other surface of the app ([scrolling], the
+/// composition root's signal). A bake step costs the raster thread of
+/// whatever frame it lands in, so a sticker grid or a chat list scrolling
+/// beside a hidden emoji page pays for it as much as the emoji grid would.
+/// The host mirrors the page's listenables (published by the shell, which
+/// has the presence from the presentation) into the notifiers the atlas
+/// takes; [scrolling] is passed through as it is.
 ///
 /// ## The glyph-support probe
 ///
@@ -87,7 +94,11 @@ final class GlyphAtlasHost implements BakeActivityPort {
   /// (`CatalogContentBox.glyphBoxExtent` of the cell), because there is **one** baked
   /// size per atlas and every section scales it. [devicePixelRatio] sizes the
   /// baked glyph (capped at the atlas maximum) and can change later.
-  /// [visible] and [opening] are the panel's presence. [pageRetention] is how
+  /// [visible] and [opening] are the panel's presence and [glyphsShown]
+  /// whether the page is the selected one (always, when omitted).
+  /// [scrolling] is the host's own motion signal for every surface of the
+  /// app, and [pacing] sizes one bake step (see [BakePacing]); both reach
+  /// every atlas the host plans. [pageRetention] is how
   /// long baked pages stay resident after the panel closes; [memoryPressure]
   /// (typically a `SystemMemoryPressure` the host owns and disposes) releases
   /// them at once. The remaining arguments default to the system font, a new
@@ -100,6 +111,9 @@ final class GlyphAtlasHost implements BakeActivityPort {
     required double glyphBoxExtent,
     required listen.ValueListenable<bool> visible,
     required listen.ValueListenable<bool> opening,
+    listen.ValueListenable<bool>? glyphsShown,
+    ValueListenable<bool>? scrolling,
+    BakePacing pacing = const BakePacing(),
     Duration pageRetention = GlyphPageResidency.defaultRetention,
     Listenable? memoryPressure,
     GlyphRasteriser? rasteriser,
@@ -113,6 +127,9 @@ final class GlyphAtlasHost implements BakeActivityPort {
        _glyphBoxExtent = glyphBoxExtent,
        _visibleSource = visible,
        _openingSource = opening,
+       _shownSource = glyphsShown,
+       _scrolling = scrolling,
+       _pacing = pacing,
        _pageRetention = pageRetention,
        _memoryPressure = memoryPressure,
        _rasteriser = rasteriser ?? ParagraphGlyphRasteriser(),
@@ -122,15 +139,20 @@ final class GlyphAtlasHost implements BakeActivityPort {
        _observer = observer,
        _atlasFactory = atlasFactory,
        _visible = ValueNotifier<bool>(visible.value),
-       _opening = ValueNotifier<bool>(opening.value) {
+       _opening = ValueNotifier<bool>(opening.value),
+       _shown = ValueNotifier<bool>(glyphsShown?.value ?? true) {
     visible.addListener(_onVisible);
     opening.addListener(_onOpening);
+    glyphsShown?.addListener(_onShown);
   }
 
   final BakeFrameSource _frames;
   final double _glyphBoxExtent;
   final listen.ValueListenable<bool> _visibleSource;
   final listen.ValueListenable<bool> _openingSource;
+  final listen.ValueListenable<bool>? _shownSource;
+  final ValueListenable<bool>? _scrolling;
+  final BakePacing _pacing;
   final Duration _pageRetention;
   final Listenable? _memoryPressure;
   final GlyphRasteriser _rasteriser;
@@ -140,6 +162,7 @@ final class GlyphAtlasHost implements BakeActivityPort {
   final GlyphAtlasFactory _atlasFactory;
   final ValueNotifier<bool> _visible;
   final ValueNotifier<bool> _opening;
+  final ValueNotifier<bool> _shown;
   final _atlas = listen.ValueNotifier<GlyphAtlas?>(null);
   final _source = listen.ValueNotifier<LayeredGlyphSource?>(null);
   // The atlases planned after [_atlas] for the glyphs it lacked, with the
@@ -325,6 +348,9 @@ final class GlyphAtlasHost implements BakeActivityPort {
         clock: _clock,
         panelVisible: _visible,
         panelOpening: _opening,
+        glyphsShown: _shown,
+        scrolling: _scrolling,
+        pacing: _pacing,
         residency: residency,
         observer: _observer,
         predecessor: predecessor,
@@ -347,12 +373,15 @@ final class GlyphAtlasHost implements BakeActivityPort {
 
   void _onOpening() => _opening.value = _openingSource.value;
 
+  void _onShown() => _shown.value = _shownSource!.value;
+
   /// Releases the atlas and stops following the panel's presence. Idempotent.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
     _visibleSource.removeListener(_onVisible);
     _openingSource.removeListener(_onOpening);
+    _shownSource?.removeListener(_onShown);
     _dropLayers();
     _source.value?.dispose();
     _source.value = null;
@@ -362,6 +391,7 @@ final class GlyphAtlasHost implements BakeActivityPort {
     _atlas.dispose();
     _visible.dispose();
     _opening.dispose();
+    _shown.dispose();
     // Memory pages die with the host; persisted pages are kept on purpose.
     unawaited(_atlasStore?.clear());
     _atlasStore = null;

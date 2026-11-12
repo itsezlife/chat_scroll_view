@@ -259,9 +259,13 @@ class _PopupBody extends StatefulWidget {
   State<_PopupBody> createState() => _PopupBodyState();
 }
 
-class _PopupBodyState extends State<_PopupBody>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _motion = AnimationController(vsync: this);
+class _PopupBodyState extends State<_PopupBody> with TickerProviderStateMixin {
+  // The show and the hide run on clocks of their own, so a hide that cuts a
+  // show (or a show a hide) turns back from where the popup is.
+  late final AppearController _motion = AppearController(
+    vsync: this,
+    shown: !widget.view.visibility.isShowing,
+  );
   final _scope = FocusScopeNode(debugLabel: 'AnchoredPopup');
   final _regionKey = GlobalKey();
   PanelAutoHideHold? _dragHold;
@@ -269,7 +273,6 @@ class _PopupBodyState extends State<_PopupBody>
   final _pressedPointers = <int>{};
   late final StreamSubscription<PageScrollActivity> _scrollActivity;
   late final void Function() _unexemptRegion;
-  Curve _curve = Curves.linear;
   // How far the hover area reaches below the popup, to touch the toggle.
   var _bridge = 0.0;
   var _bridgeScheduled = false;
@@ -288,7 +291,6 @@ class _PopupBodyState extends State<_PopupBody>
     _unexemptRegion = _hover.registerExempt(
       () => _globalBounds(_regionKey.currentContext ?? context),
     );
-    _motion.value = widget.view.visibility.isShowing ? 0 : 1;
     _scrollActivity = _controller.shell.scrollActivity.listen(_onScroll);
   }
 
@@ -345,15 +347,18 @@ class _PopupBodyState extends State<_PopupBody>
     final motion = ChromeMotionScope.of(context);
     switch (visibility) {
       case PanelVisibility$Showing(:final kind):
-        final spec = motion.specOf(policy.showRole(kind));
-        _curve = spec.curve;
-        _motion.duration = spec.duration;
-        _motion.forward().whenCompleteOrCancel(() => _settled(view));
+        _motion
+            .show(
+              showDuration: motion.specOf(policy.showRole(kind)).duration,
+              hideDuration: motion.specOf(policy.hideRole(kind)).duration,
+            )
+            .whenComplete(() => _settled(view))
+            .ignore();
       case PanelVisibility$Hiding(:final kind):
-        final spec = motion.specOf(policy.hideRole(kind));
-        _curve = spec.curve;
-        _motion.reverseDuration = spec.duration;
-        _motion.reverse().whenCompleteOrCancel(() => _settled(view));
+        _motion
+            .hide(hideDuration: motion.specOf(policy.hideRole(kind)).duration)
+            .whenComplete(() => _settled(view))
+            .ignore();
       case PanelVisibility$Shown() || PanelVisibility$Hidden():
         break;
     }
@@ -498,42 +503,37 @@ class _PopupBodyState extends State<_PopupBody>
       onPointerCancel: _onPointerEnd,
       child: AnimatedBuilder(
         animation: _motion,
-        builder: (context, child) {
-          final t = _curve.transform(_motion.value);
-          return IgnorePointer(
-            ignoring: widget.view.visibility.isHiding,
-            child: Opacity(
-              opacity: t.clamp(0.0, 1.0),
-              child: Transform.scale(
-                scale: style.scaleBegin + (1 - style.scaleBegin) * t,
-                alignment: AlignmentDirectional.bottomEnd,
-                child: child,
-              ),
-            ),
-          );
-        },
-        child: DecoratedBox(
-          decoration: BoxDecoration(
+        builder: (context, child) => IgnorePointer(
+          ignoring: widget.view.visibility.isHiding,
+          child: AppearFrameView(
+            frame: _motion.frameOf(style.appear),
+            origin: AlignmentDirectional.bottomEnd,
             borderRadius: BorderRadius.circular(style.cornerRadius),
-            boxShadow: style.shadows,
+            shadows: style.shadows,
+            child: child!,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(style.cornerRadius),
-            // The composer's glass, so the panel over the chat reads as the
-            // composer does.
-            child: GlassSurface(
-              material: GlassMaterial.composerIsland,
-              cornerRadius: style.cornerRadius,
-              child: Shortcuts(
-                shortcuts: AnchoredPopupShortcuts.standard,
-                child: AnchoredPopupActions(
-                  controller: _controller,
-                  child: FocusScope(
-                    node: _scope,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(style.cornerRadius),
+          child: _surface(
+            style,
+            Shortcuts(
+              shortcuts: AnchoredPopupShortcuts.standard,
+              child: AnchoredPopupActions(
+                controller: _controller,
+                child: FocusScope(
+                  node: _scope,
+                  // Only at rest: while the popup moves or is hidden the
+                  // panel's content holds.
+                  child: TickerMode(
+                    enabled: widget.view.visibility is PanelVisibility$Shown,
                     child: PanelShell(
                       controller: _controller.shell,
                       arrangement: PanelArrangement.pointer,
-                      background: const Color(0x00000000),
+                      background: switch (style.surface) {
+                        AnchoredPopupSurface.glass => const Color(0x00000000),
+                        AnchoredPopupSurface.solid => null,
+                      },
                     ),
                   ),
                 ),
@@ -544,4 +544,16 @@ class _PopupBodyState extends State<_PopupBody>
       ),
     ),
   );
+
+  // The composer's glass, or the shell's own solid background (the shell
+  // fills itself when it is given no background).
+  static Widget _surface(AnchoredPopupStyle style, Widget child) =>
+      switch (style.surface) {
+        AnchoredPopupSurface.glass => GlassSurface(
+          material: GlassMaterial.composerIsland,
+          cornerRadius: style.cornerRadius,
+          child: child,
+        ),
+        AnchoredPopupSurface.solid => child,
+      };
 }

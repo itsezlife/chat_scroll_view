@@ -277,7 +277,7 @@ void main() {
     });
   });
 
-  group('the reference desktop client\'s ink', () {
+  group('desktop hover ink', () {
     const press = Color(0x0F000000);
     PanelCatalogThemeData desktop() => withHover().copyWith(
       leafHoverHighlightSize: const Size(34, 32),
@@ -292,11 +292,10 @@ void main() {
 
       final rects = hoverRects(paintOnce(tester));
 
-      expect(rects.single.outerRect, Rect.fromCenter(
-        center: cell.center,
-        width: 34,
-        height: 32,
-      ));
+      expect(
+        rects.single.outerRect,
+        Rect.fromCenter(center: cell.center, width: 34, height: 32),
+      );
       expect(rects.single.tlRadius, const Radius.circular(8));
     });
 

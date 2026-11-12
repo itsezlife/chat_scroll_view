@@ -8,11 +8,17 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'backdrop/backdrop_snapshot_test.dart' as backdrop_snapshot_test;
+import 'backdrop/stack_blur_test.dart' as stack_blur_test;
+import 'box/chrome_box_layer_test.dart' as chrome_box_layer_test;
+import 'button/chrome_buttons_test.dart' as chrome_buttons_test;
 import 'glass/glass_flat_golden_test.dart' as glass_flat_golden_test;
+import 'glass/glass_layer_watch_test.dart' as glass_layer_watch_test;
 import 'glass/glass_public_api_test.dart' as glass_public_api_test;
 import 'glass/glass_shaders_test.dart' as glass_shaders_test;
 import 'glass/glass_source_test.dart' as glass_source_test;
 import 'glass/glass_strategy_test.dart' as glass_strategy_test;
+import 'glass/glass_style_test.dart' as glass_style_test;
 import 'glass/glass_surface_route_test.dart' as glass_surface_route_test;
 import 'glass/glass_surface_test.dart' as glass_surface_test;
 import 'icons/chrome_icon_registry_test.dart' as chrome_icon_registry_test;
@@ -23,6 +29,9 @@ import 'menu/pointer_menu_golden_test.dart' as pointer_menu_golden_test;
 import 'menu/pointer_menu_placement_test.dart' as pointer_menu_placement_test;
 import 'menu/pointer_menu_reveal_test.dart' as pointer_menu_reveal_test;
 import 'menu/pointer_menu_test.dart' as pointer_menu_test;
+import 'motion/appear_motion_test.dart' as appear_motion_test;
+import 'motion/bulletin_motion_test.dart' as bulletin_motion_test;
+import 'motion/chrome_ink_test.dart' as chrome_ink_test;
 import 'motion/chrome_motion_scope_test.dart' as chrome_motion_scope_test;
 import 'motion/chrome_motion_speed_test.dart' as chrome_motion_speed_test;
 import 'motion/chrome_motion_test.dart' as chrome_motion_test;
@@ -42,7 +51,9 @@ import 'strings/chrome_strings_scope_test.dart' as chrome_strings_scope_test;
 import 'theme/chrome_monospace_test.dart' as chrome_monospace_test;
 import 'theme/chrome_theme_data_test.dart' as chrome_theme_data_test;
 import 'theme/chrome_theme_scope_test.dart' as chrome_theme_scope_test;
+import 'theme/chrome_typography_test.dart' as chrome_typography_test;
 import 'tokens/action_tokens_test.dart' as action_tokens_test;
+import 'tokens/bulletin_tokens_test.dart' as bulletin_tokens_test;
 import 'tokens/composer_tokens_test.dart' as composer_tokens_test;
 import 'tokens/glass_material_tokens_test.dart' as glass_material_tokens_test;
 import 'tokens/panel_tokens_test.dart' as panel_tokens_test;
@@ -52,11 +63,17 @@ import 'tokens/selection_menu_tokens_test.dart' as selection_menu_tokens_test;
 import 'tokens/spoiler_tokens_test.dart' as spoiler_tokens_test;
 
 void main() {
+  group('backdrop/backdrop_snapshot_test.dart', backdrop_snapshot_test.main);
+  group('backdrop/stack_blur_test.dart', stack_blur_test.main);
+  group('box/chrome_box_layer_test.dart', chrome_box_layer_test.main);
+  group('button/chrome_buttons_test.dart', chrome_buttons_test.main);
   group('glass/glass_flat_golden_test.dart', glass_flat_golden_test.main);
   group('glass/glass_public_api_test.dart', glass_public_api_test.main);
   group('glass/glass_shaders_test.dart', glass_shaders_test.main);
+  group('glass/glass_layer_watch_test.dart', glass_layer_watch_test.main);
   group('glass/glass_source_test.dart', glass_source_test.main);
   group('glass/glass_strategy_test.dart', glass_strategy_test.main);
+  group('glass/glass_style_test.dart', glass_style_test.main);
   group('glass/glass_surface_route_test.dart', glass_surface_route_test.main);
   group('glass/glass_surface_test.dart', glass_surface_test.main);
   group('icons/chrome_icon_registry_test.dart', chrome_icon_registry_test.main);
@@ -70,6 +87,9 @@ void main() {
     pointer_menu_placement_test.main,
   );
   group('menu/pointer_menu_reveal_test.dart', pointer_menu_reveal_test.main);
+  group('motion/appear_motion_test.dart', appear_motion_test.main);
+  group('motion/bulletin_motion_test.dart', bulletin_motion_test.main);
+  group('motion/chrome_ink_test.dart', chrome_ink_test.main);
   group('motion/chrome_motion_scope_test.dart', chrome_motion_scope_test.main);
   group('motion/chrome_motion_speed_test.dart', chrome_motion_speed_test.main);
   group('motion/chrome_motion_test.dart', chrome_motion_test.main);
@@ -103,7 +123,9 @@ void main() {
   group('theme/chrome_monospace_test.dart', chrome_monospace_test.main);
   group('theme/chrome_theme_data_test.dart', chrome_theme_data_test.main);
   group('theme/chrome_theme_scope_test.dart', chrome_theme_scope_test.main);
+  group('theme/chrome_typography_test.dart', chrome_typography_test.main);
   group('tokens/action_tokens_test.dart', action_tokens_test.main);
+  group('tokens/bulletin_tokens_test.dart', bulletin_tokens_test.main);
   group('tokens/composer_tokens_test.dart', composer_tokens_test.main);
   group(
     'tokens/glass_material_tokens_test.dart',

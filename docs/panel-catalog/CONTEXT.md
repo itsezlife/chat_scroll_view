@@ -97,8 +97,16 @@ Reserved stand-in for a unicode leaf whose glyph is not baked yet (solid circle 
 _Avoid_: Using circle for animated or sticker leaves, moving gradient wash, sticker-shaped shimmer for unicode cells, treating the circle as a failure state
 
 **Thumb-first placeholder**:
-Loading stand-in for document-backed animated/custom emoji: static/SVG thumb via the image pipeline until media is ready.
-_Avoid_: Circle placeholder for animated leaves when a thumb exists
+Loading stand-in for document-backed animated/custom emoji and GIFs: the quiet rounded rect (never a circle), then the blurred mini-thumbnail ([Content and Assets glossary](../content/CONTEXT.md): Mini-thumbnail) via the image pipeline until media is ready. The thumbnail stays opaque under the fading content and is released when the content is opaque.
+_Avoid_: Circle placeholder for animated leaves when a thumb exists, fading the thumbnail out while the content fades in
+
+**Loading GIF**:
+A GIF leaf (`SemanticKind.gif`) with no content drawn yet shows the radial progress ([Content and Assets glossary](../content/CONTEXT.md): Radial progress, disc radius 12 as in the reference client's panel GIF cell) over its stand-in, and it fades out with the content. The arc turns with the frame time of the viewport's paint pass, which asks for frames only while one shows and not while playback is paused.
+_Avoid_: A controller per cell, a progress indicator on a sticker or an emoji
+
+**GIF cover**:
+A GIF leaf fills its content box and is cut at the edge ([Content and Assets glossary](../content/CONTEXT.md): Asset fit), the sprite and its thumbnail alike (`CatalogLeaf.contentFit`). The crop is a source rectangle chosen inside the sprite, so a cropped GIF is still one entry of its page's single batched atlas draw. A sticker is shown whole.
+_Avoid_: A clip rect or a second draw per cropped cell
 
 **Shaped loading wash**:
 Loading stand-in for sticker leaves: sticker SVG silhouette with a moving gradient.
@@ -142,6 +150,10 @@ _Avoid_: Freezing hover in the host, a scroll lock the host removes on its own
 The global rectangle of a cell (`PanelCatalogController.leafBoundsOf(hit)`) and of the viewport (`viewportBounds`), so a host can place a surface it opens over a cell without knowing the grid's geometry.
 _Avoid_: The host recomputing grid geometry
 
+**Overscroll sink**:
+The host's receiver for the part of a user drag the viewport cannot scroll past its top edge (`overscrollSink`), so something that moves around the grid (a sheet) can take it. At the top every tick goes to it first in both directions; away from it only the part past the top. A receiver that still holds part of a drag settles the release and no content fling starts. Drags only: never the wheel, a fling or programmatic motion.
+_Avoid_: A host gesture detector competing with the grid, a sheet that guesses what the grid consumed
+
 **Catalog snapshot**:
 The immutable list of sections the viewport renders, published through a `ValueListenable` (`package:listen`) and replaced once per logical mutation, the final snapshot assigned once.
 _Avoid_: Catalog data source with listener channels, streams as the integration contract, fetch inside the viewport
@@ -178,6 +190,10 @@ _Avoid_: A semantic node for every leaf, page-level semantics only, asking the g
 The one leaf cell that holds keyboard focus, owned by the attached viewport and driven through the controller (`focusLeaf`, `moveFocus`, `activateFocusedLeaf`, `clearFocus`). Arrow moves are physical, next and previous follow reading order; a vertical move keeps the screen column across sections; the focused cell scrolls into view and is painted with the focus highlight; activating reports the hit a tap would. Focus ends with the viewport and with the cell.
 _Avoid_: A focus node per leaf, a focus the host mirrors in its own state, key bindings inside the viewport (a page maps keys to moves)
 
+**Scroll keys**:
+The chat's keyboard scrolling on the catalogue (`ViewportScrollKeys`): with no cell in roving focus the up and down arrows step a line and Home and End go to the start and the end; the page keys step most of the viewport whether or not a cell is focused. A page binds them with roving focus, which wins while a cell has it. On a desktop the catalogue under the mouse has the scroll keys whoever holds the focus: its keys are the pointer viewport of the surface's scroll router ([ADR 012](../adr/012-cross-platform-selection-policies.md), desktop key routing), and a focused field keeps only those it edits with. A press on it gives it the focus without a focused cell, never from a text field.
+_Avoid_: A copy of the chat's key map, entering roving focus on a click, taking the composer's focus on hover
+
 **Focus highlight**:
 The press-highlight wash on the full cell of the focused leaf, at full alpha and under the content (a baked sprite is flushed after it). It follows the press highlight token unless the theme names a focus token.
 _Avoid_: A new colour scale, a highlight drawn over the sprite
@@ -213,7 +229,7 @@ The host names the glyphs on screen and the bake composes their page first, then
 _Avoid_: Reordering cells to put the visible band first (a persisted page must still match its glyphs), partial pages drawn before they are complete
 
 **Baked glyph (sprite)**:
-One glyph rasterised once at the baked cell size and addressed as a page plus a source rectangle. The viewport draws the sprites of one atlas page in one batched atlas draw. A paintable without a sprite paints itself.
+One glyph rasterised once at the baked cell size and addressed as a page plus a source rectangle. The viewport draws the sprites of one page image in one batched atlas draw, grouped by the image and not by page number (a glyph page and an animation frame page can share a number). A paintable without a sprite paints itself. An animated paintable's sprite is its current frame: the viewport advances it (`advancePlayback`) before reading the sprite, fits it by contain into the leaf's box, and fades it in over the placeholder like any content that was not there at attach.
 _Avoid_: Glyph drawn as text at scroll time on baking platforms, one image draw per leaf, a second paint path for emoji beside the shared paintable contract
 
 **Glyph cache key**:

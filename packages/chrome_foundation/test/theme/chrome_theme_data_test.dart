@@ -16,6 +16,7 @@ void main() {
       expect(data.selectionMenu, SelectionMenuTokens.fromPalette(palette));
       expect(data.pointerMenu, PointerMenuTokens.fromPalette(palette));
       expect(data.spoiler, SpoilerTokens.fromPalette(palette));
+      expect(data.bulletin, BulletinTokens.fromPalette(palette));
     });
 
     test('an override replaces only its group', () {
@@ -49,6 +50,15 @@ void main() {
       expect(next.selectionMenu, menu);
       expect(next.spoiler, spoiler);
       expect(next.composer, base.composer);
+    });
+
+    test('replaces the bulletin group', () {
+      final base = ChromeThemeData.fromPalette(const ChromePalette.light());
+      final bulletin = base.bulletin.copyWith(accent: const Color(0xFF070809));
+      final next = base.copyWith(bulletin: bulletin);
+      expect(next.bulletin, bulletin);
+      expect(next, isNot(base));
+      expect(next.copyWith(bulletin: base.bulletin), base);
     });
 
     test('replacing the palette does not re-derive the groups', () {

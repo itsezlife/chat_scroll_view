@@ -17,6 +17,8 @@ dependencies:
     sdk: flutter
   listen: ^1.0.1
   meta: ^1.17.0
+  viewport_scroll:
+    path: ../viewport_scroll
   # Only lib/testing.dart needs this: its contract suite
   # (runCatalogScrollPositionContract) is written with the test framework, and a
   # library cannot import a dev dependency. Production entry points never

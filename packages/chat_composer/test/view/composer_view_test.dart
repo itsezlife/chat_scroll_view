@@ -1,5 +1,6 @@
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_composer/src/view/composer_button.dart';
+import 'package:chat_composer/src/view/composer_field.dart';
 import 'package:chat_composer/src/view/composer_header_strip.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
@@ -126,12 +127,14 @@ void main() {
           ),
         ),
       );
-      final disc = tester.widgetList<Container>(
-        find.descendant(
-          of: find.byType(ComposerButton),
-          matching: find.byType(Container),
-        ),
-      ).single;
+      final disc = tester
+          .widgetList<Container>(
+            find.descendant(
+              of: find.byType(ComposerButton),
+              matching: find.byType(Container),
+            ),
+          )
+          .single;
       expect(tester.getSize(find.byWidget(disc)), const Size(36, 36));
       expect((disc.decoration! as BoxDecoration).color, fill);
     });
@@ -155,7 +158,8 @@ void main() {
           textDirection: direction,
         ),
       );
-      final field = tester.getRect(find.byType(ExtendedTextField));
+      // The text, not the field: the inset is the field's own padding.
+      final field = tester.getRect(find.byType(ExtendedEditableText));
       final island = tester.getRect(find.byType(GlassSurface));
       return direction == TextDirection.ltr
           ? field.left - island.left
@@ -755,6 +759,118 @@ void main() {
       expect(seen.length, greaterThan(2));
       expect(seen, [...seen]..sort());
       expect(controller.extent.value, idle + ComposerMetrics.headerHeight);
+    });
+  });
+
+  group('field hit area', () {
+    // The field's slot in the row: between the actions, the island's height
+    // at least. A tap anywhere in it focuses the field, its padding included.
+    Rect slot(WidgetTester tester) =>
+        tester.getRect(find.byType(ComposerField));
+
+    // Taking the padding into the field moves no text: the text and the hint
+    // sit where the padding around the field put them, on every platform (a
+    // desktop's compact density included).
+    for (final inset in [0.0, 12.0]) {
+      testWidgets(
+        'the text and the hint sit at the field pads, start inset $inset',
+        (tester) async {
+          await tester.pumpWidget(
+            composerHarness(
+              ComposerView(
+                controller: controller,
+                spec: ComposerSpec(),
+                autofocus: false,
+                fieldStartInset: inset,
+              ),
+            ),
+          );
+          final island = tester.getRect(find.byType(GlassSurface));
+          final hint = ChromeStringsPresets.english.composer.messageHint;
+          // The row's 2 px side pad, then the start inset; the top pad.
+          final expected = Offset(2 + inset, ComposerMetrics.fieldTopPad);
+
+          expect(
+            tester.getTopLeft(find.byType(ExtendedEditableText)) -
+                island.topLeft,
+            expected,
+          );
+          expect(tester.getTopLeft(find.text(hint)) - island.topLeft, expected);
+        },
+        variant: TargetPlatformVariant.all(),
+      );
+    }
+
+    Future<void> expectFocusesAt(WidgetTester tester, Offset at) async {
+      controller.unfocus();
+      await tester.pump();
+      expect(controller.hasFocus, isFalse);
+
+      await tester.tapAt(at);
+      await tester.pump();
+
+      expect(controller.hasFocus, isTrue, reason: 'a tap at $at');
+    }
+
+    for (final direction in TextDirection.values) {
+      testWidgets('a tap at any edge or corner of the slot focuses the field '
+          '(${direction.name})', (tester) async {
+        await tester.pumpWidget(
+          composerHarness(
+            ComposerView(
+              controller: controller,
+              spec: ComposerSpec(
+                actions: [
+                  ActionDescriptor(
+                    id: 'attach',
+                    placement: ActionPlacement.leading,
+                    icon: ChromeIconId.attach,
+                    semanticLabel: 'Attach',
+                    onTap: () {},
+                  ),
+                  ActionDescriptor(
+                    id: 'send',
+                    placement: ActionPlacement.trailing,
+                    icon: ChromeIconId.send,
+                    semanticLabel: 'Send',
+                    onTap: () {},
+                  ),
+                ],
+              ),
+              autofocus: false,
+            ),
+            textDirection: direction,
+          ),
+        );
+        final box = slot(tester).deflate(1);
+        for (final at in [
+          box.topLeft,
+          box.topCenter,
+          box.topRight,
+          box.centerLeft,
+          box.centerRight,
+          box.bottomLeft,
+          box.bottomCenter,
+          box.bottomRight,
+        ]) {
+          await expectFocusesAt(tester, at);
+        }
+      });
+    }
+
+    testWidgets('a tap in the start inset focuses the field', (tester) async {
+      await tester.pumpWidget(
+        composerHarness(
+          ComposerView(
+            controller: controller,
+            spec: ComposerSpec(),
+            autofocus: false,
+            fieldStartInset: 12,
+          ),
+        ),
+      );
+      final box = slot(tester);
+      await expectFocusesAt(tester, Offset(box.left + 3, box.center.dy));
     });
   });
 
