@@ -1,0 +1,28 @@
+name: video_native
+description: >
+  Native video decoding (FFmpeg and libvpx behind a flat C ABI): the binding
+  interface (open, next frame into page memory, rewind, dispose), a fake and a
+  contract suite in testing.dart, the native binding, and the build hook that
+  compiles the wrapper and bundles the FFmpeg libraries (macOS arm64). A
+  leaf: it depends on no workspace package.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  # code_assets and hooks are for hook/build.dart: hook dependencies go under
+  # dependencies, not dev_dependencies.
+  code_assets: ^1.0.0
+  ffi: ^2.1.0
+  hooks: ^1.0.0
+  # Only lib/testing.dart needs this: the contract suite is written with the
+  # test framework, and a library cannot import a dev dependency (the same
+  # arrangement as lottie_native). Production entry points never import it.
+  flutter_test:
+    sdk: flutter
+  meta: ^1.17.0

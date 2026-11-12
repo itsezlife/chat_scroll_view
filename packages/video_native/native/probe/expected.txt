@@ -1,0 +1,7 @@
+# Expected probe results, written before the first build.
+# file | args | expectations
+h264_320x240_30fps_2s.mp4  320 240        frames=60 fps=30/1 alpha=0 decoder=h264
+vp9_alpha_512x512_30fps_1s.webm 512 512   frames=30 alpha=1 decoder=libvpx-vp9 frame0_alpha_min=0 frame0_alpha_max=255
+vp9_alpha_512x512_30fps_1s.webm 512 512 --native  alpha=0 (negative: native vp9 drops alpha)
+gif_64x48_10fps_1s.gif     64 48          frames=10 alpha=0 decoder=gif
+license=LGPL version 2.1 or later
