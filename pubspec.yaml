@@ -15,9 +15,12 @@ workspace:
   - packages/content_model
   - packages/emoji_catalog_pack
   - packages/emoji_data
+  - packages/frame_texture
   - packages/golden_baseline
   - packages/image_decoder
   - packages/kv_shared_preferences
+  - packages/lottie_decoder
+  - packages/lottie_native
   - packages/panel_catalog
   - packages/panel_pages
   - packages/panel_presentation
@@ -34,8 +37,9 @@ environment:
   flutter: 3.41.7
 
 dependencies:
-  # The embed adapter (catalog_assets) and the emoji-only body's input
-  # (content_model); ADR 020. Neither depends on this package.
+  # The embed adapter (catalog_assets), the emoji-only body's input
+  # (content_model) and the scroll physics and keys the panel catalogue
+  # shares (viewport_scroll); ADR 020. None depends on this package.
   catalog_assets:
     path: packages/catalog_assets
   content_model:

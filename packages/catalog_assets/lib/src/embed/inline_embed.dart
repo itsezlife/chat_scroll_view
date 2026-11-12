@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:catalog_assets/src/asset/asset_playback.dart';
+import 'package:flutter/rendering.dart' show PaintingContext;
 import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
 
@@ -78,8 +79,8 @@ final class InlineEmbedMetrics {
   final double fontSize;
 
   /// Distance from the baseline up to the top of the line, logical pixels,
-  /// positive. With [descent] it sizes an embed the way the reference
-  /// client sizes an inline custom emoji (`AssetPresets.inlineMessage`).
+  /// positive. With [descent] it sizes an embed the way an inline custom emoji
+  /// is sized (`AssetPresets.inlineMessage`).
   final double ascent;
 
   /// Distance from the baseline down to the bottom of the line, logical
@@ -178,4 +179,38 @@ abstract interface class PlayableEmbed implements InlineEmbed {
 
   /// Plays another pass and says whether it started.
   bool replay();
+}
+
+/// An [InlineEmbed] that a body which pushes layers can composite: while its
+/// picture plays, its frames may be on a platform texture (ADR 043), shown as
+/// a texture layer instead of painted on the canvas.
+///
+/// A body asks for this capability (`embed is CompositingEmbed`) and treats
+/// an embed that is not as canvas-only. It needs compositing while any of its
+/// embeds [needsCompositing], and then calls [composite] in place of `paint`
+/// with its own `PaintingContext`. A body that has only a canvas (one an
+/// engine paints) keeps calling `paint`: the embed is then drawn on the
+/// canvas and its asset keeps its page slots. The signal of the [Listenable]
+/// also covers a change of [needsCompositing].
+///
+/// ## Contract
+///
+/// - [needsCompositing] is true while the embed plays, and false before it
+///   has anything animated and after `dispose`.
+/// - [composite] advances what plays and, when the frame is on a texture,
+///   adds one texture layer about the rectangle and draws nothing on the
+///   canvas; otherwise it paints on `context.canvas` as `paint` would. A body
+///   reads `context.canvas` again after the call, since a layer added starts
+///   a new picture. It adds nothing after `dispose`.
+abstract interface class CompositingEmbed implements InlineEmbed {
+  /// Whether the embed may come as a texture layer, so its body composites.
+  bool get needsCompositing;
+
+  /// Shows the embed in [rect] of [context] (in the context's coordinates),
+  /// as a texture layer or on its canvas, painted as [paint] says.
+  void composite(
+    PaintingContext context,
+    Rect rect,
+    InlineEmbedPaintContext paint,
+  );
 }

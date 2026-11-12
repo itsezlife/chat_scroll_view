@@ -4,7 +4,8 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-/// One decoded frame, painted centred in a rectangle.
+/// One decoded frame, placed in a rectangle as the surface's
+/// `AssetPaintContext.fit` says (centred whole, or centred and filling).
 ///
 /// A template image keeps only its alpha: the context's tint fills it. Without
 /// a tint it keeps its own colours, as `AssetPaintContext.tint` says.
@@ -16,26 +17,23 @@ abstract final class _ImagePainter {
     AssetPaintContext context, {
     required bool template,
   }) {
-    final source = Size(image.width.toDouble(), image.height.toDouble());
-    final fitted = applyBoxFit(BoxFit.contain, source, rect.size);
+    final placed = context.fit.place(
+      Size(image.width.toDouble(), image.height.toDouble()),
+      rect,
+    );
     final paint = Paint()
       ..filterQuality = FilterQuality.medium
       ..color = Color.fromRGBO(0, 0, 0, context.opacity);
     if (context.tint case final tint? when template) {
       paint.colorFilter = ColorFilter.mode(tint, BlendMode.srcIn);
     }
-    canvas.drawImageRect(
-      image,
-      Alignment.center.inscribe(fitted.source, Offset.zero & source),
-      Alignment.center.inscribe(fitted.destination, rect),
-      paint,
-    );
+    canvas.drawImageRect(image, placed.source, placed.destination, paint);
   }
 }
 
 /// A decoded still, or the first frame of an animation where only that is
 /// wanted.
-final class StillImagePaintable implements AssetPaintable {
+final class StillImagePaintable extends AssetPaintable {
   /// Paints [image], which it owns from now on.
   StillImagePaintable(this._image, {required bool template})
     : _template = template;
@@ -113,7 +111,7 @@ final class StillImagePaintable implements AssetPaintable {
 /// [FlutterError.reportError] and the image stops on the frame it shows: the
 /// entry already reached its final stage, and a frozen frame is the closest
 /// to the rule that a failure is never painted.
-final class PlayingImagePaintable implements AssetPaintable {
+final class PlayingImagePaintable extends AssetPaintable {
   /// Plays [codec], whose frame [first] was just decoded. Owns both from now
   /// on.
   PlayingImagePaintable(
@@ -121,8 +119,11 @@ final class PlayingImagePaintable implements AssetPaintable {
     ui.FrameInfo first, {
     required bool template,
   }) : _shown = first.image,
+       _first = StillImagePaintable(first.image.clone(), template: template),
        _shownFor = _durationOf(first),
-       _template = template;
+       _firstFor = _durationOf(first),
+       _template = template,
+       _frameCount = _codec.frameCount;
 
   /// The shortest time a frame is shown; see the class documentation.
   static const Duration _shortestFrame = Duration(milliseconds: 10);
@@ -131,11 +132,23 @@ final class PlayingImagePaintable implements AssetPaintable {
   static const Duration _defaultFrame = Duration(milliseconds: 100);
 
   final ui.Codec _codec;
+  final int _frameCount;
+  // The index of the frame the codec decodes next: it wraps after the last.
+  int _codecAt = 1;
+  final Duration _firstFor;
   final bool _template;
   ui.Image _shown;
+  // A second reference to the first frame's pixels, kept for [firstFrame]
+  // after the playback moved on: one frame more than playing needs.
+  final StillImagePaintable _first;
   // Null until the first paint that animates, so the first frame lasts its
   // full duration from the moment it plays.
   Duration? _shownSince;
+  // The clock time of the last paint that animated, and how long the frame
+  // on show had been up at it when playback stopped: it counts toward the
+  // frame's duration when playback goes on.
+  Duration? _playedAt;
+  Duration _shownBefore = Duration.zero;
   Duration _shownFor;
   ui.FrameInfo? _ahead;
   bool _decoding = false;
@@ -156,11 +169,31 @@ final class PlayingImagePaintable implements AssetPaintable {
   @override
   bool get isHolding => _holding;
 
+  /// The first frame, kept as a still for a sibling binding that borrows
+  /// this entry: it never shows the frame the loop is at.
+  @override
+  AssetPaintable get firstFrame => _first;
+
   @override
   bool restart() {
     if (!_holding) return false;
     _resume();
     return true;
+  }
+
+  /// The frame on show lasts the rest of its duration from the next paint:
+  /// the time the clock ran while nothing played this image is not counted,
+  /// and the time it was up before is. So a surface that stopped playing it
+  /// (a cell scrolled off, a held panel) goes on as if it had not stopped.
+  @override
+  void playbackResumed() {
+    if ((_shownSince, _playedAt) case (
+      final since?,
+      final at?,
+    ) when at >= since) {
+      _shownBefore = at - since;
+    }
+    _shownSince = null;
   }
 
   // Plays another pass: from the held first frame, or from the first frame
@@ -177,6 +210,28 @@ final class PlayingImagePaintable implements AssetPaintable {
       _index = 0;
     }
     _shownSince = null;
+    _shownBefore = Duration.zero;
+    _decodeAhead();
+  }
+
+  /// Shows the first frame at once and plays on from it.
+  ///
+  /// The codec decodes forward only: the frames between where it is and the
+  /// second frame are decoded and dropped, and until the second frame lands
+  /// the first stays up, as a late decode keeps any frame up.
+  @override
+  void rewind() {
+    if (_disposed) return;
+    _holding = false;
+    _heldOnLast = false;
+    _ahead?.image.dispose();
+    _ahead = null;
+    _shown.dispose();
+    _shown = _first._image.clone();
+    _shownFor = _firstFor;
+    _index = 0;
+    _shownSince = null;
+    _shownBefore = Duration.zero;
     _decodeAhead();
   }
 
@@ -191,13 +246,15 @@ final class PlayingImagePaintable implements AssetPaintable {
       if (!context.loop) return;
       _resume();
     }
-    final now = context.time;
+    final now = _playedAt = context.time;
     // A clock started again is behind the time the frame went up at: the
     // frame counts from now, rather than freezing until the clock catches up.
+    // After a stop it counts from now less the time it was up before.
     final since = _shownSince = switch (_shownSince) {
       final since? when now >= since => since,
-      _ => now,
+      _ => now - _shownBefore,
     };
+    _shownBefore = Duration.zero;
     final ahead = _ahead;
     if (ahead != null && now - since >= _shownFor) {
       final passOver = _index == _codec.frameCount - 1;
@@ -233,11 +290,17 @@ final class PlayingImagePaintable implements AssetPaintable {
       return;
     }
     _decoding = true;
+    final decoded = _codecAt;
+    _codecAt = (decoded + 1) % _frameCount;
     _codec.getNextFrame().then(
       (frame) {
         _decoding = false;
         if (_disposed) {
           frame.image.dispose();
+        } else if (decoded != (_index + 1) % _frameCount) {
+          // Decoded before a rewind: not the frame after the one shown.
+          frame.image.dispose();
+          _decodeAhead();
         } else {
           _ahead = frame;
         }
@@ -268,6 +331,7 @@ final class PlayingImagePaintable implements AssetPaintable {
     if (_disposed) return;
     _disposed = true;
     _shown.dispose();
+    _first.dispose();
     _ahead?.image.dispose();
     _ahead = null;
     _codec.dispose();

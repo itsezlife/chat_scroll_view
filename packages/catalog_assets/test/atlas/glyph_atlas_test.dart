@@ -17,6 +17,8 @@ void main() {
   late ManualBakeClock clock;
   late ValueNotifier<bool> visible;
   late ValueNotifier<bool> opening;
+  late ValueNotifier<bool> hostScrolling;
+  late ValueNotifier<bool> shown;
 
   setUp(() {
     rasteriser = FakeGlyphRasteriser();
@@ -25,10 +27,14 @@ void main() {
     clock = ManualBakeClock();
     visible = ValueNotifier<bool>(true);
     opening = ValueNotifier<bool>(false);
+    hostScrolling = ValueNotifier<bool>(false);
+    shown = ValueNotifier<bool>(true);
   });
   tearDown(() async {
     visible.dispose();
     opening.dispose();
+    hostScrolling.dispose();
+    shown.dispose();
     await store.clear();
   });
 
@@ -46,6 +52,8 @@ void main() {
       clock: clock.read,
       panelVisible: visible,
       panelOpening: opening,
+      scrolling: hostScrolling,
+      glyphsShown: shown,
       residency: residency,
       predecessor: predecessor,
     );
@@ -212,12 +220,88 @@ void main() {
       expect(frames.hasPendingRequest, isTrue);
     });
 
+    test('the host\'s scrolling signal pauses baking until it settles', () {
+      final atlas = build(_glyphs(2))..start();
+      expect(frames.hasPendingRequest, isTrue);
+
+      hostScrolling.value = true;
+      expect(frames.hasPendingRequest, isFalse);
+
+      final surface = Object();
+      atlas.reportScrolling(reporter: surface, scrolling: true);
+      hostScrolling.value = false;
+      expect(
+        frames.hasPendingRequest,
+        isFalse,
+        reason: 'a reporting surface still moves',
+      );
+
+      atlas.reportScrolling(reporter: surface, scrolling: false);
+      expect(frames.hasPendingRequest, isTrue);
+    });
+
+    test('the host\'s scrolling signal already set at creation holds the '
+        'bake from its start', () {
+      hostScrolling.value = true;
+      build(_glyphs(2)).start();
+
+      expect(frames.hasPendingRequest, isFalse);
+
+      hostScrolling.value = false;
+      expect(frames.hasPendingRequest, isTrue);
+    });
+
+    test('no glyph surface shown holds the bake, and keeps the panel\'s '
+        'pages resident', () async {
+      final atlas = build(_glyphs(_perPage + 1))..start();
+      for (var i = 0; i < 400 && atlas.spriteOf('g0') == null; i++) {
+        await frame();
+      }
+      expect(atlas.spriteOf('g0'), isNotNull);
+
+      shown.value = false;
+      final painted = rasteriser.painted.length;
+      expect(frames.hasPendingRequest, isFalse);
+      await frame();
+      expect(rasteriser.painted, hasLength(painted));
+      expect(
+        atlas.spriteOf('g0'),
+        isNotNull,
+        reason: 'the open panel still holds its pages',
+      );
+
+      shown.value = true;
+      await bakeAll();
+      expect(atlas.spriteOf('g$_perPage'), isNotNull);
+    });
+
+    test('a request\'s pacing sets how many glyphs one step bakes', () async {
+      final atlas = GlyphAtlasRequest(
+        index: GlyphAtlasIndex(_glyphs(20)),
+        rasteriser: rasteriser,
+        store: store,
+        frames: frames,
+        clock: clock.read,
+        panelVisible: visible,
+        panelOpening: opening,
+        pacing: const BakePacing(maxGlyphsPerFrame: 3),
+      ).build();
+      addTearDown(atlas.dispose);
+      atlas.start();
+
+      while (rasteriser.painted.isEmpty && frames.hasPendingRequest) {
+        await frame();
+      }
+
+      expect(rasteriser.painted, hasLength(3));
+    });
+
     test('the page of the prioritised glyphs bakes first', () async {
       final atlas = build(_glyphs(_perPage + 1))..start();
       atlas.prioritise(['g$_perPage']);
 
       // Settling frames, then strips, then the page: a bounded number.
-      for (var i = 0; i < 60 && atlas.spriteOf('g$_perPage') == null; i++) {
+      for (var i = 0; i < 120 && atlas.spriteOf('g$_perPage') == null; i++) {
         await frame();
       }
 
@@ -266,6 +350,19 @@ void main() {
       expect(atlas.spriteOf('g0'), isNull);
       expect(seen, isEmpty);
       expect(gated.handedOut.single.debugDisposed, isTrue);
+    });
+
+    test('the host\'s signals start nothing after dispose', () {
+      hostScrolling.value = true;
+      build(_glyphs(2))
+        ..start()
+        ..dispose();
+
+      hostScrolling.value = false;
+      shown.value = false;
+      shown.value = true;
+
+      expect(frames.hasPendingRequest, isFalse);
     });
 
     test('dispose is idempotent and the pause notifiers survive it', () {

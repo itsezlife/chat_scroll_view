@@ -15,8 +15,7 @@
 // what it downloads.
 //
 // Internationalised domains (`xn--...`) are left out on purpose: the detector
-// accepts every punycode top-level domain by shape, as Telegram Android does,
-// so listing them would only be a second source of truth that goes stale.
+// accepts every punycode top-level domain by shape, so listing them would only be a second source of truth that goes stale.
 import 'dart:convert';
 import 'dart:io';
 

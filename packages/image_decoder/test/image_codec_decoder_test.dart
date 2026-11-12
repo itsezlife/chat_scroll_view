@@ -73,6 +73,9 @@ final class _Progress implements AssetProgress {
   }
 
   @override
+  void download(double fraction) {}
+
+  @override
   void cancelled() {}
 }
 
@@ -98,6 +101,9 @@ final class _ThrowingProgress implements AssetProgress {
     StackTrace? stackTrace,
     AssetFailureKind kind = AssetFailureKind.transient,
   ]) => failures.add(error);
+
+  @override
+  void download(double fraction) {}
 
   @override
   void cancelled() {}
@@ -177,9 +183,9 @@ void main() {
       expect(advance.stage, AssetStage.full);
       expect(advance.tier, AssetTier.animated);
       expect(advance.paintable.isAnimated, isTrue);
-      // The frame shown and the one decoded ahead, at 16 x 16, and the
-      // encoded data the codec keeps to decode them from.
-      expect(advance.bytes, 2 * 16 * 16 * 4 + _threeFrames.length);
+      // The frame shown, the one decoded ahead and the first frame kept as
+      // a still, at 16 x 16, and the encoded data the codec decodes from.
+      expect(advance.bytes, 3 * 16 * 16 * 4 + _threeFrames.length);
       advance.paintable.dispose();
     });
 
@@ -281,6 +287,22 @@ void main() {
 
     tearDown(() => paintable.dispose());
 
+    // Ticket 100: an emoji borrowed by a sibling binding shows its first
+    // frame, never the frame the loop is at.
+    test('lends its first frame as a still, mid-loop too', () async {
+      const start = Duration(seconds: 1);
+      await _settledAt(paintable, start);
+      expect(
+        await _settledAt(paintable, start + const Duration(milliseconds: 40)),
+        _blue,
+      );
+
+      final lent = paintable.firstFrame!;
+
+      expect(lent.isAnimated, isFalse);
+      expect(await _settledAt(lent, start), _red);
+    });
+
     test('shows each frame for its own duration', () async {
       // The clock is at 1 s when the image is first seen.
       const start = Duration(seconds: 1);
@@ -332,6 +354,41 @@ void main() {
         );
       },
     );
+
+    // Ticket 148: a cell scrolled off for a while and back goes on from the
+    // frame it left on, for what was left of that frame's time, not its
+    // whole duration again.
+    test('back after a stop, the frame on show lasts only the rest of its '
+        'time', () async {
+      const start = Duration(seconds: 1);
+      expect(await _settledAt(paintable, start), _red);
+      // Red has been up 30 of its 40 ms when no surface plays it any more.
+      expect(
+        await _settledAt(paintable, start + const Duration(milliseconds: 30)),
+        _red,
+      );
+
+      const back = Duration(milliseconds: 1330);
+      paintable.playbackResumed();
+      expect(await _settledAt(paintable, back), _red);
+      expect(
+        await _settledAt(paintable, back + const Duration(milliseconds: 9)),
+        _red,
+      );
+      expect(
+        await _settledAt(paintable, back + const Duration(milliseconds: 10)),
+        _blue,
+      );
+      // Blue then lasts its whole 60 ms.
+      expect(
+        await _settledAt(paintable, back + const Duration(milliseconds: 69)),
+        _blue,
+      );
+      expect(
+        await _settledAt(paintable, back + const Duration(milliseconds: 70)),
+        _green,
+      );
+    });
 
     test('a surface that does not animate neither steps it nor starts its '
         'first frame, sharing it with one that plays', () async {

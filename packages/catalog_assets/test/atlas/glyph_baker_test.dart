@@ -77,6 +77,18 @@ void main() {
     },
   );
 
+  for (final perFrame in [7, 60]) {
+    test('strips of $perFrame that cross page rows put every glyph in its '
+        'own cell', () async {
+      // 26 cells to a row: a strip of 7 wraps mid-strip, one of 60 spans
+      // three rows.
+      final glyphs = _glyphs(130);
+      final baker = await bake(glyphs, perFrame: perFrame);
+
+      await expectSpritesHoldTheirGlyphs(baker, glyphs);
+    });
+  }
+
   test('a catalogue of exactly one page needs exactly one page', () async {
     const layout = GlyphAtlasLayout();
     final glyphs = _glyphs(layout.cellsPerPage);

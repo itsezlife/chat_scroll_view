@@ -28,8 +28,7 @@ import 'package:image_decoder/src/image_paintable.dart';
 /// frame's pixels for as long as the entry lives: a 100 px emoji of 90 frames
 /// is 3.6 MB that way and about 80 KB this way, and a screenful of them would
 /// not fit the animated budget. The price is a decode per shown frame, which
-/// the engine does off the UI thread, as the reference clients do for
-/// animated WebP and GIF. The codec keeps the encoded data to decode from, so
+/// the engine does off the UI thread, for animated WebP and GIF. The codec keeps the encoded data to decode from, so
 /// a playing image is counted as its two frames plus that data (about 110 KB
 /// for such an emoji).
 ///
@@ -129,10 +128,11 @@ final class _DecodeTask implements AssetTask {
       _progress.advance(
         stage,
         PlayingImagePaintable(codec, first, template: template),
-        // The frame shown, the one decoded ahead and the encoded data the
-        // codec keeps to decode the next from. Whatever else the engine's
-        // codec holds (a frame kept for blending) is not visible here.
-        bytes: frameBytes * 2 + encodedBytes,
+        // The frame shown, the one decoded ahead, the first frame kept as a
+        // still (`firstFrame`) and the encoded data the codec keeps to decode
+        // the next from. Whatever else the engine's codec holds (a frame kept
+        // for blending) is not visible here.
+        bytes: frameBytes * 3 + encodedBytes,
         tier: AssetTier.animated,
       );
       return;

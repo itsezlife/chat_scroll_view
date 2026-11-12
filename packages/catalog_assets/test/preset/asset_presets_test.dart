@@ -31,6 +31,94 @@ void main() {
     });
   });
 
+  group('keyboard cell playback', () {
+    test('a playing cell of up to 90 logical px plays at half rate and '
+        'decodes at most 160 px', () {
+      final cell = AssetPresets.keyboardCell(extent: 66, devicePixelRatio: 3);
+
+      expect(cell.size, const Size(66, 66));
+      expect(cell.spec.pixelWidth, 160);
+      expect(cell.spec.pixelHeight, 160);
+      expect(cell.profile.halfFrameRate, isTrue);
+    });
+
+    test('a small cell under the cap keeps its pixels', () {
+      final cell = AssetPresets.keyboardCell(extent: 34, devicePixelRatio: 3);
+
+      expect(cell.spec.pixelWidth, 102);
+      expect(cell.profile.halfFrameRate, isTrue);
+    });
+
+    test('a cell of 90 logical px is still small, one above it is not', () {
+      final edge = AssetPresets.keyboardCell(extent: 90, devicePixelRatio: 2);
+      final above = AssetPresets.keyboardCell(extent: 91, devicePixelRatio: 2);
+
+      expect(edge.spec.pixelWidth, 160);
+      expect(edge.profile.halfFrameRate, isTrue);
+      expect(above.spec.pixelWidth, 182);
+      expect(above.profile.halfFrameRate, isFalse);
+    });
+
+    test('a still cell keeps its full pixels and rate', () {
+      final still = AssetPresets.keyboardCell(
+        extent: 66,
+        devicePixelRatio: 3,
+        animate: false,
+      );
+
+      expect(still.spec.pixelWidth, 198);
+      expect(still.profile.halfFrameRate, isFalse);
+    });
+
+    test('takes a decode mode and a fit', () {
+      final cell = AssetPresets.keyboardCell(
+        extent: 40,
+        devicePixelRatio: 2,
+        decodeMode: AssetDecodeMode.template,
+        fit: AssetFit.cover,
+      );
+
+      expect(cell.spec.decodeMode, AssetDecodeMode.template);
+      expect(cell.profile.fit, AssetFit.cover);
+    });
+
+    test('the chat presets play every frame at full pixels', () {
+      final inline = AssetPresets.inlineMessage(
+        ascent: 15,
+        descent: 4,
+        devicePixelRatio: 3,
+      );
+      final emojiOnly = AssetPresets.emojiOnly(step: 40, devicePixelRatio: 3);
+      final sticker = AssetPresets.emojiSticker(
+        extent: 60,
+        devicePixelRatio: 3,
+      );
+
+      expect(inline.profile.halfFrameRate, isFalse);
+      expect(emojiOnly.profile.halfFrameRate, isFalse);
+      expect(sticker.profile.halfFrameRate, isFalse);
+      expect(sticker.spec.pixelWidth, 180);
+    });
+  });
+
+  group('frame step', () {
+    test('half rate shows every second frame of a source above 30 fps', () {
+      const half = AssetPaintContext(halfFrameRate: true);
+
+      expect(half.frameStepFor(60), 2);
+      expect(half.frameStepFor(59.94), 2);
+      expect(half.frameStepFor(30), 1);
+      expect(half.frameStepFor(24), 1);
+      expect(half.frameStepFor(0), 1);
+    });
+
+    test('full rate shows every frame', () {
+      const full = AssetPaintContext();
+
+      expect(full.frameStepFor(60), 1);
+    });
+  });
+
   group('inline message', () {
     // Ascent 15 and descent 4 give a line of 19 logical px, so the square is
     // 1.2 * 19 = 22.8 logical px, rounded to whole device pixels.
@@ -253,6 +341,52 @@ void main() {
       );
 
       expect(playing.spec, held.spec);
+    });
+  });
+
+  group('media', () {
+    test('shows the box it is given and decodes it at the density', () {
+      final preset = AssetPresets.media(
+        size: const Size(160, 90),
+        devicePixelRatio: 2,
+        profile: const AssetProfile(animate: true),
+      );
+
+      expect(preset.size, const Size(160, 90));
+      expect(preset.spec.pixelWidth, 320);
+      expect(preset.spec.pixelHeight, 180);
+      expect(preset.profile, const AssetProfile(animate: true));
+    });
+
+    test('caps the decode at the longer side, keeping the proportion', () {
+      // A 206 dp sticker at density 3 is 618 px: decoded at 512.
+      final square = AssetPresets.media(
+        size: const Size.square(206),
+        devicePixelRatio: 3,
+        profile: const AssetProfile(),
+        maxPixelExtent: 512,
+      );
+      final wide = AssetPresets.media(
+        size: const Size(288, 162),
+        devicePixelRatio: 3,
+        profile: const AssetProfile(),
+        maxPixelExtent: 512,
+      );
+
+      expect(square.size, const Size.square(206));
+      expect((square.spec.pixelWidth, square.spec.pixelHeight), (512, 512));
+      expect((wide.spec.pixelWidth, wide.spec.pixelHeight), (512, 288));
+    });
+
+    test('a decode under the cap is not enlarged to it', () {
+      final preset = AssetPresets.media(
+        size: const Size.square(112),
+        devicePixelRatio: 3,
+        profile: const AssetProfile(),
+        maxPixelExtent: 512,
+      );
+
+      expect((preset.spec.pixelWidth, preset.spec.pixelHeight), (336, 336));
     });
   });
 

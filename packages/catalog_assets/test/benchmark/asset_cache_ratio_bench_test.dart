@@ -87,7 +87,7 @@ double _churnUsPerCycle(int distinct, {GlyphSpriteSource? glyphs}) {
 /// map hit or insert, a move to most-recent, evict oldest while over budget.
 /// It is the machine-speed yardstick, not a competitor: the cache does
 /// strictly more (pinning, staged readiness, listeners).
-double _referenceUsPerCycle(int distinct) {
+double _lruUsPerCycle(int distinct) {
   const operations = 20000;
   const budget = 24 * mebibyte;
   final lru = <int, int>{};
@@ -294,19 +294,19 @@ void main() {
   test('churn: attach, produce, detach and evict', () {
     final resident = _churnUsPerCycle(200);
     final evicting = _churnUsPerCycle(5000);
-    final referenceResident = _referenceUsPerCycle(200);
-    final referenceEvicting = _referenceUsPerCycle(5000);
+    final lruResident = _lruUsPerCycle(200);
+    final lruEvicting = _lruUsPerCycle(5000);
 
     report
-      ..ratio('churn.resident.over_reference', resident, referenceResident)
-      ..ratio('churn.evicting.over_reference', evicting, referenceEvicting)
+      ..ratio('churn.resident.over_reference', resident, lruResident)
+      ..ratio('churn.evicting.over_reference', evicting, lruEvicting)
       ..ratio('churn.evicting.over_resident', evicting, resident);
     // ignore: avoid_print
     print(
       '\nchurn per cycle: resident ${resident.toStringAsFixed(2)} us '
-      '(reference ${referenceResident.toStringAsFixed(2)}), evicting '
+      '(lru ${lruResident.toStringAsFixed(2)}), evicting '
       '${evicting.toStringAsFixed(2)} us '
-      '(reference ${referenceEvicting.toStringAsFixed(2)})',
+      '(lru ${lruEvicting.toStringAsFixed(2)})',
     );
   });
 

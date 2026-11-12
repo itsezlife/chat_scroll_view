@@ -4,6 +4,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 
 const _sticker = ContentKey.document('42');
 final _preset = AssetPresets.inlineMessage(
@@ -49,7 +50,37 @@ void main() {
 
   Canvas canvas() => Canvas(PictureRecorder());
 
+  ContentEmbed embedWith(AssetPaintable placeholder) {
+    final embed = ContentEmbed(
+      scope: scope,
+      content: _sticker,
+      preset: _preset,
+      placeholder: placeholder,
+    );
+    addTearDown(embed.dispose);
+    return embed;
+  }
+
   InlineEmbedContract.run(() => embedOf(_sticker));
+
+  // ADR 043, "Paint capability": a body that pushes layers composites the
+  // embed, so a playing asset on a texture is a texture layer.
+  CompositingEmbedContract.run(() {
+    final embed = embedOf(
+      _sticker,
+      preset: AssetPresets.square(
+        extent: 40,
+        devicePixelRatio: 2,
+        profile: const AssetProfile(animate: true),
+      ),
+    );
+    return CompositingEmbedHarness(
+      embed: embed,
+      play: () => producer.last.advance(AssetStage.full, animated: true)
+        ..textureOnAdvance = const AssetTexture(id: 7, width: 80, height: 80),
+      textureId: 7,
+    );
+  });
 
   group('attach', () {
     test('attaches the key with the preset spec on creation', () {
@@ -87,7 +118,7 @@ void main() {
       scope = AssetCacheScope(
         producer: producer,
         clock: PlaybackClock(ticks: ticks),
-        placeholder: placeholder,
+        mediaPlaceholder: placeholder,
       );
       addTearDown(scope.dispose);
       final embed = embedOf(_sticker);
@@ -96,6 +127,68 @@ void main() {
 
       expect(placeholder.paints.single.rect, _rect);
     });
+
+    test(
+      'an embed with a placeholder of its own paints that before any stage',
+      () {
+        final scopes = FakeAssetPaintable(label: 'scope');
+        final own = FakeAssetPaintable(label: 'own');
+        scope.dispose();
+        scope = AssetCacheScope(
+          producer: producer,
+          clock: PlaybackClock(ticks: ticks),
+          mediaPlaceholder: scopes,
+        );
+        addTearDown(scope.dispose);
+        final embed = embedWith(own);
+
+        embed.paint(
+          canvas(),
+          _rect,
+          const InlineEmbedPaintContext(tint: Color(0xFF123456), opacity: 0.5),
+        );
+
+        expect(scopes.paints, isEmpty);
+        expect(own.paints.single.rect, _rect);
+        expect(own.paints.single.context.tint, const Color(0xFF123456));
+        expect(own.paints.single.context.opacity, 0.5);
+      },
+    );
+
+    test('and once a thumbnail exists, paints the thumbnail instead', () {
+      final own = FakeAssetPaintable(label: 'own');
+      final embed = embedWith(own);
+      final thumbnail = producer.last.advance(AssetStage.placeholder);
+
+      embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+      expect(own.paints, isEmpty);
+      expect(thumbnail.paints.single.rect, _rect);
+    });
+
+    // Ticket 85: a GIF sent from a panel cell is decoded again at the
+    // message's size; its first paint is the cell's picture, not a rectangle.
+    // Ticket 100: a cell that plays lends its first frame, a still.
+    for (final stage in [AssetStage.firstFrame, AssetStage.full]) {
+      test('a sent asset draws the ${stage.name} its panel cell has', () {
+        final cell = scope.attach(
+          _sticker,
+          const AssetSpec(pixelWidth: 300, pixelHeight: 200),
+          const AssetProfile(animate: true, fit: AssetFit.cover),
+        );
+        final picked = producer.last.advance(stage, animated: true);
+        final own = FakeAssetPaintable(label: 'own');
+        final embed = embedWith(own);
+        cell.detach();
+
+        embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+        expect(own.paints, isEmpty);
+        expect(picked.paints, isEmpty);
+        expect(picked.firstFrame!.paints.single.rect, _rect);
+        expect(embed.needsCompositing, isFalse);
+      });
+    }
 
     test('passes the text colour and opacity as tint and opacity', () {
       final embed = embedOf(_sticker);
@@ -257,6 +350,44 @@ void main() {
       expect(heard, 1);
     });
 
+    test('holds while the host holds its surface, and plays on after', () {
+      final hold = listen.ValueNotifier<bool>(true);
+      addTearDown(hold.dispose);
+      final embed = ContentEmbed(
+        scope: scope,
+        content: _sticker,
+        preset: animated,
+        held: hold,
+      );
+      addTearDown(embed.dispose);
+      final paintable = producer.last.advance(AssetStage.full, animated: true);
+      var heard = 0;
+      embed.addListener(() => heard++);
+
+      ticks.tick(const Duration(milliseconds: 100));
+      expect(heard, 0);
+      expect(embed.visible, isTrue);
+      expect(paintable.keepsFrame, isTrue);
+
+      hold.value = false;
+      ticks.tick(const Duration(milliseconds: 200));
+      expect(heard, 1);
+      expect(paintable.keepsFrame, isFalse);
+    });
+
+    test('a disposed embed stops following the hold', () {
+      final hold = _Counted();
+      addTearDown(hold.dispose);
+      ContentEmbed(
+        scope: scope,
+        content: _sticker,
+        preset: animated,
+        held: hold,
+      ).dispose();
+
+      expect(hold.listeners, 0);
+    });
+
     test('stops while the host pauses the clock', () {
       final embed = embedOf(_sticker, preset: animated);
       producer.last.advance(AssetStage.full, animated: true);
@@ -390,4 +521,23 @@ void main() {
       expect(embed.replay(), isFalse);
     });
   });
+}
+
+// Counts its listeners, so a test sees an embed let go of it.
+final class _Counted extends listen.ValueNotifier<bool> {
+  _Counted() : super(false);
+
+  int listeners = 0;
+
+  @override
+  void addListener(listen.VoidCallback listener) {
+    listeners++;
+    super.addListener(listener);
+  }
+
+  @override
+  void removeListener(listen.VoidCallback listener) {
+    listeners--;
+    super.removeListener(listener);
+  }
 }

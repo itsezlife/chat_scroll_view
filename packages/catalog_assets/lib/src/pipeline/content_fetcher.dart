@@ -15,6 +15,12 @@ enum FetchPart {
   content,
 }
 
+/// Where a [ContentFetcher] reports the bytes of a transfer: [received] so
+/// far, of [total], or null when the source does not say how many will come.
+typedef FetchProgress = void Function(int received, int? total);
+
+void _ignoreProgress(int received, int? total) {}
+
 /// What a [ContentFetcher] is asked for.
 @immutable
 final class FetchRequest {
@@ -24,6 +30,7 @@ final class FetchRequest {
     required this.part,
     required this.priority,
     required this.cancellation,
+    this.onProgress = _ignoreProgress,
   });
 
   /// What is known about the content. For [FetchPart.thumbnail] its
@@ -39,6 +46,10 @@ final class FetchRequest {
 
   /// Cancelled when nobody wants the result any more.
   final CancellationToken cancellation;
+
+  /// Told the bytes received while the fetcher transfers the part; see the
+  /// contract of [ContentFetcher]. Ignores every call by default.
+  final FetchProgress onProgress;
 }
 
 /// What a fetch produced.
@@ -127,9 +138,37 @@ final class FetchFailure implements Exception {
 /// - When `FetchRequest.cancellation` is cancelled the fetcher stops its work
 ///   as soon as it can and settles the future: with whatever it already has,
 ///   or with a failure. It never leaves the future pending.
+/// - A fetch that transfers the bytes (a download) reports them through
+///   `FetchRequest.onProgress`: once when the transfer starts, with what has
+///   arrived (0 for a fresh one) and the total the source announced, then as
+///   bytes arrive. A part served from a cache the host keeps (memory or the
+///   disk tier) is not a transfer and is never reported, so the surfaces show
+///   no download for it. A transfer that several requests share reports to
+///   each of them. Reports are on the UI isolate, before the future settles;
+///   one transfer answered at once (a replayed recording) may report once,
+///   with everything.
 /// - It may run many fetches at once; the pipeline's caps bound how many it is
 ///   given.
+/// - [needsDownload] answers at once, from what the host knows without
+///   waiting.
 abstract interface class ContentFetcher {
   /// Gets [FetchRequest.part] of [FetchRequest.descriptor].
   Future<FetchedContent> fetch(FetchRequest request);
+
+  /// Whether the content of [key] is known to be missing: in no cache the
+  /// host keeps (memory or the disk tier), so fetching its
+  /// [FetchPart.content] downloads it, or a download of it is under way.
+  ///
+  /// The pipeline asks when an attempt starts, before it resolves the key or
+  /// fetches anything, so a surface draws the download from its first frame,
+  /// over the placeholder and the thumbnail that arrives first, also for a file
+  /// that does not exist yet (instead of
+  /// from the first byte of the content, after the thumbnail). Content held
+  /// locally is never announced, so a cached file shows no download.
+  ///
+  /// It runs on the UI isolate for every attempt and must not wait: an index
+  /// the host keeps, or a stat of the disk tier's file. A fetcher that cannot
+  /// tell answers false; the surfaces then show the download from the
+  /// transfer's first report (`FetchRequest.onProgress`).
+  bool needsDownload(ContentKey key);
 }

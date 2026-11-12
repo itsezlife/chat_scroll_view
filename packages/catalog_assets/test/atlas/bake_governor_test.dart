@@ -1,6 +1,9 @@
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+// The default pace, the most a frame ever bakes.
+final _max = const BakePacing().maxGlyphsPerFrame;
+
 // A 120 Hz display.
 const _budget = Duration(microseconds: 8333);
 
@@ -19,27 +22,32 @@ void main() {
   }
 
   test('starts at the default pace, the most it ever bakes', () {
-    expect(governor.glyphsPerFrame, 16);
-    expect(governor.glyphsPerFrame, const BakePacing().maxGlyphsPerFrame);
+    expect(governor.glyphsPerFrame, _max);
+  });
+
+  test('the default unit is eight glyphs, measured to fit a 120 Hz frame', () {
+    // One strip is one snapshot on the raster thread, which frame timings do
+    // not report, so this ceiling is the unit in practice (see BakePacing).
+    expect(const BakePacing().maxGlyphsPerFrame, 8);
   });
 
   test('cheap frames keep the pace at the maximum', () {
     observe(0.2, times: 10);
 
-    expect(governor.glyphsPerFrame, 16);
+    expect(governor.glyphsPerFrame, _max);
   });
 
   test('an expensive frame lowers the pace', () {
     observe(1.2);
 
-    expect(governor.glyphsPerFrame, lessThan(16));
+    expect(governor.glyphsPerFrame, lessThan(_max));
   });
 
   test('a frame that only just fits the budget also lowers the pace', () {
     // Anything near the budget is one slow frame away from a drop.
     observe(0.9);
 
-    expect(governor.glyphsPerFrame, lessThan(16));
+    expect(governor.glyphsPerFrame, lessThan(_max));
   });
 
   test('the pace falls quickly under sustained pressure, to one glyph', () {
@@ -70,7 +78,7 @@ void main() {
     observe(1.5);
     observe(0.2, times: 50);
 
-    expect(governor.glyphsPerFrame, 16);
+    expect(governor.glyphsPerFrame, _max);
   });
 
   test('a middling frame holds the pace', () {
@@ -91,8 +99,8 @@ void main() {
       final at60 = governor.glyphsPerFrame;
       governor.observe(cost: cost, budget: _budget);
 
-      expect(at60, 16);
-      expect(governor.glyphsPerFrame, lessThan(16));
+      expect(at60, _max);
+      expect(governor.glyphsPerFrame, lessThan(_max));
     },
   );
 
@@ -102,7 +110,7 @@ void main() {
 
     governor.observe(cost: _fraction(0.1), budget: _budget, mayRise: false);
 
-    expect(lowered, lessThan(16));
+    expect(lowered, lessThan(_max));
     expect(governor.glyphsPerFrame, lowered);
   });
 

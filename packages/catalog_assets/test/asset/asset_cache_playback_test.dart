@@ -41,6 +41,51 @@ void main() {
     return binding;
   }
 
+  group('advancePlayback', () {
+    test('hands the paintable the context a paint would, without painting', () {
+      final binding = scope.attach(_key, _large, _plays);
+      final paintable = producer.last.advance(
+        AssetStage.full,
+        tier: AssetTier.animated,
+        animated: true,
+      );
+
+      binding.advancePlayback();
+
+      expect(paintable.paints, isEmpty);
+      expect(paintable.advances, hasLength(1));
+      final context = paintable.advances.single;
+      expect(context.animate, isTrue);
+      expect(context.loop, isTrue);
+    });
+
+    test('a profile that does not animate advances nothing', () {
+      final binding = scope.attach(_key, _large, const AssetProfile());
+      final paintable = producer.last.advance(AssetStage.full, animated: true);
+
+      binding.advancePlayback();
+
+      expect(paintable.advances.single.animate, isFalse);
+    });
+
+    test(
+      'a detached binding advances the placeholder, not its old paintable',
+      () {
+        final binding = scope.attach(_key, _large, _plays);
+        final paintable = producer.last.advance(
+          AssetStage.full,
+          tier: AssetTier.animated,
+          animated: true,
+        );
+        binding.detach();
+
+        binding.advancePlayback();
+
+        expect(paintable.advances, isEmpty);
+      },
+    );
+  });
+
   group('gating: profile animate AND visible', () {
     test('an animated binding plays and asks the engine for frames', () {
       final binding = animated();
@@ -91,6 +136,177 @@ void main() {
       binding.detach();
 
       expect(ticks.isRunning, isFalse);
+    });
+  });
+
+  group('a held binding', () {
+    void paint(AssetBinding binding) {
+      final recorder = PictureRecorder();
+      binding.paint(Canvas(recorder), const Rect.fromLTWH(0, 0, 8, 8));
+      recorder.endRecording().dispose();
+    }
+
+    test('leaves the clock but stays shown, and keeps its frame', () {
+      final binding = animated();
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      binding.held = true;
+
+      expect(binding.isPlaying, isFalse);
+      expect(ticks.isRunning, isFalse);
+      expect(binding.visible, isTrue);
+      expect(paintable.keepsFrame, isTrue);
+
+      binding.held = false;
+
+      expect(binding.isPlaying, isTrue);
+      expect(ticks.isRunning, isTrue);
+      expect(paintable.keepsFrame, isFalse);
+    });
+
+    test('paints at the time it was held, while the clock moves on', () {
+      final binding = animated();
+      final other = animated(key: const ContentKey.document('anim-2'));
+      final paintable = binding.paintable as FakeAssetPaintable;
+      ticks.tick(_ms(16));
+
+      binding.held = true;
+      ticks.tick(_ms(400));
+      paint(binding);
+
+      expect(other.isPlaying, isTrue);
+      expect(paintable.paints.single.context.time, _ms(16));
+      // It still animates: a paintable keeps asking for the frame it is on.
+      expect(paintable.paints.single.context.animate, isTrue);
+
+      binding.held = false;
+      paint(binding);
+      expect(paintable.paints.last.context.time, _ms(400));
+    });
+
+    test('tells the paintable its playback resumed when the hold ends, so '
+        'the time the clock ran meanwhile is not played', () {
+      final binding = animated();
+      final other = animated(key: const ContentKey.document('anim-2'));
+      final paintable = binding.paintable as FakeAssetPaintable;
+      ticks.tick(_ms(16));
+      final before = paintable.resumes;
+
+      binding.held = true;
+      ticks.tick(_ms(316)); // the clock runs on for the other binding
+      expect(other.isPlaying, isTrue);
+      expect(paintable.resumes, before, reason: 'not while held');
+
+      binding.held = false;
+      expect(paintable.resumes, before + 1);
+    });
+
+    test('a second binding that starts while one plays is no resume', () {
+      final a = animated();
+      final paintable = a.paintable as FakeAssetPaintable;
+      final before = paintable.resumes;
+
+      scope.attach(_key, _large, _plays);
+
+      expect(paintable.resumes, before);
+    });
+
+    test('the paintable of an entry is kept while any of its bindings is '
+        'held', () {
+      final a = animated();
+      final b = scope.attach(_key, _large, _plays);
+      final paintable = a.paintable as FakeAssetPaintable;
+
+      a.held = true;
+      b.held = true;
+      a.held = false;
+      expect(paintable.keepsFrame, isTrue);
+
+      b.held = false;
+      expect(paintable.keepsFrame, isFalse);
+    });
+
+    test('a better stage that lands while held is kept in its place', () {
+      final binding = scope.attach(_key, _large, _plays);
+      final first = producer.last.advance(
+        AssetStage.firstFrame,
+        tier: AssetTier.animated,
+        animated: true,
+      );
+      binding.held = true;
+      expect(first.keepsFrame, isTrue);
+
+      final full = producer.last.advance(
+        AssetStage.full,
+        tier: AssetTier.animated,
+        animated: true,
+      );
+
+      expect(full.keepsFrame, isTrue);
+      expect(binding.isPlaying, isFalse);
+    });
+
+    test('detaching a held binding lets go of its frame', () {
+      final binding = animated();
+      final paintable = binding.paintable as FakeAssetPaintable;
+      binding.held = true;
+
+      binding.detach();
+
+      expect(paintable.keepsFrame, isFalse);
+    });
+  });
+
+  group('leaving the screen', () {
+    test('the paintable hears when the last binding that shows it hides', () {
+      final a = animated();
+      final b = scope.attach(_key, _large, _plays);
+      final paintable = a.paintable as FakeAssetPaintable;
+
+      a.visible = false;
+      expect(paintable.departures, 0, reason: 'b still shows it');
+
+      b.visible = false;
+      expect(paintable.departures, 1);
+
+      b.visible = true;
+      b.visible = false;
+      expect(paintable.departures, 2, reason: 'once per departure');
+    });
+
+    test('the paintable hears when the last binding detaches', () {
+      final a = animated();
+      final b = scope.attach(_key, _large, _plays);
+      final paintable = a.paintable as FakeAssetPaintable;
+
+      a.detach();
+      expect(paintable.departures, 0);
+
+      b.detach();
+      expect(paintable.departures, 1);
+    });
+
+    test('a hidden binding that detaches is no second departure', () {
+      final binding = animated();
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      binding.visible = false;
+      binding.detach();
+
+      expect(paintable.departures, 1);
+    });
+
+    test('a held binding that hides leaves its frame kept, and the paintable '
+        'decides', () {
+      final binding = animated();
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      binding
+        ..held = true
+        ..visible = false;
+
+      expect(paintable.keepsFrame, isTrue);
+      expect(paintable.departures, 1);
     });
   });
 
@@ -221,6 +437,7 @@ void main() {
       final activity = PlaybackActivity(
         clock: scope.clock,
         lifecycle: lifecycle,
+        policy: const PlaybackActivityPolicy(pausesOnFocusLoss: true),
       );
       addTearDown(activity.dispose);
       final binding = animated();
@@ -240,7 +457,11 @@ void main() {
       recorder.endRecording().dispose();
 
       expect(signals, 2, reason: 'one tick before the pause, one after');
-      expect(paintable.paints.single.context.time, _ms(10016));
+      // The pause does not count: one display frame after the last.
+      expect(
+        paintable.paints.single.context.time,
+        _ms(16) + const Duration(microseconds: 16667),
+      );
       expect(scope.isAttached(_key, _large), isTrue);
     });
 
@@ -354,6 +575,28 @@ void main() {
       expect(context.restFrame, AssetRestFrame.last);
     });
 
+    test('it paints and advances with the profile\'s half frame rate', () {
+      final binding = playing(
+        profile: const AssetProfile(animate: true, halfFrameRate: true),
+      );
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      frame(binding, 1000);
+      binding.advancePlayback();
+
+      expect(paintable.paints.single.context.halfFrameRate, isTrue);
+      expect(paintable.advances.last.halfFrameRate, isTrue);
+    });
+
+    test('a profile plays every frame unless it asks for half', () {
+      final binding = playing(profile: const AssetProfile(animate: true));
+      final paintable = binding.paintable as FakeAssetPaintable;
+
+      frame(binding, 1000);
+
+      expect(paintable.paints.single.context.halfFrameRate, isFalse);
+    });
+
     test('replay refuses while a pass runs, then plays another once it '
         'ended', () {
       final binding = playing();
@@ -458,10 +701,14 @@ void main() {
       expect(binding.playback, AssetPlayback.playing);
 
       scope.clock.setPaused(PlaybackPauseLayer.lowPower, paused: false);
-      frame(binding, 1040);
-      frame(binding, 1100);
-      frame(binding, 1180);
-      ticks.tick(_ms(1196));
+      // The pause does not count, so the pass goes on from where it was and
+      // ends a whole pass of playback time later, not at once.
+      frame(binding, 5000);
+      expect(binding.playback, AssetPlayback.playing);
+      for (var ms = 5040; ms <= 5400; ms += 40) {
+        frame(binding, ms);
+      }
+      ticks.tick(_ms(5416));
 
       expect(binding.playback, AssetPlayback.ended);
     });

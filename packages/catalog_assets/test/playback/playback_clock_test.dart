@@ -140,23 +140,53 @@ void main() {
       expect(b.ticks, [_ms(16)]);
     });
 
-    test('a pause of seconds costs one tick per target, on the first frame '
-        'after it, stamped with that frame', () {
+    test('a pause of seconds does not count: time goes on from where it '
+        'stopped, one display frame later', () {
       final a = _Target(_ms(16));
-      final b = _Target(const Duration(microseconds: 33333));
-      clock
-        ..register(a)
-        ..register(b);
-      source.tick(_ms(16));
+      clock.register(a);
+      source
+        ..tick(_ms(16))
+        ..tick(_ms(32));
 
       clock.setPaused(PlaybackPauseLayer.appInactive, paused: true);
       source.tick(_ms(5000)); // not delivered: the source is stopped
       clock.setPaused(PlaybackPauseLayer.appInactive, paused: false);
-      source.tick(_ms(10016));
+      source
+        ..tick(_ms(10016))
+        ..tick(_ms(10032));
 
-      expect(a.ticks, [_ms(16), _ms(10016)]);
-      expect(b.ticks, [_ms(16), _ms(10016)]);
-      expect(clock.now, _ms(10016));
+      expect(a.ticks, [_ms(16), _ms(32), _ms(48), _ms(64)]);
+      expect(clock.now, _ms(64));
+    });
+
+    test('a pause shorter than a resume gap (a panel sliding in) does not '
+        'jump either', () {
+      final a = _Target(_ms(16));
+      clock.register(a);
+      source
+        ..tick(_ms(16))
+        ..tick(_ms(32));
+
+      clock.setPaused(PlaybackPauseLayer.routeMoving, paused: true);
+      clock.setPaused(PlaybackPauseLayer.routeMoving, paused: false);
+      source.tick(_ms(332));
+
+      expect(a.ticks.last - a.ticks[a.ticks.length - 2], _ms(16));
+    });
+
+    test('an idle clock (no target) does not count its sleep either', () {
+      final a = _Target(_ms(16));
+      clock.register(a);
+      source
+        ..tick(_ms(16))
+        ..tick(_ms(32));
+      clock.unregister(a);
+
+      final b = _Target(_ms(16));
+      clock.register(b);
+      source.tick(_ms(2032));
+
+      expect(clock.now, _ms(48));
     });
 
     test('a 30 fps target skips frames of a 60 fps display', () {

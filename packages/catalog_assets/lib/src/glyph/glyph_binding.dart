@@ -43,6 +43,7 @@ final class GlyphBinding extends AssetBindingBase {
     required GlyphSpriteSource? source,
     required AssetBinding Function() openEntry,
     required void Function(GlyphBinding binding) onDetach,
+    super.backgroundHeld,
   }) : _glyph = key.sequence,
        _openEntry = openEntry,
        _onDetach = onDetach,
@@ -78,6 +79,7 @@ final class GlyphBinding extends AssetBindingBase {
       if (_entry != null) return;
       _entry = _openEntry()
         ..visible = visible
+        ..held = held
         ..addListener(signal);
       return;
     }
@@ -154,6 +156,9 @@ final class GlyphBinding extends AssetBindingBase {
   void onVisibleChanged() => _entry?.visible = visible;
 
   @override
+  void onHeldChanged() => _entry?.held = held;
+
+  @override
   void releaseResources() {
     _hold?.release();
     _hold = null;
@@ -164,7 +169,7 @@ final class GlyphBinding extends AssetBindingBase {
   }
 }
 
-final class _GlyphPaintable implements AssetPaintable {
+final class _GlyphPaintable extends AssetPaintable {
   _GlyphPaintable(this._binding, this._placeholder);
 
   final GlyphBinding _binding;

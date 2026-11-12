@@ -3,6 +3,7 @@ import 'package:catalog_assets/src/asset/asset_preset.dart';
 import 'package:catalog_assets/src/embed/content_embed.dart';
 import 'package:catalog_assets/src/embed/inline_embed.dart';
 import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
 
 /// An [InlineEmbedResolver] that resolves a target spelled as the storage
 /// encoding of a `ContentKey` (`unicode:1F44D`, `document:5368`,
@@ -18,13 +19,19 @@ final class ContentEmbedResolver implements InlineEmbedResolver {
   ///
   /// [presetFor] chooses the preset of an embed from the text around it; by
   /// default `AssetPresets.inlineMessage` at that font size and density.
+  ///
+  /// [held] is handed to every embed it makes (`ContentEmbed.held`): the
+  /// host's hold on the surface the bodies are on.
   ContentEmbedResolver({
     required AssetCacheScope scope,
     AssetPreset Function(InlineEmbedMetrics metrics)? presetFor,
+    ValueListenable<bool>? held,
   }) : _scope = scope,
+       _held = held,
        _presetFor = presetFor ?? _inlineMessage;
 
   final AssetCacheScope _scope;
+  final ValueListenable<bool>? _held;
   final AssetPreset Function(InlineEmbedMetrics metrics) _presetFor;
 
   static AssetPreset _inlineMessage(InlineEmbedMetrics metrics) =>
@@ -42,6 +49,7 @@ final class ContentEmbedResolver implements InlineEmbedResolver {
       scope: _scope,
       content: content,
       preset: _presetFor(metrics),
+      held: _held,
     );
   }
 }

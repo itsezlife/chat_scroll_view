@@ -2,8 +2,8 @@ import 'dart:ui';
 
 import 'package:meta/meta.dart';
 
-/// A baked glyph ready to draw: the page image it sits on and the rectangle of
-/// its pixels on that page.
+/// A baked glyph or a rendered animation frame ready to draw: the page image it
+/// sits on and the rectangle of its pixels on that page.
 ///
 /// This is the optional sprite capability of an `AssetPaintable`. A surface
 /// that finds one draws the rectangle of [page] instead of painting the asset
@@ -26,8 +26,10 @@ final class AtlasSprite {
     required this.source,
   });
 
-  /// Which page of the atlas this is; sprites with the same index share
-  /// [page], so a surface groups its draws by it.
+  /// Which page of its atlas this is. Two atlases number their pages alike, so
+  /// the index does not tell sprites of different atlases apart: a surface
+  /// groups its draws by [page] itself, which is one image for every sprite
+  /// cut from the same page.
   final int pageIndex;
 
   /// The page pixels.

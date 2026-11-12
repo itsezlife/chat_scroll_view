@@ -9,7 +9,7 @@ import 'package:content_model/src/rich_text/entity_kind.dart';
 /// Internal to [EntityDetection]: it reports candidates, and the caller
 /// decides which survive (exclusions, overlaps, the budget).
 ///
-/// The shape is the reference client's web-URL pattern, written as a scanner
+/// The shape is the chat-client web-URL pattern, written as a scanner
 /// instead of a regular expression so the cost stays linear whatever the text
 /// holds (a backtracking engine is quadratic on a long run of dotted labels):
 ///
@@ -18,8 +18,8 @@ import 'package:content_model/src/rich_text/entity_kind.dart';
 ///   punycode (`xn--...`), or be a dotted IPv4 address;
 /// - an optional `:port` and a path or query that starts with `/` or `?`;
 /// - trailing punctuation is not part of the URL and a `)` it does not open
-///   is not either (desktop `MessageLinksParser`);
-/// - a match preceded by `@` is rejected (`sUrlMatchFilter`), and so is a
+///   is not either;
+/// - a match preceded by `@` is rejected, and so is a
 ///   scheme-less one right after `://`, which would otherwise link the host
 ///   of a URL whose scheme the policy refuses.
 ///
@@ -306,7 +306,7 @@ class _Scan {
     return IanaTopLevelDomains.contains(label);
   }
 
-  /// The reference client's `xn\-\-[\w\-]{0,58}\w`: the rest of a punycode label.
+  /// The punycode tail `xn\-\-[\w\-]{0,58}\w`: the rest of a punycode label.
   static bool _isPunycodeTail(String label) {
     if (label.length > 63) return false;
     for (var k = 4; k < label.length; k++) {
@@ -410,7 +410,7 @@ class _Scan {
   static final Set<int> _pathPunctuation = r";/?:@&=#~-.+!*'(),_$".codeUnits
       .toSet();
 
-  /// The "almost link end" characters (desktop `IsAlmostLinkEnd`) and the
+  /// The "almost link end" characters and the
   /// quotes that wrap a URL.
   static bool _isTrailingPunctuation(int unit) =>
       unit == _dot ||
@@ -423,7 +423,7 @@ class _Scan {
       unit == 0x22;
 
   /// Letters and digits of every script, as a host label or a path takes
-  /// them (the reference client's character class), minus the punctuation, symbol and emoji
+  /// them (the chat-client character class), minus the punctuation, symbol and emoji
   /// blocks that class lets through.
   static bool _isLabelCodePoint(int cp) {
     if (cp < 0x80) return _isAsciiAlnum(cp);

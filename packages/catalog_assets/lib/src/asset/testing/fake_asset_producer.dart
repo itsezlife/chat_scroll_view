@@ -23,23 +23,32 @@ final class FakeAssetAttempt implements AssetTask {
   final List<FakeAssetPaintable> paintables = [];
 
   /// Reports [stage] with a fresh paintable and returns it. [frames] gives
-  /// the paintable a sequence to play (and makes it animated).
+  /// the paintable a sequence to play (and makes it animated). An animated
+  /// paintable has a first-frame still unless [firstFrameStill] is false.
   FakeAssetPaintable advance(
     AssetStage stage, {
     int bytes = 100,
     AssetTier tier = AssetTier.still,
     bool animated = false,
     List<Duration> frames = const [],
+    bool firstFrameStill = true,
   }) {
+    final plays = animated || frames.isNotEmpty;
     final paintable = FakeAssetPaintable(
       label: '${request.key}@${stage.name}',
-      isAnimated: animated || frames.isNotEmpty,
+      isAnimated: plays,
       frameDurations: frames,
+      firstFrame: plays && firstFrameStill
+          ? FakeAssetPaintable(label: '${request.key}@${stage.name}:frame0')
+          : null,
     );
     paintables.add(paintable);
     _progress.advance(stage, paintable, bytes: bytes, tier: tier);
     return paintable;
   }
+
+  /// Reports that [fraction] of the content's download has arrived.
+  void download(double fraction) => _progress.download(fraction);
 
   /// Reports a failed attempt.
   void fail(

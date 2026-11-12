@@ -1,0 +1,373 @@
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
+import 'package:catalog_assets/catalog_assets.dart';
+import 'package:flutter/foundation.dart';
+import 'package:lottie_decoder/src/cache/frame_cache.dart';
+import 'package:lottie_decoder/src/cache/frame_cache_key.dart';
+import 'package:lottie_decoder/src/engine/lottie_engine.dart';
+import 'package:lottie_decoder/src/environment_specific/hash_content.dart'
+    as hash_content;
+import 'package:lottie_decoder/src/environment_specific/read_file_bytes.dart'
+    as environment_specific;
+import 'package:lottie_decoder/src/paint/lottie_animation_paintable.dart';
+import 'package:lottie_decoder/src/paint/lottie_still_paintable.dart';
+import 'package:lottie_decoder/src/playback/lottie_frame_scheduler.dart';
+import 'package:lottie_decoder/src/renderer/lottie_frame_size.dart';
+import 'package:lottie_native/lottie_native.dart';
+
+/// Decodes an encoded still image (the thumbnail of an animation) into an
+/// image; `ui.decodeImageFromList` by default.
+typedef LottieImageDecoder = Future<ui.Image> Function(Uint8List bytes);
+
+/// Turns premultiplied RGBA [pixels] of [width] x [height] into an image;
+/// `ui.decodeImageFromPixels` by default.
+typedef LottiePixelUploader =
+    Future<ui.Image> Function(Uint8List pixels, int width, int height);
+
+/// Names the content of a Lottie file for the frame cache: a digest of
+/// [bytes] made of letters, digits and `-` (a [FrameCacheKey.contentHash]).
+/// The default is the file's SHA-256, computed on a long-lived worker
+/// isolate ([LottieDecoder.sha256OffIsolate]).
+typedef LottieContentHasher = Future<String> Function(Uint8List bytes);
+
+Future<ui.Image> _imageFromList(Uint8List bytes) {
+  final completer = Completer<ui.Image>();
+  ui.decodeImageFromList(bytes, completer.complete);
+  return completer.future;
+}
+
+Future<ui.Image> _imageFromPixels(Uint8List pixels, int width, int height) {
+  final completer = Completer<ui.Image>();
+  ui.decodeImageFromPixels(
+    pixels,
+    width,
+    height,
+    ui.PixelFormat.rgba8888,
+    completer.complete,
+  );
+  return completer.future;
+}
+
+/// The [Decoder] of the vector-animation media form: Lottie files, parsed and
+/// drawn by a [LottieEngine] and played through a [LottieFrameScheduler].
+///
+/// | Request | Reports |
+/// | --- | --- |
+/// | a thumbnail (an ordinary image, not Lottie) | `AssetStage.placeholder`, a still |
+/// | content, first frame only | `AssetStage.firstFrame`, a still |
+/// | content, full | `firstFrame` (a still), then `full` (a [LottieAnimationPaintable], animated tier) |
+///
+/// Frame 0 is drawn at the spec's pixel size (the longer side capped at
+/// `LottiePixelJob.maxEdge`) through [LottieEngine.renderPixels], not into an
+/// atlas slot: the pool may be full, and the still must exist whatever it
+/// answers.
+///
+/// ## What an entry costs
+///
+/// The `full` stage reports the first-frame still (`width * height * 4`)
+/// plus the encoded size once, for the parsed model. The handle's real
+/// footprint lives in the native library and is not visible here; the file's
+/// own size is the estimate. Four times it charged
+/// a 160 px cell of a 181 KB sticker 0.8 MiB, so a screen of them was more
+/// than the animated budget and nothing scrolled out was kept. The frames on
+/// screen live in leased slots and textures, budgeted by their pools.
+///
+/// ## Above the largest size class
+///
+/// A spec whose longer side is over `LottiePixelJob.maxEdge` (512, the
+/// largest size class of the pool) is rendered at the cap and plays: its
+/// frames take a 512 px slot or texture, and the surface draws them scaled up
+/// to its box. A sticker is rendered at most 512 px on a side and drawn at
+/// its view's size, the content preview included. Showing the still there
+/// instead (as before ticket 128) froze the preview, which is about 600 px on
+/// a phone.
+///
+/// ## The frame cache
+///
+/// Given a cache, an animation that plays is named in it: its frames are keyed
+/// by the SHA-256 of the file, the pixel size they are rendered at and
+/// `LottieNativeVersion.engine`. The hash is computed off the calling isolate
+/// (see [LottieContentHasher]), started with the parse so it adds no wait,
+/// and only for an animation that plays with a cache. A spec above the cap is
+/// keyed at the cap, the size its frames are rendered at. The renderer does
+/// the caching; see `LottieFrameRenderer`.
+///
+/// ## Handles
+///
+/// A handle belongs to the decode until a [LottieAnimationPaintable] takes it
+/// over; from then on disposing the paintable frees it. A first-frame-only
+/// decode, a failure and a cancel free it themselves, and never also hand it
+/// to a paintable. Files with image or text layers still decode:
+/// `LottieInfo.features` is informational and the host decides what to say.
+///
+/// A host registers the decoder only after its engine is up; see the package
+/// README for the recipe.
+final class LottieDecoder implements Decoder {
+  /// Creates a decoder that draws with [engine] and plays through [scheduler].
+  ///
+  /// [cache] is the frame cache the host's `LottieFrameRenderer` replays
+  /// from: the decoder only names each animation in it (a [FrameCacheKey]
+  /// from the file's SHA-256, the render size and `LottieNativeVersion.engine`)
+  /// and never reads or writes it. Without one nothing is keyed.
+  ///
+  /// [hashContent] names a file in the cache, [sha256OffIsolate] by default;
+  /// null also means the default.
+  ///
+  /// [decodeImage] and [uploadPixels] are the two steps that need the
+  /// engine's image machinery; tests replace them.
+  LottieDecoder({
+    required LottieEngine engine,
+    required LottieFrameScheduler scheduler,
+    FrameCache? cache,
+    LottieContentHasher? hashContent,
+    LottieImageDecoder decodeImage = _imageFromList,
+    LottiePixelUploader uploadPixels = _imageFromPixels,
+  }) : _engine = engine,
+       _scheduler = scheduler,
+       _cache = cache,
+       _hashContent = hashContent ?? LottieDecoder.sha256OffIsolate,
+       _decodeImage = decodeImage,
+       _uploadPixels = uploadPixels;
+
+  /// SHA-256 of [bytes] in hex, on the shared long-lived worker isolate
+  /// (`LottieContentHashWorker.shared`; on the web, inline): the default
+  /// [LottieContentHasher].
+  ///
+  /// Hashing a sticker file on the calling isolate took 2-10 ms at a time on
+  /// a phone, between frames: a grid that scrolls new stickers in decodes
+  /// several per second, and each hash made the next frame start a vsync
+  /// late. A short-lived isolate per hash spawned dozens a second; the worker
+  /// is spawned once.
+  static Future<String> sha256OffIsolate(Uint8List bytes) =>
+      hash_content.$hashContent(bytes);
+
+  final LottieEngine _engine;
+  final LottieFrameScheduler _scheduler;
+  final FrameCache? _cache;
+  final LottieContentHasher _hashContent;
+  final LottieImageDecoder _decodeImage;
+  final LottiePixelUploader _uploadPixels;
+
+  @override
+  AssetTask decode(DecodeRequest request, AssetProgress progress) {
+    final task = _LottieDecode(this, request, progress);
+    unawaited(task.run());
+    return task;
+  }
+}
+
+/// One decode, from encoded data to the reported stage.
+final class _LottieDecode implements AssetTask {
+  _LottieDecode(this._owner, this._request, this._progress);
+
+  final LottieDecoder _owner;
+  final DecodeRequest _request;
+  final AssetProgress _progress;
+  bool _cancelled = false;
+
+  @override
+  void cancel() => _cancelled = true;
+
+  Future<void> run() async {
+    switch (_request.part) {
+      case FetchPart.thumbnail:
+        await _thumbnail();
+      case FetchPart.content:
+        await _content();
+    }
+  }
+
+  Future<Uint8List> _bytes() => switch (_request.content) {
+    FetchedBytes(:final bytes) => Future.value(bytes),
+    FetchedFile(:final path) => environment_specific.$readFileBytes(path),
+  };
+
+  void _fail(Object error, StackTrace stackTrace) {
+    if (!_cancelled) {
+      _progress.fail(error, stackTrace, AssetFailureKind.permanent);
+    }
+  }
+
+  Future<void> _thumbnail() async {
+    final ui.Image image;
+    try {
+      image = await _owner._decodeImage(await _bytes());
+    } on Object catch (error, stackTrace) {
+      _fail(error, stackTrace);
+      return;
+    }
+    if (_cancelled) {
+      image.dispose();
+      return;
+    }
+    _progress.advance(
+      AssetStage.placeholder,
+      LottieStillPaintable(image),
+      bytes: image.width * image.height * 4,
+    );
+  }
+
+  Future<void> _content() async {
+    final spec = _request.spec;
+    final animates = spec.variant == AssetVariant.full;
+    final Uint8List bytes;
+    final LottieLoadResult loaded;
+    Future<String>? contentHash;
+    try {
+      bytes = await _bytes();
+      // Started before the parse, so the two run side by side. Marked
+      // handled at once: a path that never reaches the key below must not
+      // leave its failure unhandled, and awaiting it still throws.
+      if (animates && _owner._cache != null) {
+        contentHash = _owner._hashContent(bytes)..ignore();
+      }
+      loaded = await _owner._engine.load(bytes);
+    } on Object catch (error, stackTrace) {
+      _fail(error, stackTrace);
+      return;
+    }
+    // Cancelled while the engine parsed: a handle that arrives now is ours to
+    // free, nobody else knows it.
+    if (_cancelled) {
+      if (loaded is LottieLoaded) _release(loaded.handle);
+      return;
+    }
+    if (loaded is LottieRejected) {
+      _fail(
+        FormatException('The Lottie file was rejected: ${loaded.reason.name}'),
+        StackTrace.current,
+      );
+      return;
+    }
+    final LottieLoaded(:handle, :info) = loaded as LottieLoaded;
+    final edge = math.min(
+      math.max(spec.pixelWidth, spec.pixelHeight),
+      LottiePixelJob.maxEdge,
+    );
+    final LottieFrameSize(:width, :height) = LottieFrameSize.fitting(
+      info,
+      edge,
+    );
+    final ui.Image image;
+    final String? hash;
+    try {
+      image = await _renderFirstFrame(handle, width, height);
+    } on Object catch (error, stackTrace) {
+      _release(handle);
+      _fail(error, stackTrace);
+      return;
+    }
+    try {
+      hash = await contentHash;
+    } on Object catch (error, stackTrace) {
+      image.dispose();
+      _release(handle);
+      _fail(error, stackTrace);
+      return;
+    }
+    if (_cancelled) {
+      image.dispose();
+      _release(handle);
+      return;
+    }
+    // Outside the try above: from here the image and the handle belong to the
+    // paintables handed over.
+    final frameBytes = width * height * 4;
+    if (!animates) {
+      _release(handle);
+      _progress.advance(
+        AssetStage.firstFrame,
+        LottieStillPaintable(image),
+        bytes: frameBytes,
+      );
+      return;
+    }
+    // The still of the final stage is a second reference to the pixels, taken
+    // before the first stage goes out: the cache may dispose that one at once.
+    final finalImage = image.clone();
+    final key = _LeaseKey(_request.descriptor.key, width, height);
+    _progress
+      ..advance(
+        AssetStage.firstFrame,
+        LottieStillPaintable(image),
+        bytes: frameBytes,
+      )
+      ..advance(
+        AssetStage.full,
+        LottieAnimationPaintable(
+          key: key,
+          handle: handle,
+          info: info,
+          firstFrame: finalImage,
+          scheduler: _owner._scheduler,
+          renderEdge: edge,
+          cacheKey: hash == null
+              ? null
+              : FrameCacheKey(
+                  contentHash: hash,
+                  width: width,
+                  height: height,
+                  engineVersion: LottieNativeVersion.engine,
+                ),
+          onDispose: () => _release(handle),
+        ),
+        bytes: frameBytes + bytes.length,
+        tier: AssetTier.animated,
+      );
+  }
+
+  Future<ui.Image> _renderFirstFrame(
+    LottieHandle handle,
+    int width,
+    int height,
+  ) async {
+    final frames = await _owner._engine.renderPixels([
+      LottiePixelJob(handle: handle, frame: 0, width: width, height: height),
+    ]);
+    final pixels = frames.single;
+    if (pixels == null) {
+      throw StateError('The first frame did not render.');
+    }
+    return _owner._uploadPixels(pixels, width, height);
+  }
+
+  void _release(LottieHandle handle) {
+    unawaited(
+      _owner._engine
+          .dispose(handle)
+          .then<void>(
+            (_) {},
+            onError: (Object error, StackTrace stackTrace) {
+              // A closed engine already freed every handle it issued: the
+              // host shut down while this decode was ending, and there is
+              // nothing left to free. Any other failure is a real one.
+              if (error is LottieEngineClosed) return;
+              FlutterError.reportError(
+                FlutterErrorDetails(
+                  exception: error,
+                  stack: stackTrace,
+                  library: 'lottie_decoder',
+                  context: ErrorDescription('while disposing a Lottie handle'),
+                ),
+              );
+            },
+          ),
+    );
+  }
+}
+
+/// The key a playing paintable's leases go under: its own identity (no two
+/// decodes share one), named after the content and its size, so a profiler
+/// that lists the keys of a page upload can tell whose frames those are.
+final class _LeaseKey {
+  _LeaseKey(this.content, this.width, this.height);
+
+  final Object content;
+  final int width;
+  final int height;
+
+  @override
+  String toString() => '$content@${width}x$height';
+}

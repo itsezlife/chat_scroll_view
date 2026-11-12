@@ -1,0 +1,31 @@
+name: lottie_native
+description: >
+  The native Lottie renderer (tlottie behind a batch C API): the binding
+  interface (load, render into page memory, dispose), a fake and a contract
+  suite in testing.dart, the native binding, the lz4 frame codec,
+  LottieNativeVersion, the build hook that delivers the library (from source
+  or as a hash-pinned prebuilt), and the WebAssembly core and worker. A leaf:
+  it depends on no workspace package.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  # All of these are for hook/build.dart: hook dependencies go under dependencies,
+  # not dev_dependencies.
+  code_assets: ^1.0.0
+  # SHA-256 of the sources and of a downloaded prebuilt library.
+  crypto: ^3.0.6
+  ffi: ^2.1.0
+  hooks: ^1.0.0
+  # Only lib/testing.dart needs this: the contract suite is written with the
+  # test framework, and a library cannot import a dev dependency (the same
+  # arrangement as catalog_assets). Production entry points never import it.
+  flutter_test:
+    sdk: flutter
+  meta: ^1.17.0
