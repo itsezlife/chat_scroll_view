@@ -63,7 +63,7 @@ import 'package:flutter/scheduler.dart';
 /// host's [linkPrompt] for the link items.
 ///
 /// **Pointer menu.** Where the [menuPolicy] has one (desktop and the web), a
-/// secondary click opens the reference desktop client's context menu at the
+/// secondary click opens the context menu at the
 /// pointer instead, and leaves the caret and the selection as they are; the
 /// Menu key and Shift+F10 open it at the caret. The floating toolbar stays for
 /// touch.
@@ -291,7 +291,7 @@ class _ComposerFieldState extends State<ComposerField> {
   }
 
   // Scrolls the field, at once, by just enough to show the whole line the
-  // caret is on, as the reference clients' fields do. The stock
+  // caret is on. The stock
   // `bringIntoView` reveals a box of the preferred line height around the
   // caret, which can stop a fraction of a pixel short of the line as laid
   // out; the line's own glyph boxes (the caret alone for an empty line) are
@@ -519,7 +519,7 @@ class _ComposerFieldState extends State<ComposerField> {
   late EditMenuStrings _editStrings;
 
   // The secondary click, from the editable. The field takes focus on the
-  // press, as the reference field does for any button, and the menu opens on
+  // press, as it does for any button, and the menu opens on
   // the edge the policy names; the caret and the selection are not touched.
   void _onSecondaryClick(ExtendedSecondaryClick click) {
     final policy = _menuPolicy;
@@ -658,18 +658,37 @@ class _ComposerFieldState extends State<ComposerField> {
         );
         ownStyle = fieldStyle;
         final hintSize = widget.hintFontSize ?? fontSize;
-        decoration = InputDecoration.collapsed(
-          hintText: strings.messageHint,
-          hintMaxLines: widget.hintMaxLines,
-          hintStyle: TextStyle(
-            color: placeholder.fieldHint,
-            fontSize: hintSize,
-            // Keeps the line box of the field's own line, so the smaller hint
-            // sits on the caret's line instead of riding at the top of it.
-            height: fontSize * lineHeight / hintSize,
-            overflow: widget.hintMaxLines == null ? null : TextOverflow.ellipsis,
-          ),
-        );
+        // The pads to the island's edges and the action slots are the
+        // decoration's, not a box around the field: inside the text field
+        // they are part of its tap target, so a tap anywhere in the slot
+        // focuses the field and places the caret, as the reference's field
+        // takes its padding up to the buttons beside it.
+        decoration =
+            InputDecoration.collapsed(
+              hintText: strings.messageHint,
+              hintMaxLines: widget.hintMaxLines,
+              hintStyle: TextStyle(
+                color: placeholder.fieldHint,
+                fontSize: hintSize,
+                // Keeps the line box of the field's own line, so the smaller hint
+                // sits on the caret's line instead of riding at the top of it.
+                height: fontSize * lineHeight / hintSize,
+                overflow: widget.hintMaxLines == null
+                    ? null
+                    : TextOverflow.ellipsis,
+              ),
+            ).copyWith(
+              contentPadding: EdgeInsetsDirectional.only(
+                start: widget.startInset,
+                top: ComposerMetrics.fieldTopPad,
+                bottom: ComposerMetrics.fieldBottomPad,
+                end: ComposerMetrics.fieldEndPad,
+              ),
+              // The pads are the island's metrics, exact on every platform:
+              // the theme's density (compact on a desktop) would take 4 px
+              // off the vertical ones and lift the text.
+              visualDensity: VisualDensity.standard,
+            );
       case ComposerFieldLayout$Form(:final style):
         // The text field's own default style, which the gutter's markers
         // must match; the field itself gets only the host's style, so its
@@ -701,7 +720,7 @@ class _ComposerFieldState extends State<ComposerField> {
           // The leaf editable's own default group is its own type,
           // which those widgets would not find.
           groupId: EditableText,
-          // The reference's handles are drawn by the composer, not the
+          // The handles are drawn by the composer, not the
           // platform's: Material on every platform.
           selectionControls: extendedMaterialTextSelectionHandleControls,
           enabled: widget.enabled,
@@ -780,20 +799,13 @@ class _ComposerFieldState extends State<ComposerField> {
       onPointerCancel: (_) => widget.onPointerEnd?.call(),
       child: switch (layout) {
         // The island's row: as tall as the island at least, padded to the
-        // action slots, its height reported for the row's animation.
+        // action slots through the decoration, its height reported for the
+        // row's animation.
         ComposerFieldLayout$Island() => ConstrainedBox(
           constraints: const BoxConstraints(
             minHeight: ComposerMetrics.islandHeight,
           ),
-          child: Padding(
-            padding: EdgeInsetsDirectional.only(
-              start: widget.startInset,
-              top: ComposerMetrics.fieldTopPad,
-              bottom: ComposerMetrics.fieldBottomPad,
-              end: ComposerMetrics.fieldEndPad,
-            ),
-            child: input,
-          ),
+          child: input,
         ),
         // A form lays the field out itself, through the decoration.
         ComposerFieldLayout$Form() => input,

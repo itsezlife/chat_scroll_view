@@ -291,7 +291,7 @@ void main() {
       fail('$of is not shown');
     }
 
-    test('give the grinning face the code the desktop client shows', () async {
+    test('give the grinning face the code a desktop shows', () async {
       expect(await codeShown(key('1F600')), ':grinning:');
     });
 

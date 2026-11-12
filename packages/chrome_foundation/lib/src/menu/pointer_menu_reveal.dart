@@ -7,7 +7,7 @@ import 'package:meta/meta.dart';
 
 /// The state of a pointer menu's open animation at one moment of its clock.
 ///
-/// The reference client's `PanelAnimation`: the menu is drawn at its final
+/// The menu is drawn at its final
 /// size into a frame that grows from the corner at the pointer. Width grows
 /// from half to full over the first 0.6 of the clock and height from 30% to
 /// full over the first 0.9, each on `EaseOutCirc`; the opacity rises over the

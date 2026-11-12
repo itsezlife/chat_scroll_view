@@ -134,8 +134,8 @@ final class ComposerPointerMenuCommands {
   final VoidCallback? Function(EntityListKind kind) toggleList;
 }
 
-/// The entries of the composer's pointer menu: the reference desktop client's
-/// context menu of its message field, as a pure function of the state.
+/// The entries of the composer's pointer menu: the context menu of the message
+/// field, as a pure function of the state.
 ///
 /// Order, from the top: the Spelling submenu (when a checker has something to
 /// say; at the bottom instead when the menu opens upward, so it stays nearest
@@ -150,7 +150,7 @@ final class ComposerPointerMenuCommands {
 /// separator and Clear formatting. A row whose option the host did not offer is
 /// absent; every style row is greyed without a selection, **including** the
 /// line kinds (quote, code block, lists), which the commands accept at a caret:
-/// the reference menu greys them, and the keys stay for a caret.
+/// the menu greys them, and the keys stay for a caret.
 abstract final class ComposerPointerMenuItems {
   /// The entries for the selection in [text].
   ///

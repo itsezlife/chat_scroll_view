@@ -83,10 +83,9 @@ final class ComposerController {
 
   /// Takes the images and files the user puts into the field: a paste while
   /// the [clipboard] holds media, and an image a keyboard inserts. The host
-  /// sends them, as the reference clients send pasted media, and completes
-  /// with whether it did: a paste whose media the host did not send (the user
-  /// cancelled) pastes the text that came with it, as the reference desktop
-  /// client does. Null leaves pastes text only and keyboards without image
+  /// sends them and completes with whether it did: a paste whose media the
+  /// host did not send (the user cancelled) pastes the text that came with it.
+  /// Null leaves pastes text only and keyboards without image
   /// insertion.
   final Future<bool> Function(List<PastedMedia> media)? onPastedMedia;
 

@@ -1,5 +1,6 @@
-/// Strings of the panel: tab names, section titles, search copy and the
-/// clear-recents confirmation and the recents menu.
+/// Strings of the panel: tab names, section titles, search copy, the
+/// clear-recents confirmations, the recents menu and the content preview's
+/// menu.
 ///
 /// Supplied by the host as part of `ChromeStrings`; this package ships no
 /// translation. Members are required so a host cannot forget one.
@@ -9,6 +10,7 @@ final class PanelStrings {
     required this.tabLabel,
     required this.categoryTitle,
     required this.recentlyUsedTitle,
+    required this.favouriteStickersTitle,
     required this.searchResultsTitle,
     required this.searchHint,
     required this.searchEmpty,
@@ -20,6 +22,24 @@ final class PanelStrings {
     required this.removeRecentAction,
     required this.clearRecentAction,
     required this.colorAllTitle,
+    required this.gifsEmpty,
+    required this.stickersEmpty,
+    required this.gifsFailed,
+    required this.retryAction,
+    required this.clearRecentStickersTitle,
+    required this.clearRecentStickersMessage,
+    required this.sendStickerAction,
+    required this.sendEmojiAction,
+    required this.sendGifAction,
+    required this.sendWithoutSoundAction,
+    required this.addToFavouritesAction,
+    required this.removeFromFavouritesAction,
+    required this.viewPackAction,
+    required this.deleteFromRecentAction,
+    required this.copyEmojiAction,
+    required this.saveGifAction,
+    required this.deleteGifAction,
+    required this.removePackAction,
   });
 
   /// The name of the panel page registered under [pageId]. Page ids are open
@@ -37,6 +57,10 @@ final class PanelStrings {
 
   /// Title of the recently-used section.
   final String recentlyUsedTitle;
+
+  /// Title of the favourite stickers' section, and the name of its tab on the
+  /// stickers page's strip.
+  final String favouriteStickersTitle;
 
   /// Title of the keyword-hit section while searching.
   final String searchResultsTitle;
@@ -56,7 +80,8 @@ final class PanelStrings {
   /// Confirming action of the clear-recents confirmation.
   final String clearAction;
 
-  /// Dismissing action of the clear-recents confirmation.
+  /// Dismissing action: of the clear-recents confirmation, and the button
+  /// beside the search field that leaves search where there is no back press.
   final String cancelAction;
 
   /// Menu item that copies the content under the pointer to the clipboard.
@@ -73,4 +98,68 @@ final class PanelStrings {
   /// The title of the picker that chooses one tone for every emoji, and the
   /// spoken label of the button that opens it.
   final String colorAllTitle;
+
+  /// Placeholder of the GIF page when a search finds no clip, and when the
+  /// page has no clip to list at all (no recents, and no provider).
+  final String gifsEmpty;
+
+  /// Placeholder of the stickers page when it has no sticker to list: no
+  /// recents and no pack.
+  final String stickersEmpty;
+
+  /// Placeholder of the GIF page when its clips could not be loaded (offline,
+  /// a busy server): shown with [retryAction].
+  final String gifsFailed;
+
+  /// Label of the button that tries a failed load of the GIF page again.
+  final String retryAction;
+
+  /// Title of the confirmation that clears the recent stickers.
+  final String clearRecentStickersTitle;
+
+  /// Body of the confirmation that clears the recent stickers.
+  final String clearRecentStickersMessage;
+
+  /// Content preview item that sends the sticker shown.
+  final String sendStickerAction;
+
+  /// Content preview item that sends the custom emoji shown.
+  final String sendEmojiAction;
+
+  /// Content preview item that sends the GIF shown.
+  final String sendGifAction;
+
+  /// Content preview item that sends the content shown without a
+  /// notification sound.
+  final String sendWithoutSoundAction;
+
+  /// Content preview item that adds the sticker shown to the favourite
+  /// stickers.
+  final String addToFavouritesAction;
+
+  /// Content preview item that takes the sticker shown out of the favourite
+  /// stickers.
+  final String removeFromFavouritesAction;
+
+  /// Content preview item that shows the pack the content belongs to.
+  final String viewPackAction;
+
+  /// Content preview item that takes the sticker shown out of the recent
+  /// stickers. (A custom emoji's is [removeRecentAction], as in the
+  /// desktop menu.)
+  final String deleteFromRecentAction;
+
+  /// Content preview item that copies the custom emoji shown.
+  final String copyEmojiAction;
+
+  /// Content preview item that saves the GIF shown among the saved GIFs.
+  final String saveGifAction;
+
+  /// Content preview item that deletes the GIF shown from the saved GIFs;
+  /// shown in the attention style.
+  final String deleteGifAction;
+
+  /// The button at the end of a removable pack's section header that removes
+  /// the pack (its spoken label).
+  final String removePackAction;
 }

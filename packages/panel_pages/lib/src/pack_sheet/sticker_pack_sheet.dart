@@ -1,0 +1,99 @@
+import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_model/content_model.dart';
+import 'package:flutter/widgets.dart';
+import 'package:panel_pages/src/pack_sheet/pack_sheet.dart';
+import 'package:panel_pages/src/pack_sheet/pack_sheet_action.dart';
+import 'package:panel_pages/src/pack_sheet/pack_sheet_view.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
+
+/// The sticker pack sheet: one pack of stickers or masks, its title, its
+/// stickers five to a row, and a button that adds or removes it. Shown with
+/// [PackSheet.show].
+///
+/// Effect-free, as the panel is: it looks the pack up in [packs], reads its
+/// install state from [library], and asks the host for everything else.
+///
+/// - **Loading.** A spinner while [PackSource.peek] answers loading. A pack
+///   that is not found, or whose lookup failed, closes the sheet and is
+///   reported to [onUnavailable] (the host says "Stickers not found").
+/// - **The button.** [PackSheetAction]: "Add 20 stickers" for a pack not
+///   installed or archived, "Remove 20 stickers" for an installed one (an
+///   official one is archived). A press closes the sheet and asks
+///   [onEditsRequested]; the host applies the edit (a removal with its undo
+///   window) and shows the feedback.
+/// - **The preview.** With [previews], a held sticker opens the content
+///   preview, and a tap opens it with its menu at once; a right-click opens the same items as a context menu, as on the
+///   panel's grid. Send (only with [onPick]) closes the sheet and hands the
+///   sticker to the host, and the favourites ask [onLibraryEditRequested].
+/// - **Picking.** Without [previews], a tap sends at once when there is an
+///   [onPick] (given only when the sheet was opened for a composer that can
+///   send), and does nothing otherwise.
+/// - **The menu.** Share and Copy Link, only with [links] and a link for the
+///   pack.
+///
+/// Requires the chrome theme and strings scopes, and a navigator (it closes
+/// itself by popping its route).
+class StickerPackSheet extends StatelessWidget {
+  /// The sheet of the pack [pack].
+  const StickerPackSheet({
+    required this.pack,
+    required this.packs,
+    required this.library,
+    required this.assets,
+    required this.onEditsRequested,
+    this.onPick,
+    this.onUnavailable,
+    this.links,
+    this.previews,
+    this.onLibraryEditRequested,
+    super.key,
+  });
+
+  /// The pack shown.
+  final PackId pack;
+
+  /// Where the pack is looked up.
+  final PackSource packs;
+
+  /// Read for the pack's install state; the sheet never edits it.
+  final ContentLibrary library;
+
+  /// What the grid draws through.
+  final AssetCacheScope assets;
+
+  /// Asked to add or remove the pack.
+  final PackEditsRequested onEditsRequested;
+
+  /// Asked to send a tapped sticker, or null for a sheet that cannot send.
+  final ValueChanged<PackSheetItem>? onPick;
+
+  /// The pack could not be shown; the sheet has closed.
+  final ValueChanged<PackLookup>? onUnavailable;
+
+  /// Share and Copy Link, or null for no menu.
+  final PackSheetLinks? links;
+
+  /// The host's handle on content previews, or null for none: with it a
+  /// held sticker, or a tapped one, opens its preview (a tap with the menu
+  /// at once); its Send is [onPick], and there is no View Pack.
+  final ContentPreviewController? previews;
+
+  /// Asked for the preview's library edits (Add to / Delete from
+  /// Favorites), or null to offer none.
+  final ValueChanged<LibraryEdit>? onLibraryEditRequested;
+
+  @override
+  Widget build(BuildContext context) => PackSheetView(
+    packIds: [pack],
+    grid: PackSheetGrid.stickers,
+    packs: packs,
+    library: library,
+    assets: assets,
+    onEditsRequested: onEditsRequested,
+    onPick: onPick,
+    onUnavailable: onUnavailable,
+    links: links,
+    previews: previews,
+    onLibraryEditRequested: onLibraryEditRequested,
+  );
+}

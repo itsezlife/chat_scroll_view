@@ -6,24 +6,298 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the catalogue's scroll keys)
+
+- `CatalogKeyboardFocus` binds the chat's scroll keys (`ViewportScrollKeys`
+  from `viewport_scroll`): with no cell focused, the up and down arrows
+  scroll a line, Page Up and Page Down most of the viewport, Home and End to
+  the start and the end; the page keys scroll with a cell focused too.
+  Under a `ViewportScrollRouter` the catalogue is the pointer viewport: the
+  mouse over it sends it the scroll keys whoever holds the focus (a field
+  keeps those it edits with). A mouse press on it gives it the focus
+  without focusing a cell, never from a text field. Tab still enters
+  the grid on a cell, and the arrows then move by cell.
+
+### Added (a host layer over a pack sheet)
+
+- `PackSheet.show(layer:)` lays the host's own layer over the whole sheet
+  layer, with the bottom sheet's bar as a listenable; a host mounts a
+  bulletin host there so a notice raised while the sheet is up shows over
+  it. The sheet's button applies its edit once the sheet has started to go.
+
+### Changed (the blur under a preview's menu is a still)
+
+- The content preview no longer puts a full-window `BackdropFilter` under its menu with an animated sigma. As it opens, the preview takes one small still of the window (`BackdropSnapshot.capture`, 1/15 of the device pixels, stack-blurred on the CPU by a radius of 15 of its pixels and toned for the theme; where the window painted nothing, the theme's surface) and fades it in and out under the dim with the menu; the still is let go as the preview closes. The menu never waits for the still: until it is made, the menu is over the dim alone. The host places a `BackdropSnapshotSource` above its navigator: without one the menu is over the dim alone. `ContentPreviewController.blursBackground` (on by default) turns the blur off. The look changes: the blur is stronger and slightly toned. Breaking: `ContentPreviewSession.menuBlurSigma` is gone; `backdropDownscale`, `backdropBlurRadius`, `backdropToneDark` and `backdropToneLight` replace it.
+
+### Changed (the pack sheet's buttons come from the chrome)
+
+- The pack sheet draws its header, menu and close buttons, its bottom and box buttons, its spinner and its glyphs with `chrome_foundation`'s `ChromePillButton`, `ChromeIconButton`, `ChromeBarButton`, `ChromeBadgeButton`, `ChromeSpinner`, `ChromeCrossPainter` and `ChromeDotsPainter`; the pixels are unchanged. `ChromeCatalogTheme.pressInkOf` and `hoverWashOf` answer `ChromeButtonInks`' colours. Breaking for code that read the sheet's internals: `PackSheetView.buttonExtent`, `buttonMargin`, `boxButtonExtent` and `boxButtonPadding` are `PackSheetView.buttonMetrics` and `boxButtonMetrics`, and the box count badge's key is `ChromeBadgeButton.countKey`.
+
+### Added (the pointer policy)
+
+- `CatalogPointerPolicy` (`.desktop()`, `.web()`, `current`): what a page offers a mouse for taking content out of the library, as properties: `packHeaderRemoves` (an installed pack's header cross) and `removeBadge` (the hovered cell's badge look). The pages read `CatalogPointerPolicy.current` where they read the platform before; the header cross's helper takes a policy instead of a web flag. Behaviour unchanged.
+
+### Added (the emoji pack sheet's preview)
+
+- `EmojiPackSheet.previews` and `onCopyRequested`: a custom emoji held in an emoji pack sheet or box opens the content preview, as on the panel's emoji page (from frame 0, switching under the finger or pointer, Send Emoji and Copy Emoji); a right-click in the box offers Copy Emoji. A tap still inserts.
+
+### Changed (the web's header cross)
+
+- The remove cross of an installed pack's header is a desktop's only; the web's headers keep the recents' cross alone.
+
+### Changed (desktop panel and pack box)
+
+- Under a pointer: the sticker pack strip sits at the bottom as the emoji footer; an installed pack's header ends in a remove cross (`LibraryEdit.removePack`); recent and favourite stickers and saved GIFs show a remove badge on hover; a custom emoji's secondary click offers Copy emoji; a mouse preview has no menu and slides between GIFs.
+- The GIF page decodes a clip for its own proportions (a resized page plays on) and groups its rows at a fixed 334 under a pointer (a resized page keeps its rows); a GIF cell answers a press with `ChromeInk`.
+- The pack box under a pointer: five 64 px sticker cells or eight 42 x 39 emoji cells, the grid at most 320 or 197 tall, a 42 px button with the pack's count in a badge. `ChromeCatalogTheme.hoverSize`.
+
+### Fixed (a strip keeps its covers through a close and an open)
+
+- A pack strip's playing covers hold their frames and leases while the
+  panel moves or is hidden, as the grid's cells do, instead of letting them
+  go: with the chat's stickers filling the frames kept for the screen, the
+  covers lost theirs on every close and showed their stills on reopening.
+
+### Fixed (the grid under a content preview; one haptic for a tap)
+
+- While a content preview is open over the panel's grid or a pack sheet's,
+  the cells show no press or hover wash; a sticker's cell the preview shows
+  is drawn smaller and follows the finger (`CatalogLeafPreview`). A custom
+  emoji's and a GIF's cells keep their size.
+- A sticker tapped in a pack sheet, which opens its preview with the menu at
+  once, plays one haptic (the menu's), not two.
+
+### Fixed (a pack sheet follows the finger past its grid)
+
+- A pull down on a bottom pack sheet's grid at its top, or anywhere on its
+  header band, lowers the sheet and closes it past 0.8 cm or on a fast
+  flick; a shorter pull springs back. Before, the grid took every drag over
+  it and dropped what it could not scroll, so only the title's own glyphs
+  moved the sheet. A push up first undoes the pull, then raises the card.
+  A scroll that reaches the top moves the sheet on the same tick; it
+  closes on the pull's own speed, so a fast scroll that runs a little past
+  the top and slows springs back. Sticker and emoji
+  sheets alike; the box under a pointer is unchanged.
+
+### Fixed (sheet and menu typography, menu icons)
+
+- The pack sheet, the content preview and the pickers and tooltips placed in
+  an overlay draw their text in the host's body face (`ChromeTypography`)
+  rather than the style inherited where they open. That style was the
+  framework's debug one (monospace, weight 900) whenever the opener had no
+  `Material` above it; `PackSheet.show` no longer captures it. The sheet's
+  bold texts are weight 500, the medium face (Roboto Medium), not
+  600 (native-media ticket 140).
+
+### Added (menu icons)
+
+- Each content preview menu item leads with its icon
+  (`ContentPreviewAction.icon`: `msg_send`, `input_notify_off`, `msg_fave`,
+  `msg_unfave`, `msg_media`, `msg_delete`, `msg_gif_add`, `msg_copy`),
+  16 px regular text 43 past the icon's start. `CatalogMenuIcons`
+  names the ids and bundles the art (`assets/menu_icons/`);
+  `CatalogMenuIconScope` registers it. `CatalogMenuItem.icon` puts an icon on
+  a context menu item, and the preview's right-click entries carry theirs.
+
+### Added (a pack sheet's route is named)
+
+- `PackSheet.routeName`: the `RouteSettings.name` of the route
+  `PackSheet.show` pushes, in either arrangement (was unnamed). A host that
+  pauses its animations under modal routes tells the sheet apart by it, so
+  the sheet's stickers and the preview opened from it play (native-media ticket 128).
+
+### Fixed (GIF preview swipe settles)
+
+- A GIF dragged up until its menu opens now moves back to its resting place
+  over 350 ms on the standard ease curve; the menu stays open.
+
+### Fixed (pack sheet text and focus)
+
+- A pack sheet's text no longer falls back to the debug style (yellow double
+  underline, fallback font): both routes take the text style of the context
+  that opened the sheet, in the chrome palette's `onSurface`.
+- Opening a pack sheet no longer takes focus from the composer, so a raised
+  keyboard stays up; the sheet lays out above the keyboard (view insets).
+  Back and the barrier still dismiss it.
+
+### Changed (pack sheet parity)
+
+- A tall pack sheet on touch now opens with its card two fifths down the
+  screen (an emoji sheet at 0.56 of it, 0.3 in landscape) and rises as its
+  grid scrolls, until the card meets the status bar; then the grid scrolls
+  under the pinned header, whose shadow line fades in over 150 ms. Before, it
+  opened at a fixed 3/5 of the screen and only its grid scrolled. A press
+  above the card closes the sheet. A sticker card's 12 px top corners square
+  as it reaches the status bar, which its background then covers; an emoji
+  card's 14 px corners do the same over 350 ms.
+- A pack's header in a sheet of several emoji packs is 56 px: its title (17
+  bold), its count (`PackSheetStrings.emojiCount`, 13) and a 28 px button,
+  an Add pill or a Remove text button, which trade places with a 250 ms
+  fade and scale when the pack's install state changes. The sheet draws
+  these headers over the grid; the grid's section headers are blank bands.
+- A right-click on a sticker of a sheet given `previews` opens the preview's
+  items as a context menu, as the panel's grid does.
+- `EmojiPackSheet.previewEmoji`: the emoji a sheet was opened for (a custom
+  emoji tapped in a message), drawn 140 px large 20 px above the card on
+  touch and moving with it. It fades out (320 ms, shrinking to 0.6) for good
+  once the user scrolls the grid, the sheet closes, or the card's top is
+  less than 160 px from the top of the screen.
+- `CatalogContextMenuHost.host` may be null, for a grid outside the panel
+  with no auto-hide to hold.
+
+### Added (pack sheets)
+
+- `StickerPackSheet` and `EmojiPackSheet` (one pack or several), shown with
+  `PackSheet.show`: a bottom sheet on touch (dim `0x33`, opening in 420 ms
+  on ease-out-quint after 20 ms, closing in 250 ms, dismissed by a drag past
+  0.8 cm or a 3500 px/s fling, part-way when taller than 3.2/5 of the
+  screen) and a centred 364 px box under a pointer. They read a
+  `PackSource` and the library's install states and ask the host for every
+  effect (`PackEditsRequested`, `onPick`, `onUnavailable`, `PackSheetLinks`).
+  The bottom button is a `PackSheetAction`. A sticker sheet given `previews`
+  opens the content preview on a hold and, with its menu, on a tap.
+- `CatalogPagePolicy.titleActionOf`: a section's title as an action. The
+  stickers and emoji pages report a tap on a pack's title as
+  `PanelPageHost.requestPack`.
+
+### Added (content preview)
+
+- `ContentPreviewSession`: the content preview, a
+  `CatalogLongPressSession` that shows a sticker, GIF or custom emoji large
+  over a dim of the window (never a unicode emoji), follows a finger from cell
+  to cell (a GIF drags up to open its menu instead), opens its menu after
+  1.3 s (a GIF 2 s), and closes on a lift before the menu, on an item, on a
+  press elsewhere or on the host's back. A mouse holds 500 ms and gets no
+  menu. `ContentPreviewSession.show` is the entry point for any grid; a pack
+  sheet opens it with a send action and `openMenu` for a tap.
+- `ContentPreviewItem`, `ContentPreviewKind`, `ContentPreviewLayout` (the
+  geometry), `ContentPreviewMenu` and `ContentPreviewAction` (the
+  items per kind, their labels and what each asks), `ContentPreviewActions`
+  (what the opener can do), `ContentPreviewController` (the host's handle:
+  the library the menus read, and `dismiss` for back),
+  `CatalogContentPreview` (a grid's delegate for long press and context menu)
+  and `panelPreviewActions` (the panel host's requests).
+- `StickersPage`, `GifPage` and `EmojiPage` take an optional `previews`:
+  given, a held sticker (favourites and recents included), GIF or custom
+  emoji previews, and a right click on a sticker or GIF opens the preview's
+  items as a context menu. Without it nothing changes.
+- `FakePanelPageHost.libraryEditRequests` and `packRequests`.
+
+### Changed (content preview)
+
+- `CatalogPagePolicy.beginLongPress` takes an optional `leafAt` (the
+  catalogue's `PanelCatalogController.leafAt`); a policy that overrides it
+  must add the parameter.
+- `StickersPagePolicy` takes `host` and `previews`, and tags a sticker cell
+  with its pack (`StickerPackTag`).
+
+### Added (favourite stickers)
+
+- The stickers page shows a favourites section, `CollectionId.faved` from its
+  source, titled `PanelStrings.favouriteStickersTitle` and hidden while known
+  to be empty as the recents are, with no header button; a pick from it is a
+  pick from a collection. Its strip has a tab for it, drawn by
+  `StickerPackStrip.favouritesIcon` (the `emoji_tabs_faves` asset, now
+  bundled and registered by `EmojiTabIconScope`), and the tabs follow the
+  order of the sections, so a source that lists the favourites first starts
+  the strip on them. Requires `PanelStrings.favouriteStickersTitle`.
+- A pack tab whose cover is not known yet draws nothing until it is; it drew
+  the recents' icon.
+
+### Changed (a fresh open)
+
+- A page comes back from a close as the presentation's **fresh open**
+  (`PanelPageHost.freshOpen`) says, not as the arrangement does. On a fresh
+  open (the mobile keyboard replacement) the stickers page goes back to its
+  start with its strip whole and its first tab (the recents, else the first
+  pack) marked, and the GIF page goes back to its start, both whether or not
+  they are mounted then; the emoji page keeps its place. An open that is not
+  fresh (a popup, a dock) keeps the place of every page. Before, every
+  catalogue page went back to its start whenever the panel was hidden under
+  `touch`, the emoji page among them.
+- Removed `CatalogPage.keepsScrollOnReopen` and
+  `EmojiPage.keepsScrollOnReopen`; a page's policy says whether it restarts
+  (`CatalogPagePolicy.restartsOnFreshOpen`, false by default, true for
+  `StickersPagePolicy`). `CatalogPageController.followPresence` and
+  `restartsWhenHidden` are now `followFreshOpen` and `restartsOnFreshOpen`.
+- `FakePanelPageHost.openAfresh` signals its `freshOpen`.
+
+### Changed (small covers at half rate)
+
+- A pack strip's playing cover comes from `AssetPresets.keyboardCell`, which
+  now plays a cell of up to 90 logical px at half rate and decodes it at most
+  160 px on a side; the strip's code is unchanged.
+
+### Changed (pack strip covers)
+
+- `StickerPackStrip` plays a pack's animated cover in its tab, looping; before, a tab showed the cover's first frame.
+  It plays on the shared playback clock, so the clock's pause layers (low
+  power among them) stop it, and only while its tab is in the strip's view: a
+  tab scrolled away stops repainting and gives its frame slot back. A still
+  cover stays still. Covers are decoded at their size on the screen
+  (`AssetPresets.keyboardCell`, 26 times the density), as the other animated
+  cells are, and now ask for the whole asset (`AssetVariant.full`), not the
+  first frame, so a host's decoder sees full requests for them.
+
+### Added (pages with nothing to list)
+
+- `StickersPage` says `PanelStrings.stickersEmpty` in the middle of the page
+  when it has nothing to list: the recents known to be empty and no pack.
+  Before, such a page was blank.
+- `GifPage` says `PanelStrings.gifsEmpty` when every collection has loaded
+  and none has a clip to list (no recents, no provider), not only when a
+  search found nothing. A page still loading says nothing; one whose load
+  failed keeps its failure line. Requires `PanelStrings.stickersEmpty`.
+
+### Changed (GIF cells)
+
+- A GIF cell waits as the whole rectangle of its final size and proportion
+  in the skeleton token, with the radial progress over it until the clip has a
+  first frame, instead of a grey circle; the clip and its thumbnail fill the
+  cell and are cropped at the edge.
+
+### Added (GIF page search and empty states)
+
+- `GifPage` takes an optional `searchSource` (a `SearchSource`), `searchDebounce`
+  and `attribution`. Given a source, the page follows the shell's search (the
+  host's `PanelPage` declares `PageCapabilities(search: true)`) and lists the
+  results in place of the collections, paged as the end comes near. A
+  collection or search that failed ends the list with a retry button; a search
+  that found nothing says so; the attribution heads the list. Existing hosts
+  are unchanged: without a `searchSource` there is no search, and a failed
+  collection, which showed nothing before, now shows the failure line.
+- Requires `PanelStrings.gifsEmpty`, `gifsFailed` and `retryAction` from
+  `chrome_foundation`.
+
+### Added (stickers and GIF pages)
+
+- `StickersPage` with `StickersPagePolicy` and `StickerPackStrip`: the
+  sticker list (columns from the width at 72, rows 82,
+  stickers at most 66, headers 27 tall beginning 15 in) under a strip of packs
+  whose tabs are covers, with a clear button on the recents header.
+- `GifPage` with `GifRowLayout`: justified rows of GIFs.
+- `CatalogPagePolicy.headerStartInset` (default null: the viewport's), and
+  `ChromeCatalogTheme` takes it. A policy of a list whose titles begin
+  somewhere else says so; existing policies are unchanged.
+- Requires `SemanticsStrings.stickerPackStripLabel` from `chrome_foundation`.
+
 ### Changed
 
 - `EmojiTabIconScope` leaves a tab to the host when the enclosing
   `ChromeIconScope` already paints its id, so a host restyles the strip's
   tabs by registering painters above it (the strip mounts its own scope).
 - Under the touch arrangement, `EmojiCategoryStrip` follows `EmojiStripLayout`
-  too: with a pack (by default) it is the reference mobile client's strip with
+  too: with a pack (by default) it is the touch strip with
   custom emoji: the recents, the categories folded into a group that opens
   while one of them is active, then a tab per pack drawn by its cover. Without
   a pack, or with `EmojiStripLayout.plain`, it is the row of category tabs as
   before. Hosts that relied on the touch strip never showing packs pass
   `EmojiStripLayout.plain`.
-  A pack's tab is its cover's first frame, a still, as the reference client
-  draws it; the pill stays still on the open group while the category inside
+  A pack's tab is its cover's first frame, a still, as the strip draws it; the pill stays still on the open group while the category inside
   it changes.
 - `EmojiPagePolicy` files every pick under `EmojiPagePolicy.recentsKind`
   (`SemanticKind.unicodeEmoji`), custom emoji included: the page has one
-  recents list, as the reference clients do. The list is the pick's new
+  recents list. The list is the pick's new
   `recentsKind`; its `kind` stays the content's own, so a custom emoji pick
   is still `SemanticKind.customEmoji`. A host that recorded recents under
   `kind` records them under `recentsKind`. The recents menu and the finger's
@@ -38,7 +312,7 @@ is pre-1.0.
 - The two-person tone picker shows each tone as the emoji with both people
   in it (for two hands, the one-tone sequence), the other person greyed;
   choosing the same tone for both keeps that one-tone sequence. No blank cells.
-- The tone-for-all button draws the reference desktop client's sliders icon.
+- The tone-for-all button draws a sliders icon.
 - The bands over the catalogue and the touch strip paint the shell's
   background, and the catalogue is clipped below them.
 - A header lands at the page's top padding plus an overlaying strip, never
@@ -48,20 +322,19 @@ is pre-1.0.
   (`EmojiPagePolicy.colorAllActionId`); `EmojiVariantPicker` takes a `title`.
 - Source-breaking: `CatalogPagePolicy.onSectionAction` takes `context`,
   `bounds` and `viewportBounds`.
-- Anything but a mouse gets the reference mobile client's tone picker
+- Anything but a mouse gets the touch tone picker
   (`EmojiToneSession`, `EmojiTonePicker`, `EmojiTonePickerLayout`), with
   haptics and a two-person picker.
 - `EmojiStripLayout` (`automatic`, `plain`, `grouped`) on
   `EmojiCategoryStrip.layout`, `EmojiPagePolicy.stripLayout` and
   `EmojiPage.stripLayout`: plain with no pack and grouped with any by default,
-  as the reference desktop client decides.
+  as the default rule decides.
 - The strip's group opens linearly over 240 ms and the marker grows inside it
   on an exact ease-out cubic.
 - Under `pointer` the catalogue's hover is a 34 x 32 box and a press draws
   nothing (`ChromeCatalogTheme.pointerHoverSize`); the variant picker draws
   the same box (`EmojiVariantPicker.highlightSize`).
-- Source-breaking: under `pointer` the emoji strip is the reference desktop
-  client's footer with packs (`EmojiStripFooter`): no line over it, 30 px
+- Source-breaking: under `pointer` the emoji strip is the footer with packs (`EmojiStripFooter`): no line over it, 30 px
   slots from 3 px in, the categories folded into one icon that opens into
   theirs while one is active, a slot per pack (`CollectionId.set` sections,
   drawn by their cover from `EmojiCategoryStrip.assets`), wheel and drag
@@ -95,7 +368,7 @@ is pre-1.0.
   `EmojiPagePolicy.clearRecentsActionId` is gone.
 - Under `pointer` an `inline` search field is the page's, scrolls with the grid
   and does not pin.
-- The emoji tabs follow the reference client's seven categories
+- The emoji tabs follow the seven categories
   (`EmojiSection.reference`): the flags have no tab and the ids are
   `people`, `nature`, `food`, `activity`, `travel`, `objects`, `symbols`;
   activity comes before travel. Hosts that supply strings key

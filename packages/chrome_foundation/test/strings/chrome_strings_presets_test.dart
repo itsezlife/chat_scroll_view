@@ -40,6 +40,8 @@ void main() {
         'semantics': 'lib/src/strings/semantics_strings.dart',
         'formatting': 'lib/src/strings/formatting_strings.dart',
         'editMenu': 'lib/src/strings/edit_menu_strings.dart',
+        'packSheet': 'lib/src/strings/pack_sheet_strings.dart',
+        'bulletin': 'lib/src/strings/bulletin_strings.dart',
       };
       final field = RegExp(r'^  final .+ (\w+);$', multiLine: true);
       for (final group in groups.entries) {
@@ -85,6 +87,32 @@ void main() {
       expect(s.searchResultCount(111), '111 результатов');
     });
 
+    test('the pack sheet counts follow the English wording', () {
+      final s = ChromeStringsPresets.english.packSheet;
+      expect(s.addStickers(1), 'Add sticker');
+      expect(s.addStickers(20), 'Add 20 stickers');
+      expect(s.removeStickers(20), 'Remove 20 stickers');
+      expect(s.addEmoji(32), 'Add 32 emoji');
+      expect(s.addEmojiPacks(2), 'Add 2 emoji packs');
+      expect(s.emojiCount(1), '1 emoji');
+      expect(
+        s.stickersRemovedInfo('Cats'),
+        'Cats is no longer in your stickers.',
+      );
+      expect(
+        s.emojiPacksAddedInfo(3),
+        '3 emoji packs have been added to your emoji.',
+      );
+    });
+
+    test('the russian pack sheet counts follow one / few / many', () {
+      final s = ChromeStringsPresets.russian.packSheet;
+      expect(s.addStickers(1), 'Добавить 1 стикер');
+      expect(s.addStickers(3), 'Добавить 3 стикера');
+      expect(s.addStickers(20), 'Добавить 20 стикеров');
+      expect(s.removeStickers(21), 'Удалить 21 стикер');
+    });
+
     test('names and page ids are interpolated', () {
       expect(
         ChromeStringsPresets.english.composer.replyTo('Alice'),
@@ -119,7 +147,7 @@ void main() {
       );
     });
 
-    test('the desktop menu keeps the reference client\'s Qt mnemonics', () {
+    test('the desktop menu keeps its `&` mnemonics', () {
       final e = ChromeStringsPresets.english.editMenu;
       expect(
         [e.undoAction, e.redoAction, e.cutAction, e.copyAction, e.pasteAction],
@@ -130,8 +158,7 @@ void main() {
     });
 
     test('the desktop formatting rows use the desktop wording', () {
-      // tdesktop lng_menu_formatting_monospace, _link_create, _link_edit,
-      // _clear and lng_keys_legend_paste_plain.
+      // Desktop wording of the formatting and paste rows.
       final e = ChromeStringsPresets.english.editMenu;
       expect(e.monospaceAction, 'Monospace');
       expect(e.createLinkAction, 'Create link');
@@ -150,7 +177,7 @@ void main() {
       },
     );
 
-    test('the menu labels are the reference client\'s English wording', () {
+    test('the menu labels are the English wording', () {
       final f = ChromeStringsPresets.english.formatting;
       expect(
         [

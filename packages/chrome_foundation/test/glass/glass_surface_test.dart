@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:chrome_foundation/src/glass/shader/glass_shaders.dart';
 import 'package:chrome_foundation/src/glass/strategy/glass_backdrops.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,7 +74,7 @@ Color? _flatFill() {
 void main() {
   group('GlassSurface shader loading', () {
     testWidgets('reports a failure instead of swallowing it and keeps '
-        'painting on the flat path', (tester) async {
+        'the glass frosted', (tester) async {
       failGlassShaders(StateError('shader asset missing'));
       await tester.pumpWidget(_surface(source: true));
       await tester.pump();
@@ -79,12 +82,66 @@ void main() {
       final reported = tester.takeException();
       expect(reported, isStateError);
       expect(tester.takeException(), isNull, reason: 'reported once');
-      expect(_samples(), isFalse, reason: 'no shader path without programs');
-      expect(_flatFill(), isNotNull);
+      expect(_samples(), isTrue, reason: 'the frosted sample needs no shader');
+      expect(
+        tester
+            .widget<SampledGlassBackdrop>(
+              _inGlass(find.byType(SampledGlassBackdrop)),
+            )
+            .style
+            .enableLiquid,
+        isFalse,
+      );
+    });
+
+    testWidgets('a frosted surface never loads the shaders', (tester) async {
+      var loads = 0;
+      GlassShaders.loader = () {
+        loads++;
+        return Completer<GlassShaderPrograms>().future;
+      };
+      addTearDown(GlassShaders.debugReset);
+
+      await tester.pumpWidget(
+        _surface(quality: GlassQuality.frosted, source: true),
+      );
+      await tester.pumpWidget(_surface(quality: GlassQuality.frosted));
+
+      expect(loads, 0);
     });
   });
 
   group('GlassSurface strategy', () {
+    testGlassWidgets('is frosted without a quality scope', (tester) async {
+      // No source, so the detected backend's scene filter draws it on any
+      // test host.
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: ChromeThemeScope(
+            palette: const ChromePalette.dark(),
+            child: const SizedBox(
+              width: 200,
+              height: 44,
+              child: GlassSurface(
+                key: _glassKey,
+                material: GlassMaterial.composerIsland,
+                child: SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      );
+      final style = tester
+          .widget<FilterGlassBackdrop>(
+            _inGlass(find.byType(FilterGlassBackdrop)),
+          )
+          .style;
+
+      expect(style.enableLiquid, isFalse);
+      expect(style.fill.a, closeTo(0.76, 1e-6));
+    });
+
     testGlassWidgets('samples a source under full liquid', (tester) async {
       await tester.pumpWidget(_surface(source: true));
 
@@ -136,7 +193,7 @@ void main() {
   });
 
   group('GlassSurface colours', () {
-    testGlassWidgets('flat fill is the theme colour of the material', (
+    testGlassWidgets('a flat fill is the opaque theme tint of the material', (
       tester,
     ) async {
       for (final material in GlassMaterial.values) {
@@ -145,15 +202,16 @@ void main() {
         );
         final expected = GlassMaterialTokens.fromPalette(
           const ChromePalette.dark(),
-        ).colorsOf(material).fill;
+        ).colorsOf(material).tint;
 
         expect(_flatFill(), expected, reason: '$material');
+        expect(_flatFill()!.a, 1, reason: '$material');
       }
     });
 
     testGlassWidgets('a nested scope restyles one material', (tester) async {
       const custom = GlassMaterialColors(
-        fill: Color(0xFF123456),
+        tint: Color(0xFF123456),
         strokeTop: Color(0x00000000),
         strokeBottom: Color(0x00000000),
         shadow: Color(0x00000000),

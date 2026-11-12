@@ -56,6 +56,7 @@ void main() {
     onLongPressEnd,
     Duration? Function(CatalogLeafHit hit, PointerDeviceKind kind)? delay,
     CatalogLeafHit? pinnedLeaf,
+    CatalogLeafPreview? leafPreview,
     PanelCatalogThemeData? theme,
   }) => tester.pumpWidget(
     MaterialApp(
@@ -83,6 +84,7 @@ void main() {
               onLeafLongPressEnd: onLongPressEnd,
               leafLongPressDelay: delay,
               pinnedLeaf: pinnedLeaf,
+              leafPreview: leafPreview,
             ),
           ),
         ),
@@ -380,6 +382,23 @@ void main() {
       expect(controller.leafBoundsOf(nowhere), isNull);
     });
 
+    testWidgets('the controller names the cell under a global point, with '
+        'the offset', (tester) async {
+      await pumpViewport(tester, onLeafTap: (_) {});
+
+      // Column 1 of the second row: (80, 64) 80 x 40.
+      expect(controller.leafAt(const Offset(100, 70))?.index, 5);
+      controller.jumpTo(30);
+      await tester.pump();
+      expect(controller.leafAt(const Offset(100, 40))?.index, 5);
+      expect(
+        controller.leafAt(const Offset(100, 10))?.index,
+        isNot(5),
+        reason: 'a header or another row is not the cell',
+      );
+      expect(controller.leafAt(const Offset(100, 900)), isNull);
+    });
+
     testWidgets('the controller reports a section action\'s button globally, '
         'with the offset', (tester) async {
       snapshots.replaceSections([
@@ -500,6 +519,192 @@ void main() {
       await tester.sendEventToBinding(wheel.scroll(const Offset(0, 120)));
       await tester.pump();
       expect(controller.offset, greaterThan(0));
+    });
+  });
+
+  group('leaf preview', () {
+    const press = Color(0x33FF0000);
+    final touchTheme = PanelCatalogThemeData.light.copyWith(
+      leafHoverHighlightColor: _hover,
+      leafPressHighlightColor: press,
+    );
+
+    CatalogLeafHit hitOf(int index) => CatalogLeafHit(
+      sectionId: 'a',
+      index: index,
+      leaf: CatalogLeaf.unicode(_glyph(index)),
+    );
+
+    RecordingCanvas paint(WidgetTester tester) {
+      final canvas = RecordingCanvas();
+      render(tester).paint(TestRecordingPaintingContext(canvas), Offset.zero);
+      return canvas;
+    }
+
+    // A press wash is drawn at the press's share of its alpha: matched by
+    // its hue.
+    List<Rect> washes(RecordingCanvas canvas, Color color) => [
+      for (final r in canvas.rrects)
+        if (r.color.a > 0 &&
+            r.color.r == color.r &&
+            r.color.g == color.g &&
+            r.color.b == color.b)
+          r.rrect.outerRect,
+    ];
+
+    // The scale each leaf's glyph is drawn at, by the order the canvas got
+    // them: a glyph at 1 is drawn without a scale.
+    List<double> scales(RecordingCanvas canvas) => canvas.scaleCalls;
+
+    testWidgets('a held cell under an open preview shows no press wash and '
+        'shrinks to 0.8, linearly, at 0.2 per 80 ms', (tester) async {
+      await pumpViewport(
+        tester,
+        theme: touchTheme,
+        onLeafTap: (_) {},
+        onLongPressStart: (_, _) {},
+        onLongPressEnd: (_, _) {},
+      );
+      final finger = await tester.startGesture(_first);
+      addTearDown(finger.up);
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      expect(washes(paint(tester), press), isNotEmpty, reason: 'pressed');
+
+      await pumpViewport(
+        tester,
+        theme: touchTheme,
+        onLeafTap: (_) {},
+        onLongPressStart: (_, _) {},
+        onLongPressEnd: (_, _) {},
+        leafPreview: CatalogLeafPreview(shrunk: hitOf(0)),
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final canvas = paint(tester);
+      expect(washes(canvas, press), isEmpty);
+      expect(scales(canvas), [closeTo(0.8, 1e-6)]);
+    });
+
+    testWidgets('the shrunk cell follows the preview: the new one shrinks and '
+        'the old one grows back at the same pace', (tester) async {
+      await pumpViewport(
+        tester,
+        theme: touchTheme,
+        leafPreview: CatalogLeafPreview(shrunk: hitOf(0)),
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(scales(paint(tester)), [closeTo(0.8, 1e-6)]);
+
+      await pumpViewport(
+        tester,
+        theme: touchTheme,
+        leafPreview: CatalogLeafPreview(shrunk: hitOf(1)),
+      );
+      await tester.pump(const Duration(milliseconds: 40));
+      // Cell 0 grows (0.8 -> 0.9), cell 1 shrinks (1 -> 0.9), halfway.
+      expect(scales(paint(tester)), [closeTo(0.9, 0.02), closeTo(0.9, 0.02)]);
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(scales(paint(tester)), [closeTo(0.8, 1e-6)]);
+
+      await pumpViewport(tester, theme: touchTheme);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(scales(paint(tester)), isEmpty, reason: 'back to 1 once closed');
+    });
+
+    testWidgets('a held cell whose press draws nothing starts its shrink from '
+        '1, not from a press scale it never showed', (tester) async {
+      final quiet = touchTheme.copyWith(
+        leafPressFeedback: CatalogPressFeedback.none,
+      );
+      await pumpViewport(
+        tester,
+        theme: quiet,
+        onLeafTap: (_) {},
+        onLongPressStart: (_, _) {},
+        onLongPressEnd: (_, _) {},
+      );
+      final finger = await tester.startGesture(_first);
+      addTearDown(finger.up);
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      expect(washes(paint(tester), press), isEmpty, reason: 'no press wash');
+      expect(scales(paint(tester)), isEmpty, reason: 'no press scale');
+
+      await pumpViewport(
+        tester,
+        theme: quiet,
+        onLeafTap: (_) {},
+        onLongPressStart: (_, _) {},
+        onLongPressEnd: (_, _) {},
+        leafPreview: CatalogLeafPreview(shrunk: hitOf(0)),
+      );
+      await tester.pump(const Duration(milliseconds: 40));
+
+      // Halfway from 1 to 0.8 at 0.2 per 80 ms.
+      expect(scales(paint(tester)), [closeTo(0.9, 0.02)]);
+    });
+
+    group('shown by the hover box', () {
+      final pointerTheme = PanelCatalogThemeData.light.copyWith(
+        leafHoverHighlightColor: _hover,
+        leafPressFeedback: CatalogPressFeedback.none,
+        leafPreviewFeedback: CatalogPreviewFeedback.hover,
+      );
+
+      testWidgets('the previewed cell keeps the hover box and is not scaled; '
+          'the mouse marks no other cell', (tester) async {
+        await pumpViewport(
+          tester,
+          theme: pointerTheme,
+          leafPreview: CatalogLeafPreview(shrunk: hitOf(0)),
+        );
+        final gesture = await mouse(tester);
+        await gesture.moveTo(_second);
+        await tester.pump(const Duration(milliseconds: 200));
+
+        final canvas = paint(tester);
+        expect(washes(canvas, _hover), [
+          const Rect.fromLTWH(0, 24, 80, 40).deflate(2),
+        ]);
+        expect(scales(canvas), isEmpty, reason: 'no cell is scaled');
+      });
+
+      testWidgets('the box follows the preview to the next cell', (
+        tester,
+      ) async {
+        await pumpViewport(
+          tester,
+          theme: pointerTheme,
+          leafPreview: CatalogLeafPreview(shrunk: hitOf(0)),
+        );
+        await pumpViewport(
+          tester,
+          theme: pointerTheme,
+          leafPreview: CatalogLeafPreview(shrunk: hitOf(1)),
+        );
+        await tester.pump(const Duration(milliseconds: 40));
+
+        final canvas = paint(tester);
+        expect(washes(canvas, _hover), [
+          const Rect.fromLTWH(80, 24, 80, 40).deflate(2),
+        ]);
+        expect(scales(canvas), isEmpty);
+      });
+    });
+
+    testWidgets('no hover wash, pinned or under the mouse, while a preview is '
+        'open', (tester) async {
+      await pumpViewport(
+        tester,
+        onLeafTap: (_) {},
+        pinnedLeaf: hitOf(0),
+        leafPreview: const CatalogLeafPreview(),
+      );
+      final gesture = await mouse(tester);
+      await gesture.moveTo(_second);
+      await tester.pump();
+
+      expect(washes(paint(tester), _hover), isEmpty);
+      expect(scales(paint(tester)), isEmpty, reason: 'nothing shrunk');
     });
   });
 }

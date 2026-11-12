@@ -1,14 +1,13 @@
-/// A grid that takes its column count from its width, as the reference desktop
-/// client's emoji list does: as many columns of at least the desired width as
-/// fit, each a whole number of pixels wide, the row a fixed amount shorter
+/// A grid that takes its column count from its width: as many columns of at
+/// least the desired width as fit, each a whole number of pixels wide, the row a fixed amount shorter
 /// than the cell is wide, and what the integer division leaves split on both
 /// sides.
 ///
 /// **Seam:** [PanelCatalogViewport] with one section of
 /// `SectionLayout.grid(desiredCellWidth:, cellHeightInset:)`, observed through
-/// the leaf a tap lands on. The expected numbers are the reference client's
-/// own (its selector of width W gives the list W - 12 for its columns, which
-/// the 8 px left and 4 px right padding reproduce here).
+/// the leaf a tap lands on. The expected numbers follow the width rule above
+/// (a width W gives W - 12 px of columns, which the 8 px left and 4 px right
+/// padding reproduce here).
 library;
 
 import 'package:catalog_assets/catalog_assets.dart';

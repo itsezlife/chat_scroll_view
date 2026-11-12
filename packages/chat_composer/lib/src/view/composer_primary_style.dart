@@ -1,6 +1,6 @@
 /// How the composer draws its primary action (the send).
 ///
-/// The reference clients draw a filled disc with the glyph on it; some hosts
+/// The default draws a filled disc with the glyph on it; some hosts
 /// draw the bare glyph in the accent instead. Either way the action is the
 /// primary one: the submit shortcut invokes it and a busy spec disables it.
 enum ComposerPrimaryStyle {

@@ -6,6 +6,121 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (backdrop snapshot)
+
+- `BackdropSnapshotSource`, `BackdropSnapshot` and `BackdropSnapshotView`: a small still of what the source last painted, captured once at a fraction of its device pixels (`downscale`), then laid over an opaque `background`, stack-blurred (`blurRadius`) and toned (`tone`, `BackdropSnapshot.toneMatrix`) once on the CPU, off the UI isolate where there is one, and drawn stretched (bilinear) with only its opacity animated. For a scrim over a background that holds still while it is up, in place of a live full-window `BackdropFilter`. The still is made a few frames after the capture: the snapshot is a `Listenable` whose `image` is null until then (`ready` completes then too), and the view draws nothing until then. The still is opaque, smooth and blurred evenly out to its edges on every backend: the edges repeat the capture's own edge pixels. The caller disposes the snapshot; one disposed before its still is made lets the still go as it comes.
+
+### Added (chrome buttons)
+
+- `ChromeIconButton`, `ChromePillButton`, `ChromeBarButton` (with `ChromeBarButtonMetrics`), `ChromeBadgeButton` (with `ChromeBadgeButtonMetrics`), `ChromeSpinner`, `ChromeCrossPainter`, `ChromeDotsPainter`, and `ChromeButtonInks` (the press and hover colours of a button on the surface or on the accent). The pack sheet's buttons, spinner and glyphs, made reusable; they draw as the sheet drew them.
+
+### Fixed (ink takes the primary button only)
+
+- `ChromeInk` presses with the primary button only: a secondary click neither taps nor draws, and reaches the host's context handlers.
+
+### Added (pack strings)
+
+- `PanelStrings.removePackAction`, and `PackSheetStrings.addStickersLabel`, `addEmojiLabel`, `removeStickersLabel`, `removeEmojiLabel` (the pack box's button words beside its count badge). Required: hosts that build their own sets add them.
+
+### Breaking
+
+- `PointerMenuTokens.referenceDay` is `PointerMenuTokens.day`, and `PointerMenuTokens.referenceNight` is `PointerMenuTokens.night`.
+- `BulletinTokens.referenceAndroid` is `BulletinTokens.android`, and `BulletinTokens.referenceDesktop` is `BulletinTokens.desktop`. The rename covers the unreleased `BulletinTokens` group too; no alias is kept.
+- `AppearMotion.bloom` is `AppearMotion.burst` (`AppearMotion$Burst`), and `AppearMotion.pop` is `AppearMotion.zoom` (`AppearMotion$Zoom`): the corner popup variants are named by the motion they play, not by the surface that first used them. Same values; no alias is kept.
+
+### Added (chrome typography)
+
+- `ChromeTypography.of`: the base style of chrome text, the host theme's
+  body face at the regular weight, not inheriting. Chrome drawn outside a
+  `Material` (an overlay entry, a popup route) reads its face here instead of
+  the framework's debug style. `PointerMenu` reads its face through it.
+
+### Added (bulletins)
+
+- `BulletinTokens`, a token group (`ChromeThemeData.bulletin`,
+  `ChromeThemeScope.bulletinOf`, `ChromeThemeAspect.bulletin`): a bulletin's
+  card, text, accent and countdown colours. `fromPalette` gives the
+  dark card (`android`) on every palette but the
+  high-contrast presets (`highContrast`). Code that builds a
+  `ChromeThemeData` whole must now pass `bulletin`.
+- `MotionRole.bulletinShow` (255 ms, ease-out quad) and
+  `MotionRole.bulletinHide` (175 ms, ease-in quad). Code that builds a
+  `ChromeMotion` whole must now pass both.
+- `BulletinStrings`, the seventh group of `ChromeStrings` (`bulletin`,
+  `ChromeStringsScope.bulletinOf`): `undoAction` and `dismissAction`. Code
+  that builds a `ChromeStrings` must now pass `bulletin`; the presets and
+  `ChromeStringsSnapshot` include it.
+
+### Added (pack sheet strings)
+
+- `PackSheetStrings`, the sixth group of `ChromeStrings` (`packSheet`,
+  `ChromeStringsScope.packSheetOf`): a pack sheet's Add / Remove buttons by
+  kind and count, the several-packs buttons and counts, Share and Copy Link,
+  the not-found texts, and the added / removed / archived bulletins with
+  Undo, in English. Existing code that builds a
+  `ChromeStrings` must now pass `packSheet`; the presets and
+  `ChromeStringsSnapshot` include it.
+
+### Added (content preview strings)
+
+- `PanelStrings` gains the content preview's menu (`sendStickerAction`,
+  `sendEmojiAction`, `sendGifAction`, `sendWithoutSoundAction`,
+  `addToFavouritesAction`, `removeFromFavouritesAction`, `viewPackAction`,
+  `deleteFromRecentAction`, `copyEmojiAction`, `saveGifAction`,
+  `deleteGifAction`) and the recent stickers' own clear confirmation
+  (`clearRecentStickersTitle`, `clearRecentStickersMessage`). All required:
+  a host's `PanelStrings` must add them. The presets carry English and Russian.
+
+### Changed (glass look)
+
+- The glass is frosted by default: `GlassQualityScope.quality` and a surface
+  with no scope now mean `GlassQuality.frosted`. A host that relied on
+  refraction without asking for it passes `quality: GlassQuality.fullLiquid`.
+- The frosted look samples at an eighth of device resolution with a 40 dp
+  blur radius and saturation x3, the tint at 0.76; the refracting look at a
+  quarter with a 6 dp radius, the tint at 0.85. A flat glass paints its tint
+  opaque (it was the translucent fill over unblurred content), except while
+  only a moving route keeps it flat.
+- `GlassMaterialColors.fill` is renamed `tint` (source-breaking) and is the
+  material's surface colour: the glass sets its opacity per look, and the
+  colour's own alpha multiplies it. `fromPalette` maps the panel button to
+  `surface` (was `surfaceRaised`), the light shadows to the palette shadow at
+  0x20 (a button 0x40), and the top panel's dark top edge to 0x20 white.
+- `GlassMaterial` carries `strokeWidth` (0.5, 0.5, 0.55), `shadowBlur` and
+  `shadowOffset`; the panel button's default corner radius is 18 (was 22).
+- `GlassSource.captureScale` is 1/8 (was 1/4); `refractingCaptureScale` (1/4)
+  is the scale a refracting glass captures at.
+- A frosted surface no longer needs the glass shaders, and a failed shader
+  load leaves surfaces frosted instead of on the scene filter.
+
+### Added (favourite stickers)
+
+- `PanelStrings.favouriteStickersTitle`, required, with English and Russian
+  presets: the title of the stickers page's favourites section and the name
+  of its strip tab. A host that builds `PanelStrings(...)` must pass it
+  (source-breaking).
+
+### Added (stickers page copy)
+
+- `PanelStrings.stickersEmpty`, required, with English and Russian presets:
+  the stickers page's placeholder when it has no recents and no pack. A host
+  that builds `PanelStrings(...)` must pass it (source-breaking).
+  `gifsEmpty` now also reads as the GIF page's placeholder when it has no clip
+  to list at all.
+
+### Added (GIF page copy)
+
+- `PanelStrings.gifsEmpty`, `gifsFailed` and `retryAction`, required, with
+  English and Russian presets: the GIF page's placeholders for a search that
+  found nothing and for clips that could not be loaded, and the retry button.
+  A host that builds `PanelStrings(...)` must pass them (source-breaking).
+
+### Added (sticker pack strip label)
+
+- `SemanticsStrings.stickerPackStripLabel`, the label of the stickers page's
+  strip of packs, required, with English and Russian presets. A host that
+  builds `SemanticsStrings(...)` field by field must pass it.
+
 ### Added (glass capture scale)
 
 - `GlassSource.captureScale`: the scale, relative to the frame, at which a
@@ -29,12 +144,11 @@ package is pre-1.0.
   The morph runs both ways: an upright glyph turning into a tilted one keeps
   its morph too, since the turned and the upright glyph share one tree shape.
 
-### Changed (Telegram's English in the presets)
+### Changed (English wording in the presets)
 
 - `ChromeStringsPresets.english`: the touch formatting page reads Code Block
-  and Bulleted list (the Android client's `AccDescrCodeBlock` and
-  `ArticleListBulletedList`), and the pointer menu's clear row reads Plain
-  text (the desktop client's `lng_menu_formatting_clear`). No API change.
+  and Bulleted list, and the pointer menu's clear row reads Plain
+  text. No API change.
 
 ### Changed (menu language)
 
@@ -49,7 +163,7 @@ package is pre-1.0.
 
 ### Added (pointer menu)
 
-- `PointerMenu`, the reference desktop client's popup list opened at the
+- `PointerMenu`, a popup list opened at the
   pointer: rows with a mnemonic label and a shortcut hint, greyed rows,
   separators, submenus that open on hover with a 300 ms aim hold, the
   arrow-key model, the grow-from-the-corner open animation and the linear
@@ -61,13 +175,12 @@ package is pre-1.0.
   `EaseOutCirc` and the row and panel keys.
 - `PointerMenuTokens` as a theme group (`ChromeThemeData.pointerMenu`,
   `ChromeThemeScope.pointerMenuOf`, `ChromeThemeAspect.pointerMenu`), derived
-  from the palette, with the reference's day and night colours as
+  from the palette, with the day and night colours as
   `referenceDay` and `referenceNight`. Source-breaking for hosts that build
   `ChromeThemeData` field by field or switch over `ChromeThemeAspect`.
 - Motion roles `pointerMenuShow` (200 ms) and `pointerMenuHide` (150 ms).
 - `EditMenuStrings` (`ChromeStrings.editMenu`, `ChromeStringsScope.editMenuOf`):
-  the labels of the composer's pointer menu, in the reference client's wording
-  with Qt `&` mnemonics. Source-breaking for hosts that build
+  the labels of the composer's pointer menu, with `&` mnemonics. Source-breaking for hosts that build
   `ChromeStrings`: the group is required; the English and Russian presets have
   it.
 
@@ -122,9 +235,9 @@ package is pre-1.0.
 
 ### Changed
 
-- The preset strings' `categoryTitle` is keyed by the reference client's
+- The preset strings' `categoryTitle` is keyed by the
   sections (`people`, `nature`, `food`, `activity`, `travel`, `objects`,
-  `symbols`) in the reference client's wording, not by Unicode group slugs.
+  `symbols`) in the preset wording, not by Unicode group slugs.
 
 ### Fixed
 
@@ -134,7 +247,7 @@ package is pre-1.0.
 
 ### Changed
 
-- `MotionRole.popupHide` lasts 200 ms (was 150 ms), the reference client's fade-out;
+- `MotionRole.popupHide` lasts 200 ms (was 150 ms), a fade-out;
   `popupShow` was already 200 ms. A popup that fades out for 50 ms longer can be
   turned back for that long, which is what hovering it again does.
 

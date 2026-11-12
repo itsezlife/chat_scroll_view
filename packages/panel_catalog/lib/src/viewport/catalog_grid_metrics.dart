@@ -48,8 +48,8 @@ final class CatalogGridMetrics {
     );
     final fixedHeight = grid.cellExtent ?? cellExtent;
     final desired = grid.desiredCellWidth;
-    // Columns from the width: whole pixels, as the reference client counts
-    // them, the remainder split with the smaller half at the start.
+    // Columns from the width: whole pixels, the remainder split with the
+    // smaller half at the start.
     final span = desired != null && usableWidth > 0
         ? math.max(1, (usableWidth / desired).floor())
         : grid.spanCount ?? spanCount;

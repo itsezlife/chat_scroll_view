@@ -15,6 +15,9 @@ import 'package:panel_pages/src/emoji/emoji_tone_picker.dart';
 import 'package:panel_pages/src/emoji/emoji_variant_picker.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
+import 'package:panel_pages/src/policy/pack_section_action.dart';
+import 'package:panel_pages/src/preview/catalog_content_preview.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -31,21 +34,21 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///
 /// - **Geometry.** Under the touch arrangement eight columns of [cellPitch]
 ///   rows under a [headerExtent] header, for the categories and the search
-///   results alike. Under the pointer arrangement the reference desktop
-///   client's grid: as many columns of at least [pointerDesiredCellWidth] as
+///   results alike. Under the pointer arrangement the grid holds as many
+///   columns of at least [pointerDesiredCellWidth] as
 ///   the width holds, whole pixels wide, each row [pointerCellHeightInset]
 ///   shorter, so a dock that is dragged wider or narrower gains or loses
 ///   columns at once. Under touch an emoji is drawn in the glyph box of the
 ///   cell; under the pointer at [pointerGlyphSize], centred, whatever the
-///   width gives the cell, as the reference desktop client draws it. The
+///   width gives the cell, as the pointer grid draws it. The
 ///   atlas is baked for the larger of the two ([glyphBoxExtent]).
 /// - **Sections.** One per category with the title the panel strings give the
 ///   category; the recents first, only while there are some. Search open with
-///   no query changes none of it: the reference clients keep the whole
-///   catalogue on screen until there is something to look for.
+///   no query changes none of it: the whole catalogue stays on screen until
+///   there is something to look for.
 /// - **Recents.** One list for the page, filed under [recentsKind]: every
 ///   pick is recorded there, custom emoji (document keys) among the unicode
-///   ones, as the reference clients keep one list. The header is a title,
+///   ones, as one list. The header is a title,
 ///   with no button. A finger's long press
 ///   on an emoji of the recents asks the host to clear them
 ///   (`PanelPageHost.requestClearRecents`), instead of the variant picker.
@@ -60,12 +63,19 @@ typedef EmojiEntryOf = EmojiEntry? Function(ContentKey key);
 ///   shows it from then on. An emoji with no variants has no long press.
 ///   Under a mouse the picker opens after a [pointerHoldDelay] hold, whether
 ///   or not a variant was ever chosen, and a release before then picks the
-///   emoji as the grid shows it: a click is always a pick. (The reference
-///   desktop client opens it on the press for an emoji never chosen; a click
+///   emoji as the grid shows it: a click is always a pick. (The pointer picker opens on the press for an emoji never chosen; a click
 ///   that inserts nothing read as a bug.) A finger or stylus keeps the
 ///   platform's long-press delay.
+/// - **Custom emoji.** Given [previews] and [assets], a press held on a
+///   custom emoji (never a unicode one) opens the content preview
+///   (`ContentPreviewSession`) after its own delays, the recents' included:
+///   Send Emoji, Copy Emoji, and Remove from Recent in the recents. Its
+///   right click keeps the recents menu.
 /// - **Strip.** The category strip above the catalogue, or pinned below it
 ///   under the pointer arrangement ([stripReady] defers it).
+/// - **A pack's header.** The title of a pack of custom emoji (a section of
+///   `CollectionId.set`) asks the host to open the pack
+///   (`PanelPageHost.requestPack`).
 final class EmojiPagePolicy extends CatalogPagePolicy {
   /// The emoji policy of the page behind [host].
   ///
@@ -80,7 +90,11 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     this.stripReady,
     this.assets,
     this.stripLayout = EmojiStripLayout.automatic,
+    this.previews,
   });
+
+  /// The id a pack's header title reports.
+  static const String openPackActionId = 'open-pack';
 
   /// What the page declares to the shell: search, placed inline among the
   /// content so it scrolls away with it and pins when search opens; a top
@@ -100,6 +114,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   /// Height of a section header.
   static const double headerExtent = 27;
+
+  /// The host's handle on content previews, or null for none.
+  final ContentPreviewController? previews;
 
   /// The kind every pick of the page is filed under: the page's one recents
   /// list, custom emoji included. It names the list, in a pick's
@@ -124,7 +141,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   static const CollectionId colorAllSection = CollectionId.category('people');
 
   // The emoji the tone-for-all picker offers: the waving hand, as it is and in
-  // each tone, as the reference desktop client offers it.
+  // each tone.
   static final List<(ContentKey$Unicode, EmojiModifiers)> _colorAllOptions = [
     (const ContentKey$Unicode('\u{1F44B}'), EmojiModifiers.none),
     for (final (i, tone) in SkinTone.values.indexed)
@@ -135,7 +152,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   ];
 
   /// How long a mouse holds a press on an emoji whose variant the user has
-  /// chosen before the picker opens: the reference client's 500 ms.
+  /// chosen before the picker opens: 500 ms.
   static const Duration pointerHoldDelay = Duration(milliseconds: 500);
 
   /// The side of the box an emoji is drawn in: what a glyph atlas for this
@@ -151,16 +168,16 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     headerExtent: headerExtent,
   );
 
-  /// The narrowest a column of the pointer grid is: the reference desktop
-  /// client's emoji list, whose columns are as many as fit at this width.
+  /// The narrowest a column of the pointer grid is: the columns are as many
+  /// as fit at this width.
   static const double pointerDesiredCellWidth = 37;
 
   /// How much shorter than it is wide a row of the pointer grid is.
   static const double pointerCellHeightInset = 2;
 
-  /// The size an emoji is drawn at under the pointer, at every width: the
-  /// reference desktop client's large emoji (24 logical pixels, the art
-  /// filling its square, as a colour emoji font fills its em).
+  /// The size an emoji is drawn at under the pointer, at every width: 24
+  /// logical pixels, the art filling its square, as a colour emoji font fills
+  /// its em.
   static const double pointerGlyphSize = 24;
 
   static const SectionLayout _pointerLayout = SectionLayout.grid(
@@ -187,6 +204,12 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   /// How the strip lays its icons out under the pointer arrangement.
   final EmojiStripLayout stripLayout;
+
+  @override
+  String? titleActionOf(Collection collection) => switch (collection.id) {
+    CollectionId$Set() => openPackActionId,
+    _ => null,
+  };
 
   @override
   PageCapabilities get capabilities => pageCapabilities;
@@ -229,8 +252,8 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   // --- Section header -------------------------------------------------------
 
   /// Under a pointer, the Smileys & People header ends in a button that opens
-  /// a picker of one tone for every emoji, as in the reference desktop
-  /// client.
+  /// a picker of one tone for every emoji, and an installed pack's header in
+  /// one that removes the pack.
   @override
   CatalogSectionAction? actionOf(
     Collection collection,
@@ -243,10 +266,10 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
         painter: _paintToneIcon,
         semanticLabel: strings.colorAllTitle,
       ),
-    _ => null,
+    _ => PackSectionAction.removeOf(collection, strings, arrangement),
   };
 
-  // The reference desktop client's tone button: two sliders, the upper one's
+  // The tone-for-all button: two sliders, the upper one's
   // knob at its right end, the lower one's at its left, stroked in [color].
   static void _paintToneIcon(Canvas canvas, Rect box, Color color) {
     final unit = box.width / 24;
@@ -285,6 +308,17 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     Rect? bounds,
     Rect? viewportBounds,
   }) {
+    if ((actionId, collection.id) case (
+      openPackActionId,
+      CollectionId$Set(:final id),
+    )) {
+      host.requestPack(PackId(id));
+      return;
+    }
+    if (actionId == PackSectionAction.removePackActionId) {
+      PackSectionAction.requestRemove(collection, PackKind.emoji, host);
+      return;
+    }
     if (actionId != colorAllActionId ||
         context == null ||
         bounds == null ||
@@ -348,7 +382,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
 
   // --- Tooltip --------------------------------------------------------------
 
-  // The reference desktop client's: the code of a unicode emoji (its toneless
+  // The code of a unicode emoji (its toneless
   // form's, which the data already resolved), never one for a custom emoji.
   @override
   String? tooltipOf(CatalogLeafHit hit, Collection collection) =>
@@ -366,8 +400,12 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     PanelStrings strings, {
     required PanelArrangement arrangement,
   }) {
-    if (!arrangement.usesContextMenu || collection.id != CollectionId.recent) {
-      return const [];
+    if (!arrangement.usesContextMenu) return const [];
+    if (collection.id != CollectionId.recent) {
+      return switch (hit.leaf.key) {
+        ContentKey$Unicode() => const [],
+        _ => customEmojiMenu(strings),
+      };
     }
     return [
       CatalogMenuEntry.item(id: copyItemId, label: strings.copyAction),
@@ -384,6 +422,13 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     ];
   }
 
+  /// The menu of a custom emoji outside the recents, under a pointer: Copy
+  /// emoji, which copies it as itself, with its text for where it cannot be
+  /// drawn. More of the host's actions go here as they come.
+  static List<CatalogMenuEntry> customEmojiMenu(PanelStrings strings) => [
+    CatalogMenuEntry.item(id: copyItemId, label: strings.copyEmojiAction),
+  ];
+
   @override
   void onMenuAction(
     CatalogLeafHit hit,
@@ -391,7 +436,16 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     String itemId,
     PanelPageHost host,
   ) {
-    if (collection.id != CollectionId.recent) return;
+    if (collection.id != CollectionId.recent) {
+      // Only a custom emoji has a menu outside the recents.
+      if ((itemId, hit.leaf.key) case (
+        copyItemId,
+        final key,
+      ) when key is! ContentKey$Unicode) {
+        host.requestCopy(key, kind: hit.leaf.semanticKind);
+      }
+      return;
+    }
     const kind = recentsKind;
     switch (itemId) {
       // A copy is of the content, so under its own kind (a custom emoji is
@@ -411,7 +465,24 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   // mouse's hold opens the picker for the ones that have variants.
   @override
   bool hasLongPress(CatalogLeafHit hit, Collection collection) =>
-      _isRecentEmoji(hit, collection) || _variantsOf(hit.leaf.key) != null;
+      _isRecentEmoji(hit, collection) ||
+      _variantsOf(hit.leaf.key) != null ||
+      (_preview?.previews(hit) ?? false);
+
+  // --- Custom emoji ---------------------------------------------------------
+
+  CatalogContentPreview? get _preview => switch ((previews, assets)) {
+    (final previews?, final assets?) => CatalogContentPreview(
+      controller: previews,
+      assets: assets,
+      actions: panelPreviewActions(host, recentsKind: recentsKind),
+      inRecents: (hit) => hit.sectionId == _recentsSectionId,
+    ),
+    _ => null,
+  };
+
+  // The recents' section: [sectionIdOf] is the collection id's own text.
+  static final String _recentsSectionId = CollectionId.recent.toString();
 
   static bool _isRecentEmoji(CatalogLeafHit hit, Collection collection) =>
       collection.id == CollectionId.recent;
@@ -427,6 +498,9 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     Collection collection,
     PointerDeviceKind kind,
   ) {
+    if (_preview?.previews(hit) ?? false) {
+      return CatalogContentPreview.delayOf(kind);
+    }
     if (kind != PointerDeviceKind.mouse) return null;
     return _variantsOf(hit.leaf.key) == null ? null : pointerHoldDelay;
   }
@@ -440,8 +514,28 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     required PointerDeviceKind kind,
     required Rect cellBounds,
     required Rect viewportBounds,
+    CatalogLeafHit? Function(Offset globalPosition)? leafAt,
   }) {
     final key = hit.leaf.key;
+    // A custom emoji previews, in the recents too: the preview takes the
+    // press before the list does.
+    if (_preview case final preview? when preview.previews(hit)) {
+      final hold = host.holdAutoHide();
+      try {
+        final session = preview.begin(
+          context,
+          hit,
+          kind: kind,
+          leafAt: leafAt,
+          hold: hold,
+        );
+        if (session == null) hold.release();
+        return session;
+      } on Object {
+        hold.release();
+        rethrow;
+      }
+    }
     // A finger on a recent asks to clear them. The pointer keeps the picker
     // (its menu has the clear item), and a cell with no variants has none.
     if (kind != PointerDeviceKind.mouse && _isRecentEmoji(hit, collection)) {
@@ -455,7 +549,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
       // The hold goes up with the picker: the move onto it is the first thing
       // the panel's hover rule hears of.
       final hold = host.holdAutoHide();
-      // Anything but a mouse gets the reference mobile client's picker.
+      // Anything but a mouse gets the touch tone picker.
       if (kind != PointerDeviceKind.mouse) {
         try {
           return _showTones(
@@ -519,7 +613,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
     final compound = entry.variants.any(
       (variant) => variant.modifiers.tones.length > 1,
     );
-    // As the reference client: the saved choice is marked, not whatever the
+    // The saved choice is marked, not whatever the
     // cell shows (the recents show what was picked).
     final saved = preferences.preferredVariant(entry.base) ?? initial;
     if (!compound) {

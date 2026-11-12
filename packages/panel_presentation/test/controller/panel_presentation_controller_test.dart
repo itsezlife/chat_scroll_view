@@ -276,6 +276,147 @@ void main() {
     });
   });
 
+  group('fresh open', () {
+    late int freshOpens;
+
+    void count() {
+      freshOpens = 0;
+      shell.freshOpen.addListener(() => freshOpens++);
+    }
+
+    test('a mobile show from hidden reports one fresh open to the shell, '
+        'before the shell sees the panel', () {
+      build(policy: mobile);
+      count();
+      bool? visibleAtSignal;
+      shell.freshOpen.addListener(() => visibleAtSignal = shell.visible.value);
+
+      controller.show();
+
+      expect(freshOpens, 1);
+      expect(visibleAtSignal, isFalse);
+    });
+
+    test('every mobile show from hidden is a fresh open', () {
+      build(policy: mobile);
+      count();
+
+      controller
+        ..show()
+        ..hide()
+        ..show();
+
+      expect(freshOpens, 2);
+    });
+
+    test('a show that changes nothing, or settles, is not one', () {
+      build(policy: mobile);
+      final view = controller.attach();
+      count();
+
+      controller.show();
+      view.motionSettled(controller.state.value);
+      controller.show();
+
+      expect(freshOpens, 1);
+    });
+
+    test('a mobile panel turned back while hiding is not opened afresh', () {
+      build(policy: mobile);
+      final view = controller.attach();
+      controller.show();
+      view.motionSettled(controller.state.value);
+      count();
+
+      controller
+        ..hide()
+        ..show();
+
+      expect(controller.state.value.isShowing, isTrue);
+      expect(freshOpens, 0);
+    });
+
+    test('a desktop popup and dock keep their place: no fresh open', () {
+      build(window: wide);
+      count();
+
+      controller
+        ..show()
+        ..hide()
+        ..show(kind: const Docked())
+        ..hide();
+
+      expect(freshOpens, 0);
+    });
+
+    test('a mobile host that opens another kind gets what the policy says '
+        'for that kind', () {
+      build(policy: mobile);
+      count();
+
+      controller.show(kind: const AnchoredPopup());
+
+      expect(freshOpens, 0);
+    });
+  });
+
+  group('search across a hide', () {
+    // The mobile panel closes search when it is toggled away while searching,
+    // so a reopened panel is never in search; the desktop one only gives the
+    // field's focus back.
+    test('a mobile panel that hides ends the search left open, so the next '
+        'show starts outside it', () {
+      build(policy: mobile);
+      final view = controller.attach();
+      controller.show();
+      view.motionSettled(controller.state.value);
+      shell
+        ..openSearch()
+        ..setQuery('cat');
+
+      controller.hide();
+      expect(shell.search.value.isOpen, isTrue, reason: 'still on screen');
+      view.motionSettled(controller.state.value);
+
+      expect(shell.search.value, PanelSearchState.closed);
+      controller.show();
+      expect(shell.search.value.isOpen, isFalse);
+    });
+
+    test('a mobile panel turned back while hiding keeps its search', () {
+      build(policy: mobile);
+      final view = controller.attach();
+      controller.show();
+      view.motionSettled(controller.state.value);
+      shell
+        ..openSearch()
+        ..setQuery('cat');
+
+      controller
+        ..hide()
+        ..show();
+
+      expect(shell.search.value.isOpen, isTrue);
+      expect(shell.search.value.query, 'cat');
+    });
+
+    test('a desktop popup and dock keep their search across a hide', () {
+      build(window: wide);
+      for (final kind in [const AnchoredPopup(), const Docked()]) {
+        controller.show(kind: kind);
+        shell
+          ..openSearch()
+          ..setQuery('cat');
+
+        controller.hide();
+
+        expect(shell.search.value.isOpen, isTrue);
+        expect(shell.search.value.query, 'cat');
+        shell.closeSearch();
+      }
+    });
+  });
+
   group('handleBack', () {
     test('closes search before the panel, then the panel, then nothing', () {
       build().show();
@@ -375,6 +516,61 @@ void main() {
     test('the dock preference is not applied under the mobile policy', () {
       build(policy: mobile, window: wide, dockPreferred: true).show();
       expect(controller.state.value.kind, const KeyboardReplacement());
+    });
+  });
+
+  group('a window crossing the browser policy\'s handheld line', () {
+    const web = PanelPresentationPolicy$Web();
+    const phone = PanelWindow(width: 390, height: 844);
+
+    test('moves a popup up to the keyboard\'s place, and back', () {
+      build(policy: web, window: wide).show();
+      expect(controller.state.value.kind, const AnchoredPopup());
+
+      controller.updateWindow(phone);
+      expect(
+        controller.state.value,
+        const PanelVisibility.shown(KeyboardReplacement()),
+      );
+
+      controller.updateWindow(wide);
+      expect(
+        controller.state.value,
+        const PanelVisibility.shown(AnchoredPopup()),
+      );
+    });
+
+    test('opens the kind of the window it is in', () {
+      build(policy: web, window: wide).updateWindow(phone);
+      controller.show();
+      expect(controller.state.value.kind, const KeyboardReplacement());
+    });
+
+    test('keeps a kind the host asked for', () {
+      build(policy: web, window: wide).show(kind: const KeyboardReplacement());
+      controller.updateWindow(narrow);
+      expect(controller.state.value.kind, const KeyboardReplacement());
+      controller.updateWindow(wide);
+      expect(controller.state.value.kind, const KeyboardReplacement());
+    });
+
+    test('takes a dock away as any narrowing window does', () {
+      build(policy: web, window: wide, dockPreferred: true).show();
+      expect(controller.state.value.kind, const Docked());
+      controller.updateWindow(phone);
+      expect(controller.state.value, PanelVisibility.hidden);
+    });
+
+    test('leaves a hidden panel hidden', () {
+      build(policy: web, window: wide).updateWindow(phone);
+      expect(controller.state.value, PanelVisibility.hidden);
+    });
+
+    test('changes nothing under a policy whose kind does not follow the '
+        'window', () {
+      build(window: wide).show();
+      controller.updateWindow(phone);
+      expect(controller.state.value.kind, const AnchoredPopup());
     });
   });
 

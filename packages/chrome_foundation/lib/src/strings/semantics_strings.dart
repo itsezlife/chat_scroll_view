@@ -15,6 +15,7 @@ final class SemanticsStrings {
     required this.backspaceAction,
     required this.variantsAction,
     required this.categoryStripLabel,
+    required this.stickerPackStripLabel,
   });
 
   /// Announced when the panel opens.
@@ -42,4 +43,7 @@ final class SemanticsStrings {
 
   /// Semantic label of the strip that jumps between categories.
   final String categoryStripLabel;
+
+  /// Semantic label of the strip that jumps between sticker packs.
+  final String stickerPackStripLabel;
 }

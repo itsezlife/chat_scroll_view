@@ -8,6 +8,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/src/emoji/emoji_category_strip.dart'
     show EmojiStripLayout;
+import 'package:panel_pages/src/strip/panel_strip.dart';
 
 /// One icon of the [EmojiStripFooter]: a chrome icon (the recents, a
 /// category) or a piece of content (a pack's cover).
@@ -35,8 +36,7 @@ final class EmojiFooterIcon {
   final ContentKey? cover;
 }
 
-/// The emoji strip under the pointer arrangement: the reference desktop
-/// client's footer as it is with packs of its own.
+/// The emoji strip under the pointer arrangement, with packs of its own.
 ///
 /// ## Layout
 ///
@@ -123,8 +123,7 @@ class EmojiStripFooter extends StatefulWidget {
   /// How far a mouse moves before a press is a drag.
   static const double dragDistance = 10;
 
-  /// How long the group takes to open or close, linearly (the reference
-  /// client's slide duration).
+  /// How long the group takes to open or close, linearly (the slide duration).
   static const Duration groupSlide = Duration(milliseconds: 240);
 
   /// Identifies the marker.
@@ -155,7 +154,7 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
   final _selLeft = _Moving();
   final _selWidth = _Moving();
   final _groupOpen = _Moving();
-  // The reference client's ease-out cubic, exactly 1 - (1 - t)^3 (Flutter's
+  // An ease-out cubic, exactly 1 - (1 - t)^3 (Flutter's
   // `Curves.easeOutCubic` is a Bezier near it).
   static const Curve _selCurve = _CubicOut();
   double _width = 0;
@@ -423,8 +422,7 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
           builder: (context, constraints) {
             if (constraints.maxWidth != _width) {
               _width = constraints.maxWidth;
-              // A new width places everything again, as the reference
-              // client's geometry refresh does.
+              // A new width places everything again.
               _aim(animate: false);
               _placed = widget.active != null;
             } else if (!_placed && widget.active != null) {
@@ -458,7 +456,10 @@ class _EmojiStripFooterState extends State<EmojiStripFooter>
     final maxX = _maxX(open);
 
     final slotWidth = _slotWidth;
+    // Keyed by icon, so an icon added in front never hands the others'
+    // covers a neighbour's content.
     Widget icon(EmojiFooterIcon icon, double left) => Positioned(
+      key: ValueKey<String>(icon.id),
       left: left,
       top: 0,
       width: slotWidth,
@@ -624,16 +625,14 @@ class _FooterButton extends StatelessWidget {
                       ? tokens.categoryIconSelected
                       : tokens.categoryIcon,
                 ),
-                (null, final cover?, final scope?) => SizedBox.square(
-                  dimension: EmojiStripFooter.coverSize,
-                  child: ContentView(
-                    content: cover,
-                    scope: scope,
-                    preset: AssetPresets.keyboardCell(
-                      extent: EmojiStripFooter.coverSize,
-                      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-                    ),
-                  ),
+                // Playing, over the strips' themed stand-in until it has
+                // anything to show.
+                (null, final cover?, final scope?) => PanelStripCover(
+                  content: cover,
+                  scope: scope,
+                  size: EmojiStripFooter.coverSize,
+                  plays: true,
+                  tokens: tokens,
                 ),
                 _ => const SizedBox.shrink(),
               },

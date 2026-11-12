@@ -33,6 +33,9 @@ abstract final class PageAssets {
   /// there: until it is true they are placeholders, not missing-glyph boxes
   /// (see [TextGlyphProducer.fontsReady]).
   ///
+  /// [textures] is the pool of the platform's texture host, or null where
+  /// there is none (see [AssetCacheScope.textures]); the caller owns it too.
+  ///
   /// The caller owns the scope and disposes it.
   static AssetCacheScope createScope({
     AssetProducer? producer,
@@ -42,6 +45,7 @@ abstract final class PageAssets {
     Listenable? memoryPressure,
     Listenable? systemFonts,
     ValueListenable<bool>? textGlyphsReady,
+    FrameTexturePool? textures,
   }) => AssetCacheScope(
     producer: TextGlyphProducer(next: producer, fontsReady: textGlyphsReady),
     glyphSource: glyphSource,
@@ -49,5 +53,6 @@ abstract final class PageAssets {
     clock: clock,
     memoryPressure: memoryPressure,
     systemFonts: systemFonts,
+    textures: textures,
   );
 }

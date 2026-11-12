@@ -55,6 +55,26 @@ void main() {
     });
   });
 
+  group('a pack of custom emoji', () {
+    final pack = _loaded(const CollectionId.set('cats'), ['😀']);
+
+    test('its title asks the host to open the pack', () {
+      final id = policy.titleActionOf(pack);
+      policy.onSectionAction(pack, id!, host);
+
+      expect(host.packRequests, [const PackId('cats')]);
+    });
+
+    test('a category title opens nothing', () {
+      expect(
+        policy.titleActionOf(
+          _loaded(const CollectionId.category('people'), []),
+        ),
+        isNull,
+      );
+    });
+  });
+
   test('declares search, a top strip and the backspace action', () {
     expect(policy.capabilities.search, isTrue);
     expect(policy.capabilities.topStrip, isTrue);
@@ -112,8 +132,7 @@ void main() {
       }
     });
 
-    test('under the pointer draws an emoji 24 px, the reference desktop '
-        'client\'s size, at every width', () {
+    test('under the pointer draws an emoji 24 px at every width', () {
       final layout = policy.layoutOf(
         const Collection(id: CollectionId.recent),
         arrangement: PanelArrangement.pointer,
@@ -265,6 +284,67 @@ void main() {
       await longPress(tester, '❤', flags);
 
       expect(host.clearRecentsRequests, isEmpty);
+    });
+  });
+
+  group('a custom emoji\'s context menu', () {
+    const pack = Collection(id: CollectionId.set('cats'));
+    const custom = CatalogLeafHit(
+      sectionId: 's',
+      index: 0,
+      leaf: CatalogLeaf(
+        key: ContentKey.document('5368'),
+        semanticKind: SemanticKind.customEmoji,
+      ),
+    );
+
+    test('is Copy emoji under a pointer, nothing under touch', () {
+      expect(
+        policy.menuOf(
+          custom,
+          pack,
+          _strings,
+          arrangement: PanelArrangement.pointer,
+        ),
+        [
+          CatalogMenuEntry.item(
+            id: EmojiPagePolicy.copyItemId,
+            label: _strings.copyEmojiAction,
+          ),
+        ],
+      );
+      expect(
+        policy.menuOf(
+          custom,
+          pack,
+          _strings,
+          arrangement: PanelArrangement.touch,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('a unicode emoji outside the recents has none', () {
+      expect(
+        policy.menuOf(
+          _hit('😀'),
+          const Collection(id: CollectionId.category('people')),
+          _strings,
+          arrangement: PanelArrangement.pointer,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('asks the host to copy it as what it is', () {
+      policy.onMenuAction(custom, pack, EmojiPagePolicy.copyItemId, host);
+
+      expect(host.copyRequests, [
+        (
+          key: const ContentKey.document('5368'),
+          kind: SemanticKind.customEmoji,
+        ),
+      ]);
     });
   });
 

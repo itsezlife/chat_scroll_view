@@ -31,8 +31,7 @@ final class SelectionMenuRowSplit {
       width + (hasMore ? SelectionMenuMetrics.moreButtonWidth : 0);
 }
 
-/// Splits [labels] so the row never runs past [maxWidth], by the rule of the
-/// reference's `layoutMainPanelItems` (`FloatingToolbar` 1004-1049).
+/// Splits [labels] so the row never runs past [maxWidth].
 ///
 /// Each label is measured in the style the row draws it in. A button stays
 /// while it fits beside the More button; the one that is last of the whole menu
@@ -121,7 +120,7 @@ double selectionMenuButtonEndPadding({required bool isLast}) =>
 
 /// The width of [label] on one line, up to the next whole logical pixel, so a
 /// box of exactly that width never breaks or ellipsizes the label for want of
-/// a fraction (the reference measures in whole pixels).
+/// a fraction.
 double selectionMenuTextWidth({
   required String label,
   required TextStyle style,
@@ -154,7 +153,7 @@ final class SelectionMenuPageSize {
   final double width;
 
   /// The height of the list's visible area: the rows it shows, each counted at
-  /// the reference's 48 dp, and the peek of the next one while it scrolls.
+  /// 48 dp, and the peek of the next one while it scrolls.
   final double listHeight;
 
   /// Whether the list has more rows than it shows.
@@ -164,8 +163,7 @@ final class SelectionMenuPageSize {
   double get height => listHeight + SelectionMenuMetrics.backHeight;
 }
 
-/// Sizes the More page for [items] by the rule of the reference's overflow
-/// panel (`FloatingToolbar` 1088-1150).
+/// Sizes the More page for [items].
 ///
 /// The width is that of the widest row, its text between 18 dp each side,
 /// measured on one line in the row's own style: nothing is ellipsized or
@@ -174,10 +172,9 @@ final class SelectionMenuPageSize {
 /// and no more than there are, that the room [maxHeight] leaves after the Back
 /// row; a list longer than that shows half a row more, and scrolls.
 ///
-/// The reference does not limit the width and clips a label it cannot show;
-/// here [maxWidth], the room across, does, and a row wider than it ellipsizes
-/// as the only case in which a label is shortened. It also does not count the
-/// Back row's label, and a page of short rows would cut "Back"; here the page
+/// [maxWidth], the room across, bounds the width: a row wider than it
+/// ellipsizes, as the only case in which a label is shortened. The Back row's
+/// label is counted too, so a page of short rows never cuts "Back"; the page
 /// is at least as wide as that row.
 ///
 /// A null [maxHeight] is no limit.

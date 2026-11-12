@@ -168,7 +168,7 @@ void main() {
       expect(shell.opening.value, isFalse);
     });
 
-    testWidgets('a hidden panel unmounts once hiding has settled', (
+    testWidgets('a hidden panel goes offstage once hiding has settled', (
       tester,
     ) async {
       build(autoSettle: false);
@@ -185,6 +185,77 @@ void main() {
       keyboard.lastContext!.motionSettled();
       await tester.pump();
       expect(find.byType(PanelShell), findsNothing);
+      expect(find.byType(PanelShell, skipOffstage: false), findsOneWidget);
+      expect(keyboard.lastContext!.visibility, PanelVisibility.hidden);
+    });
+
+    // Ticket 201: what plays in the panel tells a hidden panel, which shows
+    // nothing, from one held on screen while it moves.
+    testWidgets('its content reads itself invisible while hidden, and only '
+        'then', (tester) async {
+      build(autoSettle: false);
+      await pump(tester);
+      bool visible() => Visibility.of(
+        tester.element(find.byType(PanelShell, skipOffstage: false)),
+      );
+      controller.show();
+      await tester.pump();
+      expect(visible(), isTrue, reason: 'showing');
+      keyboard.lastContext!.motionSettled();
+      await tester.pump();
+
+      controller.hide();
+      await tester.pump();
+      expect(visible(), isTrue, reason: 'hiding, still on screen');
+
+      keyboard.lastContext!.motionSettled();
+      await tester.pump();
+      expect(visible(), isFalse);
+
+      controller.show();
+      await tester.pump();
+      expect(visible(), isTrue);
+    });
+
+    // Ticket 100: a hide keeps the shell, its pages and their cells, so a
+    // show continues them instead of loading them again.
+    testWidgets('hidden and shown again, the panel is the same subtree', (
+      tester,
+    ) async {
+      build();
+      await pump(tester);
+      controller.show();
+      await tester.pumpAndSettle();
+      final body = tester.state(find.byType(_ScrollBody));
+      scrollTo(tester, 'emoji', 320);
+
+      controller.hide();
+      await tester.pumpAndSettle();
+      expect(
+        tester.state(find.byType(_ScrollBody, skipOffstage: false)),
+        same(body),
+      );
+
+      controller.show();
+      await tester.pumpAndSettle();
+
+      expect(tester.state(find.byType(_ScrollBody)), same(body));
+      expect(offsetOf(tester, 'emoji'), 320);
+    });
+
+    testWidgets('a hidden panel cannot hold the focus', (tester) async {
+      build();
+      await pump(tester);
+      controller.show();
+      shell.openSearch();
+      await tester.pumpAndSettle();
+      final field = tester.widget<EditableText>(find.byType(EditableText));
+      expect(field.focusNode.hasFocus, isTrue);
+
+      controller.hide();
+      await tester.pumpAndSettle();
+
+      expect(field.focusNode.hasFocus, isFalse);
     });
 
     testWidgets('autosettling strategies show then hide', (tester) async {

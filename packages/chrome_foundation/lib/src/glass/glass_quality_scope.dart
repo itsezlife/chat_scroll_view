@@ -5,20 +5,21 @@ import 'package:flutter/widgets.dart';
 /// The host's glass policy for a subtree: the quality ceiling, the lite-mode
 /// flag and, optionally, the capabilities to assume.
 ///
-/// Optional: with no scope a surface draws at [GlassQuality.fullLiquid] on
+/// Optional: with no scope a surface draws at [GlassQuality.frosted] on
 /// the detected capabilities, so a host that never limits glass supplies
 /// nothing. Scopes nest; the nearest one wins as a whole.
 class GlassQualityScope extends InheritedWidget {
   /// A policy for [child].
   const GlassQualityScope({
     required super.child,
-    this.quality = GlassQuality.fullLiquid,
+    this.quality = GlassQuality.frosted,
     this.liteMode = false,
     this.capabilities,
     super.key,
   });
 
-  /// The richest glass the host allows.
+  /// The richest glass the host allows. Frosted by default: refraction
+  /// ([GlassQuality.fullLiquid]) is an opt-in.
   final GlassQuality quality;
 
   /// The host's low-power flag. While true, glass paints flat (or nothing,

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('fromPalette', () {
-    test('maps the light palette to the Telegram-derived composer colours', () {
+    test('maps the light palette to the composer colours', () {
       final tokens = ComposerTokens.fromPalette(const ChromePalette.light());
       expect(tokens.background, const Color(0xFFFFFFFF));
       expect(tokens.text, const Color(0xFF000000));

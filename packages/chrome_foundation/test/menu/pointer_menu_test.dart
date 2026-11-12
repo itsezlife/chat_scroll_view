@@ -105,7 +105,7 @@ final class _Rig {
       tester.element(find.byType(Scaffold)),
       globalPosition: at,
       entries: entries ?? _entries(chosen),
-      tokens: PointerMenuTokens.referenceDay,
+      tokens: PointerMenuTokens.day,
       motion: motion,
       textDirection: direction,
       focusParent: focusParent,
@@ -428,7 +428,7 @@ void main() {
         tester.element(find.byType(Scaffold)),
         globalPosition: const Offset(10, 10),
         entries: [PointerMenuItem(id: 'a', label: 'A', onSelected: () {})],
-        tokens: PointerMenuTokens.referenceDay,
+        tokens: PointerMenuTokens.day,
         motion: const ChromeMotionData(speed: ChromeMotionSpeed.instant),
         onClosed: () => closed++,
       );

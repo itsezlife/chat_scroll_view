@@ -6,6 +6,125 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the chat's scroll physics)
+
+- `PanelCatalogViewport.physics` takes a `ViewportScrollPhysics` (from
+  `viewport_scroll`), the chat's: the platform's preset by default (the
+  stretch on Android, the rubber band on iOS and macOS, a hard edge on
+  Windows and Linux), with its fling in place of the clamping simulation.
+  A drag past an end the overscroll sink does not take pulls the edge
+  effect, which moves the painted layer only; a fling that reaches an end
+  hands it its leftover speed. A press while it springs back catches it and
+  taps nothing.
+
+### Changed (an offstage catalogue paints nothing)
+
+- A catalogue under an invisible `Visibility` paints nothing, and repaints
+  when shown again. A page switched away from was painted once more in the
+  frame it went offstage (its tickers went off with it, which marks a
+  repaint), so its leaves wanted their frames after they left the screen
+  and kept their textures.
+
+### Changed (a hidden panel gives its textures back)
+
+- A catalogue under an invisible `Visibility` (`Visibility.of` false: a
+  hidden panel kept mounted) hides every binding while it holds them, so
+  each keeps its frame but gives back the texture it lives on; shown again,
+  each binding is as visible as its window says. A held catalogue on screen
+  (tickers off while it moves) is unchanged. A bare `Offstage` is not read:
+  the host says the subtree is invisible through `Visibility`.
+
+### Added (header action ink)
+
+- A painted section-header action has the desktop ink where the theme has a hover wash: the hover wash in the circle its icon sits in, and a ripple in the press colour from the press, growing over 650 ms and fading over 200 ms.
+
+### Added (a remove badge on a hovered cell)
+
+- `PanelCatalogViewport.leafRemovable`, `onLeafRemove` and `removeBadge`: the cell under a mouse that the host says can be removed draws a remove badge over its content at its top end corner; a click on it removes the cell instead of picking it. `CatalogLeafRemoveBadge` holds the look, with `.pointer` and `.web` presets.
+
+### Added (the grid under a content preview)
+
+- `PanelCatalogViewport.leafPreview` takes a `CatalogLeafPreview` while the
+  host has a preview open over the grid: no cell is drawn pressed or hovered
+  (a pinned one included), a press under way ends without its release, and
+  the cell the preview shows (`shrunk`) is drawn at 0.8, reached linearly
+  in 80 ms, following the preview from cell to cell.
+
+### Added (the drag past the top edge goes to the host)
+
+- `PanelCatalogViewport.overscrollSink` takes a `CatalogOverscrollSink`: the
+  part of a drag the grid cannot scroll past its top goes to the host's
+  receiver (a sheet the grid sits in) instead of nowhere. At the top every
+  tick is offered first, both ways; a release the receiver takes starts no
+  content fling. The overflow of a scroll that reaches the top goes to the
+  receiver on the same tick, and the release reports the velocity of the
+  receiver's own share, not the finger's whole drag. Without a sink nothing
+  changes. Fake and
+  contract: `FakeCatalogOverscrollSink`, `CatalogOverscrollSinkContract`.
+
+### Fixed (a sticker on screen never starts over, and plays through a fling)
+
+- A fling no longer stops the animated leaves on screen: they play on, as
+  animated leaves in a panel grid always do. The pool used to hide them while
+  the fling ran, which told their paintables they left the screen: a
+  fling armed by the pointer up gave back their leases before any paint,
+  so a leaf drew its first-frame still and then a new lease's frames, a
+  jump back to the start on every fling and every drag let go past an
+  edge. `CatalogLeafBindingPool.syncVisible` loses its `animate`
+  argument; `visible` means in the painted window and nothing else.
+
+### Added (a header title that opens)
+
+- `CatalogSection.titleAction`: the header band outside its trailing action
+  reports this id through `onSectionAction`, and a screen reader taps the
+  header node for it. A drag on the band still scrolls. A section without
+  one is unchanged.
+
+### Added (the cell under a point)
+
+- `PanelCatalogController.leafAt(globalPosition)` and
+  `CatalogScrollPosition.leafAtGlobal`: the cell under a global point, for a
+  surface that follows a finger across the grid (a content preview that
+  switches cells). `FakeCatalogScrollPosition.leafUnder` answers it.
+
+### Changed (the panel keeps its animations)
+
+- A `PanelCatalogViewport` whose tickers are off (`TickerMode`) holds its
+  playback: every binding is `held`, so it keeps its frame and its lease, and
+  no binding is detached until the tickers are on again, however the layout
+  changes meanwhile. A hidden panel kept mounted, a page of a pager off screen
+  and a panel moving in or out all show their cells as they left them.
+- The render object keeps its bindings through a detach followed by an
+  attach in the same frame (a sliver's keep-alive bucket); a detach that
+  stays, and a dispose, give them back as before.
+
+### Changed (small cells at half rate)
+
+- A leaf is attached as `AssetPresets.keyboardCell` of its content box: a
+  playing leaf of at most 90 logical px (a sticker cell, a custom emoji) plays
+  at half rate and decodes at most 160 px on a side, so an open sticker grid
+  renders and posts half the frames it did. A still leaf, and a leaf above
+  90 px, is asked for as before.
+
+### Changed (GIF cover)
+
+- A GIF leaf fills its content box and is cropped at the edge instead of
+  being contained (`CatalogLeaf.contentFit`); the sprite batch crops by
+  choosing the source rectangle, so a page is still one atlas draw.
+  `CatalogGlyphSpriteBatch.add` takes the box, the fit and the press anchor
+  instead of a left, top and scale (internal). Stickers are unchanged.
+
+### Changed
+
+- A GIF leaf that is loading draws a radial progress (disc radius 12) over its stand-in or thumbnail, and it
+  fades out with the content. The arc turns with the pass's frame time; frames
+  are asked for only while one shows and playback is not paused.
+- Content fading in over a thumbnail no longer drops back to the stand-in
+  colour: the thumbnail the binding kept stays opaque beneath until the
+  content is opaque, then goes (it used to be replaced at once by the style's
+  stand-in, which dipped the cell to alpha 0).
+
+
 ### Added
 
 - `CatalogSectionAction.painter` (`CatalogActionIconPainter`,

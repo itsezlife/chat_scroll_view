@@ -27,12 +27,14 @@ enum PanelDismissal {
 }
 
 /// The **presentation policy**: which kind the panel takes, what opens it,
-/// what dismisses it, how big a popup is and which motion role animates it.
+/// what dismisses it, whether an open is a fresh one, how big a popup is and
+/// which motion role animates it.
 ///
 /// Plain values and decisions with no widgets and no platform reads, in the
 /// shape of the selection policy: a sealed family with a mobile and a desktop
-/// variant, chosen by OS family, never forked by conditional import. The host
-/// may pass its own variant or override the kind of a single call.
+/// variant, and a browser variant that is one or the other by the window,
+/// chosen by OS family, never forked by conditional import. The host may pass
+/// its own variant or override the kind of a single call.
 ///
 /// The policy decides; a strategy registered with the controller draws the
 /// kind it is given and publishes its occupancy.
@@ -44,15 +46,25 @@ sealed class PanelPresentationPolicy {
   const factory PanelPresentationPolicy.mobile() =
       PanelPresentationPolicy$Mobile;
 
-  /// The desktop and web policy; see [PanelPresentationPolicy$Desktop].
+  /// The desktop policy; see [PanelPresentationPolicy$Desktop].
   const factory PanelPresentationPolicy.desktop() =
       PanelPresentationPolicy$Desktop;
 
-  /// The policy for [family]: mobile for Android and iOS, desktop otherwise.
+  /// The browser policy; see [PanelPresentationPolicy$Web].
+  const factory PanelPresentationPolicy.web() = PanelPresentationPolicy$Web;
+
+  /// The policy for [family]: mobile for Android and iOS, the browser policy
+  /// for the web, desktop otherwise.
   factory PanelPresentationPolicy.forFamily(PanelOsFamily family) =>
-      family.isMobile
-      ? const PanelPresentationPolicy.mobile()
-      : const PanelPresentationPolicy.desktop();
+      switch (family) {
+        PanelOsFamily.android ||
+        PanelOsFamily.iOS => const PanelPresentationPolicy.mobile(),
+        PanelOsFamily.web => const PanelPresentationPolicy.web(),
+        PanelOsFamily.macOS ||
+        PanelOsFamily.windows ||
+        PanelOsFamily.linux ||
+        PanelOsFamily.fuchsia => const PanelPresentationPolicy.desktop(),
+      };
 
   /// The share of the window height a popup takes.
   static const double popupHeightFraction = 0.75;
@@ -63,8 +75,7 @@ sealed class PanelPresentationPolicy {
   /// The tallest a popup is, whatever the window.
   static const double popupMaxHeight = 640;
 
-  /// The narrowest a dock is, whatever the user drags it to: the reference
-  /// client's third column.
+  /// The narrowest a dock is, whatever the user drags it to: a third column.
   double get dockMinWidth => 292;
 
   /// The widest a dock is.
@@ -118,7 +129,7 @@ sealed class PanelPresentationPolicy {
   /// Whether the panel can be docked in [window]: the content and the dock fit
   /// side by side ([dockMinChatWidth] and [dockMinWidth]).
   ///
-  /// Not the window class: the reference client docks as soon as the two
+  /// Not the window class: a dock appears as soon as the two
   /// minimums fit, and a window that does not fit has no dock however wide the
   /// user would like it.
   bool canDock(PanelWindow window);
@@ -129,6 +140,19 @@ sealed class PanelPresentationPolicy {
 
   /// How [kind] can be dismissed under this policy.
   Set<PanelDismissal> dismissalsFor(PanelPresentation kind);
+
+  /// Whether opening a hidden panel as [kind] is a **fresh open**: the pages
+  /// are asked to come back as a new open shows them
+  /// (`PanelShellController.reportFreshOpen`), and each decides what that is.
+  ///
+  /// A panel that stands in for the keyboard is opened for one pick and
+  /// starts each time from the top of what it passes through; a popup or a
+  /// dock beside the content is a place the user returns to, and keeps it.
+  ///
+  /// The same kinds end a search left open when they hide, once the panel is
+  /// off the screen, so a fresh open never starts in search; the others keep
+  /// the search for the user's return.
+  bool opensAfresh(PanelPresentation kind);
 
   /// How long after the pointer leaves a popup it hides, when no animation is
   /// running.
@@ -190,6 +214,15 @@ final class PanelPresentationPolicy$Mobile extends PanelPresentationPolicy {
     PanelDismissal.back,
   };
 
+  /// Only the panel that replaces the keyboard opens afresh. A popup or a
+  /// dock a host asks for on a phone or tablet keeps its place, as on the
+  /// desktop.
+  @override
+  bool opensAfresh(PanelPresentation kind) => switch (kind) {
+    KeyboardReplacement() => true,
+    AnchoredPopup() || Docked() => false,
+  };
+
   @override
   bool operator ==(Object other) => other is PanelPresentationPolicy$Mobile;
 
@@ -200,9 +233,9 @@ final class PanelPresentationPolicy$Mobile extends PanelPresentationPolicy {
   String toString() => 'PanelPresentationPolicy.mobile';
 }
 
-/// The desktop and web policy: an anchored popup that hover opens and that
-/// dismisses itself, or a docked section when the user prefers it and the
-/// window has the room.
+/// The desktop policy, and the browser's in a window wider than a handheld
+/// one: an anchored popup that hover opens and that dismisses itself, or a
+/// docked section when the user prefers it and the window has the room.
 final class PanelPresentationPolicy$Desktop extends PanelPresentationPolicy {
   /// The desktop policy.
   const PanelPresentationPolicy$Desktop();
@@ -236,6 +269,11 @@ final class PanelPresentationPolicy$Desktop extends PanelPresentationPolicy {
     KeyboardReplacement() => const {PanelDismissal.back},
   };
 
+  /// Never: every kind keeps the place of every page across a close, as the
+  /// panel keeps its selector.
+  @override
+  bool opensAfresh(PanelPresentation kind) => false;
+
   @override
   bool operator ==(Object other) => other is PanelPresentationPolicy$Desktop;
 
@@ -244,4 +282,68 @@ final class PanelPresentationPolicy$Desktop extends PanelPresentationPolicy {
 
   @override
   String toString() => 'PanelPresentationPolicy.desktop';
+}
+
+/// The browser policy: the mobile policy in a handheld window, the desktop
+/// policy in any wider one, so a phone's browser shows the panel in the
+/// keyboard's place and a narrowed desktop browser does too.
+///
+/// A browser reports no device class worth trusting for this, so the window
+/// decides, and decides again as it is resized: the controller moves a panel
+/// it opened to the kind of the window it is now in. The line is the width
+/// alone, [handheldMaxWidth] inclusive; a short, wide window (a phone on its
+/// side) stays on the desktop side of it.
+///
+/// What a kind does once shown does not depend on the window: a keyboard
+/// replacement opens afresh and closes by back as on a phone, a popup or a
+/// dock keeps its place and closes as on a desktop. A mouse over the toggle
+/// opens a popup only where the window's default is one, which a handheld
+/// window's is not.
+final class PanelPresentationPolicy$Web extends PanelPresentationPolicy {
+  /// The browser policy.
+  const PanelPresentationPolicy$Web();
+
+  /// The widest a handheld window is, in logical pixels.
+  static const double handheldMaxWidth = 600;
+
+  static const _mobile = PanelPresentationPolicy$Mobile();
+  static const _desktop = PanelPresentationPolicy$Desktop();
+
+  /// Whether [window] is a handheld one: no wider than [handheldMaxWidth].
+  bool isHandheld(PanelWindow window) => window.width <= handheldMaxWidth;
+
+  /// The family whose decisions hold in [window]: mobile in a handheld one,
+  /// desktop otherwise.
+  PanelPresentationPolicy familyIn(PanelWindow window) =>
+      isHandheld(window) ? _mobile : _desktop;
+
+  @override
+  PanelPresentation defaultKind({
+    required PanelWindow window,
+    bool dockPreferred = false,
+  }) => familyIn(
+    window,
+  ).defaultKind(window: window, dockPreferred: dockPreferred);
+
+  @override
+  bool canDock(PanelWindow window) => familyIn(window).canDock(window);
+
+  @override
+  bool get hoverOpens => true;
+
+  @override
+  Set<PanelDismissal> dismissalsFor(PanelPresentation kind) =>
+      _desktop.dismissalsFor(kind);
+
+  @override
+  bool opensAfresh(PanelPresentation kind) => _mobile.opensAfresh(kind);
+
+  @override
+  bool operator ==(Object other) => other is PanelPresentationPolicy$Web;
+
+  @override
+  int get hashCode => (PanelPresentationPolicy$Web).hashCode;
+
+  @override
+  String toString() => 'PanelPresentationPolicy.web';
 }

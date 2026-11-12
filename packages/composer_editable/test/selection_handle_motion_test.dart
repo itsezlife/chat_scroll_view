@@ -43,13 +43,13 @@ void main() {
       );
     });
 
-    test('X and Y advance at the same AOSP ~100ms rate', () {
+    test('X and Y advance at the same ~100ms rate', () {
       final smoothed = smoothMagnifierInfo(
         previous: previous,
         target: target,
         elapsed: const Duration(milliseconds: 16),
       );
-      // 16/100 of remaining on both axes (AOSP MagnifierMotionAnimator parity).
+      // 16/100 of remaining on both axes.
       expect(smoothed.globalGesturePosition.dx, closeTo(16, 0.01));
       expect(smoothed.globalGesturePosition.dy, closeTo(16, 0.01));
     });

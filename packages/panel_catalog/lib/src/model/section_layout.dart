@@ -35,12 +35,11 @@ sealed class SectionLayout {
   /// [desiredCellWidth] takes the columns from the width instead of
   /// [spanCount]: as many as fit at least that wide. [cellHeightInset] makes
   /// the row that much shorter than the cell is wide. Together they are the
-  /// reference desktop client's emoji list (37 and 2).
+  /// emoji list (37 and 2).
   ///
   /// [glyphExtent] fixes the side of the glyph box instead of taking a
   /// fraction of the cell: an emoji is drawn that size, centred, whatever the
-  /// width gives the cell, as the reference desktop client draws its emoji
-  /// list.
+  /// width gives the cell.
   const factory SectionLayout.grid({
     int? spanCount,
     double? cellExtent,

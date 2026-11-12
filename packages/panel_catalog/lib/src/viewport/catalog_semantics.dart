@@ -153,7 +153,11 @@ final class CatalogSemanticNodes {
               ..isHeader = true
               ..label = header.title
               ..textDirection = header.textDirection
-              ..sortKey = OrdinalSortKey(order),
+              ..sortKey = OrdinalSortKey(order)
+              .._maybeTap(switch (header.titleAction) {
+                final id? => target.semanticActionOf(header.sectionId, id),
+                null => null,
+              }),
             Rect.fromLTWH(header.left, header.top, header.width, header.height),
             target.semanticRevealOf(header.sectionId, null),
           );

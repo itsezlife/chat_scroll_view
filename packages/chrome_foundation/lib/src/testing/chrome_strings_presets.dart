@@ -1,18 +1,19 @@
+import 'package:chrome_foundation/src/strings/bulletin_strings.dart';
 import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
 import 'package:chrome_foundation/src/strings/edit_menu_strings.dart';
 import 'package:chrome_foundation/src/strings/formatting_strings.dart';
+import 'package:chrome_foundation/src/strings/pack_sheet_strings.dart';
 import 'package:chrome_foundation/src/strings/panel_strings.dart';
 import 'package:chrome_foundation/src/strings/semantics_strings.dart';
 
 /// English and Russian [ChromeStrings] for tests and demos.
 ///
 /// These are not production defaults: no chrome package imports them, and a
-/// host supplies its own strings. The English menu labels are the reference
-/// clients' English: the touch formatting page the Android client's (Mono,
-/// Create Link, Regular, Code Block, Bulleted list), the pointer menu the
-/// desktop client's (Monospace, Create link, Plain text, Paste as plain text).
-/// A row neither client has (Remove Link) keeps the touch style.
+/// host supplies its own strings. The English menu labels of the touch
+/// formatting page (Mono, Create Link, Regular, Code Block, Bulleted list) and
+/// of the pointer menu (Monospace, Create link, Plain text, Paste as plain text)
+/// are set here. A row in neither (Remove Link) keeps the touch style.
 abstract final class ChromeStringsPresets {
   /// English copy.
   static final ChromeStrings english = ChromeStrings(
@@ -34,6 +35,7 @@ abstract final class ChromeStringsPresets {
         _ => id,
       },
       recentlyUsedTitle: 'Recently used',
+      favouriteStickersTitle: 'Favorites',
       searchResultsTitle: 'Search result',
       searchHint: 'Search',
       searchEmpty: 'No emoji found',
@@ -45,6 +47,25 @@ abstract final class ChromeStringsPresets {
       removeRecentAction: 'Remove from recent',
       clearRecentAction: 'Clear recent',
       colorAllTitle: 'Choose default skin tone',
+      gifsEmpty: 'No GIFs found',
+      stickersEmpty: 'No stickers yet',
+      gifsFailed: "Couldn't load GIFs",
+      retryAction: 'Retry',
+      clearRecentStickersTitle: 'Clear recent stickers',
+      clearRecentStickersMessage:
+          'Do you want to clear all your recent stickers?',
+      sendStickerAction: 'Send Sticker',
+      sendEmojiAction: 'Send Emoji',
+      sendGifAction: 'Send GIF',
+      sendWithoutSoundAction: 'Send without sound',
+      addToFavouritesAction: 'Add to Favorites',
+      removeFromFavouritesAction: 'Delete from Favorites',
+      viewPackAction: 'View Pack',
+      deleteFromRecentAction: 'Delete from Recent',
+      copyEmojiAction: 'Copy Emoji',
+      saveGifAction: 'Save to GIFs',
+      deleteGifAction: 'Delete',
+      removePackAction: 'Remove pack',
     ),
     composer: ComposerStrings(
       messageHint: 'Message',
@@ -108,6 +129,60 @@ abstract final class ChromeStringsPresets {
       ignoreWordAction: 'Ignore word',
       removeFromDictionaryAction: 'Remove from Dictionary',
     ),
+    packSheet: PackSheetStrings(
+      addStickers: (n) => n == 1 ? 'Add sticker' : 'Add $n stickers',
+      removeStickers: (n) => n == 1 ? 'Remove sticker' : 'Remove $n stickers',
+      addMasks: (n) => n == 1 ? 'Add mask' : 'Add $n masks',
+      removeMasks: (n) => n == 1 ? 'Remove mask' : 'Remove $n masks',
+      addEmoji: (n) => n == 1 ? 'Add emoji' : 'Add $n emoji',
+      removeEmoji: (n) => n == 1 ? 'Remove emoji' : 'Remove $n emoji',
+      addEmojiPacks: (n) => n == 1 ? 'Add emoji pack' : 'Add $n emoji packs',
+      removeEmojiPacks: (n) =>
+          n == 1 ? 'Remove emoji pack' : 'Remove $n emoji packs',
+      emojiCount: (n) => '$n emoji',
+      addPackAction: 'Add',
+      removePackAction: 'Remove',
+      addStickersLabel: 'Add Stickers',
+      addEmojiLabel: 'Add Emoji',
+      removeStickersLabel: 'Remove Stickers',
+      removeEmojiLabel: 'Remove Emoji',
+      closeAction: 'Close',
+      shareAction: 'Share',
+      copyLinkAction: 'Copy Link',
+      moreOptionsLabel: 'More options',
+      linkCopied: 'Link copied to clipboard',
+      stickersNotFound: 'Stickers not found',
+      emojiNotFound: 'Emoji pack not found.',
+      stickersAdded: 'Stickers added.',
+      stickersAddedInfo: (title) => '$title has been added to your stickers.',
+      masksAdded: 'Masks added.',
+      masksAddedInfo: (title) => '$title has been added to your masks.',
+      emojiAdded: 'Emoji added.',
+      emojiAddedInfo: (title) => '$title has been added to your emoji packs.',
+      emojiPacksAddedInfo: (n) => n == 1
+          ? '1 emoji pack has been added to your emoji.'
+          : '$n emoji packs have been added to your emoji.',
+      stickersRemoved: 'Stickers removed.',
+      stickersRemovedInfo: (title) => '$title is no longer in your stickers.',
+      masksRemoved: 'Masks removed.',
+      masksRemovedInfo: (title) => '$title is no longer in your masks.',
+      emojiRemoved: 'Emoji removed.',
+      emojiRemovedInfo: (title) => '$title is no longer in your emoji packs.',
+      emojiPacksRemovedInfo: (n) => n == 1
+          ? '1 emoji pack is no longer in your emoji.'
+          : '$n emoji packs are no longer in your emoji.',
+      stickersArchived: 'Stickers archived.',
+      stickersArchivedInfo: (title) => '$title has been moved to your archive.',
+      masksArchived: 'Masks archived.',
+      masksArchivedInfo: (title) => '$title has been moved to your archive.',
+      emojiArchived: 'Emoji archived.',
+      emojiArchivedInfo: (title) => '$title has been moved to your archive.',
+      undoAction: 'Undo',
+    ),
+    bulletin: const BulletinStrings(
+      undoAction: 'Undo',
+      dismissAction: 'Dismiss',
+    ),
     semantics: SemanticsStrings(
       panelOpened: 'Panel opened',
       panelClosed: 'Panel closed',
@@ -121,6 +196,7 @@ abstract final class ChromeStringsPresets {
       backspaceAction: 'Delete',
       variantsAction: 'Show variants',
       categoryStripLabel: 'Categories',
+      stickerPackStripLabel: 'Sticker packs',
     ),
   );
 
@@ -144,6 +220,7 @@ abstract final class ChromeStringsPresets {
         _ => id,
       },
       recentlyUsedTitle: 'Недавние',
+      favouriteStickersTitle: 'Избранные',
       searchResultsTitle: 'Результат поиска',
       searchHint: 'Поиск',
       searchEmpty: 'Эмодзи не найдены',
@@ -155,6 +232,24 @@ abstract final class ChromeStringsPresets {
       removeRecentAction: 'Удалить из недавних',
       clearRecentAction: 'Очистить недавние',
       colorAllTitle: 'Выберите тон кожи по умолчанию',
+      gifsEmpty: 'GIF не найдены',
+      stickersEmpty: 'Стикеров пока нет',
+      gifsFailed: 'Не удалось загрузить GIF',
+      retryAction: 'Повторить',
+      clearRecentStickersTitle: 'Очистить недавние стикеры',
+      clearRecentStickersMessage: 'Вы хотите очистить все недавние стикеры?',
+      sendStickerAction: 'Отправить стикер',
+      sendEmojiAction: 'Отправить эмодзи',
+      sendGifAction: 'Отправить GIF',
+      sendWithoutSoundAction: 'Отправить без звука',
+      addToFavouritesAction: 'Добавить в избранное',
+      removeFromFavouritesAction: 'Удалить из избранного',
+      viewPackAction: 'Показать набор',
+      deleteFromRecentAction: 'Удалить из недавних',
+      copyEmojiAction: 'Копировать эмодзи',
+      saveGifAction: 'Сохранить в GIF',
+      deleteGifAction: 'Удалить',
+      removePackAction: 'Удалить набор',
     ),
     composer: ComposerStrings(
       messageHint: 'Сообщение',
@@ -218,6 +313,60 @@ abstract final class ChromeStringsPresets {
       ignoreWordAction: 'Пропустить слово',
       removeFromDictionaryAction: 'Удалить из словаря',
     ),
+    packSheet: PackSheetStrings(
+      addStickers: (n) =>
+          'Добавить $n ${_ru(n, 'стикер', 'стикера', 'стикеров')}',
+      removeStickers: (n) =>
+          'Удалить $n ${_ru(n, 'стикер', 'стикера', 'стикеров')}',
+      addMasks: (n) => 'Добавить $n ${_ru(n, 'маску', 'маски', 'масок')}',
+      removeMasks: (n) => 'Удалить $n ${_ru(n, 'маску', 'маски', 'масок')}',
+      addEmoji: (n) => 'Добавить $n эмодзи',
+      removeEmoji: (n) => 'Удалить $n эмодзи',
+      addEmojiPacks: (n) =>
+          'Добавить $n ${_ru(n, 'набор', 'набора', 'наборов')} эмодзи',
+      removeEmojiPacks: (n) =>
+          'Удалить $n ${_ru(n, 'набор', 'набора', 'наборов')} эмодзи',
+      emojiCount: (n) => '$n эмодзи',
+      addPackAction: 'Добавить',
+      removePackAction: 'Удалить',
+      addStickersLabel: 'Добавить стикеры',
+      addEmojiLabel: 'Добавить эмодзи',
+      removeStickersLabel: 'Удалить стикеры',
+      removeEmojiLabel: 'Удалить эмодзи',
+      closeAction: 'Закрыть',
+      shareAction: 'Поделиться',
+      copyLinkAction: 'Копировать ссылку',
+      moreOptionsLabel: 'Другие действия',
+      linkCopied: 'Ссылка скопирована в буфер обмена',
+      stickersNotFound: 'Стикеры не найдены',
+      emojiNotFound: 'Набор эмодзи не найден.',
+      stickersAdded: 'Стикеры добавлены.',
+      stickersAddedInfo: (title) => 'Набор «$title» добавлен в ваши стикеры.',
+      masksAdded: 'Маски добавлены.',
+      masksAddedInfo: (title) => 'Набор «$title» добавлен в ваши маски.',
+      emojiAdded: 'Эмодзи добавлены.',
+      emojiAddedInfo: (title) => 'Набор «$title» добавлен в ваши эмодзи.',
+      emojiPacksAddedInfo: (n) => 'Добавлено наборов эмодзи: $n.',
+      stickersRemoved: 'Стикеры удалены.',
+      stickersRemovedInfo: (title) =>
+          'Набора «$title» больше нет в ваших стикерах.',
+      masksRemoved: 'Маски удалены.',
+      masksRemovedInfo: (title) => 'Набора «$title» больше нет в ваших масках.',
+      emojiRemoved: 'Эмодзи удалены.',
+      emojiRemovedInfo: (title) => 'Набора «$title» больше нет в ваших эмодзи.',
+      emojiPacksRemovedInfo: (n) => 'Удалено наборов эмодзи: $n.',
+      stickersArchived: 'Стикеры в архиве.',
+      stickersArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+      masksArchived: 'Маски в архиве.',
+      masksArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+      emojiArchived: 'Эмодзи в архиве.',
+      emojiArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+      undoAction: 'Отменить',
+    ),
+    bulletin: const BulletinStrings(
+      undoAction: 'Отменить',
+      dismissAction: 'Закрыть',
+    ),
     semantics: SemanticsStrings(
       panelOpened: 'Панель открыта',
       panelClosed: 'Панель закрыта',
@@ -231,6 +380,7 @@ abstract final class ChromeStringsPresets {
       backspaceAction: 'Удалить',
       variantsAction: 'Показать варианты',
       categoryStripLabel: 'Категории',
+      stickerPackStripLabel: 'Наборы стикеров',
     ),
   );
 }
@@ -248,3 +398,11 @@ _RussianPlural _russianPlural(int n) {
   }
   return _RussianPlural.many;
 }
+
+// The word of [n] in its one / few / many form.
+String _ru(int n, String one, String few, String many) =>
+    switch (_russianPlural(n)) {
+      _RussianPlural.one => one,
+      _RussianPlural.few => few,
+      _RussianPlural.many => many,
+    };

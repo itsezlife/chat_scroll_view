@@ -1,8 +1,8 @@
 # composer_editable
 
 The composer's editable: Flutter's `EditableText` and Material `TextField`,
-copied from the SDK, with the selection behavior of the Telegram Android
-composer (handle appear and settle, finger-tracked handles, crossing handles,
+copied from the SDK, with the composer's selection behavior (handle appear and
+settle, finger-tracked handles, crossing handles,
 magnifier focal point, touch gesture matrix, toolbar that fades while the field
 scrolls, overscroll handoff to a parent). It depends on `flutter` and
 `characters` only.
@@ -27,7 +27,7 @@ package). A host reaches the field through `ComposerView` or `ComposerFormField`
 | `ExtendedTextSelectionControls`, `ExtendedTextSelectionHandleControls`, the `ExtendedMaterial…`, `ExtendedCupertino…` and `ExtendedDesktop…` controls and their `extended…` instances | The handle and toolbar controls, copies of Flutter's under an `Extended` name. Not assignable to Flutter's `TextSelectionControls`. |
 | `ExtendedSelectionOverlay`, `ExtendedTextSelectionOverlay`, `ExtendedClipboardStatusNotifier` | The selection overlay machinery. |
 | `ExtendedTextSelectionGestureDetectorBuilder` (+ Delegate), `ExtendedTextSelectionGestureDetector` | The gesture layer a field's state subclasses. |
-| `OvershootCurve`, `kTelegramHandleMotionDuration`, `smoothMagnifierInfo`, `computeHandleDragChrome`, … | The pure motion helpers behind the handle and magnifier, public for tests and hosts that draw their own handles. |
+| `OvershootCurve`, `kHandleMotionDuration`, `smoothMagnifierInfo`, `computeHandleDragChrome`, … | The pure motion helpers behind the handle and magnifier, public for tests and hosts that draw their own handles. |
 
 ## Host contract
 
@@ -102,7 +102,7 @@ guarantee: the suite and the device checklist (ADR 030) decide. The
 ([scripts/README.md](../../scripts/README.md)).
 
 See [CONTEXT.md](CONTEXT.md) for the terms, [docs/parity/index.md](docs/parity/index.md)
-for the Telegram reference and the gaps, and the gesture decisions in
+for the composer's selection contract and the gaps, and the gesture decisions in
 [docs/adr/](docs/adr/).
 
 ## Tests

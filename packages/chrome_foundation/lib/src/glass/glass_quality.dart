@@ -5,13 +5,15 @@
 /// moves where filtering the scene would cost frames. Ordered from richest to
 /// cheapest.
 enum GlassQuality {
-  /// Frosted backdrop with edge refraction (the liquid look).
+  /// A lightly blurred backdrop bent at the rim (the liquid look), under a
+  /// tint at 0.85. Needs fragment shaders; frosted where they do not load.
   fullLiquid,
 
-  /// Frosted backdrop without refraction.
+  /// A strongly blurred, saturated backdrop under a tint at 0.76. The
+  /// default.
   frosted,
 
-  /// The material's tint as a solid fill, with its strokes and shadow. No
+  /// The material's tint as an opaque fill, with its strokes and shadow. No
   /// backdrop is read.
   flat,
 

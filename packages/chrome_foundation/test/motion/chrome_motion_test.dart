@@ -40,19 +40,16 @@ void main() {
       expect(spec.curve, Curves.linear);
     });
 
-    test(
-      'a popup shows and hides in 200 ms each, as the reference client does',
-      () {
-        expect(
-          motion[MotionRole.popupShow].duration,
-          const Duration(milliseconds: 200),
-        );
-        expect(
-          motion[MotionRole.popupHide].duration,
-          const Duration(milliseconds: 200),
-        );
-      },
-    );
+    test('a popup shows and hides in 200 ms each', () {
+      expect(
+        motion[MotionRole.popupShow].duration,
+        const Duration(milliseconds: 200),
+      );
+      expect(
+        motion[MotionRole.popupHide].duration,
+        const Duration(milliseconds: 200),
+      );
+    });
 
     test('a selection slides in 400 ms on an ease-out cubic', () {
       final spec = motion[MotionRole.selectionSlide];

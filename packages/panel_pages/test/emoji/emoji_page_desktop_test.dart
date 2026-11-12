@@ -7,7 +7,7 @@
 /// observed through the picks and requests a fake page host recorded, the
 /// holds it counts, the preferences, and what is on screen. Geometry: the
 /// page is 360 x 480 with its strip at the bottom, so the first cell of the
-/// page is the reference desktop client's grid at 360 wide: nine columns of
+/// page is the pointer grid at 360 wide: nine columns of
 /// 38 x 36 from 11 across (8 padding and half the 6 px the columns leave), so
 /// the first cell's centre is 11 + 19 across and 27 + 18 down from the page's
 /// top left; sections here are one row of 63 (27 header + 36 row) each.
@@ -254,6 +254,8 @@ void main() {
 
       await tester.tap(find.text(strings.copyAction));
       await tester.pump();
+      // The menu fades out.
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(host.copyRequests, [
         (key: fixtures.key('👍'), kind: SemanticKind.unicodeEmoji),
@@ -296,6 +298,8 @@ void main() {
 
       await tester.tapAt(origin(tester) + const Offset(300, 400));
       await tester.pump();
+      // The menu fades out.
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(menu(), findsNothing);
       expect(host.activeHolds, 0);
@@ -307,6 +311,8 @@ void main() {
 
       await tester.tapAt(cell(tester, top: smileys, column: 1));
       await tester.pump();
+      // The menu fades out.
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(menu(), findsNothing);
       expect(host.picks, isEmpty);
@@ -786,86 +792,75 @@ void main() {
     });
   });
 
-  group(
-    'the grid follows its width, as the reference desktop client\'s does',
-    () {
-      // The page's width W: columns of 37 at least, whole pixels wide, the row
-      // 2 shorter; the columns start 8 in from the left and end 4 before the
-      // right, and the integer remainder is split. Recents: 30 smileys.
-      for (final (width, columns, cellWidth, cellHeight, left) in [
-        (292.0, 7, 40.0, 38.0, 0.0),
-        (345.0, 9, 37.0, 35.0, 0.0),
-        (392.0, 10, 38.0, 36.0, 0.0),
-      ]) {
-        testWidgets(
-          '$width wide: $columns columns of $cellWidth x $cellHeight',
-          (tester) async {
-            final recents = [
-              for (var i = 0; i < 30; i++) String.fromCharCode(0x1F600 + i),
-            ];
-            await pumpPage(tester, recents: recents, width: width);
-            final viewport = tester.getRect(find.byType(PanelCatalogViewport));
-            final top =
-                viewport.top +
-                tester
-                    .widget<PanelCatalogViewport>(
-                      find.byType(PanelCatalogViewport),
-                    )
-                    .padding
-                    .top +
-                EmojiPagePolicy.headerExtent;
-            final x0 = viewport.left + 8 + left;
-
-            // The last column of the first row, then the first of the second.
-            await tester.tapAt(
-              Offset(x0 + (columns - 0.5) * cellWidth, top + cellHeight / 2),
-            );
-            await tester.tapAt(
-              Offset(x0 + cellWidth / 2, top + cellHeight * 1.5),
-            );
-            await tester.pump(const Duration(milliseconds: 500));
-
-            expect(
-              [for (final pick in host.picks) pick.key],
-              [
-                fixtures.key(recents[columns - 1]),
-                fixtures.key(recents[columns]),
-              ],
-            );
-          },
-        );
-      }
-
-      testWidgets('a finger keeps the eight columns of the touch grid', (
+  group('the grid follows its width', () {
+    // The page's width W: columns of 37 at least, whole pixels wide, the row
+    // 2 shorter; the columns start 8 in from the left and end 4 before the
+    // right, and the integer remainder is split. Recents: 30 smileys.
+    for (final (width, columns, cellWidth, cellHeight, left) in [
+      (292.0, 7, 40.0, 38.0, 0.0),
+      (345.0, 9, 37.0, 35.0, 0.0),
+      (392.0, 10, 38.0, 36.0, 0.0),
+    ]) {
+      testWidgets('$width wide: $columns columns of $cellWidth x $cellHeight', (
         tester,
       ) async {
         final recents = [
           for (var i = 0; i < 30; i++) String.fromCharCode(0x1F600 + i),
         ];
-        await pumpPage(
-          tester,
-          recents: recents,
-          width: 392,
-          arrangement: PanelArrangement.touch,
-        );
+        await pumpPage(tester, recents: recents, width: width);
         final viewport = tester.getRect(find.byType(PanelCatalogViewport));
-        final padding = tester
-            .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport))
-            .padding;
-        const cellHeight = EmojiPagePolicy.cellPitch;
-        final cellWidth = (392 - padding.horizontal) / 8;
-        final top = viewport.top + padding.top + EmojiPagePolicy.headerExtent;
+        final top =
+            viewport.top +
+            tester
+                .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport))
+                .padding
+                .top +
+            EmojiPagePolicy.headerExtent;
+        final x0 = viewport.left + 8 + left;
 
+        // The last column of the first row, then the first of the second.
         await tester.tapAt(
-          Offset(
-            viewport.left + padding.left + 7.5 * cellWidth,
-            top + cellHeight / 2,
-          ),
+          Offset(x0 + (columns - 0.5) * cellWidth, top + cellHeight / 2),
         );
+        await tester.tapAt(Offset(x0 + cellWidth / 2, top + cellHeight * 1.5));
         await tester.pump(const Duration(milliseconds: 500));
 
-        expect(host.picks.single.key, fixtures.key(recents[7]));
+        expect(
+          [for (final pick in host.picks) pick.key],
+          [fixtures.key(recents[columns - 1]), fixtures.key(recents[columns])],
+        );
       });
-    },
-  );
+    }
+
+    testWidgets('a finger keeps the eight columns of the touch grid', (
+      tester,
+    ) async {
+      final recents = [
+        for (var i = 0; i < 30; i++) String.fromCharCode(0x1F600 + i),
+      ];
+      await pumpPage(
+        tester,
+        recents: recents,
+        width: 392,
+        arrangement: PanelArrangement.touch,
+      );
+      final viewport = tester.getRect(find.byType(PanelCatalogViewport));
+      final padding = tester
+          .widget<PanelCatalogViewport>(find.byType(PanelCatalogViewport))
+          .padding;
+      const cellHeight = EmojiPagePolicy.cellPitch;
+      final cellWidth = (392 - padding.horizontal) / 8;
+      final top = viewport.top + padding.top + EmojiPagePolicy.headerExtent;
+
+      await tester.tapAt(
+        Offset(
+          viewport.left + padding.left + 7.5 * cellWidth,
+          top + cellHeight / 2,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(host.picks.single.key, fixtures.key(recents[7]));
+    });
+  });
 }

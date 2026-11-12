@@ -3,9 +3,9 @@ type: Composer Selection Concept
 title: Pointer-line magnifier
 description: >-
   Composer loupe during handle drag: focal X clamped to current line, focal Y at
-  line center, AOSP ~100ms unified smoothing. Suppressed during one-touch
+  line center, ~100ms unified smoothing. Suppressed during one-touch
   long-press phase.
-tags: [telegram, composer, magnifier, composer_editable]
+tags: [composer, magnifier, composer_editable]
 timestamp: 2026-07-21T12:00:00.000Z
 content_hash: composer-magnifier-v1
 ---
@@ -20,10 +20,10 @@ Glossary: **Pointer-line magnifier** — see
 - Handle drag on touch **`ExtendedTextField`** (composer).
 - **Not** during **one-touch phase** (finger still down after long-press word
   enter) until pointer up.
-- Bubble `TextSelectionHelper` uses different rates (100/200ms X/Y) — **not**
-  composer reference.
+- Message bubbles use a different split rate (100/200ms X/Y); that rate does
+  not apply to the composer.
 
-## Focal geometry (AOSP Editor)
+## Focal geometry
 
 | Axis | Rule |
 | ---- | ---- |
@@ -35,17 +35,16 @@ Built by `pointerLineMagnifierTarget` / `computeHandleDragChrome` in
 
 ## Smoothing
 
-AOSP `MagnifierMotionAnimator` parity: **~100ms** unified rate for X and Y
-(`kAospMagnifierSettleMs`). Replaces legacy bubble 100ms X / 200ms Y split for
-composer.
+**~100ms** unified rate for X and Y (`kMagnifierSettleMs`). The composer
+does not use a split 100ms X / 200ms Y rate.
 
 Clock: `currentSystemFrameTimeStamp` (not frame timestamp) — see
 `smoothMagnifierInfo`.
 
 ## Handle under the loupe
 
-The moving handle stays visible under the loupe. AOSP hides it
-(`handleOverlapsMagnifier`); that is not implemented here.
+The moving handle stays visible under the loupe. Hiding it under the loupe is
+not implemented.
 
 ## Direction settling
 

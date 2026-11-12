@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/composer_harness.dart';
 
-/// Telegram Desktop's key set: key, whether Shift joins the modifier, and the
+/// The desktop key set: key, whether Shift joins the modifier, and the
 /// Intent it binds.
 final _bindings = <(LogicalKeyboardKey, bool, Intent)>[
   (LogicalKeyboardKey.keyB, false, const ToggleStyleIntent(EntityStyle.bold)),
@@ -113,7 +113,7 @@ void main() {
       }
     }
 
-    test('the code block has no default key; the reference has none', () {
+    test('the code block has no default key', () {
       final intents = const ComposerShortcutPolicy.desktop().shortcuts.values;
 
       expect(intents.whereType<ToggleCodeBlockIntent>(), isEmpty);

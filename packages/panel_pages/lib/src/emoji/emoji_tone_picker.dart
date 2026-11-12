@@ -10,8 +10,7 @@ import 'package:panel_pages/src/overlay/chrome_overlay_scopes.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_shell/panel_shell.dart';
 
-/// The geometry of the tone picker a finger opens: the reference mobile
-/// client's.
+/// The geometry of the tone picker a finger opens.
 ///
 /// One person: a row of [count] 32 px emoji (the emoji as it is, then its
 /// tones), 5 px in and 4 px apart, in a window 15 px taller than an emoji
@@ -108,8 +107,8 @@ final class EmojiTonePickerLayout {
       cell.top + (cell.height - emojiSize) / 2 - size.height;
 }
 
-/// The tone picker a finger opens over the emoji grid: the reference mobile
-/// client's card with an arrow under the pressed glyph.
+/// The tone picker a finger opens over the emoji grid: a card with an arrow
+/// under the pressed glyph.
 ///
 /// A one-person picker marks [selected] (an option index; it may be between
 /// two while the mark slides) and draws the option under it at full size,
@@ -290,8 +289,8 @@ class EmojiTonePicker extends StatelessWidget {
   }
 
   // A tone of one person of a two-person emoji: the emoji in that tone, the
-  // half of the row's person in colour and the other half greyed, as the
-  // reference client draws its halves (the first person is on the left).
+  // half of the row's person in colour and the other half greyed, split down
+  // the middle (the first person is on the left).
   Widget _person(
     ContentKey$Unicode key,
     Rect rect, {
@@ -385,7 +384,7 @@ class _ArrowPainter extends CustomPainter {
   bool shouldRepaint(_ArrowPainter old) => old.color != color;
 }
 
-/// The reference mobile client's tone picker in use, from the long press that
+/// The tone picker in use, from the long press that
 /// opened it.
 ///
 /// One person: the finger, once it has left a small slop around where the
@@ -635,7 +634,7 @@ class _ToneOverlayState extends State<_ToneOverlay>
   late double _to = widget.session._target;
   int? _row;
 
-  // The reference client's ease-out quint.
+  // The ease-out quint.
   static const Curve _quint = Cubic(0.23, 1, 0.32, 1);
 
   EmojiToneSession get _session => widget.session;

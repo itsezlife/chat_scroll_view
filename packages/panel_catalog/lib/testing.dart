@@ -4,6 +4,8 @@
 /// never imports them.
 library;
 
+export 'src/testing/catalog_overscroll_sink_contract.dart';
 export 'src/testing/catalog_scroll_position_contract.dart';
+export 'src/testing/fake_catalog_overscroll_sink.dart';
 export 'src/testing/fake_catalog_scroll_position.dart';
 export 'src/testing/fake_catalog_snapshot_source.dart';

@@ -420,7 +420,7 @@ class _ComposerSelectionMenuState extends State<ComposerSelectionMenu>
             placement: placement,
             // The card is centred as wide as the wider of its pages, and hugs
             // that width's trailing edge: opening the page keeps the card's
-            // end where it was, as the reference's popup does.
+            // end where it was, .
             referenceWidth: math.max(
               split.rowWidth,
               hasMore ? pageSize.width : 0,

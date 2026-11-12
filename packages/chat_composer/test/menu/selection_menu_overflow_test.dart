@@ -1,10 +1,10 @@
-/// Which clipboard buttons fit the main row, by the rule of Telegram's floating
+/// Which clipboard buttons fit the main row, by the rule of the floating
 /// toolbar: the rest go to the top of the More page.
 ///
 /// **Seam:** `splitSelectionMenuRow` and `sizeSelectionMenuPage` over labels, a
 /// text style and the room.
 ///
-/// Every expected width is a worked example of `FloatingToolbar.java`: a
+/// Every expected width is a worked example of the rule: a
 /// button is its text and 16 dp each side (24 at the row's outer ends, 1.5 x),
 /// 48 dp at least, and an item stays on the row while it fits beside the 56 dp
 /// More button (the last item of the whole menu may take that room instead).
@@ -154,7 +154,7 @@ void main() {
     testWidgets('a button wider than the row is cut to the row', (
       tester,
     ) async {
-      // Telegram: min(measured, toolbarWidth). It then cannot sit beside the
+      // The rule: min(measured, toolbarWidth). It then cannot sit beside the
       // More button, but as the only and last item it may take the row.
       final result = split(['a very long label indeed'], 120);
 
@@ -233,7 +233,7 @@ void main() {
 
     testWidgets('is never narrower than its Back row', (tester) async {
       // A row of 18 + 30 + 18 = 66 against Back's 56 + 40 + 16 = 112: the
-      // reference clips the label, the port widens the page.
+      // label is not clipped, the page widens.
       expect(size([row('Row')]).width, 56 + 4 * 10 + 16);
     });
 
@@ -279,7 +279,7 @@ void main() {
     });
 
     testWidgets('shows every row of a short list, 48 dp each', (tester) async {
-      // The reference counts a 42 dp row as 48: lines * 48 + the Back row.
+      // A 42 dp row counts as 48: lines * 48 + the Back row.
       final one = size(rows(1));
       final three = size(rows(3));
 
