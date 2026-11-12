@@ -6,6 +6,30 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (a preview of an animated image starts at its first frame)
+
+- `PlayingImagePaintable.rewind` shows the first frame at once and plays on
+  from it: the codec's frames up to the second are decoded and dropped. A
+  content preview of an animated custom emoji (`AssetProfile.foreground`)
+  starts at frame 0 like a sticker's.
+
+### Changed (a cell that comes back goes on at once)
+
+- After `playbackResumed`, a `PlayingImagePaintable` shows the frame it
+  stopped on for the rest of its duration, not its whole duration again, so
+  an image back on screen moves on when it would have without the stop.
+
+### Changed (the panel keeps its animations)
+
+- `PlayingImagePaintable` keeps its first frame as a still
+  (`AssetPaintable.firstFrame`), which a sibling binding borrows instead of
+  the frame the loop is at; a playing entry charges one frame more (three
+  frames plus the encoded data).
+
+### Changed
+
+- A decoded image is placed by `AssetPaintContext.fit` (contain by default).
+
 ### Added
 
 - `ImageCodecDecoder`: the `catalog_assets` decoder for engine-decodable

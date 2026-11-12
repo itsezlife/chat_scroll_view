@@ -17,6 +17,17 @@ void main() {
     );
   });
 
+  InlineEmbedContract.run(FakeCompositingEmbed.new);
+
+  CompositingEmbedContract.run(() {
+    final embed = FakeCompositingEmbed();
+    return CompositingEmbedHarness(
+      embed: embed,
+      play: () => embed.play(textureId: 3),
+      textureId: 3,
+    );
+  });
+
   InlineEmbedResolverContract.run(
     () => InlineEmbedResolverHarness(
       resolver: FakeInlineEmbedResolver(),

@@ -8,11 +8,19 @@ package is pre-1.0.
 
 ### Added
 
+- Packs and the content library ([ADR 044](../../docs/adr/044-content-library-packs-and-preview.md)):
+  `Pack`, `PackId`, `PackKind`; `ContentDescriptor.pack`, the pack a content
+  belongs to; the `PackSource` seam with `CachingPackSource` (memory tier and
+  merged lookups over a host fetch); the `ContentLibrary` seam (recent
+  stickers, favourite stickers, saved GIFs, installed and archived packs)
+  with `LibraryEdit`, an undo window and ordered commits; the `LibraryStorage`
+  seam with `KeyValueLibraryStorage`; `StoredContentLibrary.load`. Fakes and
+  contract suites for the three seams in `testing.dart`.
 - `RichTextMarkdown.codec`: `encode` and `decode` as a `dart:convert` `Codec`,
   so a host can `fuse(utf8)` a body into bytes or `inverted` it. The static
   functions stay.
 - `TypedMarkdown.apply`: the markers a user typed become entities at send,
-  with Telegram Android's rules: `` `code` ``, a triple-backtick code block
+  with the chat-client rules: `` `code` ``, a triple-backtick code block
   (with a language first line), `**bold**`, `__italic__`, `~~strike~~` and
   `||spoiler||`. A pair that touches code, a code block, a link or an atom
   stays text. Call it before `EntityDetection.apply`.
@@ -43,7 +51,7 @@ package is pre-1.0.
 - `EntityDetection.apply(RichText, DetectionPolicy)` and
   `EntityDetection.strip`: bare URLs (`https://a.b/c`, `a.com`, `www.a.com`),
   emails (a `mailto:` link), `@name` (`EntityKind.username`) and `#tag`
-  (`EntityKind.hashtag`) become entities with Telegram Android's rules, never
+  (`EntityKind.hashtag`) become entities with the chat-client rules, never
   inside code, a code block, a link, a mention, a username, a hashtag or inline
   content. At most `EntityDetection.maxMatches` (100) per text; a text over
   `EntityDetection.maxLength` (20 480) is returned unchanged. A scheme-less
@@ -57,7 +65,7 @@ package is pre-1.0.
   a unicode or document `ContentKey` and the line breaks before it) of a text
   that is nothing but emoji, spaces, tabs and line breaks, with inline content
   of a document key as the only entity; null for any other text. It follows
-  Telegram Android's `Emoji.parseEmojis` with no count cap.
+  the chat-client emoji parse with no count cap.
 
 - `RichClipboard.attach(RichClipboardField)`: takes over the clipboard
   commands a platform performs itself for a focused text field (a browser's

@@ -107,6 +107,27 @@ void main() {
       expect(descriptor.thumbnail, isNull);
       expect(descriptor.spokenName, isNull);
       expect(descriptor.shortcode, isNull);
+      expect(descriptor.pack, isNull);
+    });
+
+    test('names the pack its content belongs to', () {
+      const descriptor = ContentDescriptor(key: key, pack: PackId('cats'));
+
+      expect(descriptor.pack, const PackId('cats'));
+    });
+
+    test('differs only in the pack it names', () {
+      const inCats = ContentDescriptor(key: key, pack: PackId('cats'));
+      const inDogs = ContentDescriptor(key: key, pack: PackId('dogs'));
+      const inNone = ContentDescriptor(key: key);
+
+      expect(inCats, isNot(inDogs));
+      expect(inCats, isNot(inNone));
+      expect(inCats, const ContentDescriptor(key: key, pack: PackId('cats')));
+      expect(
+        inCats.hashCode,
+        const ContentDescriptor(key: key, pack: PackId('cats')).hashCode,
+      );
     });
 
     test('is a value of all its fields', () {

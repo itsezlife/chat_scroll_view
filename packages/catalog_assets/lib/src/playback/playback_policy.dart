@@ -9,7 +9,8 @@ import 'package:meta/meta.dart';
 /// [overlayShown]) are set by it from its inputs; [routeMoving] and
 /// [fastScroll] belong to the host (a route transition, the scroll physics).
 enum PlaybackPauseLayer {
-  /// A route or sheet is moving; the frames are better spent on the motion.
+  /// A route, a sheet or the panel's presentation is moving in or out; the
+  /// frames are better spent on the motion.
   routeMoving,
 
   /// A list is scrolling fast.
@@ -22,34 +23,35 @@ enum PlaybackPauseLayer {
   /// backgrounded).
   surfaceHidden,
 
-  /// The app is visible but is not the one the user is working in: its window
-  /// lost focus (on desktop another app took it; on a phone a call or a
-  /// system sheet is on top). The reference desktop client freezes stickers,
-  /// emoji and spoiler dust the same moment its window deactivates.
+  /// The app is not the one the user is working in: its window lost focus to
+  /// another app (desktop, a blurred tab on the web), or it is hidden. On
+  /// desktop, stickers, emoji and spoiler dust freeze the same moment the
+  /// window deactivates. A `PlaybackActivity` on a phone leaves it clear
+  /// for a call or a system sheet over the visible app
+  /// (`PlaybackActivityPolicy.pausesOnFocusLoss`).
   appInactive,
 
   /// The user asked the system for less motion. Not in the standard pausing
-  /// set ([PlaybackPolicy.standardPausingLayers]): the reference desktop
-  /// client does not read the setting at all, and animated emoji are content
+  /// set ([PlaybackPolicy.standardPausingLayers]): desktop does not read the
+  /// setting at all, and animated emoji are content
   /// rather than interface motion. A host that wants it to stop playback adds
   /// it to [PlaybackPolicy.pausingLayers].
   reducedMotion,
 
   /// Something sits over the chat that is not part of it: a dialog, a sheet, a
-  /// full-screen route. The reference desktop client pauses the chat under
-  /// any box layer. Raised by holds (`PlaybackActivity.holdOverlay`) so that
+  /// full-screen route. Desktop pauses the chat under any box layer. Raised by holds (`PlaybackActivity.holdOverlay`) so that
   /// nested overlays do not clear each other.
   overlayShown,
 }
 
 /// Which layers pause playback and how fast a playing asset advances.
 ///
-/// ## Defaults and where they come from
+/// ## Defaults
 ///
 /// Every layer pauses except [PlaybackPauseLayer.reducedMotion] (see
 /// [standardPausingLayers]). A small asset runs at 30 fps and a large one at 60:
-/// the reference client caps emoji up to 90 dp at about 30 fps on mobile and
-/// repaints no faster than every 33 ms on desktop, because a small animation
+/// emoji up to 90 dp are capped at about 30 fps on mobile and repaint no faster
+/// than every 33 ms on desktop, because a small animation
 /// is not visibly smoother at 60 and costs a repaint of its surface each
 /// frame.
 /// Specs are in pixels, so the threshold [smallEdgePixels] (270) is 90 dp at

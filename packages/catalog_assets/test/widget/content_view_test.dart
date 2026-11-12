@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -12,6 +15,8 @@ final _still = AssetPresets.keyboardCell(
   devicePixelRatio: 2,
   animate: false,
 );
+// Long enough for content that arrived after the attach to have faded in.
+const _pastFade = Duration(milliseconds: 160);
 
 void main() {
   late FakeAssetProducer producer;
@@ -177,7 +182,7 @@ void main() {
       final withPlaceholder = AssetCacheScope(
         producer: producer,
         clock: PlaybackClock(ticks: ticks),
-        placeholder: placeholder,
+        mediaPlaceholder: placeholder,
       );
       addTearDown(withPlaceholder.dispose);
 
@@ -190,6 +195,289 @@ void main() {
 
       expect(placeholder.paints, hasLength(1));
       expect(placeholder.paints.single.rect.size, _preset.size);
+    });
+
+    group('a placeholder of its own', () {
+      late FakeAssetPaintable scoped;
+      late AssetCacheScope withPlaceholder;
+
+      setUp(() {
+        scoped = FakeAssetPaintable(label: 'scope');
+        withPlaceholder = AssetCacheScope(
+          producer: producer,
+          clock: PlaybackClock(ticks: ticks),
+          mediaPlaceholder: scoped,
+        );
+        addTearDown(withPlaceholder.dispose);
+      });
+
+      testWidgets('is painted before a stage exists, instead of the '
+          "scope's, in the placeholder tint", (tester) async {
+        final own = FakeAssetPaintable(label: 'own');
+        await tester.pumpWidget(
+          host(
+            ContentView(
+              content: _sticker,
+              preset: _preset,
+              placeholder: own,
+              placeholderTint: const Color(0xFF445566),
+            ),
+            provided: withPlaceholder,
+          ),
+        );
+
+        expect(scoped.paints, isEmpty);
+        expect(own.paints, hasLength(1));
+        expect(own.paints.single.rect.size, _preset.size);
+        expect(own.paints.single.context.tint, const Color(0xFF445566));
+      });
+
+      testWidgets('takes the tint of the view without a tint of its own', (
+        tester,
+      ) async {
+        final own = FakeAssetPaintable(label: 'own');
+        await tester.pumpWidget(
+          host(
+            ContentView(
+              content: _sticker,
+              preset: _preset,
+              tint: const Color(0xFF112233),
+              placeholder: own,
+            ),
+            provided: withPlaceholder,
+          ),
+        );
+
+        expect(own.paints.single.context.tint, const Color(0xFF112233));
+      });
+
+      testWidgets('gives way to the thumbnail once one exists', (tester) async {
+        final own = FakeAssetPaintable(label: 'own');
+        await tester.pumpWidget(
+          host(
+            ContentView(content: _sticker, preset: _preset, placeholder: own),
+            provided: withPlaceholder,
+          ),
+        );
+        final thumbnail = producer.last.advance(AssetStage.placeholder);
+        await tester.pump();
+
+        expect(own.paints, hasLength(1));
+        expect(thumbnail.paints, isNotEmpty);
+      });
+
+      testWidgets('is what fades out beneath content that arrives, in the '
+          'placeholder tint', (tester) async {
+        final own = FakeAssetPaintable(label: 'own');
+        await tester.pumpWidget(
+          host(
+            ContentView(
+              content: _sticker,
+              preset: _still,
+              placeholder: own,
+              placeholderTint: const Color(0xFF445566),
+            ),
+            provided: withPlaceholder,
+          ),
+        );
+        producer.last.advance(AssetStage.full);
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 75));
+
+        expect(scoped.paints, isEmpty);
+        expect(own.paints.last.context.opacity, closeTo(0.5, 0.01));
+        expect(own.paints.last.context.tint, const Color(0xFF445566));
+      });
+    });
+
+    group('loading progress', () {
+      RenderObject box(WidgetTester tester) =>
+          tester.renderObject(find.byType(ContentView));
+
+      testWidgets('is absent while nothing downloads, as for a cache hit', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          host(
+            ContentView(content: _sticker, preset: _still, loadingRadius: 12),
+          ),
+        );
+
+        expect(box(tester), isNot(paints..circle(radius: 12)));
+
+        producer.last.advance(AssetStage.placeholder);
+        await tester.pump();
+        expect(box(tester), isNot(paints..circle(radius: 12)));
+      });
+
+      testWidgets('is the radial progress over the centre while '
+          'the content downloads, until the first frame exists', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          host(
+            ContentView(content: _sticker, preset: _still, loadingRadius: 12),
+          ),
+        );
+
+        producer.last.download(0);
+        await tester.pump();
+        // The disc of the indicator, centred in the 20 x 20 box, and its arc.
+        expect(
+          box(tester),
+          paints
+            ..circle(x: 10, y: 10, radius: 12)
+            ..arc(
+              rect: Rect.fromCircle(center: const Offset(10, 10), radius: 8),
+            ),
+        );
+
+        producer.last
+          ..download(1)
+          ..advance(AssetStage.placeholder);
+        await tester.pump();
+        expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+
+        producer.last.advance(AssetStage.firstFrame);
+        await tester.pump();
+        expect(box(tester), isNot(paints..circle(radius: 12)));
+      });
+
+      testWidgets('stays when the download fails, the content still missing', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          host(
+            ContentView(content: _sticker, preset: _still, loadingRadius: 12),
+          ),
+        );
+        producer.last.download(0.3);
+        await tester.pump();
+
+        producer.last.fail(StateError('offline'));
+        await tester.pump();
+
+        expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+      });
+
+      group('over a pipeline', () {
+        const gif = ContentDescriptor(
+          key: _sticker,
+          semanticKind: SemanticKind.gif,
+          mediaForm: MediaForm.still,
+          thumbnail: ThumbnailRef('thumb'),
+        );
+        final bytes = FetchedContent.bytes(Uint8List.fromList(const [1, 2]));
+        late FakeFetcher fetcher;
+        late AssetCacheScope piped;
+
+        setUp(() {
+          fetcher = FakeFetcher(autoRespond: false)
+            ..serve(gif.key, bytes)
+            ..serveThumbnail(gif.thumbnail!, bytes);
+          final pipeline = AssetPipeline(
+            fetcher: fetcher,
+            decoders: DecoderRegistry()
+              ..register(MediaForm.still, FakeDecoder()),
+          )..know(gif);
+          piped = AssetCacheScope(
+            producer: pipeline,
+            clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
+          );
+          addTearDown(pipeline.dispose);
+          addTearDown(piped.dispose);
+        });
+
+        Widget view() => host(
+          ContentView(content: gif.key, preset: _still, loadingRadius: 12),
+          provided: piped,
+        );
+
+        Future<void> landThumbnail(WidgetTester tester) async {
+          fetcher.fetchesOf(gif.key, FetchPart.thumbnail).single.complete();
+          await tester.pump();
+          await tester.pump();
+        }
+
+        testWidgets('content known to be missing shows it on the first paint, '
+            'before the thumbnail lands and while it shows', (tester) async {
+          fetcher.missing.add(gif.key);
+
+          await tester.pumpWidget(view());
+          expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+
+          await landThumbnail(tester);
+          expect(piped.isAttached(gif.key, _still.spec), isTrue);
+          expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+
+          fetcher.fetchesOf(gif.key, FetchPart.content).single.complete();
+          await tester.pump();
+          await tester.pump();
+          await tester.pump(_pastFade);
+          expect(box(tester), isNot(paints..circle(radius: 12)));
+        });
+
+        testWidgets('content on the disk never shows it', (tester) async {
+          await tester.pumpWidget(view());
+          expect(box(tester), isNot(paints..circle(radius: 12)));
+
+          await landThumbnail(tester);
+          expect(box(tester), isNot(paints..circle(radius: 12)));
+
+          fetcher.fetchesOf(gif.key, FetchPart.content).single.complete();
+          await tester.pump();
+          await tester.pump();
+          expect(box(tester), isNot(paints..circle(radius: 12)));
+        });
+
+        testWidgets('a failed download keeps it', (tester) async {
+          fetcher.missing.add(gif.key);
+          await tester.pumpWidget(view());
+          await landThumbnail(tester);
+
+          fetcher.fetchesOf(gif.key, FetchPart.content).single
+            ..receive(50, 100)
+            ..fail(const FetchFailure.transient('offline'));
+          await tester.pump();
+          await tester.pump();
+
+          expect(box(tester), paints..circle(x: 10, y: 10, radius: 12));
+        });
+      });
+
+      testWidgets('is absent unless asked for', (tester) async {
+        await tester.pumpWidget(
+          host(ContentView(content: _sticker, preset: _still)),
+        );
+        producer.last.download(0.5);
+        await tester.pump();
+
+        expect(box(tester), isNot(paints..circle(radius: 12)));
+      });
+
+      testWidgets('asks for another frame only while it shows', (tester) async {
+        await tester.pumpWidget(
+          host(
+            ContentView(content: _sticker, preset: _still, loadingRadius: 12),
+          ),
+        );
+        await tester.pump();
+        expect(tester.binding.hasScheduledFrame, isFalse);
+
+        producer.last.download(0.5);
+        await tester.pump();
+        expect(
+          tester.hasRunningAnimations || tester.binding.hasScheduledFrame,
+          isTrue,
+        );
+
+        producer.last.advance(AssetStage.full);
+        await tester.pump();
+        await tester.pump(_pastFade);
+        await tester.pump();
+        expect(tester.binding.hasScheduledFrame, isFalse);
+      });
     });
 
     testWidgets('paints the canned paintable into its box', (tester) async {
@@ -217,9 +505,14 @@ void main() {
 
       final full = producer.last.advance(AssetStage.full);
       await tester.pump();
+      await tester.pump(_pastFade);
+      final painted = full.paints.length;
+      await tester.pump();
+      await tester.pump();
 
-      expect(full.paints, hasLength(1));
-      expect(thumbnail.paints, hasLength(1));
+      expect(painted, greaterThan(0));
+      expect(full.paints, hasLength(painted));
+      expect(thumbnail.isDisposed, isTrue);
     });
 
     testWidgets('passes the tint and opacity on', (tester) async {
@@ -236,6 +529,7 @@ void main() {
 
       final painted = producer.last.advance(AssetStage.full);
       await tester.pump();
+      await tester.pump(_pastFade);
 
       final context = painted.paints.last.context;
       expect(context.tint, const Color(0xFF112233));
@@ -271,6 +565,115 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(producer.attempts, isEmpty);
+    });
+  });
+
+  // ADR 022, "Readiness": content that arrives after the attach fades in over
+  // what stood in for it, as a bitmap that is not a memory hit does (150 ms).
+  group('fade', () {
+    testWidgets('content that arrives after the attach rises from nothing to '
+        'opaque over 150 ms', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _still)),
+      );
+      final painted = producer.last.advance(AssetStage.full);
+
+      await tester.pump();
+      expect(painted.paints.last.context.opacity, 0);
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(painted.paints.last.context.opacity, closeTo(0.5, 0.01));
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(painted.paints.last.context.opacity, 1);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(tester.binding.hasScheduledFrame, isFalse);
+    });
+
+    testWidgets('content there at the attach shows at once', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _still)),
+      );
+      final painted = producer.last.advance(AssetStage.full);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpWidget(host(const SizedBox()));
+
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _still)),
+      );
+
+      expect(painted.paints.last.context.opacity, 1);
+    });
+
+    testWidgets('scales the opacity the view is given', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _still, opacity: 0.5)),
+      );
+      final painted = producer.last.advance(AssetStage.full);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+
+      expect(painted.paints.last.context.opacity, closeTo(0.25, 0.01));
+    });
+
+    testWidgets('rises over the thumbnail, which stays opaque beneath until '
+        'the content is', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _still)),
+      );
+      final thumbnail = producer.last.advance(AssetStage.placeholder);
+      await tester.pump();
+      producer.last.advance(AssetStage.full);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(thumbnail.paints.last.context.opacity, 1);
+      expect(thumbnail.isDisposed, isFalse);
+
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(thumbnail.isDisposed, isTrue);
+    });
+
+    testWidgets('with no thumbnail, the placeholder fades out beneath', (
+      tester,
+    ) async {
+      final placeholder = FakeAssetPaintable(label: 'placeholder');
+      final withPlaceholder = AssetCacheScope(
+        producer: producer,
+        clock: PlaybackClock(ticks: ticks),
+        mediaPlaceholder: placeholder,
+      );
+      addTearDown(withPlaceholder.dispose);
+      await tester.pumpWidget(
+        host(
+          ContentView(content: _sticker, preset: _still),
+          provided: withPlaceholder,
+        ),
+      );
+      producer.last.advance(AssetStage.full);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(placeholder.paints.last.context.opacity, closeTo(0.5, 0.01));
+
+      final before = placeholder.paints.length;
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(placeholder.paints, hasLength(before));
+    });
+
+    testWidgets('a texture rises under an opacity layer', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _preset)),
+      );
+      producer.last.advance(AssetStage.full, animated: true).textureOnAdvance =
+          const AssetTexture(id: 9, width: 64, height: 64);
+      await tester.pump();
+      ticks.tick(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 75));
+
+      final layer = _find<TextureLayer>(
+        tester.binding.renderViews.first.debugLayer!,
+      ).single;
+      final fade = _ancestors(layer).whereType<OpacityLayer>().first;
+      expect(fade.alpha, closeTo(128, 3));
     });
   });
 
@@ -427,6 +830,7 @@ void main() {
       );
       final painted = producer.last.advance(AssetStage.full, animated: true);
       await tester.pump();
+      await tester.pump(_pastFade);
       final before = painted.paints.length;
 
       ticks.tick(const Duration(milliseconds: 100));
@@ -441,6 +845,7 @@ void main() {
       );
       final painted = producer.last.advance(AssetStage.full, animated: true);
       await tester.pump();
+      await tester.pump(_pastFade);
       final before = painted.paints.length;
 
       ticks.tick(const Duration(milliseconds: 100));
@@ -457,6 +862,7 @@ void main() {
       );
       final painted = producer.last.advance(AssetStage.full, animated: true);
       await tester.pump();
+      await tester.pump(_pastFade);
       final before = painted.paints.length;
 
       scope.clock.setPaused(PlaybackPauseLayer.routeMoving, paused: true);
@@ -482,6 +888,7 @@ void main() {
       await tester.pumpWidget(view(enabled: true));
       final painted = producer.last.advance(AssetStage.full, animated: true);
       await tester.pump();
+      await tester.pump(_pastFade);
       final before = painted.paints.length;
 
       await tester.pumpWidget(view(enabled: false));
@@ -508,7 +915,108 @@ void main() {
       expect(ticks.isRunning, isFalse);
     });
   });
+
+  // ADR 043, "Paint capability": the view is a render object that pushes
+  // layers, so a playing asset on a platform texture is a texture layer.
+  group('texture', () {
+    List<TextureLayer> textures(WidgetTester tester) =>
+        _find<TextureLayer>(tester.binding.renderViews.first.debugLayer!);
+
+    testWidgets('a playing asset whose frames go to a texture is a texture '
+        'layer at its box, and the view never paints it', (tester) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _preset)),
+      );
+      final playing = producer.last.advance(AssetStage.full, animated: true)
+        ..textureOnAdvance = const AssetTexture(id: 9, width: 64, height: 64);
+      await tester.pump();
+      ticks.tick(const Duration(milliseconds: 16));
+      await tester.pump();
+      final paintsWithTexture = playing.paints.length;
+      ticks.tick(const Duration(milliseconds: 32));
+      await tester.pump();
+
+      final layer = textures(tester).single;
+      // In the coordinates of the view's own repaint boundary.
+      final box = Offset.zero & _preset.size;
+      expect(layer.textureId, 9);
+      expect(layer.rect, box);
+      expect(playing.advances, isNotEmpty);
+      expect(playing.paints, hasLength(paintsWithTexture));
+    });
+
+    testWidgets('a cover preset fills its box with the frame and is clipped '
+        'to the box', (tester) async {
+      const size = Size(40, 20);
+      final cover = AssetPreset(
+        size: size,
+        spec: AssetSpec.atDensity(
+          logicalWidth: size.width,
+          logicalHeight: size.height,
+          devicePixelRatio: 2,
+        ),
+        profile: const AssetProfile(animate: true, fit: AssetFit.cover),
+      );
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: cover)),
+      );
+      // A portrait frame of 32 x 64 centred in a square texture of 64.
+      producer.last
+          .advance(AssetStage.full, animated: true)
+          .textureOnAdvance = const AssetTexture(
+        id: 9,
+        width: 64,
+        height: 64,
+        frameWidth: 32,
+        frameHeight: 64,
+      );
+      await tester.pump();
+      ticks.tick(const Duration(milliseconds: 16));
+      await tester.pump();
+
+      final box = Offset.zero & size;
+      final layer = textures(tester).single;
+      // The frame covers the 40 x 20 box at the scale 40 / 32: the whole
+      // texture is then 80 x 80, centred on the box.
+      expect(
+        layer.rect,
+        Rect.fromCenter(center: box.center, width: 80, height: 80),
+      );
+      final clip = _ancestors(layer).whereType<ClipRectLayer>().first;
+      expect(clip.clipRect, box);
+    });
+
+    testWidgets('a canvas paint is all a still or a texture-less asset gets', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(ContentView(content: _sticker, preset: _preset)),
+      );
+      final playing = producer.last.advance(AssetStage.full, animated: true);
+      await tester.pump();
+
+      expect(textures(tester), isEmpty);
+      expect(playing.paints, isNotEmpty);
+    });
+  });
 }
+
+// The layers of type [T] under [layer], depth first.
+List<T> _find<T extends Layer>(Layer layer) => [
+  if (layer is T) layer,
+  if (layer is ContainerLayer)
+    for (
+      Layer? child = layer.firstChild;
+      child != null;
+      child = child.nextSibling
+    )
+      ..._find<T>(child),
+];
+
+// The ancestors of [layer], nearest first.
+List<Layer> _ancestors(Layer layer) => [
+  for (Layer? up = layer.parent; up != null; up = up.parent) up,
+];
 
 List<String> _drawCalls(WidgetTester tester) {
   final canvas = TestRecordingCanvas();

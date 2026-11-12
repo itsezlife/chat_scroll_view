@@ -22,14 +22,15 @@ abstract interface class PlaybackTarget {
 ///
 /// The clock asks the engine for frames only while at least one target is
 /// registered and no pause layer is set, so idle it keeps the engine asleep.
-/// [now] is the timestamp of the last frame delivered. While paused no frame
-/// is delivered, so [now] stands still, and the first frame after the pause
-/// carries the live timestamp: [now] jumps by the length of the pause, once.
-/// The clock does not hide that jump; resuming where the animation stopped
-/// ("freeze and continue", never a rewind and never a jump to the live
-/// position) is each paintable's business. The frame-sequence paintable shows
-/// its next frame at once and restarts its timing from there; one that derives
-/// its frame from [now] alone would skip the paused time.
+/// [now] is playback time: it advances only while the clock delivers frames.
+/// While paused (or idle, with no target) no frame is delivered and [now]
+/// stands still; the first frame after it advances [now] by one display frame
+/// (the last frame-to-frame step seen), not by the length of the pause. So
+/// every animation freezes and continues from where it stopped, whatever the
+/// pause's length: a panel sliding in for 300 ms used to show as a 300 ms jump
+/// in every sticker, because a paintable can only drop a step it recognises
+/// as a pause by its size (`resumeGap`), and a short pause looks like a slow
+/// frame.
 ///
 /// ## Pause layers
 ///
@@ -56,10 +57,21 @@ final class PlaybackClock {
   final Map<PlaybackTarget, Duration?> _lastTick = {};
   final Set<PlaybackPauseLayer> _layers = {};
   Duration _now = Duration.zero;
+  // The engine's timestamp of the last frame delivered, and the step between
+  // the last two; null before the first frame.
+  Duration? _rawLast;
+  Duration _rawStep = _defaultDisplayFrame;
+  // Engine time the clock did not run (pauses, idle), taken out of [now].
+  Duration _stopped = Duration.zero;
+  // Set when the frames start again; the next frame's gap is not playback.
+  bool _resuming = false;
+
+  static const Duration _defaultDisplayFrame = Duration(microseconds: 16667);
   bool _running = false;
   bool _disposed = false;
 
-  /// Timestamp of the last frame delivered; zero before the first.
+  /// Playback time of the last frame delivered: the engine's frame time less
+  /// the time the clock was stopped; zero before the first frame.
   Duration get now => _now;
 
   /// The layers currently set.
@@ -121,13 +133,30 @@ final class PlaybackClock {
     if (shouldRun == _running) return;
     _running = shouldRun;
     if (shouldRun) {
+      _resuming = true;
       (_ticks ??= SchedulerPlaybackTickSource()).start(_onTick);
     } else {
       _ticks?.stop();
     }
   }
 
-  void _onTick(Duration timestamp) {
+  void _onTick(Duration raw) {
+    final rawLast = _rawLast;
+    if (rawLast != null) {
+      final gap = raw - rawLast;
+      if (_resuming) {
+        // The clock stood still for all but one display frame of the gap.
+        if (gap > _rawStep) _stopped += gap - _rawStep;
+        // The first frame back is every target's: one tick each, at once,
+        // as after any stop, whatever its own interval.
+        _lastTick.updateAll((_, _) => null);
+      } else if (!gap.isNegative) {
+        _rawStep = gap;
+      }
+    }
+    _resuming = false;
+    _rawLast = raw;
+    final timestamp = raw - _stopped;
     _now = timestamp;
     for (final target in List<PlaybackTarget>.of(_lastTick.keys)) {
       // Unregistered by an earlier target in this same frame.

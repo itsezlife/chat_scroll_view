@@ -2,8 +2,7 @@ import 'package:content_model/src/rich_text/entity.dart';
 import 'package:content_model/src/rich_text/entity_kind.dart';
 import 'package:content_model/src/rich_text/rich_text.dart';
 
-/// Turns the markers a user typed into entities, with the reference client's
-/// rules (Telegram Android's `MediaDataController.getEntities`).
+/// Turns the markers a user typed into entities, with the chat-client rules.
 ///
 /// A user who types `` `x` `` or `**x**` instead of choosing the style from
 /// the menu gets the style, and the markers go. Like [EntityDetection] it is
@@ -33,7 +32,7 @@ import 'package:content_model/src/rich_text/rich_text.dart';
 /// a pair is not made across one. Code and a code block also stay text where
 /// they would hold an entity the text already has (they hold none).
 ///
-/// Underline and quote have no typed form in the reference client, and none
+/// Underline and quote have no typed form in the chat client, and none
 /// here.
 ///
 /// Returns the text itself when there is nothing to convert. Running it again
@@ -69,7 +68,7 @@ abstract final class TypedMarkdown {
   static final RegExp _spoiler = RegExp(r'\|\|(.+?)\|\|');
   static final RegExp _strike = RegExp('~~(.+?)~~');
 
-  // Converts each ``` fence into a code block on lines of its own. Android's
+  // Converts each ``` fence into a code block on lines of its own. The chat-client
   // reading: the fence swallows one space or line break outside it and the
   // block takes a line break in its place, a first line that names a language
   // (a first line that is code is code), one line break after the opener and

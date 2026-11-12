@@ -5,6 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _perPage = 676; // GlyphAtlasLayout().cellsPerPage
 
+// Glyphs a frame bakes at the default pace.
+final _pace = const BakePacing().maxGlyphsPerFrame;
+
 // A 120 Hz display.
 const _budget = Duration(microseconds: 8333);
 
@@ -26,6 +29,7 @@ void main() {
   late _Signal visible;
   late _Signal scrolling;
   late _Signal opening;
+  late _Signal shown;
   late List<int> bakedPages;
   late GlyphBakeScheduler scheduler;
 
@@ -37,12 +41,14 @@ void main() {
     visible = _Signal(true);
     scrolling = _Signal(false);
     opening = _Signal(false);
+    shown = _Signal(true);
     bakedPages = [];
   });
   tearDown(() async {
     visible.dispose();
     scrolling.dispose();
     opening.dispose();
+    shown.dispose();
     await store.clear();
   });
 
@@ -69,6 +75,7 @@ void main() {
         panelVisible: visible,
         scrolling: scrolling,
         panelOpening: opening,
+        glyphsShown: shown,
       ),
       governor: governor,
       settleFrames: settleFrames,
@@ -105,9 +112,9 @@ void main() {
       build(100, settleFrames: 0).start();
 
       await frame();
-      expect(rasteriser.painted, hasLength(16));
+      expect(rasteriser.painted, hasLength(_pace));
       await frame();
-      expect(rasteriser.painted, hasLength(32));
+      expect(rasteriser.painted, hasLength(2 * _pace));
     });
 
     test(
@@ -124,7 +131,11 @@ void main() {
     );
 
     test('the pace falls when the engine reports expensive frames', () async {
-      build(2000, settleFrames: 0).start();
+      build(
+        2000,
+        settleFrames: 0,
+        governor: BakeGovernor(pacing: const BakePacing(maxGlyphsPerFrame: 16)),
+      ).start();
       await frame(); // 16 glyphs
       final before = rasteriser.painted.length;
 
@@ -149,7 +160,7 @@ void main() {
         await frame(cost: _budget * 0.1);
       }
 
-      expect(low, lessThan(16));
+      expect(low, lessThan(_pace));
       expect(scheduler.glyphsPerFrame, greaterThan(low));
     });
 
@@ -160,12 +171,12 @@ void main() {
         await frame();
       }
 
-      expect(scheduler.glyphsPerFrame, 16);
+      expect(scheduler.glyphsPerFrame, _pace);
     });
 
     test('a bake that is costly on its own slows itself down', () async {
       // The engine reports nothing, but each glyph costs 1 ms of the clock,
-      // so a 16 glyph step overruns the 8.3 ms budget by itself.
+      // so a full-pace step reaches the 8.3 ms budget by itself.
       rasteriser = FakeGlyphRasteriser(
         onPaint: (_) => clock.advance(const Duration(milliseconds: 1)),
       );
@@ -178,7 +189,7 @@ void main() {
         costs.add(clock.now - t0);
       }
 
-      expect(scheduler.glyphsPerFrame, lessThan(16));
+      expect(scheduler.glyphsPerFrame, lessThan(_pace));
       // After the first steps the governor found a pace that fits.
       expect(
         costs.skip(4).every((c) => c <= _budget),
@@ -197,8 +208,8 @@ void main() {
       final toAll = toVisible + await framesUntil(() => scheduler.isComplete);
 
       expect(bakedPages.first, 1);
-      // 676 glyphs at 16 a frame is 43 strips, then the page composes.
-      expect(toVisible, (_perPage / 16).ceil() + 1);
+      // A page of glyphs at a full pace is so many strips, then the page composes.
+      expect(toVisible, (_perPage / _pace).ceil() + 1);
       expect(toVisible, lessThan(toAll / 2));
       expect(bakedPages, [
         1,
@@ -240,7 +251,7 @@ void main() {
       await frame();
       expect(rasteriser.painted, isEmpty, reason: 'settling');
       await frame();
-      expect(rasteriser.painted, hasLength(16));
+      expect(rasteriser.painted, hasLength(_pace));
     });
 
     test('baking pauses at once when scrolling starts', () async {
@@ -271,7 +282,7 @@ void main() {
       expect(rasteriser.painted, hasLength(painted), reason: 'settling');
       await frame();
 
-      expect(rasteriser.painted.length, painted + 16);
+      expect(rasteriser.painted.length, painted + _pace);
     });
 
     test('settling starts over when scrolling resumes', () async {
@@ -300,7 +311,7 @@ void main() {
       opening.value = false;
       await frame();
 
-      expect(rasteriser.painted, hasLength(16));
+      expect(rasteriser.painted, hasLength(_pace));
     });
 
     test('a step cost from before a pause is not held against the first '
@@ -312,7 +323,7 @@ void main() {
       );
       build(2000, settleFrames: 0).start();
       await frame();
-      expect(scheduler.glyphsPerFrame, 16);
+      expect(scheduler.glyphsPerFrame, _pace);
 
       scrolling.value = true;
       scrolling.value = false;
@@ -320,9 +331,27 @@ void main() {
 
       expect(
         scheduler.glyphsPerFrame,
-        16,
+        _pace,
         reason: 'only the engine\'s cheap frame was observed',
       );
+    });
+
+    test('a panel whose glyph surface is not shown bakes nothing, and '
+        'showing it resumes after the settle frames', () async {
+      build(100).start();
+      await frame();
+      shown.value = false;
+
+      expect(frames.hasPendingRequest, isFalse);
+      await frame();
+      expect(rasteriser.painted, isEmpty);
+
+      shown.value = true;
+      await frame();
+      await frame();
+      expect(rasteriser.painted, isEmpty, reason: 'settling');
+      await frame();
+      expect(rasteriser.painted, hasLength(_pace));
     });
 
     test('every pause input must be clear for baking to run', () async {
@@ -361,6 +390,7 @@ void main() {
       expect(visible.isListenedTo, isFalse);
       expect(scrolling.isListenedTo, isFalse);
       expect(opening.isListenedTo, isFalse);
+      expect(shown.isListenedTo, isFalse);
     });
 
     test('dispose while paused leaves no listeners either', () {

@@ -1,0 +1,1146 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:lottie_decoder/lottie_decoder.dart';
+import 'package:lottie_decoder/src/cache/frame_file_reader.dart';
+import 'package:lottie_decoder/src/environment_specific/frame_cache_files_js.dart'
+    as web;
+import 'package:meta/meta.dart';
+
+FrameCacheKey _key(String hash, {int size = 128}) => FrameCacheKey(
+  contentHash: hash,
+  width: size,
+  height: size,
+  engineVersion: '1.0.0',
+);
+
+/// [length] bytes, each [fill].
+Uint8List _bytes(int length, int fill) =>
+    Uint8List(length)..fillRange(0, length, fill);
+
+Directory _tempDir() {
+  final dir = Directory.systemTemp.createTempSync('frame_cache_test_');
+  addTearDown(() {
+    if (dir.existsSync()) {
+      // A test may have made it read-only.
+      if (!Platform.isWindows)
+        Process.runSync('chmod', ['-R', '700', dir.path]);
+      dir.deleteSync(recursive: true);
+    }
+  });
+  return dir;
+}
+
+/// The files of [dir] with [extension], by name.
+List<String> _names(Directory dir, String extension) =>
+    dir
+        .listSync()
+        .map((e) => e.uri.pathSegments.where((s) => s.isNotEmpty).last)
+        .where((n) => n.endsWith(extension))
+        .toList()
+      ..sort();
+
+/// The bytes [frame] stands for: its own, or those of its file as the render
+/// isolate's reader reads them; null for a miss or a frame the reader refuses.
+Uint8List? _read(CachedFrame? frame) {
+  switch (frame) {
+    case null:
+      return null;
+    case CachedFrameBytes(:final bytes):
+      return bytes;
+    case final CachedFrameFile file:
+      final reader = FrameFileReader();
+      try {
+        return reader.read(file);
+      } finally {
+        reader.close();
+      }
+  }
+}
+
+/// Counts the files written, listed and stamped through it, and lets a test
+/// wait for the n-th write to be on disk without sleeping.
+class _CountingFiles extends DirectoryFrameCacheFiles {
+  _CountingFiles(super.path);
+
+  final List<String> written = [];
+  int scans = 0;
+  final List<(String, DateTime)> touches = [];
+  final List<(int, Completer<void>)> _waiters = [];
+
+  /// Completes once [count] writes have finished.
+  Future<void> writes(int count) {
+    if (written.length >= count) return Future.value();
+    final waiter = Completer<void>();
+    _waiters.add((count, waiter));
+    return waiter.future;
+  }
+
+  @override
+  Future<FileSystemException?> write(
+    String stem,
+    List<Uint8List> chunks, {
+    required DateTime modified,
+  }) async {
+    final stampFailure = await super.write(stem, chunks, modified: modified);
+    written.add(stem);
+    for (final (count, waiter) in _waiters.toList()) {
+      if (written.length >= count) {
+        _waiters.remove((count, waiter));
+        waiter.complete();
+      }
+    }
+    return stampFailure;
+  }
+
+  @override
+  Future<List<FrameCacheFileInfo>> scan() {
+    scans++;
+    return super.scan();
+  }
+
+  @override
+  Future<void> touch(String stem, DateTime modified) {
+    touches.add((stem, modified));
+    return super.touch(stem, modified);
+  }
+}
+
+/// Files whose timestamps cannot be set (a file system without them).
+class _UnstampableFiles extends DirectoryFrameCacheFiles {
+  _UnstampableFiles(super.path);
+
+  @override
+  @protected
+  Future<void> stamp(File target, DateTime modified) =>
+      Future<void>.error(const FileSystemException('no timestamps here'));
+}
+
+/// Records the temp file of every write before it is published.
+class _TempRecordingFiles extends DirectoryFrameCacheFiles {
+  _TempRecordingFiles(super.path, this.temps);
+
+  final List<String> temps;
+
+  @override
+  @protected
+  Future<void> publish(File temp, File target) {
+    temps.add(temp.uri.pathSegments.last);
+    return super.publish(temp, target);
+  }
+}
+
+/// A process that dies after the temp file is complete and before the rename.
+class _CrashingFiles extends DirectoryFrameCacheFiles {
+  _CrashingFiles(super.path);
+
+  @override
+  @protected
+  Future<void> publish(File temp, File target) =>
+      Future<void>.error(const FileSystemException('killed before rename'));
+
+  // A dead process cleans nothing up.
+  @override
+  @protected
+  Future<void> discardTemp(File temp) async {}
+}
+
+void main() {
+  late DateTime now;
+  DateTime clock() => now;
+  void advance() => now = now.add(const Duration(seconds: 1));
+
+  setUp(() => now = DateTime.utc(2026, 11, 6));
+
+  /// Puts every frame of an animation of [count] frames of [length] bytes:
+  /// both parities, as a playback at full rate does.
+  void putAll(FrameCache cache, FrameCacheKey key, int count, int length) {
+    for (var i = 0; i < count; i++) {
+      cache.put(key, i, _bytes(length, i + 1), frameCount: count);
+    }
+  }
+
+  /// Puts the even frames of an animation, [count] of [length] bytes (frames
+  /// 0, 2, 4 and so on of `2 * count - 1`), as a playback at half rate does:
+  /// one fill, and one file. Frame 2i is bytes of i + 1.
+  void putEven(FrameCache cache, FrameCacheKey key, int count, int length) {
+    for (var i = 0; i < count; i++) {
+      cache.put(key, 2 * i, _bytes(length, i + 1), frameCount: 2 * count - 1);
+    }
+  }
+
+  group('memory only', () {
+    late FrameCache cache;
+    setUp(() => cache = FrameCache(directoryPath: null, clock: clock));
+    tearDown(() => cache.dispose());
+
+    test('a frame put is had and read back byte for byte', () {
+      final key = _key('a');
+      cache.put(key, 1, _bytes(4, 7), frameCount: 3);
+      expect(cache.has(key, 1), isTrue);
+      expect(cache.has(key, 0), isFalse);
+      expect(_read(cache.frame(key, 1)), _bytes(4, 7));
+      expect(cache.frame(key, 0), isNull);
+    });
+
+    test('an unknown animation is a miss', () async {
+      expect(cache.has(_key('a'), 0), isFalse);
+      expect(cache.frame(_key('a'), 0), isNull);
+      expect(await cache.open(_key('a')), isFalse);
+    });
+
+    test('open finds what was put', () async {
+      cache.put(_key('a'), 0, _bytes(2, 1), frameCount: 5);
+      expect(await cache.open(_key('a')), isTrue);
+    });
+
+    test('the first write of a frame wins', () {
+      final key = _key('a');
+      cache.put(key, 0, _bytes(2, 1), frameCount: 1);
+      cache.put(key, 0, _bytes(2, 9), frameCount: 1);
+      expect(_read(cache.frame(key, 0)), _bytes(2, 1));
+    });
+
+    test('a key above the display cap is rejected, not cached', () async {
+      final big = _key('a', size: 513);
+      expect(
+        () => cache.put(big, 0, _bytes(2, 1), frameCount: 1),
+        throwsArgumentError,
+      );
+      expect(cache.has(big, 0), isFalse);
+      expect(await cache.open(big), isFalse);
+    });
+
+    test(
+      'a frame count that disagrees with the earlier one is a StateError',
+      () {
+        cache.put(_key('a'), 0, _bytes(2, 1), frameCount: 3);
+        expect(
+          () => cache.put(_key('a'), 1, _bytes(2, 1), frameCount: 4),
+          throwsStateError,
+        );
+      },
+    );
+
+    test(
+      'an index outside the frame count, or an empty count, is rejected',
+      () {
+        expect(
+          () => cache.put(_key('a'), 3, _bytes(2, 1), frameCount: 3),
+          throwsRangeError,
+        );
+        expect(
+          () => cache.put(_key('b'), 0, _bytes(2, 1), frameCount: 0),
+          throwsArgumentError,
+        );
+      },
+    );
+  });
+
+  group('RAM tier', () {
+    test('evicts the least recently used fill, whole, over the budget', () {
+      final cache = FrameCache(
+        directoryPath: null,
+        ramBudgetBytes: 130,
+        clock: clock,
+      );
+      putEven(cache, _key('a'), 2, 30);
+      advance();
+      putEven(cache, _key('b'), 2, 30);
+      expect(cache.has(_key('a'), 0), isTrue);
+      expect(cache.has(_key('b'), 0), isTrue);
+
+      advance();
+      cache.frame(_key('a'), 0); // a is now more recent than b
+      advance();
+      putEven(cache, _key('c'), 2, 30);
+
+      expect(cache.has(_key('b'), 0), isFalse, reason: 'least recent');
+      expect(cache.has(_key('b'), 2), isFalse, reason: 'evicted whole');
+      expect(cache.has(_key('a'), 0), isTrue);
+      expect(cache.has(_key('c'), 2), isTrue);
+    });
+
+    test('never evicts the fill under way when it is the only one', () {
+      final cache = FrameCache(
+        directoryPath: null,
+        ramBudgetBytes: 50,
+        clock: clock,
+      );
+      putEven(cache, _key('a'), 3, 40);
+      for (var i = 0; i < 5; i += 2) {
+        expect(cache.has(_key('a'), i), isTrue);
+      }
+    });
+
+    test('the parities of an animation are fills of their own: over the '
+        'budget the odd one, younger, is not kept', () {
+      final cache = FrameCache(
+        directoryPath: null,
+        ramBudgetBytes: 50,
+        clock: clock,
+      );
+      putAll(cache, _key('a'), 3, 20);
+      expect(cache.has(_key('a'), 0), isTrue);
+      expect(cache.has(_key('a'), 2), isTrue);
+      expect(cache.has(_key('a'), 1), isFalse);
+    });
+
+    test('an idle animation goes before one that plays', () {
+      final cache = FrameCache(
+        directoryPath: null,
+        ramBudgetBytes: 100,
+        clock: clock,
+      );
+      putAll(cache, _key('idle'), 1, 60);
+      advance();
+      advance();
+      cache.put(_key('new'), 0, _bytes(60, 1), frameCount: 2);
+      expect(cache.has(_key('idle'), 0), isFalse, reason: 'unused for 2 s');
+      expect(cache.has(_key('new'), 0), isTrue);
+    });
+
+    test('when all play, the fill that started last is not kept and the '
+        'oldest completes', () {
+      final cache = FrameCache(
+        directoryPath: null,
+        ramBudgetBytes: 100,
+        clock: clock,
+      );
+      // Both are asked for frames every round, as two playing stickers are.
+      for (var i = 0; i < 5; i += 2) {
+        cache
+          ..put(_key('first'), i, _bytes(40, 1), frameCount: 5)
+          ..put(_key('second'), i, _bytes(40, 2), frameCount: 5);
+        advance();
+      }
+      for (var i = 0; i < 5; i += 2) {
+        expect(cache.has(_key('first'), i), isTrue, reason: 'frame $i');
+      }
+      expect(
+        cache.has(_key('second'), 4),
+        isFalse,
+        reason: 'not kept: rendered as without a cache',
+      );
+      expect(cache.residentBytes, lessThanOrEqualTo(160));
+    });
+  });
+
+  group('without a file system', () {
+    // The web build swaps in this file for the directory one; on the VM it is
+    // plain Dart, so what the web does with a path is testable here.
+    test('a path is an ArgumentError, memory only is not', () {
+      expect(() => web.$openFrameCacheFiles('/frames'), throwsArgumentError);
+    });
+  });
+
+  group('disk tier', () {
+    late Directory dir;
+    late _CountingFiles files;
+    late FrameCache cache;
+    setUp(() {
+      dir = _tempDir();
+      files = _CountingFiles(dir.path);
+      cache = FrameCache(directoryPath: dir.path, files: files, clock: clock);
+    });
+
+    test('a complete animation is written once, as one file per '
+        'parity', () async {
+      putAll(cache, _key('a'), 3, 10);
+      await cache.dispose();
+      expect(_names(dir, '.frames'), [
+        '${_key('a').toFileStem(FrameParity.even)}.frames',
+        '${_key('a').toFileStem(FrameParity.odd)}.frames',
+      ]);
+      expect(
+        files.written,
+        unorderedEquals([
+          _key('a').toFileStem(FrameParity.even),
+          _key('a').toFileStem(FrameParity.odd),
+        ]),
+      );
+      expect(_names(dir, '.tmp'), isEmpty);
+    });
+
+    test('the even frames of a pass at half rate are written as their file, '
+        'which serves them and no odd frame', () async {
+      final key = _key('a');
+      putEven(cache, key, 3, 10);
+      await cache.dispose();
+      expect(files.written, [key.toFileStem(FrameParity.even)]);
+
+      final second = FrameCache(directoryPath: dir.path, clock: clock);
+      addTearDown(second.dispose);
+      expect(await second.open(key), isTrue);
+      for (var i = 0; i < 3; i++) {
+        expect(_read(second.frame(key, 2 * i)), _bytes(10, i + 1));
+        expect(
+          second.has(key, 2 * i + 1),
+          isFalse,
+          reason: 'frame ${2 * i + 1}',
+        );
+      }
+    });
+
+    test(
+      'putting a frame again after completion does not write again',
+      () async {
+        putAll(cache, _key('a'), 2, 10);
+        putAll(cache, _key('a'), 2, 10);
+        await cache.dispose();
+        expect(files.written, hasLength(2), reason: 'one per parity');
+      },
+    );
+
+    test('a partial animation is not written, and a restart misses', () async {
+      // Half of each parity.
+      cache.put(_key('a'), 0, _bytes(10, 1), frameCount: 4);
+      cache.put(_key('a'), 1, _bytes(10, 2), frameCount: 4);
+      await cache.dispose();
+      expect(dir.listSync(), isEmpty);
+
+      final restarted = FrameCache(directoryPath: dir.path, clock: clock);
+      addTearDown(restarted.dispose);
+      expect(await restarted.open(_key('a')), isFalse);
+    });
+
+    test(
+      'a second cache on the directory serves the frames byte for byte',
+      () async {
+        final key = _key('a');
+        putAll(cache, key, 3, 10);
+        await cache.dispose();
+
+        final second = FrameCache(directoryPath: dir.path, clock: clock);
+        addTearDown(second.dispose);
+        expect(second.has(key, 0), isFalse, reason: 'unknown before open');
+        expect(await second.open(key), isTrue);
+        for (var i = 0; i < 3; i++) {
+          expect(second.frame(key, i), isA<CachedFrameFile>());
+          expect(_read(second.frame(key, i)), _bytes(10, i + 1));
+        }
+        expect(second.residentBytes, 0, reason: 'nothing read into RAM');
+      },
+    );
+
+    test('a complete animation leaves RAM once its file is written, and is '
+        'served from the file', () async {
+      final key = _key('a');
+      putAll(cache, key, 3, 10);
+      expect(cache.residentBytes, 30, reason: 'in RAM until written');
+      await files.writes(2);
+
+      expect(cache.residentBytes, 0);
+      expect(
+        cache.frame(key, 1),
+        isA<CachedFrameFile>()
+            .having(
+              (f) => f.path,
+              'path',
+              files.pathOf(key.toFileStem(FrameParity.odd)),
+            )
+            .having((f) => f.index, 'index', 1)
+            .having((f) => f.key, 'key', key),
+      );
+      expect(_read(cache.frame(key, 1)), _bytes(10, 2));
+      putAll(cache, key, 3, 10);
+      expect(cache.residentBytes, 0, reason: 'a put of a file is not kept');
+      await cache.dispose();
+      expect(files.written, hasLength(2));
+    });
+
+    test('a file that serves frames is stamped when opened and at most '
+        'every 30 seconds after', () async {
+      final key = _key('a');
+      putAll(cache, key, 3, 10);
+      await cache.dispose();
+      final reader = FrameCache(
+        directoryPath: dir.path,
+        files: files,
+        clock: clock,
+      );
+      addTearDown(reader.dispose);
+      now = now.add(const Duration(minutes: 5));
+
+      expect(await reader.open(key), isTrue);
+      expect(files.touches, [
+        (key.toFileStem(FrameParity.even), now),
+        (key.toFileStem(FrameParity.odd), now),
+      ], reason: 'the open');
+      for (var i = 0; i < 29; i++) {
+        advance();
+        reader.frame(key, i % 3);
+      }
+      expect(files.touches, hasLength(2), reason: 'within 30 s');
+      advance();
+      reader.frame(key, 0);
+      expect(files.touches, hasLength(3));
+      expect(files.touches.last, (key.toFileStem(FrameParity.even), now));
+    });
+
+    test('the file starts with the documented little-endian header', () async {
+      final key = FrameCacheKey(
+        contentHash: 'ab',
+        width: 64,
+        height: 32,
+        engineVersion: '1.0.0',
+      );
+      // Frames 0 and 2 are the even file's, 1 and 3 the odd one's.
+      putAll(cache, key, 4, 5);
+      await cache.dispose();
+
+      Uint8List read(FrameParity parity) => File(
+        '${dir.path}/${key.toFileStem(parity)}.frames',
+      ).readAsBytesSync();
+      final bytes = read(FrameParity.even);
+      final header = ByteData.sublistView(bytes);
+      expect(bytes.sublist(0, 4), [0x46, 0x52, 0x4D, 0x43], reason: 'FRMC');
+      expect(header.getUint32(4, Endian.little), 3, reason: 'format version');
+      expect(header.getUint32(8, Endian.little), 64);
+      expect(header.getUint32(12, Endian.little), 32);
+      expect(header.getUint32(16, Endian.little), 2, reason: 'frame count');
+      expect(header.getUint32(20, Endian.little), 10, reason: 'payload bytes');
+      expect(header.getUint32(24, Endian.little), 5, reason: 'engine length');
+      expect(header.getUint32(28, Endian.little), 2, reason: 'hash length');
+      expect(header.getUint32(32, Endian.little), 0, reason: 'even');
+      expect(String.fromCharCodes(bytes.sublist(36, 41)), '1.0.0');
+      expect(String.fromCharCodes(bytes.sublist(41, 43)), 'ab');
+      // Offsets (0, 5), lengths (5, 5), then the payload.
+      expect(header.getUint32(43, Endian.little), 0);
+      expect(header.getUint32(47, Endian.little), 5);
+      expect(header.getUint32(51, Endian.little), 5);
+      expect(header.getUint32(55, Endian.little), 5);
+      expect(bytes.sublist(59), [...List.filled(5, 1), ...List.filled(5, 3)]);
+      expect(bytes, hasLength(69), reason: 'nothing after the payload');
+
+      final odd = read(FrameParity.odd);
+      expect(
+        ByteData.sublistView(odd).getUint32(32, Endian.little),
+        1,
+        reason: 'odd',
+      );
+      expect(odd.sublist(59), [...List.filled(5, 2), ...List.filled(5, 4)]);
+    });
+
+    test('a crash between writing the temp file and the rename leaves no '
+        'entry, and the leftover is never read as one', () async {
+      final key = _key('a');
+      final crashing = FrameCache(
+        directoryPath: dir.path,
+        files: _CrashingFiles(dir.path),
+        onError: (_, _) {},
+        clock: clock,
+      );
+      putAll(crashing, key, 2, 10);
+      await crashing.dispose();
+      expect(_names(dir, '.frames'), isEmpty);
+      expect(_names(dir, '.tmp'), isNotEmpty, reason: 'the crash left it');
+
+      final restarted = FrameCache(directoryPath: dir.path, clock: clock);
+      addTearDown(restarted.dispose);
+      expect(await restarted.open(key), isFalse);
+      expect(_names(dir, '.tmp'), isEmpty, reason: 'swept on the first scan');
+    });
+  });
+
+  group('damaged files', () {
+    late Directory dir;
+    final key = _key('a');
+    late File file;
+
+    /// Valid files for [key], then [damage] applied to the bytes of the even
+    /// one, [file].
+    Future<void> writeThenDamage(
+      Uint8List Function(Uint8List bytes) damage,
+    ) async {
+      dir = _tempDir();
+      final writer = FrameCache(directoryPath: dir.path, clock: clock);
+      putAll(writer, key, 3, 10);
+      await writer.dispose();
+      file = File('${dir.path}/${key.toFileStem(FrameParity.even)}.frames');
+      file.writeAsBytesSync(damage(file.readAsBytesSync()));
+    }
+
+    /// Where the offsets table starts for [key]: after the fixed header, the
+    /// engine version "1.0.0" and the hash "a". The even file of three frames
+    /// holds two: two offsets, then two lengths.
+    const tablesStart = 36 + 5 + 1;
+
+    Uint8List patch(Uint8List bytes, void Function(ByteData data) edit) {
+      edit(ByteData.sublistView(bytes));
+      return bytes;
+    }
+
+    // A flipped payload byte is not among them: there is no payload checksum,
+    // and the frame codec, which decodes to exactly the region or fails, is
+    // what catches a damaged frame (see the renderer's tests).
+    final damages = <String, Uint8List Function(Uint8List)>{
+      'empty': (b) => Uint8List(0),
+      'truncated inside the header': (b) => b.sublist(0, 20),
+      'truncated inside the payload': (b) => b.sublist(0, b.length - 3),
+      'longer than it says': (b) => Uint8List.fromList([...b, 0]),
+      'with a bad magic': (b) => patch(b, (d) => d.setUint8(0, 0)),
+      'of format version 1': (b) =>
+          patch(b, (d) => d.setUint32(4, 1, Endian.little)),
+      'with an impossible frame count': (b) =>
+          patch(b, (d) => d.setUint32(16, 0xFFFFFFFF, Endian.little)),
+      'with no frames': (b) =>
+          patch(b, (d) => d.setUint32(16, 0, Endian.little)),
+      'with an impossible engine length': (b) =>
+          patch(b, (d) => d.setUint32(24, 0xFFFFFFFF, Endian.little)),
+      'with an offset past the payload': (b) => patch(
+        b,
+        (d) => d.setUint32(tablesStart + 4, 0xFFFFFFF0, Endian.little),
+      ),
+      'whose offsets do not tile': (b) =>
+          patch(b, (d) => d.setUint32(tablesStart + 4, 3, Endian.little)),
+      'with a length past the payload': (b) => patch(
+        b,
+        (d) => d.setUint32(tablesStart + 2 * 4, 0xFFFFFFF0, Endian.little),
+      ),
+    };
+
+    for (final MapEntry(key: name, value: damage) in damages.entries) {
+      test('a file $name serves no frame, and invalidate deletes it', () async {
+        final reported = <Object>[];
+        await writeThenDamage(damage);
+        final cache = FrameCache(
+          directoryPath: dir.path,
+          clock: clock,
+          onError: (e, _) => reported.add(e),
+        );
+        addTearDown(cache.dispose);
+
+        expect(await cache.open(key), isTrue, reason: 'the name is listed');
+        for (final i in [0, 2]) {
+          expect(_read(cache.frame(key, i)), isNull, reason: 'frame $i');
+        }
+        expect(_read(cache.frame(key, 1)), _bytes(10, 2), reason: 'odd file');
+        await cache.invalidate(key);
+        expect(file.existsSync(), isFalse, reason: 'removed');
+        expect(_names(dir, '.frames'), isEmpty, reason: 'both parities');
+        expect(cache.has(key, 0), isFalse);
+        expect(reported, isEmpty);
+      });
+    }
+
+    test("a frame past the file's table is not served", () async {
+      await writeThenDamage((b) => b);
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
+      addTearDown(cache.dispose);
+      await cache.open(key);
+      expect(_read(cache.frame(key, 3)), isNull, reason: 'odd table');
+      expect(_read(cache.frame(key, 4)), isNull, reason: 'even table');
+      expect(_read(cache.frame(key, 2)), _bytes(10, 3));
+    });
+
+    test('a file renamed onto another key is not served as that key', () async {
+      await writeThenDamage((b) => b);
+      for (final other in [
+        _key('a', size: 64), // another display size
+        _key('b'), // another content
+        FrameCacheKey(
+          contentHash: 'a',
+          width: 128,
+          height: 128,
+          engineVersion: '2.0.0',
+        ), // another engine
+      ]) {
+        File(
+          '${dir.path}/${other.toFileStem(FrameParity.even)}.frames',
+        ).writeAsBytesSync(file.readAsBytesSync());
+        final cache = FrameCache(directoryPath: dir.path, clock: clock);
+        addTearDown(cache.dispose);
+        expect(await cache.open(other), isTrue);
+        expect(_read(cache.frame(other, 0)), isNull, reason: '$other');
+      }
+      expect(file.existsSync(), isTrue, reason: 'the genuine file stays');
+    });
+
+    test('a file renamed onto the other parity is not served as it', () async {
+      await writeThenDamage((b) => b);
+      File(
+        '${dir.path}/${key.toFileStem(FrameParity.odd)}.frames',
+      ).writeAsBytesSync(file.readAsBytesSync());
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
+      addTearDown(cache.dispose);
+      expect(await cache.open(key), isTrue);
+      expect(_read(cache.frame(key, 1)), isNull);
+      expect(_read(cache.frame(key, 0)), _bytes(10, 1));
+    });
+
+    test('after invalidate the animation can be cached again', () async {
+      await writeThenDamage((b) => b.sublist(0, 30));
+      final again = FrameCache(directoryPath: dir.path, clock: clock);
+      expect(await again.open(key), isTrue);
+      expect(_read(again.frame(key, 0)), isNull);
+      await again.invalidate(key);
+      putAll(again, key, 3, 10);
+      await again.dispose();
+
+      final third = FrameCache(directoryPath: dir.path, clock: clock);
+      addTearDown(third.dispose);
+      expect(await third.open(key), isTrue);
+      expect(_read(third.frame(key, 2)), _bytes(10, 3));
+    });
+  });
+
+  group('disk budget', () {
+    late Directory dir;
+    late _CountingFiles files;
+
+    /// The size of the file of three 10-byte frames under a one-letter hash
+    /// (the even file, the only one, of each animation here).
+    const fileBytes = 36 + 5 + 1 + 3 * 8 + 30;
+
+    FrameCache build({required int budget, _CountingFiles? with_}) {
+      files = with_ ?? _CountingFiles(dir.path);
+      final cache = FrameCache(
+        directoryPath: dir.path,
+        files: files,
+        diskBudgetBytes: budget,
+        clock: clock,
+      );
+      addTearDown(cache.dispose);
+      return cache;
+    }
+
+    setUp(() => dir = _tempDir());
+
+    test('evicts the least recently used file after a write', () async {
+      final cache = build(budget: fileBytes * 2 + 1);
+      putEven(cache, _key('a'), 3, 10);
+      await files.writes(1);
+      advance();
+      putEven(cache, _key('b'), 3, 10);
+      await files.writes(2);
+      advance();
+      cache.frame(_key('a'), 0); // a is more recent than b now
+      advance();
+      putEven(cache, _key('c'), 3, 10);
+      await cache.dispose();
+
+      expect(_names(dir, '.frames'), [
+        '${_key('a').toFileStem(FrameParity.even)}.frames',
+        '${_key('c').toFileStem(FrameParity.even)}.frames',
+      ]);
+    });
+
+    test('evicts on the first scan, oldest first, by the clock that stamped '
+        'the files', () async {
+      final writer = build(budget: fileBytes * 10);
+      for (final name in ['a', 'b', 'c']) {
+        putEven(writer, _key(name), 3, 10);
+        await files.writes(files.written.length + 1);
+        advance();
+      }
+      await writer.dispose();
+      expect(_names(dir, '.frames'), hasLength(3));
+
+      final restarted = build(budget: fileBytes * 2 + 1);
+      expect(await restarted.open(_key('c')), isTrue);
+      expect(_names(dir, '.frames'), [
+        '${_key('b').toFileStem(FrameParity.even)}.frames',
+        '${_key('c').toFileStem(FrameParity.even)}.frames',
+      ]);
+    });
+
+    test('opening a file counts as using it across restarts', () async {
+      final writer = build(budget: fileBytes * 10);
+      for (final name in ['a', 'b', 'c']) {
+        putEven(writer, _key(name), 3, 10);
+        await files.writes(files.written.length + 1);
+        advance();
+      }
+      await writer.dispose();
+
+      final reader = build(budget: fileBytes * 10);
+      expect(await reader.open(_key('a')), isTrue); // now the most recent
+      await reader.dispose();
+      advance();
+
+      final restarted = build(budget: fileBytes * 2 + 1);
+      expect(await restarted.open(_key('a')), isTrue);
+      expect(_names(dir, '.frames'), [
+        '${_key('a').toFileStem(FrameParity.even)}.frames',
+        '${_key('c').toFileStem(FrameParity.even)}.frames',
+      ]);
+    });
+  });
+
+  group('no disk budget', () {
+    late Directory dir;
+    late _CountingFiles files;
+
+    FrameCache build() {
+      files = _CountingFiles(dir.path);
+      final cache = FrameCache(
+        directoryPath: dir.path,
+        files: files,
+        diskBudgetBytes: null,
+        clock: clock,
+      );
+      addTearDown(cache.dispose);
+      return cache;
+    }
+
+    setUp(() => dir = _tempDir());
+
+    test("keeps every file: the host's store decides what goes", () async {
+      final writer = build();
+      for (final name in ['a', 'b', 'c']) {
+        putEven(writer, _key(name), 3, 400);
+        await files.writes(files.written.length + 1);
+        advance();
+      }
+      await writer.dispose();
+
+      final restarted = build();
+      for (final name in ['a', 'b', 'c']) {
+        expect(await restarted.open(_key(name)), isTrue);
+      }
+      expect(_names(dir, '.frames'), hasLength(3));
+    });
+
+    test("a file the host's store removed after the scan is a miss, and "
+        'is written again', () async {
+      final writer = build();
+      putEven(writer, _key('a'), 3, 10);
+      await writer.dispose();
+      final reader = build();
+      expect(await reader.open(_key('other')), isFalse); // the scan
+      File(
+        '${dir.path}/${_key('a').toFileStem(FrameParity.even)}.frames',
+      ).deleteSync();
+
+      // Listed, but gone: the reader misses, and the renderer invalidates.
+      expect(await reader.open(_key('a')), isTrue);
+      expect(_read(reader.frame(_key('a'), 0)), isNull);
+      await reader.invalidate(_key('a'));
+      putEven(reader, _key('a'), 3, 10);
+      await files.writes(1);
+
+      expect(_names(dir, '.frames'), [
+        '${_key('a').toFileStem(FrameParity.even)}.frames',
+      ]);
+    });
+  });
+
+  group('a file larger than the disk budget', () {
+    test('is deleted by the scan that finds it, never served', () async {
+      final dir = _tempDir();
+      final key = _key('a');
+      final writer = FrameCache(directoryPath: dir.path, clock: clock);
+      putEven(writer, key, 3, 400);
+      await writer.dispose();
+
+      final reader = FrameCache(
+        directoryPath: dir.path,
+        diskBudgetBytes: 1000,
+        clock: clock,
+      );
+      addTearDown(reader.dispose);
+      expect(await reader.open(key), isFalse);
+      expect(_names(dir, '.frames'), isEmpty, reason: 'deleted');
+    });
+  });
+
+  group('temp files', () {
+    test(
+      'are named per process and per call, so no two writes share one',
+      () async {
+        final dir = _tempDir();
+        final temps = <String>[];
+        final first = _TempRecordingFiles(dir.path, temps);
+        final second = _TempRecordingFiles(dir.path, temps);
+        final bytes = _bytes(4, 1);
+
+        await first.write('s', [bytes], modified: now);
+        await first.write('s', [bytes], modified: now);
+        await second.write('s', [bytes], modified: now);
+
+        expect(temps.toSet(), hasLength(3));
+        for (final name in temps) {
+          expect(
+            name,
+            matches(RegExp('^s\\.frames\\.$pid\\.\\d+\\.[0-9a-f]{8}\\.tmp\$')),
+          );
+        }
+      },
+    );
+  });
+
+  group('a timestamp that cannot be set', () {
+    test(
+      'does not make the cache unwritable: the entry was published',
+      () async {
+        final dir = _tempDir();
+        final reported = <Object>[];
+        final files = _UnstampableFiles(dir.path);
+        final cache = FrameCache(
+          directoryPath: dir.path,
+          files: files,
+          clock: clock,
+          onError: (e, _) => reported.add(e),
+        );
+        putEven(cache, _key('a'), 2, 10);
+        await cache.dispose();
+        expect(_names(dir, '.frames'), [
+          '${_key('a').toFileStem(FrameParity.even)}.frames',
+        ]);
+
+        // Later writes still go to disk, and are tracked for eviction.
+        final again = FrameCache(
+          directoryPath: dir.path,
+          files: files,
+          clock: clock,
+          onError: (e, _) => reported.add(e),
+        );
+        putEven(again, _key('b'), 2, 10);
+        putEven(again, _key('c'), 2, 10);
+        await again.dispose();
+        expect(_names(dir, '.frames'), hasLength(3));
+        expect(reported.every((e) => e is FileSystemException), isTrue);
+      },
+    );
+
+    test('is still told to the host, once', () async {
+      final dir = _tempDir();
+      final reported = <Object>[];
+      final cache = FrameCache(
+        directoryPath: dir.path,
+        files: _UnstampableFiles(dir.path),
+        clock: clock,
+        onError: (e, _) => reported.add(e),
+      );
+      putEven(cache, _key('a'), 2, 10);
+      putEven(cache, _key('b'), 2, 10);
+      await cache.dispose();
+
+      expect(reported, hasLength(1));
+    });
+  });
+
+  group('failures degrade to memory', () {
+    late Directory dir;
+    late List<Object> reported;
+
+    bool isRoot() =>
+        !Platform.isWindows &&
+        Process.runSync('id', ['-u']).stdout.toString().trim() == '0';
+
+    setUp(() {
+      dir = _tempDir();
+      reported = [];
+    });
+
+    test(
+      'a read-only directory is reported once and frames stay in memory',
+      () async {
+        if (isRoot()) {
+          markTestSkipped('root ignores file modes');
+          return;
+        }
+        Process.runSync('chmod', ['500', dir.path]);
+        final cache = FrameCache(
+          directoryPath: dir.path,
+          clock: clock,
+          onError: (e, _) => reported.add(e),
+        );
+        putEven(cache, _key('a'), 2, 10);
+        putEven(cache, _key('b'), 2, 10);
+        await cache.dispose();
+
+        expect(reported, hasLength(1));
+        expect(reported.single, isA<FileSystemException>());
+        expect(_read(cache.frame(_key('a'), 2)), _bytes(10, 2));
+        expect(_read(cache.frame(_key('b'), 0)), _bytes(10, 1));
+        expect(dir.listSync(), isEmpty);
+      },
+    );
+
+    test('an unreadable file serves no frame and throws nothing', () async {
+      if (isRoot()) {
+        markTestSkipped('root ignores file modes');
+        return;
+      }
+      final writer = FrameCache(directoryPath: dir.path, clock: clock);
+      putEven(writer, _key('a'), 2, 10);
+      await writer.dispose();
+      Process.runSync('chmod', [
+        '000',
+        '${dir.path}/${_key('a').toFileStem(FrameParity.even)}.frames',
+      ]);
+
+      final cache = FrameCache(
+        directoryPath: dir.path,
+        clock: clock,
+        onError: (e, _) => reported.add(e),
+      );
+      addTearDown(cache.dispose);
+      expect(await cache.open(_key('a')), isTrue);
+      expect(_read(cache.frame(_key('a'), 0)), isNull);
+    });
+
+    test('a directory that is a file never fails a put', () async {
+      final blocker = File('${dir.path}/cache')..writeAsStringSync('x');
+      final cache = FrameCache(
+        directoryPath: blocker.path,
+        clock: clock,
+        onError: (e, _) => reported.add(e),
+      );
+      putEven(cache, _key('a'), 2, 10);
+      await cache.dispose();
+      expect(_read(cache.frame(_key('a'), 0)), _bytes(10, 1));
+      expect(reported, hasLength(1));
+    });
+  });
+
+  group('concurrency and lifecycle', () {
+    late Directory dir;
+    setUp(() => dir = _tempDir());
+
+    test('opens list the directory once and read no frame', () async {
+      final writer = FrameCache(directoryPath: dir.path, clock: clock);
+      putEven(writer, _key('a'), 3, 10);
+      putEven(writer, _key('b'), 3, 10);
+      await writer.dispose();
+
+      final files = _CountingFiles(dir.path);
+      final cache = FrameCache(
+        directoryPath: dir.path,
+        files: files,
+        clock: clock,
+      );
+      addTearDown(cache.dispose);
+      final found = await Future.wait([
+        cache.open(_key('a')),
+        cache.open(_key('a')),
+        cache.open(_key('b')),
+      ]);
+      expect(found, [true, true, true]);
+      expect(await cache.open(_key('a')), isTrue);
+      expect(files.scans, 1);
+      expect(cache.residentBytes, 0);
+    });
+
+    test('dispose finishes pending writes and is idempotent', () async {
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
+      putEven(cache, _key('a'), 2, 10);
+      await Future.wait([cache.dispose(), cache.dispose()]);
+      await cache.dispose();
+      expect(_names(dir, '.frames'), hasLength(1));
+      expect(_names(dir, '.tmp'), isEmpty);
+    });
+
+    test('a put or an open after dispose is a StateError', () async {
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
+      await cache.dispose();
+      expect(
+        () => cache.put(_key('a'), 0, _bytes(1, 1), frameCount: 1),
+        throwsStateError,
+      );
+      expect(cache.open(_key('a')), throwsStateError);
+    });
+
+    test('clear drops both tiers, after a pending write finishes', () async {
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
+      putEven(cache, _key('a'), 2, 10);
+      await cache.clear();
+
+      expect(cache.has(_key('a'), 0), isFalse);
+      expect(await cache.open(_key('a')), isFalse);
+      await cache.dispose();
+      expect(_names(dir, '.frames'), isEmpty, reason: 'the write was cleared');
+    });
+
+    test('a cache is usable again after clear', () async {
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
+      putEven(cache, _key('a'), 2, 10);
+      await cache.clear();
+      putEven(cache, _key('a'), 2, 10);
+      await cache.dispose();
+      expect(_names(dir, '.frames'), hasLength(1));
+    });
+
+    test(
+      'invalidate drops the RAM entry and the file of one animation',
+      () async {
+        final cache = FrameCache(directoryPath: dir.path, clock: clock);
+        addTearDown(cache.dispose);
+        putEven(cache, _key('a'), 2, 10);
+        putEven(cache, _key('b'), 2, 10);
+        await cache.dispose();
+        final reopened = FrameCache(directoryPath: dir.path, clock: clock);
+        addTearDown(reopened.dispose);
+        expect(await reopened.open(_key('a')), isTrue);
+
+        await reopened.invalidate(_key('a'));
+
+        expect(reopened.has(_key('a'), 0), isFalse);
+        expect(await reopened.open(_key('a')), isFalse);
+        expect(_names(dir, '.frames'), [
+          '${_key('b').toFileStem(FrameParity.even)}.frames',
+        ], reason: 'only the invalidated file went');
+        expect(await reopened.open(_key('b')), isTrue, reason: 'untouched');
+      },
+    );
+
+    test(
+      'invalidate waits for a write under way, so its file goes too',
+      () async {
+        final cache = FrameCache(directoryPath: dir.path, clock: clock);
+        addTearDown(cache.dispose);
+        putEven(cache, _key('a'), 2, 10);
+
+        await cache.invalidate(_key('a'));
+
+        expect(_names(dir, '.frames'), isEmpty);
+      },
+    );
+
+    test('invalidate does not delete the file of an animation put again '
+        'after it', () async {
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
+      addTearDown(cache.dispose);
+      putEven(cache, _key('a'), 2, 10);
+
+      final invalidated = cache.invalidate(_key('a'));
+      putEven(cache, _key('a'), 2, 20);
+      await invalidated;
+      await cache.dispose();
+
+      expect(_names(dir, '.frames'), [
+        '${_key('a').toFileStem(FrameParity.even)}.frames',
+      ], reason: 'the new animation is on disk');
+    });
+
+    test('invalidate of an unknown key is harmless', () async {
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
+      addTearDown(cache.dispose);
+
+      await expectLater(cache.invalidate(_key('nope')), completes);
+    });
+
+    test('invalidate frees the RAM it held, in a memory-only cache', () async {
+      final cache = FrameCache(directoryPath: null, clock: clock);
+      addTearDown(cache.dispose);
+      putEven(cache, _key('a'), 2, 10);
+
+      await cache.invalidate(_key('a'));
+
+      expect(cache.has(_key('a'), 0), isFalse);
+      expect(await cache.open(_key('a')), isFalse);
+      expect(cache.residentBytes, 0);
+    });
+
+    test('isDisposed tells a renderer to stop using the cache', () async {
+      final cache = FrameCache(directoryPath: dir.path, clock: clock);
+      expect(cache.isDisposed, isFalse);
+      await cache.dispose();
+      expect(cache.isDisposed, isTrue);
+    });
+  });
+}

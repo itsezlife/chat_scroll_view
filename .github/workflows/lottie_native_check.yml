@@ -1,0 +1,74 @@
+name: lottie_native native check
+
+# UNTESTED ON GITHUB: this workflow was written without a hosted runner. Its
+# YAML parses; nothing else about it has run. Expect to fix it on first use.
+#
+# Gates a change to the Rust crate or the prebuilt manifest: the crate's own
+# tests, clippy and rustfmt, and that a published sourceHash still matches the
+# sources (a manifest that no longer matches must be refreshed or emptied on
+# purpose). The Dart side is covered by check.yml.
+#
+# Actions are pinned to major tags (`actions/checkout@v4`), not to commit
+# SHAs: a deliberate decision. Only first-party `actions/*` and
+# `subosito/flutter-action` are used, a SHA pin would need a bot to keep it
+# fresh, and the job that holds a write permission runs no third-party code.
+# Revisit if a third-party action with a token is ever added.
+on:
+  pull_request:
+    paths:
+      - 'packages/lottie_native/native/**'
+      - '.github/workflows/lottie_native_check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lottie-native-check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: packages/lottie_native/native
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy,rustfmt
+          rustup default stable
+      - run: cargo test --locked
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo fmt --check
+
+  source-hash:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # The workspace root overrides flutter_md with `path: ../md`, so the fork
+      # is checked out as a sibling of the repo, as in check.yml.
+      - uses: actions/checkout@v4
+        with:
+          path: chat_scroll_view
+      - uses: actions/checkout@v4
+        with:
+          repository: itsezlife/md
+          ref: v0.9.0
+          path: md
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.7
+          cache: true
+      - name: Resolve workspace
+        working-directory: chat_scroll_view
+        run: flutter pub get
+      # `dart <file>`, not `dart run`, which would run the build hook.
+      - name: Recorded sourceHash matches the sources
+        working-directory: chat_scroll_view/packages/lottie_native
+        run: dart native/tool/source_hash.dart --check

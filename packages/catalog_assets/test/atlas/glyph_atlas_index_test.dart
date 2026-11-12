@@ -16,7 +16,7 @@ void main() {
     });
 
     test('a smaller wanted cell bakes smaller, a larger one is capped', () {
-      // 34.84 logical px at the reference density is a 98 px glyph: capped.
+      // 34.84 logical px at the density the figures assume is a 98 px glyph: capped.
       expect(
         GlyphAtlasLayout.forCell(
           logicalExtent: 34.84,

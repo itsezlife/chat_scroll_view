@@ -72,4 +72,32 @@ Object make() => $construction;
       expect(result.stdout, contains('KeyValuePreferenceStore'));
     }
   });
+
+  test('a host can create a content library only through load', () async {
+    final result = await _analyze('''
+$imports
+Future<ContentLibrary> make(LibraryStorage storage) =>
+    StoredContentLibrary.load(
+      storage,
+      limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
+    );
+''');
+
+    expect(result.stdout, contains('No issues found'));
+  });
+
+  test('a host cannot construct a content library directly', () async {
+    for (final construction in [
+      'StoredContentLibrary()',
+      'StoredContentLibrary._(null)',
+    ]) {
+      final result = await _analyze('''
+$imports
+Object make() => $construction;
+''');
+
+      expect(result.exitCode, isNot(0), reason: construction);
+      expect(result.stdout, contains('StoredContentLibrary'));
+    }
+  });
 }

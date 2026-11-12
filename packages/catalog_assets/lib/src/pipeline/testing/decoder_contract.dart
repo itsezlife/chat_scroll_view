@@ -63,6 +63,9 @@ final class _Report implements AssetProgress {
   }
 
   @override
+  void download(double fraction) {}
+
+  @override
   void cancelled() {
     cancelledByDecoder = true;
     _complete();

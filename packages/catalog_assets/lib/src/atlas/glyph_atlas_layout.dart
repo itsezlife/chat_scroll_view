@@ -9,8 +9,8 @@ import 'package:meta/meta.dart';
 /// The three numbers that decide memory and sharpness are single constants:
 ///
 /// - [pageSize], 2048 px, the only texture size guaranteed on every GPU;
-/// - [maxGlyphSize], 72 px, the cap on the baked glyph edge. At the reference
-///   density a full-size bake would be 98 px and five pages (about 80 MiB),
+/// - [maxGlyphSize], 72 px, the cap on the baked glyph edge. At the density the
+///   figures assume, a full-size bake would be 98 px and five pages (about 80 MiB),
 ///   past the 64 MiB ceiling, so the glyph is baked smaller and the sprite is
 ///   scaled up when drawn;
 /// - [gutter], 2 px of transparent border around every glyph, so sampling a

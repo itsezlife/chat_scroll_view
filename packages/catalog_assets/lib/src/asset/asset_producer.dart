@@ -88,6 +88,21 @@ abstract interface class AssetProgress {
     AssetTier tier = AssetTier.still,
   });
 
+  /// Reports how much of the content's download has arrived, [fraction] from
+  /// 0 to 1 (clamped), for the surfaces that show a download
+  /// (`AssetBinding.downloadProgress`).
+  ///
+  /// Only a producer that is transferring the content, or knows it must,
+  /// calls it: from the start of the attempt for content known to be missing
+  /// (0), or else from the start of the transfer (0, or what had already
+  /// arrived), as bytes arrive, and 1 when they all have. Content served from
+  /// a cache (memory or disk) is never reported, so a surface shows no
+  /// download for it. The fraction outlives a failed or cancelled attempt
+  /// (the content is still missing) until the final stage, the next attempt
+  /// or the last binding leaving; a lower value replaces a higher one (a
+  /// download that started again).
+  void download(double fraction);
+
   /// Ends the attempt without a result. The entry keeps its stage: a failure
   /// is never shown. [error] and [stackTrace] are kept for diagnostics
   /// (`AssetBinding.lastError`); [kind] tells whether connectivity helps.

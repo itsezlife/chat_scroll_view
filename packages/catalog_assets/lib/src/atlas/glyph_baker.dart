@@ -25,11 +25,14 @@ enum BakeStep {
 /// Bakes the glyphs of a [GlyphAtlasIndex] into atlas pages, a bounded amount
 /// of work per call, so a caller can pace it across frames.
 ///
-/// Work comes in two units, each sized to fit inside one frame:
+/// Work comes in two units:
 ///
-/// - a **strip**: at most `glyphs` glyphs rasterised into one small image;
+/// - a **strip**: at most `glyphs` glyphs rasterised into one small image,
+///   sized by the caller to fit inside one frame;
 /// - a **page**: the strips of one page composed into a 2048 px page image and
-///   handed to the [GlyphPageStore].
+///   handed to the [GlyphPageStore]. One snapshot of a whole page, it does not
+///   fit a frame on every device (a device trace measured some 30 ms of raster
+///   time), so the caller runs it only where a still frame can absorb it.
 ///
 /// Pages bake in index order unless [prioritise] says which glyphs the user
 /// is looking at. A page is composed only when all its glyphs are in strips,
@@ -302,15 +305,24 @@ final class GlyphBaker {
     final copy = Paint()
       ..filterQuality = FilterQuality.none
       ..isAntiAlias = false;
+    // A strip's cells are consecutive slots, so the part of a strip that falls
+    // on one page row is copied in one draw. A draw per cell made a page of
+    // about 680 draws, each one recorded and encoded on the raster thread by
+    // the snapshot; by rows it is about one per strip plus one per row.
+    final columns = _layout.columns;
     var slot = 0;
     for (var s = 0; s < _strips.length; s++) {
-      for (var k = 0; k < _stripGlyphCounts[s]; k++, slot++) {
+      final count = _stripGlyphCounts[s];
+      for (var k = 0; k < count;) {
+        final run = math.min(count - k, columns - slot % columns);
         canvas.drawImageRect(
           _strips[s],
-          Rect.fromLTWH(k * cell, 0, cell, cell),
-          _layout.cellOrigin(slot) & Size.square(cell),
+          Rect.fromLTWH(k * cell, 0, run * cell, cell),
+          _layout.cellOrigin(slot) & Size(run * cell, cell),
           copy,
         );
+        k += run;
+        slot += run;
       }
     }
     final picture = recorder.endRecording();

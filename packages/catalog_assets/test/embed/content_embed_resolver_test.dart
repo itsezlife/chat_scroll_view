@@ -4,6 +4,7 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 
 const _metrics = InlineEmbedMetrics(
   fontSize: 10,
@@ -92,6 +93,21 @@ void main() {
       );
 
       expect(embed, isNull);
+    });
+
+    test('every embed it makes follows the host\'s hold', () {
+      final hold = listen.ValueNotifier<bool>(true);
+      addTearDown(hold.dispose);
+      final embed = ContentEmbedResolver(scope: scope, held: hold).resolve(
+        const InlineEmbedTarget(scheme: 'document', id: '9', alt: 's'),
+        _metrics,
+      )!;
+      addTearDown(embed.dispose);
+      final paintable = producer.last.advance(AssetStage.full, animated: true);
+
+      expect(paintable.keepsFrame, isTrue);
+      hold.value = false;
+      expect(paintable.keepsFrame, isFalse);
     });
 
     test('sizes the embed with the preset the host chose', () {

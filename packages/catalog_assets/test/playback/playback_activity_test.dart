@@ -43,7 +43,11 @@ void main() {
     PlaybackLifecycleSource? source,
     ValueListenable<bool>? lowPower,
     ValueListenable<bool>? reducedMotion,
-    PlaybackActivityPolicy policy = const PlaybackActivityPolicy(),
+    // Desktop's: most of these tests are about what a pause on focus loss
+    // does; *focus loss by platform* covers the default.
+    PlaybackActivityPolicy policy = const PlaybackActivityPolicy(
+      pausesOnFocusLoss: true,
+    ),
     bool withLifecycle = true,
   }) {
     final made = PlaybackActivity(
@@ -187,7 +191,11 @@ void main() {
         ),
       );
       addTearDown(custom.dispose);
-      final made = PlaybackActivity(clock: custom, lifecycle: lifecycle);
+      final made = PlaybackActivity(
+        clock: custom,
+        lifecycle: lifecycle,
+        policy: const PlaybackActivityPolicy(pausesOnFocusLoss: true),
+      );
       addTearDown(made.dispose);
 
       lifecycle.emit(AppLifecycleState.inactive);
@@ -221,8 +229,79 @@ void main() {
     });
   });
 
+  group('focus loss by platform', () {
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    for (final platform in TargetPlatform.values) {
+      final pauses = PlaybackActivityPolicy.pausesOnFocusLossOn(platform);
+      test('on ${platform.name} focus loss alone '
+          '${pauses ? 'pauses' : 'does not pause'}; hiding always does', () {
+        debugDefaultTargetPlatformOverride = platform;
+        activity(policy: const PlaybackActivityPolicy());
+
+        lifecycle.emitAll([
+          AppLifecycleState.resumed,
+          AppLifecycleState.inactive,
+        ]);
+        expect(clock.isPaused, pauses);
+
+        lifecycle.emit(AppLifecycleState.hidden);
+        expect(clock.pausedLayers, {
+          PlaybackPauseLayer.appInactive,
+          PlaybackPauseLayer.surfaceHidden,
+        });
+
+        lifecycle.emit(AppLifecycleState.inactive);
+        expect(clock.isPaused, pauses, reason: 'shown again, without focus');
+
+        lifecycle.emit(AppLifecycleState.resumed);
+        expect(clock.pausedLayers, isEmpty);
+      });
+    }
+
+    test('phones play on under a system sheet, desktops and the web stop', () {
+      expect(
+        {
+          for (final platform in TargetPlatform.values)
+            platform: PlaybackActivityPolicy.pausesOnFocusLossOn(platform),
+        },
+        {
+          TargetPlatform.android: false,
+          TargetPlatform.iOS: false,
+          TargetPlatform.fuchsia: true,
+          TargetPlatform.linux: true,
+          TargetPlatform.macOS: true,
+          TargetPlatform.windows: true,
+        },
+      );
+      for (final platform in TargetPlatform.values) {
+        expect(
+          PlaybackActivityPolicy.pausesOnFocusLossOn(platform, web: true),
+          isTrue,
+          reason: 'a blurred tab on ${platform.name}',
+        );
+      }
+    });
+
+    test('a policy that says so overrides the platform', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      activity(policy: const PlaybackActivityPolicy(pausesOnFocusLoss: true));
+      lifecycle.emit(AppLifecycleState.inactive);
+      expect(clock.pausedLayers, {PlaybackPauseLayer.appInactive});
+    });
+
+    test('the platform is read once, when the activity starts', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      activity(policy: const PlaybackActivityPolicy());
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      lifecycle.emit(AppLifecycleState.inactive);
+      expect(clock.isPaused, isTrue);
+    });
+  });
+
   group('the grace periods', () {
     const grace = PlaybackActivityPolicy(
+      pausesOnFocusLoss: true,
       unfocusedGrace: Duration(seconds: 1),
       focusedGrace: Duration(seconds: 5),
     );
@@ -483,6 +562,7 @@ void main() {
     test('drops a pending grace timer', () {
       final made = activity(
         policy: const PlaybackActivityPolicy(
+          pausesOnFocusLoss: true,
           unfocusedGrace: Duration(seconds: 1),
         ),
       );
@@ -522,7 +602,7 @@ void main() {
 
   group('what the pause does to the animations', () {
     test('losing focus for ten seconds costs one tick on the first frame '
-        'back, stamped with that frame', () {
+        'back, and the ten seconds do not count', () {
       activity();
       final target = _Target();
       clock.register(target);
@@ -534,8 +614,9 @@ void main() {
       lifecycle.emit(AppLifecycleState.resumed);
       frames.tick(_ms(10016));
 
-      expect(target.ticks, [_ms(16), _ms(10016)]);
-      expect(clock.now, _ms(10016));
+      const back = Duration(milliseconds: 16, microseconds: 16667);
+      expect(target.ticks, [_ms(16), back]);
+      expect(clock.now, back);
     });
 
     test('a follower of the clock (the spoiler dust) stands still while the '
@@ -551,7 +632,7 @@ void main() {
       lifecycle.emit(AppLifecycleState.resumed);
       frames.tick(_ms(120));
 
-      expect(seen, [_ms(40), _ms(120)]);
+      expect(seen, [_ms(40), _ms(40) + const Duration(microseconds: 16667)]);
     });
   });
 }

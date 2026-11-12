@@ -43,6 +43,10 @@ abstract interface class AssetBinding implements Listenable {
 
   /// How far the asset has come, as this binding would paint it.
   ///
+  /// While the entry is below its first frame and another spec of the same
+  /// content is further, this is that entry's stage, never final (see
+  /// [paintable]).
+  ///
   /// For a glyph on a platform that bakes this asks the atlas for its sprite,
   /// which may queue a page to be loaded again, so it is not a pure read.
   AssetReadiness get readiness;
@@ -50,7 +54,28 @@ abstract interface class AssetBinding implements Listenable {
   /// The best paintable available now, never null: before anything is
   /// produced it is the scope's placeholder. Read it when painting; do not
   /// keep it, a better stage replaces it.
+  ///
+  /// The same content decoded at another spec counts: while the entry is
+  /// below its first frame, this is the paintable of the entry of the same
+  /// key and decode mode with the best stage (the larger decode on a tie),
+  /// drawn into this binding's rectangle with its own profile, until the
+  /// entry's own stage catches up.
   AssetPaintable get paintable;
+
+  /// How much of the content's download has arrived, 0 to 1, while the
+  /// content is missing and downloads; null when it is not downloading.
+  ///
+  /// It is set by the producer's reports (`AssetProgress.download`): from the
+  /// start of an attempt for content known to be missing (0, before its
+  /// thumbnail), or else from the start of the transfer, until the content's
+  /// final stage. A failed or cancelled attempt keeps it, since the content is
+  /// still missing; the next attempt starts without it and the last binding
+  /// leaving forgets it. Content the producer served from a cache, a memory
+  /// hit, a glyph and a detached binding read null, so a surface that draws a
+  /// download indicator draws none for them. A change is signalled to the
+  /// listeners. It is the entry's own download: a sibling's stage this binding
+  /// borrows does not bring its download along.
+  double? get downloadProgress;
 
   /// The error of the latest failed attempt for this entry, or null. Cleared
   /// when an attempt advances. Diagnostics only.
@@ -89,9 +114,49 @@ abstract interface class AssetBinding implements Listenable {
   bool get visible;
   set visible(bool value);
 
+  /// Whether the surface holds this binding's playback: it shows the binding
+  /// but wants it still. Defaults to false.
+  ///
+  /// A held binding is not advanced, as an invisible one is, but it stays
+  /// shown: it paints at the time it was held, so a repaint shows the same
+  /// frame, and its paintable keeps that frame where it lives
+  /// ([AssetPaintable.keepFrame]) however long the hold lasts. Releasing the
+  /// hold plays on from that frame. It is the hold of one surface, where a
+  /// pause layer of the clock holds every surface of the scope, and a
+  /// background hold (`AssetCacheScope.holdBackground`) every surface but the
+  /// foreground ones. This flag is the surface's own wish: it does not change
+  /// when a background hold comes or goes.
+  bool get held;
+  set held(bool value);
+
+  /// Advances the asset's playback for this frame without painting, for a
+  /// surface that draws the paintable's sprite itself (see
+  /// [AssetPaintable.advancePlayback]).
+  ///
+  /// Call it before reading `paintable.sprite` of an animated paintable, with
+  /// the same playback time, animate flag and loop settings [paint] would use.
+  /// A surface that calls [paint] needs no call.
+  void advancePlayback();
+
   /// Paints the asset into [rect] at the scope's playback time: [paintable]
   /// clipped to the profile's corner radius, in [tint] and at [opacity].
   void paint(Canvas canvas, Rect rect, {Color? tint, double opacity = 1});
+
+  /// Paints the stand-in this binding kept under content that replaced it
+  /// (the thumbnail the entry showed before its first frame), into [rect], and
+  /// says whether there was one.
+  ///
+  /// A bitmap thumbnail stays fully opaque under content that fades in, so the
+  /// cell is never less drawn than before the content arrived; the surface
+  /// calls [releaseStandIn] once the content is opaque. Only a binding that was
+  /// attached while the thumbnail was showing has one: a binding attached
+  /// after the content arrived never fades and has nothing to keep under it.
+  bool paintStandIn(Canvas canvas, Rect rect);
+
+  /// Lets go of the stand-in of [paintStandIn]; the entry disposes the
+  /// thumbnail when every binding that waited for the content has. Idempotent,
+  /// and a detach is a release.
+  void releaseStandIn();
 
   /// Attempts the entry again now if nothing is running and it is not final.
   /// Does nothing otherwise.

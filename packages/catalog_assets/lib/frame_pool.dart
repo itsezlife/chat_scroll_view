@@ -1,0 +1,9 @@
+/// The dynamic frame pool: shared pages of animation frames.
+library;
+
+export 'src/pool/frame_atlas.dart';
+export 'src/pool/frame_page_images.dart';
+export 'src/pool/frame_pool.dart';
+export 'src/pool/frame_renderer.dart';
+export 'src/pool/frame_slot_allocator.dart';
+export 'src/pool/pixel_upload.dart';
