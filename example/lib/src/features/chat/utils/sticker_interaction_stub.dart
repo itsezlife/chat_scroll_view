@@ -9,9 +9,8 @@ import 'package:content_model/content_model.dart'
 import 'package:flutter/foundation.dart';
 
 /// What the host would hand the network for one batch of direct taps on an
-/// emoji sticker: the typing-class action of the reference clients, whose
-/// shape is `sendMessageEmojiInteraction(emoticon, msg_id, interaction)` with
-/// `interaction` the JSON text in [interaction].
+/// emoji sticker: an emoji-interaction action carrying the emoticon, the
+/// message id and the `interaction` JSON text in [interaction].
 @immutable
 final class StickerBroadcast {
   /// A batch of interactions with the sticker of [messageId], whose emoji is
@@ -43,7 +42,7 @@ final class StickerBroadcast {
 /// without changing the body.
 ///
 /// It takes the `ChatStickerActivated` the viewport reports for each tap,
-/// batches them the way the reference clients do and hands each batch to
+/// batches them and hands each batch to
 /// [onBroadcast] as the [StickerBroadcast] that would be sent. It sends
 /// nothing and draws no effect; the example only shows the batch.
 ///
@@ -51,9 +50,9 @@ final class StickerBroadcast {
 ///
 /// Both numbers are the host's, not the viewport's:
 ///
-/// - [debounce], 500 ms: a batch is sent this long after its last tap (one
-///   reference client re-arms a timer on each tap; another sends once, 1.0 s
-///   after the first tap).
+/// - [debounce], 500 ms: a batch is sent this long after its last tap (a
+///   timer is re-armed on each tap; the alternative sends once, 1.0 s after
+///   the first tap).
 /// - [window], 1.0 s: a batch is sent no later than this after its first tap.
 ///   A receiving client may discard an entry whose offset is outside
 ///   `[0, 1]` s or not greater than the one before, so an open-ended debounce

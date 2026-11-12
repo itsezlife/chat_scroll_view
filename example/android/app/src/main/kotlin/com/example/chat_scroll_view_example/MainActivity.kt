@@ -34,7 +34,9 @@ class MainActivity : FlutterActivity() {
     private var labChannel: MethodChannel? = null
 
     /// `adb shell am broadcast -a lab.SET --es key snap --ez value true`
-    /// flips a lab switch without touching the screen.
+    /// flips a lab switch without touching the screen;
+    /// `--es key net --es value off|record|replay --es name <tape>` selects
+    /// the network tape.
     private val labReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             labChannel?.invokeMethod(
@@ -42,6 +44,8 @@ class MainActivity : FlutterActivity() {
                 mapOf(
                     "key" to intent.getStringExtra("key"),
                     "value" to intent.getBooleanExtra("value", false),
+                    // `--es value replay`, for the keys that take a word.
+                    "text" to intent.getStringExtra("value"),
                     "name" to intent.getStringExtra("name"),
                 ),
             )
@@ -57,6 +61,17 @@ class MainActivity : FlutterActivity() {
         labChannel!!.setMethodCallHandler { call, result ->
             when (call.method) {
                 "filesDir" -> result.success(getExternalFilesDir(null)?.path)
+                else -> result.notImplemented()
+            }
+        }
+        // The app's cache folder, for the caches the Dart side keeps on disk
+        // (the example takes no path_provider).
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            PATHS_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "cacheDir" -> result.success(cacheDir.path)
                 else -> result.notImplemented()
             }
         }
@@ -81,6 +96,21 @@ class MainActivity : FlutterActivity() {
             if (call.method == "playError") {
                 playSelectionLimit()
                 result.success(null)
+            } else {
+                result.notImplemented()
+            }
+        }
+
+        // What decides whether the system confirms a copy by itself
+        // (the system's clipboard-toast rule).
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SYSTEM_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            if (call.method == "clipboardToast") {
+                result.success(
+                    mapOf("sdkInt" to Build.VERSION.SDK_INT, "oneUi40" to isOneUi40()),
+                )
             } else {
                 result.notImplemented()
             }
@@ -212,6 +242,16 @@ class MainActivity : FlutterActivity() {
         vibrator.vibrate(200)
     }
 
+    /// `OneUIUtilities.hasBuiltInClipboardToasts`: One UI 4.0 exactly.
+    private fun isOneUi40(): Boolean = try {
+        val field = Build.VERSION::class.java.getDeclaredField("SEM_PLATFORM_INT")
+        field.isAccessible = true
+        val sem = field.getInt(null)
+        sem >= 100000 && sem - 90000 == 40000
+    } catch (e: Exception) {
+        false
+    }
+
     private inner class PreImeBackFrame : FrameLayout(this@MainActivity) {
         override fun dispatchKeyEventPreIme(event: KeyEvent): Boolean {
             if (interceptPreImeBack && event.keyCode == KeyEvent.KEYCODE_BACK) {
@@ -228,6 +268,8 @@ class MainActivity : FlutterActivity() {
         private const val FRAME_RATE_CHANNEL = "chat_scroll_view_example/frame_rate"
         private const val HAPTIC_CHANNEL = "chat_scroll_view_example/selection_cap_haptic"
         private const val LAB_CHANNEL = "chat_scroll_view_example/lab"
+        private const val PATHS_CHANNEL = "chat_scroll_view_example/paths"
         private const val PRE_IME_BACK_CHANNEL = "chat_scroll_view_example/pre_ime_back"
+        private const val SYSTEM_CHANNEL = "chat_scroll_view_example/system"
     }
 }

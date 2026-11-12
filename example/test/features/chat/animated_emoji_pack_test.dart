@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -117,7 +118,7 @@ void main() {
   test('the resolver describes the pack\'s emoji and nothing else', () async {
     final rocket = AnimatedEmojiPack.emoji.last;
 
-    final found = await AnimatedEmojiPack.resolver().resolve([
+    final found = await BundledPacks.resolver().resolve([
       rocket.key,
       const ContentKey.document('other'),
     ]);
@@ -126,7 +127,7 @@ void main() {
   });
 
   group('the fetcher', () {
-    final fetcher = AnimatedEmojiPack.fetcher(_DiskBundle());
+    final fetcher = BundledPacks.fetcher(_DiskBundle());
 
     test('reads an emoji of the pack from the bundle', () async {
       final item = AnimatedEmojiPack.emoji.first;
@@ -144,7 +145,7 @@ void main() {
       final heart = AnimatedEmojiPack.emoji.first.descriptor;
 
       await expectLater(
-        AnimatedEmojiPack.fetcher(
+        BundledPacks.fetcher(
           _BrokenBundle(FlutterError('Unable to load asset')),
         ).fetch(_request(heart)),
         throwsA(
@@ -156,7 +157,7 @@ void main() {
         ),
       );
       await expectLater(
-        AnimatedEmojiPack.fetcher(
+        BundledPacks.fetcher(
           _BrokenBundle(StateError('a bug')),
         ).fetch(_request(heart)),
         throwsA(isA<StateError>()),
@@ -181,7 +182,7 @@ void main() {
 
   test('an emoji of the pack plays through the pipeline', () async {
     final pipeline = AssetPipeline(
-      fetcher: AnimatedEmojiPack.fetcher(_DiskBundle()),
+      fetcher: BundledPacks.fetcher(_DiskBundle()),
       decoders: DecoderRegistry()
         ..register(MediaForm.animatedImage, const ImageCodecDecoder()),
     );

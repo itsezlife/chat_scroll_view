@@ -10,7 +10,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
 /// memory is the chat screen's, not the asset cache's: the cache is shared by
 /// every screen and keeps no per-chat history (ADR 029, per-chat controllers).
 /// A new screen has a new memory, so a chat reopened later plays its stickers
-/// again, as in the reference clients. It is not persisted.
+/// again. It is not persisted.
 final class StickerPlayMemory implements ChatStickerPlayLedger {
   final Set<int> _played = <int>{};
 

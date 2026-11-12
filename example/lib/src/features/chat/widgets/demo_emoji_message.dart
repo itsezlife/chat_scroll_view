@@ -6,12 +6,13 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_reactions_row.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_service_colors.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_surface_parts.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/gif_badge.dart';
 import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
 
 /// What desktop recolours the glyphs of a selected emoji-only message with
-/// (`msgStickerOverlay`; the palette value is not in the sources at hand, so
-/// this is the selection colour of the demo's bubbles).
+/// (the palette value is not given, so this is the selection colour of the
+/// demo's bubbles).
 const Color _kSelectedOverlay = Color(0xFF2B5278);
 
 /// How strongly the overlay tints at full selection.
@@ -29,6 +30,10 @@ const double _kSelectedOverlayAlpha = 0.45;
 /// The widget asks the body for its geometry, reserves the strip the platform
 /// wants under it, then places the pill, header and reactions by pure geometry
 /// ([EmojiChrome.layout]) in one box.
+///
+/// A message that is a sticker or a GIF of its own takes the sticker layout at
+/// the size of the host's media size policy (`ChatBodyHost.mediaOf`,
+/// `ChatBodyHost.mediaSizes`).
 ///
 /// The host decides what the viewport does not: how the sticker plays
 /// (`ChatBodyHost.playbackFor`) and what the open chat already played
@@ -112,8 +117,7 @@ class DemoEmojiMessage extends StatefulWidget {
 
 class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
   /// A primary mouse click on the pill, which the pill's tap barrier keeps from
-  /// the viewport: what Telegram Desktop does for a click on the date
-  /// (`CursorState::Date` in `ListWidget::mouseActionFinish`): select the
+  /// the viewport: on desktop, a click on the date: select the
   /// message when nothing is selected, toggle it in message selection. The
   /// facade's toggle does both, and drops a live text selection as a click on
   /// the row would.
@@ -125,6 +129,8 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
     final chrome = EmojiChrome.of(policy);
     final colors = EmojiServiceColors.of(policy, wallpaper: widget.wallpaper);
     final sticker = widget.host.stickerOf(widget.emojiOnly);
+    final media = widget.host.mediaOf(widget.emojiOnly);
+    final mediaSizes = widget.host.mediaSizes;
     final direction = Directionality.of(context);
     final viewport = MediaQuery.sizeOf(context);
     // `overlayProgress`, not `selectProgress`: the viewport freezes the latter
@@ -149,6 +155,8 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
               emojiOnly: widget.emojiOnly,
               policy: policy,
               sticker: sticker,
+              media: media,
+              mediaSizes: mediaSizes,
               viewport: viewport,
               maxWidth: rowWidth,
               direction: direction,
@@ -247,6 +255,8 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
             emojiOnly: widget.emojiOnly,
             embedFactory: widget.host.embedFactory,
             sticker: sticker,
+            media: media,
+            mediaSizes: mediaSizes,
             playback: isSticker
                 ? widget.host.playbackFor(widget.emojiOnly.items.single.key)
                 : null,
@@ -267,14 +277,15 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
             colorFilter: ColorFilter.mode(tint, BlendMode.srcATop),
             child: emojiBody,
           );
-          // The pill is the message's status and selects with it: the
-          // reference paints its selected service colour there too.
+          // The pill is the message's status and selects with it: its
+          // selected service colour is painted there too.
           pillColors = colors.tinted(tint);
         }
 
-        // Telegram Desktop's click on the date selects the message. A mobile
-        // selection policy has no such click: a tap on the row is the idle
-        // chrome, and the viewport already toggles it in message selection.
+        // On desktop, a click on the date selects the message.
+        // A mobile selection policy has no such click: a tap on the row is the
+        // idle chrome, and the viewport already toggles it in message
+        // selection.
         final selectsOnStatusClick =
             !widget.selection.selectionPolicy.routesPrimaryTapToIdleMessage;
 
@@ -323,6 +334,21 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
                   top: bodyRect.top,
                   child: emojiBody,
                 ),
+                // A desktop labels a GIF under the pointer, and the user's own
+                // last one.
+                if (policy case ChatEmojiPolicy$Desktop()
+                    when media?.kind == ChatMediaKind.gif &&
+                        (widget.hovered || widget.isLastOwn))
+                  Positioned.fromRect(
+                    rect: body.content.shift(bodyRect.topLeft),
+                    child: const Align(
+                      alignment: AlignmentDirectional.topStart,
+                      child: Padding(
+                        padding: EdgeInsets.all(GifBadge.inset),
+                        child: GifBadge(),
+                      ),
+                    ),
+                  ),
                 if (pillRect != null && showsMeta)
                   Positioned.fromRect(
                     rect: pillRect,

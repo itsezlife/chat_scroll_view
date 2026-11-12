@@ -4,12 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// Every expectation is a literal from the platform's own source, written out
-// so it does not come from the code under test. Android: `MessageObject.java`
-// font steps and `ChatMessageCell.java` sticker rule; iOS:
-// `ChatMessageAnimatedStickerItemNode.swift` font table and sticker size;
-// Desktop: `history_view_large_emoji.cpp`, `history_view_custom_emoji.cpp`,
-// `history_view_sticker.cpp`.
+// Every expectation is a literal written out here, so it does not come from
+// the code under test.
 
 const _glyph = ContentKey.unicode('\u{1F44D}');
 
@@ -264,10 +260,10 @@ void main() {
   });
 
   group('the Desktop cap on enlarged regular emoji', () {
-    // The reference's cap is 3; a host may move it. The cap counts items of a
+    // The default cap is 3; a host may move it. The cap counts items of a
     // message that is not all custom emoji (custom lines are never capped).
 
-    test('the default is the reference client\'s 3', () {
+    test('the default cap is 3', () {
       expect(const ChatEmojiPolicy.desktop(), const ChatEmojiPolicy.desktop());
       expect(
         const ChatEmojiPolicy.desktop().admits(_line(3, allCustom: false)),

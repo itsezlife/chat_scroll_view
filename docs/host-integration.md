@@ -8,7 +8,7 @@ a scope widget, and the host builds one composition root.
 
 Each package README ends its contract in a **Host contract** table (what the
 host provides, what it must not do). This guide is the order those tables
-apply in. The reference host is the demo app under `example/`; the last section
+apply in. The demo app under `example/` is the working host; the last section
 maps each step to its file.
 
 Terms: [Chat chrome](chrome/CONTEXT.md), [Content and Assets](content/CONTEXT.md),
@@ -61,7 +61,10 @@ made. Whoever creates an object disposes it, in the reverse order.
 1. **Key-value adapter.** `await SharedPreferencesKeyValueStore.open()`.
 2. **Stores, loaded.** `KeyValueRecentsStore.load` and
    `KeyValuePreferenceStore.load` (one namespace per package, each awaited once
-   at startup), `KeyboardHeightStore.open`. A store never exists unloaded.
+   at startup), `KeyboardHeightStore.open`, and, with stickers or GIFs, the
+   content library: `StoredContentLibrary.load` over a
+   `KeyValueLibraryStorage`, with the host's `LibraryLimits` (ADR 044). A
+   store never exists unloaded.
 3. **Asset cache.** `PageAssets.createScope(memoryPressure: SystemMemoryPressure())`.
    Add a `producer:` (an `AssetPipeline` over your fetcher and decoders) when
    content is more than unicode glyphs. Feed the clock your pause layers
@@ -104,7 +107,7 @@ notification is reported to this one static hook, whose default rethrows: the
 notification stops at that listener, the others are never called, and the
 notifier is left mid-dispatch. Set it once at startup to report and not
 rethrow, so one faulty listener cannot starve the rest or interrupt the code
-that changed the state. The reference host routes it to
+that changed the state. The demo host routes it to
 `FlutterError.reportError` (`reportListenerErrors`, installed by `bootApp`).
 The same hook receives the debug assertions `package:listen` adds for a
 notifier used after `dispose`. Typed events (the panel event, scroll events)
@@ -122,7 +125,7 @@ all in the seams' and controllers' dartdoc and in
 - A `package:listen` `Listenable` is not Flutter's: `ListenableBuilder`, a
   `Listenable.merge` of Flutter and `AnimatedBuilder` do not accept it. Read
   one in the widget tree with a small builder over `addListener` (the
-  reference host has `ListenValueBuilder`) or adapt it (`ListenableBridge`).
+  demo host has `ListenValueBuilder`) or adapt it (`ListenableBridge`).
   A file that imports Flutter imports `package:listen/listen.dart as listen`.
 - There is no batching: a mutation that changes several things assigns the
   final value once.
@@ -172,6 +175,167 @@ reads them); the composer's menus do not: every label of the selection menu and
 of the pointer menu comes from `ChromeStrings`, so an app that has no Material
 delegate for its own language still shows its language in them. `PanelShell`
 builds on `EditableText` and needs no Material ancestor.
+
+Every text field asks the platform for its text processing actions; on
+Android the query blocks the UI thread (tens of milliseconds warm, more
+cold). The composer's field asks once per app run, and
+`ComposerView.prefetchTextActions` makes that query at an idle moment (after
+the first frame). The stock `EditableText` of `PanelSearchField` asks on every
+mount, after every page switch: a host's binding whose `createBinaryMessenger`
+returns `ComposerView.shareTextActions(super.createBinaryMessenger())` answers
+every field from the first reply. Made in place of
+`WidgetsFlutterBinding.ensureInitialized`, first thing in `main`.
+
+### Stills and animated images
+
+A sticker is a semantic kind, not a media form: a static sticker is a
+`MediaForm.still` and an animated emoji a `MediaForm.animatedImage`, and the
+engine's image codecs decode both. Register `ImageCodecDecoder` under each form
+the host shows, in the same `DecoderRegistry` as the others. It needs no native
+library, so it is registered whether or not the vector-animation decoder below
+started.
+
+### The video decoder: targets
+
+`video_native` ships its native library on macOS arm64, iOS arm64 (device and
+Apple-silicon simulator) and Android arm64-v8a. On any other target (Android
+x86_64 and armv7, the x86_64 iOS simulator, Windows, Linux) the
+hook bundles nothing and warns, and the probe (`NativeVideoBinding.probe()`,
+or starting the engine) reports `missingLibrary`: a host registers the video
+decoder only when that works, so video keeps its placeholder. A build without
+the recipe's prefix behaves the same; the warning names the command that makes
+it. Android needs the NDK at build time, and the library is aligned for 16 KiB
+pages.
+
+**On the web** the browser decodes: `WebVideoEngine(createPort:
+JsVideoElementPort.create)` from `package:video_decoder/web.dart` plays each
+clip in a hidden, muted `<video>` element fed a Blob URL, and the same
+scheduler and frame pool run over it (`VideoPlayback.startPixel` in the
+example takes the engine factory; the web file supplies it). No file is served
+beside the page. What degrades, by contract:
+
+- **Alpha** is whatever the browser decodes: a browser without WebM alpha
+  draws the clip opaque and `VideoInfo.hasAlpha` reads false (it is decided by
+  looking at the first frame, so a clip whose first frame is opaque reads the
+  same).
+- **Real-time frames.** The browser decides when a frame is presented;
+  `nextFrame` waits for it, so a slow page skips frames. `VideoInfo.frameRate`
+  is 0. An element nobody asks frames from is paused after 300 ms.
+- **An element cap** (16 by default, `maxElements`): past it `open` answers
+  `VideoRejection.limitExceeded` and the clip keeps its placeholder.
+- **GIF** is not a `<video>` source: it is refused (`unsupported`) and keeps
+  its placeholder. A file the browser cannot play at all is the same.
+- A hidden tab presents no frames; `dispose` is bounded (2 s) and fails what
+  is still waiting.
+
+**Run in a headless Chrome**, not in the other browsers: the video stickers of
+the example draw with their transparency and loop, with no console error
+(Safari and Firefox untried).
+
+### The vector-animation decoder
+
+A host that shows Lottie content registers one `Decoder` under
+`MediaForm.vectorAnimation` (`lottie_decoder`, over `lottie_native`). The native
+library is not on every target, so the host **probes by starting the render
+engine** and registers the decoder only when that works; where it does not,
+vector animations keep their placeholder and nothing else changes.
+
+Create, in this order:
+
+1. The `PlaybackClock`, and pass it to the scope (`clock:`). The frame
+   scheduler follows the same clock as every binding, so it is gated by the
+   same pause layers, and it must exist before the scope does. A scope handed a
+   clock does not own it: the host disposes it, after the scope.
+2. The engine: `IsolateLottieEngine.spawn()` (a `LottieSlotEngine`: it renders
+   into native memory by address) inside a guard that catches
+   every failure, since the probe means "the engine could not start". A
+   `LottieUnavailable` (a `StateError` carrying the `LottieAvailability`) means
+   the library is missing or speaks another version; any other error is the
+   isolate failing to start. Log once through the host's diagnostics with the
+   error's type, create nothing more and do not register.
+3. One `NativeFramePageMemory` (the render isolate writes it; it takes no
+   size, each page is made at the side of its slot: twice the size class's
+   edge by default, `FrameAtlas.pageSideFor`), a `FrameCache`
+   (`directoryPath:` the folder the host keeps rendered frames in between
+   launches, null for memory only; the byte budgets are its own parameters),
+   a `FrameAtlas` over the memory (its `budgetBytes`, default 48 MiB, is what
+   the open pages may cost together) with a `LottieFrameRenderer(engine:,
+   memory:, cache:)` and the memory-pressure `Listenable` the scope shares, and a
+   `LottieFrameScheduler` on the clock, which owns the atlas.
+4. `decoders.register(MediaForm.vectorAnimation, LottieDecoder(engine:,
+   scheduler:, cache:))`, before the `AssetPipeline` is built. Tell the pipeline the
+   descriptors up front (`pipeline.know`); a fetcher serves the file bytes.
+
+The cache is optional and only skips renders. The renderer stores each frame it
+draws and, on a later play (this run or the next launch), restores it instead
+of rendering; a frame it cannot restore is rendered after all and its
+animation is dropped from the cache. The decoder names an animation in the
+cache by the SHA-256 of the file, the pixel size it renders at and
+`LottieNativeVersion.engine`. Pick the folder from the platform's user cache
+location (the example, which does not depend on `path_provider`, asks its
+activity for `Context.getCacheDir` on Android, takes the app container's
+`Library/Caches` on iOS and reads the environment on a desktop; a host that
+does depend on it passes `getApplicationCacheDirectory()`), and give it to one
+cache at a time. A host that keeps all its media in one store, removing files
+by last use (as the example's `MediaDiskCache` does), gives the cache a folder
+of that store and `diskBudgetBytes: null`, so the store alone decides what
+goes; a file it removes is rendered again. A host may turn every disk tier off at once, as the example's
+`DISK_CACHE=false` does for tests and measured runs: the frames are then kept
+in memory only.
+
+Dispose in this order: the scope and the pipeline (dropping an entry frees the
+animation it holds, through the engine), then the scheduler (which disposes the
+atlas), then `cache.dispose()` (it finishes the writes under way; a render still
+in flight then stores nothing), then `engine.close()`, then the memory, then the
+clock. The engine closes before the memory because its isolate writes into it; `close()` lets the
+requests already sent finish (for ten seconds at most, `closeTimeout`), and a use after it throws `LottieEngineClosed`
+(the one error a handle's disposal may ignore). The example holds the
+steps in `LottiePlayback`, a class with the `decoder` and a `close()` that runs
+them in that order, once, and never skips one because another failed; the host
+reports a failing close instead of leaving an unhandled future.
+
+`LottieEngine` is the neutral interface (`load`, `renderPixels`, `dispose`,
+`close`); the decoder, the scheduler, the paintables and the cache depend on it
+only, and `package:lottie_decoder/lottie_decoder.dart` compiles for the web.
+The address-based methods (`renderBatch`, `renderCapturing`, `restore`) are
+`LottieSlotEngine`, with `IsolateLottieEngine`, `InProcessLottieEngine`,
+`NativeFramePageMemory` and `LottieFrameRenderer`; the barrel exports them only
+where `dart:ffi` exists, so a host that names them keeps that code behind a
+conditional import (as the example's `lottie_playback_vm.dart` does). A
+web host has an engine over the worker, a `ListFramePageMemory`, a
+`PixelCopyFrameRenderer(engine)` in place of `LottieFrameRenderer`, and a
+`FrameCache(directoryPath: null)`: memory only, a path there is an
+`ArgumentError`. A `FetchedFile` fails the decode there (no file system).
+
+### Web
+
+The composition on the web is the native one with two substitutions:
+
+1. The engine is `JsLottieWorker.spawnFromUrls(workerUrl:, wasmUrl:,
+   wasmNoSimdUrl:)` from `package:lottie_decoder/web.dart` (a web build
+   imports it; `WebWorkerLottieEngine` over a module `Worker`); relative urls
+   resolve against the page. It is the probe: with the files missing it
+   throws `LottieUnavailable`, the host logs once and registers no decoder.
+2. The pages are a `ListFramePageMemory` and the renderer is
+   `PixelCopyFrameRenderer(engine)`; there is no `FrameCache`, so the frames
+   are kept in memory only and nothing survives a reload.
+
+The example splits this in two: `LottiePlayback.startPixel` (no
+`dart:js_interop`, takes an `engineFactory`, runs on the VM in tests) does the
+composition and the shutdown order (scheduler, then engine); the web file
+(`lottie_playback_js.dart`, chosen by `dart.library.js_interop`) supplies only
+the factory. The worker, `chat_lottie_core.mjs` beside it and the two wasm
+builds come from `dart packages/lottie_native/native/tool/build_web.dart --out
+<dir>`; the host serves them beside the page.
+
+When the files are not served, or the worker is not ready in ten seconds, the
+page works as on a platform without the native library: vector animations keep
+their placeholder, everything else plays. `flutter build web` succeeds with or
+without the files, and `--wasm` compiles.
+
+**Not run.** The Dart side of the protocol runs on the VM against a scripted
+worker, and `flutter build web` (also `--wasm`) compiles. No browser has run
+the browser port, the real worker and the wasm together.
 
 ## 4. Per-chat controller set
 
@@ -240,6 +404,10 @@ void onPanelEvent(PanelEvent event) {
       }
     case RecentRemoveRequested(:final key, :final kind):
       unawaited(recents.remove(key, kind: kind));
+    case LibraryEditRequested(:final edit):
+      library.apply(edit); // and the host's own feedback, if any
+    case PackRequested(:final id):
+      openPackSheet(id);
     case SearchOpened() || SearchClosed() || ActionInvoked() || PageChanged():
       break;
   }
@@ -266,6 +434,45 @@ header has no button. Which emoji have variants, and
 whether the user has chosen one, is the page's business; the host only
 supplies the `PreferenceStore` the page remembers it in (choosing the emoji as
 it is is remembered as the base itself).
+A page given a `ContentPreviewController` (`StickersPage`, `GifPage` and
+`EmojiPage` take one as `previews`) previews a held sticker, GIF or custom
+emoji. The preview's items are the same events: send is `ContentPicked`, copy
+`ContentCopyRequested`, a custom emoji's "Remove from recent"
+`RecentRemoveRequested`, favourites, saved GIFs and a recent sticker's removal
+`LibraryEditRequested`, and "View pack" `PackRequested`. The host creates one
+controller over its `ContentLibrary` (the menus read it to say "Add to" or
+"Delete from Favorites"), disposes it after the pages, and calls
+`controller.dismiss()` first in its back handling: the preview stands in an
+overlay outside any route, so back reaches the host, not the preview.
+The blur under a preview's menu is a still of the window, taken as the
+preview opens from the `BackdropSnapshotSource` (chrome_foundation) the host
+places once above its navigator (in the app's `builder`, around the
+navigator's child); without one the menu is over the dim alone, as it is with
+`controller.blursBackground` off.
+A tap on a pack's title (the stickers page, a pack of custom emoji on the
+emoji page) is `PackRequested` too. The host answers it with a pack sheet
+(`StickerPackSheet` or `EmojiPackSheet` by the pack's kind, shown with
+`PackSheet.show`: a bottom sheet on touch, a centred box under a pointer).
+The sheet edits nothing itself: its button asks for the edits
+(`PackEditsRequested`), which the host applies, a removal or an archiving
+inside an undo window that its bulletin's Undo can take back (the bulletin
+holds it 2750 ms), and confirms with `PackSheetStrings`' words. It sends or
+inserts only through the `onPick` the host gives when a composer can take
+it, and closes itself before it calls it (the host does not pop it), and a sticker sheet given the `ContentPreviewController` previews its
+stickers (Send only with `onPick`, no "View pack"). A `LibraryEditRequested`
+that removes or archives a pack goes through the same bulletin.
+The chat opens the same sheets with no change to the viewport: on a tapped
+`ChatStickerActivated` that is no interaction (a sticker, a custom emoji
+without an effect) and on a tapped `ChatEmbedActivated` (a custom emoji in
+text) the host reads the content's descriptor, through its `ContentResolver`,
+and opens the sheet of its pack reference (`ContentDescriptor.pack`), an
+emoji sheet opened from a custom emoji in text given that emoji as its
+`previewEmoji` (drawn large above the card); content of no pack (a GIF, a unicode emoji) opens nothing, and a lone emoji with an
+effect keeps its replay. The message menu's "This message contains emoji
+from N packs" is the host's too: the packs of the message's custom emoji,
+each once in the order the text names them, under the action card (a
+`ChatMessageMenu.show` `menuBuilder` that keeps `ChatMessageMenuColumn`),
+opening one `EmojiPackSheet` of them all.
 A host that lists the recents through a `DeferredRecentsStore` view (so a pick
 does not reorder the grid under the pointer) routes `remove` and `clear` through
 the view: the emoji leaves the list at once and nothing else in it moves.
@@ -361,7 +568,14 @@ The panel lists the recents first, so a pick that updated them at once would
 reorder the grid under the finger that is picking from it. Give the panel's
 sources a `DeferredRecentsStore` over the real store, record picks in the real
 store, and `commit()` the view when the panel opens and when search ends. A
-clear commits at once.
+clear commits at once. The content library's lists (recent and favourite
+stickers, saved GIFs) want the same: the example's `DeferredLibraryView`
+shows them as of its last `commit()` and drops a key that leaves the library
+at once. Which library edits wait is the verb the host uses on the view: the
+record of a send (`record`) waits for the next `commit()`; an edit the user
+asked for (`apply`: favourite, unfavourite, save or unsave a GIF, forget a
+recent) shows at once, its key first and nothing else moving, as the
+lists reload for those and not for a send.
 
 ### Composer wiring
 
@@ -385,7 +599,7 @@ loaded with `restore(RichTextMarkdown.decode(...))`.
 ### Pointer menu (desktop)
 
 On macOS, Windows, Linux and the web a secondary click in the composer field
-opens the reference desktop client's context menu at the pointer instead of the
+opens the desktop context menu at the pointer instead of the
 floating card (`ComposerMenuPolicy`, chosen by platform; pass
 `ComposerView.menuPolicy` to override; touch keeps the card). Nothing needs
 wiring beyond what the selection menu already has, plus:
@@ -393,8 +607,8 @@ wiring beyond what the selection menu already has, plus:
 - `ChromeStrings.editMenu` (`EditMenuStrings`): the row labels. A label may
   carry a Qt-style `&` mnemonic, which the menu underlines.
 - A `ChromeThemeScope` (it supplies `PointerMenuTokens`, derived from the
-  palette; pass `PointerMenuTokens.referenceDay` or `referenceNight` to the
-  scope's `pointerMenu` for the reference's exact colours).
+  palette; pass `PointerMenuTokens.day` or `PointerMenuTokens.night` to the
+  scope's `pointerMenu` for the exact desktop colours).
 - Optionally `ComposerSpec.spellChecker`: a `ComposerSpellChecker` over the
   platform's checker (the composer ships none). Without one there is no
   Spelling row.
@@ -444,7 +658,7 @@ final shortcuts = {
 ```
 
 A chat leaves lists off; a form field that wants them builds its controller
-with `lists: true` (the reference host's notes field does).
+with `lists: true` (the demo host's notes field does).
 
 ### The field in a form
 
@@ -493,12 +707,12 @@ Three things stay the host's, because they are feedback or data:
 
 - **Apply formatting.** `ComposerController.onPaste` reports each paste. For a
   plain paste (`wasRich` false) whose `RichTextMarkdown.decode(text)` differs
-  from `RichText.plain(text)`, offer to apply it (the reference desktop
-  client's toast, nine seconds): applying replaces the reported range with the
+  from `RichText.plain(text)`, offer to apply it (the desktop toast,
+  nine seconds): applying replaces the reported range with the
   decoded text through `ComposerTextController.replaceRange`. Any edit
   withdraws the offer, and it never holds the paste back.
 - **Suggestions.** Register `ComposerQueryKind`s (`@`, `#`), build the panel from
-  `composer.query` (the reference host puts it in the header strip with
+  `composer.query` (the demo host puts it in the header strip with
   `ComposerHeader.suggestion`), and on a pick call `replaceQuery` with a real
   mention atom or hashtag. Answer `confirmMention` from your own members so a
   pasted mention survives the send.
@@ -619,9 +833,13 @@ from the keyword pack (`EmojiKeywordPack`) and puts them on its descriptors.
 **Baked glyphs.** On platforms that bake, pass `EmojiPage.atlasHostFactory`: a
 function that builds a `GlyphAtlasHost` from the parts only the host has (a
 `BakeFrameSource` such as `SchedulerBakeFrameSource(view:)`, the page's
-`devicePixelRatio`, `glyphBoxExtent`, `visible` and `opening` listenables,
-memory pressure, optional `GlyphAtlasPersistence` and glyph probe observer).
-The page plans the atlas from its collections, registers it on the shared
+`devicePixelRatio`, `glyphBoxExtent`, `visible`, `opening` and `shown`
+listenables, memory pressure, optional `GlyphAtlasPersistence` and glyph probe
+observer). Pass `shown` on as `glyphsShown:` and the host's app-wide scrolling
+signal as `scrolling:`, so the bake holds while another page is shown and
+while any surface scrolls; `pacing:` tunes how many glyphs one bake step
+draws ([ADR 022](adr/022-asset-cache-and-media-pipeline.md), *Amendment:
+glyph bake holds*). The page plans the atlas from its collections, registers it on the shared
 `assets` scope while mounted, and clears it after. Without a factory (the web)
 glyphs draw as text through `PageAssets.createScope`'s `TextGlyphProducer`.
 
@@ -696,13 +914,13 @@ reconciles with the stored body.
 
 **Typed markers.** A user who types `` `a` ``, ```` ```a``` ````, `**a**`,
 `__a__`, `~~a~~` or `||a||` gets code, a code block, bold, italic, strike or a
-spoiler, as in the reference client. `TypedMarkdown.apply(richText)` is the
+spoiler. `TypedMarkdown.apply(richText)` is the
 same kind of pure, host-invoked transform: call it on send before detection,
 so a URL typed inside code stays code. Markers inside code, a code block, a
 link, a mention, a username, a hashtag or inline content stay text. Underline
 and quote have no typed form.
 
-It reads the markers as the reference client does, so there is no word boundary:
+It reads the markers with no word boundary:
 `foo__bar__baz` has an italic `bar`, `2**3 * 4**5` a bold `3 * 4`, and
 `a || b || c` hides ` b `. There is no escape either: a user who wants the
 characters types them inside code. A host that would rather leave a pair alone
@@ -776,13 +994,13 @@ ids. What the host wires:
    starts, also when the host lets go of its composer's focus in a listener of
    its own. A host without that wrapper must hold the focus somewhere inside
    the `Actions` above, or the key reaches no one.
-3. **Format.** Per selection policy, as the reference clients write it: under
+3. **Format.** Per selection policy: under
    `$Desktop` one message is its text and several are `[time] Name: text` lines
-   a newline apart (Telegram Desktop, `HistorySelectedItemsText`); under
+   a newline apart; under
    `$Mobile` messages are a blank line apart with a `Name:` line before the
-   first and wherever the sender changes (Telegram Android); a single message
+   first and wherever the sender changes; a single message
    is its text alone in both. The time is the system locale's short date and
-   time on the desktop client, so the host supplies its own formatter. The
+   time on desktop, so the host supplies its own formatter. The
    demo's `ChatMessagesCopyFormat` is one implementation; the rich form
    (entities) of each body is kept behind the headers.
 4. **Confirmation and selection after the copy.** Per policy, whatever made the
@@ -825,8 +1043,15 @@ A message of nothing but emoji is shown without a bubble, large
    - `sticker`: for a lone emoji, the document it is shown as, from the host's
      own `unicode` to `document` map (an animated-emoji pack's) or the custom
      emoji's own document; none gives the text layout;
+   - `media` and `mediaSizes`: for a message that is one sticker or GIF of its
+     own, what it is (`ChatMediaItem`: the kind and the source size the host's
+     descriptor holds, null when unknown) and the host's
+     `ChatMediaSizePolicy`, one per platform family, which answers the art's
+     size from the screen and the chat's width and caps the decode. Without
+     them the document is drawn as a lone emoji's sticker. Pass the same pair to
+     `geometryFor`;
    - `playback` (`ChatStickerPlayback`): how the sticker plays, from the asset
-     kind and the user's animation settings. Null is the reference default (a
+     kind and the user's animation settings. Null is the default (a
      lone unicode emoji plays once and rests on the first frame, a custom emoji
      loops). The body reads no setting;
    - `playLedger` (`ChatStickerPlayLedger`): the played-once memory, **per open
@@ -869,7 +1094,8 @@ A message of nothing but emoji is shown without a bubble, large
    the text once unicode inline content is dropped to characters): the blank
    lines and spaces around the emoji are the sender's arrangement.
 7. **Taps** are `ChatEmbedActivated` for a custom emoji and `ChatStickerActivated`
-   for the lone sticker; what they mean is the host's.
+   for the lone sticker; what they mean is the host's (an interaction, or the
+   pack sheet of the content's pack, section 4).
 
 #### Sticker interaction seams
 
@@ -946,9 +1172,9 @@ final hold = activity.holdOverlay();   // ... hold.release() when it closes
 
 | Input | Layer | Notes |
 | --- | --- | --- |
-| Lifecycle `inactive` | `appInactive` | Window or app lost focus: another app took it (macOS, Windows, Linux), a call or system sheet (phones), a blurred tab (web). Pauses at once; `PlaybackActivityPolicy` adds a grace if you want one |
+| Lifecycle `inactive` | `appInactive` on desktop and the web | Window or app lost focus: another app took it (macOS, Windows, Linux) or a blurred tab (web); pauses at once, and `PlaybackActivityPolicy` adds a grace if you want one. On Android and iOS it is a call or system sheet over the visible app (the notification shade) and pauses nothing by default; `PlaybackActivityPolicy.pausesOnFocusLoss` chooses otherwise |
 | Lifecycle `hidden`, `paused`, `detached` | `appInactive` and `surfaceHidden` | Minimised, hidden, on another desktop; on macOS also fully covered. The framework stops frames itself on these; the layers also freeze the clock's `now` |
-| `lowPower` | `lowPower` | **Yours to detect.** The SDK reports no battery state. The reference desktop client turns everything off on macOS Low Power Mode (or a critical thermal state, or a low charge on battery), Windows Battery Saver and the Linux power-saver profile, with a user override. `battery_plus` documents `isInBatterySaveMode` for Android, iOS, macOS and Windows (no Linux); no package here depends on it |
+| `lowPower` | `lowPower` | **Yours to detect.** The SDK reports no battery state. Desktop turns everything off on macOS Low Power Mode (or a critical thermal state, or a low charge on battery), Windows Battery Saver and the Linux power-saver profile, with a user override. `battery_plus` documents `isInBatterySaveMode` for Android, iOS, macOS and Windows (no Linux); no package here depends on it |
 | `reducedMotion` | `reducedMotion` | Not in the default pausing set. The engine reports `PlatformDispatcher.accessibilityFeatures.disableAnimations` on Linux and the phones; on macOS and Windows it reports nothing at this Flutter revision, so a host that wants the setting reads it over a platform channel and feeds the same notifier. Chrome motion and the spoiler stillness follow `MediaQuery.disableAnimations` regardless. Add the layer to `PlaybackPolicy.pausingLayers` to stop playback on it |
 | `holdOverlay()` | `overlayShown` | One hold per overlay; the layer stays set until every hold is released. Flutter's `TickerMode` does not reach a non-opaque route, so a dialog leaves the chat animating unless you hold. The example does it from a `NavigatorObserver` for every modal route above the first |
 
@@ -965,7 +1191,7 @@ out of the time it is told. A custom `AssetPaintable` that derives its frame
 from the time alone must do the same. Revealed spoilers are not touched by any
 pause.
 
-Not replicated from the reference desktop client ([ADR 022](adr/022-asset-cache-and-media-pipeline.md),
+Not replicated from the desktop policy ([ADR 022](adr/022-asset-cache-and-media-pipeline.md),
 amendment *pause policies*): the six-level reason hierarchy (an open emoji panel
 does not pause the chat behind it; feed `ChatEmojiBody.isActive` per row if you
 want that), the round-video exemption, the per-feature power flags, and the
@@ -979,6 +1205,7 @@ desktop.
 | --- | --- | --- | --- |
 | `KeyValueStore` adapter, stores, fetcher, decoders, resolver | Host | App or account | Host |
 | `AssetCacheScope` | Host | App-wide | Host (scopes and `AssetCacheProvider` never dispose it) |
+| `PlaybackClock` handed to the scope, the Lottie engine, its page memory and frame scheduler | Host | App | Host (scope and pipeline first, then scheduler, engine, memory, clock) |
 | `PlaybackActivity` and its lifecycle source; the `lowPower` and `reducedMotion` notifiers it follows | Host | App | Host (dispose the activity first: it clears the layers it set) |
 | `routeMoving` / `fastScroll` layers, connectivity signal | Host, fed into the cache | App | Host |
 | Emoji and other data sources | Host | Account | Host |
@@ -1020,6 +1247,55 @@ Everything above stays. Add:
 
 The atlas stays an emoji concern: stickers and GIFs bind through the cache's
 fetch and decode path and never touch it.
+
+### The stickers and GIF pages
+
+`panel_pages` ships both: `StickersPage` (a strip of packs over a catalogue of
+stickers) and `GifPage` (the clips in justified rows). A host registers each as
+a `PanelPage` (ids and tab icons of its choosing) and gives each one
+`CollectionSource`:
+
+- the **personal lists first**, loaded from the start (a collection a page
+  hides is never asked to load, so a list that is hidden while it loads would
+  stay hidden): on the stickers page the favourite stickers as
+  `CollectionId.faved` and then the recent stickers as `CollectionId.recent`
+  (a favourite is listed once, among the favourites, and 20
+  recents), on the GIF page the saved GIFs as `CollectionId.recent`; all of
+  them the content library's lists (ADR 044). Then the packs as
+  `CollectionId.set`, each with a title and a cover (`CollectionMetadata.cover`
+  or its first item) for the strip;
+- descriptors that carry the content's kind (`sticker` or `gif`) and its
+  proportions (`ContentDescriptor.size`; the GIF page justifies rows by them).
+
+A tap is a `ContentPicked` with the content's own kind and recents kind, so the
+host's one handler sends it: **the panel stays open and the composer keeps its
+text**, as `onStickerSelected` and `onGifSelected` leave
+them, the sent item goes first in the content library (a sticker by
+`LibraryEdit.addRecentSticker`, a GIF by `LibraryEdit.saveGif`, wherever it
+was found, search too; shown on the next open through a deferred view of the
+library's lists so the list does not move under the finger), and the message goes out through the host's own send path (the
+chat also scrolls to it, `onMessageSend`; that is the
+chat's, not the panel's). The sticker page's clear button on the recents header is a `ClearRecentsRequested` the host
+confirms.
+
+**Search, failure and attribution (GIF page).** Give `GifPage` a `searchSource`
+(a `SearchSource`) and declare `PageCapabilities(search: true)` on its
+`PanelPage`: the page follows the shell's search, debounces it, lists the
+results in place of the collections and pages them. A collection or search
+that failed shows `PanelStrings.gifsFailed` with `retryAction` (a failed
+collection is retried by `CollectionSource.load`); a search that found nothing
+shows `gifsEmpty`. `attribution` is a line the page heads its list with, for a
+provider whose terms ask for one. Content that is fetched rather than bundled
+reaches the pipeline through a `ContentFetcher` and a `ContentResolver` of the
+host's (the demo host's Giphy and local-corpus ones sit in front of the
+bundled ones and hand on any key that is not theirs), and a message that
+references it carries the key (`![alt](document:<id>)`), so the resolver must
+be able to describe it again after a restart.
+
+A sent sticker or GIF has no text to edit. Every way into edit mode (the
+message menu, the selection bar, a shortcut, a restored draft) asks one rule by
+what the message is, so none can forget it (`MessageEditability` in the
+demo host).
 
 ## 11. Verifying your host
 
@@ -1067,19 +1343,23 @@ Decisions a migrating host makes once:
   alone get its default copy formatter, which writes the codec's dialect back;
   they change nothing.
 
-## 13. Reference host map
+## 13. Demo host map
 
-The demo app under `example/` is the reference. It registers the emoji page
-only, fetches nothing from a network (its animated emoji are bundled), and does
+The demo app under `example/` is the working host. It registers the emoji page,
+the stickers page and the GIF page, fetches nothing from a network (its animated emoji are bundled), and does
 not use the hover-open toggle region.
 
 | Step | File |
 | --- | --- |
 | Composition root, disposal | `example/lib/src/app/app_services.dart` |
+| Video decoder probe and start (VM and web forks) | `example/lib/src/app/video_playback.dart`, `environment_specific/video_playback.dart`, `video_playback_vm.dart`, `video_playback_js.dart` |
+| Lottie decoder probe and start, the frame cache and its folder (VM and web forks) | `example/lib/src/app/lottie_playback.dart`, `environment_specific/lottie_playback.dart`, `lottie_playback_vm.dart`, `lottie_playback_js.dart`, `cache_directory_vm.dart`, `cache_directory_js.dart` |
+| Bundled packs: one lookup, fetcher and resolver, the packs the pack source serves, one collection source, the authored Lottie and static stickers | `example/lib/src/features/chat/data/bundled_packs.dart`, `bundled_pack_source.dart`, `lottie_sticker_pack.dart`, `static_sticker_pack.dart` |
 | `Listenable.onError` policy, installed at boot | `example/lib/src/app/listener_errors.dart`, `example/lib/src/app/boot.dart` |
 | App scopes | `example/lib/src/app/app_chrome.dart` |
 | Per-chat controller set, event handler, back, hand-off | `example/lib/src/features/chat/input/chat_input_set.dart` |
 | Emoji page composition (atlas host factory, planner) | `example/lib/src/features/chat/input/emoji_panel_page.dart` |
+| Stickers and GIF pages (sources of the library's lists, the local sticker corpus and Giphy; sending on a pick, editability) | `example/lib/src/features/chat/input/media_panel_pages.dart`, `data/library_content_source.dart`, `data/deferred_library_view.dart`, `data/corpus_sticker_pack.dart`, `data/giphy_gif_source.dart`, `utils/sticker_message_body.dart`, `utils/message_editability.dart` |
 | Composer spec | `example/lib/src/features/chat/input/chat_composer_spec.dart` |
 | Inset aggregation | `example/lib/src/features/chat/utils/chat_viewport_insets.dart` |
 | IME readings and keyboard commands | `example/lib/src/common/soft_keyboard_port.dart` |

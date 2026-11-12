@@ -9,14 +9,12 @@ import 'package:flutter/painting.dart'
 /// The painted parts of an emoji-only message, as the outline the message
 /// menu's scrim leaves undimmed.
 ///
-/// An emoji-only message has no bubble. The reference client opens its menu by
-/// drawing the message again above a flat dim, so the glyphs or the sticker's
-/// art, the time pill, the reply panel and each reaction chip stay bright and
-/// what lies between them (the gap under a reply, the strip beside a short
-/// pill, the corners of the row) stays dimmed (`Telegram`
-/// `ChatActivity.java` 17630-17700; iOS lifts the same node, in
-/// `ChatMessageAnimatedStickerItemNode`). One rounded rectangle around the lot
-/// would read as a bubble.
+/// An emoji-only message has no bubble. Its menu opens by drawing the message
+/// again above a flat dim, so the glyphs or the sticker's art, the time pill,
+/// the reply panel and each reaction chip stay bright and what lies between
+/// them (the gap under a reply, the strip beside a short pill, the corners of
+/// the row) stays dimmed. One rounded rectangle around the lot would read as a
+/// bubble.
 ///
 /// Every rect is in the coordinates of the box the message reports as its
 /// surface, which is also the stack the chrome is placed in. [art] is the

@@ -13,8 +13,8 @@ import 'package:meta/meta.dart';
 /// A font step is chosen by how many items the message has and by whether
 /// every one of them is a custom emoji: a
 /// custom emoji is drawn from an image, so a message of them takes one step
-/// larger than one that holds a unicode glyph. The default tables are
-/// the reference client's (its size percentages of 120 dp):
+/// larger than one that holds a unicode glyph. The default tables hold
+/// these size percentages of 120 dp:
 ///
 /// | Items | All custom | Otherwise |
 /// | --- | --- | --- |
@@ -27,14 +27,14 @@ import 'package:meta/meta.dart';
 ///
 /// An item takes a square of its font size plus [boxPadding] (4 dp). The
 /// steps do not depend on the text scale: a reader who enlarged the text
-/// still sees the emoji at the reference size.
+/// still sees the emoji at the default size.
 ///
 /// ## Sticker layout
 ///
 /// A lone emoji is a sticker of `min(viewport width, height) ×
 /// [stickerViewportFraction] × [stickerZoom]` (112.5 dp on a 360 dp phone;
-/// the zoom is the server's animated-emoji zoom). The reference client's phone
-/// rule is kept as it is: on a wide window the same rule gives a larger
+/// the zoom is the server's animated-emoji zoom). The phone rule is
+/// kept as it is: on a wide window the same rule gives a larger
 /// sticker, and a host that wants a cap passes its own fractions.
 ///
 /// The margin around a sticker and the wrap under a header are not sizes but
@@ -42,7 +42,7 @@ import 'package:meta/meta.dart';
 /// these tables are one platform's.
 @immutable
 final class ChatEmojiSizes {
-  /// Creates the sizes; the defaults are the reference client's.
+  /// Creates the sizes; the defaults are the tables documented above.
   ///
   /// [allCustomSteps] and [mixedSteps] hold, for the counts 1 to 6 and then
   /// 7 and more, an index into [fontSteps].
@@ -57,7 +57,7 @@ final class ChatEmojiSizes {
          'The sticker rule takes positive fractions.',
        );
 
-  /// The reference client's six font steps in dp, largest first.
+  /// The six default font steps in dp, largest first.
   static const List<double> androidFontSteps = [
     81.6,
     55.2,

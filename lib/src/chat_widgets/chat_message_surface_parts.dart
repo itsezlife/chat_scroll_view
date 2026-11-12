@@ -40,8 +40,7 @@ class ChatMessageSurfacePart {
 /// A message with a bubble is one outline. One without (an emoji-only message,
 /// a sticker, a round video) paints a few unrelated pieces: the art, a time
 /// pill laid over it, a reply panel above it, a row of reactions under it. The
-/// reference clients redraw the message itself above the dim, so exactly those
-/// pieces stay bright and what lies between them stays dimmed. One rounded
+/// message itself is redrawn above the dim, so exactly those pieces stay bright and what lies between them stays dimmed. One rounded
 /// rectangle around the lot reads as a bubble that is not there and lights the
 /// wallpaper in the gaps; this shape leaves the gaps dim.
 ///

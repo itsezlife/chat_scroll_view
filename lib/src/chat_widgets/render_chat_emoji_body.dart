@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:catalog_assets/catalog_assets.dart'
-    show InlineEmbed, InlineEmbedPaintContext;
+    show CompositingEmbed, InlineEmbed, InlineEmbedPaintContext;
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_geometry.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_text.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_text_layout.dart';
@@ -28,6 +28,17 @@ sealed class ChatEmojiLeaf {
   /// Draws into [rect].
   void paint(Canvas canvas, Rect rect, Color? tint);
 
+  /// Whether the leaf may come as a layer of its own (an embed that plays on
+  /// a platform texture), so the body composites. Signalled to the listeners
+  /// when it changes.
+  bool get needsCompositing => false;
+
+  /// Shows the leaf in [rect] of [context]: as a layer, or on
+  /// `context.canvas` read at the call, so a layer added before it is
+  /// followed by a new picture.
+  void composite(PaintingContext context, Rect rect, Color? tint) =>
+      paint(context.canvas, rect, tint);
+
   /// Gives back what the leaf holds.
   void dispose() {}
 }
@@ -52,6 +63,9 @@ final class ChatEmojiGlyphLeaf extends ChatEmojiLeaf {
 }
 
 /// A custom emoji, or a sticker, drawn by an embed from the asset cache.
+///
+/// An embed that is a [CompositingEmbed] (ADR 043) is composited: while it
+/// plays it may be a texture layer instead of a paint.
 @internal
 final class ChatEmojiEmbedLeaf extends ChatEmojiLeaf {
   /// Wraps [embed], which this leaf owns.
@@ -69,6 +83,22 @@ final class ChatEmojiEmbedLeaf extends ChatEmojiLeaf {
   @override
   void paint(Canvas canvas, Rect rect, Color? tint) =>
       embed.paint(canvas, rect, InlineEmbedPaintContext(tint: tint));
+
+  @override
+  bool get needsCompositing => switch (embed) {
+    final CompositingEmbed embed => embed.needsCompositing,
+    _ => false,
+  };
+
+  @override
+  void composite(PaintingContext context, Rect rect, Color? tint) {
+    switch (embed) {
+      case final CompositingEmbed embed:
+        embed.composite(context, rect, InlineEmbedPaintContext(tint: tint));
+      default:
+        paint(context.canvas, rect, tint);
+    }
+  }
 
   @override
   void dispose() => embed.dispose();
@@ -136,6 +166,14 @@ const Color _kSelectionColor = Color(0x552196F3);
 /// it unchanged. It answers from the item squares ([ChatEmojiTextLayout]); an
 /// emoji is one atomic item, so every position it hands out is an item edge.
 /// The highlight is painted under the items, never over an embed.
+///
+/// ## Texture
+///
+/// The box composites while any leaf [ChatEmojiLeaf.needsCompositing] (an
+/// embed that plays, ADR 043): each leaf is then shown through the painting
+/// context, so a frame on a platform texture is a texture layer after the
+/// highlight and the items before it, and the items after it go on a new
+/// picture. Otherwise every leaf paints on the canvas.
 @internal
 final class RenderChatEmojiBody extends RenderBox
     implements MarkdownSelectionSurface {
@@ -157,6 +195,8 @@ final class RenderChatEmojiBody extends RenderBox
   ChatEmojiGeometry? _geometry;
   ChatEmojiTextLayout? _textLayout;
   bool _disposed = false;
+  // Whether a leaf may come as a layer of its own, so the box composites.
+  bool _leavesComposite = false;
 
   final Paint _highlightPaint = Paint();
 
@@ -176,8 +216,12 @@ final class RenderChatEmojiBody extends RenderBox
     if (identical(_leaves, value)) return;
     if (attached) _unlisten();
     _leaves = value;
-    if (attached) _listen();
-    markNeedsPaint();
+    if (attached) {
+      _listen();
+      _leafChanged();
+    } else {
+      markNeedsPaint();
+    }
   }
 
   /// What lays the items out.
@@ -254,6 +298,7 @@ final class RenderChatEmojiBody extends RenderBox
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _listen();
+    _leavesComposite = _leaves.any((leaf) => leaf.needsCompositing);
     _attachSelection();
   }
 
@@ -272,14 +317,22 @@ final class RenderChatEmojiBody extends RenderBox
 
   void _listen() {
     for (final leaf in _leaves) {
-      leaf.addListener(markNeedsPaint);
+      leaf.addListener(_leafChanged);
     }
   }
 
   void _unlisten() {
     for (final leaf in _leaves) {
-      leaf.removeListener(markNeedsPaint);
+      leaf.removeListener(_leafChanged);
     }
+  }
+
+  void _leafChanged() {
+    markNeedsPaint();
+    final composites = _leaves.any((leaf) => leaf.needsCompositing);
+    if (composites == _leavesComposite) return;
+    _leavesComposite = composites;
+    markNeedsCompositingBitsUpdate();
   }
 
   void _onSelectionChange() {
@@ -350,6 +403,7 @@ final class RenderChatEmojiBody extends RenderBox
 
   @override
   bool get alwaysNeedsCompositing =>
+      _leavesComposite ||
       (_startHandleLink != null && _startHandleLocal != null) ||
       (_endHandleLink != null && _endHandleLocal != null);
 
@@ -371,7 +425,14 @@ final class RenderChatEmojiBody extends RenderBox
     }
     final count = math.min(_leaves.length, geometry.items.length);
     for (var i = 0; i < count; i++) {
-      _leaves[i].paint(canvas, geometry.items[i].shift(offset), _tint);
+      final rect = geometry.items[i].shift(offset);
+      // A leaf that composites may add a layer, which ends the picture: the
+      // leaves after it read the context's canvas afresh.
+      if (_leavesComposite) {
+        _leaves[i].composite(context, rect, _tint);
+      } else {
+        _leaves[i].paint(canvas, rect, _tint);
+      }
     }
     _paintHandleLeaders(context, offset);
   }

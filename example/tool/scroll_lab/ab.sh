@@ -20,6 +20,7 @@ pkill -f "flutter_tools.snapshot run --profile" || true
 sleep 1
 (cd "$EXAMPLE_DIR" && flutter run --profile -d "$DEVICE" \
   --dart-define=SCROLL_LAB=true --dart-define=START_AT=chat \
+  --dart-define=DISK_CACHE=false \
   --dart-define-from-file=../config/development.json "$@" >"$log" 2>&1 &)
 until grep -qE "Flutter run key commands|Error:|FAILURE|Lost connection" "$log"; do sleep 2; done
 if ! grep -q "Flutter run key commands" "$log"; then

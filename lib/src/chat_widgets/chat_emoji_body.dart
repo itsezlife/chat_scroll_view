@@ -16,6 +16,7 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart'
     show ChatMarkdownAutoscrollOptions;
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_body.dart'
     show ChatMarkdownBodyRegistration;
+import 'package:chat_scroll_view/src/chat_widgets/chat_media_sizes.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_sticker_playback.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_emoji_body.dart';
 import 'package:content_model/content_model.dart'
@@ -35,8 +36,8 @@ import 'package:flutter/widgets.dart';
 typedef ChatEmojiEmbedFactory =
     InlineEmbed? Function(ContentKey content, AssetPreset preset);
 
-/// A bubble-less message of nothing but emoji, laid out the way the
-/// reference client does.
+/// A bubble-less message of nothing but emoji, laid out as an emoji-only
+/// body.
 ///
 /// The host classifies the text (`EmojiOnlyText.of`, once, when it
 /// materialises the message) and adds the facts only it has: that the message
@@ -48,7 +49,10 @@ typedef ChatEmojiEmbedFactory =
 ///
 /// - **Sticker**: [sticker] is given and there is exactly one item. The
 ///   sticker is a square of [ChatEmojiPolicy.stickerExtentFor] of the screen in
-///   the policy's [ChatEmojiPolicy.stickerInset] margin.
+///   the policy's [ChatEmojiPolicy.stickerInset] margin. A message that is a
+///   sticker or a GIF of its own ([media]) is instead the art the host's
+///   [mediaSizes] gives it, of the media's proportion and with no margin,
+///   decoded at most at the policy's cap.
 /// - **Text**: otherwise. The items are squares of the font step the policy
 ///   gives the message, in lines that wrap and honour the message's line
 ///   breaks; the text scale plays no part.
@@ -58,20 +62,17 @@ typedef ChatEmojiEmbedFactory =
 /// as (`ChatEmojiPolicy.forPlatform`).
 ///
 /// A custom emoji is drawn through [embedFactory] and animates and loops. A
-/// unicode emoji in the text layout is a glyph at the step's font size (some
-/// clients do this; the reference client draws the first frame of the
-/// animated sticker).
+/// unicode emoji in the text layout is a glyph at the step's font size.
 ///
 /// ## Sticker playback
 ///
 /// How the sticker plays is the host's policy ([playback]), not the body's:
 /// loop, play once and rest on the first or the last frame, or stay still.
-/// The reference default plays the single unicode emoji once and loops a
-/// custom emoji ([ChatStickerPlayback.defaultFor]). A sticker that plays once
+/// The default plays the single unicode emoji once and loops a custom emoji ([ChatStickerPlayback.defaultFor]). A sticker that plays once
 /// does so the first time the open chat shows it, which the host's
 /// [playLedger] remembers per message (so a recycled row does not play it
 /// again). The body records the play when the animation is playing, not when
-/// it ends, as the reference clients do. A replay (a tap, under
+/// it ends. A replay (a tap, under
 /// [tapPolicy]) plays one more pass and never rewinds one that is running.
 /// [isActive] is the host's one visibility input: an inactive row costs no
 /// animation ticks and shows no sticker to the facade.
@@ -90,12 +91,12 @@ typedef ChatEmojiEmbedFactory =
 /// `ChatTextCopy.content`) are the markdown body's own, under the same
 /// selection policy (ADR 012, ADR 013, ADR 015). An emoji is one atomic item:
 /// a press lands on an item edge, a double click or a long press selects the
-/// one emoji under it (as a long press on an emoji span does on Android), and
+/// one emoji under it, and
 /// the highlight is a box per line under the items
 /// ([RenderChatEmojiBody.selectedItemBoxes] are the per-item boxes, for a
 /// host that styles them apart). [selectableText] turns it off for a host
-/// that keeps the reference clients' rule: only Android selects text here,
-/// Desktop and iOS draw the large emoji as media (ADR 036).
+/// that draws the large emoji as media (ADR 036) instead of as selectable
+/// text.
 ///
 /// **Sticker layout.** One emoji drawn as a sticker is not text: it registers
 /// no text, so nothing starts a range on it, a long press is message
@@ -130,6 +131,8 @@ class ChatEmojiBody extends StatefulWidget {
     required this.emojiOnly,
     required this.embedFactory,
     this.sticker,
+    this.media,
+    this.mediaSizes,
     this.playback,
     this.playLedger,
     this.tapPolicy,
@@ -166,6 +169,8 @@ class ChatEmojiBody extends StatefulWidget {
     required double maxWidth,
     required TextDirection direction,
     ContentKey? sticker,
+    ChatMediaItem? media,
+    ChatMediaSizePolicy? mediaSizes,
     bool hasHeader = false,
     double? parentWidth,
     double bottomReserve = 0,
@@ -174,6 +179,8 @@ class ChatEmojiBody extends StatefulWidget {
       emojiOnly: emojiOnly,
       policy: policy,
       sticker: sticker,
+      media: media,
+      mediaSizes: mediaSizes,
       viewport: viewport,
       parentWidth: parentWidth,
       direction: direction,
@@ -187,6 +194,8 @@ class ChatEmojiBody extends StatefulWidget {
     required EmojiOnly emojiOnly,
     required ChatEmojiPolicy policy,
     required ContentKey? sticker,
+    required ChatMediaItem? media,
+    required ChatMediaSizePolicy? mediaSizes,
     required Size viewport,
     required double? parentWidth,
     required TextDirection direction,
@@ -195,16 +204,29 @@ class ChatEmojiBody extends StatefulWidget {
   }) {
     final kind = layoutKindFor(emojiOnly, sticker: sticker);
     final isSticker = kind == ChatEmojiLayoutKind.sticker;
+    final art = isSticker
+        ? _mediaArt(
+            media: media,
+            mediaSizes: mediaSizes,
+            viewport: viewport,
+            parentWidth: parentWidth,
+          )
+        : null;
     return ChatEmojiLayoutSpec(
       kind: kind,
       lineBreaksBefore: [
         for (final item in emojiOnly.items) item.lineBreaksBefore,
       ],
-      box: isSticker
-          ? policy.stickerExtentFor(viewport)
-          : policy.itemBoxFor(emojiOnly),
+      box: switch ((art, isSticker)) {
+        (final art?, _) => art.width,
+        (null, true) => policy.stickerExtentFor(viewport),
+        (null, false) => policy.itemBoxFor(emojiOnly),
+      },
+      boxHeight: art?.height,
       skip: isSticker ? 0 : policy.itemSkipFor(emojiOnly),
-      inset: isSticker ? policy.stickerInset : 0,
+      // A sticker or GIF of its own size is its art alone; the platform's
+      // inset is the lone emoji's.
+      inset: isSticker && art == null ? policy.stickerInset : 0,
       wrap: !isSticker && hasHeader
           ? policy.wrapLimitUnderHeader(parentWidth ?? viewport.width)
           : ChatEmojiWrapLimit.none,
@@ -212,6 +234,22 @@ class ChatEmojiBody extends StatefulWidget {
       direction: policy.textDirectionFor(direction),
     );
   }
+
+  // The size the host's media policy gives the lone sticker or GIF, or null
+  // for a lone emoji (or a host without a media policy).
+  static Size? _mediaArt({
+    required ChatMediaItem? media,
+    required ChatMediaSizePolicy? mediaSizes,
+    required Size viewport,
+    required double? parentWidth,
+  }) => switch ((media, mediaSizes)) {
+    (final item?, final sizes?) => sizes.sizeFor(
+      item,
+      viewport: viewport,
+      parentWidth: parentWidth ?? viewport.width,
+    ),
+    _ => null,
+  };
 
   /// The facade the body registers with.
   final ChatSelectionController controller;
@@ -232,7 +270,16 @@ class ChatEmojiBody extends StatefulWidget {
   /// layout.
   final ContentKey? sticker;
 
-  /// How the sticker plays, or null for the reference default for the emoji
+  /// What [sticker] is when the message is a sticker or a GIF of its own,
+  /// with the source size the host knows; null for a lone emoji (unicode or
+  /// custom), which the [policy] sizes.
+  final ChatMediaItem? media;
+
+  /// How large the host draws a [media] item, and the cap on its decode. With
+  /// either null the sticker layout is the [policy]'s square.
+  final ChatMediaSizePolicy? mediaSizes;
+
+  /// How the sticker plays, or null for the default for the emoji
   /// ([ChatStickerPlayback.defaultFor]). Ignored by the text layout.
   final ChatStickerPlayback? playback;
 
@@ -332,6 +379,14 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
   double get _font => widget.policy.fontSizeFor(widget.emojiOnly);
 
   double get _extent => widget.policy.stickerExtentFor(_viewport);
+
+  // The art of a lone sticker or GIF, or null for a lone emoji.
+  Size? get _art => ChatEmojiBody._mediaArt(
+    media: widget.media,
+    mediaSizes: widget.mediaSizes,
+    viewport: _viewport,
+    parentWidth: widget.parentWidth,
+  );
 
   ChatStickerPlayback get _playback =>
       widget.playback ??
@@ -533,7 +588,8 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
       widget.sticker,
       widget.embedFactory,
       sticker,
-      sticker ? _extent : _font,
+      sticker ? (_art ?? _extent) : _font,
+      sticker ? widget.mediaSizes?.maxDecodeExtent : null,
       _dpr,
       sticker ? (_playback, _autoplay) : null,
       _style,
@@ -578,8 +634,25 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
 
   ChatEmojiLeaf _leafFor(ContentKey key, bool sticker) {
     if (sticker) {
-      final extent = _extent;
       final playback = _playback;
+      if (_art case final art?) {
+        return _embedLeaf(
+          widget.sticker!,
+          AssetPresets.media(
+            size: art,
+            devicePixelRatio: _dpr,
+            profile: playback.loops
+                ? const AssetProfile(animate: true)
+                : AssetProfile(
+                    animate: _autoplay!,
+                    loop: false,
+                    restFrame: playback.restFrame,
+                  ),
+            maxPixelExtent: widget.mediaSizes?.maxDecodeExtent,
+          ),
+        );
+      }
+      final extent = _extent;
       final preset = playback.loops
           ? AssetPresets.square(
               extent: extent,
@@ -617,7 +690,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
   // --- Play once, recorded -------------------------------------------------
 
   // A sticker that plays once is recorded as played when its animation is
-  // playing (the reference marks at the first drawn frame), watched on the
+  // playing (it is marked at the first drawn frame), watched on the
   // embed's own signal until then.
   void _watchSticker() {
     _unwatchSticker();
@@ -658,7 +731,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
         style: _style.copyWith(fontSize: _font, height: 1),
       ),
       textDirection: TextDirection.ltr,
-      // The reference sizes ignore the reader's text scale.
+      // These sizes ignore the reader's text scale.
       textScaler: TextScaler.noScaling,
     )..layout(),
   );
@@ -721,6 +794,8 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
       emojiOnly: widget.emojiOnly,
       policy: widget.policy,
       sticker: widget.sticker,
+      media: widget.media,
+      mediaSizes: widget.mediaSizes,
       viewport: _viewport,
       parentWidth: widget.parentWidth,
       direction: Directionality.of(context),

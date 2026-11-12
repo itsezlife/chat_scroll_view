@@ -11,6 +11,7 @@ of this repository.
 **Date**: 2026-10-16  
 **Amended**: 2026-10-16 — change notification is [`package:listen`](https://pub.dev/packages/listen), see [Amendment](#amendment-change-notification-is-packagelisten)  
 **Amended**: 2026-10-17 — a recents list belongs to the page that files into it, see [Amendment](#amendment-one-recents-list-per-page)  
+**Amended**: 2026-11-09 — sticker and GIF recents are most-recently-used lists of the content library ([ADR 044](044-content-library-packs-and-preview.md)), see [Amendment](#amendment-recents-order-per-kind)  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 021](021-content-identity-and-collections.md), [ADR 022](022-asset-cache-and-media-pipeline.md)
 
 ## Decided
@@ -164,3 +165,18 @@ by frequency, then recency.
 | A store query that ranks several kinds together | A seam change across every store and fake for the same result; the kind would still have to say which lists a page merges |
 | Custom emoji recents under `customEmoji`, shown after the unicode ones | Two blocks in one row, in no order the user made |
 
+
+## Amendment: recents order per kind
+
+The *Recents* row chose frequency, then recency, for every kind and rejected
+pure most-recently-used. The reference keeps that order for emoji only;
+stickers and GIFs are most recently used first.
+
+| Area | Decision |
+| ---- | -------- |
+| Emoji | Unchanged: the `RecentsStore`, frequency then recency, cap 48, one list for the emoji page (unicode and custom emoji). |
+| Stickers | The content library's recent stickers ([ADR 044](044-content-library-packs-and-preview.md)): most recently used first, no key twice, 30 kept (a page shows 20). The host adds a sticker when it is sent. |
+| GIFs | The GIF page's recents are the content library's saved GIFs: sending a GIF saves it to the front, the host's limit (the reference's 200) kept. One list, so a save or an unsave is seen in the recents at once. |
+
+The `RecentsStore` contract is unchanged and still accepts any kind; a host
+files stickers and GIFs in the library instead.

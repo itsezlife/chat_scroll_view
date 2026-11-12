@@ -1,3 +1,4 @@
+import 'package:chat_scroll_view_example/src/common/utils/russian_plural.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 
 /// The demo's language for every string the chrome packages draw: Russian.
@@ -23,6 +24,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
       _ => id,
     },
     recentlyUsedTitle: 'Недавние',
+    favouriteStickersTitle: 'Избранные',
     searchResultsTitle: 'Результат поиска',
     searchHint: 'Поиск',
     searchEmpty: 'Эмодзи не найдены',
@@ -34,6 +36,24 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     removeRecentAction: 'Удалить из недавних',
     clearRecentAction: 'Очистить недавние',
     colorAllTitle: 'Выберите тон кожи по умолчанию',
+    gifsEmpty: 'GIF не найдены',
+    stickersEmpty: 'Стикеров пока нет',
+    gifsFailed: 'Не удалось загрузить GIF',
+    retryAction: 'Повторить',
+    clearRecentStickersTitle: 'Очистить недавние стикеры',
+    clearRecentStickersMessage: 'Вы хотите очистить все недавние стикеры?',
+    sendStickerAction: 'Отправить стикер',
+    sendEmojiAction: 'Отправить эмодзи',
+    sendGifAction: 'Отправить GIF',
+    sendWithoutSoundAction: 'Отправить без звука',
+    addToFavouritesAction: 'Добавить в избранное',
+    removeFromFavouritesAction: 'Удалить из избранного',
+    viewPackAction: 'Показать набор',
+    deleteFromRecentAction: 'Удалить из недавних',
+    copyEmojiAction: 'Копировать эмодзи',
+    saveGifAction: 'Сохранить в GIF',
+    deleteGifAction: 'Удалить',
+    removePackAction: 'Удалить набор',
   ),
   composer: ComposerStrings(
     messageHint: 'Сообщение',
@@ -97,32 +117,75 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     ignoreWordAction: 'Пропустить слово',
     removeFromDictionaryAction: 'Удалить из словаря',
   ),
+  packSheet: PackSheetStrings(
+    addStickers: (n) =>
+        'Добавить $n ${RussianPlural.wordOf(n, 'стикер', 'стикера', 'стикеров')}',
+    removeStickers: (n) =>
+        'Удалить $n ${RussianPlural.wordOf(n, 'стикер', 'стикера', 'стикеров')}',
+    addMasks: (n) =>
+        'Добавить $n ${RussianPlural.wordOf(n, 'маску', 'маски', 'масок')}',
+    removeMasks: (n) =>
+        'Удалить $n ${RussianPlural.wordOf(n, 'маску', 'маски', 'масок')}',
+    addEmoji: (n) => 'Добавить $n эмодзи',
+    removeEmoji: (n) => 'Удалить $n эмодзи',
+    addEmojiPacks: (n) =>
+        'Добавить $n ${RussianPlural.wordOf(n, 'набор', 'набора', 'наборов')} эмодзи',
+    removeEmojiPacks: (n) =>
+        'Удалить $n ${RussianPlural.wordOf(n, 'набор', 'набора', 'наборов')} эмодзи',
+    emojiCount: (n) => '$n эмодзи',
+    addPackAction: 'Добавить',
+    removePackAction: 'Удалить',
+    addStickersLabel: 'Добавить стикеры',
+    addEmojiLabel: 'Добавить эмодзи',
+    removeStickersLabel: 'Удалить стикеры',
+    removeEmojiLabel: 'Удалить эмодзи',
+    closeAction: 'Закрыть',
+    shareAction: 'Поделиться',
+    copyLinkAction: 'Копировать ссылку',
+    moreOptionsLabel: 'Другие действия',
+    linkCopied: 'Ссылка скопирована в буфер обмена',
+    stickersNotFound: 'Стикеры не найдены',
+    emojiNotFound: 'Набор эмодзи не найден.',
+    stickersAdded: 'Стикеры добавлены.',
+    stickersAddedInfo: (title) => 'Набор «$title» добавлен в ваши стикеры.',
+    masksAdded: 'Маски добавлены.',
+    masksAddedInfo: (title) => 'Набор «$title» добавлен в ваши маски.',
+    emojiAdded: 'Эмодзи добавлены.',
+    emojiAddedInfo: (title) => 'Набор «$title» добавлен в ваши эмодзи.',
+    emojiPacksAddedInfo: (n) => 'Добавлено наборов эмодзи: $n.',
+    stickersRemoved: 'Стикеры удалены.',
+    stickersRemovedInfo: (title) =>
+        'Набора «$title» больше нет в ваших стикерах.',
+    masksRemoved: 'Маски удалены.',
+    masksRemovedInfo: (title) => 'Набора «$title» больше нет в ваших масках.',
+    emojiRemoved: 'Эмодзи удалены.',
+    emojiRemovedInfo: (title) => 'Набора «$title» больше нет в ваших эмодзи.',
+    emojiPacksRemovedInfo: (n) => 'Удалено наборов эмодзи: $n.',
+    stickersArchived: 'Стикеры в архиве.',
+    stickersArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+    masksArchived: 'Маски в архиве.',
+    masksArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+    emojiArchived: 'Эмодзи в архиве.',
+    emojiArchivedInfo: (title) => 'Набор «$title» перемещён в архив.',
+    undoAction: 'Отменить',
+  ),
+  bulletin: const BulletinStrings(
+    undoAction: 'Отменить',
+    dismissAction: 'Закрыть',
+  ),
   semantics: SemanticsStrings(
     panelOpened: 'Панель открыта',
     panelClosed: 'Панель закрыта',
     pageSelected: (label) => 'Выбрано: $label',
     searchFieldLabel: 'Поиск',
-    searchResultCount: (count) => switch (_pluralOf(count)) {
-      _Plural.one => '$count результат',
-      _Plural.few => '$count результата',
-      _Plural.many => '$count результатов',
+    searchResultCount: (count) => switch (RussianPlural.of(count)) {
+      RussianPlural.one => '$count результат',
+      RussianPlural.few => '$count результата',
+      RussianPlural.many => '$count результатов',
     },
     backspaceAction: 'Удалить',
     variantsAction: 'Показать варианты',
     categoryStripLabel: 'Категории',
+    stickerPackStripLabel: 'Наборы стикеров',
   ),
 );
-
-enum _Plural { one, few, many }
-
-// CLDR cardinal rules of Russian for integers: one for 1, 21, 31 (not 11),
-// few for 2-4, 22-24 (not 12-14), many otherwise, zero included.
-_Plural _pluralOf(int n) {
-  final mod10 = n % 10;
-  final mod100 = n % 100;
-  if (mod10 == 1 && mod100 != 11) return _Plural.one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-    return _Plural.few;
-  }
-  return _Plural.many;
-}

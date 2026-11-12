@@ -352,6 +352,73 @@ void main() {
       },
       platform: TargetPlatform.macOS,
     );
+
+    viewportTest(
+      'on desktop a click on the sticker in selection mode toggles the '
+      'message, and the sticker is not activated',
+      (tester) async {
+        final selection = newSelection(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        await pump(tester, selection, oneThumb, sticker: _pack);
+        selection.toggle(1);
+        await tester.pump();
+
+        await tester.tapAt(drawn(tester).center);
+        await tester.pumpAndSettle();
+
+        expect(selection.isSelected(1), isFalse);
+        expect(interactions, isEmpty);
+
+        // A second click selects it again: a toggle, not a dismiss.
+        selection.startSelection(2);
+        await tester.pump();
+        await tester.tapAt(drawn(tester).center);
+        await tester.pumpAndSettle();
+
+        expect(selection.isSelected(1), isTrue);
+        expect(interactions, isEmpty);
+      },
+      platform: TargetPlatform.macOS,
+    );
+
+    viewportTest(
+      'on desktop a click on a custom emoji in selection mode toggles the '
+      'message even when the host handles embed hits',
+      (tester) async {
+        final selection = newSelection(
+          policy: const ChatSelectionPolicy.desktop(),
+          handlesEmbedHits: true,
+        );
+        await pump(tester, selection, threeCustom);
+        selection.toggle(1);
+        await tester.pump();
+
+        await tester.tapAt(itemCenter(tester, 1));
+        await tester.pumpAndSettle();
+
+        expect(selection.isSelected(1), isFalse);
+        expect(interactions, isEmpty);
+      },
+      platform: TargetPlatform.macOS,
+    );
+
+    viewportTest(
+      'on desktop out of selection mode a click on the sticker still '
+      'activates it',
+      (tester) async {
+        final selection = newSelection(
+          policy: const ChatSelectionPolicy.desktop(),
+        );
+        await pump(tester, selection, oneThumb, sticker: _pack);
+
+        await tester.tapAt(drawn(tester).center);
+        await tester.pumpAndSettle();
+
+        expect(interactions.single, isA<ChatStickerActivated>());
+      },
+      platform: TargetPlatform.macOS,
+    );
   });
 
   group('playback', () {

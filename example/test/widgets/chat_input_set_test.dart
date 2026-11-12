@@ -3,15 +3,24 @@
 /// the viewport is told to reserve, and who frees what.
 library;
 
+import 'dart:async';
 import 'dart:ui' show Tristate;
 
+import 'package:bulletins/bulletins.dart';
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/chat_composer.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart'
+    show ChatSelectionPolicy;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/content_model.dart' as model show RichText;
@@ -21,6 +30,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
+import 'package:panel_pages/panel_pages.dart'
+    show ContentPreviewActions, ContentPreviewItem, ContentPreviewSession;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -39,6 +50,7 @@ Future<AppServices> _services(WidgetTester tester) async {
 
 const _mobile = PanelPresentationPolicy$Mobile();
 const _desktop = PanelPresentationPolicy$Desktop();
+const _web = PanelPresentationPolicy$Web();
 
 PanelVisibility _state(InputRig rig) => rig.set.presentation.state.value;
 
@@ -228,6 +240,42 @@ void main() {
       expect(rig.set.composer.hasFocus, isTrue);
     });
 
+    testWidgets('swapping the panel with the keyboard, both ways, never stops '
+        'playback; opening it cold does while it moves', (tester) async {
+      final rig = await _mobileRig(tester);
+      final clock = rig.services.assets.clock;
+      final paused = <bool>[];
+      void watch() => paused.add(
+        clock.pausedLayers.contains(PlaybackPauseLayer.routeMoving),
+      );
+      rig.set.presentation.state.addListener(watch);
+      addTearDown(() => rig.set.presentation.state.removeListener(watch));
+      rig.set.composer.requestFocus();
+      rig.keyboard.rest(300);
+      await rig.settle(tester);
+
+      await _open(tester, rig);
+      expect(_state(rig), isA<PanelVisibility$Shown>());
+      // The keyboard goes down under the panel.
+      rig.keyboard.rest(0);
+      await rig.settle(tester);
+      rig.set.handOffToKeyboard();
+      await rig.settle(tester);
+      rig.keyboard.rest(300);
+      await rig.settle(tester);
+      expect(_state(rig), isA<PanelVisibility$Hidden>());
+      expect(paused, isNotEmpty);
+      expect(paused, everyElement(isFalse));
+
+      paused.clear();
+      rig.set.composer.unfocus();
+      rig.keyboard.rest(0);
+      await rig.settle(tester);
+      await _open(tester, rig);
+      expect(paused, contains(isTrue));
+      expect(paused.last, isFalse);
+    });
+
     testWidgets('the field declares no soft keyboard while the panel is up and '
         'a keyboard again once it leaves', (tester) async {
       final rig = await _mobileRig(tester);
@@ -320,6 +368,62 @@ void main() {
         await rig.settle(tester);
         expect(_state(rig), isA<PanelVisibility$Shown>());
         expect(rig.set.presentation.occupancy.value.bottom, grid);
+      });
+
+      testWidgets('back while the keyboard rises to take the slot acts at '
+          'once: the keyboard goes down and the panel closes from where it '
+          'is', (tester) async {
+        final rig = await _mobileRig(tester);
+        await _open(tester, rig);
+        final hiddenBefore = rig.keyboard.hideCount;
+
+        await rig.tapAction(tester, ChatComposerActions.panel);
+        rig.keyboard.move(120, animating: true);
+        await tester.pump();
+        expect(_state(rig), isA<PanelVisibility$Hiding>());
+
+        expect(await rig.set.handleBack(), isTrue);
+        await tester.pump();
+
+        expect(rig.keyboard.hideCount, hiddenBefore + 1);
+        expect(
+          (_state(rig) as PanelVisibility$Hiding).waitForIme,
+          isFalse,
+          reason: 'the panel no longer waits for the keyboard',
+        );
+
+        rig.keyboard.move(60, animating: true);
+        await tester.pump();
+        rig.keyboard.rest(0);
+        await rig.settle(tester);
+        expect(_state(rig), isA<PanelVisibility$Hidden>());
+        expect(rig.set.presentation.occupancy.value.bottom, 0);
+        expect(rig.set.composer.hasFocus, isTrue);
+        // The hand-off that was under way does not ask for the keyboard
+        // again.
+        expect(rig.keyboard.hideCount, hiddenBefore + 1);
+      });
+
+      testWidgets('back while the keyboard is still going down under the '
+          'panel that replaces it closes the panel at once', (tester) async {
+        final rig = await _mobileRig(tester);
+        rig.set.composer.requestFocus();
+        rig.keyboard.rest(300);
+        await rig.settle(tester);
+
+        await rig.tapAction(tester, ChatComposerActions.panel);
+        rig.keyboard.move(200, animating: true);
+        await tester.pump();
+        expect(_state(rig).isVisible, isTrue);
+
+        expect(await rig.set.handleBack(), isTrue);
+        await tester.pump();
+        expect(_state(rig), isA<PanelVisibility$Hiding>());
+
+        rig.keyboard.rest(0);
+        await rig.settle(tester);
+        expect(_state(rig), isA<PanelVisibility$Hidden>());
+        expect(rig.set.presentation.occupancy.value.bottom, 0);
       });
 
       for (final presses in [2, 3, 4, 5]) {
@@ -466,6 +570,23 @@ void main() {
       expect(_state(rig), isA<PanelVisibility$Hidden>());
 
       expect(await rig.set.handleBack(), isFalse);
+    });
+
+    testWidgets('back clears a message selection first, then closes the '
+        'panel', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      rig.selection.startSelection(1);
+      expect(rig.selection.isSelectionMode, isTrue);
+
+      expect(await rig.set.handleBack(), isTrue);
+      await rig.settle(tester);
+      expect(rig.selection.isSelectionMode, isFalse);
+      expect(_state(rig), isA<PanelVisibility$Shown>());
+
+      expect(await rig.set.handleBack(), isTrue);
+      await rig.settle(tester);
+      expect(_state(rig), isA<PanelVisibility$Hidden>());
     });
 
     testWidgets('back with search focused over a raised keyboard lowers the '
@@ -627,6 +748,138 @@ void main() {
       expect(_state(rig).kind, isA<Docked>());
       expect(rig.set.insets.inlineEnd.value, 292);
       expect(rig.set.insets.bottomPadding.value, rig.set.composer.extent.value);
+    });
+  });
+
+  group('the panel in a browser', () {
+    Future<InputRig> browser(WidgetTester tester, Size size) async =>
+        InputRig.pump(
+          tester,
+          services: await _services(tester),
+          policy: _web,
+          size: size,
+        );
+
+    testWidgets('takes the keyboard\'s place in a handheld window', (
+      tester,
+    ) async {
+      final rig = await browser(tester, const Size(400, 800));
+      await tester.pump();
+
+      expect(rig.set.panelInKeyboardPlace, isTrue);
+      expect(rig.set.panelPlacement, ActionPlacement.leading);
+      await _open(tester, rig);
+
+      expect(_state(rig).kind, isA<KeyboardReplacement>());
+      expect(find.byType(PanelCatalogViewport), findsOneWidget);
+      expect(rig.set.composerSafeInset, isNotNull);
+    });
+
+    testWidgets('is a popup over the composer in a wider window', (
+      tester,
+    ) async {
+      final rig = await browser(tester, const Size(1000, 800));
+      await tester.pump();
+
+      expect(rig.set.panelInKeyboardPlace, isFalse);
+      expect(rig.set.panelPlacement, ActionPlacement.trailing);
+      await _open(tester, rig);
+
+      expect(_state(rig).kind, isA<AnchoredPopup>());
+      expect(find.byType(PanelCatalogViewport), findsOneWidget);
+      expect(rig.set.composerSafeInset, isNull);
+    });
+
+    testWidgets('moves to the keyboard\'s place when the window narrows past '
+        'the line, and back', (tester) async {
+      final rig = await browser(tester, const Size(1000, 800));
+      await tester.pump();
+      await _open(tester, rig);
+      expect(_state(rig).kind, isA<AnchoredPopup>());
+
+      tester.view.physicalSize = const Size(400, 800);
+      await rig.settle(tester);
+
+      expect(_state(rig).kind, isA<KeyboardReplacement>());
+      expect(_state(rig).isVisible, isTrue);
+      expect(rig.set.panelPlacement, ActionPlacement.leading);
+      expect(find.byType(PanelCatalogViewport), findsOneWidget);
+
+      tester.view.physicalSize = const Size(1000, 800);
+      await rig.settle(tester);
+
+      expect(_state(rig).kind, isA<AnchoredPopup>());
+      expect(find.byType(PanelCatalogViewport), findsOneWidget);
+    });
+  });
+
+  group('a bulletin over the composer', () {
+    testWidgets('moves with the composer on every frame of the keyboard', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      await tester.pump();
+      rig.bulletins.show(
+        const Bulletin(
+          message: 'Copied',
+          duration: BulletinDuration.untilDismissed,
+        ),
+      );
+      await rig.settle(tester);
+      double gap() =>
+          tester.getRect(rig.island).top -
+          tester.getRect(find.byType(BulletinCard)).bottom;
+      final rest = gap();
+
+      // The keyboard rises and falls a reading a frame.
+      for (final height in [40.0, 120.0, 210.0, 280.0, 300.0, 160.0, 0.0]) {
+        rig.keyboard.move(height, animating: true);
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(gap(), closeTo(rest, 0.01), reason: 'keyboard $height');
+      }
+    });
+  });
+
+  group('the composer during message selection', () {
+    testWidgets('is hidden under the mobile selection policy', (tester) async {
+      final rig = await InputRig.pump(
+        tester,
+        services: await _services(tester),
+        policy: _mobile,
+        selectionPolicy: const ChatSelectionPolicy.mobile(),
+      );
+      expect(rig.island, findsOneWidget);
+
+      rig.selection.startSelection(1);
+      await tester.pump();
+
+      expect(rig.island, findsNothing);
+    });
+
+    testWidgets('stays under the desktop selection policy, its draft and the '
+        'message being edited kept', (tester) async {
+      final rig = await InputRig.pump(
+        tester,
+        services: await _services(tester),
+        policy: _desktop,
+        selectionPolicy: const ChatSelectionPolicy.desktop(),
+        size: const Size(1000, 800),
+      );
+      await rig.typeInField(tester, 'draft');
+      expect(rig.set.composer.hasFocus, isTrue);
+
+      rig.selection.startSelection(1);
+      await tester.pump();
+
+      expect(rig.island, findsOneWidget);
+      expect(rig.action(ChatComposerActions.panel), findsOneWidget);
+      expect(rig.set.composer.text.text, 'draft');
+      // Focus goes to the chat, as a click on a message takes it there.
+      expect(rig.set.composer.hasFocus, isFalse);
+
+      rig.selection.clear();
+      await tester.pump();
+      expect(rig.island, findsOneWidget);
     });
   });
 
@@ -1061,6 +1314,77 @@ void main() {
       ]);
     });
 
+    testWidgets('of a sticker sends it as a message, keeps the panel open and '
+        'the composer as it was, and puts it first in the library\'s recent '
+        'stickers', (tester) async {
+      final rig = await _mobileRig(tester);
+      rig.set.composer.insertText('half a thought');
+      await _open(tester, rig);
+      final sticker = LottieStickerPack.stickers.first;
+
+      rig.set.shell
+          .hostFor('stickers')
+          .pick(sticker.key, kind: SemanticKind.sticker);
+      await tester.pump();
+
+      expect(rig.sent, [StickerMessageBody.of(sticker)]);
+      expect(_state(rig), isA<PanelVisibility$Shown>());
+      expect(rig.set.composer.text.text, 'half a thought');
+      expect(rig.services.library.recentStickers.value, [sticker.key]);
+      expect(rig.services.recents.recents(SemanticKind.sticker), isEmpty);
+    });
+
+    testWidgets('of a GIF sends it as a message and saves it, first among '
+        'the saved GIFs', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final gif = VideoStickerPack.gifs.first;
+
+      rig.set.shell.hostFor('gif').pick(gif.key, kind: SemanticKind.gif);
+      await tester.pump();
+
+      expect(rig.sent, [StickerMessageBody.of(gif)]);
+      expect(_state(rig), isA<PanelVisibility$Shown>());
+      expect(rig.services.library.savedGifs.value, [gif.key]);
+      expect(rig.services.recents.recents(SemanticKind.gif), isEmpty);
+    });
+
+    // Every sticker sent is recorded and every GIF sent is saved,
+    // wherever it was found; only an emoji found by search does not count.
+    testWidgets('of a sticker from search is sent and recorded', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final sticker = StaticStickerPack.stickers.first;
+
+      rig.set.shell
+          .hostFor('stickers')
+          .pick(
+            sticker.key,
+            kind: SemanticKind.sticker,
+            source: PickSource.search,
+          );
+      await tester.pump();
+
+      expect(rig.sent, [StickerMessageBody.of(sticker)]);
+      expect(rig.services.library.recentStickers.value, [sticker.key]);
+    });
+
+    testWidgets('of a GIF from search is sent and saved', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final gif = VideoStickerPack.gifs.first;
+
+      rig.set.shell
+          .hostFor('gif')
+          .pick(gif.key, kind: SemanticKind.gif, source: PickSource.search);
+      await tester.pump();
+
+      expect(rig.sent, [StickerMessageBody.of(gif)]);
+      expect(rig.services.library.savedGifs.value, [gif.key]);
+    });
+
     testWidgets('from search results is not recorded', (tester) async {
       final rig = await _mobileRig(tester);
       await _open(tester, rig);
@@ -1107,6 +1431,198 @@ void main() {
 
       expect(rig.clearAsked, [SemanticKind.unicodeEmoji]);
       expect(rig.services.recents.recents(SemanticKind.unicodeEmoji), isEmpty);
+    });
+
+    testWidgets('clearing the recent stickers is asked first, then empties '
+        'the library\'s recents and keeps the favourites', (tester) async {
+      final rig = await _mobileRig(tester);
+      final star = LottieStickerPack.stickers.first.key;
+      final sun = StaticStickerPack.stickers.first.key;
+      rig.services.library
+        ..apply(LibraryEdit.addRecentSticker(star))
+        ..apply(LibraryEdit.addRecentSticker(sun))
+        ..apply(LibraryEdit.favouriteSticker(sun));
+      await _open(tester, rig);
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestClearRecents(SemanticKind.sticker);
+      await tester.pump();
+      await tester.pump();
+
+      expect(rig.clearAsked, [SemanticKind.sticker]);
+      expect(rig.services.library.recentStickers.value, isEmpty);
+      expect(rig.services.library.favouriteStickers.value, [sun]);
+      expect(rig.services.libraryShown.recentStickers.value, isEmpty);
+    });
+  });
+
+  group('what the content preview asks for', () {
+    testWidgets('a library edit goes to the library at once', (tester) async {
+      final rig = await _mobileRig(tester);
+      final sun = StaticStickerPack.stickers.first.key;
+      await _open(tester, rig);
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestLibraryEdit(LibraryEdit.favouriteSticker(sun));
+      await tester.pump();
+
+      expect(rig.services.library.favouriteStickers.value, [sun]);
+    });
+
+    // What the host's bulletin reads: the edit, and the key it pushed out.
+    testWidgets('a library edit is reported once the library took it', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      final sun = StaticStickerPack.stickers.first.key;
+      await _open(tester, rig);
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestLibraryEdit(LibraryEdit.favouriteSticker(sun));
+      await tester.pump();
+
+      expect(rig.libraryEdits.map((applied) => applied.edit), [
+        LibraryEdit.favouriteSticker(sun),
+      ]);
+      expect(rig.libraryEdits.single.evicted, isNull);
+    });
+
+    // The panel reloads its favourites and saved GIFs on an
+    // explicit edit while it is open; only the record of a send waits.
+    testWidgets('a favourite shows in the open panel at once: the Favourites '
+        'section and its strip tab appear', (tester) async {
+      final rig = await _mobileRig(tester);
+      final sun = StaticStickerPack.stickers.first.key;
+      final favourites = demoChromeStrings.panel.favouriteStickersTitle;
+      await _open(tester, rig);
+      rig.set.shell.selectPage('stickers');
+      await rig.settle(tester);
+      expect(find.bySemanticsLabel(favourites), findsNothing);
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestLibraryEdit(LibraryEdit.favouriteSticker(sun));
+      await rig.settle(tester);
+
+      expect(find.bySemanticsLabel(favourites), findsWidgets);
+    });
+
+    testWidgets('a new favourite is listed first in the open panel, and '
+        'nothing else moves', (tester) async {
+      final rig = await _mobileRig(tester);
+      final star = LottieStickerPack.stickers.first.key;
+      final moon = LottieStickerPack.stickers[1].key;
+      final sun = StaticStickerPack.stickers.first.key;
+      rig.services.library.apply(LibraryEdit.favouriteSticker(star));
+      await _open(tester, rig);
+      // Sent while the panel is open: waits for the next opening.
+      rig.set.shell.hostFor('stickers').pick(moon, kind: SemanticKind.sticker);
+      await tester.pump();
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestLibraryEdit(LibraryEdit.favouriteSticker(sun));
+      await tester.pump();
+
+      expect(rig.services.libraryShown.favouriteStickers.value, [sun, star]);
+      expect(rig.services.libraryShown.recentStickers.value, isEmpty);
+    });
+
+    testWidgets('a saved GIF is listed first in the open panel at once; a '
+        'GIF sent is not until it opens again', (tester) async {
+      final rig = await _mobileRig(tester);
+      final sent = VideoStickerPack.gifs.first.key;
+      final saved = VideoStickerPack.gifs[1].key;
+      await _open(tester, rig);
+
+      rig.set.shell.hostFor('gif').pick(sent, kind: SemanticKind.gif);
+      await tester.pump();
+      expect(rig.services.libraryShown.savedGifs.value, isEmpty);
+
+      rig.set.shell
+          .hostFor('gif')
+          .requestLibraryEdit(LibraryEdit.saveGif(saved));
+      await tester.pump();
+
+      expect(rig.services.libraryShown.savedGifs.value, [saved]);
+      expect(rig.services.library.savedGifs.value, [saved, sent]);
+    });
+
+    testWidgets('"View pack" reaches the host\'s pack hook', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+
+      rig.set.shell.hostFor('stickers').requestPack(const PackId('cats'));
+      await tester.pump();
+
+      expect(rig.packsAsked, [const PackId('cats')]);
+    });
+
+    testWidgets('a pack sheet opened from the panel holds the panel up until '
+        'it closes', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final guard = rig.set.presentation.autoHideGuard;
+      expect(guard.value, isFalse);
+
+      rig.set.shell.hostFor('stickers').requestPack(const PackId('cats'));
+      await tester.pump();
+      expect(guard.value, isTrue);
+
+      rig.packSheets.single.complete();
+      await tester.pump();
+      expect(guard.value, isFalse);
+    });
+
+    testWidgets('the confirmation to clear recents holds the panel up '
+        'until it is answered', (tester) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final guard = rig.set.presentation.autoHideGuard;
+      final answer = rig.clearAnswer = Completer<bool>();
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestClearRecents(SemanticKind.sticker);
+      await tester.pump();
+      expect(rig.clearAsked, [SemanticKind.sticker]);
+      expect(guard.value, isTrue);
+      expect(rig.set.isPanelVisible, isTrue);
+
+      answer.complete(false);
+      await tester.pump();
+      expect(guard.value, isFalse);
+      expect(rig.set.isPanelVisible, isTrue);
+    });
+
+    testWidgets('back closes a preview that is up before the panel', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      await _open(tester, rig);
+      final sun = StaticStickerPack.stickers.first;
+      final context = tester.element(find.byType(PanelShell));
+      ContentPreviewSession.show(
+        context: context,
+        item: ContentPreviewItem(
+          key: sun.key,
+          semanticKind: SemanticKind.sticker,
+        ),
+        assets: rig.services.assets,
+        actions: const ContentPreviewActions(),
+        controller: rig.services.previews,
+      );
+      await tester.pump();
+
+      expect(await rig.set.handleBack(), isTrue);
+      expect(rig.services.previews.isOpen.value, isFalse);
+      expect(rig.set.isPanelVisible, isTrue);
+      await tester.pump(ContentPreviewSession.showDuration);
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump();
     });
   });
 
@@ -1217,6 +1733,52 @@ void main() {
     });
   });
 
+  group('what the library is asked for', () {
+    testWidgets('a removal of a recent sticker takes it out of the library '
+        'and out of the panel at once', (tester) async {
+      final rig = await _mobileRig(tester);
+      final star = LottieStickerPack.stickers.first.key;
+      final sun = StaticStickerPack.stickers.first.key;
+      rig.services.library
+        ..apply(LibraryEdit.addRecentSticker(star))
+        ..apply(LibraryEdit.addRecentSticker(sun));
+      rig.services.commitShownLists();
+
+      rig.set.shell
+          .hostFor('stickers')
+          .requestRemoveRecent(star, kind: SemanticKind.sticker);
+      await tester.pump();
+
+      expect(rig.services.library.recentStickers.value, [sun]);
+      expect(rig.services.libraryShown.recentStickers.value, [sun]);
+    });
+
+    testWidgets('a removal of a recent GIF unsaves it', (tester) async {
+      final rig = await _mobileRig(tester);
+      final gif = VideoStickerPack.gifs.first.key;
+      rig.services.library.apply(LibraryEdit.saveGif(gif));
+
+      rig.set.shell
+          .hostFor('gif')
+          .requestRemoveRecent(gif, kind: SemanticKind.gif);
+      await tester.pump();
+
+      expect(rig.services.library.savedGifs.value, isEmpty);
+    });
+
+    testWidgets('the panel opening shows what was sent since it last '
+        'opened', (tester) async {
+      final rig = await _mobileRig(tester);
+      final star = LottieStickerPack.stickers.first.key;
+      rig.services.library.apply(LibraryEdit.addRecentSticker(star));
+      expect(rig.services.libraryShown.recentStickers.value, isEmpty);
+
+      await _open(tester, rig);
+
+      expect(rig.services.libraryShown.recentStickers.value, [star]);
+    });
+  });
+
   group('holds the panel\'s pages take', () {
     testWidgets('keep the presentation open as one hold, from the first to '
         'the last', (tester) async {
@@ -1284,6 +1846,32 @@ void main() {
       expect(rig.set.editing.value, isNull);
       expect(rig.set.composer.text.text, isEmpty);
       expect(find.byType(ComposerView), findsNothing);
+    });
+  });
+
+  group('editing a sticker or a GIF', () {
+    testWidgets('is refused: the composer stays as it is', (tester) async {
+      final rig = await _mobileRig(tester);
+      rig.set.composer.text.text = 'draft';
+
+      rig.set.beginEdit(7, StickerMessageBody.of(VideoStickerPack.gifs.first));
+      rig.set.beginEdit(
+        8,
+        StickerMessageBody.of(VideoStickerPack.stickers.first),
+      );
+      await tester.pump();
+
+      expect(rig.set.editing.value, isNull);
+      expect(rig.set.composer.text.text, 'draft');
+    });
+
+    testWidgets('is allowed for text', (tester) async {
+      final rig = await _mobileRig(tester);
+
+      rig.set.beginEdit(7, 'hello');
+      await tester.pump();
+
+      expect(rig.set.editing.value?.id, 7);
     });
   });
 

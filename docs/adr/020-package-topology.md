@@ -13,31 +13,46 @@ API.
 **Amended**: 2026-10-18 — a `composer_editable` leaf (the composer's editable, [ADR 038](038-composer-editable-fork.md)), depended on by `chat_composer` only; the root `chat_scroll_view` package depends on `catalog_assets` and `content_model` (rows added and changed below; rule 6 added)  
 **Amended**: 2026-10-31 — a `chat_wallpaper` leaf ([ADR 040](040-chat-wallpaper.md)); it depends on no workspace package and nothing in the workspace depends on it but the example  
 **Amended**: 2026-11-05 — a `golden_baseline` leaf: test support for golden tests ([ADR 030](030-testing-policy.md) Amendment), declared by any member under `dev_dependencies:` only; such a dev dependency does not make a leaf stop being one (rule 7)  
+**Amended**: 2026-11-06 — `lottie_native`, `lottie_decoder`, `video_native` and `video_decoder` ([ADR 042](042-native-media-decoding.md)); the native packages are leaves, rule 8 added  
+**Amended**: 2026-11-08 — `frame_texture` ([ADR 043](043-platform-texture-frames.md))  
+**Amended**: 2026-11-09 — a `swipe_pager` leaf: the horizontal pager with the reference mobile client's swipe rules, depended on by `panel_shell`; held by convention (the dependency lint is not extended for it)  
+**Amended**: 2026-11-09 — `content_model` gains the `PackSource`, `ContentLibrary` and `LibraryStorage` seams; `panel_pages` holds the content preview and the pack sheets ([ADR 044](044-content-library-packs-and-preview.md)); no edge changes  
+**Amended**: 2026-11-09 — a `bulletins` package: transient notices over a surface ([ADR 045](045-bulletins.md)), depending on `chrome_foundation` only; held by convention (the dependency lint is not extended for it)  
+**Amended**: 2026-11-12 (native-media tickets 218, 220) — a `viewport_scroll` leaf: the scroll physics (value, fling runner, edge-effect seam and strategies, formerly the root package's `ChatScrollPhysics` family, renamed `ViewportScrollPhysics`) and the keyboard scroll keys, depended on by the root package and `panel_catalog` (the panel catalogue scrolls as the chat does) and by `panel_pages` (its keys); held by convention (the dependency lint is not extended for it)
 **Relates to**: [ADR 006](006-panel-catalog-viewport.md) (package list in its Decided table is replaced by this one), [ADR 007](007-keyboard-panel-controller.md), [ADR 012](012-cross-platform-selection-policies.md)
 
 ## Decided
 
 | Package | Role | Depends on |
 | ------- | ---- | ---------- |
-| `content_model` | Pure-Dart leaf (its only non-SDK dependencies are `meta` and `listen`, which are not workspace packages). Content identity, collections, data seams (`CollectionSource`, `SearchSource`, `RecentsStore`, `PreferenceStore`, `KeywordSource`, `GlyphSupport`, `KeyValueStore`, `ContentResolver`, `RichClipboard`), reference stores, fakes and contract suites, the inline content ref and the rich-text value, opt-in `markdown.dart` | none |
+| `content_model` | Pure-Dart leaf (its only non-SDK dependencies are `meta` and `listen`, which are not workspace packages). Content identity, collections, data seams (`CollectionSource`, `SearchSource`, `RecentsStore`, `PreferenceStore`, `KeywordSource`, `GlyphSupport`, `KeyValueStore`, `ContentResolver`, `RichClipboard`, `PackSource`, `ContentLibrary`, `LibraryStorage`), reference stores, fakes and contract suites, the inline content ref and the rich-text value, opt-in `markdown.dart` | none |
 | `chrome_foundation` | Leaf. Palette, token groups, theme scope, motion roles, strings scope, icon registry, glass. Nothing chat-specific | none |
 | `catalog_assets` | Asset cache core: paintable, spec and profile, staged readiness, tiered LRU, playback clock, fetcher and decoder seams, baked glyph atlas, scope, content embed | `content_model` |
-| `panel_catalog` | Catalog viewport. Public seams per [ADR 024](024-panel-catalog-seams.md) | `content_model`, `catalog_assets` |
+| `viewport_scroll` | Leaf. A viewport's user-driven scroll: the scroll physics (fling and edge effect, a preset per platform family), their runtime for a viewport that runs them (`engine.dart`), and the keyboard scroll keys. Nothing chat or panel specific | none (`flutter` only) |
+| `panel_catalog` | Catalog viewport. Public seams per [ADR 024](024-panel-catalog-seams.md) | `content_model`, `catalog_assets`, `viewport_scroll` |
 | `emoji_data` | Emoji-specific logic only: structure and keyword loaders, emoji `CollectionSource`, merged search, variants, pure-Dart glyph probe. No assets, no native code | `content_model` |
 | `emoji_catalog_pack` | Catalog structure and per-locale keyword pack assets, plus the pinned generator under `tool/` | `content_model` |
 | `kv_shared_preferences` | `shared_preferences`-backed `KeyValueStore` adapter | `content_model` |
+| `lottie_native` | Leaf. The Lottie wrapper crate (tlottie behind our batch API), its build hook, FFI bindings and the web worker bindings behind a conditional import, a guarded load probe, and a fake binding in `testing.dart` ([ADR 042](042-native-media-decoding.md)) | none (`ffi`, `hooks`, `code_assets` and the web interop SDK libraries only) |
+| `lottie_decoder` | The vector-animation `Decoder`: the render and cache isolate protocol, the renderer seam implementation, input checks surfaced as `AssetProgress.fail` | `catalog_assets`, `content_model`, `lottie_native` |
+| `video_native` | Leaf. The FFmpeg and libvpx recipe (separate shared libraries), the build hook, bindings, the web `<video>` bridge, a load probe and a fake binding | none (same SDK-only dependencies) |
+| `video_decoder` | The video `Decoder`: the decode worker pool and the renderer seam implementation for GIFs and video stickers | `catalog_assets`, `content_model`, `video_native` |
+| `frame_texture` | Plugin. The platform texture hosts (Android `SurfaceProducer`, Apple `FlutterTexture` over `CVPixelBuffer`), their C lock / post entry points for the render workers, and the implementation of the texture host seam ([ADR 043](043-platform-texture-frames.md)) | `catalog_assets` |
 | `chat_wallpaper` | Leaf. The chat wallpaper: value model and codec, freeform renderer and keyframes, motion, view, warm-up, service fills ([ADR 040](040-chat-wallpaper.md)). Pattern artwork is the host's | none (`flutter`, `vector_graphics`) |
 | `rich_clipboard` | `RichClipboard` adapter: the HTML codec and the platform clipboard code, the workspace's one Flutter plugin package ([ADR 032](032-rich-clipboard.md)) | `content_model` |
-| `panel_shell` | Host-independent panel: page registry, shell controller, pager, type tabs, bottom bar, search field, panel events, page scroll activity, focus and shortcuts | `chrome_foundation`, `content_model` |
-| `panel_pages` | Catalog page scaffold and per-kind policies. Emoji page now; sticker and GIF pages later | `panel_shell`, `panel_catalog`, `catalog_assets`, `content_model`, `chrome_foundation` |
+| `swipe_pager` | Leaf. A horizontal pager whose swipe is claimed past a slop and a direction rule so page scrollables keep their drags; controller, settle physics, keep-alive policy, right-to-left, semantics and keyboard paging. Nothing panel-specific | none (`flutter` only) |
+| `panel_shell` | Host-independent panel: page registry, shell controller, pager, type tabs, bottom bar, search field, panel events, page scroll activity, focus and shortcuts | `chrome_foundation`, `content_model`, `swipe_pager` |
+| `panel_pages` | Catalog page scaffold and per-kind policies (emoji, sticker and GIF pages), the content preview and the pack sheets ([ADR 044](044-content-library-packs-and-preview.md)) | `panel_shell`, `panel_catalog`, `catalog_assets`, `content_model`, `chrome_foundation` |
 | `panel_presentation` | Sealed presentation kinds, the `$Mobile` / `$Desktop` policy, the presentation controller, occupancy, IME arbitration | `panel_shell`, `chrome_foundation` |
 | `composer_editable` | Leaf. The composer's one editable: a renamed, patched copy of the Flutter framework's text field, editable text and selection overlay, with the touch gesture matrix, handle and magnifier motion and the toolbar fade ([ADR 038](038-composer-editable-fork.md)). Nothing chat-specific | none (`flutter` and `characters` only) |
 | `chat_composer` | Slot-based composer, input-only controller, entity-aware text controller with formatting commands, selection menu, input query; renders through `composer_editable` | `chrome_foundation`, `content_model`, `catalog_assets`, `composer_editable` |
+| `bulletins` | Bulletins: the bulletin value, the per-surface controller with commit on leave, the host mount with the bottom obstruction seam, the per-platform presentation policy and the stock builders ([ADR 045](045-bulletins.md)). Nothing chat, panel or content specific | `chrome_foundation` |
 | `golden_baseline` | Leaf, test support only. `useGoldenBaselines` and the comparator that holds golden baselines to the CI runner | none (`flutter`, `flutter_test`) |
-| `chat_scroll_view` (repo root) | The anchor viewport and its markdown bodies: message and text selection, inline hits, the embed adapter, spoiler wiring, `ChatEmojiBody`. Consumes the markdown engine fork by git ref ([ADR 035](035-markdown-engine-fork.md)), which is not a workspace package | `catalog_assets`, `content_model` |
+| `chat_scroll_view` (repo root) | The anchor viewport and its markdown bodies: message and text selection, inline hits, the embed adapter, spoiler wiring, `ChatEmojiBody`. Consumes the markdown engine fork by git ref ([ADR 035](035-markdown-engine-fork.md)), which is not a workspace package | `catalog_assets`, `content_model`, `viewport_scroll` |
 
 Codec and fetcher adapters (Lottie, WebM, WebP, network, disk) are separate
-packages created when needed. They depend on `catalog_assets`; the host wires
+packages created when needed; the Lottie and video decoders are specified in
+[ADR 042](042-native-media-decoding.md). They depend on `catalog_assets`; the host wires
 them. Landed: `image_decoder` (the engine's image codecs: stills and animated
 WebP / GIF).
 
@@ -50,6 +65,7 @@ Rules, enforced by the dependency lint in `scripts/check` ([ADR 030](030-testing
 5. `panel_catalog` does not depend on `chrome_foundation`. Pages adapt tokens.
 6. `composer_editable` is a leaf with `chat_composer` as its only dependent. A host reaches the field through the composer view, never the raw editable.
 7. `golden_baseline` is test support: any member may declare it, under `dev_dependencies:` only, and a leaf that does stays a leaf. No library ships it.
+8. A `*_native` package is a leaf: it depends on no workspace package, owns every `dart:ffi` and `dart:js_interop` use, and is reached through its `*_decoder` only. `catalog_assets` stays pure Dart: the page pool and the renderer seam live in it, and a decoder implements the seam. `panel_shell`, `panel_pages` and `panel_presentation` depend on no decoder or native package; only the host wires a decoder into a `DecoderRegistry`. Rule 8 is held by convention: the dependency lint is not extended for these packages.
 
 `chat_chrome` has no successor and there is no umbrella package. The inset
 arbiter is not a shared leaf: it is a property of the keyboard-replacement

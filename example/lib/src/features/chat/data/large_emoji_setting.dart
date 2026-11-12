@@ -6,15 +6,15 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 
 /// Whether the user wants a message of nothing but emoji shown large and
-/// without a bubble (Telegram's "Large Emoji"), kept in the host's
+/// without a bubble (the "Large Emoji" setting), kept in the host's
 /// [KeyValueStore] across launches (ADR 023: the host owns persistence).
 ///
-/// On until the user turns it off, as on every reference client. It is only
+/// On until the user turns it off. It is only
 /// one of the facts the host weighs (`LargeEmojiPolicy`); the setting says
 /// what the user prefers, not whether a given message qualifies.
 ///
 /// On desktop it also keeps the cap on enlarged regular emoji
-/// ([desktopLimit], the reference client's 3 until moved): a record of its
+/// ([desktopLimit], 3 until moved): a record of its
 /// own, so the on/off choice and the cap never overwrite each other. The
 /// other families have no cap and never read it.
 ///
@@ -42,7 +42,7 @@ final class LargeEmojiSetting {
   /// The key of the desktop cap's record, in the same [namespace].
   static const String desktopLimitKey = 'large_emoji_desktop_limit';
 
-  /// The cap until the user moves it: the reference client's.
+  /// The cap until the user moves it.
   static const int defaultDesktopLimit =
       ChatEmojiPolicy$Desktop.defaultRegularLimit;
 

@@ -5,7 +5,7 @@ import 'package:listen/listen.dart' as listen;
 /// order of the parts, as one list.
 ///
 /// It is how the emoji page lists the emoji catalogue and, after its
-/// categories, the packs of custom emoji, as the reference clients do: the
+/// categories, the packs of custom emoji: the
 /// page takes one source, and neither source should know the other.
 ///
 /// Every change of a part publishes one new joined list. A command goes to the

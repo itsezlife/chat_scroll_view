@@ -4,11 +4,11 @@ import 'package:flutter/widgets.dart';
 /// the viewport gives it, its end edge, its avatar gutter and its margins
 /// included, not the emoji box.
 ///
-/// Telegram Desktop decides it by the row alone: `ListWidget::mouseActionUpdate`
-/// finds the element under the cursor by `y` and clamps `x` to the list, and
-/// `UnwrappedMedia::needInfoDisplay` shows the time while that element
-/// `isUnderCursor`. A region around the box would hide the time again on the
-/// empty side of the row, where the pointer rests most of the time.
+/// On desktop the row alone decides it: the element under the cursor is found
+/// by `y` and `x` is clamped to the list, and the media's info display shows the
+/// time while that element is under the cursor. A region around the box would hide
+/// the time again on the empty side of the row, where the pointer rests most of
+/// the time.
 ///
 /// Put it outside everything that sizes the row to its content, so its box is
 /// the cell's.

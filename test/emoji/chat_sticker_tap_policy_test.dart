@@ -60,8 +60,7 @@ void main() {
       );
     });
 
-    test('mobile can follow the reference that does not restart on a long '
-        'press', () {
+    test('mobile can leave the sticker still on a long press', () {
       expect(
         const ChatStickerTapPolicy.mobile(
           replaysOnLongPress: false,

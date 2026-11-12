@@ -1,31 +1,27 @@
 import 'dart:async';
-import 'dart:math' as math;
 
+import 'package:bulletins/bulletins.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_suggestion_bar.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:flutter/material.dart'
-    show
-        InkWell,
-        ScaffoldFeatureController,
-        ScaffoldMessenger,
-        ScaffoldMessengerState,
-        SnackBar,
-        SnackBarBehavior,
-        SnackBarClosedReason;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 
 /// The chat's composer island: a [ComposerView] over the chat's
 /// [ChatInputSet].
 ///
-/// Hidden while a selection is active (the actions live on the selection app
-/// bar, not on a morph of this island); starting a selection leaves edit mode
-/// and takes focus away. Builds the [ComposerSpec] of the moment from the
+/// Hidden while a message selection is active under a touch selection policy
+/// (the actions live on the selection app bar, not on a morph of this
+/// island), and starting one leaves edit mode. Under the desktop policy the
+/// composer stays, draft and edit included, as the reference desktop client
+/// keeps its field while messages are selected (the actions are on the
+/// selection bar at the top there too). Either way starting a selection
+/// takes focus away from the field. Builds the [ComposerSpec] of the moment from the
 /// input set and the strings of the chrome, and on platforms with an anchored
 /// popup reports where the island is so the popup can sit on it.
 class ChatComposer extends StatefulWidget {
@@ -35,6 +31,7 @@ class ChatComposer extends StatefulWidget {
     required this.selection,
     required this.islandKey,
     this.anchorSpace,
+    this.bulletins,
     this.onAttachPressed,
     this.onVoicePressed,
     super.key,
@@ -43,7 +40,8 @@ class ChatComposer extends StatefulWidget {
   /// The chat's input set.
   final ChatInputSet input;
 
-  /// When a selection is active the island is hidden.
+  /// When a selection is active the island is hidden, unless the selection's
+  /// policy is the desktop one.
   final ChatSelectionController selection;
 
   /// Key of the glass island, for the bottom fade's cutout.
@@ -52,6 +50,10 @@ class ChatComposer extends StatefulWidget {
   /// The box whose coordinates the popup's anchor is reported in, when the
   /// presentation is an anchored popup. Null reports nothing.
   final GlobalKey? anchorSpace;
+
+  /// The chat's bulletins, where the offer to apply formatting shows; null
+  /// shows no offer.
+  final BulletinController? bulletins;
 
   /// Attach button.
   final VoidCallback? onAttachPressed;
@@ -66,8 +68,7 @@ class ChatComposer extends StatefulWidget {
 class _ChatComposerState extends State<ChatComposer> {
   var _selectionMode = false;
   var _anchorWatched = false;
-  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? _toast;
-  ScaffoldMessengerState? _messenger;
+  BulletinHandle? _offer;
 
   ChatInputSet get _input => widget.input;
 
@@ -94,86 +95,73 @@ class _ChatComposerState extends State<ChatComposer> {
   void dispose() {
     widget.selection.removeListener(_onSelectionChanged);
     widget.input.formatOffer.removeListener(_onFormatOffer);
-    _closeToastAfterTeardown();
+    _closeOfferAfterTeardown();
     super.dispose();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _messenger = ScaffoldMessenger.maybeOf(context);
-  }
-
-  // --- Apply-formatting toast -------------------------------------------------
+  // --- Apply-formatting offer -----------------------------------------------
 
   // The input set owns the offer (its lifetime and its end on any edit); this
-  // only draws it. The toast has no timeout of its own, so that the set's is
-  // the one that ends it.
+  // only shows it, as a bulletin with no timeout of its own, so that the
+  // set's is the one that ends it.
   void _onFormatOffer() {
     if (widget.input.formatOffer.value == null) {
-      _closeToast();
+      _closeOffer();
       return;
     }
-    final messenger = _messenger;
-    if (messenger == null) return;
-    _closeToast();
-    final bottom = widget.input.insets.bottomPadding.value;
-    final width = MediaQuery.sizeOf(context).width;
-    final side = math.max<double>(16, (width - _toastMaxWidth) / 2);
-    final toast = messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        persist: true,
-        margin: EdgeInsets.fromLTRB(side, 0, side, bottom + _toastGap),
-        content: InkWell(
-          onTap: widget.input.applyFormatOffer,
-          child: const Text('Apply formatting'),
-        ),
+    final bulletins = widget.bulletins;
+    if (bulletins == null) return;
+    _closeOffer();
+    final offer = bulletins.show(
+      ChatBulletins.formatOffer(
+        ChatBulletinStrings.demo,
+        onApply: widget.input.applyFormatOffer,
       ),
     );
-    _toast = toast;
-    unawaited(
-      toast.closed.then((_) {
-        // Closed by the user (swiped away), not by the set ending the offer.
-        if (!identical(_toast, toast)) return;
-        _toast = null;
-        widget.input.dismissFormatOffer();
-      }),
-    );
+    _offer = offer;
+    offer.closed.then((_) {
+      // Closed by the user (swiped away) or by another bulletin, not by the
+      // set ending the offer.
+      if (!identical(_offer, offer)) return;
+      _offer = null;
+      widget.input.dismissFormatOffer();
+    }).ignore();
   }
 
-  void _closeToast() {
-    final toast = _toast;
-    _toast = null;
-    toast?.close();
+  void _closeOffer() {
+    final offer = _offer;
+    _offer = null;
+    offer?.dismiss();
   }
 
-  // The messenger and the tree below it are being torn down when the screen
-  // goes: a close then looks up a deactivated ancestor. A frame later the
-  // messenger either lives on (the toast is closed) or is gone with the toast.
-  void _closeToastAfterTeardown() {
-    final toast = _toast;
-    final messenger = _messenger;
-    _toast = null;
-    if (toast == null || messenger == null) return;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (messenger.mounted) toast.close();
-    });
+  // The bulletin host above is being torn down with the screen: a dismiss
+  // now would rebuild a deactivated host. A frame later the host either
+  // lives on (the offer goes) or is gone, and took the offer with it.
+  void _closeOfferAfterTeardown() {
+    final offer = _offer;
+    _offer = null;
+    if (offer == null) return;
+    SchedulerBinding.instance.addPostFrameCallback((_) => offer.dismiss());
   }
 
-  static const double _toastMaxWidth = 400;
-  static const double _toastGap = 8;
+  // Whether a message selection takes the island away: on touch, where the
+  // selection bar stands in for the composer; not on desktop.
+  bool get _hidesForSelection => switch (widget.selection.selectionPolicy) {
+    ChatSelectionPolicy$Desktop() => false,
+    ChatSelectionPolicy$Mobile() || ChatSelectionPolicy$TextOnly() => true,
+  };
 
   void _onSelectionChanged() {
     final mode = widget.selection.isSelectionMode;
     if (mode == _selectionMode) return;
     if (mode) {
-      _input
-        ..cancelEdit()
-        ..composer.unfocus();
+      if (_hidesForSelection) _input.cancelEdit();
+      _input.composer.unfocus();
     }
     setState(() => _selectionMode = mode);
   }
+
+  bool get _hidden => _selectionMode && _hidesForSelection;
 
   // --- Popup anchor ---------------------------------------------------------
 
@@ -193,7 +181,7 @@ class _ChatComposerState extends State<ChatComposer> {
       _anchorWatched = false;
       return;
     }
-    if (widget.anchorSpace != null && !_selectionMode) _reportAnchor();
+    if (widget.anchorSpace != null && !_hidden) _reportAnchor();
     SchedulerBinding.instance.addPostFrameCallback(_onAnchorFrame);
   }
 
@@ -214,7 +202,7 @@ class _ChatComposerState extends State<ChatComposer> {
 
   @override
   Widget build(BuildContext context) {
-    if (_selectionMode) return const SizedBox.shrink();
+    if (_hidden) return const SizedBox.shrink();
     final strings = ChromeStringsScope.of(context);
     final composer = _input.composer;
     final inset = _input.composerSafeInset;

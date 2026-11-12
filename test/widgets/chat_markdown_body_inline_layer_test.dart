@@ -938,7 +938,12 @@ void main() {
         initial: AppLifecycleState.resumed,
       );
       addTearDown(lifecycle.dispose);
-      final activity = PlaybackActivity(clock: clock, lifecycle: lifecycle);
+      // A window that pauses on focus loss, as on desktop.
+      final activity = PlaybackActivity(
+        clock: clock,
+        lifecycle: lifecycle,
+        policy: const PlaybackActivityPolicy(pausesOnFocusLoss: true),
+      );
       addTearDown(activity.dispose);
       final selection = newSelection(spoilerClock: clock);
       await pump(tester, selection, {1: 'x ||secret|| y'});
@@ -953,8 +958,9 @@ void main() {
       ticks.tick(const Duration(seconds: 11));
       expect(selection.spoilers.fillFrame, inInclusiveRange(30, 31));
 
-      // And from there it moves at its own pace again.
-      ticks.tick(const Duration(milliseconds: 11034));
+      // And from there it moves at its own pace again (the clock counted one
+      // display frame for the pause, then 50 ms).
+      ticks.tick(const Duration(milliseconds: 11067));
       expect(selection.spoilers.fillFrame, 32);
     });
 

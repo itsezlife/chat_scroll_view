@@ -24,12 +24,12 @@ idea as `SliverMultiBoxAdaptorElement`, without the sliver protocol.
 | `ChatDataSource` | Headless | Chunks, fetch, boundaries, absent slots, typed data listeners |
 | `ChatFloatingHeaderController` | Headless geometry | Day scan, fade math, header bucket state (no widgets) |
 | `ChatAnimator` | Headless | Close/far `animateTo`, Message highlight wash |
-| `ChatScrollPhysics` | Immutable value (public) | Host choice of fling + edge effect (closed sets with tunable params); `.stretch()` / `.rubberBand()` / `.clamped()` presets, `.forPlatform()` default |
-| `ChatScrollMotion` | Headless (render-owned, `@internal`) | Per-viewport runtime for one physics value: `ChatFlingMotion` + `ChatEdgeEffectState` |
-| `ChatFlingMotion` | Headless (`@internal`) | Fling simulation lifecycle (spline or decay); offset deltas per tick |
-| `ChatStretchOverscroll` | Headless (`@internal`) | Stretch edge effect: pull, release rules, return spring, paint matrix |
-| `ChatRubberBandOverscroll` | Headless (`@internal`) | Rubber-band edge effect: resistance curve, reverse claim, impact overshoot, spring, translate matrix |
-| `ChatNoOverscroll` | Headless (`@internal`, const) | None edge effect: drops motion past a pin, never paints |
+| `ViewportScrollPhysics` | Immutable value (public) | Host choice of fling + edge effect (closed sets with tunable params); `.stretch()` / `.rubberBand()` / `.clamped()` presets, `.forPlatform()` default |
+| `ViewportScrollMotion` | Headless (render-owned, `@internal`) | Per-viewport runtime for one physics value: `ViewportFlingMotion` + `ViewportEdgeEffectState` |
+| `ViewportFlingMotion` | Headless (`@internal`) | Fling simulation lifecycle (spline or decay); offset deltas per tick |
+| `ViewportStretchOverscroll` | Headless (`@internal`) | Stretch edge effect: pull, release rules, return spring, paint matrix |
+| `ViewportRubberBandOverscroll` | Headless (`@internal`) | Rubber-band edge effect: resistance curve, reverse claim, impact overshoot, spring, translate matrix |
+| `ViewportNoOverscroll` | Headless (`@internal`, const) | None edge effect: drops motion past a pin, never paints |
 | `ChatChunkFetchScheduler` | Headless (render-owned) | Fetch poll, jump-fetch, LRU eviction coordination |
 | `ChatScrollbar` | Immutable value (public, sealed) | Scrollbar preset: `.mobile()` / `.desktop()` presets, `.forPlatform()` default, custom `ChatScrollbar(painter:, visibility:, grab:)`, or `.none()` |
 | `ChatScrollbarVisibility` | Immutable value (public, sealed) | When the scrollbar shows: `.always()` or `.autoHide(...)` (idle / navigation delays, fades, curve, `followsPointer`) |
@@ -47,8 +47,8 @@ flowchart LR
   Ctrl[ChatScrollController]
   DS[ChatDataSource]
   Anim[ChatAnimator]
-  Phys[ChatScrollPhysics]
-  Motion[ChatScrollMotion]
+  Phys[ViewportScrollPhysics]
+  Motion[ViewportScrollMotion]
   FH[ChatFloatingHeaderController]
   Bar[ChatScrollbarRuntime]
 
@@ -122,6 +122,11 @@ offsets change.
 
 ## File map
 
+The scroll physics (value, fling runner, edge-effect seam and strategies)
+live in `packages/viewport_scroll` (`viewport_scroll_physics.dart`,
+`viewport_scroll_motion.dart`, `stretch_overscroll.dart`,
+`rubber_band_overscroll.dart`), shared with the panel catalogue.
+
 ```
 lib/src/
   chat_scroll/                    # headless core
@@ -129,10 +134,6 @@ lib/src/
     chat_data_source.dart
     chat_scroll_chunk.dart
     chat_scroll_common.dart
-    chat_scroll_physics.dart      # public physics value + ChatFlingMotion
-    chat_scroll_motion.dart       # per-viewport runtime + edge-effect seam + none
-    chat_stretch_overscroll.dart  # stretch edge effect
-    chat_rubber_band_overscroll.dart  # rubber-band edge effect
     chat_animator.dart
     chat_floating_header_controller.dart
     chat_chunk_fetch_scheduler.dart

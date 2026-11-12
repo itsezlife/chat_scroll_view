@@ -5,6 +5,7 @@ import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viewport_scroll/viewport_scroll.dart';
 
 import '../chat_message.dart';
 
@@ -44,7 +45,7 @@ const double _rowHeight = 60;
 Widget _scaffold({
   required ChatDataSource dataSource,
   required ChatScrollController controller,
-  ChatScrollPhysics? physics,
+  ViewportScrollPhysics? physics,
   ChatSelectionController? selection,
 }) => MaterialApp(
   home: Scaffold(
@@ -190,9 +191,9 @@ void main() {
         _scaffold(
           dataSource: ds,
           controller: controller,
-          physics: const ChatScrollPhysics(
-            fling: ChatFling.spline(friction: 0.03),
-            edgeEffect: ChatEdgeEffect.stretch(),
+          physics: const ViewportScrollPhysics(
+            fling: ViewportFling.spline(friction: 0.03),
+            edgeEffect: ViewportEdgeEffect.stretch(),
           ),
         ),
       );
@@ -238,11 +239,11 @@ void main() {
           controller: controller,
           // Non-const on purpose: an equal value, not the identical one.
           // ignore: prefer_const_constructors
-          physics: ChatScrollPhysics(
+          physics: ViewportScrollPhysics(
             // ignore: prefer_const_constructors
-            fling: ChatFling.spline(),
+            fling: ViewportFling.spline(),
             // ignore: prefer_const_constructors
-            edgeEffect: ChatEdgeEffect.stretch(),
+            edgeEffect: ViewportEdgeEffect.stretch(),
           ),
         ),
       );
@@ -283,9 +284,9 @@ void main() {
         _scaffold(
           dataSource: ds,
           controller: controller,
-          physics: const ChatScrollPhysics(
-            fling: ChatFling.spline(),
-            edgeEffect: ChatEdgeEffect.stretch(intensity: 0.03),
+          physics: const ViewportScrollPhysics(
+            fling: ViewportFling.spline(),
+            edgeEffect: ViewportEdgeEffect.stretch(intensity: 0.03),
           ),
         ),
       );
@@ -449,12 +450,12 @@ void main() {
   });
 
   group('rubber-band', () {
-    const rubberBand = ChatScrollPhysics.rubberBand();
+    const rubberBand = ViewportScrollPhysics.rubberBand();
 
     Future<(ChatScrollController, _PreloadedDataSource)> pumpAtOldest(
       WidgetTester tester, {
       int count = 20,
-      ChatScrollPhysics? physics = rubberBand,
+      ViewportScrollPhysics? physics = rubberBand,
       ChatSelectionController? selection,
     }) async {
       final controller = ChatScrollController()..jumpTo(0);
@@ -880,7 +881,7 @@ void main() {
         _scaffold(
           dataSource: ds,
           controller: controller,
-          physics: const ChatScrollPhysics.stretch(),
+          physics: const ViewportScrollPhysics.stretch(),
         ),
       );
       expect(_rowTop(tester, 0), 0);
@@ -891,7 +892,7 @@ void main() {
   });
 
   group('none edge effect', () {
-    const clamped = ChatScrollPhysics.clamped();
+    const clamped = ViewportScrollPhysics.clamped();
 
     testWidgets('a drag past the edge moves nothing', (tester) async {
       final controller = ChatScrollController()..jumpTo(0);

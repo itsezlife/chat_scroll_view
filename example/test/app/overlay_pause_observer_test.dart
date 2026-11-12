@@ -4,8 +4,11 @@ import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:panel_pages/panel_pages.dart';
+import 'package:panel_shell/panel_shell.dart';
 
 void main() {
   late PlaybackClock clock;
@@ -26,6 +29,9 @@ void main() {
   Future<void> pumpHome(WidgetTester tester) => tester.pumpWidget(
     MaterialApp(
       navigatorObservers: [observer],
+      // A pack sheet takes its colours from the chrome theme.
+      builder: (_, child) =>
+          ChromeThemeScope(palette: const ChromePalette.dark(), child: child!),
       home: Builder(
         builder: (context) => Scaffold(
           body: TextButton(
@@ -132,6 +138,89 @@ void main() {
     });
   }
 
+  // Everything pauses while the sticker and emoji sheets move
+  // and only what is under them while they are open: their own stickers and
+  // the preview opened from them play (ticket 128).
+  group('a pack sheet', () {
+    for (final arrangement in PanelArrangement.values) {
+      testWidgets('(${arrangement.name}) pauses while it moves and plays '
+          'while it is open', (tester) async {
+        await pumpHome(tester);
+        unawaited(
+          PackSheet.show(
+            tester.element(find.text('open')),
+            arrangement: arrangement,
+            builder: (_) => const SizedBox(height: 80, child: Text('sheet')),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(layers(), {PlaybackPauseLayer.overlayShown});
+
+        await tester.pumpAndSettle();
+        expect(find.text('sheet'), findsOneWidget);
+        expect(layers(), isEmpty);
+
+        Navigator.of(tester.element(find.text('sheet'))).pop();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(layers(), {PlaybackPauseLayer.overlayShown});
+
+        await tester.pumpAndSettle();
+        expect(find.text('sheet'), findsNothing);
+        expect(layers(), isEmpty);
+      });
+    }
+
+    testWidgets('a dialog over an open sheet pauses until it closes', (
+      tester,
+    ) async {
+      await pumpHome(tester);
+      unawaited(
+        PackSheet.show(
+          tester.element(find.text('open')),
+          arrangement: PanelArrangement.touch,
+          builder: (_) => const SizedBox(height: 80, child: Text('sheet')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      unawaited(
+        showDialog<void>(
+          context: tester.element(find.text('sheet')),
+          builder: (_) => const AlertDialog(content: Text('dialog')),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(layers(), {PlaybackPauseLayer.overlayShown});
+
+      Navigator.of(tester.element(find.text('dialog'))).pop();
+      await tester.pumpAndSettle();
+      expect(layers(), isEmpty);
+    });
+
+    testWidgets('removed without a pop, it gives its claim back', (
+      tester,
+    ) async {
+      await pumpHome(tester);
+      unawaited(
+        PackSheet.show(
+          tester.element(find.text('open')),
+          arrangement: PanelArrangement.touch,
+          builder: (_) => const SizedBox(height: 80, child: Text('sheet')),
+        ),
+      );
+      await tester.pump();
+      expect(layers(), {PlaybackPauseLayer.overlayShown});
+
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+      navigator.removeRoute(ModalRoute.of(tester.element(find.text('sheet')))!);
+      await tester.pumpAndSettle();
+
+      expect(layers(), isEmpty);
+    });
+  });
+
   testWidgets('a route removed without a pop gives its claim back', (
     tester,
   ) async {
@@ -178,5 +267,99 @@ void main() {
     observer.dispose();
 
     expect(layers(), isEmpty);
+  });
+
+  group('a chat opened as a page', () {
+    // The chat list pushes the chat itself: it is the page the animations
+    // belong to, not something laid over it.
+    testWidgets('a route the host names as the chat is not an overlay', (
+      tester,
+    ) async {
+      final chatObserver = PlaybackOverlayPauseObserver(
+        activity,
+        isChat: (route) => route.settings.name == 'chat',
+      );
+      addTearDown(chatObserver.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorObservers: [chatObserver],
+          home: const Text('list'),
+        ),
+      );
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+
+      unawaited(
+        navigator.push(
+          MaterialPageRoute<void>(
+            settings: const RouteSettings(name: 'chat'),
+            builder: (_) => const Text('chat'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(layers(), isEmpty);
+    });
+
+    testWidgets('a dialog over that chat still pauses it', (tester) async {
+      final chatObserver = PlaybackOverlayPauseObserver(
+        activity,
+        isChat: (route) => route.settings.name == 'chat',
+      );
+      addTearDown(chatObserver.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorObservers: [chatObserver],
+          home: const Text('list'),
+        ),
+      );
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+      unawaited(
+        navigator.push(
+          MaterialPageRoute<void>(
+            settings: const RouteSettings(name: 'chat'),
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => const AlertDialog(content: Text('dialog')),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(layers(), {PlaybackPauseLayer.overlayShown});
+    });
+
+    testWidgets('any other pushed page still pauses it', (tester) async {
+      final chatObserver = PlaybackOverlayPauseObserver(
+        activity,
+        isChat: (route) => route.settings.name == 'chat',
+      );
+      addTearDown(chatObserver.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          navigatorObservers: [chatObserver],
+          home: const Text('list'),
+        ),
+      );
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+
+      unawaited(
+        navigator.push(
+          MaterialPageRoute<void>(builder: (_) => const Text('settings')),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(layers(), {PlaybackPauseLayer.overlayShown});
+    });
   });
 }

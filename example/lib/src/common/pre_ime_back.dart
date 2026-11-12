@@ -9,13 +9,16 @@ import 'package:flutter/services.dart';
 /// back still works.
 final class ExamplePreImeBackNative implements ChatPreImeBackNative {
   /// Creates an adapter on [channel].
-  ExamplePreImeBackNative({MethodChannel? channel})
+  ExamplePreImeBackNative({MethodChannel? channel, this.onBack})
     : _channel = channel ?? const MethodChannel(_kExamplePreImeBackChannel) {
     _channel.setMethodCallHandler(_onMethodCall);
   }
 
   static const String _kExamplePreImeBackChannel =
       'chat_scroll_view_example/pre_ime_back';
+
+  /// Told of each Back claimed before the IME (the scroll lab's tape).
+  final void Function()? onBack;
 
   final MethodChannel _channel;
 
@@ -35,6 +38,7 @@ final class ExamplePreImeBackNative implements ChatPreImeBackNative {
 
   Future<bool> _onMethodCall(MethodCall call) async {
     if (call.method == 'onBack') {
+      onBack?.call();
       return ChatPreImeBackBinding.handleNativeBack();
     }
     throw MissingPluginException(call.method);
@@ -42,5 +46,5 @@ final class ExamplePreImeBackNative implements ChatPreImeBackNative {
 }
 
 /// Assigns [ChatPreImeBackBinding.native] for this example.
-void bindExamplePreImeBack() =>
-    ChatPreImeBackBinding.native = ExamplePreImeBackNative();
+void bindExamplePreImeBack({void Function()? onBack}) =>
+    ChatPreImeBackBinding.native = ExamplePreImeBackNative(onBack: onBack);

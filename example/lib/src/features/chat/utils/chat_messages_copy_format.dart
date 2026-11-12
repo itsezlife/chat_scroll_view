@@ -52,9 +52,8 @@ sealed class ChatMessagesCopyFormat {
   /// A format.
   const ChatMessagesCopyFormat();
 
-  /// The format of [policy]: the Android client's under `$Mobile` (the iOS
-  /// client has no Copy for several messages), the desktop client's under
-  /// `$Desktop`.
+  /// The format of [policy]: the mobile format under `$Mobile` (iOS has no
+  /// Copy for several messages), the desktop format under `$Desktop`.
   factory ChatMessagesCopyFormat.forPolicy(ChatSelectionPolicy policy) =>
       switch (policy) {
         ChatSelectionPolicy$Mobile() ||
@@ -100,14 +99,13 @@ sealed class ChatMessagesCopyFormat {
   }
 }
 
-/// The Android client's copy of selected messages (`ChatActivity`, the copy
-/// action and `getMessageContent`): messages a blank line apart, and a
+/// The mobile copy of selected messages: messages a blank line apart, and a
 /// `Name:` line before the first and wherever the sender changes.
 ///
-/// Not carried over: the client leaves the names out in the user's own saved
-/// messages, a chat kind the demo does not have.
+/// Not carried over: the names are left out in the user's own saved messages,
+/// a chat kind the demo does not have.
 final class ChatMessagesCopyFormat$Mobile extends ChatMessagesCopyFormat {
-  /// The Android format.
+  /// The mobile format.
   const ChatMessagesCopyFormat$Mobile();
 
   @override
@@ -120,9 +118,8 @@ final class ChatMessagesCopyFormat$Mobile extends ChatMessagesCopyFormat {
   }) => previous?.sender == message.sender ? '' : '${message.sender}:\n';
 }
 
-/// The desktop client's copy of selected messages (`HistorySelectedItemsText`
-/// in `history_item_text.cpp`, reached from the chat's `getSelectedText`):
-/// each message of several as `[time] Name: ` and its body, a newline apart.
+/// The desktop copy of selected messages: each message of several as
+/// `[time] Name: ` and its body, a newline apart.
 ///
 /// Not carried over: the placeholders of media (`[ Photo ]`), the reply
 /// context (`in reply to Name`) and a forum topic's line, none of which the

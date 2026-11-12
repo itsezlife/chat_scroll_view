@@ -3,13 +3,14 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_floating_header_marker.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viewport_scroll/viewport_scroll.dart';
+
 import '../chat_message.dart';
 
 // ---------------------------------------------------------------------------
@@ -58,7 +59,7 @@ Widget _harness({
   bool reverse = false,
   ChatDayHeaderDelegate dayHeaderDelegate = const ChatFadingDayHeader(),
   ChatScrollActivityTiming? scrollActivityTiming,
-  ChatScrollPhysics? physics,
+  ViewportScrollPhysics? physics,
   void Function(DateTime date)? onSeparatorTap,
 }) => MaterialApp(
   home: Scaffold(
@@ -256,7 +257,7 @@ void main() {
             dataSource: _PreloadedDataSource(_generate(256)),
             controller: controller,
             dayHeaderDelegate: delegate,
-            physics: const ChatScrollPhysics.rubberBand(),
+            physics: const ViewportScrollPhysics.rubberBand(),
           ),
         );
         await tester.pump();

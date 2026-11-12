@@ -20,20 +20,19 @@ sealed class ChatSelectionPolicy {
   /// bubble shift, no message menu on tap). Copy clears the range.
   const factory ChatSelectionPolicy.textOnly() = ChatSelectionPolicy$TextOnly;
 
-  /// Default from OS family. Pass [platform] / [isWeb] to pin in tests.
-  factory ChatSelectionPolicy.forPlatform({
-    TargetPlatform? platform,
-    bool? isWeb,
-  }) {
-    if (isWeb ?? kIsWeb) {
-      return const ChatSelectionPolicy.desktop();
-    }
-    return switch (platform ?? defaultTargetPlatform) {
-      TargetPlatform.iOS ||
-      TargetPlatform.android => const ChatSelectionPolicy.mobile(),
-      _ => const ChatSelectionPolicy.desktop(),
-    };
-  }
+  /// Default from OS family. Pass [platform] to pin it in tests.
+  ///
+  /// A browser follows the device under it, not the window: a phone's or
+  /// tablet's browser (an Android or iOS platform, which the browser derives
+  /// from its user agent) is touched, so it takes the mobile policy, and
+  /// every other browser the desktop one. A narrowed desktop window is still
+  /// driven by a mouse and keeps the desktop policy.
+  factory ChatSelectionPolicy.forPlatform({TargetPlatform? platform}) =>
+      switch (platform ?? defaultTargetPlatform) {
+        TargetPlatform.iOS ||
+        TargetPlatform.android => const ChatSelectionPolicy.mobile(),
+        _ => const ChatSelectionPolicy.desktop(),
+      };
 
   /// Whether the viewport may start **message selection** (long-press span,
   /// drag-out promotion). `false` under [$TextOnly]: the viewport adds no

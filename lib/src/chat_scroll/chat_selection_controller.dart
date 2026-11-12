@@ -249,8 +249,8 @@ class ChatSelectionController implements Listenable {
   /// the next membership change. The hold limit is the host's:
   /// `spoilers.tapTimeout` is 500 ms (a longer press is a long press and
   /// reveals nothing), and a desktop host whose pointer is a mouse sets it to
-  /// null, because a click has no limit. Touch needs no change; Telegram iOS
-  /// starts a long press at 0.3 s, which a host that follows it sets here.
+  /// null, because a click has no limit. Touch needs no change. A host that wants
+  /// a long press to start at 0.3 s sets it here.
   MarkdownSpoilerController get spoilers => _text.spoilers;
 
   ChatSpoilerDust? _spoilerDust;
@@ -611,7 +611,7 @@ class ChatSelectionController implements Listenable {
   ///
   /// Returns null when the message shows no sticker now (not mounted, scrolled
   /// out of the list, or inactive): the host then drops the interaction and
-  /// sends no acknowledgement, as the reference clients do. Otherwise the
+  /// sends no acknowledgement. Otherwise the
   /// result carries the sticker's current rectangle and whether it restarted
   /// (it does not while a pass is running; the effect plays either way). What
   /// else belongs to receiving (which animation, how many at once, the
@@ -1199,14 +1199,21 @@ class ChatSelectionController implements Listenable {
   /// desktop arm-for-entry) — everywhere, or only in the range's own message
   /// under [ChatSelectionPolicy.scopesTextRangeSuppressionToSubject] — or
   /// under mobile **message selection** mode.
+  ///
+  /// In **message selection** mode under any policy, a hit on a body that
+  /// paints no text (a sticker, a GIF, an emoji-only body; see
+  /// [putNonTextBody]) does not activate either: the body is the message, so
+  /// a click on it toggles the message, as on a text message. Links and code
+  /// in text keep [ChatSelectionPolicy.suppressesLinkTapInMessageSelection].
   bool _suppressesInlineActivation(int messageId) {
     if (_hasLiveTextRange &&
         (!selectionPolicy.scopesTextRangeSuppressionToSubject ||
             _text.subjectId == messageId)) {
       return true;
     }
-    return selectionPolicy.suppressesLinkTapInMessageSelection &&
-        isSelectionMode;
+    if (!isSelectionMode) return false;
+    return selectionPolicy.suppressesLinkTapInMessageSelection ||
+        _text.nonTextBodyOf(messageId) != null;
   }
 
   /// True when the facade owns a copyable character-range (not arm-only).

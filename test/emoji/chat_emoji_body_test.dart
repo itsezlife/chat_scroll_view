@@ -1,15 +1,16 @@
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view/src/chat_widgets/render_chat_emoji_body.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RendererBinding;
+import 'package:flutter/rendering.dart'
+    show Layer, ContainerLayer, PictureLayer, RendererBinding, TextureLayer;
 import 'package:flutter_test/flutter_test.dart';
 
-// Android's per-count font sizes (`Theme.java:8602-8606`,
-// `MessageObject.java:2114-2148`), written out so the expectations do not
-// come from the code under test.
+// The per-count font sizes, written out as literals so the expectations do
+// not come from the code under test.
 const _allCustomFont = <int, double>{
   1: 81.6,
   2: 81.6,
@@ -83,6 +84,30 @@ final class _Ledger implements ChatStickerPlayLedger {
   }
 }
 
+/// A media size policy that answers with fixed sizes and records what it was
+/// asked.
+final class _MediaSizes implements ChatMediaSizePolicy {
+  _MediaSizes({this.maxDecodeExtent});
+
+  final asked = <(ChatMediaItem, Size, double)>[];
+
+  @override
+  final int? maxDecodeExtent;
+
+  @override
+  Size sizeFor(
+    ChatMediaItem item, {
+    required Size viewport,
+    required double parentWidth,
+  }) {
+    asked.add((item, viewport, parentWidth));
+    return switch (item.kind) {
+      ChatMediaKind.sticker => const Size.square(206),
+      ChatMediaKind.gif => const Size(288, 162),
+    };
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -121,6 +146,9 @@ void main() {
     ChatEmojiPolicy policy = const ChatEmojiPolicy.android(),
     double bottomReserve = 0,
     bool selectableText = true,
+    ChatMediaItem? media,
+    ChatMediaSizePolicy? mediaSizes,
+    double? parentWidth,
   }) => tester.pumpWidget(
     MediaQuery(
       data: MediaQueryData.fromView(
@@ -147,6 +175,9 @@ void main() {
                 policy: policy,
                 bottomReserve: bottomReserve,
                 selectableText: selectableText,
+                media: media,
+                mediaSizes: mediaSizes,
+                parentWidth: parentWidth,
                 embedFactory: factory ?? embeds.call,
               ),
             ),
@@ -444,6 +475,197 @@ void main() {
 
       expect(embeds.asked.single.$2.profile.animate, isFalse);
       expect(embeds.asked.single.$2.profile.loop, isFalse);
+    });
+  });
+
+  group('media layout', () {
+    const doc = ContentKey.document('media');
+    final lone = EmojiOnly(const [EmojiOnlyItem(doc)]);
+    const gif = ChatMediaItem(
+      kind: ChatMediaKind.gif,
+      source: ContentSize(480, 270),
+    );
+
+    testWidgets('a sticker is the size the host\'s media policy gives, not '
+        'the emoji sticker\'s', (tester) async {
+      view(tester, const Size(412, 915));
+      final sizes = _MediaSizes();
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: const ChatMediaItem(kind: ChatMediaKind.sticker),
+        mediaSizes: sizes,
+      );
+
+      expect(bodySize(tester), const Size.square(206));
+      expect(sizes.asked.map((a) => a.$2).toSet(), {const Size(412, 915)});
+      expect(sizes.asked.map((a) => a.$3).toSet(), {
+        412,
+      }, reason: 'the viewport\'s width');
+      expect(embeds.asked.single.$2.size, const Size.square(206));
+    });
+
+    testWidgets('a GIF keeps the proportion the policy gives it', (
+      tester,
+    ) async {
+      view(tester, const Size(412, 915));
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        parentWidth: 300,
+      );
+
+      expect(bodySize(tester), const Size(288, 162));
+      expect(
+        embeds.made.single.paints.last.rect,
+        const Rect.fromLTWH(0, 0, 288, 162),
+      );
+      expect(embeds.asked.single.$2.size, const Size(288, 162));
+    });
+
+    testWidgets('a row narrower than the art scales it down to the row, its '
+        'proportion kept', (tester) async {
+      view(tester, const Size(412, 915));
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        maxWidth: 216,
+      );
+
+      expect(bodySize(tester), const Size(216, 121.5));
+      expect(
+        embeds.made.single.paints.last.rect,
+        const Rect.fromLTWH(0, 0, 216, 121.5),
+      );
+    });
+
+    testWidgets('the policy is told the parent width the host gave', (
+      tester,
+    ) async {
+      view(tester, const Size(412, 915));
+      final sizes = _MediaSizes();
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: sizes,
+        parentWidth: 300,
+      );
+
+      expect(sizes.asked.map((a) => a.$3).toSet(), {300});
+    });
+
+    testWidgets('the decode is capped at the policy\'s extent', (tester) async {
+      tester.view
+        ..physicalSize = const Size(1236, 2745)
+        ..devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: const ChatMediaItem(kind: ChatMediaKind.sticker),
+        mediaSizes: _MediaSizes(maxDecodeExtent: 512),
+      );
+
+      final spec = embeds.asked.single.$2.spec;
+      expect((spec.pixelWidth, spec.pixelHeight), (512, 512));
+    });
+
+    testWidgets('a media item loops as the playback says, or plays once', (
+      tester,
+    ) async {
+      view(tester, const Size(412, 915));
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+      );
+      expect(embeds.asked.last.$2.profile.loop, isTrue);
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        playback: ChatStickerPlayback.onceThenLastFrame,
+        messageId: 2,
+      );
+      final profile = embeds.asked.last.$2.profile;
+      expect(profile.loop, isFalse);
+      expect(profile.restFrame, AssetRestFrame.last);
+    });
+
+    testWidgets('without a media policy it is the emoji sticker\'s square', (
+      tester,
+    ) async {
+      view(tester, const Size(360, 640));
+
+      await pumpBody(tester, lone, sticker: doc, media: gif);
+
+      expect(bodySize(tester), const Size.square(112.5));
+    });
+
+    testWidgets('a text layout asks the media policy nothing', (tester) async {
+      view(tester, const Size(360, 640));
+      final sizes = _MediaSizes();
+
+      await pumpBody(
+        tester,
+        _items(2, allCustom: true),
+        media: gif,
+        mediaSizes: sizes,
+      );
+
+      expect(sizes.asked, isEmpty);
+    });
+
+    testWidgets('geometryFor gives the box the body lays out to', (
+      tester,
+    ) async {
+      view(tester, const Size(412, 915));
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        bottomReserve: 23,
+        maxWidth: 300,
+      );
+
+      final geometry = ChatEmojiBody.geometryFor(
+        emojiOnly: lone,
+        policy: const ChatEmojiPolicy.android(),
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        viewport: const Size(412, 915),
+        maxWidth: 300,
+        direction: TextDirection.ltr,
+        bottomReserve: 23,
+      );
+      expect(geometry.content, const Rect.fromLTWH(0, 0, 288, 162));
+      expect(bodySize(tester), geometry.size);
+      expect(geometry.size, const Size(288, 185));
     });
   });
 
@@ -881,6 +1103,106 @@ void main() {
     });
   });
 
+  // ADR 043, "Paint capability": the body pushes layers, so an embed that
+  // plays on a platform texture is a texture layer, not a canvas paint.
+  group('textures', () {
+    final composited = <FakeCompositingEmbed>[];
+    InlineEmbed compositing(ContentKey content, AssetPreset preset) {
+      final embed = FakeCompositingEmbed(sizeHint: preset.size);
+      composited.add(embed);
+      return embed;
+    }
+
+    setUp(composited.clear);
+
+    List<Layer> layers(WidgetTester tester) =>
+        _layers(tester.binding.renderViews.first.debugLayer!);
+
+    RenderChatEmojiBody body(WidgetTester tester) => tester.renderObject(
+      find.descendant(
+        of: find.byType(ChatEmojiBody),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is LeafRenderObjectWidget,
+        ),
+      ),
+    );
+
+    testWidgets('a playing embed on a texture is a texture layer at its '
+        'square, and is not painted', (tester) async {
+      view(tester, const Size(3000, 1000));
+      await pumpBody(tester, _items(2, allCustom: true), factory: compositing);
+      final [playing, still] = composited;
+      final paintsBefore = playing.paints.length;
+
+      playing.play(textureId: 5);
+      await tester.pump();
+
+      final texture = layers(tester).whereType<TextureLayer>().single;
+      expect(texture.textureId, 5);
+      expect(texture.rect, playing.composited.last);
+      expect(texture.rect.size, const Size.square(85.6));
+      expect(playing.paints, hasLength(paintsBefore));
+      expect(still.paints, isNotEmpty, reason: 'it plays nothing');
+    });
+
+    testWidgets('the body composites only while an embed plays', (
+      tester,
+    ) async {
+      view(tester, const Size(3000, 1000));
+      await pumpBody(tester, _items(1, allCustom: true), factory: compositing);
+      expect(body(tester).needsCompositing, isFalse);
+
+      composited.single.play(textureId: 5);
+      await tester.pump();
+      expect(body(tester).needsCompositing, isTrue);
+
+      composited.single.stop();
+      await tester.pump();
+      expect(body(tester).needsCompositing, isFalse);
+      expect(layers(tester).whereType<TextureLayer>(), isEmpty);
+    });
+
+    testWidgets('new leaves that already play make the body composite', (
+      tester,
+    ) async {
+      view(tester, const Size(3000, 1000));
+      await pumpBody(tester, _items(1, allCustom: true), factory: compositing);
+      expect(body(tester).needsCompositing, isFalse);
+
+      await pumpBody(
+        tester,
+        _items(2, allCustom: true),
+        factory: (content, preset) =>
+            (compositing(content, preset) as FakeCompositingEmbed)
+              ..play(textureId: 6),
+      );
+
+      expect(body(tester).needsCompositing, isTrue);
+      expect(layers(tester).whereType<TextureLayer>(), hasLength(2));
+    });
+
+    testWidgets('a glyph after a texture is drawn on the picture that follows '
+        'the layer', (tester) async {
+      view(tester, const Size(3000, 1000));
+      await pumpBody(
+        tester,
+        EmojiOnly(const [
+          EmojiOnlyItem(ContentKey.document('d0')),
+          EmojiOnlyItem(_thumb),
+        ]),
+        factory: compositing,
+      );
+
+      composited.single.play(textureId: 5);
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      final all = layers(tester);
+      final texture = all.indexWhere((layer) => layer is TextureLayer);
+      expect(all.skip(texture + 1).whereType<PictureLayer>(), isNotEmpty);
+    });
+  });
+
   group('geometry', () {
     // The host places chrome from `geometryFor` before the body is laid out:
     // the two must give the same box, whatever the platform or the layout.
@@ -1105,3 +1427,15 @@ void main() {
     });
   });
 }
+
+// The layers under [layer], depth first.
+List<Layer> _layers(Layer layer) => [
+  layer,
+  if (layer is ContainerLayer)
+    for (
+      Layer? child = layer.firstChild;
+      child != null;
+      child = child.nextSibling
+    )
+      ..._layers(child),
+];

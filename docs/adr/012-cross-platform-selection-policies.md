@@ -8,7 +8,9 @@ this policy; inline hits; deferred desktop drag-out promotion); 2026-10-18
 inline activation only in its own message); 2026-10-18 (every text body is
 under the policy, the emoji-only text layout included); 2026-10-19 (status
 chrome: the desktop click on an emoji-only message's time selects it, as the
-reference does)  
+reference does); 2026-11-12 (native-media-ffi ticket 215: in message
+selection a hit on a body that is not text toggles the message on desktop
+too)  
 **Supersedes**: [ADR 010](010-message-then-text-selection.md)
 
 Chat-list **message selection** and **text selection** are two modes under one
@@ -18,7 +20,8 @@ text vs **span gesture** is engine-owned under the active strategy — not a
 host **span yield** predicate as the named entry mechanism.
 
 Hosts supply the policy (sealed strategy variants, e.g. `$Mobile` / `$Desktop`);
-default maps OS family (iOS/Android → mobile; desktop + web → desktop). Copy
+default maps OS family (iOS/Android → mobile; desktop → desktop; a browser
+by the device under it, see the 2026-11-12 amendment). Copy
 success is observable via typed listeners and an optional callback; **copy
 feedback UI** stays app-side. Conditional `_vm` / `_js` imports are only for
 real native/web spirit forks — not for splitting these pure-Dart policies.
@@ -238,6 +241,14 @@ character-range suppresses inline activation only inside its own message (the
 activates, and dismisses the range as any click away from it does. Idle link and code taps
 still activate.
 
+A body that is not text (a sticker, a GIF, an emoji-only body: a body
+registered with `putNonTextBody`) is the message itself, so in **message
+selection** its hits (`ChatInlineHit.sticker`, an emoji-only body's
+`ChatInlineHit.embed`) do not activate under either policy: the click falls
+through to the toggle, as on a text message. Telegram Desktop does the same:
+its media answer `toggleSelectionByHandlerClick` with true, while a text link
+does not.
+
 ## Considered options
 
 - **Android-only forever (ADR 010 as universal law)** — rejected: Desktop/web
@@ -247,3 +258,80 @@ still activate.
 - **Pointer-kind policy switching** — rejected as default (surprising on
   phone + mouse); hosts may still override.
 - **Cross-platform modes + host-overridable policy strategies** — accepted.
+
+## Amendment: a browser takes the policy of its device (2026-11-12)
+
+Native-media ticket 208. `ChatSelectionPolicy.forPlatform` gave every browser
+`$Desktop`, so a phone's browser was given the mouse's gestures (a drag
+selects text, a secondary click opens the message menu, no timed long press)
+on a touch screen. The web clients read the
+device for gestures and the window only for layout ([ADR
+028](028-panel-presentation.md), 2026-11-12 amendment): telegram-tt opens the
+context menu on a tap and selects on Android's long press when the pointer is
+coarse (`useOuterHandlers.ts`, `IS_TOUCH_ENV`), tweb opens it on a long press
+when touch is supported (`contextMenu.ts`, `IS_TOUCH_SUPPORTED`).
+
+| Area | Decision |
+| ---- | -------- |
+| Rule | The policy follows `TargetPlatform` alone: Android and iOS are `$Mobile`, everything else `$Desktop`, in an app and in a browser. A browser derives the platform from its user agent (an iPad that reports a Mac is detected by its touch points), which stands in for the references' coarse-pointer test. The `isWeb` parameter of `forPlatform` (and of `ChatMessageMenuPresentation.forPlatform`) is gone. |
+| Window | Not read: a narrowed desktop browser is still driven by a mouse and keeps `$Desktop`, and the policy of a live facade never changes (see above), so a resize cannot swap it. |
+| Menu | The presentation of the message menu stays the host's: the demo host draws a popup at the press in any browser, as both web clients do on a phone. |
+
+## Amendment: desktop key routing (2026-11-12)
+
+Native-media tickets 225, 226. On a desktop the scroll keys worked only
+sometimes: after a chat opened nobody, or the composer's field, held the
+focus, and the chat's keys (`ChatKeyboardShortcuts`) were reached only once a
+click or a selection happened to focus them; the field took every arrow and
+page key for itself; the host's copy action did not cover the panel.
+
+The reference desktop client focuses its message field when it shows a chat
+(`HistoryWidget::setInnerFocus`), and the history while messages or text are
+selected. The field passes a key on when it cannot use it: Up / Down (and
+Page Up / Page Down) go on to the history when the caret did not move
+(`InputField::keyPressEventInner`: at the start for Up, at the end for
+Down), and the history scrolls by them (`HistoryWidget::keyPressEvent`);
+Home / End stay in the field. Its scroll area never takes the focus itself,
+so its panel gets no keys; the maintainer asked for the panel under the
+mouse to get them (ticket 224), and the field keeps those it edits with.
+
+| Area | Decision |
+| ---- | -------- |
+| Router | The host mounts a `ViewportScrollRouter` (`viewport_scroll`) over the chat, the composer and the panel; the chat's keys register as its primary viewport, the catalogue's as its pointer viewport. The target of a scroll key is the catalogue under the mouse, else the chat. |
+| Who holds the focus | On a desktop (`holdsFocus`): the composer's field when the chat shows; the router's node while messages or text are selected, and when the field is left with nothing else focused; the field again when the selection ends. A press on the catalogue gives it the focus unless a text field holds it. The chat's own node keeps the focus a message selection gives it. |
+| Copy and Escape | The host's copy action covers the router, so Cmd / Ctrl+C copies a message or text selection from the chat, the composer (with no selection of its own), the router or the catalogue. Escape clears a selection from any focus (the viewport's key handler). |
+
+| Focus | Up / Down | Page Up / Page Down | Home / End |
+| ----- | --------- | ------------------- | ---------- |
+| Composer field, empty | target | target | target |
+| Composer field, collapsed caret at the start (Up) / at the end (Down) | target | target | field (macOS: target) |
+| Composer field, caret elsewhere, or a selection in it | field | target | field (macOS: target) |
+| Router's node (field left, a selection) | target | target | target |
+| The chat's node | target | target | target (Home: newest, End: oldest) |
+| The catalogue (pressed) | its roving focus when a cell has it, else the catalogue | the catalogue | as Up / Down |
+
+Target: the catalogue under the mouse, else the chat. Left / Right and every
+modified key stay the field's. Deviation from the reference: the page keys
+always scroll (the reference moves the caret to the field's start or end
+first), as the composer is a short field; Home / End scroll from an empty
+field.
+
+Amended 2026-11-12 (native-media ticket 227): on macOS Home and End
+(Fn+Left / Fn+Right on a laptop keyboard) move no caret in a text field (the
+platform scrolls a text view with them; the caret's line ends are
+Cmd+Left / Cmd+Right), so a field with text hands them to the target too, as
+an empty one does. With a draft in the composer they did nothing. Home still
+goes to the newest message and End to the oldest, as before the router. No
+Cmd+Up / Cmd+Down binding: the reference desktop client gives that key
+(Ctrl+Up as Qt reports it on a Mac) to replying to the previous message, not
+to scrolling.
+
+Amended 2026-11-12 (native-media ticket 228): on a desktop a click in the
+history (on a message or between messages) keeps the composer's field
+focused, so typing goes on after it. The reference's history takes the
+focus only when a text selection or a drag selection starts in it
+(`HistoryInner`: `setFocus` at the first selected text and at a drag
+selection's start). The host marks the history as inside the field's tap
+region on a desktop; a selection the press starts moves the keys as the
+router says (the router's node holds them while a selection is live). On
+touch a tap on the history still lets the field go, with its keyboard.

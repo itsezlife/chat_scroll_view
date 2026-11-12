@@ -1,14 +1,30 @@
 /// The composition root: what it builds, in which order, and who frees what.
 library;
 
+import 'dart:io';
+
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/glyph_atlas.dart' show GlyphCacheStore;
+import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
+import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
+import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import '../support/disposal_watch.dart';
 import '../support/test_services.dart';
@@ -102,6 +118,7 @@ void main() {
         log.where((entry) => entry.startsWith('kv:')).toSet(),
         containsAll(<String>{
           'kv:${AppServices.recentsNamespace}',
+          'kv:${AppServices.libraryNamespace}',
           'kv:${AppServices.preferencesNamespace}',
           'kv:panel_presentation',
         }),
@@ -130,6 +147,393 @@ void main() {
         (collection) => collection.id == CollectionId.recent,
       );
       expect(recent.contents, isA<CollectionContents$Loaded>());
+    });
+  });
+
+  group('the content library', () {
+    test('keeps the host\'s limits: 5 favourite stickers, 200 saved GIFs, '
+        '30 recent stickers', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+
+      expect(
+        services.library.limits,
+        const LibraryLimits(
+          favouriteStickers: 5,
+          savedGifs: 200,
+          recentStickers: 30,
+        ),
+      );
+    });
+
+    test('arrives loaded: what an earlier launch kept is there', () async {
+      final storage = FakeKeyValueStore();
+      final first = await createTestServices(storage: storage);
+      final sticker = LottieStickerPack.stickers.first.key;
+      final gif = VideoStickerPack.gifs.first.key;
+      final outcomes = [
+        first.library.apply(LibraryEdit.favouriteSticker(sticker)).outcome,
+        first.library.apply(LibraryEdit.saveGif(gif)).outcome,
+      ];
+      expect(await Future.wait(outcomes), [
+        EditOutcome.committed,
+        EditOutcome.committed,
+      ]);
+      first.dispose();
+
+      final second = await createTestServices(storage: storage);
+      addTearDown(second.dispose);
+
+      expect(second.library.favouriteStickers.value, [sticker]);
+      expect(second.library.savedGifs.value, [gif]);
+    });
+  });
+
+  group('the pack source', () {
+    test('serves a bundled pack by the id its stickers name', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      final sticker = LottieStickerPack.stickers.first;
+
+      final lookup = await services.packs.lookup(sticker.descriptor.pack!);
+
+      expect(lookup, PackLookup.found(LottieStickerPack.pack));
+    });
+
+    test('serves a corpus pack by the id its stickers name', () async {
+      final dir = Directory.systemTemp.createTempSync('corpus_packs');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      Directory('${dir.path}/fox').createSync();
+      File('${dir.path}/fox/0.json').writeAsStringSync('{}');
+      final corpus = await CorpusStickerPack.load(
+        bundle: rootBundle,
+        directory: dir.path,
+      );
+      final services = await createTestServices(corpus: corpus);
+      addTearDown(services.dispose);
+      final fox = corpus.packs.singleWhere((pack) => pack.folder == 'fox');
+
+      final lookup = await services.packs.lookup(
+        fox.stickers.single.descriptor.pack!,
+      );
+
+      expect(lookup, PackLookup.found(fox.pack));
+    });
+
+    test('answers not found for an id no source has', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+
+      expect(
+        await services.packs.lookup(const PackId('nowhere')),
+        PackLookup.notFound,
+      );
+    });
+  });
+
+  group('the Lottie decoder', () {
+    // A starter that records what it was given and hands out a fake decoder.
+    late FakeDecoder decoder;
+    late int closed;
+    PlaybackClock? givenClock;
+    Listenable? givenPressure;
+    String? givenCacheDirectory;
+
+    Future<LottiePlayback?> start({
+      required PlaybackClock clock,
+      required Listenable memoryPressure,
+      FrameTexturePool? textures,
+      String? cacheDirectory,
+    }) async {
+      givenClock = clock;
+      givenPressure = memoryPressure;
+      givenCacheDirectory = cacheDirectory;
+      return LottiePlayback(decoder: decoder, shutdown: [() async => closed++]);
+    }
+
+    setUp(() {
+      decoder = FakeDecoder();
+      closed = 0;
+      givenClock = null;
+      givenPressure = null;
+    });
+
+    Future<AppServices> create({
+      LottiePlaybackStarter? startLottie,
+      String? mediaRoot,
+      bool diskCache = true,
+    }) => AppServices.create(
+      keyValueStore: FakeKeyValueStore(),
+      assetLoader: rootBundle.loadString,
+      clipboard: FakeRichClipboard(),
+      startLottie: startLottie ?? start,
+      mediaCache: Future.value(switch (mediaRoot) {
+        final root? => MediaDiskCache(root),
+        null => null,
+      }),
+      diskCache: diskCache,
+    );
+
+    test('is started on the clock and the memory pressure the app shares, '
+        'and registered for vector animation', () async {
+      final services = await create();
+      addTearDown(services.dispose);
+
+      expect(givenClock, same(services.assets.clock));
+      expect(givenPressure, same(services.memoryPressure));
+      final sticker = LottieStickerPack.stickers.first;
+      final binding = services.assets.attach(
+        sticker.key,
+        const AssetSpec(pixelWidth: 128, pixelHeight: 128),
+        const AssetProfile(animate: true),
+      );
+      addTearDown(binding.detach);
+      for (var i = 0; i < 200 && decoder.decodes.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(decoder.decodes, isNotEmpty);
+      expect(decoder.decodes.first.request.descriptor, sticker.descriptor);
+    });
+
+    test("keeps its frames in the media store's folder for them, else in "
+        'memory', () async {
+      final without = await create();
+      addTearDown(without.dispose);
+      expect(givenCacheDirectory, isNull);
+
+      final with_ = await create(mediaRoot: '/cache/media');
+      addTearDown(with_.dispose);
+      expect(givenCacheDirectory, '/cache/media/lottie_frames');
+    });
+
+    test('is given no cache directory when the disk caches are off', () async {
+      final services = await create(
+        mediaRoot: '/cache/media',
+        diskCache: false,
+      );
+      addTearDown(services.dispose);
+
+      expect(givenCacheDirectory, isNull);
+    });
+
+    test('is closed once, when the services are disposed', () async {
+      final services = await create();
+
+      services.dispose();
+      services.dispose();
+
+      expect(closed, 1);
+    });
+
+    test('is closed when a later step fails the boot', () async {
+      await expectLater(
+        AppServices.create(
+          keyValueStore: FakeKeyValueStore(),
+          assetLoader: (key) async => throw StateError('no catalogue'),
+          startLottie: start,
+        ),
+        throwsStateError,
+      );
+
+      expect(closed, 1);
+    });
+
+    group('whose close fails', () {
+      late List<FlutterErrorDetails> reported;
+
+      setUp(() {
+        reported = [];
+        final previous = FlutterError.onError;
+        FlutterError.onError = reported.add;
+        addTearDown(() => FlutterError.onError = previous);
+      });
+
+      Future<LottiePlayback?> failing({
+        required PlaybackClock clock,
+        required Listenable memoryPressure,
+        FrameTexturePool? textures,
+        String? cacheDirectory,
+      }) async => LottiePlayback(
+        decoder: decoder,
+        shutdown: [() async => throw StateError('engine would not close')],
+      );
+
+      test('is reported once when the services are disposed', () async {
+        final services = await create(startLottie: failing);
+
+        services.dispose();
+        services.dispose();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(reported, hasLength(1));
+        expect(reported.single.exception, isA<StateError>());
+      });
+
+      test('is reported once when a later step fails the boot', () async {
+        await expectLater(
+          AppServices.create(
+            keyValueStore: FakeKeyValueStore(),
+            assetLoader: (key) async => throw StateError('no catalogue'),
+            startLottie: failing,
+          ),
+          throwsStateError,
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(reported, hasLength(1));
+        expect(reported.single.exception, isA<StateError>());
+      });
+    });
+
+    test('is left unregistered when the platform has none: the app boots '
+        'and its other packs still play', () async {
+      final services = await create(
+        startLottie:
+            ({
+              required clock,
+              required memoryPressure,
+              textures,
+              cacheDirectory,
+            }) async => null,
+      );
+      addTearDown(services.dispose);
+
+      expect(services.assets.clock, isNotNull);
+      expect(decoder.decodes, isEmpty);
+      expect(services.emojiPageSource.collections.value, isNotEmpty);
+    });
+  });
+
+  group('the video decoder', () {
+    // A starter that records what it was given and hands out a fake decoder.
+    late FakeDecoder decoder;
+    late int closed;
+    PlaybackClock? givenClock;
+    Listenable? givenPressure;
+
+    Future<VideoPlayback?> start({
+      required PlaybackClock clock,
+      required Listenable memoryPressure,
+      FrameTexturePool? textures,
+    }) async {
+      givenClock = clock;
+      givenPressure = memoryPressure;
+      return VideoPlayback(decoder: decoder, shutdown: [() async => closed++]);
+    }
+
+    setUp(() {
+      decoder = FakeDecoder();
+      closed = 0;
+      givenClock = null;
+      givenPressure = null;
+    });
+
+    Future<AppServices> create({VideoPlaybackStarter? startVideo}) =>
+        createTestServices(startVideo: startVideo ?? start);
+
+    test('is started on the clock and the memory pressure the app shares, '
+        'and registered for video', () async {
+      final services = await create();
+      addTearDown(services.dispose);
+
+      expect(givenClock, same(services.assets.clock));
+      expect(givenPressure, same(services.memoryPressure));
+      final item = VideoStickerPack.stickers.first;
+      final binding = services.assets.attach(
+        item.key,
+        const AssetSpec(pixelWidth: 128, pixelHeight: 128),
+        const AssetProfile(animate: true),
+      );
+      addTearDown(binding.detach);
+      for (var i = 0; i < 200 && decoder.decodes.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(decoder.decodes, isNotEmpty);
+      expect(decoder.decodes.first.request.descriptor, item.descriptor);
+    });
+
+    test('is closed once, when the services are disposed', () async {
+      final services = await create();
+
+      services.dispose();
+      services.dispose();
+
+      expect(closed, 1);
+    });
+
+    test('is closed when a later step fails the boot', () async {
+      await expectLater(
+        AppServices.create(
+          keyValueStore: FakeKeyValueStore(),
+          assetLoader: (key) async => throw StateError('no catalogue'),
+          startLottie:
+              ({
+                required clock,
+                required memoryPressure,
+                textures,
+                cacheDirectory,
+              }) async => null,
+          startVideo: start,
+        ),
+        throwsStateError,
+      );
+
+      expect(closed, 1);
+    });
+
+    test('is left unregistered when the platform has none: the app boots '
+        'and its other packs still play', () async {
+      final services = await create(
+        startVideo:
+            ({required clock, required memoryPressure, textures}) async => null,
+      );
+      addTearDown(services.dispose);
+
+      expect(decoder.decodes, isEmpty);
+      expect(services.emojiPageSource.collections.value, isNotEmpty);
+    });
+  });
+
+  group('the still decoder', () {
+    // Stills are the engine's image codecs' work, so they need no native
+    // library: they decode with the Lottie decoder absent, as on the web.
+    test('is registered beside the animated image one, with no Lottie '
+        'decoder', () async {
+      final services = await AppServices.create(
+        keyValueStore: FakeKeyValueStore(),
+        assetLoader: rootBundle.loadString,
+        clipboard: FakeRichClipboard(),
+        startLottie:
+            ({
+              required clock,
+              required memoryPressure,
+              textures,
+              cacheDirectory,
+            }) async => null,
+      );
+      addTearDown(services.dispose);
+
+      for (final (key, animated) in [
+        (StaticStickerPack.stickers.first.key, false),
+        (AnimatedEmojiPack.emoji.first.key, true),
+      ]) {
+        final binding = services.assets.attach(
+          key,
+          const AssetSpec(pixelWidth: 96, pixelHeight: 96),
+          const AssetProfile(animate: true),
+        );
+        addTearDown(binding.detach);
+        for (
+          var i = 0;
+          i < 300 && binding.readiness.stage != AssetStage.full;
+          i++
+        ) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+
+        expect(binding.readiness.stage, AssetStage.full, reason: '$key');
+        expect(binding.paintable.isAnimated, animated, reason: '$key');
+      }
     });
   });
 
@@ -180,8 +584,10 @@ void main() {
     Set<PlaybackPauseLayer> layers(AppServices services) =>
         services.assets.clock.pausedLayers;
 
-    test('the window losing focus pauses the shared clock and getting it '
-        'back resumes', () async {
+    test('on a desktop the window losing focus pauses the shared clock and '
+        'getting it back resumes', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
       final services = await createTestServices();
       addTearDown(services.dispose);
       binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
@@ -190,6 +596,22 @@ void main() {
       binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       expect(layers(services), {PlaybackPauseLayer.appInactive});
       expect(services.assets.clock.isPaused, isTrue);
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      expect(layers(services), isEmpty);
+    });
+
+    test('on a phone a system sheet over the app (focus lost, still shown) '
+        'leaves playback alone', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      expect(layers(services), isEmpty);
+      expect(services.assets.clock.isPaused, isFalse);
 
       binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       expect(layers(services), isEmpty);
@@ -250,10 +672,12 @@ void main() {
     test('disposing the services gives the clock back running', () async {
       final services = await createTestServices();
       final clock = services.assets.clock;
-      binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       services.lowPower.value = true;
       services.activity.holdOverlay();
-      expect(clock.pausedLayers, hasLength(3));
+      expect(clock.pausedLayers, hasLength(4));
 
       services.dispose();
 
@@ -336,22 +760,353 @@ void main() {
     });
   });
 
-  group('the emoji page source', () {
+  group('the disk caches', () {
+    late Directory dir;
+
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('disk_caches');
+      addTearDown(() => dir.deleteSync(recursive: true));
+    });
+
+    // Services with Giphy over a client that answers every file with one
+    // byte, every disk tier given a folder under [dir].
+    Future<AppServices> create({required bool diskCache}) async {
+      final services = await AppServices.create(
+        keyValueStore: FakeKeyValueStore(),
+        assetLoader: rootBundle.loadString,
+        clipboard: FakeRichClipboard(),
+        startLottie:
+            ({
+              required clock,
+              required memoryPressure,
+              textures,
+              cacheDirectory,
+            }) async => null,
+        startVideo:
+            ({required clock, required memoryPressure, textures}) async => null,
+        glyphCache: GlyphCacheStore.forPlatform('${dir.path}/glyphs'),
+        giphyApiKey: 'test-key',
+        giphyHttpClient: MockClient((_) async => http.Response.bytes([1], 200)),
+        mediaCache: Future.value(MediaDiskCache('${dir.path}/media')),
+        diskCache: diskCache,
+      );
+      addTearDown(services.dispose);
+      return services;
+    }
+
+    final clip = GiphyClip(
+      id: 'a',
+      title: 'a cat',
+      url: Uri.parse('https://media.example/a.mp4'),
+      width: 200,
+      height: 100,
+      thumbnailUrl: Uri.parse('https://media.example/a.still.gif'),
+    );
+
+    // Fetches the still and the file of [clip], as the pipeline would.
+    Future<void> fetch(AppServices services) async {
+      final giphy = services.giphy!..remember([clip]);
+      await giphy.prepareStills([clip], within: const Duration(seconds: 1));
+      await giphy
+          .fetcher(otherwise: const _NoFetcher())
+          .fetch(
+            FetchRequest(
+              descriptor: giphy.describe(clip),
+              part: FetchPart.content,
+              priority: AssetPriority.visible,
+              cancellation: CancellationToken(),
+            ),
+          );
+    }
+
+    // The files under [dir] once the writes under way have landed.
+    Future<List<String>> files() async {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      return [
+        for (final entry in dir.listSync(recursive: true))
+          if (entry is File) entry.path.substring(dir.path.length),
+      ];
+    }
+
+    test('keep what was fetched when on', () async {
+      final services = await create(diskCache: true);
+
+      await fetch(services);
+
+      expect(services.glyphCache, isNotNull);
+      // A fetch does not wait for its disk write (a temporary file renamed
+      // into place), so wait for the renamed files rather than a fixed time.
+      const kept = ['/media/giphy/still_a', '/media/giphy/clip_a'];
+      for (var i = 0; i < 250; i++) {
+        final present = [
+          for (final name in kept)
+            if (File('${dir.path}$name').existsSync()) name,
+        ];
+        if (present.length == kept.length) break;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(await files(), containsAll(kept));
+    });
+
+    test('sweep the media store at start when on: a file unused for a month '
+        'goes', () async {
+      final old = File('${dir.path}/media/giphy/clip_old')
+        ..createSync(recursive: true)
+        ..setLastModifiedSync(
+          DateTime.now().subtract(const Duration(days: 40)),
+        );
+
+      await create(diskCache: true);
+
+      for (var i = 0; i < 100 && old.existsSync(); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(old.existsSync(), isFalse);
+    });
+
     test(
-      'lists the animated emoji pack after the catalogue\'s categories',
+      'are all off with the switch: no glyph pages, no Giphy files',
+      () async {
+        final services = await create(diskCache: false);
+
+        await fetch(services);
+
+        expect(services.glyphCache, isNull);
+        expect(await files(), isEmpty);
+      },
+    );
+  });
+
+  group('the stickers and GIF page sources', () {
+    List<CollectionId> ids(CollectionSource source) => [
+      for (final collection in source.collections.value) collection.id,
+    ];
+
+    test('list the favourite and the recent stickers, then the bundled '
+        'demo packs, installed on the first run', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+
+      expect(ids(services.stickerPageSource), [
+        CollectionId.faved,
+        CollectionId.recent,
+        CollectionId.set(LottieStickerPack.packId.value),
+        CollectionId.set(StaticStickerPack.packId.value),
+        CollectionId.set(VideoStickerPack.packId.value),
+      ]);
+    });
+
+    test('a removed demo pack stays removed on the next run', () async {
+      final storage = FakeKeyValueStore();
+      final first = await createTestServices(storage: storage);
+      first.library.apply(
+        const LibraryEdit.removePack(
+          LottieStickerPack.packId,
+          PackKind.stickers,
+        ),
+      );
+      first.dispose();
+
+      final second = await createTestServices(storage: storage);
+      addTearDown(second.dispose);
+
+      expect(
+        second.library.installStateOf(LottieStickerPack.packId),
+        PackInstallState.notInstalled,
+      );
+    });
+
+    test('the emoji page lists the shipped emoji pack as installed, and '
+        'loses it when it is removed', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      const pack = CollectionId.set('noto_animated_emoji');
+
+      expect(ids(services.emojiPageSource), contains(pack));
+      expect(
+        services.library.installStateOf(const PackId('noto_animated_emoji')),
+        PackInstallState.installed,
+      );
+
+      services.library.apply(
+        const LibraryEdit.removePack(
+          PackId('noto_animated_emoji'),
+          PackKind.emoji,
+        ),
+      );
+
+      expect(ids(services.emojiPageSource), isNot(contains(pack)));
+    });
+
+    test(
+      'the shipped packs are installed once: one removed stays removed',
+      () async {
+        final storage = FakeKeyValueStore();
+        final first = await createTestServices(storage: storage);
+        first.library.apply(
+          const LibraryEdit.removePack(
+            PackId('noto_animated_emoji'),
+            PackKind.emoji,
+          ),
+        );
+        first.dispose();
+        // The removal's write queues behind the seed's: a next run starts
+        // after it lands.
+        await pumpEventQueue();
+
+        final second = await createTestServices(storage: storage);
+        addTearDown(second.dispose);
+
+        expect(
+          second.library.installStateOf(const PackId('noto_animated_emoji')),
+          PackInstallState.notInstalled,
+        );
+      },
+    );
+
+    test('list a local corpus after the favourites and the recents, a pack '
+        'each', () async {
+      final dir = Directory.systemTemp.createTempSync('corpus_services');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      Directory('${dir.path}/fox').createSync();
+      File('${dir.path}/fox/0.json').writeAsStringSync('{}');
+      final corpus = await CorpusStickerPack.load(
+        bundle: rootBundle,
+        directory: dir.path,
+      );
+      final services = await createTestServices(corpus: corpus);
+      addTearDown(services.dispose);
+
+      // Pick the on-disk pack by folder: a developer may have linked corpus
+      // files into the (gitignored) bundled assets folder, which add packs.
+      final fox = corpus.packs.singleWhere((pack) => pack.folder == 'fox');
+      expect(ids(services.stickerPageSource), [
+        CollectionId.faved,
+        CollectionId.recent,
+        for (final pack in corpus.packs) pack.id,
+        for (final id in const ['demo_lottie', 'demo_still', 'demo_video'])
+          CollectionId.set(id),
+      ]);
+      expect(ids(services.stickerPageSource), contains(fox.id));
+      expect(services.describe(fox.stickers.single.key), isNotNull);
+    });
+
+    test('list Giphy\'s trending after the recents when there is a key, and '
+        'no bundled clips', () async {
+      final services = await createTestServices(
+        giphyApiKey: 'test-key',
+        giphyHttpClient: MockClient((_) async => http.Response('', 503)),
+      );
+      addTearDown(services.dispose);
+
+      expect(ids(services.gifPageSource), [
+        CollectionId.recent,
+        GiphyGifSource.id,
+      ]);
+      expect(services.gifSearch, isNotNull);
+      expect(services.giphy, isNotNull);
+    });
+
+    test('suggest Giphy\'s trending alone to a search with no text', () async {
+      final services = await createTestServices(
+        giphyApiKey: 'test-key',
+        giphyHttpClient: MockClient((_) async => http.Response('', 503)),
+      );
+      addTearDown(services.dispose);
+
+      expect(ids(services.gifSuggestions!), [GiphyGifSource.id]);
+    });
+
+    test('list the recent GIFs alone without a key: no search, no bundled '
+        'clips', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+
+      expect(ids(services.gifPageSource), [CollectionId.recent]);
+      expect(services.gifSearch, isNull);
+      expect(services.gifSuggestions, isNull);
+      expect(services.giphy, isNull);
+    });
+
+    List<ContentKey> keysOf(CollectionSource source, CollectionId id) =>
+        switch (source.collections.value
+            .singleWhere((collection) => collection.id == id)
+            .contents) {
+          CollectionContents$Loaded(:final items) => [
+            for (final item in items) item.key,
+          ],
+          _ => const [],
+        };
+
+    test('show a sent sticker as a recent once the host commits, not '
+        'before', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      final sticker = LottieStickerPack.stickers.first;
+
+      services.library.apply(LibraryEdit.addRecentSticker(sticker.key));
+      expect(keysOf(services.stickerPageSource, CollectionId.recent), isEmpty);
+
+      services.commitShownLists();
+      expect(keysOf(services.stickerPageSource, CollectionId.recent), [
+        sticker.key,
+      ]);
+    });
+
+    test(
+      'list the favourite stickers, and not again among the recents',
       () async {
         final services = await createTestServices();
         addTearDown(services.dispose);
+        final star = LottieStickerPack.stickers.first.key;
+        final sun = StaticStickerPack.stickers.first.key;
 
-        final ids = [
-          for (final collection in services.emojiPageSource.collections.value)
-            collection.id,
-        ];
-        expect(ids.first, CollectionId.recent);
-        expect(ids.last, AnimatedEmojiPack.id);
-        expect(ids.whereType<CollectionId$Category>(), isNotEmpty);
+        services.library
+          ..apply(LibraryEdit.addRecentSticker(star))
+          ..apply(LibraryEdit.addRecentSticker(sun))
+          ..apply(LibraryEdit.favouriteSticker(star));
+        services.commitShownLists();
+
+        expect(keysOf(services.stickerPageSource, CollectionId.faved), [star]);
+        expect(keysOf(services.stickerPageSource, CollectionId.recent), [sun]);
       },
     );
+
+    test('list the saved GIFs as the GIF page\'s recents, apart from the '
+        'stickers', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      final clip = VideoStickerPack.clips.first;
+
+      services.library.apply(LibraryEdit.saveGif(clip.key));
+      services.commitShownLists();
+
+      expect(keysOf(services.gifPageSource, CollectionId.recent), [clip.key]);
+      expect(keysOf(services.stickerPageSource, CollectionId.recent), isEmpty);
+    });
+  });
+
+  group('the emoji page source', () {
+    test('lists the animated emoji pack after the catalogue\'s categories, '
+        'and no sticker pack', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+
+      final ids = [
+        for (final collection in services.emojiPageSource.collections.value)
+          collection.id,
+      ];
+      expect(ids.first, CollectionId.recent);
+      expect(ids.last, AnimatedEmojiPack.id);
+      expect(ids.whereType<CollectionId$Category>(), isNotEmpty);
+      for (final pack in [
+        LottieStickerPack.id,
+        StaticStickerPack.id,
+        VideoStickerPack.id,
+      ]) {
+        expect(ids, isNot(contains(pack)));
+      }
+    });
 
     test('lists an animated emoji in the recents, described, beside the '
         'unicode ones', () async {
@@ -422,4 +1177,16 @@ void main() {
       );
     });
   });
+}
+
+/// A fetcher for content nothing in the test asks it for.
+final class _NoFetcher implements ContentFetcher {
+  const _NoFetcher();
+
+  @override
+  Future<FetchedContent> fetch(FetchRequest request) =>
+      Future.error(StateError('not asked for: ${request.descriptor.key}'));
+
+  @override
+  bool needsDownload(ContentKey key) => false;
 }

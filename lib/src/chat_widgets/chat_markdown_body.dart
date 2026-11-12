@@ -451,8 +451,8 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
   // again) whenever the theme is another instance, and a new one per build
   // would do that on every selection change.
   /// The emoji of a text the platform draws in colour, for
-  /// [MarkdownThemeData.emojiRuns]: they are set at the font's height, as the
-  /// reference clients do, instead of at its size. A theme with its own
+  /// [MarkdownThemeData.emojiRuns]: they are set at the font's height, instead of at
+  /// its size. A theme with its own
   /// `emojiRuns` (`(_) => const []` turns it off) is left as it is.
   static Iterable<TextRange> _colourEmojiRuns(String text) => [
     for (final (:start, :end) in EmojiRuns.of(text))

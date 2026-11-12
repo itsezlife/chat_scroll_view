@@ -15,15 +15,13 @@ enum ChatCopyKind {
   code,
 }
 
-/// Whether a copy is confirmed with a toast, per platform family, after the
-/// reference clients. The host owns this (ADR 012: the viewport's facade only
-/// reports the copy); what a copy leaves selected is the **selection
-/// policy**'s (`applyCopySuccess`).
+/// Whether a copy is confirmed with a toast, per platform family. The host
+/// owns this (ADR 012: the viewport's facade only reports the copy); what a
+/// copy leaves selected is the **selection policy**'s (`applyCopySuccess`).
 ///
 /// Chosen by the selection policy ([ChatCopyFeedback.forPolicy]), the way
 /// `ChatMessagesCopyFormat` is. The same kind of copy confirms the same way
-/// whichever trigger made it (shortcut, menu row, selection bar): neither
-/// reference client tells triggers apart.
+/// whichever trigger made it (shortcut, menu row, selection bar).
 ///
 /// | Kind | `$Mobile` | `$Desktop` |
 /// | --- | --- | --- |
@@ -32,41 +30,29 @@ enum ChatCopyKind {
 /// | link | toast | none |
 /// | code | toast | toast |
 ///
-/// * Android (`ChatActivity.java`): the action-mode Copy of selected messages
-///   toasts (`ACTION_TEXT_COPIED`, `:3722`) and always ends the selection
-///   (`:3724`); the menu's Copy of a message toasts (`ACTION_MESSAGE_COPIED`,
-///   `:33157`); a copy of selected text ends the text selection
-///   (`TextSelectionHelper.java:1736`) and the message selection, and toasts
-///   (`onTextCopied`, `:8654-8659`); a link toasts (`ACTION_LINK_COPIED`,
-///   `:35973`, `:44215`); a tap on code toasts (`URLSpanMono`, `:36293`).
-/// * iOS: the menu's Copy toasts (`ChatInterfaceStateContextMenus.swift:1352`);
-///   selected text is copied silently and the selection is cancelled
-///   (`ChatController.swift:4318`, `TextSelectionNode.swift:773-774`), so the
-///   toast below is the Android client's. iOS has no Copy for several
+/// * Mobile: the action-mode Copy of selected messages toasts and always ends
+///   the selection; the menu's Copy of a message toasts; a copy of selected
+///   text ends the text selection and the message selection, and toasts; a
+///   link toasts; a tap on code toasts.
+/// * iOS: selected text is copied silently and the selection is cancelled;
+///   the toast above is the mobile rule's. iOS has no Copy for several
 ///   messages.
-/// * Desktop (`tdesktop/Telegram/SourceFiles`): `HistoryInner::copySelectedText`
-///   (`history/history_inner_widget.cpp:3952`), `ListWidget::copySelectedText`
-///   (`history/view/history_view_list_widget.cpp:3566`), `copyContextText`
-///   (`history_inner_widget.cpp:4058`) and `AddCopyLinkAction`
-///   (`history/view/history_view_context_menu.cpp:1427`) write the clipboard,
-///   show nothing and keep the selection. Code is the exception:
-///   `MonospaceClickHandler::onClick` (`core/click_handler_types.cpp:586`,
-///   `lng_text_copied`) and `UiIntegration::copyPreOnClick`
-///   (`core/ui_integration.cpp:452`, `lng_code_copied`).
+/// * Desktop: copies of messages, of selected text and of a link write the
+///   clipboard, show nothing and keep the selection. Code is the exception: a
+///   tap on code toasts.
 ///
-/// Unverified: Desktop's Copy code row of the message menu has no reference
-/// counterpart (its menu has no such row); it follows the tap on code.
+/// Desktop's Copy code row of the message menu has no counterpart in this
+/// table; it follows the tap on code.
 sealed class ChatCopyFeedback {
   /// A feedback rule.
   const ChatCopyFeedback();
 
   /// The rule of [policy]: Android and iOS under `$Mobile`, the desktop
-  /// client's under `$Desktop`.
+  /// rule under `$Desktop`.
   ///
   /// [systemConfirms] is for a mobile platform whose system already shows its
-  /// own clipboard toast (Android 12L and later:
-  /// `AndroidUtilities.shouldShowClipboardToast`, `AndroidUtilities.java:3598`,
-  /// which `UndoView.showWithAction` consults); the app then adds none.
+  /// own clipboard toast (Android 12L and later, see [androidSystemConfirms]);
+  /// the app then adds none.
   factory ChatCopyFeedback.forPolicy(
     ChatSelectionPolicy policy, {
     bool systemConfirms = false,
@@ -75,6 +61,14 @@ sealed class ChatCopyFeedback {
       ChatCopyFeedback$Mobile(systemConfirms: systemConfirms),
     ChatSelectionPolicy$Desktop() => const ChatCopyFeedback$Desktop(),
   };
+
+  /// Whether an Android system at [sdkInt] shows its own clipboard toast:
+  /// the negation of `(sdkInt < 31 || !hasBuiltInClipboardToasts) && sdkInt < 32`,
+  /// so Android 12L and later, and Android 12 on One UI 4.0.
+  static bool androidSystemConfirms({
+    required int sdkInt,
+    required bool hasBuiltInClipboardToasts,
+  }) => !((sdkInt < 31 || !hasBuiltInClipboardToasts) && sdkInt < 32);
 
   /// Whether copying [kind] shows a "copied" toast.
   bool showsToast(ChatCopyKind kind);
@@ -91,8 +85,7 @@ sealed class ChatCopyFeedback {
   }
 }
 
-/// The Android client's rule, which the iOS client's matches wherever it has a
-/// Copy: every copy is confirmed.
+/// The mobile rule: every copy is confirmed.
 final class ChatCopyFeedback$Mobile extends ChatCopyFeedback {
   /// The mobile rule; [systemConfirms] when the system shows the toast.
   const ChatCopyFeedback$Mobile({this.systemConfirms = false});
@@ -104,7 +97,7 @@ final class ChatCopyFeedback$Mobile extends ChatCopyFeedback {
   bool showsToast(ChatCopyKind kind) => !systemConfirms;
 }
 
-/// The desktop client's rule: a copy is silent, except code.
+/// The desktop rule: a copy is silent, except code.
 final class ChatCopyFeedback$Desktop extends ChatCopyFeedback {
   /// The desktop rule.
   const ChatCopyFeedback$Desktop();

@@ -28,8 +28,8 @@ abstract final class DemoConfig {
   );
 
   /// The most code points of plain text a message may have: the demo
-  /// backend's `message_length_max` (Telegram's default is 4096), from
-  /// `--dart-define=MESSAGE_LENGTH_MAX`.
+  /// backend's `message_length_max` (4096 by default),
+  /// from `--dart-define=MESSAGE_LENGTH_MAX`.
   ///
   /// The unit is the plain text, not the markdown body: delimiters and
   /// formatting cost nothing, and nothing is truncated to fit. The composer
@@ -72,10 +72,35 @@ abstract final class DemoConfig {
   /// glass's share of a frame from the wallpaper's.
   static const bool glassLite = bool.fromEnvironment('GLASS_LITE');
 
+  /// Whether playing assets may take platform textures (ADR 043) where the
+  /// platform has a texture host (Android, iOS, macOS), from
+  /// `--dart-define=FRAME_TEXTURES=true`. Off by default: no host is made and
+  /// every playing asset keeps its slot on a dynamic page.
+  static const bool frameTextures = bool.fromEnvironment('FRAME_TEXTURES');
+
+  /// Whether the panel's GIF page lists the frame counter clips first
+  /// (`FrameCounterPack`), from `--dart-define=FRAME_COUNTER_GIFS=true`: a
+  /// recording of the page scrolled off and back can then be read frame by
+  /// frame. Off by default: the page lists no bundled clip.
+  static const bool frameCounterGifs = bool.fromEnvironment(
+    'FRAME_COUNTER_GIFS',
+  );
+
   /// Whether the scroll lab is mounted: the LAB switches, the frame log and
   /// the pointer tape, from `--dart-define=SCROLL_LAB=true`. Off, the app and
   /// its tests run without them.
   static const bool scrollLab = bool.fromEnvironment('SCROLL_LAB');
+
+  /// Whether what the app fetches or renders is kept on disk between
+  /// launches (the baked glyph pages, the rendered Lottie frames, Giphy's
+  /// stills and clips), from `--dart-define=DISK_CACHE=false`. On by
+  /// default, as in a shipped client. Off, every launch starts cold and
+  /// leaves no file behind: what a test, a measured run or a recorded net
+  /// tape needs, since a file found on disk is a request never sent.
+  static const bool diskCache = bool.fromEnvironment(
+    'DISK_CACHE',
+    defaultValue: true,
+  );
 
   /// Whether the Supabase publishable key is set.
   static bool get hasSupabasePublishableKey =>

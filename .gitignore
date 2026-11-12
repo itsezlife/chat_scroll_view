@@ -71,6 +71,7 @@ enhancement_spec.md
 config/development.supabase.android.device.json
 config/development.supabase.android.json
 config/development.supabase.json
+config/local.defines.json
 
 # Build folders
 **/build/
@@ -79,3 +80,4 @@ packages/composer_editable/tool/staging/
 
 # flutter_test golden comparator failure output
 **/failures/
+example/web/lottie/

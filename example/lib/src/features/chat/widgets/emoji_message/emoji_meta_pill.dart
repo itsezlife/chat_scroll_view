@@ -35,8 +35,8 @@ TextStyle emojiMetaStyle(EmojiChrome chrome, Color color) => TextStyle(
   decoration: TextDecoration.none,
 );
 
-/// Measures one line of [text] in [style], ceiled as the reference ceils its
-/// time width.
+/// Measures one line of [text] in [style], rounded up to a whole pixel as the
+/// time width is.
 Size measureEmojiLine(String text, TextStyle style, TextDirection direction) {
   final painter = TextPainter(
     text: TextSpan(text: text, style: style),
@@ -73,9 +73,9 @@ EmojiMetaMetrics measureEmojiMeta({
 /// A mouse press on it is not a message press ([ChatMessageTapBarrier]): the
 /// pill is the status of the message, not the message, so no drag-select, no
 /// text selection and no sticker tap starts under it. What a primary click on
-/// it does instead is the host's, [onClick] (Telegram Desktop selects the
-/// message). A secondary click still opens the message's menu, and touch never
-/// reaches the pill's own handling: a tap on it is a message tap.
+/// it does instead is the host's, [onClick] (on desktop it selects the
+/// message). A secondary click still opens the message's menu, and
+/// touch never reaches the pill's own handling: a tap on it is a message tap.
 class EmojiMetaPill extends StatelessWidget {
   /// Draws [time] (and [views]) in a pill shaped by [layout].
   const EmojiMetaPill({
