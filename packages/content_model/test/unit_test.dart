@@ -23,6 +23,7 @@ import 'markdown/markdown_list_test.dart' as markdown_list_test;
 import 'markdown/markdown_round_trip_test.dart' as markdown_round_trip_test;
 import 'markdown/markdown_username_hashtag_test.dart'
     as markdown_username_hashtag_test;
+import 'pack/pack_test.dart' as pack_test;
 import 'rich_text/code_block_test.dart' as code_block_test;
 import 'rich_text/entity_detection_test.dart' as entity_detection_test;
 import 'rich_text/list_test.dart' as list_test;
@@ -31,18 +32,25 @@ import 'rich_text/rich_text_json_test.dart' as rich_text_json_test;
 import 'rich_text/rich_text_test.dart' as rich_text_test;
 import 'rich_text/typed_markdown_test.dart' as typed_markdown_test;
 import 'rich_text/username_hashtag_test.dart' as username_hashtag_test;
+import 'store/caching_pack_source_test.dart' as caching_pack_source_test;
 import 'store/deferred_recents_store_test.dart' as deferred_recents_store_test;
+import 'store/key_value_library_storage_test.dart'
+    as key_value_library_storage_test;
 import 'store/key_value_preference_store_test.dart'
     as key_value_preference_store_test;
 import 'store/key_value_recents_store_test.dart'
     as key_value_recents_store_test;
 import 'store/loaded_stores_only_test.dart' as loaded_stores_only_test;
+import 'store/stored_content_library_test.dart' as stored_content_library_test;
 import 'testing/fake_collection_source_test.dart'
     as fake_collection_source_test;
+import 'testing/fake_content_library_test.dart' as fake_content_library_test;
 import 'testing/fake_content_resolver_test.dart' as fake_content_resolver_test;
 import 'testing/fake_glyph_support_test.dart' as fake_glyph_support_test;
 import 'testing/fake_key_value_store_test.dart' as fake_key_value_store_test;
 import 'testing/fake_keyword_source_test.dart' as fake_keyword_source_test;
+import 'testing/fake_library_storage_test.dart' as fake_library_storage_test;
+import 'testing/fake_pack_source_test.dart' as fake_pack_source_test;
 import 'testing/fake_preference_store_test.dart' as fake_preference_store_test;
 import 'testing/fake_recents_store_test.dart' as fake_recents_store_test;
 import 'testing/fake_rich_clipboard_test.dart' as fake_rich_clipboard_test;
@@ -69,6 +77,7 @@ void main() {
     'markdown/markdown_username_hashtag_test.dart',
     markdown_username_hashtag_test.main,
   );
+  group('pack/pack_test.dart', pack_test.main);
   group('rich_text/code_block_test.dart', code_block_test.main);
   group('rich_text/entity_detection_test.dart', entity_detection_test.main);
   group('rich_text/list_test.dart', list_test.main);
@@ -77,9 +86,14 @@ void main() {
   group('rich_text/rich_text_test.dart', rich_text_test.main);
   group('rich_text/typed_markdown_test.dart', typed_markdown_test.main);
   group('rich_text/username_hashtag_test.dart', username_hashtag_test.main);
+  group('store/caching_pack_source_test.dart', caching_pack_source_test.main);
   group(
     'store/deferred_recents_store_test.dart',
     deferred_recents_store_test.main,
+  );
+  group(
+    'store/key_value_library_storage_test.dart',
+    key_value_library_storage_test.main,
   );
   group(
     'store/key_value_preference_store_test.dart',
@@ -91,8 +105,16 @@ void main() {
   );
   group('store/loaded_stores_only_test.dart', loaded_stores_only_test.main);
   group(
+    'store/stored_content_library_test.dart',
+    stored_content_library_test.main,
+  );
+  group(
     'testing/fake_collection_source_test.dart',
     fake_collection_source_test.main,
+  );
+  group(
+    'testing/fake_content_library_test.dart',
+    fake_content_library_test.main,
   );
   group(
     'testing/fake_content_resolver_test.dart',
@@ -104,6 +126,11 @@ void main() {
     fake_key_value_store_test.main,
   );
   group('testing/fake_keyword_source_test.dart', fake_keyword_source_test.main);
+  group(
+    'testing/fake_library_storage_test.dart',
+    fake_library_storage_test.main,
+  );
+  group('testing/fake_pack_source_test.dart', fake_pack_source_test.main);
   group(
     'testing/fake_preference_store_test.dart',
     fake_preference_store_test.main,

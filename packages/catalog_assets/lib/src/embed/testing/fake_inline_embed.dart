@@ -2,6 +2,7 @@ import 'dart:ui' hide VoidCallback;
 
 import 'package:catalog_assets/src/asset/asset_playback.dart';
 import 'package:catalog_assets/src/embed/inline_embed.dart';
+import 'package:flutter/rendering.dart' show PaintingContext, TextureLayer;
 import 'package:listen/listen.dart';
 
 /// An [InlineEmbed] that records what is done to it and signals when a test
@@ -81,6 +82,56 @@ final class FakePlayableEmbed extends FakeInlineEmbed implements PlayableEmbed {
     if (_playback == AssetPlayback.playing) return false;
     playback = AssetPlayback.playing;
     return true;
+  }
+}
+
+/// A [FakeInlineEmbed] that composites: a test makes it [play], on a texture
+/// or on the canvas, and reads where it was [composited].
+///
+/// While it plays on a texture, [composite] adds a texture layer of exactly
+/// the rectangle; otherwise it paints, as recorded in `paints`.
+final class FakeCompositingEmbed extends FakeInlineEmbed
+    implements CompositingEmbed {
+  /// Creates an embed that does not play.
+  FakeCompositingEmbed({super.sizeHint});
+
+  bool _playing = false;
+  int? _textureId;
+
+  /// Every rectangle [composite] was called with, in order.
+  final List<Rect> composited = [];
+
+  /// Starts playing, its frames on texture [textureId] (on the canvas when
+  /// null), and signals the listeners.
+  void play({int? textureId}) {
+    _playing = true;
+    _textureId = textureId;
+    invalidate();
+  }
+
+  /// Stops playing and signals the listeners.
+  void stop() {
+    _playing = false;
+    _textureId = null;
+    invalidate();
+  }
+
+  @override
+  bool get needsCompositing => _playing && !isDisposed;
+
+  @override
+  void composite(
+    PaintingContext context,
+    Rect rect,
+    InlineEmbedPaintContext paint,
+  ) {
+    if (isDisposed) return;
+    composited.add(rect);
+    if (_textureId case final id? when _playing) {
+      context.addLayer(TextureLayer(rect: rect, textureId: id));
+      return;
+    }
+    this.paint(context.canvas, rect, paint);
   }
 }
 

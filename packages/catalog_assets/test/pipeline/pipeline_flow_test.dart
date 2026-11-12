@@ -293,6 +293,9 @@ final class _ThrowingFetcher implements ContentFetcher {
   @override
   Future<FetchedContent> fetch(FetchRequest request) =>
       throw StateError('fetcher bug');
+
+  @override
+  bool needsDownload(ContentKey key) => false;
 }
 
 final class _ThrowingDecoder implements Decoder {

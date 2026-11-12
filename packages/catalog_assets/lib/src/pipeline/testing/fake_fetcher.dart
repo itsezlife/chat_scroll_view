@@ -36,6 +36,13 @@ final class FakeFetch {
     _completer.complete(served);
   }
 
+  /// Reports [received] bytes of [total] (null when unknown) arrived, as a
+  /// fetcher that downloads does. Does nothing once settled.
+  void receive(int received, int? total) {
+    if (isSettled) return;
+    request.onProgress(received, total);
+  }
+
   /// Fails with [failure]. Does nothing once settled.
   void fail(FetchFailure failure) => failWith(failure);
 
@@ -88,6 +95,10 @@ final class FakeFetcher implements ContentFetcher {
   /// transient failure.
   bool online = true;
 
+  /// The keys whose content [needsDownload] reports missing; any other is
+  /// one the fetcher cannot tell about.
+  final Set<ContentKey> missing = {};
+
   /// Every fetch, oldest first.
   final List<FakeFetch> fetches = [];
   int _active = 0;
@@ -137,6 +148,9 @@ final class FakeFetcher implements ContentFetcher {
     }
     return fetch._completer.future;
   }
+
+  @override
+  bool needsDownload(ContentKey key) => missing.contains(key);
 
   FetchedContent? _served(FetchRequest request) => switch (request.part) {
     FetchPart.thumbnail => _thumbnails[request.descriptor.thumbnail],

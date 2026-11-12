@@ -195,27 +195,27 @@ abstract final class AssetPlaybackContract {
       );
     });
   }
-}
 
-/// Paints [paintable] into a recorder with the given flags; for adapters that
-/// answer with the frame they drew by another route.
-void paintOnce(
-  AssetPaintable paintable,
-  Duration time, {
-  bool animate = true,
-  bool loop = true,
-  AssetRestFrame rest = AssetRestFrame.first,
-}) {
-  final recorder = PictureRecorder();
-  paintable.paint(
-    Canvas(recorder),
-    const Rect.fromLTWH(0, 0, 16, 16),
-    AssetPaintContext(
-      time: time,
-      animate: animate,
-      loop: loop,
-      restFrame: rest,
-    ),
-  );
-  recorder.endRecording().dispose();
+  /// Paints [paintable] into a recorder with the given flags; for adapters
+  /// that answer with the frame they drew by another route.
+  static void paintOnce(
+    AssetPaintable paintable,
+    Duration time, {
+    bool animate = true,
+    bool loop = true,
+    AssetRestFrame rest = AssetRestFrame.first,
+  }) {
+    final recorder = PictureRecorder();
+    paintable.paint(
+      Canvas(recorder),
+      const Rect.fromLTWH(0, 0, 16, 16),
+      AssetPaintContext(
+        time: time,
+        animate: animate,
+        loop: loop,
+        restFrame: rest,
+      ),
+    );
+    recorder.endRecording().dispose();
+  }
 }

@@ -28,8 +28,12 @@ abstract base class AssetBindingBase
     required this.profile,
     required AssetPaintable placeholder,
     required PlaybackClock clock,
+    bool backgroundHeld = false,
   }) : _placeholder = placeholder,
-       _clock = clock;
+       _clock = clock,
+       _backgroundHeld = backgroundHeld {
+    if (holdsFrame) _heldAt = clock.now;
+  }
 
   @override
   final ContentKey key;
@@ -43,6 +47,10 @@ abstract base class AssetBindingBase
   final AssetPaintable _placeholder;
   final PlaybackClock _clock;
   bool _visible = true;
+  bool _held = false;
+  bool _backgroundHeld;
+  // The clock's time when the hold began: what a held binding paints at.
+  Duration? _heldAt;
   bool _detached = false;
 
   /// Whether [detach] was called.
@@ -72,11 +80,36 @@ abstract base class AssetBindingBase
   AssetPlayback get playback => AssetPlayback.idle;
 
   @override
+  double? get downloadProgress => null;
+
+  @override
   bool replay() => false;
 
   /// Called after [visible] changed while attached.
   @protected
   void onVisibleChanged() {}
+
+  /// Called after [holdsFrame] changed while attached.
+  @protected
+  void onHeldChanged() {}
+
+  /// Whether the binding holds its frame now: the surface holds it ([held]),
+  /// or the scope's background hold does and the profile is not in the
+  /// foreground (`AssetProfile.foreground`).
+  ///
+  /// Kept apart from [held], which stays the surface's own wish: a surface
+  /// that holds its binding is still holding it when the background hold
+  /// ends.
+  bool get holdsFrame => _held || (_backgroundHeld && !profile.foreground);
+
+  /// Set by the scope while a background hold is on
+  /// (`AssetCacheScope.holdBackground`).
+  set backgroundHeld(bool value) {
+    if (_backgroundHeld == value) return;
+    final before = holdsFrame;
+    _backgroundHeld = value;
+    _holdChanged(before);
+  }
 
   /// Tells the listeners something this binding paints changed.
   @protected
@@ -101,6 +134,24 @@ abstract base class AssetBindingBase
     if (!_detached) onVisibleChanged();
   }
 
+  @override
+  bool get held => _held;
+
+  @override
+  set held(bool value) {
+    if (_held == value) return;
+    final before = holdsFrame;
+    _held = value;
+    _holdChanged(before);
+  }
+
+  void _holdChanged(bool before) {
+    final holds = holdsFrame;
+    if (holds == before) return;
+    _heldAt = holds ? _clock.now : null;
+    if (!_detached) onHeldChanged();
+  }
+
   // The time a binding whose profile does not animate paints at: the clock's
   // at its first paint, kept. The clock runs for every animated binding of
   // the scope, so painting at its live time would step an animated
@@ -108,16 +159,24 @@ abstract base class AssetBindingBase
   // say): bursts of frames, where the profile promises one.
   Duration? _stillTime;
 
+  AssetPaintContext _context({Color? tint, double opacity = 1}) =>
+      AssetPaintContext(
+        tint: tint,
+        opacity: opacity,
+        time: animates ? _heldAt ?? _clock.now : _stillTime ??= _clock.now,
+        animate: animates,
+        loop: profile.loop,
+        restFrame: profile.restFrame,
+        fit: profile.fit,
+        halfFrameRate: profile.halfFrameRate,
+      );
+
+  @override
+  void advancePlayback() => paintable.advancePlayback(_context());
+
   @override
   void paint(Canvas canvas, Rect rect, {Color? tint, double opacity = 1}) {
-    final context = AssetPaintContext(
-      tint: tint,
-      opacity: opacity,
-      time: animates ? _clock.now : _stillTime ??= _clock.now,
-      animate: animates,
-      loop: profile.loop,
-      restFrame: profile.restFrame,
-    );
+    final context = _context(tint: tint, opacity: opacity);
     final radius = profile.cornerRadius;
     if (radius <= 0) {
       paintable.paint(canvas, rect, context);
@@ -129,6 +188,12 @@ abstract base class AssetBindingBase
     paintable.paint(canvas, rect, context);
     canvas.restore();
   }
+
+  @override
+  bool paintStandIn(Canvas canvas, Rect rect) => false;
+
+  @override
+  void releaseStandIn() {}
 
   @override
   void detach() {

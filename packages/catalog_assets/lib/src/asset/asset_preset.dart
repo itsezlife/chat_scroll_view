@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:catalog_assets/src/asset/asset_fit.dart';
 import 'package:catalog_assets/src/asset/asset_profile.dart';
 import 'package:catalog_assets/src/asset/asset_spec.dart';
 import 'package:meta/meta.dart';
@@ -53,25 +54,59 @@ final class AssetPreset {
 /// message.
 abstract final class AssetPresets {
   /// A cell of a content grid or strip: a square of [extent] logical pixels,
-  /// decoded at [devicePixelRatio].
+  /// decoded at [devicePixelRatio] as [decodeMode] and filled as [fit].
   ///
   /// Plays and loops while visible unless [animate] is false (a grid that
   /// should show stills).
+  ///
+  /// A playing cell of at most [smallCellExtent] logical pixels is small: it
+  /// plays at half rate (`AssetProfile.halfFrameRate`) and decodes at most
+  /// [smallCellPixels] on a side, however dense the screen. This is the
+  /// rule for a sticker drawn at up to 90 dp (rendered at
+  /// 160 px at most, every second frame): a grid of small playing cells is
+  /// what a content panel shows most of, and at full rate and size it costs
+  /// a render and a post per cell every frame. A still cell keeps its full
+  /// pixels: it is drawn once.
   static AssetPreset keyboardCell({
     required double extent,
     required double devicePixelRatio,
     bool animate = true,
-  }) => square(
-    extent: extent,
-    devicePixelRatio: devicePixelRatio,
-    profile: AssetProfile(animate: animate),
-  );
+    AssetDecodeMode decodeMode = AssetDecodeMode.original,
+    AssetFit fit = AssetFit.contain,
+  }) {
+    final small = animate && extent <= smallCellExtent;
+    final full = AssetSpec.atDensity(
+      logicalWidth: extent,
+      logicalHeight: extent,
+      devicePixelRatio: devicePixelRatio,
+      decodeMode: decodeMode,
+    );
+    final pixels = small
+        ? math.min(full.pixelWidth, smallCellPixels)
+        : full.pixelWidth;
+    return AssetPreset(
+      size: Size.square(extent),
+      spec: AssetSpec(
+        pixelWidth: pixels,
+        pixelHeight: pixels,
+        decodeMode: decodeMode,
+      ),
+      profile: AssetProfile(animate: animate, fit: fit, halfFrameRate: small),
+    );
+  }
+
+  /// The largest extent, in logical pixels, of a [keyboardCell] that plays
+  /// as a small one.
+  static const double smallCellExtent = 90;
+
+  /// The most pixels on a side a small playing [keyboardCell] decodes at.
+  static const int smallCellPixels = 160;
 
   /// Content set inline in text whose line is [ascent] + [descent] tall: a
   /// square of 1.2 times that, rounded to whole device pixels at
   /// [devicePixelRatio].
   ///
-  /// This is the reference client's rule for inline custom emoji: the box
+  /// This is the rule for inline custom emoji: the box
   /// follows the font's vertical metrics, not its em, because an emoji is
   /// wider than the em of the font it sits in. Every embed of a paragraph
   /// takes the same metrics, so they share one spec and one cache entry per
@@ -116,7 +151,7 @@ abstract final class AssetPresets {
   ///
   /// For a surface that knows only the font size of its text. A body that
   /// lays text out has the ascent and descent and uses [inlineMessage]
-  /// instead, which is the reference client's rule. Plays and loops while
+  /// instead, which is this preset's rule. Plays and loops while
   /// visible unless [animate] is false.
   static AssetPreset inlineFontSize({
     required double fontSize,
@@ -136,8 +171,7 @@ abstract final class AssetPresets {
   ///
   /// A step is a font size in logical pixels, so this package does not know
   /// the viewport's table of steps. Each step is its own size and so its own
-  /// cache entry, as the reference client's cache types are; the same step at the same
-  /// density is one. Custom emoji animate and loop; pass [animate] false for
+  /// cache entry; the same step at the same density is one. Custom emoji animate and loop; pass [animate] false for
   /// an item that is a still.
   static AssetPreset emojiOnly({
     required double step,
@@ -153,7 +187,7 @@ abstract final class AssetPresets {
   /// at that size at [devicePixelRatio].
   ///
   /// It plays once and does not loop, then rests on [restFrame] (the first
-  /// frame by default, as the reference client does) until the host replays it
+  /// frame by default) until the host replays it
   /// (`AssetBinding.replay`). [autoplay] says whether it starts when it
   /// attaches; the host decides it (a memory of what already played, per
   /// chat), never the cache. With [autoplay] false the sticker holds its
@@ -190,8 +224,39 @@ abstract final class AssetPresets {
     profile: profile,
   );
 
-  /// Logical pixels an emoji-only item's box adds to its font size (the
-  /// reference client's `font + 4 dp`).
+  /// A sticker or a GIF shown on its own: a box of [size] logical pixels, of
+  /// the media's own proportion, decoded at [devicePixelRatio] and used as
+  /// [profile] says.
+  ///
+  /// [maxPixelExtent] caps the decode's longer side, the shorter scaled with
+  /// it: a large box on a dense screen draws a decode smaller than its pixels
+  /// rather than one larger than the media holds (a sticker renders at 512 px at
+  /// most). Under the cap the decode is the box at the
+  /// density, rounded up like [square].
+  static AssetPreset media({
+    required Size size,
+    required double devicePixelRatio,
+    required AssetProfile profile,
+    int? maxPixelExtent,
+  }) {
+    final full = AssetSpec.atDensity(
+      logicalWidth: size.width,
+      logicalHeight: size.height,
+      devicePixelRatio: devicePixelRatio,
+    );
+    final longer = math.max(full.pixelWidth, full.pixelHeight);
+    final spec = switch (maxPixelExtent) {
+      final cap? when longer > cap => AssetSpec(
+        pixelWidth: math.max(1, (full.pixelWidth * cap / longer).round()),
+        pixelHeight: math.max(1, (full.pixelHeight * cap / longer).round()),
+      ),
+      _ => full,
+    };
+    return AssetPreset(size: size, spec: spec, profile: profile);
+  }
+
+  /// Logical pixels an emoji-only item's box adds to its font size (the box is
+  /// the font size plus 4 dp).
   static const double emojiOnlyBoxPadding = 4;
 
   static const double _inlineExtentPerLine = 1.2;

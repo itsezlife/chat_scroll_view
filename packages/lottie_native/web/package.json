@@ -1,0 +1,6 @@
+{
+  "name": "chat-lottie-web",
+  "private": true,
+  "type": "module",
+  "description": "The web side of lottie_native: not published; the files are copied by native/tool/build_web.dart."
+}

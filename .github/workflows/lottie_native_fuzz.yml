@@ -1,0 +1,136 @@
+name: lottie_native fuzz
+
+# Long fuzz (run by hand, no schedule) of the lottie_native C ABI (ADR 030, amendment "native
+# decoders"). The fixed corpus replay (native/tests/replay.rs) is the gate on
+# every pull request; this is the open-ended counterpart, run on demand
+# (workflow_dispatch) to spare CI minutes, and it is NOT a gate: there is no
+# pull_request trigger. A finding
+# (a caught panic, a hang, an undocumented status, a non-null handle after a
+# failure, an unpremultiplied pixel) uploads the failing inputs and opens or
+# updates one issue; it is never a required check.
+#
+# The seed is random and always printed first, so a finding is reproduced with
+#   CHAT_LOTTIE_FUZZ_SEED=<seed> cargo test --release --test fuzz_long -- --ignored --nocapture
+#
+# Two jobs, so that the one running the fuzz holds a read-only token: only the
+# `report` job, which runs a few `gh` commands and no repository code, may
+# write issues (a permission belongs to a job, not to a step).
+#
+# Actions are pinned to major tags (`actions/checkout@v4`), not to commit
+# SHAs: a deliberate decision. Only first-party `actions/*` and
+# `subosito/flutter-action` are used, a SHA pin would need a bot to keep it
+# fresh, and the job that holds a write permission runs no third-party code.
+# Revisit if a third-party action with a token is ever added.
+on:
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: How long to fuzz, in seconds.
+        default: '1200'
+      seed:
+        description: Seed to replay; empty for a random one.
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lottie-native-fuzz
+  cancel-in-progress: false
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    # The fuzz itself plus the build.
+    timeout-minutes: 40
+    outputs:
+      seed: ${{ steps.seed.outputs.seed }}
+      # Only a failed fuzz is a finding: a rejected input or a failed
+      # toolchain install is not worth an issue.
+      found: ${{ steps.fuzz.outcome == 'failure' }}
+      artifact-url: ${{ steps.upload.outputs.artifact-url }}
+    env:
+      # Through env, never interpolated into a script: an input is text a
+      # person typed.
+      FUZZ_SECONDS_INPUT: ${{ inputs.seconds }}
+      FUZZ_SEED_INPUT: ${{ inputs.seed }}
+    defaults:
+      run:
+        working-directory: packages/lottie_native/native
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        # The image ships rustup; the crate needs 1.88 (slice::as_chunks).
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/lottie_native/native/target
+          key: lottie-native-fuzz-${{ hashFiles('packages/lottie_native/native/Cargo.lock') }}
+
+      - name: Pick the seed
+        id: seed
+        run: |
+          seconds="${FUZZ_SECONDS_INPUT:-1200}"
+          seed="${FUZZ_SEED_INPUT:-$(od -An -N8 -tu8 /dev/urandom | tr -d ' ')}"
+          # Digits only: these reach $GITHUB_ENV and a command line.
+          case "$seconds" in ''|*[!0-9]*) echo "seconds must be digits only" >&2; exit 1;; esac
+          case "$seed" in ''|*[!0-9]*) echo "seed must be digits only" >&2; exit 1;; esac
+          echo "FUZZ_SECONDS=$seconds" >> "$GITHUB_ENV"
+          echo "FUZZ_SEED=$seed" >> "$GITHUB_ENV"
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "seed: $seed"
+
+      - name: Fuzz
+        id: fuzz
+        env:
+          CHAT_LOTTIE_FUZZ_SECONDS: ${{ env.FUZZ_SECONDS }}
+          CHAT_LOTTIE_FUZZ_SEED: ${{ env.FUZZ_SEED }}
+          CHAT_LOTTIE_FUZZ_DIR: ${{ github.workspace }}/fuzz-failures
+        run: cargo test --release --test fuzz_long -- --ignored --nocapture
+
+      - name: Upload the failing inputs
+        id: upload
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-failures
+          path: fuzz-failures
+          if-no-files-found: warn
+          retention-days: 30
+
+  report:
+    name: open or update the issue
+    needs: fuzz
+    if: ${{ always() && needs.fuzz.outputs.found == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FUZZ_SEED: ${{ needs.fuzz.outputs.seed }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ARTIFACT_URL: ${{ needs.fuzz.outputs.artifact-url }}
+        run: |
+          title="lottie_native fuzz failure"
+          body="The fuzz run of the lottie_native C ABI failed.
+
+          - seed: \`$FUZZ_SEED\`
+          - run: $RUN_URL
+          - failing inputs (artifact \`fuzz-failures\`): ${ARTIFACT_URL:-see the run page}
+
+          Reproduce: \`CHAT_LOTTIE_FUZZ_SEED=$FUZZ_SEED cargo test --release --test fuzz_long -- --ignored --nocapture\` in \`packages/lottie_native/native\`."
+          existing="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

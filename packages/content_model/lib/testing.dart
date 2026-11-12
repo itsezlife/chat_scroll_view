@@ -6,12 +6,16 @@
 library;
 
 export 'src/testing/collection_source_contract.dart';
+export 'src/testing/content_library_contract.dart';
 export 'src/testing/content_resolver_contract.dart';
 export 'src/testing/fake_collection_source.dart';
+export 'src/testing/fake_content_library.dart';
 export 'src/testing/fake_content_resolver.dart';
 export 'src/testing/fake_glyph_support.dart';
 export 'src/testing/fake_key_value_store.dart';
 export 'src/testing/fake_keyword_source.dart';
+export 'src/testing/fake_library_storage.dart';
+export 'src/testing/fake_pack_source.dart';
 export 'src/testing/fake_pages.dart';
 export 'src/testing/fake_preference_store.dart';
 export 'src/testing/fake_recents_store.dart';
@@ -20,6 +24,8 @@ export 'src/testing/fake_search_source.dart';
 export 'src/testing/glyph_support_contract.dart';
 export 'src/testing/key_value_store_contract.dart';
 export 'src/testing/keyword_source_contract.dart';
+export 'src/testing/library_storage_contract.dart';
+export 'src/testing/pack_source_contract.dart';
 export 'src/testing/preference_store_contract.dart';
 export 'src/testing/recents_store_contract.dart';
 export 'src/testing/rich_clipboard_contract.dart';

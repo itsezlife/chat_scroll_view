@@ -8,7 +8,7 @@ import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 ///
 /// Always synchronous, shared by every binding of a scope, never disposed. It
 /// has no sprite and does not animate.
-final class CirclePlaceholder implements AssetPaintable {
+final class CirclePlaceholder extends AssetPaintable {
   /// Creates the placeholder.
   const CirclePlaceholder();
 

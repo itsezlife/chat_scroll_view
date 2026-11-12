@@ -1,4 +1,5 @@
 import 'package:catalog_assets/src/atlas/bake_frame_source.dart';
+import 'package:catalog_assets/src/atlas/bake_governor.dart';
 import 'package:catalog_assets/src/atlas/cache/glyph_atlas_persistence.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas.dart';
 import 'package:catalog_assets/src/atlas/glyph_atlas_index.dart';
@@ -24,6 +25,9 @@ final class GlyphAtlasRequest {
     required this.clock,
     required this.panelVisible,
     required this.panelOpening,
+    this.scrolling,
+    this.glyphsShown,
+    this.pacing = const BakePacing(),
     this.store,
     this.persistence,
     this.residency,
@@ -49,6 +53,16 @@ final class GlyphAtlasRequest {
   /// Whether the panel is animating.
   final ValueListenable<bool> panelOpening;
 
+  /// Whether any other surface of the host moves; holds the bake and the
+  /// restore like a reported scroll.
+  final ValueListenable<bool>? scrolling;
+
+  /// Whether a surface that draws these glyphs is shown; holds the bake only.
+  final ValueListenable<bool>? glyphsShown;
+
+  /// How many glyphs one bake step may rasterise, and how the pace adapts.
+  final BakePacing pacing;
+
   /// Where pages live for this atlas's life, when it does not persist.
   final GlyphPageStore? store;
 
@@ -72,6 +86,9 @@ final class GlyphAtlasRequest {
     clock: clock,
     panelVisible: panelVisible,
     panelOpening: panelOpening,
+    scrolling: scrolling,
+    glyphsShown: glyphsShown,
+    governor: BakeGovernor(pacing: pacing),
     store: store,
     persistence: persistence,
     residency: residency,

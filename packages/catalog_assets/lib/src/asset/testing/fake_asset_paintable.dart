@@ -2,22 +2,32 @@ import 'dart:ui';
 
 import 'package:catalog_assets/src/asset/asset_paintable.dart';
 import 'package:catalog_assets/src/asset/asset_profile.dart';
+import 'package:catalog_assets/src/asset/asset_texture.dart';
 import 'package:catalog_assets/src/atlas/atlas_sprite.dart';
 
 /// An [AssetPaintable] that records what is done to it.
 ///
 /// With [frameDurations] it also plays the way a frame sequence does, so the
 /// binding and the surfaces above it can be driven by a clock alone: the first
-/// paint that animates starts a pass, the frame shown follows the time since
-/// then, and a paint that does not loop holds the rest frame once the pass is
-/// over. Without them it only records, and never holds.
-final class FakeAssetPaintable implements AssetPaintable {
+/// paint that animates starts a pass, the frame shown follows the time played
+/// since then, and a paint that does not loop holds the rest frame once the
+/// pass is over. Without them it only records, and never holds.
+/// [advancePlayback] steps the sequence like [paint] does.
+///
+/// Time played adds up the way the decoders' paintables add it: each paint
+/// adds how far the clock moved since the previous one, a step over
+/// [resumeGap] (or backwards) adds nothing, and after [playbackResumed] the
+/// next paint adds nothing ("freeze and continue"). A playback that stopped
+/// goes on from its frame, not from where the clock went meanwhile.
+final class FakeAssetPaintable extends AssetPaintable {
   /// Creates a paintable called [label] (shown in failures).
   FakeAssetPaintable({
     this.label = 'paintable',
     bool? isAnimated,
     this.sprite,
+    this.texture,
     this.frameDurations = const [],
+    this.firstFrame,
   }) : isAnimated = isAnimated ?? frameDurations.isNotEmpty;
 
   /// Names this paintable in test output.
@@ -26,8 +36,24 @@ final class FakeAssetPaintable implements AssetPaintable {
   @override
   final bool isAnimated;
 
+  /// The sprite it exposes; a test sets it to play a paintable whose frame
+  /// arrives after it was advanced.
   @override
-  final AtlasSprite? sprite;
+  AtlasSprite? sprite;
+
+  /// The texture it exposes; a test sets it to play a paintable that
+  /// composites as a texture layer.
+  @override
+  AssetTexture? texture;
+
+  /// What [texture] becomes at the first [advancePlayback], like an animation
+  /// whose first frame was posted once it was asked for. Null leaves
+  /// [texture] alone.
+  AssetTexture? textureOnAdvance;
+
+  /// The first-frame still it lends, or null.
+  @override
+  final FakeAssetPaintable? firstFrame;
 
   /// How long each frame of the sequence it plays lasts; empty for a
   /// paintable that only records.
@@ -36,16 +62,40 @@ final class FakeAssetPaintable implements AssetPaintable {
   /// Every [paint] call, in order.
   final List<({Rect rect, AssetPaintContext context})> paints = [];
 
+  /// What [sprite] becomes at the first [advancePlayback], like an animation
+  /// whose frame lands once it is asked for. Null leaves [sprite] alone.
+  AtlasSprite? spriteOnAdvance;
+
+  /// The context of every [advancePlayback] call, in order.
+  final List<AssetPaintContext> advances = [];
+
   /// How many times [dispose] was called.
   int disposals = 0;
+
+  /// Whether [keepFrame] last asked it to keep its frame.
+  bool keepsFrame = false;
 
   /// How many times [restart] rewound a holding playback.
   int restarts = 0;
 
+  /// How many times [rewind] sent the playback back to the first frame.
+  int rewinds = 0;
+
+  /// How many times [playbackResumed] said a stopped playback goes on.
+  int resumes = 0;
+
+  /// How many times [leftScreen] said no surface shows it any more.
+  int departures = 0;
+
   /// Whether the cache disposed it.
   bool get isDisposed => disposals > 0;
 
-  Duration? _startedAt;
+  /// The largest clock step between two paints that counts as time played,
+  /// as in the decoders' paintables.
+  static const Duration resumeGap = Duration(milliseconds: 500);
+
+  Duration _played = Duration.zero;
+  Duration? _lastTime;
   bool _holding = false;
   int _frame = 0;
 
@@ -61,25 +111,49 @@ final class FakeAssetPaintable implements AssetPaintable {
   @override
   bool restart() {
     if (!_holding) return false;
-    _holding = false;
-    _startedAt = null;
-    _frame = 0;
+    _beginPass();
     restarts++;
     return true;
+  }
+
+  @override
+  void rewind() {
+    _beginPass();
+    rewinds++;
+  }
+
+  @override
+  void advancePlayback(AssetPaintContext context) {
+    assert(!isDisposed, '$label advanced after dispose');
+    advances.add(context);
+    final arrived = spriteOnAdvance;
+    if (arrived != null) sprite = arrived;
+    final posted = textureOnAdvance;
+    if (posted != null) texture = posted;
+    _play(context);
   }
 
   @override
   void paint(Canvas canvas, Rect rect, AssetPaintContext context) {
     assert(!isDisposed, '$label painted after dispose');
     paints.add((rect: rect, context: context));
+    _play(context);
+  }
+
+  // What a paint and an advance both do: step the sequence it plays.
+  void _play(AssetPaintContext context) {
     if (frameDurations.isEmpty || !context.animate) return;
     if (_holding) {
       if (!context.loop) return;
-      _holding = false;
-      _startedAt = null;
+      _beginPass();
     }
-    final started = _startedAt ??= context.time;
-    final elapsed = context.time - started;
+    final last = _lastTime;
+    _lastTime = context.time;
+    if (last != null) {
+      final step = context.time - last;
+      if (!step.isNegative && step <= resumeGap) _played += step;
+    }
+    final elapsed = _played;
     final total = _passLength;
     if (elapsed >= total && !context.loop) {
       _holding = true;
@@ -97,6 +171,25 @@ final class FakeAssetPaintable implements AssetPaintable {
       _frame++;
     }
   }
+
+  void _beginPass() {
+    _holding = false;
+    _played = Duration.zero;
+    _lastTime = null;
+    _frame = 0;
+  }
+
+  @override
+  void keepFrame({required bool keep}) => keepsFrame = keep;
+
+  @override
+  void playbackResumed() {
+    resumes++;
+    _lastTime = null;
+  }
+
+  @override
+  void leftScreen() => departures++;
 
   @override
   void dispose() => disposals++;

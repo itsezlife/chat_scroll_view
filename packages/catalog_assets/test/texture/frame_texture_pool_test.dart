@@ -1,0 +1,494 @@
+import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/testing.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  late FakeFrameTextureHost host;
+  late ValueNotifier<bool> scrolling;
+  late FrameTexturePool pool;
+
+  setUp(() {
+    host = FakeFrameTextureHost();
+    scrolling = ValueNotifier<bool>(false);
+    pool = FrameTexturePool(
+      host: host,
+      scrolling: scrolling,
+      reuseDelay: Duration.zero,
+    );
+  });
+
+  tearDown(() {
+    pool.dispose();
+    scrolling.dispose();
+  });
+
+  group('lease', () {
+    test('finds nothing before a warm: the asset keeps its page slot', () {
+      expect(pool.lease(100, 100), isNull);
+      expect(host.created, isEmpty, reason: 'a lease never creates');
+    });
+
+    test(
+      'takes a warmed texture of the size class, square at its edge',
+      () async {
+        await pool.warm(128, 2);
+
+        final first = pool.lease(100, 90)!;
+        final second = pool.lease(128, 40)!;
+
+        expect(host.created, [
+          (width: 128, height: 128),
+          (width: 128, height: 128),
+        ]);
+        expect(first.texture.width, 128);
+        expect(first.texture.height, 128);
+        expect(
+          host.liveIds,
+          containsAll([first.texture.id, second.texture.id]),
+        );
+        expect(first.texture.id, isNot(second.texture.id));
+      },
+    );
+
+    test('finds nothing when every texture of the class is leased', () async {
+      await pool.warm(128, 1);
+      pool.lease(100, 100);
+
+      expect(pool.lease(100, 100), isNull);
+      expect(host.created, hasLength(1), reason: 'a lease never creates');
+    });
+
+    test('never takes a texture of another class', () async {
+      await pool.warm(256, 1);
+
+      expect(pool.lease(100, 100), isNull);
+      expect(pool.lease(200, 200), isNotNull);
+    });
+
+    test('a chat sticker at 3x leases the 384 class, not 512', () {
+      expect(pool.classOf(336, 336), 384);
+      expect(pool.classOf(300, 169), 384);
+      expect(pool.classOf(385, 100), 512);
+    });
+
+    test('finds nothing above the largest class', () async {
+      await pool.warm(512, 1);
+
+      expect(pool.lease(600, 100), isNull);
+    });
+  });
+
+  // Ticket 144: a cell that left the screen comes back to the texture that
+  // still shows its frame.
+  group('kept frames', () {
+    test('a texture released showing an asset goes back to it first, at '
+        'once, and says it shows the frame', () async {
+      var now = Duration.zero;
+      final timed = FrameTexturePool(host: host, now: () => now);
+      addTearDown(timed.dispose);
+      await timed.warm(128, 2);
+      final other = timed.lease(100, 100)!;
+      final own = timed.lease(100, 100)!;
+      other.release();
+      now += FrameTexturePool.defaultReuseDelay;
+      own.release(showing: 'a');
+
+      final back = timed.lease(100, 100, showing: 'a')!;
+
+      expect(back.texture.id, own.texture.id, reason: 'no reuse delay');
+      expect(back.showsFrame, isTrue);
+      expect(timed.keptFrames, 0);
+    });
+
+    test('another asset takes one that keeps no frame first, and one that '
+        'does only when none is left, which then shows nothing', () async {
+      await pool.warm(128, 2);
+      final kept = pool.lease(100, 100)!;
+      final plain = pool.lease(100, 100)!;
+      kept.release(showing: 'a');
+      plain.release();
+
+      final first = pool.lease(100, 100, showing: 'b')!;
+      final second = pool.lease(100, 100, showing: 'b')!;
+
+      expect(first.texture.id, plain.texture.id);
+      expect(first.showsFrame, isFalse);
+      expect(second.texture.id, kept.texture.id);
+      expect(second.showsFrame, isFalse);
+      second.release();
+      expect(
+        pool.lease(100, 100, showing: 'a')!.showsFrame,
+        isFalse,
+        reason: 'another asset was posted to it',
+      );
+    });
+
+    test('a warm does not count a texture that keeps a frame', () async {
+      await pool.warm(128, 1);
+      pool.lease(100, 100)!.release(showing: 'a');
+
+      await pool.warm(128, 1);
+
+      expect(host.created, hasLength(2));
+      expect(pool.lease(100, 100)!.showsFrame, isFalse);
+      expect(pool.lease(100, 100, showing: 'a')!.showsFrame, isTrue);
+    });
+
+    test('past the kept budget the frame kept longest is forgotten', () async {
+      final small = FrameTexturePool(
+        host: host,
+        reuseDelay: Duration.zero,
+        keptFrameBytes: 2 * 128 * 128 * 4,
+      );
+      addTearDown(small.dispose);
+      await small.warm(128, 3);
+      final leases = [for (var i = 0; i < 3; i++) small.lease(100, 100)!];
+      for (final (i, lease) in leases.indexed) {
+        lease.release(showing: i);
+      }
+
+      expect(small.keptFrames, 2);
+      expect(small.lease(100, 100, showing: 0)!.showsFrame, isFalse);
+      expect(small.lease(100, 100, showing: 2)!.showsFrame, isTrue);
+    });
+
+    test('forgetting an asset frees its texture for any lease', () async {
+      await pool.warm(128, 1);
+      pool.lease(100, 100)!.release(showing: 'a');
+
+      pool.forgetFrameOf('a');
+
+      expect(pool.keptFrames, 0);
+      expect(pool.lease(100, 100, showing: 'a')!.showsFrame, isFalse);
+    });
+
+    test('leaseKept takes back only the asset\'s own kept texture', () async {
+      await pool.warm(128, 2);
+      final kept = pool.lease(100, 100)!;
+      pool.lease(100, 100)!.release();
+      kept.release(showing: 'a');
+
+      expect(pool.leaseKept(100, 100, showing: 'b'), isNull);
+      final back = pool.leaseKept(100, 100, showing: 'a')!;
+      expect(back.texture.id, kept.texture.id);
+      expect(back.showsFrame, isTrue);
+      expect(pool.leaseKept(100, 100, showing: 'a'), isNull);
+      expect(pool.missedLeases, 0, reason: 'not a lease that ran short');
+    });
+
+    test('a warm of another class destroys kept textures for room', () async {
+      final tight = FrameTexturePool(
+        host: host,
+        reuseDelay: Duration.zero,
+        budgetBytes: 4 * 128 * 128 * 4,
+      );
+      addTearDown(tight.dispose);
+      await tight.warm(128, 4);
+      final leases = [for (var i = 0; i < 4; i++) tight.lease(100, 100)!];
+      for (final (i, lease) in leases.indexed) {
+        lease.release(showing: i);
+      }
+
+      await tight.warm(256, 1);
+
+      expect(tight.classCounts()[256]!.idle, 1);
+      expect(tight.keptFrames, 0);
+    });
+
+    test('memory pressure destroys kept textures too', () async {
+      await pool.warm(128, 1);
+      pool.lease(100, 100)!.release(showing: 'a');
+
+      pool.releaseIdle();
+
+      expect(pool.keptFrames, 0);
+      expect(pool.lease(100, 100, showing: 'a'), isNull);
+    });
+  });
+
+  group('release', () {
+    test('idles the texture for the next lease, without a new one', () async {
+      await pool.warm(128, 1);
+      final first = pool.lease(100, 100)!..release();
+
+      final second = pool.lease(100, 100)!;
+
+      expect(second.texture, first.texture);
+      expect(host.created, hasLength(1));
+      expect(host.destroyed, isEmpty);
+    });
+
+    test('keeps a released texture from a lease for the reuse delay: a '
+        'surface may still show it', () async {
+      var now = Duration.zero;
+      final timed = FrameTexturePool(host: host, now: () => now);
+      addTearDown(timed.dispose);
+      await timed.warm(128, 1);
+      timed.lease(100, 100)!.release();
+
+      now =
+          FrameTexturePool.defaultReuseDelay - const Duration(milliseconds: 1);
+      expect(timed.lease(100, 100), isNull);
+      expect(timed.idleTextures, 1);
+
+      now = FrameTexturePool.defaultReuseDelay;
+      expect(timed.lease(100, 100), isNotNull);
+    });
+
+    test('leases the texture released longest ago first', () async {
+      var now = Duration.zero;
+      final timed = FrameTexturePool(host: host, now: () => now);
+      addTearDown(timed.dispose);
+      await timed.warm(128, 2);
+      final a = timed.lease(100, 100)!;
+      final b = timed.lease(100, 100)!;
+      a.release();
+      now += const Duration(milliseconds: 10);
+      b.release();
+      now += FrameTexturePool.defaultReuseDelay;
+
+      expect(timed.lease(100, 100)!.texture.id, a.texture.id);
+    });
+
+    test('a warmed texture is leased at once', () async {
+      final timed = FrameTexturePool(host: host, now: () => Duration.zero);
+      addTearDown(timed.dispose);
+      await timed.warm(128, 1);
+
+      expect(timed.lease(100, 100), isNotNull);
+    });
+
+    test('is idempotent', () async {
+      await pool.warm(128, 1);
+      final first = pool.lease(100, 100)!
+        ..release()
+        ..release();
+      pool.lease(100, 100);
+
+      expect(first.isReleased, isTrue);
+      expect(pool.lease(100, 100), isNull, reason: 'one texture, one lease');
+    });
+
+    test('destroys a texture that would idle past the idle limit', () async {
+      pool.dispose();
+      pool = FrameTexturePool(host: host, scrolling: scrolling, idleLimit: 1);
+      await pool.warm(128, 1);
+      await pool.warm(256, 1);
+      final small = pool.lease(100, 100)!;
+      final large = pool.lease(200, 200)!;
+
+      small.release();
+      large.release();
+
+      expect(host.destroyed, [small.texture.id], reason: 'the oldest goes');
+      expect(pool.idleTextures, 1);
+    });
+
+    test('discard destroys the texture instead of idling it', () async {
+      await pool.warm(128, 1);
+      final lease = pool.lease(100, 100)!..discard();
+
+      expect(host.destroyed, [lease.texture.id]);
+      expect(lease.isReleased, isTrue);
+      expect(pool.lease(100, 100), isNull);
+    });
+  });
+
+  group('memory pressure', () {
+    test(
+      'releaseIdle destroys every idle texture and spares leased ones',
+      () async {
+        await pool.warm(128, 3);
+        final held = pool.lease(100, 100)!;
+
+        pool.releaseIdle();
+
+        expect(host.destroyed, hasLength(2));
+        expect(host.liveIds, [held.texture.id]);
+        expect(pool.idleTextures, 0);
+        held.release();
+        expect(host.destroyed, hasLength(2), reason: 'it idles afterwards');
+      },
+    );
+  });
+
+  group('dispose', () {
+    test(
+      'destroys every texture, leased ones when they are released',
+      () async {
+        await pool.warm(128, 2);
+        final held = pool.lease(100, 100)!;
+
+        pool.dispose();
+        expect(host.liveIds, [held.texture.id]);
+        held.release();
+
+        expect(host.liveIds, isEmpty);
+        expect(pool.lease(100, 100), isNull);
+      },
+    );
+  });
+
+  group('warm', () {
+    test('tops the class up to the count of idle textures', () async {
+      await pool.warm(128, 2);
+      await pool.warm(128, 2);
+      final held = pool.lease(100, 100)!;
+      await pool.warm(128, 2);
+
+      expect(host.created, hasLength(3));
+      held.release();
+    });
+
+    test('two warms at once create the count once', () async {
+      await Future.wait([pool.warm(128, 2), pool.warm(128, 2)]);
+
+      expect(host.created, hasLength(2));
+    });
+
+    test(
+      'creates nothing while a surface scrolls, and resumes after',
+      () async {
+        scrolling.value = true;
+        final warming = pool.warm(128, 2);
+        await pumpEventQueue();
+
+        expect(host.created, isEmpty);
+
+        scrolling.value = false;
+        await warming;
+        expect(host.created, hasLength(2));
+        expect(pool.lease(100, 100), isNotNull);
+      },
+    );
+
+    test('a scroll that starts mid-warm holds the creations left', () async {
+      host.holdCreations = true;
+      final warming = pool.warm(128, 2);
+      await pumpEventQueue();
+      expect(host.created, hasLength(1));
+
+      scrolling.value = true;
+      host.completeCreations();
+      await pumpEventQueue();
+      expect(host.created, hasLength(1), reason: 'none created mid-scroll');
+
+      scrolling.value = false;
+      await pumpEventQueue();
+      host.completeCreations();
+      await warming;
+      expect(host.created, hasLength(2));
+    });
+
+    test('a refused creation leaves the class short, never failed', () async {
+      host.refuseCreations = true;
+      await pool.warm(128, 2);
+
+      expect(pool.lease(100, 100), isNull);
+      expect(pool.bytes, 0);
+    });
+
+    test('a warm the pool outlives destroys what it created', () async {
+      host.holdCreations = true;
+      final warming = pool.warm(128, 1);
+      await pumpEventQueue();
+      pool.dispose();
+      host.completeCreations();
+      await warming;
+
+      expect(host.liveIds, isEmpty);
+    });
+  });
+
+  group('budget', () {
+    // A 128 px texture of two buffers: 2 * 128 * 128 * 4 bytes.
+    const twoBuffers128 = 2 * 128 * 128 * 4;
+
+    setUp(() {
+      pool.dispose();
+      host = FakeFrameTextureHost(buffersPerTexture: 2);
+      pool = FrameTexturePool(
+        host: host,
+        scrolling: scrolling,
+        budgetBytes: twoBuffers128 + twoBuffers128 ~/ 2,
+      );
+    });
+
+    test('counts every buffer of a texture, in bytes', () async {
+      await pool.warm(128, 1);
+
+      expect(pool.bytes, twoBuffers128);
+    });
+
+    test('creates no texture past it', () async {
+      await pool.warm(128, 3);
+
+      expect(host.created, hasLength(1));
+      expect(pool.bytes, lessThanOrEqualTo(pool.budgetBytes));
+    });
+
+    test('makes room by destroying idle textures of another class, oldest '
+        'first', () async {
+      // Six 64 px textures fill it; a 128 px one costs four of them.
+      await pool.warm(64, 6);
+      final idle64 = List.of(host.liveIds);
+
+      await pool.warm(128, 1);
+
+      expect(host.created.last, (width: 128, height: 128));
+      expect(host.destroyed, idle64.take(4));
+      expect(pool.bytes, lessThanOrEqualTo(pool.budgetBytes));
+      expect(pool.lease(100, 100), isNotNull);
+    });
+
+    test('never destroys a leased texture to make room', () async {
+      await pool.warm(64, 6);
+      for (var i = 0; i < 6; i++) {
+        pool.lease(64, 64);
+      }
+
+      await pool.warm(128, 1);
+
+      expect(host.destroyed, isEmpty);
+      expect(host.created, hasLength(6));
+    });
+
+    test('leased textures count; destroyed ones go back to it', () async {
+      await pool.warm(128, 1);
+      final lease = pool.lease(100, 100)!;
+      expect(pool.bytes, twoBuffers128);
+
+      lease.discard();
+      expect(pool.bytes, 0);
+      await pool.warm(64, 1);
+      expect(pool.bytes, 2 * 64 * 64 * 4);
+      pool.releaseIdle();
+      expect(pool.bytes, 0);
+    });
+
+    test('counts the warms it left short, and the leases that found none, '
+        'and reads its classes', () async {
+      await pool.warm(64, 6);
+      for (var i = 0; i < 6; i++) {
+        pool.lease(64, 64);
+      }
+      expect(pool.warmsShortOfRoom, 0);
+
+      await pool.warm(128, 1);
+      expect(pool.lease(100, 100), isNull);
+
+      expect(pool.warmsShortOfRoom, 1);
+      expect(pool.missedLeases, 1);
+      expect(pool.classCounts()[64], (leased: 6, idle: 0, kept: 0));
+      expect(pool.classCounts()[128], (leased: 0, idle: 0, kept: 0));
+    });
+
+    test('a budget below the smallest texture is an error', () {
+      expect(
+        () => FrameTexturePool(host: host, budgetBytes: 2 * 64 * 64 * 4 - 1),
+        throwsArgumentError,
+      );
+    });
+  });
+}

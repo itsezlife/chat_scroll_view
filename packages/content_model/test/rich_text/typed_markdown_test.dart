@@ -1,6 +1,5 @@
 /// `TypedMarkdown`: the markers a user types (`` `code` ``, `**bold**`, ...)
-/// become entities at send, with Telegram Android's rules
-/// (`MediaDataController.getEntities`).
+/// become entities at send, with the chat-client rules.
 ///
 /// **Seam:** `TypedMarkdown.apply` over [RichText].
 library;
@@ -91,8 +90,8 @@ void main() {
     });
   });
 
-  group('as the reference client reads prose', () {
-    // Pinned on purpose: Android has no word boundary, so these convert.
+  group('prose as the chat client reads it', () {
+    // Pinned on purpose: there is no word boundary, so these convert.
     test('__init__ is italic and a || b || c holds a spoiler', () {
       expect(
         _apply('call __init__ here'),
@@ -196,8 +195,8 @@ void main() {
   });
 
   group('edges', () {
-    // Pinned as the reference client reads them: no word boundary.
-    test('identifiers and arithmetic convert as Android does', () {
+    // Pinned: no word boundary.
+    test('identifiers and arithmetic convert with no word boundary', () {
       expect(
         _apply('foo__bar__baz'),
         RichText('foobarbaz', const [Entity(3, 3, EntityKind.italic)]),

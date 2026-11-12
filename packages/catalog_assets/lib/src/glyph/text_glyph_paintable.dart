@@ -11,7 +11,7 @@ import 'package:catalog_assets/src/glyph/text_glyph_producer.dart';
 /// [TextGlyphProducer] on a platform that bakes nothing, and what a glyph
 /// binding draws while a source has no sprite for a glyph it does not make a
 /// surface wait for. Internal to the package.
-final class TextGlyphPaintable implements AssetPaintable {
+final class TextGlyphPaintable extends AssetPaintable {
   /// A paintable for [glyph], its font [fontScale] of the box's shorter side.
   TextGlyphPaintable(
     this._glyph, {

@@ -28,9 +28,8 @@ final class AssetPipelineLimits {
          'every limit is at least one',
        );
 
-  /// Fetches running at once. The reference client runs 5 small and 2 large
-  /// file loads; one lane of 6 serves both, because the size of a download
-  /// is not known before it starts.
+  /// Fetches running at once: one lane of 6 serves small and large file loads
+  /// alike, because the size of a download is not known before it starts.
   final int maxConcurrentFetches;
 
   /// Decodes running at once. Decoders may work off the UI isolate, but a
@@ -177,6 +176,7 @@ final class AssetPipeline implements AssetProducer {
           part: work.part,
           priority: work.priority,
           cancellation: token,
+          onProgress: work.received,
         ),
       );
     } on Object catch (error, stackTrace) {
@@ -227,7 +227,17 @@ final class _Job implements AssetTask {
   bool _ended = false;
   bool _resolving = false;
 
+  // Whether the attempt announced the download at its start: the content is
+  // known to be missing.
+  bool announcedDownload = false;
+
   void start() {
+    // Before the resolve and the thumbnail, which may each take a round trip:
+    // a surface shows the download of missing content from its first frame.
+    if (pipeline._fetcher.needsDownload(request.key)) {
+      announcedDownload = true;
+      progress.download(0);
+    }
     final known = pipeline._directory.lookup(request.key);
     if (known != null) {
       _begin(known);
@@ -358,8 +368,30 @@ final class _Work implements LaneWork {
       ? AssetPriority.placeholder
       : job.demand.priority;
 
+  // Whether the fetch of this part reported a transfer.
+  bool _transferred = false;
+
+  /// The fetcher's report of the bytes of this part's transfer. An unknown
+  /// total is a download at its start: the arc turns without growing.
+  void received(int received, int? total) {
+    if (phase != _Phase.fetching) return;
+    _transferred = true;
+    reportDownload(total == null || total <= 0 ? 0 : received / total);
+  }
+
+  /// Relays the download of the content to the entry; a thumbnail is a stand
+  /// in, not the download a surface shows.
+  void reportDownload(double fraction) {
+    if (_cancelled || part != FetchPart.content) return;
+    job.progress.download(fraction);
+  }
+
   void fetched(FetchedContent fetchedContent) {
     if (_cancelled) return;
+    // All of it arrived, which a fetcher's last report need not say (nor a
+    // fetch that found the announced content after all): a surface that drew
+    // the download shows it complete until the decode.
+    if (_transferred || job.announcedDownload) reportDownload(1);
     content = fetchedContent;
     phase = _Phase.queuedDecode;
     _pipeline._decodeLane.enqueue(this);
@@ -439,6 +471,13 @@ final class _DecodeProgress implements AssetProgress {
     if (!isFinal) return;
     _end();
     if (_work.part == FetchPart.content) job.contentDone();
+  }
+
+  // A decoder that reads its content from the network (a stream it opens
+  // itself) reports the download as a fetcher would.
+  @override
+  void download(double fraction) {
+    if (_live) _work.reportDownload(fraction);
   }
 
   @override
