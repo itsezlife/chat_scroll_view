@@ -1,6 +1,6 @@
 /// The host's two facts for the emoji-only body besides the text: the
 /// large-emoji setting the user keeps, and the chat's permission and the
-/// message's media that gate it (research 05, section 2).
+/// message's media that gate it.
 library;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatEmojiPolicy;
@@ -91,7 +91,7 @@ void main() {
 
     setUp(() => storage = FakeKeyValueStore());
 
-    test('is the reference client\'s 3 until the user moves it', () async {
+    test('is 3 until the user moves it', () async {
       final setting = await LargeEmojiSetting.load(storage);
       addTearDown(setting.dispose);
 

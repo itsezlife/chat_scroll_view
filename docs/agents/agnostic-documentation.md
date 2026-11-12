@@ -52,6 +52,16 @@ explicitly asks for them:
 /// with the messenger service (last mount wins).
 ```
 
+## No reference-client citations
+
+Code, comments and dartdoc, tests, READMEs, CHANGELOGs and package docs never
+name or cite another product's client or source: no client names, no "the
+reference does", no file names or line numbers from the read-only reference
+checkouts, no pasted reference code. A value taken from a reference goes in as
+the value, described by what it does. Where it came from (file:line, the trace
+of a constant, the behaviour compared) belongs only in the ADR that decided it
+or in `.scratch/` research notes.
+
 ## When explicit coupling is OK
 
 - The type **is** the coupling (a scaffold widget may document which hosts it

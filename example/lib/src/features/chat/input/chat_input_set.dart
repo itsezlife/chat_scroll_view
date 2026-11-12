@@ -6,9 +6,15 @@ import 'dart:ui' show FlutterView;
 import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
-    show ChatPreImeBackClaim;
+    show
+        ChatDataSource,
+        ChatMutation,
+        ChatPreImeBackClaim,
+        ChatSelectionController,
+        RemoveBatchMutation;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
@@ -17,10 +23,14 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_draft_sync
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_format_offer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
-import 'package:chat_scroll_view_example/src/features/chat/input/stub_panel_pages.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/media_panel_pages.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/panel_playback_hold.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/panel_texture_warmer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_viewport_insets.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/link_url_dialog.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -81,8 +91,12 @@ final class ChatEditTarget {
 /// What the set decides, in one place each:
 ///
 /// - **Insert and record.** A picked emoji, unicode or animated, becomes an
-///   inline content reference in the composer and one `RecentsStore.record`; backspace edits
-///   the composer; clearing recents asks [confirmClearRecents] first.
+///   inline content reference in the composer and one `RecentsStore.record`;
+///   a picked sticker is sent and put first in the content library's recent
+///   stickers, a picked GIF sent and saved (ADR 044); backspace edits the
+///   composer; clearing recents asks [confirmClearRecents] first. What a pack
+///   sheet picks comes back through [pickContent], and what its preview
+///   copies through [copyContent].
 /// - **Pasted media.** An image or file pasted into the composer, or an
 ///   image a keyboard inserts, goes to `onPastedMedia` to send, and no text
 ///   goes in; when it is not sent, the text that came with it does.
@@ -96,7 +110,8 @@ final class ChatEditTarget {
 /// - **Send and edit.** A send downgrades the mentions the host did not
 ///   resolve, detects URLs, names and tags, and encodes ([submit]); an edit
 ///   loads with the detected entities stripped ([beginEdit]); a text over
-///   [messageLengthLimit] is refused, never cut.
+///   [messageLengthLimit] is refused, never cut. An edit whose message is
+///   deleted ends, its text with it ([bindMessages]).
 /// - **Drafts.** [bindDrafts] restores the chat's unsent text, edit mode
 ///   included, and keeps it saved while the user types.
 /// - **Soft keyboard.** While a keyboard-replacement panel is on screen the
@@ -107,6 +122,9 @@ final class ChatEditTarget {
 /// - **Paced mount.** A panel that grows into a free slot mounts its page over
 ///   three frames (grid, search field, strip); one that replaces the keyboard
 ///   mounts at once.
+/// - **Playback.** Nothing plays while the panel moves in or out, and the
+///   chat's animations hold while a popup panel is over it
+///   ([chatPlaybackHeld]); see `PanelPlaybackHold`.
 /// - **Back.** While the panel is on screen the set holds a pre-IME back claim
 ///   so back closes search, then the panel.
 final class ChatInputSet {
@@ -115,6 +133,7 @@ final class ChatInputSet {
   /// [view] is the screen's view (the atlas bakes on its frames), [keyboard]
   /// the soft keyboard's readings and commands. [send] and [edit] take the
   /// markdown body of a message. [policy] defaults to the one of the platform.
+  /// [selection] is the chat's: back clears it before it closes the panel.
   factory ChatInputSet({
     required AppServices services,
     required FlutterView view,
@@ -123,7 +142,11 @@ final class ChatInputSet {
     required ClearRecentsConfirm confirmClearRecents,
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
     PanelPresentationPolicy? policy,
+    ChatSelectionController? selection,
     Future<bool> Function(List<PastedMedia> media)? onPastedMedia,
+    Future<void> Function(PackId id)? onPackRequested,
+    ValueChanged<LibraryPackEdit>? onPackEditRequested,
+    ValueChanged<AppliedEdit>? onLibraryEdited,
     int? messageLengthLimit = DemoConfig.messageLengthMax,
   }) {
     // What has been made so far, to free in reverse if a later step throws
@@ -200,13 +223,30 @@ final class ChatInputSet {
                   !keyboardStrategy.keyboardIsUp,
             ),
             // Type tabs in the order of the panel: emoji, GIFs, stickers.
-            StubPanelPages.gif(),
-            StubPanelPages.stickers(),
+            MediaPanelPages.gif(services: services),
+            MediaPanelPages.stickers(services: services),
           ],
           preferences: services.preferences,
         ),
         (shell) => shell.dispose(),
       );
+      // The texture pool creates nothing while the panel's page moves, and
+      // is warmed for the page that plays when it opens (ADR 043, "Pool").
+      final stopScrollReport = owned(
+        services.scrolling.followPanel(shell),
+        (stop) => stop(),
+      );
+      final textureWarmer = switch (services.assets.textures) {
+        final pool? => owned(
+          PanelTextureWarmer(
+            shell: shell,
+            pool: pool,
+            devicePixelRatio: view.devicePixelRatio,
+          ),
+          (warmer) => warmer.dispose(),
+        ),
+        null => null,
+      };
       final presentation = owned(
         PanelPresentationController(
           shell: shell,
@@ -217,6 +257,19 @@ final class ChatInputSet {
           dockWidths: services.dockWidths,
         ),
         (presentation) => presentation.dispose(),
+      );
+      // The lab marks the panel's show and hide and reads the texture pool
+      // around them.
+      if (DemoConfig.scrollLab) {
+        owned(LabMediaTrace.watchPanel(presentation.state), (stop) => stop());
+      }
+      final playbackHold = owned(
+        PanelPlaybackHold(
+          presentation: presentation.state,
+          clock: services.assets.clock,
+          keyboardIsUp: () => keyboardStrategy.keyboardIsUp,
+        ),
+        (hold) => hold.dispose(),
       );
       final insets = owned(
         ChatViewportInsets(
@@ -232,6 +285,10 @@ final class ChatInputSet {
         send: send,
         edit: edit,
         confirmClearRecents: confirmClearRecents,
+        onPackRequested: onPackRequested,
+        onPackEditRequested: onPackEditRequested,
+        onLibraryEdited: onLibraryEdited,
+        selection: selection,
         messageLengthLimit: messageLengthLimit,
         ime: ime,
         window: window,
@@ -241,7 +298,10 @@ final class ChatInputSet {
         popup: popup,
         docked: docked,
         shell: shell,
+        stopScrollReport: stopScrollReport,
+        textureWarmer: textureWarmer,
         presentation: presentation,
+        playbackHold: playbackHold,
         insets: insets,
       );
     } on Object {
@@ -259,6 +319,10 @@ final class ChatInputSet {
     required ChatBodySender send,
     required ChatBodyEditor edit,
     required ClearRecentsConfirm confirmClearRecents,
+    required Future<void> Function(PackId id)? onPackRequested,
+    required ValueChanged<LibraryPackEdit>? onPackEditRequested,
+    required ValueChanged<AppliedEdit>? onLibraryEdited,
+    required ChatSelectionController? selection,
     required this.messageLengthLimit,
     required this.ime,
     required listen.ValueNotifier<PanelWindow> window,
@@ -268,13 +332,23 @@ final class ChatInputSet {
     required this.popup,
     required this.docked,
     required this.shell,
+    required VoidCallback stopScrollReport,
+    required PanelTextureWarmer? textureWarmer,
     required this.presentation,
+    required PanelPlaybackHold playbackHold,
     required this.insets,
   }) : _frames = frames,
+       _playbackHold = playbackHold,
+       _stopScrollReport = stopScrollReport,
+       _textureWarmer = textureWarmer,
        _keyboardPort = keyboardPort,
        _send = send,
        _edit = edit,
        _confirmClearRecents = confirmClearRecents,
+       _onPackRequested = onPackRequested,
+       _onPackEditRequested = onPackEditRequested,
+       _onLibraryEdited = onLibraryEdited,
+       _selection = selection,
        _window = window,
        _text = text,
        linkPreview = ChatLinkPreview(text: text) {
@@ -314,20 +388,20 @@ final class ChatInputSet {
     }
   }
 
-  // The reference desktop client's popup: 345 wide, nine columns of 37.
+  // The desktop popup: 345 wide, nine columns of 37, a solid panel with
+  // corners of 8 over a shadow of 5 blur, 1 down, black at 0.25.
   static const AnchoredPopupStyle _popupStyle = AnchoredPopupStyle(
     width: 345,
-    cornerRadius: 14,
-    // The room the reference client leaves between its popup and the composer
-    // corner it floats over.
+    cornerRadius: 8,
+    // The room between the popup and the composer corner it floats over.
     edgeGap: 10,
+    surface: AnchoredPopupSurface.solid,
     shadows: <BoxShadow>[
-      BoxShadow(color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 8)),
+      BoxShadow(color: Color(0x40000000), blurRadius: 5, offset: Offset(0, 1)),
     ],
   );
 
-  // No width of its own: a dock nobody has dragged is the policy's narrowest,
-  // as the reference client's is.
+  // No width of its own: a dock nobody has dragged is the policy's narrowest.
   static const DockedStyle _dockedStyle = DockedStyle(
     separator: Color(0x24FFFFFF),
   );
@@ -368,11 +442,40 @@ final class ChatInputSet {
   /// What the viewport reserves for the composer and the panel.
   final ChatViewportInsets insets;
 
+  final PanelPlaybackHold _playbackHold;
+
+  /// Whether the chat's playback is held because a popup panel or a pack
+  /// sheet is over it; the chat's embeds follow it (`ChatBodyHost.held`).
+  listen.ValueListenable<bool> get chatPlaybackHeld => _playbackHold.chatHeld;
+
+  /// Holds the chat's playback until the claim is released: the host claims
+  /// it for a pack sheet over the chat, which plays its own stickers on the
+  /// same clock (see `PanelPlaybackHold.holdChat`).
+  ChatPlaybackClaim holdChatPlayback() => _playbackHold.holdChat();
+
   final SchedulerBakeFrameSource _frames;
+
+  /// Stops reporting the panel's motion to the app's scrolling surfaces.
+  final VoidCallback _stopScrollReport;
+
+  /// Warms the texture pool for the page that plays; null without a pool.
+  final PanelTextureWarmer? _textureWarmer;
   final SoftKeyboardPort _keyboardPort;
   final ChatBodySender _send;
   final ChatBodyEditor _edit;
   final ClearRecentsConfirm _confirmClearRecents;
+
+  // Where "View pack" goes: the host's pack sheet, once there is one. The
+  // future completes when the sheet has closed.
+  final Future<void> Function(PackId id)? _onPackRequested;
+  final ValueChanged<LibraryPackEdit>? _onPackEditRequested;
+
+  // Where an edit the user asked for (a favourite, a saved GIF, a recent
+  // forgotten) is reported once the library took it: the host's bulletin.
+  final ValueChanged<AppliedEdit>? _onLibraryEdited;
+
+  // The chat's selection, which back clears before the panel.
+  final ChatSelectionController? _selection;
   final listen.ValueNotifier<PanelWindow> _window;
   final ComposerTextController _text;
 
@@ -437,9 +540,17 @@ final class ChatInputSet {
   bool get isPanelDocked =>
       isPanelOpening && presentation.state.value.kind is Docked;
 
+  /// Whether the panel takes the soft keyboard's place in the window the set
+  /// was last told of ([updateEnvironment]): always on a phone, never on a
+  /// desktop, and in a browser only in a handheld window, so a resize across
+  /// that line moves it.
+  bool get panelInKeyboardPlace =>
+      presentation.policy.defaultKind(window: presentation.window.value)
+          is KeyboardReplacement;
+
   /// Whether the panel is a popup or a dock beside the composer, as opposed
   /// to a panel that replaces the soft keyboard.
-  bool get hasPopup => presentation.policy is! PanelPresentationPolicy$Mobile;
+  bool get hasPopup => !panelInKeyboardPlace;
 
   /// Where the composer puts the panel's toggle: at the start edge where the
   /// panel replaces the keyboard, and at the end edge where a popup anchors
@@ -470,12 +581,11 @@ final class ChatInputSet {
   ChromeIconId get pageIcon => shell.selectedPage.tab.icon;
 
   /// The part of the bottom safe area the keyboard presentation's occupancy
-  /// has not covered yet: the composer's bottom pad. A host of a platform
-  /// with no keyboard presentation leaves the composer its default pad.
+  /// has not covered yet: the composer's bottom pad. Where the panel does not
+  /// take the keyboard's place ([panelInKeyboardPlace]) the composer keeps
+  /// its default pad.
   listen.ValueListenable<double>? get composerSafeInset =>
-      presentation.policy is PanelPresentationPolicy$Mobile
-      ? keyboardStrategy.composerSafeInset
-      : null;
+      panelInKeyboardPlace ? keyboardStrategy.composerSafeInset : null;
 
   // --- Environment ----------------------------------------------------------
 
@@ -526,8 +636,12 @@ final class ChatInputSet {
   /// touch platform the soft keyboard rises (see [_raiseKeyboardForEdit]).
   /// Only a user's own edit does this: a draft that restores into edit mode
   /// ([bindDrafts]) leaves focus and the keyboard as they are.
+  ///
+  /// Does nothing for a body that is a sticker or a GIF
+  /// ([MessageEditability]): this is the one door every way into edit mode
+  /// goes through, so the rule holds for a door added later too.
   void beginEdit(int id, String body) {
-    if (_disposed) return;
+    if (_disposed || !MessageEditability.canEditBody(body)) return;
     final text = ChatBodyMarkdown.decodeForEdit(body);
     composer.restore(
       text,
@@ -541,8 +655,8 @@ final class ChatInputSet {
   // Focus alone is not the keyboard. A composer that took focus when the chat
   // opened, or while a panel held the keyboard's place, attached with no
   // keyboard type and stays that way until the keyboard is asked for; so an
-  // edit asks, as the references do (Android `openKeyboard`, iOS input mode
-  // text, Desktop `setInnerFocus`).
+  // edit asks: the keyboard opens with the field's text input mode, and the
+  // desktop field takes its inner focus.
   //
   // The ask waits for the frame that follows. An edit begun from the selection
   // bar clears the selection in the same breath, and the composer is not in
@@ -599,6 +713,26 @@ final class ChatInputSet {
       editingId: () => _editing.value?.id,
       saved: stored,
     );
+  }
+
+  /// Follows the messages of [source]: when the message being edited is
+  /// deleted there (by the user, or by a change that arrives), the edit ends
+  /// and the composer is emptied, as [cancelEdit] does. A source bound
+  /// earlier is let go; [dispose] lets go of the last.
+  void bindMessages(ChatDataSource source) {
+    if (_disposed || identical(source, _messages)) return;
+    _messages?.removeMutationListener(_onMessages);
+    _messages = source..addMutationListener(_onMessages);
+  }
+
+  ChatDataSource? _messages;
+
+  void _onMessages(ChatMutation mutation) {
+    if (mutation case RemoveBatchMutation(
+      :final ids,
+    ) when ids.contains(_editing.value?.id)) {
+      cancelEdit();
+    }
   }
 
   /// Writes the draft now, for the moments the user may not return from (the
@@ -699,8 +833,7 @@ final class ChatInputSet {
   void dismissFormatOffer() => _setOffer(null);
 
   /// The dialog the composer asks for a link's URL with (`ComposerSpec.linkPrompt`):
-  /// the Create / Edit Link shape of the reference client, with the clipboard's
-  /// text offered.
+  /// the Create / Edit Link shape, with the clipboard's text offered.
   ComposerLinkPrompt get linkPrompt => linkPromptOver(services.clipboard);
 
   /// [linkPrompt] over [clipboard], for a field that has no input set.
@@ -801,6 +934,15 @@ final class ChatInputSet {
     });
   }
 
+  // Whether the panel is giving its slot to the keyboard: search shrinking
+  // back first, or the emptied panel waiting for the keyboard to rise.
+  bool get _handingOff =>
+      _leaving.value ||
+      switch (presentation.state.value) {
+        PanelVisibility$Hiding(:final waitForIme) => waitForIme,
+        _ => false,
+      };
+
   bool get _panelReplacesKeyboard =>
       isPanelOpening && presentation.state.value.kind is KeyboardReplacement;
 
@@ -885,11 +1027,42 @@ final class ChatInputSet {
     );
   }
 
-  /// Back: with search focused over a raised keyboard, the keyboard goes
-  /// first; then search closes; then the panel. True when it consumed the
-  /// press.
+  /// Back: a content preview over the panel goes first; then the chat's
+  /// selection (a text selection, then the selected messages), as the panel
+  /// is the chrome around the chat and the selection is what the user is
+  /// doing in it; a hand-off to the keyboard under way ends with both going
+  /// down, at once; with search focused over a raised keyboard, the keyboard
+  /// goes next; then search closes; then the panel. True when it consumed
+  /// the press.
+  ///
+  /// The panel's back is taken ahead of the soft keyboard while it is up, so
+  /// this is the one place that orders the chat's selection against it.
   Future<bool> handleBack() async {
     if (_disposed) return false;
+    // A content preview over the panel goes first, menu and all.
+    if (services.previews.dismiss()) return true;
+    if (_selection case final selection?) {
+      if (selection.isTextSelectionActive) {
+        selection.clearTextSelection();
+        return true;
+      }
+      if (selection.isSelectionMode) {
+        selection.clear();
+        return true;
+      }
+    }
+    // Back while the panel hands its slot to the keyboard acts at once, not
+    // once the keyboard has risen: the hand-off ends, the keyboard on its
+    // way up goes down from where it is, and the panel closes from where it
+    // is (the presentation stops waiting for the keyboard).
+    if (_handingOff) {
+      _handOffRun++;
+      _leaving.value = false;
+      unawaited(_keyboardPort.hide());
+      shell.closeSearch();
+      presentation.handleBack();
+      return true;
+    }
     if (shell.search.value.isOpen && ime.samples.value.height > 1) {
       await _keyboardPort.hide();
       return true;
@@ -900,8 +1073,8 @@ final class ChatInputSet {
   // --- Wiring ---------------------------------------------------------------
 
   // Search that lets go of its focus while it stays open (the catalogue was
-  // dragged) lowers the keyboard and leaves the field focused, as the
-  // reference mobile client does; a press on the field asks for it again.
+  // dragged) lowers the keyboard and leaves the field focused, as on
+  // mobile; a press on the field asks for it again.
   void _onSearchState() {
     final search = shell.search.value;
     final released = _searchWantedFocus && !search.wantsFocus;
@@ -921,19 +1094,7 @@ final class ChatInputSet {
   void _onPanelEvent(PanelEvent event) {
     switch (event) {
       case ContentPicked(:final key, :final recentsKind, :final source):
-        unawaited(HapticFeedback.selectionClick());
-        // By the content: this host inserts what it can read as text, a
-        // unicode emoji or an animated emoji of its pack.
-        if (_textOf(key) case final alternativeText?) {
-          composer.insertContent(
-            InlineContentRef(key: key, alternativeText: alternativeText),
-          );
-        }
-        // In the list the page chose: the emoji page files unicode and
-        // animated emoji in one.
-        unawaited(
-          services.recents.record(key, kind: recentsKind, source: source),
-        );
+        _pick(key, recentsKind: recentsKind, source: source);
       case BackspaceRequested():
         unawaited(HapticFeedback.selectionClick());
         composer.backspace();
@@ -941,23 +1102,129 @@ final class ChatInputSet {
         unawaited(HapticFeedback.mediumImpact());
         unawaited(_clearRecents(kind));
       case ContentCopyRequested(:final key):
-        // As itself, over the text other apps paste: pasted back into the
-        // composer it is the same custom emoji.
-        if (_textOf(key) case final text?) {
-          unawaited(services.clipboard.write(ChatCopy.content(key, text)));
-        }
+        copyContent(key);
       case RecentRemoveRequested(:final key, :final kind):
-        // Through the view the panel lists: the emoji leaves the list at once,
-        // and nothing else in it moves.
-        unawaited(services.recentsShown.remove(key, kind: kind));
+        _forget(key, kind: kind);
+      // A pack's edit is the host's, with its bulletin (a removal held
+      // behind Undo). A favourite, a saved GIF, a recent sticker forgotten:
+      // the library takes the edit at once, with no undo window (no
+      // bulletin is offered for these), and the open panel shows it.
+      case LibraryEditRequested(edit: final LibraryPackEdit edit)
+          when _onPackEditRequested != null:
+        _onPackEditRequested(edit);
+      case LibraryEditRequested(:final edit):
+        _edited(services.libraryShown.apply(edit));
+      case PackRequested(:final id):
+        _openPack(id);
       case SearchClosed():
         // What was picked while searching is listed once search is over.
-        services.recentsShown.commit();
+        services.commitShownLists();
         // The search field's keyboard goes with its focus; the composer takes
         // it back, still with no keyboard of its own while the panel is up.
         if (isPanelVisible) composer.requestFocus();
       case ActionInvoked() || PageChanged() || SearchOpened():
         break;
+    }
+  }
+
+  /// Takes [key], content of [kind] picked outside the panel (a pack sheet),
+  /// as a pick from the panel: an emoji goes into the composer, a sticker
+  /// is sent, and either is recorded among its recents.
+  void pickContent(ContentKey key, {required SemanticKind kind}) {
+    if (_disposed) return;
+    _pick(key, recentsKind: kind, source: PickSource.collection);
+  }
+
+  /// Puts [key], an emoji copied from the panel or a pack sheet's preview, on
+  /// the clipboard as itself, over the text other apps paste: pasted back
+  /// into the composer it is the same custom emoji.
+  void copyContent(ContentKey key) {
+    if (_disposed) return;
+    if (_textOf(key) case final text?) {
+      unawaited(services.clipboard.write(ChatCopy.content(key, text)));
+    }
+  }
+
+  void _pick(
+    ContentKey key, {
+    required SemanticKind recentsKind,
+    required PickSource source,
+  }) {
+    unawaited(HapticFeedback.selectionClick());
+    // By the content: this host inserts what it can read as text, a
+    // unicode emoji or an animated emoji of its pack.
+    if (_textOf(key) case final alternativeText?) {
+      composer.insertContent(
+        InlineContentRef(key: key, alternativeText: alternativeText),
+      );
+    }
+    // A sticker or a GIF is not text: tapping it sends it, and the panel
+    // stays open and the composer as it is (sending a sticker or GIF adds it
+    // to the recents and leaves the panel up).
+    if (StickerMessageBody.ofKey(key, describe: services.describe)
+        case final body?) {
+      unawaited(_sendPicked(body));
+    }
+    _record(key, kind: recentsKind, source: source);
+  }
+
+  // Records a pick in the list the page chose ([kind]): a sticker among the
+  // library's recent stickers and a GIF among its saved GIFs, whatever it
+  // was found by, on every send; the open panel lists it only when it next
+  // opens (a send signals no reload); anything
+  // else in the emoji recents, where the emoji page files unicode and
+  // animated emoji in one and a pick from search does not count.
+  void _record(
+    ContentKey key, {
+    required SemanticKind kind,
+    required PickSource source,
+  }) {
+    switch (kind) {
+      case SemanticKind.sticker:
+        services.libraryShown.record(LibraryEdit.addRecentSticker(key));
+      case SemanticKind.gif:
+        services.libraryShown.record(LibraryEdit.saveGif(key));
+      default:
+        unawaited(services.recents.record(key, kind: kind, source: source));
+    }
+  }
+
+  // Forgets one recent of [kind]. The panel's lists lose it at once, and
+  // nothing else in them moves: an edit the user asked for, through the
+  // library's view; the emoji recents through theirs.
+  void _forget(ContentKey key, {required SemanticKind kind}) {
+    switch (kind) {
+      case SemanticKind.sticker:
+        _edited(
+          services.libraryShown.apply(LibraryEdit.removeRecentSticker(key)),
+        );
+      case SemanticKind.gif:
+        _edited(services.libraryShown.apply(LibraryEdit.unsaveGif(key)));
+      default:
+        unawaited(services.recentsShown.remove(key, kind: kind));
+    }
+  }
+
+  // Reports an edit the library took. Not `_onLibraryEdited?.call(apply())`:
+  // a null-aware call skips its argument, and with no listener the edit
+  // would not be made at all.
+  void _edited(AppliedEdit applied) => _onLibraryEdited?.call(applied);
+
+  // Sends the body of a picked sticker or GIF. The chat screen has already
+  // told the user why a send failed (its sender shows the reason and rethrows),
+  // so a failure is reported to the framework, not shown twice, and not lost.
+  Future<void> _sendPicked(String body) async {
+    try {
+      await _send(body);
+    } on Object catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'chat_scroll_view_example',
+          context: ErrorDescription('while sending a picked sticker or GIF'),
+        ),
+      );
     }
   }
 
@@ -981,8 +1248,40 @@ final class ChatInputSet {
     }
   }
 
+  // A pack sheet opened from the panel holds the panel up whatever the
+  // pointer does; once it closes with the pointer away, the presentation's
+  // after-hold delay runs before the panel hides.
+  void _openPack(PackId id) {
+    final open = _onPackRequested;
+    if (open == null) return;
+    final hold = presentation.holdAutoHide();
+    unawaited(open(id).whenComplete(hold.release));
+  }
+
+  // The confirmation holds the panel up as a pack sheet does: the panel
+  // stays while it is asked, whatever the pointer does over its barrier.
   Future<void> _clearRecents(SemanticKind kind) async {
-    if (!await _confirmClearRecents(kind) || _disposed) return;
+    final hold = presentation.holdAutoHide();
+    final bool confirmed;
+    try {
+      confirmed = await _confirmClearRecents(kind);
+    } finally {
+      hold.release();
+    }
+    if (!confirmed || _disposed) return;
+    // The library has no edit that clears a list: one removal per key, each
+    // leaving the panel's view at once.
+    final inLibrary = switch (kind) {
+      SemanticKind.sticker => services.library.recentStickers.value,
+      SemanticKind.gif => services.library.savedGifs.value,
+      _ => null,
+    };
+    if (inLibrary case final keys?) {
+      for (final key in keys) {
+        _forget(key, kind: kind);
+      }
+      return;
+    }
     // Through the view too: what the user asked to forget is not listed a
     // moment longer.
     await services.recentsShown.clear(kind: kind);
@@ -993,7 +1292,7 @@ final class ChatInputSet {
     // The panel shows the recents as of the moment it opens: what was picked
     // in the last session is listed now, not while the user picks.
     final opened = !_wasVisible && state.isVisible;
-    if (opened) services.recentsShown.commit();
+    if (opened) services.commitShownLists();
     _wasVisible = state.isVisible;
     // The panel stands in for the keyboard only while it is coming or on
     // screen; once it is leaving, the field is a field again.
@@ -1061,6 +1360,8 @@ final class ChatInputSet {
     _draftSync?.dispose();
     _draftSync = null;
     _disposed = true;
+    _messages?.removeMutationListener(_onMessages);
+    _messages = null;
     _backClaim?.pop();
     _backClaim = null;
     unawaited(_imeHeights.cancel());
@@ -1074,10 +1375,13 @@ final class ChatInputSet {
     _autoHideHold?.release();
     _autoHideHold = null;
     insets.dispose();
+    _playbackHold.dispose();
     presentation.dispose();
     keyboardStrategy.dispose();
     popup.dispose();
     docked.dispose();
+    _textureWarmer?.dispose();
+    _stopScrollReport();
     shell.dispose();
     ime.dispose();
     _window.dispose();

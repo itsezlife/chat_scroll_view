@@ -8,11 +8,21 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'app/app_binding_test.dart' as app_binding_test;
+import 'app/app_platform_policy_test.dart' as app_platform_policy_test;
 import 'app/app_services_test.dart' as app_services_test;
 import 'app/boot_test.dart' as boot_test;
+import 'app/cache_directory_test.dart' as cache_directory_test;
 import 'app/listener_errors_test.dart' as listener_errors_test;
+import 'app/lottie_playback_cache_test.dart' as lottie_playback_cache_test;
+import 'app/lottie_playback_pixel_test.dart' as lottie_playback_pixel_test;
+import 'app/lottie_playback_test.dart' as lottie_playback_test;
+import 'app/media_disk_cache_test.dart' as media_disk_cache_test;
 import 'app/overlay_pause_observer_test.dart' as overlay_pause_observer_test;
+import 'app/scrolling_surfaces_test.dart' as scrolling_surfaces_test;
 import 'app/system_reduced_motion_test.dart' as system_reduced_motion_test;
+import 'app/video_playback_pixel_test.dart' as video_playback_pixel_test;
+import 'app/video_playback_test.dart' as video_playback_test;
 import 'backend_chat_data_source_test.dart' as backend_chat_data_source_test;
 import 'backend_realtime_reconnect_test.dart'
     as backend_realtime_reconnect_test;
@@ -43,11 +53,19 @@ import 'chat_perf/table_test.dart' as chat_perf_table_test;
 import 'chat_perf/trace_counts_test.dart' as chat_perf_trace_counts_test;
 import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
+import 'common/lab_net_test.dart' as lab_net_test;
+import 'common/lab_texture_host_test.dart' as lab_texture_host_test;
 import 'common/mouse_back_button_test.dart' as mouse_back_button_test;
+import 'common/pointer_tape_test.dart' as pointer_tape_test;
+import 'common/russian_plural_test.dart' as russian_plural_test;
+import 'common/scroll_lab_glass_test.dart' as scroll_lab_glass_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
+import 'features/chat/bundled_packs_test.dart' as bundled_packs_test;
+import 'features/chat/byte_cache_test.dart' as byte_cache_test;
 import 'features/chat/chat_body_host_test.dart' as chat_body_host_test;
 import 'features/chat/chat_body_markdown_test.dart' as chat_body_markdown_test;
+import 'features/chat/chat_bulletins_test.dart' as chat_bulletins_test;
 import 'features/chat/chat_composer_spec_test.dart' as chat_composer_spec_test;
 import 'features/chat/chat_copy_test.dart' as chat_copy_test;
 import 'features/chat/chat_data_source_bodies_test.dart'
@@ -55,17 +73,69 @@ import 'features/chat/chat_data_source_bodies_test.dart'
 import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
 import 'features/chat/chat_messages_copy_format_test.dart'
     as chat_messages_copy_format_test;
+import 'features/chat/chat_pack_sheets_test.dart' as chat_pack_sheets_test;
+import 'features/chat/chat_pack_targets_test.dart' as chat_pack_targets_test;
+import 'features/chat/chat_texture_warmer_test.dart'
+    as chat_texture_warmer_test;
+import 'features/chat/corpus_sticker_pack_test.dart'
+    as corpus_sticker_pack_test;
+import 'features/chat/deferred_library_view_test.dart'
+    as deferred_library_view_test;
 import 'features/chat/emoji_chrome_test.dart' as emoji_chrome_test;
 import 'features/chat/emoji_service_colors_test.dart'
     as emoji_service_colors_test;
+import 'features/chat/giphy_client_test.dart' as giphy_client_test;
+import 'features/chat/giphy_content_test.dart' as giphy_content_test;
+import 'features/chat/giphy_gif_source_test.dart' as giphy_gif_source_test;
+import 'features/chat/installed_packs_source_test.dart'
+    as installed_packs_source_test;
 import 'features/chat/joined_collection_source_test.dart'
     as joined_collection_source_test;
 import 'features/chat/large_emoji_test.dart' as large_emoji_test;
+import 'features/chat/library_content_source_test.dart'
+    as library_content_source_test;
 import 'features/chat/link_activation_test.dart' as link_activation_test;
+import 'features/chat/lottie_sticker_pack_test.dart'
+    as lottie_sticker_pack_test;
+import 'features/chat/lottie_sticker_pipeline_test.dart'
+    as lottie_sticker_pipeline_test;
+import 'features/chat/message_editability_test.dart'
+    as message_editability_test;
+import 'features/chat/panel_playback_hold_test.dart'
+    as panel_playback_hold_test;
+import 'features/chat/panel_texture_warmer_test.dart'
+    as panel_texture_warmer_test;
+import 'features/chat/reference_media_sizes_test.dart'
+    as reference_media_sizes_test;
+import 'features/chat/shipped_packs_seed_test.dart' as shipped_packs_seed_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
+import 'features/chat/static_sticker_pack_test.dart'
+    as static_sticker_pack_test;
+import 'features/chat/static_sticker_pipeline_test.dart'
+    as static_sticker_pipeline_test;
 import 'features/chat/sticker_interaction_stub_test.dart'
     as sticker_interaction_stub_test;
+import 'features/chat/sticker_message_body_test.dart'
+    as sticker_message_body_test;
+import 'features/chat/video_sticker_pack_test.dart' as video_sticker_pack_test;
 import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
+import 'flicker/gif_return_test.dart' as flicker_gif_return_test;
+import 'flicker/hidden_panel_textures_test.dart'
+    as flicker_hidden_panel_textures_test;
+import 'flicker/pack_sheet_panel_flicker_test.dart'
+    as flicker_pack_sheet_panel_flicker_test;
+import 'flicker/pager_page_textures_test.dart'
+    as flicker_pager_page_textures_test;
+import 'flicker/panel_flash_test.dart' as flicker_panel_flash_test;
+import 'flicker/panel_scroll_restart_test.dart'
+    as flicker_panel_scroll_restart_test;
+import 'flicker/panel_video_return_test.dart'
+    as flicker_panel_video_return_test;
+import 'flicker/playback_starvation_test.dart'
+    as flicker_playback_starvation_test;
+import 'flicker/shade_resume_test.dart' as flicker_shade_resume_test;
+import 'flicker/strip_reopen_test.dart' as flicker_strip_reopen_test;
+import 'flicker/thumbnail_fade_test.dart' as flicker_thumbnail_fade_test;
 import 'frame_rate_boost_test.dart' as frame_rate_boost_test;
 import 'glyph_probe_wiring_test.dart' as glyph_probe_wiring_test;
 import 'golden/demo_emoji_message_golden_test.dart'
@@ -113,10 +183,14 @@ import 'widgets/demo_message_edit_transition_test.dart'
 import 'widgets/demo_message_markdown_registration_test.dart'
     as demo_message_markdown_registration_test;
 import 'widgets/desktop_copy_shortcut_test.dart' as desktop_copy_shortcut_test;
+import 'widgets/desktop_key_focus_test.dart' as desktop_key_focus_test;
 import 'widgets/emoji_selection_clear_test.dart' as emoji_selection_clear_test;
 import 'widgets/glyph_warmup_test.dart' as glyph_warmup_test;
 import 'widgets/large_emoji_limit_button_test.dart'
     as large_emoji_limit_button_test;
+import 'widgets/lottie_sticker_message_test.dart'
+    as lottie_sticker_message_test;
+import 'widgets/message_emoji_packs_test.dart' as message_emoji_packs_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
 import 'widgets/message_row_frame_test.dart' as message_row_frame_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
@@ -124,10 +198,15 @@ import 'widgets/panel_keeps_composer_focus_test.dart'
     as panel_keeps_composer_focus_test;
 import 'widgets/panel_menu_holds_popup_test.dart'
     as panel_menu_holds_popup_test;
+import 'widgets/panel_scroll_keys_test.dart' as panel_scroll_keys_test;
+import 'widgets/static_sticker_message_test.dart'
+    as static_sticker_message_test;
 import 'widgets/status_click_test.dart' as status_click_test;
+import 'widgets/sticker_gif_pages_test.dart' as sticker_gif_pages_test;
 import 'widgets/unread_boundary_background_test.dart'
     as unread_boundary_background_test;
 import 'widgets/unread_separator_test.dart' as unread_separator_test;
+import 'widgets/video_sticker_message_test.dart' as video_sticker_message_test;
 import 'widgets/widget_chat_screen_bodies_test.dart'
     as widget_chat_screen_bodies_test;
 import 'widgets/widget_chat_screen_source_test.dart'
@@ -135,17 +214,60 @@ import 'widgets/widget_chat_screen_source_test.dart'
 
 void main() {
   group(
+    'features/chat/reference_media_sizes_test.dart',
+    reference_media_sizes_test.main,
+  );
+  group(
     'features/streaming/streaming_screen_test.dart',
     streaming_screen_test.main,
   );
+  group('flicker/gif_return_test.dart', flicker_gif_return_test.main);
+  group(
+    'flicker/hidden_panel_textures_test.dart',
+    flicker_hidden_panel_textures_test.main,
+  );
+  group(
+    'flicker/pack_sheet_panel_flicker_test.dart',
+    flicker_pack_sheet_panel_flicker_test.main,
+  );
+  group(
+    'flicker/pager_page_textures_test.dart',
+    flicker_pager_page_textures_test.main,
+  );
+  group('flicker/panel_flash_test.dart', flicker_panel_flash_test.main);
+  group(
+    'flicker/panel_scroll_restart_test.dart',
+    flicker_panel_scroll_restart_test.main,
+  );
+  group(
+    'flicker/panel_video_return_test.dart',
+    flicker_panel_video_return_test.main,
+  );
+  group(
+    'flicker/playback_starvation_test.dart',
+    flicker_playback_starvation_test.main,
+  );
+  group('flicker/shade_resume_test.dart', flicker_shade_resume_test.main);
+  group('flicker/strip_reopen_test.dart', flicker_strip_reopen_test.main);
+  group('flicker/thumbnail_fade_test.dart', flicker_thumbnail_fade_test.main);
+  group('app/app_binding_test.dart', app_binding_test.main);
+  group('app/app_platform_policy_test.dart', app_platform_policy_test.main);
   group('app/app_services_test.dart', app_services_test.main);
   group('app/boot_test.dart', boot_test.main);
+  group('app/cache_directory_test.dart', cache_directory_test.main);
   group('app/listener_errors_test.dart', listener_errors_test.main);
+  group('app/lottie_playback_cache_test.dart', lottie_playback_cache_test.main);
+  group('app/lottie_playback_pixel_test.dart', lottie_playback_pixel_test.main);
+  group('app/lottie_playback_test.dart', lottie_playback_test.main);
+  group('app/media_disk_cache_test.dart', media_disk_cache_test.main);
   group(
     'app/overlay_pause_observer_test.dart',
     overlay_pause_observer_test.main,
   );
+  group('app/scrolling_surfaces_test.dart', scrolling_surfaces_test.main);
   group('app/system_reduced_motion_test.dart', system_reduced_motion_test.main);
+  group('app/video_playback_pixel_test.dart', video_playback_pixel_test.main);
+  group('app/video_playback_test.dart', video_playback_test.main);
   group(
     'backend_chat_data_source_test.dart',
     backend_chat_data_source_test.main,
@@ -199,11 +321,24 @@ void main() {
   group('chat_perf/table_test.dart', chat_perf_table_test.main);
   group('chat_perf/trace_counts_test.dart', chat_perf_trace_counts_test.main);
   group('chat_viewport_insets_test.dart', chat_viewport_insets_test.main);
+  group(
+    'features/chat/message_editability_test.dart',
+    message_editability_test.main,
+  );
+  group(
+    'features/chat/sticker_message_body_test.dart',
+    sticker_message_body_test.main,
+  );
   group('frame_rate_boost_test.dart', frame_rate_boost_test.main);
   group(
     'common/chat_message_markdown_test.dart',
     chat_message_markdown_test.main,
   );
+  group('common/lab_net_test.dart', lab_net_test.main);
+  group('common/lab_texture_host_test.dart', lab_texture_host_test.main);
+  group('common/pointer_tape_test.dart', pointer_tape_test.main);
+  group('common/russian_plural_test.dart', russian_plural_test.main);
+  group('common/scroll_lab_glass_test.dart', scroll_lab_glass_test.main);
   group('common/mouse_back_button_test.dart', mouse_back_button_test.main);
   group(
     'features/chat/animated_emoji_pack_test.dart',
@@ -220,6 +355,18 @@ void main() {
   );
   group('features/chat/chat_copy_test.dart', chat_copy_test.main);
   group(
+    'features/chat/chat_texture_warmer_test.dart',
+    chat_texture_warmer_test.main,
+  );
+  group(
+    'features/chat/panel_playback_hold_test.dart',
+    panel_playback_hold_test.main,
+  );
+  group(
+    'features/chat/panel_texture_warmer_test.dart',
+    panel_texture_warmer_test.main,
+  );
+  group(
     'features/chat/chat_data_source_bodies_test.dart',
     chat_data_source_bodies_test.main,
   );
@@ -228,16 +375,80 @@ void main() {
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,
   );
+  group('features/chat/bundled_packs_test.dart', bundled_packs_test.main);
+  group(
+    'features/chat/lottie_sticker_pipeline_test.dart',
+    lottie_sticker_pipeline_test.main,
+  );
+  group(
+    'widgets/lottie_sticker_message_test.dart',
+    lottie_sticker_message_test.main,
+  );
+  group(
+    'features/chat/lottie_sticker_pack_test.dart',
+    lottie_sticker_pack_test.main,
+  );
+  group(
+    'features/chat/static_sticker_pack_test.dart',
+    static_sticker_pack_test.main,
+  );
+  group(
+    'features/chat/video_sticker_pack_test.dart',
+    video_sticker_pack_test.main,
+  );
+  group(
+    'features/chat/static_sticker_pipeline_test.dart',
+    static_sticker_pipeline_test.main,
+  );
+  group(
+    'widgets/static_sticker_message_test.dart',
+    static_sticker_message_test.main,
+  );
+  group('widgets/sticker_gif_pages_test.dart', sticker_gif_pages_test.main);
+  group(
+    'widgets/video_sticker_message_test.dart',
+    video_sticker_message_test.main,
+  );
   group(
     'features/chat/chat_messages_copy_format_test.dart',
     chat_messages_copy_format_test.main,
   );
+  group(
+    'features/chat/corpus_sticker_pack_test.dart',
+    corpus_sticker_pack_test.main,
+  );
+  group('features/chat/byte_cache_test.dart', byte_cache_test.main);
+  group('features/chat/giphy_client_test.dart', giphy_client_test.main);
+  group('features/chat/giphy_content_test.dart', giphy_content_test.main);
+  group('features/chat/giphy_gif_source_test.dart', giphy_gif_source_test.main);
   group('features/chat/emoji_chrome_test.dart', emoji_chrome_test.main);
   group(
     'features/chat/emoji_service_colors_test.dart',
     emoji_service_colors_test.main,
   );
   group('features/chat/large_emoji_test.dart', large_emoji_test.main);
+  group(
+    'features/chat/deferred_library_view_test.dart',
+    deferred_library_view_test.main,
+  );
+  group(
+    'features/chat/library_content_source_test.dart',
+    library_content_source_test.main,
+  );
+  group('features/chat/chat_bulletins_test.dart', chat_bulletins_test.main);
+  group('features/chat/chat_pack_sheets_test.dart', chat_pack_sheets_test.main);
+  group(
+    'features/chat/chat_pack_targets_test.dart',
+    chat_pack_targets_test.main,
+  );
+  group(
+    'features/chat/installed_packs_source_test.dart',
+    installed_packs_source_test.main,
+  );
+  group(
+    'features/chat/shipped_packs_seed_test.dart',
+    shipped_packs_seed_test.main,
+  );
   group('features/chat/link_activation_test.dart', link_activation_test.main);
   group(
     'features/chat/spoiler_round_trip_test.dart',
@@ -322,6 +533,7 @@ void main() {
     'widgets/desktop_copy_shortcut_test.dart',
     desktop_copy_shortcut_test.main,
   );
+  group('widgets/desktop_key_focus_test.dart', desktop_key_focus_test.main);
   group(
     'widgets/emoji_selection_clear_test.dart',
     emoji_selection_clear_test.main,
@@ -331,6 +543,7 @@ void main() {
     'widgets/large_emoji_limit_button_test.dart',
     large_emoji_limit_button_test.main,
   );
+  group('widgets/message_emoji_packs_test.dart', message_emoji_packs_test.main);
   group('widgets/message_menu_test.dart', message_menu_test.main);
   group('widgets/message_row_frame_test.dart', message_row_frame_test.main);
   group('widgets/notes_dialog_test.dart', notes_dialog_test.main);
@@ -338,6 +551,7 @@ void main() {
     'widgets/panel_keeps_composer_focus_test.dart',
     panel_keeps_composer_focus_test.main,
   );
+  group('widgets/panel_scroll_keys_test.dart', panel_scroll_keys_test.main);
   group(
     'widgets/panel_menu_holds_popup_test.dart',
     panel_menu_holds_popup_test.main,

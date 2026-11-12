@@ -48,16 +48,21 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `lib/` (`chat_scroll_view`)              | Anchor viewport; **message selection** + **text selection**; span gesture | scroll, layout, selection membership, text subject/range, span                   |
 | `packages/content_model`                 | Pure-Dart leaf: content key / descriptor / collection, data seams, fakes + contracts; change signals are `package:listen` (see [ADR 023](docs/adr/023-data-layering-and-persistence.md)) | content identity, sources, stores, rich text                    |
 | `packages/chrome_foundation`             | Leaf: palette, token groups, theme scope, motion, strings, icons, glass   | theme, glass, motion, strings                                                    |
-| `packages/catalog_assets`                | Asset cache, media pipeline seams, baked glyph atlas                      | paintables, readiness, budgets, atlas / bake                                     |
+| `packages/catalog_assets`                | Asset cache, media pipeline seams, baked glyph atlas, dynamic frame pool  | paintables, readiness, budgets, atlas / bake, frame pool                        |
+| `packages/lottie_native`                 | Leaf: Lottie wrapper crate, build hook, FFI binding, fake and contract    | decoding Lottie / TGS natively                                                   |
+| `packages/lottie_decoder`                | Decoder for Lottie / TGS, render isolate, frame scheduler, animation paintable | playing vector-animation stickers                                           |
 | `packages/chat_wallpaper`                | Leaf: chat wallpaper model, codec, freeform renderer, motion, view, service fills | wallpaper fills, patterns, motion, resize behaviour ([ADR 040](docs/adr/040-chat-wallpaper.md)) |
 | `packages/image_decoder`                 | Decoder adapter: engine image codecs, stills and animated WebP / GIF      | decoding fetched images, frame-sequence playback                                 |
 | `packages/panel_catalog`                 | Panel catalog viewport                                                    | emoji/sticker/GIF grid, section layout, leaf hit, snapshot                       |
 | `packages/emoji_data` / `emoji_catalog_pack` | Emoji logic and glyph probe / generated catalog and keyword packs     | emoji search, variants, probe, generator                                         |
 | `packages/kv_shared_preferences`         | `shared_preferences`-backed `KeyValueStore`                               | persistence adapter only                                                         |
+| `packages/swipe_pager`                   | Leaf: horizontal pager with the reference's swipe slop / direction rule, settle, keep-alive policy | swipeable pages anywhere (the panel's type pages first)                         |
 | `packages/panel_shell` / `panel_pages` / `panel_presentation` | Panel shell + page registry / catalog pages / presentation kinds and policy | panel tabs, search, pages, popup / docked / keyboard replacement, occupancy |
 | `packages/chat_composer`                 | Slot-based composer, input controller, entity text, formatting commands, selection menu | composer slots, input, queries, formatting                          |
 | `packages/composer_editable`             | Leaf: the composer's one editable (patched Flutter text field)            | field gestures, handles, magnifier, re-vendor                                    |
+| `packages/bulletins`                     | Bulletins: per-surface controller (commit on leave), host mount, platform policy, builders | transient notices, Undo feedback ([ADR 045](docs/adr/045-bulletins.md))           |
 | `packages/golden_baseline`              | Test support: golden baselines held to the CI runner (`useGoldenBaselines`) | adding or regenerating a golden test                                              |
+| `packages/viewport_scroll`               | Leaf: scroll physics (fling, edge effect) and their runtime, keyboard scroll keys; shared by the chat and the panel catalogue | fling, overscroll edge effect, arrow / page / Home / End scrolling |
 | `example/`                               | Demo host only — not the portable contract                                | wiring demos                                                                     |
 | `scripts/`                               | `scripts/check` entry + the workspace lints (`workspace_check` package)   | CI gates, dependency direction, re-export / fakes rules                          |
 | `tdesktop/`                              | Read-only Telegram Desktop reference checkout                             | desktop selection parity analysis                                                |
@@ -108,6 +113,8 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 | Host composition root, inline embeds                                                     | [ADR 029](docs/adr/029-host-integration.md)                           |
 | Fakes, contracts, gates                                                                  | [ADR 030](docs/adr/030-testing-policy.md)                             |
 | Strings, RTL, semantics, shortcuts                                                       | [ADR 031](docs/adr/031-localization-accessibility-and-input.md)       |
+| Native media decoding: Lottie / TGS and video over FFI, page pool, frame cache, web      | [ADR 042](docs/adr/042-native-media-decoding.md)                      |
+| Platform texture frames: playing media through platform textures, pages as the fallback | [ADR 043](docs/adr/043-platform-texture-frames.md) |
 
 **Package invariants**
 

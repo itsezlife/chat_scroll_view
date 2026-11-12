@@ -13,6 +13,9 @@ top strip. This supersedes the controller and widget-API parts of
 **Amended**: 2026-10-16 — cell interactions under a mouse: the recents context menu, the variant picker rules and the hold seam ([Amendment](#amendment-cell-interactions-under-a-mouse))  
 **Amended**: 2026-10-16 — under `touch` a page may place the search field itself and draw a sticky header ([Amendment](#amendment-where-the-field-sits)); the arrangement selects between the two  
 **Amended**: 2026-10-17 — the touch strip with packs is the reference mobile client's ([Amendment](#amendment-the-touch-strip-with-packs))  
+**Amended**: 2026-11-09 — a family without a back press leaves search by a Cancel button beside the field ([Amendment](#amendment-leaving-search-without-a-back-press))  
+**Amended**: 2026-11-12 (native-media ticket 220) — the catalogue page binds the chat's scroll keys (`ViewportScrollKeys`, [ADR 020](020-package-topology.md) amended) under its roving focus: with no cell focused the arrows and Home / End scroll; the page keys always do; a mouse press gives the page the keys without a focused cell, unless a node beside it holds the focus
+**Amended**: 2026-11-12 (native-media ticket 224) — on a desktop the catalogue under the mouse has the scroll keys: hovering or pressing it takes the focus (no focused cell) from any node but a text field, so the keys scroll the panel and not the chat beside it; the hover's focus goes back when the mouse leaves. The maintainer's call: the reference desktop client gives its panel no key focus (its scroll area takes none), and its keys go to the history
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 020](020-package-topology.md), [ADR 023](023-data-layering-and-persistence.md), [ADR 024](024-panel-catalog-seams.md), [ADR 028](028-panel-presentation.md)
 
 ## Decided
@@ -194,4 +197,66 @@ Grouped is the reference mobile client's `EmojiTabsStrip` with custom emoji
 
 Metrics and traces: the `telegram-java-to-flutter` skill's
 `emoji-tabs-strip.md`.
+
+## Amendment: leaving search without a back press
+
+Amends *Search is left by Escape or the controller, never by a control of
+the field* (*Panel arrangement*, `pointer`, search) and *Field chrome*
+(*Where the field sits*). While search is open the bottom bar with the type
+tabs is hidden, so a platform with no back press had no way out of search
+and no way to another page.
+
+| Area | Decision |
+| ---- | -------- |
+| Search exit | `PanelSearchExit`, given to the shell (`PanelShell.searchExit`) and through `PanelSearchFieldScope` to a field a page places itself (`PanelSearchField.exit` overrides it). `back`: a back press or Escape closes search and the field has no control that does; the leading back chevron and the trailing cross only empty the query (the reference Android client's `SearchStateDrawable` back state and clear button, the reference desktop client's back icon, cross and Escape). `cancel`: the same, plus a Cancel text button at the end of the field while search is open, with or without a query or focus, which closes search (the query empties, the field lets go of focus and with it the soft keyboard); the reference iOS client's `cancelPressed`. |
+| Default | Null takes `PanelSearchExit.forPlatform(defaultTargetPlatform)`: `cancel` on iOS, `back` on every other platform. The shell reads the platform for this and for nothing else: the arrangement still does not. An enum, not a `$Mobile` / `$Desktop` policy: the variants carry no data and differ by one control. |
+| Cancel | Regular 17 px text (`PanelSearchField.cancelFontSize`) in the palette's accent, 8 px after the pill (`cancelSpacing`), the pill keeping its 10 px margin at the far end; the pill narrows over the `search` motion role and the text is uncovered from the pill's end as it does, as the reference's button sits past the pill and is revealed by its shrinking. Pressed it dims to 0.4 at once and returns over the `fade` role (the reference's 0.2 s). Spoken and labelled with `PanelStrings.cancelAction`, the reference's `Common_Cancel`. |
+| Not ported | The reference iOS client's arrow in the leading icon does not clear text (a tap there focuses the field, or clears a chosen category); ours clears under both exits. The reference Android client's back state also shows while a category of its strip is chosen or scrolled: the strip is the page's, and the shell's icon follows the query only. |
+
+## Amendment: the pager keeps its pages
+
+Native-media ticket 100. The pager built pages lazily and dropped the ones off
+screen, so a type tab switched away from detached every cell, and its stickers
+reloaded and restarted on return. The reference mobile client keeps every
+page of its pager, with its list, for the life of the panel.
+
+| Area | Decision |
+| ---- | -------- |
+| Keep-alive | A page the pager has built stays alive (`AutomaticKeepAlive`) for the life of the pager, so the pages kept are at most the registered ones. The registry still holds what a page must restore after the shell itself is rebuilt. |
+| Off screen | A page that is not on screen (more than a page away from the pager's position) is under `TickerMode(enabled: false)`; a page during a swipe is on screen. The one signal a subtree has that it is not live is the framework's own. |
+| Catalogue | A catalogue viewport whose tickers are off holds its playback: every binding is `held` (its frame and its lease stay, [ADR 022](022-asset-cache-and-media-pipeline.md) *held surfaces*), and the binding set only grows: a leaf that leaves the attach window keeps its binding until the tickers are on again, so a layout at another size (a panel that shrinks while it closes) detaches nothing. Back on, the next sync plays the bindings from their frames and detaches the ones outside the window. The render object also keeps its bindings through a detach followed by an attach in the same frame (the move into the pager's keep-alive bucket); a detach that is not followed by one, or a dispose, gives them back. |
+| Memory | What a hidden panel or an off-screen page keeps is its bindings: the entries of its attach window, pinned, and their leases. Bounded by the registered pages times one attach window each. |
+
+## Amendment: a fresh open
+
+Native-media ticket 111. With the pages kept (above), a sticker page closed
+with its strip slid away reopened that way. The reference mobile client calls
+its panel's `onOpen` on every show: the stickers page scrolls to its start and
+marks its first tab, the GIF page goes to its start and first category, the
+emoji page keeps its place, the bottom tabs show. Its desktop client keeps its
+selector as it was.
+
+| Area | Decision |
+| ---- | -------- |
+| Hook | `PanelPageHost.freshOpen`, a `Listenable` the shell signals for every page at once when its controller is told `reportFreshOpen`. The shell decides nothing: whether an open is fresh is the presentation's ([ADR 028](028-panel-presentation.md), *a fresh open*), what it means is each page's. Like `reselected`, a signal and not a state: there is nothing to read back. |
+| Order | The signal arrives before the presence that shows the panel, so a page moves while nothing of it is seen. |
+| Pages | `CatalogPagePolicy.restartsOnFreshOpen` (false by default) says whether a catalogue page restarts: the stickers policy does, its grid at its start, its strip whole and its first tab (the recents, else the first pack) marked by the scroll it follows; the emoji policy does not. The GIF page goes to its start. A page follows the signal in the controller it keeps in the registry as well as in its widget, so a page not mounted at the open comes back at its start too. |
+| Bar | The shell shows the bottom bar on a fresh open, wherever reading on left it. |
+| Supersedes | The restart on hide under the `touch` arrangement (`keepsScrollOnReopen`, `followPresence`): it reset every catalogue page, the emoji page among them, and decided by arrangement what is the presentation's to decide. |
+| Not ported | The GIF page's categories (the page has none yet), and the emoji page's group-emoji hint. |
+
+## Amendment: the strip on an open and while scrolling
+
+Native-media ticket 112. Two things of the stickers strip did not match the
+reference mobile client: it slid away as the grid scrolled, and on an open its
+mark slid and its row scrolled to the first tab. The client's stickers tabs
+follow only search (`updateStickerTabsPosition`), while its emoji tabs hide by
+scroll; its `onOpen` selects the first tab with no animated change and jumps
+the grid.
+
+| Area | Decision |
+| ---- | -------- |
+| Pinned strip | `CatalogPagePolicy.stripSlidesAway` (true by default) says whether the strip of the sticky header slides away with the reading. The stickers policy answers false: the strip stays whole whatever the scroll, content passes under it with its hairline, and only search takes it away. The emoji policy keeps the slide. `CatalogStickyHeader` takes the answer as `pinned`. |
+| Placed, not slid | The stickers strip slides its mark and scrolls its row only for what the user did: a tap, or a motion of theirs (drag, fling, wheel, animated scroll) carrying the catalogue into another section. After `PanelCatalogProgrammaticJump` (a fresh open restarting the page, a host's jump) the section change is placed at once, mark, row and tab colours, until a motion of the user's starts; a new set of tabs and the first build are placed too. A command that cuts a tapped tab's jump short ends the tap, so the mark goes where the catalogue landed. The handle is unchanged: the strip reads the catalogue's events it already had. |
+| Not ported | The emoji strip: its page keeps its place on an open, so nothing jumps it there; a programmatic jump under it still slides. |
 

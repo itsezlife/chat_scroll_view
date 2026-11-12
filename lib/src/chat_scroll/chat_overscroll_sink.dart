@@ -25,7 +25,7 @@ enum ChatOverscrollEdges {
 
 /// **Overscroll sink**: the host's receiver for the part of a user drag the
 /// viewport cannot scroll, so an ancestor that moves (a draggable sheet, a
-/// collapsing header) can take it instead of the [ChatEdgeEffect].
+/// collapsing header) can take it instead of the edge effect (`ViewportEdgeEffect`).
 ///
 /// The viewport alone knows where its conversation edges are, so it alone
 /// can say which part of a drag is "past the edge"; a host `Listener` cannot
@@ -40,7 +40,7 @@ enum ChatOverscrollEdges {
 /// The hand-over covers the drag path only (touch, stylus, trackpad pan).
 /// Mouse wheel, keyboard, scrollbar and programmatic scrolling never reach
 /// it, and a content fling that arrives at an edge still uses the viewport's
-/// [ChatEdgeEffect] (a momentum scroll reaching the top does not close a
+/// edge effect (`ViewportEdgeEffect`) (a momentum scroll reaching the top does not close a
 /// sheet).
 ///
 /// While the content rests at a handed-over edge, a drag in either direction

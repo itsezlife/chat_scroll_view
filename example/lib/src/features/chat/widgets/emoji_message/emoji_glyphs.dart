@@ -8,11 +8,10 @@ import 'package:flutter/rendering.dart';
 /// the error square, right-aligned in the box it is given.
 ///
 /// Two check designs exist. Android's is a 12 x 12 bitmap, a full check and a
-/// half check 4.8 dp apart (`msg_check_s`, `msg_halfcheck_s`); the path here
-/// is traced from the bitmap at its 3x size (1.5 stroke, round caps). iOS draws
-/// vectors: an 11 x 9 canvas scaled, a 0.99 stroke, a full check and a partial
-/// one 6 pt apart (`generateCheckImage`). Desktop's sprites are not in the
-/// sources at hand and use Android's.
+/// half check 4.8 dp apart; the path here is drawn at the bitmap's 3x size
+/// (1.5 stroke, round caps). iOS draws vectors: an 11 x 9 canvas scaled, a
+/// 0.99 stroke, a full check and a partial one 6 pt apart. Desktop's sprites
+/// are not given and use Android's.
 class EmojiTicksPainter extends CustomPainter {
   /// Paints [state] in [color].
   const EmojiTicksPainter({
@@ -31,7 +30,7 @@ class EmojiTicksPainter extends CustomPainter {
   /// Whether the checks are iOS's vector ones.
   final bool vector;
 
-  /// The error square's fill (`key_chat_sentError`).
+  /// The error square's fill.
   final Color errorColor;
 
   // Android: the check, in a 12 x 12 box.
@@ -159,8 +158,8 @@ class EmojiTicksPainter extends CustomPainter {
       oldDelegate.errorColor != errorColor;
 }
 
-/// Paints the views icon (an eye) in [color]: the reference's 17 x 12 bitmap,
-/// an almond with a ring and a pupil, redrawn as a path.
+/// Paints the views icon (an eye) in [color]: a 17 x 12 almond with a ring
+/// and a pupil, drawn as a path.
 class EmojiViewsIconPainter extends CustomPainter {
   /// Paints the icon in [color].
   const EmojiViewsIconPainter({required this.color});

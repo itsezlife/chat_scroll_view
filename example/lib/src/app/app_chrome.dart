@@ -1,7 +1,9 @@
 import 'package:catalog_assets/catalog_assets.dart';
+import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/widgets.dart';
@@ -36,18 +38,30 @@ class AppChrome extends StatelessWidget {
       ChromePalette.fromColorScheme(Theme.of(context).colorScheme),
     ),
     // The desktop pointer menu of the composer's field is drawn in the
-    // reference client's own night colours, for a 1:1 look.
-    pointerMenu: PointerMenuTokens.referenceNight,
+    // night colours of its own preset.
+    pointerMenu: PointerMenuTokens.night,
+    // The bulletins' desktop toast in the toolkit's own colours on a
+    // desktop (the web included); the dark card preset elsewhere.
+    bulletin: AppPlatformPolicy.current().bulletinTokens,
     child: ChromeStringsScope(
       strings: demoChromeStrings,
       child: ChromeMotionScope(
         speed: MediaQuery.disableAnimationsOf(context)
             ? ChromeMotionSpeed.instant
             : ChromeMotionSpeed.normal,
-        // The glass policy of the app: the best strategy the device supports.
-        // A host with a low-power mode passes `liteMode` here.
-        child: GlassQualityScope(
-          liteMode: DemoConfig.glassLite,
+        // The glass policy of the app: frosted, on the best strategy the
+        // device supports. A host with a low-power mode passes `liteMode`
+        // here; the lab's glass switch puts it there for an A/B arm without
+        // the capture, and its liquid switch turns refraction on.
+        child: ListenableBuilder(
+          listenable: Listenable.merge([ScrollLab.glass, ScrollLab.liquid]),
+          builder: (context, child) => GlassQualityScope(
+            quality: ScrollLab.liquid.value
+                ? GlassQuality.fullLiquid
+                : GlassQuality.frosted,
+            liteMode: DemoConfig.glassLite || !ScrollLab.glass.value,
+            child: child!,
+          ),
           child: EmojiTabIconScope(
             child: AssetCacheProvider(scope: services.assets, child: child),
           ),

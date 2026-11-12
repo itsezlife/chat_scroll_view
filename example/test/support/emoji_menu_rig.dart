@@ -10,6 +10,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.da
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_header_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_reactions_row.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
@@ -137,27 +138,32 @@ final class EmojiMenuRig {
       policy: platform,
     );
     await tester.pumpWidget(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData.dark(),
-        home: Directionality(
-          textDirection: direction,
-          child: Scaffold(
-            backgroundColor: background,
-            body: Align(
-              alignment: Alignment.topLeft,
-              // Room above the message for its reply, as in a list.
-              child: Padding(
-                padding: const EdgeInsets.only(top: 120),
-                child: SizedBox(
-                  key: rowKey,
-                  width: rowWidth,
-                  child: Align(
-                    heightFactor: 1,
-                    alignment: outgoing
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    child: message,
+      // The chrome theme above the navigator, as the app mounts it: the
+      // message menu's glass reads it from its route.
+      ChromeThemeScope(
+        palette: const ChromePalette.dark(),
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData.dark(),
+          home: Directionality(
+            textDirection: direction,
+            child: Scaffold(
+              backgroundColor: background,
+              body: Align(
+                alignment: Alignment.topLeft,
+                // Room above the message for its reply, as in a list.
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 120),
+                  child: SizedBox(
+                    key: rowKey,
+                    width: rowWidth,
+                    child: Align(
+                      heightFactor: 1,
+                      alignment: outgoing
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: message,
+                    ),
                   ),
                 ),
               ),

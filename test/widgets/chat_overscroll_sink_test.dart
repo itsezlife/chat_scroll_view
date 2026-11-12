@@ -2,6 +2,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viewport_scroll/viewport_scroll.dart';
 
 import '../chat_message.dart';
 
@@ -79,7 +80,7 @@ Widget _scaffold({
           controller: controller,
           overscrollSink: sink,
           emptyBuilder: emptyBuilder,
-          physics: const ChatScrollPhysics.stretch(),
+          physics: const ViewportScrollPhysics.stretch(),
           messageBuilder: (context, id, message, status, runLayout) =>
               ColoredBox(
                 color: const Color(0xFFFFFFFF),

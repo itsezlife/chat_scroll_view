@@ -10,7 +10,7 @@ import 'package:meta/meta.dart';
 /// made when the model was.
 ///
 /// The viewport never decides this: it lays out the body it is given. The host
-/// decides, as the reference client does:
+/// decides:
 ///
 /// - the user keeps the large-emoji setting on ([enabled]);
 /// - on a platform that gates on it (Android), the chat allows stickers
@@ -40,7 +40,7 @@ final class LargeEmojiPolicy {
   final bool isAdmin;
 
   /// How many regular emoji a message may hold and still be enlarged on
-  /// desktop (and the web): the reference client's 3 until the user moves
+  /// desktop (and the web): 3 until the user moves
   /// it. The other families have no cap and ignore it.
   final int desktopRegularLimit;
 

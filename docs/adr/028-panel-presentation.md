@@ -13,6 +13,7 @@ inset-controller parts of [ADR 007](007-keyboard-panel-controller.md).
 **Amended**: 2026-10-16 — the host wires the shell's page holds to that seam ([ADR 025](025-panel-shell-and-pages.md) Amendment)  
 **Amended**: 2026-10-16 — keyboard readings include the safe area; the sheet's rounded top; the host lowers a raised keyboard when the panel takes its place  
 **Amended**: 2026-10-16 — the dock is a standing section with a width the user drags; the popup keeps a gap from the composer  
+**Amended**: 2026-11-10 (native-media ticket 187) — the popup's surface is the style's choice (`AnchoredPopupStyle.surface`: glass or solid); the reference desktop panel is solid, `emojiPanBg` with `emojiPanRadius` 8 over `defaultBoxShadow` (blur 5, offset 0/1, opacity 0.25), and the example host takes that (row *Glass*)  
 **Relates to**: [ADR 007](007-keyboard-panel-controller.md) (superseded in part), [ADR 012](012-cross-platform-selection-policies.md) (same policy shape), [ADR 025](025-panel-shell-and-pages.md), [host chrome insets](../architecture/14-host-chrome-insets.md) (amended by this ADR)
 
 ## Decided
@@ -45,6 +46,7 @@ the host without saying so.
 | Lowering the keyboard | Declaring no soft keyboard does not lower one that is showing. When a keyboard-replacement panel opens the host asks the keyboard to hide, keeping focus. |
 | Raising it again | Android keeps the input type a field attached with. A composer that took focus while suppressed (a panel opened from idle, then left for the keyboard) never raised a keyboard, and the hand-off waited out its one-second fallback before closing cold. The hand-off now asks for the keyboard (`ComposerController.requestKeyboard`): the field focuses, or attaches again with the type the mode declares, and that raises it. Lifting the suppression alone raises nothing, so a panel closed with back leaves focus in the field and the keyboard down, as the panel always did; a tap on such a field attaches it again too. A first cut that attached again on every change of mode raised the keyboard on back. |
 | Leaving search | Leaving a panel whose search is open (by the panel button or a tap on the field, with the search field focused or not, the keyboard up or down) is three steps in order: ask for the keyboard, so the composer takes focus from the search field and the keyboard never drops; once the composer holds focus, close search and wait for the slot to settle (`KeyboardReplacementStrategy.animating`) at the panel's height; then `hide(waitForIme: true)`. The first cut did all three at once: the hand-off ran from the expanded height, so the panel vanished in one frame, and the search field let go of focus before the composer took it, so the keyboard dropped and rose again. A tap on the field lifts the suppression on the press (`ComposerView.onFieldPointerDown`), so the tap's focus attaches with the keyboard allowed; a press that is no tap puts it back. |
+| Back mid-hand-off (ticket 216) | Back while the panel hands its slot to the keyboard acts at once, as the reference client's back does at any time, not once the keyboard has risen. `handleBack` on a panel hiding with `waitForIme` stops the wait and closes it from where it is (`hiding` without the wait), and consumes the press; the host ends its hand-off and asks the keyboard down, so the keyboard that was rising goes down from where it is and the slot (`max(keyboard, panel)`) shrinks with it. The first cut consumed the press as one more back on a panel already hiding, and the keyboard kept rising until the hand-off settled; only then did a back reach it. A back while the keyboard goes down under a panel that replaces it hides the panel as on any `showing` one. |
 | Presses in quick succession | The panel button acts on what the previous press asked for, as the reference client and the pre-refactor panel do, not on how far the motion has come. A press while the panel leaves for the keyboard and is still on screen (search shrinking back) stops the hand-off and keeps the panel; one while it hides brings it back. In both cases the keyboard is asked down again, which the first cut did only for a panel that was hidden: a panel turned back mid-hand-off sat over a keyboard still rising. The toggle's glyph follows the press, not the phase. |
 | Confirmed keyboard | Device traces (Android) of presses 40–100 ms apart show a hide and a show that cross reporting one settled reading at the keyboard's full height between zeros. The slot took it at its word, handed over, and then followed the keyboard to zero and back up: the composer dropped by the keyboard's height and rose again. The pre-refactor inset controller guarded this with a streak of two samples. The slot now takes the keyboard to be up once a settled reading has stood for `KeyboardReplacementTuning.settleConfirmation` (80 ms on the presentation clock) with no other reading after it, both before a close and during the hold. A panel that replaces the keyboard drops the confirmation, since it asks that keyboard down. A hand-off that times out over a keyboard still reading settled up hands over instead of closing cold. This replaces the earlier "no sample counters, no wall-clock windows" rule; the window is on the presentation clock, so tests still run time by hand. |
 | Bottom band | The composer's extent leaves out its bottom safe-area pad, and the host adds `max(safe area, occupancy)`. The extent is measured after layout and arrives a frame late; a sum that waited for the composer's pad to grow back while the slot shrank under the safe area dipped by up to the band at the end of every close. |
@@ -102,5 +104,85 @@ too, so clicking one never takes the caret from the field.
 
 | Area | Decision |
 | ---- | -------- |
-| Glass | The popup, the dock and the keyboard-replacement sheet put the shell on a `GlassSurface` of the composer island's material (`GlassMaterial.composerIsland`), so the panel reads as the composer does; the shell paints no background of its own there (`PanelShell.background`). Over the chat (the popup) it blurs the messages; beside or under it (dock, sheet) it shows as the material's fill. The popup's glass takes the card's radius, the dock's is square, the sheet's clip rounds its top corners. The reference desktop client paints its panel solid: this is the product's choice. |
+| Glass | The popup, the dock and the keyboard-replacement sheet put the shell on a `GlassSurface` of the composer island's material (`GlassMaterial.composerIsland`), so the panel reads as the composer does; the shell paints no background of its own there (`PanelShell.background`). Over the chat (the popup) it blurs the messages; beside or under it (dock, sheet) it shows as the material's fill. The popup's glass takes the card's radius, the dock's is square, the sheet's clip rounds its top corners. The popup's surface is its style's: `AnchoredPopupSurface.glass` (the default) or `.solid`, where the shell fills itself with the panel background; the reference desktop client paints its panel solid, and a host matching it picks `.solid` (ticket 187). |
 | Anchor | The host reports the composer's rectangle whenever it moves, not only when the composer rebuilds: a dock that comes or goes moves a composer held at its greatest width without resizing or rebuilding it, and a popup opened later anchored to where it had been. The example reads it after every frame and reports a change (the controller ignores an equal one). |
+
+## Amendment: the panel stays mounted while hidden
+
+Native-media ticket 100. Hidden, the view built nothing, so every hide
+disposed the shell, its pages and their cells, and a reopen loaded them again.
+The reference mobile client removes its emoji view from the window and keeps
+the instance, and stops its animations for the length of the panel's motion.
+
+| Area | Decision |
+| ---- | -------- |
+| Kept | `PanelPresentationView` keeps the subtree of the last kind it showed while hidden: built by the strategy with `PanelVisibility.hidden`, offstage (no paint, no hit test, no semantics) and under `ExcludeFocus`. The tree has one shape shown or hidden, so nothing is remounted. A show as another kind replaces it, as before. |
+| Strategy | `build` may now be called with `hidden`, after the motion out settled: the strategy runs no motion for it and keeps its state. Its own tickers stay on: the keyboard strategy's slot still follows the soft keyboard. |
+| Shell motion | Each strategy puts the shell under `TickerMode(enabled: visibility is shown)`: while the panel moves in or out, or is hidden, the shell's tickers are off and its catalogues hold (*the pager keeps its pages*, [ADR 025](025-panel-shell-and-pages.md)). With the host's clock hold for the motion ([ADR 022](022-asset-cache-and-media-pipeline.md) *held surfaces*), nothing in the panel advances until the motion ends, and nothing it showed is reloaded. |
+
+## Amendment: a fresh open
+
+Native-media ticket 111. Pages decide what a new open is for them ([ADR
+025](025-panel-shell-and-pages.md), *a fresh open*); which open is one is the
+presentation's, because it depends on how the panel stands on the platform,
+not on what a page shows.
+
+| Area | Decision |
+| ---- | -------- |
+| Policy | `PanelPresentationPolicy.opensAfresh(kind)`. Mobile: `KeyboardReplacement` only, the panel that stands in for the keyboard for one pick (the reference mobile client resets on every show); a popup or a dock a host asks for there keeps its place. Desktop: never; a popup and a dock beside the content keep the place of every page, as the reference desktop client keeps its selector. The host decides per platform family by the policy it passes (`forFamily` by default), as for every other decision of the policy. |
+| Report | The controller reports `PanelShellController.reportFreshOpen` when it commits a state that leaves `hidden` for a kind the policy opens afresh, before `updatePresence`. A panel turned back while hiding never left, and a switch of kind keeps it on screen: neither is one. |
+| Search (ticket 112) | A panel of a kind the policy opens afresh ends a search left open when it hides: the controller calls `PanelShellController.closeSearch` (query cleared) when it commits `hidden` from such a kind, before `updatePresence`, so the search does not close on screen and the next show starts outside it. The reference mobile client closes search when its panel is toggled away while searching (`setSearchingTypeInternal(0, true)`, `closeSearch`). A panel turned back while hiding keeps its search; a desktop popup and dock keep it across a hide, as the reference desktop client only gives the field's focus back (`beforeHiding`). |
+
+## Amendment: a swap with the keyboard plays on (2026-11-10)
+
+Native-media ticket 157. The host paused playback (`routeMoving`) whenever the
+panel was showing or hiding, a swap with the soft keyboard included. The
+reference mobile client locks its animation notifications for the panel only
+when the panel moves on its own: `ChatActivityEnterView.showPopup` runs and
+locks `panelAnimation` under `smoothKeyboard && !keyboardVisible`, and a hide
+for the keyboard (`show == 2`) takes the branch without an animation.
+
+| Area | Decision |
+| ---- | -------- |
+| Swap | A keyboard-replacement panel shown while the keyboard is up (the slot goes `replacing`, read through `KeyboardReplacementStrategy.keyboardIsUp` as the show starts) and one hiding with `waitForIme` do not move on their own: the host does not pause playback for them. |
+| Motion | A panel that slides in or out with no keyboard (any kind) still pauses while it moves. |
+
+## Amendment: a phone's browser shows the panel as a phone does (2026-11-12)
+
+Native-media ticket 208, after ticket 204 gave the web its own policy objects.
+Every web build took the desktop policy, so a phone's browser opened the panel
+as a popup over the composer. The maintainer asked for what the web clients do
+on a phone.
+
+**The reference's rule.** Both web clients decide the layout by the width of
+the window alone and decide again as it is resized; the device and its pointer
+are separate signals, read for gestures and hover, not for layout.
+
+- tweb: `src/helpers/mediaSizes.ts` puts `ScreenSize.mobile` at `innerWidth <=
+  600` (`MOBILE_SIZE`, the same 600 px as `$small-screen` behind
+  `respond-to(handhelds)` in `src/scss/mixins/_respondTo.scss`), recomputed on
+  every `resize` (one per animation frame) and announced by `changeScreen`.
+  Touch is `IS_TOUCH_SUPPORTED` (`src/environment/touchSupport.ts`,
+  `'ontouchstart' in window`), the device `IS_MOBILE` (user agent and touch
+  points, `src/environment/userAgent.ts`).
+- telegram-tt: `src/hooks/useAppLayout.ts` sets `isMobile` from a media query
+  on `MOBILE_SCREEN_MAX_WIDTH = 600` (`src/config.ts`), listening for its
+  changes; touch is `(pointer: coarse)` (`isTouchScreen`, and the constant
+  `IS_TOUCH_ENV` in `src/util/browser/windowEnvironment.ts`). The query also
+  names a landscape clause, `(max-width: 950px and max-height: 450px)`, which
+  is not a valid media feature and so never matches: the line is the width.
+
+**Which surfaces switch on a phone.**
+
+| Surface | Reference | Here |
+| ------- | --------- | ---- |
+| Panel placement | telegram-tt: `SymbolMenu.tsx` renders the menu as `mobile-menu` in a portal at the bottom, in the keyboard's place, under `isMobile`, and as a popup over the composer otherwise; the open menu re-renders as the other when the window crosses the line. tweb keeps its dropdown over the input at every width (`_emojiDropdown.scss`, `max-width: calc(100% - 1rem)`) and blurs the input on a touch open so the keyboard goes. | The telegram-tt placement, the one that matches a phone: `PanelPresentationPolicy$Web` (`PanelPresentationPolicy.web()`, the default for `PanelOsFamily.web`) is the mobile policy in a window up to `handheldMaxWidth` = 600 logical pixels wide inclusive (a browser's logical pixel is its CSS pixel) and the desktop policy in a wider one. `PanelPresentationController.updateWindow` moves a visible panel the policy chose to the kind of the new window (popup to keyboard replacement and back) as a switch of kind; a kind the host named in `show` stays, and a dock keeps its own rule (a window without the room hides it). The host reads the same answer (`ChatInputSet.panelInKeyboardPlace`) to put the panel's view in the composer's flow or over the screen, the toggle at the start or the end edge, and the composer's bottom pad. |
+| Hover badges, header cross | telegram-tt `StickerButton.tsx` shows the remove cross only `!IS_TOUCH_ENV`. | Follows: a keyboard-replacement panel is a touch arrangement, which offers neither (`CatalogPointerPolicy` is read only under the pointer arrangement). A popup in a wide touch browser keeps them; a mouse is needed to hover them anyway. |
+| Hover open | tweb listens for hover only `!IS_TOUCH_SUPPORTED` (`emoticonsDropdown/index.ts`). | Flutter reports the kind of every pointer, so a touch never hovers; the browser policy's hover opens a popup only where the window's default is one. |
+| Message gestures and menu | telegram-tt `useOuterHandlers.ts`: on touch a tap opens the context menu and Android's long press selects the message; tweb attaches a long-press context menu on touch (`contextMenu.ts`). Both draw a floating menu at the press with the reaction bar on a phone (`MessageContextMenu.tsx`, no dimming scrim). | By the device, not the window ([ADR 012](012-cross-platform-selection-policies.md) amendment): a browser on Android or iOS takes the mobile selection policy. The demo host draws the message menu as a popup at the press in any browser (`AppPlatformPolicy.messageMenuPresentationFor`). |
+| Pack sheet | tweb `PopupStickers` stays a centred box on handhelds (`partials/popups/_stickers.scss`: four per row); telegram-tt `StickerSetModal.scss` keeps its modal, narrowed to 20.375rem under 600 px. | Unchanged: a box ([ADR 044](044-content-library-packs-and-preview.md)). |
+| Bulletins | tweb's `.toasts-container` centres the toast at every width (`src/scss/base.scss`); telegram-tt's notifications do not change with `isMobile`. | Unchanged: the web's toast ([ADR 045](045-bulletins.md)), and which edits it says (ticket 193). |
+| Media sizes | tweb switches `mediaSizes.active` to the handheld sizes under 600 px. | Not switched here: the bodies' sizes are fixed when the chat's body host is made, and resizing them live is its own change. |
+
+Native platforms are unchanged: Android and iOS keep the mobile policy, the
+desktop operating systems the desktop one.

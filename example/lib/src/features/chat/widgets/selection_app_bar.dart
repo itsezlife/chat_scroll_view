@@ -25,6 +25,7 @@ class SelectionAppBar extends StatefulWidget {
     this.onCopy,
     this.onSelectText,
     this.onEdit,
+    this.canEdit,
     this.onDelete,
     super.key,
   });
@@ -46,6 +47,11 @@ class SelectionAppBar extends StatefulWidget {
 
   /// Edit the single selected message.
   final VoidCallback? onEdit;
+
+  /// Whether the message with the given id may be edited, or null for every
+  /// message. The Edit button is not shown while the one selected message may
+  /// not be (a sticker has no text to change).
+  final bool Function(int messageId)? canEdit;
 
   /// Delete selected messages.
   final VoidCallback? onDelete;
@@ -157,6 +163,18 @@ class _SelectionAppBarState extends State<SelectionAppBar>
     },
   );
 
+  // Only a lone selected message can be refused: the button of a selection of
+  // several was never an edit of any one of them.
+  bool _mayEdit(int count) {
+    final canEdit = widget.canEdit;
+    if (canEdit == null || count != 1) return true;
+    // The count is frozen while the bar slides out, after the selection
+    // emptied: there is no message to refuse then, and the button leaves with
+    // the bar as it was.
+    final id = widget.selection.selectedIds.firstOrNull;
+    return id == null || canEdit(id);
+  }
+
   Widget _bar(ColorScheme scheme, int count) => DecoratedBox(
     decoration: BoxDecoration(
       color: scheme.surfaceContainerHigh,
@@ -203,7 +221,7 @@ class _SelectionAppBarState extends State<SelectionAppBar>
                 color: scheme.onSurface,
                 onPressed: widget.onCopy,
               ),
-            if (widget.onEdit != null)
+            if (widget.onEdit != null && _mayEdit(count))
               IconButton(
                 icon: const Icon(Icons.edit_rounded),
                 tooltip: 'Изменить',

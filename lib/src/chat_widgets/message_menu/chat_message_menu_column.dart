@@ -3,6 +3,10 @@ import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 import 'package:flutter/widgets.dart';
 
 /// Default floating column: optional reaction strip above the action card.
+///
+/// The column takes the width of its widest piece: the strip, or the action
+/// card (as wide as its widest row) with the strip's overhangs beside it.
+/// Without a strip it is the card alone.
 class ChatMessageMenuColumn extends StatelessWidget {
   /// Creates the default chrome column.
   const ChatMessageMenuColumn({required this.slots, super.key});
@@ -11,21 +15,25 @@ class ChatMessageMenuColumn extends StatelessWidget {
   final ChatMessageMenuSlots slots;
 
   @override
-  Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: <Widget>[
-      if (slots.reactions.isNotEmpty) ...<Widget>[
-        Align(alignment: Alignment.centerRight, child: slots.reactionStrip),
-        const SizedBox(height: ChatMessageMenuReactions.gap),
-      ],
-      Padding(
-        padding: const EdgeInsets.only(
-          left: ChatMessageMenuReactions.startOverhang,
-          right: ChatMessageMenuReactions.endOverhang,
+  Widget build(BuildContext context) => IntrinsicWidth(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (slots.reactions.isNotEmpty) ...<Widget>[
+          Align(alignment: Alignment.centerRight, child: slots.reactionStrip),
+          const SizedBox(height: ChatMessageMenuReactions.gap),
+        ],
+        Padding(
+          padding: slots.reactions.isEmpty
+              ? EdgeInsets.zero
+              : const EdgeInsets.only(
+                  left: ChatMessageMenuReactions.startOverhang,
+                  right: ChatMessageMenuReactions.endOverhang,
+                ),
+          child: slots.actionList,
         ),
-        child: slots.actionList,
-      ),
-    ],
+      ],
+    ),
   );
 }

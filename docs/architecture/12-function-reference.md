@@ -89,20 +89,20 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 
 ---
 
-## `ChatScrollPhysics` (public value)
+## `ViewportScrollPhysics` (public value)
 
 | Member                                         | Purpose                                                 | Must not                                   |
 | ---------------------------------------------- | ------------------------------------------------------- | ------------------------------------------ |
-| `ChatScrollPhysics(fling:, edgeEffect:)`       | Host choice of one fling + one edge effect              | Hold runtime state                         |
+| `ViewportScrollPhysics(fling:, edgeEffect:)`       | Host choice of one fling + one edge effect              | Hold runtime state                         |
 | `.stretch()`                                   | Spline fling + stretch                                  | Branch on platform                         |
 | `.rubberBand()`                                | Decay fling + rubber-band                               | Branch on platform                         |
 | `.clamped()`                                   | Spline fling + no edge effect                           | Branch on platform                         |
 | `.forPlatform(platform:)`                      | The `null` default: OS-family table from `defaultTargetPlatform` | Read the theme or `ScrollConfiguration` |
-| `ChatFling.spline(friction:)`                  | Android `OverScroller` spline; friction scales travel   | Grow variants outside the closed set       |
-| `ChatFling.decay(decelerationRate:)`           | iOS decay via `FrictionSimulation(rate^1000)`           | Grow variants outside the closed set       |
-| `ChatEdgeEffect.stretch(intensity:, …spring)`  | Android 12 stretch; pull response + return spring       | Grow variants outside the closed set       |
-| `ChatEdgeEffect.rubberBand(resistance:, …spring)` | iOS translate; `d·c·x/(d+c·x)` pull + return spring  | Grow variants outside the closed set       |
-| `ChatEdgeEffect.none()`                        | Hard clamp; fling ends at the pin                       | Paint anything                             |
+| `ViewportFling.spline(friction:)`                  | Android `OverScroller` spline; friction scales travel   | Grow variants outside the closed set       |
+| `ViewportFling.decay(decelerationRate:)`           | iOS decay via `FrictionSimulation(rate^1000)`           | Grow variants outside the closed set       |
+| `ViewportEdgeEffect.stretch(intensity:, …spring)`  | Android 12 stretch; pull response + return spring       | Grow variants outside the closed set       |
+| `ViewportEdgeEffect.rubberBand(resistance:, …spring)` | iOS translate; `d·c·x/(d+c·x)` pull + return spring  | Grow variants outside the closed set       |
+| `ViewportEdgeEffect.none()`                        | Hard clamp; fling ends at the pin                       | Paint anything                             |
 | `==` / `hashCode`                              | Value equality; drives the equal-is-no-op swap          | Compare by identity                        |
 
 ## `ChatScrollbar` (public value)
@@ -120,19 +120,19 @@ Cross-links: [Layout Pipeline](./04-layout-pipeline.md),
 | `ChatPillScrollbarPainter` width / colour | Width `thickness` → `hoveredThickness` by hover → `grabbedThickness` by grab; thumb idle → hover → dragging colour the same way; track → `trackHoverColor` by the larger factor | Change where presses land |
 | `==` / `hashCode` | Value equality across preset, visibility, grab, painter; drives the equal-is-no-op swap | Compare by identity |
 
-## `ChatFlingMotion` (`@internal`)
+## `ViewportFlingMotion` (`@internal`)
 
 | Member                        | Purpose                          | Must not               |
 | ----------------------------- | -------------------------------- | ---------------------- |
 | `startFling` / `cancelFling`  | Inertial scroll for its `fling`  | Emit controller events |
 | `tickFling` / `flingVelocity` | Per-frame fling delta            | Touch layout           |
 
-## `ChatScrollMotion` / `ChatEdgeEffectState` (`@internal`)
+## `ViewportScrollMotion` / `ViewportEdgeEffectState` (`@internal`)
 
-`ChatScrollMotion(physics)` builds one `fling` + one `edge` runtime; the
+`ViewportScrollMotion(physics)` builds one `fling` + one `edge` runtime; the
 render object replaces it only on an unequal physics swap.
 
-| `ChatEdgeEffectState` member | Purpose                                                              | Must not                                  |
+| `ViewportEdgeEffectState` member | Purpose                                                              | Must not                                  |
 | ---------------------------- | -------------------------------------------------------------------- | ----------------------------------------- |
 | `claim(delta, viewportHeight, travel:)` | First claim on each drag or fling delta; may consume it or start a release | Run on wheel / animate deltas       |
 | `pull`                       | Unconsumed drag dy past a reached pin                                | Feed mid-content travel                   |
@@ -143,7 +143,7 @@ render object replaces it only on an unequal physics swap.
 | `isActive` / `isSpringing`   | Anything painted or animating / an autonomous spring runs            | —                                         |
 | `reset`                      | Drop to rest (jump, animate, overlay, inset, swap)                   | Emit events                               |
 
-## `ChatStretchOverscroll` (stretch strategy)
+## `ViewportStretchOverscroll` (stretch strategy)
 
 | Member                 | Purpose                                                              | Must not                                   |
 | ---------------------- | -------------------------------------------------------------------- | ------------------------------------------ |
@@ -152,7 +152,7 @@ render object replaces it only on an unequal physics swap.
 | `releaseIntoContent`   | Drop the pull; keep a short visual unwind                            | Move content                               |
 | `paintTransform`       | Scale about the pressed edge (top for `s ≥ 0`, bottom otherwise)     | Paint under the precision tolerance        |
 
-## `ChatRubberBandOverscroll` (rubber-band strategy)
+## `ViewportRubberBandOverscroll` (rubber-band strategy)
 
 | Member           | Purpose                                                                  | Must not                                   |
 | ---------------- | ------------------------------------------------------------------------ | ------------------------------------------ |

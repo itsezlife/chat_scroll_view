@@ -3,9 +3,13 @@ import 'dart:developer' as dev;
 
 import 'package:chat_composer/chat_composer.dart' show ComposerView;
 import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatDataSource;
+import 'package:chat_scroll_view_example/src/app/app_binding.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
+import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart'
+    as environment_specific;
+import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
@@ -14,19 +18,22 @@ import 'package:chat_scroll_view_example/src/common/environment_specific/host_en
 import 'package:chat_scroll_view_example/src/common/frame_rate_boost.dart';
 import 'package:chat_scroll_view_example/src/common/glyph_warmup.dart';
 import 'package:chat_scroll_view_example/src/common/mouse_back_button.dart';
+import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
+import 'package:chat_scroll_view_example/src/features/chat/view/chat_page_route.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat_list/view/chat_list_screen.dart';
-import 'package:chrome_foundation/chrome_foundation.dart' show GlassSource;
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show BackdropSnapshotSource, GlassSource;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
@@ -38,14 +45,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 void main() => l.capture<void>(
   () => runZonedGuarded<void>(
     () async {
-      WidgetsFlutterBinding.ensureInitialized();
+      AppBinding();
       if (DemoConfig.scrollLab) ScrollLab.install();
       FrameRateBoost.install();
       // In a browser a right-click opens the browser's own menu over the
       // app's (message menus, the composer's, the panel's) unless the app
       // takes it over.
       if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
-      bindExamplePreImeBack();
+      bindExamplePreImeBack(
+        onBack: DemoConfig.scrollLab
+            ? () => PointerTape.note(TapeSystemEvent.backPreIme)
+            : null,
+      );
       await bootApp(
         createServices: _createServices,
         appOf: (services) => ChatDemoApp(
@@ -106,6 +117,29 @@ Future<AppServices> _createServices() async {
   final services = AppServices.create(
     glyphCache: glyphCache.cache,
     glyphArtVersion: glyphCache.artVersion,
+    // One folder for every kind of animated media, kept a month after its
+    // last use and with no size limit; pass MediaDiskCache(keepFor:,
+    // limitBytes:) to keep it otherwise.
+    // Its first sweep deletes the folders beside it that media was kept in
+    // before it (the Giphy stills and clips, the Lottie frames).
+    mediaCache: environment_specific
+        .$appCacheDirectory('media')
+        .then(
+          (root) => switch (root) {
+            final root? => MediaDiskCache(
+              root,
+              retiredFolders: [
+                for (final name in const [
+                  'giphy_stills',
+                  'giphy_clips',
+                  'lottie_frames',
+                ])
+                  '${root.substring(0, root.lastIndexOf('/'))}/$name',
+              ],
+            ),
+            null => null,
+          },
+        ),
   );
   // Its own failure is awaited below; until then it is not an unhandled one.
   services.ignore();
@@ -166,7 +200,12 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
   // the chat. One per app, so the navigator keeps the same observer across
   // rebuilds.
   late final PlaybackOverlayPauseObserver _overlays =
-      PlaybackOverlayPauseObserver(widget.services.activity);
+      PlaybackOverlayPauseObserver(
+        widget.services.activity,
+        // The chat list pushes the chat as a ChatPageRoute: that page is the
+        // chat, not an overlay laid over it.
+        isChat: (route) => route is ChatPageRoute<dynamic>,
+      );
 
   @override
   void initState() {
@@ -208,7 +247,9 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
           ),
         ),
       );
-      final backed = MouseBackButton(child: app);
+      // The window a content preview's menu blurs a still of: everything
+      // but the lab's own overlay.
+      final backed = MouseBackButton(child: BackdropSnapshotSource(child: app));
       return DemoConfig.scrollLab ? ScrollLabOverlay(child: backed) : backed;
     },
     navigatorObservers: [_overlays],

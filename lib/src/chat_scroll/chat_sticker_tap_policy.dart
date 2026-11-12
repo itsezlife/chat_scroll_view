@@ -9,8 +9,8 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 ///
 /// A pure strategy of the `$Mobile` / `$Desktop` shape, like
 /// [ChatSelectionPolicy]; [ChatStickerTapPolicy.of] follows a selection policy.
-/// The reference clients agree on the table below, so the two strategies
-/// differ only in the long press.
+/// The table below holds for both strategies, which differ only in the long
+/// press.
 ///
 /// | Gesture | Mobile | Desktop |
 /// | --- | --- | --- |
@@ -26,9 +26,8 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 ///
 /// ## Replay tap slop
 ///
-/// [replayTapSlop] outsets the hit rectangle, in logical pixels. The reference
-/// clients use none (a tap must land on the drawn sticker, 0 on every side),
-/// so that is the default. It is a parameter so a host that wants a tap near
+/// [replayTapSlop] outsets the hit rectangle, in logical pixels. The default
+/// is none (a tap must land on the drawn sticker, 0 on every side). It is a parameter so a host that wants a tap near
 /// the sticker to count can say so by changing one value; the hit it widens is
 /// the one `ChatInlineHit.sticker` reports, so a tap in the slop is also an
 /// interaction, not only a replay.
@@ -39,8 +38,8 @@ sealed class ChatStickerTapPolicy {
 
   /// Mobile: a long press also replays.
   ///
-  /// [replaysOnLongPress] false follows the reference client that does not
-  /// restart the sticker when its menu opens.
+  /// [replaysOnLongPress] false keeps the sticker from restarting when its menu
+  /// opens.
   const factory ChatStickerTapPolicy.mobile({
     double replayTapSlop,
     bool replaysOnLongPress,

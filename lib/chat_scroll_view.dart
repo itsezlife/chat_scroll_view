@@ -44,16 +44,6 @@ export 'src/chat_scroll/chat_scroll_activity.dart'
 export 'src/chat_scroll/chat_scroll_common.dart';
 export 'src/chat_scroll/chat_scroll_controller.dart';
 export 'src/chat_scroll/chat_scroll_events.dart';
-export 'src/chat_scroll/chat_scroll_physics.dart'
-    show
-        ChatEdgeEffect,
-        ChatEdgeEffect$None,
-        ChatEdgeEffect$RubberBand,
-        ChatEdgeEffect$Stretch,
-        ChatFling,
-        ChatFling$Decay,
-        ChatFling$Spline,
-        ChatScrollPhysics;
 export 'src/chat_scroll/chat_selection_allowed.dart';
 export 'src/chat_scroll/chat_selection_controller.dart';
 export 'src/chat_scroll/chat_selection_interaction.dart';
@@ -71,6 +61,7 @@ export 'src/chat_widgets/chat_floating_header_marker.dart';
 export 'src/chat_widgets/chat_keyboard_shortcuts.dart';
 export 'src/chat_widgets/chat_markdown_autoscroll.dart';
 export 'src/chat_widgets/chat_markdown_body.dart';
+export 'src/chat_widgets/chat_media_sizes.dart';
 export 'src/chat_widgets/chat_message_body.dart';
 export 'src/chat_widgets/chat_message_change_transition.dart';
 export 'src/chat_widgets/chat_message_surface_bounds.dart';

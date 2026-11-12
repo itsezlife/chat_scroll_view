@@ -1,13 +1,9 @@
-/// What a copy confirms and what it leaves selected, per platform family,
-/// after the reference clients (the table is in the ticket answer and in
-/// `chat_copy_feedback.dart`):
+/// What a copy confirms and what it leaves selected, per platform family:
 ///
-/// * Telegram Desktop: no copy of text or of messages shows a toast, and none
-///   clears the selection (`HistoryInner::copySelectedText`). Only a click on
-///   code does (`MonospaceClickHandler::onClick`).
-/// * Telegram Android: every copy shows the "copied" bulletin, and a copy of
-///   selected messages or of selected text ends the selection
-///   (`ChatActivity` action-mode `copy`, `TextSelectionHelper.copyText`).
+/// * Desktop: no copy of text or of messages shows a toast, and none clears
+///   the selection. Only a click on code does.
+/// * Mobile: every copy shows the "copied" bulletin, and a copy of selected
+///   messages or of selected text ends the selection.
 ///
 /// **Seam:** the whole screen on a given platform, driven by real key events
 /// and taps; the clipboard is the services' `FakeRichClipboard`, read back, so
@@ -23,6 +19,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_d
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind, kSecondaryButton;
@@ -69,12 +66,26 @@ void main() {
   void screenTest(
     String name,
     TargetPlatform platform,
-    Future<void> Function(WidgetTester, ChatSelectionController) body,
-  ) => testWidgets(name, (tester) async {
+    Future<void> Function(WidgetTester, ChatSelectionController) body, {
+    int androidSdk = 34,
+  }) => testWidgets(name, (tester) async {
     debugDefaultTargetPlatformOverride = platform;
+    const system = MethodChannel('chat_scroll_view_example/system');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      system,
+      (call) async => {'sdkInt': androidSdk, 'oneUi40': false},
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        system,
+        null,
+      ),
+    );
     try {
+      // Tall enough that every showcase body is laid out, the early ones
+      // these tests select included.
       tester.view
-        ..physicalSize = const Size(900, 4000)
+        ..physicalSize = const Size(900, 12000)
         ..devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       services = (await tester.runAsync(createTestServices))!;
@@ -149,7 +160,8 @@ void main() {
     expect(selection.isTextSelectionActive, isTrue);
   }
 
-  final copied = find.text('Copied');
+  // Any of the copy bulletins: message, text, code or link.
+  final copied = find.textContaining('скопирован');
 
   Future<void> selectTwoMessages(
     WidgetTester tester,
@@ -275,8 +287,8 @@ void main() {
       },
     );
 
-    // The system confirms a copy on the Android of the reference client
-    // (API 32+, `AndroidUtilities.shouldShowClipboardToast`): the app adds
+    // The system confirms a copy on Android
+    // (API 32+, its clipboard-toast rule): the app adds
     // none, but the selection still ends.
     screenTest('the selection bar Copy on Android', TargetPlatform.android, (
       tester,
@@ -290,6 +302,19 @@ void main() {
       expect(copied, findsNothing);
       expect(selection.isSelectionMode, isFalse);
     });
+
+    // Below API 31 the system shows nothing: the app confirms the copy.
+    screenTest('the selection bar Copy on Android 11', TargetPlatform.android, (
+      tester,
+      selection,
+    ) async {
+      await selectTwoMessages(tester, selection);
+
+      await tapBarCopy(tester);
+
+      expect(copied, findsOneWidget);
+      expect(selection.isSelectionMode, isFalse);
+    }, androidSdk: 30);
   });
 
   group('the message menu', () {
@@ -326,7 +351,7 @@ void main() {
     });
   });
 
-  // The menu a mobile client opens over selected messages is out of reach of
+  // The menu opened over selected messages is out of reach of
   // a gesture here (the screen opens none in selection mode), so the session
   // is driven directly, under each policy.
   group('the menu session over selected messages', () {
@@ -354,20 +379,23 @@ void main() {
         ),
       );
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => menu.present(
-                  context,
-                  const ChatMessageMenuRequest(
-                    messageId: 1,
-                    slotGlobal: Rect.fromLTWH(0, 100, 400, 80),
-                    tapGlobal: Offset(140, 130),
-                    membership: ChatMessageMenuMembership.uponSelected,
+        ChromeThemeScope(
+          palette: const ChromePalette.dark(),
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => menu.present(
+                    context,
+                    const ChatMessageMenuRequest(
+                      messageId: 1,
+                      slotGlobal: Rect.fromLTWH(0, 100, 400, 80),
+                      tapGlobal: Offset(140, 130),
+                      membership: ChatMessageMenuMembership.uponSelected,
+                    ),
                   ),
+                  child: const Text('Open'),
                 ),
-                child: const Text('Open'),
               ),
             ),
           ),
@@ -412,8 +440,7 @@ void main() {
   });
 
   group('code', () {
-    // A tap on code is confirmed on every platform (tdesktop:
-    // `MonospaceClickHandler::onClick`, Android: `URLSpanMono`).
+    // A tap on code is confirmed on every platform.
     Future<void> tapCode(
       WidgetTester tester,
       ChatSelectionController selection,
@@ -486,6 +513,22 @@ void main() {
       expect([
         for (final kind in ChatCopyKind.values) feedback.showsToast(kind),
       ], everyElement(isFalse));
+    });
+    // The app toasts while
+    // (SDK < 31 || !built-in toasts) && SDK < 32.
+    test('Android confirms by itself only from 12L, or 12 on One UI 4.0', () {
+      bool confirms(int sdk, {bool oneUi = false}) =>
+          ChatCopyFeedback.androidSystemConfirms(
+            sdkInt: sdk,
+            hasBuiltInClipboardToasts: oneUi,
+          );
+
+      expect(confirms(30), isFalse);
+      expect(confirms(30, oneUi: true), isFalse);
+      expect(confirms(31), isFalse);
+      expect(confirms(31, oneUi: true), isTrue);
+      expect(confirms(32), isTrue);
+      expect(confirms(34), isTrue);
     });
   });
 }

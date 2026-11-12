@@ -1,7 +1,11 @@
+import 'dart:async';
+
+import 'package:bulletins/bulletins.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenable.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -9,6 +13,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_presentation/panel_presentation.dart';
+import 'package:viewport_scroll/viewport_scroll.dart' show ViewportScrollRouter;
 
 import 'fake_soft_keyboard.dart';
 
@@ -27,7 +32,8 @@ final class InputRig {
   /// The soft keyboard.
   final FakeSoftKeyboard keyboard;
 
-  /// The chat's selection, to hide the composer.
+  /// The chat's selection, which hides the composer on touch and which back clears
+  /// before the panel.
   final ChatSelectionController selection;
 
   bool Function()? _failSends;
@@ -41,30 +47,50 @@ final class InputRig {
   /// Kinds the user was asked to clear and agreed to.
   final List<SemanticKind> clearAsked = <SemanticKind>[];
 
+  /// When set, the confirmation to clear recents stays up until the test
+  /// completes it; otherwise the user agrees at once.
+  Completer<bool>? clearAnswer;
+
   /// Media the composer handed over: pasted, or inserted by a keyboard.
   final List<List<PastedMedia>> pastedMedia = <List<PastedMedia>>[];
+
+  /// Every pack "View pack" asked for, in order.
+  final List<PackId> packsAsked = <PackId>[];
+
+  /// One per pack asked for: the sheet that pack opened, which closes when
+  /// the test completes it.
+  final List<Completer<void>> packSheets = <Completer<void>>[];
+
+  /// Every library edit the user asked for, as the set reported it.
+  final List<AppliedEdit> libraryEdits = <AppliedEdit>[];
 
   /// The set under test, once the first frame is built.
   late ChatInputSet set;
 
+  /// The screen's bulletins, mounted over the stack as the chat mounts its.
+  late BulletinController bulletins;
+
   final GlobalKey _island = GlobalKey();
   final GlobalKey _space = GlobalKey();
 
-  /// Pumps the rig into [tester]. [policy] is the platform's unless given;
-  /// [size] is the window.
+  /// Pumps the rig into [tester]. [policy] is the platform's unless given,
+  /// and so is [selectionPolicy]; [size] is the window. [chat], when given,
+  /// fills the space under the composer where the screen has its chat.
   static Future<InputRig> pump(
     WidgetTester tester, {
     required AppServices services,
     PanelPresentationPolicy? policy,
+    ChatSelectionPolicy? selectionPolicy,
     Size size = const Size(400, 800),
     FakeSoftKeyboard? keyboard,
     bool Function()? failSends,
     int? messageLengthLimit = DemoConfig.messageLengthMax,
+    Widget? chat,
   }) async {
     final rig = InputRig._(
       services,
       keyboard ?? FakeSoftKeyboard(),
-      ChatSelectionController(),
+      ChatSelectionController(policy: selectionPolicy),
     ).._failSends = failSends;
     addTearDown(() async {
       rig.selection.dispose();
@@ -83,6 +109,7 @@ final class InputRig {
           rig: rig,
           policy: policy,
           messageLengthLimit: messageLengthLimit,
+          chat: chat,
         ),
       ),
     );
@@ -143,11 +170,13 @@ class _Screen extends StatefulWidget {
     required this.rig,
     required this.policy,
     required this.messageLengthLimit,
+    this.chat,
   });
 
   final InputRig rig;
   final PanelPresentationPolicy? policy;
   final int? messageLengthLimit;
+  final Widget? chat;
 
   @override
   State<_Screen> createState() => _ScreenState();
@@ -155,6 +184,13 @@ class _Screen extends StatefulWidget {
 
 class _ScreenState extends State<_Screen> {
   ChatInputSet? _input;
+
+  late final BulletinController _bulletins = _rig.bulletins =
+      BulletinController();
+
+  /// The bulletins' obstruction: the chat's bottom padding, as the screen
+  /// gives it.
+  MappedValueListenable<double, EdgeInsets>? _obstruction;
 
   InputRig get _rig => widget.rig;
 
@@ -171,15 +207,26 @@ class _ScreenState extends State<_Screen> {
       edit: (id, body) async => _rig.edited.add('$id:$body'),
       confirmClearRecents: (kind) async {
         _rig.clearAsked.add(kind);
-        return true;
+        return _rig.clearAnswer?.future ?? Future.value(true);
       },
       onPastedMedia: (media) async {
         _rig.pastedMedia.add(media);
         return true;
       },
+      onPackRequested: (id) {
+        _rig.packsAsked.add(id);
+        final sheet = Completer<void>();
+        _rig.packSheets.add(sheet);
+        return sheet.future;
+      },
+      onLibraryEdited: _rig.libraryEdits.add,
+      selection: _rig.selection,
       keyboard: _rig.keyboard,
       policy: widget.policy,
       messageLengthLimit: widget.messageLengthLimit,
+    );
+    _obstruction ??= input.insets.bottomPadding.map(
+      (bottom) => EdgeInsets.only(bottom: bottom),
     );
     final safe = MediaQuery.viewPaddingOf(context);
     input
@@ -193,7 +240,9 @@ class _ScreenState extends State<_Screen> {
 
   @override
   void dispose() {
+    _obstruction?.dispose();
     _input?.dispose();
+    _bulletins.dispose();
     super.dispose();
   }
 
@@ -202,34 +251,46 @@ class _ScreenState extends State<_Screen> {
     final input = _input!;
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      body: Stack(
-        key: _rig._space,
-        children: [
-          Positioned.fill(
-            // The chat gives a docked section its room, as the screen does:
-            // only the padding follows the inset, the chat is not rebuilt.
-            child: ValueListenableBuilder<double>(
-              valueListenable: input.insets.inlineEnd,
-              builder: (context, inlineEnd, child) => Padding(
-                padding: EdgeInsetsDirectional.only(end: inlineEnd),
-                child: child,
-              ),
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: ChatBottomChrome(
-                  input: input,
-                  selection: _rig.selection,
-                  islandKey: _rig._island,
-                  anchorSpace: _rig._space,
+      body: BulletinHost(
+        controller: _bulletins,
+        obstruction: _obstruction,
+        tracksObstruction: true,
+        // The screen's key routing: the panel under the mouse takes the
+        // scroll keys, else the chat. The rig leaves the focus where tests
+        // put it (no focus holding).
+        child: ViewportScrollRouter(
+          child: Stack(
+            key: _rig._space,
+            children: [
+              if (widget.chat case final chat?) Positioned.fill(child: chat),
+              Positioned.fill(
+                // The chat gives a docked section its room, as the screen does:
+                // only the padding follows the inset, the chat is not rebuilt.
+                child: ValueListenableBuilder<double>(
+                  valueListenable: input.insets.inlineEnd,
+                  builder: (context, inlineEnd, child) => Padding(
+                    padding: EdgeInsetsDirectional.only(end: inlineEnd),
+                    child: child,
+                  ),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: ChatBottomChrome(
+                      input: input,
+                      selection: _rig.selection,
+                      islandKey: _rig._island,
+                      anchorSpace: _rig._space,
+                      bulletins: _bulletins,
+                    ),
+                  ),
                 ),
               ),
-            ),
+              if (!ChatBottomChrome.replacesKeyboard(input))
+                Positioned.fill(
+                  child: PanelPresentationView(controller: input.presentation),
+                ),
+            ],
           ),
-          if (!ChatBottomChrome.replacesKeyboard(input))
-            Positioned.fill(
-              child: PanelPresentationView(controller: input.presentation),
-            ),
-        ],
+        ),
       ),
     );
   }

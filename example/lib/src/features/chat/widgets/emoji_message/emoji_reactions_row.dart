@@ -21,9 +21,8 @@ final class EmojiReaction {
 }
 
 /// The row of reaction chips under an emoji-only message, on the service
-/// colour: Android's chip is 26 dp high with a 4 dp gap (1.7); iOS's gap is 4 pt
-/// (2.6); the chip's inner metrics are not in the sources at hand, so Android's
-/// serve the three.
+/// colour: Android's chip is 26 dp high with a 4 dp gap; iOS's gap is 4 pt;
+/// the chip's inner metrics are not given, so Android's serve the three.
 class EmojiReactionsRow extends StatelessWidget {
   /// Draws [reactions].
   const EmojiReactionsRow({

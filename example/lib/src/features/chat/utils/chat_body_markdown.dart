@@ -63,8 +63,9 @@ abstract final class ChatBodyMarkdown {
   /// other inline content keeps its `![alt](scheme:id)` form, with the alt text
   /// as the label.
   ///
-  /// An emoji-only text is not trimmed, as in the reference client: the blank lines and spaces around its emoji are an
-  /// arrangement the sender chose, and the receiver's layout honours them.
+  /// An emoji-only text is not trimmed: the blank lines and spaces around its
+  /// emoji are an arrangement the sender chose, and the receiver's layout
+  /// honours them.
   static String encode(model.RichText text) {
     final kept = model.RichText(text.plain, [
       for (final entity in text.entities)

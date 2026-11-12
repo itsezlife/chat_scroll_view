@@ -179,7 +179,7 @@ final class ChatEmojiTextLayout {
   }
 
   /// The word at [local]: the characters of the item nearest to it. An emoji
-  /// is a word of its own, as the reference client's emoji spans are.
+  /// is a word of its own.
   TextRange? wordAt(Offset local) {
     final i = itemAt(local);
     return i == null ? null : text.itemRanges[i];

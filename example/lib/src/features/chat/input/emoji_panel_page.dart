@@ -34,18 +34,25 @@ abstract final class EmojiPanelPage {
       preferences: services.preferences,
       entryOf: services.emojiSource.entryOf,
       assets: services.assets,
+      previews: services.previews,
       atlasHostFactory:
           ({
             required devicePixelRatio,
             required glyphBoxExtent,
             required visible,
             required opening,
+            required shown,
           }) => GlyphAtlasHost(
             frames: frames,
             devicePixelRatio: devicePixelRatio,
             glyphBoxExtent: glyphBoxExtent,
             visible: visible,
             opening: opening,
+            // The bake holds while another page is shown and while anything
+            // of the app scrolls: a strip or a page composed during a sticker
+            // scroll took that scroll's frames (ADR 022, glyph bake holds).
+            glyphsShown: shown,
+            scrolling: services.scrolling,
             memoryPressure: services.memoryPressure,
             persistence: switch (services.glyphCache) {
               final cache? => GlyphAtlasPersistence(

@@ -40,7 +40,7 @@ void main() {
     debugDefaultTargetPlatformOverride = platform;
     try {
       tester.view
-        ..physicalSize = const Size(900, 4000)
+        ..physicalSize = const Size(900, 8000)
         ..devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       services = (await tester.runAsync(createTestServices))!;
@@ -95,7 +95,7 @@ void main() {
       await copyShortcut(tester);
 
       final copied = await clipboard().read();
-      // The desktop client's lines: [time] Name: text, a newline apart.
+      // Desktop lines: [time] Name: text, a newline apart.
       expect(
         copied?.plain,
         matches(
@@ -105,7 +105,7 @@ void main() {
           ),
         ),
       );
-      // As the desktop client does, a copy leaves the selection standing.
+      // As on desktop, a copy leaves the selection standing.
       expect(selection.isSelectionMode, isTrue);
     });
 
@@ -140,7 +140,7 @@ void main() {
 
         await copyShortcut(tester, platform: 'ios');
 
-        // The Android client's: a Name: line, a blank line between messages.
+        // Mobile: a Name: line, a blank line between messages.
         expect(
           (await clipboard().read())?.plain,
           matches(

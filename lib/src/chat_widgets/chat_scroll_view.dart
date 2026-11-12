@@ -5,7 +5,6 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_events.dart';
-import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_physics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sender_run_layout.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_floating_header_marker.dart';
@@ -19,6 +18,7 @@ import 'package:chat_scroll_view/src/chat_widgets/render_chat_scroll_view.dart';
 import 'package:flutter/foundation.dart'
     show ValueListenable, defaultTargetPlatform;
 import 'package:flutter/widgets.dart';
+import 'package:viewport_scroll/viewport_scroll.dart';
 
 /// Builds the widget for message [id].
 ///
@@ -521,7 +521,7 @@ class ChatScrollView extends RenderObjectWidget {
   /// Scroll physics: the fling that carries a released drag and the edge
   /// effect shown at a reached conversation boundary.
   ///
-  /// `null` resolves to [ChatScrollPhysics.forPlatform] on every build: the
+  /// `null` resolves to [ViewportScrollPhysics.forPlatform] on every build: the
   /// preset matching the OS family of [defaultTargetPlatform] (not the
   /// theme's platform); a browser follows its OS.
   ///
@@ -533,7 +533,7 @@ class ChatScrollView extends RenderObjectWidget {
   /// in-flight fling or edge effect survives. An unequal value cancels the
   /// in-flight fling (emitting [ChatFlingEnd]) and drops the edge effect to
   /// rest before the new physics takes over.
-  final ChatScrollPhysics? physics;
+  final ViewportScrollPhysics? physics;
 
   /// Receiver for the part of a user drag the viewport cannot scroll, so an
   /// ancestor that moves (a draggable bottom sheet) can take it. See
@@ -566,8 +566,8 @@ class ChatScrollView extends RenderObjectWidget {
   final ChatScrollbar? scrollbar;
 
   /// The effective physics: [physics], or the platform default when unset.
-  ChatScrollPhysics get _effectivePhysics =>
-      physics ?? ChatScrollPhysics.forPlatform();
+  ViewportScrollPhysics get _effectivePhysics =>
+      physics ?? ViewportScrollPhysics.forPlatform();
 
   /// The effective scrollbar: [scrollbar], or the platform default when
   /// unset.

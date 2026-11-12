@@ -3,14 +3,13 @@ import 'dart:ui' show Offset, Rect, Size, TextDirection;
 
 import 'package:meta/meta.dart';
 
-/// Where the items of an emoji-only text sit: squares of one side set in
+/// Where the items of an emoji-only text sit: boxes of one size set in
 /// lines that start at the reading direction's edge and wrap at a width, with
 /// the message's own line breaks.
 ///
 /// Pure geometry, so the sizes and the wrap are testable without a render
-/// tree. It is what the reference client's layout of a text made of equal boxes comes to
-/// (each emoji span reserves one square, and the line is as tall as the
-/// square).
+/// tree. It is the layout of a text made of equal boxes: each emoji span
+/// reserves one square, and the line is as tall as the square.
 @immutable
 final class ChatEmojiFlow {
   const ChatEmojiFlow._(this.size, this.rects, this.content, this.lastLine);
@@ -22,7 +21,9 @@ final class ChatEmojiFlow {
   /// than one. A break moves to the next line, and a second leaves a blank
   /// line the height of a square. [maxWidth] may be infinite. The result
   /// shrinks to the widest line; for [TextDirection.rtl] every line starts at
-  /// the right edge. A [skip] separates two items of a line.
+  /// the right edge. A [skip] separates two items of a line. [boxHeight] makes
+  /// the items [box] wide and that tall (a sticker or GIF of its own
+  /// proportion); they are squares when it is null.
   factory ChatEmojiFlow.of({
     required List<int> lineBreaksBefore,
     required double box,
@@ -30,7 +31,9 @@ final class ChatEmojiFlow {
     required TextDirection direction,
     double inset = 0,
     double skip = 0,
+    double? boxHeight,
   }) {
+    final rowHeight = boxHeight ?? box;
     final cells = <(int line, int column)>[];
     var line = 0;
     var column = 0;
@@ -50,7 +53,7 @@ final class ChatEmojiFlow {
       widest = math.max(widest, column);
     }
     final width = widest == 0 ? 0.0 : widest * box + (widest - 1) * skip;
-    final height = cells.isEmpty ? 0.0 : (line + 1) * box;
+    final height = cells.isEmpty ? 0.0 : (line + 1) * rowHeight;
     final rects = [
       for (final (line, column) in cells)
         Rect.fromLTWH(
@@ -59,9 +62,9 @@ final class ChatEmojiFlow {
                 TextDirection.ltr => column * (box + skip),
                 TextDirection.rtl => width - (column + 1) * box - column * skip,
               },
-          inset + line * box,
+          inset + line * rowHeight,
           box,
-          box,
+          rowHeight,
         ),
     ];
     // The items of the last line, for a host that sets chrome under them.

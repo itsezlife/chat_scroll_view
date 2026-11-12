@@ -57,13 +57,13 @@ the edge effect.
 
 ## Scroll physics
 
-The host passes an immutable `ChatScrollPhysics` (`ChatScrollView.physics`,
-`null` → `.forPlatform()`): one `ChatFling` plus one `ChatEdgeEffect`, each a
+The host passes an immutable `ViewportScrollPhysics` (`ChatScrollView.physics`,
+`null` → `.forPlatform()`): one `ViewportFling` plus one `ViewportEdgeEffect`, each a
 closed set with tunable params. The default reads `defaultTargetPlatform`
 (never the theme): Android / Fuchsia → spline + stretch, iOS / macOS →
 decay + rubber-band, Windows / Linux → spline + none; web follows the
 browser OS through the same table. The render object
-owns the runtime `ChatScrollMotion` built from it (`_motion.fling`,
+owns the runtime `ViewportScrollMotion` built from it (`_motion.fling`,
 `_motion.edge`). Physics governs the **drag path only**. Wheel, keyboard,
 scrollbar, jump, `scrollBy`, and animate never read it.
 
@@ -74,11 +74,11 @@ paint tops.
 
 ## Fling
 
-- `_startFling` / `_cancelFling` via `ChatFlingMotion`. `ChatFling.spline`
-  runs `ChatSplineFlingSimulation`: Android's `OverScroller` spline, the same
+- `_startFling` / `_cancelFling` via `ViewportFlingMotion`. `ViewportFling.spline`
+  runs `ViewportSplineFlingSimulation`: Android's `OverScroller` spline, the same
   distance as `ClampingScrollSimulation` with the full native duration and
   tail, so idle-driven chrome waits as long as on a native list. `friction`
-  scales travel (∝ friction^-0.74). `ChatFling.decay` runs Flutter's
+  scales travel (∝ friction^-0.74). `ViewportFling.decay` runs Flutter's
   `FrictionSimulation` with drag `decelerationRate^1000` (iOS normal
   `0.998` → `0.135`), stopping below 10 px/s.
 - **No-op** when [_contentFitsInViewport](./06-boundaries.md#short-content--_contentfitsinviewport).
@@ -95,10 +95,10 @@ paint tops.
 
 ## Edge effect
 
-The render object drives the edge effect only through `ChatEdgeEffectState`.
-The release rules live in the strategy: `ChatStretchOverscroll` for
-`ChatEdgeEffect.stretch`, `ChatRubberBandOverscroll` for
-`ChatEdgeEffect.rubberBand`, `ChatNoOverscroll` for `ChatEdgeEffect.none`.
+The render object drives the edge effect only through `ViewportEdgeEffectState`.
+The release rules live in the strategy: `ViewportStretchOverscroll` for
+`ViewportEdgeEffect.stretch`, `ViewportRubberBandOverscroll` for
+`ViewportEdgeEffect.rubberBand`, `ViewportNoOverscroll` for `ViewportEdgeEffect.none`.
 
 - Paint-only message-layer transform (`_edgeTransform`). Layout pins stay
   clamped.
@@ -133,7 +133,7 @@ The release rules live in the strategy: `ChatStretchOverscroll` for
   then the fling is cancelled. Rubber-band launches its spring from the pin
   with that velocity, uncapped: its critically damped spring peaks at
   `v / (ω·e)`, so the overshoot keeps scaling with the impact. Every edge
-  spring's clock (`ChatSpringClock`) starts at the previous tick (≤ 34 ms
+  spring's clock (`ViewportSpringClock`) starts at the previous tick (≤ 34 ms
   back), so neither the release nor the impact frame repeats the launch
   position.
   None discards it.

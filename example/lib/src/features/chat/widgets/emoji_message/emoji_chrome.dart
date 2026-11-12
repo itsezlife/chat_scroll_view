@@ -17,12 +17,9 @@
 ///
 /// ## Numbers
 ///
-/// Each constant cites the reference source it was traced from (`A` Android's
-/// `ChatMessageCell`, `I` the iOS animated-sticker node, `D` Desktop's
-/// unwrapped media), with the section of the research note
-/// (`04-emoji-only-chrome.md`). A value the reference does not give in the
-/// sources at hand is named `unverified*`, takes the nearest verified
-/// platform's value, and is listed in the divergence table of ADR 036.
+/// Each constant is one measured part of the chrome, described by what it
+/// does. A value that is not given is named `unverified*`, takes the nearest
+/// verified platform's value, and is listed in the divergence table of ADR 036.
 library;
 
 import 'dart:math' as math;
@@ -353,50 +350,49 @@ sealed class EmojiChrome {
   /// Sets everything in the row frame.
   EmojiChromeLayout layout(EmojiChromeInput input);
 
-  // The views icon is the reference's 17 x 12 bitmap scaled to a height.
+  // The views icon is a 17 x 12 bitmap scaled to a height.
   static const double _viewsAspect = 17 / 12;
 }
 
 // --- Android ---------------------------------------------------------------
 
-/// Android's chrome (`A` = `ChatMessageCell.java`, research 04 section 1).
+/// Android's chrome.
 final class EmojiChrome$Android extends EmojiChrome {
   /// Creates the strategy.
   const EmojiChrome$Android();
 
-  /// The pill's height: `max(dp(17), timeTextSize + dp(5))` (`A:23799`, 1.4).
+  /// The pill's height: 17, or the time text's size plus 5 where that is taller.
   static const double pillHeight = 17;
 
-  /// The time text's size (`Theme:8983`, 1.4).
+  /// The time text's size.
   static const double timeSize = 12;
 
-  /// The pill's corner radius: `dp(4) + dp(8)` for any kind of sticker, the
-  /// emoji text layout included (`A:23782-23786`, 1.4).
+  /// The pill's corner radius: 4 plus 8 for any kind of sticker, the
+  /// emoji text layout included.
   static const double radius = 12;
 
-  /// Padding between the pill's leading edge and the time (`A:23836`, 1.4).
+  /// Padding between the pill's leading edge and the time.
   static const double padding = 6;
 
-  /// The width a pill adds around the time: 6 + 6 (`A:23799`, 1.4 D).
+  /// The width a pill adds around the time: 6 + 6.
   static const double chromeWidth = 12;
 
   /// What an outgoing pill adds for the ticks: 20, and 4 more for the emoji
-  /// text layout (`A:23799`, 1.4).
+  /// text layout.
   static const double ticksRoomText = 24;
 
   /// Ticks room of an outgoing sticker-layout pill.
   static const double ticksRoomSticker = 20;
 
-  /// A check is a 12 x 12 bitmap (`msg_check_s`, 1.5).
+  /// A check is a 12 x 12 bitmap.
   static const double checkSize = 12;
 
-  /// Distance between the full and the half check: 26.3 - 21.5 (`A:24479-24650`,
-  /// 1.5).
+  /// Distance between the full and the half check: 26.3 - 21.5.
   static const double checkGap = 4.8;
 
   /// Distance from the end of a text-layout pill to the end of its checks:
   /// the check ends 27.5 from the row's end (`layoutWidth - 21.5 - 12 - 6`),
-  /// the pill 20 (1.5 and 1.4, D).
+  /// the pill 20.
   static const double checkInsetText = 7.5;
 
   /// The same for a sticker-layout pill, which ends 22 from the row's end.
@@ -408,35 +404,34 @@ final class EmojiChrome$Android extends EmojiChrome {
   /// The same for a sticker-layout pill.
   static const double clockInsetSticker = 6;
 
-  /// The clock's size: `MsgClockDrawable`'s intrinsic size was not traced.
+  /// The clock's size: the intrinsic size of its drawable is not given.
   static const double unverifiedClockSize = 12;
 
-  /// The error square: 14 dp (`A`, 1.5).
+  /// The error square: 14 dp.
   static const double errorSize = 14;
 
   /// The error square ends `layoutWidth - 34.5 - 6 + 14` from the row's end,
-  /// 26.5 (1.5, D).
+  /// 26.5.
   static const double errorInsetText = 6.5;
 
   /// The same for a sticker-layout pill.
   static const double errorInsetSticker = 4.5;
 
-  /// The views icon's height: `timeTextSize - 2dp` (`A:24381-24401`, 1.4).
+  /// The views icon's height: the time text's size less 2.
   static const double viewsIconHeight = 10;
 
-  /// The gap between the views icon and its count (1.4).
+  /// The gap between the views icon and its count.
   static const double viewsIconGap = 3;
 
-  /// The gap between the views block and the time (1.4).
+  /// The gap between the views block and the time.
   static const double viewsGap = 10;
 
-  // Under the text (1.4 D): 3 below the text box, the pill, 3 below it.
+  // Under the text: 3 below the text box, the pill, 3 below it.
   static const double _gapAboveStrip = 3;
   static const double _gapBelowPill = 3;
 
   // A lone emoji is an animated emoji: its pill is `photoBottom - 23 + 16`,
-  // so [-7, +10] of the art's bottom, and the cell is 9 + 16 below the art
-  // (`A:10446`, `10917-10925`, 1.3 D).
+  // so [-7, +10] of the art's bottom, and the cell is 9 + 16 below the art.
   static const double _stickerPillTop = -7;
   static const double _stickerStrip = 25;
 
@@ -535,7 +530,7 @@ final class EmojiChrome$Android extends EmojiChrome {
     required EmojiHeaderText text,
   }) {
     // `replyNameWidth = 4 + name + 4 + 3`, `replyTextWidth = 4 + text + 18`,
-    // the panel one more than the larger, 3 (`A:19478-19540`, 1.6).
+    // the panel one more than the larger, 3.
     final reply = math.max(text.nameWidth + 11, text.textWidth + 22) + 3;
     final forward = text.forwardWidth + 14;
     return switch (shape) {
@@ -561,7 +556,7 @@ final class EmojiChrome$Android extends EmojiChrome {
     final pillSize = input.pill.size;
     final tw = input.pill.metaWidth;
 
-    // 1.4: the text layout's pill is 3 below the text, 1 (incoming) or 4
+    // The text layout's pill is 3 below the text, 1 (incoming) or 4
     // (outgoing) inside its end; the sticker layout's overlaps the art, 5
     // inside it, never left of 1 (`timeX >= 26`).
     final Rect pill;
@@ -599,7 +594,7 @@ final class EmojiChrome$Android extends EmojiChrome {
     Rect? reactions;
     final reactionsSize = input.reactions;
     if (reactionsSize != null) {
-      // 1.7: the row ends at the text's end (outgoing) or starts at its start;
+      // The row ends at the text's end (outgoing) or starts at its start;
       // it is 29 dp (text) or 23 dp (sticker) under the items.
       final top = content.bottom + (isSticker ? 23 : 29);
       final left = outgoing
@@ -620,7 +615,7 @@ final class EmojiChrome$Android extends EmojiChrome {
     );
   }
 
-  // 1.6: above the text, left-aligned to the box in both directions; the
+  // Above the text, left-aligned to the box in both directions; the
   // panel's left is `replyStartX - 7`, with `replyStartX` 12 (reply) or 11
   // (forward) past the background's left minus 7 for the emoji layout.
   Rect _aboveText(
@@ -648,7 +643,7 @@ final class EmojiChrome$Android extends EmojiChrome {
     return Rect.fromLTWH(left, -(gap + size.height), size.width, size.height);
   }
 
-  // 1.6: beside the sticker; an outgoing one at 23 - 7 = 16 from the row's
+  // Beside the sticker; an outgoing one at 23 - 7 = 16 from the row's
   // left edge, an incoming one 17 - 7 + 12 - 3... = 18 from the art's end.
   /// An outgoing reply beside a sticker is pinned 16 from the row's left
   /// (`_besideSticker`) and ends 18 short of the sticker's box, as an incoming
@@ -688,64 +683,61 @@ final class EmojiChrome$Android extends EmojiChrome {
 
 // --- iOS -------------------------------------------------------------------
 
-/// iOS's chrome (`I` = `ChatMessageAnimatedStickerItemNode`,
-/// `ChatMessageDateAndStatusNode`; research 04 section 2).
+/// iOS's chrome.
 final class EmojiChrome$Ios extends EmojiChrome {
   /// Creates the strategy.
   const EmojiChrome$Ios();
 
   /// The pill's height: the date line's height plus 2 + 2. The line height is a
-  /// font metric the sources do not give: 17 (`DS:702-715`, 2.4 D).
+  /// font metric that is not given: 17.
   static const double unverifiedPillHeight = 17;
 
-  /// The date font (`DS:551`, 2.4).
+  /// The date font.
   static const double dateSize = 11;
 
-  /// The pill's left and right inset (`DS:702-715`, 2.4).
+  /// The pill's left and right inset.
   static const double inset = 7;
 
-  /// The status width of an outgoing pill (`DS:610-665`, 2.4).
+  /// The status width of an outgoing pill.
   static const double statusWidth = 13;
 
-  /// A check: 11 pt wide, 9 high (`generateCheckImage`, 2.4).
+  /// A check: 11 pt wide, 9 high.
   static const double checkWidth = 11;
 
   /// A check's height.
   static const double checkHeight = 9;
 
-  /// The distance between the full and the partial check (`DS:610-665`, 2.4).
+  /// The distance between the full and the partial check.
   static const double checkGap = 6;
 
-  /// The clock: 11 x 11 (`generateClockFrameImage`, 2.4).
+  /// The clock: 11 x 11.
   static const double clockSize = 11;
 
-  /// The pill is 4 pt inside the node's end and bottom (`AS:1708`, 2.4).
+  /// The pill is 4 pt inside the node's end and bottom.
   static const double edgeInset = 4;
 
-  /// The pill's left stops 3 pt inside the frame; the body is 6 further in
-  /// (`displayLeftInset`, `AS:1708`, 2.4 D).
+  /// The pill's left stops 3 pt inside the frame; the body is 6 further in.
   static const double displayLeftOffset = -6;
 
-  /// The strip under the text: `imageBottomPadding` (`AS:1281-1286`, 2.2).
+  /// The strip under the text.
   static const double textStrip = 20;
 
-  /// The text frame's top padding: `imageTopPadding` (2.2).
+  /// The text frame's top padding.
   static const double textTopPadding = 16;
 
-  /// A header's top, below the frame's top (`AS:1588-1599`, 2.5).
+  /// A header's top, below the frame's top.
   static const double headerTop = 8;
 
-  /// An outgoing header's left: `leftInset + edgeInset + 11` (2.5).
+  /// An outgoing header's left: the bubble's start and edge insets plus 11.
   static const double outgoingHeaderLeft = 14;
 
-  /// An incoming header's end, from the row's right: `edgeInset + 9` (2.5).
+  /// An incoming header's end, from the row's right: `edgeInset + 9`.
   static const double incomingHeaderRight = 12;
 
-  /// The bubble's edge inset of the Telegram-iOS chat layout
-  /// (`ChatMessageItemCommon.swift`, the bubble constants).
+  /// The bubble's edge inset.
   static const double bubbleEdgeInset = 3;
 
-  /// The bubble's left content inset of the Telegram-iOS chat layout.
+  /// The bubble's left content inset.
   static const double bubbleContentInsetLeft = 6;
 
   /// The reply's room beside the content, as `ChatMessageStickerItemNode`
@@ -787,7 +779,7 @@ final class EmojiChrome$Ios extends EmojiChrome {
 
   /// The least room beside the emoji text a reply may have. Under it the reply
   /// goes above the text: with no room left, a panel beside would overlap the
-  /// emoji. A placement of ours, not Telegram's.
+  /// emoji. A placement of ours.
   static const double minimumBesideText = 40;
 
   /// The gap between an above reply and the text.
@@ -797,11 +789,10 @@ final class EmojiChrome$Ios extends EmojiChrome {
   bool headerGoesAbove({required double beside, required bool isSticker}) =>
       !isSticker && beside < minimumBesideText;
 
-  /// A reply panel's height: the two lines' metrics are not in the sources, the
-  /// research gives about 40 (`ChatMessageReplyInfoNode`, 2.5).
+  /// A reply panel's height: the two lines' metrics are not given, about 40.
   static const double unverifiedHeaderHeight = 40;
 
-  /// A forward panel's height: not traced, two lines of the reply's size.
+  /// A forward panel's height: two lines of the reply's size.
   static const double unverifiedForwardHeight = 44;
 
   /// The views icon's size: the bundle bitmap's was not read; a 17:12 icon the
@@ -854,8 +845,8 @@ final class EmojiChrome$Ios extends EmojiChrome {
 
     Rect? status;
     if (outgoing) {
-      // x = leftInset + impression + date + 5 + 13 - checkW - 6, the full
-      // check; the partial one is [checkGap] after it (`DS:610-665`).
+      // x = start inset + views + date + 5 + 13 - check width - 6, the full
+      // check; the partial one is [checkGap] after it.
       final first =
           inset + impression + date + 5 + statusWidth - checkWidth - checkGap;
       status = switch (state) {
@@ -919,7 +910,7 @@ final class EmojiChrome$Ios extends EmojiChrome {
     required EmojiHeaderShape shape,
     required EmojiHeaderText text,
   }) {
-    // `size.width = max(title, text) + leftInset 11 + 6` (2.5).
+    // The width: the wider of the title and the text, plus 11 inset and 6.
     final reply = math.max(text.nameWidth, text.textWidth) + 17;
     final forward = text.forwardWidth + 14;
     return switch (shape) {
@@ -949,7 +940,7 @@ final class EmojiChrome$Ios extends EmojiChrome {
     );
     final pillSize = input.pill.size;
 
-    // 2.4: `x = max(displayLeftInset, maxX - dateW - 4)`,
+    // `x = max(displayLeftInset, maxX - dateW - 4)`,
     // `y = maxY - dateH - 4 (+ the bottom padding)`: the node's end and bottom,
     // for both layouts (the sticker's frame includes its inset).
     final pill = Rect.fromLTWH(
@@ -967,7 +958,7 @@ final class EmojiChrome$Ios extends EmojiChrome {
       // Above the text, at the top and on the text's edge.
       header = Rect.fromLTWH(bodyLeft, 0, headerSize.width, headerSize.height);
     } else if (headerSize != null) {
-      // 2.5: beside both layouts, pinned to the edge away from the message.
+      // Beside both layouts, pinned to the edge away from the message.
       header = Rect.fromLTWH(
         outgoing
             ? outgoingHeaderLeft
@@ -981,7 +972,7 @@ final class EmojiChrome$Ios extends EmojiChrome {
     Rect? reactions;
     final reactionsSize = input.reactions;
     if (reactionsSize != null) {
-      // 2.6: under the node, aligned to its side.
+      // Under the node, aligned to its side.
       reactions = Rect.fromLTWH(
         outgoing ? bodyRect.right - reactionsSize.width : bodyLeft,
         bodyRect.bottom,
@@ -1000,81 +991,73 @@ final class EmojiChrome$Ios extends EmojiChrome {
 
 // --- Desktop ---------------------------------------------------------------
 
-/// Desktop's chrome (`D` = `history_view_media_unwrapped.cpp`,
-/// `history_view_message.cpp`; research 04 section 3).
+/// Desktop's chrome.
 final class EmojiChrome$Desktop extends EmojiChrome {
   /// Creates the strategy.
   const EmojiChrome$Desktop();
 
-  /// The date font, px (`msgDateFont`, 3.3).
+  /// The date font, px.
   static const double dateSize = 13;
 
-  /// The pill's padding: `msgDateImgPadding` (8, 2) (3.3).
+  /// The pill's padding: 8 and 2.
   static const double paddingX = 8;
 
   /// The pill's vertical padding.
   static const double paddingY = 2;
 
-  /// The gap between the content and the pill beside it:
-  /// `msgReplyPadding.left` (3.3).
+  /// The gap between the content and the pill beside it.
   static const double besideGap = 6;
 
-  /// The space a status icon takes: `historySendStateSpace` (3.3).
+  /// The space a status icon takes.
   static const double statusSpace = 24;
 
-  /// The row's margin an incoming pill stays inside: `msgPadding.left 11 +
-  /// msgPadding.right 11` (`calculateFullRight`, 3.3).
+  /// The row's margin an incoming pill stays inside: 11 on each side.
   static const double rightSkip = 22;
 
-  /// The wide ceiling of a header's width under which it is beside:
-  /// `msgReplyPadding.left + msgMinWidth / 2` (3.4).
+  /// The wide ceiling of a header's width under which it is beside.
   static const double additionalMinWidth = 86;
 
-  /// A header's offset from the element's top: `topicButtonSkip` (3.4).
+  /// A header's offset from the element's top.
   static const double headerSkip = 3;
 
-  /// The margin between an above header and the content: `msgMargin.bottom`
-  /// (3.4).
+  /// The margin between an above header and the content.
   static const double headerMarginBelow = 2;
 
-  /// The least height of the large-emoji row: `largeEmojiSize + outline` (3.3).
+  /// The least height of the large-emoji row: the emoji's size and its outline.
   static const double largeRow = 38;
 
-  /// The space between the pill and the content above it: `msgDateImgDelta`
-  /// (3.3).
+  /// The space between the pill and the content above it.
   static const double infoDelta = 4;
 
-  /// Of which, the pixels the content is centred inside its taller row (3.3 D).
+  /// Of which, the pixels the content is centred inside its taller row.
   static const double centring = 2;
 
-  /// The pill's corner radius: `roundRadiusLarge` lives in the absent
-  /// `lib_ui`, commonly 6 (3.3).
+  /// The pill's corner radius, commonly 6.
   static const double unverifiedRadius = 6;
 
-  /// The ticks' size: the sprites' sizes are not in the sources.
+  /// The ticks' size: the sprites' sizes are not given.
   static const double unverifiedTickSize = 12;
 
-  /// The gap between two checks: Android's.
+  /// The gap between two checks: the mobile one.
   static const double unverifiedTickGap = EmojiChrome$Android.checkGap;
 
   /// The end padding of the status area, from the pill's end.
   static const double unverifiedStatusInset = paddingX;
 
-  /// The views icon (`historyViewsWidth` 20 is icon plus gap): 12 wide.
+  /// The views icon: 12 wide.
   static const double unverifiedViewsIconWidth = 12;
 
-  /// The views block's width before the count: icon plus gap (3.3).
+  /// The views block's width before the count: icon plus gap.
   static const double viewsBlock = 20;
 
-  /// The gap between the views count and the time (`historyViewsSpace`).
+  /// The gap between the views count and the time.
   static const double viewsSpace = 8;
 
-  /// The space between the element and the reactions below it: Desktop's own
-  /// is in the message widget, not in the sources at hand; iOS's 4.
+  /// The space between the element and the reactions below it.
   static const double unverifiedReactionsGap = 4;
 
   /// A custom emoji line of more than this many items shows an outgoing time
-  /// always (`history_view_custom_emoji.cpp:305-307`, 3.3).
+  /// always.
   static const int alwaysShownCustomItems = 3;
 
   @override
@@ -1161,7 +1144,7 @@ final class EmojiChrome$Desktop extends EmojiChrome {
     required double contentHeight,
     required Size pill,
   }) {
-    // 3.3: only a right layout lifts the row to `min(38, content) + 4 + info`;
+    // Only a right layout lifts the row to `min(38, content) + 4 + info`;
     // an incoming pill is beside the content. A tall content already holds it.
     if (!outgoing) return 0;
     final lifted = math.min(largeRow, contentHeight) + infoDelta + pill.height;
@@ -1178,7 +1161,7 @@ final class EmojiChrome$Desktop extends EmojiChrome {
     required bool isLastOwn,
     required EmojiSendState state,
   }) {
-    // 3.3, `needInfoDisplay`: sending, failed, under the cursor, the last own
+    // Info shows for: sending, failed, under the cursor, the last own
     // message, or outgoing with a content that always shows an outgoing time:
     // the large emoji does; a custom emoji line does for more than 3 items in
     // one line; a sticker does not.
@@ -1202,7 +1185,7 @@ final class EmojiChrome$Desktop extends EmojiChrome {
     required EmojiHeaderShape shape,
     required EmojiHeaderText text,
   }) {
-    // 3.4: `historyReplyPadding (11, 2, 6, 2)` around a name line and a text
+    // The reply's padding (11, 2, 6, 2) around a name line and a text
     // line; a forward is stacked above in the same panel,
     // `msgReplyPadding (6, 6, 11, 6)`.
     final reply = Size(
@@ -1233,7 +1216,7 @@ final class EmojiChrome$Desktop extends EmojiChrome {
     final bodyLeft = outgoing ? rowWidth - body.size.width : 0.0;
     final contentWidth = body.content.width;
 
-    // 3.4: beside when `optimal + min(additional, 86)` fits the row, else above.
+    // Beside when `optimal + min(additional, 86)` fits the row, else above.
     final additional = headerSize == null
         ? pillSize.width + besideGap
         : math.max(pillSize.width, headerSize.width) + besideGap;
@@ -1260,7 +1243,7 @@ final class EmojiChrome$Desktop extends EmojiChrome {
     }
     final contentRight = bodyLeft + body.content.right;
 
-    // 3.3: outgoing, the pill ends where the content ends; incoming, it is
+    // Outgoing, the pill ends where the content ends; incoming, it is
     // 6 after it, kept inside the row's margin. Both sit on the element's
     // bottom.
     final pillRight = outgoing

@@ -5,7 +5,7 @@ import 'package:flutter/painting.dart' show TextRange;
 import 'package:meta/meta.dart';
 
 /// The offer to apply formatting after a plain paste whose text reads as
-/// markdown (the reference desktop client's "Apply formatting" toast).
+/// markdown (the "Apply formatting" toast).
 ///
 /// Paste itself never parses markdown (ADR 032); the host makes this offer
 /// from the composer's paste report and the user takes it or not. Applying it

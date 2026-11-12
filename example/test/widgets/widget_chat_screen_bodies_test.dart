@@ -2,15 +2,22 @@
 /// the interactions the inline layer reports, and the large-emoji setting.
 library;
 
+import 'package:bulletins/bulletins.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/main.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/frame_counter_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:panel_pages/panel_pages.dart';
 
 import '../support/fake_soft_keyboard.dart';
 import '../support/test_services.dart';
@@ -58,7 +65,7 @@ void main() {
   // A tall window, so that every message of the showcase is mounted.
   Future<ChatSelectionController> openChat(WidgetTester tester) async {
     tester.view
-      ..physicalSize = const Size(500, 4000)
+      ..physicalSize = const Size(500, 12000)
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     services = (await tester.runAsync(createTestServices))!;
@@ -76,6 +83,25 @@ void main() {
     return tester
         .widget<ChatScrollView>(find.byType(ChatScrollView))
         .selectionController!;
+  }
+
+  // Long enough for a pack lookup and the sheet's entrance.
+  Future<void> settle(WidgetTester tester) async {
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
+
+  // The emoji-only body that shows the lone document [key].
+  Finder stickerBody(WidgetTester tester, ContentKey key) {
+    final body = find.byWidgetPredicate(
+      (widget) =>
+          widget is ChatEmojiBody &&
+          widget.sticker != null &&
+          widget.emojiOnly.items.single.key == key,
+    );
+    expect(body, findsOneWidget);
+    return body;
   }
 
   Future<void> tapAndRead(WidgetTester tester, Offset at) async {
@@ -103,8 +129,14 @@ void main() {
 
       // Message 0: the first custom emoji follows "Launch day ".
       await tapAndRead(tester, _pointOn(selection, 0, 11, 12));
+      await settle(tester);
 
-      expect(find.textContaining('Emoji pack of document:'), findsOneWidget);
+      final sheet = find.byType(EmojiPackSheet);
+      expect(sheet, findsOneWidget);
+      expect(tester.widget<EmojiPackSheet>(sheet).packIds, [
+        AnimatedEmojiPack.packId,
+      ]);
+      expect(find.textContaining('Emoji pack of'), findsNothing);
     });
 
     screenTest('the sticker of an emoji-only message', (tester) async {
@@ -145,8 +177,88 @@ void main() {
       );
       expect(sticker, findsOneWidget);
       await tapAndRead(tester, tester.getCenter(sticker));
+      await settle(tester);
 
-      expect(find.textContaining('Sticker pack of document:'), findsOneWidget);
+      expect(find.byType(EmojiPackSheet), findsOneWidget);
+      expect(
+        tester.widget<EmojiPackSheet>(find.byType(EmojiPackSheet)).packIds,
+        [AnimatedEmojiPack.packId],
+      );
+      expect(find.textContaining('Sticker pack of'), findsNothing);
+    });
+
+    screenTest('a sticker of a pack opens its sticker sheet', (tester) async {
+      await openChat(tester);
+
+      final sticker = stickerBody(tester, LottieStickerPack.stickers.first.key);
+      await tapAndRead(tester, tester.getCenter(sticker));
+      await settle(tester);
+
+      final sheet = find.byType(StickerPackSheet);
+      expect(sheet, findsOneWidget);
+      expect(
+        tester.widget<StickerPackSheet>(sheet).pack,
+        LottieStickerPack.packId,
+      );
+      // The chat allows stickers: the sheet can send through the composer.
+      expect(tester.widget<StickerPackSheet>(sheet).onPick, isNotNull);
+    });
+
+    // The sheet plays its own stickers: the clock
+    // is not paused under it, only the chat (ticket 128).
+    screenTest('a sticker sheet leaves the clock playing', (tester) async {
+      await openChat(tester);
+      final clock = services.assets.clock;
+
+      final sticker = stickerBody(tester, LottieStickerPack.stickers.first.key);
+      await tapAndRead(tester, tester.getCenter(sticker));
+      await settle(tester);
+
+      expect(find.byType(StickerPackSheet), findsOneWidget);
+      expect(clock.pausedLayers, isEmpty);
+
+      Navigator.of(tester.element(find.byType(StickerPackSheet))).pop();
+      await settle(tester);
+      expect(find.byType(StickerPackSheet), findsNothing);
+      expect(clock.pausedLayers, isEmpty);
+    });
+
+    screenTest('a GIF opens nothing', (tester) async {
+      await openChat(tester);
+
+      final gif = VideoStickerPack.items.firstWhere(
+        (item) => item.descriptor.pack == null,
+      );
+      await tapAndRead(tester, tester.getCenter(stickerBody(tester, gif.key)));
+      await settle(tester);
+
+      expect(find.byType(StickerPackSheet), findsNothing);
+      expect(find.byType(EmojiPackSheet), findsNothing);
+      expect(find.byType(BulletinCard), findsNothing);
+    });
+
+    screenTest('the menu of a message with custom emoji offers their pack', (
+      tester,
+    ) async {
+      final selection = await openChat(tester);
+
+      // Message 0: a tap on "Launch" opens the message's menu.
+      await tapAndRead(tester, _pointOn(selection, 0, 0, 6));
+      await settle(tester);
+      final entry = find.text(
+        'This message contains emoji from ${AnimatedEmojiPack.title} pack.',
+        findRichText: true,
+      );
+      expect(entry, findsOneWidget);
+
+      await tester.tap(entry);
+      await settle(tester);
+
+      final sheet = find.byType(EmojiPackSheet);
+      expect(sheet, findsOneWidget);
+      expect(tester.widget<EmojiPackSheet>(sheet).packIds, [
+        AnimatedEmojiPack.packId,
+      ]);
     });
 
     screenTest('a spoiler: a tap reveals it, with no host action', (
@@ -159,7 +271,7 @@ void main() {
       await tapAndRead(tester, _pointOn(selection, 6, 14, 23));
 
       expect(selection.spoilers.isRevealed(6), isTrue);
-      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byType(BulletinCard), findsNothing);
     });
   });
 
@@ -168,7 +280,17 @@ void main() {
       tester,
     ) async {
       await openChat(tester);
-      expect(find.byType(ChatEmojiBody), findsNWidgets(6));
+      // Six messages of emoji, and one sticker each of the Lottie pack and of
+      // the static one, and one item each of the video pack and of the frame
+      // counter clips.
+      final emojiOnly =
+          6 +
+          LottieStickerPack.stickers.length +
+          StaticStickerPack.stickers.length +
+          VideoStickerPack.items.length +
+          FrameCounterPack.items.length;
+      expect(emojiOnly, 33);
+      expect(find.byType(ChatEmojiBody), findsNWidgets(emojiOnly));
 
       await tester.tap(find.byTooltip('Large emoji: on'));
       await tester.pump(const Duration(milliseconds: 100));
@@ -179,7 +301,7 @@ void main() {
       await tester.tap(find.byTooltip('Large emoji: off'));
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byType(ChatEmojiBody), findsNWidgets(6));
+      expect(find.byType(ChatEmojiBody), findsNWidgets(emojiOnly));
     });
   });
 }

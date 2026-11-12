@@ -1,3 +1,4 @@
+import 'package:bulletins/bulletins.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
@@ -21,6 +22,7 @@ class ChatBottomChrome extends StatefulWidget {
     required this.selection,
     required this.islandKey,
     this.anchorSpace,
+    this.bulletins,
     this.onAttachPressed,
     this.onVoicePressed,
     super.key,
@@ -29,7 +31,7 @@ class ChatBottomChrome extends StatefulWidget {
   /// The chat's input set.
   final ChatInputSet input;
 
-  /// While a selection is active the composer is hidden.
+  /// While a selection is active the composer is hidden on touch platforms.
   final ChatSelectionController selection;
 
   /// Key of the composer's glass island.
@@ -38,15 +40,19 @@ class ChatBottomChrome extends StatefulWidget {
   /// The box the popup's anchor is reported in; null where there is no popup.
   final GlobalKey? anchorSpace;
 
+  /// The chat's bulletins, for the composer's offer to apply formatting.
+  final BulletinController? bulletins;
+
   /// Attach button.
   final VoidCallback? onAttachPressed;
 
   /// The voice button.
   final VoidCallback? onVoicePressed;
 
-  /// Whether the panel replaces the soft keyboard under [input]'s policy.
+  /// Whether the panel replaces the soft keyboard under [input]'s policy, in
+  /// the window it was last told of.
   static bool replacesKeyboard(ChatInputSet input) =>
-      input.presentation.policy is PanelPresentationPolicy$Mobile;
+      input.panelInKeyboardPlace;
 
   @override
   State<ChatBottomChrome> createState() => _ChatBottomChromeState();
@@ -68,6 +74,7 @@ class _ChatBottomChromeState extends State<ChatBottomChrome> {
       selection: widget.selection,
       islandKey: widget.islandKey,
       anchorSpace: replacesKeyboard ? null : widget.anchorSpace,
+      bulletins: widget.bulletins,
       onAttachPressed: widget.onAttachPressed,
       onVoicePressed: widget.onVoicePressed,
     );
