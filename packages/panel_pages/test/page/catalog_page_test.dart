@@ -63,7 +63,12 @@ const _layout = SectionLayout.grid(
 );
 
 class _Policy extends CatalogPagePolicy {
-  _Policy({this.longPress = false, this.strip = false});
+  _Policy({this.longPress = false, this.strip = false, this.headerInset});
+
+  final double? headerInset;
+
+  @override
+  double? get headerStartInset => headerInset;
 
   final bool longPress;
   final bool strip;
@@ -99,6 +104,7 @@ class _Policy extends CatalogPagePolicy {
     required PointerDeviceKind kind,
     required Rect cellBounds,
     required Rect viewportBounds,
+    CatalogLeafHit? Function(Offset globalPosition)? leafAt,
   }) {
     sessionLog.add('begin ${hit.sectionId}/${hit.index}');
     return _Session(sessionLog);
@@ -516,6 +522,23 @@ void main() {
     });
   });
 
+  group('the header', () {
+    testWidgets('starts its title where the policy says, else where the '
+        'viewport does', (tester) async {
+      double inset() => tester
+          .widget<PanelCatalogTheme>(find.byType(PanelCatalogTheme))
+          .data
+          .sectionHeaderStartInset;
+      await pumpPage(tester);
+      final viewport = inset();
+
+      await pumpPage(tester, withPolicy: _Policy(headerInset: 15));
+
+      expect(inset(), 15);
+      expect(viewport, isNot(15));
+    });
+  });
+
   group('the top strip', () {
     testWidgets('is built by the policy above the catalogue', (tester) async {
       policy = _Policy(strip: true);
@@ -630,6 +653,158 @@ void main() {
       await tester.pump();
 
       expect(catalog().focusedLeaf, isNull);
+    });
+  });
+
+  group('scroll keys', () {
+    // A catalogue far taller than the page: 100 rows of faces.
+    Future<void> pumpLong(WidgetTester tester) async {
+      final long = _source(faces: const [400]);
+      addTearDown(long.dispose);
+      await pumpPage(tester, withSource: long);
+    }
+
+    // A mouse press on the header band, away from every cell.
+    Future<void> pressWithMouse(WidgetTester tester) async {
+      final mouse = await tester.startGesture(
+        origin(tester) + const Offset(300, 4),
+        kind: PointerDeviceKind.mouse,
+      );
+      await mouse.up();
+      await tester.pump();
+    }
+
+    testWidgets('a mouse press gives the catalogue the keys, with no roving '
+        'focus: the arrows, the page keys, Home and End scroll it', (
+      tester,
+    ) async {
+      await pumpLong(tester);
+      expect(catalog().maxScrollExtent, greaterThan(400));
+
+      await pressWithMouse(tester);
+      expect(catalog().focusedLeaf, isNull);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      expect(catalog().offset, 60);
+      expect(catalog().focusedLeaf, isNull);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      expect(catalog().offset, 0);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+      await tester.pump();
+      expect(catalog().offset, closeTo(catalog().viewportExtent * 0.85, 1));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.end);
+      await tester.pump();
+      expect(catalog().offset, catalog().maxScrollExtent);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.home);
+      await tester.pump();
+      expect(catalog().offset, 0);
+    });
+
+    testWidgets(
+      'a mouse press leaves the keys with a field focused elsewhere',
+      (tester) async {
+        final field = FocusNode();
+        final text = TextEditingController();
+        addTearDown(field.dispose);
+        addTearDown(text.dispose);
+        // A text field beside the page, as the composer is.
+        await tester.pumpWidget(
+          PanelShellTestScope(
+            child: Column(
+              children: [
+                SizedBox(
+                  width: 200,
+                  height: 20,
+                  child: EditableText(
+                    controller: text,
+                    focusNode: field,
+                    style: const TextStyle(),
+                    cursorColor: const Color(0xFF000000),
+                    backgroundCursorColor: const Color(0xFF000000),
+                  ),
+                ),
+                SizedBox(
+                  width: 320,
+                  height: 480,
+                  child: CatalogPage(
+                    host: host,
+                    source: source,
+                    policy: policy,
+                    assets: assets,
+                    bake: bake,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        field.requestFocus();
+        await tester.pump();
+
+        await pressWithMouse(tester);
+
+        expect(field.hasFocus, isTrue);
+      },
+    );
+
+    testWidgets('a mouse press takes the keys from a focus beside it that '
+        'types no text (the chat)', (tester) async {
+      final chat = FocusNode();
+      addTearDown(chat.dispose);
+      final long = _source(faces: const [400]);
+      addTearDown(long.dispose);
+      await tester.pumpWidget(
+        PanelShellTestScope(
+          child: Column(
+            children: [
+              Focus(
+                focusNode: chat,
+                child: const SizedBox(width: 20, height: 20),
+              ),
+              SizedBox(
+                width: 320,
+                height: 480,
+                child: CatalogPage(
+                  host: host,
+                  source: long,
+                  policy: policy,
+                  assets: assets,
+                  bake: bake,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      chat.requestFocus();
+      await tester.pump();
+
+      await pressWithMouse(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+
+      expect(chat.hasFocus, isFalse);
+      expect(catalog().offset, 60);
+    });
+
+    testWidgets('with roving focus the page keys still scroll', (tester) async {
+      await pumpLong(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(catalog().focusedLeaf, isNotNull);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+      await tester.pump();
+
+      expect(catalog().offset, greaterThan(0));
     });
   });
 

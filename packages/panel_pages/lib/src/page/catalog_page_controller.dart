@@ -7,14 +7,15 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// The shell's controller owns it through the page's `PageControllerRegistry`,
 /// so a presentation switch (a popup that becomes a docked panel, a page
-/// swiped off screen) finds the same scroll position again. A host that wants
-/// to move the catalogue of a page from outside reaches it with
-/// `registry.peek<CatalogPageController>(pageId)`.
+/// swiped off screen), a tab switch and a close keep the scroll position. A
+/// host that wants to move the catalogue of a page from outside reaches it
+/// with `registry.peek<CatalogPageController>(pageId)`.
 ///
-/// Hiding the panel is the exception a page may ask for: with
-/// [restartsWhenHidden] set, the catalogue goes back to its start once the
-/// presence it follows ([followPresence]) says the panel is no longer shown,
-/// so it opens again at the start whether or not the page was mounted then.
+/// A **fresh open** is the exception a page may ask for: with
+/// [restartsOnFreshOpen] set, the catalogue goes back to its start when the
+/// signal it follows ([followFreshOpen]) arrives, whether or not the page is
+/// mounted then, so a page the pager has not built yet opens at its start
+/// too.
 ///
 /// A page that keeps more than the catalogue (the emoji page keeps its glyph
 /// atlas) extends it: one page id holds one controller, and the scaffold finds
@@ -28,33 +29,36 @@ base class CatalogPageController implements PanelPageController {
   /// restored when they go; null while browsing.
   double? browseOffset;
 
-  /// Whether the catalogue goes back to its start when the panel is hidden.
+  /// Whether the catalogue goes back to its start on a fresh open.
   ///
-  /// The page sets it from its own setting each time it is built.
-  bool restartsWhenHidden = false;
+  /// The page sets it from its policy each time it is built.
+  bool restartsOnFreshOpen = false;
 
-  ValueListenable<bool>? _presence;
+  Listenable? _freshOpen;
 
-  /// Follows [visible], the panel's presence as the page's host reports it.
+  /// Follows [freshOpen], the signal of a fresh open as the page's host
+  /// reports it (`PanelPageHost.freshOpen`).
   ///
-  /// The same presence again changes nothing; the page calls this on every
+  /// The same signal again changes nothing; the page calls this on every
   /// mount.
-  void followPresence(ValueListenable<bool> visible) {
-    if (identical(_presence, visible)) return;
-    _presence?.removeListener(_onPresence);
-    _presence = visible..addListener(_onPresence);
+  void followFreshOpen(Listenable freshOpen) {
+    if (identical(_freshOpen, freshOpen)) return;
+    _freshOpen?.removeListener(_onFreshOpen);
+    _freshOpen = freshOpen..addListener(_onFreshOpen);
   }
 
-  void _onPresence() {
-    if (!restartsWhenHidden || (_presence?.value ?? true)) return;
+  void _onFreshOpen() {
+    if (!restartsOnFreshOpen) return;
+    // Browsing starts again: an offset kept for the end of a search would
+    // send it back to where the last open left it.
     browseOffset = null;
     catalog.jumpTo(0);
   }
 
   @override
   void dispose() {
-    _presence?.removeListener(_onPresence);
-    _presence = null;
+    _freshOpen?.removeListener(_onFreshOpen);
+    _freshOpen = null;
     catalog.dispose();
   }
 }

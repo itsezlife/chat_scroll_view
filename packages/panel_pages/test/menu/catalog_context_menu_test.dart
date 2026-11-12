@@ -187,8 +187,9 @@ void main() {
 
       expect(chosen, ['remove']);
       expect(controller.isOpen, isFalse);
-      expect(item('Copy'), findsNothing);
       expect(host.activeHolds, 0);
+      await tester.pumpAndSettle();
+      expect(item('Copy'), findsNothing);
     });
 
     testWidgets('the attention item reports its id like any other', (
@@ -352,12 +353,60 @@ void main() {
     });
   });
 
+  group('motion', () {
+    testWidgets('grows from the corner at the pointer over 200 ms, and '
+        'takes clicks on its rows while it grows', (tester) async {
+      await pump(tester);
+      open(const Offset(100, 200));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+
+      // Drawn through a frame held at its top left corner, the one at the
+      // pointer.
+      final panel = tester.getSize(find.byType(CatalogContextMenuPanel));
+      final reveal = PointerMenuReveal.at(30 / 200);
+      expect(
+        find.byType(ChromeAppear),
+        paints..clipRRect(
+          rrect: RRect.fromRectAndRadius(
+            Rect.fromLTWH(
+              0,
+              0,
+              panel.width * reveal.widthFraction,
+              panel.height * reveal.heightFraction,
+            ),
+            const Radius.circular(CatalogContextMenuPanel.radius),
+          ),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 70));
+      await tester.tap(item('Clear recent'), warnIfMissed: false);
+      expect(chosen, ['clear']);
+    });
+
+    testWidgets('fades out before it leaves the overlay', (tester) async {
+      await pump(tester);
+      open(const Offset(100, 200));
+      await tester.pumpAndSettle();
+
+      controller.close();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(item('Copy'), findsOneWidget);
+      expect(controller.isOpen, isFalse);
+
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(item('Copy'), findsNothing);
+    });
+  });
+
   group('semantics', () {
     testWidgets('items are buttons named by their labels', (tester) async {
       final handle = tester.ensureSemantics();
       await pump(tester);
       open(const Offset(100, 200));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(
         tester.getSemantics(find.text('Copy')),

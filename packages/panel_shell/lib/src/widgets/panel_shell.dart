@@ -33,7 +33,10 @@ import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 /// the bar keeps the selected page's actions at the end side, never slides away
 /// for scrolling, and rises by the extent of the strip the page pins at the
 /// bottom ([PanelPageHost.reportBottomExtent]) so it does not cover it. The
-/// bar is gone while search is open in both.
+/// bar is gone while search is open in both, which is why a family without a
+/// back press gets a Cancel button beside the field ([searchExit]). A fresh
+/// open of the panel (`PanelShellController.reportFreshOpen`) shows the bar
+/// wherever reading on left it.
 ///
 /// A projection of [controller]; it keeps no selection or search state of its
 /// own, so unmounting it (a presentation switch) and mounting another shell
@@ -74,8 +77,14 @@ class PanelShell extends StatefulWidget {
     this.deferSearchField = false,
     this.background,
     this.sectionTabsBar = PanelSectionTabsBar.label,
+    this.searchExit,
     super.key,
   });
+
+  /// How search is left from the field, the shell's and one a page places
+  /// itself; null takes the platform's ([PanelSearchExit.forPlatform]): a
+  /// Cancel button beside the field on iOS, the back press elsewhere.
+  final PanelSearchExit? searchExit;
 
   /// What the shell paints behind its column, or null for the panel tokens'
   /// background. A presentation that puts the shell on glass passes a
@@ -83,8 +92,7 @@ class PanelShell extends StatefulWidget {
   final Color? background;
 
   /// How wide the bar under the selected section tab is under the pointer
-  /// arrangement: its label's width (the reference client's) or the whole
-  /// section's.
+  /// arrangement: its label's width or the whole section's.
   final PanelSectionTabsBar sectionTabsBar;
 
   /// The controller this shell projects.
@@ -181,6 +189,7 @@ class _PanelShellState extends State<PanelShell> {
     controller.search.addListener(_onSearch);
     controller.selectedPageId.addListener(_onPageSelected);
     controller.visible.addListener(_onVisible);
+    controller.freshOpen.addListener(_onFreshOpen);
     _subscriptions.addAll([
       controller.scrollActivity.listen(_barVisibility.apply),
       controller.events.listen(_onEvent),
@@ -192,6 +201,7 @@ class _PanelShellState extends State<PanelShell> {
     controller.search.removeListener(_onSearch);
     controller.selectedPageId.removeListener(_onPageSelected);
     controller.visible.removeListener(_onVisible);
+    controller.freshOpen.removeListener(_onFreshOpen);
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }
@@ -203,6 +213,9 @@ class _PanelShellState extends State<PanelShell> {
   }
 
   void _onPageSelected() => _barVisibility.show();
+
+  // A panel opened afresh shows its bar, wherever reading on left it.
+  void _onFreshOpen() => _barVisibility.show();
 
   void _onEvent(PanelEvent event) {
     if (event case PageChanged(:final pageId)) {
@@ -268,11 +281,12 @@ class _PanelShellState extends State<PanelShell> {
       child: PanelSearchFieldScope(
         controller: _shell,
         contextMenuBuilder: widget.searchContextMenuBuilder,
+        exit: widget.searchExit,
         child: PanelPager(
           controller: _shell,
           position: _position,
           dragging: _dragging,
-          // The reference desktop client slides its sections in.
+          // The sections slide in.
           selectSlide: pointer ? _sectionSlide : Duration.zero,
         ),
       ),
@@ -380,8 +394,7 @@ class _PanelShellState extends State<PanelShell> {
 
   static const Duration _sectionSlide = Duration(milliseconds: 200);
 
-  // The pointer arrangement's tabs: the reference desktop client's sections
-  // above the search field. One page has nothing to switch to.
+  // The pointer arrangement's tabs: the sections above the search field. One page has nothing to switch to.
   Widget _sectionTabs() => FocusTraversalOrder(
     order: const NumericFocusOrder(2),
     child: ListenValueBuilder<String>(
@@ -415,6 +428,7 @@ class _PanelShellState extends State<PanelShell> {
             child: PanelSearchField(
               controller: _shell,
               contextMenuBuilder: widget.searchContextMenuBuilder,
+              exit: widget.searchExit,
             ),
           )
         : const SizedBox(width: double.infinity);

@@ -9,8 +9,7 @@ import 'package:panel_pages/src/overlay/chrome_overlay_scopes.dart';
 /// The tooltip of a mouse resting on a cell: one line of text by the cursor,
 /// in the nearest `Overlay`.
 ///
-/// It follows the reference desktop client's tooltip, which is the same for
-/// every widget there:
+/// It follows one tooltip rule, the same for every widget:
 ///
 /// - Each time the mouse reaches another cell, a [delay] starts over. A
 ///   tooltip already up stays up meanwhile.
@@ -182,7 +181,7 @@ class _TooltipBox extends StatelessWidget {
   }
 }
 
-/// Where the reference desktop client puts a tooltip: its top-left corner 20
+/// Where a tooltip goes: its top-left corner 20
 /// px before and below the cursor (the corner mirrors in right-to-left text),
 /// kept [_skip] px inside the window, and flipped above the cursor when it
 /// would run past the bottom.

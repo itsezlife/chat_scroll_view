@@ -1,3 +1,4 @@
+import 'package:catalog_assets/catalog_assets.dart' show AssetFit;
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -268,6 +269,22 @@ void main() {
         CatalogLeafHit(sectionId: 'a', index: 2, leaf: leaf),
         isNot(CatalogLeafHit(sectionId: 'a', index: 3, leaf: leaf)),
       );
+    });
+  });
+
+  group('content fit', () {
+    test('a GIF covers its box, everything else is shown whole', () {
+      CatalogLeaf of(SemanticKind kind) => CatalogLeaf.document(
+        'x',
+        semanticKind: kind,
+        mediaForm: MediaForm.video,
+      );
+
+      expect(of(SemanticKind.gif).contentFit, AssetFit.cover);
+      expect(of(SemanticKind.sticker).contentFit, AssetFit.contain);
+      expect(of(SemanticKind.mask).contentFit, AssetFit.contain);
+      expect(of(SemanticKind.unknown).contentFit, AssetFit.contain);
+      expect(CatalogLeaf.unicode('x').contentFit, AssetFit.contain);
     });
   });
 }

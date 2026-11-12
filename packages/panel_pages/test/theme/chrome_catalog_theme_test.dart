@@ -36,6 +36,27 @@ void main() {
       },
     );
 
+    test(
+      'keeps the viewport\'s header inset unless a page asks for another',
+      () {
+        final chrome = ChromeThemeData.fromPalette(_palette);
+
+        expect(
+          data.sectionHeaderStartInset,
+          PanelCatalogThemeData.forBrightness(
+            _palette.brightness,
+          ).sectionHeaderStartInset,
+        );
+        expect(
+          ChromeCatalogTheme.dataFor(
+            chrome,
+            headerStartInset: 15,
+          ).sectionHeaderStartInset,
+          15,
+        );
+      },
+    );
+
     test('has no hover under touch, and the text colour at 0x12 under the '
         'pointer arrangement', () {
       final chrome = ChromeThemeData.fromPalette(_palette);
@@ -50,7 +71,7 @@ void main() {
       );
     });
 
-    test('under the pointer is the reference desktop client\'s ink: a 34 x 32 '
+    test('under the pointer is the desktop ink: a 34 x 32 '
         'hover box, and nothing on a press', () {
       final pointer = ChromeCatalogTheme.dataFor(
         ChromeThemeData.fromPalette(_palette),
@@ -62,6 +83,54 @@ void main() {
       expect(pointer.leafPressFeedback, CatalogPressFeedback.none);
       expect(data.leafPressFeedback, CatalogPressFeedback.inkAndScale);
       expect(data.leafHoverHighlightSize, isNull);
+    });
+
+    test('a sticker cell: under the pointer the hover box is the whole cell '
+        'at radius 6 and a preview keeps it on the previewed cell; on touch '
+        'a press draws nothing and a preview scales the cell', () {
+      final chrome = ChromeThemeData.fromPalette(_palette);
+      final pointer = ChromeCatalogTheme.dataFor(
+        chrome,
+        arrangement: PanelArrangement.pointer,
+        cells: CatalogCellFeedback.sticker,
+      );
+      final touch = ChromeCatalogTheme.dataFor(
+        chrome,
+        cells: CatalogCellFeedback.sticker,
+      );
+
+      expect(pointer.leafHoverHighlightSize, isNull);
+      expect(pointer.leafHoverHighlightInset, 0);
+      expect(pointer.leafHoverHighlightRadius, 6);
+      expect(pointer.leafPressFeedback, CatalogPressFeedback.none);
+      expect(pointer.leafPreviewFeedback, CatalogPreviewFeedback.hover);
+      expect(touch.leafPressFeedback, CatalogPressFeedback.none);
+      expect(touch.leafPreviewFeedback, CatalogPreviewFeedback.scale);
+    });
+
+    test('an emoji cell keeps its press on touch; any cell under the pointer '
+        'shows a preview with the hover box', () {
+      final chrome = ChromeThemeData.fromPalette(_palette);
+
+      expect(data.leafPreviewFeedback, CatalogPreviewFeedback.scale);
+      expect(
+        ChromeCatalogTheme.dataFor(
+          chrome,
+          arrangement: PanelArrangement.pointer,
+        ).leafPreviewFeedback,
+        CatalogPreviewFeedback.hover,
+      );
+    });
+
+    test('the sticker list asks for sticker cells, the emoji list for emoji '
+        'cells', () {
+      expect(StickersPagePolicy.cellFeedbackValue, CatalogCellFeedback.sticker);
+      expect(CatalogCellFeedback.emoji.hoverSize, const Size(34, 32));
+      expect(CatalogCellFeedback.emoji.hoverRadius, 8);
+      expect(
+        CatalogCellFeedback.emoji.touchPress,
+        CatalogPressFeedback.inkAndScale,
+      );
     });
 
     test('draws keyboard focus in the accent', () {

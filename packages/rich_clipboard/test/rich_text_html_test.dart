@@ -452,7 +452,7 @@ void main() {
       expect(timer.elapsed, lessThan(const Duration(seconds: 5)));
     });
 
-    test('reads the reference Android client\'s tags', () {
+    test('reads the animated-emoji, spoiler, pre and blockquote tags', () {
       expect(
         RichTextHtml.decode(
           'a <animated-emoji data-document-id="5368324170671202286">'
@@ -491,7 +491,7 @@ void main() {
       );
     });
 
-    test('reads the reference desktop client\'s tags', () {
+    test('reads the tg-spoiler, spoiler class and details tags', () {
       expect(
         RichTextHtml.decode(
           '<html><body>x <tg-spoiler>a</tg-spoiler> '

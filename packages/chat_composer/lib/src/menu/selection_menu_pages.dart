@@ -19,7 +19,7 @@ enum SelectionMenuBackPlacement {
 ///
 /// [items] must already fit the row; see `splitSelectionMenuRow`. The first
 /// button keeps 24 dp at its start, and so does the last at its end while no
-/// More button follows it, as the reference lays them out.
+/// More button follows it.
 class SelectionMenuRootPage extends StatelessWidget {
   /// A row of [items], with a More button while [onOpenMore] is given.
   const SelectionMenuRootPage({

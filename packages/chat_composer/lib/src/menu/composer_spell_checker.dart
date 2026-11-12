@@ -27,12 +27,11 @@ final class ComposerWordSpelling {
 /// **A seam, with no implementation here.** The platforms' checkers (the
 /// system checker on macOS, Windows and Linux) are the host's to wrap: this
 /// package ships none, and the composer draws no squiggles. Given a checker,
-/// the pointer menu shows the reference client's Spelling submenu for the
+/// the pointer menu shows a Spelling submenu for the
 /// word the pointer is over; without one it shows no Spelling row.
 ///
 /// Every call may be slow (a system checker is asynchronous on some
-/// platforms): the menu waits for [check] before it opens, as the reference
-/// menu waits for its own checker. A call that throws is reported and the menu
+/// platforms): the menu waits for [check] before it opens. A call that throws is reported and the menu
 /// opens without the Spelling row.
 abstract interface class ComposerSpellChecker {
   /// What is known about [word].

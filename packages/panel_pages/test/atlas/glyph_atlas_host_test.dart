@@ -28,6 +28,9 @@ void main() {
   late FakeBakeFrameSource frames;
   late listen.ValueNotifier<bool> visible;
   late listen.ValueNotifier<bool> opening;
+  late listen.ValueNotifier<bool> shown;
+  late ValueNotifier<bool> hostScrolling;
+  late List<GlyphAtlasRequest> requests;
   late List<GlyphAtlas> created;
   late List<GlyphPageResidency> residencies;
   late List<GlyphPageStore?> stores;
@@ -36,6 +39,10 @@ void main() {
     frames = FakeBakeFrameSource();
     visible = listen.ValueNotifier(false);
     opening = listen.ValueNotifier(false);
+    shown = listen.ValueNotifier(true);
+    hostScrolling = ValueNotifier(false);
+    addTearDown(hostScrolling.dispose);
+    requests = [];
     created = [];
     residencies = [];
     stores = [];
@@ -48,6 +55,7 @@ void main() {
     Duration? pageRetention,
     Listenable? memoryPressure,
     double devicePixelRatio = 2,
+    BakePacing pacing = const BakePacing(),
   }) {
     final host = GlyphAtlasHost(
       pageRetention: pageRetention ?? GlyphPageResidency.defaultRetention,
@@ -57,10 +65,14 @@ void main() {
       glyphBoxExtent: _glyphBox,
       visible: visible,
       opening: opening,
+      glyphsShown: shown,
+      scrolling: hostScrolling,
+      pacing: pacing,
       rasteriser: rasteriser ?? FakeGlyphRasteriser(),
       newStore: FakeGlyphPageStore.new,
       persistence: persistence,
       atlasFactory: (request) {
+        requests.add(request);
         residencies.add(request.residency!);
         stores.add(request.store);
         if (!bakes) return null;
@@ -280,6 +292,41 @@ void main() {
     expect(frames.hasPendingRequest, isTrue);
   });
 
+  test('bakes only while the page that draws the glyphs is shown', () {
+    visible.value = true;
+    host().sync(_plan());
+    expect(frames.hasPendingRequest, isTrue);
+
+    shown.value = false;
+    expect(frames.hasPendingRequest, isFalse);
+
+    shown.value = true;
+    expect(frames.hasPendingRequest, isTrue);
+  });
+
+  test('the host\'s scrolling signal holds every atlas, a layer too', () {
+    visible.value = true;
+    final h = host()..sync(_plan());
+    hostScrolling.value = true;
+    h.sync(GlyphPlan(const ['😀', _tone]));
+
+    expect(created, hasLength(2));
+    expect(frames.hasPendingRequest, isFalse);
+
+    hostScrolling.value = false;
+    expect(frames.hasPendingRequest, isTrue);
+  });
+
+  test('gives every atlas the pacing it was made with', () {
+    const pacing = BakePacing(maxGlyphsPerFrame: 3);
+    host(pacing: pacing)
+      ..sync(_plan())
+      ..sync(GlyphPlan(const ['😀', _tone]));
+
+    expect(requests, hasLength(2));
+    expect(requests.map((r) => r.pacing), everyElement(same(pacing)));
+  });
+
   test('a panel that is already visible bakes as soon as there is a plan', () {
     visible.value = true;
 
@@ -360,6 +407,7 @@ void main() {
     expect(atlas.spriteOf('😀'), isNull);
     expect(h.atlas.value, isNull);
     expect(() => visible.value = true, returnsNormally);
+    expect(() => shown.value = false, returnsNormally);
     expect(frames.hasPendingRequest, isFalse);
   });
 

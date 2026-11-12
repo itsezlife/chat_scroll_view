@@ -20,8 +20,8 @@ import java.util.concurrent.Executors
 
 /**
  * The Android side of rich_clipboard: one clip with the plain text and the
- * HTML (`ClipData.newHtmlText`), the form the reference client writes and
- * reads, so each reader takes the richest it knows.
+ * HTML (`ClipData.newHtmlText`), so each reader takes the richest form it
+ * knows.
  */
 class RichClipboardPlugin : FlutterPlugin, MethodCallHandler {
     private lateinit var channel: MethodChannel
@@ -100,9 +100,8 @@ class RichClipboardPlugin : FlutterPlugin, MethodCallHandler {
     }
 
     // The clip's items that point at content (an image or a file another app
-    // copied), each copied into the app's cache, as the reference client does
-    // with a pasted image: the content may be large, and the provider's grant
-    // may not outlive the paste.
+    // copied), each copied into the app's cache: the content may be large, and
+    // the provider's grant may not outlive the paste.
     private fun media(clip: ClipData): List<Map<String, Any>> {
         val found = ArrayList<Map<String, Any>>()
         for (index in 0 until clip.itemCount) {

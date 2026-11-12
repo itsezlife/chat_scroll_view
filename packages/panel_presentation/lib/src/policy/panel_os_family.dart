@@ -2,10 +2,10 @@ import 'package:flutter/foundation.dart';
 
 /// The operating-system family a policy defaults from.
 ///
-/// Mobile families (Android and iOS) get the mobile policy; desktop operating
-/// systems and the web, whatever the OS under the browser, get the desktop
-/// policy. A host that disagrees passes its own policy or overrides the kind
-/// per call.
+/// Mobile families (Android and iOS) get the mobile policy, desktop operating
+/// systems the desktop policy, and the web, whatever the OS under the
+/// browser, the browser policy, which follows the window. A host that
+/// disagrees passes its own policy or overrides the kind per call.
 enum PanelOsFamily {
   /// Android.
   android,

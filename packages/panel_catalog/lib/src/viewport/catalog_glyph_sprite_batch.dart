@@ -1,11 +1,12 @@
+import 'dart:collection';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart' show AtlasSprite;
+import 'package:catalog_assets/catalog_assets.dart' show AssetFit, AtlasSprite;
 import 'package:flutter/painting.dart';
 
-/// Collects the baked glyphs of one paint pass and draws each atlas page's
-/// sprites with one batched atlas draw.
+/// Collects the sprites of one paint pass and draws each page image's sprites
+/// with one batched atlas draw.
 ///
 /// Drawing a sprite per leaf would cost a draw per cell (hundreds per frame);
 /// grouped by page it is one draw per page on screen, whatever the number of
@@ -13,79 +14,138 @@ import 'package:flutter/painting.dart';
 /// the buffers, so the order in which a pass visits leaves does not matter and
 /// sprites never overlap (cells do not).
 ///
+/// ## Grouped by image, not by page number
+///
+/// A baked glyph page and a frame page of an animation are different pictures
+/// that can both be page 0, so the number does not name a page here: the
+/// [AtlasSprite.page] image does. The batch asks no one what the image belongs
+/// to, which keeps it free of every atlas type. Buckets live for one pass (a
+/// frame page's image is replaced on each upload, so a bucket kept by image
+/// would pile up dead keys); their buffers are recycled, not their keys.
+///
 /// ## Why raw buffers
 ///
 /// The atlas draw takes its transforms and source rectangles as flat float
-/// lists. They are kept per page and reused from frame to frame, so a scroll
+/// lists. They are kept per bucket and reused from frame to frame, so a scroll
 /// frame allocates nothing per leaf; the lists only grow when a pass draws more
-/// sprites of one page than any before it.
+/// sprites of one image than any before it.
+///
+/// ## Fade
+///
+/// A sprite added with an `opacity` below 1 makes its bucket draw with a colour
+/// per sprite, modulating the page pixels; a bucket without one draws with no
+/// colour list at all, so the common opaque pass costs nothing extra.
 ///
 /// A batch never keeps an [AtlasSprite] past [flush]: the page image belongs to
 /// the atlas and may be disposed with it, so the batch holds it only between
 /// [add] and the [flush] of the same paint pass.
 final class CatalogGlyphSpriteBatch {
-  /// A baked glyph is drawn within a modest factor of its baked size, so
-  /// bilinear sampling is enough.
+  /// A baked glyph or a rendered frame is drawn within a modest factor of its
+  /// pixel size, so bilinear sampling is enough.
   final Paint _paint = Paint()..filterQuality = FilterQuality.low;
 
-  // One bucket per page; buckets are kept (emptied) between passes.
-  final Map<int, _PageBatch> _pages = <int, _PageBatch>{};
+  // The buckets of the pass in progress, in the order their image was first
+  // met, and emptied ones waiting to be reused.
+  final Map<ui.Image, _PageBatch> _active =
+      LinkedHashMap<ui.Image, _PageBatch>.identity();
+  final List<_PageBatch> _idle = [];
 
-  /// Queues [sprite] to be drawn with its top-left corner at ([left], [top])
-  /// and its pixels scaled by [scale] (destination pixels per page pixel).
+  /// Queues [sprite] to be drawn into [box] as [fit] says, at [opacity] of its
+  /// own.
+  ///
+  /// [AssetFit.contain] draws the whole sprite scaled to fit the box and
+  /// centred; [AssetFit.cover] draws the part of it that fills the box,
+  /// centred, by choosing the source rectangle: the crop costs no clip and no
+  /// second draw, and the sprite stays in its page's batch. The crop's edges
+  /// along the cropped axis lie inside the sprite, so bilinear sampling there
+  /// blends the sprite's own neighbouring pixels, never another sprite's; on
+  /// the other axis the source is the sprite's own edge, as it is for contain.
+  ///
+  /// [pressScale] shrinks the placed sprite about [anchor] (a pressed cell
+  /// scales about its centre), in its own transform.
   void add(
     AtlasSprite sprite, {
-    required double left,
-    required double top,
-    required double scale,
+    required Rect box,
+    required AssetFit fit,
+    required Offset anchor,
+    double pressScale = 1,
+    double opacity = 1,
   }) {
-    final batch = _pages[sprite.pageIndex] ??= _PageBatch();
-    batch.add(sprite, left: left, top: top, scale: scale);
+    final batch = _active[sprite.page] ??= _idle.isEmpty
+        ? _PageBatch()
+        : _idle.removeLast();
+    final placed = fit.placeRegion(sprite.source, box);
+    final destination = placed.destination;
+    batch.add(
+      sprite,
+      source: placed.source,
+      left: anchor.dx + (destination.left - anchor.dx) * pressScale,
+      top: anchor.dy + (destination.top - anchor.dy) * pressScale,
+      // An empty sprite has nothing to scale; it draws nothing either way.
+      scale: placed.source.isEmpty
+          ? pressScale
+          : destination.width / placed.source.width * pressScale,
+      opacity: opacity,
+    );
   }
 
-  /// Draws every queued sprite, one batched draw per page, and empties the
+  /// Draws every queued sprite, one batched draw per image, and empties the
   /// queue.
   void flush(Canvas canvas) {
-    for (final batch in _pages.values) {
+    for (final batch in _active.values) {
       batch.flush(canvas, _paint);
     }
+    _idle.addAll(_active.values);
+    _active.clear();
   }
 
   /// Drops the buffers and the page handles they point at.
   void dispose() {
-    for (final batch in _pages.values) {
+    for (final batch in _active.values) {
       batch.clear();
     }
-    _pages.clear();
+    _active.clear();
+    _idle.clear();
   }
 }
 
-/// The sprites of one page queued for one pass.
+/// The sprites of one page image queued for one pass.
 final class _PageBatch {
   // [scos, ssin, tx, ty] and [left, top, right, bottom] per sprite.
   Float32List _transforms = Float32List(0);
   Float32List _rects = Float32List(0);
+  // One packed ARGB per sprite, filled only once a sprite of the pass fades.
+  Int32List _colors = Int32List(0);
   int _count = 0;
+  bool _faded = false;
   ui.Image? _image;
 
   void add(
     AtlasSprite sprite, {
+    required Rect source,
     required double left,
     required double top,
     required double scale,
+    required double opacity,
   }) {
     if ((_count + 1) * 4 > _transforms.length) {
       _grow();
     }
-    // Every sprite of a page shares one image; the latest one wins if a page
-    // were ever replaced mid-pass, and it is the live one.
     _image = sprite.page;
+    if (opacity < 1 && !_faded) {
+      // Sprites queued before the first fade were opaque: white modulates
+      // nothing.
+      _faded = true;
+      _colors.fillRange(0, _count, _opaque);
+    }
+    if (_faded) {
+      _colors[_count] = Color.fromRGBO(255, 255, 255, opacity).toARGB32();
+    }
     final at = _count * 4;
     _transforms[at] = scale;
     _transforms[at + 1] = 0;
     _transforms[at + 2] = left;
     _transforms[at + 3] = top;
-    final source = sprite.source;
     _rects[at] = source.left;
     _rects[at + 1] = source.top;
     _rects[at + 2] = source.right;
@@ -104,8 +164,8 @@ final class _PageBatch {
       image,
       Float32List.sublistView(_transforms, 0, _count * 4),
       Float32List.sublistView(_rects, 0, _count * 4),
-      null,
-      null,
+      _faded ? Int32List.sublistView(_colors, 0, _count) : null,
+      _faded ? BlendMode.modulate : null,
       null,
       paint,
     );
@@ -114,6 +174,7 @@ final class _PageBatch {
 
   void clear() {
     _count = 0;
+    _faded = false;
     _image = null;
   }
 
@@ -121,5 +182,8 @@ final class _PageBatch {
     final capacity = _transforms.isEmpty ? 256 * 4 : _transforms.length * 2;
     _transforms = Float32List(capacity)..setRange(0, _count * 4, _transforms);
     _rects = Float32List(capacity)..setRange(0, _count * 4, _rects);
+    _colors = Int32List(capacity ~/ 4)..setRange(0, _count, _colors);
   }
 }
+
+const int _opaque = 0xFFFFFFFF;

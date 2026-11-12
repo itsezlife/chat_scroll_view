@@ -54,7 +54,7 @@ void main() {
       ]);
     });
 
-    test('maps a target platform; the web is desktop whatever the OS', () {
+    test('maps a target platform; a browser is the web whatever the OS', () {
       expect(
         PanelOsFamily.fromPlatform(TargetPlatform.iOS, isWeb: false),
         PanelOsFamily.iOS,
@@ -96,8 +96,17 @@ void main() {
       }
     });
 
-    test('every other family gets the desktop policy', () {
-      for (final family in PanelOsFamily.values.where((f) => !f.isMobile)) {
+    test('a browser gets the browser policy, whatever the OS under it', () {
+      expect(
+        PanelPresentationPolicy.forFamily(PanelOsFamily.web),
+        isA<PanelPresentationPolicy$Web>(),
+      );
+    });
+
+    test('every desktop operating system gets the desktop policy', () {
+      for (final family in PanelOsFamily.values.where(
+        (f) => !f.isMobile && f != PanelOsFamily.web,
+      )) {
         expect(
           PanelPresentationPolicy.forFamily(family),
           isA<PanelPresentationPolicy$Desktop>(),
@@ -161,19 +170,84 @@ void main() {
     });
   });
 
+  group('the browser policy', () {
+    const web = PanelPresentationPolicy$Web();
+    const mobile = PanelPresentationPolicy$Mobile();
+    const desktop = PanelPresentationPolicy$Desktop();
+    const phone = PanelWindow(width: 390, height: 844);
+    const line = PanelWindow(width: 600, height: 900);
+    const pastLine = PanelWindow(width: 600.5, height: 900);
+    const wide = PanelWindow(width: 1400, height: 900);
+
+    test('a window up to 600 wide inclusive is a handheld one, whatever '
+        'its height', () {
+      expect(web.isHandheld(phone), isTrue);
+      expect(web.isHandheld(line), isTrue);
+      expect(
+        web.isHandheld(const PanelWindow(width: 600, height: 300)),
+        isTrue,
+      );
+      expect(web.isHandheld(pastLine), isFalse);
+      expect(
+        web.isHandheld(const PanelWindow(width: 900, height: 400)),
+        isFalse,
+      );
+      expect(web.isHandheld(wide), isFalse);
+    });
+
+    test('decides as the mobile policy in a handheld window', () {
+      expect(web.familyIn(phone), mobile);
+      expect(web.familyIn(line), mobile);
+      for (final dockPreferred in [false, true]) {
+        expect(
+          web.defaultKind(window: phone, dockPreferred: dockPreferred),
+          const KeyboardReplacement(),
+        );
+      }
+      expect(web.canDock(phone), isFalse);
+    });
+
+    test('decides as the desktop policy in any wider window', () {
+      expect(web.familyIn(pastLine), desktop);
+      expect(web.familyIn(wide), desktop);
+      expect(web.defaultKind(window: pastLine), const AnchoredPopup());
+      expect(web.defaultKind(window: wide), const AnchoredPopup());
+      expect(
+        web.defaultKind(window: wide, dockPreferred: true),
+        const Docked(),
+      );
+      expect(web.canDock(wide), isTrue);
+    });
+
+    test('a kind is dismissed and opened as the family that shows it', () {
+      for (final kind in <PanelPresentation>[
+        const KeyboardReplacement(),
+        const AnchoredPopup(),
+        const Docked(),
+      ]) {
+        expect(web.dismissalsFor(kind), desktop.dismissalsFor(kind));
+      }
+      expect(web.opensAfresh(const KeyboardReplacement()), isTrue);
+      expect(web.opensAfresh(const AnchoredPopup()), isFalse);
+      expect(web.opensAfresh(const Docked()), isFalse);
+    });
+
+    test('a mouse over the toggle may open it: only a popup opens on hover, '
+        'and a handheld window opens none by default', () {
+      expect(web.hoverOpens, isTrue);
+    });
+  });
+
   group('the dock\'s size', () {
     const policy = PanelPresentationPolicy$Desktop();
     const wide = PanelWindow(width: 1200, height: 800);
 
-    test(
-      'is the reference client\'s: 292 to 392, the chat never under 380',
-      () {
-        expect(policy.dockMinWidth, 292);
-        expect(policy.dockMaxWidth, 392);
-        expect(policy.dockMinChatWidth, 380);
-        expect(policy.dockResizeExtent, 6);
-      },
-    );
+    test('is 292 to 392, the chat never under 380', () {
+      expect(policy.dockMinWidth, 292);
+      expect(policy.dockMaxWidth, 392);
+      expect(policy.dockMinChatWidth, 380);
+      expect(policy.dockResizeExtent, 6);
+    });
 
     test('is the narrowest one nobody has resized', () {
       expect(policy.dockWidthIn(wide), 292);
@@ -243,6 +317,27 @@ void main() {
     });
   });
 
+  group('fresh open', () {
+    test('a mobile keyboard replacement opens afresh; other mobile kinds '
+        'keep their place', () {
+      const policy = PanelPresentationPolicy$Mobile();
+      expect(policy.opensAfresh(const KeyboardReplacement()), isTrue);
+      expect(policy.opensAfresh(const AnchoredPopup()), isFalse);
+      expect(policy.opensAfresh(const Docked()), isFalse);
+    });
+
+    test('desktop never opens afresh: popup and dock keep their place', () {
+      const policy = PanelPresentationPolicy$Desktop();
+      for (final kind in <PanelPresentation>[
+        const KeyboardReplacement(),
+        const AnchoredPopup(),
+        const Docked(),
+      ]) {
+        expect(policy.opensAfresh(kind), isFalse);
+      }
+    });
+  });
+
   group('dismissal', () {
     test('mobile dismisses by back for every kind and nothing else', () {
       const policy = PanelPresentationPolicy$Mobile();
@@ -286,14 +381,11 @@ void main() {
       });
     });
 
-    test(
-      'timers follow the reference client: 300 ms leave, 3 s after a hold',
-      () {
-        const policy = PanelPresentationPolicy$Desktop();
-        expect(policy.leaveDelay, const Duration(milliseconds: 300));
-        expect(policy.afterHoldDelay, const Duration(seconds: 3));
-      },
-    );
+    test('timers are 300 ms leave, 3 s after a hold', () {
+      const policy = PanelPresentationPolicy$Desktop();
+      expect(policy.leaveDelay, const Duration(milliseconds: 300));
+      expect(policy.afterHoldDelay, const Duration(seconds: 3));
+    });
   });
 
   group('sizing', () {
@@ -341,6 +433,10 @@ void main() {
     PresentationPolicyContract.run(
       r'PanelPresentationPolicy$Desktop',
       () => const PanelPresentationPolicy$Desktop(),
+    );
+    PresentationPolicyContract.run(
+      r'PanelPresentationPolicy$Web',
+      () => const PanelPresentationPolicy$Web(),
     );
   });
 }

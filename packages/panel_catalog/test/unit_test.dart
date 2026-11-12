@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'adaptive_grid_viewport_test.dart' as adaptive_grid_viewport_test;
 import 'benchmark/vs_supersliver_bench_test.dart' as vs_supersliver_bench_test;
+import 'catalog_overscroll_sink_test.dart' as catalog_overscroll_sink_test;
 import 'catalog_paragraph_cache_test.dart' as catalog_paragraph_cache_test;
 import 'catalog_scroll_position_contract_test.dart'
     as catalog_scroll_position_contract_test;
@@ -20,6 +21,8 @@ import 'goldens/rtl_golden_test.dart' as rtl_golden_test;
 import 'goldens/section_states_golden_test.dart' as section_states_golden_test;
 import 'model/catalog_leaf_test.dart' as catalog_leaf_test;
 import 'model/catalog_section_test.dart' as catalog_section_test;
+import 'panel_catalog_animated_sprites_test.dart'
+    as panel_catalog_animated_sprites_test;
 import 'panel_catalog_asset_binding_test.dart'
     as panel_catalog_asset_binding_test;
 import 'panel_catalog_baked_sprites_test.dart'
@@ -27,22 +30,33 @@ import 'panel_catalog_baked_sprites_test.dart'
 import 'panel_catalog_controller_test.dart' as panel_catalog_controller_test;
 import 'panel_catalog_cursor_test.dart' as panel_catalog_cursor_test;
 import 'panel_catalog_focus_test.dart' as panel_catalog_focus_test;
+import 'panel_catalog_held_test.dart' as panel_catalog_held_test;
 import 'panel_catalog_hover_test.dart' as panel_catalog_hover_test;
+import 'panel_catalog_loading_gif_test.dart' as panel_catalog_loading_gif_test;
 import 'panel_catalog_pointer_seams_test.dart'
     as panel_catalog_pointer_seams_test;
+import 'panel_catalog_remove_badge_test.dart'
+    as panel_catalog_remove_badge_test;
 import 'panel_catalog_scroll_events_test.dart'
     as panel_catalog_scroll_events_test;
 import 'panel_catalog_scroll_hardening_test.dart'
     as panel_catalog_scroll_hardening_test;
+import 'panel_catalog_scroll_physics_test.dart'
+    as panel_catalog_scroll_physics_test;
 import 'panel_catalog_semantics_test.dart' as panel_catalog_semantics_test;
+import 'panel_catalog_texture_layers_test.dart'
+    as panel_catalog_texture_layers_test;
 import 'panel_catalog_theme_test.dart' as panel_catalog_theme_test;
 import 'panel_catalog_viewport_test.dart' as panel_catalog_viewport_test;
+import 'section_action_ink_test.dart' as section_action_ink_test;
 import 'section_actions_test.dart' as section_actions_test;
 import 'section_layout_viewport_test.dart' as section_layout_viewport_test;
 import 'section_near_viewport_test.dart' as section_near_viewport_test;
 import 'section_states_test.dart' as section_states_test;
 import 'viewport/catalog_focus_navigation_test.dart'
     as catalog_focus_navigation_test;
+import 'viewport/catalog_glyph_sprite_batch_test.dart'
+    as catalog_glyph_sprite_batch_test;
 import 'viewport/section_direction_projection_test.dart'
     as section_direction_projection_test;
 import 'viewport/section_layout_projection_test.dart'
@@ -55,6 +69,7 @@ void main() {
     'benchmark/vs_supersliver_bench_test.dart',
     vs_supersliver_bench_test.main,
   );
+  group('catalog_overscroll_sink_test.dart', catalog_overscroll_sink_test.main);
   group('catalog_paragraph_cache_test.dart', catalog_paragraph_cache_test.main);
   group(
     'catalog_scroll_position_contract_test.dart',
@@ -71,6 +86,10 @@ void main() {
   group('model/catalog_leaf_test.dart', catalog_leaf_test.main);
   group('model/catalog_section_test.dart', catalog_section_test.main);
   group(
+    'panel_catalog_animated_sprites_test.dart',
+    panel_catalog_animated_sprites_test.main,
+  );
+  group(
     'panel_catalog_asset_binding_test.dart',
     panel_catalog_asset_binding_test.main,
   );
@@ -84,7 +103,16 @@ void main() {
   );
   group('panel_catalog_cursor_test.dart', panel_catalog_cursor_test.main);
   group('panel_catalog_focus_test.dart', panel_catalog_focus_test.main);
+  group('panel_catalog_held_test.dart', panel_catalog_held_test.main);
   group('panel_catalog_hover_test.dart', panel_catalog_hover_test.main);
+  group(
+    'panel_catalog_remove_badge_test.dart',
+    panel_catalog_remove_badge_test.main,
+  );
+  group(
+    'panel_catalog_loading_gif_test.dart',
+    panel_catalog_loading_gif_test.main,
+  );
   group(
     'panel_catalog_pointer_seams_test.dart',
     panel_catalog_pointer_seams_test.main,
@@ -97,9 +125,18 @@ void main() {
     'panel_catalog_scroll_hardening_test.dart',
     panel_catalog_scroll_hardening_test.main,
   );
+  group(
+    'panel_catalog_scroll_physics_test.dart',
+    panel_catalog_scroll_physics_test.main,
+  );
   group('panel_catalog_semantics_test.dart', panel_catalog_semantics_test.main);
+  group(
+    'panel_catalog_texture_layers_test.dart',
+    panel_catalog_texture_layers_test.main,
+  );
   group('panel_catalog_theme_test.dart', panel_catalog_theme_test.main);
   group('panel_catalog_viewport_test.dart', panel_catalog_viewport_test.main);
+  group('section_action_ink_test.dart', section_action_ink_test.main);
   group('section_actions_test.dart', section_actions_test.main);
   group('section_layout_viewport_test.dart', section_layout_viewport_test.main);
   group('section_near_viewport_test.dart', section_near_viewport_test.main);
@@ -107,6 +144,10 @@ void main() {
   group(
     'viewport/catalog_focus_navigation_test.dart',
     catalog_focus_navigation_test.main,
+  );
+  group(
+    'viewport/catalog_glyph_sprite_batch_test.dart',
+    catalog_glyph_sprite_batch_test.main,
   );
   group(
     'viewport/section_direction_projection_test.dart',

@@ -11,6 +11,7 @@ import 'package:panel_pages/src/emoji/emoji_category_strip.dart';
 import 'package:panel_pages/src/emoji/emoji_page_policy.dart';
 import 'package:panel_pages/src/page/catalog_page.dart';
 import 'package:panel_pages/src/page/catalog_page_controller.dart';
+import 'package:panel_pages/src/preview/content_preview_session.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// Builds the glyph plan of the page's collections, or null while they are not
@@ -23,14 +24,17 @@ typedef GlyphPlanner = GlyphPlan? Function(List<Collection> collections);
 /// The composition root owns everything about *how* glyphs are baked (the
 /// frame source, the disk cache, the glyph-support probe's observer, memory
 /// pressure); the page owns *what* and *when*. [glyphBoxExtent] and
-/// [devicePixelRatio] are the page's to say, and [visible] and [opening] are
-/// the panel's presence, which the host follows.
+/// [devicePixelRatio] are the page's to say, [visible] and [opening] are
+/// the panel's presence, and [shown] is whether the page is the selected one:
+/// the host follows all three (pass [shown] as the host's `glyphsShown`, so
+/// the bake holds while another page is shown).
 typedef GlyphAtlasHostFactory =
     GlyphAtlasHost Function({
       required double devicePixelRatio,
       required double glyphBoxExtent,
       required listen.ValueListenable<bool> visible,
       required listen.ValueListenable<bool> opening,
+      required listen.ValueListenable<bool> shown,
     });
 
 /// What the emoji page keeps across being unmounted: the catalogue's controller
@@ -166,7 +170,7 @@ class EmojiPage extends StatefulWidget {
     this.deferChrome = false,
     this.searchDebounce = DebouncedSearch.defaultDebounce,
     this.stripLayout = EmojiStripLayout.automatic,
-    this.keepsScrollOnReopen,
+    this.previews,
     super.key,
   });
 
@@ -202,13 +206,13 @@ class EmojiPage extends StatefulWidget {
   final Duration searchDebounce;
 
   /// How the strip lays its icons out under the pointer arrangement: the
-  /// reference client's rule (plain with no pack, grouped with any) unless the
+  /// default rule (plain with no pack, grouped with any) unless the
   /// host fixes one.
   final EmojiStripLayout stripLayout;
 
-  /// Whether the grid is where it was left when the panel is shown again;
-  /// null for the arrangement's way. See [CatalogPage.keepsScrollOnReopen].
-  final bool? keepsScrollOnReopen;
+  /// The host's handle on content previews: given, a press held on a custom
+  /// emoji previews it (`EmojiPagePolicy`); null, it does not.
+  final ContentPreviewController? previews;
 
   /// Horizontal inset of the grid.
   static const double gridPadH = 5;
@@ -279,6 +283,7 @@ class _EmojiPageState extends State<EmojiPage> {
     stripReady: _stripReady,
     assets: widget.assets,
     stripLayout: widget.stripLayout,
+    previews: widget.previews,
   );
 
   @override
@@ -306,7 +311,8 @@ class _EmojiPageState extends State<EmojiPage> {
     if (!identical(oldWidget.entryOf, widget.entryOf) ||
         !identical(oldWidget.preferences, widget.preferences) ||
         !identical(oldWidget.assets, widget.assets) ||
-        oldWidget.stripLayout != widget.stripLayout) {
+        oldWidget.stripLayout != widget.stripLayout ||
+        !identical(oldWidget.previews, widget.previews)) {
       _policy = _newPolicy();
     }
     if (!identical(oldWidget.assets, widget.assets)) {
@@ -369,6 +375,7 @@ class _EmojiPageState extends State<EmojiPage> {
       glyphBoxExtent: EmojiPagePolicy.glyphBoxExtent,
       visible: _host.panelVisible,
       opening: _host.panelOpening,
+      shown: _host.isActive,
     );
     _controller.atlasHost = created;
   }
@@ -425,7 +432,6 @@ class _EmojiPageState extends State<EmojiPage> {
     bake: _bake,
     searchFieldReady: _fieldReady,
     searchDebounce: widget.searchDebounce,
-    keepsScrollOnReopen: widget.keepsScrollOnReopen,
     padding: switch (PanelArrangementScope.of(context)) {
       PanelArrangement.touch => EdgeInsets.fromLTRB(
         EmojiPage.gridPadH,
@@ -433,9 +439,8 @@ class _EmojiPageState extends State<EmojiPage> {
         EmojiPage.gridPadH,
         MediaQuery.paddingOf(context).bottom + EmojiPage.gridPadBottom,
       ),
-      // The reference desktop client's list: 8 in from the left (its
-      // corner), 4 short of the right (its scrollbar's room less the margin
-      // the columns may take).
+      // The list: 8 in from the left (its corner), 4 short of the right (the
+      // scrollbar's room less the margin the columns may take).
       PanelArrangement.pointer => EdgeInsets.fromLTRB(
         EmojiPage.pointerGridPadStart,
         0,

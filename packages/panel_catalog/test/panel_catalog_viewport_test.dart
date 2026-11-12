@@ -728,7 +728,8 @@ void main() {
     ) async {
       snapshots.replaceSections([
         _section('a', [
-          for (var i = 0; i < 80; i++)
+          // Room past the drag for the fling: it would end at the bottom.
+          for (var i = 0; i < 400; i++)
             CatalogLeaf.unicode(String.fromCharCode(0x1F600 + i)),
         ]),
       ]);

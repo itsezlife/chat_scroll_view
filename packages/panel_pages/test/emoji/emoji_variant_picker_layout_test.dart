@@ -92,8 +92,8 @@ void main() {
       final first = layout.originFor(cellAt(0, 300), viewport);
       final last = layout.originFor(cellAt(7, 300), viewport);
 
-      // The shadow margin is part of the picker's box, as in the reference
-      // client: the card keeps that much inside the edge at the ends.
+      // The shadow margin is part of the picker's box: the card keeps that much
+      // inside the edge at the ends.
       expect(first.dx, viewport.left);
       expect(last.dx + layout.outer.width, viewport.right);
     });

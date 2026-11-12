@@ -17,9 +17,10 @@ import 'package:chat_composer/src/view/composer_primary_style.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:composer_editable/composer_editable.dart'
-    show ExtendedEditableTextState;
+    show ExtendedEditableTextState, ProcessTextQueryCache;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Material, MaterialType;
+import 'package:flutter/services.dart' show BinaryMessenger;
 import 'package:flutter/widgets.dart';
 
 /// The composer: a glass island holding a header strip, a row of actions
@@ -92,6 +93,17 @@ class ComposerView extends StatefulWidget {
   static void prefetchTextActions() =>
       ExtendedEditableTextState.prefetchProcessTextActions();
 
+  /// The app's messenger to the platform, [platform], with the text
+  /// processing actions query answered once per app run for every text field
+  /// of the app: the stock ones too (a panel's search field), which ask on
+  /// every mount and have no hook of their own.
+  ///
+  /// A host returns it from its binding's `createBinaryMessenger`; the
+  /// query [prefetchTextActions] makes is then the only one the platform
+  /// sees, and a field that mounts later costs no platform call.
+  static BinaryMessenger shareTextActions(BinaryMessenger platform) =>
+      ProcessTextQueryCache(platform);
+
   /// The input state: text, focus, selection, soft keyboard mode. Its
   /// `extent` and `fieldHeight` receive what the view measures.
   final ComposerController controller;
@@ -128,8 +140,8 @@ class ComposerView extends StatefulWidget {
   /// kept for touch.
   final ComposerMenuPolicy? menuPolicy;
 
-  /// How the primary action (the send) is drawn: a filled disc, as the
-  /// reference clients draw it, or the bare glyph in the send colour.
+  /// How the primary action (the send) is drawn: a filled disc (the default), or the
+  /// bare glyph in the send colour.
   final ComposerPrimaryStyle primaryStyle;
 
   /// Bottom safe-area pad inside the view, which does not count in the
@@ -162,7 +174,7 @@ class ComposerView extends StatefulWidget {
 
   /// Whether the text field takes focus the first time it is built.
   ///
-  /// As in the reference clients, the caret is there when the chat opens on
+  /// The caret is there when the chat opens on
   /// every platform, and on a touch platform the soft keyboard is not: the
   /// field attaches without a keyboard type, and the first tap on it (or
   /// `requestKeyboard`) brings the keyboard, as for a field that attached

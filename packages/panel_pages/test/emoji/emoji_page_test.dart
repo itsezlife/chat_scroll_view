@@ -451,12 +451,14 @@ void main() {
           required glyphBoxExtent,
           required visible,
           required opening,
+          required shown,
         }) => GlyphAtlasHost(
           frames: frames,
           devicePixelRatio: devicePixelRatio,
           glyphBoxExtent: glyphBoxExtent,
           visible: visible,
           opening: opening,
+          glyphsShown: shown,
           rasteriser: FakeGlyphRasteriser(),
           newStore: FakeGlyphPageStore.new,
         );
@@ -532,6 +534,22 @@ void main() {
       host.opening = true;
       await tester.pump();
       expect(frames.hasPendingRequest, isFalse);
+    });
+
+    testWidgets('bakes only while the page is the selected one', (
+      tester,
+    ) async {
+      await tester.pumpWidget(page(atlas: factory()));
+      await tester.pumpAndSettle();
+      expect(frames.hasPendingRequest, isTrue);
+
+      host.active = false;
+      await tester.pump();
+      expect(frames.hasPendingRequest, isFalse);
+
+      host.active = true;
+      await tester.pump();
+      expect(frames.hasPendingRequest, isTrue);
     });
 
     testWidgets('survives the page: closing and reopening does not bake '
@@ -664,6 +682,7 @@ void main() {
             required glyphBoxExtent,
             required visible,
             required opening,
+            required shown,
           }) => GlyphAtlasHost(
             frames: frames,
             devicePixelRatio: devicePixelRatio,
@@ -823,6 +842,23 @@ void main() {
       handle.dispose();
     });
 
+    testWidgets('slides away as the user reads on, unlike the stickers '
+        'page\'s', (tester) async {
+      await pumpPage(tester);
+      final catalog = controller().catalog..jumpTo(200);
+      await tester.pumpAndSettle();
+      expect(catalog.maxScrollExtent, greaterThan(300));
+
+      catalog.scrollBy(80);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getTopLeft(find.byType(EmojiCategoryStrip)).dy -
+            origin(tester).dy,
+        lessThan(-EmojiCategoryStrip.height + 1),
+      );
+    });
+
     testWidgets('is not shown over search results', (tester) async {
       await pumpPage(tester);
 
@@ -831,6 +867,25 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(EmojiCategoryStrip), findsNothing);
+    });
+  });
+
+  group('a fresh open', () {
+    testWidgets('keeps the grid where it was left: the emoji page does not '
+        'restart', (tester) async {
+      await pumpPage(tester);
+      controller().catalog.jumpTo(controller().catalog.maxScrollExtent / 2);
+      await tester.pumpAndSettle();
+      final left = controller().catalog.offset;
+      expect(left, greaterThan(0));
+
+      host
+        ..visible = false
+        ..openAfresh()
+        ..visible = true;
+      await tester.pumpAndSettle();
+
+      expect(controller().catalog.offset, left);
     });
   });
 

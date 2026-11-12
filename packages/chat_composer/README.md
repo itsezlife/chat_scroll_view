@@ -38,7 +38,7 @@ morphs in place).
 | `ComposerPanelId`, `ComposerPanelResolver` | An open set of panel names and the host function that builds the non-default ones. |
 | `ComposerFormField` | The same field in a host's form: a `FormField<RichText>` under the host's `InputDecoration`, with the selection menu, lists and formatting keys of the island, `formatting`, `linkPrompt`, `backPriority`, focus through the controller, Flutter's validation and reset, and a `maxLength` counted in code points that is never enforced. |
 | `ComposerBottomFade` | The soft fade under the composer. Mounts under the island, outside the glass source. |
-| `ComposerShortcutPolicy`, `SubmitComposerIntent`, `DismissComposerHeaderIntent`, `ToggleStyleIntent`, `ToggleCodeBlockIntent`, `ApplyLinkIntent`, `ClearFormattingIntent`, `ToggleListIntent` | Intents and the `$Mobile` / `$Desktop` default key maps (formatting keys follow Telegram Desktop's). |
+| `ComposerShortcutPolicy`, `SubmitComposerIntent`, `DismissComposerHeaderIntent`, `ToggleStyleIntent`, `ToggleCodeBlockIntent`, `ApplyLinkIntent`, `ClearFormattingIntent`, `ToggleListIntent` | Intents and the `$Mobile` / `$Desktop` default key maps (formatting keys follow the desktop set). |
 | `ComposerMetrics` | The island geometry, documented as component constants. |
 | `ComposerController` | Input only: the text, focus, selection, field scroll, height and extent, the `softKeyboard` option, the input query and its commands (`insertText`, `insertContent`, `backspace`, `clear`, `restore`, `replaceQuery`), the code-point `length`, `sendableText` and `onPaste`. No mode state, no reply or edit ids. |
 | `ComposerPaste` | What `onPaste` reports: the range the pasted text landed in, its plain text and whether the clipboard's rich form was used. |
@@ -88,7 +88,7 @@ The view imports no inset type.
 - **Length budget.** `ComposerSpec.messageLengthLimit` is a number of code
   points of the plain text (`ComposerController.length`): a surrogate pair is
   one, formatting costs nothing and no markdown delimiter is counted. Null is
-  no limit; a host passes its server's `message_length_max` (Telegram's is
+  no limit; a host passes its server's `message_length_max` (for example
   4096). Once 100 or fewer remain the view draws the count under the row, in
   the destructive colour when it is negative; while it is negative the
   `primary` action and the submit key are refused (the counter shakes, the
@@ -120,8 +120,8 @@ The view imports no inset type.
   every platform, not the platform's: a two-page card. The main row holds the
   clipboard actions and a More button; the More page slides in from the right
   (300 ms, swipe right to close) and holds the clipboard actions that did not
-  fit the row, then the formatting actions, with a Back row. Sizes and fit are
-  Telegram's floating toolbar: main-row buttons 48 dp tall with 16 dp padding,
+  fit the row, then the formatting actions, with a Back row. Sizes and fit follow
+  the floating toolbar: main-row buttons 48 dp tall with 16 dp padding,
   the 56 by 48 More button, labels 14 dp medium, page tiles 42 dp, and a page
   as wide as its widest label (no label is ellipsized where the screen has the
   room) showing four rows and half of a fifth before it scrolls; the card is
@@ -145,8 +145,8 @@ The view imports no inset type.
 - **The pointer menu** is the desktop presentation of the field's menu, chosen
   by `ComposerMenuPolicy` (`$Desktop` on macOS, Windows, Linux and the web;
   `$Mobile`, no pointer menu, on touch platforms; pass `ComposerView.menuPolicy`
-  to choose). A secondary click in the field opens the reference desktop
-  client's context menu at the pointer, a pointer-anchored popup drawn by
+  to choose). A secondary click in the field opens the desktop context
+  menu at the pointer, a pointer-anchored popup drawn by
   `chrome_foundation`'s `PointerMenu`, and leaves the caret and selection
   where they were (the press opens it on macOS and Linux, the release on
   Windows; `ComposerMenuPolicy$Desktop.platformsOpeningOnPress` is the one
@@ -165,8 +165,8 @@ The view imports no inset type.
   colours `ChromeThemeScope`'s pointer menu tokens. **Spelling** is a seam
   only: give `ComposerSpec.spellChecker` a `ComposerSpellChecker` and the menu
   shows a Spelling submenu for the word under the pointer; there is no
-  built-in checker. The floating toolbar stays for touch. Every value the
-  reference does not give is a named constant listed in
+  built-in checker. The floating toolbar stays for touch. Every value not given by the
+  design is a named constant listed in
   [ADR 026](../../docs/adr/026-composer-model.md)'s divergence table.
 - **IME composition.** While the composing range is non-empty the entities are
   not touched. When composition ends the whole composition is applied as one
@@ -198,10 +198,10 @@ The view imports no inset type.
 | Icons for header kinds without a stock id (`forward`, `link`) through `ChromeIconScope`; any custom action icon the same way. | Expect an unregistered id to draw more than the neutral glyph. |
 | Query kinds (`registerQueryKind`) and the suggestion panels for them; the replacement `RichText` (with its mention or inline reference entity and any trailing space) passed to `replaceQuery`. | Expect the composer to look anything up, detect bare URLs or `@names` (entity detection is host-invoked, not viewport paint, [ADR 017](../../docs/adr/017-body-linkify-host-invoked.md)), or draw a suggestion panel. |
 | Entities that are links and mentions, made where the user or the host decides what they are, inserted with `text.insert` or `replaceQuery`. | Rely on the controller to turn typed text into an entity. |
-| `entityStyles` (usually `ComposerEntityStyles.fromTokens` of the chrome theme) and an `inlineContentBuilder` whose span lays out as exactly the reference's alternative text length. | Return a span of another length: the field maps selection by text offsets (a debug assertion checks it). |
+| `entityStyles` (usually `ComposerEntityStyles.fromTokens` of the chrome theme) and an `inlineContentBuilder` whose span lays out as exactly the alternative text length. | Return a span of another length: the field maps selection by text offsets (a debug assertion checks it). |
 | Mode state: reply or edit ids, banners, the busy flag. It loads an edited message with `restore(RichText)` and reads `sendableText` to send and `richText` to store a draft, both through `RichTextMarkdown`. | Look for reply, edit or enabled state on the controller, or store a draft as `toJson`. |
 | `messageLengthLimit` from its server configuration, a `confirmMention` over its own users when pastes may carry mentions, an `onPaste` when it offers to apply formatting, and the draft store with its debounce. Any trim (an emoji-only message skips it) before the send. | Count markdown source as the length, encode `richText` when it means to send, or expect the composer to trim. |
-| For the pointer menu: `ChromeStrings.editMenu`, a `ChromeThemeScope` (it supplies the pointer menu tokens; `PointerMenuTokens.referenceDay` and `referenceNight` are the reference's own), optionally `ComposerView.menuPolicy` and `ComposerSpec.spellChecker`. | Expect a built-in spell checker, or the pointer menu on a touch platform. |
+| For the pointer menu: `ChromeStrings.editMenu`, a `ChromeThemeScope` (it supplies the pointer menu tokens; `PointerMenuTokens.day` and `PointerMenuTokens.night` are the built-in ones), optionally `ComposerView.menuPolicy` and `ComposerSpec.spellChecker`. | Expect a built-in spell checker, or the pointer menu on a touch platform. |
 | For the selection menu: `ComposerSpec.formatting` (which items; the default is every item but the list items), `ComposerSpec.linkPrompt` (the link dialog, given the current URL when the selection is linked; without it there is no link item), `ComposerSpec.backPriority` (the hook that takes Back ahead of the soft keyboard; the soft keyboard consumes Back before Flutter sees it, so without it Back closes the menu only where Flutter's own dispatch gets it), the labels in `ChromeStrings.formatting`, and the menu's tokens (`SelectionMenuTokens`) and its `menuEnter`, `menuLeave` and `menuPage` motion roles from `chrome_foundation`. | Mount a `ComposerSelectionMenu` itself, expect an item that cannot apply to vanish (it is greyed), or expect the platform's menu on any platform. |
 | The `softKeyboard` option, set while another surface stands in for the keyboard, and the focus commands. | Expect the controller to show or hide the keyboard or touch a platform channel; the field declares its input type from these inputs. |
 | Nothing for the field's reports: the view calls `reportFieldHeight`, `reportExtent` and `reportCaretAnchor` itself. | Call the `report...` methods, or read the anchor as exact: it may lag the text by a frame, and is `null` before the first report. |

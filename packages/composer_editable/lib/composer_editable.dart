@@ -1,5 +1,5 @@
 /// The composer's editable: Flutter's `EditableText` and Material `TextField`
-/// with Telegram composer selection parity.
+/// with the composer's selection behaviour.
 ///
 /// A leaf package. The selection types that the copied sources would otherwise
 /// declare under Flutter's own names (`TextSelectionControls`,
@@ -40,6 +40,7 @@ export 'src/widget/editable_text.dart'
         ExtendedEditableTextState,
         ExtendedPasteTextTransformer;
 export 'src/widget/padded_viewport_offset.dart' show PaddedViewportOffset;
+export 'src/widget/process_text_query_cache.dart' show ProcessTextQueryCache;
 export 'src/widget/render_editable.dart'
     show ExtendedRenderEditable, gutterClipRect;
 export 'src/widget/secondary_click.dart'
@@ -63,9 +64,9 @@ export 'src/widget/text_selection.dart'
         debugLogExtendedTextSelectionHandles,
         extendedEmptyTextSelectionControls,
         isInterruptedCharacter,
-        kAospMagnifierSettleMs,
         kHandleSettleDuration,
-        kTelegramHandleMotionDuration,
+        kHandleMotionDuration,
+        kMagnifierSettleMs,
         magnifierInfoSettled,
         pointerLineMagnifierTarget,
         settleTForElapsed,

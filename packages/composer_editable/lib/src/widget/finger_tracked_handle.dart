@@ -38,7 +38,7 @@ bool pointerKindUsesFingerTrackedHandle(PointerDeviceKind kind) {
       defaultTargetPlatform == TargetPlatform.android;
 }
 
-/// Grab offset frozen at drag start (AOSP `mTouchToWindowOffset` parity).
+/// Grab offset frozen at drag start.
 ///
 /// Overlay anchor = [pointerGlobal] + result = [caretAnchorGlobal] at DOWN.
 Offset computeHandleGrabOffset({

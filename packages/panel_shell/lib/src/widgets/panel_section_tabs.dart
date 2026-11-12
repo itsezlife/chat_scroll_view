@@ -6,13 +6,13 @@ import 'package:flutter/widgets.dart';
 import 'package:panel_shell/src/input/panel_intents.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
 
-/// The pointer arrangement's page switcher: the reference desktop client's
-/// tabs slider at the top of its emoji panel.
+/// The pointer arrangement's page switcher: a tabs slider at the top of the
+/// panel.
 ///
 /// The column's width is shared equally by one section per page, each with
 /// its name centred. The selected section is marked by a [barStroke] bar in
 /// the accent near its bottom, as wide as its label with rounded top corners
-/// ([PanelSectionTabsBar.label], the reference client's) or across the whole
+/// ([PanelSectionTabsBar.label]) or across the whole
 /// section ([PanelSectionTabsBar.section]); it slides linearly over
 /// [duration] to the next one, taking its width. A label's colour goes from
 /// the muted text colour to the accent as the bar comes over it. A press
@@ -22,10 +22,8 @@ import 'package:panel_shell/src/page/panel_page.dart';
 /// sections. Selecting goes through [PanelSelectPageIntent]; the tabs hold no
 /// selection of their own.
 ///
-/// The sizes are the reference client's slider as far as its source shows
-/// them; its style values (the height, the bar, the font, the timings) are
-/// not in the source available here and are taken from its defaults as
-/// remembered.
+/// The style values (the height, the bar, the font, the timings) are the
+/// slider's defaults.
 class PanelSectionTabs extends StatefulWidget {
   /// Sections for [pages], [selectedPageId] marked.
   const PanelSectionTabs({
@@ -285,33 +283,8 @@ class _Section extends StatefulWidget {
   State<_Section> createState() => _SectionState();
 }
 
-class _SectionState extends State<_Section> with TickerProviderStateMixin {
-  late final AnimationController _grow = AnimationController(
-    vsync: this,
-    duration: PanelSectionTabs.rippleShow,
-  );
-  late final AnimationController _fade = AnimationController(
-    vsync: this,
-    duration: PanelSectionTabs.rippleHide,
-    value: 1,
-  );
-  Offset? _origin;
+class _SectionState extends State<_Section> {
   var _focused = false;
-
-  @override
-  void dispose() {
-    _grow.dispose();
-    _fade.dispose();
-    super.dispose();
-  }
-
-  void _down(TapDownDetails details) {
-    setState(() => _origin = details.localPosition);
-    _fade.value = 0;
-    _grow.forward(from: 0);
-  }
-
-  void _release() => _fade.forward(from: 0);
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -332,25 +305,17 @@ class _SectionState extends State<_Section> with TickerProviderStateMixin {
           },
         ),
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: _down,
-        onTapUp: (_) {
-          _release();
-          widget.onSelect();
-        },
-        onTapCancel: _release,
+      // The desktop ink: a ripple from the press over 650 ms, fading over
+      // 200 ms; no hover fill.
+      child: ChromeInk(
+        kind: ChromeInkKind.pointer,
+        color: widget.ripple,
+        onTap: widget.onSelect,
         child: ClipRect(
           child: CustomPaint(
             foregroundPainter: _focused
                 ? _FocusRingPainter(widget.accent)
                 : null,
-            painter: _RipplePainter(
-              origin: _origin,
-              grow: _grow,
-              fade: _fade,
-              color: widget.ripple,
-            ),
             child: Stack(
               children: [
                 Positioned(
@@ -381,43 +346,6 @@ class _SectionState extends State<_Section> with TickerProviderStateMixin {
   );
 }
 
-// A circle from where the press went down, growing to cover the section and
-// fading once the press is over.
-class _RipplePainter extends CustomPainter {
-  _RipplePainter({
-    required this.origin,
-    required this.grow,
-    required this.fade,
-    required this.color,
-  }) : super(repaint: Listenable.merge([grow, fade]));
-
-  final Offset? origin;
-  final Animation<double> grow;
-  final Animation<double> fade;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = origin;
-    if (center == null || fade.value >= 1) return;
-    final reach = [
-      Offset.zero,
-      Offset(size.width, 0),
-      Offset(0, size.height),
-      Offset(size.width, size.height),
-    ].map((corner) => (corner - center).distance).reduce(math.max);
-    canvas.drawCircle(
-      center,
-      reach * Curves.easeOut.transform(grow.value),
-      Paint()..color = color.withValues(alpha: color.a * (1 - fade.value)),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_RipplePainter old) =>
-      old.origin != origin || old.color != color;
-}
-
 // The keyboard focus of a section: a ring inside its edges.
 class _FocusRingPainter extends CustomPainter {
   const _FocusRingPainter(this.color);
@@ -439,8 +367,7 @@ class _FocusRingPainter extends CustomPainter {
 
 /// How wide the bar under the selected section tab is.
 enum PanelSectionTabsBar {
-  /// As wide as the label, with rounded top corners: the reference desktop
-  /// client's.
+  /// As wide as the label, with rounded top corners.
   label,
 
   /// Across the whole section.

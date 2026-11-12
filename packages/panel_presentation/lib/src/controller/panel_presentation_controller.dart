@@ -47,7 +47,7 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// ## The dock
 ///
-/// A dock is a **standing section**, as in the reference client: while the
+/// A dock is a **standing section**: while the
 /// user prefers it ([dockPreferred]) and the window has room for it
 /// (`PanelPresentationPolicy.canDock`) it is on screen, shown by the window
 /// and not by a click or a hover. The preference is the user's, the window is
@@ -62,6 +62,15 @@ import 'package:panel_shell/panel_shell.dart';
 /// kept is the wish ([dockWanted]); the width a dock has in a window is the
 /// policy's (`dockWidthIn`), so a window that widens gives the wish back.
 ///
+/// ## A kind that follows the window
+///
+/// Where the policy's default kind depends on the window (the browser policy,
+/// `PanelPresentationPolicy$Web`, replaces the keyboard in a handheld window
+/// and opens a popup in a wider one), a panel the policy chose moves to the
+/// kind of the window it is now in when [updateWindow] crosses the line,
+/// where it stands, as a switch of kind. A kind the host named in [show]
+/// stays until the panel hides, and a dock follows only its own rule above.
+///
 /// ## Dock preference
 ///
 /// With a [PreferenceStore] the controller starts from its `dockPreferred`,
@@ -75,8 +84,13 @@ import 'package:panel_shell/panel_shell.dart';
 /// ## Shell
 ///
 /// The controller wraps [shell] without owning it: it reports presence to it
-/// ([PanelShellController.updatePresence]) after every change of visibility
-/// and turns every shell event (a page change, search opening or closing, a
+/// ([PanelShellController.updatePresence]) after every change of visibility,
+/// reports a **fresh open** ([PanelShellController.reportFreshOpen]) when it
+/// opens a hidden panel as a kind the policy opens afresh
+/// (`PanelPresentationPolicy.opensAfresh`), before the presence that shows
+/// it, closes the shell's search ([PanelShellController.closeSearch]) once a
+/// panel of such a kind is hidden, before the presence that hides it, and
+/// turns every shell event (a page change, search opening or closing, a
 /// pick) into a signal on [interactions]. [handleBack] steps back through the
 /// shell first.
 ///
@@ -172,6 +186,9 @@ final class PanelPresentationController {
   // Whether the dock stood at the last sync: what a change of the answer is
   // measured against.
   var _dockStood = false;
+  // Whether the visible kind is one the host named in `show`: a window that
+  // changes the policy's default leaves it where it is.
+  var _hostKind = false;
   listen.ValueListenable<PanelOccupancy>? _followed;
 
   // --- State ----------------------------------------------------------------
@@ -205,7 +222,7 @@ final class PanelPresentationController {
   /// The **auto-hide guard**: whether something keeps a self-dismissing
   /// popup open. True exactly while any [holdAutoHide] is unreleased.
   ///
-  /// The search field's focus is not a hold. The reference client's panel
+  /// The search field's focus is not a hold. The panel
   /// hides on the pointer leaving whether or not search is focused, and a
   /// popup the pointer has not left stays open anyway.
   listen.ValueListenable<bool> get autoHideGuard => _guard;
@@ -241,12 +258,15 @@ final class PanelPresentationController {
     final current = _state.value;
     switch (current) {
       case PanelVisibility$Hidden():
+        _hostKind = kind != null;
         _commit(PanelVisibility.showing(target));
       case PanelVisibility$Showing() || PanelVisibility$Shown():
         if (kind != null && current.kind != target) {
+          _hostKind = true;
           _commit(current.withKind(target));
         }
       case PanelVisibility$Hiding(kind: final active):
+        if (kind != null) _hostKind = true;
         _commit(
           PanelVisibility.showing(switch (kind) {
             null => active,
@@ -289,10 +309,18 @@ final class PanelPresentationController {
   /// hides, if its kind is dismissed by back (a dock is not). A panel that is
   /// already hiding still consumes the press, so a second back does not leave
   /// the screen mid-animation. A hidden panel consumes nothing.
+  ///
+  /// A panel hiding for the soft keyboard (`hide(waitForIme: true)`) stops
+  /// waiting for it: back acts at once, the panel closes from where it is,
+  /// and the host lowers the keyboard that was on its way up.
   bool handleBack() {
     if (_disposed) return false;
     if (shell.handleBack()) return true;
     final current = _state.value;
+    if (current case PanelVisibility$Hiding(:final kind, waitForIme: true)) {
+      _commit(PanelVisibility.hiding(kind));
+      return true;
+    }
     if (current.kind case final kind?
         when current.isVisible &&
             policy.dismissalsFor(kind).contains(PanelDismissal.back)) {
@@ -313,12 +341,15 @@ final class PanelPresentationController {
   /// wide it is, its height how tall a popup is.
   ///
   /// A standing dock follows: a window that no longer has the room for it
-  /// takes it away, one that has again brings it back (see the class
+  /// takes it away, one that has again brings it back; and a panel the policy
+  /// chose takes the kind the policy chooses in the new window (see the class
   /// documentation).
   void updateWindow(PanelWindow window) {
     if (_disposed) return;
+    final before = _idleKind();
     _window.value = window;
     _syncDock();
+    _followWindowKind(before);
     _followOccupancyOf(_state.value.kind ?? _idleKind());
   }
 
@@ -461,6 +492,23 @@ final class PanelPresentationController {
     }
   }
 
+  // Moves a visible panel the policy chose from [before], the default kind of
+  // the previous window, to the default of this one. Not a dock on either
+  // side: `_syncDock` alone brings a dock and takes it away, and a dock taken
+  // away hides rather than turning into anything.
+  void _followWindowKind(PanelPresentation before) {
+    final after = _idleKind();
+    if (_hostKind || after == before || before is Docked || after is Docked) {
+      return;
+    }
+    final current = _state.value;
+    if (current
+        case PanelVisibility$Showing(:final kind) ||
+            PanelVisibility$Shown(:final kind) when kind == before) {
+      _commit(current.withKind(after));
+    }
+  }
+
   void _setDockPreferred({required bool preferred}) {
     if (_disposed) return;
     _applyDockPreferred(preferred: preferred);
@@ -504,8 +552,24 @@ final class PanelPresentationController {
 
   void _commit(PanelVisibility next) {
     final settled = _attachments.isEmpty ? _settle(next) : next;
-    if (settled == _state.value) return;
+    final previous = _state.value;
+    if (settled == previous) return;
     _followOccupancyOf(settled.kind ?? _idleKind());
+    // Only from hidden: a panel turned back while hiding never left, and a
+    // switch of kind keeps it on screen.
+    if (previous case PanelVisibility$Hidden()) {
+      if (settled.kind case final kind? when policy.opensAfresh(kind)) {
+        shell.reportFreshOpen();
+      }
+    }
+    // A panel opened afresh is not left in search either: once it is gone
+    // from the screen, so the search does not visibly close while it hides,
+    // and before the shell hears it is hidden.
+    if (settled case PanelVisibility$Hidden()) {
+      if (previous.kind case final kind? when policy.opensAfresh(kind)) {
+        shell.closeSearch();
+      }
+    }
     shell.updatePresence(visible: settled.isVisible, opening: settled.isMoving);
     _state.value = settled;
   }

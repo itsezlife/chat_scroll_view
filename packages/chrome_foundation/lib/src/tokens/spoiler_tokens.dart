@@ -6,7 +6,7 @@ import 'package:meta/meta.dart';
 
 /// Colour and particle motion of a hidden spoiler.
 ///
-/// The particles are drawn in the text colour by default, as in the reference
+/// The particles are drawn in the text colour by default, as in the original effect
 /// clients, so [color] is null until a host overrides it. Nothing that
 /// renders markdown reads this group: a host passes the resolved values into
 /// that renderer's own theme.

@@ -50,6 +50,20 @@ abstract interface class PanelPageHost {
   /// The pause signal of work that would drop frames during the motion.
   ValueListenable<bool> get panelOpening;
 
+  /// Signals when the panel is opened afresh: the presentation that shows it
+  /// asks every page to come back as a new open shows it.
+  ///
+  /// The page decides what that is for its content: a page whose place is a
+  /// passing one goes back to its start (and brings back whatever chrome
+  /// reading on slid away), a page whose place is the user's keeps it. It
+  /// arrives before the panel is reported visible, and only where the
+  /// presentation opens afresh: an open that keeps every page's place (a
+  /// popup, a dock) never signals. The same signal for every page, whether
+  /// or not it is selected. A page that keeps its place in a
+  /// [PanelPageController] follows it there, so a page that is not mounted
+  /// when the panel opens comes back at the right place too.
+  Listenable get freshOpen;
+
   /// Reports that the user picked [key], content of [kind], to be filed under
   /// the recents of [recentsKind] ([kind] when omitted); the shell publishes
   /// [ContentPicked] with [source].
@@ -71,6 +85,14 @@ abstract interface class PanelPageHost {
   /// Reports that the user asked to forget [key] in the recents of [kind]; the
   /// shell publishes [RecentRemoveRequested].
   void requestRemoveRecent(ContentKey key, {required SemanticKind kind});
+
+  /// Reports that the user asked for [edit] of their content library; the
+  /// shell publishes [LibraryEditRequested].
+  void requestLibraryEdit(LibraryEdit edit);
+
+  /// Reports that the user asked to see the pack [id]; the shell publishes
+  /// [PackRequested].
+  void requestPack(PackId id);
 
   /// Asks that a presentation which dismisses itself (a popup that closes
   /// when the pointer leaves it) stays open until the returned hold is

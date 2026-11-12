@@ -50,11 +50,13 @@ final _english = ChromeStringsPresets.english;
 // The English preset with the pointer menu's Clear row as the baselines were
 // drawn. The test font draws every glyph as a square, so a label's length is
 // pixels, and the baselines are the CI runner's: the preset's "Plain text"
-// (the desktop client's wording) waits for a regeneration there.
+// (the desktop wording) waits for a regeneration there.
 final _baselineStrings = ChromeStrings(
   panel: _english.panel,
   composer: _english.composer,
   formatting: _english.formatting,
+  packSheet: _english.packSheet,
+  bulletin: _english.bulletin,
   semantics: _english.semantics,
   editMenu: EditMenuStrings(
     undoAction: _english.editMenu.undoAction,

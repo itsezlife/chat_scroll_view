@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:panel_pages/src/menu/catalog_menu_icons.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -51,7 +52,8 @@ final class CatalogContextMenuController {
 /// - **Hold.** The menu sits outside the panel's own box, so the pointer
 ///   moving onto it reads as leaving the panel; the hold on auto-hide
 ///   ([PanelPageHost.holdAutoHide]) is taken as it opens and released as it
-///   closes, or with the page.
+///   closes, or with the page. A grid outside the panel (a pack sheet) has no
+///   host and nothing to hold.
 class CatalogContextMenuHost extends StatefulWidget {
   /// A host that holds auto-hide through [host] while its menu is up.
   const CatalogContextMenuHost({
@@ -61,8 +63,9 @@ class CatalogContextMenuHost extends StatefulWidget {
     super.key,
   });
 
-  /// The page's connection to the shell.
-  final PanelPageHost host;
+  /// The page's connection to the shell, or null for a grid outside the
+  /// panel.
+  final PanelPageHost? host;
 
   /// The handle the page opens the menu with.
   final CatalogContextMenuController controller;
@@ -79,15 +82,22 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
   var _entries = const <CatalogMenuEntry>[];
   ValueChanged<String>? _onSelected;
   PanelPageHold? _hold;
+  var _open = false;
   Offset _at = Offset.zero;
   var _moving = false;
+  // Each opening plays its show from the start.
+  var _opening = 0;
+  // The menu is playing its hide; this takes it off the overlay at the end.
+  VoidCallback? _hideOverlay;
 
-  bool get _isOpen => _hold != null;
+  bool get _isOpen => _open;
 
   @override
   void initState() {
     super.initState();
     widget.controller._state = this;
+    // A right-click opens the menu at once: its icons are decoded ahead.
+    CatalogMenuIcons.warm();
   }
 
   @override
@@ -104,7 +114,7 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
     if (identical(widget.controller._state, this)) {
       widget.controller._state = null;
     }
-    _releaseHold();
+    _markClosed();
     super.dispose();
   }
 
@@ -120,7 +130,8 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
     _onSelected = onSelected;
     // The hold goes up before the menu does: the move onto it is the first
     // thing the panel's hover rule hears of.
-    _hold ??= widget.host.holdAutoHide();
+    _open = true;
+    _hold ??= widget.host?.holdAutoHide();
     _at = box.globalToLocal(globalPosition);
     // The anchor closes an open menu before it opens it elsewhere; that close
     // is a move, and the hold goes on through it.
@@ -132,10 +143,11 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
   void _close() {
     if (!_isOpen) return;
     _menu.close();
-    _releaseHold();
+    _markClosed();
   }
 
-  void _releaseHold() {
+  void _markClosed() {
+    _open = false;
     _hold?.release();
     _hold = null;
   }
@@ -152,15 +164,38 @@ class _CatalogContextMenuHostState extends State<CatalogContextMenuHost> {
     // The menu closes through [_close], which also lets go of the hold; the
     // anchor's own closing (a dismiss intent, a dispose) arrives here.
     onClose: () {
-      if (!_moving) _releaseHold();
+      if (!_moving) _markClosed();
+    },
+    onOpenRequested: (position, showOverlay) {
+      _hideOverlay = null;
+      _opening++;
+      showOverlay();
+    },
+    // The menu leaves with the appear motion's hide, then the overlay goes.
+    onCloseRequested: (hideOverlay) {
+      if (!mounted || _moving) {
+        hideOverlay();
+        return;
+      }
+      // Closed from here on: the hold goes and the focus goes back as the
+      // hide starts.
+      _markClosed();
+      setState(() => _hideOverlay = hideOverlay);
     },
     // In the text fields' tap group, barrier included: a press on the menu
     // is not a press outside the composer.
     overlayBuilder: (context, info) => TextFieldTapRegion(
       child: _MenuSurface(
+        key: ValueKey(_opening),
         position: info.anchorRect.topLeft + (info.position ?? Offset.zero),
         overlaySize: info.overlaySize,
         entries: _entries,
+        leaving: _hideOverlay != null,
+        onHidden: () {
+          final hide = _hideOverlay;
+          _hideOverlay = null;
+          hide?.call();
+        },
         onChoose: _choose,
         onDismiss: _close,
       ),
@@ -176,39 +211,69 @@ class _MenuSurface extends StatelessWidget {
     required this.position,
     required this.overlaySize,
     required this.entries,
+    required this.leaving,
+    required this.onHidden,
     required this.onChoose,
     required this.onDismiss,
+    super.key,
   });
 
   final Offset position;
   final Size overlaySize;
   final List<CatalogMenuEntry> entries;
+  final bool leaving;
+  final VoidCallback onHidden;
   final ValueChanged<String> onChoose;
   final VoidCallback onDismiss;
 
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      Listener(
-        // Opaque: nothing below hears a press while the menu is up, so the
-        // click that closes it picks nothing. Any button closes it.
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: (_) => onDismiss(),
+  Widget build(BuildContext context) {
+    final textDirection = Directionality.of(context);
+    final layout = _MenuLayout(
+      position: position,
+      textDirection: textDirection,
+    );
+    final palette = ChromeThemeScope.paletteOf(context);
+    // A menu on its way out takes no press: the click goes where it points.
+    return IgnorePointer(
+      ignoring: leaving,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Listener(
+            // Opaque: nothing below hears a press while the menu is up, so
+            // the click that closes it picks nothing. Any button closes it.
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (_) => onDismiss(),
+          ),
+          CustomSingleChildLayout(
+            delegate: layout,
+            child: ChromeAppear(
+              visible: !leaving,
+              onHidden: onHidden,
+              motion: const AppearMotion.grow(),
+              origin: layout.originFor(
+                overlaySize,
+                CatalogContextMenuPanel.estimatedSize(entries),
+              ),
+              borderRadius: BorderRadius.circular(
+                CatalogContextMenuPanel.radius,
+              ),
+              revealColor: palette.surfaceRaised,
+              shadows: CatalogContextMenuPanel.shadowsOf(palette),
+              child: CatalogContextMenuPanel(
+                entries: entries,
+                onChoose: onChoose,
+                onDismiss: onDismiss,
+                shadowed: false,
+                leaving: leaving,
+              ),
+            ),
+          ),
+        ],
       ),
-      CustomSingleChildLayout(
-        delegate: _MenuLayout(
-          position: position,
-          textDirection: Directionality.of(context),
-        ),
-        child: CatalogContextMenuPanel(
-          entries: entries,
-          onChoose: onChoose,
-          onDismiss: onDismiss,
-        ),
-      ),
-    ],
-  );
+    );
+  }
 }
 
 // Corner at the pointer, on the side the reading direction opens to and below
@@ -222,6 +287,16 @@ class _MenuLayout extends SingleChildLayoutDelegate {
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
       constraints.loosen();
+
+  /// The corner of a menu of [childSize] at the pointer, in a window of
+  /// [size]: the one its grow starts from.
+  Alignment originFor(Size size, Size childSize) {
+    final at = getPositionForChild(size, childSize);
+    return Alignment(
+      at.dx + childSize.width / 2 < position.dx ? 1 : -1,
+      at.dy + childSize.height / 2 < position.dy ? 1 : -1,
+    );
+  }
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
@@ -256,8 +331,43 @@ class CatalogContextMenuPanel extends StatefulWidget {
     required this.entries,
     required this.onChoose,
     required this.onDismiss,
+    this.shadowed = true,
+    this.leaving = false,
     super.key,
   });
+
+  /// Whether the menu is on its way out: it gives focus back at once, not
+  /// when it leaves the tree.
+  final bool leaving;
+
+  /// Whether the card draws its own shadow; off when what shows it draws
+  /// [shadowsOf] instead.
+  final bool shadowed;
+
+  /// The card's shadows in [palette].
+  static List<BoxShadow> shadowsOf(ChromePalette palette) => [
+    BoxShadow(
+      color: palette.shadow.withValues(alpha: 0.28),
+      blurRadius: 12,
+      offset: const Offset(0, 3),
+    ),
+  ];
+
+  /// The size of a menu of [entries] before it is laid out: its height, and
+  /// its narrowest width.
+  static Size estimatedSize(List<CatalogMenuEntry> entries) {
+    var height = 2 * _padding;
+    for (final entry in entries) {
+      height += switch (entry) {
+        CatalogMenuItem() => itemExtent,
+        CatalogMenuSeparator() => 2 * _padding + 1,
+      };
+    }
+    return Size(minWidth, height);
+  }
+
+  // Above the first item and below the last, and around a separator.
+  static const double _padding = 4;
 
   /// What the menu holds, in order.
   final List<CatalogMenuEntry> entries;
@@ -277,6 +387,11 @@ class CatalogContextMenuPanel extends StatefulWidget {
   /// Corner radius of the card.
   static const double radius = 8;
 
+  /// From an icon's start to its label's: the preview menu's
+  /// (43 logical pixels), so a right-click shows the preview's items as the
+  /// preview does.
+  static const double labelInset = 43;
+
   @override
   State<CatalogContextMenuPanel> createState() =>
       _CatalogContextMenuPanelState();
@@ -284,7 +399,8 @@ class CatalogContextMenuPanel extends StatefulWidget {
 
 class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
   final _scope = FocusScopeNode(debugLabel: 'CatalogContextMenu');
-  late final FocusNode? _previous = FocusManager.instance.primaryFocus;
+  // What had focus as the menu opened, which it gives focus back to.
+  final FocusNode? _previous = FocusManager.instance.primaryFocus;
   late List<FocusNode> _nodes;
 
   static const _shortcuts = <ShortcutActivator, Intent>{
@@ -312,6 +428,7 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
   @override
   void didUpdateWidget(CatalogContextMenuPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.leaving && !oldWidget.leaving) _giveFocusBack();
     if (oldWidget.entries != widget.entries) {
       for (final node in _nodes) {
         node.dispose();
@@ -322,21 +439,23 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
 
   @override
   void dispose() {
-    final previous = _previous;
-    final restore = _scope.hasFocus;
+    _giveFocusBack();
     for (final node in _nodes) {
       node.dispose();
     }
     _scope.dispose();
-    if (restore && previous != null) {
-      // After this frame: the node that has focus is leaving the tree.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (previous.context != null && previous.canRequestFocus) {
-          previous.requestFocus();
-        }
-      });
-    }
     super.dispose();
+  }
+
+  void _giveFocusBack() {
+    final previous = _previous;
+    if (!_scope.hasFocus || previous == null) return;
+    // After this frame: the node that has focus may be leaving the tree.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (previous.context != null && previous.canRequestFocus) {
+        previous.requestFocus();
+      }
+    });
   }
 
   List<FocusNode> _nodesFor(List<CatalogMenuEntry> entries) => [
@@ -374,13 +493,9 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
                   borderRadius: BorderRadius.circular(
                     CatalogContextMenuPanel.radius,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: palette.shadow.withValues(alpha: 0.28),
-                      blurRadius: 12,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+                  boxShadow: widget.shadowed
+                      ? CatalogContextMenuPanel.shadowsOf(palette)
+                      : null,
                 ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(
@@ -388,30 +503,34 @@ class _CatalogContextMenuPanelState extends State<CatalogContextMenuPanel> {
                   ),
                   child: IntrinsicWidth(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          for (final entry in widget.entries)
-                            switch (entry) {
-                              final CatalogMenuItem entry => _MenuItemView(
-                                item: entry,
-                                node: _nodes[item++],
-                                palette: palette,
-                                onChoose: () => widget.onChoose(entry.id),
-                              ),
-                              CatalogMenuSeparator() => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 4,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: CatalogContextMenuPanel._padding,
+                      ),
+                      child: CatalogMenuIconScope(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final entry in widget.entries)
+                              switch (entry) {
+                                final CatalogMenuItem entry => _MenuItemView(
+                                  item: entry,
+                                  node: _nodes[item++],
+                                  palette: palette,
+                                  onChoose: () => widget.onChoose(entry.id),
                                 ),
-                                child: SizedBox(
-                                  height: 1,
-                                  child: ColoredBox(color: palette.separator),
+                                CatalogMenuSeparator() => Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: CatalogContextMenuPanel._padding,
+                                  ),
+                                  child: SizedBox(
+                                    height: 1,
+                                    child: ColoredBox(color: palette.separator),
+                                  ),
                                 ),
-                              ),
-                            },
-                        ],
+                              },
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -468,8 +587,11 @@ class _MenuItemViewState extends State<_MenuItemView> {
             },
           ),
         },
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        // The row keeps its own hover and focus wash; the ink adds the
+        // press ripple.
+        child: ChromeInk(
+          kind: ChromeInkKind.pointer,
+          color: ChromeCatalogTheme.pressInkOf(palette),
           onTap: widget.onChoose,
           child: Container(
             height: CatalogContextMenuPanel.itemExtent,
@@ -478,17 +600,38 @@ class _MenuItemViewState extends State<_MenuItemView> {
             color: _hovered || _focused
                 ? ChromeCatalogTheme.hoverWashOf(palette)
                 : const Color(0x00000000),
-            child: Text(
-              item.label,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.2,
-                decoration: TextDecoration.none,
-                color: item.attention ? palette.destructive : palette.onSurface,
-              ),
+            child: Row(
+              children: [
+                if (item.icon case final icon?)
+                  SizedBox(
+                    width: CatalogContextMenuPanel.labelInset,
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: ChromeIcon(
+                        icon,
+                        size: CatalogMenuIcons.sizeOf(icon),
+                        color: item.attention
+                            ? palette.destructive
+                            : palette.iconIdle,
+                      ),
+                    ),
+                  ),
+                Flexible(
+                  child: Text(
+                    item.label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: ChromeTypography.of(context).copyWith(
+                      fontSize: 14,
+                      height: 1.2,
+                      color: item.attention
+                          ? palette.destructive
+                          : palette.onSurface,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

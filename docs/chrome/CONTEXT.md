@@ -3,7 +3,7 @@
 The chrome around a chat's message list: the theme and glass it paints with,
 the panel shell and its pages, how the panel is presented, and the composer.
 Covers `chrome_foundation`, `panel_shell`, `panel_pages`, `panel_presentation`,
-`chat_composer`, `composer_editable` and `chat_wallpaper`. Does not cover the catalog viewport (see the
+`chat_composer`, `composer_editable`, `chat_wallpaper` and `bulletins`. Does not cover the catalog viewport (see the
 [Panel Catalog glossary](../panel-catalog/CONTEXT.md)) or content and asset
 terms (see the [Content and Assets glossary](../content/CONTEXT.md)).
 
@@ -14,7 +14,8 @@ Decisions: [ADR 025](../adr/025-panel-shell-and-pages.md),
 [ADR 029](../adr/029-host-integration.md),
 [ADR 031](../adr/031-localization-accessibility-and-input.md),
 [ADR 038](../adr/038-composer-editable-fork.md),
-[ADR 040](../adr/040-chat-wallpaper.md).
+[ADR 040](../adr/040-chat-wallpaper.md),
+[ADR 045](../adr/045-bulletins.md).
 
 ## Language
 
@@ -66,12 +67,16 @@ _Avoid_: KeyboardPanel, catalog shell, emoji panel
 How the shell lays out its chrome for the way the user points: `touch` (tabs and page actions in one floating bottom bar that hides as the content is read; the page's strip and inline search field as a sticky header that slides away with the reading) or `pointer` (tabs above the search field; a bar of the page actions the arrangement offers (backspace is not) that never hides on scroll and rises above the strip the page pins at the bottom, absent when none is left; an inline search field scrolls with the grid and never pins; nothing else a page draws slides). It is the one switch between those two layouts. Chosen by the presentation, given to the shell, read by pages through the scope. The platform is never read for it.
 _Avoid_: Layout mode, platform layout, desktop / mobile shell
 
+**Search exit**:
+How the user leaves search mode, per platform family: `back` (a back press or Escape; the field's controls only clear the query) or `cancel` (also a Cancel text button beside the field while search is open, for a platform with no back press, where the hidden bottom bar would otherwise leave no way out). Given to the shell; defaults from the platform, `cancel` on iOS.
+_Avoid_: Close button, dismiss mode
+
 **Panel page**:
 A registry entry: id, tab descriptor, builder and declared capabilities (search, bottom actions, top strip). The registry is open.
 _Avoid_: Tab enum, allow bitset, plain widget page
 
 **Sticky header**:
-What a catalogue page draws over its content at the top under the `touch` arrangement (under `pointer` there is none): the strip, which slides away as the user reads on and returns as they read back, and, for a page that places its search field inline, the field, which is the first thing in the content, scrolls away with it and pins to the top once search opens. The page pads the catalogue by their extent; the geometry is `CatalogStickyHeader`.
+What a catalogue page draws over its content at the top under the `touch` arrangement (under `pointer` there is none): the strip, which slides away as the user reads on and returns as they read back (unless the page's policy pins it: the stickers strip stays whole, only search takes it away), and, for a page that places its search field inline, the field, which is the first thing in the content, scrolls away with it and pins to the top once search opens. The page pads the catalogue by their extent; the geometry is `CatalogStickyHeader`.
 _Avoid_: A header that stands still, a field the shell draws for a page that placed it itself
 
 **Panel shell controller**:
@@ -85,6 +90,10 @@ _Avoid_: Focus node owned by the host, search open as a proxy for focus
 **Panel presence**:
 Two `ValueListenable`s (`package:listen`) the shell publishes for the host's pause signals: panel visible (on screen, including while moving) and panel opening (moving). The presentation controller reports them.
 _Avoid_: A shell that reads its own visibility, pause flags inside pages
+
+**Fresh open**:
+An open of a hidden panel after which every page comes back as a new open shows it: the presentation policy decides which kinds open afresh (the mobile keyboard replacement does, a popup or a dock does not), the presentation controller reports it to the shell before the panel is visible, and each page decides what it means for its content (back at its start, or its place kept). The shell shows the bottom bar on one. A panel of a kind that opens afresh ends a search left open once it is hidden, so a fresh open never starts in search.
+_Avoid_: A reset on hide, a page that reads the platform or the arrangement to decide, a reset the shell decides
 
 **Page controller registry**:
 The per-page store of controllers (scroll offsets, loaded collections) that the shell controller owns, so a presentation switch restores page state.
@@ -104,12 +113,20 @@ _Avoid_: One page class per kind with copied viewport glue, a fully config-drive
 
 ### Panel presentation
 
+**Pack strip**:
+The strip of the stickers page: a tab for the recents and one per pack, each drawn by the pack's cover, which plays when it is animated and its tab is in view, with a mark on the active one. It follows the catalogue's current section; a tap jumps to the head of the pack's section, marks the tab at once and holds the mark there until the jump ends, so one scroll controller (the catalogue's) drives both. A pack is a collection of the page's source, not a category of a catalogue.
+_Avoid_: A second scroll controller for the strip, moving the mark from the strip's own scroll offset, a tab per sticker
+
+**Justified rows**:
+How the GIF page lays clips of different proportions out: rows of one height whose clips fill the width, each taking the share of the row its proportions ask for, the last row stretched to fill. Not a grid of equal cells, so it is not a `SectionLayout` of the catalogue viewport. `GifRowLayout` is the pure rule.
+_Avoid_: Cropping every clip to a square, a masonry layout with ragged rows
+
 **Panel presentation**:
 The sealed kind of host for the panel: keyboard replacement, anchored popup, docked section (a sheet later).
 _Avoid_: Platform-only fixed pair, open registry of presentations
 
 **Presentation policy**:
-A pure-Dart `$Mobile` / `$Desktop` strategy owning open triggers, dismissal, sizing and animation roles. Defaults come from OS family and window class.
+A pure-Dart `$Mobile` / `$Desktop` strategy owning open triggers, dismissal, sizing and animation roles, with a browser `$Web` variant that is the mobile one in a handheld window (up to 600 logical pixels wide) and the desktop one in a wider window, and moves a panel it opened when a resize crosses that line. Defaults come from OS family and the window.
 _Avoid_: `_vm` / `_js` forks, switching by last pointer kind
 
 **Occupancy**:
@@ -180,6 +197,31 @@ _Avoid_: A fixed panel height, a height that includes the safe area
 The part of the bottom safe band that the keyboard presentation's occupancy has not covered yet: `max(0, band - occupancy)`. The host hands it to the composer as its bottom safe-area pad so the bottom of the window never steps.
 _Avoid_: Adding the safe area to the occupancy a second time, peeling the safe area by platform
 
+### Bulletins
+
+**Bulletin**:
+A short notice shown over a surface for a few seconds: a message, an optional title, an optional leading (icon, animation, thumbnail, countdown) and an optional action (Undo or a button). One is visible per surface; a new one replaces it.
+_Avoid_: Toast, snack bar, banner (as the general term)
+
+**Bulletin controller**:
+The host-owned slot of one surface: shows a bulletin, replaces, dismisses, pauses and resumes it, and closes every bulletin exactly once with an exit reason.
+_Avoid_: Global bulletin service, static visible bulletin
+
+**Bulletin host**:
+The widget that mounts a bulletin controller over a surface's content: layout, enter and exit, gestures and the announcement. Unmounting it closes the bulletin as the surface gone.
+
+**Bulletin policy**:
+Pure-Dart layout and motion values of one platform family (Android, iOS, desktop): placement, margins, radius, timeouts per duration class, transition, gestures. A host extends a stock policy to change a value.
+_Avoid_: Platform forks of the bulletin view
+
+**Commit on leave**:
+An Undo bulletin's commit runs once when it closes by anything but Undo: timeout, swipe, replacement, dismissal, the surface gone.
+_Avoid_: Commit on timeout only
+
+**Bottom obstruction**:
+What covers a surface's edges for a bulletin (the composer and its safe inset, the keyboard; a top bar), supplied by the host; the bulletin stays clear of it and follows it.
+_Avoid_: Bulletin reading the keyboard or composer itself
+
 ### Composer
 
 **Composer spec**:
@@ -235,7 +277,7 @@ _Avoid_: Parsing markdown on paste, a composer-owned toast
 _Avoid_: Encoding `richText` straight to the wire, rejecting a message over an unresolved mention
 
 **Selection menu**:
-The composer's floating card on a text selection (`ComposerSelectionMenu`), the touch presentation (desktop's is the **pointer menu**), mounted through the **composer editable**'s menu builder on every platform. A two-page swipe-back card: the main row holds the clipboard actions and a More button, and the More page, which slides in from the right, holds the actions that did not fit the row and the formatting actions, with a Back row. Its sizes and fit are Telegram's floating toolbar (a page as wide as its widest label, four rows and half of a fifth before it scrolls). A formatting action that cannot apply is greyed. Its options, link prompt, labels (all `ChromeStrings`, the clipboard rows from `editMenu`) and back priority are host contract.
+The composer's floating card on a text selection (`ComposerSelectionMenu`), the touch presentation (desktop's is the **pointer menu**), mounted through the **composer editable**'s menu builder on every platform. A two-page swipe-back card: the main row holds the clipboard actions and a More button, and the More page, which slides in from the right, holds the actions that did not fit the row and the formatting actions, with a Back row. Its sizes and fit: a page as wide as its widest label, four rows and half of a fifth before it scrolls. A formatting action that cannot apply is greyed. Its options, link prompt, labels (all `ChromeStrings`, the clipboard rows from `editMenu`) and back priority are host contract.
 _Avoid_: The platform selection menu extended, context menu (alone)
 
 **Pointer menu**:

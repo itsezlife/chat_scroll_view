@@ -29,8 +29,18 @@ import 'emoji/emoji_variant_picker_ink_test.dart'
     as emoji_variant_picker_ink_test;
 import 'emoji/emoji_variant_picker_layout_test.dart'
     as emoji_variant_picker_layout_test;
+import 'gifs/gif_page_search_test.dart' as gif_page_search_test;
+import 'gifs/gif_page_test.dart' as gif_page_test;
+import 'gifs/gif_row_layout_test.dart' as gif_row_layout_test;
 import 'goldens/emoji_page_golden_test.dart' as emoji_page_golden_test;
 import 'menu/catalog_context_menu_test.dart' as catalog_context_menu_test;
+import 'menu/catalog_menu_icons_test.dart' as catalog_menu_icons_test;
+import 'pack_sheet/emoji_pack_sheet_test.dart' as emoji_pack_sheet_test;
+import 'pack_sheet/pack_sheet_action_test.dart' as pack_sheet_action_test;
+import 'pack_sheet/pack_sheet_drag_test.dart' as pack_sheet_drag_test;
+import 'pack_sheet/pack_sheet_frame_test.dart' as pack_sheet_frame_test;
+import 'pack_sheet/pack_sheet_route_test.dart' as pack_sheet_route_test;
+import 'pack_sheet/sticker_pack_sheet_test.dart' as sticker_pack_sheet_test;
 import 'page/catalog_page_contents_change_test.dart'
     as catalog_page_contents_change_test;
 import 'page/catalog_page_in_shell_test.dart' as catalog_page_in_shell_test;
@@ -38,9 +48,20 @@ import 'page/catalog_page_model_test.dart' as catalog_page_model_test;
 import 'page/catalog_page_sticky_test.dart' as catalog_page_sticky_test;
 import 'page/catalog_page_test.dart' as catalog_page_test;
 import 'page/catalog_sticky_header_test.dart' as catalog_sticky_header_test;
+import 'policy/catalog_pointer_policy_test.dart' as catalog_pointer_policy_test;
+import 'preview/content_preview_emoji_test.dart' as content_preview_emoji_test;
+import 'preview/content_preview_gifs_test.dart' as content_preview_gifs_test;
+import 'preview/content_preview_layout_test.dart'
+    as content_preview_layout_test;
+import 'preview/content_preview_menu_test.dart' as content_preview_menu_test;
+import 'preview/content_preview_stickers_test.dart'
+    as content_preview_stickers_test;
 import 'scroll/page_scroll_reporter_test.dart' as page_scroll_reporter_test;
 import 'snapshot/catalog_snapshot_builder_test.dart'
     as catalog_snapshot_builder_test;
+import 'stickers/sticker_pack_strip_test.dart' as sticker_pack_strip_test;
+import 'stickers/stickers_page_policy_test.dart' as stickers_page_policy_test;
+import 'stickers/stickers_page_test.dart' as stickers_page_test;
 import 'theme/chrome_catalog_theme_test.dart' as chrome_catalog_theme_test;
 
 void main() {
@@ -79,8 +100,21 @@ void main() {
     'emoji/emoji_variant_picker_layout_test.dart',
     emoji_variant_picker_layout_test.main,
   );
+  group('gifs/gif_page_search_test.dart', gif_page_search_test.main);
+  group('gifs/gif_page_test.dart', gif_page_test.main);
+  group('gifs/gif_row_layout_test.dart', gif_row_layout_test.main);
   group('goldens/emoji_page_golden_test.dart', emoji_page_golden_test.main);
   group('menu/catalog_context_menu_test.dart', catalog_context_menu_test.main);
+  group('menu/catalog_menu_icons_test.dart', catalog_menu_icons_test.main);
+  group('pack_sheet/emoji_pack_sheet_test.dart', emoji_pack_sheet_test.main);
+  group('pack_sheet/pack_sheet_action_test.dart', pack_sheet_action_test.main);
+  group('pack_sheet/pack_sheet_drag_test.dart', pack_sheet_drag_test.main);
+  group('pack_sheet/pack_sheet_frame_test.dart', pack_sheet_frame_test.main);
+  group('pack_sheet/pack_sheet_route_test.dart', pack_sheet_route_test.main);
+  group(
+    'pack_sheet/sticker_pack_sheet_test.dart',
+    sticker_pack_sheet_test.main,
+  );
   group(
     'page/catalog_page_contents_change_test.dart',
     catalog_page_contents_change_test.main,
@@ -97,6 +131,30 @@ void main() {
     catalog_sticky_header_test.main,
   );
   group(
+    'policy/catalog_pointer_policy_test.dart',
+    catalog_pointer_policy_test.main,
+  );
+  group(
+    'preview/content_preview_emoji_test.dart',
+    content_preview_emoji_test.main,
+  );
+  group(
+    'preview/content_preview_gifs_test.dart',
+    content_preview_gifs_test.main,
+  );
+  group(
+    'preview/content_preview_layout_test.dart',
+    content_preview_layout_test.main,
+  );
+  group(
+    'preview/content_preview_menu_test.dart',
+    content_preview_menu_test.main,
+  );
+  group(
+    'preview/content_preview_stickers_test.dart',
+    content_preview_stickers_test.main,
+  );
+  group(
     'scroll/page_scroll_reporter_test.dart',
     page_scroll_reporter_test.main,
   );
@@ -104,5 +162,11 @@ void main() {
     'snapshot/catalog_snapshot_builder_test.dart',
     catalog_snapshot_builder_test.main,
   );
+  group('stickers/sticker_pack_strip_test.dart', sticker_pack_strip_test.main);
+  group(
+    'stickers/stickers_page_policy_test.dart',
+    stickers_page_policy_test.main,
+  );
+  group('stickers/stickers_page_test.dart', stickers_page_test.main);
   group('theme/chrome_catalog_theme_test.dart', chrome_catalog_theme_test.main);
 }

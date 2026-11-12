@@ -7,7 +7,7 @@ import 'package:meta/meta.dart';
 ///
 /// A tab can cover several categories: tapping it lands on the first of its
 /// sections that the page shows, and the tab is active while the user is in
-/// any of them. The reference client's sections are one category per tab.
+/// any of them. By default each section is one category per tab.
 @immutable
 final class EmojiCategoryTab {
   /// A tab named [id], painted as [icon], covering the catalogue groups
@@ -48,7 +48,7 @@ final class EmojiCategoryTab {
 /// The tabs of the emoji strip and their icons.
 ///
 /// The ids are those of the emoji sections (`EmojiSection.reference`: the
-/// reference client's seven categories); a section no tab names has a section
+/// seven categories); a section no tab names has a section
 /// of its own but no tab. Presentation owns the
 /// pictures: [icons] are painters a host registers (or [EmojiTabIconScope]
 /// does) under these ids, so a host can restyle a tab by registering its own.
@@ -109,8 +109,7 @@ abstract final class EmojiCategories {
     groupIds: ['symbols'],
   );
 
-  /// Every tab, in strip order: the reference client's, which puts activity
-  /// before travel.
+  /// Every tab, in strip order, which puts activity before travel.
   static const List<EmojiCategoryTab> tabs = [
     recents,
     smileys,

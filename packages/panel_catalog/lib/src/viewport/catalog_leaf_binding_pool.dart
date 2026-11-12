@@ -1,16 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:catalog_assets/catalog_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/painting.dart' show VoidCallback;
+import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
 import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
-
-/// What a still leaf asks of the cache: one frame, shown at once.
-const AssetProfile _stillProfile = AssetProfile();
-
-/// What an animated leaf asks of the cache: play while it is shown and the
-/// scope's clock runs.
-const AssetProfile _playingProfile = AssetProfile(animate: true);
 
 /// One live attach of a visible leaf: the cache binding and what the painter
 /// needs to draw it.
@@ -72,14 +68,20 @@ final class CatalogBoundLeaf {
 ///
 /// A leaf is attached as `attach(key, spec, profile)`:
 ///
-/// - the [AssetSpec] is the leaf's content box ([CatalogLeafSlot.contentExtent]:
-///   the glyph box or the whole cell) in physical pixels at the
-///   [devicePixelRatio], a template decode when the leaf is tintable. The same
+/// - the leaf's content box ([CatalogLeafSlot.contentExtent]: the glyph box or
+///   the whole cell) as a `AssetPresets.keyboardCell` at the
+///   [devicePixelRatio], a template decode when the leaf is tintable. So a
+///   playing leaf of at most 90 logical px plays at half rate and decodes at
+///   most 160 px, as every small cell of a content panel does. The same
 ///   content at a size another section's cells need is a second attach;
-/// - the [AssetProfile] animates when the leaf does. Whether it plays is the
-///   binding's [AssetBinding.visible] flag, kept `true` only while the leaf is
-///   in the painted window and, for an animated leaf, no fling is running;
-///   the scope's clock adds the host's pause layers.
+/// - the [AssetProfile] animates when the leaf does. The binding's
+///   [AssetBinding.visible] flag says whether the leaf is in the painted
+///   window, and nothing else: a leaf that leaves it gives back what it leased
+///   for the screen (`AssetPaintable.leftScreen`), and one that comes back
+///   goes on from where it was. A scroll, a fling or a drag against an edge
+///   changes nothing for a leaf that stays in the window: it plays on, since
+///   animated leaves in a panel grid never stop for a scroll. The scope's
+///   clock adds the host's pause layers.
 ///
 /// ## Page level
 ///
@@ -95,6 +97,28 @@ final class CatalogBoundLeaf {
 /// slots are ignored. The owner typically passes the viewport band plus one
 /// cell of overscan, so short drags do not thrash attach and detach; this pool
 /// trusts the range it is given.
+///
+/// ## Held
+///
+/// While [held] (the viewport's tickers are off: a hidden panel kept mounted,
+/// a page of a pager off screen, a panel moving in or out) every binding is
+/// [AssetBinding.held]: it keeps its frame, and the lease where that frame
+/// lives, and plays nothing. The set only grows then: a leaf that leaves the
+/// window keeps its binding, so a layout at another size (a panel that
+/// shrinks as it closes) detaches nothing and a show finds every cell as it
+/// was. Let go, the next [syncVisible] detaches what is outside the window.
+/// The set stays bounded by the largest window synced while held.
+///
+/// ## Offstage
+///
+/// While [offstage] (the viewport is kept mounted but nothing of it is on
+/// screen: a hidden panel) every binding is hidden ([AssetBinding.visible]
+/// false) whatever the window says, so a held one keeps its frame and its
+/// lease but gives back what its frame lives on (a platform texture) for the
+/// surfaces on screen; its paintable takes that back when it is painted
+/// again. A held viewport on screen (one moving, or under a sheet) keeps
+/// what it shows: its layer still composites it. Shown again, each binding
+/// is as visible as the last sync left it.
 ///
 /// ## Lifecycle
 ///
@@ -145,6 +169,30 @@ final class CatalogLeafBindingPool {
   /// size.
   set devicePixelRatio(double value) => _devicePixelRatio = value;
 
+  /// Whether every binding holds its frame and none is detached; see the
+  /// class documentation.
+  bool get held => _held;
+  bool _held = false;
+  set held(bool value) {
+    if (_held == value) return;
+    _held = value;
+    for (final bound in _all) {
+      bound.binding.held = value;
+    }
+  }
+
+  /// Whether nothing of the viewport is on screen; see the class
+  /// documentation.
+  bool get offstage => _offstage;
+  bool _offstage = false;
+  set offstage(bool value) {
+    if (_offstage == value) return;
+    _offstage = value;
+    for (final bound in _all) {
+      bound.binding.visible = bound._shown && !value;
+    }
+  }
+
   /// Number of bindings currently attached.
   ///
   /// Bounded by the last [syncVisible] window, not by the catalogue size.
@@ -158,9 +206,10 @@ final class CatalogLeafBindingPool {
   /// it is kept attached, so it MUST NOT include slots outside the intended
   /// window.
   ///
-  /// A leaf is *shown* when its slot meets `[paintTop, paintBottom]` and, if
-  /// it animates, [animate] is true (false while a fling runs). Hidden
-  /// bindings stay attached and pinned but the cache does not advance them.
+  /// A leaf is *shown* ([AssetBinding.visible]) when its slot meets
+  /// `[paintTop, paintBottom]`. Hidden bindings stay attached and pinned but
+  /// the cache does not advance them, and their paintables give back their
+  /// leases.
   ///
   /// [pinnedKeys] are kept attached and shown even when outside the window,
   /// used during far-path stitch so outgoing strip bindings survive the
@@ -172,7 +221,6 @@ final class CatalogLeafBindingPool {
     required int end,
     required double paintTop,
     required double paintBottom,
-    required bool animate,
     required double top,
     required double bottom,
     Set<ContentKey>? pinnedKeys,
@@ -187,7 +235,7 @@ final class CatalogLeafBindingPool {
         final bound = _ensure(slot);
         bound._seen = true;
         final inPaint = slot.bottom >= paintTop && slot.top <= paintBottom;
-        if (inPaint && (animate || !slot.leaf.animated)) bound._shown = true;
+        if (inPaint) bound._shown = true;
       }
     }
     if (pinnedKeys != null && pinnedKeys.isNotEmpty) {
@@ -202,11 +250,11 @@ final class CatalogLeafBindingPool {
     var detached = 0;
     for (var i = _all.length - 1; i >= 0; i--) {
       final bound = _all[i];
-      if (!bound._seen) {
+      if (!bound._seen && !_held) {
         _remove(bound, at: i);
         detached++;
-      } else {
-        bound.binding.visible = bound._shown;
+      } else if (bound._seen) {
+        bound.binding.visible = bound._shown && !_offstage;
       }
     }
     if (LogCategory.binding.enabled && (_all.isNotEmpty || detached > 0)) {
@@ -233,12 +281,13 @@ final class CatalogLeafBindingPool {
   /// The attach that draws [slot]'s leaf, or null when it has none (outside the
   /// last synced window).
   ///
-  /// Allocates nothing. Valid while painting; see [CatalogBoundLeaf].
+  /// Allocates nothing for a key attached once, the common case. Valid while
+  /// painting; see [CatalogBoundLeaf].
   CatalogBoundLeaf? boundFor(CatalogLeafSlot slot) {
     final group = _byKey[slot.leaf.key];
     if (group == null) return null;
     if (group.length == 1) return group[0];
-    final pixels = _pixelsOf(slot.contentExtent);
+    final pixels = _presetFor(slot.leaf, slot.contentExtent).spec.pixelWidth;
     for (final bound in group) {
       if (bound.spec.pixelWidth == pixels) return bound;
     }
@@ -255,32 +304,29 @@ final class CatalogLeafBindingPool {
     _byKey.clear();
   }
 
-  int _pixelsOf(double logicalExtent) =>
-      (logicalExtent * _devicePixelRatio).ceil().clamp(1, 1 << 20);
+  // The extent is at least a pixel, however small the box.
+  AssetPreset _presetFor(CatalogLeaf leaf, double logicalExtent) =>
+      AssetPresets.keyboardCell(
+        extent: math.max(logicalExtent, 1 / _devicePixelRatio),
+        devicePixelRatio: _devicePixelRatio,
+        animate: leaf.animated,
+        decodeMode: leaf.tintable
+            ? AssetDecodeMode.template
+            : AssetDecodeMode.original,
+        fit: leaf.contentFit,
+      );
 
   CatalogBoundLeaf _ensure(CatalogLeafSlot slot) {
     final leaf = slot.leaf;
-    final pixels = _pixelsOf(slot.contentExtent);
-    final mode = leaf.tintable
-        ? AssetDecodeMode.template
-        : AssetDecodeMode.original;
+    final preset = _presetFor(leaf, slot.contentExtent);
+    final spec = preset.spec;
     final group = _byKey[leaf.key];
     if (group != null) {
       for (final bound in group) {
-        final spec = bound.spec;
-        if (spec.pixelWidth == pixels && spec.decodeMode == mode) return bound;
+        if (bound.spec == spec) return bound;
       }
     }
-    final spec = AssetSpec(
-      pixelWidth: pixels,
-      pixelHeight: pixels,
-      decodeMode: mode,
-    );
-    final binding = _scope.attach(
-      leaf.key,
-      spec,
-      leaf.animated ? _playingProfile : _stillProfile,
-    );
+    final binding = _scope.attach(leaf.key, spec, preset.profile)..held = _held;
     binding.addListener(_onChanged);
     final bound = CatalogBoundLeaf._(binding, spec);
     (_byKey[leaf.key] ??= []).add(bound);

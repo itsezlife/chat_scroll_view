@@ -37,20 +37,20 @@ void main() {
     rig.controller.show();
     await settleMotion(tester);
 
-      final glass = find.ancestor(
-        of: find.byType(PanelShell),
-        matching: find.byType(GlassSurface),
-      );
-      expect(glass, findsOneWidget);
-      expect(
-        tester.widget<GlassSurface>(glass).material,
-        GlassMaterial.composerIsland,
-      );
-      expect(
-        tester.widget<PanelShell>(find.byType(PanelShell)).background,
-        const Color(0x00000000),
-        reason: 'the glass shows through the shell',
-      );
+    final glass = find.ancestor(
+      of: find.byType(PanelShell),
+      matching: find.byType(GlassSurface),
+    );
+    expect(glass, findsOneWidget);
+    expect(
+      tester.widget<GlassSurface>(glass).material,
+      GlassMaterial.composerIsland,
+    );
+    expect(
+      tester.widget<PanelShell>(find.byType(PanelShell)).background,
+      const Color(0x00000000),
+      reason: 'the glass shows through the shell',
+    );
     expect(
       tester
           .widget<GlassSurface>(
@@ -61,6 +61,34 @@ void main() {
           )
           .cornerRadius,
       14,
+    );
+  });
+
+  testWidgets('a solid style draws no glass: the shell fills itself', (
+    tester,
+  ) async {
+    final rig = PopupRig(
+      style: const AnchoredPopupStyle(
+        width: 300,
+        cornerRadius: 8,
+        surface: AnchoredPopupSurface.solid,
+      ),
+    );
+    await rig.pump(tester);
+
+    rig.controller.show();
+    await settleMotion(tester);
+
+    expect(
+      find.ancestor(
+        of: find.byType(PanelShell),
+        matching: find.byType(GlassSurface),
+      ),
+      findsNothing,
+    );
+    expect(
+      tester.widget<PanelShell>(find.byType(PanelShell)).background,
+      isNull,
     );
   });
 
@@ -207,9 +235,8 @@ void main() {
   });
 
   group('motion', () {
-    testWidgets('grows from the bottom-end corner and fades in', (
-      tester,
-    ) async {
+    testWidgets('grows from the bottom-end corner and fades in, drawn at its '
+        'final size', (tester) async {
       final rig = PopupRig();
       await rig.pump(tester);
 
@@ -217,22 +244,96 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 20));
 
+      expect(rig.controller.state.value, isA<PanelVisibility$Showing>());
+      final card = _popupRect(tester);
+      expect(card.width, 300);
+      expect(card.bottomRight, const Offset(800, 640));
       final opacity = tester.widget<Opacity>(
         find.ancestor(
           of: find.byType(PanelShell),
           matching: find.byType(Opacity),
         ),
       );
-      expect(rig.controller.state.value, isA<PanelVisibility$Showing>());
-      final early = _popupRect(tester);
-      expect(early.width, lessThan(300));
-      expect(early.bottomRight, const Offset(800, 640));
-      expect(opacity.opacity, inExclusiveRange(0, 1));
+      final reveal = PointerMenuReveal.at(20 / 200);
+      expect(opacity.opacity, closeTo(reveal.opacity, 1e-9));
+      final width = card.width * reveal.widthFraction;
+      final height = card.height * reveal.heightFraction;
+      // Its frame, held at the bottom-end corner.
+      expect(
+        find.byType(AppearFrameView),
+        paints..something((method, arguments) {
+          if (method != #clipRRect) return false;
+          final frame = (arguments.first as RRect).outerRect;
+          return (frame.left - (card.width - width)).abs() < 0.01 &&
+              (frame.top - (card.height - height)).abs() < 0.01 &&
+              (frame.right - card.width).abs() < 0.01 &&
+              (frame.bottom - card.height).abs() < 0.01;
+        }),
+      );
 
       await settleMotion(tester);
-      final settled = _popupRect(tester);
-      expect(settled.width, 300);
-      expect(settled.bottomRight, const Offset(800, 640));
+      expect(_popupRect(tester).bottomRight, const Offset(800, 640));
+    });
+
+    testWidgets('leaves by a linear fade at full size', (tester) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      rig.controller.show();
+      await settleMotion(tester);
+
+      rig.controller.hide();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final opacity = tester.widget<Opacity>(
+        find.ancestor(
+          of: find.byType(PanelShell),
+          matching: find.byType(Opacity),
+        ),
+      );
+      expect(opacity.opacity, closeTo(0.75, 1e-9));
+      expect(_popupRect(tester).width, 300);
+    });
+
+    testWidgets('a hide that cuts the show, and a show that cuts the hide, '
+        'turn back from where the popup is', (tester) async {
+      final rig = PopupRig();
+      await rig.pump(tester);
+      double opacity() => tester
+          .widget<Opacity>(
+            find.ancestor(
+              of: find.byType(PanelShell),
+              matching: find.byType(Opacity),
+            ),
+          )
+          .opacity;
+
+      rig.controller.show();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      var last = opacity();
+      expect(last, greaterThan(0));
+
+      // The pointer leaves and comes back, twice over: every frame follows
+      // the last, with no jump.
+      for (final toggle in [
+        rig.controller.hide,
+        rig.controller.show,
+        rig.controller.hide,
+        rig.controller.show,
+      ]) {
+        toggle();
+        for (var i = 0; i < 4; i++) {
+          await tester.pump(const Duration(milliseconds: 10));
+          final now = opacity();
+          expect((now - last).abs(), lessThan(0.15));
+          last = now;
+        }
+      }
+      await settleMotion(tester);
+      expect(rig.controller.state.value, isA<PanelVisibility$Shown>());
+      expect(opacity(), 1);
+      expect(_popupRect(tester).width, 300);
     });
 
     testWidgets('showing lasts the popupShow role, hiding the popupHide role', (
@@ -603,5 +704,32 @@ void main() {
 
       expect(rig.clock.pendingCount, 0);
     });
+  });
+
+  // Ticket 100: nothing in the panel advances while it moves or is hidden.
+  testWidgets('the shell\'s tickers are on only while the panel rests', (
+    tester,
+  ) async {
+    bool shellTickers() => TickerMode.valuesOf(
+      tester.element(find.byType(PanelShell, skipOffstage: false)),
+    ).enabled;
+    final rig = PopupRig();
+    await rig.pump(tester);
+
+    rig.controller.show();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(shellTickers(), isFalse, reason: 'showing');
+
+    await settleMotion(tester);
+    expect(shellTickers(), isTrue, reason: 'shown');
+
+    rig.controller.hide();
+    await tester.pump();
+    expect(shellTickers(), isFalse, reason: 'hiding');
+
+    await settleMotion(tester);
+    expect(rig.controller.state.value, PanelVisibility.hidden);
+    expect(shellTickers(), isFalse, reason: 'hidden');
   });
 }

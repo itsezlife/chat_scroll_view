@@ -1,12 +1,49 @@
 import 'dart:async';
 
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' show ValueListenable;
 import 'package:panel_shell/src/controller/panel_shell_controller.dart';
 import 'package:panel_shell/src/widgets/panel_arrangement.dart';
 import 'package:panel_shell/src/widgets/panel_search_state_icon.dart';
+
+/// How the user leaves search mode, chosen per platform family.
+///
+/// Under both exits a back press and Escape close search
+/// (`PanelShellController.handleBack`) and the field's own controls (the
+/// leading back chevron, the trailing cross) only empty the query. The exits
+/// differ in whether the field adds a control of its own that closes search,
+/// because a family without a back press would otherwise have no way out:
+/// while search is open the bottom bar with the type tabs is hidden.
+///
+/// The variants carry no data and no behaviour beyond that one control, so
+/// this is an enum rather than a `$Mobile` / `$Desktop` policy pair.
+enum PanelSearchExit {
+  /// The back press (a phone's back gesture, Escape on a keyboard) leaves
+  /// search; the field offers no control that does. Android and desktop use
+  /// it.
+  back,
+
+  /// A Cancel text button sits at the end of the field while search is open,
+  /// the pill narrowing to make room for it. It closes search, which empties
+  /// the query and lets go of the field's focus and with it the soft
+  /// keyboard. iOS uses this one, as it has no back press.
+  cancel;
+
+  /// The exit of the family of [platform]: [cancel] on iOS, [back] on every
+  /// other.
+  static PanelSearchExit forPlatform(TargetPlatform platform) =>
+      switch (platform) {
+        TargetPlatform.iOS => cancel,
+        TargetPlatform.android ||
+        TargetPlatform.fuchsia ||
+        TargetPlatform.macOS ||
+        TargetPlatform.windows ||
+        TargetPlatform.linux => back,
+      };
+}
 
 /// The search field of the panel: one field, one query, one focus, for
 /// whichever page is selected.
@@ -19,10 +56,14 @@ import 'package:panel_shell/src/widgets/panel_search_state_icon.dart';
 /// ## The trailing control
 ///
 /// A clear control that shows with text and nothing else, under either
-/// arrangement: it empties the query and leaves search open. Search is left
-/// through the controller (`closeSearch`, `handleBack`, Escape), never by a
-/// control of the field. A cross over an empty field would have nothing to
-/// clear, and the reference client's field shows none either.
+/// arrangement: it empties the query and leaves search open. A cross over an
+/// empty field would have nothing to clear, and such fields show none either.
+///
+/// ## Leaving search
+///
+/// Through the controller (`closeSearch`, `handleBack`, Escape) under every
+/// [PanelSearchExit]; under [PanelSearchExit.cancel] also through a Cancel
+/// text button beside the pill while search is open. See [exit].
 ///
 /// ## Leading icon
 ///
@@ -51,6 +92,7 @@ class PanelSearchField extends StatefulWidget {
     this.controller,
     this.shadow,
     this.contextMenuBuilder,
+    this.exit,
     super.key,
   });
 
@@ -66,6 +108,17 @@ class PanelSearchField extends StatefulWidget {
   /// Builds the text selection toolbar; null falls back to the one the shell
   /// was given, if any.
   final EditableTextContextMenuBuilder? contextMenuBuilder;
+
+  /// How search is left from this field; null takes the exit of the
+  /// [PanelSearchFieldScope] above, else the one of the platform
+  /// ([PanelSearchExit.forPlatform]).
+  final PanelSearchExit? exit;
+
+  /// Size of the Cancel text of [PanelSearchExit.cancel], at regular weight.
+  static const double cancelFontSize = 17;
+
+  /// Space between the pill and the Cancel text.
+  static const double cancelSpacing = 8;
 
   /// Layout height of the field row.
   static const double height = 50;
@@ -249,6 +302,13 @@ class _PanelSearchFieldState extends State<PanelSearchField>
 
   void _clear() => _shell.setQuery('');
 
+  void _cancel() => _shell.closeSearch();
+
+  PanelSearchExit get _exit =>
+      widget.exit ??
+      PanelSearchFieldScope.maybeOf(context)?.exit ??
+      PanelSearchExit.forPlatform(defaultTargetPlatform);
+
   PanelSearchIconState get _leading {
     if (_shell.searchBusy.value) return PanelSearchIconState.progress;
     if (_text.text.isNotEmpty && _settled) return PanelSearchIconState.back;
@@ -287,78 +347,91 @@ class _PanelSearchFieldState extends State<PanelSearchField>
                       PanelSearchField.pillMarginTop -
                       PanelSearchField.pillHeight,
                 ),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: panel.searchFill,
-                    borderRadius: BorderRadius.circular(
-                      PanelSearchField.pillHeight / 2,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      _Control(
-                        label: strings.panel.clearAction,
-                        onPressed: leading == PanelSearchIconState.back
-                            ? _clear
-                            : null,
-                        child: PanelSearchStateIcon(
-                          state: leading,
-                          color: panel.searchIcon,
-                          size: PanelSearchField.iconSize,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: panel.searchFill,
+                          borderRadius: BorderRadius.circular(
+                            PanelSearchField.pillHeight / 2,
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: Semantics(
-                          label: strings.semantics.searchFieldLabel,
-                          textField: true,
-                          child: Stack(
-                            alignment: AlignmentDirectional.centerStart,
-                            children: [
-                              if (_text.text.isEmpty)
-                                ExcludeSemantics(
-                                  child: Text(
-                                    strings.panel.searchHint,
-                                    maxLines: 1,
-                                    style: textStyle.copyWith(
-                                      color: placeholder.fieldHint,
+                        child: Row(
+                          children: [
+                            _Control(
+                              label: strings.panel.clearAction,
+                              onPressed: leading == PanelSearchIconState.back
+                                  ? _clear
+                                  : null,
+                              child: PanelSearchStateIcon(
+                                state: leading,
+                                color: panel.searchIcon,
+                                size: PanelSearchField.iconSize,
+                              ),
+                            ),
+                            Expanded(
+                              child: Semantics(
+                                label: strings.semantics.searchFieldLabel,
+                                textField: true,
+                                child: Stack(
+                                  alignment: AlignmentDirectional.centerStart,
+                                  children: [
+                                    if (_text.text.isEmpty)
+                                      ExcludeSemantics(
+                                        child: Text(
+                                          strings.panel.searchHint,
+                                          maxLines: 1,
+                                          style: textStyle.copyWith(
+                                            color: placeholder.fieldHint,
+                                          ),
+                                        ),
+                                      ),
+                                    // A press on a field that kept its focus
+                                    // when search let go of the keyboard (the
+                                    // catalogue was dragged) asks for it again.
+                                    Listener(
+                                      onPointerDown: (_) => _onFieldPressed(),
+                                      child: EditableText(
+                                        key: _editable,
+                                        controller: _text,
+                                        focusNode: _focus,
+                                        style: textStyle,
+                                        cursorColor: palette.accent,
+                                        backgroundCursorColor: panel.searchFill,
+                                        textInputAction: TextInputAction.search,
+                                        contextMenuBuilder: menu,
+                                        maxLines: 1,
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              // A press on a field that kept its focus
-                              // when search let go of the keyboard (the
-                              // catalogue was dragged) asks for it again.
-                              Listener(
-                                onPointerDown: (_) => _onFieldPressed(),
-                                child: EditableText(
-                                  key: _editable,
-                                  controller: _text,
-                                  focusNode: _focus,
-                                  style: textStyle,
-                                  cursorColor: palette.accent,
-                                  backgroundCursorColor: panel.searchFill,
-                                  textInputAction: TextInputAction.search,
-                                  contextMenuBuilder: menu,
-                                  maxLines: 1,
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            if (_text.text.isNotEmpty)
+                              _Control(
+                                label: pointer
+                                    ? strings.panel.cancelAction
+                                    : strings.panel.clearAction,
+                                onPressed: _clear,
+                                child: ChromeIcon(
+                                  ChromeIconId.close,
+                                  size: PanelSearchField.clearSize,
+                                  color: panel.searchIcon,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      if (_text.text.isNotEmpty)
-                        _Control(
-                          label: pointer
-                              ? strings.panel.cancelAction
-                              : strings.panel.clearAction,
-                          onPressed: _clear,
-                          child: ChromeIcon(
-                            ChromeIconId.close,
-                            size: PanelSearchField.clearSize,
-                            color: panel.searchIcon,
-                          ),
-                        ),
-                    ],
-                  ),
+                    ),
+                    _cancelSlot(
+                      shown:
+                          _exit == PanelSearchExit.cancel &&
+                          _shell.search.value.isOpen,
+                      label: strings.panel.cancelAction,
+                      color: palette.accent,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -387,6 +460,34 @@ class _PanelSearchFieldState extends State<PanelSearchField>
       ),
     );
   }
+
+  // The Cancel button of [PanelSearchExit.cancel]. It is revealed from the
+  // pill's end as the pill narrows: the button sits just past
+  // the pill and is uncovered by its shrinking; an unrevealed one leaves the
+  // tree, so it is neither hit nor spoken.
+  Widget _cancelSlot({
+    required bool shown,
+    required String label,
+    required Color color,
+  }) {
+    final motion = ChromeMotionScope.of(context);
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: shown ? 1 : 0),
+      duration: motion.durationOf(MotionRole.search),
+      curve: motion.curveOf(MotionRole.search),
+      builder: (context, t, child) {
+        if (t <= 0) return const SizedBox.shrink();
+        return ClipRect(
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            widthFactor: t,
+            child: child,
+          ),
+        );
+      },
+      child: _CancelButton(label: label, color: color, onPressed: _cancel),
+    );
+  }
 }
 
 /// What a `PanelShell` tells the search fields below it: the controller they
@@ -400,6 +501,7 @@ class PanelSearchFieldScope extends InheritedWidget {
     required this.controller,
     required this.contextMenuBuilder,
     required super.child,
+    this.exit,
     super.key,
   });
 
@@ -409,6 +511,9 @@ class PanelSearchFieldScope extends InheritedWidget {
   /// The selection toolbar builder of the shell, or null for none.
   final EditableTextContextMenuBuilder? contextMenuBuilder;
 
+  /// How search is left from the fields below, or null for the platform's.
+  final PanelSearchExit? exit;
+
   /// The scope above [context], or null when the field is not under a shell.
   static PanelSearchFieldScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<PanelSearchFieldScope>();
@@ -416,7 +521,8 @@ class PanelSearchFieldScope extends InheritedWidget {
   @override
   bool updateShouldNotify(PanelSearchFieldScope oldWidget) =>
       oldWidget.controller != controller ||
-      oldWidget.contextMenuBuilder != contextMenuBuilder;
+      oldWidget.contextMenuBuilder != contextMenuBuilder ||
+      oldWidget.exit != exit;
 }
 
 // A square hit box that is a button when it has an action and inert when it
@@ -466,6 +572,84 @@ class _Control extends StatelessWidget {
               : HitTestBehavior.deferToChild,
           onTap: action,
           child: box,
+        ),
+      ),
+    );
+  }
+}
+
+// The Cancel: plain text in the accent, dimmed to 0.4
+// at once while pressed and brought back over a fade once let go.
+class _CancelButton extends StatefulWidget {
+  const _CancelButton({
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  State<_CancelButton> createState() => _CancelButtonState();
+}
+
+class _CancelButtonState extends State<_CancelButton> {
+  var _pressed = false;
+
+  void _press(bool pressed) {
+    if (_pressed != pressed) setState(() => _pressed = pressed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final release = ChromeMotionScope.of(context).durationOf(MotionRole.fade);
+    return Semantics(
+      button: true,
+      label: widget.label,
+      onTap: widget.onPressed,
+      excludeSemantics: true,
+      child: FocusableActionDetector(
+        mouseCursor: SystemMouseCursors.click,
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              widget.onPressed();
+              return null;
+            },
+          ),
+        },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (_) => _press(true),
+          onTapUp: (_) => _press(false),
+          onTapCancel: () => _press(false),
+          onTap: widget.onPressed,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: PanelSearchField.cancelSpacing,
+            ),
+            child: SizedBox(
+              height: PanelSearchField.pillHeight,
+              child: Center(
+                widthFactor: 1,
+                child: AnimatedOpacity(
+                  opacity: _pressed ? 0.4 : 1,
+                  duration: _pressed ? Duration.zero : release,
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      color: widget.color,
+                      fontSize: PanelSearchField.cancelFontSize,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

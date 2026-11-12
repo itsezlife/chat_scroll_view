@@ -10,6 +10,8 @@ library;
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
+import 'package:catalog_assets/catalog_assets.dart';
+import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
@@ -87,9 +89,12 @@ void main() {
     PanelArrangement arrangement = PanelArrangement.touch,
     bool disableAnimations = false,
     EmojiStripLayout layout = EmojiStripLayout.automatic,
+    Brightness brightness = Brightness.light,
+    AssetCacheScope? assets,
   }) => tester.pumpWidget(
     PanelShellTestScope(
       speed: speed,
+      brightness: brightness,
       child: MediaQuery(
         data: MediaQueryData(disableAnimations: disableAnimations),
         child: PanelArrangementScope(
@@ -98,7 +103,11 @@ void main() {
             alignment: Alignment.topLeft,
             child: SizedBox(
               width: width,
-              child: EmojiCategoryStrip(handle: handle, layout: layout),
+              child: EmojiCategoryStrip(
+                handle: handle,
+                layout: layout,
+                assets: assets,
+              ),
             ),
           ),
         ),
@@ -157,7 +166,7 @@ void main() {
   });
 
   group('the tabs', () {
-    testWidgets('are the reference client\'s, one per category, with no tab '
+    testWidgets('are one per category, with no tab '
         'of their own for flags or people', (tester) async {
       final semantics = tester.ensureSemantics();
       handle.setIds([_recents, _smileys, _animals, _food, _symbols]);
@@ -375,7 +384,7 @@ void main() {
     });
   });
 
-  group('with packs under touch: the reference mobile client\'s strip', () {
+  group('with packs under touch', () {
     const categories = [
       CollectionId.category('people'),
       CollectionId.category('nature'),
@@ -519,6 +528,55 @@ void main() {
       semantics.dispose();
     });
 
+    // Until a pack's cover has anything to show its tab draws its stand-in, a faint rounded square in the idle icon colour at 25 of 255
+    // (0.2 of half alpha), never the scope's
+    // media fill (`0xFFEDF3F7`, a light grey square in either theme). The
+    // pointer arrangement's footer draws its covers the same way.
+    for (final arrangement in PanelArrangement.values) {
+      for (final (brightness, standIn) in [
+        (Brightness.light, const Color(0x197A8189)),
+        (
+          Brightness.dark,
+          const Color(0x80FFFFFF).withValues(alpha: 128 / 255 * (25 / 255)),
+        ),
+      ]) {
+        testWidgets('a cover with no stage yet is the themed stand-in, '
+            '${arrangement.name}, ${brightness.name}', (tester) async {
+          final scope = AssetCacheScope(
+            producer: FakeAssetProducer(),
+            clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
+          );
+          addTearDown(scope.dispose);
+          handle.entries.value = [
+            ..._entries([_recents, ...categories]),
+            const CatalogStripEntry(
+              sectionId: 'pack',
+              collection: Collection(
+                id: CollectionId.set('pack'),
+                metadata: CollectionMetadata(
+                  title: 'Pack',
+                  cover: ContentKey.document('cover'),
+                ),
+              ),
+            ),
+          ];
+          await pump(
+            tester,
+            arrangement: arrangement,
+            brightness: brightness,
+            assets: scope,
+          );
+
+          final cover = tester.renderObject(find.byType(ContentView));
+          expect(cover, paints..rrect(color: standIn));
+          expect(
+            cover,
+            isNot(paints..rect(color: RectPlaceholder.fallbackColor)),
+          );
+        });
+      }
+    }
+
     testWidgets('opens at once when animations are disabled', (tester) async {
       withPack();
       await pump(tester, disableAnimations: true);
@@ -542,8 +600,7 @@ void main() {
     });
   });
 
-  group('pinned at the bottom (the pointer arrangement): the reference '
-      'desktop client\'s footer', () {
+  group('pinned at the bottom (the pointer arrangement)', () {
     final all = [
       _recents,
       for (final id in [
@@ -567,8 +624,8 @@ void main() {
       'Symbols',
     ];
 
-    // The grouped layout unless a test says otherwise: the reference client
-    // groups as soon as there is a pack, and these tests mostly have none.
+    // The grouped layout unless a test says otherwise: it groups as soon as
+    // there is a pack, and these tests mostly have none.
     Future<void> pumpPinned(
       WidgetTester tester, {
       bool disableAnimations = false,

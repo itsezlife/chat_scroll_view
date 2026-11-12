@@ -4,6 +4,7 @@
 /// the registry a [ChromeIcon] below it resolves and through what it paints.
 library;
 
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -33,10 +34,16 @@ void main() {
     },
   );
 
-  test('names a picture for each category tab, and nothing else', () {
+  test('names a picture for each category tab and the favourite stickers\' '
+      'tab, and nothing else', () {
     expect(EmojiTabIcons.assets.keys, [
       for (final tab in EmojiCategories.tabs) tab.icon,
+      StickerPackStrip.favouritesIcon,
     ]);
+    expect(
+      EmojiTabIcons.assetKeyOf(StickerPackStrip.favouritesIcon),
+      'packages/panel_pages/assets/emoji_tabs/emoji_tabs_faves.webp',
+    );
     expect(
       EmojiTabIcons.assetKeyOf(smileys),
       'packages/panel_pages/assets/emoji_tabs/msg_emoji_smiles.webp',
@@ -58,17 +65,42 @@ void main() {
   testWidgets('shows the fallback until a picture arrives, then paints it', (
     tester,
   ) async {
-    await tester.pumpWidget(host(probe()));
+    final bytes = await rootBundle.load(
+      'packages/panel_pages/assets/emoji_tabs/msg_emoji_smiles.webp',
+    );
+    final arrived = Completer<ByteData>();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: EmojiTabIconScope(
+          loader: (key) => arrived.future,
+          child: probe(),
+        ),
+      ),
+    );
     expect(seen.contains(smileys), isFalse);
 
-    await tester.runAsync(() async {
-      await EmojiTabIcons.imageFor(EmojiTabIcons.assetKeyOf(smileys)!);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    });
+    arrived.complete(bytes);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
     await tester.pump();
 
     expect(seen.contains(smileys), isTrue);
     expect(seen.painterFor(smileys), isA<ChromeIconPainter$Paint>());
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a picture decoded before paints from the first frame', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => EmojiTabIcons.imageFor(EmojiTabIcons.assetKeyOf(smileys)!),
+    );
+
+    await tester.pumpWidget(host(probe()));
+
+    expect(seen.contains(smileys), isTrue);
   });
 
   testWidgets('a loader of its own is decoded per scope and released with it', (

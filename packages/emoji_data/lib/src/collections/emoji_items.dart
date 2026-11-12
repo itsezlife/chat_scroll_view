@@ -92,8 +92,8 @@ final class EmojiItems {
     ),
   );
 
-  // A tone variant has no code of its own and shows its entry's, as the
-  // reference client shows the code of the toneless emoji. The entry of a
+  // A tone variant has no code of its own and shows its entry's, as a
+  // toneless emoji does. The entry of a
   // gender form is that form (see `EmojiCatalog`), so a toned woman
   // technologist shows the woman technologist's code, not the person's.
   String? _shortcodeOf(ContentKey$Unicode key) {

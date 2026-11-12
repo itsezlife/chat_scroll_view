@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/page/catalog_strip.dart';
+import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// What a page reports when the user picks a cell.
@@ -61,6 +62,7 @@ sealed class CatalogMenuEntry {
     required String id,
     required String label,
     bool attention,
+    ChromeIconId? icon,
   }) = CatalogMenuItem;
 
   /// A line between two groups of items; see [CatalogMenuSeparator].
@@ -74,6 +76,7 @@ final class CatalogMenuItem extends CatalogMenuEntry {
     required this.id,
     required this.label,
     this.attention = false,
+    this.icon,
   });
 
   /// Names the item to [CatalogPagePolicy.onMenuAction]; unique in its menu.
@@ -86,15 +89,19 @@ final class CatalogMenuItem extends CatalogMenuEntry {
   /// something away.
   final bool attention;
 
+  /// The icon the item leads with, or null for a label alone.
+  final ChromeIconId? icon;
+
   @override
   bool operator ==(Object other) =>
       other is CatalogMenuItem &&
       other.id == id &&
       other.label == label &&
-      other.attention == attention;
+      other.attention == attention &&
+      other.icon == icon;
 
   @override
-  int get hashCode => Object.hash(id, label, attention);
+  int get hashCode => Object.hash(id, label, attention, icon);
 
   @override
   String toString() => 'CatalogMenuItem($id, $label)';
@@ -180,7 +187,7 @@ abstract class CatalogPagePolicy {
   /// publishes, in display order.
   ///
   /// Asked the same way whether search is open or not: an open search with no
-  /// query keeps the catalogue on screen, as the reference clients do, so the
+  /// query keeps the catalogue on screen, so the
   /// policy has no say in it. The default shows everything.
   List<Collection> visibleCollections(List<Collection> all) => all;
 
@@ -201,6 +208,16 @@ abstract class CatalogPagePolicy {
           strings.recentlyUsedTitle,
         _ => collection.metadata.title ?? '',
       };
+
+  /// How far in from the start edge the titles of section headers begin, or
+  /// null for the viewport's default. A list sets it per kind of
+  /// content (the sticker list's titles sit 15 in, the emoji list's 5).
+  double? get headerStartInset => null;
+
+  /// How the cells answer the mouse, a press and a preview: an emoji's by
+  /// default. A list of another kind of content says so (the sticker list's
+  /// hover box is the whole cell, and a touch press on it draws nothing).
+  CatalogCellFeedback get cellFeedback => CatalogCellFeedback.emoji;
 
   /// The geometry of the section under [arrangement], or null for the
   /// viewport's defaults.
@@ -241,6 +258,13 @@ abstract class CatalogPagePolicy {
     PanelStrings strings, {
     PanelArrangement arrangement = PanelArrangement.touch,
   }) => null;
+
+  /// What a tap on the title of [collection]'s section reports to
+  /// [onSectionAction], or null for a title that does nothing, the default.
+  ///
+  /// The whole header band outside its trailing action ([actionOf]) is the
+  /// title's: a pack's header that opens the pack.
+  String? titleActionOf(Collection collection) => null;
 
   /// The tag the default [leafOf] attaches to the cell of [item]: the host's
   /// opaque data, excluded from the cell's equality and never painted.
@@ -293,6 +317,19 @@ abstract class CatalogPagePolicy {
   /// mouse arrives, and only for a mouse: a finger has no hover.
   String? tooltipOf(CatalogLeafHit hit, Collection collection) => null;
 
+  /// Whether [hit], a cell of [collection], shows the remove badge under a
+  /// mouse (the pointer arrangement only): a cross at its corner that
+  /// [onLeafRemove] answers. None by default.
+  bool leafRemovable(CatalogLeafHit hit, Collection collection) => false;
+
+  /// A click on the remove badge of [hit], a cell of [collection]: what it
+  /// asks of [host]. Called only for a cell [leafRemovable] allows.
+  void onLeafRemove(
+    CatalogLeafHit hit,
+    Collection collection,
+    PanelPageHost host,
+  ) {}
+
   /// The entries of the context menu a secondary click on [hit], a cell of
   /// [collection], opens, in the language of [strings]; empty for no menu (the
   /// click then does nothing at all).
@@ -338,7 +375,10 @@ abstract class CatalogPagePolicy {
   /// Only called where [hasLongPress] answered true. [context] is the page's.
   /// [kind] is the pointer that pressed, and [cellBounds] and [viewportBounds]
   /// the pressed cell and the catalogue's box in global coordinates, so a
-  /// surface can be placed against both.
+  /// surface can be placed against both. [leafAt] names the cell under a
+  /// global point as the finger moves on (the catalogue's
+  /// `PanelCatalogController.leafAt`), for a surface that follows it from
+  /// cell to cell (a content preview); null where there is no catalogue.
   CatalogLongPressSession? beginLongPress(
     BuildContext context,
     CatalogLeafHit hit,
@@ -347,9 +387,11 @@ abstract class CatalogPagePolicy {
     required PointerDeviceKind kind,
     required Rect cellBounds,
     required Rect viewportBounds,
+    CatalogLeafHit? Function(Offset globalPosition)? leafAt,
   }) => null;
 
-  /// The user tapped the header action [actionId] of [collection]'s section.
+  /// The user tapped the header action [actionId] of [collection]'s section:
+  /// its trailing action ([actionOf]) or its title ([titleActionOf]).
   ///
   /// [host] is the page's connection to the shell, where an action that asks
   /// the host something answers (for example `host.requestClearRecents`).
@@ -364,6 +406,18 @@ abstract class CatalogPagePolicy {
     Rect? bounds,
     Rect? viewportBounds,
   }) {}
+
+  // --- A fresh open ---------------------------------------------------------
+
+  /// Whether the page goes back to its start, its strip whole, when the panel
+  /// is opened afresh (`PanelPageHost.freshOpen`).
+  ///
+  /// A page the user passes through on the way to one pick (stickers) starts
+  /// each open from its top, where its first section and the strip's first
+  /// tab are; a page whose place is the user's (emoji, read by category) keeps
+  /// it. Whether an open is fresh at all is the presentation's decision: an
+  /// open that is not keeps the place of every page. The default keeps it.
+  bool get restartsOnFreshOpen => false;
 
   // --- Chrome inside the page -----------------------------------------------
 
@@ -384,6 +438,15 @@ abstract class CatalogPagePolicy {
   /// much, so the strip's own layout must be exactly this tall.
   double get stripExtent => 0;
 
+  /// Whether the strip on top slides away as the user reads on and returns as
+  /// they read back, where the arrangement lets a header slide.
+  ///
+  /// False pins it: it stays whole whatever the scroll, and only search takes
+  /// it away. A page whose strip is how the user gets around a long list of
+  /// sets (stickers) keeps it in reach; one read by category (emoji) gives
+  /// the room back to the content. The default slides.
+  bool get stripSlidesAway => true;
+
   /// The strip (a category or set strip) shown with the catalogue while
   /// browsing, or null for none: over the top of it, or below it where
   /// [stripAtBottom].
@@ -391,7 +454,8 @@ abstract class CatalogPagePolicy {
   /// The page owns the strip: [strip] gives it the sections to show and the
   /// jump to one. It reads the arrangement it is drawn for from
   /// `PanelArrangementScope`. At the top it slides away as the user reads on
-  /// and returns as they read back, and it is not part of the page while search
+  /// and returns as they read back (unless [stripSlidesAway] is false), and
+  /// it is not part of the page while search
   /// is open or results are shown; at the bottom it stays, and only results
   /// take it away.
   Widget? buildStrip(BuildContext context, CatalogStripHandle strip) => null;

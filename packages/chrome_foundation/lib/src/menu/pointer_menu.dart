@@ -11,14 +11,14 @@ import 'package:chrome_foundation/src/menu/pointer_menu_row.dart';
 import 'package:chrome_foundation/src/motion/chrome_motion.dart';
 import 'package:chrome_foundation/src/motion/chrome_motion_scope.dart';
 import 'package:chrome_foundation/src/motion/pointer_menu_motion.dart';
+import 'package:chrome_foundation/src/theme/chrome_typography.dart';
 import 'package:chrome_foundation/src/tokens/pointer_menu_tokens.dart';
-import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// Opens **pointer menus**: the popup list of rows with shortcut hints,
 /// disabled rows, separators and submenus that a secondary click opens at the
-/// pointer, drawn and driven as the reference desktop client's `Ui::PopupMenu`
+/// pointer, drawn and driven as a desktop popup menu
 /// (the plain variant, without icons).
 ///
 /// A menu is an overlay entry, so it is modal like a native one: a press
@@ -230,13 +230,9 @@ class _PointerMenuRootState extends State<_PointerMenuRoot>
     _scaler = media.textScaler.clamp(
       maxScaleFactor: PointerMenuMetrics.maxTextScale,
     );
-    _style = TextStyle(
-      inherit: false,
+    _style = ChromeTypography.of(context).copyWith(
       fontSize: PointerMenuMetrics.fontSize,
-      fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily,
       color: widget.tokens.text,
-      decoration: TextDecoration.none,
-      fontWeight: FontWeight.normal,
     );
     if (!_measured) {
       _measured = true;
@@ -357,7 +353,7 @@ class _PointerMenuRootState extends State<_PointerMenuRoot>
     });
   }
 
-  // Drops the levels above [levelIndex] without a fade, as the reference
+  // Drops the levels above [levelIndex] without a fade, as
   // does for a submenu.
   void _closeAbove(int levelIndex) {
     if (_levels.length <= levelIndex + 1) return;

@@ -33,8 +33,8 @@ final class EmojiVariantPickerLayout {
     this.titleExtent = 0,
   }) : assert(count > 0, 'a picker offers something');
 
-  /// The band a titled picker keeps above its options: the reference desktop
-  /// client's 6 px over a 12 px label, less 1.
+  /// The band a titled picker keeps above its options: 6 px over a 12 px
+  /// label, less 1.
   static const double titleBand = 21;
 
   /// Height of the title band above the options, or 0 for an untitled
