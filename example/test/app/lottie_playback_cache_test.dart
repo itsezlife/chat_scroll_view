@@ -12,6 +12,7 @@ import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
 import 'package:mpx_lottie/mpx_lottie.dart';
@@ -91,11 +92,13 @@ void main() {
   Future<LottiePlayback> startOver(
     CountingLottieEngine engine, {
     String? cacheDirectory,
+    IBytesStore? bytesStore,
   }) async {
     final playback = await vm.$startLottiePlayback(
       clock: clock,
       memoryPressure: pressure,
       cacheDirectory: cacheDirectory,
+      bytesStore: bytesStore,
       spawn: () async => engine,
     );
     return playback!;
@@ -202,5 +205,28 @@ void main() {
       reason: 'a file per parity',
     );
     await expectLater(engine.load(_bytes), throwsStateError);
+  });
+
+  test('the frame folder counts against the lottie_frames quota of the store '
+      'until close', () async {
+    final store = MemoryBytesCache();
+    final playback = await startOver(
+      newEngine(),
+      cacheDirectory: dir.path,
+      bytesStore: store,
+    );
+    await play(playback, twoLoops);
+
+    Future<int> freeNothing(int bytes) async => 0;
+    expect(
+      () => store.registerQuota(BytesQuota.lottieFrames, onEvict: freeNothing),
+      throwsStateError,
+      reason: 'the playback holds the registration',
+    );
+
+    await playback.close();
+    store
+        .registerQuota(BytesQuota.lottieFrames, onEvict: freeNothing)
+        .unregister();
   });
 }

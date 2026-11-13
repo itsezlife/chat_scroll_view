@@ -124,16 +124,13 @@ retry button under the saved GIFs; there are no demo clips beneath it.
 ## Disk caches
 
 What the app fetches or renders is kept on disk between launches, as in a
-shipped client. Animated media shares one store, the `media` folder of the
-app's cache folder (`Context.getCacheDir` on Android, the container's
-`Library/Caches` on iOS, the user cache folder on a desktop): Giphy's stills
-and clips under their Giphy id in `media/giphy`, the rendered Lottie frames in
-`media/lottie_frames`. A file is kept a month
-after its last use and there is no size limit; a sweep at start and every
-hour, in an isolate of its own, removes what aged out. A host changes either
-where it makes the store (`MediaDiskCache(root, keepFor:, limitBytes:)` in
-`main.dart`); with a limit the sweep also removes the least recently used
-media until the rest fits. The baked emoji glyph pages are not media and keep
+shipped client, under the app's cache folder (`Context.getCacheDir` on
+Android, the container's `Library/Caches` on iOS, the user cache folder on a
+desktop). Giphy's stills and clips are in the bytes store's `http_bytes`
+folder, the rendered Lottie frames in `media/lottie_frames`. The frame folder
+counts against the store's `lottie_frames` quota, so one budget keeps both:
+the store frees the least recently used files of the share or quota that runs
+over, and asks the frame cache to free its own. The baked emoji glyph pages are not media and keep
 their own cache in the system temp folder. The web keeps everything in
 memory. `--dart-define=DISK_CACHE=false` turns them all off for a launch that
 must start cold and leave no file: a test, a measured run, a recorded net

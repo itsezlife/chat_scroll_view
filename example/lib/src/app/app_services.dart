@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
-import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
 import 'package:chat_scroll_view_example/src/app/scrolling_surfaces.dart';
 import 'package:chat_scroll_view_example/src/app/system_reduced_motion.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
@@ -144,11 +143,9 @@ final class AppServices {
     required Future<bool> Function() glyphFontsSettled,
     required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
-    required MediaDiskCache? mediaCache,
     required IBytesStore bytes,
     required HttpBytesClient? bytesClient,
-  }) : _mediaCache = mediaCache,
-       _bytes = bytes,
+  }) : _bytes = bytes,
        _bytesClient = bytesClient,
        _pageParts = pageParts,
        _clock = clock,
@@ -216,19 +213,20 @@ final class AppServices {
   /// null looks for one in the app bundle and in the `CHAT_CORPUS_DIR`
   /// directory.
   ///
-  /// [mediaCache] is where the rendered Lottie frames are kept between
-  /// launches, in its `lottie_frames` folder (null: in memory only, as in a
-  /// test). Its keep period and size limit are the host's, set where it is
-  /// made; the services start its sweeps and stop them on [dispose].
+  /// [lottieFramesDirectory] is where the rendered Lottie frames are kept
+  /// between launches (null: in memory only, as in a test). The folder
+  /// counts against the bytes store's `lottie_frames` quota, which asks the
+  /// frame cache to free files when that share or the store runs over: one
+  /// disk budget, and no sweep of the host's.
   ///
   /// [bytesCacheDirectory] is the folder of the bytes store that keeps
   /// Giphy's stills and clips (null: in memory only). It is the store's
-  /// alone: a sweep of [mediaCache] never reaches it.
+  /// alone; the frame folder is outside it.
   ///
   /// [diskCache] is the one switch over every disk tier (see
-  /// [DemoConfig.diskCache]): false ignores [glyphCache], [mediaCache] and
-  /// [bytesCacheDirectory], which are then neither used nor swept, and
-  /// everything is kept in memory for this launch only.
+  /// [DemoConfig.diskCache]): false ignores [glyphCache],
+  /// [lottieFramesDirectory] and [bytesCacheDirectory], and everything is
+  /// kept in memory for this launch only.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -240,7 +238,7 @@ final class AppServices {
     VideoPlaybackStarter startVideo = VideoPlayback.start,
     String giphyApiKey = giphyApiKeyDefine,
     http.Client? giphyHttpClient,
-    Future<MediaDiskCache?>? mediaCache,
+    Future<String?>? lottieFramesDirectory,
     Future<String?>? bytesCacheDirectory,
     CorpusStickerPack? corpus,
     bool diskCache = DemoConfig.diskCache,
@@ -252,7 +250,7 @@ final class AppServices {
       );
     }
     final glyphDisk = diskCache ? glyphCache : null;
-    final mediaDisk = diskCache ? mediaCache : null;
+    final framesDisk = diskCache ? lottieFramesDirectory : null;
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
     final unwind = <void Function()>[];
@@ -262,15 +260,11 @@ final class AppServices {
     }
 
     try {
-      // 0. The media store, swept now (off the frame path) and hourly; a
-      // tier never waits for a sweep.
-      final media = switch (await mediaDisk) {
-        final media? => owned(media..start(), (media) => media.dispose()),
-        null => null,
-      };
-      // The bytes store of fetched media (http_bytes_cache): Giphy's stills
-      // and clips, kept by last use under its own quotas. In memory without
-      // a directory (a test, the web, or the disk switched off).
+      // 0. The bytes store of fetched media (http_bytes_cache): Giphy's stills
+      // and clips, kept by last use under its own quotas, and the one budget
+      // the Lottie frame folder counts against (its `lottie_frames` quota).
+      // In memory without a directory (a test, the web, or the disk switched
+      // off).
       // Not awaited without one: the boot's steps keep their order.
       final bytesDirectory = diskCache && bytesCacheDirectory != null
           ? await bytesCacheDirectory
@@ -368,7 +362,8 @@ final class AppServices {
         clock: clock,
         memoryPressure: memoryPressure,
         textures: textures,
-        cacheDirectory: media?.folder(lottieFramesFolder),
+        cacheDirectory: await framesDisk,
+        bytesStore: bytes,
       );
       if (lottiePlayback != null) {
         owned(lottiePlayback, _closePlayback);
@@ -729,7 +724,6 @@ final class AppServices {
         glyphFontsSettled: probe.fontsSettled,
         glyphFontsReady: glyphFontsReady,
         pipeline: pipeline,
-        mediaCache: media,
         bytes: bytes,
         bytesClient: bytesClient,
         clipboard: clipboard,
@@ -897,9 +891,6 @@ final class AppServices {
   /// The line Giphy's terms ask to be shown with its content.
   static const String giphyAttribution = 'Powered by GIPHY';
 
-  /// The media store's folder of the rendered Lottie frames.
-  static const String lottieFramesFolder = 'lottie_frames';
-
   static ContentFetcher _contentFetcher(
     GiphyContent? giphy,
     CorpusStickerPack corpus,
@@ -925,7 +916,6 @@ final class AppServices {
   final List<CollectionSource> _pageParts;
   final PlaybackClock _clock;
   final LottiePlayback? _lottiePlayback;
-  final MediaDiskCache? _mediaCache;
   final IBytesStore _bytes;
   final HttpBytesClient? _bytesClient;
   final VideoPlayback? _videoPlayback;
@@ -1023,8 +1013,6 @@ final class AppServices {
     // animations the decoder made, through its engine.
     if (_lottiePlayback case final playback?) _closePlayback(playback);
     if (_videoPlayback case final playback?) _closeVideoPlayback(playback);
-    // Its sweeps stop; its files stay for the next launch.
-    _mediaCache?.dispose();
     _clock.dispose();
     memoryPressure.dispose();
     largeEmoji.dispose();

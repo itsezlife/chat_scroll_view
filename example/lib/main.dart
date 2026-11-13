@@ -9,7 +9,6 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart'
     as environment_specific;
-import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
@@ -117,31 +116,13 @@ Future<AppServices> _createServices() async {
   final services = AppServices.create(
     glyphCache: glyphCache.cache,
     glyphArtVersion: glyphCache.artVersion,
-    // One folder for every kind of animated media, kept a month after its
-    // last use and with no size limit; pass MediaDiskCache(keepFor:,
-    // limitBytes:) to keep it otherwise.
-    // Its first sweep deletes the folders beside it that media was kept in
-    // before it (the Giphy stills and clips, the Lottie frames).
-    // Giphy's stills and clips are in the bytes store's own folder beside it.
+    // Giphy's stills and clips are in the bytes store's own folder; the
+    // rendered Lottie frames in a folder beside it that counts against the
+    // store's `lottie_frames` quota, so the store's one budget keeps both.
     bytesCacheDirectory: environment_specific.$appCacheDirectory('http_bytes'),
-    mediaCache: environment_specific
+    lottieFramesDirectory: environment_specific
         .$appCacheDirectory('media')
-        .then(
-          (root) => switch (root) {
-            final root? => MediaDiskCache(
-              root,
-              retiredFolders: [
-                for (final name in const [
-                  'giphy_stills',
-                  'giphy_clips',
-                  'lottie_frames',
-                ])
-                  '${root.substring(0, root.lastIndexOf('/'))}/$name',
-              ],
-            ),
-            null => null,
-          },
-        ),
+        .then((root) => root == null ? null : '$root/lottie_frames'),
   );
   // Its own failure is awaited below; until then it is not an unhandled one.
   services.ignore();

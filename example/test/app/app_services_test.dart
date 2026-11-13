@@ -5,7 +5,6 @@ import 'dart:io';
 
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
-import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
@@ -24,6 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
 
@@ -239,16 +239,19 @@ void main() {
     PlaybackClock? givenClock;
     Listenable? givenPressure;
     String? givenCacheDirectory;
+    IBytesStore? givenBytesStore;
 
     Future<LottiePlayback?> start({
       required PlaybackClock clock,
       required Listenable memoryPressure,
       FrameTexturePool? textures,
       String? cacheDirectory,
+      IBytesStore? bytesStore,
     }) async {
       givenClock = clock;
       givenPressure = memoryPressure;
       givenCacheDirectory = cacheDirectory;
+      givenBytesStore = bytesStore;
       return LottiePlayback(decoder: decoder, shutdown: [() async => closed++]);
     }
 
@@ -261,17 +264,14 @@ void main() {
 
     Future<AppServices> create({
       LottiePlaybackStarter? startLottie,
-      String? mediaRoot,
+      String? framesDirectory,
       bool diskCache = true,
     }) => AppServices.create(
       keyValueStore: FakeKeyValueStore(),
       assetLoader: rootBundle.loadString,
       clipboard: FakeRichClipboard(),
       startLottie: startLottie ?? start,
-      mediaCache: Future.value(switch (mediaRoot) {
-        final root? => MediaDiskCache(root),
-        null => null,
-      }),
+      lottieFramesDirectory: Future.value(framesDirectory),
       diskCache: diskCache,
     );
 
@@ -299,20 +299,21 @@ void main() {
       );
     });
 
-    test("keeps its frames in the media store's folder for them, else in "
-        'memory', () async {
+    test('keeps its frames in the folder for them, counted by the bytes '
+        'store, else in memory', () async {
       final without = await create();
       addTearDown(without.dispose);
       expect(givenCacheDirectory, isNull);
 
-      final with_ = await create(mediaRoot: '/cache/media');
+      final with_ = await create(framesDirectory: '/cache/media/lottie_frames');
       addTearDown(with_.dispose);
       expect(givenCacheDirectory, '/cache/media/lottie_frames');
+      expect(givenBytesStore, isNotNull);
     });
 
     test('is given no cache directory when the disk caches are off', () async {
       final services = await create(
-        mediaRoot: '/cache/media',
+        framesDirectory: '/cache/media/lottie_frames',
         diskCache: false,
       );
       addTearDown(services.dispose);
@@ -357,6 +358,7 @@ void main() {
         required Listenable memoryPressure,
         FrameTexturePool? textures,
         String? cacheDirectory,
+        IBytesStore? bytesStore,
       }) async => LottiePlayback(
         decoder: decoder,
         shutdown: [() async => throw StateError('engine would not close')],
@@ -398,6 +400,7 @@ void main() {
               required memoryPressure,
               textures,
               cacheDirectory,
+              bytesStore,
             }) async => null,
       );
       addTearDown(services.dispose);
@@ -479,6 +482,7 @@ void main() {
                 required memoryPressure,
                 textures,
                 cacheDirectory,
+                bytesStore,
               }) async => null,
           startVideo: start,
         ),
@@ -516,6 +520,7 @@ void main() {
               required memoryPressure,
               textures,
               cacheDirectory,
+              bytesStore,
             }) async => null,
       );
       addTearDown(services.dispose);
@@ -788,13 +793,14 @@ void main() {
               required memoryPressure,
               textures,
               cacheDirectory,
+              bytesStore,
             }) async => null,
         startVideo:
             ({required clock, required memoryPressure, textures}) async => null,
         glyphCache: GlyphCacheStore.forPlatform('${dir.path}/glyphs'),
         giphyApiKey: 'test-key',
         giphyHttpClient: MockClient((_) async => http.Response.bytes([1], 200)),
-        mediaCache: Future.value(MediaDiskCache('${dir.path}/media')),
+        lottieFramesDirectory: Future.value('${dir.path}/media/lottie_frames'),
         bytesCacheDirectory: Future.value('${dir.path}/http_bytes'),
         diskCache: diskCache,
       );
@@ -852,22 +858,6 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 20));
       }
       expect(kept(await files()), isTrue, reason: '${await files()}');
-    });
-
-    test('sweep the media store at start when on: a file unused for a month '
-        'goes', () async {
-      final old = File('${dir.path}/media/lottie_frames/frames_old')
-        ..createSync(recursive: true)
-        ..setLastModifiedSync(
-          DateTime.now().subtract(const Duration(days: 40)),
-        );
-
-      await create(diskCache: true);
-
-      for (var i = 0; i < 100 && old.existsSync(); i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-      }
-      expect(old.existsSync(), isFalse);
     });
 
     test(

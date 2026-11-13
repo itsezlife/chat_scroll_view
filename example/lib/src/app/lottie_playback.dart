@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:chat_scroll_view_example/src/app/environment_specific/lottie_playback.dart'
     as environment_specific;
 import 'package:flutter/foundation.dart';
+import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:l/l.dart';
 import 'package:mpx_core/frame_pool.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -38,11 +39,13 @@ final class LottiePlayback {
     required Listenable memoryPressure,
     FrameTexturePool? textures,
     String? cacheDirectory,
+    IBytesStore? bytesStore,
   }) => environment_specific.$startLottiePlayback(
     clock: clock,
     memoryPressure: memoryPressure,
     textures: textures,
     cacheDirectory: cacheDirectory,
+    bytesStore: bytesStore,
   );
 
   /// Starts the Lottie decoder over a pixel-returning [LottieEngine], the form
@@ -129,6 +132,9 @@ final class LottiePlayback {
 ///
 /// `cacheDirectory` is the folder the rendered frames are kept in between
 /// launches; null keeps them in memory only. The playback owns that cache.
+/// `bytesStore` is the store whose `lottie_frames` quota the folder counts
+/// against, which then asks the cache to free files; the playback registers
+/// it and unregisters on close.
 /// `textures` is the platform's texture pool (ADR 043), null where there is
 /// none; a platform whose engine cannot write textures ignores it.
 typedef LottiePlaybackStarter =
@@ -137,4 +143,5 @@ typedef LottiePlaybackStarter =
       required Listenable memoryPressure,
       FrameTexturePool? textures,
       String? cacheDirectory,
+      IBytesStore? bytesStore,
     });

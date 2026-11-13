@@ -7,6 +7,7 @@ import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:mpx_core/mpx_core.dart';
 
 /// The app's services over in-memory storage and the bundled emoji catalogue,
@@ -47,6 +48,7 @@ Future<LottiePlayback?> _noLottie({
   required Listenable memoryPressure,
   FrameTexturePool? textures,
   String? cacheDirectory,
+  IBytesStore? bytesStore,
 }) async => null;
 
 Future<VideoPlayback?> _noVideo({

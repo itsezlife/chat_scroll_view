@@ -17,7 +17,6 @@ import 'app/listener_errors_test.dart' as listener_errors_test;
 import 'app/lottie_playback_cache_test.dart' as lottie_playback_cache_test;
 import 'app/lottie_playback_pixel_test.dart' as lottie_playback_pixel_test;
 import 'app/lottie_playback_test.dart' as lottie_playback_test;
-import 'app/media_disk_cache_test.dart' as media_disk_cache_test;
 import 'app/overlay_pause_observer_test.dart' as overlay_pause_observer_test;
 import 'app/scrolling_surfaces_test.dart' as scrolling_surfaces_test;
 import 'app/system_reduced_motion_test.dart' as system_reduced_motion_test;
@@ -258,7 +257,6 @@ void main() {
   group('app/lottie_playback_cache_test.dart', lottie_playback_cache_test.main);
   group('app/lottie_playback_pixel_test.dart', lottie_playback_pixel_test.main);
   group('app/lottie_playback_test.dart', lottie_playback_test.main);
-  group('app/media_disk_cache_test.dart', media_disk_cache_test.main);
   group(
     'app/overlay_pause_observer_test.dart',
     overlay_pause_observer_test.main,

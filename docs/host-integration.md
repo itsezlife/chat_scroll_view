@@ -278,10 +278,12 @@ location (the example, which does not depend on `path_provider`, asks its
 activity for `Context.getCacheDir` on Android, takes the app container's
 `Library/Caches` on iOS and reads the environment on a desktop; a host that
 does depend on it passes `getApplicationCacheDirectory()`), and give it to one
-cache at a time. A host that keeps all its media in one store, removing files
-by last use (as the example's `MediaDiskCache` does), gives the cache a folder
-of that store and `diskBudgetBytes: null`, so the store alone decides what
-goes; a file it removes is rendered again. A host may turn every disk tier off at once, as the example's
+cache at a time. A host whose bytes store (`http_bytes_cache`) keeps one
+disk budget, as the example's does, gives the cache `diskBudgetBytes: null`
+and registers its folder as the store's `lottie_frames` quota
+(`registerQuota(BytesQuota.lottieFrames, onEvict: cache.evict)`, reporting
+`cache.diskBytes` and calling `cache.scan()` once), so the store alone decides
+what goes; a file it frees is rendered again. A host may turn every disk tier off at once, as the example's
 `DISK_CACHE=false` does for tests and measured runs: the frames are then kept
 in memory only.
 
@@ -298,7 +300,7 @@ reports a failing close instead of leaving an unhandled future.
 
 `LottieEngine` is the neutral interface (`load`, `renderPixels`, `dispose`,
 `close`); the decoder, the scheduler, the paintables and the cache depend on it
-only, and `package:lottie_decoder/lottie_decoder.dart` compiles for the web.
+only, and `package:mpx_lottie/mpx_lottie.dart` compiles for the web.
 The address-based methods (`renderBatch`, `renderCapturing`, `restore`) are
 `LottieSlotEngine`, with `IsolateLottieEngine`, `InProcessLottieEngine`,
 `NativeFramePageMemory` and `LottieFrameRenderer`; the barrel exports them only
@@ -314,7 +316,7 @@ web host has an engine over the worker, a `ListFramePageMemory`, a
 The composition on the web is the native one with two substitutions:
 
 1. The engine is `JsLottieWorker.spawnFromUrls(workerUrl:, wasmUrl:,
-   wasmNoSimdUrl:)` from `package:lottie_decoder/web.dart` (a web build
+   wasmNoSimdUrl:)` from `package:mpx_lottie/web.dart` (a web build
    imports it; `WebWorkerLottieEngine` over a module `Worker`); relative urls
    resolve against the page. It is the probe: with the files missing it
    throws `LottieUnavailable`, the host logs once and registers no decoder.

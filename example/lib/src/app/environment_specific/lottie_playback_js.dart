@@ -1,5 +1,6 @@
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_lottie/web.dart';
 
@@ -9,12 +10,14 @@ import 'package:mpx_lottie/web.dart';
 /// is registered.
 ///
 /// The files are resolved against the page's url. There is no cache folder:
-/// the frames are kept in memory only, whatever [cacheDirectory] says.
+/// the frames are kept in memory only, whatever [cacheDirectory] says, so
+/// nothing counts against [bytesStore].
 Future<LottiePlayback?> $startLottiePlayback({
   required PlaybackClock clock,
   required Listenable memoryPressure,
   FrameTexturePool? textures,
   String? cacheDirectory,
+  IBytesStore? bytesStore,
 }) => LottiePlayback.startPixel(
   clock: clock,
   memoryPressure: memoryPressure,

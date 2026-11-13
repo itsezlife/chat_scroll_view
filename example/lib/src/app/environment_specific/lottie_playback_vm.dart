@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:l/l.dart';
 import 'package:mpx_core/frame_pool.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -20,9 +23,11 @@ import 'package:mpx_lottie/mpx_lottie.dart';
 ///
 /// The rendered frames are kept in a `FrameCache`: on disk under
 /// [cacheDirectory] when there is one, in memory only when it is null. The
-/// directory is the media store's (`MediaDiskCache`), which removes what goes
-/// unused, so the cache keeps no disk budget of its own. The playback owns
-/// the cache and disposes it on close.
+/// folder counts against [bytesStore]'s `lottie_frames` quota
+/// (`BytesQuota.lottieFrames`): the cache reports what it holds, and the
+/// store asks it to free files when that share or the whole store runs over,
+/// so the cache keeps no disk budget of its own and the host no sweep. The
+/// playback owns the cache and the registration, and ends both on close.
 ///
 /// With [textures] (ADR 043) the render isolates also write playing
 /// animations into the pool's platform textures; the scroll lab's `textures`
@@ -32,6 +37,7 @@ Future<LottiePlayback?> $startLottiePlayback({
   required Listenable memoryPressure,
   FrameTexturePool? textures,
   String? cacheDirectory,
+  IBytesStore? bytesStore,
   Future<LottieSlotEngine> Function() spawn = _spawnRenderPool,
 }) async {
   final LottieSlotEngine engine;
@@ -54,6 +60,19 @@ Future<LottiePlayback?> $startLottiePlayback({
     onError: (error, stackTrace) =>
         l.w('The Lottie frame cache is memory only: $error', stackTrace),
   );
+  // The folder's share of the one disk budget: usage reported as it
+  // changes, files of earlier runs counted after the scan.
+  final quota = cacheDirectory == null
+      ? null
+      : bytesStore?.registerQuota(
+          BytesQuota.lottieFrames,
+          onEvict: cache.evict,
+        );
+  void reportUsage() => quota?.reportUsage(cache.diskBytes.value);
+  if (quota != null) {
+    cache.diskBytes.addListener(reportUsage);
+    unawaited(cache.scan());
+  }
   final renderer = LottieFrameRenderer(
     engine: engine,
     memory: memory,
@@ -87,6 +106,10 @@ Future<LottiePlayback?> $startLottiePlayback({
     shutdown: [
       () => ScrollLab.textures.removeListener(applyTextures),
       scheduler.dispose,
+      () {
+        cache.diskBytes.removeListener(reportUsage);
+        quota?.unregister();
+      },
       cache.dispose,
       engine.close,
       memory.dispose,
