@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:mpx/mpx.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -34,7 +35,6 @@ import 'package:mpx_core/mpx_core.dart';
 ///
 /// Not a global: the host makes one over its clients and its store, and
 /// disposes neither.
-
 final class GiphyContent {
   /// Creates the content over [client], remembering up to [capacity] clips,
   /// and fetching files and stills into [store] through [http].
@@ -139,7 +139,7 @@ final class GiphyContent {
                     cancellation: CancellationToken(),
                   ),
                 )
-                .then<void>((_) {}, onError: (Object _) {}),
+                .then<void>((_) {}, onError: _reportStillFailure),
     ];
     if (pending.isEmpty) return Future.value();
     final done = Completer<void>();
@@ -152,6 +152,21 @@ final class GiphyContent {
     );
     return done.future;
   }
+
+  // A still that failed to prepare is fetched again when its row asks, so
+  // the wait goes on; the failure is still told, quietly (shown in debug
+  // builds only): a network that drops stills is worth seeing, not an error
+  // of the app.
+  static void _reportStillFailure(Object error, StackTrace stackTrace) =>
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'chat_scroll_view_example',
+          context: ErrorDescription('while preparing a Giphy still'),
+          silent: true,
+        ),
+      );
 
   /// A fetcher of the files of Giphy clips that leaves any other key to
   /// [otherwise].

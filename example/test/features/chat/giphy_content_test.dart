@@ -7,12 +7,12 @@
 library;
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -535,6 +535,21 @@ void main() {
       ], within: const Duration(seconds: 1));
 
       expect(requests.single.url.path, '/gone.still.gif');
+    });
+
+    test('a still that fails to prepare is reported, quietly', () async {
+      final reported = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      addTearDown(() => FlutterError.onError = previous);
+
+      await content.prepareStills([
+        _clip('gone', still: true),
+      ], within: const Duration(seconds: 1));
+      await pumpEventQueue();
+
+      expect(reported, hasLength(1));
+      expect(reported.single.silent, isTrue);
     });
   });
 
