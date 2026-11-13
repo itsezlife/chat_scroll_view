@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `ContentEmbed` composites a texture through `mpx_core`'s
+  `AssetTextureLayer`; the package's own copy is gone.
+- A glyph binding answers `visibleFraction` (a still: it only reads back).
+
 ## 0.1.0
 
 - What stayed in the chat when `catalog_assets` moved to `mpx_core`: inline

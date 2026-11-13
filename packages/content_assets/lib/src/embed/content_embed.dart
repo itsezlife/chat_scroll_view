@@ -1,7 +1,6 @@
 import 'dart:ui' hide VoidCallback;
 
 import 'package:content_assets/src/embed/inline_embed.dart';
-import 'package:content_assets/src/embed/texture_composite.dart';
 import 'package:content_assets/src/scope/content_asset_scope.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/rendering.dart' show PaintingContext;
@@ -97,7 +96,7 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
   ) {
     if (_disposed) return;
     if (_binding.readiness.stage != AssetStage.none &&
-        TextureComposite.composite(
+        AssetTextureLayer.composite(
           context,
           _binding,
           rect,

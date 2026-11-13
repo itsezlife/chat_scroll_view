@@ -93,6 +93,18 @@ void main() {
       expect(scope.media.entryCount, 0);
     });
 
+    test('a glyph reads its visible fraction back, clamped', () {
+      final binding = scopeOf().attach(_glyph('a'), _keyboardSpec, _profile)
+        ..visibleFraction = 0.4;
+      expect(binding.visibleFraction, 0.4);
+      expect(binding.visible, isTrue);
+
+      binding.visibleFraction = -1;
+      expect(binding.visible, isFalse);
+      binding.visible = true;
+      expect(binding.visibleFraction, 1);
+    });
+
     test('keeps glyphs placeholders until the text fonts are ready', () {
       final ready = ValueNotifier<bool>(false);
       addTearDown(ready.dispose);

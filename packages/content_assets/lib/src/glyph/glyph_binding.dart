@@ -74,7 +74,7 @@ final class GlyphBinding with ChangeNotifier implements AssetBinding {
   // sprite and does not make the binding wait; laid out lazily, dropped with
   // the binding.
   TextGlyphPaintable? _text;
-  bool _visible = true;
+  double _visibleFraction = 1;
   bool _held = false;
   bool _detached = false;
 
@@ -177,10 +177,17 @@ final class GlyphBinding with ChangeNotifier implements AssetBinding {
   bool replay() => false;
 
   @override
-  bool get visible => _visible;
+  bool get visible => _visibleFraction > 0;
 
   @override
-  set visible(bool value) => _visible = value;
+  set visible(bool value) => _visibleFraction = value ? 1 : 0;
+
+  // A still has nothing to advance, so the fraction only answers back.
+  @override
+  double get visibleFraction => _visibleFraction;
+
+  @override
+  set visibleFraction(double value) => _visibleFraction = value.clamp(0.0, 1.0);
 
   @override
   bool get held => _held;

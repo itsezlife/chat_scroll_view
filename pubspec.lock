@@ -413,8 +413,8 @@ packages:
     dependency: transitive
     description:
       path: "packages/http_bytes_cache"
-      ref: "340b87f7e1f81dc7e9fec9c3868ed0075e432e7b"
-      resolved-ref: "340b87f7e1f81dc7e9fec9c3868ed0075e432e7b"
+      ref: "08a5e85c3b58ca12a87ec006cc425be8ece14828"
+      resolved-ref: "08a5e85c3b58ca12a87ec006cc425be8ece14828"
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.1.0"
@@ -583,8 +583,8 @@ packages:
     dependency: transitive
     description:
       path: "packages/mpx"
-      ref: "340b87f7e1f81dc7e9fec9c3868ed0075e432e7b"
-      resolved-ref: "340b87f7e1f81dc7e9fec9c3868ed0075e432e7b"
+      ref: "08a5e85c3b58ca12a87ec006cc425be8ece14828"
+      resolved-ref: "08a5e85c3b58ca12a87ec006cc425be8ece14828"
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.0.1"
@@ -592,8 +592,8 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/mpx_core"
-      ref: "340b87f7e1f81dc7e9fec9c3868ed0075e432e7b"
-      resolved-ref: "340b87f7e1f81dc7e9fec9c3868ed0075e432e7b"
+      ref: "08a5e85c3b58ca12a87ec006cc425be8ece14828"
+      resolved-ref: "08a5e85c3b58ca12a87ec006cc425be8ece14828"
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.0.1"
@@ -601,8 +601,8 @@ packages:
     dependency: transitive
     description:
       path: "packages/mpx_lottie"
-      ref: "340b87f7e1f81dc7e9fec9c3868ed0075e432e7b"
-      resolved-ref: "340b87f7e1f81dc7e9fec9c3868ed0075e432e7b"
+      ref: "08a5e85c3b58ca12a87ec006cc425be8ece14828"
+      resolved-ref: "08a5e85c3b58ca12a87ec006cc425be8ece14828"
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.0.1"
@@ -610,8 +610,8 @@ packages:
     dependency: transitive
     description:
       path: "packages/mpx_video_decoder"
-      ref: "340b87f7e1f81dc7e9fec9c3868ed0075e432e7b"
-      resolved-ref: "340b87f7e1f81dc7e9fec9c3868ed0075e432e7b"
+      ref: "08a5e85c3b58ca12a87ec006cc425be8ece14828"
+      resolved-ref: "08a5e85c3b58ca12a87ec006cc425be8ece14828"
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.0.1"
