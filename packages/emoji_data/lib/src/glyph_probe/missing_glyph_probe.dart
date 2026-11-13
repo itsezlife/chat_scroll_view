@@ -22,7 +22,7 @@ const String _blank = 'blank';
 /// ([observe]) and flags the cells that are identical to the cell of a
 /// missing-glyph reference, or empty. The bake of the glyph atlas already
 /// rasterises every glyph once, so it hands the probe its cells and no glyph is
-/// drawn twice (see `GlyphBakeObserver` in `catalog_assets`); a host without an
+/// drawn twice (see `GlyphBakeObserver` in `glyph_atlas`); a host without an
 /// atlas feeds it from `PacedGlyphProbePass`. Pure Dart: pixels in, verdicts
 /// out, no font, no platform channel.
 ///

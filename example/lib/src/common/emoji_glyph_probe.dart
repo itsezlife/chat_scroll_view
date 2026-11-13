@@ -30,7 +30,7 @@ typedef EmojiGlyphProbeWiring = ({
 /// Wires a [MissingGlyphProbe] over [glyphs] to the glyph atlas.
 ///
 /// This is the composition the two packages cannot do themselves: `emoji_data`
-/// knows no atlas and `catalog_assets` knows no probe, and both speak plain
+/// knows no atlas and `glyph_atlas` knows no probe, and both speak plain
 /// functions and bytes. [sentinelPixelsOf] renders one sentinel glyph (the
 /// system rasteriser, at a fixed size) and [nextFrame] paces the sentinels one
 /// per frame; [osVersion] is the optional supplementary signal. Verdicts are

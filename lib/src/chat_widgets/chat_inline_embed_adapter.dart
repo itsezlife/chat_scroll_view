@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:flutter_md/flutter_md.dart';
 import 'package:meta/meta.dart' show internal;
 
-/// The one place `catalog_assets`' embed seam meets the markdown library's.
+/// The one place `content_assets`' embed seam meets the markdown library's.
 ///
 /// The library owns its own contract and knows no asset type, and the cache
 /// owns [InlineEmbedResolver]; neither may import the other, so the root

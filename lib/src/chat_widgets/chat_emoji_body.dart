@@ -21,7 +21,7 @@ import 'package:mpx_core/mpx_core.dart';
 /// Makes the embed that draws [content] the way [preset] says: the host's
 /// link between an emoji-only body and its asset cache.
 ///
-/// With `catalog_assets` it is one line over the host's scope:
+/// With `content_assets` it is one line over the host's scope:
 /// `(content, preset) => ContentEmbed(scope: scope, content: content,
 /// preset: preset)`. Null shows nothing in the item's square (the host's cache
 /// does not know the content). The body owns the embed it gets and disposes

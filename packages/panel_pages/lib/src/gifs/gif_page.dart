@@ -59,7 +59,7 @@ import 'package:panel_shell/panel_shell.dart';
 /// Only the rows in view are built (`cacheExtent` 0), and each clip attaches
 /// to the host's asset cache while it is built, so the cache's pause layers
 /// and its limit on what plays at once (the playback clock and budgets of
-/// `catalog_assets`) are the only playback policy: a clip that is scrolled out
+/// `mpx_core`'s asset cache) are the only playback policy: a clip that is scrolled out
 /// of view detaches and stops. A clip's stand-in is the cache's.
 ///
 /// ## Arrivals

@@ -10,8 +10,9 @@
 /// top strip, declared actions), so a page is a thin composition of a source
 /// and a policy.
 ///
-/// Depends on `panel_shell`, `panel_catalog`, `catalog_assets`, `content_model`
-/// and `chrome_foundation`; never on a data payload, codec or fetcher
+/// Depends on `panel_shell`, `panel_catalog`, `content_assets`, `glyph_atlas`,
+/// `mpx_core`, `content_model`, `chrome_foundation` and `viewport_scroll`;
+/// never on a data payload, codec or fetcher
 /// (`scripts/check` enforces that). Fakes and the [BakeActivityPort] contract
 /// are in `package:panel_pages/testing.dart`.
 library;
