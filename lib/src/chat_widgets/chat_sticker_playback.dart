@@ -1,6 +1,6 @@
-import 'package:catalog_assets/catalog_assets.dart' show AssetRestFrame;
 import 'package:content_model/content_model.dart'
     show ContentKey, ContentKey$Unicode;
+import 'package:mpx_core/mpx_core.dart';
 
 /// How the sticker of an emoji-only body plays: the host's policy, never the
 /// body's.

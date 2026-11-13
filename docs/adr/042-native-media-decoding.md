@@ -9,6 +9,7 @@ uses the browser's decoder. No platform player is created per message.
 
 **Status**: Accepted  
 **Date**: 2026-11-06  
+**Moved**: 2026-11-13 (media-pipeline ticket 08) — the decoders and their natives live in mpx (github.com/itsezlife/mpx) as `mpx_lottie` and `mpx_video_decoder`, renamed once (`mpx_lottie_*`, `mpx_video_*`); mpx ADR 0003 holds the decisions from here on. This ADR stays as the record of how they were built  
 **Amended**: 2026-11-09 (native-media ticket 98): the render isolate reads cached frames from their files (row Workers)  
 **Amended**: 2026-11-09 (native-media ticket 110): the render isolates take each texture frame as a request of its own, answered in arrival order, and Lottie renders on a pool of up to four of them (row Workers, section *Amendment: a pool of render isolates*)  
 **Relates to**: [ADR 020](020-package-topology.md), [ADR 022](022-asset-cache-and-media-pipeline.md) (page pool and frame cache amendment), [ADR 030](030-testing-policy.md), [ADR 021](021-content-identity-and-collections.md)  

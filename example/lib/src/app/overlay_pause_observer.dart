@@ -1,6 +1,6 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/widgets.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_pages/panel_pages.dart';
 
 /// Holds the chat's animations still while a route is open over it.

@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart'
-    show AssetCacheScope, TextGlyphProducer;
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart' show ContentAssetScope;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
+import 'package:glyph_atlas/glyph_atlas.dart' show ParagraphGlyphRasteriser;
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/emoji/emoji_category_strip.dart';
@@ -183,7 +183,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   static const SectionLayout _pointerLayout = SectionLayout.grid(
     desiredCellWidth: pointerDesiredCellWidth,
     cellHeightInset: pointerCellHeightInset,
-    glyphExtent: pointerGlyphSize / TextGlyphProducer.defaultFontScale,
+    glyphExtent: pointerGlyphSize / ParagraphGlyphRasteriser.defaultFontScale,
     headerExtent: headerExtent,
   );
 
@@ -200,7 +200,7 @@ final class EmojiPagePolicy extends CatalogPagePolicy {
   final listen.ValueListenable<bool>? stripReady;
 
   /// Where the strip draws the covers of packs from; null draws none.
-  final AssetCacheScope? assets;
+  final ContentAssetScope? assets;
 
   /// How the strip lays its icons out under the pointer arrangement.
   final EmojiStripLayout stripLayout;

@@ -13,7 +13,7 @@
 
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:flutter_test/flutter_test.dart';
@@ -24,7 +24,6 @@ import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 
 import '../support/asset_scopes.dart';
-
 import 'shared/baseline_sliver_grid_catalog.dart';
 import 'shared/baseline_supersliver_catalog.dart';
 import 'shared/catalog_presets.dart';
@@ -45,7 +44,7 @@ void _benchWidgets(String description, WidgetTesterCallback callback) =>
 
 Widget _candidateApp({
   required listen.ValueListenable<CatalogSnapshot> snapshots,
-  required AssetCacheScope assets,
+  required ContentAssetScope assets,
   required PanelCatalogController controller,
   double width = 400,
   double height = 600,

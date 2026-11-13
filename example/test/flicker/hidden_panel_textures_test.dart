@@ -9,7 +9,7 @@
 /// (`PanelCatalogViewport`) under `TickerMode(enabled: shown)`, under an
 /// invisible `Visibility` that keeps its state once hidden, with the clock
 /// paused (`routeMoving`) while it moves. Over a chat sticker that plays and
-/// one held while the popup is up (`ContentView.holdsWhileTickersOff`). The
+/// one held while the popup is up (`ContentAssetView.holdsWhileTickersOff`). The
 /// stickers are real `LottieAnimationPaintable`s played by a real
 /// `LottieFrameScheduler` on a `FrameTexturePool` of fake textures. What is
 /// read is the texture layers each surface composites, and the pool.
@@ -17,16 +17,16 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lottie_decoder/lottie_decoder.dart';
-import 'package:lottie_native/lottie_native.dart';
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 import 'package:panel_shell/testing.dart';
@@ -117,7 +117,7 @@ void main() {
   late PlaybackClock clock;
   late FrameTexturePool pool;
   late LottieFrameScheduler scheduler;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late FakeCatalogSnapshotSource recents;
   late PanelCatalogController controller;
   late ValueNotifier<bool> shown;
@@ -146,7 +146,10 @@ void main() {
       textures: pool,
       textureWriter: FakeTextureFrameWriter(),
     );
-    scope = AssetCacheScope(producer: _LottieProducer(scheduler), clock: clock);
+    scope = ContentAssetScope.withMedia(
+      producer: _LottieProducer(scheduler),
+      clock: clock,
+    );
     recents = FakeCatalogSnapshotSource()
       ..replaceSections([
         CatalogSection(
@@ -189,7 +192,7 @@ void main() {
               child: Row(
                 children: [
                   // Plays whatever the panel does: a dock beside the chat.
-                  ContentView(
+                  ContentAssetView(
                     content: const ContentKey.document('chat-playing'),
                     scope: scope,
                     preset: chatPreset,
@@ -199,7 +202,7 @@ void main() {
                     valueListenable: popup,
                     builder: (context, isUp, child) =>
                         TickerMode(enabled: !isUp, child: child!),
-                    child: ContentView(
+                    child: ContentAssetView(
                       content: const ContentKey.document('chat-under-popup'),
                       scope: scope,
                       preset: chatPreset,

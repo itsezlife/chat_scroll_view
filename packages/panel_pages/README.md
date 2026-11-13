@@ -7,7 +7,7 @@ the shell's query, and tells the shell what happened. The kind-specific
 decisions are a **page policy**, so a page is a thin composition of a data
 source and a policy.
 
-Depends on `panel_shell`, `panel_catalog`, `catalog_assets`, `content_model`
+Depends on `panel_shell`, `panel_catalog`, `content_assets`, `glyph_atlas`, `mpx_core`, `content_model`
 and `chrome_foundation` (`scripts/check` enforces the direction): never on a
 data payload, codec or fetcher. Decisions: [ADR 025](../../docs/adr/025-panel-shell-and-pages.md)
 (shell and pages), [ADR 024](../../docs/adr/024-panel-catalog-seams.md)
@@ -34,7 +34,6 @@ data payload, codec or fetcher. Decisions: [ADR 025](../../docs/adr/025-panel-sh
 | `PageScrollReporter` | Catalogue scroll events to the shell's `PageScrollActivity`: drag and fling deltas, one jump per programmatic motion, idle at rest (with whether it rests at an end). |
 | `BakeActivityPort`, `CatalogBakeForwarder`, `GlyphAtlasBakePort` | The narrow seam to a glyph bake. The forwarder reports the catalogue's motion as one reporter (a shared baker is held back until every surface rests), hands over the visible band when it settles, and re-reports both to a baker that replaces the first. `GlyphAtlasBakePort` is the one-to-one adapter for a single `GlyphAtlas`; the emoji page reports to its `GlyphAtlasHost`, which reaches every atlas it keeps. |
 | `ChromeCatalogTheme` | The one place that knows both the chrome tokens and `PanelCatalogThemeData`: maps colours, leaves geometry and text metrics to the viewport. |
-| `PageAssets` | Builds the `AssetCacheScope` a page draws through: baked sprites where a glyph source is registered, text (`TextGlyphProducer`) where none is. |
 | `CatalogKeyboardFocus`, `CatalogMoveFocusIntent` | The key bindings of roving focus: arrows, Home, End, Enter, Space. |
 | `EmojiPage`, `EmojiPagePolicy`, `EmojiPageController`, `EmojiEntryOf` | The emoji page: the policy of eight columns, category titles, recents (only while there are some; a finger's long press on one asks the host to clear them, no header button) and the variant picker; the sections are `EmojiSection`'s (people, nature, food, activity, travel, objects, symbols); the widget loads every collection at once, plans the atlas, wires it and paces its mount; the controller keeps the atlas host across the widget. |
 | `EmojiCategoryStrip`, `EmojiCategories`, `EmojiCategoryTab` | The page's strip: one tab per category (people folded into smileys), the active tab following the catalogue, a tap landing on the category's first section and staying active after the jump. Above the catalogue under `touch`; under `pointer` pinned below it as the footer with packs (`EmojiStripFooter`: 30 px slots, the categories folded into one icon that opens while one is active, a slot per `CollectionId.set` section drawn by its cover, a sliding marker, wheel and drag scrolling, centring, edge fades; `assets` draws the covers). |
@@ -97,7 +96,7 @@ final page = PanelPage(
   are laid out, when the results go.
 - **Bake.** Hand the page a `BakeActivityPort` where glyphs are baked. Swap it
   when the atlas is replanned. Where nothing is baked pass none and build the
-  scope with `PageAssets.createScope` without a glyph source: glyphs are drawn
+  scope with `ContentAssetScope.withMedia` without a glyph source: glyphs are drawn
   as text.
 - **Scroll.** The page reports `PageScrollDrag` / `PageScrollFling` deltas,
   `PageScrollJump` for programmatic motion and `PageScrollIdle` at rest; the
@@ -109,7 +108,7 @@ final page = PanelPage(
 | The host provides | The host must not |
 | --- | --- |
 | A `ChromeThemeScope` and a `ChromeStringsScope` above every page (both required). | Expect a default theme or language; mount a page without them. |
-| The `AssetCacheScope` the page draws through (`assets:`, required), usually the app-wide one, built with `PageAssets.createScope` so unicode keys fall back to text where no atlas is registered. The host owns and disposes it. | Dispose the scope while a page is mounted, or register an atlas on it by hand while an `EmojiPage` is mounted: the page sets `assets.glyphSource` to its own atlas on mount, keeps it when it unmounts (surfaces outside the panel draw through the same scope) and its controller clears it when the shell disposes it. |
+| The `ContentAssetScope` the page draws through (`assets:`, required), usually the app-wide one, built with `ContentAssetScope.withMedia` so unicode keys fall back to text where no atlas is registered. The host owns and disposes it. | Dispose the scope while a page is mounted, or register an atlas on it by hand while an `EmojiPage` is mounted: the page sets `assets.glyphSource` to its own atlas on mount, keeps it when it unmounts (surfaces outside the panel draw through the same scope) and its controller clears it when the shell disposes it. |
 | Sources (`CollectionSource`, optionally `SearchSource`) that own their data and loading; a replacement source may be passed at any time. | Pass a source that publishes in place; every publication is a new list. Expect a failed load to be retried in a loop. |
 | A `BakeActivityPort` for the atlas that draws the page's glyphs, replaced when the atlas is. | Report the page's scrolling to the atlas as well; the page is already one reporter. |
 | For the emoji page: a `GlyphAtlasHostFactory` that builds a `GlyphAtlasHost` from the bake parts only the host has (frame source, page cache and art version, the glyph probe's observer, memory pressure), or none where nothing is baked; an `EmojiEntryOf` (the data layer's `entryOf`); the `PreferenceStore`. | Plan the atlas itself, or build it before the density of the view is known; hand the page a source that loads slowly and expect baked glyphs for the first leaves (see below). |
@@ -122,7 +121,7 @@ final page = PanelPage(
 
 The shell (pager, tabs, bottom bar, search field), the catalogue viewport and
 its layout maths, asset fetch and decode, the glyph atlas itself (this package
-plans and keeps one; `catalog_assets` bakes it), the emoji catalogue, its
+plans and keeps one; `glyph_atlas` bakes it), the emoji catalogue, its
 keywords and the glyph-support probe (the emoji data layer: this package never
 depends on it or on a payload), and every data source.
 

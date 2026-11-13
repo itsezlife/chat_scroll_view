@@ -7,9 +7,9 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart' show AssetFit, AtlasSprite;
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart' show AssetFit, AtlasSprite;
 import 'package:panel_catalog/src/viewport/catalog_glyph_sprite_batch.dart';
 
 import '../support/recording_canvas.dart';

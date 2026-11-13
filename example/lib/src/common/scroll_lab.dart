@@ -2,13 +2,6 @@ import 'dart:async';
 import 'dart:developer' show Timeline;
 import 'dart:ui' show FramePhase, FrameTiming;
 
-import 'package:catalog_assets/catalog_assets.dart'
-    show
-        FrameTextureEntryPoints,
-        FrameTextureFormat,
-        FrameTextureHost,
-        FrameTexturePool,
-        FrameTextureTarget;
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatScrollController, ChatScrollEvent, ChatViewportScrolled;
 import 'package:chat_scroll_view/experiments.dart';
@@ -21,8 +14,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_video_decoder/mpx_video_decoder.dart'
+    show VideoFrameScheduler;
 import 'package:panel_pages/panel_pages.dart' show CatalogPageController;
-import 'package:video_decoder/video_decoder.dart' show VideoFrameScheduler;
 
 /// Scroll-smoothness lab: runtime switches to A/B on a device, and a frame
 /// log in logcat (`adb logcat -s flutter | grep LAB`).

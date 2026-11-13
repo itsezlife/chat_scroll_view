@@ -1,6 +1,6 @@
-import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/common/environment_specific/host_environment.dart'
     as environment_specific;
+import 'package:glyph_atlas/glyph_atlas.dart';
 
 /// The demo's persistent home for baked emoji pages.
 ///

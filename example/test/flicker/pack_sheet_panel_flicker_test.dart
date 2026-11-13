@@ -15,17 +15,17 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lottie_decoder/lottie_decoder.dart';
-import 'package:lottie_native/lottie_native.dart';
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
@@ -117,7 +117,7 @@ void main() {
   late FrameTexturePool pool;
   late FakeTextureFrameWriter writer;
   late LottieFrameScheduler scheduler;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late FakeCatalogSnapshotSource panelSnapshots;
   late FakeCatalogSnapshotSource sheetSnapshots;
   late BuildContext home;
@@ -180,7 +180,10 @@ void main() {
       textures: pool,
       textureWriter: writer,
     );
-    scope = AssetCacheScope(producer: _LottieProducer(scheduler), clock: clock);
+    scope = ContentAssetScope.withMedia(
+      producer: _LottieProducer(scheduler),
+      clock: clock,
+    );
     panelSnapshots = FakeCatalogSnapshotSource()..replaceSections(pack());
     sheetSnapshots = FakeCatalogSnapshotSource()
       ..replaceSections(sheetPack ?? pack());

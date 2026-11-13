@@ -7,19 +7,18 @@ library;
 import 'dart:async';
 import 'dart:io';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
-import 'package:content_model/content_model.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:l/l.dart';
-import 'package:lottie_decoder/lottie_decoder.dart';
-import 'package:lottie_decoder/testing.dart';
-import 'package:lottie_native/lottie_native.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
+import 'package:mpx_lottie/testing.dart';
 
 /// The app bundle as the files under `assets/` on disk.
 final class _DiskBundle extends CachingAssetBundle {
@@ -77,10 +76,15 @@ void main() {
       final pipeline = AssetPipeline(
         fetcher: BundledPacks.fetcher(_DiskBundle()),
         decoders: DecoderRegistry()
-          ..register(MediaForm.vectorAnimation, playback!.decoder),
+          ..register(MediaKind.vectorAnimation, playback!.decoder),
       );
-      BundledPacks.descriptors.forEach(pipeline.know);
-      final scope = AssetCacheScope(producer: pipeline, clock: clock);
+      for (final descriptor in BundledPacks.descriptors) {
+        pipeline.know(descriptor.mediaDescriptor!);
+      }
+      final scope = ContentAssetScope.withMedia(
+        producer: pipeline,
+        clock: clock,
+      );
       final attached = scope.attach(
         sticker.key,
         const AssetSpec(pixelWidth: 128, pixelHeight: 128),

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/media_panel_pages.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 /// Warms the texture pool for the panel page that plays (ADR 043, "Pool"):

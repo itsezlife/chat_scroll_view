@@ -1,9 +1,11 @@
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_pages/src/atlas/glyph_atlas_host.dart';
 import 'package:panel_pages/src/atlas/glyph_plan.dart';
 import 'package:panel_pages/src/bake/bake_activity_port.dart';
@@ -53,7 +55,7 @@ final class EmojiPageController extends CatalogPageController {
 
   /// The scope the page registered its atlas with, so disposing the
   /// controller can take it out again. Null before the page mounts.
-  AssetCacheScope? assets;
+  ContentAssetScope? assets;
 
   @override
   void dispose() {
@@ -191,7 +193,7 @@ class EmojiPage extends StatefulWidget {
 
   /// The asset cache the grid draws through. The page sets its glyph source
   /// when it has an atlas; the host owns and disposes it.
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   /// Creates the atlas host, or null where nothing is baked.
   final GlyphAtlasHostFactory? atlasHostFactory;

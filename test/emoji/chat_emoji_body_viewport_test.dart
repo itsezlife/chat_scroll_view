@@ -1,10 +1,11 @@
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 
 import '../chat_message.dart';
 
@@ -59,7 +60,7 @@ void main() {
   late ChatScrollController controller;
   late FakeAssetProducer producer;
   late ManualPlaybackTickSource ticks;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   final interactions = <ChatSelectionInteraction>[];
   final idleTaps = <int>[];
   // The facade's monotonic clock.
@@ -82,7 +83,7 @@ void main() {
     controller = ChatScrollController();
     producer = FakeAssetProducer();
     ticks = ManualPlaybackTickSource();
-    scope = AssetCacheScope(
+    scope = ContentAssetScope.withMedia(
       producer: producer,
       clock: PlaybackClock(ticks: ticks),
     );

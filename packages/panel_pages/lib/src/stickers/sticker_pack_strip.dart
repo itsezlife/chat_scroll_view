@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
@@ -80,7 +80,7 @@ class StickerPackStrip extends StatefulWidget {
   final CatalogStripHandle handle;
 
   /// Where the covers of packs are drawn from, or null to draw none.
-  final AssetCacheScope? assets;
+  final ContentAssetScope? assets;
 
   /// Height of the strip: `createFrame(MATCH_PARENT, 36)` of `stickersTab`.
   static const double height = 36;
@@ -501,7 +501,7 @@ class _TabButton extends StatelessWidget {
   final ContentKey? cover;
   final bool selected;
   final PanelTokens tokens;
-  final AssetCacheScope? assets;
+  final ContentAssetScope? assets;
   final Duration duration;
   final VoidCallback onTap;
 

@@ -1,5 +1,5 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/src/page/catalog_page.dart';
@@ -47,7 +47,7 @@ class StickersPage extends StatefulWidget {
   final CollectionSource source;
 
   /// The asset cache the grid and the strip draw through.
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   /// The host's handle on content previews: given, a press held on a sticker
   /// previews it (`StickersPagePolicy`); null, a long press does nothing.

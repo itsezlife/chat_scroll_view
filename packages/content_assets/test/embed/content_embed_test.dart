@@ -1,0 +1,551 @@
+import 'dart:ui';
+
+import 'package:content_assets/content_assets.dart';
+import 'package:content_assets/testing.dart';
+import 'package:content_model/content_model.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/testing.dart';
+import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+
+const _sticker = ContentKey.document('42');
+final _preset = ContentAssetPresets.inlineMessage(
+  ascent: 8,
+  descent: 2,
+  devicePixelRatio: 2,
+);
+const _rect = Rect.fromLTWH(4, 6, 12, 12);
+
+List<String> _drawn(TestRecordingCanvas canvas) => [
+  for (final call in canvas.invocations)
+    if (call.invocation.memberName.toString().contains('draw'))
+      call.invocation.memberName.toString().replaceAll(
+        RegExp(r'Symbol\("|"\)'),
+        '',
+      ),
+];
+
+void main() {
+  late FakeAssetProducer producer;
+  late ManualPlaybackTickSource ticks;
+  late AssetCacheScope media;
+  late ContentAssetScope scope;
+
+  // A media cache with [placeholder] and the content scope over it.
+  void scopeWith({AssetPaintable? placeholder}) {
+    final created = media = AssetCacheScope(
+      producer: producer,
+      clock: PlaybackClock(ticks: ticks),
+      placeholder: placeholder,
+    );
+    final over = scope = ContentAssetScope(media: created);
+    addTearDown(() {
+      over.dispose();
+      created.dispose();
+    });
+  }
+
+  setUp(() {
+    producer = FakeAssetProducer();
+    ticks = ManualPlaybackTickSource();
+    scopeWith();
+  });
+
+  ContentEmbed embedOf(ContentKey key, {AssetPreset? preset}) {
+    final embed = ContentEmbed(
+      scope: scope,
+      content: key,
+      preset: preset ?? _preset,
+    );
+    addTearDown(embed.dispose);
+    return embed;
+  }
+
+  Canvas canvas() => Canvas(PictureRecorder());
+
+  ContentEmbed embedWith(AssetPaintable placeholder) {
+    final embed = ContentEmbed(
+      scope: scope,
+      content: _sticker,
+      preset: _preset,
+      placeholder: placeholder,
+    );
+    addTearDown(embed.dispose);
+    return embed;
+  }
+
+  InlineEmbedContract.run(() => embedOf(_sticker));
+
+  // ADR 043, "Paint capability": a body that pushes layers composites the
+  // embed, so a playing asset on a texture is a texture layer.
+  CompositingEmbedContract.run(() {
+    final embed = embedOf(
+      _sticker,
+      preset: AssetPresets.square(
+        extent: 40,
+        devicePixelRatio: 2,
+        profile: const AssetProfile(animate: true),
+      ),
+    );
+    return CompositingEmbedHarness(
+      embed: embed,
+      play: () => producer.last.advance(AssetStage.full, animated: true)
+        ..textureOnAdvance = const AssetTexture(id: 7, width: 80, height: 80),
+      textureId: 7,
+    );
+  });
+
+  group('attach', () {
+    test('attaches the key with the preset spec on creation', () {
+      embedOf(_sticker);
+
+      expect(media.isAttached(_sticker.mediaKey, _preset.spec), isTrue);
+      expect(
+        producer.last.request,
+        AssetRequest(_sticker.mediaKey, _preset.spec),
+      );
+    });
+
+    test('reports the preset size as its size hint', () {
+      expect(embedOf(_sticker).sizeHint, _preset.size);
+    });
+
+    test('two embeds of one content share one attempt', () {
+      embedOf(_sticker);
+      embedOf(_sticker);
+
+      expect(producer.attempts, hasLength(1));
+    });
+  });
+
+  group('paint', () {
+    test('paints the paintable of the stage reached into the rect', () {
+      final embed = embedOf(_sticker);
+      final first = producer.last.advance(AssetStage.firstFrame);
+
+      embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+      expect(first.paints.single.rect, _rect);
+    });
+
+    test('paints the scope placeholder before any stage', () {
+      final placeholder = FakeAssetPaintable(label: 'placeholder');
+      scopeWith(placeholder: placeholder);
+      final embed = embedOf(_sticker);
+
+      embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+      expect(placeholder.paints.single.rect, _rect);
+    });
+
+    test(
+      'an embed with a placeholder of its own paints that before any stage',
+      () {
+        final scopes = FakeAssetPaintable(label: 'scope');
+        final own = FakeAssetPaintable(label: 'own');
+        scopeWith(placeholder: scopes);
+        final embed = embedWith(own);
+
+        embed.paint(
+          canvas(),
+          _rect,
+          const InlineEmbedPaintContext(tint: Color(0xFF123456), opacity: 0.5),
+        );
+
+        expect(scopes.paints, isEmpty);
+        expect(own.paints.single.rect, _rect);
+        expect(own.paints.single.context.tint, const Color(0xFF123456));
+        expect(own.paints.single.context.opacity, 0.5);
+      },
+    );
+
+    test('and once a thumbnail exists, paints the thumbnail instead', () {
+      final own = FakeAssetPaintable(label: 'own');
+      final embed = embedWith(own);
+      final thumbnail = producer.last.advance(AssetStage.placeholder);
+
+      embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+      expect(own.paints, isEmpty);
+      expect(thumbnail.paints.single.rect, _rect);
+    });
+
+    // Ticket 85: a GIF sent from a panel cell is decoded again at the
+    // message's size; its first paint is the cell's picture, not a rectangle.
+    // Ticket 100: a cell that plays lends its first frame, a still.
+    for (final stage in [AssetStage.firstFrame, AssetStage.full]) {
+      test('a sent asset draws the ${stage.name} its panel cell has', () {
+        final cell = scope.attach(
+          _sticker,
+          const AssetSpec(pixelWidth: 300, pixelHeight: 200),
+          const AssetProfile(animate: true, fit: AssetFit.cover),
+        );
+        final picked = producer.last.advance(stage, animated: true);
+        final own = FakeAssetPaintable(label: 'own');
+        final embed = embedWith(own);
+        cell.detach();
+
+        embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+        expect(own.paints, isEmpty);
+        expect(picked.paints, isEmpty);
+        expect(picked.firstFrame!.paints.single.rect, _rect);
+        expect(embed.needsCompositing, isFalse);
+      });
+    }
+
+    test('passes the text colour and opacity as tint and opacity', () {
+      final embed = embedOf(_sticker);
+      final painted = producer.last.advance(AssetStage.full);
+
+      embed.paint(
+        canvas(),
+        _rect,
+        const InlineEmbedPaintContext(tint: Color(0xFF112233), opacity: 0.5),
+      );
+
+      final context = painted.paints.single.context;
+      expect(context.tint, const Color(0xFF112233));
+      expect(context.opacity, 0.5);
+    });
+
+    test('draws nothing once disposed', () {
+      final embed = embedOf(_sticker);
+      final painted = producer.last.advance(AssetStage.full);
+
+      embed.dispose();
+      embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+      expect(painted.paints, isEmpty);
+    });
+  });
+
+  group('invalidation', () {
+    test('tells a listener when a better stage arrives', () {
+      final embed = embedOf(_sticker);
+      var heard = 0;
+      embed.addListener(() => heard++);
+
+      producer.last.advance(AssetStage.placeholder);
+      producer.last.advance(AssetStage.full);
+
+      expect(heard, 2);
+    });
+
+    test('stops telling a removed listener', () {
+      final embed = embedOf(_sticker);
+      var heard = 0;
+      void listener() => heard++;
+      embed
+        ..addListener(listener)
+        ..removeListener(listener);
+
+      producer.last.advance(AssetStage.full);
+
+      expect(heard, 0);
+    });
+
+    test('is silent after dispose', () {
+      final embed = embedOf(_sticker);
+      var heard = 0;
+      embed.addListener(() => heard++);
+      final attempt = producer.last;
+
+      embed.dispose();
+      attempt.advance(AssetStage.full);
+
+      expect(heard, 0);
+    });
+  });
+
+  group('dispose', () {
+    test('detaches, so an entry with a first frame is no longer pinned', () {
+      final embed = embedOf(_sticker);
+      producer.last.advance(AssetStage.full);
+
+      embed.dispose();
+
+      expect(media.isAttached(_sticker.mediaKey, _preset.spec), isFalse);
+      expect(media.contains(_sticker.mediaKey, _preset.spec), isTrue);
+    });
+
+    test('cancels the running attempt when it was the last embed', () {
+      final embed = embedOf(_sticker);
+
+      embed.dispose();
+
+      expect(producer.last.isCancelled, isTrue);
+    });
+
+    test('leaves the attempt running while another embed shows it', () {
+      final first = embedOf(_sticker);
+      embedOf(_sticker);
+
+      first.dispose();
+
+      expect(producer.last.isCancelled, isFalse);
+    });
+
+    test('gives back the attach once, however often it is called', () {
+      final first = embedOf(_sticker);
+      final second = embedOf(_sticker);
+
+      first
+        ..dispose()
+        ..dispose();
+
+      expect(media.isAttached(_sticker.mediaKey, _preset.spec), isTrue);
+      second.dispose();
+      expect(media.isAttached(_sticker.mediaKey, _preset.spec), isFalse);
+    });
+  });
+
+  group('playback', () {
+    final animated = ContentAssetPresets.inlineMessage(
+      ascent: 8,
+      descent: 2,
+      devicePixelRatio: 2,
+    );
+
+    test('advances while visible and stops when the body hides it', () {
+      final embed = embedOf(_sticker, preset: animated);
+      producer.last.advance(AssetStage.full, animated: true);
+      var heard = 0;
+      embed.addListener(() => heard++);
+
+      ticks.tick(const Duration(milliseconds: 100));
+      expect(heard, 1);
+
+      embed.visible = false;
+      ticks.tick(const Duration(milliseconds: 200));
+      expect(heard, 1);
+      expect(embed.visible, isFalse);
+    });
+
+    test('a sticker preset that does not autoplay stays still on attach', () {
+      final held = embedOf(
+        _sticker,
+        preset: ContentAssetPresets.emojiSticker(
+          extent: 112,
+          devicePixelRatio: 2,
+          autoplay: false,
+        ),
+      );
+      producer.last.advance(AssetStage.full, animated: true);
+      var heard = 0;
+      held.addListener(() => heard++);
+
+      ticks.tick(const Duration(milliseconds: 100));
+
+      expect(heard, 0);
+    });
+
+    test('a custom emoji item plays on attach', () {
+      final item = embedOf(
+        _sticker,
+        preset: ContentAssetPresets.emojiOnly(step: 40, devicePixelRatio: 2),
+      );
+      producer.last.advance(AssetStage.full, animated: true);
+      var heard = 0;
+      item.addListener(() => heard++);
+
+      ticks.tick(const Duration(milliseconds: 100));
+
+      expect(heard, 1);
+    });
+
+    test('holds while the host holds its surface, and plays on after', () {
+      final hold = listen.ValueNotifier<bool>(true);
+      addTearDown(hold.dispose);
+      final embed = ContentEmbed(
+        scope: scope,
+        content: _sticker,
+        preset: animated,
+        held: hold,
+      );
+      addTearDown(embed.dispose);
+      final paintable = producer.last.advance(AssetStage.full, animated: true);
+      var heard = 0;
+      embed.addListener(() => heard++);
+
+      ticks.tick(const Duration(milliseconds: 100));
+      expect(heard, 0);
+      expect(embed.visible, isTrue);
+      expect(paintable.keepsFrame, isTrue);
+
+      hold.value = false;
+      ticks.tick(const Duration(milliseconds: 200));
+      expect(heard, 1);
+      expect(paintable.keepsFrame, isFalse);
+    });
+
+    test('a disposed embed stops following the hold', () {
+      final hold = _Counted();
+      addTearDown(hold.dispose);
+      ContentEmbed(
+        scope: scope,
+        content: _sticker,
+        preset: animated,
+        held: hold,
+      ).dispose();
+
+      expect(hold.listeners, 0);
+    });
+
+    test('stops while the host pauses the clock', () {
+      final embed = embedOf(_sticker, preset: animated);
+      producer.last.advance(AssetStage.full, animated: true);
+      var heard = 0;
+      embed.addListener(() => heard++);
+
+      scope.clock.setPaused(PlaybackPauseLayer.fastScroll, paused: true);
+      ticks.tick(const Duration(milliseconds: 100));
+
+      expect(heard, 0);
+    });
+  });
+
+  group('glyphs', () {
+    late FakeGlyphSpriteSource atlas;
+    const glyph = '\u{1F44D}';
+
+    setUp(() {
+      atlas = FakeGlyphSpriteSource(const [glyph, 'b', 'c', 'd']);
+      scope.glyphSource = atlas;
+      addTearDown(atlas.dispose);
+    });
+
+    test('holds the page of its glyph from creation to dispose', () {
+      final embed = embedOf(const ContentKey.unicode(glyph));
+      expect(atlas.holdCount(0), 1);
+
+      embed.dispose();
+      embed.dispose();
+
+      expect(atlas.holdCount(0), 0);
+    });
+
+    test('draws the baked sprite once its page lands', () {
+      final embed = embedOf(const ContentKey.unicode(glyph));
+      var heard = 0;
+      embed.addListener(() => heard++);
+      final before = TestRecordingCanvas();
+      embed.paint(before, _rect, const InlineEmbedPaintContext());
+
+      atlas.bakePage(0);
+      final after = TestRecordingCanvas();
+      embed.paint(after, _rect, const InlineEmbedPaintContext());
+
+      expect(heard, 1);
+      expect(_drawn(before), ['drawCircle']);
+      expect(_drawn(after), ['drawImageRect']);
+    });
+
+    test('keeps the hold of a page the atlas released while it shows', () {
+      final embed = embedOf(const ContentKey.unicode(glyph));
+      atlas.bakePage(0);
+
+      atlas.releasePage(0);
+      final recording = TestRecordingCanvas();
+      embed.paint(recording, _rect, const InlineEmbedPaintContext());
+
+      expect(atlas.holdCount(0), 1);
+      expect(_drawn(recording), ['drawCircle']);
+    });
+  });
+
+  group('playback', () {
+    final once = ContentAssetPresets.emojiSticker(
+      extent: 100,
+      devicePixelRatio: 1,
+    );
+    final frames = [
+      const Duration(milliseconds: 40),
+      const Duration(milliseconds: 60),
+    ];
+
+    PlayableEmbed play() {
+      final embed = embedOf(_sticker, preset: once) as PlayableEmbed;
+      producer.last.advance(
+        AssetStage.full,
+        tier: AssetTier.animated,
+        frames: frames,
+      );
+      return embed;
+    }
+
+    PlayableEmbedContract.run(() {
+      final embed = play();
+      return PlayableEmbedHarness(
+        embed: embed,
+        endPass: () {
+          void frame(int ms) {
+            ticks.tick(Duration(milliseconds: ms));
+            embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+          }
+
+          frame(1000);
+          frame(1040);
+          frame(1100);
+          ticks.tick(const Duration(milliseconds: 1140));
+        },
+      );
+    });
+
+    test('is a playable embed, reporting the binding\'s playback', () {
+      final embed = play();
+
+      expect(embed.playback, AssetPlayback.playing);
+    });
+
+    test('replay asks the binding, which refuses while the pass runs', () {
+      final embed = play();
+
+      expect(embed.replay(), isFalse);
+    });
+
+    test('a pass that ended is replayed through the embed', () {
+      final embed = play();
+      void frame(int ms) {
+        ticks.tick(Duration(milliseconds: ms));
+        embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+      }
+
+      frame(1000);
+      frame(1040);
+      frame(1100);
+      ticks.tick(const Duration(milliseconds: 1140));
+      expect(embed.playback, AssetPlayback.ended);
+
+      expect(embed.replay(), isTrue);
+      expect(embed.playback, AssetPlayback.playing);
+    });
+
+    test('a disposed embed neither plays nor replays', () {
+      final embed = play()..dispose();
+
+      expect(embed.playback, AssetPlayback.idle);
+      expect(embed.replay(), isFalse);
+    });
+  });
+}
+
+// Counts its listeners, so a test sees an embed let go of it.
+final class _Counted extends listen.ValueNotifier<bool> {
+  _Counted() : super(false);
+
+  int listeners = 0;
+
+  @override
+  void addListener(listen.VoidCallback listener) {
+    listeners++;
+    super.addListener(listener);
+  }
+
+  @override
+  void removeListener(listen.VoidCallback listener) {
+    listeners--;
+    super.removeListener(listener);
+  }
+}

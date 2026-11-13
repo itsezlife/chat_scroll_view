@@ -9,7 +9,7 @@
 /// 47.5 px columns under 56 px pack headers.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
@@ -46,7 +46,7 @@ Future<void> settle(WidgetTester tester) async {
 void main() {
   late FakePackSource packs;
   late FakeContentLibrary library;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late List<List<PackEditRequest>> edits;
   late List<PackSheetItem> picks;
   late List<PackSheetItem> copies;
@@ -61,7 +61,7 @@ void main() {
     library = FakeContentLibrary(
       limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
     );
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     edits = [];
     picks = [];
     copies = [];
@@ -323,7 +323,7 @@ void main() {
     // The emoji tapped in a message, drawn 140 large 20 above the card.
     Finder preview() => find.byWidgetPredicate(
       (widget) =>
-          widget is ContentView &&
+          widget is ContentAssetView &&
           widget.content == const ContentKey.document('a-3'),
     );
 
@@ -377,7 +377,7 @@ void main() {
     // The previewed emoji, drawn in the foreground (from frame 0).
     Finder previewOf(String id) => find.byWidgetPredicate(
       (widget) =>
-          widget is ContentView &&
+          widget is ContentAssetView &&
           widget.content == ContentKey.document(id) &&
           widget.preset.profile.foreground,
     );

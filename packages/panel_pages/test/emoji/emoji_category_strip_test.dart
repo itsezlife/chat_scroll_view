@@ -10,14 +10,15 @@ library;
 import 'dart:async';
 import 'dart:ui' show Tristate;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -90,7 +91,7 @@ void main() {
     bool disableAnimations = false,
     EmojiStripLayout layout = EmojiStripLayout.automatic,
     Brightness brightness = Brightness.light,
-    AssetCacheScope? assets,
+    ContentAssetScope? assets,
   }) => tester.pumpWidget(
     PanelShellTestScope(
       speed: speed,
@@ -542,7 +543,7 @@ void main() {
       ]) {
         testWidgets('a cover with no stage yet is the themed stand-in, '
             '${arrangement.name}, ${brightness.name}', (tester) async {
-          final scope = AssetCacheScope(
+          final scope = ContentAssetScope.withMedia(
             producer: FakeAssetProducer(),
             clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
           );
@@ -567,7 +568,7 @@ void main() {
             assets: scope,
           );
 
-          final cover = tester.renderObject(find.byType(ContentView));
+          final cover = tester.renderObject(find.byType(ContentAssetView));
           expect(cover, paints..rrect(color: standIn));
           expect(
             cover,

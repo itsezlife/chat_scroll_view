@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the asset cache moved to mpx)
+
+- `PanelCatalogViewport.assets` is a `ContentAssetScope` (`content_assets`),
+  over `mpx_core`'s cache; a bound leaf carries its `ContentKey`
+  (`CatalogBoundLeaf.key`), since its binding's key is now a `MediaKey`.
+
 ### Changed (the chat's scroll physics)
 
 - `PanelCatalogViewport.physics` takes a `ViewportScrollPhysics` (from

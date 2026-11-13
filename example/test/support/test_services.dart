@@ -1,4 +1,3 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
@@ -8,6 +7,7 @@ import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:mpx_core/mpx_core.dart';
 
 /// The app's services over in-memory storage and the bundled emoji catalogue,
 /// for host-integration tests.

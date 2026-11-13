@@ -21,7 +21,8 @@ facts (counts, budgets, hold balance), never a time.
 | -------- | --------- | -------- |
 | `panel_catalog.semantics-off` | `packages/panel_catalog/test/benchmark/vs_supersliver_bench_test.dart` | Viewport against a sectioned `SliverGrid` and a `SuperSliverList`: forced relayout, scroll-only paint, fling frames, near and far section jumps, mixed layouts against uniform, object counts. Semantics off. |
 | `panel_catalog.semantics-on` | same file, `BENCH_SEMANTICS=on` | The same probes with a screen reader's semantics tree built. |
-| `catalog_assets` | `packages/catalog_assets/test/benchmark/asset_cache_ratio_bench_test.dart` | Attach and detach churn with and without eviction, LRU hit rates at the default budgets, one clock tick fanned out to 10, 100 and 1000 animated bindings, glyph bindings holding pages of a real `GlyphPageResidency`, memory pressure with pinned pages. |
+
+The asset cache's ratio benchmark moved to `mpx_core` with the cache.
 
 ### The semantics preset
 
@@ -66,7 +67,7 @@ judged. Counts and rates are deterministic, so their tolerances are tight.
 
 ```shell
 scripts/bench                    # 3 runs per suite, compare, write build/bench/
-scripts/bench --runs 5 --only catalog_assets
+scripts/bench --runs 5 --only panel_catalog.semantics-off
 scripts/bench --compare-only     # re-judge the runs already in build/bench/runs
 ```
 
@@ -122,5 +123,5 @@ proves the whole issue path on any runner, with or without a baseline, using
 the label `benchmark-drill`, and closes the issue straight away. Locally:
 
 ```shell
-scripts/bench --runs 1 --only catalog_assets --inject-regression 2   # exit 1
+scripts/bench --runs 1 --only panel_catalog.semantics-off --inject-regression 2   # exit 1
 ```

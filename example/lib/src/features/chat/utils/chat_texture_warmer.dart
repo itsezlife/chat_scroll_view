@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 /// Warms the texture pool for the chat's stickers and GIFs (ADR 043, "Pool"),
 /// once, when the chat screen opens: the chat's counterpart of

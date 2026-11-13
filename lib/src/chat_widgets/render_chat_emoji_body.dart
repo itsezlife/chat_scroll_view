@@ -1,11 +1,10 @@
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart'
-    show CompositingEmbed, InlineEmbed, InlineEmbedPaintContext;
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_geometry.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_text.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_text_layout.dart';
 import 'package:chat_scroll_view/src/util/trace_section.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_md/flutter_md.dart'
     show

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
@@ -139,8 +139,8 @@ class CatalogPage extends StatefulWidget {
   /// The host's asset cache scope the viewport draws through.
   ///
   /// How unicode glyphs are drawn (baked sprites or text) is decided by how
-  /// the scope is built; see [PageAssets].
-  final AssetCacheScope assets;
+  /// the scope is built; see `ContentAssetScope`.
+  final ContentAssetScope assets;
 
   /// Where the bake hears of the catalogue's motion and visible band, or null
   /// where nothing is baked. May be replaced while the page lives (an atlas

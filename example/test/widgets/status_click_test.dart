@@ -14,8 +14,6 @@
 /// viewport's own seam can.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
@@ -24,10 +22,12 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_meta_pill.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/testing.dart';
 
 class _Source extends ChatDataSource {
   _Source(List<IChatMessage> messages) {
@@ -85,12 +85,12 @@ class _Rig {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late ValueNotifier<LargeEmojiPolicy> policy;
   late ChatBodyHost host;
 
   setUp(() {
-    scope = AssetCacheScope(producer: FakeAssetProducer());
+    scope = ContentAssetScope.withMedia(producer: FakeAssetProducer());
     policy = ValueNotifier(const LargeEmojiPolicy(enabled: true));
     host = ChatBodyHost(assets: scope, policy: policy);
   });

@@ -6,7 +6,7 @@
 /// steers (the sections, the catalogue's events, the answer to a jump), under
 /// the chrome scopes, observed through the semantics of its tabs, the jumps
 /// the handle received and the strip's scroll offset; the covers draw through
-/// an `AssetCacheScope` over a `FakeAssetProducer` and a manually ticked
+/// an `ContentAssetScope` over a `FakeAssetProducer` and a manually ticked
 /// clock, observed through the paints of the fake paintables.
 library;
 
@@ -14,14 +14,15 @@ import 'dart:async';
 import 'dart:math' show max;
 import 'dart:ui' show Tristate;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart' show FrameAtlas;
-import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/frame_pool.dart' show FrameAtlas;
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/src/emoji/emoji_strip_footer.dart';
@@ -109,7 +110,7 @@ void main() {
     double width = 360,
     ChromeMotionSpeed speed = ChromeMotionSpeed.normal,
     TextDirection textDirection = TextDirection.ltr,
-    AssetCacheScope? assets,
+    ContentAssetScope? assets,
     double devicePixelRatio = 1,
     Brightness brightness = Brightness.light,
     PanelArrangement arrangement = PanelArrangement.touch,
@@ -506,12 +507,12 @@ void main() {
     const dogs = ContentKey.document('dogs');
     late FakeAssetProducer producer;
     late ManualPlaybackTickSource ticks;
-    late AssetCacheScope scope;
+    late ContentAssetScope scope;
 
     setUp(() {
       producer = FakeAssetProducer();
       ticks = ManualPlaybackTickSource();
-      scope = AssetCacheScope(
+      scope = ContentAssetScope.withMedia(
         producer: producer,
         clock: PlaybackClock(ticks: ticks),
       );
@@ -523,8 +524,9 @@ void main() {
       ]);
     });
 
-    FakeAssetAttempt attemptOf(ContentKey key) =>
-        producer.attempts.lastWhere((attempt) => attempt.request.key == key);
+    FakeAssetAttempt attemptOf(ContentKey key) => producer.attempts.lastWhere(
+      (attempt) => attempt.request.key == key.mediaKey,
+    );
 
     Future<void> tick(WidgetTester tester, int ms) async {
       ticks.tick(Duration(milliseconds: ms));
@@ -545,7 +547,7 @@ void main() {
           '${brightness.name}', (tester) async {
         await pump(tester, assets: scope, brightness: brightness);
 
-        final cover = tester.renderObject(find.byType(ContentView).first);
+        final cover = tester.renderObject(find.byType(ContentAssetView).first);
         expect(cover, paints..rrect(color: standIn));
         expect(
           cover,
@@ -559,13 +561,15 @@ void main() {
       handle.entries.value = _entries([_packOf('a', cats), _packOf('b', dogs)]);
       await pump(tester, assets: scope);
       final catsAttempts = producer.attempts
-          .where((attempt) => attempt.request.key == cats)
+          .where((attempt) => attempt.request.key == cats.mediaKey)
           .length;
       final dogsAttempts = producer.attempts
-          .where((attempt) => attempt.request.key == dogs)
+          .where((attempt) => attempt.request.key == dogs.mediaKey)
           .length;
       final catsView = tester.state(
-        find.byWidgetPredicate((w) => w is ContentView && w.content == cats),
+        find.byWidgetPredicate(
+          (w) => w is ContentView && w.content == cats.mediaKey,
+        ),
       );
 
       handle.entries.value = _entries([
@@ -576,16 +580,22 @@ void main() {
       await tester.pump();
 
       expect(
-        producer.attempts.where((attempt) => attempt.request.key == cats),
+        producer.attempts.where(
+          (attempt) => attempt.request.key == cats.mediaKey,
+        ),
         hasLength(catsAttempts),
       );
       expect(
-        producer.attempts.where((attempt) => attempt.request.key == dogs),
+        producer.attempts.where(
+          (attempt) => attempt.request.key == dogs.mediaKey,
+        ),
         hasLength(dogsAttempts),
       );
       expect(
         tester.state(
-          find.byWidgetPredicate((w) => w is ContentView && w.content == cats),
+          find.byWidgetPredicate(
+            (w) => w is ContentView && w.content == cats.mediaKey,
+          ),
         ),
         same(catsView),
         reason: 'the cover moved with its tab, not re-created',
@@ -647,12 +657,12 @@ void main() {
       await pump(tester, assets: scope);
       attemptOf(cats).advance(AssetStage.full, frames: _frames);
       await tester.pump();
-      final view = tester.widget(find.byType(ContentView).first);
+      final view = tester.widget(find.byType(ContentAssetView).first);
 
       await tick(tester, 100);
       await tick(tester, 200);
 
-      expect(tester.widget(find.byType(ContentView).first), same(view));
+      expect(tester.widget(find.byType(ContentAssetView).first), same(view));
     });
 
     testWidgets('stops while the clock is paused and goes on after', (

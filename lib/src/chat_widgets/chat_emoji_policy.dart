@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui' show Size, TextDirection;
 
-import 'package:catalog_assets/catalog_assets.dart' show AssetPresets;
 import 'package:chat_scroll_view/src/chat_widgets/chat_emoji_sizes.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart'
     show ContentKey$Document, EmojiOnly;
 import 'package:flutter/foundation.dart';
@@ -137,7 +137,7 @@ sealed class ChatEmojiPolicy {
   /// The side of one item's square in the text layout: the font size plus
   /// what the asset presets add to it.
   double itemBoxFor(EmojiOnly emojiOnly) =>
-      fontSizeFor(emojiOnly) + AssetPresets.emojiOnlyBoxPadding;
+      fontSizeFor(emojiOnly) + ContentAssetPresets.emojiOnlyBoxPadding;
 
   /// The gap between two items of one line in the text layout.
   double itemSkipFor(EmojiOnly emojiOnly) => 0;
@@ -345,7 +345,7 @@ final class ChatEmojiPolicy$Desktop extends ChatEmojiPolicy {
 
   @override
   double fontSizeFor(EmojiOnly emojiOnly) =>
-      itemBoxFor(emojiOnly) - AssetPresets.emojiOnlyBoxPadding;
+      itemBoxFor(emojiOnly) - ContentAssetPresets.emojiOnlyBoxPadding;
 
   @override
   double itemBoxFor(EmojiOnly emojiOnly) {

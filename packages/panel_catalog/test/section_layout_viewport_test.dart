@@ -11,7 +11,7 @@
 /// 80 cells and a 40 header of 3 rows is 280 tall.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,7 +55,7 @@ List<CatalogSection> _alternating(int pairs) => [
 
 Widget _app({
   required FakeCatalogSnapshotSource snapshots,
-  required AssetCacheScope assets,
+  required ContentAssetScope assets,
   required PanelCatalogController controller,
   ValueChanged<CatalogLeafHit>? onLeafTap,
   void Function(CatalogLeafHit, LongPressStartDetails)? onLongPressStart,
@@ -90,7 +90,7 @@ RenderPanelCatalog _render(WidgetTester tester) =>
 
 void main() {
   late FakeCatalogSnapshotSource snapshots;
-  late AssetCacheScope assetScope;
+  late ContentAssetScope assetScope;
   late PanelCatalogController controller;
   late List<PanelCatalogScrollEvent> events;
 

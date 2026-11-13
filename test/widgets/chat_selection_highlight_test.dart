@@ -19,8 +19,8 @@
 /// Ahem draws every glyph as a square, which is all the geometry needs.
 library;
 
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:content_assets/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart'
     show MarkdownThemeData, markdownBlockRenderedText;

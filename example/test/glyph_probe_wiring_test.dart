@@ -13,14 +13,14 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/glyph_atlas.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_probe.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
+import 'package:glyph_atlas/testing.dart';
 
 const _glyphs = ['😀', '😁', '🫩'];
 const _newGlyph = '🫨';

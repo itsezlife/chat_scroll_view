@@ -1,13 +1,15 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'package:catalog_assets/catalog_assets.dart';
+
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_pages/src/menu/catalog_menu_icons.dart';
 import 'package:panel_pages/src/overlay/chrome_overlay_scopes.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
@@ -138,7 +140,7 @@ final class ContentPreviewController {
 ///
 /// While it is open everything else [assets] draws holds its frame (the
 /// panel, the chat, a sheet under it): the session takes a background hold
-/// of the scope ([AssetCacheScope.holdBackground]) as it opens and gives it
+/// of the scope ([ContentAssetScope.holdBackground]) as it opens and gives it
 /// back as it starts to close, and they go on from their frames. The clock
 /// keeps running for the preview, which is drawn in the foreground
 /// (`AssetProfile.foreground`): each item it shows plays its own pass from
@@ -184,7 +186,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   static ContentPreviewSession show({
     required BuildContext context,
     required ContentPreviewItem item,
-    required AssetCacheScope assets,
+    required ContentAssetScope assets,
     required ContentPreviewActions actions,
     ContentLibrary? library,
     ContentPreviewItem? Function(Offset globalPosition)? itemAt,
@@ -332,7 +334,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   }
 
   /// The draws the content is resized from: the cache's.
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   /// What the menu offers.
   final ContentPreviewActions actions;
@@ -778,13 +780,13 @@ class _PreviewContent extends StatelessWidget {
 
   final ContentPreviewItem item;
   final Size size;
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   @override
   Widget build(BuildContext context) {
     final density = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
     final gif = item.kind == ContentPreviewKind.gif;
-    return ContentView(
+    return ContentAssetView(
       content: item.key,
       scope: assets,
       semanticLabel: item.spokenName,

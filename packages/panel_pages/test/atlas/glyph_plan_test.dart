@@ -4,9 +4,9 @@
 /// `glyphs` and through the cache key's catalogue hash.
 library;
 
-import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:panel_pages/panel_pages.dart';
 
 CollectionItem _item(String glyph) =>

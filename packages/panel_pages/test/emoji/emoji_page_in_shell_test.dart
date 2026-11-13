@@ -6,13 +6,13 @@
 /// host of the shell would receive and the frames the bake asks for.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -24,7 +24,7 @@ void main() {
   late FakePreferenceStore preferences;
   late FakeCollectionSource source;
   late FakeSearchSource search;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late FakeBakeFrameSource frames;
   late PanelShellController shell;
   late List<PanelEvent> events;
@@ -39,7 +39,7 @@ void main() {
         [fixtures.item('🐱')],
       ]),
     });
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     frames = FakeBakeFrameSource();
     events = [];
     shell = PanelShellController(

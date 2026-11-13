@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Media on mpx
+- **CHANGED** (breaking): the embed adapter and the emoji bodies draw through
+  `content_assets`' `ContentAssetScope` over `mpx_core`'s asset cache (from
+  github.com/itsezlife/mpx); `catalog_assets` and the decoder packages are
+  gone from this repository.
+
 ### Scroll physics
 - **CHANGED** (breaking): the scroll physics live in the `viewport_scroll`
   package and lose the chat prefix: `ChatScrollPhysics` is

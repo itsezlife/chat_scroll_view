@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 /// The mechanism a page's strip of tabs is built from: the emoji strip and
 /// the stickers strip are one strip in one look, with two sets of metrics.
@@ -411,7 +412,7 @@ class PanelStripCover extends StatelessWidget {
   final ContentKey content;
 
   /// Where it is drawn from.
-  final AssetCacheScope scope;
+  final ContentAssetScope scope;
 
   /// Side of the cover.
   final double size;
@@ -434,11 +435,11 @@ class PanelStripCover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-    Widget cover({bool inView = true}) => ContentView(
+    Widget cover({bool inView = true}) => ContentAssetView(
       content: content,
       scope: scope,
       preset: plays
-          ? AssetPresets.keyboardCell(
+          ? ContentAssetPresets.keyboardCell(
               extent: size,
               devicePixelRatio: devicePixelRatio,
             )

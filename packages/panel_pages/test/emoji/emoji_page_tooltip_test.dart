@@ -7,8 +7,8 @@
 /// for the contrast) and observed through the text on screen and where it is.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
@@ -39,7 +39,7 @@ void main() {
   late FakePreferenceStore preferences;
   late FakeCollectionSource source;
   late FakeSearchSource search;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late PanelShellController shell;
 
   setUp(() {
@@ -63,7 +63,7 @@ void main() {
       ),
     ]);
     search = FakeSearchSource({});
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
   });
 
   tearDown(() {

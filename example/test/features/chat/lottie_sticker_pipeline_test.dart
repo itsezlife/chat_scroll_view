@@ -7,16 +7,16 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
-import 'package:content_model/content_model.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lottie_decoder/lottie_decoder.dart';
-import 'package:lottie_native/lottie_native.dart';
+import 'package:glyph_atlas/testing.dart';
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
 
 /// The app bundle as the files under `assets/` on disk.
 final class _DiskBundle extends CachingAssetBundle {
@@ -57,7 +57,7 @@ void main() {
     late ManualRetentionTimers timers;
     late LottieFrameScheduler scheduler;
     late AssetPipeline pipeline;
-    late AssetCacheScope scope;
+    late ContentAssetScope scope;
     var time = Duration.zero;
 
     setUp(() async {
@@ -78,12 +78,14 @@ void main() {
         fetcher: BundledPacks.fetcher(_DiskBundle()),
         decoders: DecoderRegistry()
           ..register(
-            MediaForm.vectorAnimation,
+            MediaKind.vectorAnimation,
             LottieDecoder(engine: engine, scheduler: scheduler),
           ),
       );
-      BundledPacks.descriptors.forEach(pipeline.know);
-      scope = AssetCacheScope(producer: pipeline, clock: clock);
+      for (final descriptor in BundledPacks.descriptors) {
+        pipeline.know(descriptor.mediaDescriptor!);
+      }
+      scope = ContentAssetScope.withMedia(producer: pipeline, clock: clock);
       time = Duration.zero;
     });
     tearDown(() async {

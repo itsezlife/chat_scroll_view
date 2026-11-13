@@ -18,14 +18,14 @@ dependencies:
   keyboard_insets:
     path: packages/keyboard_insets
   l: ^5.0.1
-  catalog_assets:
-    path: ../packages/catalog_assets
   chat_composer:
     path: ../packages/chat_composer
   chat_wallpaper:
     path: ../packages/chat_wallpaper
   chrome_foundation:
     path: ../packages/chrome_foundation
+  content_assets:
+    path: ../packages/content_assets
   content_model:
     path: ../packages/content_model
   # Not imported: depending on it is what bundles the catalog assets that
@@ -34,19 +34,38 @@ dependencies:
     path: ../packages/emoji_catalog_pack
   emoji_data:
     path: ../packages/emoji_data
-  # The platform texture host (ADR 043), used only behind FRAME_TEXTURES.
-  frame_texture:
-    path: ../packages/frame_texture
-  image_decoder:
-    path: ../packages/image_decoder
+  glyph_atlas:
+    path: ../packages/glyph_atlas
   kv_shared_preferences:
     path: ../packages/kv_shared_preferences
-  # Depending on lottie_native is what runs its native build hook for the app;
-  # lottie_decoder is the Decoder over it.
-  lottie_decoder:
-    path: ../packages/lottie_decoder
-  lottie_native:
-    path: ../packages/lottie_native
+  # mpx, from git at one pinned commit (see the root pubspec): the media core,
+  # the bytes cache and its fetch adapter, and the two decoders whose build
+  # hooks build their native libraries for the app.
+  http_bytes_cache:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/http_bytes_cache
+      ref: 340b87f7e1f81dc7e9fec9c3868ed0075e432e7b
+  mpx:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx
+      ref: 340b87f7e1f81dc7e9fec9c3868ed0075e432e7b
+  mpx_core:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_core
+      ref: 340b87f7e1f81dc7e9fec9c3868ed0075e432e7b
+  mpx_lottie:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_lottie
+      ref: 340b87f7e1f81dc7e9fec9c3868ed0075e432e7b
+  mpx_video_decoder:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_video_decoder
+      ref: 340b87f7e1f81dc7e9fec9c3868ed0075e432e7b
   panel_pages:
     path: ../packages/panel_pages
   panel_presentation:
@@ -55,12 +74,6 @@ dependencies:
     path: ../packages/panel_shell
   rich_clipboard:
     path: ../packages/rich_clipboard
-  # Depending on video_native is what runs its native build hook for the app
-  # (macOS arm64); video_decoder is the Decoder over it.
-  video_decoder:
-    path: ../packages/video_decoder
-  video_native:
-    path: ../packages/video_native
   viewport_scroll:
     path: ../packages/viewport_scroll
   flutter_md:

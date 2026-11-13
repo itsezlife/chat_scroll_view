@@ -6,12 +6,12 @@
 /// next composer holds after it pastes.
 library;
 
-import 'package:catalog_assets/testing.dart' show FakeInlineEmbedResolver;
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
+import 'package:content_assets/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/markdown.dart';
 import 'package:content_model/testing.dart';

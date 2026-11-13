@@ -1,6 +1,6 @@
-import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_shell/panel_shell.dart';
 

@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:developer' show Timeline;
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
 import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 
 /// Where the leases of one frame scheduler play now, as the schedulers'
@@ -110,7 +110,7 @@ abstract final class LabMediaTrace {
   }
 
   /// [decoder] with each decode start marked and counted.
-  static Decoder traceDecodes(Decoder decoder, MediaForm form) =>
+  static Decoder traceDecodes(Decoder decoder, MediaKind form) =>
       _LabDecoder(decoder, form);
 
   /// Follows the panel's visibility: a `LABpanel` mark at each change, a pool
@@ -210,7 +210,7 @@ final class _LabDecoder implements Decoder {
   _LabDecoder(this._decoder, this._form);
 
   final Decoder _decoder;
-  final MediaForm _form;
+  final MediaKind _form;
 
   @override
   AssetTask decode(DecodeRequest request, AssetProgress progress) {

@@ -1,4 +1,3 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundle_fetcher.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
@@ -8,6 +7,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_p
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/services.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 /// What the host knows of a piece of content from its key: the bundled packs
 /// answer for theirs, and a host with content from elsewhere (a feed, a local

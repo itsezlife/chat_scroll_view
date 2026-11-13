@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/lottie_playback.dart'
     as environment_specific;
 import 'package:flutter/foundation.dart';
 import 'package:l/l.dart';
-import 'package:lottie_decoder/lottie_decoder.dart';
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
 
 /// The Lottie decoder of a host that can run one, and how to stop what it
 /// needs.

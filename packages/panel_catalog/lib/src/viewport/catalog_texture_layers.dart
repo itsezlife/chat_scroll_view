@@ -1,5 +1,5 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter/rendering.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 /// One leaf's texture as a paint pass placed it.
 typedef _TextureCell = ({int id, Rect rect, Rect? clip, double opacity});

@@ -3,17 +3,17 @@
 /// nothing, its leaves when it loaded.
 ///
 /// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource]
-/// and a real [AssetCacheScope] over a [FakeAssetProducer]. What is observed is
+/// and a real [ContentAssetScope] over a [FakeAssetProducer]. What is observed is
 /// what the viewport asks its canvas to draw (a recording canvas passed to
 /// `paint`), the requests the producer receives, the extent the controller
 /// reports and the shell callbacks, never render-object fields.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
@@ -36,13 +36,13 @@ void main() {
   late FakeCatalogSnapshotSource snapshots;
   late PanelCatalogController controller;
   late FakeAssetProducer producer;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
 
   setUp(() {
     snapshots = FakeCatalogSnapshotSource();
     controller = PanelCatalogController();
     producer = FakeAssetProducer();
-    scope = AssetCacheScope(producer: producer);
+    scope = ContentAssetScope.withMedia(producer: producer);
   });
   tearDown(() {
     snapshots.dispose();

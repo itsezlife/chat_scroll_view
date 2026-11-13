@@ -2,7 +2,7 @@
 
 What a piece of catalog content is, where lists of it come from, and how it
 becomes something paintable. Covers the pure-Dart `content_model` leaf, the
-asset cache in `catalog_assets`, and the emoji data layer. Does not cover
+asset cache (mpx's `mpx_core`, reached through `content_assets` and `glyph_atlas`), and the emoji data layer. Does not cover
 panel chrome or the catalog viewport.
 
 Decisions: [ADR 021](../adr/021-content-identity-and-collections.md),
@@ -161,7 +161,7 @@ A shared page of animation frames in the asset cache. An animated asset owns a *
 _Avoid_: A `ui.Image` per animated asset, mixing frame slots into glyph pages
 
 **Renderer seam**:
-The engine-agnostic seam in `catalog_assets`: given slots, frame times and sizes, write premultiplied pixels into page memory. A native decoder adapter implements it; the pool, slot allocator and residency stay in the core, which holds no native code.
+The engine-agnostic seam in `mpx_core`: given slots, frame times and sizes, write premultiplied pixels into page memory. A native decoder adapter implements it; the pool, slot allocator and residency stay in the core, which holds no native code.
 _Avoid_: The pool calling an engine, a decoder owning pages
 
 **Frame cache**:
@@ -173,7 +173,7 @@ The leaf package that owns the native library, its build hook, its `dart:ffi` or
 _Avoid_: FFI calls in an adapter or the core, retrying a library that failed to load
 
 **Content embed**:
-The `catalog_assets` adapter implementing an inline embed over an asset binding with the `messages` preset.
+The `content_assets` adapter implementing an inline embed over an asset binding with the `messages` preset.
 _Avoid_: `WidgetSpan` or `ImageProvider` embeds
 
 ### Library and packs

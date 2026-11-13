@@ -1,11 +1,12 @@
 import 'package:bulletins/bulletins.dart';
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/common/utils/russian_plural.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 /// The words of the chat's own bulletins (ADR 045: a bulletin's message is
 /// the host's). A pack's texts are the chrome's `PackSheetStrings`, and the
@@ -292,7 +293,7 @@ abstract final class ChatBulletins {
     BulletinView view,
   ) => switch (source) {
     final ContentKey key => LayoutBuilder(
-      builder: (context, constraints) => ContentView(
+      builder: (context, constraints) => ContentAssetView(
         content: key,
         preset: AssetPresets.square(
           extent: constraints.biggest.shortestSide,

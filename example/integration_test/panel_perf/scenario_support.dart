@@ -2,11 +2,11 @@
 /// suite flings, records and judges the same way.
 library;
 
-import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';

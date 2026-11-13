@@ -1,4 +1,4 @@
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet.dart';
@@ -65,7 +65,7 @@ class EmojiPackSheet extends StatelessWidget {
   final ContentLibrary library;
 
   /// What the grid draws through.
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   /// Asked to add or remove packs.
   final PackEditsRequested onEditsRequested;

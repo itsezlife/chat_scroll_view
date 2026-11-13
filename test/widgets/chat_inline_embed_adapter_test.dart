@@ -1,8 +1,8 @@
 import 'dart:ui';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_inline_embed_adapter.dart';
+import 'package:content_assets/content_assets.dart';
+import 'package:content_assets/testing.dart';
 import 'package:flutter_md/flutter_md.dart';
 import 'package:flutter_test/flutter_test.dart';
 

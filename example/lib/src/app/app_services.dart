@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
 import 'package:chat_scroll_view_example/src/app/scrolling_surfaces.dart';
@@ -14,7 +12,6 @@ import 'package:chat_scroll_view_example/src/common/lab_net.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
-import 'package:chat_scroll_view_example/src/features/chat/data/byte_cache.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_center_band_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
@@ -31,17 +28,19 @@ import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_p
 import 'package:chat_scroll_view_example/src/features/chat/data/shipped_packs_seed.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:frame_texture/frame_texture.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_decoder/image_decoder.dart';
+import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:kv_shared_preferences/kv_shared_preferences.dart';
 import 'package:l/l.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:rich_clipboard/rich_clipboard.dart';
@@ -146,7 +145,11 @@ final class AppServices {
     required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
     required MediaDiskCache? mediaCache,
+    required IBytesStore bytes,
+    required HttpBytesClient? bytesClient,
   }) : _mediaCache = mediaCache,
+       _bytes = bytes,
+       _bytesClient = bytesClient,
        _pageParts = pageParts,
        _clock = clock,
        _lottiePlayback = lottiePlayback,
@@ -213,16 +216,19 @@ final class AppServices {
   /// null looks for one in the app bundle and in the `CHAT_CORPUS_DIR`
   /// directory.
   ///
-  /// [mediaCache] is where animated media is kept between launches: Giphy's
-  /// stills and clips in its `giphy` folder, the rendered Lottie frames in
-  /// its `lottie_frames` folder (null: in memory only, as in a test). Its
-  /// keep period and size limit are the host's, set where it is made; the
-  /// services start its sweeps and stop them on [dispose].
+  /// [mediaCache] is where the rendered Lottie frames are kept between
+  /// launches, in its `lottie_frames` folder (null: in memory only, as in a
+  /// test). Its keep period and size limit are the host's, set where it is
+  /// made; the services start its sweeps and stop them on [dispose].
+  ///
+  /// [bytesCacheDirectory] is the folder of the bytes store that keeps
+  /// Giphy's stills and clips (null: in memory only). It is the store's
+  /// alone: a sweep of [mediaCache] never reaches it.
   ///
   /// [diskCache] is the one switch over every disk tier (see
-  /// [DemoConfig.diskCache]): false ignores [glyphCache] and [mediaCache],
-  /// which is then neither used nor swept, and everything is kept in memory
-  /// for this launch only.
+  /// [DemoConfig.diskCache]): false ignores [glyphCache], [mediaCache] and
+  /// [bytesCacheDirectory], which are then neither used nor swept, and
+  /// everything is kept in memory for this launch only.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -235,6 +241,7 @@ final class AppServices {
     String giphyApiKey = giphyApiKeyDefine,
     http.Client? giphyHttpClient,
     Future<MediaDiskCache?>? mediaCache,
+    Future<String?>? bytesCacheDirectory,
     CorpusStickerPack? corpus,
     bool diskCache = DemoConfig.diskCache,
   }) async {
@@ -261,6 +268,19 @@ final class AppServices {
         final media? => owned(media..start(), (media) => media.dispose()),
         null => null,
       };
+      // The bytes store of fetched media (http_bytes_cache): Giphy's stills
+      // and clips, kept by last use under its own quotas. In memory without
+      // a directory (a test, the web, or the disk switched off).
+      // Not awaited without one: the boot's steps keep their order.
+      final bytesDirectory = diskCache && bytesCacheDirectory != null
+          ? await bytesCacheDirectory
+          : null;
+      final bytes = owned<IBytesStore>(
+        bytesDirectory == null
+            ? MemoryBytesCache()
+            : await BytesCache.open(directory: bytesDirectory),
+        (store) => unawaited(store.close()),
+      );
 
       // 1. The adapter.
       final storage =
@@ -366,22 +386,22 @@ final class AppServices {
       // The emoji pack is animated WebP and the static stickers are PNG: both
       // are the engine's image codecs' work, whether or not Lottie runs here.
       final decoders = DecoderRegistry()
-        ..register(MediaForm.still, const ImageCodecDecoder())
-        ..register(MediaForm.animatedImage, const ImageCodecDecoder());
+        ..register(MediaKind.still, const ImageCodecDecoder())
+        ..register(MediaKind.animatedImage, const ImageCodecDecoder());
       // The lab marks each decode start with whose content it is.
-      Decoder traced(Decoder decoder, MediaForm form) => DemoConfig.scrollLab
-          ? LabMediaTrace.traceDecodes(decoder, form)
+      Decoder traced(Decoder decoder, MediaKind kind) => DemoConfig.scrollLab
+          ? LabMediaTrace.traceDecodes(decoder, kind)
           : decoder;
       if (lottiePlayback != null) {
         decoders.register(
-          MediaForm.vectorAnimation,
-          traced(lottiePlayback.decoder, MediaForm.vectorAnimation),
+          MediaKind.vectorAnimation,
+          traced(lottiePlayback.decoder, MediaKind.vectorAnimation),
         );
       }
       if (videoPlayback != null) {
         decoders.register(
-          MediaForm.video,
-          traced(videoPlayback.decoder, MediaForm.video),
+          MediaKind.video,
+          traced(videoPlayback.decoder, MediaKind.video),
         );
       }
       // Content that is not bundled: the local corpus, found in the bundle
@@ -393,6 +413,7 @@ final class AppServices {
             directory: CorpusStickerPack.directoryDefine,
           );
       GiphyContent? giphy;
+      HttpBytesClient? bytesClient;
       if (giphyApiKey.isEmpty) {
         l.i(
           'Giphy GIFs are off: no GIPHY_API_KEY was given '
@@ -408,19 +429,18 @@ final class AppServices {
         // this one client.
         final labNet = DemoConfig.scrollLab ? LabNet.instance : null;
         final transport = labNet == null ? live : LabNetClient(live, labNet);
-        // The disk tier of the stills and the clips is the fetcher's (ADR
-        // 022): one folder of the media store for both, their names apart by
-        // kind. It sits under the transport, not over it: a file found on
-        // disk is no request, so the lab's tape neither records nor replays
-        // it (lab builds turn it off, see DemoConfig.diskCache).
-        final disk = switch (media) {
-          final media? => ByteCache.directory(media.folder(giphyFolder)),
-          null => null,
-        };
+        // Stills and clips are fetched through mpx's fetch adapter over the
+        // bytes store, whose HTTP client sends through the same transport.
+        // The store sits under the transport, not over it: a file it holds
+        // is no request, so the lab's tape neither records nor replays it
+        // (lab builds turn the disk off, see DemoConfig.diskCache).
         giphy = GiphyContent(
           GiphyClient(apiKey: giphyApiKey, client: transport),
-          stillDisk: disk,
-          clipDisk: disk,
+          store: bytes,
+          http: bytesClient = owned<HttpBytesClient>(
+            HttpBytesClient(client: transport),
+            (client) => unawaited(client.close()),
+          ),
         );
       }
       final pipeline = owned(
@@ -429,12 +449,21 @@ final class AppServices {
           // keys and hands the rest on.
           fetcher: _contentFetcher(giphy, corpusPacks, rootBundle),
           decoders: decoders,
-          resolver: giphy?.resolver(otherwise: BundledPacks.resolver()),
+          resolver: switch (giphy) {
+            final giphy? => ContentMediaResolver(
+              giphy.resolver(otherwise: BundledPacks.resolver()),
+            ),
+            null => null,
+          },
         ),
         (pipeline) => pipeline.dispose(),
       );
-      BundledPacks.descriptors.forEach(pipeline.know);
-      corpusPacks.descriptors.forEach(pipeline.know);
+      void know(ContentDescriptor descriptor) {
+        if (descriptor.mediaDescriptor case final media?) pipeline.know(media);
+      }
+
+      BundledPacks.descriptors.forEach(know);
+      corpusPacks.descriptors.forEach(know);
       // What a key is, for the recents: the bundled packs, the corpus and the
       // Giphy clips this session listed.
       ContentDescriptor? describe(ContentKey key) =>
@@ -449,7 +478,7 @@ final class AppServices {
         (ready) => ready.dispose(),
       );
       final assets = owned(
-        PageAssets.createScope(
+        ContentAssetScope.withMedia(
           producer: pipeline,
           clock: clock,
           memoryPressure: memoryPressure,
@@ -701,6 +730,8 @@ final class AppServices {
         glyphFontsReady: glyphFontsReady,
         pipeline: pipeline,
         mediaCache: media,
+        bytes: bytes,
+        bytesClient: bytesClient,
         clipboard: clipboard,
       );
     } on Object {
@@ -793,7 +824,7 @@ final class AppServices {
   /// The asset cache the panel pages and the composer's inline content draw
   /// through. Glyphs are baked sprites where an atlas is registered with it
   /// and text where none is.
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   /// Turns the app's focus and visibility, [lowPower], the system's
   /// reduced-motion setting and the overlays over the chat into pause layers
@@ -866,9 +897,6 @@ final class AppServices {
   /// The line Giphy's terms ask to be shown with its content.
   static const String giphyAttribution = 'Powered by GIPHY';
 
-  /// The media store's folder of Giphy's stills and clips.
-  static const String giphyFolder = 'giphy';
-
   /// The media store's folder of the rendered Lottie frames.
   static const String lottieFramesFolder = 'lottie_frames';
 
@@ -898,6 +926,8 @@ final class AppServices {
   final PlaybackClock _clock;
   final LottiePlayback? _lottiePlayback;
   final MediaDiskCache? _mediaCache;
+  final IBytesStore _bytes;
+  final HttpBytesClient? _bytesClient;
   final VideoPlayback? _videoPlayback;
   final AssetPipeline _pipeline;
   final WidgetsPlaybackLifecycleSource _lifecycleSource;
@@ -1006,6 +1036,10 @@ final class AppServices {
     // Commits what is still in an undo window.
     library.dispose();
     recents.dispose();
+    // The client before the store it writes through; the store's last
+    // writes land before it closes.
+    unawaited(_bytesClient?.close());
+    unawaited(_bytes.close());
   }
 
   // The web bakes nothing, so the probe has no bake to share: it draws its

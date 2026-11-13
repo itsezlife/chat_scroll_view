@@ -3,7 +3,7 @@
 /// instead of one image draw per cell.
 ///
 /// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and
-/// a real [AssetCacheScope] over a [FakeAssetProducer], whose paintables expose
+/// a real [ContentAssetScope] over a [FakeAssetProducer], whose paintables expose
 /// a sprite once they are advanced. What is observed is what the viewport asks
 /// its canvas to draw (a recording canvas passed to `paint`): atlas draws, image
 /// draws, where each sprite lands, and what the paintables were asked.
@@ -11,11 +11,12 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
@@ -118,7 +119,7 @@ void main() {
   late FakeAssetProducer producer;
   late ManualPlaybackTickSource ticks;
   late PlaybackClock clock;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late List<ui.Image> pages;
 
   setUp(() {
@@ -127,7 +128,7 @@ void main() {
     producer = FakeAssetProducer();
     ticks = ManualPlaybackTickSource();
     clock = PlaybackClock(ticks: ticks);
-    scope = AssetCacheScope(producer: producer, clock: clock);
+    scope = ContentAssetScope.withMedia(producer: producer, clock: clock);
     pages = [_page(), _page(), _page()];
   });
   tearDown(() {
@@ -491,7 +492,7 @@ void main() {
       required bool exposesSprite,
     }) async {
       scope.dispose();
-      scope = AssetCacheScope(
+      scope = ContentAssetScope.withMedia(
         producer: _FrameProducer(pages, exposesSprite: exposesSprite),
         clock: clock,
       );

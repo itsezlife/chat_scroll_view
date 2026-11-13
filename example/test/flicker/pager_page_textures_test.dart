@@ -16,16 +16,16 @@ library;
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lottie_decoder/lottie_decoder.dart';
-import 'package:lottie_native/lottie_native.dart';
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 import 'package:panel_shell/testing.dart';
@@ -117,7 +117,7 @@ void main() {
   late PlaybackClock clock;
   late FrameTexturePool pool;
   late LottieFrameScheduler scheduler;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late List<FakeCatalogSnapshotSource> sources;
   late List<PanelCatalogController> controllers;
   late SwipePagerController pager;
@@ -144,7 +144,10 @@ void main() {
       textures: pool,
       textureWriter: FakeTextureFrameWriter(),
     );
-    scope = AssetCacheScope(producer: _LottieProducer(scheduler), clock: clock);
+    scope = ContentAssetScope.withMedia(
+      producer: _LottieProducer(scheduler),
+      clock: clock,
+    );
     sources = [
       for (var page = 0; page < 2; page++)
         FakeCatalogSnapshotSource()..replaceSections([

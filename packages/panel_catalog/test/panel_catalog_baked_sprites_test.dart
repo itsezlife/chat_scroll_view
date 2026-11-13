@@ -2,7 +2,7 @@
 /// from glyph atlas pages instead of as text.
 ///
 /// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and
-/// an [AssetCacheScope] whose glyph source is a [GlyphAtlas] built on the fakes
+/// an [ContentAssetScope] whose glyph source is a [GlyphAtlas] built on the fakes
 /// of the bake (`FakeGlyphRasteriser`, `FakeGlyphPageStore`,
 /// `FakeBakeFrameSource`): no emoji font, no device. What is observed is what
 /// the viewport asks its canvas to draw (a recording canvas passed to `paint`),
@@ -17,12 +17,12 @@ library;
 
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/glyph_atlas.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
+import 'package:glyph_atlas/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
@@ -86,7 +86,7 @@ void main() {
   late ValueNotifier<bool> visible;
   late ValueNotifier<bool> opening;
   late GlyphAtlas atlas;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   _PageBake? pageBake;
 
   setUp(() {
@@ -123,7 +123,7 @@ void main() {
       panelVisible: visible,
       panelOpening: opening,
     );
-    scope = AssetCacheScope(glyphSource: atlas);
+    scope = ContentAssetScope.withMedia(glyphSource: atlas);
     pageBake?.dispose();
     pageBake = _PageBake(atlas, controller.events);
     addTearDown(() {
@@ -134,7 +134,7 @@ void main() {
 
   Future<void> pumpViewport(
     WidgetTester tester, {
-    AssetCacheScope? assets,
+    ContentAssetScope? assets,
     double width = 320,
     ValueChanged<CatalogLeafHit>? onLeafTap,
     void Function(CatalogLeafHit hit, LongPressStartDetails details)?
@@ -628,7 +628,7 @@ void main() {
       source = FakeGlyphSpriteSource([
         for (var i = 0; i < 400; i++) _glyph(i),
       ], glyphsPerPage: 100);
-      final onSource = AssetCacheScope(glyphSource: source);
+      final onSource = ContentAssetScope.withMedia(glyphSource: source);
       addTearDown(() {
         onSource.dispose();
         source.dispose();

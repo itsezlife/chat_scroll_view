@@ -7,7 +7,7 @@
 /// [FakePanelPageHost] received.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
@@ -35,14 +35,14 @@ CatalogLeafHit _custom(String id, {String? section}) => CatalogLeafHit(
 void main() {
   late FakePanelPageHost host;
   late FakePreferenceStore preferences;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late ContentPreviewController previews;
   late EmojiPagePolicy policy;
 
   setUp(() {
     host = FakePanelPageHost(pageId: 'emoji');
     preferences = FakePreferenceStore();
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     previews = ContentPreviewController();
     policy = EmojiPagePolicy(
       host: host,

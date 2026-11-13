@@ -2,7 +2,7 @@
 ///
 /// Owns recycle, cell paint, and section geometry for the **catalog body**.
 /// Does **not** own panel chrome (category strip, search, type tabs, pickers)
-/// or asset fetch/decode (the host's `AssetCacheScope` from `catalog_assets`).
+/// or asset fetch/decode (the host's `ContentAssetScope` from `catalog_assets`).
 ///
 /// Primary host types: [PanelCatalogViewport], [CatalogSnapshot] (published
 /// through a `ValueListenable` from `package:listen`),

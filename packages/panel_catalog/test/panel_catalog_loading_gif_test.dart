@@ -1,7 +1,7 @@
 /// What a GIF cell shows while its clip loads, and how a thumbnail hands over
 /// to the clip.
 ///
-/// **Seam:** [PanelCatalogViewport] over a real [AssetCacheScope] and a
+/// **Seam:** [PanelCatalogViewport] over a real [ContentAssetScope] and a
 /// [FakeAssetProducer] the test plays by hand; what is observed is what the
 /// viewport asks a recording canvas to draw and what it paints into the fake
 /// paintables, never render-object fields. A GIF that is downloading draws its
@@ -12,11 +12,12 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
@@ -48,14 +49,14 @@ void main() {
   late PanelCatalogController controller;
   late FakeAssetProducer producer;
   late PlaybackClock clock;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
 
   setUp(() {
     snapshots = FakeCatalogSnapshotSource();
     controller = PanelCatalogController();
     producer = FakeAssetProducer();
     clock = PlaybackClock(ticks: ManualPlaybackTickSource());
-    scope = AssetCacheScope(producer: producer, clock: clock);
+    scope = ContentAssetScope.withMedia(producer: producer, clock: clock);
   });
   tearDown(() {
     snapshots.dispose();

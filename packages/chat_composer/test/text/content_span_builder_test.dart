@@ -1,8 +1,9 @@
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_composer/chat_composer.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 
 import '../support/composer_harness.dart';
 
@@ -11,12 +12,12 @@ InlineContentRef _ref(String key, String alt) =>
 
 void main() {
   late FakeAssetProducer producer;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late ComposerController controller;
 
   setUp(() {
     producer = FakeAssetProducer();
-    scope = AssetCacheScope(
+    scope = ContentAssetScope.withMedia(
       producer: producer,
       clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
     );
@@ -35,24 +36,25 @@ void main() {
     composerHarness(ComposerView(controller: controller, spec: ComposerSpec())),
   );
 
-  testWidgets('draws a reference through ContentView at its alt text length', (
-    tester,
-  ) async {
-    await show(tester);
+  testWidgets(
+    'draws a reference through ContentAssetView at its alt text length',
+    (tester) async {
+      await show(tester);
 
-    // Alt texts of one unit, a surrogate pair and a ZWJ sequence: the span
-    // must lay out as exactly that many code units, which the text
-    // controller asserts while painting.
-    for (final alt in ['a', '\u{1F642}', '\u{1F468}‍\u{1F469}‍\u{1F467}']) {
-      controller.insertContent(_ref('k${alt.length}', alt));
-    }
-    await tester.pump();
-    await tester.pump();
+      // Alt texts of one unit, a surrogate pair and a ZWJ sequence: the span
+      // must lay out as exactly that many code units, which the text
+      // controller asserts while painting.
+      for (final alt in ['a', '\u{1F642}', '\u{1F468}‍\u{1F469}‍\u{1F467}']) {
+        controller.insertContent(_ref('k${alt.length}', alt));
+      }
+      await tester.pump();
+      await tester.pump();
 
-    expect(tester.takeException(), isNull);
-    expect(find.byType(ContentView), findsNWidgets(3));
-    expect(controller.richText.entities, hasLength(3));
-  });
+      expect(tester.takeException(), isNull);
+      expect(find.byType(ContentAssetView), findsNWidgets(3));
+      expect(controller.richText.entities, hasLength(3));
+    },
+  );
 
   testWidgets(
     'attaches each reference to the scope and drops the view on removal',
@@ -68,7 +70,7 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.byType(ContentView), findsNothing);
+      expect(find.byType(ContentAssetView), findsNothing);
     },
   );
 
@@ -80,7 +82,9 @@ void main() {
     await tester.pump();
 
     expect(
-      tester.widget<ContentView>(find.byType(ContentView)).semanticLabel,
+      tester
+          .widget<ContentAssetView>(find.byType(ContentAssetView))
+          .semanticLabel,
       '\u{1F642}',
     );
   });

@@ -143,11 +143,6 @@ const _suites = [
     'test/benchmark/vs_supersliver_bench_test.dart',
     {'BENCH_SEMANTICS': 'on'},
   ),
-  _Suite(
-    'catalog_assets',
-    'packages/catalog_assets',
-    'test/benchmark/asset_cache_ratio_bench_test.dart',
-  ),
 ];
 
 final class _Options {

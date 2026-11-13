@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the asset cache moved to mpx)
+
+- Pages draw through `content_assets`' `ContentAssetScope` (the `assets:`
+  parameters), over `mpx_core`'s cache. `PageAssets` is gone: a host builds
+  the scope with `ContentAssetScope.withMedia(...)`, which draws glyphs as
+  text where no glyph source is registered.
+
 ### Added (the catalogue's scroll keys)
 
 - `CatalogKeyboardFocus` binds the chat's scroll keys (`ViewportScrollKeys`

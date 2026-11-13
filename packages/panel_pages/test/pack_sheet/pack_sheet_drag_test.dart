@@ -6,6 +6,7 @@
 /// through `CatalogOverscrollSinkContract`.
 library;
 
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
@@ -90,7 +91,7 @@ void main() {
       final library = FakeContentLibrary(
         limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
       );
-      final assets = PageAssets.createScope();
+      final assets = ContentAssetScope.withMedia();
       addTearDown(() {
         packs.dispose();
         library.dispose();

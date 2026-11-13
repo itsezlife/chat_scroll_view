@@ -10,12 +10,13 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 /// An asset bundle holding [files] and the manifest that lists them.
 final class _FakeBundle extends CachingAssetBundle {
@@ -43,7 +44,7 @@ final class _FakeBundle extends CachingAssetBundle {
 
 FetchRequest _request(ContentDescriptor descriptor, {FetchPart? part}) =>
     FetchRequest(
-      descriptor: descriptor,
+      descriptor: descriptor.mediaDescriptor!,
       part: part ?? FetchPart.content,
       priority: AssetPriority.visible,
       cancellation: CancellationToken(),
@@ -341,10 +342,15 @@ void main() {
       final fetcher = pack.fetcher(otherwise: other);
 
       expect(
-        fetcher.needsDownload(pack.packs.single.stickers.last.descriptor.key),
+        fetcher.needsDownload(
+          pack.packs.single.stickers.last.descriptor.key.mediaKey,
+        ),
         isFalse,
       );
-      expect(fetcher.needsDownload(const ContentKey.document('x')), isTrue);
+      expect(
+        fetcher.needsDownload(const ContentKey.document('x').mediaKey),
+        isTrue,
+      );
     });
 
     test('leaves other keys to the fetcher it was given', () async {
@@ -391,12 +397,12 @@ final class _NoFetcher implements ContentFetcher {
 
   @override
   Future<FetchedContent> fetch(FetchRequest request) async {
-    asked.add(request.descriptor.key);
+    asked.add(request.descriptor.key.contentKey!);
     return FetchedContent.bytes(Uint8List(0));
   }
 
   @override
-  bool needsDownload(ContentKey key) => true;
+  bool needsDownload(MediaKey key) => true;
 }
 
 final class _BrokenBundle extends CachingAssetBundle {

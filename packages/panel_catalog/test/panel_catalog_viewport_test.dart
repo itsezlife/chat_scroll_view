@@ -20,7 +20,7 @@
 /// - far-path stitch (not naked jump), re-entry, cancel
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,7 +36,7 @@ import 'support/recording_canvas.dart';
 
 Widget _harness({
   required listen.ValueListenable<CatalogSnapshot> snapshots,
-  required AssetCacheScope assets,
+  required ContentAssetScope assets,
   required PanelCatalogController controller,
   double width = 320,
   double height = 480,
@@ -97,7 +97,7 @@ RenderPanelCatalog _render(WidgetTester tester) =>
 
 void main() {
   late FakeCatalogSnapshotSource snapshots;
-  late AssetCacheScope assetScope;
+  late ContentAssetScope assetScope;
   late PanelCatalogController controller;
 
   setUp(() {

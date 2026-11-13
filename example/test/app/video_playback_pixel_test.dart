@@ -7,18 +7,18 @@ library;
 import 'dart:async';
 import 'dart:io';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
-import 'package:content_model/content_model.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:l/l.dart';
-import 'package:video_decoder/testing.dart';
-import 'package:video_decoder/video_decoder.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_video_decoder/mpx_video_decoder.dart';
+import 'package:mpx_video_decoder/testing.dart';
 
 /// The app bundle as the files under `assets/` on disk.
 final class _DiskBundle extends CachingAssetBundle {
@@ -85,10 +85,12 @@ void main() {
 
     final pipeline = AssetPipeline(
       fetcher: BundledPacks.fetcher(_DiskBundle()),
-      decoders: DecoderRegistry()..register(MediaForm.video, playback!.decoder),
+      decoders: DecoderRegistry()..register(MediaKind.video, playback!.decoder),
     );
-    BundledPacks.descriptors.forEach(pipeline.know);
-    final scope = AssetCacheScope(producer: pipeline, clock: clock);
+    for (final descriptor in BundledPacks.descriptors) {
+      pipeline.know(descriptor.mediaDescriptor!);
+    }
+    final scope = ContentAssetScope.withMedia(producer: pipeline, clock: clock);
     final attached = scope.attach(
       sticker.key,
       const AssetSpec(pixelWidth: 128, pixelHeight: 128),

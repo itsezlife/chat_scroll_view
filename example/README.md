@@ -18,7 +18,7 @@ them from is an open question); build them into `example/web/lottie/`, which
 is gitignored, before `flutter build web`:
 
 ```sh
-dart packages/lottie_native/native/tool/build_web.dart --out example/web/lottie
+dart <mpx checkout>/packages/mpx_lottie/native/tool/build_web.dart --out example/web/lottie
 ```
 
 This needs `cargo` and the Rust target `wasm32-unknown-unknown`; nothing is
@@ -164,9 +164,11 @@ needed since the files ship inside the app bundle. See
 ## Video stickers, clips and GIFs on macOS
 
 The "Demo video stickers" pack (WebM, MP4 and GIF; see
-`assets/video_stickers/README.md`) plays through `video_native`, whose build
-hook needs the FFmpeg prefix built by
-`packages/video_native/native/recipe/build.sh` (macOS arm64 only so far).
+`assets/video_stickers/README.md`) plays through mpx's `mpx_video_decoder`,
+whose build hook needs the FFmpeg prefix built by its
+`native/recipe/build.sh`, found under the package's `native/.build/` (in the
+pub cache's checkout of mpx) or at `MPX_VIDEO_FFMPEG_DIR` (macOS arm64 only
+so far).
 Without it, or on another platform, the build still succeeds and the app
 runs: it logs once that video stickers are off and those items keep their
 placeholder. The web does not play video yet.

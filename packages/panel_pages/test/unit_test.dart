@@ -8,7 +8,6 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'assets/page_assets_test.dart' as page_assets_test;
 import 'atlas/glyph_atlas_host_test.dart' as glyph_atlas_host_test;
 import 'atlas/glyph_plan_test.dart' as glyph_plan_test;
 import 'bake/bake_activity_port_contract_test.dart'
@@ -65,7 +64,6 @@ import 'stickers/stickers_page_test.dart' as stickers_page_test;
 import 'theme/chrome_catalog_theme_test.dart' as chrome_catalog_theme_test;
 
 void main() {
-  group('assets/page_assets_test.dart', page_assets_test.main);
   group('atlas/glyph_atlas_host_test.dart', glyph_atlas_host_test.main);
   group('atlas/glyph_plan_test.dart', glyph_plan_test.main);
   group(
@@ -85,8 +83,8 @@ void main() {
   group('emoji/emoji_page_in_shell_test.dart', emoji_page_in_shell_test.main);
   group('emoji/emoji_page_pointer_test.dart', emoji_page_pointer_test.main);
   group('emoji/emoji_page_policy_test.dart', emoji_page_policy_test.main);
-  group('emoji/emoji_page_tooltip_test.dart', emoji_page_tooltip_test.main);
   group('emoji/emoji_page_test.dart', emoji_page_test.main);
+  group('emoji/emoji_page_tooltip_test.dart', emoji_page_tooltip_test.main);
   group('emoji/emoji_tab_icons_test.dart', emoji_tab_icons_test.main);
   group(
     'emoji/emoji_tone_picker_touch_test.dart',

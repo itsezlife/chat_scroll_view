@@ -48,11 +48,10 @@ Lint rules, the fake / adapter naming conventions they read, the per-package
 | `lib/` (`chat_scroll_view`)              | Anchor viewport; **message selection** + **text selection**; span gesture | scroll, layout, selection membership, text subject/range, span                   |
 | `packages/content_model`                 | Pure-Dart leaf: content key / descriptor / collection, data seams, fakes + contracts; change signals are `package:listen` (see [ADR 023](docs/adr/023-data-layering-and-persistence.md)) | content identity, sources, stores, rich text                    |
 | `packages/chrome_foundation`             | Leaf: palette, token groups, theme scope, motion, strings, icons, glass   | theme, glass, motion, strings                                                    |
-| `packages/catalog_assets`                | Asset cache, media pipeline seams, baked glyph atlas, dynamic frame pool  | paintables, readiness, budgets, atlas / bake, frame pool                        |
-| `packages/lottie_native`                 | Leaf: Lottie wrapper crate, build hook, FFI binding, fake and contract    | decoding Lottie / TGS natively                                                   |
-| `packages/lottie_decoder`                | Decoder for Lottie / TGS, render isolate, frame scheduler, animation paintable | playing vector-animation stickers                                           |
+| `packages/content_assets`                | Chat content on mpx's asset cache by `ContentKey`: `ContentAssetScope` (media to mpx, glyphs to the atlas), `ContentAssetView`, inline embeds, chat presets, key / descriptor / resolver mapping | attaching content, embeds in text, panel / chat presets |
+| `packages/glyph_atlas`                   | Baked glyph atlas of colour emoji over `mpx_core`'s `AtlasSprite`: bake, pages, residency, disk cache | atlas / bake, glyph pages                                                        |
+| mpx (git, [github.com/itsezlife/mpx](https://github.com/itsezlife/mpx)) | Media set the chat consumes: `mpx_core` (asset cache, pipeline, clock, textures, image codecs), `mpx_lottie`, `mpx_video_decoder`, `http_bytes_cache`, `mpx` (fetch adapter); pinned to one commit in every pubspec | paintables, readiness, budgets, decoders, bytes cache — change them in mpx |
 | `packages/chat_wallpaper`                | Leaf: chat wallpaper model, codec, freeform renderer, motion, view, service fills | wallpaper fills, patterns, motion, resize behaviour ([ADR 040](docs/adr/040-chat-wallpaper.md)) |
-| `packages/image_decoder`                 | Decoder adapter: engine image codecs, stills and animated WebP / GIF      | decoding fetched images, frame-sequence playback                                 |
 | `packages/panel_catalog`                 | Panel catalog viewport                                                    | emoji/sticker/GIF grid, section layout, leaf hit, snapshot                       |
 | `packages/emoji_data` / `emoji_catalog_pack` | Emoji logic and glyph probe / generated catalog and keyword packs     | emoji search, variants, probe, generator                                         |
 | `packages/kv_shared_preferences`         | `shared_preferences`-backed `KeyValueStore`                               | persistence adapter only                                                         |
@@ -100,7 +99,7 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | Glossaries                                                                               | [Content and Assets](docs/content/CONTEXT.md), [Chat Chrome](docs/chrome/CONTEXT.md), [Panel Catalog](docs/panel-catalog/CONTEXT.md) |
 | Content identity, collections                                                            | [ADR 021](docs/adr/021-content-identity-and-collections.md)           |
-| Asset cache, media pipeline, glyph atlas                                                 | [ADR 022](docs/adr/022-asset-cache-and-media-pipeline.md)             |
+| Asset cache, media pipeline, glyph atlas (cache and pipeline now in mpx)                 | [ADR 022](docs/adr/022-asset-cache-and-media-pipeline.md), mpx ADRs 0002 / 0003 |
 | Data seams, catalog shipping, persistence                                                | [ADR 023](docs/adr/023-data-layering-and-persistence.md)              |
 | Panel catalog public seams (amends ADR 006)                                              | [ADR 024](docs/adr/024-panel-catalog-seams.md)                        |
 | Panel shell, pages, state ownership (supersedes parts of ADR 007)                        | [ADR 025](docs/adr/025-panel-shell-and-pages.md)                      |
@@ -113,8 +112,8 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 | Host composition root, inline embeds                                                     | [ADR 029](docs/adr/029-host-integration.md)                           |
 | Fakes, contracts, gates                                                                  | [ADR 030](docs/adr/030-testing-policy.md)                             |
 | Strings, RTL, semantics, shortcuts                                                       | [ADR 031](docs/adr/031-localization-accessibility-and-input.md)       |
-| Native media decoding: Lottie / TGS and video over FFI, page pool, frame cache, web      | [ADR 042](docs/adr/042-native-media-decoding.md)                      |
-| Platform texture frames: playing media through platform textures, pages as the fallback | [ADR 043](docs/adr/043-platform-texture-frames.md) |
+| Native media decoding (moved to mpx: `mpx_lottie`, `mpx_video_decoder`; mpx ADR 0003)    | [ADR 042](docs/adr/042-native-media-decoding.md)                      |
+| Platform texture frames (moved to mpx: `mpx_core`; mpx ADR 0003)                         | [ADR 043](docs/adr/043-platform-texture-frames.md) |
 
 **Package invariants**
 

@@ -1,6 +1,6 @@
-import 'package:catalog_assets/catalog_assets.dart' show AssetFit;
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
+import 'package:mpx_core/mpx_core.dart' show AssetFit;
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 
 /// How a cell stands in for its content until the content can be drawn.

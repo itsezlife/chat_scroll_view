@@ -3,7 +3,7 @@
 /// playing while a fling ran; it must play on through all of them, in the
 /// panel and in a pack sheet's grid.
 ///
-/// **Seam:** the real `PanelCatalogViewport` over a real `AssetCacheScope`
+/// **Seam:** the real `PanelCatalogViewport` over a real `ContentAssetScope`
 /// whose stickers are real `LottieAnimationPaintable`s, played by a real
 /// `LottieFrameScheduler` on a `FrameTexturePool` of fake textures, on the
 /// clock's own scheduler frames. The pointer drives the viewport. Each frame
@@ -15,18 +15,18 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lottie_decoder/lottie_decoder.dart';
-import 'package:lottie_native/lottie_native.dart';
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
@@ -69,7 +69,7 @@ final class _LottieProducer implements AssetProducer {
     AssetProgress progress,
     AssetDemand demand,
   ) {
-    final paintable = made[request.key] = LottieAnimationPaintable(
+    final paintable = made[request.key.contentKey!] = LottieAnimationPaintable(
       key: '${request.key}@${request.spec.pixelWidth}',
       handle: LottieHandle(++_handles),
       info: _info,
@@ -123,7 +123,7 @@ void main() {
   late FakeTextureFrameWriter writer;
   late LottieFrameScheduler scheduler;
   late _LottieProducer producer;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late FakeCatalogSnapshotSource snapshots;
   late PanelCatalogController controller;
   var elapsed = Duration.zero;
@@ -154,7 +154,7 @@ void main() {
       textureWriter: writer,
     );
     producer = _LottieProducer(scheduler);
-    scope = AssetCacheScope(producer: producer, clock: clock);
+    scope = ContentAssetScope.withMedia(producer: producer, clock: clock);
   }
 
   Future<void> pumpPanel(WidgetTester tester, {int cells = 40}) async {

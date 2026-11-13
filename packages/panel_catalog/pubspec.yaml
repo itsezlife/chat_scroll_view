@@ -9,14 +9,19 @@ environment:
   sdk: ^3.11.0
 
 dependencies:
-  catalog_assets:
-    path: ../catalog_assets
+  content_assets:
+    path: ../content_assets
   content_model:
     path: ../content_model
   flutter:
     sdk: flutter
   listen: ^1.0.1
   meta: ^1.17.0
+  mpx_core:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_core
+      ref: 340b87f7e1f81dc7e9fec9c3868ed0075e432e7b
   viewport_scroll:
     path: ../viewport_scroll
   # Only lib/testing.dart needs this: its contract suite
@@ -33,3 +38,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   # Frozen A/B baseline for panel catalog benches (issue 08) — not a runtime dep.
   super_sliver_list: ^0.4.1
+  # Tests drive a real glyph atlas under the viewport; lib/ never imports it.
+  glyph_atlas:
+    path: ../glyph_atlas

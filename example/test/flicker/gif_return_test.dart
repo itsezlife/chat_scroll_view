@@ -2,7 +2,7 @@
 /// one frame of the clip at a time at the clip's rate, with no hold and no
 /// catch-up a few frames later, on a screen of GIFs the size a phone shows.
 ///
-/// **Seam:** the real `PanelCatalogViewport` over a real `AssetCacheScope`
+/// **Seam:** the real `PanelCatalogViewport` over a real `ContentAssetScope`
 /// whose cells are real `VideoAnimationPaintable`s, played by a real
 /// `VideoFrameScheduler` with its default budgets, on a `FrameTexturePool` of
 /// fake textures and a real frame atlas, on the clock's own scheduler frames.
@@ -19,19 +19,19 @@ library;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_video_decoder/mpx_video_decoder.dart';
+import 'package:mpx_video_decoder/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
-import 'package:video_decoder/testing.dart';
-import 'package:video_decoder/video_decoder.dart';
-import 'package:video_native/video_native.dart';
 
 // Long enough that no loop wraps within a test.
 const _frames = 6000;
@@ -166,8 +166,9 @@ final class _VideoProducer implements AssetProducer {
     final width = request.spec.pixelWidth;
     final height = request.spec.pixelHeight;
     engine.open(bytes, width: width, height: height).then((result) {
-      final clip = clips[request.key] = (result as VideoClipOpened).clip;
-      final paintable = made[request.key] = VideoAnimationPaintable(
+      final clip = clips[request.key.contentKey!] =
+          (result as VideoClipOpened).clip;
+      final paintable = made[request.key.contentKey!] = VideoAnimationPaintable(
         key: '${request.key}@$width',
         clip: clip,
         firstFrame: _image(8),
@@ -219,7 +220,7 @@ void main() {
   late _StampingEngine engine;
   late VideoFrameScheduler scheduler;
   late _VideoProducer producer;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late FakeCatalogSnapshotSource snapshots;
   late PanelCatalogController controller;
   var elapsed = Duration.zero;
@@ -260,7 +261,7 @@ void main() {
       textureWriter: writer,
     );
     producer = _VideoProducer(engine, scheduler);
-    scope = AssetCacheScope(producer: producer, clock: clock);
+    scope = ContentAssetScope.withMedia(producer: producer, clock: clock);
     snapshots = FakeCatalogSnapshotSource()
       ..replaceSections([
         CatalogSection(

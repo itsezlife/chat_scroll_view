@@ -14,18 +14,18 @@
 /// desktop emoji chrome stands for the body under both selection policies.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_message.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/testing.dart';
 
 /// One unicode emoji, which the host shows as a sticker.
 final _sticker = EmojiOnly(const [
@@ -76,7 +76,7 @@ class _Source extends ChatDataSource {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late ValueNotifier<LargeEmojiPolicy> largeEmoji;
   late ChatBodyHost host;
   late ChatSelectionController selection;
@@ -94,7 +94,7 @@ void main() {
     required ChatSelectionPolicy policy,
     required EmojiOnly emojiOnly,
   }) async {
-    scope = AssetCacheScope(producer: FakeAssetProducer());
+    scope = ContentAssetScope.withMedia(producer: FakeAssetProducer());
     largeEmoji = ValueNotifier(const LargeEmojiPolicy(enabled: true));
     host = ChatBodyHost(assets: scope, policy: largeEmoji);
     selection = ChatSelectionController(policy: policy);

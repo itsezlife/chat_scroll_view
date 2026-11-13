@@ -1,7 +1,7 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:flutter/foundation.dart';
-import 'package:lottie_decoder/web.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_lottie/web.dart';
 
 /// The web hook behind [LottiePlayback.start]: starts the WebAssembly Lottie
 /// worker, which is the probe: it throws a `LottieUnavailable` when the files

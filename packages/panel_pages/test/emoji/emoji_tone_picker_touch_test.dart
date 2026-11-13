@@ -9,7 +9,7 @@
 /// cells in a 360 x 480 page, the 36 px strip and the 50 px field above.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/services.dart';
@@ -26,7 +26,7 @@ void main() {
   late FakeSearchSource search;
   late FakePreferenceStore preferences;
   late FakePanelPageHost host;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late List<String> haptics;
 
   setUp(() {
@@ -34,7 +34,7 @@ void main() {
     search = FakeSearchSource({});
     preferences = FakePreferenceStore();
     host = FakePanelPageHost(pageId: 'emoji');
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     haptics = [];
     addTearDown(() {
       source.dispose();

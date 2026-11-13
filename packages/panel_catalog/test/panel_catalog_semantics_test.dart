@@ -8,10 +8,12 @@
 /// shell callbacks a pointer does.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 
@@ -71,7 +73,7 @@ void main() {
   Future<void> pumpViewport(
     WidgetTester tester, {
     TextDirection direction = TextDirection.ltr,
-    AssetCacheScope? assets,
+    ContentAssetScope? assets,
     bool longPress = true,
   }) => tester.pumpWidget(
     MaterialApp(
@@ -543,7 +545,7 @@ void main() {
     testWidgets('does not ask the glyph source for a sprite', (tester) async {
       final handle = tester.ensureSemantics();
       final source = _CountingSource();
-      final scope = AssetCacheScope(glyphSource: source);
+      final scope = ContentAssetScope.withMedia(glyphSource: source);
       addTearDown(scope.dispose);
       snapshots.replaceSections([_section('a', 400)]);
       await pumpViewport(tester, assets: scope);

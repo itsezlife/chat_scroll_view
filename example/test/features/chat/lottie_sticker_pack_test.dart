@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lottie_native/lottie_native.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
 
 void main() {
   group('LottieStickerPack', () {

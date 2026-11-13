@@ -7,14 +7,15 @@
 /// a row of 100 px under a 2 px gap, the first cell's centre at (49, 52).
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/testing.dart';
 import 'package:panel_shell/testing.dart';
@@ -34,13 +35,13 @@ const _second = Offset(150, 52);
 
 void main() {
   late FakePanelPageHost host;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late FakeContentLibrary library;
   late ContentPreviewController previews;
 
   setUp(() {
     host = FakePanelPageHost(pageId: 'gif');
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     library = FakeContentLibrary(
       limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
     );
@@ -221,7 +222,7 @@ void main() {
         frames: List.filled(400, const Duration(milliseconds: 50)),
       );
     assets.dispose();
-    assets = PageAssets.createScope(producer: producer);
+    assets = ContentAssetScope.withMedia(producer: producer);
     // A phone's window, of fractional logical size: the preview's box is
     // computed afresh at each step of the drag.
     tester.view
@@ -261,12 +262,12 @@ void main() {
   });
 
   ContentKey shownClip(WidgetTester tester) => tester
-      .widget<ContentView>(
+      .widget<ContentAssetView>(
         find.descendant(
           of: find.byWidgetPredicate(
             (widget) => widget.runtimeType.toString() == '_PreviewContent',
           ),
-          matching: find.byType(ContentView),
+          matching: find.byType(ContentAssetView),
         ),
       )
       .content;

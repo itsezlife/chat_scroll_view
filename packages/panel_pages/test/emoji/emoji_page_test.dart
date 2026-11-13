@@ -10,15 +10,16 @@ library;
 
 import 'dart:ui' show Tristate;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/glyph_atlas.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
+import 'package:glyph_atlas/testing.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_pages/panel_pages.dart';
@@ -33,7 +34,7 @@ void main() {
   late FakeSearchSource search;
   late FakePreferenceStore preferences;
   late FakePanelPageHost host;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late ValueNotifier<CollectionSource?> swapped;
   late ValueNotifier<double> density;
 
@@ -46,7 +47,7 @@ void main() {
     });
     preferences = FakePreferenceStore();
     host = FakePanelPageHost(pageId: 'emoji');
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     swapped = ValueNotifier<CollectionSource?>(null);
     density = ValueNotifier<double>(2);
     addTearDown(() {

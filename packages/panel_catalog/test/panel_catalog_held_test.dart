@@ -2,17 +2,18 @@
 /// mounted, a page of the pager off screen, a panel moving in or out.
 ///
 /// **Seam:** [PanelCatalogViewport] under [TickerMode], over a real
-/// [AssetCacheScope] and a [FakeAssetProducer]. What is observed is the
+/// [ContentAssetScope] and a [FakeAssetProducer]. What is observed is the
 /// cache's side: the attempts made (a reload is a new attempt), whether a
 /// paintable was disposed, whether it is asked to keep its frame (a held
 /// binding), and whether the clock plays it.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
@@ -35,7 +36,7 @@ void main() {
   late FakeAssetProducer producer;
   late ManualPlaybackTickSource ticks;
   late PlaybackClock clock;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late List<FakeAssetPaintable> made;
 
   setUp(() {
@@ -51,7 +52,7 @@ void main() {
     producer = FakeAssetProducer();
     ticks = ManualPlaybackTickSource();
     clock = PlaybackClock(ticks: ticks);
-    scope = AssetCacheScope(producer: producer, clock: clock);
+    scope = ContentAssetScope.withMedia(producer: producer, clock: clock);
     made = [];
     producer.onProduce = (attempt) => made.add(
       attempt.advance(

@@ -122,6 +122,8 @@ Future<AppServices> _createServices() async {
     // limitBytes:) to keep it otherwise.
     // Its first sweep deletes the folders beside it that media was kept in
     // before it (the Giphy stills and clips, the Lottie frames).
+    // Giphy's stills and clips are in the bytes store's own folder beside it.
+    bytesCacheDirectory: environment_specific.$appCacheDirectory('http_bytes'),
     mediaCache: environment_specific
         .$appCacheDirectory('media')
         .then(

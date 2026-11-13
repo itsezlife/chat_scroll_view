@@ -14,16 +14,24 @@ environment:
   flutter: '>=3.32.0'
 
 dependencies:
-  catalog_assets:
-    path: ../catalog_assets
   chrome_foundation:
     path: ../chrome_foundation
+  content_assets:
+    path: ../content_assets
   content_model:
     path: ../content_model
   flutter:
     sdk: flutter
+  # The host side of the glyph atlas (GlyphAtlasHost).
+  glyph_atlas:
+    path: ../glyph_atlas
   listen: ^1.0.1
   meta: ^1.17.0
+  mpx_core:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_core
+      ref: 340b87f7e1f81dc7e9fec9c3868ed0075e432e7b
   panel_catalog:
     path: ../panel_catalog
   panel_shell:

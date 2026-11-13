@@ -8,7 +8,7 @@
 /// clips 100 px each, under the field's 50 px band on a page that searches.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
@@ -47,7 +47,7 @@ Future<void> settle(WidgetTester tester) async {
 
 void main() {
   late FakePanelPageHost host;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late FakeCollectionSource source;
   late FakeSearchSource search;
   late FakeCollectionSource suggestions;
@@ -56,7 +56,7 @@ void main() {
 
   setUp(() {
     host = FakePanelPageHost(pageId: 'gif');
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     source = FakeCollectionSource([_trending()]);
     search = FakeSearchSource({
       'cat': _pages('c'),
@@ -274,7 +274,7 @@ void main() {
 
   group('the results that arrive', () {
     Finder viewOf(String id) => find.byWidgetPredicate(
-      (w) => w is ContentView && w.content == ContentKey.document(id),
+      (w) => w is ContentAssetView && w.content == ContentKey.document(id),
     );
 
     double opacityOf(WidgetTester tester, String id) {

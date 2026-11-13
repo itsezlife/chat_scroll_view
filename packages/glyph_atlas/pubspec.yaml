@@ -1,0 +1,28 @@
+name: glyph_atlas
+description: The baked glyph atlas of colour emoji, drawn as AtlasSprites of mpx_core; planning, rasterising, paging and its on-disk cache.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.27.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+  # mpx is consumed from git, pinned to one commit (see the root pubspec).
+  mpx_core:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_core
+      ref: 340b87f7e1f81dc7e9fec9c3868ed0075e432e7b
+  # Only lib/testing.dart needs this: its contract suites are written with the
+  # test framework, and a library cannot import a dev dependency.
+  flutter_test:
+    sdk: flutter
+
+dev_dependencies:
+  test: ^1.25.0

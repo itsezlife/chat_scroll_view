@@ -2,7 +2,7 @@
 ///
 /// **Seam:** [StickersPage] given a [ContentPreviewController] over a
 /// [FakeContentLibrary], under an [Overlay] the preview is shown in, observed
-/// through the controller, the [ContentView] the preview draws and the
+/// through the controller, the [ContentAssetView] the preview draws and the
 /// requests the [FakePanelPageHost] received. Geometry: a 360 x 480 page in
 /// an 800 x 600 window, the 36 px strip above, packs of 10 stickers in 5
 /// columns of 72 x 82 under a 27 px header.
@@ -11,9 +11,9 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
@@ -55,18 +55,18 @@ FakeCollectionSpec _recents() => FakeCollectionSpec(
 
 Finder _previewOf(String id) => find.byWidgetPredicate(
   (widget) =>
-      widget is ContentView && widget.content == ContentKey.document(id),
+      widget is ContentAssetView && widget.content == ContentKey.document(id),
 );
 
 void main() {
   late FakePanelPageHost host;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late FakeContentLibrary library;
   late ContentPreviewController previews;
 
   setUp(() {
     host = FakePanelPageHost(pageId: 'stickers');
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     library = FakeContentLibrary(
       limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
     );
@@ -302,7 +302,7 @@ void main() {
     final gesture = await hold(tester, 1);
 
     expect(assets.isBackgroundHeld, isTrue);
-    final preview = tester.widget<ContentView>(_previewOf('a-1'));
+    final preview = tester.widget<ContentAssetView>(_previewOf('a-1'));
     expect(preview.preset.profile.foreground, isTrue);
 
     await gesture.moveTo(cell(tester, 3));

@@ -10,8 +10,8 @@ library;
 
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/rendering.dart';
@@ -79,14 +79,14 @@ void main() {
   late FakeCollectionSource source;
   late FakeSearchSource search;
   late FakePanelPageHost host;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late _Policy policy;
 
   setUp(() {
     source = _source();
     search = FakeSearchSource({});
     host = FakePanelPageHost();
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     policy = _Policy();
     addTearDown(() {
       source.dispose();

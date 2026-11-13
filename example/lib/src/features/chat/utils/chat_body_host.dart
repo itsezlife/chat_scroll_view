@@ -1,4 +1,3 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show
         ChatEmojiEmbedFactory,
@@ -14,9 +13,11 @@ import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.da
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/reference_media_sizes.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
 
 /// What a message body needs from the chat screen besides the message: the
 /// seams that connect the two bodies of the viewport (`ChatMarkdownBody`,
@@ -47,7 +48,7 @@ final class ChatBodyHost {
   /// ([mediaOf]), drawn at the size [mediaSizes] gives it: the running
   /// platform's sizes by default.
   ChatBodyHost({
-    required AssetCacheScope assets,
+    required ContentAssetScope assets,
     required this.policy,
     ContentKey? Function(ContentKey key) stickerFor =
         AnimatedEmojiPack.stickerFor,

@@ -1,22 +1,24 @@
 /// Giphy clips as content of the asset pipeline: their identity, descriptors,
 /// fetching and resolving.
 ///
-/// **Seam:** [GiphyContent] with a [GiphyClient] over a fake `http.Client`,
-/// observed through the `ContentFetcher` and `ContentResolver` it makes and
-/// the requests the fake saw.
+/// **Seam:** [GiphyContent] with a [GiphyClient] and a bytes store over a fake
+/// `http.Client`, observed through the `ContentFetcher` and `ContentResolver`
+/// it makes, the store, and the requests the fake saw.
 library;
 
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:chat_scroll_view_example/src/features/chat/data/byte_cache.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:http_bytes_cache/http_bytes_cache.dart';
+import 'package:mpx/mpx.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 GiphyClip _clip(String id, {String title = 'a cat', bool still = false}) =>
     GiphyClip(
@@ -35,7 +37,7 @@ FetchRequest _request(
   FetchPart part = FetchPart.content,
   FetchProgress? onProgress,
 }) => FetchRequest(
-  descriptor: ContentDescriptor(key: key),
+  descriptor: MediaDescriptor(key: key.mediaKey),
   part: part,
   priority: AssetPriority.visible,
   cancellation: CancellationToken(),
@@ -50,12 +52,12 @@ final class _Other implements ContentFetcher, ContentResolver {
 
   @override
   Future<FetchedContent> fetch(FetchRequest request) async {
-    fetched.add(request.descriptor.key);
+    fetched.add(request.descriptor.key.contentKey!);
     return FetchedContent.bytes(Uint8List.fromList([9]));
   }
 
   @override
-  bool needsDownload(ContentKey key) => key == _otherMissing;
+  bool needsDownload(MediaKey key) => key == _otherMissing.mediaKey;
 
   @override
   Future<Map<ContentKey, ContentDescriptor>> resolve(
@@ -71,10 +73,30 @@ void main() {
   late Map<String, Uint8List> files;
   late Map<String, GiphyClip> known;
   late Completer<void>? gate;
+  late http.Client transport;
   late GiphyClient client;
+  late MemoryBytesCache store;
   late GiphyContent content;
   late _Other other;
   var failApi = false;
+
+  // Content over [over] whose files go through [through] (the fake by
+  // default) into [into] (the shared store by default).
+  GiphyContent contentOver(
+    GiphyClient over, {
+    http.Client? through,
+    IBytesStore? into,
+    int capacity = 2048,
+  }) {
+    final bytes = HttpBytesClient(client: through ?? transport);
+    addTearDown(bytes.close);
+    return GiphyContent(
+      over,
+      store: into ?? store,
+      http: bytes,
+      capacity: capacity,
+    );
+  }
 
   setUp(() {
     requests = [];
@@ -83,29 +105,28 @@ void main() {
     gate = null;
     failApi = false;
     other = _Other();
-    client = GiphyClient(
-      apiKey: 'k',
-      client: MockClient((request) async {
-        requests.add(request);
-        if (failApi) return http.Response('', 503);
-        if (request.url.host == 'api.giphy.com') {
-          final ids = request.url.queryParameters['ids']!.split(',');
-          final clips = [for (final id in ids) ?known[id]];
-          return http.Response(
-            '{"data":[${[for (final clip in clips) '{"id":"${clip.id}","title":"${clip.title}",'
-                  '"images":{"fixed_width":{"mp4":"${clip.url}",'
-                  '"width":"${clip.width}","height":"${clip.height}"}}}'].join(',')}]}',
-            200,
-          );
-        }
-        await gate?.future;
-        final bytes = files[request.url.path];
-        return bytes == null
-            ? http.Response('', 404)
-            : http.Response.bytes(bytes, 200);
-      }),
-    );
-    content = GiphyContent(client, capacity: 3);
+    transport = MockClient((request) async {
+      requests.add(request);
+      if (failApi) return http.Response('', 503);
+      if (request.url.host == 'api.giphy.com') {
+        final ids = request.url.queryParameters['ids']!.split(',');
+        final clips = [for (final id in ids) ?known[id]];
+        return http.Response(
+          '{"data":[${[for (final clip in clips) '{"id":"${clip.id}","title":"${clip.title}",'
+                '"images":{"fixed_width":{"mp4":"${clip.url}",'
+                '"width":"${clip.width}","height":"${clip.height}"}}}'].join(',')}]}',
+          200,
+        );
+      }
+      await gate?.future;
+      final bytes = files[request.url.path];
+      return bytes == null
+          ? http.Response('', 404)
+          : http.Response.bytes(bytes, 200);
+    });
+    client = GiphyClient(apiKey: 'k', client: transport);
+    store = MemoryBytesCache();
+    content = contentOver(client, capacity: 3);
   });
 
   group('the key', () {
@@ -209,11 +230,11 @@ void main() {
     });
 
     test('fails offline as something connectivity can fix', () async {
-      final client = GiphyClient(
-        apiKey: 'k',
-        client: MockClient((_) async => throw http.ClientException('down')),
-      );
-      final offline = GiphyContent(client)..remember([_clip('a')]);
+      final down = MockClient((_) async => throw http.ClientException('down'));
+      final offline = contentOver(
+        GiphyClient(apiKey: 'k', client: down),
+        through: down,
+      )..remember([_clip('a')]);
 
       await expectLater(
         offline
@@ -295,14 +316,13 @@ void main() {
 
     test('a fetch that joins a running download hears where it is', () async {
       final body = StreamController<List<int>>();
-      final streaming = GiphyContent(
-        GiphyClient(
-          apiKey: 'k',
-          client: MockClient.streaming(
-            (_, _) async =>
-                http.StreamedResponse(body.stream, 200, contentLength: 4),
-          ),
-        ),
+      final streamingClient = MockClient.streaming(
+        (_, _) async =>
+            http.StreamedResponse(body.stream, 200, contentLength: 4),
+      );
+      final streaming = contentOver(
+        GiphyClient(apiKey: 'k', client: streamingClient),
+        through: streamingClient,
       )..remember([_clip('a')]);
       final fetcher = streaming.fetcher(otherwise: other);
       final one = fetcher.fetch(_request(GiphyContent.keyOf('a')));
@@ -316,6 +336,8 @@ void main() {
           onProgress: (received, total) => late.add((received, total)),
         ),
       );
+      // The join happens once the store has said it holds nothing.
+      await pumpEventQueue();
       body.add([3, 4]);
       await body.close();
       await Future.wait([one, two]);
@@ -323,17 +345,19 @@ void main() {
       expect(late, [(2, 4), (4, 4)]);
     });
 
-    test('downloads again once the first has finished', () async {
+    test('keeps the file, so a later fetch asks for nothing', () async {
       files['/a.mp4'] = Uint8List.fromList([1]);
       content.remember([_clip('a')]);
       final fetcher = content.fetcher(otherwise: other);
 
       await fetcher.fetch(_request(GiphyContent.keyOf('a')));
-      await fetcher.fetch(_request(GiphyContent.keyOf('a')));
+      await pumpEventQueue();
+      final again = await fetcher.fetch(_request(GiphyContent.keyOf('a')));
 
+      expect((again as FetchedBytes).bytes, [1]);
       expect(
         requests.where((r) => r.url.host == 'media.example'),
-        hasLength(2),
+        hasLength(1),
       );
     });
 
@@ -344,7 +368,7 @@ void main() {
         content.remember([clip]);
         files['/a.still.gif'] = Uint8List.fromList([7, 7]);
         final request = FetchRequest(
-          descriptor: content.describe(clip),
+          descriptor: content.describe(clip).mediaDescriptor!,
           part: FetchPart.thumbnail,
           priority: AssetPriority.placeholder,
           cancellation: CancellationToken(),
@@ -362,7 +386,7 @@ void main() {
       final clip = _clip('a', still: true);
       content.remember([clip]);
       final request = FetchRequest(
-        descriptor: content.describe(clip),
+        descriptor: content.describe(clip).mediaDescriptor!,
         part: FetchPart.thumbnail,
         priority: AssetPriority.placeholder,
         cancellation: CancellationToken(),
@@ -403,14 +427,14 @@ void main() {
       GiphyClip clip, {
       FetchProgress? onProgress,
     }) => FetchRequest(
-      descriptor: from.describe(clip),
+      descriptor: from.describe(clip).mediaDescriptor!,
       part: FetchPart.thumbnail,
       priority: AssetPriority.placeholder,
       cancellation: CancellationToken(),
       onProgress: onProgress ?? (_, _) {},
     );
 
-    test('report their download, and none from memory', () async {
+    test('report their download, and none from the store', () async {
       final clip = _clip('a', still: true);
       files['/a.still.gif'] = Uint8List.fromList([7, 7]);
       final fetcher = content.fetcher(otherwise: other);
@@ -436,7 +460,7 @@ void main() {
       expect(again, isEmpty);
     });
 
-    test('are given again from memory without a request', () async {
+    test('are given again from the store without a request', () async {
       final clip = _clip('a', still: true);
       files['/a.still.gif'] = Uint8List.fromList([7]);
       final fetcher = content.fetcher(otherwise: other);
@@ -448,15 +472,15 @@ void main() {
       expect(requests, hasLength(1));
     });
 
-    test('are found on disk by a later session, without a request', () async {
-      final disk = _MemoryDisk();
+    test('are found by a later session, without a request', () async {
       final clip = _clip('a', still: true);
       files['/a.still.gif'] = Uint8List.fromList([7]);
-      final first = GiphyContent(client, stillDisk: disk);
+      final first = contentOver(client);
       await first.fetcher(otherwise: other).fetch(still(first, clip));
+      await pumpEventQueue();
       requests.clear();
 
-      final later = GiphyContent(client, stillDisk: disk);
+      final later = contentOver(client);
       final fetched = await later
           .fetcher(otherwise: other)
           .fetch(still(later, clip));
@@ -466,12 +490,12 @@ void main() {
     });
 
     test('are kept under the clip, whatever URL Giphy gives next', () async {
-      final disk = _MemoryDisk();
       files['/a.still.gif'] = Uint8List.fromList([7]);
-      final first = GiphyContent(client, stillDisk: disk);
+      final first = contentOver(client);
       await first
           .fetcher(otherwise: other)
           .fetch(still(first, _clip('a', still: true)));
+      await pumpEventQueue();
       requests.clear();
 
       // The same still under another answer's URL.
@@ -483,7 +507,7 @@ void main() {
         height: 100,
         thumbnailUrl: Uri.parse('https://media.example/a.still.gif?cid=2'),
       );
-      final later = GiphyContent(client, stillDisk: disk);
+      final later = contentOver(client);
       await later.fetcher(otherwise: other).fetch(still(later, retagged));
 
       expect(requests, isEmpty);
@@ -495,6 +519,7 @@ void main() {
       files['/b.still.gif'] = Uint8List.fromList([2]);
 
       await content.prepareStills(clips, within: const Duration(seconds: 1));
+      await pumpEventQueue();
       requests.clear();
       final fetcher = content.fetcher(otherwise: other);
       for (final clip in clips) {
@@ -514,19 +539,17 @@ void main() {
   });
 
   group('the clips', () {
-    test('are found on disk by a later session, without a request, even '
-        'one it never listed', () async {
-      final disk = _MemoryDisk();
+    test('are found by a later session, without a request, even one it '
+        'never listed', () async {
       files['/a.mp4'] = Uint8List.fromList([1, 2]);
-      final first = GiphyContent(client, clipDisk: disk)
-        ..remember([_clip('a')]);
+      final first = contentOver(client)..remember([_clip('a')]);
       await first
           .fetcher(otherwise: other)
           .fetch(_request(GiphyContent.keyOf('a')));
       await pumpEventQueue();
       requests.clear();
 
-      final later = GiphyContent(client, clipDisk: disk);
+      final later = contentOver(client);
       final fetched = await later
           .fetcher(otherwise: other)
           .fetch(_request(GiphyContent.keyOf('a')));
@@ -535,10 +558,9 @@ void main() {
       expect(requests, isEmpty);
     });
 
-    test('found on disk report no download', () async {
-      final disk = _MemoryDisk();
-      await disk.write('clip_a', Uint8List.fromList([1, 2]));
-      final content = GiphyContent(client, clipDisk: disk);
+    test('found in the store report no download', () async {
+      await _keep(store, 'a', [1, 2]);
+      final content = contentOver(client);
       final reports = <(int, int?)>[];
 
       await content
@@ -553,35 +575,29 @@ void main() {
       expect(reports, isEmpty);
     });
 
-    test('are known to need a download unless the disk has them', () async {
-      final disk = _MemoryDisk();
-      await disk.write('clip_a', Uint8List.fromList([1, 2]));
-      final fetcher = GiphyContent(
-        client,
-        clipDisk: disk,
-      ).fetcher(otherwise: other);
+    test('are known to need a download unless the store has them', () async {
+      await _keep(store, 'a', [1, 2]);
+      final fetcher = contentOver(client).fetcher(otherwise: other);
 
-      expect(fetcher.needsDownload(GiphyContent.keyOf('a')), isFalse);
-      expect(fetcher.needsDownload(GiphyContent.keyOf('b')), isTrue);
+      expect(fetcher.needsDownload(GiphyContent.keyOf('a').mediaKey), isFalse);
+      expect(fetcher.needsDownload(GiphyContent.keyOf('b').mediaKey), isTrue);
     });
 
-    test('need a download without a disk, and for other content the fetcher '
+    test('need a download when not kept, and for other content the fetcher '
         'given says', () {
-      final fetcher = GiphyContent(client).fetcher(otherwise: other);
+      final fetcher = contentOver(client).fetcher(otherwise: other);
 
-      expect(fetcher.needsDownload(GiphyContent.keyOf('a')), isTrue);
-      expect(fetcher.needsDownload(_otherMissing), isTrue);
+      expect(fetcher.needsDownload(GiphyContent.keyOf('a').mediaKey), isTrue);
+      expect(fetcher.needsDownload(_otherMissing.mediaKey), isTrue);
       expect(
-        fetcher.needsDownload(const ContentKey.document('bundled')),
+        fetcher.needsDownload(const ContentKey.document('bundled').mediaKey),
         isFalse,
       );
     });
 
-    test('are downloaded and kept when the disk has none', () async {
-      final disk = _MemoryDisk();
+    test('are downloaded and kept when the store has none', () async {
       files['/a.mp4'] = Uint8List.fromList([3]);
-      final content = GiphyContent(client, clipDisk: disk)
-        ..remember([_clip('a')]);
+      final content = contentOver(client)..remember([_clip('a')]);
 
       await content
           .fetcher(otherwise: other)
@@ -589,22 +605,20 @@ void main() {
       await pumpEventQueue();
 
       expect(requests.single.url.path, '/a.mp4');
-      expect(await disk.read('clip_a'), [3]);
+      expect(await store.read(_keyOf('a')), [3]);
     });
 
-    test('are not mixed with the stills on one disk', () async {
-      final disk = _MemoryDisk();
+    test('are not mixed with the stills in one store', () async {
       files['/a.mp4'] = Uint8List.fromList([1]);
       files['/a.still.gif'] = Uint8List.fromList([7]);
       final clip = _clip('a', still: true);
-      final content = GiphyContent(client, stillDisk: disk, clipDisk: disk)
-        ..remember([clip]);
+      final content = contentOver(client)..remember([clip]);
       final fetcher = content.fetcher(otherwise: other);
 
       await fetcher.fetch(_request(GiphyContent.keyOf('a')));
       final still = await fetcher.fetch(
         FetchRequest(
-          descriptor: content.describe(clip),
+          descriptor: content.describe(clip).mediaDescriptor!,
           part: FetchPart.thumbnail,
           priority: AssetPriority.placeholder,
           cancellation: CancellationToken(),
@@ -670,17 +684,12 @@ void main() {
   });
 }
 
-// A disk tier in memory: what a later session over the same folder reads.
-final class _MemoryDisk implements ByteCache {
-  final Map<String, Uint8List> _files = {};
+// The store key of the file of the clip [id].
+BytesCacheKey _keyOf(String id) => BytesCacheFetcher.cacheKeyOf(
+  GiphyContent.keyOf(id).mediaKey,
+  FetchPart.content,
+);
 
-  @override
-  Future<Uint8List?> read(String name) async => _files[name];
-
-  @override
-  bool holds(String name) => _files.containsKey(name);
-
-  @override
-  Future<void> write(String name, Uint8List bytes) async =>
-      _files[name] = bytes;
-}
+// Keeps [bytes] as the file of the clip [id], as an earlier session did.
+Future<void> _keep(IBytesStore store, String id, List<int> bytes) =>
+    store.write(_keyOf(id), Uint8List.fromList(bytes));

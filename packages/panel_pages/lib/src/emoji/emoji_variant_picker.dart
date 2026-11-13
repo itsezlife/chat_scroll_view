@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:glyph_atlas/glyph_atlas.dart' show ParagraphGlyphRasteriser;
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/overlay/chrome_overlay_scopes.dart';
@@ -17,7 +17,7 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// Every option is the **same cell the grid draws** ([cell], the pressed
 /// cell's own size) and its glyph the same box and font scale the grid uses
-/// (`CatalogContentBox.glyphBoxExtent`, `TextGlyphProducer.defaultFontScale`),
+/// (`CatalogContentBox.glyphBoxExtent`, `ParagraphGlyphRasteriser.defaultFontScale`),
 /// so an emoji looks the same in the picker as under the finger and cannot be
 /// cropped by a container smaller than the ink it is drawn with.
 ///
@@ -423,7 +423,8 @@ class _Option extends StatelessWidget {
                     // The grid ignores the text scale; so does its twin.
                     textScaler: TextScaler.noScaling,
                     style: TextStyle(
-                      fontSize: glyphBox * TextGlyphProducer.defaultFontScale,
+                      fontSize:
+                          glyphBox * ParagraphGlyphRasteriser.defaultFontScale,
                       color: color,
                       decoration: TextDecoration.none,
                     ),

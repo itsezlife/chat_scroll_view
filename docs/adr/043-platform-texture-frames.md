@@ -10,6 +10,7 @@ carry the frames as before.
 
 **Status**: Accepted  
 **Date**: 2026-11-08  
+**Moved**: 2026-11-13 (media-pipeline ticket 08) — the texture hosts and the pool live in mpx's `mpx_core` (channel `dev.mpx.frame_texture`); mpx ADR 0003 holds the decisions from here on  
 **Amended**: 2026-11-09 (native-media ticket 87): a held texture keeps its last frame (row *Kept leases*); 2026-11-09 (native-media ticket 108): a warm makes room from idle textures of other classes, and a lease still on a slot asks for a texture at every sweep (row *Pool*)  
 **Amended**: 2026-11-09 (native-media ticket 110): each lease waits only for its own frame in flight (row *Pacing*, section *Amendment: each lease waits only for its own frame*)
 **Amended**: 2026-11-09 (native-media ticket 116): a texture is given back when its lease's paintable leaves the screen (section *Amendment: textures given back on leaving*)

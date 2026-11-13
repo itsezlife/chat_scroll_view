@@ -1,12 +1,12 @@
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
 import 'package:l/l.dart';
-import 'package:lottie_decoder/lottie_decoder.dart';
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
 
 /// The VM hook behind [LottiePlayback.start]: starts the render isolate,
 /// which is the probe: it throws a [LottieUnavailable] naming why when the

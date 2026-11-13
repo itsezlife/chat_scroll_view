@@ -1,8 +1,9 @@
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_baseline/golden_baseline.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
@@ -51,7 +52,7 @@ void main() {
       final controller = PanelCatalogController();
       // No glyph source and a producer that never answers: nothing is baked and
       // nothing loads.
-      final assets = AssetCacheScope(producer: _SilentProducer());
+      final assets = ContentAssetScope.withMedia(producer: _SilentProducer());
       addTearDown(() {
         snapshots.dispose();
         controller.dispose();

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/gestures.dart';
@@ -97,7 +97,7 @@ class EmojiStripFooter extends StatefulWidget {
   final ValueChanged<String> onChoose;
 
   /// Where pack covers are drawn from; null draws no covers.
-  final AssetCacheScope? assets;
+  final ContentAssetScope? assets;
 
   /// Height of the footer.
   static const double height = 36;
@@ -597,7 +597,7 @@ class _FooterButton extends StatelessWidget {
   final EmojiFooterIcon icon;
   final bool selected;
   final PanelTokens tokens;
-  final AssetCacheScope? assets;
+  final ContentAssetScope? assets;
   final VoidCallback onTap;
 
   @override

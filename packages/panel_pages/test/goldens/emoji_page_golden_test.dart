@@ -1,4 +1,5 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart' show SemanticsAction;
@@ -44,7 +45,7 @@ void main() {
       ]),
     });
     final host = FakePanelPageHost(pageId: 'emoji')..searchState = search;
-    final assets = PageAssets.createScope();
+    final assets = ContentAssetScope.withMedia();
     addTearDown(() {
       source.dispose();
       searchSource.dispose();
@@ -174,7 +175,7 @@ void main() {
   }) async {
     final source = fixtures.source(recents: ['😀', '❤', '👍'], count: 8);
     final searchSource = FakeSearchSource({});
-    final assets = PageAssets.createScope();
+    final assets = ContentAssetScope.withMedia();
     final preferences = FakePreferenceStore();
     final shell = PanelShellController(
       pages: [

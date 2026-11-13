@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/emoji/emoji_page_policy.dart';
 import 'package:panel_pages/src/menu/catalog_context_menu.dart';
@@ -76,7 +77,7 @@ class PackSheetView extends StatefulWidget {
   final ContentLibrary library;
 
   /// What the grid draws through.
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   /// Asked to apply the edits of a button.
   final PackEditsRequested onEditsRequested;
@@ -1137,7 +1138,7 @@ class _PreviewEmoji extends StatelessWidget {
   });
 
   final ContentKey content;
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
   final double alpha;
 
   @override
@@ -1149,7 +1150,7 @@ class _PreviewEmoji extends StatelessWidget {
         opacity: alpha.clamp(0.0, 1.0),
         child: Transform.scale(
           scale: 0.6 + 0.4 * alpha,
-          child: ContentView(
+          child: ContentAssetView(
             content: content,
             scope: assets,
             preset: AssetPreset(

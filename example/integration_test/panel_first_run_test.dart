@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 

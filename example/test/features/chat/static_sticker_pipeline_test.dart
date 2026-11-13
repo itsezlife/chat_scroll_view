@@ -6,14 +6,13 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
-import 'package:content_model/content_model.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:image_decoder/image_decoder.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 
 /// The app bundle as the files under `assets/` on disk.
 final class _DiskBundle extends CachingAssetBundle {
@@ -55,7 +54,7 @@ void main() {
   group('through the pipeline', () {
     late ManualPlaybackTickSource ticks;
     late AssetPipeline pipeline;
-    late AssetCacheScope scope;
+    late ContentAssetScope scope;
 
     setUp(() {
       ticks = ManualPlaybackTickSource();
@@ -63,10 +62,12 @@ void main() {
       pipeline = AssetPipeline(
         fetcher: BundledPacks.fetcher(_DiskBundle()),
         decoders: DecoderRegistry()
-          ..register(MediaForm.still, const ImageCodecDecoder()),
+          ..register(MediaKind.still, const ImageCodecDecoder()),
       );
-      BundledPacks.descriptors.forEach(pipeline.know);
-      scope = AssetCacheScope(
+      for (final descriptor in BundledPacks.descriptors) {
+        pipeline.know(descriptor.mediaDescriptor!);
+      }
+      scope = ContentAssetScope.withMedia(
         producer: pipeline,
         clock: PlaybackClock(ticks: ticks),
       );

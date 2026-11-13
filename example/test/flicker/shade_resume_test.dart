@@ -4,7 +4,7 @@
 /// one the first tick back posts), and from there it moves one frame per
 /// frame interval, with no hold of several frames and no burst to catch up.
 ///
-/// **Seam:** the real `PanelCatalogViewport` over a real `AssetCacheScope`,
+/// **Seam:** the real `PanelCatalogViewport` over a real `ContentAssetScope`,
 /// paused by a real `PlaybackActivity` that follows the widgets binding's
 /// lifecycle (`WidgetsPlaybackLifecycleSource`), whose stickers are real
 /// `LottieAnimationPaintable`s or `VideoAnimationPaintable`s, played by the
@@ -23,21 +23,20 @@ library;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lottie_decoder/lottie_decoder.dart';
-import 'package:lottie_native/lottie_native.dart';
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
+import 'package:mpx_video_decoder/mpx_video_decoder.dart';
+import 'package:mpx_video_decoder/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
-import 'package:video_decoder/testing.dart';
-import 'package:video_decoder/video_decoder.dart';
-import 'package:video_native/video_native.dart';
 
 // Long enough that no loop wraps within a test.
 const _lottieRate = 60;
@@ -95,7 +94,7 @@ final class _LottieProducer implements AssetProducer {
     AssetProgress progress,
     AssetDemand demand,
   ) {
-    final paintable = made[request.key] = LottieAnimationPaintable(
+    final paintable = made[request.key.contentKey!] = LottieAnimationPaintable(
       key: '${request.key}@${request.spec.pixelWidth}',
       handle: LottieHandle(++_handles),
       info: _lottieInfo,
@@ -171,7 +170,7 @@ final class _VideoProducer implements AssetProducer {
     final height = request.spec.pixelHeight;
     engine.open(bytes, width: width, height: height).then((result) {
       final clip = (result as VideoClipOpened).clip;
-      final paintable = made[request.key] = VideoAnimationPaintable(
+      final paintable = made[request.key.contentKey!] = VideoAnimationPaintable(
         key: '${request.key}@$width',
         clip: clip,
         firstFrame: _image(8),
@@ -301,7 +300,7 @@ final class _Rig {
       pool: pool,
       writer: writer,
       made: made,
-      scope: AssetCacheScope(producer: producer, clock: clock),
+      scope: ContentAssetScope.withMedia(producer: producer, clock: clock),
       lifecycle: lifecycle,
       // Focus loss pauses, as on desktop: on a phone it does not by
       // default, and these tests are about what a pause leaves behind.
@@ -331,7 +330,7 @@ final class _Rig {
   final FrameTexturePool pool;
   final _ReadingWriter writer;
   final Map<ContentKey, AssetPaintable> made;
-  final AssetCacheScope scope;
+  final ContentAssetScope scope;
   final WidgetsPlaybackLifecycleSource lifecycle;
   final PlaybackActivity activity;
   final List<Future<void> Function()> tearDown;

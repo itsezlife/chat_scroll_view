@@ -3,18 +3,20 @@
 /// when content never arrives.
 ///
 /// **Seam:** [PanelCatalogViewport] driven with [FakeCatalogSnapshotSource] and
-/// a real [AssetCacheScope] over a [FakeAssetProducer], so a test plays the
+/// a real [ContentAssetScope] over a [FakeAssetProducer], so a test plays the
 /// producer by hand (answer at once, answer later, hang, fail). What is observed
 /// is the requests the producer receives and what the viewport asks its canvas
 /// to draw (a recording canvas passed to `paint`), never render-object fields.
 /// The baked-glyph path is pinned in `panel_catalog_baked_sprites_test.dart`.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/testing.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/panel_catalog_diagnostics.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
@@ -56,7 +58,7 @@ void main() {
   late FakeAssetProducer producer;
   late ManualPlaybackTickSource ticks;
   late PlaybackClock clock;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
 
   setUp(() {
     snapshots = FakeCatalogSnapshotSource();
@@ -64,7 +66,7 @@ void main() {
     producer = FakeAssetProducer();
     ticks = ManualPlaybackTickSource();
     clock = PlaybackClock(ticks: ticks);
-    scope = AssetCacheScope(producer: producer, clock: clock);
+    scope = ContentAssetScope.withMedia(producer: producer, clock: clock);
   });
   tearDown(() {
     snapshots.dispose();
@@ -75,7 +77,7 @@ void main() {
 
   Future<void> pumpViewport(
     WidgetTester tester, {
-    AssetCacheScope? assets,
+    ContentAssetScope? assets,
     double? devicePixelRatio,
     double width = 320,
   }) {
@@ -118,7 +120,7 @@ void main() {
   }
 
   AssetRequest requestOf(CatalogLeaf leaf) => producer.attempts
-      .firstWhere((attempt) => attempt.request.key == leaf.key)
+      .firstWhere((attempt) => attempt.request.key == leaf.key.mediaKey)
       .request;
 
   group('what a leaf asks of the cache', () {
@@ -435,6 +437,10 @@ void main() {
       tester,
     ) async {
       PanelCatalogDiagnostics.reset();
+      // An atlas that plans the glyph and has not baked its page yet.
+      final atlas = FakeGlyphSpriteSource(['😀']);
+      addTearDown(atlas.dispose);
+      scope.glyphSource = atlas;
       snapshots.replaceSections([
         _section([CatalogLeaf.unicode('😀')]),
       ]);
@@ -563,7 +569,10 @@ void main() {
       ]);
       await pumpViewport(tester);
       final other = FakeAssetProducer();
-      final otherScope = AssetCacheScope(producer: other, clock: clock);
+      final otherScope = ContentAssetScope.withMedia(
+        producer: other,
+        clock: clock,
+      );
       addTearDown(otherScope.dispose);
 
       await pumpViewport(tester, assets: otherScope);

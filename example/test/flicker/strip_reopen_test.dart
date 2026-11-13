@@ -2,7 +2,7 @@
 /// rows of recents in the panel), the covers of the panel's pack strip lose
 /// their frames on every close and open of the panel and load again.
 ///
-/// **Seam:** the chat's stickers (`ContentView`s that always play), and a
+/// **Seam:** the chat's stickers (`ContentAssetView`s that always play), and a
 /// panel kept mounted while hidden, as the presentation keeps it: a grid of
 /// recents (`PanelCatalogViewport`) under a strip of covers
 /// (`PanelStripCover`), the whole under `TickerMode(enabled: shown)` and
@@ -17,17 +17,17 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/frame_pool.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lottie_decoder/lottie_decoder.dart';
-import 'package:lottie_native/lottie_native.dart';
+import 'package:mpx_core/frame_pool.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_lottie/mpx_lottie.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
 import 'package:panel_pages/src/strip/panel_strip.dart';
@@ -118,7 +118,7 @@ void main() {
   late PlaybackClock clock;
   late FrameTexturePool pool;
   late LottieFrameScheduler scheduler;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late FakeCatalogSnapshotSource recents;
   late PanelCatalogController controller;
   late ValueNotifier<bool> shown;
@@ -154,7 +154,10 @@ void main() {
       textures: pool,
       textureWriter: FakeTextureFrameWriter(),
     );
-    scope = AssetCacheScope(producer: _LottieProducer(scheduler), clock: clock);
+    scope = ContentAssetScope.withMedia(
+      producer: _LottieProducer(scheduler),
+      clock: clock,
+    );
     recents = FakeCatalogSnapshotSource()
       ..replaceSections([
         CatalogSection(
@@ -189,7 +192,7 @@ void main() {
             Row(
               children: [
                 for (var i = 0; i < chatStickers; i++)
-                  ContentView(
+                  ContentAssetView(
                     content: ContentKey.document('chat-$i'),
                     scope: scope,
                     preset: const AssetPreset(
@@ -209,7 +212,7 @@ void main() {
               child: Row(
                 children: [
                   for (var i = 0; i < chatStickers; i++)
-                    ContentView(
+                    ContentAssetView(
                       content: ContentKey.document('chat-under-$i'),
                       scope: scope,
                       preset: const AssetPreset(

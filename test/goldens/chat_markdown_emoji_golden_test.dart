@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

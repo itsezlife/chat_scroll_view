@@ -1,11 +1,3 @@
-import 'package:catalog_assets/catalog_assets.dart'
-    show
-        AssetPlayback,
-        AssetPreset,
-        AssetPresets,
-        AssetProfile,
-        InlineEmbed,
-        PlayableEmbed;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_sticker_tap_policy.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_body_selection_scope.dart';
@@ -19,10 +11,12 @@ import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_body.dart'
 import 'package:chat_scroll_view/src/chat_widgets/chat_media_sizes.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_sticker_playback.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_emoji_body.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart'
     show ContentKey, ContentKey$Document, ContentKey$Unicode, EmojiOnly;
 import 'package:flutter/gestures.dart' show PointerHoverEvent;
 import 'package:flutter/widgets.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 /// Makes the embed that draws [content] the way [preset] says: the host's
 /// link between an emoji-only body and its asset cache.
@@ -659,7 +653,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
               devicePixelRatio: _dpr,
               profile: const AssetProfile(animate: true),
             )
-          : AssetPresets.emojiSticker(
+          : ContentAssetPresets.emojiSticker(
               extent: extent,
               devicePixelRatio: _dpr,
               autoplay: _autoplay!,
@@ -671,7 +665,7 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
       ContentKey$Unicode(:final sequence) => _glyphLeaf(sequence),
       ContentKey$Document() => _embedLeaf(
         key,
-        AssetPresets.emojiOnly(step: _font, devicePixelRatio: _dpr),
+        ContentAssetPresets.emojiOnly(step: _font, devicePixelRatio: _dpr),
       ),
       _ => const ChatEmojiEmptyLeaf(),
     };

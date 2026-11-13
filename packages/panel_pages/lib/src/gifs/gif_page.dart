@@ -1,11 +1,12 @@
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_catalog/panel_catalog.dart' show CatalogLeafRemoveBadge;
 import 'package:panel_pages/src/gifs/gif_row_layout.dart';
 import 'package:panel_pages/src/menu/catalog_context_menu.dart';
@@ -144,7 +145,7 @@ class GifPage extends StatefulWidget {
   final CollectionSource source;
 
   /// The asset cache the clips draw through.
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   /// Where search results come from, or null for a page that does not search.
   final SearchSource? searchSource;
@@ -916,7 +917,7 @@ class _Row extends StatelessWidget {
   final GifRow row;
   final Collection collection;
   final PanelPageHost host;
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   // The clips that fade in on [appear]; the others show as they are.
   final Set<ContentKey> fresh;
@@ -1006,7 +1007,7 @@ class _Cell extends StatefulWidget {
   /// Removes the clip from its list, from the remove badge a mouse over the
   /// cell shows; null shows none.
   final VoidCallback? onRemove;
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
   final _GifPreview? preview;
 
   @override
@@ -1177,7 +1178,7 @@ class _CellState extends State<_Cell> {
                         ? const Color(0x00000000)
                         : palette.onSurface.withAlpha(0x0F),
                     onTap: widget.onTap,
-                    child: ContentView(
+                    child: ContentAssetView(
                       content: widget.item.key,
                       scope: widget.assets,
                       preset: AssetPreset(

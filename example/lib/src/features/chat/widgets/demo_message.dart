@@ -1,4 +1,3 @@
-import 'package:catalog_assets/catalog_assets.dart' show InlineEmbedResolver;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
@@ -10,6 +9,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_row_hover.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/message_row_frame.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart';

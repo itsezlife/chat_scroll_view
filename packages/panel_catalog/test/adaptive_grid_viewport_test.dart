@@ -10,7 +10,7 @@
 /// padding reproduce here).
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -28,7 +28,7 @@ const _layout = SectionLayout.grid(
 
 void main() {
   late FakeCatalogSnapshotSource snapshots;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late PanelCatalogController controller;
 
   setUp(() {

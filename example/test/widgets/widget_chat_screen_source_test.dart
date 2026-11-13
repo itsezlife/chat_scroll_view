@@ -1,4 +1,3 @@
-import 'package:catalog_assets/catalog_assets.dart' show PlaybackPauseLayer;
 import 'package:chat_composer/chat_composer.dart' show ComposerView;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/main.dart';
@@ -16,6 +15,7 @@ import 'package:content_model/content_model.dart'
     show Entity, EntityKind, RichText;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 
 import '../support/fake_soft_keyboard.dart';

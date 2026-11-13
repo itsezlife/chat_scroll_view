@@ -3,19 +3,21 @@
 /// memory of which stickers this screen already played.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/reference_media_sizes.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/testing.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 
 final class _Counting implements Canvas {
   int rrects = 0;
@@ -69,14 +71,14 @@ void main() {
   });
 
   group('ChatBodyHost', () {
-    late AssetCacheScope scope;
+    late ContentAssetScope scope;
     late FakeAssetProducer producer;
     late ValueNotifier<LargeEmojiPolicy> policy;
     late ChatBodyHost host;
 
     setUp(() {
       producer = FakeAssetProducer();
-      scope = AssetCacheScope(producer: producer);
+      scope = ContentAssetScope.withMedia(producer: producer);
       policy = ValueNotifier(const LargeEmojiPolicy(enabled: true));
       host = ChatBodyHost(assets: scope, policy: policy);
     });
@@ -88,22 +90,25 @@ void main() {
     test('makes an embed over the cache for a content and a preset', () {
       final embed = host.embedFactory(
         const ContentKey.document('5368'),
-        AssetPresets.emojiOnly(step: 40, devicePixelRatio: 2),
+        ContentAssetPresets.emojiOnly(step: 40, devicePixelRatio: 2),
       );
       addTearDown(embed!.dispose);
 
       expect(
         producer.attempts.single.request.key,
-        const ContentKey.document('5368'),
+        const ContentKey.document('5368').mediaKey,
       );
       expect(
         embed.sizeHint,
-        AssetPresets.emojiOnly(step: 40, devicePixelRatio: 2).size,
+        ContentAssetPresets.emojiOnly(step: 40, devicePixelRatio: 2).size,
       );
     });
 
     group('what a sticker shows while it loads', () {
-      final preset = AssetPresets.emojiOnly(step: 40, devicePixelRatio: 2);
+      final preset = ContentAssetPresets.emojiOnly(
+        step: 40,
+        devicePixelRatio: 2,
+      );
       const rect = Rect.fromLTWH(0, 0, 40, 40);
 
       // Counts what an embed asks of a canvas before its content exists.
@@ -146,7 +151,10 @@ void main() {
         expect(drawnBefore(embed), (rrects: 1, circles: 0));
       });
 
-      test('a unicode emoji keeps the circle', () {
+      test('a unicode emoji not baked yet keeps the circle', () {
+        final atlas = FakeGlyphSpriteSource(const ['\u{1F600}']);
+        addTearDown(atlas.dispose);
+        scope.glyphSource = atlas;
         final embed = host.embedFactory(
           const ContentKey.unicode('\u{1F600}'),
           preset,
@@ -160,7 +168,7 @@ void main() {
     test('every embed the bodies make holds while the chat is held', () {
       final held = listen.ValueNotifier<bool>(false);
       addTearDown(held.dispose);
-      final ticking = AssetCacheScope(
+      final ticking = ContentAssetScope.withMedia(
         producer: producer,
         clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
       );
@@ -168,7 +176,7 @@ void main() {
       final holding = ChatBodyHost(assets: ticking, policy: policy, held: held);
       final item = holding.embedFactory(
         const ContentKey.document('1'),
-        AssetPresets.emojiOnly(step: 40, devicePixelRatio: 2),
+        ContentAssetPresets.emojiOnly(step: 40, devicePixelRatio: 2),
       )!;
       addTearDown(item.dispose);
       final itemPaintable = producer.last.advance(

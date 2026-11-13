@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/video_playback.dart'
     as environment_specific;
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
@@ -8,7 +7,8 @@ import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
 import 'package:l/l.dart';
-import 'package:video_decoder/video_decoder.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_video_decoder/mpx_video_decoder.dart';
 
 /// The video decoder of a host that can run one, and how to stop what it
 /// needs.

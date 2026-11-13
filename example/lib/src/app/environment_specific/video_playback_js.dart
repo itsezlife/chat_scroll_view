@@ -1,7 +1,7 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:flutter/foundation.dart';
-import 'package:video_decoder/web.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_video_decoder/web.dart';
 
 /// The web hook behind [VideoPlayback.start]: plays video with the browser's
 /// own decoder, a hidden `<video>` element per clip. There is nothing to

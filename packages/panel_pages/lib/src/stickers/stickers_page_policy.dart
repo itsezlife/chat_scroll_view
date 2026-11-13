@@ -1,5 +1,5 @@
-import 'package:catalog_assets/catalog_assets.dart' show AssetCacheScope;
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart' show ContentAssetScope;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/widgets.dart';
@@ -83,7 +83,7 @@ final class StickersPagePolicy extends CatalogPagePolicy {
   static const String openPackActionId = 'open-pack';
 
   /// Where the strip draws pack covers, and the preview its sticker, from.
-  final AssetCacheScope? assets;
+  final ContentAssetScope? assets;
 
   /// The page's connection to the shell, which the preview's items ask.
   final PanelPageHost? host;

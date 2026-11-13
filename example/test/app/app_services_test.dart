@@ -3,9 +3,6 @@ library;
 
 import 'dart:io';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/glyph_atlas.dart' show GlyphCacheStore;
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/media_disk_cache.dart';
@@ -17,14 +14,18 @@ import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 
 import '../support/disposal_watch.dart';
 import '../support/test_services.dart';
@@ -292,7 +293,10 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
       expect(decoder.decodes, isNotEmpty);
-      expect(decoder.decodes.first.request.descriptor, sticker.descriptor);
+      expect(
+        decoder.decodes.first.request.descriptor,
+        sticker.descriptor.mediaDescriptor,
+      );
     });
 
     test("keeps its frames in the media store's folder for them, else in "
@@ -449,7 +453,10 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
       expect(decoder.decodes, isNotEmpty);
-      expect(decoder.decodes.first.request.descriptor, item.descriptor);
+      expect(
+        decoder.decodes.first.request.descriptor,
+        item.descriptor.mediaDescriptor,
+      );
     });
 
     test('is closed once, when the services are disposed', () async {
@@ -788,6 +795,7 @@ void main() {
         giphyApiKey: 'test-key',
         giphyHttpClient: MockClient((_) async => http.Response.bytes([1], 200)),
         mediaCache: Future.value(MediaDiskCache('${dir.path}/media')),
+        bytesCacheDirectory: Future.value('${dir.path}/http_bytes'),
         diskCache: diskCache,
       );
       addTearDown(services.dispose);
@@ -811,7 +819,7 @@ void main() {
           .fetcher(otherwise: const _NoFetcher())
           .fetch(
             FetchRequest(
-              descriptor: giphy.describe(clip),
+              descriptor: giphy.describe(clip).mediaDescriptor!,
               part: FetchPart.content,
               priority: AssetPriority.visible,
               cancellation: CancellationToken(),
@@ -834,23 +842,21 @@ void main() {
       await fetch(services);
 
       expect(services.glyphCache, isNotNull);
-      // A fetch does not wait for its disk write (a temporary file renamed
-      // into place), so wait for the renamed files rather than a fixed time.
-      const kept = ['/media/giphy/still_a', '/media/giphy/clip_a'];
-      for (var i = 0; i < 250; i++) {
-        final present = [
-          for (final name in kept)
-            if (File('${dir.path}$name').existsSync()) name,
-        ];
-        if (present.length == kept.length) break;
+      // A fetch does not wait for its disk write, so wait for the files the
+      // bytes store keeps under the clip's media key rather than a fixed
+      // time: its still and its file.
+      bool kept(List<String> names) =>
+          names.any((name) => name.contains('/http_bytes/thumbnail-remote-')) &&
+          names.any((name) => name.contains('/http_bytes/remote-'));
+      for (var i = 0; i < 250 && !kept(await files()); i++) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
       }
-      expect(await files(), containsAll(kept));
+      expect(kept(await files()), isTrue, reason: '${await files()}');
     });
 
     test('sweep the media store at start when on: a file unused for a month '
         'goes', () async {
-      final old = File('${dir.path}/media/giphy/clip_old')
+      final old = File('${dir.path}/media/lottie_frames/frames_old')
         ..createSync(recursive: true)
         ..setLastModifiedSync(
           DateTime.now().subtract(const Duration(days: 40)),
@@ -1188,5 +1194,5 @@ final class _NoFetcher implements ContentFetcher {
       Future.error(StateError('not asked for: ${request.descriptor.key}'));
 
   @override
-  bool needsDownload(ContentKey key) => false;
+  bool needsDownload(MediaKey key) => false;
 }

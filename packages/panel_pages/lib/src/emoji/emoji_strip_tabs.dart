@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_pages/src/emoji/emoji_category_strip.dart';
 import 'package:panel_pages/src/emoji/emoji_strip_footer.dart';
@@ -64,7 +64,7 @@ class EmojiStripTabs extends StatefulWidget {
   final String? active;
 
   /// Where pack covers are drawn from; null draws none.
-  final AssetCacheScope? assets;
+  final ContentAssetScope? assets;
 
   /// The id of a tab the user chose.
   final ValueChanged<String> onChoose;
@@ -401,7 +401,7 @@ class _Tab extends StatelessWidget {
   final EmojiFooterIcon icon;
   final bool selected;
   final PanelTokens tokens;
-  final AssetCacheScope? assets;
+  final ContentAssetScope? assets;
   final Duration duration;
   final VoidCallback onTap;
 

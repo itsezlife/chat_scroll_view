@@ -1,11 +1,11 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/src/text/inline_content_span_builder.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/widgets.dart';
 
-/// The spans that draw inline content in the field through `ContentView`.
+/// The spans that draw inline content in the field through `ContentAssetView`.
 abstract final class ContentViewSpans {
   /// An [InlineContentSpanBuilder] that shows each inline content reference
-  /// through `ContentView`, so the field draws it from the host's asset cache
+  /// through `ContentAssetView`, so the field draws it from the host's asset cache
   /// like any other surface.
   ///
   /// The span is a [WidgetSpan] holding the view, followed by zero-width word
@@ -15,17 +15,17 @@ abstract final class ContentViewSpans {
   /// selection and caret by text offsets. They have no width and no glyph, and
   /// forbid a line break inside the reference.
   ///
-  /// The content's size follows the text: `AssetPresets.inlineFontSize` at the
+  /// The content's size follows the text: `ContentAssetPresets.inlineFontSize` at the
   /// style's font size (the field's size when the style has none) and the
   /// display density. [scope] is the cache to attach to; null looks up the
-  /// closest `AssetCacheProvider` above the field and throws a [FlutterError]
+  /// closest `ContentAssetProvider` above the field and throws a [FlutterError]
   /// when there is none.
   static InlineContentSpanBuilder builder({
-    AssetCacheScope? scope,
+    ContentAssetScope? scope,
     double fallbackFontSize = _defaultFontSize,
   }) => (context, reference, style) {
     final padding = reference.alternativeText.length - 1;
-    final preset = AssetPresets.inlineFontSize(
+    final preset = ContentAssetPresets.inlineFontSize(
       fontSize: style.fontSize ?? fallbackFontSize,
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
     );
@@ -35,7 +35,7 @@ abstract final class ContentViewSpans {
         WidgetSpan(
           alignment: PlaceholderAlignment.middle,
           style: style,
-          child: ContentView(
+          child: ContentAssetView(
             content: reference.key,
             preset: preset,
             scope: scope,

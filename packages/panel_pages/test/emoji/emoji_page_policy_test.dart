@@ -7,13 +7,13 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:glyph_atlas/glyph_atlas.dart' show ParagraphGlyphRasteriser;
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/testing.dart';
@@ -146,7 +146,7 @@ void main() {
           maxWidth: width,
         );
         expect(
-          box * TextGlyphProducer.defaultFontScale,
+          box * ParagraphGlyphRasteriser.defaultFontScale,
           closeTo(24, 1e-9),
           reason: '$width',
         );

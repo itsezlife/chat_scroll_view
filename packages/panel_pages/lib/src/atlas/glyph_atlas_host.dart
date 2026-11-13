@@ -1,9 +1,7 @@
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart'
-    show GlyphSpriteSource, LayeredGlyphSource;
-import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:flutter/foundation.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_pages/src/atlas/glyph_plan.dart';
 import 'package:panel_pages/src/bake/bake_activity_port.dart';

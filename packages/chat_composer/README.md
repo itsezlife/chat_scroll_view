@@ -10,7 +10,7 @@ suggestion panels a host builds.
 It depends on `content_model` (the `RichText` value, `InlineContentRef`), the
 pure-Dart `package:listen` (`ValueListenable`: `softKeyboard`, `fieldHeight`,
 `extent` and `query` are `package:listen` types, not Flutter's),
-`chrome_foundation` (theme tokens, glass, motion, strings, icons) and `catalog_assets` (inline content in the field is drawn by
+`chrome_foundation` (theme tokens, glass, motion, strings, icons) and `content_assets` (inline content in the field is drawn by
 `ContentView`), and knows no panel, inset or presentation type
 ([ADR 026](../../docs/adr/026-composer-model.md),
 [ADR 020](../../docs/adr/020-package-topology.md)).

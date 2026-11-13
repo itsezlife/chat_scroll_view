@@ -1,0 +1,56 @@
+import 'package:content_assets/src/embed/content_embed.dart';
+import 'package:content_assets/src/embed/inline_embed.dart';
+import 'package:content_assets/src/preset/content_asset_presets.dart';
+import 'package:content_assets/src/scope/content_asset_scope.dart';
+import 'package:content_model/content_model.dart';
+import 'package:listen/listen.dart';
+import 'package:mpx_core/mpx_core.dart';
+
+/// An [InlineEmbedResolver] that resolves a target spelled as the storage
+/// encoding of a `ContentKey` (`unicode:1F44D`, `document:5368`,
+/// `external:...`, the schemes the rich-text markdown helper writes) to a
+/// [ContentEmbed] on one [ContentAssetScope].
+///
+/// A target whose scheme is not a content scheme (a mention, a web link), or
+/// whose id does not read as a key, is not this resolver's: it returns null
+/// and the body shows the alternative text. Every embed it makes attaches to
+/// the scope and is the body's to dispose.
+final class ContentEmbedResolver implements InlineEmbedResolver {
+  /// Creates a resolver over [scope].
+  ///
+  /// [presetFor] chooses the preset of an embed from the text around it; by
+  /// default `ContentAssetPresets.inlineMessage` at that font size and density.
+  ///
+  /// [held] is handed to every embed it makes (`ContentEmbed.held`): the
+  /// host's hold on the surface the bodies are on.
+  ContentEmbedResolver({
+    required ContentAssetScope scope,
+    AssetPreset Function(InlineEmbedMetrics metrics)? presetFor,
+    ValueListenable<bool>? held,
+  }) : _scope = scope,
+       _held = held,
+       _presetFor = presetFor ?? _inlineMessage;
+
+  final ContentAssetScope _scope;
+  final ValueListenable<bool>? _held;
+  final AssetPreset Function(InlineEmbedMetrics metrics) _presetFor;
+
+  static AssetPreset _inlineMessage(InlineEmbedMetrics metrics) =>
+      ContentAssetPresets.inlineMessage(
+        ascent: metrics.ascent,
+        descent: metrics.descent,
+        devicePixelRatio: metrics.devicePixelRatio,
+      );
+
+  @override
+  InlineEmbed? resolve(InlineEmbedTarget target, InlineEmbedMetrics metrics) {
+    final content = ContentKey.tryParse('${target.scheme}:${target.id}');
+    if (content == null) return null;
+    return ContentEmbed(
+      scope: _scope,
+      content: content,
+      preset: _presetFor(metrics),
+      held: _held,
+    );
+  }
+}

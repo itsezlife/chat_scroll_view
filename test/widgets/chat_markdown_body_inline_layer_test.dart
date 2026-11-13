@@ -1,6 +1,6 @@
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:content_assets/content_assets.dart';
+import 'package:content_assets/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart'
     show PointerDeviceKind, kPrimaryMouseButton, kSecondaryMouseButton;
@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RendererBinding;
 import 'package:flutter_md/flutter_md.dart' show MD$Paragraph, MarkdownWidget;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 
 import '../chat_message.dart';
 

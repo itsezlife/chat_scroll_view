@@ -6,6 +6,11 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the asset cache moved to mpx)
+
+- Inline content draws through `content_assets`' `ContentAssetView` and the
+  scope a `ContentAssetProvider` hands down.
+
 ### Breaking
 
 - No API change here. The README names `PointerMenuTokens.day` and `PointerMenuTokens.night` (was `referenceDay` and `referenceNight`). See the `chrome_foundation` changelog.

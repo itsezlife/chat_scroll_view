@@ -2,7 +2,6 @@ import 'dart:async' show unawaited;
 import 'dart:collection';
 import 'dart:ui' show Offset, Path, Rect;
 
-import 'package:catalog_assets/catalog_assets.dart' show PlaybackClock;
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_non_text_body.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
@@ -29,6 +28,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_md/flutter_md.dart';
 import 'package:meta/meta.dart' show immutable, internal;
+import 'package:mpx_core/mpx_core.dart';
 
 export 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_non_text_body.dart';
@@ -157,7 +157,7 @@ class ChatSelectionController implements Listenable {
   /// [spoilers] is the reveal state of the bodies; a host passes its own to
   /// start with motion off (`MarkdownSpoilerController(animate: false)`) and
   /// owns it then (it is not disposed here). [spoilerClock] is the asset
-  /// cache's playback clock (`AssetCacheScope.clock`): while a hidden spoiler
+  /// cache's playback clock (`ContentAssetScope.clock`): while a hidden spoiler
   /// is on screen the dust moves on its frames and pause layers, and without
   /// one it stands still.
   ChatSelectionController({

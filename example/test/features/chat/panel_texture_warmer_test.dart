@@ -1,11 +1,11 @@
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/media_panel_pages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/panel_texture_warmer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_shell/panel_shell.dart';
 
 PanelPage _page(String id) => PanelPage(

@@ -3,16 +3,16 @@
 /// document.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_message.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/testing.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +21,7 @@ void main() {
       'for its document', (tester) async {
     final sticker = StaticStickerPack.stickers.first;
     final producer = FakeAssetProducer();
-    final scope = AssetCacheScope(producer: producer);
+    final scope = ContentAssetScope.withMedia(producer: producer);
     final policy = ValueNotifier(const LargeEmojiPolicy(enabled: true));
     final selection = ChatSelectionController();
     final host = ChatBodyHost(assets: scope, policy: policy);
@@ -57,7 +57,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(ChatEmojiBody), findsOneWidget);
     expect(
-      producer.attempts.map((attempt) => attempt.request.key),
+      producer.attempts.map((attempt) => attempt.request.key.contentKey),
       contains(sticker.key),
     );
   });

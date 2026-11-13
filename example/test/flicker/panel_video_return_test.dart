@@ -4,7 +4,7 @@
 /// of the clip, with no hold of several frames and no skip ahead by the time
 /// it was away.
 ///
-/// **Seam:** the real `PanelCatalogViewport` over a real `AssetCacheScope`
+/// **Seam:** the real `PanelCatalogViewport` over a real `ContentAssetScope`
 /// whose stickers are real `VideoAnimationPaintable`s, played by a real
 /// `VideoFrameScheduler` on a `FrameTexturePool` of fake textures, on the
 /// clock's own scheduler frames. The engine stamps each frame's index into
@@ -15,18 +15,18 @@ library;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_video_decoder/mpx_video_decoder.dart';
+import 'package:mpx_video_decoder/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
-import 'package:video_decoder/testing.dart';
-import 'package:video_decoder/video_decoder.dart';
-import 'package:video_native/video_native.dart';
 
 // 30 frames a second, long enough that no loop wraps within a test.
 const _rate = 30;
@@ -133,7 +133,7 @@ final class _VideoProducer implements AssetProducer {
     final height = request.spec.pixelHeight;
     engine.open(bytes, width: width, height: height).then((result) {
       final clip = (result as VideoClipOpened).clip;
-      final paintable = made[request.key] = VideoAnimationPaintable(
+      final paintable = made[request.key.contentKey!] = VideoAnimationPaintable(
         key: '${request.key}@$width',
         clip: clip,
         firstFrame: _image(8),
@@ -184,7 +184,7 @@ void main() {
   late _StampingEngine engine;
   late VideoFrameScheduler scheduler;
   late _VideoProducer producer;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late FakeCatalogSnapshotSource snapshots;
   late PanelCatalogController controller;
   var elapsed = Duration.zero;
@@ -211,7 +211,7 @@ void main() {
       textureWriter: writer,
     );
     producer = _VideoProducer(engine, scheduler);
-    scope = AssetCacheScope(producer: producer, clock: clock);
+    scope = ContentAssetScope.withMedia(producer: producer, clock: clock);
     snapshots = FakeCatalogSnapshotSource()
       ..replaceSections([
         CatalogSection(

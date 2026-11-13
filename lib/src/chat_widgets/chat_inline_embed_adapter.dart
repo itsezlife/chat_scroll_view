@@ -1,6 +1,6 @@
 import 'dart:ui' show Canvas, Rect, Size;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:flutter_md/flutter_md.dart';
 import 'package:meta/meta.dart' show internal;

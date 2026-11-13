@@ -4,7 +4,7 @@ The catalog viewport: an extent-scroll body with recycled paint leaves, for
 panel surfaces that show emoji, stickers and GIFs in sections. It draws
 `CatalogLeaf` values through the host's asset cache, reports taps and scroll
 facts, and owns the pointer, semantics and focus of its cells. It depends on
-`content_model` and `catalog_assets` only, never on `chrome_foundation` and
+`content_model`, `content_assets` and `mpx_core` only, never on `chrome_foundation` and
 never on the atlas types: it sees an `AssetPaintable` and its optional sprite.
 
 Entry points: `panel_catalog.dart` (viewport, controller, snapshot, section and
@@ -160,7 +160,7 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   hangs keeps its placeholder: there is no failed stand-in and no failed token
 - **Baked glyphs** — a scope whose glyph source is an atlas gives every unicode
   leaf a sprite once its page is baked, and the circle until then, however long
-  that takes. A scope with no glyph source and a `TextGlyphProducer` draws the
+  that takes. A scope with no glyph source draws the
   glyph as text (the web), through the same paintable seam. The viewport holds
   an atlas page only through its binding (a count, never pixels) and never
   keeps a sprite beyond one paint. `panel_catalog_diagnostics.dart` counts
@@ -186,7 +186,7 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
 | The three required inputs of `PanelCatalogViewport`: a `ValueListenable<CatalogSnapshot>` from `package:listen` (`snapshots`), an `AssetCacheScope` (`assets`) and a `PanelCatalogController`. | Mount two viewports on one controller: it holds one position and a second attach replaces the first without telling it. |
 | A `ValueListenable<CatalogSnapshot>` and a `PanelCatalogController` (the host creates and disposes both) | Mutate a published snapshot or notify once per leaf: publish a new snapshot per logical mutation |
 | Listeners on `controller.events` for chrome that follows scrolling, and `PanelCatalogCurrentSectionChanged` / `controller.currentSection` for a strip that shows the section the user is in | Call the controller's `attach` / `detach` / `publish`: they belong to the viewport |
-| An `AssetCacheScope` (host-created and disposed) whose `glyphSource` is an atlas planning every glyph the data source shows, baked at `PanelCatalogViewport.largestGlyphBox` of the layouts it serves; on the web no source and a `TextGlyphProducer` | Expect a glyph outside the atlas to draw as text: it stays a placeholder; build a second atlas for a section with other cell sizes |
+| A `ContentAssetScope` (host-created and disposed) whose `glyphSource` is an atlas planning every glyph the data source shows, baked at `PanelCatalogViewport.largestGlyphBox` of the layouts it serves; on the web no source (glyphs drawn as text) | Expect a glyph outside the atlas to draw as text: it stays a placeholder; build a second atlas for a section with other cell sizes |
 | Listeners on `controller.events` that load a section (or the next page of it) on `PanelCatalogSectionNearViewport`, publish `loading` / `failed` / `loaded` section states and the empty message copy | Paint a loading or error state of its own over the viewport, or poll the controller's offset to decide what to load |
 | An `onSectionAction` callback for the header actions the sections carry, and the label / icon of each | Overlay widgets on the header to host an action |
 | The language of the labels: `CatalogLeaf.spokenName` from the descriptor, `CatalogSectionAction.semanticLabel` and section titles in the active language | Ship strings of its own, or expect a label for a leaf with no spoken name (a unicode emoji reads as its glyph, other content as nothing) |

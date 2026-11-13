@@ -1,5 +1,5 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
@@ -36,7 +36,7 @@ final class CatalogContentPreview {
   final ContentPreviewController controller;
 
   /// Where the content is drawn from.
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   /// What the menu's items ask.
   final ContentPreviewActions actions;

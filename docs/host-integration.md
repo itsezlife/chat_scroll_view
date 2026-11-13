@@ -21,7 +21,9 @@ dependencies:
   chrome_foundation:      # theme, motion, strings, icons, glass
   content_model:          # keys, collections, stores, RichText
   listen:                 # Listenable, ValueListenable, ChangeNotifier, ValueNotifier (pub.dev)
-  catalog_assets:         # asset cache, glyph atlas
+  content_assets:         # content by ContentKey over the media cache, embeds, presets
+  glyph_atlas:            # baked emoji pages
+  mpx_core:               # asset cache, pipeline, clock (git: github.com/itsezlife/mpx, pinned sha)
   emoji_data:             # emoji sources, glyph probe
   emoji_catalog_pack:     # bundled emoji assets (declare it so Flutter bundles them)
   kv_shared_preferences:  # KeyValueStore over shared_preferences
@@ -65,7 +67,7 @@ made. Whoever creates an object disposes it, in the reverse order.
    content library: `StoredContentLibrary.load` over a
    `KeyValueLibraryStorage`, with the host's `LibraryLimits` (ADR 044). A
    store never exists unloaded.
-3. **Asset cache.** `PageAssets.createScope(memoryPressure: SystemMemoryPressure())`.
+3. **Asset cache.** `ContentAssetScope.withMedia(memoryPressure: SystemMemoryPressure())`.
    Add a `producer:` (an `AssetPipeline` over your fetcher and decoders) when
    content is more than unicode glyphs. Feed the clock your pause layers
    (section 8).
@@ -84,7 +86,7 @@ final (recents, preferences, keyboardHeights) = await (
 ).wait;
 
 final memoryPressure = SystemMemoryPressure();
-final assets = PageAssets.createScope(memoryPressure: memoryPressure);
+final assets = ContentAssetScope.withMedia(memoryPressure: memoryPressure);
 
 final loader = EmojiCatalogLoader(rootBundle.loadString);
 final catalog = EmojiCatalog(await loader.structure());
@@ -197,7 +199,7 @@ started.
 
 ### The video decoder: targets
 
-`video_native` ships its native library on macOS arm64, iOS arm64 (device and
+mpx's `mpx_video_decoder` ships its native library on macOS arm64, iOS arm64 (device and
 Apple-silicon simulator) and Android arm64-v8a. On any other target (Android
 x86_64 and armv7, the x86_64 iOS simulator, Windows, Linux) the
 hook bundles nothing and warns, and the probe (`NativeVideoBinding.probe()`,
@@ -235,7 +237,7 @@ the example draw with their transparency and loop, with no console error
 ### The vector-animation decoder
 
 A host that shows Lottie content registers one `Decoder` under
-`MediaForm.vectorAnimation` (`lottie_decoder`, over `lottie_native`). The native
+`MediaKind.vectorAnimation` (mpx's `mpx_lottie`). The native
 library is not on every target, so the host **probes by starting the render
 engine** and registers the decoder only when that works; where it does not,
 vector animations keep their placeholder and nothing else changes.
@@ -325,7 +327,7 @@ The example splits this in two: `LottiePlayback.startPixel` (no
 composition and the shutdown order (scheduler, then engine); the web file
 (`lottie_playback_js.dart`, chosen by `dart.library.js_interop`) supplies only
 the factory. The worker, `chat_lottie_core.mjs` beside it and the two wasm
-builds come from `dart packages/lottie_native/native/tool/build_web.dart --out
+builds come from `mpx_lottie`'s `dart native/tool/build_web.dart --out
 <dir>`; the host serves them beside the page.
 
 When the files are not served, or the worker is not ready in ten seconds, the
@@ -841,13 +843,13 @@ while any surface scrolls; `pacing:` tunes how many glyphs one bake step
 draws ([ADR 022](adr/022-asset-cache-and-media-pipeline.md), *Amendment:
 glyph bake holds*). The page plans the atlas from its collections, registers it on the shared
 `assets` scope while mounted, and clears it after. Without a factory (the web)
-glyphs draw as text through `PageAssets.createScope`'s `TextGlyphProducer`.
+glyphs draw as text: `ContentAssetScope` draws them so without a source.
 
 **Glyph probe.** To hide emoji the system cannot draw, build a
 `MissingGlyphProbe`, pass it as `glyphSupport:` to both sources, plan the
 atlas over the unfiltered catalogue (`EmojiPage.planner`) so a verdict never
 changes the cache key, and bridge the bake to the probe with
-`CallbackGlyphBakeObserver`. `emoji_data` and `catalog_assets` never import
+`CallbackGlyphBakeObserver`. `emoji_data` and `glyph_atlas` never import
 each other, so this composition is the host's. See the `emoji_data` README.
 
 **Paced mount.** A panel that grows into free space mounts its page over a few
@@ -1302,7 +1304,7 @@ demo host).
 - `scripts/check` is the gate this repo runs; a host app runs `dart analyze`
   and its own tests.
 - Use the fakes (`content_model/testing.dart`, `panel_shell/testing.dart`,
-  `panel_presentation/testing.dart`, `catalog_assets/testing.dart`) in host
+  `panel_presentation/testing.dart`, `content_assets/testing.dart`, `mpx_core/testing.dart`) in host
   tests; production code never imports a `testing.dart`.
 - For each seam you implement, run the matching `run...Contract` suite from the
   package that defines the seam.

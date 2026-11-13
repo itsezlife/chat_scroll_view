@@ -1,13 +1,14 @@
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view/src/chat_widgets/render_chat_emoji_body.dart';
+import 'package:content_assets/content_assets.dart';
+import 'package:content_assets/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart'
     show Layer, ContainerLayer, PictureLayer, RendererBinding, TextureLayer;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 // The per-count font sizes, written out as literals so the expectations do
 // not come from the code under test.
@@ -210,7 +211,7 @@ void main() {
             for (final (_, preset) in embeds.asked) {
               expect(
                 preset,
-                AssetPresets.emojiOnly(step: font, devicePixelRatio: 1),
+                ContentAssetPresets.emojiOnly(step: font, devicePixelRatio: 1),
               );
             }
           },
@@ -391,7 +392,7 @@ void main() {
       expect(preset.size, const Size.square(112.5));
       expect(
         preset,
-        AssetPresets.emojiSticker(extent: 112.5, devicePixelRatio: 1),
+        ContentAssetPresets.emojiSticker(extent: 112.5, devicePixelRatio: 1),
       );
       expect(
         embeds.made.single.paints.last.rect,

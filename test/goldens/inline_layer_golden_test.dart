@@ -2,9 +2,9 @@
 // ignore_for_file: implementation_imports, invalid_use_of_internal_member
 import 'dart:math';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:content_assets/content_assets.dart';
+import 'package:content_assets/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_md/flutter_md.dart'
     show MarkdownThemeData, MarkdownTheme;

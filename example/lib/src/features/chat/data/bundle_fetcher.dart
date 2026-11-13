@@ -1,7 +1,8 @@
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 /// Reads content files from an asset bundle, the file of a key being whatever
 /// [pathOf] says.
@@ -21,7 +22,8 @@ final class BundleFetcher implements ContentFetcher {
 
   @override
   Future<FetchedContent> fetch(FetchRequest request) async {
-    final path = _pathOf(request.descriptor.key);
+    final key = request.descriptor.key.contentKey;
+    final path = key == null ? null : _pathOf(key);
     if (path == null || request.part == FetchPart.thumbnail) {
       throw FetchFailure.permanent(
         'not in the bundled packs: ${request.descriptor.key} '
@@ -46,5 +48,5 @@ final class BundleFetcher implements ContentFetcher {
 
   // The bundle ships with the app: nothing in it is downloaded.
   @override
-  bool needsDownload(ContentKey key) => false;
+  bool needsDownload(MediaKey key) => false;
 }

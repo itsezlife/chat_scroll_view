@@ -8,28 +8,23 @@ publish_to: none
 # package under packages/ or example/ is missing from it.
 workspace:
   - packages/bulletins
-  - packages/catalog_assets
   - packages/chat_composer
   - packages/chat_wallpaper
   - packages/chrome_foundation
   - packages/composer_editable
+  - packages/content_assets
   - packages/content_model
   - packages/emoji_catalog_pack
   - packages/emoji_data
-  - packages/frame_texture
+  - packages/glyph_atlas
   - packages/golden_baseline
-  - packages/image_decoder
   - packages/kv_shared_preferences
-  - packages/lottie_decoder
-  - packages/lottie_native
   - packages/panel_catalog
   - packages/panel_pages
   - packages/panel_presentation
   - packages/panel_shell
   - packages/rich_clipboard
   - packages/swipe_pager
-  - packages/video_decoder
-  - packages/video_native
   - packages/viewport_scroll
   - example
   - scripts
@@ -42,11 +37,12 @@ environment:
   flutter: 3.41.7
 
 dependencies:
-  # The embed adapter (catalog_assets), the emoji-only body's input
-  # (content_model) and the scroll physics and keys the panel catalogue
-  # shares (viewport_scroll); ADR 020. None depends on this package.
-  catalog_assets:
-    path: packages/catalog_assets
+  # The embed adapter (content_assets, over mpx_core's asset cache), the
+  # emoji-only body's input (content_model) and the scroll physics and keys the
+  # panel catalogue shares (viewport_scroll); ADR 020. None depends on this
+  # package.
+  content_assets:
+    path: packages/content_assets
   content_model:
     path: packages/content_model
   viewport_scroll:
@@ -54,6 +50,14 @@ dependencies:
   flutter:
     sdk: flutter
   meta: ^1.17.0
+  # mpx (github.com/itsezlife/mpx) is consumed from git, every package pinned
+  # to one commit: a full sha, the same in every pubspec, moved together when
+  # the chat takes a new mpx (until mpx publishes; ADR 0009 there).
+  mpx_core:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_core
+      ref: 340b87f7e1f81dc7e9fec9c3868ed0075e432e7b
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git

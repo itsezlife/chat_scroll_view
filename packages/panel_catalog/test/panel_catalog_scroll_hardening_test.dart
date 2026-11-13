@@ -11,7 +11,7 @@
 /// - the binding sync cost follows the visible band, not the catalogue size
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,7 +24,7 @@ import 'support/asset_scopes.dart';
 
 Widget _app({
   required listen.ValueListenable<CatalogSnapshot> snapshots,
-  required AssetCacheScope assets,
+  required ContentAssetScope assets,
   required PanelCatalogController controller,
   List<Widget> overlays = const [],
   double width = 320,
@@ -112,7 +112,7 @@ double _medianMicros(int runs, void Function() body) {
 
 void main() {
   late FakeCatalogSnapshotSource snapshots;
-  late AssetCacheScope assetScope;
+  late ContentAssetScope assetScope;
   late PanelCatalogController controller;
 
   setUp(() {

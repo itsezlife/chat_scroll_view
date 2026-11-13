@@ -10,10 +10,10 @@ void main() {
 
   test('imports only the packages the composer may know', () {
     const allowed = {
-      'catalog_assets',
       'chat_composer',
       'chrome_foundation',
       'composer_editable',
+      'content_assets',
       'content_model',
       'characters',
       'flutter',

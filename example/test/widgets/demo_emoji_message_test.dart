@@ -8,8 +8,6 @@
 /// back from the code under test.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
@@ -19,9 +17,11 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_header_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_meta_pill.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_reactions_row.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/testing.dart';
 
 final _sticker = EmojiOnly(const [
   EmojiOnlyItem(ContentKey.unicode('\u{1F44D}')),
@@ -42,13 +42,13 @@ const _desktop = ChatEmojiPolicy.desktop();
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late ValueNotifier<LargeEmojiPolicy> policy;
   late ChatBodyHost host;
   late ChatSelectionController selection;
 
   setUp(() {
-    scope = AssetCacheScope(producer: FakeAssetProducer());
+    scope = ContentAssetScope.withMedia(producer: FakeAssetProducer());
     policy = ValueNotifier(const LargeEmojiPolicy(enabled: true));
     host = ChatBodyHost(assets: scope, policy: policy);
     selection = ChatSelectionController();

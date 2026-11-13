@@ -2,8 +2,8 @@ import 'dart:collection';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:catalog_assets/catalog_assets.dart' show AssetFit, AtlasSprite;
 import 'package:flutter/painting.dart';
+import 'package:mpx_core/mpx_core.dart' show AssetFit, AtlasSprite;
 
 /// Collects the sprites of one paint pass and draws each page image's sprites
 /// with one batched atlas draw.

@@ -5,8 +5,8 @@
 /// through what the host of the shell would receive.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
@@ -41,7 +41,7 @@ void main() {
   late FakePreferenceStore preferences;
   late FakeCollectionSource source;
   late FakeSearchSource search;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late PanelShellController shell;
   late List<PanelEvent> events;
   late List<PageScrollActivity> activity;
@@ -69,7 +69,7 @@ void main() {
         [CollectionItem.bare(ContentKey.unicode('🐱'))],
       ]),
     });
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     events = [];
     activity = [];
     shell = PanelShellController(

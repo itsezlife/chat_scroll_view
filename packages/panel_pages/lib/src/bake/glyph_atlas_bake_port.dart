@@ -1,4 +1,4 @@
-import 'package:catalog_assets/glyph_atlas.dart';
+import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:panel_pages/src/bake/bake_activity_port.dart';
 
 /// A [BakeActivityPort] over a [GlyphAtlas]: the two calls a page makes, one

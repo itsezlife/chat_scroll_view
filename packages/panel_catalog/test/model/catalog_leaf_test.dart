@@ -1,6 +1,6 @@
-import 'package:catalog_assets/catalog_assets.dart' show AssetFit;
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart' show AssetFit;
 import 'package:panel_catalog/panel_catalog.dart';
 
 void main() {

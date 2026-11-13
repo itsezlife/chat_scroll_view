@@ -7,7 +7,6 @@ import 'dart:async';
 import 'dart:ui' show Tristate;
 
 import 'package:bulletins/bulletins.dart';
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatSelectionPolicy;
@@ -22,13 +21,14 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_s
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/content_model.dart' as model show RichText;
+import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/panel_pages.dart'
     show ContentPreviewActions, ContentPreviewItem, ContentPreviewSession;

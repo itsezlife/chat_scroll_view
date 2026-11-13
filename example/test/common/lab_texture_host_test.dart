@@ -1,7 +1,7 @@
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/testing.dart';
 
 void main() {
   test('counts the textures created while a surface scrolls', () async {

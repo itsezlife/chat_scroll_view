@@ -8,8 +8,6 @@
 /// right body is chosen for each message.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
@@ -18,10 +16,13 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_pol
 import 'package:chat_scroll_view_example/src/features/chat/utils/reference_media_sizes.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 
 class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
@@ -73,7 +74,7 @@ void main() {
 
   late ChatScrollController controller;
   late FakeAssetProducer producer;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late ValueNotifier<LargeEmojiPolicy> policy;
   late ChatBodyHost host;
   final interactions = <ChatSelectionInteraction>[];
@@ -81,7 +82,7 @@ void main() {
   setUp(() {
     controller = ChatScrollController();
     producer = FakeAssetProducer();
-    scope = AssetCacheScope(producer: producer);
+    scope = ContentAssetScope.withMedia(producer: producer);
     policy = ValueNotifier(const LargeEmojiPolicy(enabled: true));
     host = ChatBodyHost(assets: scope, policy: policy);
     interactions.clear();
@@ -170,7 +171,7 @@ void main() {
       ]);
 
       final attempt = producer.attempts.single;
-      expect(attempt.request.key, const ContentKey.document('5368'));
+      expect(attempt.request.key, const ContentKey.document('5368').mediaKey);
       final paintable = attempt.advance(AssetStage.full);
       await tester.pump();
       expect(paintable.paints, isNotEmpty);
@@ -321,7 +322,10 @@ void main() {
       ]);
 
       expect(
-        {for (final attempt in producer.attempts) attempt.request.key},
+        {
+          for (final attempt in producer.attempts)
+            attempt.request.key.contentKey,
+        },
         {const ContentKey.document('5368'), const ContentKey.document('5369')},
       );
     });

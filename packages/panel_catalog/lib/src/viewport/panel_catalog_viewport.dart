@@ -1,9 +1,10 @@
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_glyph_box.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
@@ -34,7 +35,7 @@ import 'package:viewport_scroll/viewport_scroll.dart';
 /// Intrinsic height is `0` (viewport-sized body, not content-sized).
 ///
 /// Does **not** own panel chrome (category strip, search, type tabs, pickers),
-/// asset fetch/decode (the host's [AssetCacheScope]), or catalog fetch orchestration
+/// asset fetch/decode (the host's [ContentAssetScope]), or catalog fetch orchestration
 /// (the owner of [snapshots]). This widget only listens, projects, binds the
 /// visible band, and paints.
 ///
@@ -217,7 +218,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// content.
   ///
   /// The viewport attaches **visible** leaves only (plus overscan) through
-  /// [AssetCacheScope.attach] and detaches the rest; a baked glyph's binding
+  /// [ContentAssetScope.attach] and detaches the rest; a baked glyph's binding
   /// holds its atlas page for as long as it is attached. Hosts MUST NOT treat
   /// this widget as a fetch/decode owner: decode lives in the cache, and what
   /// is painted comes from the binding plus the leaf's descriptor facts
@@ -229,7 +230,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   ///
   /// Swapping the scope detaches every binding made on the old one. The host
   /// disposes it; the viewport never does.
-  final AssetCacheScope assets;
+  final ContentAssetScope assets;
 
   /// Absolute content-offset and navigation entry points ([jumpTo], [scrollBy],
   /// [PanelCatalogController.jumpToSection]) and the scroll-event stream.

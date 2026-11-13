@@ -1,7 +1,7 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:flutter/foundation.dart';
-import 'package:video_decoder/video_decoder.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_video_decoder/mpx_video_decoder.dart';
 
 /// The VM hook behind [VideoPlayback.start]: starts the decode isolates,
 /// which is the probe: it throws a `VideoUnavailable` naming why when the

@@ -9,16 +9,17 @@ library;
 
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
-
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_client.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_content.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:http_bytes_cache/http_bytes_cache.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 // A fake Giphy of 6 clips per feed, 2 to a page, as hand-written JSON. A clip
 // of the feed with prefix `p` at position `n` is `p<n>`; `overlap` makes each
@@ -79,7 +80,7 @@ void main() {
   setUp(() {
     giphy = _FakeGiphy();
     client = GiphyClient(apiKey: 'k', client: giphy.client, pageSize: 2);
-    content = GiphyContent(client);
+    content = _contentOver(client, giphy.client);
   });
 
   List<String> idsOf(Collection collection) => [
@@ -96,7 +97,10 @@ void main() {
         pageSize: 2,
       );
       return CollectionSourceHarness(
-        source: GiphyGifSource(client: client, content: GiphyContent(client)),
+        source: GiphyGifSource(
+          client: client,
+          content: _contentOver(client, giphy.client),
+        ),
         pagedId: GiphyGifSource.id,
         missingId: const CollectionId.set('nope'),
         failLoads: ({required failing}) => giphy.failFirst = failing,
@@ -228,7 +232,7 @@ void main() {
           .fetcher(otherwise: _Unused())
           .fetch(
             FetchRequest(
-              descriptor: item.descriptor!,
+              descriptor: item.descriptor!.mediaDescriptor!,
               part: FetchPart.thumbnail,
               priority: AssetPriority.placeholder,
               cancellation: CancellationToken(),
@@ -301,7 +305,10 @@ void main() {
         pageSize: 2,
       );
       return SearchSourceHarness(
-        source: GiphyGifSearch(client: client, content: GiphyContent(client)),
+        source: GiphyGifSearch(
+          client: client,
+          content: _contentOver(client, giphy.client),
+        ),
         query: 'cat',
         otherQuery: 'dog',
         failSearches: ({required failing}) => giphy.failFirst = failing,
@@ -395,5 +402,13 @@ final class _Unused implements ContentFetcher {
       throw StateError('not a Giphy key: ${request.descriptor.key}');
 
   @override
-  bool needsDownload(ContentKey key) => false;
+  bool needsDownload(MediaKey key) => false;
+}
+
+// Giphy content over [client] whose files go through [transport] into a
+// store of its own.
+GiphyContent _contentOver(GiphyClient client, http.Client transport) {
+  final bytes = HttpBytesClient(client: transport);
+  addTearDown(bytes.close);
+  return GiphyContent(client, store: MemoryBytesCache(), http: bytes);
 }

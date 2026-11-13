@@ -1,5 +1,5 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 
 /// Holds the animations still while the panel moves, and the chat's while a

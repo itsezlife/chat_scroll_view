@@ -1,11 +1,12 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/environment_specific/corpus_files.dart'
     as environment_specific;
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:l/l.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 /// One sticker of a [CorpusPack]: a Lottie file kept outside the repository.
 @immutable
@@ -258,8 +259,10 @@ final class _CorpusFetcher implements ContentFetcher {
 
   @override
   Future<FetchedContent> fetch(FetchRequest request) async {
-    final key = request.descriptor.key;
-    if (!CorpusStickerPack.isKey(key)) return _otherwise.fetch(request);
+    final key = request.descriptor.key.contentKey;
+    if (key == null || !CorpusStickerPack.isKey(key)) {
+      return _otherwise.fetch(request);
+    }
     final sticker = _corpus.of(key);
     if (sticker == null || request.part == FetchPart.thumbnail) {
       throw FetchFailure.permanent(
@@ -282,6 +285,8 @@ final class _CorpusFetcher implements ContentFetcher {
 
   // A sticker is a file of the corpus or the bundle: never downloaded.
   @override
-  bool needsDownload(ContentKey key) =>
-      !CorpusStickerPack.isKey(key) && _otherwise.needsDownload(key);
+  bool needsDownload(MediaKey key) => switch (key.contentKey) {
+    final content? when CorpusStickerPack.isKey(content) => false,
+    _ => _otherwise.needsDownload(key),
+  };
 }

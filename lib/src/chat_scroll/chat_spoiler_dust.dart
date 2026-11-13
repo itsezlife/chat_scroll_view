@@ -1,5 +1,5 @@
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:flutter_md/flutter_md.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 /// Moves the dust over hidden spoilers on the asset cache's shared clock.
 ///

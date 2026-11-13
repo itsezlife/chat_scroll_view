@@ -8,10 +8,9 @@
 /// the first cell's centre is (49, 2 + 50).
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
@@ -19,6 +18,8 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meta/meta.dart' show isTest;
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/testing.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -83,12 +84,12 @@ Future<void> settle(WidgetTester tester) async {
 
 void main() {
   late FakePanelPageHost host;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late FakeCollectionSource source;
 
   setUp(() {
     host = FakePanelPageHost(pageId: 'gif');
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     source = FakeCollectionSource([_clips('a', 'Cats'), _clips('b', 'Dogs')]);
     addTearDown(() {
       source.dispose();
@@ -533,7 +534,7 @@ void main() {
       await pumpPage(tester);
 
       // 480 px shows five rows of 102 (partly); 20 rows are laid out in all.
-      expect(find.byType(ContentView).evaluate().length, lessThan(30));
+      expect(find.byType(ContentAssetView).evaluate().length, lessThan(30));
     });
   });
 
@@ -545,7 +546,7 @@ void main() {
           frames: List.filled(400, const Duration(milliseconds: 50)),
         );
       assets.dispose();
-      assets = PageAssets.createScope(producer: producer);
+      assets = ContentAssetScope.withMedia(producer: producer);
       await tester.pumpWidget(page());
       await settle(tester);
       final attempts = producer.attempts.length;
@@ -569,7 +570,7 @@ void main() {
   // move 250 ms) and the added ones fade in (add 120 ms).
   group('a page that arrives', () {
     Finder viewOf(String id) => find.byWidgetPredicate(
-      (w) => w is ContentView && w.content == ContentKey.document(id),
+      (w) => w is ContentAssetView && w.content == ContentKey.document(id),
     );
 
     // The opacity the page draws the cell of [id] at.
@@ -656,7 +657,7 @@ void main() {
     // The painting box inside the view's repaint boundary.
     RenderObject boxOf(WidgetTester tester) => tester.renderObject(
       find.descendant(
-        of: find.byType(ContentView).first,
+        of: find.byType(ContentAssetView).first,
         matching: find.byWidgetPredicate((w) => w is LeafRenderObjectWidget),
       ),
     );
@@ -666,7 +667,7 @@ void main() {
     ) async {
       await pumpPage(tester);
 
-      final view = find.byType(ContentView).first;
+      final view = find.byType(ContentAssetView).first;
       final skeleton = ChromeThemeScope.of(
         tester.element(view),
       ).placeholder.skeleton;
@@ -690,7 +691,7 @@ void main() {
         'downloads', (tester) async {
       final producer = FakeAssetProducer();
       assets.dispose();
-      assets = PageAssets.createScope(producer: producer);
+      assets = ContentAssetScope.withMedia(producer: producer);
       await pumpPage(tester);
 
       for (final attempt in producer.attempts) {
@@ -706,7 +707,9 @@ void main() {
     ) async {
       await pumpPage(tester);
 
-      final view = tester.widget<ContentView>(find.byType(ContentView).first);
+      final view = tester.widget<ContentAssetView>(
+        find.byType(ContentAssetView).first,
+      );
 
       expect(view.preset.profile.fit, AssetFit.cover);
       expect(view.preset.profile.animate, isTrue);

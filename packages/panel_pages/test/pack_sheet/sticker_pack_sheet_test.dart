@@ -9,8 +9,8 @@
 /// (`(400 - 20) / 5`) inset 10.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -76,7 +76,7 @@ TextStyle drawnStyle(WidgetTester tester, Finder text) => tester
 void main() {
   late FakePackSource packs;
   late FakeContentLibrary library;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   late List<List<PackEditRequest>> edits;
   late List<PackSheetItem> picks;
   late List<PackLookup> unavailable;
@@ -92,7 +92,7 @@ void main() {
     library = FakeContentLibrary(
       limits: const LibraryLimits(favouriteStickers: 5, savedGifs: 200),
     );
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     edits = [];
     picks = [];
     unavailable = [];

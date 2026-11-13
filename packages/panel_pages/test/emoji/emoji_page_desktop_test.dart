@@ -13,9 +13,9 @@
 /// top left; sections here are one row of 63 (27 header + 36 row) each.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
@@ -42,7 +42,7 @@ void main() {
   late FakeSearchSource search;
   late FakePreferenceStore preferences;
   late FakePanelPageHost host;
-  late AssetCacheScope assets;
+  late ContentAssetScope assets;
   final strings = ChromeStringsPresets.english.panel;
   final mice = <TestGesture>[];
 
@@ -57,7 +57,7 @@ void main() {
     search = FakeSearchSource({});
     preferences = FakePreferenceStore();
     host = FakePanelPageHost(pageId: 'emoji');
-    assets = PageAssets.createScope();
+    assets = ContentAssetScope.withMedia();
     addTearDown(() {
       source.dispose();
       search.dispose();

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:catalog_assets/catalog_assets.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_catalog/panel_catalog.dart';
@@ -62,7 +62,7 @@ class EmojiCategoryStrip extends StatefulWidget {
   final CatalogStripHandle handle;
 
   /// Where the covers of packs are drawn from, or null to draw none.
-  final AssetCacheScope? assets;
+  final ContentAssetScope? assets;
 
   /// How the strip lays its icons out.
   final EmojiStripLayout layout;

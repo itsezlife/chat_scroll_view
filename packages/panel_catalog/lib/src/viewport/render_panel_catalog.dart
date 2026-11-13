@@ -1,7 +1,7 @@
 import 'dart:async' show Completer, Future, scheduleMicrotask, unawaited;
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -54,7 +54,7 @@ import 'package:viewport_scroll/viewport_scroll.dart';
 /// absolute content offset on [PanelCatalogController].
 ///
 /// Does **not** own panel chrome (category strip, search, type tabs, pickers),
-/// asset fetch/decode (the host's [AssetCacheScope] does), or catalog fetch
+/// asset fetch/decode (the host's [ContentAssetScope] does), or catalog fetch
 /// (the owner of the snapshot observable does). Hosts wire those; this object
 /// only listens and projects.
 ///
@@ -92,7 +92,7 @@ import 'package:viewport_scroll/viewport_scroll.dart';
 ///
 /// ## Binding recycle
 ///
-/// [CatalogLeafBindingPool] attaches [AssetCacheScope] bindings only for
+/// [CatalogLeafBindingPool] attaches [ContentAssetScope] bindings only for
 /// leaf slots intersecting the visible window (viewport band plus one
 /// [cellExtent] of overscan above and below). Leaves that leave that band
 /// are detached unless their key is listed in the stitch pin set during
@@ -248,7 +248,7 @@ class RenderPanelCatalog extends RenderBox
   /// null long-press start disables the long-press recognizer.
   RenderPanelCatalog({
     required listen.ValueListenable<CatalogSnapshot> snapshots,
-    required AssetCacheScope assets,
+    required ContentAssetScope assets,
     required double devicePixelRatio,
     required PanelCatalogController controller,
     required int spanCount,
@@ -373,8 +373,8 @@ class RenderPanelCatalog extends RenderBox
   /// ([CatalogLeafBindingPool.replaceScope]) then reprojects; the same scope on
   /// a widget update changes nothing, so a drag or a bake in progress is not
   /// disturbed.
-  late AssetCacheScope _assets;
-  set assets(AssetCacheScope value) {
+  late ContentAssetScope _assets;
+  set assets(ContentAssetScope value) {
     if (identical(_assets, value)) return;
     _assets = value;
     _pool.replaceScope(value);

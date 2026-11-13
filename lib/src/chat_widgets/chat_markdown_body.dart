@@ -1,9 +1,9 @@
-import 'package:catalog_assets/catalog_assets.dart' show InlineEmbedResolver;
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_body_selection_scope.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_code_block_painter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_inline_embed_adapter.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_markdown_autoscroll.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart' show EmojiRuns;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';

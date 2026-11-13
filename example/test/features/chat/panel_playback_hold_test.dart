@@ -1,8 +1,8 @@
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/panel_playback_hold.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 
 const _popup = PanelPresentation.anchoredPopup();

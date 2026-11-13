@@ -1,12 +1,11 @@
 import 'dart:ffi' show Pointer, Uint8, Uint8Pointer;
 import 'dart:io';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:frame_texture/frame_texture.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 
 /// The Android texture host on a device (ADR 043): the host contract over
 /// real `SurfaceProducer`s and the plugin's library, then a test pattern

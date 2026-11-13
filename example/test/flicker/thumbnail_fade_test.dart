@@ -2,7 +2,7 @@
 /// causes were closed by ticket 56): "a weird flash when one [sticker or GIF
 /// cell] gets loaded", especially while the panel scrolls.
 ///
-/// **Seam:** the real `PanelCatalogViewport` over a real `AssetCacheScope`
+/// **Seam:** the real `PanelCatalogViewport` over a real `ContentAssetScope`
 /// whose producer hands out what `VideoDecoder` hands out (a thumbnail still,
 /// a first-frame still, then a `VideoAnimationPaintable`), played by the real
 /// `VideoFrameScheduler` and frame pool of `test/support/flicker/video_rig.dart`.
@@ -17,14 +17,15 @@
 /// the cell never dips back towards the stand-in colour.
 library;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_video_decoder/mpx_video_decoder.dart';
 import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_catalog/src/viewport/render_panel_catalog.dart';
 import 'package:panel_catalog/testing.dart';
-import 'package:video_decoder/video_decoder.dart';
 
 import '../support/flicker/paint_signature.dart';
 import '../support/flicker/video_rig.dart';
@@ -92,7 +93,7 @@ void main() {
   late _GifProducer producer;
   late FakeCatalogSnapshotSource snapshots;
   late PanelCatalogController controller;
-  late AssetCacheScope scope;
+  late ContentAssetScope scope;
   late List<CellTimeline> timelines;
 
   Future<void> pumpPanel(
@@ -106,7 +107,7 @@ void main() {
     producer = _GifProducer(rig, thumbnails: thumbnails);
     snapshots = FakeCatalogSnapshotSource();
     controller = PanelCatalogController();
-    scope = AssetCacheScope(producer: producer, clock: rig.clock);
+    scope = ContentAssetScope.withMedia(producer: producer, clock: rig.clock);
     timelines = [for (var i = 0; i < cells; i++) CellTimeline('cell $i')];
     snapshots.replaceSections([
       CatalogSection(

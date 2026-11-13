@@ -1,8 +1,9 @@
 import 'dart:math' as math;
 
-import 'package:catalog_assets/catalog_assets.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/painting.dart' show VoidCallback;
+import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/util/constants.dart';
 import 'package:panel_catalog/src/util/logger.dart';
@@ -16,12 +17,15 @@ import 'package:panel_catalog/src/viewport/catalog_slot_projection.dart';
 /// a painter reads it while painting and does not keep it, the same rule the
 /// binding's own paintable and sprite follow.
 final class CatalogBoundLeaf {
-  CatalogBoundLeaf._(this.binding, this.spec)
+  CatalogBoundLeaf._(this.key, this.binding, this.spec)
     : _instant = binding.readiness.stage.index >= AssetStage.firstFrame.index;
 
   /// How long content takes to fade in over its placeholder when it was not
   /// there at attach.
   static const Duration contentFade = Duration(milliseconds: 150);
+
+  /// The content the leaf shows.
+  final ContentKey key;
 
   /// The attach in the scope's cache.
   final AssetBinding binding;
@@ -57,7 +61,7 @@ final class CatalogBoundLeaf {
   }
 }
 
-/// Attaches the leaves of the visible band to the host's [AssetCacheScope] and
+/// Attaches the leaves of the visible band to the host's [ContentAssetScope] and
 /// detaches the rest.
 ///
 /// Owns the **binding set** of one catalog render body. Does **not** own
@@ -69,7 +73,7 @@ final class CatalogBoundLeaf {
 /// A leaf is attached as `attach(key, spec, profile)`:
 ///
 /// - the leaf's content box ([CatalogLeafSlot.contentExtent]: the glyph box or
-///   the whole cell) as a `AssetPresets.keyboardCell` at the
+///   the whole cell) as a `ContentAssetPresets.keyboardCell` at the
 ///   [devicePixelRatio], a template decode when the leaf is tintable. So a
 ///   playing leaf of at most 90 logical px plays at half rate and decodes at
 ///   most 160 px, as every small cell of a content panel does. The same
@@ -136,14 +140,14 @@ final class CatalogLeafBindingPool {
   /// [onChanged] fires when any attached binding signals. Pass a stable
   /// tear-off: the pool registers it once per binding.
   CatalogLeafBindingPool({
-    required AssetCacheScope scope,
+    required ContentAssetScope scope,
     required double devicePixelRatio,
     required VoidCallback onChanged,
   }) : _scope = scope,
        _devicePixelRatio = devicePixelRatio,
        _onChanged = onChanged;
 
-  AssetCacheScope _scope;
+  ContentAssetScope _scope;
   double _devicePixelRatio;
   final VoidCallback _onChanged;
 
@@ -153,12 +157,12 @@ final class CatalogLeafBindingPool {
   final List<CatalogBoundLeaf> _all = [];
 
   /// The scope bindings are made on.
-  AssetCacheScope get scope => _scope;
+  ContentAssetScope get scope => _scope;
 
   /// Replaces the scope; detaches every existing binding first.
   ///
   /// Does not re-attach: the owner MUST [syncVisible] afterwards.
-  void replaceScope(AssetCacheScope scope) {
+  void replaceScope(ContentAssetScope scope) {
     if (identical(_scope, scope)) return;
     detachAll();
     _scope = scope;
@@ -240,7 +244,7 @@ final class CatalogLeafBindingPool {
     }
     if (pinnedKeys != null && pinnedKeys.isNotEmpty) {
       for (final bound in _all) {
-        if (pinnedKeys.contains(bound.binding.key)) {
+        if (pinnedKeys.contains(bound.key)) {
           bound
             .._seen = true
             .._shown = true;
@@ -306,7 +310,7 @@ final class CatalogLeafBindingPool {
 
   // The extent is at least a pixel, however small the box.
   AssetPreset _presetFor(CatalogLeaf leaf, double logicalExtent) =>
-      AssetPresets.keyboardCell(
+      ContentAssetPresets.keyboardCell(
         extent: math.max(logicalExtent, 1 / _devicePixelRatio),
         devicePixelRatio: _devicePixelRatio,
         animate: leaf.animated,
@@ -328,7 +332,7 @@ final class CatalogLeafBindingPool {
     }
     final binding = _scope.attach(leaf.key, spec, preset.profile)..held = _held;
     binding.addListener(_onChanged);
-    final bound = CatalogBoundLeaf._(binding, spec);
+    final bound = CatalogBoundLeaf._(leaf.key, binding, spec);
     (_byKey[leaf.key] ??= []).add(bound);
     _all.add(bound);
     return bound;
@@ -337,9 +341,9 @@ final class CatalogLeafBindingPool {
   void _remove(CatalogBoundLeaf bound, {required int at}) {
     bound.binding.detach();
     _all.removeAt(at);
-    final group = _byKey[bound.binding.key];
+    final group = _byKey[bound.key];
     if (group == null) return;
     group.remove(bound);
-    if (group.isEmpty) _byKey.remove(bound.binding.key);
+    if (group.isEmpty) _byKey.remove(bound.key);
   }
 }

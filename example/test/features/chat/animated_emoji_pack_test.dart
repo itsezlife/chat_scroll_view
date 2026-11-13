@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:catalog_assets/catalog_assets.dart';
-import 'package:catalog_assets/testing.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:image_decoder/image_decoder.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 
 /// A bundle whose every read fails with [error].
 final class _BrokenBundle extends CachingAssetBundle {
@@ -34,7 +34,7 @@ final class _DiskBundle extends CachingAssetBundle {
 
 FetchRequest _request(ContentDescriptor descriptor, {FetchPart? part}) =>
     FetchRequest(
-      descriptor: descriptor,
+      descriptor: descriptor.mediaDescriptor!,
       part: part ?? FetchPart.content,
       priority: AssetPriority.visible,
       cancellation: CancellationToken(),
@@ -184,11 +184,13 @@ void main() {
     final pipeline = AssetPipeline(
       fetcher: BundledPacks.fetcher(_DiskBundle()),
       decoders: DecoderRegistry()
-        ..register(MediaForm.animatedImage, const ImageCodecDecoder()),
+        ..register(MediaKind.animatedImage, const ImageCodecDecoder()),
     );
-    AnimatedEmojiPack.descriptors.forEach(pipeline.know);
+    for (final descriptor in AnimatedEmojiPack.descriptors) {
+      pipeline.know(descriptor.mediaDescriptor!);
+    }
     // No scheduler in a plain test: the clock ticks by hand.
-    final scope = AssetCacheScope(
+    final scope = ContentAssetScope.withMedia(
       producer: pipeline,
       clock: PlaybackClock(ticks: ManualPlaybackTickSource()),
     );

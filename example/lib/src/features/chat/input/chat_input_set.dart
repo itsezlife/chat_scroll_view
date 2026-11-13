@@ -3,7 +3,6 @@ import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'dart:ui' show FlutterView;
 
-import 'package:catalog_assets/glyph_atlas.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show
@@ -38,6 +37,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter/widgets.dart' hide RichText;
+import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';

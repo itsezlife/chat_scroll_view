@@ -7,6 +7,7 @@ are one media form of that pipeline: a baked sprite on a glyph atlas page.
 
 **Status**: Accepted  
 **Date**: 2026-10-16  
+**Moved**: 2026-11-13 (media-pipeline ticket 08) — the cache, pipeline, clock, pool and texture seam live in mpx's `mpx_core`, keyed by `MediaKey`; the glyph route left the core and is `content_assets`' `ContentAssetScope` over the `glyph_atlas` package; the Giphy disk tier is the bytes cache behind mpx's fetch adapter. mpx ADRs 0002 and 0003 hold the media decisions from here on  
 **Amended**: 2026-10-18 (chat-polish-3, ticket 10): the pause policies of the reference desktop client reach the shared clock through one lifecycle seam (section *Amendment: pause policies*); `PlaybackPauseLayer` gains three values and the default pausing set is spelled out  
 **Amended**: 2026-11-06: the dynamic page pool, the renderer seam and the frame cache for native animated media ([ADR 042](042-native-media-decoding.md); section *Amendment: dynamic frame pages*)  
 **Amended**: 2026-11-08: a playing asset may be shown through a platform texture, a third paint capability next to `paint` and the sprite, with the dynamic pages as the fallback ([ADR 043](043-platform-texture-frames.md))  

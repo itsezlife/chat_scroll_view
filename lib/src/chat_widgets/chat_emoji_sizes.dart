@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show Size;
 
-import 'package:catalog_assets/catalog_assets.dart' show AssetPresets;
+import 'package:content_assets/content_assets.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:meta/meta.dart';
 
@@ -89,7 +89,7 @@ final class ChatEmojiSizes {
   final double stickerZoom;
 
   /// What an item's box adds to its font size.
-  double get boxPadding => AssetPresets.emojiOnlyBoxPadding;
+  double get boxPadding => ContentAssetPresets.emojiOnlyBoxPadding;
 
   /// The font size of the text layout for [count] items.
   double fontSizeFor(int count, {required bool allCustom}) {
