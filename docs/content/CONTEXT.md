@@ -23,7 +23,7 @@ The one canonical identity of a piece of content. Closed: `unicode` (the full se
 _Avoid_: Kind-tagged id, emoji id, asset key, leaf identity, a second key for the same content
 
 **Content descriptor**:
-A value: content key, **semantic kind**, **media form** and facts (animated, tintable, locked, size hint, thumbnail ref, spoken name). Attached when a source knows it, resolved when it does not. Loading state is derived, never stored on lists.
+A value: content key, **semantic kind**, **media form** and facts (animated, tintable, locked, size hint, byte size, duration, streamable, thumbnail ref, **preview**, spoken name). Attached when a source knows it, resolved when it does not. Loading state is derived, never stored on lists.
 _Avoid_: Metadata blob, "loaded" flag on a list
 
 **Semantic kind**:
@@ -117,24 +117,52 @@ What a binding yields. Draws itself into a canvas rect. May expose an optional s
 _Avoid_: Drawable, `ui.Image` per tick, a downcast to find the sprite
 
 **Staged readiness**:
-`none`, `placeholder`, `firstFrame`, `full`, each with `isFinal`. No visible failed stage: a failed fetch or decode leaves the placeholder showing. Retry happens on re-attach, on the host's connectivity-restored signal, or through `retry()`.
-_Avoid_: Failed state, error stand-in, three-state readiness
+`none`, `preview`, `placeholder`, `firstFrame`, `full`, each with `isFinal`. A leaf that fails keeps the best picture stage it reached (preview, thumbnail or first frame); there is no failed picture. A surface that shows a **status control** turns it back to download, which is the retry. A leaf without a control (glyphs, panel cells, embeds in text) shows nothing more. Readiness has no failure stage: the **transfer** is the only failure a surface can see, and only through the control. Retry also happens on re-attach, on the host's connectivity-restored signal, or through `retry()`.
+_Avoid_: Failed state, error stand-in, a failed picture, three-state readiness
 
 **Stand-in**:
-What a surface draws for content that is not there yet: the scope's placeholder paintable (a circle for a glyph, the whole rectangle in one quiet colour for any other media, `RectPlaceholder`), a placeholder an embed brings (`SoftPlaceholder`, a quiet rounded square for a sticker), or the thumbnail. The rectangle has the size and proportion of the final cell from the first frame, so a thumbnail that arrives moves nothing; a binding rounds its corners with the surface's `AssetProfile.cornerRadius`. A bitmap thumbnail stays fully opaque under content that fades in and is released when the content is opaque (the binding keeps it for that: `paintStandIn` / `releaseStandIn`); a silhouette stand-in fades out as the content rises.
-_Avoid_: Fading a bitmap thumbnail out while the content fades in, a failed stand-in, a circle for media
+What a surface draws for content that is not there yet: the scope's placeholder paintable (a circle for a glyph; for any other media one that paints nothing, `ClearPlaceholder`, so the surface behind shows through), a placeholder a surface brings (`SoftPlaceholder`, a quiet rounded square for a sticker embed; a tinted `RectPlaceholder`), the **preview**, or the **thumbnail**. The cell has the size and proportion of the final content from the first frame, so a stand-in that arrives moves nothing; a binding rounds its corners with the surface's `AssetProfile.cornerRadius`. Each rise between stages is a fade or a swap set per platform (`MediaStageStyle`). A raster stand-in stays fully opaque under content that fades in and is released when the content is opaque (the binding keeps it for that: `paintStandIn` / `releaseStandIn`); an outline preview, or any stand-in under content that may be transparent, fades out as the content rises. A surface's own placeholder may outrank the stand-in stages up to a stage it names (`placeholderUntil`).
+_Avoid_: A light flat box before content, fading a raster thumbnail out while the content fades in, a failed stand-in, a circle for media
 
 **Asset fit**:
 How content of one proportion fills a rectangle of another, chosen per surface (`AssetProfile.fit`): `contain` shows the whole picture with bars, `cover` fills the rectangle and crops the overflow, centre-anchored. A GIF in a grid cell covers it (the reference client's `isAspectFit` is false there); a sticker is contained. Content and its thumbnail follow the same fit, so a thumbnail replaced by content does not change its crop.
 _Avoid_: Letterboxed GIF in a grid cell, a clip or a second draw for the crop
 
-**Mini-thumbnail**:
-The small preview still of a piece of content (`ContentDescriptor.thumbnail`), decoded to at most 40 pixels on its longer side and blurred once at decode (`MiniThumbnail.decode`, the reference client's stripped photo with its radius 3 stack blur), then stretched over the box by the surface. A host that has no preview for a content gives none and the cell keeps its placeholder.
-_Avoid_: A blur per frame, a blur hash, decoding the preview at full size
+**Preview**:
+A stand-in drawn from bytes known without fetching the content or its thumbnail (`ContentDescriptor.preview`, stage `preview`): a mini-thumbnail, a tiny raster of a few dozen pixels blurred once at decode with the platform's blur, or an outline, the vector shape of a sticker or emoji filled with the surface's quiet colour (and a shimmer where the platform has one). The data source expands any wire form (a header-stripped image, a compressed path) before it builds the descriptor.
+_Avoid_: A blur per frame, a blur hash, decoding the preview at full size, a wire-format codec in the cache
+
+**Derived preview**:
+A preview the cache made from the content's first drawable frame (at most 40 px, stored unblurred under the bytes store's `previews` quota) for content whose descriptor carries none, so later shows of it, in this launch or the next, draw it in the attach frame.
+_Avoid_: Deriving per surface, storing it blurred
+
+**Thumbnail**:
+The fetched stand-in of a piece of content (`ContentDescriptor.thumbnail`, stage `placeholder`), blurred at decode when its long edge is below the platform's threshold, then stretched over the box by the surface. A host that has no preview for a content gives none; the cache derives one from the first load and the cell is clear until then.
+_Avoid_: A blur per frame, decoding the thumbnail at full size
+
+**Transfer**:
+The download state of an entry's content as a surface shows it (`AssetBinding.transfer`): `none` (cached, final, or not asked for), `waiting` (known missing, no byte yet), `receiving(received, total)` (the total falls back to the descriptor's byte size), `awaitingUser(total)` (the policy held it back, or the user cancelled it) and `failed(kind, received, total)`. `download()` fetches now; `cancelDownload()` stops the content fetch, keeps the stages, and is remembered per key for the session.
+_Avoid_: A progress fraction without bytes, a failed stage in readiness
+
+**Auto-download**:
+Whether an attached entry's content is fetched without a user action: the host's policy answers `now`, `prefix` (a playable head only) or `manual` per descriptor and **download context**. The composition root's default weighs the media kind, the byte size and the device's network class (unmetered, metered, roaming) with each platform's reference limits; a sticker always downloads, a clip of unknown size waits for the user.
+_Avoid_: Auto-download rules in the cache, one rule for every conversation
+
+**Download context**:
+The opaque class of the surface an attach comes from (`AutoDownloadContext`: private chats, groups, channels, or the host's own), which the auto-download policy uses only as a key. An entry downloads when any attached surface's context allows it; the context never enters the cache key.
+_Avoid_: A cache entry per context, a context the cache interprets
+
+**Status control**:
+The round control over media (`MediaStatusControl`): a disc, a progress arc and an icon (download, cancel, play, pause), or an indeterminate spinner, driven by the transfer. Tapping it downloads, cancels or plays. A surface asks for it per view (`MediaStatusMode`: none, a bare arc, the control, a compact one for streamable video); its style is per platform with a scope override, and a host may replace it.
+_Avoid_: A retry button, an error glyph, a control per surface kind
+
+**Media badge**:
+The small label over media (`MediaBadge`): the duration, or "GIF", and while downloading "received / total"; its text and colours come from the host's theme through the style scope.
+_Avoid_: Sizes formatted by each surface
 
 **Radial progress**:
-The reference client's loading indicator for media (`RadialProgress`): a translucent dark disc with a turning white arc and a cross, painted by the surface over the thumbnail while the content loads. A function of the frame time of the surface's own paint pass; the cache reports stages and no fractions, so the arc sweeps a fixed quarter.
-_Avoid_: A controller per cell, a progress percentage the cache does not have
+The bare download arc over media (`MediaStatusMode.arc` of the status control, and the catalogue viewport's GIF leaves with `RadialProgress`): a translucent dark disc with a turning white arc that follows the transfer's fraction. It shows only while the transfer is active (waiting or receiving) and is gone on failure: a surface with only an arc has no retry to offer.
+_Avoid_: A controller per cell, an arc kept over a failed download
 
 **Content fetcher**:
 Host seam from descriptor to bytes or file. Owns network, provenance refresh and the disk tier.

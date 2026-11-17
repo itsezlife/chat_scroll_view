@@ -13,6 +13,7 @@ in the [Amendment](#amendment-baked-glyph-atlas-and-shared-asset-scope).
 
 **Status**: Accepted (amended 2026-10-16: baked glyph atlas and shared asset scope, see [Amendment](#amendment-baked-glyph-atlas-and-shared-asset-scope); package set amended by [ADR 020](020-package-topology.md), asset cache by [ADR 022](022-asset-cache-and-media-pipeline.md), public seams by [ADR 024](024-panel-catalog-seams.md))  
 **Date**: 2026-08-24  
+**Amended**: 2026-11-17 (media-loading-stages) — a failed leaf keeps the best stage it reached, not only its placeholder (*Presentation*; mpx ADR 0010)  
 **Amended**: 2026-10-16 — unicode emoji are baked into atlas pages and drawn as batched sprites; asset cache shared through a host scope; per-section layout; chrome and package set replaced by the shell, pages and presentation packages
 
 ## Decided
@@ -63,7 +64,7 @@ row is built.
 | Topic | Before | After | State |
 | ----- | ------ | ----- | ----- |
 | Assets | Process-wide **global catalog asset cache** shared with chat | **App-wide asset cache, host-created and provided through a scope**; no static singleton. The viewport and chat bind and paint only ([ADR 022](022-asset-cache-and-media-pipeline.md)). | Built |
-| Presentation | Readiness drives presentation (ready / loading / failed per leaf) | The binding's stage is used only for crossfade. The placeholder is derived from the descriptor (media form, kind). There is no visible failed stage: a leaf that fails or hangs keeps its placeholder. | Built |
+| Presentation | Readiness drives presentation (ready / loading / failed per leaf) | The binding's stage is used only for crossfade. The placeholder is derived from the descriptor (media form, kind). No failed stand-in and no failed token. A leaf that fails or hangs keeps the best stage it reached (its preview or thumbnail, else its placeholder); panel leaves show no control. | Built |
 | Layout | Viewport-wide span count, cell extent, header extent | **Per-section layout** (sealed `SectionLayout`; `Grid` now); the viewport-wide values are the defaults ([ADR 024](024-panel-catalog-seams.md)). | Built |
 | Leaf, data, controller | Leaf class hierarchy; parallel data source with listener channels; five controller channels | Leaf value with an opaque host tag and positional hit identity; snapshot data source on a `package:listen` `ValueListenable`; attach-and-position controller. Public seams only: render object, stitch and near / far invariants are unchanged ([ADR 024](024-panel-catalog-seams.md)). | Built |
 | Paint surface | Bound drawable at the stage reached | A binding exposes an **optional sprite** (atlas page handle + source rectangle). The viewport draws the sprites of one atlas page in **one batched atlas draw**; a leaf without a sprite paints itself. | Built (the sprite capability sits on `AssetPaintable`, [ADR 022](022-asset-cache-and-media-pipeline.md)) |

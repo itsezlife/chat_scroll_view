@@ -188,6 +188,57 @@ returns `ComposerView.shareTextActions(super.createBinaryMessenger())` answers
 every field from the first reply. Made in place of
 `WidgetsFlutterBinding.ensureInitialized`, first thing in `main`.
 
+### Loading stages
+
+A media item is drawn in stages from the first frame it is on screen: nothing
+(the scope's default placeholder paints nothing), a preview, a thumbnail, the
+content. Each rise is a fade or a swap set per platform. A status control and a
+badge over it show the transfer, and a host policy decides which content
+downloads by itself. A leaf that fails keeps the best picture stage it reached
+(preview, thumbnail or first frame); there is no failed picture. A surface that
+shows a status control turns it back to download, which is the retry. A leaf
+without a control (glyphs, panel cells, embeds in text) shows nothing more.
+
+What the host fills and wires:
+
+1. **Descriptor facts.** A data source fills what its data has on each
+   `ContentDescriptor`: `byteSize` (the size label, the progress when the
+   transfer announces no total, and the policy's limits: a clip of unknown
+   size waits for a tap), `duration` (the badge), `streamable` (a video that
+   plays while it downloads) and `preview`
+   (`ContentPreview.raster(bytes)` for a tiny image, or
+   `ContentPreview.outline(pathData, viewBox)` for the shape of a sticker or
+   emoji). Expand any compact wire form before building the descriptor.
+   `content_assets` maps every fact onto the media descriptor.
+2. **Policy.** Pass an `AutoDownloadPolicy` to
+   `ContentAssetScope.withMedia(autoDownload: ...)` (or to the
+   `AssetCacheScope` the scope wraps). The media stack's default,
+   `NetworkAutoDownloadPolicy` over the device's signals with
+   `AutoDownloadPresets.forPlatform`, weighs the media kind, the byte size and
+   the network class (unmetered, metered, roaming). Without one, everything
+   downloads.
+3. **Download context.** Each surface attaches with the class of the
+   conversation it shows (`AutoDownloadContext.privateChats`, `.groups`,
+   `.channels`, or the host's own tags): `ContentAssetView.downloadContext`,
+   `ContentEmbed` / `ContentEmbedResolver(downloadContext: ...)`,
+   `ContentAssetScope.attach(..., downloadContext: ...)`. An entry downloads
+   when any attached surface's context allows it; the tag never splits the
+   cache.
+4. **Preview store.** Give the pipeline a `PreviewStore`
+   (`AssetPipeline(previews: ...)`; the stack's default keeps them in the
+   bytes store under its `previews` quota). Content whose descriptor carries
+   no preview then gets one derived from its first load, drawn at once on
+   every later show, in this launch and the next.
+5. **Style.** Mount a `MediaLoadingStyleScope` under the chrome theme and
+   restyle the platform's `MediaLoadingStyle` with `copyWith`: the badge's
+   text style and colours, and the outline fill, from your theme tokens.
+   Geometry and timings stay the platform's.
+6. **Controls.** A surface asks for the control per view:
+   `ContentAssetView(status: MediaStatusMode.control(), badge: true,
+   onPlay: ...)`, a bare arc with `MediaStatusMode.arc(radius)` (a grid cell),
+   or none (an embed). A round video takes
+   `ContentAssetPresets.roundVideo` and the bubble colour as `underlay`.
+
 ### Stills and animated images
 
 A sticker is a semantic kind, not a media form: a static sticker is a
@@ -939,9 +990,13 @@ What the host wires so a markdown body paints and reports the inline layer
 1. **Embeds.** Create one `ContentEmbedResolver(scope: assets)` per chat screen
    and pass it as `ChatMarkdownBody.embedResolver`. Keep the instance: a
    different one disposes and re-resolves every embed of the body. A `document:`
-   key the cache cannot produce keeps its placeholder (no failed stage is ever
-   shown); a target no resolver knows (a scheme that is not content) paints its
-   alt text. Do not filter image spans out of the markdown theme: that hid them
+   key the cache cannot produce keeps the best picture stage it reached
+   (preview, thumbnail or first frame), else its placeholder; there is no
+   failed picture, and an embed in text has no status control, so it shows
+   nothing more. A target no resolver knows (a scheme that is not content)
+   paints its alt text. Pass the chat's download context
+   (`ContentEmbedResolver(downloadContext: ...)`, see *Loading stages*) so its
+   embeds download by the conversation's class. Do not filter image spans out of the markdown theme: that hid them
    before the viewport painted embeds.
 2. **Embed taps.** Pass `ChatSelectionController(handlesEmbedHits: true)` when
    `ChatEmbedActivated` means something to the host (a pack sheet). Without it
@@ -1152,7 +1207,10 @@ A later server draft sync carries the same string.
 
 The cache never touches the network. When the connection returns, call
 `assets.connectivityRestored()` from your connectivity listener: attempts that
-failed for a transient reason are retried for entries still attached. A host
+failed for a transient reason are retried for entries still attached, when
+auto-download allows them (a download the user cancelled waits for a tap). A
+failure keeps the picture; a surface with a status control shows download, and
+a tap on it is the retry. A host
 with no fetcher (unicode glyphs only) has nothing to retry.
 
 ### Pause layers

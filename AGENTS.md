@@ -125,7 +125,7 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
   `chrome_foundation` and never imports atlas types.
 - Fakes are exported only from `testing.dart`; production code never
   downcasts to a fake or a concrete cache.
-- A leaf that fails keeps its placeholder: there is no visible failed stage.
+- A leaf that fails keeps the best picture stage it reached (preview, thumbnail or first frame); there is no failed picture. A surface that shows a status control turns it back to download, which is the retry. A leaf without a control (glyphs, panel cells, embeds in text) shows nothing more.
 
 **Invariants agents must not silently reverse**
 

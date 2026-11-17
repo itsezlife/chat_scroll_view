@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (loading stages)
+
+- A GIF page cell is clear until its preview or thumbnail (no skeleton
+  tint) and shows the download arc (`MediaStatusMode.arc(12)`) while its
+  clip downloads; a failed download drops it.
+- The content preview attaches its clip once it is painted, so it plays from
+  its opening frame.
+
 ### Changed (the asset cache moved to mpx)
 
 - Pages draw through `content_assets`' `ContentAssetScope` (the `assets:`

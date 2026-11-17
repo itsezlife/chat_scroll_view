@@ -8,6 +8,10 @@ package is pre-1.0.
 
 ### Added
 
+- `ContentDescriptor.byteSize`, `duration`, `streamable` and `preview`; the
+  sealed `ContentPreview` (`raster` bytes, compared by content, or an
+  `outline` path in a view box). A data source expands any wire form before
+  it builds the descriptor.
 - Packs and the content library ([ADR 044](../../docs/adr/044-content-library-packs-and-preview.md)):
   `Pack`, `PackId`, `PackKind`; `ContentDescriptor.pack`, the pack a content
   belongs to; the `PackSource` seam with `CachingPackSource` (memory tier and

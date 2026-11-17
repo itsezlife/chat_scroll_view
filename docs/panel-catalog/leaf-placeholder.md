@@ -76,8 +76,9 @@ pattern for **sticker** leaves, not as the default for unicode emoji cells.
 | Sticker | Shaped loading wash |
 
 There is no failed stand-in. A leaf whose load fails, or never finishes, keeps
-the placeholder of its kind: the wash of a sticker keeps sweeping while the leaf
-is on screen. The sweep is one gradient for the whole viewport, so every wash
+the best stage it reached (its preview or thumbnail), else the placeholder of
+its kind: the wash of a sticker keeps sweeping while the leaf is on screen. A
+panel leaf has no status control, so a failure shows nothing more. The sweep is one gradient for the whole viewport, so every wash
 shimmers together; it follows the frame timestamp and stops while the host's
 playback clock is paused.
 

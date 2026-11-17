@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Loading stages: `ContentAssetView` forwards `status`, `badge`, `onPlay`,
+  `placeholderUntil`, `downloadContext` and `underlay` to the core's view
+  (`loadingRadius` is gone: `status: MediaStatusMode.arc(radius)`).
+- `ContentAssetScope.withMedia(autoDownload:)` and `autoDownload`;
+  `attach`, `ContentEmbed` and `ContentEmbedResolver` take a
+  `downloadContext`. A glyph binding has no transfer and nothing to
+  download.
+- `ContentDescriptorMedia.mediaDescriptor` maps the byte size, duration,
+  streaming flag and preview (the byte size and duration were dropped).
+- `ContentAssetPresets.roundVideo`: a round, filled, playing clip.
 - `ContentEmbed` composites a texture through `mpx_core`'s
   `AssetTextureLayer`; the package's own copy is gone.
 - A glyph binding answers `visibleFraction` (a still: it only reads back).

@@ -6,6 +6,15 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (loading stages)
+
+- A leaf at the new `preview` stage draws its binding's preview, as it draws
+  a thumbnail. A GIF leaf's download arc follows the binding's transfer
+  (`AssetBinding.transfer`): it shows while the transfer is active and is
+  gone when the download fails or is held back. A leaf that fails keeps the
+  best stage it reached (its preview or thumbnail, else its placeholder);
+  a panel leaf has no status control.
+
 ### Changed (the asset cache moved to mpx)
 
 - `PanelCatalogViewport.assets` is a `ContentAssetScope` (`content_assets`),
