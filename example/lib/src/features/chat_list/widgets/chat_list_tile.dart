@@ -1,3 +1,4 @@
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
 import 'package:flutter/material.dart';
 
 /// One chat in the chat list: avatar, title, the last message and its time.
@@ -43,6 +44,7 @@ final class ChatListEntry {
     required this.preview,
     required this.time,
     required this.color,
+    this.kind = ChatKind.group,
   });
 
   /// The chat's name.
@@ -56,4 +58,7 @@ final class ChatListEntry {
 
   /// The avatar's fill.
   final Color color;
+
+  /// The class of the conversation the row opens.
+  final ChatKind kind;
 }

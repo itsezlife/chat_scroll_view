@@ -158,6 +158,22 @@ void main() {
       expect(canvas.arcs, hasLength(1));
     });
 
+    testWidgets('with a preview, draws the preview under the progress', (
+      tester,
+    ) async {
+      await pump(tester, [_gif(0)]);
+      producer.last.transfer(50, 100);
+
+      final preview = producer.last.advance(AssetStage.preview);
+      await tester.pump();
+      final canvas = paintOnce(tester);
+
+      expect(preview.paints.last.context.opacity, 1);
+      expect(canvas.rrects, isEmpty);
+      expect(discs(canvas), hasLength(1));
+      expect(canvas.arcs.single.sweep, closeTo(math.pi, 1e-6));
+    });
+
     testWidgets('the arc starts at 112 degrees and turns with the frame time '
         'of the pass', (tester) async {
       await pump(tester, [_gif(0)]);

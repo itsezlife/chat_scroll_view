@@ -24,6 +24,8 @@ import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:http_bytes_cache/http_bytes_cache.dart';
+import 'package:mpx/mpx.dart';
+import 'package:mpx/testing.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
 
@@ -1132,6 +1134,64 @@ void main() {
         const ContentKey.unicode('😀'),
       ]);
       expect(items.first.descriptor, rocket.descriptor);
+    });
+  });
+
+  group('loading stages', () {
+    test('the media scope downloads by the platform\'s rules over the '
+        'device\'s network class', () async {
+      final signals = FakeDeviceSignals(network: NetworkClass.metered);
+      addTearDown(signals.dispose);
+      final services = await AppServices.create(
+        keyValueStore: FakeKeyValueStore(),
+        assetLoader: rootBundle.loadString,
+        clipboard: FakeRichClipboard(),
+        deviceSignals: signals,
+      );
+      addTearDown(services.dispose);
+
+      expect(services.assets.autoDownload, same(services.autoDownload));
+      expect(services.autoDownload.network, NetworkClass.metered);
+      expect(
+        services.autoDownload.presets,
+        AutoDownloadPresets.forPlatform(defaultTargetPlatform),
+      );
+      // A clip of unknown size waits for the user, a sticker never does.
+      expect(
+        services.autoDownload.decide(
+          const MediaDescriptor(
+            key: MediaKey.remote('clip'),
+            kind: MediaKind.video,
+          ),
+          AutoDownloadContext.groups,
+        ),
+        AutoDownload.manual,
+      );
+      expect(
+        services.autoDownload.decide(
+          const MediaDescriptor(
+            key: MediaKey.remote('sticker'),
+            kind: MediaKind.vectorAnimation,
+          ),
+          AutoDownloadContext.groups,
+        ),
+        AutoDownload.now,
+      );
+    });
+
+    test('leave the signals they were given to their owner', () async {
+      final signals = FakeDeviceSignals();
+      addTearDown(signals.dispose);
+      final services = await AppServices.create(
+        keyValueStore: FakeKeyValueStore(),
+        assetLoader: rootBundle.loadString,
+        clipboard: FakeRichClipboard(),
+        deviceSignals: signals,
+      );
+      services.dispose();
+
+      signals.network.value = NetworkClass.roaming;
+      expect(signals.network.value, NetworkClass.roaming);
     });
   });
 

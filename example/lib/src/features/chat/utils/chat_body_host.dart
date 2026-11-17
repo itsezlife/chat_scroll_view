@@ -36,9 +36,14 @@ final class ChatBodyHost {
   /// animation settings; by default a unicode emoji plays once and rests on
   /// the first frame, and a custom emoji loops.
   ///
-  /// [describe] says what the host knows of a document: a GIF waits behind
-  /// the whole rectangle, as in the panel's grid, a sticker or custom emoji
-  /// behind a quiet rounded square. Without it every document is the latter.
+  /// [describe] says what the host knows of a document: a GIF is clear
+  /// until its preview or thumbnail, as in the panel's grid, a sticker or
+  /// custom emoji waits behind a quiet rounded square. Without it every
+  /// document is the latter.
+  ///
+  /// [downloadContext] is the class of the chat (`ChatKind.downloadContext`):
+  /// every embed attaches with it, so the auto-download policy weighs the
+  /// chat's media by the conversation it is in.
   ///
   /// [held] is the hold on the chat's playback (a popup panel over it): every
   /// embed the bodies make, inline or emoji-only, follows it
@@ -57,9 +62,20 @@ final class ChatBodyHost {
     DescribeContent? describe,
     listen.ValueListenable<bool>? held,
     ChatMediaSizePolicy? mediaSizes,
+    AutoDownloadContext? downloadContext,
   }) : embedResolver = DemoConfig.scrollLab
-           ? _LabChatResolver(ContentEmbedResolver(scope: assets, held: held))
-           : ContentEmbedResolver(scope: assets, held: held),
+           ? _LabChatResolver(
+               ContentEmbedResolver(
+                 scope: assets,
+                 held: held,
+                 downloadContext: downloadContext,
+               ),
+             )
+           : ContentEmbedResolver(
+               scope: assets,
+               held: held,
+               downloadContext: downloadContext,
+             ),
        embedFactory = ((content, preset) {
          // The lab tells the chat's uploads and decodes from the panel's.
          if (DemoConfig.scrollLab) LabMediaTrace.noteChat(content);
@@ -68,6 +84,7 @@ final class ChatBodyHost {
            content: content,
            preset: preset,
            held: held,
+           downloadContext: downloadContext,
            // A document here is a sticker, a custom emoji drawn large or a GIF.
            // A GIF takes the scope's clear default, then its preview and
            // thumbnail; the scope's circle is the stand-in of a glyph.

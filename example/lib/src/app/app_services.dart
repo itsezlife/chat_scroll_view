@@ -39,6 +39,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:kv_shared_preferences/kv_shared_preferences.dart';
 import 'package:l/l.dart';
+import 'package:mpx/mpx.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
@@ -143,9 +144,12 @@ final class AppServices {
     required Future<bool> Function() glyphFontsSettled,
     required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
+    required this.autoDownload,
+    required IDeviceSignals? ownedSignals,
     required IBytesStore bytes,
     required HttpBytesClient? bytesClient,
   }) : _bytes = bytes,
+       _ownedSignals = ownedSignals,
        _bytesClient = bytesClient,
        _pageParts = pageParts,
        _clock = clock,
@@ -223,6 +227,10 @@ final class AppServices {
   /// Giphy's stills and clips (null: in memory only). It is the store's
   /// alone; the frame folder is outside it.
   ///
+  /// [deviceSignals] is what the auto-download policy reads the network class
+  /// from: the platform's unless a test passes its own (the services dispose
+  /// only the one they made).
+  ///
   /// [diskCache] is the one switch over every disk tier (see
   /// [DemoConfig.diskCache]): false ignores [glyphCache],
   /// [lottieFramesDirectory] and [bytesCacheDirectory], and everything is
@@ -241,6 +249,7 @@ final class AppServices {
     Future<String?>? lottieFramesDirectory,
     Future<String?>? bytesCacheDirectory,
     CorpusStickerPack? corpus,
+    IDeviceSignals? deviceSignals,
     bool diskCache = DemoConfig.diskCache,
   }) async {
     if (!diskCache) {
@@ -438,6 +447,20 @@ final class AppServices {
           ),
         );
       }
+      // Loading stages, as the media stack composes them by default: the
+      // reference auto-download rules of this platform over the device's
+      // network class, and previews the pipeline derives kept in the bytes
+      // store (its `previews` quota), so a later launch draws them at once.
+      final ownedSignals = deviceSignals == null
+          ? owned<IDeviceSignals>(DeviceSignals(), (s) => s.dispose())
+          : null;
+      final autoDownload = owned(
+        NetworkAutoDownloadPolicy(
+          deviceSignals ?? ownedSignals!,
+          presets: AutoDownloadPresets.forPlatform(defaultTargetPlatform),
+        ),
+        (policy) => policy.dispose(),
+      );
       final pipeline = owned(
         AssetPipeline(
           // Giphy first, then the corpus, then the bundle: each takes its own
@@ -450,6 +473,7 @@ final class AppServices {
             ),
             null => null,
           },
+          previews: BytesCachePreviewStore(bytes),
         ),
         (pipeline) => pipeline.dispose(),
       );
@@ -480,6 +504,7 @@ final class AppServices {
           systemFonts: PaintingBinding.instance.systemFonts,
           textGlyphsReady: glyphFontsReady,
           textures: textures,
+          autoDownload: autoDownload,
         ),
         (scope) => scope.dispose(),
       );
@@ -724,6 +749,8 @@ final class AppServices {
         glyphFontsSettled: probe.fontsSettled,
         glyphFontsReady: glyphFontsReady,
         pipeline: pipeline,
+        autoDownload: autoDownload,
+        ownedSignals: ownedSignals,
         bytes: bytes,
         bytesClient: bytesClient,
         clipboard: clipboard,
@@ -920,6 +947,13 @@ final class AppServices {
   final HttpBytesClient? _bytesClient;
   final VideoPlayback? _videoPlayback;
   final AssetPipeline _pipeline;
+
+  /// What decides whether missing media downloads by itself: the platform's
+  /// reference rules over the device's network class, weighed per surface by
+  /// the kind of chat it shows (`ChatKind.downloadContext`).
+  final NetworkAutoDownloadPolicy autoDownload;
+
+  final IDeviceSignals? _ownedSignals;
   final WidgetsPlaybackLifecycleSource _lifecycleSource;
   final ValueNotifier<bool> _reducedMotion;
   final PacedGlyphProbePass? _webProbePass;
@@ -1009,6 +1043,9 @@ final class AppServices {
     scrolling.dispose();
     _glyphFontsReady.dispose();
     _pipeline.dispose();
+    // After the scope that listens to it.
+    autoDownload.dispose();
+    _ownedSignals?.dispose();
     // After the scope and the pipeline: dropping their entries frees the
     // animations the decoder made, through its engine.
     if (_lottiePlayback case final playback?) _closePlayback(playback);

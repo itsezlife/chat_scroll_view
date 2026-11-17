@@ -77,13 +77,16 @@ final class GiphyContent {
 
   /// What the pipeline needs to play [clip]: a GIF, a video-coded file of the
   /// size the API gave, so the justified rows have its proportions before it
-  /// loads. Nothing is added to the pipeline here.
+  /// loads, and of the byte size it gave, so its download shows progress and
+  /// the auto-download policy can weigh it (a clip of unknown size waits for
+  /// a tap). Nothing is added to the pipeline here.
   ContentDescriptor describe(GiphyClip clip) => ContentDescriptor(
     key: keyOf(clip.id),
     semanticKind: SemanticKind.gif,
     mediaForm: MediaForm.video,
     animated: true,
     size: ContentSize(clip.width, clip.height),
+    byteSize: clip.byteSize,
     spokenName: clip.title.isEmpty ? 'GIF' : clip.title,
     thumbnail: switch (clip.thumbnailUrl) {
       final url? => ThumbnailRef('$url'),

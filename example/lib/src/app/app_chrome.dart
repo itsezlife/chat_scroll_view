@@ -1,6 +1,7 @@
 import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
+import 'package:chat_scroll_view_example/src/app/demo_media_loading_style.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -63,7 +64,11 @@ class AppChrome extends StatelessWidget {
             child: child!,
           ),
           child: EmojiTabIconScope(
-            child: ContentAssetProvider(scope: services.assets, child: child),
+            // How media look while they load (stand-ins, the status control,
+            // the badge), in the app's tokens.
+            child: DemoMediaLoadingStyle(
+              child: ContentAssetProvider(scope: services.assets, child: child),
+            ),
           ),
         ),
       ),

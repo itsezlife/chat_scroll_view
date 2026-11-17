@@ -6,6 +6,7 @@ library;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/reference_media_sizes.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
@@ -85,6 +86,38 @@ void main() {
     tearDown(() {
       policy.dispose();
       scope.dispose();
+    });
+
+    test('every embed attaches with the chat\'s download context', () {
+      final channel = ChatBodyHost(
+        assets: scope,
+        policy: policy,
+        downloadContext: ChatKind.channel.downloadContext,
+      );
+      final item = channel.embedFactory(
+        const ContentKey.document('1'),
+        ContentAssetPresets.emojiOnly(step: 40, devicePixelRatio: 2),
+      )!;
+      addTearDown(item.dispose);
+      expect(
+        producer.last.demand.downloadContexts,
+        contains(AutoDownloadContext.channels),
+      );
+
+      final inline = channel.embedResolver.resolve(
+        const InlineEmbedTarget(scheme: 'document', id: '2', alt: 'x'),
+        const InlineEmbedMetrics(
+          fontSize: 15,
+          ascent: 14,
+          descent: 4,
+          devicePixelRatio: 2,
+        ),
+      )!;
+      addTearDown(inline.dispose);
+      expect(
+        producer.last.demand.downloadContexts,
+        contains(AutoDownloadContext.channels),
+      );
     });
 
     test('makes an embed over the cache for a content and a preset', () {

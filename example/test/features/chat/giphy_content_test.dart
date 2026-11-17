@@ -169,6 +169,21 @@ void main() {
       );
     });
 
+    test('carries the byte size of the file, to its media descriptor', () {
+      final clip = GiphyClip(
+        id: 'abc',
+        title: 'a cat',
+        url: Uri.parse('https://media.example/abc.mp4'),
+        width: 200,
+        height: 100,
+        byteSize: 120000,
+      );
+
+      expect(content.describe(clip).byteSize, 120000);
+      expect(content.describe(clip).mediaDescriptor!.byteSize, 120000);
+      expect(content.describe(_clip('abc')).byteSize, isNull);
+    });
+
     test('is spoken as a GIF when the clip has no title', () {
       expect(content.describe(_clip('abc', title: '')).spokenName, 'GIF');
     });

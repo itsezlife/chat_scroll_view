@@ -29,6 +29,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_pack_targets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_texture_warmer.dart';
@@ -95,6 +96,7 @@ class WidgetChatScreen extends StatefulWidget {
     this.dataSourceLoader,
     this.softKeyboard = const PlatformSoftKeyboard(),
     this.presentationPolicy,
+    this.kind = ChatKind.group,
     super.key,
   });
 
@@ -113,6 +115,10 @@ class WidgetChatScreen extends StatefulWidget {
 
   /// Where the panel appears, or null for the policy of the platform.
   final PanelPresentationPolicy? presentationPolicy;
+
+  /// The class of the conversation: its media attach with its download
+  /// context ([ChatKind.downloadContext]).
+  final ChatKind kind;
 
   @override
   State<WidgetChatScreen> createState() => _WidgetChatScreenState();
@@ -301,6 +307,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         policy: _emojiPolicy,
         describe: widget.services.describe,
         held: input.chatPlaybackHeld,
+        downloadContext: widget.kind.downloadContext,
       );
     }
     // The chat's stickers and GIFs composite as texture layers: the pool is

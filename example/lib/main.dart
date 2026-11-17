@@ -24,6 +24,7 @@ import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/chat_page_route.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
@@ -240,16 +241,20 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
     showPerformanceOverlay: false,
     home: switch (widget.start) {
       DemoStart.chat => _chat(context),
-      DemoStart.chatList => ChatListScreen(chat: _chat),
+      DemoStart.chatList => ChatListScreen(
+        chat: (context, entry) => _chat(context, kind: entry.kind),
+      ),
     },
   );
 
-  Widget _chat(BuildContext context) => WidgetChatScreen(
-    services: widget.services,
-    dataSourceLoader: widget.chatDataSourceLoader,
-    softKeyboard: widget.softKeyboard,
-    presentationPolicy: widget.presentationPolicy,
-  );
+  Widget _chat(BuildContext context, {ChatKind kind = ChatKind.group}) =>
+      WidgetChatScreen(
+        services: widget.services,
+        dataSourceLoader: widget.chatDataSourceLoader,
+        softKeyboard: widget.softKeyboard,
+        presentationPolicy: widget.presentationPolicy,
+        kind: kind,
+      );
 }
 
 /// The page [ChatDemoApp] opens on.

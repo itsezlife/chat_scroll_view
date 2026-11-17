@@ -1,3 +1,4 @@
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/chat_page_route.dart';
 import 'package:chat_scroll_view_example/src/features/chat_list/widgets/chat_list_tile.dart';
 import 'package:flutter/material.dart';
@@ -5,7 +6,9 @@ import 'package:flutter/material.dart';
 /// The page a chat is opened from: a list of chats, each pushing [chat] with
 /// a [ChatPageRoute].
 ///
-/// Every row opens the same demo chat; the list exists so that a chat opens
+/// Every row opens the same demo chat as its entry's [ChatListEntry.kind]
+/// (private, group, channel), which weighs what its media download by
+/// themselves; the list exists so that a chat opens
 /// the way it does in a product, slid in over a page that keeps painting,
 /// with the wallpaper and glass scopes above the navigator.
 class ChatListScreen extends StatelessWidget {
@@ -16,8 +19,8 @@ class ChatListScreen extends StatelessWidget {
     super.key,
   });
 
-  /// Builds the chat a row opens.
-  final WidgetBuilder chat;
+  /// Builds the chat a row opens, for the row's entry.
+  final Widget Function(BuildContext context, ChatListEntry entry) chat;
 
   /// The rows.
   final List<ChatListEntry> entries;
@@ -39,24 +42,28 @@ class ChatListScreen extends StatelessWidget {
       preview: 'Sent a sticker',
       time: '13:47',
       color: Color(0xFF8A6AA6),
+      kind: ChatKind.privateChat,
     ),
     ChatListEntry(
       title: 'Release train',
       preview: 'Profile build is up on the device',
       time: '12:10',
       color: Color(0xFFA6866A),
+      kind: ChatKind.channel,
     ),
     ChatListEntry(
       title: 'Grace',
       preview: 'See you tomorrow',
       time: 'Yesterday',
       color: Color(0xFF6A8AA6),
+      kind: ChatKind.privateChat,
     ),
     ChatListEntry(
       title: 'Perf notes',
       preview: 'p99 raster under budget on open',
       time: 'Mon',
       color: Color(0xFF6AA67A),
+      kind: ChatKind.channel,
     ),
   ];
 
@@ -68,9 +75,11 @@ class ChatListScreen extends StatelessWidget {
       itemBuilder: (context, index) => ChatListTile(
         key: tileKey(index),
         entry: entries[index],
-        onTap: () => Navigator.of(
-          context,
-        ).push<void>(ChatPageRoute<void>(builder: chat)),
+        onTap: () => Navigator.of(context).push<void>(
+          ChatPageRoute<void>(
+            builder: (context) => chat(context, entries[index]),
+          ),
+        ),
       ),
     ),
   );

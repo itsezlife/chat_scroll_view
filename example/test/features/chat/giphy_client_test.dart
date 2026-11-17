@@ -124,6 +124,60 @@ void main() {
       expect(clips[1].url.path, '/gifonly/200w.gif');
     });
 
+    test('takes the byte size of the file it plays: the mp4\'s, else the '
+        'gif\'s, else none', () async {
+      final client = _client(
+        (_) async => http.Response(
+          _page([
+            _clipJson(
+              'mp4',
+              images: {
+                'fixed_width': {
+                  'url': 'https://media.example/mp4/200w.gif',
+                  'size': '900000',
+                  'mp4': 'https://media.example/mp4/200w.mp4',
+                  'mp4_size': '120000',
+                  'width': '200',
+                  'height': '100',
+                },
+              },
+            ),
+            _clipJson(
+              'gif',
+              images: {
+                'fixed_width': {
+                  'url': 'https://media.example/gif/200w.gif',
+                  'size': '900000',
+                  'width': '200',
+                  'height': '100',
+                },
+              },
+            ),
+            _clipJson('unsized'),
+            _clipJson(
+              'garbled',
+              images: {
+                'fixed_width': {
+                  'mp4': 'https://media.example/garbled/200w.mp4',
+                  'mp4_size': 'lots',
+                  'width': '200',
+                  'height': '100',
+                },
+              },
+            ),
+          ]),
+          200,
+        ),
+      );
+
+      final clips = (await client.trending()).clips;
+
+      expect(
+        [for (final clip in clips) clip.byteSize],
+        [120000, 900000, null, null],
+      );
+    });
+
     // The still renditions of the API's `images` object: one frame of the
     // clip as a GIF, `{url, width, height, size}` as strings, a few KB.
     test('takes the smallest still as the thumbnail of a clip', () async {

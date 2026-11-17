@@ -45,6 +45,7 @@ final class GiphyClip {
     required this.width,
     required this.height,
     this.thumbnailUrl,
+    this.byteSize,
   });
 
   /// Giphy's id of the GIF.
@@ -61,6 +62,11 @@ final class GiphyClip {
 
   /// The file's height in pixels.
   final int height;
+
+  /// The size of the file at [url] in bytes, as the API gave it, or null when
+  /// it gave none. Read before the file downloads: the download's progress
+  /// and size label, and whether it downloads by itself.
+  final int? byteSize;
 
   /// Where the smallest still of the clip is: one frame as a GIF, a few KB,
   /// which the panel shows blurred under the clip while it loads. Null when
@@ -105,8 +111,9 @@ final class GiphyClip {
     } when id.isNotEmpty) {
       final title = json['title'] is String ? json['title']! as String : '';
       // The mp4 of the first rendition that has one, else the GIF of the
-      // first that has that.
-      for (final key in ['mp4', 'url']) {
+      // first that has that; each with its file's size (a string, as every
+      // number of the API).
+      for (final (key, sizeKey) in [('mp4', 'mp4_size'), ('url', 'size')]) {
         for (final name in _renditions) {
           if (images[name]
               case {'width': final String w, 'height': final String h} &&
@@ -127,6 +134,13 @@ final class GiphyClip {
                 width: width,
                 height: height,
                 thumbnailUrl: _thumbnailOf(images),
+                byteSize: switch (rendition[sizeKey]) {
+                  final String size => switch (int.tryParse(size)) {
+                    final bytes? when bytes >= 0 => bytes,
+                    _ => null,
+                  },
+                  _ => null,
+                },
               );
             }
           }
