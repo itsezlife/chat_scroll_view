@@ -7,6 +7,7 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:mpx_core/mpx_core.dart';
+import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 
 /// The mechanism a page's strip of tabs is built from: the emoji strip and
 /// the stickers strip are one strip in one look, with two sets of metrics.
@@ -456,6 +457,7 @@ class PanelStripCover extends StatelessWidget {
       placeholder: standIn,
       placeholderTint: tokens.categoryIcon,
       inView: inView,
+      downloadContext: PanelCatalogViewport.catalogDownloadContext,
       // The panel's tickers stop while it moves or is hidden: the cover
       // holds its frame and its lease then, as the grid's cells do.
       holdsWhileTickersOff: true,

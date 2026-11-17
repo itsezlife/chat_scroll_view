@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:mpx_core/mpx_core.dart';
+import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 import 'package:panel_pages/src/menu/catalog_menu_icons.dart';
 import 'package:panel_pages/src/overlay/chrome_overlay_scopes.dart';
 import 'package:panel_pages/src/policy/catalog_page_policy.dart';
@@ -810,6 +811,7 @@ class _PreviewContent extends StatelessWidget {
           foreground: true,
         ),
       ),
+      downloadContext: PanelCatalogViewport.catalogDownloadContext,
     );
   }
 }

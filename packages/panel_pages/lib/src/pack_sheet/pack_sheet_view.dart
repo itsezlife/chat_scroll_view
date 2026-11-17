@@ -1162,6 +1162,7 @@ class _PreviewEmoji extends StatelessWidget {
               ),
               profile: const AssetProfile(animate: true),
             ),
+            downloadContext: PanelCatalogViewport.catalogDownloadContext,
           ),
         ),
       ),

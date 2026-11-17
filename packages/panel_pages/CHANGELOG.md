@@ -13,6 +13,10 @@ is pre-1.0.
   clip downloads; a failed download drops it.
 - The content preview attaches its clip once it is painted, so it plays from
   its opening frame.
+- The GIF page's cells, the strip's covers, the pack sheet and the content
+  preview attach with `PanelCatalogViewport.catalogDownloadContext`, as the
+  grid's cells do: a host's policy answers catalogue previews apart from
+  sent content.
 
 ### Changed (the asset cache moved to mpx)
 

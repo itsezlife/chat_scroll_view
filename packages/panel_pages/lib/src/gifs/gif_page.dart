@@ -7,7 +7,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:mpx_core/mpx_core.dart';
-import 'package:panel_catalog/panel_catalog.dart' show CatalogLeafRemoveBadge;
+import 'package:panel_catalog/panel_catalog.dart'
+    show CatalogLeafRemoveBadge, PanelCatalogViewport;
 import 'package:panel_pages/src/gifs/gif_row_layout.dart';
 import 'package:panel_pages/src/menu/catalog_context_menu.dart';
 import 'package:panel_pages/src/policy/catalog_pointer_policy.dart';
@@ -1015,7 +1016,7 @@ class _Cell extends StatefulWidget {
 }
 
 class _CellState extends State<_Cell> {
-  // The download arc.s disc in a grid cell, whatever the cell's size.
+  // The download arc's disc in a grid cell, whatever the cell's size.
   static const double _loadingRadius = 12;
 
   // Whether a mouse is over the cell, and over its remove badge.
@@ -1201,6 +1202,10 @@ class _CellState extends State<_Cell> {
                       // the download arc over it while the clip downloads;
                       // a failed download keeps the picture and drops the arc.
                       status: const MediaStatusMode.arc(_loadingRadius),
+                      // A catalogue preview, not content someone sent: the
+                      // host's policy answers its tag apart.
+                      downloadContext:
+                          PanelCatalogViewport.catalogDownloadContext,
                     ),
                   ),
                 ),

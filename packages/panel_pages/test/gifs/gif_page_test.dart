@@ -20,6 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:meta/meta.dart' show isTest;
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
+import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_pages/testing.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -704,6 +705,20 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(tester.renderObject(view), isNot(paints..circle(radius: 12)));
+    });
+
+    pageTest('attaches with the catalogue\'s download context', (tester) async {
+      final producer = FakeAssetProducer();
+      assets.dispose();
+      assets = ContentAssetScope.withMedia(producer: producer);
+      await pumpPage(tester);
+
+      expect(producer.attempts, isNotEmpty);
+      for (final attempt in producer.attempts) {
+        expect(attempt.demand.downloadContexts, {
+          PanelCatalogViewport.catalogDownloadContext,
+        });
+      }
     });
 
     pageTest('fills its cell with the clip, cropping the overflow', (
