@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:content_model/src/identity/content_key.dart';
 import 'package:content_model/src/pack/pack.dart';
 import 'package:meta/meta.dart';
@@ -128,6 +130,96 @@ final class ContentSize {
   String toString() => 'ContentSize($width x $height)';
 }
 
+/// A stand-in for a piece of content known before its content or its
+/// thumbnail is fetched: drawn from the first frame the content is on screen.
+///
+/// - [ContentPreview.raster]: a tiny encoded image (JPEG, PNG, WebP), a few
+///   dozen pixels on its long edge, which is blurred when it is drawn.
+/// - [ContentPreview.outline]: the shape of the content (a sticker, an emoji)
+///   as SVG path data in a view box, drawn as a filled path.
+///
+/// Both carry plain, expanded data. A data source that receives a compact
+/// wire form (an image whose common header was stripped, a compressed path)
+/// expands it before it builds the descriptor, so nothing that reads a
+/// preview needs to know the wire.
+@immutable
+sealed class ContentPreview {
+  /// A preview of [encoded] image bytes. The preview keeps a read-only copy,
+  /// so a later change to [encoded] changes nothing.
+  factory ContentPreview.raster(Uint8List encoded) = ContentPreview$Raster;
+
+  /// A preview of the outline [pathData] (SVG path syntax) laid out in
+  /// [viewBox].
+  const factory ContentPreview.outline(String pathData, ContentSize viewBox) =
+      ContentPreview$Outline;
+
+  const ContentPreview._();
+}
+
+/// A [ContentPreview] of encoded image bytes.
+///
+/// A value: equal to another of the same bytes. The content hash is computed
+/// once, and the bytes are compared only when it matches.
+final class ContentPreview$Raster extends ContentPreview {
+  /// A preview of a copy of [encoded].
+  ContentPreview$Raster(Uint8List encoded)
+    : encoded = Uint8List.fromList(encoded).asUnmodifiableView(),
+      _hash = Object.hashAll(encoded),
+      super._();
+
+  /// The encoded image, read only.
+  final Uint8List encoded;
+
+  final int _hash;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ContentPreview$Raster ||
+        other._hash != _hash ||
+        other.encoded.length != encoded.length) {
+      return false;
+    }
+    for (var i = 0; i < encoded.length; i++) {
+      if (other.encoded[i] != encoded[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => _hash;
+
+  @override
+  String toString() => 'ContentPreview.raster(${encoded.length} bytes)';
+}
+
+/// A [ContentPreview] of an outline: SVG path data in a view box.
+final class ContentPreview$Outline extends ContentPreview {
+  /// A preview of [pathData] in [viewBox].
+  const ContentPreview$Outline(this.pathData, this.viewBox) : super._();
+
+  /// The outline in SVG path syntax, in the coordinates of [viewBox].
+  final String pathData;
+
+  /// The box the path is drawn in; the outline is scaled from it to the
+  /// content's box.
+  final ContentSize viewBox;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ContentPreview$Outline &&
+      other.pathData == pathData &&
+      other.viewBox == viewBox;
+
+  @override
+  int get hashCode => Object.hash(pathData, viewBox);
+
+  @override
+  String toString() =>
+      'ContentPreview.outline(${pathData.length} chars, '
+      '$viewBox)';
+}
+
 /// What is known about a piece of content, beyond which content it is.
 ///
 /// A descriptor is a [key] plus two orthogonal axes, [semanticKind] and
@@ -151,11 +243,15 @@ final class ContentDescriptor {
     this.tintable = false,
     this.locked = false,
     this.size,
+    this.byteSize,
+    this.duration,
+    this.streamable = false,
     this.thumbnail,
+    this.preview,
     this.spokenName,
     this.shortcode,
     this.pack,
-  });
+  }) : assert(byteSize == null || byteSize >= 0, 'byteSize is not negative.');
 
   /// The content this descriptor describes.
   final ContentKey key;
@@ -180,8 +276,29 @@ final class ContentDescriptor {
   /// The source media size, when the host knows it.
   final ContentSize? size;
 
+  /// The size of the content's file in bytes, when the host knows it.
+  ///
+  /// Read before any byte arrives: a download's progress falls back to it
+  /// when the transfer reports no total, the size label shows it, and the
+  /// auto-download policy weighs it against its limits (a moving item of
+  /// unknown size waits for the user).
+  final int? byteSize;
+
+  /// How long the content plays, when the host knows it: the duration label
+  /// of a clip.
+  final Duration? duration;
+
+  /// Whether the content can play while it downloads (a video whose index
+  /// comes first). A streamable video offers play before its download ends.
+  final bool streamable;
+
   /// The thumbnail to show while the content itself loads, when there is one.
   final ThumbnailRef? thumbnail;
+
+  /// The stand-in drawn before the content and its [thumbnail] arrive, when
+  /// the data carries one. Without one the cache derives a preview the first
+  /// time the content loads, and the surface is clear until then.
+  final ContentPreview? preview;
 
   /// The name read aloud for this content in the active language, when the
   /// data provides one. Absent means the consumer falls back to the content's
@@ -209,7 +326,11 @@ final class ContentDescriptor {
       other.tintable == tintable &&
       other.locked == locked &&
       other.size == size &&
+      other.byteSize == byteSize &&
+      other.duration == duration &&
+      other.streamable == streamable &&
       other.thumbnail == thumbnail &&
+      other.preview == preview &&
       other.spokenName == spokenName &&
       other.shortcode == shortcode &&
       other.pack == pack;
@@ -223,7 +344,11 @@ final class ContentDescriptor {
     tintable,
     locked,
     size,
+    byteSize,
+    duration,
+    streamable,
     thumbnail,
+    preview,
     spokenName,
     shortcode,
     pack,

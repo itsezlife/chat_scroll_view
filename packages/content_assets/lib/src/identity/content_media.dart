@@ -44,9 +44,11 @@ extension ContentDescriptorMedia on ContentDescriptor {
   /// What the media core needs to fetch and decode this content, or null for
   /// a glyph, which it never decodes.
   ///
-  /// The core reads the key, the kind, whether it moves, the pixel size and
-  /// the thumbnail; the content facts (semantic kind, tint, pack, spoken name)
-  /// stay with the chat.
+  /// The core reads the key, the kind, whether it moves, the pixel size, the
+  /// byte size, the duration, whether it streams, the thumbnail and the
+  /// preview; the content facts (semantic kind, tint, pack, spoken name) stay
+  /// with the chat. A preview carries its bytes or path as the data source
+  /// expanded them; nothing here decodes a wire form.
   MediaDescriptor? get mediaDescriptor {
     final kind = switch (mediaForm) {
       MediaForm.glyph => null,
@@ -66,8 +68,20 @@ extension ContentDescriptorMedia on ContentDescriptor {
           MediaDimensions(width, height),
         _ => null,
       },
+      byteSize: byteSize,
+      duration: duration,
+      streamable: streamable,
       thumbnail: switch (thumbnail) {
         final ref? => MediaThumbnailRef(ref.value),
+        null => null,
+      },
+      preview: switch (preview) {
+        ContentPreview$Raster(:final encoded) => MediaPreview.raster(encoded),
+        ContentPreview$Outline(:final pathData, :final viewBox) =>
+          MediaPreview.outline(
+            pathData,
+            MediaDimensions(viewBox.width, viewBox.height),
+          ),
         null => null,
       },
     );

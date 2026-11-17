@@ -5,6 +5,8 @@
 /// contract).
 library;
 
+import 'dart:typed_data';
+
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
@@ -84,6 +86,56 @@ void main() {
           thumbnail: MediaThumbnailRef('thumb-5368'),
         ),
       );
+    });
+
+    test('carry the byte size, duration, streaming and a raster preview', () {
+      final clip = ContentDescriptor(
+        key: const ContentKey.document('clip-1'),
+        semanticKind: SemanticKind.gif,
+        mediaForm: MediaForm.video,
+        animated: true,
+        byteSize: 4718592,
+        duration: const Duration(seconds: 13),
+        streamable: true,
+        preview: ContentPreview.raster(Uint8List.fromList([0xFF, 0xD8, 1])),
+      );
+
+      expect(
+        clip.mediaDescriptor,
+        MediaDescriptor(
+          key: const MediaKey.remote('clip-1'),
+          kind: MediaKind.video,
+          animated: true,
+          byteSize: 4718592,
+          duration: const Duration(seconds: 13),
+          streamable: true,
+          preview: MediaPreview.raster(Uint8List.fromList([0xFF, 0xD8, 1])),
+        ),
+      );
+    });
+
+    test('carry an outline preview in its view box', () {
+      const sticker = ContentDescriptor(
+        key: ContentKey.document('5368'),
+        mediaForm: MediaForm.vectorAnimation,
+        preview: ContentPreview.outline('M0 0L512 512Z', ContentSize(512, 512)),
+      );
+
+      final preview = sticker.mediaDescriptor!.preview;
+
+      expect(
+        preview,
+        const MediaPreview.outline('M0 0L512 512Z', MediaDimensions(512, 512)),
+      );
+    });
+
+    test('leave the transfer facts unknown when the content has none', () {
+      final media = _gif.mediaDescriptor!;
+
+      expect(media.byteSize, isNull);
+      expect(media.duration, isNull);
+      expect(media.streamable, isFalse);
+      expect(media.preview, isNull);
     });
 
     test('a glyph has none: the core never decodes it', () {

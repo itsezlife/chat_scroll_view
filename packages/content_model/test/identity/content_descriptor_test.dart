@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:content_model/content_model.dart';
 import 'package:test/test.dart';
 
@@ -297,6 +299,87 @@ void main() {
         descriptor.toString(),
         'ContentDescriptor(ContentKey.document(1), gif, video)',
       );
+    });
+  });
+
+  group('ContentPreview', () {
+    test('a raster preview is equal to one of the same bytes', () {
+      final a = ContentPreview.raster(Uint8List.fromList([1, 2, 3]));
+      final b = ContentPreview.raster(Uint8List.fromList([1, 2, 3]));
+
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+      expect(a, isNot(ContentPreview.raster(Uint8List.fromList([1, 2, 4]))));
+      expect(a, isNot(ContentPreview.raster(Uint8List.fromList([1, 2]))));
+    });
+
+    test('a raster preview keeps a read-only copy of its bytes', () {
+      final bytes = Uint8List.fromList([1, 2, 3]);
+      final preview = ContentPreview.raster(bytes) as ContentPreview$Raster;
+
+      bytes[0] = 9;
+
+      expect(preview.encoded, [1, 2, 3]);
+      expect(() => preview.encoded[0] = 9, throwsUnsupportedError);
+    });
+
+    test('an outline preview compares its path and view box', () {
+      const a = ContentPreview.outline('M0 0L1 1Z', ContentSize(512, 512));
+
+      expect(
+        a,
+        const ContentPreview.outline('M0 0L1 1Z', ContentSize(512, 512)),
+      );
+      expect(
+        a,
+        isNot(const ContentPreview.outline('M0 0L1 1Z', ContentSize(256, 256))),
+      );
+      expect(
+        a,
+        isNot(const ContentPreview.outline('M0 0L2 2Z', ContentSize(512, 512))),
+      );
+    });
+
+    test('a raster and an outline are never equal', () {
+      expect(
+        ContentPreview.raster(Uint8List.fromList([1])),
+        isNot(const ContentPreview.outline('M0 0Z', ContentSize(1, 1))),
+      );
+    });
+  });
+
+  group('ContentDescriptor transfer facts', () {
+    ContentDescriptor described({
+      int? byteSize = 4718592,
+      Duration? duration = const Duration(seconds: 13),
+      bool streamable = true,
+      List<int> preview = const [1, 2, 3],
+    }) => ContentDescriptor(
+      key: key,
+      mediaForm: MediaForm.video,
+      byteSize: byteSize,
+      duration: duration,
+      streamable: streamable,
+      preview: ContentPreview.raster(Uint8List.fromList(preview)),
+    );
+
+    test('default to unknown, not streamable and no preview', () {
+      const descriptor = ContentDescriptor(key: key);
+
+      expect(descriptor.byteSize, isNull);
+      expect(descriptor.duration, isNull);
+      expect(descriptor.streamable, isFalse);
+      expect(descriptor.preview, isNull);
+    });
+
+    test('take part in equality, previews by content', () {
+      expect(described(), described());
+      expect(described().hashCode, described().hashCode);
+      expect(described(), isNot(described(byteSize: 1)));
+      expect(described(), isNot(described(byteSize: null)));
+      expect(described(), isNot(described(duration: Duration.zero)));
+      expect(described(), isNot(described(streamable: false)));
+      expect(described(), isNot(described(preview: const [1, 2])));
     });
   });
 }
