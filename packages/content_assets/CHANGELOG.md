@@ -2,9 +2,15 @@
 
 ## Unreleased
 
-- Loading stages: `ContentAssetView` forwards `status`, `badge`, `onPlay`,
-  `placeholderUntil`, `downloadContext` and `underlay` to the core's view
-  (`loadingRadius` is gone: `status: MediaStatusMode.arc(radius)`).
+- Loading stages: `ContentAssetView` forwards every parameter of the core's
+  view (`status`, `badge`, `onPlay`, `statusBuilder`, `placeholderUntil`,
+  `visibleFraction`, `loadingStyle`, `downloadContext`, `requestsDownload`,
+  `underlay`); `loadingRadius` is gone: `status: MediaStatusMode.arc(radius)`.
+- `ContentEmbed.stages` (and `ContentEmbedResolver.stages`): an outline
+  preview is drawn in the style's fill (a template asset in the text colour)
+  and swept by its shimmer. `ContentEmbed.binding` exposes the attach, and
+  `ContentEmbedOverlay` lays the status control and the badge over an embed
+  a body paints on its canvas.
 - `ContentAssetScope.withMedia(autoDownload:)` and `autoDownload`;
   `attach`, `ContentEmbed` and `ContentEmbedResolver` take a
   `downloadContext`. A glyph binding has no transfer and nothing to

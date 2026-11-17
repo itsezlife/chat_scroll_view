@@ -223,6 +223,114 @@ void main() {
       expect(context.opacity, 0.5);
     });
 
+    group('an outline preview', () {
+      const fill = Color(0x33123456);
+      const stages = MediaStageStyle(
+        stageFade: Duration.zero,
+        gifFade: Duration.zero,
+        outlineFill: fill,
+        outlineTintOpacity: 0.5,
+      );
+      void describeOutline(FakeAssetAttempt attempt) => attempt.describe(
+        MediaDescriptor(
+          key: attempt.request.key,
+          kind: MediaKind.vectorAnimation,
+          preview: const MediaPreview.outline(
+            'M0 0h1v1z',
+            MediaDimensions(1, 1),
+          ),
+        ),
+      );
+      ContentEmbed outlined({AssetPreset? preset}) {
+        final embed = ContentEmbed(
+          scope: scope,
+          content: _sticker,
+          preset: preset ?? _preset,
+          stages: stages,
+        );
+        addTearDown(embed.dispose);
+        return embed;
+      }
+
+      test('is drawn in the style\'s outline fill, whatever the text '
+          'colour', () {
+        final embed = outlined();
+        describeOutline(producer.last);
+        final preview = producer.last.advance(AssetStage.preview);
+
+        embed.paint(
+          canvas(),
+          _rect,
+          const InlineEmbedPaintContext(tint: Color(0xFF112233)),
+        );
+
+        expect(
+          preview.paints.single.context.outline,
+          const OutlineLook(fill: fill),
+        );
+      });
+
+      test('of a template asset is drawn in the text colour at the style\'s '
+          'opacity', () {
+        final embed = outlined(
+          preset: ContentAssetPresets.inlineMessage(
+            ascent: 8,
+            descent: 2,
+            devicePixelRatio: 2,
+            decodeMode: AssetDecodeMode.template,
+          ),
+        );
+        describeOutline(producer.last);
+        final preview = producer.last.advance(AssetStage.preview);
+
+        embed.paint(
+          canvas(),
+          _rect,
+          const InlineEmbedPaintContext(tint: Color(0xFF112233)),
+        );
+
+        expect(
+          preview.paints.single.context.outline,
+          OutlineLook(fill: const Color(0xFF112233).withValues(alpha: 0.5)),
+        );
+      });
+
+      testWidgets('sweeps while it shows, telling its listeners each frame '
+          'so the body paints it again', (tester) async {
+        final embed = ContentEmbed(
+          scope: scope,
+          content: _sticker,
+          preset: _preset,
+          stages: stages.copyWith(
+            outlineShimmer: const OutlineShimmer(
+              sweep: Duration(milliseconds: 1000),
+            ),
+          ),
+        );
+        addTearDown(embed.dispose);
+        describeOutline(producer.last);
+        final preview = producer.last.advance(AssetStage.preview);
+        var heard = 0;
+        embed.addListener(() => heard++);
+
+        embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+        await tester.pump();
+
+        expect(preview.paints.single.context.outline?.fill, fill);
+        expect(preview.paints.single.context.outline?.highlight, isNotNull);
+        expect(heard, 1);
+      });
+
+      test('content without an outline gets no look', () {
+        final embed = outlined();
+        final full = producer.last.advance(AssetStage.full);
+
+        embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+        expect(full.paints.single.context.outline, isNull);
+      });
+    });
+
     test('draws nothing once disposed', () {
       final embed = embedOf(_sticker);
       final painted = producer.last.advance(AssetStage.full);

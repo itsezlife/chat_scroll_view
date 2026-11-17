@@ -3,7 +3,9 @@ import 'dart:ui' hide VoidCallback;
 import 'package:content_assets/src/embed/inline_embed.dart';
 import 'package:content_assets/src/scope/content_asset_scope.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/rendering.dart' show PaintingContext;
+import 'package:flutter/scheduler.dart';
 import 'package:listen/listen.dart';
 import 'package:mpx_core/mpx_core.dart';
 
@@ -37,8 +39,17 @@ import 'package:mpx_core/mpx_core.dart';
 ///
 /// [downloadContext] is the class of the surface the embed is shown in, which
 /// the scope's auto-download policy weighs (`ContentAssetScope.attach`). An
-/// embed has no status control: content that does not download by itself
-/// keeps its best stand-in, and a failure shows nothing more.
+/// embed paints no status control: content that does not download by itself
+/// keeps its best stand-in, and a failure shows nothing more, unless the host
+/// lays one over the embed from its [binding] (`ContentEmbedOverlay`).
+///
+/// [stages] is how an outline preview is drawn: in its `outlineFill`, or for
+/// a template asset in the text colour at its `outlineTintOpacity`, swept by
+/// its `outlineShimmer` while the outline shows and the clock runs (the
+/// embed then tells its listeners once per frame, so the body repaints). By
+/// default the platform's (`MediaLoadingStyle.forPlatform`). A body has no
+/// build context, so the host resolves it where it makes the embeds
+/// (`MediaLoadingStyleScope.resolve`).
 ///
 /// The embed does not own the scope. Its signal is the binding's: a better
 /// stage, a baked page that landed, an animation frame.
@@ -51,9 +62,15 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
     AssetPaintable? placeholder,
     ValueListenable<bool>? held,
     AutoDownloadContext? downloadContext,
+    MediaStageStyle? stages,
   }) : sizeHint = preset.size,
        _placeholder = placeholder,
        _held = held,
+       _template = preset.spec.decodeMode == AssetDecodeMode.template,
+       _stages =
+           stages ??
+           MediaLoadingStyle.forPlatform(defaultTargetPlatform).stages,
+       _clock = scope.clock,
        _binding = scope.attach(
          content,
          preset.spec,
@@ -67,7 +84,18 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
   final AssetBinding _binding;
   final AssetPaintable? _placeholder;
   final ValueListenable<bool>? _held;
+  final bool _template;
+  final MediaStageStyle _stages;
+  final PlaybackClock _clock;
+  // The listeners told when a shimmer moves: the binding says nothing then.
+  final List<VoidCallback> _listeners = [];
+  bool _sweepScheduled = false;
   bool _disposed = false;
+
+  /// The attach this embed draws: what a host reads to lay a status control
+  /// or a badge over the embed (`ContentEmbedOverlay`). Detached once the
+  /// embed is disposed.
+  AssetBinding get binding => _binding;
 
   void _onHeld() {
     if (_held case final held? when !_disposed) _binding.held = held.value;
@@ -90,11 +118,16 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
   bool replay() => !_disposed && _binding.replay();
 
   @override
-  void addListener(VoidCallback listener) => _binding.addListener(listener);
+  void addListener(VoidCallback listener) {
+    _listeners.add(listener);
+    _binding.addListener(listener);
+  }
 
   @override
-  void removeListener(VoidCallback listener) =>
-      _binding.removeListener(listener);
+  void removeListener(VoidCallback listener) {
+    _listeners.remove(listener);
+    _binding.removeListener(listener);
+  }
 
   @override
   bool get needsCompositing => !_disposed && _binding.paintable.isAnimated;
@@ -134,13 +167,62 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
       );
       return;
     }
-    _binding.paint(canvas, rect, tint: context.tint, opacity: context.opacity);
+    _binding.paint(
+      canvas,
+      rect,
+      tint: context.tint,
+      opacity: context.opacity,
+      outline: _outlineLook(context.tint),
+    );
+  }
+
+  // How an outline preview is drawn, or null when the content has none: a
+  // template asset in the text colour, other content in the style's fill (a
+  // sticker is not the colour of the text around it), and the sweep while
+  // the outline shows and the clock runs.
+  OutlineLook? _outlineLook(Color? tint) {
+    if (_binding.descriptor?.preview case MediaPreview$Outline()) {
+      final fill = switch (tint) {
+        final tint? when _template => tint.withValues(
+          alpha: tint.a * _stages.outlineTintOpacity,
+        ),
+        _ => _stages.outlineFill,
+      };
+      return switch (_stages.outlineShimmer) {
+        final shimmer?
+            when !_clock.isPaused &&
+                _binding.readiness.stage == AssetStage.preview =>
+          OutlineLook(fill: fill, highlight: shimmer.phaseAt(_sweepTime())),
+        _ => OutlineLook(fill: fill),
+      };
+    }
+    return null;
+  }
+
+  // The frame time the sweep is at, and the next frame asked for: once it
+  // starts, the embed's listeners are told so the body paints it again.
+  Duration _sweepTime() {
+    final scheduler = SchedulerBinding.instance;
+    if (!_sweepScheduled) {
+      _sweepScheduled = true;
+      scheduler.scheduleFrameCallback((_) {
+        _sweepScheduled = false;
+        if (_disposed) return;
+        for (final listener in List.of(_listeners)) {
+          listener();
+        }
+      });
+    }
+    return scheduler.schedulerPhase == SchedulerPhase.idle
+        ? Duration.zero
+        : scheduler.currentFrameTimeStamp;
   }
 
   @override
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _listeners.clear();
     _held?.removeListener(_onHeld);
     _binding.detach();
   }

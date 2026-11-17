@@ -46,10 +46,11 @@ class ContentAssetProvider extends InheritedWidget {
 /// [ContentView] on the scope's media cache, a unicode glyph from the glyph
 /// atlas (or as text).
 ///
-/// The parameters are [ContentView]'s; for a glyph, which is a still with
-/// nothing to download, [status], [badge], [onPlay], [placeholderUntil],
-/// [placeholderTint], [holdsWhileTickersOff], [downloadContext] and
-/// [underlay] change nothing.
+/// The parameters are [ContentView]'s, every one forwarded to it; for a
+/// glyph, which is a still with nothing to download, [status], [badge],
+/// [onPlay], [statusBuilder], [placeholderUntil], [placeholderTint],
+/// [holdsWhileTickersOff], [loadingStyle], [downloadContext],
+/// [requestsDownload] and [underlay] change nothing.
 class ContentAssetView extends StatelessWidget {
   /// Shows [content] as [preset] says.
   const ContentAssetView({
@@ -62,15 +63,23 @@ class ContentAssetView extends StatelessWidget {
     this.status = MediaStatusMode.none,
     this.badge = false,
     this.onPlay,
+    this.statusBuilder,
     this.placeholder,
     this.placeholderUntil = AssetStage.none,
     this.placeholderTint,
     this.inView = true,
+    this.visibleFraction = 1,
     this.holdsWhileTickersOff = false,
+    this.loadingStyle,
     this.downloadContext,
+    this.requestsDownload = false,
     this.underlay,
     super.key,
-  }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
+  }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1'),
+       assert(
+         visibleFraction >= 0 && visibleFraction <= 1,
+         'visibleFraction must be within 0..1',
+       );
 
   /// Which content to show.
   final ContentKey content;
@@ -100,6 +109,9 @@ class ContentAssetView extends StatelessWidget {
   /// See [ContentView.onPlay].
   final VoidCallback? onPlay;
 
+  /// See [ContentView.statusBuilder].
+  final MediaStatusBuilder? statusBuilder;
+
   /// See [ContentView.placeholder].
   final AssetPaintable? placeholder;
 
@@ -112,13 +124,22 @@ class ContentAssetView extends StatelessWidget {
   /// See [ContentView.inView].
   final bool inView;
 
+  /// See [ContentView.visibleFraction]. A glyph is hidden at 0.
+  final double visibleFraction;
+
   /// See [ContentView.holdsWhileTickersOff].
   final bool holdsWhileTickersOff;
+
+  /// See [ContentView.loadingStyle].
+  final MediaLoadingStyle? loadingStyle;
 
   /// The class of conversation or surface the content is shown in, which the
   /// media scope's auto-download policy weighs. See
   /// [ContentView.downloadContext].
   final AutoDownloadContext? downloadContext;
+
+  /// See [ContentView.requestsDownload].
+  final bool requestsDownload;
 
   /// See [ContentView.underlay].
   final Color? underlay;
@@ -135,7 +156,7 @@ class ContentAssetView extends StatelessWidget {
         opacity: opacity,
         semanticLabel: semanticLabel,
         placeholder: placeholder,
-        inView: inView,
+        inView: inView && visibleFraction > 0,
       );
     }
     return ContentView(
@@ -148,12 +169,16 @@ class ContentAssetView extends StatelessWidget {
       status: status,
       badge: badge,
       onPlay: onPlay,
+      statusBuilder: statusBuilder,
       placeholder: placeholder,
       placeholderUntil: placeholderUntil,
       placeholderTint: placeholderTint,
       inView: inView,
+      visibleFraction: visibleFraction,
       holdsWhileTickersOff: holdsWhileTickersOff,
+      loadingStyle: loadingStyle,
       downloadContext: downloadContext,
+      requestsDownload: requestsDownload,
       underlay: underlay,
     );
   }

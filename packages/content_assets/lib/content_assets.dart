@@ -13,6 +13,7 @@
 library;
 
 export 'src/embed/content_embed.dart';
+export 'src/embed/content_embed_overlay.dart';
 export 'src/embed/content_embed_resolver.dart';
 export 'src/embed/inline_embed.dart';
 export 'src/glyph/glyph_binding.dart';

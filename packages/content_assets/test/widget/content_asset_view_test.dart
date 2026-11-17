@@ -70,6 +70,29 @@ void main() {
     expect(view.underlay, const Color(0xFF336699));
   });
 
+  testWidgets('forwards the status builder, visible fraction, loading style '
+      'and download request', (tester) async {
+    Widget builder(BuildContext context, MediaStatusControl control) => control;
+    await pump(
+      tester,
+      ContentAssetView(
+        content: _clip,
+        preset: _preset,
+        scope: scope,
+        statusBuilder: builder,
+        visibleFraction: 0.4,
+        loadingStyle: MediaLoadingStyle.$IOS,
+        requestsDownload: true,
+      ),
+    );
+
+    final view = tester.widget<ContentView>(find.byType(ContentView));
+    expect(view.statusBuilder, same(builder));
+    expect(view.visibleFraction, 0.4);
+    expect(view.loadingStyle, MediaLoadingStyle.$IOS);
+    expect(view.requestsDownload, isTrue);
+  });
+
   testWidgets('keeps the core view\'s defaults: no control, no badge, no tag', (
     tester,
   ) async {
@@ -85,6 +108,10 @@ void main() {
     expect(view.placeholderUntil, AssetStage.none);
     expect(view.downloadContext, isNull);
     expect(view.underlay, isNull);
+    expect(view.statusBuilder, isNull);
+    expect(view.visibleFraction, 1);
+    expect(view.loadingStyle, isNull);
+    expect(view.requestsDownload, isFalse);
   });
 
   testWidgets('the download context reaches the media scope\'s demand', (

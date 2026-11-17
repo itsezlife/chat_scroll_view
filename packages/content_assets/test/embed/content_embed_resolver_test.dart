@@ -125,6 +125,41 @@ void main() {
       expect(producer.last.demand.downloadContexts, contains(context));
     });
 
+    test('every embed it makes draws an outline in the host\'s stages', () {
+      const fill = Color(0x33123456);
+      final embed =
+          ContentEmbedResolver(
+                scope: scope,
+                stages: MediaStageStyle.$Android.copyWith(outlineFill: fill),
+              ).resolve(
+                const InlineEmbedTarget(scheme: 'document', id: '9', alt: 's'),
+                _metrics,
+              )!
+              as ContentEmbed;
+      addTearDown(embed.dispose);
+      producer.last.describe(
+        MediaDescriptor(
+          key: producer.last.request.key,
+          preview: const MediaPreview.outline(
+            'M0 0h1v1z',
+            MediaDimensions(1, 1),
+          ),
+        ),
+      );
+      final preview = producer.last.advance(AssetStage.preview);
+
+      embed.paint(
+        Canvas(PictureRecorder()),
+        const Rect.fromLTWH(0, 0, 10, 10),
+        const InlineEmbedPaintContext(),
+      );
+
+      expect(
+        preview.paints.single.context.outline,
+        const OutlineLook(fill: fill),
+      );
+    });
+
     test('sizes the embed with the preset the host chose', () {
       final embed =
           ContentEmbedResolver(

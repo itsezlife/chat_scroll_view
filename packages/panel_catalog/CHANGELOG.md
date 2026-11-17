@@ -14,6 +14,14 @@ is pre-1.0.
   gone when the download fails or is held back. A leaf that fails keeps the
   best stage it reached (its preview or thumbnail, else its placeholder);
   a panel leaf has no status control.
+- `PanelCatalogViewport.downloadContext`, by default
+  `PanelCatalogViewport.catalogDownloadContext`: the tag every cell attaches
+  with, so a host's auto-download policy answers catalogue previews apart.
+- Cells follow the media loading style at the viewport
+  (`MediaLoadingStyleScope`, `CatalogLeafPaintTheme.loading`): an outline
+  preview takes its fill and shimmer, a thumbnail fades in over the preview
+  it replaces for the stage fade, and a download of unknown size spins
+  instead of drawing a 0 % arc.
 
 ### Changed (the asset cache moved to mpx)
 
