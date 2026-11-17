@@ -112,6 +112,19 @@ void main() {
       expect(paintable.keepsFrame, isFalse);
     });
 
+    test('every embed it makes attaches with the surface\'s download '
+        'context', () {
+      const context = AutoDownloadContext('channels');
+      final embed = ContentEmbedResolver(scope: scope, downloadContext: context)
+          .resolve(
+            const InlineEmbedTarget(scheme: 'document', id: '9', alt: 's'),
+            _metrics,
+          )!;
+      addTearDown(embed.dispose);
+
+      expect(producer.last.demand.downloadContexts, contains(context));
+    });
+
     test('sizes the embed with the preset the host chose', () {
       final embed =
           ContentEmbedResolver(

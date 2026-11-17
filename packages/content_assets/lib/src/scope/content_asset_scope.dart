@@ -54,9 +54,14 @@ final class ContentAssetScope {
   }
 
   /// A scope over a media cache of its own, made from [producer],
-  /// [budgets], [clock], [memoryPressure], [mediaPlaceholder] and [textures]
-  /// (see [AssetCacheScope]); [dispose] disposes it too. The glyph parameters
-  /// are the main constructor's.
+  /// [budgets], [clock], [memoryPressure], [mediaPlaceholder], [textures] and
+  /// [autoDownload] (see [AssetCacheScope]); [dispose] disposes it too. The
+  /// glyph parameters are the main constructor's.
+  ///
+  /// [autoDownload] decides which missing content downloads by itself; the
+  /// default downloads everything. A composition root that builds its media
+  /// stack passes the stack's policy, and the stack's preview store goes to
+  /// the stack's producer, which reads and derives previews.
   ContentAssetScope.withMedia({
     AssetProducer? producer,
     AssetCacheBudgets budgets = AssetCacheBudgets.defaults,
@@ -64,6 +69,7 @@ final class ContentAssetScope {
     Listenable? memoryPressure,
     AssetPaintable? mediaPlaceholder,
     FrameTexturePool? textures,
+    AutoDownloadPolicy autoDownload = AutoDownloadPolicy.always,
     GlyphSpriteSource? glyphSource,
     Listenable? systemFonts,
     ValueListenable<bool>? textGlyphsReady,
@@ -75,6 +81,7 @@ final class ContentAssetScope {
          memoryPressure: memoryPressure,
          placeholder: mediaPlaceholder,
          textures: textures,
+         autoDownload: autoDownload,
        ),
        _glyphSource = glyphSource,
        _systemFonts = systemFonts,
@@ -111,6 +118,11 @@ final class ContentAssetScope {
   /// The platform textures playing media may take, or null.
   FrameTexturePool? get textures => media.textures;
 
+  /// What decides whether missing media downloads by itself, weighed per
+  /// surface by the tag it attaches with (`ContentAssetView.downloadContext`);
+  /// the media scope's. A glyph never downloads.
+  AutoDownloadPolicy get autoDownload => media.autoDownload;
+
   /// The atlas unicode keys bind to, or null (glyphs drawn as text).
   GlyphSpriteSource? get glyphSource => _glyphSource;
 
@@ -136,9 +148,18 @@ final class ContentAssetScope {
 
   /// Attaches [key] decoded as [spec], to be used as [profile] says.
   ///
+  /// [downloadContext] is the class of the surface the content is shown in,
+  /// which [autoDownload] weighs for media (`AssetCacheScope.attach`); a
+  /// glyph has nothing to download and ignores it.
+  ///
   /// Throws a [StateError] after [dispose]: a surface that outlives its scope
   /// is a lifecycle bug to see, not to absorb.
-  AssetBinding attach(ContentKey key, AssetSpec spec, AssetProfile profile) {
+  AssetBinding attach(
+    ContentKey key,
+    AssetSpec spec,
+    AssetProfile profile, {
+    AutoDownloadContext? downloadContext,
+  }) {
     if (_disposed) {
       throw StateError('ContentAssetScope.attach called after dispose.');
     }
@@ -156,7 +177,12 @@ final class ContentAssetScope {
       _glyphs.add(binding);
       return binding;
     }
-    return media.attach(key.mediaKey, spec, profile);
+    return media.attach(
+      key.mediaKey,
+      spec,
+      profile,
+      downloadContext: downloadContext,
+    );
   }
 
   /// Whether a binding of [key] at [spec] is attached: a glyph binding, or

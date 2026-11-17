@@ -111,6 +111,19 @@ void main() {
       expect(embedOf(_sticker).sizeHint, _preset.size);
     });
 
+    test('attaches with the surface\'s download context', () {
+      const context = AutoDownloadContext('groups');
+      final embed = ContentEmbed(
+        scope: scope,
+        content: _sticker,
+        preset: _preset,
+        downloadContext: context,
+      );
+      addTearDown(embed.dispose);
+
+      expect(producer.last.demand.downloadContexts, contains(context));
+    });
+
     test('two embeds of one content share one attempt', () {
       embedOf(_sticker);
       embedOf(_sticker);

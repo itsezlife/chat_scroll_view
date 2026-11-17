@@ -4,8 +4,8 @@ import 'dart:ui';
 import 'package:mpx_core/mpx_core.dart';
 
 /// The presets of the surfaces that show content in a chat: a panel cell, a
-/// glyph or a custom emoji set in message text, an emoji-only message and the
-/// single-emoji sticker.
+/// glyph or a custom emoji set in message text, an emoji-only message, the
+/// single-emoji sticker and a round video message.
 ///
 /// They build on the core's `AssetPresets.square` and `AssetPresets.media`,
 /// which stay in `mpx_core`; these name the chat's own surfaces and their
@@ -159,6 +159,24 @@ abstract final class ContentAssetPresets {
     extent: extent,
     devicePixelRatio: devicePixelRatio,
     profile: AssetProfile(animate: autoplay, loop: false, restFrame: restFrame),
+  );
+
+  /// A round video message: a circle of [diameter] logical pixels, decoded
+  /// at that size at [devicePixelRatio], filled (the clip's centre is kept),
+  /// playing and looping silently while visible unless [autoplay] is false.
+  ///
+  /// Round (`AssetPreset.isRound`): its stand-ins are drawn enlarged in the
+  /// circle and its status control takes the round size of the platform's
+  /// style. A surface passes the bubble's colour as the view's underlay, so
+  /// the circle is filled until the clip has faded in.
+  static AssetPreset roundVideo({
+    required double diameter,
+    required double devicePixelRatio,
+    bool autoplay = true,
+  }) => AssetPresets.round(
+    diameter: diameter,
+    devicePixelRatio: devicePixelRatio,
+    profile: AssetProfile(animate: autoplay, fit: AssetFit.cover),
   );
 
   /// Logical pixels an emoji-only item's box adds to its font size (the box is

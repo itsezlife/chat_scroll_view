@@ -649,4 +649,50 @@ void main() {
       },
     );
   });
+
+  group('auto-download', () {
+    test('a scope with media of its own hands its policy to it', () {
+      final policy = FakeAutoDownloadPolicy();
+      final scope = ContentAssetScope.withMedia(autoDownload: policy);
+      addTearDown(scope.dispose);
+
+      expect(scope.autoDownload, same(policy));
+      expect(scope.media.autoDownload, same(policy));
+    });
+
+    test('downloads everything by default', () {
+      final scope = ContentAssetScope.withMedia();
+      addTearDown(scope.dispose);
+
+      expect(scope.autoDownload, same(AutoDownloadPolicy.always));
+    });
+
+    test('a scope over a host\'s media reads the media\'s policy', () {
+      final policy = FakeAutoDownloadPolicy();
+      final media = AssetCacheScope(autoDownload: policy);
+      addTearDown(media.dispose);
+      final scope = ContentAssetScope(media: media);
+      addTearDown(scope.dispose);
+
+      expect(scope.autoDownload, same(policy));
+    });
+
+    test('a glyph binding has nothing to download', () {
+      final scope = ContentAssetScope.withMedia();
+      addTearDown(scope.dispose);
+      final binding = scope.attach(
+        const ContentKey.unicode('\u{1F44D}'),
+        const AssetSpec(pixelWidth: 10, pixelHeight: 10),
+        const AssetProfile(),
+      );
+      addTearDown(binding.detach);
+
+      expect(binding.transfer, AssetTransfer.none);
+      expect(binding.descriptor, isNull);
+      binding
+        ..download()
+        ..cancelDownload();
+      expect(binding.transfer, AssetTransfer.none);
+    });
+  });
 }

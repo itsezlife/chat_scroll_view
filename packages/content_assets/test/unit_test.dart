@@ -17,6 +17,7 @@ import 'glyph/text_glyph_test.dart' as text_glyph_test;
 import 'identity/content_media_test.dart' as content_media_test;
 import 'preset/asset_presets_test.dart' as asset_presets_test;
 import 'scope/content_asset_scope_test.dart' as content_asset_scope_test;
+import 'widget/content_asset_view_test.dart' as content_asset_view_test;
 
 void main() {
   group(
@@ -33,4 +34,5 @@ void main() {
   group('identity/content_media_test.dart', content_media_test.main);
   group('preset/asset_presets_test.dart', asset_presets_test.main);
   group('scope/content_asset_scope_test.dart', content_asset_scope_test.main);
+  group('widget/content_asset_view_test.dart', content_asset_view_test.main);
 }

@@ -22,17 +22,21 @@ final class ContentEmbedResolver implements InlineEmbedResolver {
   /// default `ContentAssetPresets.inlineMessage` at that font size and density.
   ///
   /// [held] is handed to every embed it makes (`ContentEmbed.held`): the
-  /// host's hold on the surface the bodies are on.
+  /// host's hold on the surface the bodies are on. [downloadContext] is
+  /// likewise (`ContentEmbed.downloadContext`): the class of that surface.
   ContentEmbedResolver({
     required ContentAssetScope scope,
     AssetPreset Function(InlineEmbedMetrics metrics)? presetFor,
     ValueListenable<bool>? held,
+    AutoDownloadContext? downloadContext,
   }) : _scope = scope,
        _held = held,
+       _downloadContext = downloadContext,
        _presetFor = presetFor ?? _inlineMessage;
 
   final ContentAssetScope _scope;
   final ValueListenable<bool>? _held;
+  final AutoDownloadContext? _downloadContext;
   final AssetPreset Function(InlineEmbedMetrics metrics) _presetFor;
 
   static AssetPreset _inlineMessage(InlineEmbedMetrics metrics) =>
@@ -51,6 +55,7 @@ final class ContentEmbedResolver implements InlineEmbedResolver {
       content: content,
       preset: _presetFor(metrics),
       held: _held,
+      downloadContext: _downloadContext,
     );
   }
 }

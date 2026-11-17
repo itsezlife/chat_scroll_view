@@ -463,4 +463,31 @@ void main() {
       expect(a, isNot(c));
     });
   });
+
+  group('roundVideo', () {
+    test('is a round, filled, playing circle of its diameter', () {
+      final preset = ContentAssetPresets.roundVideo(
+        diameter: 200,
+        devicePixelRatio: 2,
+      );
+
+      expect(preset.size, const Size.square(200));
+      expect(preset.spec.pixelWidth, 400);
+      expect(preset.spec.pixelHeight, 400);
+      expect(preset.isRound, isTrue);
+      expect(preset.profile.fit, AssetFit.cover);
+      expect(preset.profile.animate, isTrue);
+    });
+
+    test('holds still when it does not autoplay', () {
+      final preset = ContentAssetPresets.roundVideo(
+        diameter: 200,
+        devicePixelRatio: 1,
+        autoplay: false,
+      );
+
+      expect(preset.profile.animate, isFalse);
+      expect(preset.isRound, isTrue);
+    });
+  });
 }

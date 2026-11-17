@@ -35,6 +35,11 @@ import 'package:mpx_core/mpx_core.dart';
 /// host feeds one listenable to every embed of that surface; the embed reads
 /// it now, follows it, and never disposes it.
 ///
+/// [downloadContext] is the class of the surface the embed is shown in, which
+/// the scope's auto-download policy weighs (`ContentAssetScope.attach`). An
+/// embed has no status control: content that does not download by itself
+/// keeps its best stand-in, and a failure shows nothing more.
+///
 /// The embed does not own the scope. Its signal is the binding's: a better
 /// stage, a baked page that landed, an animation frame.
 final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
@@ -45,10 +50,16 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
     required AssetPreset preset,
     AssetPaintable? placeholder,
     ValueListenable<bool>? held,
+    AutoDownloadContext? downloadContext,
   }) : sizeHint = preset.size,
        _placeholder = placeholder,
        _held = held,
-       _binding = scope.attach(content, preset.spec, preset.profile) {
+       _binding = scope.attach(
+         content,
+         preset.spec,
+         preset.profile,
+         downloadContext: downloadContext,
+       ) {
     held?.addListener(_onHeld);
     _onHeld();
   }
