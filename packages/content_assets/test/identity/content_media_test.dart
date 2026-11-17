@@ -109,9 +109,29 @@ void main() {
           byteSize: 4718592,
           duration: const Duration(seconds: 13),
           streamable: true,
+          silentLoop: true,
           preview: MediaPreview.raster(Uint8List.fromList([0xFF, 0xD8, 1])),
         ),
       );
+    });
+
+    test('mark only a GIF sent as video a silent loop', () {
+      const video = ContentDescriptor(
+        key: ContentKey.document('video-1'),
+        mediaForm: MediaForm.video,
+        animated: true,
+      );
+      const animatedGif = ContentDescriptor(
+        key: ContentKey.document('gif-1'),
+        semanticKind: SemanticKind.gif,
+        mediaForm: MediaForm.animatedImage,
+        animated: true,
+      );
+
+      expect(video.mediaDescriptor?.silentLoop, isFalse);
+      expect(video.mediaDescriptor?.isGif, isFalse);
+      expect(animatedGif.mediaDescriptor?.silentLoop, isFalse);
+      expect(animatedGif.mediaDescriptor?.isGif, isTrue);
     });
 
     test('carry an outline preview in its view box', () {

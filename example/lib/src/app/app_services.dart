@@ -148,9 +148,11 @@ final class AppServices {
     required IDeviceSignals? ownedSignals,
     required IBytesStore bytes,
     required HttpBytesClient? bytesClient,
+    required RangedBytes? rangedBytes,
   }) : _bytes = bytes,
        _ownedSignals = ownedSignals,
        _bytesClient = bytesClient,
+       _rangedBytes = rangedBytes,
        _pageParts = pageParts,
        _clock = clock,
        _lottiePlayback = lottiePlayback,
@@ -418,6 +420,7 @@ final class AppServices {
           );
       GiphyContent? giphy;
       HttpBytesClient? bytesClient;
+      RangedBytes? rangedBytes;
       if (giphyApiKey.isEmpty) {
         l.i(
           'Giphy GIFs are off: no GIPHY_API_KEY was given '
@@ -437,13 +440,21 @@ final class AppServices {
         // bytes store, whose HTTP client sends through the same transport.
         // The store sits under the transport, not over it: a file it holds
         // is no request, so the lab's tape neither records nor replays it
-        // (lab builds turn the disk off, see DemoConfig.diskCache).
+        // (lab builds turn the disk off, see DemoConfig.diskCache). A file
+        // the store does not hold downloads in parts, several in flight, at
+        // the default part size and count; a store without files (memory,
+        // the web) fetches whole.
+        final mediaClient = bytesClient = owned<HttpBytesClient>(
+          HttpBytesClient(client: transport),
+          (client) => unawaited(client.close()),
+        );
         giphy = GiphyContent(
           GiphyClient(apiKey: giphyApiKey, client: transport),
           store: bytes,
-          http: bytesClient = owned<HttpBytesClient>(
-            HttpBytesClient(client: transport),
-            (client) => unawaited(client.close()),
+          http: mediaClient,
+          ranged: rangedBytes = owned<RangedBytes>(
+            RangedBytes(store: bytes, client: mediaClient),
+            (ranged) => unawaited(ranged.close()),
           ),
         );
       }
@@ -753,6 +764,7 @@ final class AppServices {
         ownedSignals: ownedSignals,
         bytes: bytes,
         bytesClient: bytesClient,
+        rangedBytes: rangedBytes,
         clipboard: clipboard,
       );
     } on Object {
@@ -945,6 +957,7 @@ final class AppServices {
   final LottiePlayback? _lottiePlayback;
   final IBytesStore _bytes;
   final HttpBytesClient? _bytesClient;
+  final RangedBytes? _rangedBytes;
   final VideoPlayback? _videoPlayback;
   final AssetPipeline _pipeline;
 
@@ -1061,8 +1074,9 @@ final class AppServices {
     // Commits what is still in an undo window.
     library.dispose();
     recents.dispose();
-    // The client before the store it writes through; the store's last
-    // writes land before it closes.
+    // The ranged downloads, then the client, before the store they write
+    // through; the store's last writes land before it closes.
+    unawaited(_rangedBytes?.close());
     unawaited(_bytesClient?.close());
     unawaited(_bytes.close());
   }

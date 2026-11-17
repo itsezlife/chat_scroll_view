@@ -47,7 +47,9 @@ extension ContentDescriptorMedia on ContentDescriptor {
   /// The core reads the key, the kind, whether it moves, the pixel size, the
   /// byte size, the duration, whether it streams, the thumbnail and the
   /// preview; the content facts (semantic kind, tint, pack, spoken name) stay
-  /// with the chat. A preview carries its bytes or path as the data source
+  /// with the chat, but for one: a GIF sent as video is a silent loop
+  /// ([MediaDescriptor.silentLoop]), so its badge reads "GIF" and shows no
+  /// duration. A preview carries its bytes or path as the data source
   /// expanded them; nothing here decodes a wire form.
   MediaDescriptor? get mediaDescriptor {
     final kind = switch (mediaForm) {
@@ -71,6 +73,7 @@ extension ContentDescriptorMedia on ContentDescriptor {
       byteSize: byteSize,
       duration: duration,
       streamable: streamable,
+      silentLoop: semanticKind == SemanticKind.gif && kind == MediaKind.video,
       thumbnail: switch (thumbnail) {
         final ref? => MediaThumbnailRef(ref.value),
         null => null,

@@ -37,14 +37,22 @@ import 'package:mpx_core/mpx_core.dart';
 /// disposes neither.
 final class GiphyContent {
   /// Creates the content over [client], remembering up to [capacity] clips,
-  /// and fetching files and stills into [store] through [http].
+  /// and fetching files and stills into [store] through [http]. With
+  /// [ranged] (over [store]) a missing file downloads in parts, several in
+  /// flight; neither it nor [http] is closed here.
   GiphyContent(
     this.client, {
     required this.store,
     required HttpBytesClient http,
+    RangedBytes? ranged,
     this.capacity = 2048,
   }) : assert(capacity > 0, 'remembers at least one clip') {
-    _bytes = BytesCacheFetcher(store: store, client: http, locate: _locate);
+    _bytes = BytesCacheFetcher(
+      store: store,
+      client: http,
+      locate: _locate,
+      ranged: ranged,
+    );
   }
 
   static const String _prefix = 'giphy:';

@@ -413,8 +413,8 @@ packages:
     dependency: transitive
     description:
       path: "packages/http_bytes_cache"
-      ref: "9b796bfef21f38af38f037bc06fbaa01bbe3491f"
-      resolved-ref: "9b796bfef21f38af38f037bc06fbaa01bbe3491f"
+      ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
+      resolved-ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.1.0"
@@ -583,8 +583,8 @@ packages:
     dependency: transitive
     description:
       path: "packages/mpx"
-      ref: "9b796bfef21f38af38f037bc06fbaa01bbe3491f"
-      resolved-ref: "9b796bfef21f38af38f037bc06fbaa01bbe3491f"
+      ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
+      resolved-ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.0.1"
@@ -592,8 +592,8 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/mpx_core"
-      ref: "9b796bfef21f38af38f037bc06fbaa01bbe3491f"
-      resolved-ref: "9b796bfef21f38af38f037bc06fbaa01bbe3491f"
+      ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
+      resolved-ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.0.1"
@@ -601,8 +601,8 @@ packages:
     dependency: transitive
     description:
       path: "packages/mpx_lottie"
-      ref: "9b796bfef21f38af38f037bc06fbaa01bbe3491f"
-      resolved-ref: "9b796bfef21f38af38f037bc06fbaa01bbe3491f"
+      ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
+      resolved-ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.0.1"
@@ -610,8 +610,8 @@ packages:
     dependency: transitive
     description:
       path: "packages/mpx_video_decoder"
-      ref: "9b796bfef21f38af38f037bc06fbaa01bbe3491f"
-      resolved-ref: "9b796bfef21f38af38f037bc06fbaa01bbe3491f"
+      ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
+      resolved-ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.0.1"

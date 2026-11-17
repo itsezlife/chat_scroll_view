@@ -76,6 +76,7 @@ final class GlyphBinding with ChangeNotifier implements AssetBinding {
   TextGlyphPaintable? _text;
   double _visibleFraction = 1;
   bool _held = false;
+  bool _requestsDownload = false;
   bool _detached = false;
 
   /// Whether [detach] was called.
@@ -171,6 +172,13 @@ final class GlyphBinding with ChangeNotifier implements AssetBinding {
 
   @override
   void download() {}
+
+  // The request answers back; there is nothing it could download.
+  @override
+  bool get requestsDownload => _requestsDownload;
+
+  @override
+  set requestsDownload(bool value) => _requestsDownload = value;
 
   @override
   void cancelDownload() {}
