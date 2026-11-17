@@ -118,7 +118,7 @@ void main() {
         return (rrects: canvas.rrects, circles: canvas.circles);
       }
 
-      test('a GIF is the whole rectangle, as in the grid', () {
+      test('a GIF is clear: no box until its preview or thumbnail', () {
         const gif = ContentKey.document('giphy:abc');
         final own = ChatBodyHost(
           assets: scope,
@@ -138,7 +138,7 @@ void main() {
 
         embed.paint(canvas, rect, const InlineEmbedPaintContext());
 
-        expect((canvas.rects, canvas.rrects, canvas.circles), (1, 0, 0));
+        expect((canvas.rects, canvas.rrects, canvas.circles), (0, 0, 0));
       });
 
       test('a document is a quiet rounded square, not the circle', () {

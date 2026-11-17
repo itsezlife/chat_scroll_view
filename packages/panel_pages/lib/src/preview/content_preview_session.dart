@@ -669,14 +669,21 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
                     scale: _pointer ? 1 : shown,
                     child: Opacity(
                       opacity: shown,
-                      child: _PreviewContent(
-                        item: item,
-                        // Not the box's own size, which drifts as a drag
-                        // moves it: a new size attaches the content again,
-                        // and a foreground attach plays from frame 0.
-                        size: layout.extent,
-                        assets: session.assets,
-                      ),
+                      // Attached once it is painted: a playing view measures
+                      // where it shows when it attaches and when it moves,
+                      // and one attached under a transparent fade would wait
+                      // for the next sweep to play.
+                      child: shown > 0
+                          ? _PreviewContent(
+                              item: item,
+                              // Not the box's own size, which drifts as a
+                              // drag moves it: a new size attaches the
+                              // content again, and a foreground attach plays
+                              // from frame 0.
+                              size: layout.extent,
+                              assets: session.assets,
+                            )
+                          : const SizedBox.expand(),
                     ),
                   ),
                 ),

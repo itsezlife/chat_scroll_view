@@ -63,6 +63,12 @@ final class _LottieProducer implements AssetProducer {
   var _handles = 0;
 
   @override
+  void holdPreloads({required bool held}) {}
+
+  @override
+  void know(MediaDescriptor descriptor) {}
+
+  @override
   AssetTask produce(
     AssetRequest request,
     AssetProgress progress,

@@ -110,10 +110,11 @@ final class TaggedVideoEngine implements VideoEngine {
 
   @override
   Future<VideoClipOpenResult> open(
-    Uint8List bytes, {
+    VideoSource source, {
     required int width,
     required int height,
   }) async {
+    final bytes = (source as VideoBytesSource).bytes;
     final id = _ids++;
     _open[id] = (tag: bytes.first, next: 0);
     return VideoClipOpened(
@@ -159,6 +160,16 @@ final class TaggedVideoEngine implements VideoEngine {
   Future<bool> rewind(VideoClip clip) async {
     final state = _open[clip.id]!;
     _open[clip.id] = (tag: state.tag, next: 0);
+    return true;
+  }
+
+  @override
+  Future<bool> seek(VideoClip clip, Duration position) async {
+    final state = _open[clip.id]!;
+    _open[clip.id] = (
+      tag: state.tag,
+      next: position.inMilliseconds * 30 ~/ 1000,
+    );
     return true;
   }
 
@@ -252,7 +263,7 @@ final class VideoRig {
   /// A clip of [tag] and its paintable, as the decoder hands them over.
   Future<VideoAnimationPaintable> clip(int tag) async {
     final opened = await engine.open(
-      Uint8List.fromList([tag]),
+      VideoSource.bytes(Uint8List.fromList([tag])),
       width: _clipEdge,
       height: _clipEdge,
     );

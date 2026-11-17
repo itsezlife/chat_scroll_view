@@ -570,10 +570,7 @@ void main() {
 
           final cover = tester.renderObject(find.byType(ContentAssetView));
           expect(cover, paints..rrect(color: standIn));
-          expect(
-            cover,
-            isNot(paints..rect(color: RectPlaceholder.fallbackColor)),
-          );
+          expect(cover, isNot(paints..rect(color: const Color(0xFFEDF3F7))));
         });
       }
     }

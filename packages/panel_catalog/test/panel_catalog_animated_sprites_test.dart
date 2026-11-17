@@ -85,6 +85,12 @@ final class _FrameProducer implements AssetProducer {
   int _made = 0;
 
   @override
+  void holdPreloads({required bool held}) {}
+
+  @override
+  void know(MediaDescriptor descriptor) {}
+
+  @override
   AssetTask produce(
     AssetRequest request,
     AssetProgress progress,

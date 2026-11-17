@@ -226,7 +226,9 @@ void main() {
                   as CollectionContents$Loaded)
               .items
               .first;
-      final before = giphy.requests.length;
+      // Files only: the next page's API request may land meanwhile.
+      int files() => giphy.requests.length - giphy.apiRequests.length;
+      final before = files();
 
       final fetched = await content
           .fetcher(otherwise: _Unused())
@@ -240,7 +242,7 @@ void main() {
           );
 
       expect((fetched as FetchedBytes).bytes, [1, 2, 3]);
-      expect(giphy.requests.length, before);
+      expect(files(), before);
     });
   });
 

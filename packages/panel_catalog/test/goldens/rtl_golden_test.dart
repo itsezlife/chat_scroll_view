@@ -148,6 +148,12 @@ void main() {
 /// A producer that never reports: every attempt hangs.
 final class _SilentProducer implements AssetProducer {
   @override
+  void holdPreloads({required bool held}) {}
+
+  @override
+  void know(MediaDescriptor descriptor) {}
+
+  @override
   AssetTask produce(
     AssetRequest request,
     AssetProgress progress,

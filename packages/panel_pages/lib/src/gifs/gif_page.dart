@@ -1015,7 +1015,7 @@ class _Cell extends StatefulWidget {
 }
 
 class _CellState extends State<_Cell> {
-  // The loader's disc in a grid cell, whatever the cell's size.
+  // The download arc.s disc in a grid cell, whatever the cell's size.
   static const double _loadingRadius = 12;
 
   // Whether a mouse is over the cell, and over its remove badge.
@@ -1197,11 +1197,10 @@ class _CellState extends State<_Cell> {
                           fit: AssetFit.cover,
                         ),
                       ),
-                      // The cell's rectangle in a quiet token until the thumbnail
-                      // arrives, under the
-                      // loader the cell has until the clip's first frame.
-                      tint: ChromeThemeScope.of(context).placeholder.skeleton,
-                      loadingRadius: _loadingRadius,
+                      // Clear until a preview or the thumbnail arrives, with
+                      // the download arc over it while the clip downloads;
+                      // a failed download keeps the picture and drops the arc.
+                      status: const MediaStatusMode.arc(_loadingRadius),
                     ),
                   ),
                 ),

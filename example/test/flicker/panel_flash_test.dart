@@ -41,6 +41,12 @@ final class _GifProducer implements AssetProducer {
   final Map<int, AssetProgress> _waiting = {};
 
   @override
+  void holdPreloads({required bool held}) {}
+
+  @override
+  void know(MediaDescriptor descriptor) {}
+
+  @override
   AssetTask produce(
     AssetRequest request,
     AssetProgress progress,

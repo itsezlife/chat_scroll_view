@@ -161,8 +161,19 @@ final class GlyphBinding with ChangeNotifier implements AssetBinding {
   @override
   AssetPaintable get paintable => _detached ? _placeholder : _paintable;
 
+  // A glyph has no bytes to fetch: no descriptor, no transfer, nothing to
+  // download or cancel.
   @override
-  double? get downloadProgress => null;
+  MediaDescriptor? get descriptor => null;
+
+  @override
+  AssetTransfer get transfer => AssetTransfer.none;
+
+  @override
+  void download() {}
+
+  @override
+  void cancelDownload() {}
 
   @override
   Object? get lastError => null;
@@ -199,12 +210,19 @@ final class GlyphBinding with ChangeNotifier implements AssetBinding {
   void advancePlayback() {}
 
   @override
-  void paint(Canvas canvas, Rect rect, {Color? tint, double opacity = 1}) {
+  void paint(
+    Canvas canvas,
+    Rect rect, {
+    Color? tint,
+    double opacity = 1,
+    OutlineLook? outline,
+  }) {
     final context = AssetPaintContext(
       tint: tint,
       opacity: opacity,
       animate: false,
       fit: profile.fit,
+      outline: outline,
     );
     final radius = profile.cornerRadius;
     if (radius <= 0) {
@@ -219,7 +237,12 @@ final class GlyphBinding with ChangeNotifier implements AssetBinding {
   }
 
   @override
-  bool paintStandIn(Canvas canvas, Rect rect) => false;
+  bool paintStandIn(
+    Canvas canvas,
+    Rect rect, {
+    double contentOpacity = 0,
+    OutlineLook? outline,
+  }) => false;
 
   @override
   void releaseStandIn() {}

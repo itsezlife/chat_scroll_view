@@ -111,7 +111,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, [_gif(0)]);
-      producer.last.download(0);
+      producer.last.transfer(0, 100);
       await tester.pump();
 
       final canvas = paintOnce(tester);
@@ -146,7 +146,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, [_gif(0)]);
-      producer.last.download(0.5);
+      producer.last.transfer(50, 100);
 
       final thumb = producer.last.advance(AssetStage.placeholder);
       await tester.pump();
@@ -161,7 +161,7 @@ void main() {
     testWidgets('the arc starts at 112 degrees and turns with the frame time '
         'of the pass', (tester) async {
       await pump(tester, [_gif(0)]);
-      producer.last.download(0);
+      producer.last.transfer(0, 100);
       await tester.pump();
       var now = const Duration(seconds: 10);
       render(tester).debugFrameTime = () => now;
@@ -180,24 +180,26 @@ void main() {
 
     testWidgets('the arc grows with the download', (tester) async {
       await pump(tester, [_gif(0)]);
-      producer.last.download(0.5);
+      producer.last.transfer(50, 100);
       await tester.pump();
 
       expect(paintOnce(tester).arcs.single.sweep, closeTo(math.pi, 1e-6));
     });
 
-    testWidgets('keeps the progress over the thumbnail after its download '
-        'fails, the clip still missing', (tester) async {
+    testWidgets('drops the progress over the thumbnail when its download '
+        'fails: a panel cell keeps its picture and shows nothing more', (
+      tester,
+    ) async {
       await pump(tester, [_gif(0)]);
       producer.last
-        ..download(0.5)
+        ..transfer(50, 100)
         ..advance(AssetStage.placeholder)
         ..fail(StateError('offline'));
       await tester.pump();
       final canvas = paintOnce(tester);
 
-      expect(discs(canvas), hasLength(1));
-      expect(canvas.arcs.single.sweep, closeTo(math.pi, 1e-6));
+      expect(discs(canvas), isEmpty);
+      expect(canvas.arcs, isEmpty);
     });
 
     testWidgets('a GIF served from a cache gets no progress', (tester) async {
@@ -215,7 +217,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, [_gif(0)]);
-      producer.last.download(0);
+      producer.last.transfer(0, 100);
       await tester.pump(const Duration(milliseconds: 16));
       expect(tester.binding.hasScheduledFrame, isTrue);
 
@@ -239,7 +241,7 @@ void main() {
         ),
       ]);
       for (final attempt in producer.attempts) {
-        attempt.download(0.5);
+        attempt.transfer(50, 100);
       }
       await tester.pump();
 
@@ -257,7 +259,7 @@ void main() {
       await pump(tester, [_gif(0)]);
       var now = const Duration(seconds: 10);
       render(tester).debugFrameTime = () => now;
-      producer.last.download(1);
+      producer.last.transfer(100, 100);
       final thumb = producer.last.advance(AssetStage.placeholder);
       await tester.pump();
       final content = producer.last.advance(AssetStage.firstFrame);
@@ -289,7 +291,7 @@ void main() {
       var now = const Duration(seconds: 10);
       render(tester).debugFrameTime = () => now;
       producer.last
-        ..download(1)
+        ..transfer(100, 100)
         ..advance(AssetStage.placeholder);
       await tester.pump();
       producer.last.advance(AssetStage.firstFrame);

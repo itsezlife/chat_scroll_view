@@ -112,14 +112,15 @@ const double _kProgressRadius = 12;
 ///
 /// ## Loading GIFs
 ///
-/// A GIF leaf that is not drawn yet (no stage, or its thumbnail) and whose
-/// binding downloads its content (`AssetBinding.downloadProgress`) also gets
-/// the download indicator ([RadialProgress]) over its
-/// centre, and it fades out with the content's fade. A leaf whose content is
-/// known to be missing shows it from its first paint, and a failed download
-/// keeps it while the content is still missing; a leaf served from a cache
-/// shows none. Each binding has its own indicator, kept beside it for as
-/// long as the binding reports a download; the arc steps with the pass's frame time:
+/// A GIF leaf that is not drawn yet (no stage, its preview or its thumbnail)
+/// and whose binding downloads its content (an active
+/// `AssetBinding.transfer`) also gets the download indicator
+/// ([RadialProgress]) over its centre, and it fades out with the content's
+/// fade. A leaf whose content is known to be missing shows it from its first
+/// paint; a failed or held-back download shows none (a panel cell has no
+/// control, so it keeps its picture and nothing more), nor does a leaf served
+/// from a cache. Each binding has its own indicator, kept beside it for as
+/// long as the binding's transfer is active; the arc steps with the pass's frame time:
 /// the pass asks for frames only while one shows, and not while the host
 /// paused playback, when the arc rests.
 ///
@@ -700,6 +701,9 @@ final class CatalogLeafPainter {
       case null || AssetStage.none:
         _paintStandIn(canvas, style, glyphRect);
         _paintLoadingProgress(canvas, binding, slot, glyphRect);
+      case AssetStage.preview:
+        binding!.paint(canvas, glyphRect);
+        _paintLoadingProgress(canvas, binding, slot, glyphRect);
       case AssetStage.placeholder:
         if (style == CatalogPlaceholderStyle.circle) {
           _paintStandIn(canvas, style, glyphRect);
@@ -805,11 +809,12 @@ final class CatalogLeafPainter {
     double opacity = 1,
   }) {
     if (binding == null || slot.leaf.semanticKind != SemanticKind.gif) return;
-    final downloaded = binding.downloadProgress;
-    if (downloaded == null) {
+    final transfer = binding.transfer;
+    if (!transfer.isActive) {
       _indicators[binding] = null;
       return;
     }
+    final downloaded = transfer.fraction ?? 0;
     if (opacity <= 0) return;
     final indicator = switch (_indicators[binding]) {
       final shown? => shown..setProgress(downloaded),

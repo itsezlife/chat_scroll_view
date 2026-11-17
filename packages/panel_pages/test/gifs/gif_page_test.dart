@@ -654,37 +654,24 @@ void main() {
   });
 
   group('a cell that waits for its clip', () {
-    // The painting box inside the view's repaint boundary.
-    RenderObject boxOf(WidgetTester tester) => tester.renderObject(
-      find.descendant(
-        of: find.byType(ContentAssetView).first,
-        matching: find.byWidgetPredicate((w) => w is LeafRenderObjectWidget),
-      ),
-    );
-
-    pageTest('is the clip\'s rectangle in a quiet token, not a circle', (
+    pageTest('is clear until a stand-in arrives: no box, no circle', (
       tester,
     ) async {
       await pumpPage(tester);
 
-      final view = find.byType(ContentAssetView).first;
-      final skeleton = ChromeThemeScope.of(
-        tester.element(view),
-      ).placeholder.skeleton;
-      // A square clip of 25 spans is a 98 x 100 cell (the gap is after it): drawn whole from the
-      // first frame, so the thumbnail that arrives changes no bounds.
-      expect(
-        tester.renderObject(view),
-        paints..rect(rect: const Rect.fromLTWH(0, 0, 98, 100), color: skeleton),
-      );
-      expect(tester.renderObject(view), isNot(paints..path()));
+      final view = tester.renderObject(find.byType(ContentAssetView).first);
+      expect(view, isNot(paints..rect()));
+      expect(view, isNot(paints..path()));
     });
 
     pageTest('has no radial progress while nothing downloads, as for a '
         'cached clip', (tester) async {
       await pumpPage(tester);
 
-      expect(boxOf(tester), isNot(paints..circle(radius: 12)));
+      expect(
+        tester.renderObject(find.byType(ContentAssetView).first),
+        isNot(paints..circle(radius: 12)),
+      );
     });
 
     pageTest('has the radial progress over its centre while its clip '
@@ -695,11 +682,28 @@ void main() {
       await pumpPage(tester);
 
       for (final attempt in producer.attempts) {
-        attempt.download(0.4);
+        attempt.transfer(40, 100);
       }
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
 
-      expect(boxOf(tester), paints..circle(x: 49, y: 50, radius: 12));
+      final view = find.byType(ContentAssetView).first;
+      final control = find.descendant(
+        of: view,
+        matching: find.byType(MediaStatusControl),
+      );
+      expect(
+        tester.getCenter(control),
+        tester.getTopLeft(view) + const Offset(49, 50),
+      );
+      expect(tester.renderObject(view), paints..circle(radius: 12));
+
+      for (final attempt in producer.attempts) {
+        attempt.fail(StateError('offline'));
+      }
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(tester.renderObject(view), isNot(paints..circle(radius: 12)));
     });
 
     pageTest('fills its cell with the clip, cropping the overflow', (

@@ -56,7 +56,19 @@ final class _Report implements AssetProgress {
   ]) => throw StateError('the decode failed: $error');
 
   @override
-  void download(double fraction) {}
+  void describe(MediaDescriptor descriptor) {}
+
+  @override
+  void waiting() {}
+
+  @override
+  void transfer(int received, int? total) {}
+
+  @override
+  void awaitingUser() {}
+
+  @override
+  void bestReached() {}
 
   @override
   void cancelled() {}

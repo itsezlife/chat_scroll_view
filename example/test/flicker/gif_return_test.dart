@@ -71,10 +71,10 @@ final class _StampingEngine implements VideoEngine {
 
   @override
   Future<VideoClipOpenResult> open(
-    Uint8List bytes, {
+    VideoSource source, {
     required int width,
     required int height,
-  }) => inner.open(bytes, width: width, height: height);
+  }) => inner.open(source, width: width, height: height);
 
   @override
   Future<VideoFrameResult> nextFrame(
@@ -92,6 +92,10 @@ final class _StampingEngine implements VideoEngine {
 
   @override
   Future<bool> rewind(VideoClip clip) => inner.rewind(clip);
+
+  @override
+  Future<bool> seek(VideoClip clip, Duration position) =>
+      inner.seek(clip, position);
 
   @override
   Future<void> close(VideoClip clip) => inner.close(clip);
@@ -158,6 +162,12 @@ final class _VideoProducer implements AssetProducer {
   final Map<ContentKey, VideoClip> clips = {};
 
   @override
+  void holdPreloads({required bool held}) {}
+
+  @override
+  void know(MediaDescriptor descriptor) {}
+
+  @override
   AssetTask produce(
     AssetRequest request,
     AssetProgress progress,
@@ -165,7 +175,9 @@ final class _VideoProducer implements AssetProducer {
   ) {
     final width = request.spec.pixelWidth;
     final height = request.spec.pixelHeight;
-    engine.open(bytes, width: width, height: height).then((result) {
+    engine.open(VideoSource.bytes(bytes), width: width, height: height).then((
+      result,
+    ) {
       final clip = clips[request.key.contentKey!] =
           (result as VideoClipOpened).clip;
       final paintable = made[request.key.contentKey!] = VideoAnimationPaintable(

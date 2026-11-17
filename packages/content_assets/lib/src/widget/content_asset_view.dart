@@ -47,8 +47,9 @@ class ContentAssetProvider extends InheritedWidget {
 /// atlas (or as text).
 ///
 /// The parameters are [ContentView]'s; for a glyph, which is a still with
-/// nothing to download, [loadingRadius], [placeholderTint] and
-/// [holdsWhileTickersOff] change nothing.
+/// nothing to download, [status], [badge], [onPlay], [placeholderUntil],
+/// [placeholderTint], [holdsWhileTickersOff], [downloadContext] and
+/// [underlay] change nothing.
 class ContentAssetView extends StatelessWidget {
   /// Shows [content] as [preset] says.
   const ContentAssetView({
@@ -58,11 +59,16 @@ class ContentAssetView extends StatelessWidget {
     this.opacity = 1,
     this.semanticLabel,
     this.scope,
-    this.loadingRadius,
+    this.status = MediaStatusMode.none,
+    this.badge = false,
+    this.onPlay,
     this.placeholder,
+    this.placeholderUntil = AssetStage.none,
     this.placeholderTint,
     this.inView = true,
     this.holdsWhileTickersOff = false,
+    this.downloadContext,
+    this.underlay,
     super.key,
   }) : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
 
@@ -85,11 +91,20 @@ class ContentAssetView extends StatelessWidget {
   /// provides.
   final ContentAssetScope? scope;
 
-  /// See [ContentView.loadingRadius].
-  final double? loadingRadius;
+  /// See [ContentView.status].
+  final MediaStatusMode status;
+
+  /// See [ContentView.badge].
+  final bool badge;
+
+  /// See [ContentView.onPlay].
+  final VoidCallback? onPlay;
 
   /// See [ContentView.placeholder].
   final AssetPaintable? placeholder;
+
+  /// See [ContentView.placeholderUntil].
+  final AssetStage placeholderUntil;
 
   /// See [ContentView.placeholderTint].
   final Color? placeholderTint;
@@ -99,6 +114,14 @@ class ContentAssetView extends StatelessWidget {
 
   /// See [ContentView.holdsWhileTickersOff].
   final bool holdsWhileTickersOff;
+
+  /// The class of conversation or surface the content is shown in, which the
+  /// media scope's auto-download policy weighs. See
+  /// [ContentView.downloadContext].
+  final AutoDownloadContext? downloadContext;
+
+  /// See [ContentView.underlay].
+  final Color? underlay;
 
   @override
   Widget build(BuildContext context) {
@@ -122,11 +145,16 @@ class ContentAssetView extends StatelessWidget {
       tint: tint,
       opacity: opacity,
       semanticLabel: semanticLabel,
-      loadingRadius: loadingRadius,
+      status: status,
+      badge: badge,
+      onPlay: onPlay,
       placeholder: placeholder,
+      placeholderUntil: placeholderUntil,
       placeholderTint: placeholderTint,
       inView: inView,
       holdsWhileTickersOff: holdsWhileTickersOff,
+      downloadContext: downloadContext,
+      underlay: underlay,
     );
   }
 }

@@ -147,7 +147,7 @@ void main() {
 
     expect(engine.openClips, 0, reason: 'the engine was disposed');
     await expectLater(
-      engine.open(bytes, width: 64, height: 64),
+      engine.open(VideoSource.bytes(bytes), width: 64, height: 64),
       throwsA(isA<VideoEngineClosed>()),
     );
     await playback.close();

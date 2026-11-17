@@ -68,13 +68,15 @@ final class ChatBodyHost {
            content: content,
            preset: preset,
            held: held,
-           // A document here is a sticker, a custom emoji drawn large or a GIF;
-           // the scope's circle is the stand-in of a glyph.
+           // A document here is a sticker, a custom emoji drawn large or a GIF.
+           // A GIF takes the scope's clear default, then its preview and
+           // thumbnail; the scope's circle is the stand-in of a glyph.
            placeholder: switch (content) {
-             ContentKey$Document() =>
-               describe?.call(content)?.semanticKind == SemanticKind.gif
-                   ? const RectPlaceholder()
-                   : const SoftPlaceholder(),
+             ContentKey$Document()
+                 when describe?.call(content)?.semanticKind ==
+                     SemanticKind.gif =>
+               null,
+             ContentKey$Document() => const SoftPlaceholder(),
              _ => null,
            },
          );

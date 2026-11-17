@@ -549,10 +549,7 @@ void main() {
 
         final cover = tester.renderObject(find.byType(ContentAssetView).first);
         expect(cover, paints..rrect(color: standIn));
-        expect(
-          cover,
-          isNot(paints..rect(color: RectPlaceholder.fallbackColor)),
-        );
+        expect(cover, isNot(paints..rect(color: const Color(0xFFEDF3F7))));
       });
     }
 
@@ -622,8 +619,9 @@ void main() {
       await pump(tester, assets: scope);
       final cover = attemptOf(cats).advance(AssetStage.full);
       await tester.pump();
-      // Past the fade a cover that arrived after the attach rises in.
-      await tester.pump(const Duration(milliseconds: 160));
+      // Past the fade a playing cover that arrived after the attach rises
+      // in (the loop fade, 250 ms on the default platform).
+      await tester.pump(const Duration(milliseconds: 260));
       final before = cover.paints.length;
 
       await tick(tester, 100);
@@ -671,8 +669,9 @@ void main() {
       await pump(tester, assets: scope);
       final cover = attemptOf(cats).advance(AssetStage.full, frames: _frames);
       await tester.pump();
-      // Past the fade a cover that arrived after the attach rises in.
-      await tester.pump(const Duration(milliseconds: 160));
+      // Past the fade a playing cover that arrived after the attach rises
+      // in (the loop fade, 250 ms on the default platform).
+      await tester.pump(const Duration(milliseconds: 260));
       final before = cover.paints.length;
 
       scope.clock.setPaused(PlaybackPauseLayer.lowPower, paused: true);
@@ -712,8 +711,9 @@ void main() {
         const ContentKey.document('p15'),
       ).advance(AssetStage.full, frames: _frames);
       await tester.pump();
-      // Past the fade a cover that arrived after the attach rises in.
-      await tester.pump(const Duration(milliseconds: 160));
+      // Past the fade a playing cover that arrived after the attach rises
+      // in (the loop fade, 250 ms on the default platform).
+      await tester.pump(const Duration(milliseconds: 260));
       final farBefore = far.paints.length;
       final firstBefore = first.paints.length;
 
