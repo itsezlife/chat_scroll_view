@@ -16,6 +16,7 @@ import 'package:chat_scroll_view_example/src/common/environment_specific/host_en
     as environment_specific;
 import 'package:chat_scroll_view_example/src/common/frame_rate_boost.dart';
 import 'package:chat_scroll_view_example/src/common/glyph_warmup.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/common/mouse_back_button.dart';
 import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
@@ -24,7 +25,6 @@ import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/chat_page_route.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/widget_chat_screen.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
@@ -247,7 +247,7 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
     },
   );
 
-  Widget _chat(BuildContext context, {ChatKind kind = ChatKind.group}) =>
+  Widget _chat(BuildContext context, {ChatKind kind = ChatKind.standard}) =>
       WidgetChatScreen(
         services: widget.services,
         dataSourceLoader: widget.chatDataSourceLoader,

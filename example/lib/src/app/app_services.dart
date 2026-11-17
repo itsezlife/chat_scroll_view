@@ -41,6 +41,7 @@ import 'package:kv_shared_preferences/kv_shared_preferences.dart';
 import 'package:l/l.dart';
 import 'package:mpx/mpx.dart';
 import 'package:mpx_core/mpx_core.dart';
+import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:rich_clipboard/rich_clipboard.dart';
@@ -144,12 +145,13 @@ final class AppServices {
     required Future<bool> Function() glyphFontsSettled,
     required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
-    required this.autoDownload,
+    required NetworkAutoDownloadPolicy autoDownload,
     required IDeviceSignals? ownedSignals,
     required IBytesStore bytes,
     required HttpBytesClient? bytesClient,
     required RangedBytes? rangedBytes,
-  }) : _bytes = bytes,
+  }) : _autoDownload = autoDownload,
+       _bytes = bytes,
        _ownedSignals = ownedSignals,
        _bytesClient = bytesClient,
        _rangedBytes = rangedBytes,
@@ -458,17 +460,24 @@ final class AppServices {
           ),
         );
       }
-      // Loading stages, as the media stack composes them by default: the
-      // reference auto-download rules of this platform over the device's
-      // network class, and previews the pipeline derives kept in the bytes
-      // store (its `previews` quota), so a later launch draws them at once.
+      // Loading stages, as the media stack composes them by default: this
+      // platform's auto-download limits per conversation class over the
+      // device's network class (stills whatever their size; a clip or an
+      // animation up to a size that shrinks on a metered or roaming network,
+      // a head only or a tap beyond it), and previews the pipeline derives
+      // kept in the bytes store (its `previews` quota), so a later launch
+      // draws them at once. The panel's catalogue previews are content to
+      // pick, not content someone sent: they download whatever their size
+      // and the network, so every cell can show its content.
       final ownedSignals = deviceSignals == null
           ? owned<IDeviceSignals>(DeviceSignals(), (s) => s.dispose())
           : null;
       final autoDownload = owned(
         NetworkAutoDownloadPolicy(
           deviceSignals ?? ownedSignals!,
-          presets: AutoDownloadPresets.forPlatform(defaultTargetPlatform),
+          presets: AutoDownloadPresets.forPlatform(
+            defaultTargetPlatform,
+          ).withContext(PanelCatalogViewport.catalogDownloadContext, _always),
         ),
         (policy) => policy.dispose(),
       );
@@ -962,9 +971,22 @@ final class AppServices {
   final AssetPipeline _pipeline;
 
   /// What decides whether missing media downloads by itself: the platform's
-  /// reference rules over the device's network class, weighed per surface by
-  /// the kind of chat it shows (`ChatKind.downloadContext`).
-  final NetworkAutoDownloadPolicy autoDownload;
+  /// limits per conversation class over the device's network class, weighed
+  /// per surface by the kind of chat it shows (`ChatKind.downloadContext`);
+  /// the panel's catalogue previews always download
+  /// (`PanelCatalogViewport.catalogDownloadContext`).
+  AutoDownloadPolicy get autoDownload => _autoDownload;
+  final NetworkAutoDownloadPolicy _autoDownload;
+
+  // The limits of content that downloads whatever its size and network.
+  static const AutoDownloadNetworkLimits _always =
+      AutoDownloadNetworkLimits.all(
+        AutoDownloadLimits(
+          still: AutoDownloadLimit.any(),
+          video: AutoDownloadLimit.any(),
+          animatedImage: AutoDownloadLimit.any(),
+        ),
+      );
 
   final IDeviceSignals? _ownedSignals;
   final WidgetsPlaybackLifecycleSource _lifecycleSource;
@@ -1057,7 +1079,7 @@ final class AppServices {
     _glyphFontsReady.dispose();
     _pipeline.dispose();
     // After the scope that listens to it.
-    autoDownload.dispose();
+    _autoDownload.dispose();
     _ownedSignals?.dispose();
     // After the scope and the pipeline: dropping their entries frees the
     // animations the decoder made, through its engine.
@@ -1074,11 +1096,23 @@ final class AppServices {
     // Commits what is still in an undo window.
     library.dispose();
     recents.dispose();
-    // The ranged downloads, then the client, before the store they write
-    // through; the store's last writes land before it closes.
-    unawaited(_rangedBytes?.close());
-    unawaited(_bytesClient?.close());
-    unawaited(_bytes.close());
+    _closeReporting(_closeBytes(), 'the bytes store');
+  }
+
+  // The ranged downloads, then the client, before the store they write
+  // through, each closed once the one before it has: a part still landing
+  // writes into an open store, and the store's last writes land before it
+  // closes. One that fails still lets the next close.
+  Future<void> _closeBytes() async {
+    try {
+      await _rangedBytes?.close();
+    } finally {
+      try {
+        await _bytesClient?.close();
+      } finally {
+        await _bytes.close();
+      }
+    }
   }
 
   // The web bakes nothing, so the probe has no bake to share: it draws its

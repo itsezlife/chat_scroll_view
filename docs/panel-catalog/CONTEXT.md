@@ -101,7 +101,7 @@ Loading stand-in for document-backed animated/custom emoji and GIFs: the quiet r
 _Avoid_: Circle placeholder for animated leaves when a thumb exists, fading the thumbnail out while the content fades in
 
 **Loading GIF**:
-A GIF leaf (`SemanticKind.gif`) with no content drawn yet shows the radial progress ([Content and Assets glossary](../content/CONTEXT.md): Radial progress, disc radius 12 as in the reference client's panel GIF cell) over its stand-in while its transfer is active, and it fades out with the content. A failed or held-back download drops it: a panel leaf has no status control, so it keeps its picture and shows nothing more. The arc turns with the frame time of the viewport's paint pass, which asks for frames only while one shows and not while playback is paused.
+A GIF leaf (`SemanticKind.gif`) with no content drawn yet shows the radial progress ([Content and Assets glossary](../content/CONTEXT.md): Radial progress, a disc of radius 12 whatever the cell's size) over its stand-in while its transfer is active, and it fades out with the content; a transfer with no measure yet (no byte, or no total) spins as the loading style's spinner says. A failed or held-back download drops it: a panel leaf has no status control, so it keeps its picture and shows nothing more. Every cell attaches with the catalogue's own download context (`PanelCatalogViewport.catalogDownloadContext`), so a host's policy can let catalogue previews always download. The arc turns with the frame time of the viewport's paint pass, which asks for frames only while one shows and not while playback is paused.
 _Avoid_: A controller per cell, a progress indicator on a sticker or an emoji
 
 **GIF cover**:

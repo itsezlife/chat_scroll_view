@@ -1,4 +1,4 @@
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_kind.dart';
 import 'package:flutter/material.dart';
 
 /// One chat in the chat list: avatar, title, the last message and its time.
@@ -44,7 +44,7 @@ final class ChatListEntry {
     required this.preview,
     required this.time,
     required this.color,
-    this.kind = ChatKind.group,
+    this.kind = ChatKind.standard,
   });
 
   /// The chat's name.

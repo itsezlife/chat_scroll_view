@@ -5,7 +5,7 @@
 library;
 
 import 'package:chat_scroll_view_example/src/app/demo_media_loading_style.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_kind.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

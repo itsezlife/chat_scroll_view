@@ -8,6 +8,7 @@ import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/android_clipboard_toast.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/panel_trace.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
@@ -29,7 +30,6 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_pack_targets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_texture_warmer.dart';
@@ -77,6 +77,7 @@ import 'package:flutter_md/flutter_md.dart'
         MarkdownPainterCache,
         MarkdownPainterCacheScope,
         MarkdownSpoilerController;
+import 'package:mpx_core/mpx_core.dart' show MediaLoadingStyleScope;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:viewport_scroll/viewport_scroll.dart' show ViewportScrollRouter;
 
@@ -96,7 +97,7 @@ class WidgetChatScreen extends StatefulWidget {
     this.dataSourceLoader,
     this.softKeyboard = const PlatformSoftKeyboard(),
     this.presentationPolicy,
-    this.kind = ChatKind.group,
+    this.kind = ChatKind.standard,
     super.key,
   });
 
@@ -308,6 +309,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         describe: widget.services.describe,
         held: input.chatPlaybackHeld,
         downloadContext: widget.kind.downloadContext,
+        // The bodies paint on a canvas, with no context to resolve it from:
+        // the style is the one the screen opened under.
+        stages: MediaLoadingStyleScope.resolve(context).stages,
       );
     }
     // The chat's stickers and GIFs composite as texture layers: the pool is

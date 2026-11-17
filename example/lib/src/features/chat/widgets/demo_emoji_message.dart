@@ -257,6 +257,7 @@ class _DemoEmojiMessageState extends State<DemoEmojiMessage> {
             sticker: sticker,
             media: media,
             mediaSizes: mediaSizes,
+            mediaOverlay: widget.host.mediaOverlay,
             playback: isSticker
                 ? widget.host.playbackFor(widget.emojiOnly.items.single.key)
                 : null,

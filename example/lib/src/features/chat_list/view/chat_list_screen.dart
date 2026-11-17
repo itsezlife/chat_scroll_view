@@ -1,4 +1,4 @@
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/chat_page_route.dart';
 import 'package:chat_scroll_view_example/src/features/chat_list/widgets/chat_list_tile.dart';
 import 'package:flutter/material.dart';

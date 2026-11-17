@@ -4,16 +4,15 @@
 library;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/common/models/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
-import 'package:chat_scroll_view_example/src/features/chat/utils/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/reference_media_sizes.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glyph_atlas/testing.dart';
 import 'package:listen/listen.dart' as listen;
@@ -118,6 +117,93 @@ void main() {
         producer.last.demand.downloadContexts,
         contains(AutoDownloadContext.channels),
       );
+    });
+
+    test('every embed draws an outline in the screen\'s stage style', () {
+      const fill = Color(0x33123456);
+      final styled = ChatBodyHost(
+        assets: scope,
+        policy: policy,
+        stages: MediaStageStyle.$Android.copyWith(outlineFill: fill),
+      );
+      for (final make in <InlineEmbed? Function()>[
+        () => styled.embedFactory(
+          const ContentKey.document('1'),
+          ContentAssetPresets.emojiOnly(step: 40, devicePixelRatio: 2),
+        ),
+        () => styled.embedResolver.resolve(
+          const InlineEmbedTarget(scheme: 'document', id: '2', alt: 'x'),
+          const InlineEmbedMetrics(
+            fontSize: 15,
+            ascent: 14,
+            descent: 4,
+            devicePixelRatio: 2,
+          ),
+        ),
+      ]) {
+        final embed = make()!;
+        addTearDown(embed.dispose);
+        final attempt = producer.last
+          ..describe(
+            MediaDescriptor(
+              key: producer.last.request.key,
+              preview: const MediaPreview.outline(
+                'M0 0h1v1z',
+                MediaDimensions(1, 1),
+              ),
+            ),
+          );
+        final preview = attempt.advance(AssetStage.preview);
+
+        embed.paint(
+          _Counting(),
+          const Rect.fromLTWH(0, 0, 10, 10),
+          const InlineEmbedPaintContext(),
+        );
+
+        expect(
+          preview.paints.single.context.outline,
+          const OutlineLook(fill: fill),
+        );
+      }
+    });
+
+    testWidgets('a lone GIF gets the status control and the badge over its '
+        'embed; a sticker gets none', (tester) async {
+      final embed = host.embedFactory(
+        const ContentKey.document('1'),
+        ContentAssetPresets.emojiOnly(step: 40, devicePixelRatio: 2),
+      )!;
+      addTearDown(embed.dispose);
+      late BuildContext context;
+      await tester.pumpWidget(
+        Builder(
+          builder: (built) {
+            context = built;
+            return const SizedBox();
+          },
+        ),
+      );
+
+      final gif = host.mediaOverlay(
+        context,
+        const ChatMediaItem(kind: ChatMediaKind.gif),
+        embed,
+      );
+      final sticker = host.mediaOverlay(
+        context,
+        const ChatMediaItem(kind: ChatMediaKind.sticker),
+        embed,
+      );
+
+      expect(
+        gif,
+        isA<ContentEmbedOverlay>()
+            .having((o) => o.embed, 'embed', same(embed))
+            .having((o) => o.status, 'status', const MediaStatusMode.control())
+            .having((o) => o.badge, 'badge', isTrue),
+      );
+      expect(sticker, isNull);
     });
 
     test('makes an embed over the cache for a content and a preset', () {

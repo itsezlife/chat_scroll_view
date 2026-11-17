@@ -3,6 +3,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
         ChatEmojiEmbedFactory,
         ChatMediaItem,
         ChatMediaKind,
+        ChatMediaOverlayBuilder,
         ChatMediaSizePolicy,
         ChatStickerPlayback;
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
@@ -16,6 +17,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_me
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show BuildContext, Widget;
 import 'package:listen/listen.dart' as listen;
 import 'package:mpx_core/mpx_core.dart';
 
@@ -43,7 +45,9 @@ final class ChatBodyHost {
   ///
   /// [downloadContext] is the class of the chat (`ChatKind.downloadContext`):
   /// every embed attaches with it, so the auto-download policy weighs the
-  /// chat's media by the conversation it is in.
+  /// chat's media by the conversation it is in. [stages] is how every embed
+  /// draws an outline preview (`ContentEmbed.stages`): the screen's loading
+  /// style, resolved where it makes the host.
   ///
   /// [held] is the hold on the chat's playback (a popup panel over it): every
   /// embed the bodies make, inline or emoji-only, follows it
@@ -63,19 +67,15 @@ final class ChatBodyHost {
     listen.ValueListenable<bool>? held,
     ChatMediaSizePolicy? mediaSizes,
     AutoDownloadContext? downloadContext,
-  }) : embedResolver = DemoConfig.scrollLab
-           ? _LabChatResolver(
-               ContentEmbedResolver(
-                 scope: assets,
-                 held: held,
-                 downloadContext: downloadContext,
-               ),
-             )
-           : ContentEmbedResolver(
-               scope: assets,
-               held: held,
-               downloadContext: downloadContext,
-             ),
+    MediaStageStyle? stages,
+  }) : embedResolver = _resolverFor(
+         ContentEmbedResolver(
+           scope: assets,
+           held: held,
+           downloadContext: downloadContext,
+           stages: stages,
+         ),
+       ),
        embedFactory = ((content, preset) {
          // The lab tells the chat's uploads and decodes from the panel's.
          if (DemoConfig.scrollLab) LabMediaTrace.noteChat(content);
@@ -85,6 +85,7 @@ final class ChatBodyHost {
            preset: preset,
            held: held,
            downloadContext: downloadContext,
+           stages: stages,
            // A document here is a sticker, a custom emoji drawn large or a GIF.
            // A GIF takes the scope's clear default, then its preview and
            // thumbnail; the scope's circle is the stand-in of a glyph.
@@ -102,6 +103,27 @@ final class ChatBodyHost {
        mediaSizes = mediaSizes ?? ReferenceMediaSizes.forPlatform(),
        _stickerFor = stickerFor,
        _describe = describe;
+
+  // The chat's resolver, noting what it embeds in a scroll lab build.
+  static InlineEmbedResolver _resolverFor(ContentEmbedResolver resolver) =>
+      DemoConfig.scrollLab ? _LabChatResolver(resolver) : resolver;
+
+  /// What lies over the art of a lone GIF: the status control (cancel and an
+  /// arc while it downloads, download while it waits for a tap or failed,
+  /// gone once it shows) and the "GIF" badge, read from its embed. A sticker
+  /// has none: it always downloads and needs no label.
+  final ChatMediaOverlayBuilder mediaOverlay = _mediaOverlay;
+
+  static Widget? _mediaOverlay(
+    BuildContext context,
+    ChatMediaItem media,
+    InlineEmbed embed,
+  ) => switch ((media.kind, embed)) {
+    (ChatMediaKind.gif, final ContentEmbed embed) => ContentEmbedOverlay(
+      embed: embed,
+    ),
+    _ => null,
+  };
 
   /// Turns the image spans of a markdown body (`![alt](document:id)`) into
   /// embeds on the cache. A target that is not content (a link, a mention)

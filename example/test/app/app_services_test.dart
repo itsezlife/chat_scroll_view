@@ -28,6 +28,7 @@ import 'package:mpx/mpx.dart';
 import 'package:mpx/testing.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
+import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 
 import '../support/disposal_watch.dart';
 import '../support/test_services.dart';
@@ -1151,10 +1152,18 @@ void main() {
       addTearDown(services.dispose);
 
       expect(services.assets.autoDownload, same(services.autoDownload));
-      expect(services.autoDownload.network, NetworkClass.metered);
+      // A 12 MB clip on a metered network: over the metered limit, a
+      // playable head only (it would download whole on an unmetered one).
       expect(
-        services.autoDownload.presets,
-        AutoDownloadPresets.forPlatform(defaultTargetPlatform),
+        services.autoDownload.decide(
+          const MediaDescriptor(
+            key: MediaKey.remote('clip'),
+            kind: MediaKind.video,
+            byteSize: 12 * 1024 * 1024,
+          ),
+          AutoDownloadContext.groups,
+        ),
+        AutoDownload.prefix,
       );
       // A clip of unknown size waits for the user, a sticker never does.
       expect(
@@ -1176,6 +1185,52 @@ void main() {
           AutoDownloadContext.groups,
         ),
         AutoDownload.now,
+      );
+    });
+
+    test('the panel\'s catalogue previews always download, whatever their '
+        'size or the network', () async {
+      final signals = FakeDeviceSignals(network: NetworkClass.roaming);
+      addTearDown(signals.dispose);
+      final services = await AppServices.create(
+        keyValueStore: FakeKeyValueStore(),
+        assetLoader: rootBundle.loadString,
+        clipboard: FakeRichClipboard(),
+        deviceSignals: signals,
+      );
+      addTearDown(services.dispose);
+
+      for (final descriptor in const [
+        MediaDescriptor(
+          key: MediaKey.remote('gif'),
+          kind: MediaKind.animatedImage,
+        ),
+        MediaDescriptor(
+          key: MediaKey.remote('clip'),
+          kind: MediaKind.video,
+          byteSize: 80 * 1024 * 1024,
+        ),
+        MediaDescriptor(key: MediaKey.remote('still'), kind: MediaKind.still),
+      ]) {
+        expect(
+          services.autoDownload.decide(
+            descriptor,
+            PanelCatalogViewport.catalogDownloadContext,
+          ),
+          AutoDownload.now,
+          reason: '${descriptor.kind}',
+        );
+      }
+      // The same GIF sent in a chat on a roaming network waits for the user.
+      expect(
+        services.autoDownload.decide(
+          const MediaDescriptor(
+            key: MediaKey.remote('gif'),
+            kind: MediaKind.animatedImage,
+          ),
+          AutoDownloadContext.groups,
+        ),
+        AutoDownload.manual,
       );
     });
 

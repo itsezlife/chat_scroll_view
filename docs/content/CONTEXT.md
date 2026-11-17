@@ -79,7 +79,7 @@ A pure transform over rich text that adds link, **username** and **hashtag** ent
 _Avoid_: Autolink on paint, a markdown-string rewrite, detection inside the viewport, bot-command or phone detection as kinds
 
 **Typed markdown**:
-A pure transform over rich text that turns the markers a user typed (`` `code` ``, a triple-backtick block, `**bold**`, `__italic__`, `~~strike~~`, `||spoiler||`) into the matching entities and drops the markers (`TypedMarkdown.apply`). Host-invoked at send, before **entity detection**, never on paint or per keystroke; the reference client's rules.
+A pure transform over rich text that turns the markers a user typed (`` `code` ``, a triple-backtick block, `**bold**`, `__italic__`, `~~strike~~`, `||spoiler||`) into the matching entities and drops the markers (`TypedMarkdown.apply`). Host-invoked at send, before **entity detection**, never on paint or per keystroke.
 _Avoid_: Live markdown conversion in the composer, a markdown-string rewrite, an underline or quote marker
 
 **Detection policy**:
@@ -125,7 +125,7 @@ What a surface draws for content that is not there yet: the scope's placeholder 
 _Avoid_: A light flat box before content, fading a raster thumbnail out while the content fades in, a failed stand-in, a circle for media
 
 **Asset fit**:
-How content of one proportion fills a rectangle of another, chosen per surface (`AssetProfile.fit`): `contain` shows the whole picture with bars, `cover` fills the rectangle and crops the overflow, centre-anchored. A GIF in a grid cell covers it (the reference client's `isAspectFit` is false there); a sticker is contained. Content and its thumbnail follow the same fit, so a thumbnail replaced by content does not change its crop.
+How content of one proportion fills a rectangle of another, chosen per surface (`AssetProfile.fit`): `contain` shows the whole picture with bars, `cover` fills the rectangle and crops the overflow, centre-anchored. A GIF in a grid cell covers it; a sticker is contained. Content and its thumbnail follow the same fit, so a thumbnail replaced by content does not change its crop.
 _Avoid_: Letterboxed GIF in a grid cell, a clip or a second draw for the crop
 
 **Preview**:
@@ -145,7 +145,7 @@ The download state of an entry's content as a surface shows it (`AssetBinding.tr
 _Avoid_: A progress fraction without bytes, a failed stage in readiness
 
 **Auto-download**:
-Whether an attached entry's content is fetched without a user action: the host's policy answers `now`, `prefix` (a playable head only) or `manual` per descriptor and **download context**. The composition root's default weighs the media kind, the byte size and the device's network class (unmetered, metered, roaming) with each platform's reference limits; a sticker always downloads, a clip of unknown size waits for the user.
+Whether an attached entry's content is fetched without a user action: the host's policy answers `now`, `prefix` (a playable head only) or `manual` per descriptor and **download context**. The composition root's default weighs the media kind, the byte size and the device's network class (unmetered, metered, roaming) against per-platform limits: a still downloads whatever its size, a clip or an animation up to a size that shrinks on a metered or roaming network (a playable head, or a tap, beyond it); a sticker always downloads, a clip of unknown size waits for the user. A host may give a surface a context that always downloads (a catalogue of content to pick).
 _Avoid_: Auto-download rules in the cache, one rule for every conversation
 
 **Download context**:

@@ -66,6 +66,8 @@ dependencies:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_video_decoder
       ref: c008b55cde756455f7a0b726c0fafc1b42bd2f8e
+  panel_catalog:
+    path: ../packages/panel_catalog
   panel_pages:
     path: ../packages/panel_pages
   panel_presentation:
@@ -105,8 +107,6 @@ dev_dependencies:
     sdk: flutter
   # The traced pass collects the VM timeline in chunks.
   vm_service: ^15.0.0
-  panel_catalog:
-    path: ../packages/panel_catalog
   # The pager whose off-screen pages a flicker test switches.
   swipe_pager:
     path: ../packages/swipe_pager
