@@ -13,6 +13,7 @@ import 'package:flutter/services.dart'
         PointerExitEventListener;
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart' show AutoDownloadContext;
 import 'package:panel_catalog/src/data/catalog_snapshot.dart';
 import 'package:panel_catalog/src/model/catalog_leaf.dart';
 import 'package:panel_catalog/src/model/catalog_leaf_hit.dart';
@@ -275,6 +276,7 @@ class RenderPanelCatalog extends RenderBox
     void Function(String sectionId, String actionId)? onSectionAction,
     double? sectionNearExtent,
     ViewportScrollPhysics? physics,
+    AutoDownloadContext? downloadContext,
   }) : _motion = ViewportScrollMotion(
          physics ?? ViewportScrollPhysics.forPlatform(),
        ),
@@ -305,6 +307,7 @@ class RenderPanelCatalog extends RenderBox
       scope: assets,
       devicePixelRatio: devicePixelRatio,
       onChanged: markNeedsPaint,
+      downloadContext: downloadContext,
     );
     _leafPointer = CatalogLeafPointer(debugOwner: this)
       ..leafAt = leafAt
@@ -378,6 +381,15 @@ class RenderPanelCatalog extends RenderBox
     if (identical(_assets, value)) return;
     _assets = value;
     _pool.replaceScope(value);
+    markCatalogNeedsUpdate();
+  }
+
+  /// The tag every binding attaches with
+  /// (`PanelCatalogViewport.downloadContext`); a change re-attaches them.
+  AutoDownloadContext? get downloadContext => _pool.downloadContext;
+  set downloadContext(AutoDownloadContext? value) {
+    if (_pool.downloadContext == value) return;
+    _pool.downloadContext = value;
     markCatalogNeedsUpdate();
   }
 

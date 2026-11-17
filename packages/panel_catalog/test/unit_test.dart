@@ -33,6 +33,8 @@ import 'panel_catalog_focus_test.dart' as panel_catalog_focus_test;
 import 'panel_catalog_held_test.dart' as panel_catalog_held_test;
 import 'panel_catalog_hover_test.dart' as panel_catalog_hover_test;
 import 'panel_catalog_loading_gif_test.dart' as panel_catalog_loading_gif_test;
+import 'panel_catalog_loading_stages_test.dart'
+    as panel_catalog_loading_stages_test;
 import 'panel_catalog_pointer_seams_test.dart'
     as panel_catalog_pointer_seams_test;
 import 'panel_catalog_remove_badge_test.dart'
@@ -112,6 +114,10 @@ void main() {
   group(
     'panel_catalog_loading_gif_test.dart',
     panel_catalog_loading_gif_test.main,
+  );
+  group(
+    'panel_catalog_loading_stages_test.dart',
+    panel_catalog_loading_stages_test.main,
   );
   group(
     'panel_catalog_pointer_seams_test.dart',

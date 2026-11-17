@@ -124,6 +124,11 @@ import 'package:viewport_scroll/viewport_scroll.dart';
 /// sprites on a platform that bakes, text where it does not) is decided by how
 /// the host builds the scope, not here. A leaf that cannot load keeps its
 /// placeholder.
+///
+/// How a cell rises through the loading stages (the thumbnail's fade over
+/// its preview, an outline preview's fill and sweep, the spinner of a
+/// download of unknown size) is the media loading style at the viewport
+/// (`MediaLoadingStyleScope.resolve`).
 class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// Creates an extent-scroll catalog body backed by [snapshots], [assets]
   /// and [controller].
@@ -162,8 +167,18 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
     this.sectionNearExtent,
     this.overscrollSink,
     this.physics,
+    this.downloadContext = catalogDownloadContext,
     super.key,
   });
+
+  /// The tag every cell attaches with unless the host gives its own
+  /// ([downloadContext]): content shown in a catalogue grid, a preview of
+  /// content to pick rather than content someone sent. It equals no
+  /// well-known class (`AutoDownloadContext.groups` and the others) nor any
+  /// tag a host makes, so a host's policy answers it apart.
+  static const AutoDownloadContext catalogDownloadContext = AutoDownloadContext(
+    _CatalogDownloadTag(),
+  );
 
   /// The largest glyph box any of [layouts] draws a glyph in, for a viewport
   /// of [maxWidth] with these defaults and [padding].
@@ -412,6 +427,15 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
   /// takes only what the sink declines.
   final ViewportScrollPhysics? physics;
 
+  /// The class of this surface for the scope's auto-download policy
+  /// ([ContentAssetScope.attach]): [catalogDownloadContext] by default.
+  ///
+  /// A cell whose content does not download by itself keeps its stand-in:
+  /// a cell has no control to start it. A host whose catalogue must always
+  /// show its content answers the tag with `AutoDownload.now`. A change
+  /// detaches every cell and attaches it again with the new tag.
+  final AutoDownloadContext downloadContext;
+
   @override
   RenderPanelCatalog createRenderObject(BuildContext context) {
     final theme = PanelCatalogTheme.of(context, listen: true);
@@ -428,7 +452,11 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
         padding: padding,
         textDirection: textDirection,
         headerLandingInset: headerLandingInset,
-        paintTheme: CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr),
+        paintTheme: CatalogLeafPaintTheme.resolve(
+          theme,
+          devicePixelRatio: dpr,
+          loading: MediaLoadingStyleScope.resolve(context),
+        ),
         onLeafTap: onLeafTap,
         onLeafSecondaryTap: onLeafSecondaryTap,
         onLeafHover: onLeafHover,
@@ -441,6 +469,7 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
         onSectionAction: onSectionAction,
         sectionNearExtent: sectionNearExtent,
         physics: physics ?? ViewportScrollPhysics.forPlatform(),
+        downloadContext: downloadContext,
       )
       ..leafPreview = leafPreview
       ..leafRemovable = leafRemovable
@@ -483,7 +512,11 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..padding = padding
       ..textDirection = Directionality.of(context)
       ..headerLandingInset = headerLandingInset
-      ..paintTheme = CatalogLeafPaintTheme.resolve(theme, devicePixelRatio: dpr)
+      ..paintTheme = CatalogLeafPaintTheme.resolve(
+        theme,
+        devicePixelRatio: dpr,
+        loading: MediaLoadingStyleScope.resolve(context),
+      )
       ..onLeafTap = onLeafTap
       ..onLeafSecondaryTap = onLeafSecondaryTap
       ..onLeafHover = onLeafHover
@@ -501,8 +534,15 @@ class PanelCatalogViewport extends LeafRenderObjectWidget {
       ..sectionNearExtent = sectionNearExtent
       ..overscrollSink = overscrollSink
       ..physics = physics ?? ViewportScrollPhysics.forPlatform()
+      ..downloadContext = downloadContext
       ..held = _heldIn(context)
       ..offstage = _offstageIn(context)
       ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context);
   }
+}
+
+// The value of [PanelCatalogViewport.catalogDownloadContext]: a private type,
+// so no tag a host makes equals it.
+final class _CatalogDownloadTag {
+  const _CatalogDownloadTag();
 }

@@ -194,6 +194,50 @@ void main() {
       expect(turned - first, closeTo(2 * math.pi * 425 / 2500, 1e-6));
     });
 
+    testWidgets('a download of unknown size spins: the arc swings between '
+        'the spinner\'s shortest and longest sweep, not a 0 % arc', (
+      tester,
+    ) async {
+      await pump(tester, [_gif(0)]);
+      producer.last.transfer(30);
+      await tester.pump();
+      var now = const Duration(seconds: 10);
+      render(tester).debugFrameTime = () => now;
+
+      final first = paintOnce(tester).arcs.single.sweep;
+      // 15 frames of 17 ms: a quarter of the 1000 ms swing of the Android
+      // spinner, halfway from 4 to 270 degrees.
+      for (var i = 0; i < 15; i++) {
+        now += const Duration(milliseconds: 17);
+        paintOnce(tester);
+      }
+      final swung = paintOnce(tester).arcs.single.sweep;
+
+      expect(first, closeTo(4 * math.pi / 180, 1e-6));
+      const quarter = 2 * math.pi * 255 / 1000;
+      expect(
+        swung,
+        closeTo((4 + 266 * (1 - math.cos(quarter)) / 2) * math.pi / 180, 1e-6),
+      );
+    });
+
+    testWidgets('a download with no byte yet spins too', (tester) async {
+      await pump(tester, [_gif(0)]);
+      producer.last.waiting();
+      await tester.pump();
+      var now = const Duration(seconds: 10);
+      render(tester).debugFrameTime = () => now;
+
+      final first = paintOnce(tester).arcs.single.sweep;
+      for (var i = 0; i < 15; i++) {
+        now += const Duration(milliseconds: 17);
+        paintOnce(tester);
+      }
+
+      expect(paintOnce(tester).arcs.single.sweep, greaterThan(first));
+      expect(discs(paintOnce(tester)), hasLength(1));
+    });
+
     testWidgets('the arc grows with the download', (tester) async {
       await pump(tester, [_gif(0)]);
       producer.last.transfer(50, 100);
@@ -265,6 +309,64 @@ void main() {
 
       expect(canvas.arcs, isEmpty);
       expect(discs(canvas), isEmpty);
+    });
+  });
+
+  group('the download context', () {
+    testWidgets('a cell attaches with the catalogue\'s own tag by default, '
+        'which no well-known class equals', (tester) async {
+      await pump(tester, [_gif(0)]);
+
+      expect(producer.last.demand.downloadContexts, {
+        PanelCatalogViewport.catalogDownloadContext,
+      });
+      expect(
+        PanelCatalogViewport.catalogDownloadContext,
+        isNot(
+          anyOf(
+            AutoDownloadContext.contacts,
+            AutoDownloadContext.privateChats,
+            AutoDownloadContext.groups,
+            AutoDownloadContext.channels,
+          ),
+        ),
+      );
+    });
+
+    testWidgets('a host\'s tag replaces it, and a change re-attaches', (
+      tester,
+    ) async {
+      const own = AutoDownloadContext('own');
+      snapshots.replaceSections([
+        CatalogSection(id: 'a', title: 'A', leaves: [_gif(0)]),
+      ]);
+      Widget viewport(AutoDownloadContext context) => MaterialApp(
+        home: PanelCatalogTheme(
+          data: _theme,
+          child: SizedBox(
+            width: 320,
+            height: 480,
+            child: PanelCatalogViewport(
+              snapshots: snapshots,
+              assets: scope,
+              controller: controller,
+              spanCount: 4,
+              cellExtent: 40,
+              headerExtent: 24,
+              downloadContext: context,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(viewport(own));
+      expect(producer.last.demand.downloadContexts, {own});
+
+      await tester.pumpWidget(
+        viewport(PanelCatalogViewport.catalogDownloadContext),
+      );
+      expect(producer.last.demand.downloadContexts, {
+        PanelCatalogViewport.catalogDownloadContext,
+      });
     });
   });
 

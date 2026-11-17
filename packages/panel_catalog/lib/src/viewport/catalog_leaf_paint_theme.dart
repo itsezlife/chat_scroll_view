@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:mpx_core/mpx_core.dart' show MediaLoadingStyle;
 import 'package:panel_catalog/src/theme/panel_catalog_theme_data.dart';
 
 /// Density-resolved paint snapshot for [CatalogLeafPainter].
@@ -43,6 +44,7 @@ class CatalogLeafPaintTheme {
     this.leafHoverHighlightSize,
     this.leafPressFeedback = CatalogPressFeedback.inkAndScale,
     this.leafPreviewFeedback = CatalogPreviewFeedback.scale,
+    this.loading = MediaLoadingStyle.$Android,
   });
 
   /// Builds a paint snapshot from [data] and [devicePixelRatio].
@@ -50,10 +52,12 @@ class CatalogLeafPaintTheme {
   /// Copies colour and typography fields verbatim; applies
   /// [PanelCatalogThemeData.selectorRadiusLogicalPx] for
   /// [leafPressSelectorRadius]. [devicePixelRatio] is typically from
-  /// `MediaQuery.devicePixelRatioOf` at the viewport.
+  /// `MediaQuery.devicePixelRatioOf` at the viewport. [loading] is the media
+  /// loading style at the viewport (`MediaLoadingStyleScope.resolve`).
   factory CatalogLeafPaintTheme.resolve(
     PanelCatalogThemeData data, {
     required double devicePixelRatio,
+    MediaLoadingStyle loading = MediaLoadingStyle.$Android,
   }) => CatalogLeafPaintTheme(
     circleColor: data.circleColor,
     thumbColor: data.thumbColor,
@@ -74,6 +78,7 @@ class CatalogLeafPaintTheme {
     leafPreviewFeedback: data.leafPreviewFeedback,
     sectionHeaderStyle: data.sectionHeaderStyle,
     sectionHeaderStartInset: data.sectionHeaderStartInset,
+    loading: loading,
   );
 
   /// Fill of the circle placeholder of an unbaked glyph.
@@ -135,6 +140,12 @@ class CatalogLeafPaintTheme {
   /// Extra start inset after horizontal content padding for header titles.
   final double sectionHeaderStartInset;
 
+  /// How media rise through their stages in the cells: the fade of a
+  /// thumbnail over its preview (`stages.stageFade`), the fill and sweep of
+  /// an outline preview (`stages.outlineFill`, `stages.outlineShimmer`), and
+  /// the spinner of a download of unknown size (`status.spinner`).
+  final MediaLoadingStyle loading;
+
   @override
   bool operator ==(Object other) =>
       other is CatalogLeafPaintTheme &&
@@ -155,7 +166,8 @@ class CatalogLeafPaintTheme {
       other.leafPressFeedback == leafPressFeedback &&
       other.leafPreviewFeedback == leafPreviewFeedback &&
       other.sectionHeaderStyle == sectionHeaderStyle &&
-      other.sectionHeaderStartInset == sectionHeaderStartInset;
+      other.sectionHeaderStartInset == sectionHeaderStartInset &&
+      other.loading == loading;
 
   @override
   int get hashCode => Object.hash(
@@ -177,5 +189,6 @@ class CatalogLeafPaintTheme {
     leafPreviewFeedback,
     sectionHeaderStyle,
     sectionHeaderStartInset,
+    loading,
   );
 }

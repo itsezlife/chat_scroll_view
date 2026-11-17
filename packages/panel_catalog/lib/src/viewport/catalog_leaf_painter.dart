@@ -90,8 +90,9 @@ const double _kProgressRadius = 12;
 /// | has a playing paintable with a **texture** (a platform texture its worker writes frames into, ADR 043) | queued; [compositeTextures] adds one texture layer per queued cell after the pass's picture, inside the viewport clip, wrapped in an opacity layer while it fades in. What the cell painted under its content (washes, the placeholder under a fade) stays under it. Never painted, and its sprite is not read |
 /// | has a paintable with a **sprite** (a baked glyph, or the frame an animation was advanced to, on a page) | queued; [endPass] draws every queued sprite of one page with one batched atlas draw. The pressed cell is queued scaled about its centre, so it needs no canvas transform and stays in its page's batch |
 /// | none, or stage `none` | the placeholder of the leaf's style |
+/// | stage `preview` | the binding's preview; an outline preview in the loading style's outline fill, swept by its shimmer while [beginPass] allows it |
 /// | stage `placeholder` of a glyph (a glyph not baked yet) | the circle |
-/// | stage `placeholder` of other content | the binding's stand-in paintable (its thumbnail) |
+/// | stage `placeholder` of other content | the binding's stand-in paintable (its thumbnail), faded in over the preview the leaf drew before it for the loading style's stage fade |
 /// | stage `firstFrame` or `full` | the binding's paintable, faded in when the content was not there at attach: over the thumbnail the binding kept (opaque until the content is, then released), or over the style's placeholder fading out when there was none |
 ///
 /// A paintable without a sprite paints itself. Where emoji are baked a glyph
@@ -116,7 +117,9 @@ const double _kProgressRadius = 12;
 /// and whose binding downloads its content (an active
 /// `AssetBinding.transfer`) also gets the download indicator
 /// ([RadialProgress]) over its centre, and it fades out with the content's
-/// fade. A leaf whose content is known to be missing shows it from its first
+/// fade. A download with no measure (no byte yet, or no total) spins
+/// instead: the arc turns and swings as the loading style's spinner says
+/// (`MediaStatusStyle.spinner`). A leaf whose content is known to be missing shows it from its first
 /// paint; a failed or held-back download shows none (a panel cell has no
 /// control, so it keeps its picture and nothing more), nor does a leaf served
 /// from a cache. Each binding has its own indicator, kept beside it for as
@@ -157,6 +160,9 @@ final class CatalogLeafPainter {
   final Paint _washPaint = Paint();
   final Paint _fadePaint = Paint();
   final Paint _highlightPaint = Paint();
+  final Paint _spinnerPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round;
 
   final CatalogParagraphCache<_TextPaintKey> _textParagraphs =
       CatalogParagraphCache(limit: _kHeaderParagraphCacheLimit);
@@ -190,6 +196,10 @@ final class CatalogLeafPainter {
   // The download indicator of each binding whose download shows, dropped
   // with the binding or when its download ends.
   final Expando<RadialProgress> _indicators = Expando('download indicator');
+
+  // The spinner of each binding whose download has no measure yet (no byte,
+  // or no total), dropped like an indicator.
+  final Expando<_Spinner> _spinners = Expando('download spinner');
 
   // State of the open pass.
   Duration _frameTime = Duration.zero;
@@ -660,7 +670,14 @@ final class CatalogLeafPainter {
             width: glyphRect.width * pressScale,
             height: glyphRect.height * pressScale,
           );
-          _paintUnderContent(canvas, binding!, slot, standIn, opacity);
+          _paintUnderContent(
+            canvas,
+            binding!,
+            slot,
+            standIn,
+            opacity,
+            outline: _outlineLook(binding),
+          );
         } else {
           binding!.releaseStandIn();
         }
@@ -702,25 +719,34 @@ final class CatalogLeafPainter {
         _paintStandIn(canvas, style, glyphRect);
         _paintLoadingProgress(canvas, binding, slot, glyphRect);
       case AssetStage.preview:
-        binding!.paint(canvas, glyphRect);
+        bound!.previewDrawn();
+        binding!.paint(canvas, glyphRect, outline: _outlineLook(binding));
         _paintLoadingProgress(canvas, binding, slot, glyphRect);
       case AssetStage.placeholder:
         if (style == CatalogPlaceholderStyle.circle) {
           _paintStandIn(canvas, style, glyphRect);
         } else {
-          binding!.paint(canvas, glyphRect);
+          _paintThumbnail(canvas, bound!, glyphRect);
         }
         _paintLoadingProgress(canvas, binding, slot, glyphRect);
       case AssetStage.firstFrame || AssetStage.full:
         final opacity = bound!.opacityAt(_frameTime);
+        final outline = _outlineLook(binding!);
         if (opacity < 1) {
           _needsFrame = true;
-          _paintUnderContent(canvas, binding!, slot, glyphRect, opacity);
+          _paintUnderContent(
+            canvas,
+            binding,
+            slot,
+            glyphRect,
+            opacity,
+            outline: outline,
+          );
         }
         if (slot.leaf.key case ContentKey$Unicode()) {
           PanelCatalogDiagnostics.glyphParagraphDraws++;
         }
-        binding!.paint(canvas, glyphRect, opacity: opacity);
+        binding.paint(canvas, glyphRect, opacity: opacity, outline: outline);
         _paintLoadingProgress(
           canvas,
           binding,
@@ -792,10 +818,60 @@ final class CatalogLeafPainter {
     AssetBinding binding,
     CatalogLeafSlot slot,
     Rect rect,
-    double opacity,
-  ) {
-    if (binding.paintStandIn(canvas, rect)) return;
+    double opacity, {
+    OutlineLook? outline,
+  }) {
+    if (binding.paintStandIn(
+      canvas,
+      rect,
+      contentOpacity: opacity,
+      outline: outline,
+    )) {
+      return;
+    }
     _paintStandIn(canvas, slot.placeholderStyle, rect, alpha: 1 - opacity);
+  }
+
+  /// The thumbnail of [bound] in [rect]: faded in over the preview it
+  /// replaces (the binding keeps that preview under it until it is opaque)
+  /// over the style's stage fade, or at once when no preview was drawn.
+  void _paintThumbnail(Canvas canvas, CatalogBoundLeaf bound, Rect rect) {
+    final binding = bound.binding;
+    final outline = _outlineLook(binding);
+    final opacity = bound.thumbnailOpacityAt(
+      _frameTime,
+      _theme.loading.stages.stageFade,
+    );
+    if (opacity < 1) {
+      _needsFrame = true;
+      binding.paintStandIn(
+        canvas,
+        rect,
+        contentOpacity: opacity,
+        outline: outline,
+      );
+    }
+    binding.paint(canvas, rect, opacity: opacity, outline: outline);
+  }
+
+  /// How an outline preview of [binding] is drawn, or null when its content
+  /// has none: in the loading style's outline fill, with the style's sweep
+  /// while the outline shows and the host has not paused playback. The sweep
+  /// moves with the pass's frame time, so the pass asks for frames.
+  OutlineLook? _outlineLook(AssetBinding binding) {
+    final stages = _theme.loading.stages;
+    return switch ((binding.descriptor?.preview, stages.outlineShimmer)) {
+      (MediaPreview$Outline(), final shimmer?)
+          when _animateWash && binding.readiness.stage == AssetStage.preview =>
+        _sweptOutline(stages.outlineFill, shimmer),
+      (MediaPreview$Outline(), _) => OutlineLook(fill: stages.outlineFill),
+      _ => null,
+    };
+  }
+
+  OutlineLook _sweptOutline(Color fill, OutlineShimmer shimmer) {
+    _needsFrame = true;
+    return OutlineLook(fill: fill, highlight: shimmer.phaseAt(_frameTime));
   }
 
   /// The download indicator of a GIF whose [binding] downloads, centred in
@@ -812,10 +888,24 @@ final class CatalogLeafPainter {
     final transfer = binding.transfer;
     if (!transfer.isActive) {
       _indicators[binding] = null;
+      _spinners[binding] = null;
       return;
     }
-    final downloaded = transfer.fraction ?? 0;
+    final downloaded = transfer.fraction;
     if (opacity <= 0) return;
+    if (downloaded == null) {
+      // No byte yet, or no total to measure against: an arc of 0 % would
+      // read as a download that does not move, so the arc spins.
+      _indicators[binding] = null;
+      final spinner = _spinners[binding] ??= _Spinner();
+      if (_animateWash) {
+        _needsFrame = true;
+        spinner.advance(_frameTime);
+      }
+      _paintSpinner(canvas, box.center, spinner, opacity);
+      return;
+    }
+    _spinners[binding] = null;
     final indicator = switch (_indicators[binding]) {
       final shown? => shown..setProgress(downloaded),
       null => _indicators[binding] = RadialProgress(progress: downloaded),
@@ -829,6 +919,54 @@ final class CatalogLeafPainter {
       box.center,
       radius: _kProgressRadius,
       opacity: opacity,
+    );
+  }
+
+  // The indeterminate arc on the indicator's disc: its start turns once per
+  // the spinner's turn and its sweep swings between the spinner's shortest
+  // and longest, with the stroke and inset of the determinate arc.
+  void _paintSpinner(
+    Canvas canvas,
+    Offset center,
+    _Spinner spinner,
+    double opacity,
+  ) {
+    final status = _theme.loading.status;
+    final style = status.spinner;
+    canvas.drawCircle(
+      center,
+      _kProgressRadius,
+      _fadePaint
+        ..color = RadialProgress.discColor.withValues(
+          alpha: RadialProgress.discColor.a * opacity,
+        ),
+    );
+    final turn = style.turn.inMicroseconds;
+    final start =
+        status.spinStartDegrees +
+        (turn <= 0 ? 0 : 360 * spinner.elapsed.inMicroseconds / turn);
+    final swing = style.maxSweepDegrees - style.minSweepDegrees;
+    final period = style.sweepPeriod.inMicroseconds;
+    final phase = period <= 0
+        ? 0.0
+        : 2 * math.pi * spinner.elapsed.inMicroseconds / period;
+    final sweep = style.minSweepDegrees + swing * (1 - math.cos(phase)) / 2;
+    const toRadians = math.pi / 180;
+    canvas.drawArc(
+      Rect.fromCircle(
+        center: center,
+        radius: _kProgressRadius - RadialProgress.arcInset,
+      ),
+      (start % 360) * toRadians,
+      sweep * toRadians,
+      false,
+      _spinnerPaint
+        ..strokeWidth =
+            _kProgressRadius * 2 <
+                RadialProgress.referenceDiameter * RadialProgress.thinThreshold
+            ? RadialProgress.thinStrokeWidth
+            : RadialProgress.strokeWidth
+        ..color = RadialProgress.inkColor.withValues(alpha: opacity),
     );
   }
 
@@ -902,6 +1040,24 @@ final class CatalogLeafPainter {
       [theme.washColor, theme.washHighlightColor, theme.washColor],
       const [0, 0.5, 1],
     );
+  }
+}
+
+/// The time one indeterminate arc has turned: stepped per painted frame by at
+/// most [RadialProgress.maxFrameStep], so a frame after a pause moves it one
+/// frame on, and resting while the host paused playback.
+final class _Spinner {
+  Duration elapsed = Duration.zero;
+  Duration? _last;
+
+  void advance(Duration frameTime) {
+    final last = _last;
+    _last = frameTime;
+    if (last == null || frameTime <= last) return;
+    final gap = frameTime - last;
+    elapsed += gap > RadialProgress.maxFrameStep
+        ? RadialProgress.maxFrameStep
+        : gap;
   }
 }
 

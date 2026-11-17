@@ -38,6 +38,10 @@ final class CatalogBoundLeaf {
   // flicker.
   final bool _instant;
   Duration? _fadeStart;
+  // Whether the leaf drew its preview, and when the thumbnail that replaced
+  // it started to fade in over it.
+  bool _previewDrawn = false;
+  Duration? _thumbnailFadeStart;
   bool _seen = false;
   bool _shown = false;
 
@@ -51,6 +55,23 @@ final class CatalogBoundLeaf {
     if (_instant) return 1;
     final start = _fadeStart ??= frameTime;
     final t = (frameTime - start).inMicroseconds / contentFade.inMicroseconds;
+    return t.clamp(0.0, 1.0);
+  }
+
+  /// Notes that the leaf drew its preview: a thumbnail that replaces it fades
+  /// in over it ([thumbnailOpacityAt]).
+  void previewDrawn() => _previewDrawn = true;
+
+  /// Opacity to draw the thumbnail at on the frame at [frameTime]: rising
+  /// from `0` over [fade] from the first frame it is drawn, when it replaces
+  /// a preview this leaf drew; `1` when no preview was drawn before it (it
+  /// was there at attach, or came first) or [fade] is zero.
+  ///
+  /// Call it only for a leaf whose binding is at its thumbnail.
+  double thumbnailOpacityAt(Duration frameTime, Duration fade) {
+    if (!_previewDrawn || fade <= Duration.zero) return 1;
+    final start = _thumbnailFadeStart ??= frameTime;
+    final t = (frameTime - start).inMicroseconds / fade.inMicroseconds;
     return t.clamp(0.0, 1.0);
   }
 
@@ -143,9 +164,11 @@ final class CatalogLeafBindingPool {
     required ContentAssetScope scope,
     required double devicePixelRatio,
     required VoidCallback onChanged,
+    AutoDownloadContext? downloadContext,
   }) : _scope = scope,
        _devicePixelRatio = devicePixelRatio,
-       _onChanged = onChanged;
+       _onChanged = onChanged,
+       _downloadContext = downloadContext;
 
   ContentAssetScope _scope;
   double _devicePixelRatio;
@@ -166,6 +189,19 @@ final class CatalogLeafBindingPool {
     if (identical(_scope, scope)) return;
     detachAll();
     _scope = scope;
+  }
+
+  /// The tag every binding attaches with, for the scope's auto-download
+  /// policy (`ContentAssetScope.attach`).
+  ///
+  /// A change detaches every binding; the owner MUST [syncVisible]
+  /// afterwards, as after [replaceScope].
+  AutoDownloadContext? get downloadContext => _downloadContext;
+  AutoDownloadContext? _downloadContext;
+  set downloadContext(AutoDownloadContext? value) {
+    if (_downloadContext == value) return;
+    detachAll();
+    _downloadContext = value;
   }
 
   /// The density specs are computed at. A change makes every attached spec
@@ -330,7 +366,12 @@ final class CatalogLeafBindingPool {
         if (bound.spec == spec) return bound;
       }
     }
-    final binding = _scope.attach(leaf.key, spec, preset.profile)..held = _held;
+    final binding = _scope.attach(
+      leaf.key,
+      spec,
+      preset.profile,
+      downloadContext: _downloadContext,
+    )..held = _held;
     binding.addListener(_onChanged);
     final bound = CatalogBoundLeaf._(leaf.key, binding, spec);
     (_byKey[leaf.key] ??= []).add(bound);
