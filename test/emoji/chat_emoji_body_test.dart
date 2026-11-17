@@ -150,6 +150,7 @@ void main() {
     ChatMediaItem? media,
     ChatMediaSizePolicy? mediaSizes,
     double? parentWidth,
+    ChatMediaOverlayBuilder? mediaOverlay,
   }) => tester.pumpWidget(
     MediaQuery(
       data: MediaQueryData.fromView(
@@ -179,6 +180,7 @@ void main() {
                 media: media,
                 mediaSizes: mediaSizes,
                 parentWidth: parentWidth,
+                mediaOverlay: mediaOverlay,
                 embedFactory: factory ?? embeds.call,
               ),
             ),
@@ -528,6 +530,53 @@ void main() {
         const Rect.fromLTWH(0, 0, 288, 162),
       );
       expect(embeds.asked.single.$2.size, const Size(288, 162));
+    });
+
+    testWidgets('the host\'s overlay lies over the art, given the media and '
+        'the embed, above the reserved strip', (tester) async {
+      view(tester, const Size(412, 915));
+      final built = <(ChatMediaItem, InlineEmbed)>[];
+
+      await pumpBody(
+        tester,
+        lone,
+        sticker: doc,
+        media: gif,
+        mediaSizes: _MediaSizes(),
+        bottomReserve: 20,
+        mediaOverlay: (context, media, embed) {
+          built.add((media, embed));
+          return const SizedBox.expand(key: Key('overlay'));
+        },
+      );
+
+      expect(built.last.$1, gif);
+      expect(built.last.$2, same(embeds.made.single));
+      final body = tester.getTopLeft(find.byType(ChatEmojiBody));
+      expect(
+        tester.getRect(find.byKey(const Key('overlay'))),
+        Rect.fromLTWH(body.dx, body.dy, 288, 162),
+      );
+      expect(bodySize(tester), const Size(288, 182));
+    });
+
+    testWidgets('no overlay for a lone emoji or a text layout', (tester) async {
+      view(tester, const Size(412, 915));
+      var built = 0;
+      Widget overlay(BuildContext context, ChatMediaItem media, InlineEmbed e) {
+        built++;
+        return const SizedBox.expand();
+      }
+
+      await pumpBody(tester, lone, sticker: doc, mediaOverlay: overlay);
+      await pumpBody(
+        tester,
+        EmojiOnly(const [EmojiOnlyItem(doc), EmojiOnlyItem(doc)]),
+        media: gif,
+        mediaOverlay: overlay,
+      );
+
+      expect(built, 0);
     });
 
     testWidgets('a row narrower than the art scales it down to the row, its '

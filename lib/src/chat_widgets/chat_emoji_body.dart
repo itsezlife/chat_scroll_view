@@ -30,6 +30,18 @@ import 'package:mpx_core/mpx_core.dart';
 typedef ChatEmojiEmbedFactory =
     InlineEmbed? Function(ContentKey content, AssetPreset preset);
 
+/// Builds what the host lays over the art of a lone sticker or GIF
+/// ([ChatEmojiBody.media]): a status control and a badge over the [embed]
+/// the body paints (`ContentEmbedOverlay` for a `ContentEmbed`), sized to
+/// the art. Null lays nothing. The body owns the embed; the overlay only
+/// reads it, and is built again when the body makes another.
+typedef ChatMediaOverlayBuilder =
+    Widget? Function(
+      BuildContext context,
+      ChatMediaItem media,
+      InlineEmbed embed,
+    );
+
 /// A bubble-less message of nothing but emoji, laid out as an emoji-only
 /// body.
 ///
@@ -46,7 +58,8 @@ typedef ChatEmojiEmbedFactory =
 ///   the policy's [ChatEmojiPolicy.stickerInset] margin. A message that is a
 ///   sticker or a GIF of its own ([media]) is instead the art the host's
 ///   [mediaSizes] gives it, of the media's proportion and with no margin,
-///   decoded at most at the policy's cap.
+///   decoded at most at the policy's cap. The host's [mediaOverlay] lies
+///   over that art.
 /// - **Text**: otherwise. The items are squares of the font step the policy
 ///   gives the message, in lines that wrap and honour the message's line
 ///   breaks; the text scale plays no part.
@@ -127,6 +140,7 @@ class ChatEmojiBody extends StatefulWidget {
     this.sticker,
     this.media,
     this.mediaSizes,
+    this.mediaOverlay,
     this.playback,
     this.playLedger,
     this.tapPolicy,
@@ -272,6 +286,12 @@ class ChatEmojiBody extends StatefulWidget {
   /// How large the host draws a [media] item, and the cap on its decode. With
   /// either null the sticker layout is the [policy]'s square.
   final ChatMediaSizePolicy? mediaSizes;
+
+  /// What the host lays over the art of a [media] item, or null for nothing.
+  /// Only the sticker layout of a [media] item drawn at the host's size
+  /// ([mediaSizes]) has one; a pointer on it is the overlay's (a tap on its
+  /// control downloads or cancels) before it is the sticker's.
+  final ChatMediaOverlayBuilder? mediaOverlay;
 
   /// How the sticker plays, or null for the default for the emoji
   /// ([ChatStickerPlayback.defaultFor]). Ignored by the text layout.
@@ -844,11 +864,51 @@ class _ChatEmojiBodyState extends State<ChatEmojiBody>
             setState(() => _cursor = MouseCursor.defer);
           }
         },
-        // Animated frames repaint this box, not the row around it.
-        child: RepaintBoundary(
-          child: _isText ? _selectableBox() : _leafBox(null),
+        child: _withMediaOverlay(
+          // Animated frames repaint this box, not the row around it.
+          RepaintBoundary(child: _isText ? _selectableBox() : _leafBox(null)),
         ),
       ),
+    );
+  }
+
+  // The host's overlay over the art of a lone sticker or GIF of its own size,
+  // placed on the art as the body lays it out.
+  Widget _withMediaOverlay(Widget body) {
+    final builder = widget.mediaOverlay;
+    final media = widget.media;
+    if (builder == null || media == null || !_isSticker || _art == null) {
+      return body;
+    }
+    final embed = switch (_leaves) {
+      [ChatEmojiEmbedLeaf(:final embed)] => embed,
+      _ => null,
+    };
+    if (embed == null) return body;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final overlay = builder(context, media, embed);
+        if (overlay == null) return body;
+        final art = ChatEmojiBody.geometryFor(
+          emojiOnly: widget.emojiOnly,
+          policy: widget.policy,
+          viewport: _viewport,
+          maxWidth: constraints.maxWidth,
+          direction: Directionality.of(context),
+          sticker: widget.sticker,
+          media: media,
+          mediaSizes: widget.mediaSizes,
+          hasHeader: widget.hasHeader,
+          parentWidth: widget.parentWidth,
+          bottomReserve: widget.bottomReserve,
+        ).items.first;
+        return Stack(
+          children: [
+            body,
+            Positioned.fromRect(rect: art, child: overlay),
+          ],
+        );
+      },
     );
   }
 }

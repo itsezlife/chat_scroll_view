@@ -5,6 +5,10 @@
   `content_assets`' `ContentAssetScope` over `mpx_core`'s asset cache (from
   github.com/itsezlife/mpx); `catalog_assets` and the decoder packages are
   gone from this repository.
+- **ADDED**: `ChatEmojiBody.mediaOverlay` (`ChatMediaOverlayBuilder`): what a
+  host lays over the art of a lone sticker or GIF, given the media item and
+  the embed the body paints (a status control and a badge,
+  `ContentEmbedOverlay`).
 
 ### Scroll physics
 - **CHANGED** (breaking): the scroll physics live in the `viewport_scroll`
