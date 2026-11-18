@@ -130,7 +130,9 @@ void main() {
       final embed =
           ContentEmbedResolver(
                 scope: scope,
-                stages: MediaStageStyle.$Android.copyWith(outlineFill: fill),
+                stages: listen.ValueNotifier(
+                  MediaStageStyle.$Android.copyWith(outlineFill: fill),
+                ),
               ).resolve(
                 const InlineEmbedTarget(scheme: 'document', id: '9', alt: 's'),
                 _metrics,

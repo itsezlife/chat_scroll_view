@@ -77,7 +77,9 @@ import 'package:flutter_md/flutter_md.dart'
         MarkdownPainterCache,
         MarkdownPainterCacheScope,
         MarkdownSpoilerController;
-import 'package:mpx_core/mpx_core.dart' show MediaLoadingStyleScope;
+import 'package:listen/listen.dart' as listen;
+import 'package:mpx_core/mpx_core.dart'
+    show MediaLoadingStyleScope, MediaStageStyle;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:viewport_scroll/viewport_scroll.dart' show ViewportScrollRouter;
 
@@ -150,6 +152,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// broadcast. It sends nothing; the screen shows what it would send.
   late final StickerInteractionStub _stickerInteractions;
   late final ValueNotifier<LargeEmojiPolicy> _emojiPolicy;
+
+  /// How the chat's embeds draw an outline preview: the loading style the
+  /// screen is under, fed again when it changes (the bodies paint on a
+  /// canvas, with no context to resolve it from).
+  listen.ValueNotifier<MediaStageStyle>? _stages;
 
   /// Demo chat facts that gate the large emoji: a
   /// chat that allows stickers, in which the user is no admin.
@@ -300,6 +307,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         (bottom) => EdgeInsets.only(bottom: bottom),
       );
     }
+    // A new loading style reaches the embeds already in the chat.
+    final stages = MediaLoadingStyleScope.resolve(context).stages;
+    if (_stages case final notifier?) {
+      notifier.value = stages;
+    } else {
+      _stages = listen.ValueNotifier(stages);
+    }
     // Made with the input set: the chat's embeds hold while its popup panel
     // is over the chat.
     if (fresh) {
@@ -309,9 +323,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         describe: widget.services.describe,
         held: input.chatPlaybackHeld,
         downloadContext: widget.kind.downloadContext,
-        // The bodies paint on a canvas, with no context to resolve it from:
-        // the style is the one the screen opened under.
-        stages: MediaLoadingStyleScope.resolve(context).stages,
+        stages: _stages,
       );
     }
     // The chat's stickers and GIFs composite as texture layers: the pool is
@@ -513,6 +525,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     widget.services.largeEmoji.enabled.removeListener(_refreshEmojiPolicy);
     widget.services.largeEmoji.desktopLimit.removeListener(_refreshEmojiPolicy);
     _emojiPolicy.dispose();
+    _stages?.dispose();
     _stickerInteractions.dispose();
     _trace?.dispose();
     _inputSet?.dispose();

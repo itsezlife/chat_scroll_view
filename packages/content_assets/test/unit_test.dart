@@ -8,7 +8,6 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'embed/content_embed_overlay_test.dart' as content_embed_overlay_test;
 import 'embed/content_embed_resolver_test.dart' as content_embed_resolver_test;
 import 'embed/content_embed_test.dart' as content_embed_test;
 import 'embed/fake_inline_embed_contract_test.dart'
@@ -21,10 +20,6 @@ import 'scope/content_asset_scope_test.dart' as content_asset_scope_test;
 import 'widget/content_asset_view_test.dart' as content_asset_view_test;
 
 void main() {
-  group(
-    'embed/content_embed_overlay_test.dart',
-    content_embed_overlay_test.main,
-  );
   group(
     'embed/content_embed_resolver_test.dart',
     content_embed_resolver_test.main,

@@ -41,7 +41,7 @@ import 'package:mpx_core/mpx_core.dart';
 /// the scope's auto-download policy weighs (`ContentAssetScope.attach`). An
 /// embed paints no status control: content that does not download by itself
 /// keeps its best stand-in, and a failure shows nothing more, unless the host
-/// lays one over the embed from its [binding] (`ContentEmbedOverlay`).
+/// lays one over the embed from its [binding] (`ContentStatusOverlay`).
 ///
 /// [stages] is how an outline preview is drawn: in its `outlineFill`, or for
 /// a template asset in the text colour at its `outlineTintOpacity`, swept by
@@ -49,7 +49,9 @@ import 'package:mpx_core/mpx_core.dart';
 /// embed then tells its listeners once per frame, so the body repaints). By
 /// default the platform's (`MediaLoadingStyle.forPlatform`). A body has no
 /// build context, so the host resolves it where it makes the embeds
-/// (`MediaLoadingStyleScope.resolve`).
+/// (`MediaLoadingStyleScope.resolve`) and feeds it again when the style
+/// changes: the embed reads it at each paint, tells its listeners when it
+/// changes, and never disposes it.
 ///
 /// The embed does not own the scope. Its signal is the binding's: a better
 /// stage, a baked page that landed, an animation frame.
@@ -62,14 +64,12 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
     AssetPaintable? placeholder,
     ValueListenable<bool>? held,
     AutoDownloadContext? downloadContext,
-    MediaStageStyle? stages,
+    ValueListenable<MediaStageStyle>? stages,
   }) : sizeHint = preset.size,
        _placeholder = placeholder,
        _held = held,
        _template = preset.spec.decodeMode == AssetDecodeMode.template,
-       _stages =
-           stages ??
-           MediaLoadingStyle.forPlatform(defaultTargetPlatform).stages,
+       _stages = stages,
        _clock = scope.clock,
        _binding = scope.attach(
          content,
@@ -79,13 +79,14 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
        ) {
     held?.addListener(_onHeld);
     _onHeld();
+    stages?.addListener(_onStages);
   }
 
   final AssetBinding _binding;
   final AssetPaintable? _placeholder;
   final ValueListenable<bool>? _held;
   final bool _template;
-  final MediaStageStyle _stages;
+  final ValueListenable<MediaStageStyle>? _stages;
   final PlaybackClock _clock;
   // The listeners told when a shimmer moves: the binding says nothing then.
   final List<VoidCallback> _listeners = [];
@@ -93,9 +94,21 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
   bool _disposed = false;
 
   /// The attach this embed draws: what a host reads to lay a status control
-  /// or a badge over the embed (`ContentEmbedOverlay`). Detached once the
+  /// or a badge over the embed (`ContentStatusOverlay`). Detached once the
   /// embed is disposed.
   AssetBinding get binding => _binding;
+
+  // A new style changes only how an outline is drawn: the body paints again.
+  void _onStages() {
+    if (_disposed) return;
+    for (final listener in List.of(_listeners)) {
+      listener();
+    }
+  }
+
+  MediaStageStyle get _stageStyle =>
+      _stages?.value ??
+      MediaLoadingStyle.forPlatform(defaultTargetPlatform).stages;
 
   void _onHeld() {
     if (_held case final held? when !_disposed) _binding.held = held.value;
@@ -182,13 +195,14 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
   // the outline shows and the clock runs.
   OutlineLook? _outlineLook(Color? tint) {
     if (_binding.descriptor?.preview case MediaPreview$Outline()) {
+      final stages = _stageStyle;
       final fill = switch (tint) {
         final tint? when _template => tint.withValues(
-          alpha: tint.a * _stages.outlineTintOpacity,
+          alpha: tint.a * stages.outlineTintOpacity,
         ),
-        _ => _stages.outlineFill,
+        _ => stages.outlineFill,
       };
-      return switch (_stages.outlineShimmer) {
+      return switch (stages.outlineShimmer) {
         final shimmer?
             when !_clock.isPaused &&
                 _binding.readiness.stage == AssetStage.preview =>
@@ -224,6 +238,7 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
     _disposed = true;
     _listeners.clear();
     _held?.removeListener(_onHeld);
+    _stages?.removeListener(_onStages);
     _binding.detach();
   }
 }

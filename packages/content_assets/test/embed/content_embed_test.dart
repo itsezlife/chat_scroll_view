@@ -246,7 +246,7 @@ void main() {
           scope: scope,
           content: _sticker,
           preset: preset ?? _preset,
-          stages: stages,
+          stages: listen.ValueNotifier(stages),
         );
         addTearDown(embed.dispose);
         return embed;
@@ -267,6 +267,31 @@ void main() {
         expect(
           preview.paints.single.context.outline,
           const OutlineLook(fill: fill),
+        );
+      });
+
+      test('follows a change of the style, telling its listeners', () {
+        final style = listen.ValueNotifier(stages);
+        final embed = ContentEmbed(
+          scope: scope,
+          content: _sticker,
+          preset: _preset,
+          stages: style,
+        );
+        addTearDown(embed.dispose);
+        describeOutline(producer.last);
+        final preview = producer.last.advance(AssetStage.preview);
+        var heard = 0;
+        embed.addListener(() => heard++);
+        const changed = Color(0x44654321);
+
+        style.value = stages.copyWith(outlineFill: changed);
+        embed.paint(canvas(), _rect, const InlineEmbedPaintContext());
+
+        expect(heard, 1);
+        expect(
+          preview.paints.single.context.outline,
+          const OutlineLook(fill: changed),
         );
       });
 
@@ -301,9 +326,11 @@ void main() {
           scope: scope,
           content: _sticker,
           preset: _preset,
-          stages: stages.copyWith(
-            outlineShimmer: const OutlineShimmer(
-              sweep: Duration(milliseconds: 1000),
+          stages: listen.ValueNotifier(
+            stages.copyWith(
+              outlineShimmer: const OutlineShimmer(
+                sweep: Duration(milliseconds: 1000),
+              ),
             ),
           ),
         );

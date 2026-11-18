@@ -17,7 +17,8 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_me
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart' show BuildContext, Widget;
+import 'package:flutter/widgets.dart'
+    show BuildContext, LayoutBuilder, SizedBox, Widget;
 import 'package:listen/listen.dart' as listen;
 import 'package:mpx_core/mpx_core.dart';
 
@@ -47,7 +48,7 @@ final class ChatBodyHost {
   /// every embed attaches with it, so the auto-download policy weighs the
   /// chat's media by the conversation it is in. [stages] is how every embed
   /// draws an outline preview (`ContentEmbed.stages`): the screen's loading
-  /// style, resolved where it makes the host.
+  /// style, which the screen feeds again when it changes.
   ///
   /// [held] is the hold on the chat's playback (a popup panel over it): every
   /// embed the bodies make, inline or emoji-only, follows it
@@ -67,7 +68,7 @@ final class ChatBodyHost {
     listen.ValueListenable<bool>? held,
     ChatMediaSizePolicy? mediaSizes,
     AutoDownloadContext? downloadContext,
-    MediaStageStyle? stages,
+    listen.ValueListenable<MediaStageStyle>? stages,
   }) : embedResolver = _resolverFor(
          ContentEmbedResolver(
            scope: assets,
@@ -119,8 +120,14 @@ final class ChatBodyHost {
     ChatMediaItem media,
     InlineEmbed embed,
   ) => switch ((media.kind, embed)) {
-    (ChatMediaKind.gif, final ContentEmbed embed) => ContentEmbedOverlay(
-      embed: embed,
+    // The badge takes its narrow forms by the width of the art.
+    (ChatMediaKind.gif, final ContentEmbed embed) => LayoutBuilder(
+      builder: (context, constraints) => ContentStatusOverlay(
+        binding: embed.binding,
+        badge: true,
+        width: constraints.maxWidth,
+        child: const SizedBox.expand(),
+      ),
     ),
     _ => null,
   };

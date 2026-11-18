@@ -124,7 +124,9 @@ void main() {
       final styled = ChatBodyHost(
         assets: scope,
         policy: policy,
-        stages: MediaStageStyle.$Android.copyWith(outlineFill: fill),
+        stages: listen.ValueNotifier(
+          MediaStageStyle.$Android.copyWith(outlineFill: fill),
+        ),
       );
       for (final make in <InlineEmbed? Function()>[
         () => styled.embedFactory(
@@ -196,14 +198,25 @@ void main() {
         embed,
       );
 
-      expect(
-        gif,
-        isA<ContentEmbedOverlay>()
-            .having((o) => o.embed, 'embed', same(embed))
-            .having((o) => o.status, 'status', const MediaStatusMode.control())
-            .having((o) => o.badge, 'badge', isTrue),
-      );
       expect(sticker, isNull);
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(child: SizedBox(width: 120, height: 90, child: gif)),
+        ),
+      );
+      expect(
+        tester.widget(find.byType(ContentStatusOverlay)),
+        isA<ContentStatusOverlay>()
+            .having(
+              (o) => o.binding,
+              'binding',
+              same((embed as ContentEmbed).binding),
+            )
+            .having((o) => o.status, 'status', const MediaStatusMode.control())
+            .having((o) => o.badge, 'badge', isTrue)
+            .having((o) => o.width, 'width', 120),
+      );
     });
 
     test('makes an embed over the cache for a content and a preset', () {

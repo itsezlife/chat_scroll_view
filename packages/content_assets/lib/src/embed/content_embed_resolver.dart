@@ -25,13 +25,13 @@ final class ContentEmbedResolver implements InlineEmbedResolver {
   /// host's hold on the surface the bodies are on. [downloadContext] is
   /// likewise (`ContentEmbed.downloadContext`): the class of that surface,
   /// and so is [stages] (`ContentEmbed.stages`): how an outline preview is
-  /// drawn there.
+  /// drawn there, followed as it changes.
   ContentEmbedResolver({
     required ContentAssetScope scope,
     AssetPreset Function(InlineEmbedMetrics metrics)? presetFor,
     ValueListenable<bool>? held,
     AutoDownloadContext? downloadContext,
-    MediaStageStyle? stages,
+    ValueListenable<MediaStageStyle>? stages,
   }) : _scope = scope,
        _held = held,
        _downloadContext = downloadContext,
@@ -41,7 +41,7 @@ final class ContentEmbedResolver implements InlineEmbedResolver {
   final ContentAssetScope _scope;
   final ValueListenable<bool>? _held;
   final AutoDownloadContext? _downloadContext;
-  final MediaStageStyle? _stages;
+  final ValueListenable<MediaStageStyle>? _stages;
   final AssetPreset Function(InlineEmbedMetrics metrics) _presetFor;
 
   static AssetPreset _inlineMessage(InlineEmbedMetrics metrics) =>

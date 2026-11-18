@@ -8,7 +8,7 @@
 - **ADDED**: `ChatEmojiBody.mediaOverlay` (`ChatMediaOverlayBuilder`): what a
   host lays over the art of a lone sticker or GIF, given the media item and
   the embed the body paints (a status control and a badge,
-  `ContentEmbedOverlay`).
+  `mpx_core`'s `ContentStatusOverlay` over the embed's binding).
 
 ### Scroll physics
 - **CHANGED** (breaking): the scroll physics live in the `viewport_scroll`
