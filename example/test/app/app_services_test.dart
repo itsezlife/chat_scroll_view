@@ -564,10 +564,7 @@ void main() {
         ),
         throwsStateError,
       );
-      // The playbacks close without being awaited, and the frame cache
-      // frees its usage signal once its pending writes settle.
-      await pumpEventQueue();
-
+      // The boot fails once every close has settled.
       expect(watch.undisposed, isEmpty);
     });
 

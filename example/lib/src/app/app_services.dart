@@ -266,8 +266,9 @@ final class AppServices {
     final framesDisk = diskCache ? lottieFramesDirectory : null;
     // What each step made, to free in reverse if a later one fails: a failed
     // boot must not leave a lifecycle listener or a pressure signal behind.
-    final unwind = <void Function()>[];
-    T owned<T>(T value, void Function(T value) dispose) {
+    // A close that is asynchronous is awaited before the one made before it.
+    final unwind = <FutureOr<void> Function()>[];
+    T owned<T>(T value, FutureOr<void> Function(T value) dispose) {
       unwind.add(() => dispose(value));
       return value;
     }
@@ -286,7 +287,7 @@ final class AppServices {
         bytesDirectory == null
             ? MemoryBytesCache()
             : await BytesCache.open(directory: bytesDirectory),
-        (store) => unawaited(store.close()),
+        (store) => store.close(),
       );
 
       // 1. The adapter.
@@ -379,7 +380,7 @@ final class AppServices {
         bytesStore: bytes,
       );
       if (lottiePlayback != null) {
-        owned(lottiePlayback, _closePlayback);
+        owned(lottiePlayback, (playback) => playback.close());
       }
       // The video playback is probed the same way. None leaves video at its
       // placeholder.
@@ -389,7 +390,7 @@ final class AppServices {
         textures: textures,
       );
       if (videoPlayback != null) {
-        owned(videoPlayback, _closeVideoPlayback);
+        owned(videoPlayback, (playback) => playback.close());
       }
       // The emoji pack is animated WebP and the static stickers are PNG: both
       // are the engine's image codecs' work, whether or not Lottie runs here.
@@ -448,7 +449,7 @@ final class AppServices {
         // the web) fetches whole.
         final mediaClient = bytesClient = owned<HttpBytesClient>(
           HttpBytesClient(client: transport),
-          (client) => unawaited(client.close()),
+          (client) => client.close(),
         );
         giphy = GiphyContent(
           GiphyClient(apiKey: giphyApiKey, client: transport),
@@ -456,7 +457,7 @@ final class AppServices {
           http: mediaClient,
           ranged: rangedBytes = owned<RangedBytes>(
             RangedBytes(store: bytes, client: mediaClient),
-            (ranged) => unawaited(ranged.close()),
+            (ranged) => ranged.close(),
           ),
         );
       }
@@ -777,8 +778,15 @@ final class AppServices {
         clipboard: clipboard,
       );
     } on Object {
+      // Each close settles before the next starts: the ranged downloads and
+      // their client before the bytes store they write into. One that fails
+      // is reported, lets the next close and leaves the boot's own error.
       for (final undo in unwind.reversed) {
-        undo();
+        try {
+          await undo();
+        } on Object catch (error, stackTrace) {
+          _reportClose(error, stackTrace, 'what a failed boot made');
+        }
       }
       rethrow;
     }
@@ -1035,16 +1043,19 @@ final class AppServices {
     unawaited(
       closing.then<void>(
         (_) {},
-        onError: (Object error, StackTrace stackTrace) {
-          FlutterError.reportError(
-            FlutterErrorDetails(
-              exception: error,
-              stack: stackTrace,
-              library: 'chat_scroll_view_example',
-              context: ErrorDescription('while closing $what'),
-            ),
-          );
-        },
+        onError: (Object error, StackTrace stackTrace) =>
+            _reportClose(error, stackTrace, what),
+      ),
+    );
+  }
+
+  static void _reportClose(Object error, StackTrace stackTrace, String what) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'chat_scroll_view_example',
+        context: ErrorDescription('while closing $what'),
       ),
     );
   }
