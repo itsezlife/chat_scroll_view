@@ -22,6 +22,8 @@ is pre-1.0.
   preview takes its fill and shimmer, a thumbnail fades in over the preview
   it replaces for the stage fade, and a download of unknown size spins
   instead of drawing a 0 % arc.
+- The download arc and spinner are the loading style's disc and arc
+  (`MediaStatusPainting`), so they take its geometry, colours and motion.
 
 ### Changed (the asset cache moved to mpx)
 

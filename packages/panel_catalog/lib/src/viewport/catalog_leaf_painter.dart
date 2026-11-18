@@ -36,9 +36,9 @@ const double _kActionPartGap = 4;
 /// An action icon is drawn this much larger than the header text.
 const double _kActionIconScale = 1.3;
 
-/// Radius of the disc of the radial progress over a loading GIF: 12 logical
-/// pixels, inside a 24 logical pixel box, whatever the size of the cell.
-const double _kProgressRadius = 12;
+/// Diameter of the disc of the progress over a loading GIF: 24 logical pixels,
+/// whatever the size of the cell.
+const double _kProgressDiameter = 24;
 
 /// Paints catalog headers and leaves onto a [Canvas].
 ///
@@ -115,11 +115,11 @@ const double _kProgressRadius = 12;
 ///
 /// A GIF leaf that is not drawn yet (no stage, its preview or its thumbnail)
 /// and whose binding downloads its content (an active
-/// `AssetBinding.transfer`) also gets the download indicator
-/// ([RadialProgress]) over its centre, and it fades out with the content's
-/// fade. A download with no measure (no byte yet, or no total) spins
-/// instead: the arc turns and swings as the loading style's spinner says
-/// (`MediaStatusStyle.spinner`). A leaf whose content is known to be missing shows it from its first
+/// `AssetBinding.transfer`) also gets the loading style's disc and progress
+/// arc over its centre (`MediaStatusPainting`), eased to each new fraction,
+/// and it fades out with the content's fade. A download with no measure (no
+/// byte yet, or no total) spins instead: the arc turns and swings as the
+/// style's spinner says (`MediaStatusStyle.spinner`). A leaf whose content is known to be missing shows it from its first
 /// paint; a failed or held-back download shows none (a panel cell has no
 /// control, so it keeps its picture and nothing more), nor does a leaf served
 /// from a cache. Each binding has its own indicator, kept beside it for as
@@ -160,9 +160,6 @@ final class CatalogLeafPainter {
   final Paint _washPaint = Paint();
   final Paint _fadePaint = Paint();
   final Paint _highlightPaint = Paint();
-  final Paint _spinnerPaint = Paint()
-    ..style = PaintingStyle.stroke
-    ..strokeCap = StrokeCap.round;
 
   final CatalogParagraphCache<_TextPaintKey> _textParagraphs =
       CatalogParagraphCache(limit: _kHeaderParagraphCacheLimit);
@@ -193,13 +190,10 @@ final class CatalogLeafPainter {
     );
   }
 
-  // The download indicator of each binding whose download shows, dropped
-  // with the binding or when its download ends.
-  final Expando<RadialProgress> _indicators = Expando('download indicator');
-
-  // The spinner of each binding whose download has no measure yet (no byte,
-  // or no total), dropped like an indicator.
-  final Expando<_Spinner> _spinners = Expando('download spinner');
+  // The arc of each binding whose download shows, dropped with the binding
+  // or when its download ends, and made again when the download gains or
+  // loses its measure.
+  final Expando<_DownloadArc> _arcs = Expando('download arc');
 
   // State of the open pass.
   Duration _frameTime = Duration.zero;
@@ -887,86 +881,41 @@ final class CatalogLeafPainter {
     if (binding == null || slot.leaf.semanticKind != SemanticKind.gif) return;
     final transfer = binding.transfer;
     if (!transfer.isActive) {
-      _indicators[binding] = null;
-      _spinners[binding] = null;
+      _arcs[binding] = null;
       return;
     }
     final downloaded = transfer.fraction;
     if (opacity <= 0) return;
-    if (downloaded == null) {
-      // No byte yet, or no total to measure against: an arc of 0 % would
-      // read as a download that does not move, so the arc spins.
-      _indicators[binding] = null;
-      final spinner = _spinners[binding] ??= _Spinner();
-      if (_animateWash) {
-        _needsFrame = true;
-        spinner.advance(_frameTime);
-      }
-      _paintSpinner(canvas, box.center, spinner, opacity);
-      return;
-    }
-    _spinners[binding] = null;
-    final indicator = switch (_indicators[binding]) {
-      final shown? => shown..setProgress(downloaded),
-      null => _indicators[binding] = RadialProgress(progress: downloaded),
+    // No byte yet, or no total to measure against: an arc of 0 % would read
+    // as a download that does not move, so the arc spins.
+    final measured = downloaded != null;
+    final arc = switch (_arcs[binding]) {
+      final shown? when shown.measured == measured => shown,
+      _ => _arcs[binding] = _DownloadArc(measured: measured),
     };
+    final eased = downloaded == null
+        ? null
+        : ((arc.eased ??= RadialProgress(progress: downloaded))
+            ..setProgress(downloaded));
     if (_animateWash) {
       _needsFrame = true;
-      indicator.advance(_frameTime);
+      arc.advance(_frameTime);
+      eased?.advance(_frameTime);
     }
-    indicator.paint(
+    final style = _theme.loading.status;
+    MediaStatusPainting.paint(
       canvas,
       box.center,
-      radius: _kProgressRadius,
+      _kProgressDiameter,
+      style,
+      arc: eased == null
+          ? MediaStatusPainting.spinnerArc(style, arc.elapsed)
+          : MediaStatusPainting.progressArc(
+              style,
+              eased.shownProgress,
+              arc.elapsed,
+            ),
       opacity: opacity,
-    );
-  }
-
-  // The indeterminate arc on the indicator's disc: its start turns once per
-  // the spinner's turn and its sweep swings between the spinner's shortest
-  // and longest, with the stroke and inset of the determinate arc.
-  void _paintSpinner(
-    Canvas canvas,
-    Offset center,
-    _Spinner spinner,
-    double opacity,
-  ) {
-    final status = _theme.loading.status;
-    final style = status.spinner;
-    canvas.drawCircle(
-      center,
-      _kProgressRadius,
-      _fadePaint
-        ..color = RadialProgress.discColor.withValues(
-          alpha: RadialProgress.discColor.a * opacity,
-        ),
-    );
-    final turn = style.turn.inMicroseconds;
-    final start =
-        status.spinStartDegrees +
-        (turn <= 0 ? 0 : 360 * spinner.elapsed.inMicroseconds / turn);
-    final swing = style.maxSweepDegrees - style.minSweepDegrees;
-    final period = style.sweepPeriod.inMicroseconds;
-    final phase = period <= 0
-        ? 0.0
-        : 2 * math.pi * spinner.elapsed.inMicroseconds / period;
-    final sweep = style.minSweepDegrees + swing * (1 - math.cos(phase)) / 2;
-    const toRadians = math.pi / 180;
-    canvas.drawArc(
-      Rect.fromCircle(
-        center: center,
-        radius: _kProgressRadius - RadialProgress.arcInset,
-      ),
-      (start % 360) * toRadians,
-      sweep * toRadians,
-      false,
-      _spinnerPaint
-        ..strokeWidth =
-            _kProgressRadius * 2 <
-                RadialProgress.referenceDiameter * RadialProgress.thinThreshold
-            ? RadialProgress.thinStrokeWidth
-            : RadialProgress.strokeWidth
-        ..color = RadialProgress.inkColor.withValues(alpha: opacity),
     );
   }
 
@@ -1043,10 +992,15 @@ final class CatalogLeafPainter {
   }
 }
 
-/// The time one indeterminate arc has turned: stepped per painted frame by at
+/// The time one download's arc has shown: stepped per painted frame by at
 /// most [RadialProgress.maxFrameStep], so a frame after a pause moves it one
-/// frame on, and resting while the host paused playback.
-final class _Spinner {
+/// frame on, and resting while the host paused playback. A measured download
+/// also keeps the fraction its arc eases through ([eased]).
+final class _DownloadArc {
+  _DownloadArc({required this.measured});
+
+  final bool measured;
+  RadialProgress? eased;
   Duration elapsed = Duration.zero;
   Duration? _last;
 
