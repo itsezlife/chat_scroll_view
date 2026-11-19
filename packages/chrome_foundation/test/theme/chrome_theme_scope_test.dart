@@ -20,6 +20,7 @@ void main() {
         'pointerMenuOf': ChromeThemeScope.pointerMenuOf,
         'spoilerOf': ChromeThemeScope.spoilerOf,
         'bulletinOf': ChromeThemeScope.bulletinOf,
+        'attachOf': ChromeThemeScope.attachOf,
       };
       for (final entry in lookups.entries) {
         late BuildContext context;

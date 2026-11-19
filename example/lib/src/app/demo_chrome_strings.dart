@@ -173,6 +173,17 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     undoAction: 'Отменить',
     dismissAction: 'Закрыть',
   ),
+  attach: const AttachStrings(
+    discardSelectionTitle: 'Отменить выбор?',
+    discardSelectionConfirm: 'Отменить',
+    discardSelectionKeep: 'Назад',
+    cancelSelectionTitle: 'Отменить выбор?',
+    cancelSelectionConfirm: 'Да',
+    cancelSelectionKeep: 'Нет',
+    galleryTab: 'Галерея',
+    filesTab: 'Файл',
+    permissionNeeded: 'Нужен доступ',
+  ),
   semantics: SemanticsStrings(
     panelOpened: 'Панель открыта',
     panelClosed: 'Панель закрыта',

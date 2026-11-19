@@ -1,3 +1,4 @@
+import 'package:chrome_foundation/src/strings/attach_strings.dart';
 import 'package:chrome_foundation/src/strings/bulletin_strings.dart';
 import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
@@ -74,6 +75,9 @@ class ChromeStringsScope extends InheritedWidget {
   /// The bulletin strings at [context]; see [of].
   static BulletinStrings bulletinOf(BuildContext context) =>
       of(context).bulletin;
+
+  /// The attach sheet strings at [context]; see [of].
+  static AttachStrings attachOf(BuildContext context) => of(context).attach;
 
   /// The semantics strings at [context]; see [of].
   static SemanticsStrings semanticsOf(BuildContext context) =>

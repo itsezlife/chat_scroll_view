@@ -53,6 +53,7 @@ ChromeStrings stringsWith({
       undoAction: 'Undo',
       dismissAction: 'Dismiss',
     ),
+    attach: ChromeStringsPresets.english.attach,
     semantics: SemanticsStrings(
       panelOpened: base.semantics.panelOpened,
       panelClosed: base.semantics.panelClosed,

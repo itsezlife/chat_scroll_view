@@ -1,0 +1,116 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/widgets.dart';
+
+/// What a page's scroll hands the sheet: the part of each drag and fling
+/// that moves the sheet rather than the page.
+///
+/// The sheet state implements it; the scroll position below calls it.
+@internal
+abstract interface class AttachSheetDrive {
+  /// Whether drags move the sheet at all now.
+  bool get takesDrags;
+
+  /// Whether the sheet is at its top, where an upward drag scrolls the
+  /// page.
+  bool get isAtTop;
+
+  /// A drag started.
+  void dragStarted();
+
+  /// Whether the sheet wants the drag in progress to end now (it turned
+  /// into the discard question); the scroll then ends it and releases.
+  bool get endsDrag;
+
+  /// Moves the sheet by [delta] (positive downward); returns the part the
+  /// sheet did not take, for the page.
+  double dragSheet(double delta);
+
+  /// A drag ended with [velocity] (positive downward). True when the sheet
+  /// settles on its own; false to let the page fling. [handBack] starts a
+  /// page fling of a scroll velocity, for a sheet fling that reaches the top.
+  bool release(double velocity, void Function(double scrollVelocity) handBack);
+}
+
+/// The scroll controller a page attaches to its scrollable so the sheet and
+/// the page share one drag: an upward drag raises the sheet until it is at
+/// its top and then scrolls the page; a downward drag scrolls the page back
+/// to its start and then lowers the sheet.
+///
+/// The sheet provides it as the `PrimaryScrollController` of the page, so a
+/// scrollable with `primary: true` (the default for a vertical one with no
+/// controller) takes it.
+@internal
+final class AttachSheetScrollController extends ScrollController {
+  /// A controller handing drags to [drive].
+  AttachSheetScrollController(this.drive);
+
+  /// The sheet the drags go to.
+  final AttachSheetDrive drive;
+
+  @override
+  ScrollPosition createScrollPosition(
+    ScrollPhysics physics,
+    ScrollContext context,
+    ScrollPosition? oldPosition,
+  ) => _AttachSheetScrollPosition(
+    drive: drive,
+    physics: physics,
+    context: context,
+    oldPosition: oldPosition,
+  );
+}
+
+class _AttachSheetScrollPosition extends ScrollPositionWithSingleContext {
+  _AttachSheetScrollPosition({
+    required this.drive,
+    required super.physics,
+    required super.context,
+    super.oldPosition,
+  });
+
+  final AttachSheetDrive drive;
+  VoidCallback? _cancelDrag;
+
+  bool get _atStart => pixels <= minScrollExtent + precisionErrorTolerance;
+
+  @override
+  Drag drag(DragStartDetails details, VoidCallback dragCancelCallback) {
+    drive.dragStarted();
+    _cancelDrag = dragCancelCallback;
+    return super.drag(details, dragCancelCallback);
+  }
+
+  @override
+  void applyUserOffset(double delta) {
+    // `delta` is in the scroll's terms: positive when the finger moves down.
+    if (!drive.takesDrags) return super.applyUserOffset(delta);
+    final movesSheet = delta < 0 ? !drive.isAtTop : _atStart;
+    if (!movesSheet) return super.applyUserOffset(delta);
+    final rest = drive.dragSheet(delta);
+    if (drive.endsDrag) {
+      // Detach the scrollable from the drag, then end it as a release with
+      // no velocity, as a cancelled drag ends.
+      final cancel = _cancelDrag;
+      _cancelDrag = null;
+      cancel?.call();
+      goBallistic(0);
+      return;
+    }
+    if (rest != 0) super.applyUserOffset(rest);
+  }
+
+  @override
+  void goBallistic(double velocity) {
+    _cancelDrag = null;
+    // A scroll velocity is positive when the content moves up, the finger
+    // up; the sheet's is positive downward.
+    if (drive.release(-velocity, _flingPage)) {
+      super.goBallistic(0);
+      return;
+    }
+    super.goBallistic(velocity);
+  }
+
+  void _flingPage(double scrollVelocity) => super.goBallistic(scrollVelocity);
+}

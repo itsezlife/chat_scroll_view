@@ -1,3 +1,4 @@
+import 'package:chrome_foundation/src/strings/attach_strings.dart';
 import 'package:chrome_foundation/src/strings/bulletin_strings.dart';
 import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
@@ -183,6 +184,17 @@ abstract final class ChromeStringsPresets {
       undoAction: 'Undo',
       dismissAction: 'Dismiss',
     ),
+    attach: const AttachStrings(
+      discardSelectionTitle: 'Discard selection?',
+      discardSelectionConfirm: 'Discard',
+      discardSelectionKeep: 'Cancel',
+      cancelSelectionTitle: 'Cancel selection?',
+      cancelSelectionConfirm: 'Yes',
+      cancelSelectionKeep: 'No',
+      galleryTab: 'Gallery',
+      filesTab: 'File',
+      permissionNeeded: 'Access needed',
+    ),
     semantics: SemanticsStrings(
       panelOpened: 'Panel opened',
       panelClosed: 'Panel closed',
@@ -366,6 +378,17 @@ abstract final class ChromeStringsPresets {
     bulletin: const BulletinStrings(
       undoAction: 'Отменить',
       dismissAction: 'Закрыть',
+    ),
+    attach: const AttachStrings(
+      discardSelectionTitle: 'Отменить выбор?',
+      discardSelectionConfirm: 'Отменить',
+      discardSelectionKeep: 'Назад',
+      cancelSelectionTitle: 'Отменить выбор?',
+      cancelSelectionConfirm: 'Да',
+      cancelSelectionKeep: 'Нет',
+      galleryTab: 'Галерея',
+      filesTab: 'Файл',
+      permissionNeeded: 'Нужен доступ',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Панель открыта',

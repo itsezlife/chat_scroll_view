@@ -53,6 +53,7 @@ import 'theme/chrome_theme_data_test.dart' as chrome_theme_data_test;
 import 'theme/chrome_theme_scope_test.dart' as chrome_theme_scope_test;
 import 'theme/chrome_typography_test.dart' as chrome_typography_test;
 import 'tokens/action_tokens_test.dart' as action_tokens_test;
+import 'tokens/attach_tokens_test.dart' as attach_tokens_test;
 import 'tokens/bulletin_tokens_test.dart' as bulletin_tokens_test;
 import 'tokens/composer_tokens_test.dart' as composer_tokens_test;
 import 'tokens/glass_material_tokens_test.dart' as glass_material_tokens_test;
@@ -125,6 +126,7 @@ void main() {
   group('theme/chrome_theme_scope_test.dart', chrome_theme_scope_test.main);
   group('theme/chrome_typography_test.dart', chrome_typography_test.main);
   group('tokens/action_tokens_test.dart', action_tokens_test.main);
+  group('tokens/attach_tokens_test.dart', attach_tokens_test.main);
   group('tokens/bulletin_tokens_test.dart', bulletin_tokens_test.main);
   group('tokens/composer_tokens_test.dart', composer_tokens_test.main);
   group(

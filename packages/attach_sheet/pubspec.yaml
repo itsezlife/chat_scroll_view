@@ -1,0 +1,28 @@
+name: attach_sheet
+description: >
+  The attach sheet: the mobile container a user picks media and files to send
+  from, its platform policy, and the page contract hosts extend.
+version: 0.1.0
+publish_to: none
+
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.32.0'
+
+dependencies:
+  attach_model:
+    path: ../attach_model
+  chrome_foundation:
+    path: ../chrome_foundation
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+
+dev_dependencies:
+  # Golden baselines are the CI runner's: compared and regenerated there only.
+  golden_baseline:
+    path: ../golden_baseline
+  flutter_test:
+    sdk: flutter

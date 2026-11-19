@@ -3,6 +3,7 @@ import 'package:chrome_foundation/src/motion/chrome_motion_scope.dart';
 import 'package:chrome_foundation/src/palette/chrome_palette.dart';
 import 'package:chrome_foundation/src/theme/chrome_theme_data.dart';
 import 'package:chrome_foundation/src/tokens/action_tokens.dart';
+import 'package:chrome_foundation/src/tokens/attach_tokens.dart';
 import 'package:chrome_foundation/src/tokens/bulletin_tokens.dart';
 import 'package:chrome_foundation/src/tokens/composer_tokens.dart';
 import 'package:chrome_foundation/src/tokens/glass_material_tokens.dart';
@@ -47,6 +48,9 @@ enum ChromeThemeAspect {
 
   /// [BulletinTokens].
   bulletin,
+
+  /// [AttachTokens].
+  attach,
 }
 
 /// The **chrome theme scope**: provides the palette and token groups to the
@@ -81,6 +85,7 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
     PointerMenuTokens? pointerMenu,
     SpoilerTokens? spoiler,
     BulletinTokens? bulletin,
+    AttachTokens? attach,
     super.key,
   }) : _palette = palette,
        _composer =
@@ -136,6 +141,12 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
            switch (palette) {
              final palette? => BulletinTokens.fromPalette(palette),
              null => null,
+           },
+       _attach =
+           attach ??
+           switch (palette) {
+             final palette? => AttachTokens.fromPalette(palette),
+             null => null,
            };
 
   /// A scope supplying every part of [data] verbatim.
@@ -154,6 +165,7 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
          pointerMenu: data.pointerMenu,
          spoiler: data.spoiler,
          bulletin: data.bulletin,
+         attach: data.attach,
          key: key,
          child: child,
        );
@@ -168,6 +180,7 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
   final PointerMenuTokens? _pointerMenu;
   final SpoilerTokens? _spoiler;
   final BulletinTokens? _bulletin;
+  final AttachTokens? _attach;
 
   Object? _part(ChromeThemeAspect aspect) => switch (aspect) {
     ChromeThemeAspect.palette => _palette,
@@ -180,6 +193,7 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
     ChromeThemeAspect.pointerMenu => _pointerMenu,
     ChromeThemeAspect.spoiler => _spoiler,
     ChromeThemeAspect.bulletin => _bulletin,
+    ChromeThemeAspect.attach => _attach,
   };
 
   /// The whole theme at [context]; depends on every part.
@@ -196,6 +210,7 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
     pointerMenu: pointerMenuOf(context),
     spoiler: spoilerOf(context),
     bulletin: bulletinOf(context),
+    attach: attachOf(context),
   );
 
   /// The semantic palette at [context].
@@ -240,6 +255,10 @@ class ChromeThemeScope extends InheritedModel<ChromeThemeAspect> {
   /// The bulletin tokens at [context].
   static BulletinTokens bulletinOf(BuildContext context) =>
       _lookup(context, ChromeThemeAspect.bulletin)._bulletin!;
+
+  /// The attach sheet tokens at [context].
+  static AttachTokens attachOf(BuildContext context) =>
+      _lookup(context, ChromeThemeAspect.attach)._attach!;
 
   static ChromeThemeScope _lookup(
     BuildContext context,
@@ -315,6 +334,7 @@ class AnimatedChromeThemeScope extends StatelessWidget {
     this.pointerMenu,
     this.spoiler,
     this.bulletin,
+    this.attach,
     this.duration,
     this.curve,
     this.onEnd,
@@ -351,6 +371,9 @@ class AnimatedChromeThemeScope extends StatelessWidget {
   /// The target bulletin tokens.
   final BulletinTokens? bulletin;
 
+  /// The target attach sheet tokens.
+  final AttachTokens? attach;
+
   /// How long a change takes at normal speed; null uses the `themeSwitch`
   /// role.
   final Duration? duration;
@@ -379,6 +402,7 @@ class AnimatedChromeThemeScope extends StatelessWidget {
       pointerMenu: pointerMenu,
       spoiler: spoiler,
       bulletin: bulletin,
+      attach: attach,
       duration: motion.speed.scale(duration ?? role.duration),
       curve: curve ?? role.curve,
       onEnd: onEnd,
@@ -400,6 +424,7 @@ class _AnimatedChromeThemeScope extends ImplicitlyAnimatedWidget {
     required this.pointerMenu,
     required this.spoiler,
     required this.bulletin,
+    required this.attach,
     required super.duration,
     required super.curve,
     required super.onEnd,
@@ -415,6 +440,7 @@ class _AnimatedChromeThemeScope extends ImplicitlyAnimatedWidget {
   final PointerMenuTokens? pointerMenu;
   final SpoilerTokens? spoiler;
   final BulletinTokens? bulletin;
+  final AttachTokens? attach;
   final Widget child;
 
   @override
@@ -434,6 +460,7 @@ class _AnimatedChromeThemeScopeState
   _PartTween<PointerMenuTokens>? _pointerMenu;
   _PartTween<SpoilerTokens>? _spoiler;
   _PartTween<BulletinTokens>? _bulletin;
+  _PartTween<AttachTokens>? _attach;
 
   @override
   void forEachTween(TweenVisitor<dynamic> visitor) {
@@ -535,6 +562,16 @@ class _AnimatedChromeThemeScopeState
               ),
             )
             as _PartTween<BulletinTokens>?;
+    _attach =
+        visitor(
+              _attach,
+              widget.attach,
+              (v) => _PartTween<AttachTokens>(
+                AttachTokens.lerp,
+                v as AttachTokens,
+              ),
+            )
+            as _PartTween<AttachTokens>?;
   }
 
   @override
@@ -549,6 +586,7 @@ class _AnimatedChromeThemeScopeState
     pointerMenu: _pointerMenu?.evaluate(animation),
     spoiler: _spoiler?.evaluate(animation),
     bulletin: _bulletin?.evaluate(animation),
+    attach: _attach?.evaluate(animation),
     child: widget.child,
   );
 }

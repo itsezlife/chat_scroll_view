@@ -6,6 +6,15 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (attach sheet group)
+
+- `AttachTokens` (scrim, sheet background, grabber, pinned header), derived from the palette and carried by `ChromeThemeData.attach`, `ChromeThemeScope(attach:)`, `ChromeThemeScope.attachOf` and `AnimatedChromeThemeScope`.
+- `AttachStrings` (the two discard questions and their actions, the stock Gallery and Files tab labels, the spoken name of a missing-permission badge) as `ChromeStrings.attach` and `ChromeStringsScope.attachOf`, with English and Russian presets.
+
+### Breaking
+
+- `ChromeStrings` takes a required `attach` group, and `ChromeThemeData` a required `attach` group in its unnamed constructor. A host that builds `ChromeStrings` itself adds an `AttachStrings`; `ChromeThemeData.fromPalette` derives the tokens on its own.
+
 ### Added (backdrop snapshot)
 
 - `BackdropSnapshotSource`, `BackdropSnapshot` and `BackdropSnapshotView`: a small still of what the source last painted, captured once at a fraction of its device pixels (`downscale`), then laid over an opaque `background`, stack-blurred (`blurRadius`) and toned (`tone`, `BackdropSnapshot.toneMatrix`) once on the CPU, off the UI isolate where there is one, and drawn stretched (bilinear) with only its opacity animated. For a scrim over a background that holds still while it is up, in place of a live full-window `BackdropFilter`. The still is made a few frames after the capture: the snapshot is a `Listenable` whose `image` is null until then (`ready` completes then too), and the view draws nothing until then. The still is opaque, smooth and blurred evenly out to its edges on every backend: the edges repeat the capture's own edge pixels. The caller disposes the snapshot; one disposed before its still is made lets the still go as it comes.

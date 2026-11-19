@@ -1,0 +1,14 @@
+/// The attach sheet: the mobile container a user picks media and files to
+/// send from.
+///
+/// `AttachSheet.show` opens one over an `AttachSelection` from
+/// `attach_model`, laid out and moved by an `AttachSheetPolicy`; the host
+/// hears of it through an `AttachSheetHost`. Colours come from
+/// `AttachTokens` and labels from `AttachStrings` in `chrome_foundation`.
+library;
+
+export 'src/host/attach_discard_question.dart';
+export 'src/host/attach_sheet_host.dart';
+export 'src/policy/attach_sheet_policy.dart';
+export 'src/sheet/attach_outcome.dart';
+export 'src/sheet/attach_sheet.dart';

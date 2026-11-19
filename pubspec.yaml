@@ -8,6 +8,7 @@ publish_to: none
 # package under packages/ or example/ is missing from it.
 workspace:
   - packages/attach_model
+  - packages/attach_sheet
   - packages/bulletins
   - packages/chat_composer
   - packages/chat_wallpaper

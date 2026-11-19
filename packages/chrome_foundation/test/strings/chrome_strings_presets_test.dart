@@ -42,6 +42,7 @@ void main() {
         'editMenu': 'lib/src/strings/edit_menu_strings.dart',
         'packSheet': 'lib/src/strings/pack_sheet_strings.dart',
         'bulletin': 'lib/src/strings/bulletin_strings.dart',
+        'attach': 'lib/src/strings/attach_strings.dart',
       };
       final field = RegExp(r'^  final .+ (\w+);$', multiLine: true);
       for (final group in groups.entries) {

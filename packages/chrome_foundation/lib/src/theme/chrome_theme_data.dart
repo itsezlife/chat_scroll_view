@@ -1,5 +1,6 @@
 import 'package:chrome_foundation/src/palette/chrome_palette.dart';
 import 'package:chrome_foundation/src/tokens/action_tokens.dart';
+import 'package:chrome_foundation/src/tokens/attach_tokens.dart';
 import 'package:chrome_foundation/src/tokens/bulletin_tokens.dart';
 import 'package:chrome_foundation/src/tokens/composer_tokens.dart';
 import 'package:chrome_foundation/src/tokens/glass_material_tokens.dart';
@@ -30,6 +31,7 @@ final class ChromeThemeData {
     required this.pointerMenu,
     required this.spoiler,
     required this.bulletin,
+    required this.attach,
   });
 
   /// The theme where each group is derived from [palette], except those the
@@ -45,6 +47,7 @@ final class ChromeThemeData {
     PointerMenuTokens? pointerMenu,
     SpoilerTokens? spoiler,
     BulletinTokens? bulletin,
+    AttachTokens? attach,
   }) => ChromeThemeData(
     palette: palette,
     composer: composer ?? ComposerTokens.fromPalette(palette),
@@ -56,6 +59,7 @@ final class ChromeThemeData {
     pointerMenu: pointerMenu ?? PointerMenuTokens.fromPalette(palette),
     spoiler: spoiler ?? SpoilerTokens.fromPalette(palette),
     bulletin: bulletin ?? BulletinTokens.fromPalette(palette),
+    attach: attach ?? AttachTokens.fromPalette(palette),
   );
 
   /// The semantic roles the groups were derived from.
@@ -88,6 +92,9 @@ final class ChromeThemeData {
   /// Bulletin colours.
   final BulletinTokens bulletin;
 
+  /// Attach sheet colours.
+  final AttachTokens attach;
+
   /// A copy with the named parts replaced.
   ///
   /// Replacing [palette] does not re-derive the groups: a group that was
@@ -104,6 +111,7 @@ final class ChromeThemeData {
     PointerMenuTokens? pointerMenu,
     SpoilerTokens? spoiler,
     BulletinTokens? bulletin,
+    AttachTokens? attach,
   }) => ChromeThemeData(
     palette: palette ?? this.palette,
     composer: composer ?? this.composer,
@@ -115,6 +123,7 @@ final class ChromeThemeData {
     pointerMenu: pointerMenu ?? this.pointerMenu,
     spoiler: spoiler ?? this.spoiler,
     bulletin: bulletin ?? this.bulletin,
+    attach: attach ?? this.attach,
   );
 
   /// Interpolates the palette and every group between [a] and [b].
@@ -136,6 +145,7 @@ final class ChromeThemeData {
         pointerMenu: PointerMenuTokens.lerp(a.pointerMenu, b.pointerMenu, t),
         spoiler: SpoilerTokens.lerp(a.spoiler, b.spoiler, t),
         bulletin: BulletinTokens.lerp(a.bulletin, b.bulletin, t),
+        attach: AttachTokens.lerp(a.attach, b.attach, t),
       );
 
   @override
@@ -151,7 +161,8 @@ final class ChromeThemeData {
           selectionMenu == other.selectionMenu &&
           pointerMenu == other.pointerMenu &&
           spoiler == other.spoiler &&
-          bulletin == other.bulletin;
+          bulletin == other.bulletin &&
+          attach == other.attach;
 
   @override
   int get hashCode => Object.hash(
@@ -165,6 +176,7 @@ final class ChromeThemeData {
     pointerMenu,
     spoiler,
     bulletin,
+    attach,
   );
 
   @override
