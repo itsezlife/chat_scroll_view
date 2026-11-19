@@ -8,12 +8,16 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'page/attach_page_test.dart' as attach_page_test;
+import 'page/attach_tab_bar_test.dart' as attach_tab_bar_test;
 import 'policy/attach_sheet_policy_test.dart' as attach_sheet_policy_test;
 import 'sheet/attach_sheet_android_test.dart' as attach_sheet_android_test;
 import 'sheet/attach_sheet_golden_test.dart' as attach_sheet_golden_test;
 import 'sheet/attach_sheet_ios_test.dart' as attach_sheet_ios_test;
 
 void main() {
+  group('page/attach_page_test.dart', attach_page_test.main);
+  group('page/attach_tab_bar_test.dart', attach_tab_bar_test.main);
   group('policy/attach_sheet_policy_test.dart', attach_sheet_policy_test.main);
   group('sheet/attach_sheet_android_test.dart', attach_sheet_android_test.main);
   group('sheet/attach_sheet_golden_test.dart', attach_sheet_golden_test.main);

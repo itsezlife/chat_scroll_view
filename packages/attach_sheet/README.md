@@ -13,13 +13,17 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 
 | Type | Role |
 | --- | --- |
-| `AttachSheet` | The container. `AttachSheet.show(context, policy:, selection:, builder:, host:, opening:, header:, bottomBar:)` pushes it and completes with an `AttachOutcome`. The `builder` gets the sheet's scroll controller (also the `PrimaryScrollController` below the sheet). |
+| `AttachSheet` | The container. `AttachSheet.show(context, policy:, selection:, pages:, host:, opening:)` pushes it with its pages and tab bar and completes with an `AttachOutcome`; `AttachSheet.showContent(builder:, header:, bottomBar:)` pushes it around any content, whose `builder` gets the sheet's scroll controller (also the `PrimaryScrollController` below the sheet). |
+| `AttachPage`, `AttachPageId`, `AttachPageKind` | One page: id, tab label and icon, builder, kind (`selection` adds to the attach selection; `host` finishes with its own payload), an optional `AttachPagePermission`. `AttachPageId.gallery` and `.files` are the stock ids. |
+| `AttachPageRegistry` | The pages of one open, in tab order, and the one it opens on; built by the host from its rights. |
+| `AttachPageScope` | A page's hooks: `isActive` (its `onShow` / `onHide`), `scrollController`, `requestExpansion`, `panEnabled`, `topOffset`, `headerItems`, `dismissGuard`, `onScrollToTop`, `mainButton` (`AttachMainButton`), `panelHidden`, `finish(payload)`. |
+| `AttachTabBarStyle`, `AttachTabPopIn`, `AttachTabSwitch` | The tab bar's geometry, hide motion, pop-in and badge rule, and the page switch motion, per policy. |
 | `AttachSheetController` | `AttachSheetController.of(context)` below the sheet: `top`, `isExpanded`, `expand`, `collapse`, `requestDismiss` (asks first with a selection), `close`, `dismissesOnTapAbove`, `panEnabled`. |
 | `AttachSheetPolicy` (`$Android`, `$IOS`) | Geometry, motion, release rule, snap, discard wording, keyboard rules; `forPlatform` / `current`. Not sealed: extend a stock family to change a value. `release` is a pure function of `AttachSheetReleaseInput`. |
 | `AttachSheetMotion` | `spring(SpringDescription)` or `timed(MotionSpec)`. |
 | `AttachSheetHost`, `AttachSheetOpening` | What the sheet tells its host (`opened`, `closed`, `restoreKeyboard`) and asks (`confirmDiscard`); the opening carries whether the keyboard was up and the attach button's rect. |
 | `AttachDiscardQuestion` | The stock question in the policy's `AttachDiscardWording`. |
-| `AttachOutcome` | `cancelled`. |
+| `AttachOutcome` | `cancelled`, `custom(page, payload)`. |
 
 ## Host contract
 
@@ -28,7 +32,8 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | Scopes | A `ChromeThemeScope` (the `attach` token group), a `ChromeStringsScope` (`ChromeStrings.attach`) above the navigator; a `ChromeMotionScope` with `ChromeMotionSpeed.instant` for reduce motion. |
 | Open | Parks its keyboard and panel, then `AttachSheet.show` with `AttachSheetOpening(keyboardWasUp:, anchor:)` and the open's `AttachSelection`. |
 | Keyboard | Raises the keyboard in `restoreKeyboard` when the policy brings it back. |
-| Page | Builds a vertical scrollable on the controller it is given (or `primary: true`). |
+| Pages | Builds an `AttachPageRegistry` per open from its rights; each page builds a vertical scrollable on `scope.scrollController`. Pages are built the first time their tab shows and kept for the open. |
+| Outcome | Reads `AttachOutcome.custom(page, payload)` from a host page. |
 
 ## Rules and values
 
@@ -45,3 +50,9 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | Discard guard | "Discard selection?" on any dismiss with a selection | "Cancel selection?"; a pan past 40 is cancelled into it |
 | Keyboard | back 200 ms after close when it was up | not brought back; caption focus expands |
 | Wide screen | none | a 390 x min(670, available) card above the attach button, scrim 10 % |
+| Tab bar | pill 70 tall, radius 28, 7 inside, 11 from the sides; tab = label + 16 a side (8 from a 56 label), at most 84, spare room shared; 8 edge fade; a tapped tab scrolled 70 clear | capsule 62; 160 / 240 / 300 wide for 2 / 3 / 4 tabs, else the screen less 22 a side |
+| Tab pop-in | staggered 32 ms (the fourth tab first), 0 to 1.1 in 200 ms, 1.1 to 1 in 100 ms, after 20 ms | none |
+| With a selection | the bar drops 36 and fades over 180 ms | fades over 0.1 s and shrinks to 0.85; back over 0.25 s |
+| Tab switch | old page drops 78 and fades over 180 ms, then the new one springs up from 78 (ratio 0.75, stiffness 500); taps wait | 0.23 s cross-fade, the new page rising 10 on a spring of damping 70 |
+| Re-tap, single tab | scrolls the page to the top and expands; one tab collapses the bar | same |
+| Permission badge | "!" on a tab whose page lacks its permission; a tap asks for it | none |

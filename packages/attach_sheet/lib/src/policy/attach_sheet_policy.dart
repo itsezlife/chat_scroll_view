@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:attach_sheet/src/policy/attach_tab_bar_style.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
@@ -286,6 +287,18 @@ abstract base class AttachSheetPolicy {
 
   /// Whether focusing the caption expands the sheet.
   bool get expandsOnCaptionFocus;
+
+  // --- Tabs ---
+
+  /// How the tab bar looks and moves.
+  AttachTabBarStyle get tabBar;
+
+  /// The widths of tabs whose labels measure [labelWidths], in a bar that
+  /// may be [available] wide.
+  List<double> tabWidths(List<double> labelWidths, double available);
+
+  /// How the page area changes on a tab switch.
+  AttachTabSwitch get tabSwitch;
 }
 
 // --- Stock families ---
@@ -418,6 +431,66 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
 
   @override
   bool get expandsOnCaptionFocus => false;
+
+  /// A pill 70 tall with radius 28 and 7 inside, 11 from the sides; the
+  /// tabs pop in staggered by 32 ms; the bar drops 36 and fades over
+  /// 180 ms while something is selected; a badge on a tab whose page lacks
+  /// its permission; 8 of fade at a clipped edge; a tapped tab is scrolled
+  /// 70 clear of the edge.
+  @override
+  AttachTabBarStyle get tabBar => const AttachTabBarStyle(
+    height: 70,
+    radius: 28,
+    innerPadding: 7,
+    sidePadding: 11,
+    hideMotion: MotionSpec(Duration(milliseconds: 180), Curves.decelerate),
+    showMotion: MotionSpec(Duration(milliseconds: 180), Curves.decelerate),
+    hideDrop: 36,
+    permissionBadges: true,
+    popIn: AttachTabPopIn(
+      delay: Duration(milliseconds: 20),
+      step: Duration(milliseconds: 32),
+      anchorIndex: 3,
+      overshoot: 1.1,
+      grow: Duration(milliseconds: 200),
+      growCurve: Cubic(0, 0, 0.58, 1),
+      fadeCurve: Cubic(0.42, 0, 0.58, 1),
+      settle: Duration(milliseconds: 100),
+      settleCurve: Cubic(0.42, 0, 1, 1),
+    ),
+    edgeFade: 8,
+    scrollClearance: 70,
+  );
+
+  /// Each tab is its label plus 16 a side, narrowing to 8 a side as the
+  /// label grows from 40 to 56, at most 84; room left over is shared evenly.
+  @override
+  List<double> tabWidths(List<double> labelWidths, double available) {
+    final widths = [
+      for (final w in labelWidths)
+        math.min<double>(84, w + 2 * (16 - 8 * ((w - 40) / 16).clamp(0, 1))),
+    ];
+    final total = widths.fold<double>(0, (a, b) => a + b);
+    if (widths.isEmpty || available <= total) return widths;
+    final add = ((available - total) / widths.length).floorToDouble();
+    return [for (final w in widths) w + add];
+  }
+
+  /// The old page drops 78 and fades over 180 ms; the new one springs up
+  /// from 78 (damping ratio 0.75, stiffness 500).
+  @override
+  AttachTabSwitch get tabSwitch => AttachTabSwitch.slide(
+    distance: 78,
+    out: const MotionSpec(
+      Duration(milliseconds: 180),
+      Cubic(0.25, 0.1, 0.25, 1),
+    ),
+    inSpring: SpringDescription.withDampingRatio(
+      mass: 1,
+      stiffness: 500,
+      ratio: 0.75,
+    ),
+  );
 }
 
 /// The iOS family: a card-like sheet with a grabber, panned between a
@@ -580,4 +653,42 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
 
   @override
   bool get expandsOnCaptionFocus => true;
+
+  /// A capsule 62 tall; it fades over 0.1 s and shrinks to 0.85 while
+  /// something is selected, and fades back over 0.25 s.
+  @override
+  AttachTabBarStyle get tabBar => const AttachTabBarStyle(
+    height: 62,
+    radius: 31,
+    innerPadding: 3,
+    sidePadding: 22,
+    hideMotion: MotionSpec(Duration(milliseconds: 100), Curves.linear),
+    showMotion: MotionSpec(Duration(milliseconds: 250), Curves.easeInOut),
+    hideScale: 0.85,
+    permissionBadges: false,
+  );
+
+  /// The bar is 160 wide for two tabs, 240 for three, 300 for four, else the
+  /// screen less 22 a side; the tabs share it evenly.
+  @override
+  List<double> tabWidths(List<double> labelWidths, double available) {
+    final n = labelWidths.length;
+    final bar = switch (n) {
+      2 => 160.0,
+      3 => 240.0,
+      4 => 300.0,
+      _ => available,
+    };
+    final inner = bar - 2 * tabBar.innerPadding;
+    return [for (var i = 0; i < n; i++) inner / n];
+  }
+
+  /// A 0.23 s cross-fade while the new page rises 10 on a spring of
+  /// damping 70.
+  @override
+  AttachTabSwitch get tabSwitch => const AttachTabSwitch.crossFade(
+    fade: MotionSpec(Duration(milliseconds: 230), Curves.easeInOut),
+    dip: 10,
+    inSpring: SpringDescription(mass: 5, stiffness: 900, damping: 70),
+  );
 }

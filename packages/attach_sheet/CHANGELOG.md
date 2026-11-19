@@ -18,3 +18,14 @@ package is pre-1.0.
   a wide screen.
 - `AttachSheetHost`, `AttachSheetOpening`, `AttachDiscardQuestion`,
   `AttachOutcome.cancelled`.
+- The page contract: `AttachPage`, `AttachPageId` (stock `gallery` and
+  `files`), `AttachPageKind`, `AttachPagePermission`, `AttachMainButton`,
+  `AttachPageRegistry` and the `AttachPageScope` hooks; `AttachSheet.show`
+  takes the pages, keeps each one built for the open and switches them by
+  the policy's motion; `AttachSheet.showContent` hosts any content.
+- The tab bar per policy (`AttachTabBarStyle`, `AttachTabPopIn`,
+  `AttachTabSwitch`): widths, pop-in, edge fade, auto-scroll, permission
+  badge, hiding while the selection is not empty, a single tab collapsing it,
+  a host page's main button in its place.
+- `AttachOutcome.custom(page, payload)`; `AttachSheetController.restTop`,
+  `dismissGuard` and `createScrollController`.

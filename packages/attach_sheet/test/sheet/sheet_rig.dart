@@ -75,7 +75,7 @@ final class SheetRig {
               key: const ValueKey('open'),
               behavior: HitTestBehavior.opaque,
               onTap: () async {
-                rig.outcome = await AttachSheet.show(
+                rig.outcome = await AttachSheet.showContent(
                   context,
                   policy: policy,
                   selection: selection,
@@ -120,7 +120,7 @@ final class SheetRig {
 
   /// The controller of the open sheet.
   AttachSheetController get controller => AttachSheetController.of(
-    tester.element(find.byKey(const ValueKey('row-0'))),
+    tester.element(find.byKey(const ValueKey('attach-sheet'))),
   );
 
   /// Drags the list by [dy] from a row near the sheet's top.

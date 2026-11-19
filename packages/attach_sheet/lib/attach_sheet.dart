@@ -9,6 +9,9 @@ library;
 
 export 'src/host/attach_discard_question.dart';
 export 'src/host/attach_sheet_host.dart';
+export 'src/page/attach_page.dart';
+export 'src/page/attach_page_scope.dart' show AttachPageScope;
 export 'src/policy/attach_sheet_policy.dart';
+export 'src/policy/attach_tab_bar_style.dart';
 export 'src/sheet/attach_outcome.dart';
 export 'src/sheet/attach_sheet.dart';

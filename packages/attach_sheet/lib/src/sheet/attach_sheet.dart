@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
+import 'package:attach_sheet/src/page/attach_page.dart';
+import 'package:attach_sheet/src/page/attach_pages_sheet.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:attach_sheet/src/sheet/attach_outcome.dart';
 import 'package:attach_sheet/src/sheet/attach_sheet_scroll_controller.dart';
@@ -26,7 +28,9 @@ typedef AttachSheetContentBuilder =
 /// sheet and scrolls the page. A [bottomBar] stays at the bottom edge while
 /// the sheet moves above it.
 ///
-/// Open one with [AttachSheet.show]; it closes with an [AttachOutcome].
+/// Open one with its pages and tab bar by [AttachSheet.show], or around
+/// any content by [AttachSheet.showContent]; it closes with an
+/// [AttachOutcome].
 class AttachSheet extends StatefulWidget {
   /// A sheet over [selection], laid out and moved by [policy].
   const AttachSheet({
@@ -66,9 +70,37 @@ class AttachSheet extends StatefulWidget {
   /// The bar at the bottom edge (tabs, caption and send).
   final Widget? bottomBar;
 
-  /// Pushes a sheet over [context]'s navigator and completes with its
-  /// outcome; [AttachOutcome.cancelled] when it is removed some other way.
+  /// Pushes a sheet of [pages] over [context]'s navigator, with the tab
+  /// bar at the bottom and each page's header items in the pinned header,
+  /// and completes with its outcome; [AttachOutcome.cancelled] when it is
+  /// removed some other way.
   static Future<AttachOutcome> show(
+    BuildContext context, {
+    required AttachSheetPolicy policy,
+    required AttachSelection selection,
+    required AttachPageRegistry pages,
+    AttachSheetHost host = const AttachSheetHost(),
+    AttachSheetOpening opening = const AttachSheetOpening(),
+  }) async {
+    final outcome = await Navigator.of(context).push(
+      _AttachSheetRoute(
+        builder: (context) => AttachPagesSheet(
+          policy: policy,
+          selection: selection,
+          pages: pages,
+          host: host,
+          opening: opening,
+          onClosed: (outcome) => Navigator.of(context).pop(outcome),
+        ),
+      ),
+    );
+    return outcome ?? const AttachOutcome.cancelled();
+  }
+
+  /// Pushes a sheet around [builder]'s content (no pages, no tabs) and
+  /// completes with its outcome; [AttachOutcome.cancelled] when it is
+  /// removed some other way.
+  static Future<AttachOutcome> showContent(
     BuildContext context, {
     required AttachSheetPolicy policy,
     required AttachSelection selection,
@@ -126,6 +158,18 @@ abstract interface class AttachSheetController {
   /// own).
   bool get panEnabled;
   set panEnabled(bool value);
+
+  /// The resting top in place of the policy's (a page's top offset); null
+  /// for the policy's. A sheet at rest moves to the new one.
+  set restTop(double? value);
+
+  /// Asked before the sheet closes, ahead of the discard guard; false keeps
+  /// it open. Null for none.
+  set dismissGuard(Future<bool> Function()? value);
+
+  /// A new scroll controller sharing the sheet's drag, for one more page;
+  /// the caller disposes it.
+  ScrollController createScrollController();
 
   /// Raises the sheet to its top.
   Future<void> expand();
@@ -190,6 +234,32 @@ class _AttachSheetState extends State<AttachSheet>
   @override
   bool panEnabled = true;
 
+  double? _$restTop;
+
+  @override
+  set restTop(double? value) {
+    if (_$restTop == value) return;
+    final atRest =
+        _opened && !_closing && (_$top.value - _collapsedTop).abs() < 0.5;
+    _$restTop = value;
+    if (!mounted) return;
+    setState(() {});
+    if (atRest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_moveTo(_collapsedTop, _policy.expandMotion));
+      });
+    }
+  }
+
+  Future<bool> Function()? _$dismissGuard;
+
+  @override
+  set dismissGuard(Future<bool> Function()? value) => _$dismissGuard = value;
+
+  @override
+  ScrollController createScrollController() =>
+      AttachSheetScrollController(this);
+
   AttachSheetPolicy get _policy => widget.policy;
 
   @override
@@ -225,6 +295,12 @@ class _AttachSheetState extends State<AttachSheet>
   @override
   Future<void> requestDismiss() async {
     if (_closing || _asking) return;
+    if (_$dismissGuard case final guard?) {
+      _asking = true;
+      final leave = await guard();
+      _asking = false;
+      if (!mounted || !leave) return;
+    }
     if (widget.selection.isNotEmpty) {
       _asking = true;
       final drop = await widget.host.confirmDiscard(
@@ -497,7 +573,7 @@ class _AttachSheetState extends State<AttachSheet>
       _collapsedTop = card.top;
       _expandedTop = card.top;
     } else {
-      _collapsedTop = _policy.collapsedTop(_size, padding);
+      _collapsedTop = _$restTop ?? _policy.collapsedTop(_size, padding);
       _expandedTop = math.min(_policy.expandedTop(padding), _collapsedTop);
     }
     if (!_opened) {
@@ -582,7 +658,15 @@ class _AttachSheetState extends State<AttachSheet>
               color: tokens.background,
               child: Stack(
                 children: [
-                  Positioned.fill(child: content!),
+                  // The sheet starts below the status bar: its content
+                  // takes no top inset.
+                  Positioned.fill(
+                    child: MediaQuery.removePadding(
+                      context: context,
+                      removeTop: true,
+                      child: content!,
+                    ),
+                  ),
                   if (grabber != null)
                     Positioned(
                       top: grabber.top,
