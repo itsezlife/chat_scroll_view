@@ -1,0 +1,20 @@
+name: attach_model
+description: >
+  Pure-Dart attach selection, limits, send options and the send plan that
+  groups picked media and places the caption per platform.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  content_model:
+    path: ../content_model
+  listen: ^1.0.1
+  meta: ^1.17.0
+  # Only lib/testing.dart needs this: the attach policy contract suite is
+  # written with the test framework, and a library cannot import a dev
+  # dependency. Production entry points never import it.
+  test: ^1.25.0
