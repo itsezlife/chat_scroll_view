@@ -14,6 +14,9 @@ enum AttachRefusal {
 
   /// The item is over the attach limits' file size limit.
   fileTooLarge,
+
+  /// The item is a file of no bytes.
+  emptyFile,
 }
 
 /// The outcome of one toggle of the attach selection.
@@ -160,6 +163,7 @@ final class AttachSelection with ChangeNotifier {
   AttachRefusal? refusalOf(AttachItem item) {
     if (contains(item.id)) return null;
     if (!limits.allows(item.kind)) return AttachRefusal.kindNotAllowed;
+    if (item.facts.byteSize == 0) return AttachRefusal.emptyFile;
     if ((limits.fileSizeLimit, item.facts.byteSize) case (
       final limit?,
       final size?,

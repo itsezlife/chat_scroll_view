@@ -136,7 +136,8 @@ final class AttachPickerSelection implements PickerSelection {
       switch (reason) {
         AttachRefusal.capReached => PickerRefusal.cap,
         AttachRefusal.kindNotAllowed => PickerRefusal.kind,
-        AttachRefusal.fileTooLarge => PickerRefusal.other,
+        AttachRefusal.fileTooLarge ||
+        AttachRefusal.emptyFile => PickerRefusal.other,
         null => null,
       };
 

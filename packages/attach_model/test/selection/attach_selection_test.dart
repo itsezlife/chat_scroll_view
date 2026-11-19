@@ -133,6 +133,14 @@ void main() {
       expect(selection.length, 1);
     });
 
+    test('an empty file is refused', () {
+      final selection = selectionOf(const AttachPolicy.desktop());
+      expect(
+        selection.toggle(AttachItems.file('empty', byteSize: 0)),
+        const AttachToggle.refused(AttachRefusal.emptyFile),
+      );
+    });
+
     test('single select replaces the selected item', () {
       final selection = selectionOf(
         const AttachPolicy.ios(),
