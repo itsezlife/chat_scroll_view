@@ -6,6 +6,7 @@ import 'package:attach_sheet/src/page/attach_pages_sheet.dart';
 import 'package:attach_sheet/src/policy/attach_tab_bar_style.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
 
 /// The text size of a tab's label.
@@ -30,6 +31,11 @@ class _AttachTabBarState extends State<AttachTabBar>
     with TickerProviderStateMixin {
   late final AnimationController _$hidden = AnimationController(vsync: this);
   late final AnimationController _$popIn = AnimationController(vsync: this);
+  late final AnimationController _$lens = AnimationController.unbounded(
+    vsync: this,
+  );
+  bool _lensPlaced = false;
+  int? _dragIndex;
   final ScrollController _$strip = ScrollController();
   Curve _hideCurve = Curves.linear;
 
@@ -56,6 +62,7 @@ class _AttachTabBarState extends State<AttachTabBar>
     _model.active.removeListener(_activeChanged);
     _$hidden.dispose();
     _$popIn.dispose();
+    _$lens.dispose();
     _$strip.dispose();
     super.dispose();
   }
@@ -86,6 +93,7 @@ class _AttachTabBarState extends State<AttachTabBar>
 
   void _activeChanged() {
     setState(() {});
+    _slideLens();
     final clearance = _style.scrollClearance;
     if (clearance <= 0 || !_$strip.hasClients) return;
     final index = _model.pages.pages.indexWhere(
@@ -109,6 +117,76 @@ class _AttachTabBarState extends State<AttachTabBar>
         curve: Curves.easeOutCubic,
       ),
     );
+  }
+
+  int get _activeIndex =>
+      _model.pages.pages.indexWhere((p) => p.id == _model.active.value);
+
+  /// The lens's left edge over tab [index] of [widths].
+  double _lensX(List<double> widths, int index) =>
+      widths.take(index).fold<double>(0, (a, b) => a + b) +
+      (_style.lens?.inset ?? 0);
+
+  /// Slides the lens to the shown tab on the lens's spring.
+  void _slideLens() {
+    final lens = _style.lens;
+    if (lens == null || !mounted) return;
+    final widths = _widths(MediaQuery.sizeOf(context).width);
+    final target = _lensX(widths, _activeIndex);
+    if (_speed.isInstant) {
+      _$lens.value = target;
+      return;
+    }
+    unawaited(
+      _$lens
+          .animateWith(
+            SpringSimulation(
+              lens.spring,
+              _$lens.value,
+              target,
+              _$lens.velocity,
+            ),
+          )
+          .orCancel
+          .then((_) => _$lens.value = target, onError: (Object _) {}),
+    );
+  }
+
+  /// The tab under [dx] in the strip.
+  int _indexAt(List<double> widths, double dx) {
+    var start = 0.0;
+    for (var i = 0; i < widths.length; i++) {
+      start += widths[i];
+      if (dx < start) return i;
+    }
+    return widths.length - 1;
+  }
+
+  void _dragLens(List<double> widths, double dx) {
+    final lens = _style.lens!;
+    final index = _indexAt(widths, dx);
+    _dragIndex = index;
+    final half = (widths[index] - 2 * lens.inset) / 2;
+    final total = widths.fold<double>(0, (a, b) => a + b);
+    _$lens.value = (dx - half).clamp(
+      lens.inset,
+      total - widths.last + lens.inset,
+    );
+  }
+
+  void _dropLens() {
+    final index = _dragIndex;
+    _dragIndex = null;
+    if (index == null) return;
+    final id = _model.pages.pages[index].id;
+    if (id == _model.active.value) {
+      _slideLens();
+    } else {
+      _model.select(id);
+      // A tab the model would not switch to (a permission to ask for, a
+      // switch running) leaves the lens where the shown tab is.
+      if (_model.active.value != id) _slideLens();
+    }
   }
 
   List<double> _widths(double screenWidth) {
@@ -195,68 +273,114 @@ class _AttachTabBarState extends State<AttachTabBar>
       tabsWidth + 2 * _style.innerPadding,
       width - 2 * _style.sidePadding,
     );
+    final lens = _style.lens;
+    if (lens != null && !_lensPlaced) {
+      _lensPlaced = true;
+      _$lens.value = _lensX(widths, _activeIndex);
+    }
+    Widget row = Row(
+      children: [
+        for (var i = 0; i < pages.length; i++)
+          AnimatedBuilder(
+            animation: _$popIn,
+            builder: (context, tab) {
+              final popIn = _style.popIn;
+              if (popIn == null) return tab!;
+              final elapsed = (popIn.delay + popIn.total) * _$popIn.value;
+              final at = popIn.at(i, elapsed - popIn.delay);
+              return Opacity(
+                opacity: at.opacity.clamp(0.0, 1.0),
+                child: Transform.scale(
+                  key: ValueKey('attach-tab-pop-${pages[i].id}'),
+                  scale: at.scale,
+                  child: tab,
+                ),
+              );
+            },
+            child: _Tab(
+              page: pages[i],
+              width: widths[i],
+              selected: pages[i].id == _model.active.value,
+              fillsSelected: lens == null,
+              badges: _style.permissionBadges,
+              onTap: () => _model.select(pages[i].id),
+              palette: palette,
+            ),
+          ),
+      ],
+    );
+    if (lens != null) {
+      // The lens sits under the tabs and follows a drag across them; the
+      // tab under the finger when it lifts is selected.
+      final lensHeight =
+          _style.height - 2 * _style.innerPadding - 2 * lens.inset;
+      row = GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragStart: (d) => _dragLens(widths, d.localPosition.dx),
+        onHorizontalDragUpdate: (d) => _dragLens(widths, d.localPosition.dx),
+        onHorizontalDragEnd: (_) => _dropLens(),
+        onHorizontalDragCancel: _dropLens,
+        child: SizedBox(
+          width: tabsWidth,
+          child: Stack(
+            children: [
+              AnimatedBuilder(
+                animation: _$lens,
+                builder: (context, _) {
+                  final index = _dragIndex ?? _activeIndex;
+                  return Positioned(
+                    left: _$lens.value,
+                    top: lens.inset,
+                    width: widths[index] - 2 * lens.inset,
+                    height: lensHeight,
+                    child: GlassSurface(
+                      key: const ValueKey('attach-tab-lens'),
+                      material: GlassMaterial.panelButton,
+                      cornerRadius: lens.radius,
+                      child: const SizedBox.expand(),
+                    ),
+                  );
+                },
+              ),
+              row,
+            ],
+          ),
+        ),
+      );
+    }
     final strip = SingleChildScrollView(
       controller: _$strip,
       scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (var i = 0; i < pages.length; i++)
-            AnimatedBuilder(
-              animation: _$popIn,
-              builder: (context, tab) {
-                final popIn = _style.popIn;
-                if (popIn == null) return tab!;
-                final elapsed = (popIn.delay + popIn.total) * _$popIn.value;
-                final at = popIn.at(i, elapsed - popIn.delay);
-                return Opacity(
-                  opacity: at.opacity.clamp(0.0, 1.0),
-                  child: Transform.scale(
-                    key: ValueKey('attach-tab-pop-${pages[i].id}'),
-                    scale: at.scale,
-                    child: tab,
-                  ),
-                );
-              },
-              child: _Tab(
-                page: pages[i],
-                width: widths[i],
-                selected: pages[i].id == _model.active.value,
-                badges: _style.permissionBadges,
-                onTap: () => _model.select(pages[i].id),
-                palette: palette,
-              ),
-            ),
-        ],
-      ),
+      physics: lens == null ? null : const NeverScrollableScrollPhysics(),
+      child: row,
     );
     final fade = _style.edgeFade;
     final clipped = tabsWidth > barWidth - 2 * _style.innerPadding;
     return Center(
-      child: Container(
-        key: const ValueKey('attach-tab-bar'),
-        width: barWidth,
-        height: _style.height,
-        padding: EdgeInsets.all(_style.innerPadding),
-        decoration: BoxDecoration(
-          color: palette.surfaceRaised,
-          borderRadius: BorderRadius.circular(_style.radius),
-          boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 12)],
+      child: GlassSurface(
+        material: GlassMaterial.composerIsland,
+        cornerRadius: _style.radius,
+        child: Container(
+          key: const ValueKey('attach-tab-bar'),
+          width: barWidth,
+          height: _style.height,
+          padding: EdgeInsets.all(_style.innerPadding),
+          child: fade > 0 && clipped
+              ? ShaderMask(
+                  shaderCallback: (rect) => LinearGradient(
+                    colors: const [
+                      Color(0x00000000),
+                      Color(0xFF000000),
+                      Color(0xFF000000),
+                      Color(0x00000000),
+                    ],
+                    stops: [0, fade / rect.width, 1 - fade / rect.width, 1],
+                  ).createShader(rect),
+                  blendMode: BlendMode.dstIn,
+                  child: strip,
+                )
+              : strip,
         ),
-        child: fade > 0 && clipped
-            ? ShaderMask(
-                shaderCallback: (rect) => LinearGradient(
-                  colors: const [
-                    Color(0x00000000),
-                    Color(0xFF000000),
-                    Color(0xFF000000),
-                    Color(0x00000000),
-                  ],
-                  stops: [0, fade / rect.width, 1 - fade / rect.width, 1],
-                ).createShader(rect),
-                blendMode: BlendMode.dstIn,
-                child: strip,
-              )
-            : strip,
       ),
     );
   }
@@ -267,6 +391,7 @@ class _Tab extends StatelessWidget {
     required this.page,
     required this.width,
     required this.selected,
+    required this.fillsSelected,
     required this.badges,
     required this.onTap,
     required this.palette,
@@ -275,6 +400,7 @@ class _Tab extends StatelessWidget {
   final AttachPage page;
   final double width;
   final bool selected;
+  final bool fillsSelected;
   final bool badges;
   final VoidCallback onTap;
   final ChromePalette palette;
@@ -339,7 +465,7 @@ class _Tab extends StatelessWidget {
         child: Container(
           width: width,
           decoration: BoxDecoration(
-            color: selected ? palette.surfaceSelected : null,
+            color: selected && fillsSelected ? palette.surfaceSelected : null,
             borderRadius: BorderRadius.circular(28),
           ),
           child: Column(

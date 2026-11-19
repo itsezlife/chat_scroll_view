@@ -20,6 +20,7 @@ final class AttachTabBarStyle {
     this.popIn,
     this.edgeFade = 0,
     this.scrollClearance = 0,
+    this.lens,
   });
 
   /// The bar's height.
@@ -58,6 +59,30 @@ final class AttachTabBarStyle {
 
   /// How much room a tapped tab is scrolled clear of the bar's edge.
   final double scrollClearance;
+
+  /// The glass lens under the shown tab, which slides between tabs and
+  /// follows a drag across them; null to mark the shown tab with a fill.
+  final AttachTabLens? lens;
+}
+
+/// The glass lens that marks the shown tab.
+@immutable
+final class AttachTabLens {
+  /// A lens [inset] inside its tab, of corner [radius], sliding on [spring].
+  const AttachTabLens({
+    required this.inset,
+    required this.radius,
+    required this.spring,
+  });
+
+  /// The space between the lens and its tab's edges.
+  final double inset;
+
+  /// The lens's corner radius.
+  final double radius;
+
+  /// The spring it slides to a new tab on.
+  final SpringDescription spring;
 }
 
 /// The staggered pop-in of the tabs: each tab starts [step] later than the

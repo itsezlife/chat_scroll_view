@@ -29,3 +29,9 @@ package is pre-1.0.
   a host page's main button in its place.
 - `AttachOutcome.custom(page, payload)`; `AttachSheetController.restTop`,
   `dismissGuard` and `createScrollController`.
+- iOS grows the sheet (or the wide-screen card) out of the attach button and
+  back into it (`AttachSheetPolicy.morph`, `AttachSheetMorph`) when the host
+  passes the button's rect; the tab bars are glass, and iOS marks the shown
+  tab with a glass lens that slides and follows a drag (`AttachTabLens`).
+- The fling the sheet carries between its rest and its top is
+  `viewport_scroll`'s spline fling.

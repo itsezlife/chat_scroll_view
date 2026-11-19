@@ -5,7 +5,7 @@ send from. It owns the window (scrim, geometry, open and close, drag, expand,
 collapse, dismiss), the **discard guard** and the keyboard hand-off, each by
 a per-platform policy; the content is a page that scrolls on the sheet's
 scroll controller, so one drag moves the sheet and then scrolls the page.
-Depends on `attach_model` and `chrome_foundation`.
+Depends on `attach_model`, `chrome_foundation` and `viewport_scroll` (the page's fling the sheet carries).
 
 Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 
@@ -20,7 +20,7 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | `AttachTabBarStyle`, `AttachTabPopIn`, `AttachTabSwitch` | The tab bar's geometry, hide motion, pop-in and badge rule, and the page switch motion, per policy. |
 | `AttachSheetController` | `AttachSheetController.of(context)` below the sheet: `top`, `isExpanded`, `expand`, `collapse`, `requestDismiss` (asks first with a selection), `close`, `dismissesOnTapAbove`, `panEnabled`. |
 | `AttachSheetPolicy` (`$Android`, `$IOS`) | Geometry, motion, release rule, snap, discard wording, keyboard rules; `forPlatform` / `current`. Not sealed: extend a stock family to change a value. `release` is a pure function of `AttachSheetReleaseInput`. |
-| `AttachSheetMotion` | `spring(SpringDescription)` or `timed(MotionSpec)`. |
+| `AttachSheetMotion`, `AttachSheetMorph` | `spring(SpringDescription)` or `timed(MotionSpec)`; the morph's channels out of and back into the attach button. |
 | `AttachSheetHost`, `AttachSheetOpening` | What the sheet tells its host (`opened`, `closed`, `restoreKeyboard`) and asks (`confirmDiscard`); the opening carries whether the keyboard was up and the attach button's rect. |
 | `AttachDiscardQuestion` | The stock question in the policy's `AttachDiscardWording`. |
 | `AttachOutcome` | `cancelled`, `custom(page, payload)`. |
@@ -43,14 +43,14 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | Top | under the status bar, header fades in over 380 ms, corners square off | under the status bar |
 | Corners, grabber | 12; 36 x 4 at 20, fades with the header | 38 (0 in landscape); 36 x 5 at 5 |
 | Scrim | 51/255, in 400 ms overshoot (0.7) after 20 ms, out 250 ms | 25 %, in 0.3 s linear, out 0.25 s ease in out |
-| Open, close | spring damping ratio 0.75, stiffness 350; close 250 ms ease out | springs of mass 5, stiffness 900, damping 110 |
+| Open, close | slides up on a spring of damping ratio 0.75, stiffness 350; close 250 ms ease out | grows out of the attach button (`AttachSheetOpening.anchor`): position on a spring of damping 110 from 1.1, bounds damping 110, corners 0.2 s, content in over 0.2 s; back in: position 110, bounds and corners 124, content out over 0.12 s. Without a button rect: a slide on damping 110. Springs are mass 5, stiffness 900 |
 | Drag | rises with the page's scroll; pulled down at the page's start | the same hand-off; off while the keyboard is up |
 | Release | below rest: dismiss past 0.8 cm or at 3500 physical px/s, else back over 250 ms per 0.8 cm; between rest and top: fling with the page, snap to the top inside 56 | from rest: dismiss past 60 or down at 300 pt/s, expand up at 300 pt/s or past half the inset, else back over 0.3 s; from the top: dismiss at 1800 pt/s, collapse at 300 pt/s or past half the inset; springs of damping 124 (dismiss 180) |
 | Tap above | dismisses (a page can turn it off) | dismisses |
 | Discard guard | "Discard selection?" on any dismiss with a selection | "Cancel selection?"; a pan past 40 is cancelled into it |
 | Keyboard | back 200 ms after close when it was up | not brought back; caption focus expands |
 | Wide screen | none | a 390 x min(670, available) card above the attach button, scrim 10 % |
-| Tab bar | pill 70 tall, radius 28, 7 inside, 11 from the sides; tab = label + 16 a side (8 from a 56 label), at most 84, spare room shared; 8 edge fade; a tapped tab scrolled 70 clear | capsule 62; 160 / 240 / 300 wide for 2 / 3 / 4 tabs, else the screen less 22 a side |
+| Tab bar | glass pill 70 tall, radius 28, 7 inside, 11 from the sides, the shown tab filled; tab = label + 16 a side (8 from a 56 label), at most 84, spare room shared; 8 edge fade; a tapped tab scrolled 70 clear | glass capsule 62; 160 / 240 / 300 wide for 2 / 3 / 4 tabs, else the screen less 22 a side; a glass lens 3 inside the shown tab (radius 28) slides between tabs on a spring of damping 88 and follows a drag across them |
 | Tab pop-in | staggered 32 ms (the fourth tab first), 0 to 1.1 in 200 ms, 1.1 to 1 in 100 ms, after 20 ms | none |
 | With a selection | the bar drops 36 and fades over 180 ms | fades over 0.1 s and shrinks to 0.85; back over 0.25 s |
 | Tab switch | old page drops 78 and fades over 180 ms, then the new one springs up from 78 (ratio 0.75, stiffness 500); taps wait | 0.23 s cross-fade, the new page rising 10 on a spring of damping 70 |

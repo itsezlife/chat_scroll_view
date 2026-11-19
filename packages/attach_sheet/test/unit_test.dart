@@ -14,6 +14,7 @@ import 'policy/attach_sheet_policy_test.dart' as attach_sheet_policy_test;
 import 'sheet/attach_sheet_android_test.dart' as attach_sheet_android_test;
 import 'sheet/attach_sheet_golden_test.dart' as attach_sheet_golden_test;
 import 'sheet/attach_sheet_ios_test.dart' as attach_sheet_ios_test;
+import 'sheet/attach_sheet_morph_test.dart' as attach_sheet_morph_test;
 
 void main() {
   group('page/attach_page_test.dart', attach_page_test.main);
@@ -22,4 +23,5 @@ void main() {
   group('sheet/attach_sheet_android_test.dart', attach_sheet_android_test.main);
   group('sheet/attach_sheet_golden_test.dart', attach_sheet_golden_test.main);
   group('sheet/attach_sheet_ios_test.dart', attach_sheet_ios_test.main);
+  group('sheet/attach_sheet_morph_test.dart', attach_sheet_morph_test.main);
 }

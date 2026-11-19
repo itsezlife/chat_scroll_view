@@ -177,4 +177,46 @@ void main() {
       const MotionSpec(Duration(milliseconds: 100), Curves.linear),
     );
   });
+
+  group('iOS lens', () {
+    double lensLeft(WidgetTester tester) =>
+        tester.getTopLeft(find.byKey(const ValueKey('attach-tab-lens'))).dx;
+
+    testWidgets('sits 3 inside the shown tab and slides to a tapped one', (
+      tester,
+    ) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: ios,
+        pages: [rowsPage('gallery'), rowsPage('files'), rowsPage('music')],
+      );
+      final bar = tester.getRect(find.byKey(const ValueKey('attach-tab-bar')));
+      expect(bar.width, 240);
+      final lens = find.byKey(const ValueKey('attach-tab-lens'));
+      expect(tester.getSize(lens), const Size(74, 56));
+      expect(lensLeft(tester) - bar.left, closeTo(3, 0.01));
+
+      await rig.tapTab('music');
+      expect(lensLeft(tester) - bar.left, closeTo(163, 0.5));
+    });
+
+    testWidgets('a drag across the tabs moves it and selects where it ends', (
+      tester,
+    ) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: ios,
+        pages: [rowsPage('gallery'), rowsPage('files'), rowsPage('music')],
+      );
+      await tester.drag(rig.tab('gallery'), const Offset(90, 0));
+      await tester.pumpAndSettle();
+      expect(rig.shows('files'), isTrue);
+    });
+
+    test('Android marks the shown tab with a fill, not a lens', () {
+      expect(android.tabBar.lens, isNull);
+      expect(ios.tabBar.lens!.radius, 28);
+      expect(ios.tabBar.lens!.inset, 3);
+    });
+  });
 }

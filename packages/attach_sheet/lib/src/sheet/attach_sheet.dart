@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
@@ -204,6 +205,23 @@ class _AttachSheetState extends State<AttachSheet>
   );
   late final AnimationController _$dim = AnimationController(vsync: this);
   late final AnimationController _$header = AnimationController(vsync: this);
+
+  // The morph out of the attach button: 0 at the button, 1 at the sheet.
+  late final AnimationController _$morphPosition =
+      AnimationController.unbounded(vsync: this, value: 1);
+  late final AnimationController _$morphBounds = AnimationController.unbounded(
+    vsync: this,
+    value: 1,
+  );
+  late final AnimationController _$morphCorners = AnimationController.unbounded(
+    vsync: this,
+    value: 1,
+  );
+  late final AnimationController _$morphContent = AnimationController(
+    vsync: this,
+    value: 1,
+  );
+  bool _morphing = false;
   late final AttachSheetScrollController _$scroll = AttachSheetScrollController(
     this,
   );
@@ -276,6 +294,10 @@ class _AttachSheetState extends State<AttachSheet>
     _$top.dispose();
     _$dim.dispose();
     _$header.dispose();
+    _$morphPosition.dispose();
+    _$morphBounds.dispose();
+    _$morphCorners.dispose();
+    _$morphContent.dispose();
     super.dispose();
   }
 
@@ -322,11 +344,15 @@ class _AttachSheetState extends State<AttachSheet>
     final dimOut = _policy.dimOut.withSpeed(_speed);
     _dimCurve = dimOut.curve;
     unawaited(_$dim.animateBack(0, duration: dimOut.duration));
-    final end = _card == null ? _size.height + 10 : _size.height;
-    final motion = velocity == 0
-        ? _policy.closeMotion
-        : _policy.settleMotion(AttachSheetRelease.dismiss);
-    await _moveTo(end, motion, velocity: velocity);
+    if (velocity == 0 && _morph != null && !_speed.isInstant) {
+      await _morphBack(_morph!);
+    } else {
+      final end = _card == null ? _size.height + 10 : _size.height;
+      final motion = velocity == 0
+          ? _policy.closeMotion
+          : _policy.settleMotion(AttachSheetRelease.dismiss);
+      await _moveTo(end, motion, velocity: velocity);
+    }
     if (!mounted) return;
     final opening = widget.opening;
     final host = widget.host;
@@ -381,8 +407,13 @@ class _AttachSheetState extends State<AttachSheet>
   void _open() {
     _opened = true;
     widget.host.opened(widget.opening);
-    _$top.value = _size.height;
-    unawaited(_moveTo(_collapsedTop, _policy.openMotion));
+    if (_morph case final morph? when !_speed.isInstant) {
+      _$top.value = _collapsedTop;
+      unawaited(_morphOut(morph));
+    } else {
+      _$top.value = _size.height;
+      unawaited(_moveTo(_collapsedTop, _policy.openMotion));
+    }
     final dimIn = _policy.dimIn.withSpeed(_speed);
     _dimCurve = dimIn.curve;
     void fadeIn() => _$dim.animateTo(1, duration: dimIn.duration);
@@ -393,6 +424,122 @@ class _AttachSheetState extends State<AttachSheet>
       _$dimDelay = Timer(delay, fadeIn);
     }
   }
+
+  /// The morph to run: the policy's, when the host gave the attach button's
+  /// rect.
+  AttachSheetMorph? get _morph =>
+      widget.opening.anchor == null ? null : _policy.morph;
+
+  Future<void> _morphOut(AttachSheetMorph morph) async {
+    setState(() => _morphing = true);
+    _$morphPosition.value = 0;
+    _$morphBounds.value = 0;
+    _$morphCorners.value = 0;
+    _$morphContent.value = 0;
+    final corners = morph.openCorners.withSpeed(_speed);
+    final content = morph.openContent.withSpeed(_speed);
+    unawaited(
+      _$morphCorners.animateTo(
+        1,
+        duration: corners.duration,
+        curve: corners.curve,
+      ),
+    );
+    unawaited(
+      _$morphContent.animateTo(
+        1,
+        duration: content.duration,
+        curve: content.curve,
+      ),
+    );
+    await _settle([
+      _$morphPosition.animateWith(
+        SpringSimulation(morph.openPosition, 0, 1, morph.openPositionVelocity),
+      ),
+      _$morphBounds.animateWith(SpringSimulation(morph.openBounds, 0, 1, 0)),
+    ]);
+    if (!mounted || _closing) return;
+    _$morphPosition.value = 1;
+    _$morphBounds.value = 1;
+    _$morphCorners.value = 1;
+    setState(() => _morphing = false);
+  }
+
+  /// Shrinks the sheet back into the attach button from wherever its
+  /// channels are, keeping their velocities, so a close that interrupts the
+  /// open reverses it.
+  Future<void> _morphBack(AttachSheetMorph morph) async {
+    setState(() => _morphing = true);
+    final content = morph.closeContent.withSpeed(_speed);
+    unawaited(
+      _$morphContent.animateTo(
+        0,
+        duration: content.duration,
+        curve: content.curve,
+      ),
+    );
+    SpringSimulation back(AnimationController c, SpringDescription spring) =>
+        SpringSimulation(spring, c.value, 0, c.velocity);
+    await _settle([
+      _$morphPosition.animateWith(back(_$morphPosition, morph.closePosition)),
+      _$morphBounds.animateWith(back(_$morphBounds, morph.closeBounds)),
+      _$morphCorners.animateWith(back(_$morphCorners, morph.closeCorners)),
+    ]);
+  }
+
+  /// Waits for every ticker; a cancelled one counts as settled.
+  static Future<void> _settle(List<TickerFuture> tickers) async {
+    for (final ticker in tickers) {
+      try {
+        await ticker.orCancel;
+      } on TickerCanceled {
+        continue;
+      }
+    }
+  }
+
+  /// [target] as the morph draws it now: between the attach button's rect
+  /// and [target] by the position and bounds channels.
+  Rect _morphed(Rect target) {
+    final anchor = widget.opening.anchor;
+    if (!_morphing || anchor == null) return target;
+    final center = Offset.lerp(
+      anchor.center,
+      target.center,
+      _$morphPosition.value,
+    )!;
+    final width = lerpDouble(anchor.width, target.width, _$morphBounds.value)!;
+    final height = lerpDouble(
+      anchor.height,
+      target.height,
+      _$morphBounds.value,
+    )!;
+    return Rect.fromCenter(
+      center: center,
+      width: math.max(0, width),
+      height: math.max(0, height),
+    );
+  }
+
+  /// [radius] as the morph draws it now: from the button's round end.
+  double _morphedRadius(double radius) {
+    final anchor = widget.opening.anchor;
+    if (!_morphing || anchor == null) return radius;
+    return math.max(
+      0,
+      lerpDouble(anchor.shortestSide / 2, radius, _$morphCorners.value)!,
+    );
+  }
+
+  double get _contentOpacity =>
+      _morphing ? _$morphContent.value.clamp(0.0, 1.0) : 1;
+
+  Listenable get _morphChannels => Listenable.merge([
+    _$morphPosition,
+    _$morphBounds,
+    _$morphCorners,
+    _$morphContent,
+  ]);
 
   void _syncHeader() {
     final fade = _policy.headerFade;
@@ -412,6 +559,7 @@ class _AttachSheetState extends State<AttachSheet>
   bool get takesDrags =>
       _opened &&
       !_closing &&
+      !_morphing &&
       _card == null &&
       panEnabled &&
       !(_policy.panDisabledWithKeyboard && _keyboardUp);
@@ -641,31 +789,51 @@ class _AttachSheetState extends State<AttachSheet>
       child: Builder(builder: (context) => widget.builder(context, _$scroll)),
     );
     return AnimatedBuilder(
-      animation: Listenable.merge([_$top, _$header]),
+      animation: Listenable.merge([_$top, _$header, _morphChannels]),
       child: content,
       builder: (context, content) {
         final top = _shownTop;
         final pinned = _$header.value;
-        final corner = squares ? radius * (1 - pinned) : radius;
-        return Positioned(
+        final target = Rect.fromLTWH(
+          0,
+          top,
+          _size.width,
+          math.max(0, _size.height - top),
+        );
+        final rect = _morphed(target);
+        final corner = _morphedRadius(squares ? radius * (1 - pinned) : radius);
+        // Growing out of the button the sheet is round at every corner;
+        // at rest only its top corners are.
+        final radii = _morphing
+            ? BorderRadius.circular(corner)
+            : BorderRadius.vertical(top: Radius.circular(corner));
+        return Positioned.fromRect(
           key: const ValueKey('attach-sheet'),
-          left: 0,
-          right: 0,
-          top: top,
-          height: math.max(0, _size.height - top),
+          rect: rect,
           child: ClipRRect(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(corner)),
+            borderRadius: radii,
             child: ColoredBox(
               color: tokens.background,
               child: Stack(
                 children: [
                   // The sheet starts below the status bar: its content
-                  // takes no top inset.
+                  // takes no top inset. While it morphs the content keeps
+                  // the sheet's size and fades in.
                   Positioned.fill(
-                    child: MediaQuery.removePadding(
-                      context: context,
-                      removeTop: true,
-                      child: content!,
+                    child: Opacity(
+                      opacity: _contentOpacity,
+                      child: OverflowBox(
+                        alignment: Alignment.topCenter,
+                        minWidth: target.width,
+                        maxWidth: target.width,
+                        minHeight: target.height,
+                        maxHeight: target.height,
+                        child: MediaQuery.removePadding(
+                          context: context,
+                          removeTop: true,
+                          child: content!,
+                        ),
+                      ),
                     ),
                   ),
                   if (grabber != null)
@@ -719,16 +887,19 @@ class _AttachSheetState extends State<AttachSheet>
   }
 
   Widget _barLayer(Widget bar) => AnimatedBuilder(
-    animation: _$top,
+    animation: Listenable.merge([_$top, _morphChannels]),
     child: bar,
     builder: (context, bar) => Positioned(
       key: const ValueKey('attach-sheet-bar'),
       left: 0,
       right: 0,
       bottom: 0,
-      child: Transform.translate(
-        offset: Offset(0, math.max(0, _shownTop - _collapsedTop)),
-        child: bar,
+      child: Opacity(
+        opacity: _contentOpacity,
+        child: Transform.translate(
+          offset: Offset(0, math.max(0, _shownTop - _collapsedTop)),
+          child: bar,
+        ),
       ),
     ),
   );
@@ -736,7 +907,7 @@ class _AttachSheetState extends State<AttachSheet>
   Widget _cardLayer(Rect card, AttachTokens tokens) {
     final radius = _policy.cornerRadius;
     return AnimatedBuilder(
-      animation: _$top,
+      animation: Listenable.merge([_$top, _morphChannels]),
       child: PrimaryScrollController(
         controller: _$scroll,
         child: Builder(builder: (context) => widget.builder(context, _$scroll)),
@@ -745,25 +916,36 @@ class _AttachSheetState extends State<AttachSheet>
         // The card rises from the bottom edge on the sheet's motion; its
         // contents fade with the distance left.
         final travel = (_size.height - card.top).clamp(1, double.infinity);
-        final shown = (1 - (_shownTop - card.top) / travel).clamp(0.0, 1.0);
-        return Positioned(
+        final risen = (1 - (_shownTop - card.top) / travel).clamp(0.0, 1.0);
+        final rect = _morphed(card.shift(Offset(0, _shownTop - card.top)));
+        final corner = _morphedRadius(radius);
+        return Positioned.fromRect(
           key: const ValueKey('attach-sheet-card'),
-          left: card.left,
-          top: _shownTop,
-          width: card.width,
-          height: card.height,
+          rect: rect,
           child: Opacity(
-            opacity: shown,
+            opacity: _morphing ? 1 : risen,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(radius),
+                borderRadius: BorderRadius.circular(corner),
                 boxShadow: const [
                   BoxShadow(color: Color(0x4D000000), blurRadius: 80),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(radius),
-                child: ColoredBox(color: tokens.background, child: content),
+                borderRadius: BorderRadius.circular(corner),
+                child: ColoredBox(
+                  color: tokens.background,
+                  child: Opacity(
+                    opacity: _contentOpacity,
+                    child: OverflowBox(
+                      minWidth: card.width,
+                      maxWidth: card.width,
+                      minHeight: card.height,
+                      maxHeight: card.height,
+                      child: content,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

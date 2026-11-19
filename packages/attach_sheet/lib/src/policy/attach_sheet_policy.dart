@@ -94,6 +94,53 @@ enum AttachDiscardWording {
   cancelSelection,
 }
 
+/// How the sheet grows out of the attach button and back into it: each
+/// channel (the position of its middle, its bounds, its corners, its
+/// content's opacity) on its own spring or clock, from 0 at the button to 1
+/// at the sheet.
+@immutable
+final class AttachSheetMorph {
+  /// A morph.
+  const AttachSheetMorph({
+    required this.openPosition,
+    required this.openPositionVelocity,
+    required this.openBounds,
+    required this.openCorners,
+    required this.openContent,
+    required this.closePosition,
+    required this.closeBounds,
+    required this.closeCorners,
+    required this.closeContent,
+  });
+
+  /// The middle moving out of the button.
+  final SpringDescription openPosition;
+
+  /// The position's starting velocity, in morphs per second.
+  final double openPositionVelocity;
+
+  /// The bounds growing.
+  final SpringDescription openBounds;
+
+  /// The corners going from the button's to the sheet's.
+  final MotionSpec openCorners;
+
+  /// The content fading in.
+  final MotionSpec openContent;
+
+  /// The middle moving back into the button.
+  final SpringDescription closePosition;
+
+  /// The bounds shrinking.
+  final SpringDescription closeBounds;
+
+  /// The corners going back to the button's.
+  final SpringDescription closeCorners;
+
+  /// The content fading out.
+  final MotionSpec closeContent;
+}
+
 /// The grabber pill at the sheet's top edge.
 @immutable
 final class AttachSheetGrabber {
@@ -233,6 +280,11 @@ abstract base class AttachSheetPolicy {
 
   /// How the sheet falls off the bottom edge when it closes.
   AttachSheetMotion get closeMotion;
+
+  /// How the sheet grows out of the attach button and shrinks back into it,
+  /// when the host gives the button's rect; null to slide from the bottom
+  /// edge instead.
+  AttachSheetMorph? get morph => null;
 
   /// The scrim fading in.
   MotionSpec get dimIn;
@@ -562,7 +614,26 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
   @override
   double get cardDimOpacity => 0.1;
 
-  /// A slide from the bottom on a spring of damping 110.
+  /// Out of the attach button: the position on a spring of damping 110
+  /// starting at 1.1, the bounds on a spring of damping 110, the corners over
+  /// 0.2 s, the content fading in over 0.2 s; back in: the position on
+  /// damping 110, the bounds and corners on damping 124, the content out over
+  /// 0.12 s.
+  @override
+  AttachSheetMorph? get morph => const AttachSheetMorph(
+    openPosition: SpringDescription(mass: 5, stiffness: 900, damping: 110),
+    openPositionVelocity: 1.1,
+    openBounds: SpringDescription(mass: 5, stiffness: 900, damping: 110),
+    openCorners: MotionSpec(Duration(milliseconds: 200), Curves.easeInOut),
+    openContent: MotionSpec(Duration(milliseconds: 200), Curves.linear),
+    closePosition: SpringDescription(mass: 5, stiffness: 900, damping: 110),
+    closeBounds: SpringDescription(mass: 5, stiffness: 900, damping: 124),
+    closeCorners: SpringDescription(mass: 5, stiffness: 900, damping: 124),
+    closeContent: MotionSpec(Duration(milliseconds: 120), Curves.linear),
+  );
+
+  /// A slide from the bottom on a spring of damping 110, when there is no
+  /// attach button to grow out of.
   @override
   AttachSheetMotion get openMotion => const AttachSheetMotion.spring(
     SpringDescription(mass: 5, stiffness: 900, damping: 110),
@@ -660,12 +731,17 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
   AttachTabBarStyle get tabBar => const AttachTabBarStyle(
     height: 62,
     radius: 31,
-    innerPadding: 3,
+    innerPadding: 0,
     sidePadding: 22,
     hideMotion: MotionSpec(Duration(milliseconds: 100), Curves.linear),
     showMotion: MotionSpec(Duration(milliseconds: 250), Curves.easeInOut),
     hideScale: 0.85,
     permissionBadges: false,
+    lens: AttachTabLens(
+      inset: 3,
+      radius: 28,
+      spring: SpringDescription(mass: 5, stiffness: 900, damping: 88),
+    ),
   );
 
   /// The bar is 160 wide for two tabs, 240 for three, 300 for four, else the
