@@ -18,3 +18,12 @@ package is pre-1.0.
 - `AttachPolicy` with the `$Android`, `$IOS`, `$Desktop` and `$Web` families
   and `forPlatform`; the selection cap is 100 on mobile and none on desktop
   and web.
+- `planSend`: the pure send plan with each family's grouping and caption
+  rules (groups of ten, form changes, timers and animations alone, the
+  batch-wide breaks, the caption's place, a text caption ahead on the web)
+  and typed rejections.
+- `SendOptions`, `SendRequest`, `SendSchedule`; `SendOptionVisibility` for
+  the options a menu or box shows; `SendOptionStore` over `KeyValueStore`
+  with per-family persistence (desktop only on Remember, web never).
+- `AttachPolicyContract` checks every plan sends each item once, in order,
+  with one caption.
