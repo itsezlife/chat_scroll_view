@@ -23,6 +23,29 @@ dependencies:
   flutter:
     sdk: flutter
   meta: ^1.17.0
+  # mpx (github.com/itsezlife/mpx), pinned to one commit as in every pubspec:
+  # preparation and the camera, the media cache's keys and views, the device
+  # library and file intake, the library grid (ADR 046).
+  mpx_capture:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_capture
+      ref: 2ccb08a1ad98cfdf4cdd32916c1e13181690c4f6
+  mpx_core:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_core
+      ref: 2ccb08a1ad98cfdf4cdd32916c1e13181690c4f6
+  mpx_library:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_library
+      ref: 2ccb08a1ad98cfdf4cdd32916c1e13181690c4f6
+  mpx_ui:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_ui
+      ref: 2ccb08a1ad98cfdf4cdd32916c1e13181690c4f6
   # The page's fling, run by the sheet between its rest and its top.
   viewport_scroll:
     path: ../viewport_scroll

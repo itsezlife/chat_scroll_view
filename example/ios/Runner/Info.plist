@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Lets you pick photos and videos to send.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Lets you take a photo or a video to send.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Records the sound of the videos you take.</string>
 </dict>
 </plist>
