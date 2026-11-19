@@ -19,6 +19,9 @@ dependencies:
   flutter:
     sdk: flutter
   meta: ^1.17.0
+  # The page's fling, run by the sheet between its rest and its top.
+  viewport_scroll:
+    path: ../viewport_scroll
 
 dev_dependencies:
   # Golden baselines are the CI runner's: compared and regenerated there only.

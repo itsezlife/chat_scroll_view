@@ -12,6 +12,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
+import 'package:viewport_scroll/engine.dart';
 
 /// Builds the sheet's content: the page, over the sheet's [scrollController]
 /// (also the `PrimaryScrollController` below the sheet).
@@ -521,7 +522,7 @@ class _AttachSheetState extends State<AttachSheet>
         start: _$top.value,
         min: _expandedTop,
         max: _collapsedTop,
-        fling: ClampingScrollSimulation(position: 0, velocity: velocity),
+        fling: ViewportSplineFlingSimulation(velocity: velocity),
       );
       try {
         await _$top.animateWith(fling).orCancel;
@@ -772,8 +773,9 @@ class _AttachSheetState extends State<AttachSheet>
   }
 }
 
-/// A fling of the sheet's top (the page's own Android-style deceleration) from [start], stopped at [min] (the
-/// top) or [max] (the rest).
+/// The page's fling, the platform list's spline deceleration, carried by
+/// the sheet's top from [start] and stopped at [min] (the top) or [max] (the
+/// rest).
 class _SheetFling extends Simulation {
   _SheetFling({
     required this.start,
@@ -785,7 +787,7 @@ class _SheetFling extends Simulation {
   final double start;
   final double min;
   final double max;
-  final ClampingScrollSimulation fling;
+  final ViewportSplineFlingSimulation fling;
 
   bool hitMin = false;
   bool _hitMax = false;
