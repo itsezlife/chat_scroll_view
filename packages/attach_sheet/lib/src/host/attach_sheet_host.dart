@@ -1,4 +1,6 @@
+import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/host/attach_discard_question.dart';
+import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:flutter/widgets.dart';
 
@@ -26,7 +28,8 @@ final class AttachSheetOpening {
 /// it needs: [opened] and [closed] to park its input method and panel
 /// presentation while the sheet is up, [restoreKeyboard] to raise the
 /// keyboard again, and [confirmDiscard] to ask the discard question in its
-/// own dialog.
+/// own dialog, [interaction] for feedback, [pickSchedule] for its schedule
+/// picker and [openExternalPicker] for the platform's own picker.
 base class AttachSheetHost {
   /// A host that does nothing on open and close and asks the stock
   /// question.
@@ -37,6 +40,17 @@ base class AttachSheetHost {
 
   /// The sheet finished closing.
   void closed(AttachSheetOpening opening) {}
+
+  /// The sheet did [interaction]; the host gives its own feedback.
+  void interaction(AttachInteraction interaction) {}
+
+  /// Asks the user when to send, in the host's picker; null when they
+  /// cancel. The default offers no picker.
+  Future<SendSchedule?> pickSchedule(BuildContext context) async => null;
+
+  /// Opens the platform's own picker (the overflow menu's "open in an
+  /// external app"); the host adds what comes back.
+  void openExternalPicker() {}
 
   /// Raise the keyboard again: the sheet closed and the policy brings back
   /// a keyboard that was up at open.

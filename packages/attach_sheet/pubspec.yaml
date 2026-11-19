@@ -14,8 +14,12 @@ environment:
 dependencies:
   attach_model:
     path: ../attach_model
+  chat_composer:
+    path: ../chat_composer
   chrome_foundation:
     path: ../chrome_foundation
+  content_model:
+    path: ../content_model
   flutter:
     sdk: flutter
   meta: ^1.17.0

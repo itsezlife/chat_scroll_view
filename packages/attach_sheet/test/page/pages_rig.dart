@@ -2,6 +2,7 @@ import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
+import 'package:content_model/content_model.dart' as content;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -46,15 +47,17 @@ final class PagesRig {
     AttachPageId? initial,
     Size size = const Size(400, 800),
     bool settle = true,
+    AttachSheetHost host = const AttachSheetHost(),
+    AttachPolicy attachPolicy = const AttachPolicy.android(),
+    AttachLimits limits = const AttachLimits(),
+    content.RichText initialCaption = content.RichText.empty,
+    SendOptionStore? optionStore,
   }) async {
     tester.view
       ..physicalSize = size * 3
       ..devicePixelRatio = 3;
     addTearDown(tester.view.reset);
-    final selection = AttachSelection(
-      policy: const AttachPolicy.android(),
-      limits: const AttachLimits(),
-    );
+    final selection = AttachSelection(policy: attachPolicy, limits: limits);
     final rig = PagesRig._(tester, selection);
     await tester.pumpWidget(
       MaterialApp(
@@ -81,6 +84,9 @@ final class PagesRig {
                   policy: policy,
                   selection: selection,
                   pages: AttachPageRegistry(pages, initial: initial),
+                  host: host,
+                  initialCaption: initialCaption,
+                  optionStore: optionStore,
                 );
               },
               child: const SizedBox(width: 40, height: 40),

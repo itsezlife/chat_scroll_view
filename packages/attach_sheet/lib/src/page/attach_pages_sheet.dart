@@ -5,14 +5,17 @@ import 'package:attach_sheet/src/host/attach_sheet_host.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/page/attach_page_scope.dart';
 import 'package:attach_sheet/src/page/attach_tab_bar.dart';
+import 'package:attach_sheet/src/panel/attach_panel.dart';
+import 'package:attach_sheet/src/panel/attach_send_controller.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:attach_sheet/src/policy/attach_tab_bar_style.dart';
 import 'package:attach_sheet/src/sheet/attach_outcome.dart';
 import 'package:attach_sheet/src/sheet/attach_sheet.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/widgets.dart' hide RichText;
 
 /// The sheet with its pages: the page area as the content, the tab bar (or
 /// a host page's main button) as the bottom bar, the shown page's header
@@ -27,8 +30,16 @@ class AttachPagesSheet extends StatefulWidget {
     required this.host,
     required this.opening,
     required this.onClosed,
+    this.initialCaption = RichText.empty,
+    this.optionStore,
     super.key,
   });
+
+  /// The composer's text, moved into the caption.
+  final RichText initialCaption;
+
+  /// Where the send options are remembered; null for nowhere.
+  final SendOptionStore? optionStore;
 
   /// The sheet's policy.
   final AttachSheetPolicy policy;
@@ -53,17 +64,37 @@ class AttachPagesSheet extends StatefulWidget {
 }
 
 class _AttachPagesSheetState extends State<AttachPagesSheet> {
+  late final AttachSendController _$send = AttachSendController(
+    selection: widget.selection,
+    policy: widget.policy,
+    host: widget.host,
+    initialCaption: widget.initialCaption,
+    store: widget.optionStore,
+    onSend: (request) =>
+        unawaited(_$model.sheet.close(AttachOutcome.send(request))),
+  );
+
   late final AttachPagesModel _$model = AttachPagesModel(
     policy: widget.policy,
     selection: widget.selection,
     pages: widget.pages,
+    send: _$send,
   );
 
   @override
   void dispose() {
     _$model.dispose();
+    _$send.dispose();
     super.dispose();
   }
+
+  /// A cancel hands the caption back to the composer.
+  void _closed(AttachOutcome outcome) => widget.onClosed(switch (outcome) {
+    AttachOutcome$Cancelled() => AttachOutcome.cancelled(
+      _$send.caption.richText,
+    ),
+    _ => outcome,
+  });
 
   @override
   Widget build(BuildContext context) => AttachSheet(
@@ -71,12 +102,18 @@ class _AttachPagesSheetState extends State<AttachPagesSheet> {
     selection: widget.selection,
     host: widget.host,
     opening: widget.opening,
-    onClosed: widget.onClosed,
+    onClosed: _closed,
     header: ValueListenableBuilder<Widget?>(
       valueListenable: _$model.header,
       builder: (context, header, _) => header ?? const SizedBox.shrink(),
     ),
-    bottomBar: AttachTabBar(model: _$model),
+    bottomBar: Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        AttachTabBar(model: _$model),
+        AttachPanelReveal(controller: _$send),
+      ],
+    ),
     builder: (context, _) => _AttachPageArea(model: _$model),
   );
 }
@@ -90,7 +127,11 @@ final class AttachPagesModel {
     required this.policy,
     required this.selection,
     required this.pages,
+    required this.send,
   }) : active = ValueNotifier(pages.initial);
+
+  /// The panel's state, shared by every page.
+  final AttachSendController send;
 
   /// The sheet's policy.
   final AttachSheetPolicy policy;
@@ -227,6 +268,9 @@ final class PageSlot implements AttachPageScope {
 
   @override
   final ScrollController scrollController;
+
+  @override
+  AttachSendController get panel => _model.send;
 
   @override
   void requestExpansion() => unawaited(_model.sheet.expand());

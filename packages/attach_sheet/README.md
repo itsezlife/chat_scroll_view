@@ -5,7 +5,7 @@ send from. It owns the window (scrim, geometry, open and close, drag, expand,
 collapse, dismiss), the **discard guard** and the keyboard hand-off, each by
 a per-platform policy; the content is a page that scrolls on the sheet's
 scroll controller, so one drag moves the sheet and then scrolls the page.
-Depends on `attach_model`, `chrome_foundation` and `viewport_scroll` (the page's fling the sheet carries).
+Depends on `attach_model`, `chat_composer` (the caption field), `chrome_foundation`, `content_model` and `viewport_scroll` (the page's fling the sheet carries).
 
 Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 
@@ -23,7 +23,11 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | `AttachSheetMotion`, `AttachSheetMorph` | `spring(SpringDescription)` or `timed(MotionSpec)`; the morph's channels out of and back into the attach button. |
 | `AttachSheetHost`, `AttachSheetOpening` | What the sheet tells its host (`opened`, `closed`, `restoreKeyboard`) and asks (`confirmDiscard`); the opening carries whether the keyboard was up and the attach button's rect. |
 | `AttachDiscardQuestion` | The stock question in the policy's `AttachDiscardWording`. |
-| `AttachOutcome` | `cancelled`, `custom(page, payload)`. |
+| `AttachSendController` | The **attach panel**'s state, one per open: the caption (`ComposerController`, the host's composer text at open), the `SendOptions` (restored from a `SendOptionStore`, saved on send), the send and overflow entries that show (`sendMenu`, `overflow`), `send`, `runSendMenu`, `runOverflow`. A page reaches it as `AttachPageScope.panel`. |
+| `AttachCaptionBar`, `AttachSendButton`, `AttachPanelReveal`, `AttachOverflowButton`, `AttachMenu` | The caption field with its counter and the counter send button (tap sends, long press opens the send menu); the panel taking the tab bar's place while something is selected; the header's overflow button; the small menu both open. |
+| `AttachPanelStyle`, `AttachCountBounce`, `AttachSendMenuItem`, `AttachOverflowItem`, `AttachHaptic` | The panel's values per policy. |
+| `AttachInteraction` | `captionTooLong(over:)`, `refused(reason)`: what the host gives feedback for. |
+| `AttachOutcome` | `cancelled(caption)`, `send(request)`, `custom(page, payload)`. |
 
 ## Host contract
 
@@ -33,6 +37,9 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | Open | Parks its keyboard and panel, then `AttachSheet.show` with `AttachSheetOpening(keyboardWasUp:, anchor:)` and the open's `AttachSelection`. |
 | Keyboard | Raises the keyboard in `restoreKeyboard` when the policy brings it back. |
 | Pages | Builds an `AttachPageRegistry` per open from its rights; each page builds a vertical scrollable on `scope.scrollController`. Pages are built the first time their tab shows and kept for the open. |
+| Caption move | Passes its composer text as `initialCaption`; on `cancelled(caption)` puts the caption back in the composer; on `send(request)` clears the composer and plans the request (`planSend`). |
+| Options | Passes a `SendOptionStore` built for the selection's attach policy. |
+| Feedback | `AttachSheetHost.interaction` (a caption over the limit), `pickSchedule` (its schedule picker), `openExternalPicker`. |
 | Outcome | Reads `AttachOutcome.custom(page, payload)` from a host page. |
 
 ## Rules and values
@@ -56,3 +63,10 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | Tab switch | old page drops 78 and fades over 180 ms, then the new one springs up from 78 (ratio 0.75, stiffness 500); taps wait | 0.23 s cross-fade, the new page rising 10 on a spring of damping 70 |
 | Re-tap, single tab | scrolls the page to the top and expands; one tab collapses the bar | same |
 | Permission badge | "!" on a tab whose page lacks its permission; a tap asks for it | none |
+| Panel swap | the caption fades in and Send grows from 0.2 over 180 ms (decelerate) | the panel rises 44 and fades in over 0.25 s |
+| Caption counter | at 100 left | under 5 left |
+| Over the limit | shake, key-tap haptic, `captionTooLong`, nothing sent | shake, error haptic, `captionTooLong`, nothing sent |
+| Count bounce | from 0.9 over 180 ms (overshoot) | to 1.2 (up) or 0.8 (down) over 0.1 s, back over 0.1 s |
+| Send menu (long press) | without sound, schedule, caption above | without sound, schedule, when online, caption above |
+| Overflow | open in external app (nothing selected), send as file(s), without grouping, spoiler, high / standard quality, caption above | send as file(s) (no spoiler), send in HD, without grouping, caption up / down, spoiler |
+| Hidden | schedule with any timer or without the right; caption above without a caption or with a file | same |

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:attach_sheet/src/policy/attach_panel_style.dart';
 import 'package:attach_sheet/src/policy/attach_tab_bar_style.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/animation.dart';
@@ -351,6 +352,12 @@ abstract base class AttachSheetPolicy {
 
   /// How the page area changes on a tab switch.
   AttachTabSwitch get tabSwitch;
+
+  // --- Panel ---
+
+  /// The caption field and send button that take the tab bar's place while
+  /// something is selected.
+  AttachPanelStyle get panel;
 }
 
 // --- Stock families ---
@@ -542,6 +549,39 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
       stiffness: 500,
       ratio: 0.75,
     ),
+  );
+
+  /// The counter at 100 left, a key tap on a refused send; the caption and a
+  /// send button growing from 0.2 come in over 180 ms (decelerate); the count
+  /// bounces from 0.9 over 180 ms (overshoot). The send menu: without sound,
+  /// schedule, caption above; the header menu: open in an external app, send
+  /// as files, without grouping, spoiler, quality, caption above.
+  @override
+  AttachPanelStyle get panel => const AttachPanelStyle(
+    counterRemaining: 100,
+    overLimitHaptic: AttachHaptic.keyboardTap,
+    reveal: MotionSpec(Duration(milliseconds: 180), Curves.decelerate),
+    revealRise: 0,
+    sendButtonFromScale: 0.2,
+    countBounce: AttachCountBounce(
+      up: 0.9,
+      down: 0.9,
+      back: MotionSpec(Duration(milliseconds: 180), OvershootCurve()),
+    ),
+    sendMenu: [
+      AttachSendMenuItem.silent,
+      AttachSendMenuItem.schedule,
+      AttachSendMenuItem.captionAbove,
+    ],
+    overflow: [
+      AttachOverflowItem.openExternal,
+      AttachOverflowItem.sendAsFiles,
+      AttachOverflowItem.withoutGrouping,
+      AttachOverflowItem.spoiler,
+      AttachOverflowItem.quality,
+      AttachOverflowItem.captionAbove,
+    ],
+    sendButtonSize: 56,
   );
 }
 
@@ -766,5 +806,39 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
     fade: MotionSpec(Duration(milliseconds: 230), Curves.easeInOut),
     dip: 10,
     inSpring: SpringDescription(mass: 5, stiffness: 900, damping: 70),
+  );
+
+  /// The counter under 5 left, the error haptic on a refused send; the
+  /// panel rises 44 and fades in over 0.25 s; the count bumps to 1.2 (up) or
+  /// 0.8 (down) over 0.1 s and back over 0.1 s. The send menu: without
+  /// sound, schedule, when online, caption above; the header menu: send as
+  /// files, in HD, without grouping, caption up or down, spoiler.
+  @override
+  AttachPanelStyle get panel => const AttachPanelStyle(
+    counterRemaining: 4,
+    overLimitHaptic: AttachHaptic.error,
+    reveal: MotionSpec(Duration(milliseconds: 250), Curves.easeInOut),
+    revealRise: 44,
+    sendButtonFromScale: 1,
+    countBounce: AttachCountBounce(
+      up: 1.2,
+      down: 0.8,
+      out: MotionSpec(Duration(milliseconds: 100), Curves.easeOut),
+      back: MotionSpec(Duration(milliseconds: 100), Curves.easeIn),
+    ),
+    sendMenu: [
+      AttachSendMenuItem.silent,
+      AttachSendMenuItem.schedule,
+      AttachSendMenuItem.whenOnline,
+      AttachSendMenuItem.captionAbove,
+    ],
+    overflow: [
+      AttachOverflowItem.sendAsFiles,
+      AttachOverflowItem.highQuality,
+      AttachOverflowItem.withoutGrouping,
+      AttachOverflowItem.captionAbove,
+      AttachOverflowItem.spoiler,
+    ],
+    sendButtonSize: 34,
   );
 }

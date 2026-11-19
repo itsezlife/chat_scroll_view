@@ -35,3 +35,14 @@ package is pre-1.0.
   tab with a glass lens that slides and follows a drag (`AttachTabLens`).
 - The fling the sheet carries between its rest and its top is
   `viewport_scroll`'s spline fling.
+- The attach panel (`AttachSendController`, `AttachCaptionBar`,
+  `AttachSendButton`, `AttachPanelReveal`, `AttachOverflowButton`,
+  `AttachMenu`, `AttachPanelStyle`): the caption moved from the composer and
+  returned on cancel, the counter send button with its bounce, the per-policy
+  counter and over-limit refusal, the send menu and overflow entries over the
+  model's visibility rules, the send option store read on open and written on
+  send, and the swap with the tab bar.
+- `AttachOutcome.send(request)`; `AttachOutcome.cancelled` carries the
+  caption. `AttachSheetHost.interaction`, `pickSchedule`,
+  `openExternalPicker`; `AttachInteraction`; `AttachPageScope.panel`;
+  `AttachSheetController.maybeOf`.

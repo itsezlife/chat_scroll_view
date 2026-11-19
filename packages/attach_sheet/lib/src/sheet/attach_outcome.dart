@@ -1,4 +1,6 @@
+import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 
 /// The **attach outcome**: what the sheet hands the host when it closes.
@@ -6,8 +8,14 @@ import 'package:flutter/foundation.dart';
 sealed class AttachOutcome {
   const AttachOutcome._();
 
-  /// The user closed the sheet without sending.
-  const factory AttachOutcome.cancelled() = AttachOutcome$Cancelled;
+  /// The user closed the sheet without sending; [caption] goes back to the
+  /// composer.
+  const factory AttachOutcome.cancelled([RichText caption]) =
+      AttachOutcome$Cancelled;
+
+  /// The user sent [request]: the host plans it (`planSend`) and makes the
+  /// messages, and clears the composer.
+  const factory AttachOutcome.send(SendRequest request) = AttachOutcome$Send;
 
   /// A host page finished with [payload], which the host reads.
   const factory AttachOutcome.custom(AttachPageId page, Object? payload) =
@@ -17,16 +25,32 @@ sealed class AttachOutcome {
 /// [AttachOutcome.cancelled].
 final class AttachOutcome$Cancelled extends AttachOutcome {
   /// Closed without sending.
-  const AttachOutcome$Cancelled() : super._();
+  const AttachOutcome$Cancelled([this.caption = RichText.empty]) : super._();
+
+  /// The caption as it was, for the composer.
+  final RichText caption;
 
   @override
-  bool operator ==(Object other) => other is AttachOutcome$Cancelled;
+  bool operator ==(Object other) =>
+      other is AttachOutcome$Cancelled && other.caption == caption;
 
   @override
-  int get hashCode => (AttachOutcome$Cancelled).hashCode;
+  int get hashCode => Object.hash(AttachOutcome$Cancelled, caption);
 
   @override
-  String toString() => 'AttachOutcome.cancelled()';
+  String toString() => 'AttachOutcome.cancelled(${caption.plain})';
+}
+
+/// [AttachOutcome.send].
+final class AttachOutcome$Send extends AttachOutcome {
+  /// Sent [request].
+  const AttachOutcome$Send(this.request) : super._();
+
+  /// What to send.
+  final SendRequest request;
+
+  @override
+  String toString() => 'AttachOutcome.send(${request.items.length} items)';
 }
 
 /// [AttachOutcome.custom].

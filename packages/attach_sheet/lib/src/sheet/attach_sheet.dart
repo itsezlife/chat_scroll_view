@@ -10,9 +10,10 @@ import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:attach_sheet/src/sheet/attach_outcome.dart';
 import 'package:attach_sheet/src/sheet/attach_sheet_scroll_controller.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/widgets.dart' hide RichText;
 import 'package:viewport_scroll/engine.dart';
 
 /// Builds the sheet's content: the page, over the sheet's [scrollController]
@@ -73,9 +74,14 @@ class AttachSheet extends StatefulWidget {
   final Widget? bottomBar;
 
   /// Pushes a sheet of [pages] over [context]'s navigator, with the tab
-  /// bar at the bottom and each page's header items in the pinned header,
-  /// and completes with its outcome; [AttachOutcome.cancelled] when it is
+  /// bar at the bottom (the attach panel in its place while something is
+  /// selected) and each page's header items in the pinned header, and
+  /// completes with its outcome; [AttachOutcome.cancelled] when it is
   /// removed some other way.
+  ///
+  /// [initialCaption] is the composer's text, moved into the caption; a
+  /// cancel returns the caption as it is then. [optionStore] remembers the
+  /// send options per the selection's attach policy.
   static Future<AttachOutcome> show(
     BuildContext context, {
     required AttachSheetPolicy policy,
@@ -83,6 +89,8 @@ class AttachSheet extends StatefulWidget {
     required AttachPageRegistry pages,
     AttachSheetHost host = const AttachSheetHost(),
     AttachSheetOpening opening = const AttachSheetOpening(),
+    RichText initialCaption = RichText.empty,
+    SendOptionStore? optionStore,
   }) async {
     final outcome = await Navigator.of(context).push(
       _AttachSheetRoute(
@@ -92,6 +100,8 @@ class AttachSheet extends StatefulWidget {
           pages: pages,
           host: host,
           opening: opening,
+          initialCaption: initialCaption,
+          optionStore: optionStore,
           onClosed: (outcome) => Navigator.of(context).pop(outcome),
         ),
       ),
@@ -144,6 +154,12 @@ abstract interface class AttachSheetController {
     assert(scope != null, 'No AttachSheet above this context.');
     return scope!.controller;
   }
+
+  /// The controller of the sheet above [context], or null outside a sheet
+  /// (a panel in a viewer or a confirm box).
+  static AttachSheetController? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_AttachSheetScope>()
+      ?.controller;
 
   /// The sheet's top edge from the top of the screen, as it moves.
   ValueListenable<double> get top;

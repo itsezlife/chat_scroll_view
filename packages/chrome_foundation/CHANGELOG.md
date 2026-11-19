@@ -9,7 +9,7 @@ package is pre-1.0.
 ### Added (attach sheet group)
 
 - `AttachTokens` (scrim, sheet background, grabber, pinned header), derived from the palette and carried by `ChromeThemeData.attach`, `ChromeThemeScope(attach:)`, `ChromeThemeScope.attachOf` and `AnimatedChromeThemeScope`.
-- `AttachStrings` (the two discard questions and their actions, the stock Gallery and Files tab labels, the spoken name of a missing-permission badge) as `ChromeStrings.attach` and `ChromeStringsScope.attachOf`, with English and Russian presets.
+- `AttachStrings` (the two discard questions and their actions, the stock Gallery and Files tab labels, the spoken name of a missing-permission badge, the caption placeholder, the send and overflow menu entries, the send and more buttons' spoken labels) as `ChromeStrings.attach` and `ChromeStringsScope.attachOf`, with English and Russian presets.
 
 ### Breaking
 

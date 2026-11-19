@@ -1,4 +1,5 @@
 import 'package:attach_sheet/src/page/attach_page.dart';
+import 'package:attach_sheet/src/panel/attach_send_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -27,6 +28,11 @@ abstract interface class AttachPageScope {
   /// The scroll controller the page's scrollable takes, shared with the
   /// sheet's drag.
   ScrollController get scrollController;
+
+  /// The panel's state (caption, options, send), for a page that draws the
+  /// panel elsewhere (the picker-mode viewer's bottom slot) or an overflow
+  /// button in its header.
+  AttachSendController get panel;
 
   /// Asks the sheet to rise to its top.
   void requestExpansion();
