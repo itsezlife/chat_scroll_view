@@ -26,6 +26,12 @@ enum AttachSendMenuItem {
 
   /// Move the caption above or below the media.
   captionAbove,
+
+  /// Send in high quality (a compressed photo over the standard side).
+  highQuality,
+
+  /// Hide every item under a spoiler, or show them all.
+  spoiler,
 }
 
 /// An entry of the overflow menu in the sheet's header.

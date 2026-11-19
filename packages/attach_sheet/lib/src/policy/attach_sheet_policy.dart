@@ -2,10 +2,12 @@ import 'dart:math' as math;
 
 import 'package:attach_sheet/src/policy/attach_panel_style.dart';
 import 'package:attach_sheet/src/policy/attach_tab_bar_style.dart';
+import 'package:attach_sheet/src/policy/confirm_box_style.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:mpx_ui/mpx_ui.dart' show LibraryGridPolicy;
 
 /// How a sheet motion runs: on a spring (physical, no motion role times it)
 /// or over a duration.
@@ -228,16 +230,29 @@ abstract base class AttachSheetPolicy {
   /// The iOS family; see [AttachSheetPolicy$IOS].
   const factory AttachSheetPolicy.ios() = AttachSheetPolicy$IOS;
 
-  /// The family of [platform]: iOS its own, every other system the Android
-  /// family. Desktop and web pick through a confirm box rather than a
-  /// sheet; until their own families exist they get the Android values.
+  /// The desktop family; see [AttachSheetPolicy$Desktop].
+  const factory AttachSheetPolicy.desktop() = AttachSheetPolicy$Desktop;
+
+  /// The web family; see [AttachSheetPolicy$Web].
+  const factory AttachSheetPolicy.web() = AttachSheetPolicy$Web;
+
+  /// The family of [platform]: Android and iOS their own, every other system
+  /// the desktop family, and a browser ([isWeb] wins) the web family on
+  /// every device.
   factory AttachSheetPolicy.forPlatform(
     TargetPlatform platform, {
     required bool isWeb,
-  }) => switch (platform) {
-    TargetPlatform.iOS when !isWeb => const AttachSheetPolicy.ios(),
-    _ => const AttachSheetPolicy.android(),
-  };
+  }) {
+    if (isWeb) return const AttachSheetPolicy.web();
+    return switch (platform) {
+      TargetPlatform.android => const AttachSheetPolicy.android(),
+      TargetPlatform.iOS => const AttachSheetPolicy.ios(),
+      TargetPlatform.macOS ||
+      TargetPlatform.windows ||
+      TargetPlatform.linux ||
+      TargetPlatform.fuchsia => const AttachSheetPolicy.desktop(),
+    };
+  }
 
   /// The family of the running app.
   factory AttachSheetPolicy.current() =>
@@ -358,6 +373,19 @@ abstract base class AttachSheetPolicy {
   /// The caption field and send button that take the tab bar's place while
   /// something is selected.
   AttachPanelStyle get panel;
+
+  /// The Gallery page's library grid: columns, cells, checks, swipe select,
+  /// camera placement.
+  LibraryGridPolicy get libraryGrid => LibraryGridPolicy.$Android;
+
+  // --- Confirm box ---
+
+  /// The confirm box every intake route leads to; null on a family that
+  /// picks through the sheet.
+  ConfirmBoxStyle? get confirmBox => null;
+
+  /// How a media group's thumbs reorder in the box; null for no reorder.
+  ConfirmBoxReorder? get boxReorder => null;
 }
 
 // --- Stock families ---
@@ -808,6 +836,9 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
     inSpring: SpringDescription(mass: 5, stiffness: 900, damping: 70),
   );
 
+  @override
+  LibraryGridPolicy get libraryGrid => LibraryGridPolicy.$IOS;
+
   /// The counter under 5 left, the error haptic on a refused send; the
   /// panel rises 44 and fades in over 0.25 s; the count bumps to 1.2 (up) or
   /// 0.8 (down) over 0.1 s and back over 0.1 s. The send menu: without
@@ -840,5 +871,136 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
       AttachOverflowItem.spoiler,
     ],
     sendButtonSize: 34,
+  );
+}
+
+/// The desktop family: no sheet; the file dialog, a drop and a paste all
+/// lead to one confirm box 364 wide with 308 previews, its options as
+/// checkboxes, thumbs that reorder by drag, a counter only past the limit.
+/// Its sheet values are the Android family's (no desktop sheet exists).
+base class AttachSheetPolicy$Desktop extends AttachSheetPolicy$Android {
+  /// The desktop family.
+  const AttachSheetPolicy$Desktop();
+
+  /// The counter only on overflow, no haptic; the send menu: without sound,
+  /// schedule, high quality, spoiler, caption above.
+  @override
+  AttachPanelStyle get panel => const AttachPanelStyle(
+    counterRemaining: -1,
+    overLimitHaptic: AttachHaptic.none,
+    reveal: MotionSpec(Duration(milliseconds: 180), Curves.decelerate),
+    revealRise: 0,
+    sendButtonFromScale: 1,
+    countBounce: AttachCountBounce(
+      up: 1,
+      down: 1,
+      back: MotionSpec(Duration.zero, Curves.linear),
+    ),
+    sendMenu: [
+      AttachSendMenuItem.silent,
+      AttachSendMenuItem.schedule,
+      AttachSendMenuItem.highQuality,
+      AttachSendMenuItem.spoiler,
+      AttachSendMenuItem.captionAbove,
+    ],
+    overflow: [],
+    sendButtonSize: 40,
+  );
+
+  /// 364 wide, previews 308, blocks 10 apart, at most 1280 tall, a click
+  /// outside does nothing, 200 ms in and out; checkboxes; an edit / delete
+  /// pill and a right-click menu per thumb; single media at most
+  /// min(1.5 w, 245); file rows 64 with 44 thumbs.
+  @override
+  ConfirmBoxStyle? get confirmBox => const ConfirmBoxStyle(
+    width: 364,
+    previewWidth: 308,
+    blockSpacing: 10,
+    maxHeight: 1280,
+    radius: 12,
+    dimOpacity: 0.4,
+    open: MotionSpec(Duration(milliseconds: 200), Curves.easeOut),
+    close: MotionSpec(Duration(milliseconds: 200), Curves.easeIn),
+    rise: 0,
+    dismissesOnOutsideTap: false,
+    options: ConfirmBoxOptions.checkboxes,
+    itemActions: ConfirmBoxItemActions.pillAndMenu,
+    titles: ConfirmBoxTitles.selected,
+    reorders: true,
+    singleMediaMaxHeight: (widthShare: 1.5, cap: 245),
+    fileRowHeight: 64,
+    fileThumb: 44,
+    dedupesByFacts: false,
+    printableKeyFocusesCaption: false,
+    analysedAtOnce: 10,
+  );
+
+  /// The dragged thumb shrinks 5 a side over 150 ms, neighbours slide over
+  /// 150 ms, the drop settles over 200 ms.
+  @override
+  ConfirmBoxReorder? get boxReorder => const ConfirmBoxReorder(
+    shrink: 5,
+    lift: MotionSpec(Duration(milliseconds: 150), Curves.easeOut),
+    neighbours: MotionSpec(Duration(milliseconds: 150), Curves.easeOut),
+    settle: MotionSpec(Duration(milliseconds: 200), Curves.easeOut),
+  );
+}
+
+/// The web family: no sheet; the file input, a drop and a paste all lead to
+/// one popup 420 wide with radius 40 and 384 previews, its options in a More
+/// menu, no reorder, no counter (an over-long caption is a toast).
+base class AttachSheetPolicy$Web extends AttachSheetPolicy$Android {
+  /// The web family.
+  const AttachSheetPolicy$Web();
+
+  /// No counter, no haptic; the send menu: without sound, schedule, when
+  /// online.
+  @override
+  AttachPanelStyle get panel => const AttachPanelStyle(
+    counterRemaining: null,
+    overLimitHaptic: AttachHaptic.none,
+    reveal: MotionSpec(Duration(milliseconds: 150), Cubic(0.4, 0, 0.2, 1)),
+    revealRise: 0,
+    sendButtonFromScale: 1,
+    countBounce: AttachCountBounce(
+      up: 1,
+      down: 1,
+      back: MotionSpec(Duration.zero, Curves.linear),
+    ),
+    sendMenu: [
+      AttachSendMenuItem.silent,
+      AttachSendMenuItem.schedule,
+      AttachSendMenuItem.whenOnline,
+    ],
+    overflow: [],
+    sendButtonSize: 40,
+  );
+
+  /// 420 wide, radius 40, previews 384, groups 8 apart, a 30 % overlay that
+  /// closes it, a 3rem rise over 0.15 s (0.4, 0, 0.2, 1); a More menu; a
+  /// hover pill per item; single media fitted into 384 x 320; document rows
+  /// 56 with 48 icons; an item already in the box is not added again.
+  @override
+  ConfirmBoxStyle? get confirmBox => const ConfirmBoxStyle(
+    width: 420,
+    previewWidth: 384,
+    blockSpacing: 8,
+    maxHeight: null,
+    radius: 40,
+    dimOpacity: 0.3,
+    open: MotionSpec(Duration(milliseconds: 150), Cubic(0.4, 0, 0.2, 1)),
+    close: MotionSpec(Duration(milliseconds: 150), Cubic(0.4, 0, 0.2, 1)),
+    rise: 48,
+    dismissesOnOutsideTap: true,
+    options: ConfirmBoxOptions.moreMenu,
+    itemActions: ConfirmBoxItemActions.hoverPill,
+    titles: ConfirmBoxTitles.sendCount,
+    reorders: false,
+    singleMediaMaxHeight: (widthShare: 320 / 384, cap: 320),
+    fileRowHeight: 56,
+    fileThumb: 48,
+    dedupesByFacts: true,
+    printableKeyFocusesCaption: true,
+    analysedAtOnce: 10,
   );
 }

@@ -268,4 +268,21 @@ void main() {
       expect(saved.items, [photos[0]]);
     });
   });
+
+  test('refusalOf tells without changing anything', () {
+    final selection = selectionOf(
+      const AttachPolicy.android(),
+      limits: const AttachLimits(allowedKinds: {AttachKind.photo}),
+    );
+    for (var i = 0; i < 100; i++) {
+      selection.toggle(photos[i]);
+    }
+    expect(selection.refusalOf(photos[0]), isNull);
+    expect(selection.refusalOf(photos[100]), AttachRefusal.capReached);
+    expect(
+      selection.refusalOf(AttachItems.video('v')),
+      AttachRefusal.kindNotAllowed,
+    );
+    expect(selection.length, 100);
+  });
 }

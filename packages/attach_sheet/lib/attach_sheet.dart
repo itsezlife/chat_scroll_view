@@ -7,6 +7,8 @@
 /// `AttachTokens` and labels from `AttachStrings` in `chrome_foundation`.
 library;
 
+export 'src/gallery/attach_picker_selection.dart';
+export 'src/gallery/gallery_page.dart';
 export 'src/host/attach_discard_question.dart';
 export 'src/host/attach_sheet_host.dart';
 export 'src/page/attach_page.dart';
@@ -17,5 +19,6 @@ export 'src/panel/attach_send_controller.dart';
 export 'src/policy/attach_panel_style.dart';
 export 'src/policy/attach_sheet_policy.dart';
 export 'src/policy/attach_tab_bar_style.dart';
+export 'src/policy/confirm_box_style.dart';
 export 'src/sheet/attach_outcome.dart';
 export 'src/sheet/attach_sheet.dart';

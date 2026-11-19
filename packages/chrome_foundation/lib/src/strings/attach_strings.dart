@@ -33,6 +33,41 @@ final class AttachStrings {
     required this.highQuality,
     required this.standardQuality,
     required this.sendInHd,
+    required this.libraryPhoto,
+    required this.libraryVideo,
+    required this.libraryOpen,
+    required this.librarySelect,
+    required this.libraryGif,
+    required this.libraryNoAccess,
+    required this.libraryAllowAccess,
+    required this.libraryEmpty,
+    required this.chooseFromGallery,
+    required this.chooseFromFiles,
+    required this.recentFiles,
+    required this.sendPhoto,
+    required this.sendVideo,
+    required this.sendFile,
+    required this.sendGif,
+    required this.groupItems,
+    required this.sendAsDocuments,
+    required this.remember,
+    required this.addItems,
+    required this.cancelAction,
+    required this.deleteItem,
+    required this.replaceItem,
+    required this.editItem,
+    required this.setTimer,
+    required this.sendAsMedia,
+    required this.groupAll,
+    required this.ungroupAll,
+    required this.dropAsFiles,
+    required this.dropAsMedia,
+    required this.dropAdd,
+    required this.photosSelected,
+    required this.filesSelected,
+    required this.sendPhotos,
+    required this.sendVideos,
+    required this.sendFiles,
   });
 
   /// The question before a selection is dropped, in the "discard" wording
@@ -113,4 +148,109 @@ final class AttachStrings {
 
   /// The overflow entry that sends in high quality now.
   final String sendInHd;
+
+  /// The spoken kind of a photo cell.
+  final String libraryPhoto;
+
+  /// The spoken kind of a video cell.
+  final String libraryVideo;
+
+  /// The spoken action that opens a cell.
+  final String libraryOpen;
+
+  /// The spoken action that selects a cell.
+  final String librarySelect;
+
+  /// The badge of a GIF cell.
+  final String libraryGif;
+
+  /// The Gallery page without access to the library.
+  final String libraryNoAccess;
+
+  /// Its button.
+  final String libraryAllowAccess;
+
+  /// The Gallery page with an empty library.
+  final String libraryEmpty;
+
+  /// The Files page row that picks from the gallery as files.
+  final String chooseFromGallery;
+
+  /// The Files page row that opens the file dialog.
+  final String chooseFromFiles;
+
+  /// The header of the Files page's recent files.
+  final String recentFiles;
+
+  /// The confirm box title for one photo.
+  final String sendPhoto;
+
+  /// The confirm box title for one video.
+  final String sendVideo;
+
+  /// The confirm box title for one file.
+  final String sendFile;
+
+  /// The confirm box title for one GIF.
+  final String sendGif;
+
+  /// The confirm box checkbox that groups items.
+  final String groupItems;
+
+  /// The confirm box checkbox that sends media as files.
+  final String sendAsDocuments;
+
+  /// The confirm box checkbox that remembers the choice.
+  final String remember;
+
+  /// The confirm box action that adds files.
+  final String addItems;
+
+  /// The confirm box action that closes it.
+  final String cancelAction;
+
+  /// An item action that removes it.
+  final String deleteItem;
+
+  /// An item action that replaces it.
+  final String replaceItem;
+
+  /// An item action that edits it.
+  final String editItem;
+
+  /// An item action that sets a self-destruct timer.
+  final String setTimer;
+
+  /// The More menu entry that sends files as media.
+  final String sendAsMedia;
+
+  /// The More menu entry that groups every item.
+  final String groupAll;
+
+  /// The More menu entry that sends each item on its own.
+  final String ungroupAll;
+
+  /// The drop zone that sends files without compression.
+  final String dropAsFiles;
+
+  /// The drop zone that sends media.
+  final String dropAsMedia;
+
+  /// The drop zone over an open confirm box.
+  final String dropAdd;
+
+  /// The confirm box title for several photos and videos.
+  final String Function(int n) photosSelected;
+
+  /// The confirm box title for several files.
+  final String Function(int n) filesSelected;
+
+  /// The web box title for several photos.
+  final String Function(int n) sendPhotos;
+
+  /// The web box title for several videos.
+  final String Function(int n) sendVideos;
+
+  /// The web box title for several files or a mix.
+  final String Function(int n) sendFiles;
 }

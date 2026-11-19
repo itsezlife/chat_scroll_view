@@ -95,6 +95,8 @@ final class AttachSendController {
         AttachSendMenuItem.schedule || AttachSendMenuItem.whenOnline =>
           selection.limits.scheduleAllowed && !_hasTimer,
         AttachSendMenuItem.captionAbove => visibility.captionAbove,
+        AttachSendMenuItem.highQuality => visibility.highQuality,
+        AttachSendMenuItem.spoiler => visibility.spoiler,
       })
         item,
   ];
@@ -161,6 +163,12 @@ final class AttachSendController {
         send((o) => o.copyWith(schedule: const SendSchedule.whenOnline()));
       case AttachSendMenuItem.captionAbove:
         _toggleCaptionAbove();
+      case AttachSendMenuItem.highQuality:
+        options.value = options.value.copyWith(
+          highQuality: !options.value.highQuality,
+        );
+      case AttachSendMenuItem.spoiler:
+        _toggleSpoilers();
     }
   }
 
@@ -174,10 +182,7 @@ final class AttachSendController {
       case AttachOverflowItem.withoutGrouping:
         send((o) => o.copyWith(grouped: false));
       case AttachOverflowItem.spoiler:
-        final spoiler = !allSpoilered;
-        for (final item in selection.items) {
-          selection.update(item.id, (i) => i.copyWith(spoiler: spoiler));
-        }
+        _toggleSpoilers();
       case AttachOverflowItem.quality:
         options.value = options.value.copyWith(
           highQuality: !options.value.highQuality,
@@ -187,6 +192,13 @@ final class AttachSendController {
         send((o) => o.copyWith(highQuality: true));
       case AttachOverflowItem.captionAbove:
         _toggleCaptionAbove();
+    }
+  }
+
+  void _toggleSpoilers() {
+    final spoiler = !allSpoilered;
+    for (final item in selection.items) {
+      selection.update(item.id, (i) => i.copyWith(spoiler: spoiler));
     }
   }
 

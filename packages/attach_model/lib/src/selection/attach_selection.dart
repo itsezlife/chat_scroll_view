@@ -155,6 +155,24 @@ final class AttachSelection with ChangeNotifier {
     return index < 0 ? null : index + 1;
   }
 
+  /// Why [item] could not join now, or null when it could (or is already
+  /// selected). What a picker reads to dim an item it would refuse.
+  AttachRefusal? refusalOf(AttachItem item) {
+    if (contains(item.id)) return null;
+    if (!limits.allows(item.kind)) return AttachRefusal.kindNotAllowed;
+    if ((limits.fileSizeLimit, item.facts.byteSize) case (
+      final limit?,
+      final size?,
+    ) when size > limit) {
+      return AttachRefusal.fileTooLarge;
+    }
+    if (limits.singleSelect) return null;
+    if (cap case final cap? when _$items.length >= cap) {
+      return AttachRefusal.capReached;
+    }
+    return null;
+  }
+
   /// Selects [item], or deselects it when it is already selected.
   ///
   /// Under single select, selecting replaces the selected item.
@@ -245,24 +263,8 @@ final class AttachSelection with ChangeNotifier {
       return const AttachToggle.deselected();
     }
     if (index >= 0) return const AttachToggle.selected();
-    if (!limits.allows(item.kind)) {
-      return const AttachToggle.refused(AttachRefusal.kindNotAllowed);
-    }
-    if ((limits.fileSizeLimit, item.facts.byteSize) case (
-      final limit?,
-      final size?,
-    ) when size > limit) {
-      return const AttachToggle.refused(AttachRefusal.fileTooLarge);
-    }
-    if (limits.singleSelect) {
-      _$items
-        ..clear()
-        ..add(item);
-      return const AttachToggle.selected();
-    }
-    if (cap case final cap? when _$items.length >= cap) {
-      return const AttachToggle.refused(AttachRefusal.capReached);
-    }
+    if (refusalOf(item) case final reason?) return AttachToggle.refused(reason);
+    if (limits.singleSelect) _$items.clear();
     _$items.add(item);
     return const AttachToggle.selected();
   }

@@ -221,6 +221,14 @@ class _AttachSendButtonState extends State<AttachSendButton>
                   send.options.value.captionAbove
                       ? strings.captionBelow
                       : strings.captionAbove,
+                AttachSendMenuItem.highQuality =>
+                  send.options.value.highQuality
+                      ? strings.standardQuality
+                      : strings.highQuality,
+                AttachSendMenuItem.spoiler =>
+                  send.allSpoilered
+                      ? strings.disableSpoiler
+                      : strings.enableSpoiler,
               },
               onSelected: (context) => send.runSendMenu(item, context),
             ),

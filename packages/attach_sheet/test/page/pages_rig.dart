@@ -52,6 +52,7 @@ final class PagesRig {
     AttachLimits limits = const AttachLimits(),
     content.RichText initialCaption = content.RichText.empty,
     SendOptionStore? optionStore,
+    Widget Function(Widget app)? wrap,
   }) async {
     tester.view
       ..physicalSize = size * 3
@@ -69,7 +70,7 @@ final class PagesRig {
             palette: const ChromePalette.light(),
             child: ChromeStringsScope(
               strings: ChromeStringsPresets.english,
-              child: child!,
+              child: wrap == null ? child! : wrap(child!),
             ),
           ),
         ),

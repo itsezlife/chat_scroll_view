@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'gallery/gallery_page_test.dart' as gallery_page_test;
 import 'page/attach_page_test.dart' as attach_page_test;
 import 'page/attach_tab_bar_test.dart' as attach_tab_bar_test;
 import 'panel/attach_panel_test.dart' as attach_panel_test;
@@ -18,6 +19,7 @@ import 'sheet/attach_sheet_ios_test.dart' as attach_sheet_ios_test;
 import 'sheet/attach_sheet_morph_test.dart' as attach_sheet_morph_test;
 
 void main() {
+  group('gallery/gallery_page_test.dart', gallery_page_test.main);
   group('page/attach_page_test.dart', attach_page_test.main);
   group('page/attach_tab_bar_test.dart', attach_tab_bar_test.main);
   group('panel/attach_panel_test.dart', attach_panel_test.main);

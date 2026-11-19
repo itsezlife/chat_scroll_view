@@ -4,7 +4,7 @@ import 'package:chrome_foundation/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Strings that are the same word in English and Russian.
-const _sameInBoth = {'panel.tabLabel[gif]'};
+const _sameInBoth = {'panel.tabLabel[gif]', 'attach.libraryGif'};
 
 void main() {
   final presets = {
