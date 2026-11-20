@@ -550,6 +550,7 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
     sidePadding: 11,
     hideMotion: MotionSpec(Duration(milliseconds: 180), Curves.decelerate),
     showMotion: MotionSpec(Duration(milliseconds: 180), Curves.decelerate),
+    pinnedHide: MotionSpec(Duration(milliseconds: 380), Curves.easeOutQuint),
     hideDrop: 36,
     permissionBadges: true,
     popIn: AttachTabPopIn(

@@ -21,6 +21,7 @@ final class AttachTabBarStyle {
     this.edgeFade = 0,
     this.scrollClearance = 0,
     this.lens,
+    this.pinnedHide,
   });
 
   /// The bar's height.
@@ -40,6 +41,10 @@ final class AttachTabBarStyle {
 
   /// How it comes back when the selection empties.
   final MotionSpec showMotion;
+
+  /// How the bar leaves while the sheet is at its top, and comes back as it
+  /// leaves the top; null for a bar that stays at the top.
+  final MotionSpec? pinnedHide;
 
   /// How far the bar drops as it leaves.
   final double hideDrop;

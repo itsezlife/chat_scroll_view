@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:flutter/widgets.dart';
@@ -149,7 +151,7 @@ void main() {
       late AttachPageScope gallery;
       final rig = await PagesRig.open(
         tester,
-        policy: android,
+        policy: ios,
         pages: [
           rowsPage('gallery', onScope: (s) => gallery = s),
           rowsPage('files'),
@@ -168,6 +170,56 @@ void main() {
       // Gallery was at the top when left: back there.
       await rig.tapTab('gallery');
       expect(rig.top, 24);
+    });
+
+    testWidgets('Android: the tab bar leaves while the sheet is at its top '
+        '(380 ms, ease out quint) and comes back as it goes down', (
+      tester,
+    ) async {
+      late AttachPageScope gallery;
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [
+          rowsPage('gallery', onScope: (s) => gallery = s),
+          rowsPage('files'),
+        ],
+      );
+      double opacity() => tester
+          .widget<Opacity>(find.byKey(const ValueKey('attach-tab-bar-shown')))
+          .opacity;
+      expect(opacity(), 1);
+      gallery.requestExpansion();
+      await tester.pumpAndSettle();
+      expect(rig.top, 24);
+      expect(opacity(), 0);
+
+      final sheet = AttachSheetController.of(
+        tester.element(find.byKey(const ValueKey('gallery-row-0'))),
+      );
+      unawaited(sheet.collapse());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(rig.top, greaterThan(24));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(opacity(), inExclusiveRange(0, 1));
+      await tester.pumpAndSettle();
+      expect(opacity(), 1);
+    });
+
+    testWidgets('iOS: the tab bar stays at the top', (tester) async {
+      late AttachPageScope gallery;
+      final rig = await PagesRig.open(
+        tester,
+        policy: ios,
+        pages: [
+          rowsPage('gallery', onScope: (s) => gallery = s),
+          rowsPage('files'),
+        ],
+      );
+      gallery.requestExpansion();
+      await tester.pumpAndSettle();
+      expect(rig.tab('files').hitTestable(), findsOneWidget);
     });
 
     testWidgets('a page too short to scroll still drags the sheet down and '

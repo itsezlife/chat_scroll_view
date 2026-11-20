@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/page/attach_pages_sheet.dart';
 import 'package:attach_sheet/src/policy/attach_tab_bar_style.dart';
+import 'package:attach_sheet/src/sheet/attach_sheet.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
@@ -37,7 +38,6 @@ class _AttachTabBarState extends State<AttachTabBar>
   bool _lensPlaced = false;
   int? _dragIndex;
   final ScrollController _$strip = ScrollController();
-  Curve _hideCurve = Curves.linear;
 
   AttachPagesModel get _model => widget.model;
   AttachTabBarStyle get _style => _model.policy.tabBar;
@@ -54,12 +54,44 @@ class _AttachTabBarState extends State<AttachTabBar>
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_$popIn.value == 0 && !_$popIn.isAnimating) _startPopIn();
+    final sheet = AttachSheetController.maybeOf(context);
+    if (!identical(sheet, _sheet)) {
+      _sheet?.top.removeListener(_topChanged);
+      _sheet = sheet;
+      sheet?.top.addListener(_topChanged);
+    }
   }
+
+  AttachSheetController? _sheet;
+  // The sheet opens from below: not at its top until it has risen there.
+  bool _pinned = false;
+
+  // While the sheet is at its top the bar leaves (on a policy that hides
+  // it there) and comes back as the sheet leaves the top.
+  void _topChanged() {
+    final pinned = _sheet?.isExpanded ?? false;
+    if (pinned == _pinned) return;
+    _pinned = pinned;
+    final motion = _style.pinnedHide;
+    if (motion == null || _model.selection.isNotEmpty) return;
+    final spec = motion.withSpeed(_speed);
+    // Eased on time either way, from wherever the bar is.
+    unawaited(
+      _$hidden.animateTo(
+        pinned ? 1 : 0,
+        duration: spec.duration,
+        curve: spec.curve,
+      ),
+    );
+  }
+
+  bool get _hiddenByPin => _pinned && _style.pinnedHide != null;
 
   @override
   void dispose() {
     _model.selection.changes.removeListener(_selectionChanged);
     _model.active.removeListener(_activeChanged);
+    _sheet?.top.removeListener(_topChanged);
     _$hidden.dispose();
     _$popIn.dispose();
     _$lens.dispose();
@@ -83,12 +115,17 @@ class _AttachTabBarState extends State<AttachTabBar>
   }
 
   void _selectionChanged() {
-    final hide = _model.selection.isNotEmpty;
+    final hide = _model.selection.isNotEmpty || _hiddenByPin;
     final spec = (hide ? _style.hideMotion : _style.showMotion).withSpeed(
       _speed,
     );
-    _hideCurve = spec.curve;
-    unawaited(_$hidden.animateTo(hide ? 1 : 0, duration: spec.duration));
+    unawaited(
+      _$hidden.animateTo(
+        hide ? 1 : 0,
+        duration: spec.duration,
+        curve: spec.curve,
+      ),
+    );
   }
 
   void _activeChanged() {
@@ -240,10 +277,11 @@ class _AttachTabBarState extends State<AttachTabBar>
       return AnimatedBuilder(
         animation: _$hidden,
         builder: (context, bar) {
-          final h = _hideCurve.transform(_$hidden.value);
+          final h = _$hidden.value;
           return IgnorePointer(
             ignoring: _$hidden.value > 0,
             child: Opacity(
+              key: const ValueKey('attach-tab-bar-shown'),
               opacity: 1 - h,
               child: Transform.translate(
                 offset: Offset(0, _style.hideDrop * h),
