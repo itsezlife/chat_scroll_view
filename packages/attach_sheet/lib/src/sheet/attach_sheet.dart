@@ -196,6 +196,11 @@ abstract interface class AttachSheetController {
   /// Lowers the sheet to its resting height.
   Future<void> collapse();
 
+  /// Moves the sheet to its top ([expanded]) or its resting height on
+  /// [spring] (the policy's expand motion when null): a page switch takes
+  /// the sheet to the height the new page had.
+  Future<void> settle({required bool expanded, SpringDescription? spring});
+
   /// Closes the sheet, asking the discard question first when the
   /// selection is not empty.
   Future<void> requestDismiss();
@@ -337,6 +342,15 @@ class _AttachSheetState extends State<AttachSheet>
 
   @override
   Future<void> collapse() => _moveTo(_collapsedTop, _policy.expandMotion);
+
+  @override
+  Future<void> settle({required bool expanded, SpringDescription? spring}) {
+    if (!_opened || _closing) return Future.value();
+    return _moveTo(expanded ? _expandedTop : _collapsedTop, switch (spring) {
+      final spring? => AttachSheetMotion.spring(spring),
+      null => _policy.expandMotion,
+    });
+  }
 
   @override
   Future<void> requestDismiss() async {

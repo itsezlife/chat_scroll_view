@@ -388,7 +388,15 @@ class _AttachPageAreaState extends State<_AttachPageArea>
   Future<void> _switched() async {
     final from = _previous;
     _previous = _model.active.value;
+    final sheet = AttachSheetController.of(context);
+    // Each page keeps the sheet's height it had: the one left records it,
+    // the one shown takes the sheet back to its own as it comes in.
+    if (from != null) _expandedOn[from] = sheet.isExpanded;
+    final expanded = _expandedOn[_model.active.value] ?? false;
     final speed = ChromeMotionScope.of(context).speed;
+    if (from == null || speed.isInstant) {
+      unawaited(sheet.settle(expanded: expanded));
+    }
     if (from == null || speed.isInstant) {
       setState(() {});
       return;
@@ -408,10 +416,12 @@ class _AttachPageAreaState extends State<_AttachPageArea>
           if (!mounted) return;
           setState(() => _leaving = null);
           _model.switching = false;
+          unawaited(sheet.settle(expanded: expanded, spring: inSpring));
           await _$in.animateWith(SpringSimulation(inSpring, 0, 1, 0)).orCancel;
           _$in.value = 1;
         case AttachTabSwitch$CrossFade(:final fade, :final inSpring):
           final spec = fade.withSpeed(speed);
+          unawaited(sheet.settle(expanded: expanded, spring: inSpring));
           _$out.value = 0;
           _$in.value = 0;
           _$fadeIn.value = 0;
@@ -440,6 +450,9 @@ class _AttachPageAreaState extends State<_AttachPageArea>
   }
 
   AttachPageId? _previous;
+
+  // Whether the sheet was at its top when each page was last left.
+  final Map<AttachPageId, bool> _expandedOn = {};
 
   @override
   Widget build(BuildContext context) {

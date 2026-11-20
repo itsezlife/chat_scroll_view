@@ -144,6 +144,32 @@ void main() {
       expect(rig.top, 24);
     });
 
+    testWidgets('a tab switch takes the sheet to the height the new page had, '
+        'on the page spring, with the new page coming in', (tester) async {
+      late AttachPageScope gallery;
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [
+          rowsPage('gallery', onScope: (s) => gallery = s),
+          rowsPage('files'),
+        ],
+      );
+      final rest = rig.top;
+      gallery.requestExpansion();
+      await tester.pumpAndSettle();
+      expect(rig.top, 24);
+
+      // Files was never raised: the sheet goes down to its rest as Files
+      // comes in, after the old page has left (180 ms).
+      await rig.tapTab('files');
+      expect(rig.top, closeTo(rest, 0.5));
+
+      // Gallery was at the top when left: back there.
+      await rig.tapTab('gallery');
+      expect(rig.top, 24);
+    });
+
     testWidgets('a page moves the resting height', (tester) async {
       late AttachPageScope scope;
       final rig = await PagesRig.open(
