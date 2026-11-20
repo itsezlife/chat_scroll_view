@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'box/confirm_box_test.dart' as confirm_box_test;
 import 'files/files_page_test.dart' as files_page_test;
 import 'gallery/gallery_page_test.dart' as gallery_page_test;
+import 'page/attach_bar_inset_test.dart' as attach_bar_inset_test;
 import 'page/attach_page_test.dart' as attach_page_test;
 import 'page/attach_tab_bar_test.dart' as attach_tab_bar_test;
 import 'panel/attach_panel_test.dart' as attach_panel_test;
@@ -25,6 +26,7 @@ void main() {
   group('box/confirm_box_test.dart', confirm_box_test.main);
   group('files/files_page_test.dart', files_page_test.main);
   group('gallery/gallery_page_test.dart', gallery_page_test.main);
+  group('page/attach_bar_inset_test.dart', attach_bar_inset_test.main);
   group('page/attach_page_test.dart', attach_page_test.main);
   group('page/attach_tab_bar_test.dart', attach_tab_bar_test.main);
   group('panel/attach_panel_test.dart', attach_panel_test.main);

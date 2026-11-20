@@ -13,6 +13,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter/rendering.dart' show RenderProxyBox;
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:viewport_scroll/engine.dart';
 
@@ -238,6 +239,10 @@ class _AttachSheetState extends State<AttachSheet>
     value: 1,
   );
   bool _morphing = false;
+
+  // How tall the bottom bar is, safe area included: the content's bottom
+  // padding, so a page's last row scrolls clear of it.
+  final ValueNotifier<double> _$barExtent = ValueNotifier(0);
   late final AttachSheetScrollController _$scroll = AttachSheetScrollController(
     this,
   );
@@ -307,6 +312,7 @@ class _AttachSheetState extends State<AttachSheet>
   void dispose() {
     _$dimDelay?.cancel();
     _$scroll.dispose();
+    _$barExtent.dispose();
     _$top.dispose();
     _$dim.dispose();
     _$header.dispose();
@@ -850,9 +856,10 @@ class _AttachSheetState extends State<AttachSheet>
                         maxWidth: target.width,
                         minHeight: contentHeight,
                         maxHeight: contentHeight,
-                        child: MediaQuery.removePadding(
-                          context: context,
-                          removeTop: true,
+                        child: _ContentInsets(
+                          barExtent: widget.bottomBar == null
+                              ? null
+                              : _$barExtent,
                           child: content!,
                         ),
                       ),
@@ -910,7 +917,7 @@ class _AttachSheetState extends State<AttachSheet>
 
   Widget _barLayer(Widget bar) => AnimatedBuilder(
     animation: Listenable.merge([_$top, _morphChannels]),
-    child: bar,
+    child: _MeasureHeight(extent: _$barExtent, child: bar),
     builder: (context, bar) => Positioned(
       key: const ValueKey('attach-sheet-bar'),
       left: 0,
@@ -974,6 +981,80 @@ class _AttachSheetState extends State<AttachSheet>
         );
       },
     );
+  }
+}
+
+/// The sheet's content below the status bar: no top padding, and, under a
+/// bottom bar, the bar's height as the bottom padding (it includes the safe
+/// area), so a page's scrollable keeps its last row clear of the floating
+/// bar as the bar grows and shrinks.
+class _ContentInsets extends StatelessWidget {
+  const _ContentInsets({required this.barExtent, required this.child});
+
+  final ValueListenable<double>? barExtent;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final bar = barExtent;
+    if (bar == null) {
+      return MediaQuery.removePadding(
+        context: context,
+        removeTop: true,
+        child: child,
+      );
+    }
+    return ValueListenableBuilder<double>(
+      valueListenable: bar,
+      child: child,
+      builder: (context, extent, child) {
+        final media = MediaQuery.of(context);
+        return MediaQuery(
+          data: media.copyWith(
+            padding: media.padding.copyWith(top: 0, bottom: extent),
+          ),
+          child: child!,
+        );
+      },
+    );
+  }
+}
+
+/// Reports its child's height to [extent] after each layout that changes
+/// it.
+class _MeasureHeight extends SingleChildRenderObjectWidget {
+  const _MeasureHeight({required this.extent, super.child});
+
+  final ValueNotifier<double> extent;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderMeasureHeight(extent);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderMeasureHeight renderObject,
+  ) => renderObject.extent = extent;
+}
+
+class _RenderMeasureHeight extends RenderProxyBox {
+  _RenderMeasureHeight(this.extent);
+
+  ValueNotifier<double> extent;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final height = size.height;
+    if (height == extent.value) return;
+    // Told after the frame: listeners rebuild, which a layout may not.
+    final target = extent;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Gone with the sheet meanwhile: its notifier went too.
+      if (attached) target.value = height;
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 }
 
