@@ -250,6 +250,7 @@ class _AttachSendButtonState extends State<AttachSendButton>
         behavior: HitTestBehavior.opaque,
         onTap: () => widget.controller.send(),
         onLongPress: _openMenu,
+        onSecondaryTap: _openMenu,
         child: SizedBox(
           width: size,
           height: size,

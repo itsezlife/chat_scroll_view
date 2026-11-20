@@ -5,7 +5,7 @@ send from. It owns the window (scrim, geometry, open and close, drag, expand,
 collapse, dismiss), the **discard guard** and the keyboard hand-off, each by
 a per-platform policy; the content is a page that scrolls on the sheet's
 scroll controller, so one drag moves the sheet and then scrolls the page.
-Depends on `attach_model`, `chat_composer` (the caption field), `chrome_foundation`, `content_model` and `viewport_scroll` (the page's fling the sheet carries).
+On desktop and web the same model goes through the **confirm box**. Depends on `attach_model`, `chat_composer` (the caption field), `chrome_foundation`, `content_model`, `viewport_scroll` (the page's fling the sheet carries) and mpx's `mpx_core`, `mpx_library` (library, file intake, drop), `mpx_ui` (library grid) and `mpx_capture`.
 
 Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 
@@ -28,6 +28,11 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | `AttachPanelStyle`, `AttachCountBounce`, `AttachSendMenuItem`, `AttachOverflowItem`, `AttachHaptic` | The panel's values per policy. |
 | `AttachInteraction` | `captionTooLong(over:)`, `refused(reason)`: what the host gives feedback for. |
 | `AttachOutcome` | `cancelled(caption)`, `send(request)`, `custom(page, payload)`. |
+| `GalleryPage`, `GalleryView`, `AttachPickerSelection` | The stock Gallery page: `mpx_ui`'s `LibraryGrid` over the device library, its picker selection over the attach selection (shared order numbers, the cap and kind gate, refusals raised as attach interactions), the overflow menu in the header, the host's camera slot. |
+| `FilesPage`, `RecentFilesSource`, `IntakeItems` | The stock Files page: the gallery as files, the file dialog (`FileIntake.pickFiles`), the host's recent files (placeholder rows while loading); intake files as attach items. |
+| `ConfirmBox`, `ConfirmBoxController`, `ConfirmBoxView`, `GroupPreviewBuilder`, `ItemThumbnailBuilder` | The desktop and web modal: title, previews from the send plan (the host's group layout, else a strip; single media; file rows), options (desktop checkboxes with Remember, web More menu), reorder (desktop), per-item actions, the panel, the send menu, keys. `addFiles` / `pickAndAdd` / `paste` add to the open box. |
+| `AttachDropOverlay` | The drop zones over the chat region on `mpx_library`'s `IntakeDropRegion`. |
+| `ConfirmBoxStyle`, `ConfirmBoxReorder` | The box's values per family (`AttachSheetPolicy.$Desktop`, `$Web`). |
 
 ## Host contract
 
@@ -39,7 +44,9 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | Pages | Builds an `AttachPageRegistry` per open from its rights; each page builds a vertical scrollable on `scope.scrollController`. Pages are built the first time their tab shows and kept for the open. |
 | Caption move | Passes its composer text as `initialCaption`; on `cancelled(caption)` puts the caption back in the composer; on `send(request)` clears the composer and plans the request (`planSend`). |
 | Options | Passes a `SendOptionStore` built for the selection's attach policy. |
-| Feedback | `AttachSheetHost.interaction` (a caption over the limit), `pickSchedule` (its schedule picker), `openExternalPicker`. |
+| Feedback | `AttachSheetHost.interaction` (a caption over the limit, a refused item), `pickSchedule`, `pickTimer`, `openExternalPicker`. |
+| Library | An `AssetCacheProvider` above the sheet whose fetcher sends library keys to `LibraryFetcher(library)`; the `MediaLibrary` and `FileIntake` for the stock pages. |
+| Confirm box | One `ConfirmBoxController` per box; while `isOpen`, every route (dialog, drop, paste) goes to it. |
 | Outcome | Reads `AttachOutcome.custom(page, payload)` from a host page. |
 
 ## Rules and values
@@ -70,3 +77,6 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | Send menu (long press) | without sound, schedule, caption above | without sound, schedule, when online, caption above |
 | Overflow | open in external app (nothing selected), send as file(s), without grouping, spoiler, high / standard quality, caption above | send as file(s) (no spoiler), send in HD, without grouping, caption up / down, spoiler |
 | Hidden | schedule with any timer or without the right; caption above without a caption or with a file | same |
+| Confirm box | desktop: 364 wide, previews 308, blocks 10 apart, at most 1280 tall, click outside inert, 200 ms; web: 420 wide, radius 40, previews 384, 30 % overlay, a 48 rise over 0.15 s | |
+| Box options | desktop: Group items, Send as documents, Remember (after a change, app-wide); web: More menu (Add, as media / as files, group / ungroup all, spoilers, caption) | |
+| Box keys | Enter sends (not while composing), Escape cancels with the caption, Ctrl / Cmd+O adds; web: a printable key focuses the caption | |

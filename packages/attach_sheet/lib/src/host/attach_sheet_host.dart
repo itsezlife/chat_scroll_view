@@ -48,6 +48,10 @@ base class AttachSheetHost {
   /// cancel. The default offers no picker.
   Future<SendSchedule?> pickSchedule(BuildContext context) async => null;
 
+  /// Asks the user for a self-destruct timer, in the host's picker; null
+  /// when they cancel. The default offers no picker.
+  Future<AttachTimer?> pickTimer(BuildContext context) async => null;
+
   /// Opens the platform's own picker (the overflow menu's "open in an
   /// external app"); the host adds what comes back.
   void openExternalPicker() {}

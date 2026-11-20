@@ -46,3 +46,11 @@ package is pre-1.0.
   caption. `AttachSheetHost.interaction`, `pickSchedule`,
   `openExternalPicker`; `AttachInteraction`; `AttachPageScope.panel`;
   `AttachSheetController.maybeOf`.
+- The Gallery page (`GalleryPage`, `GalleryView`, `AttachPickerSelection`)
+  on `mpx_ui`'s library grid, the Files page (`FilesPage`,
+  `RecentFilesSource`, `IntakeItems`) on `mpx_library`'s intake, and the
+  desktop and web confirm box (`ConfirmBox`, `ConfirmBoxController`) with
+  `AttachDropOverlay`; `AttachSheetPolicy.$Desktop` and `$Web`
+  (`ConfirmBoxStyle`, `ConfirmBoxReorder`), `AttachSheetPolicy.libraryGrid`.
+- `AttachSheetHost.pickTimer`; send menu entries for high quality and
+  spoiler; Send opens its menu on a right click too.
