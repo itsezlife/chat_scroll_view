@@ -83,6 +83,12 @@ final class AttachPickerSelection implements PickerSelection {
     }
   }
 
+  /// The library asset of [key] as the grid paged it, or null.
+  LibraryAsset? assetOf(MediaKey key) => switch (LibraryKeys.read(key)) {
+    final target? => _recording.assets[target.asset],
+    null => null,
+  };
+
   /// The attach item of a library asset.
   static AttachItem itemOf(LibraryAsset asset) => AttachItem(
     id: idOf(asset.id),

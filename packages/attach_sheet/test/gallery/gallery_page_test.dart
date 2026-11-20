@@ -627,4 +627,34 @@ void main() {
     expect(info, isNotNull);
     expect(info, matches(RegExp(r'^\d+x\d+, \d+:\d\d, ~[\d.]+ (KB|MB)$')));
   });
+
+  testWidgets('the grid shows HD on checked photos while the send options '
+      'are high quality; the preview shows the grid marks of its items', (
+    tester,
+  ) async {
+    final rig = await open(tester);
+    LibraryPicker picker() =>
+        tester.widget<LibraryPicker>(find.byType(LibraryPicker));
+    expect(picker().highQuality, isFalse);
+    expect(picker().labels.highQuality, 'HD');
+    await tapCheck(tester, 0);
+    final panel = AttachSheetController.of(
+      tester.element(find.byType(LibraryPicker)),
+    );
+    expect(panel, isNotNull);
+    final send = tester
+        .widget<AttachSendButton>(find.byType(AttachSendButton))
+        .controller;
+    send.options.value = send.options.value.copyWith(highQuality: true);
+    await tester.pumpAndSettle();
+    expect(picker().highQuality, isTrue);
+
+    await tester.tap(find.byKey(const ValueKey('attach-send-count-tap')));
+    await tester.pumpAndSettle();
+    final preview = tester.widget<PickerSelectionPreview>(
+      find.byType(PickerSelectionPreview),
+    );
+    expect(preview.assetOf!(_key(0)), FakeMediaLibrary.assetAt(0));
+    expect(rig.selection.length, 1);
+  });
 }

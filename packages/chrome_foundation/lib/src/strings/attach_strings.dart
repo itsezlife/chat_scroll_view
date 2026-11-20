@@ -8,6 +8,7 @@ final class AttachStrings {
   /// Attach strings with every member given.
   const AttachStrings({
     required this.discardSelectionTitle,
+    required this.libraryHighQuality,
     required this.discardSelectionMessage,
     required this.discardSelectionConfirm,
     required this.discardSelectionKeep,
@@ -95,6 +96,9 @@ final class AttachStrings {
   /// The question before a selection is dropped, in the "discard" wording
   /// ("Discard selection?").
   final String discardSelectionTitle;
+
+  /// The mark on a checked photo sent in high quality ("HD").
+  final String libraryHighQuality;
 
   /// The line under it ("Do you want to close the attach menu?").
   final String discardSelectionMessage;

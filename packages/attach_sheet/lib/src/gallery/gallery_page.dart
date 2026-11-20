@@ -388,6 +388,7 @@ class _GalleryViewState extends State<GalleryView> {
     select: strings.librarySelect,
     gif: strings.libraryGif,
     camera: strings.libraryCamera,
+    highQuality: strings.libraryHighQuality,
   );
 
   static LibraryGridTokens _tokens(BuildContext context) {
@@ -411,15 +412,21 @@ class _GalleryViewState extends State<GalleryView> {
       controller: widget.controller,
       onOpen: (key, index) => unawaited(_openSelected(key, index)),
       onReorder: _$picker.move,
+      // The marks the grid shows on the item (a video's duration, HD).
+      assetOf: _$picker.assetOf,
       onRefused: (_, _) {},
     ),
   );
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
-    valueListenable: widget.panel.previewingSelection,
-    builder: (context, previewing, _) =>
-        previewing ? _preview(context) : _grid(context),
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([
+      widget.panel.previewingSelection,
+      widget.panel.options,
+    ]),
+    builder: (context, _) => widget.panel.previewingSelection.value
+        ? _preview(context)
+        : _grid(context),
   );
 
   Widget _grid(BuildContext context) {
@@ -461,6 +468,8 @@ class _GalleryViewState extends State<GalleryView> {
       policy: widget.panel.policy.libraryGrid,
       tokens: _tokens(context),
       players: widget.players,
+      // A checked photo shows HD while the send options are high quality.
+      highQuality: widget.panel.options.value.highQuality,
       viewerTitle: widget.viewerTitle,
       viewerSubtitleOf: GalleryView.viewerInfoOf,
       // A selected item a library change took away leaves the selection;
