@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/files/intake_items.dart';
 import 'package:attach_sheet/src/gallery/attach_picker_selection.dart';
+import 'package:attach_sheet/src/gallery/gallery_fast_scroll.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/panel/attach_panel.dart';
@@ -121,6 +122,8 @@ class _GalleryViewState extends State<GalleryView> {
   CameraSession? _$session;
   bool _cameraDenied = false;
   final GlobalKey _$slot = GlobalKey();
+  final LibraryGridLookup _$lookup = LibraryGridLookup();
+  ScrollController? _$ownController;
 
   AttachSelection get _selection => widget.panel.selection;
 
@@ -172,6 +175,8 @@ class _GalleryViewState extends State<GalleryView> {
 
   @override
   void dispose() {
+    _$lookup.dispose();
+    _$ownController?.dispose();
     unawaited(_$session?.dispose());
     super.dispose();
   }
@@ -278,6 +283,12 @@ class _GalleryViewState extends State<GalleryView> {
     final camera = widget.camera;
     final android =
         widget.panel.policy.libraryGrid == LibraryGridPolicy.$Android;
+    // The sheet's, so a drag moves the sheet; on its own, the ambient one
+    // or the view's.
+    final controller =
+        widget.controller ??
+        PrimaryScrollController.maybeOf(context) ??
+        (_$ownController ??= ScrollController());
     Widget picker({bool active = true}) => LibraryPicker(
       key: const ValueKey('attach-gallery-picker'),
       library: _$picker.library,
@@ -328,6 +339,14 @@ class _GalleryViewState extends State<GalleryView> {
           : () => unawaited(_systemCamera()),
       onCamera: camera == null ? null : () => unawaited(_systemCamera()),
       viewerBottomBuilder: _viewerSlot,
+      controller: controller,
+      lookup: _$lookup,
+      gridBuilder: (context, grid) => GalleryFastScroll(
+        controller: controller,
+        lookup: _$lookup,
+        policy: widget.panel.policy,
+        child: grid,
+      ),
       headerBuilder: (context, switcher) => Row(
         children: [
           Expanded(child: switcher),

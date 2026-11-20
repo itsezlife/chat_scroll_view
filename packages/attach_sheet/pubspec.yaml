@@ -30,22 +30,22 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_capture
-      ref: 08dca8a926a48b2dee9a68dbf40abe863a474aa4
+      ref: b37cf3a87ab49d16ca09b801a1d2fa17069f8a54
   mpx_core:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: 08dca8a926a48b2dee9a68dbf40abe863a474aa4
+      ref: b37cf3a87ab49d16ca09b801a1d2fa17069f8a54
   mpx_library:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_library
-      ref: 08dca8a926a48b2dee9a68dbf40abe863a474aa4
+      ref: b37cf3a87ab49d16ca09b801a1d2fa17069f8a54
   mpx_ui:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_ui
-      ref: 08dca8a926a48b2dee9a68dbf40abe863a474aa4
+      ref: b37cf3a87ab49d16ca09b801a1d2fa17069f8a54
   # The page's fling, run by the sheet between its rest and its top.
   viewport_scroll:
     path: ../viewport_scroll

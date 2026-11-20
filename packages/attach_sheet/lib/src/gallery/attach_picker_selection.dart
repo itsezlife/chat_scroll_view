@@ -189,6 +189,9 @@ final class _RecordingLibrary implements MediaLibrary {
   Stream<LibraryChange> get changes => _source.changes;
 
   @override
+  Future<Uri?> playable(LibraryAssetId asset) => _source.playable(asset);
+
+  @override
   Future<Uint8List> thumbnail(
     LibraryAssetId asset, {
     required int pixels,

@@ -242,6 +242,7 @@ abstract final class ChromeStringsSnapshot {
       'attach.libraryChangeSettings': attach.libraryChangeSettings,
       'attach.libraryPartial': attach.libraryPartial,
       'attach.libraryCameraDenied': attach.libraryCameraDenied,
+      'attach.libraryMonth[2024-03]': attach.libraryMonth(DateTime(2024, 3)),
       'attach.mediaNotAllowed': attach.mediaNotAllowed,
       'attach.captureClose': attach.captureClose,
       'attach.captureShutter': attach.captureShutter,

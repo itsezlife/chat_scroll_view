@@ -8,6 +8,7 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:mpx_ui/mpx_ui.dart' show LibraryGridPolicy;
+import 'package:viewport_scroll/viewport_scroll.dart' show FastScrollbarPolicy;
 
 /// How a sheet motion runs: on a spring (physical, no motion role times it)
 /// or over a duration.
@@ -377,6 +378,13 @@ abstract base class AttachSheetPolicy {
   /// The Gallery page's library grid: columns, cells, checks, swipe select,
   /// camera placement.
   LibraryGridPolicy get libraryGrid => LibraryGridPolicy.$Android;
+
+  /// The Gallery grid's fast scroll thumb and its month label.
+  FastScrollbarPolicy get libraryFastScroll => FastScrollbarPolicy.$Android;
+
+  /// The fewest library items that bring the fast scroll thumb; it shows
+  /// only while the sheet is at its top too.
+  int get libraryFastScrollMinCount => 31;
 
   // --- Confirm box ---
 
@@ -838,6 +846,14 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
 
   @override
   LibraryGridPolicy get libraryGrid => LibraryGridPolicy.$IOS;
+
+  /// The thin thumb that shows while the grid scrolls, hidden while most
+  /// of the grid is in view.
+  @override
+  FastScrollbarPolicy get libraryFastScroll => FastScrollbarPolicy.$IOS;
+
+  @override
+  int get libraryFastScrollMinCount => 0;
 
   /// The counter under 5 left, the error haptic on a refused send; the
   /// panel rises 44 and fades in over 0.25 s; the count bumps to 1.2 (up) or

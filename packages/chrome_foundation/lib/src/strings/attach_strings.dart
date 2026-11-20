@@ -83,6 +83,7 @@ final class AttachStrings {
     required this.libraryChangeSettings,
     required this.libraryPartial,
     required this.libraryCameraDenied,
+    required this.libraryMonth,
     required this.mediaNotAllowed,
     required this.captureClose,
     required this.captureShutter,
@@ -318,6 +319,10 @@ final class AttachStrings {
 
   /// The banner when the camera is denied.
   final String libraryCameraDenied;
+
+  /// The month a library item was taken in, with its year, as the Gallery
+  /// page's fast scroll label names it ("March 2024").
+  final String Function(DateTime date) libraryMonth;
 
   /// The Gallery page where media cannot be sent.
   final String mediaNotAllowed;
