@@ -354,6 +354,7 @@ class _GalleryViewState extends State<GalleryView> {
             key: const ValueKey('attach-viewer-slot'),
             controller: widget.panel,
             sheetRest: _restFocus,
+            chromeShown: item.chromeShown,
             beforeSend: () {
               if (_selection.isNotEmpty) return;
               if (item.asset case final asset?) {
@@ -552,12 +553,17 @@ class _ViewerCaption extends StatefulWidget {
   const _ViewerCaption({
     required this.controller,
     required this.sheetRest,
+    required this.chromeShown,
     required this.beforeSend,
     super.key,
   });
 
   final AttachSendController controller;
   final FocusNode sheetRest;
+
+  /// Whether the viewer's chrome (this slot in it) is shown: false the
+  /// moment it starts to go (a dismiss drag, a close, a tap that hides it).
+  final ValueListenable<bool> chromeShown;
   final VoidCallback beforeSend;
 
   @override
@@ -570,8 +576,6 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
   );
   late final AttachCaptionDock? _dock = widget.controller.host
       .createCaptionDock(_caption);
-  // The fade of the viewer's chrome, this slot in it.
-  Animation<double>? _chrome;
   // Whether the sheet's caption panel was up as the viewer opened.
   late bool _sheetPanelWasUp;
 
@@ -579,23 +583,22 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
   void initState() {
     super.initState();
     _sheetPanelWasUp = widget.controller.captionDock?.panelUp ?? false;
+    widget.chromeShown.addListener(_onChrome);
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final chrome = context
-        .findAncestorWidgetOfExactType<FadeTransition>()
-        ?.opacity;
-    if (identical(chrome, _chrome)) return;
-    _chrome?.removeStatusListener(_onChrome);
-    _chrome = chrome?..addStatusListener(_onChrome);
+  void didUpdateWidget(_ViewerCaption oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.chromeShown, widget.chromeShown)) {
+      oldWidget.chromeShown.removeListener(_onChrome);
+      widget.chromeShown.addListener(_onChrome);
+    }
   }
 
-  // The chrome going (a dismiss drag starts, a tap hides it): a caption no
-  // one sees holds no keyboard.
-  void _onChrome(AnimationStatus status) {
-    if (status == AnimationStatus.reverse) _letGo('the chrome goes');
+  // The chrome going (a dismiss drag starts, a tap hides it, a close): a
+  // caption no one sees holds no keyboard.
+  void _onChrome() {
+    if (!widget.chromeShown.value) _letGo('the chrome goes');
   }
 
   void _letGo(String why) {
@@ -616,7 +619,7 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
   @override
   void dispose() {
     _letGo('the viewer closes');
-    _chrome?.removeStatusListener(_onChrome);
+    widget.chromeShown.removeListener(_onChrome);
     final rest = widget.sheetRest;
     final sheetCaption = widget.controller.caption;
     final panelUp =
