@@ -588,6 +588,12 @@ void main() {
     );
     final send = tester.getRect(find.byKey(const ValueKey('attach-send')));
     expect(send.left, greaterThanOrEqualTo(island.right));
+    // With no button leading it the hint keeps off the pill's round start.
+    final hint = tester.getRect(find.text('Add a caption…'));
+    expect(
+      hint.left - island.left,
+      greaterThanOrEqualTo(AttachCaptionBar.fieldStartInset),
+    );
     expectChromeText(tester, within: panel);
   });
 

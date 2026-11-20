@@ -85,6 +85,9 @@ class _GalleryFastScrollState extends State<GalleryFastScroll> {
         },
         labelsChanged: lookup,
         enabled: _atTop && lookup.count >= policy.libraryFastScrollMinCount,
+        // The track ends where the grid's visible content ends: above the
+        // floating bars and the safe area, the grid's own bottom padding.
+        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
         child: child!,
       ),
       child: widget.child,

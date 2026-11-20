@@ -506,10 +506,10 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
     const Cubic(0.25, 0.1, 0.25, 1),
   );
 
-  /// The header line: a sheet left within one header height of the top
-  /// scrolls the rest of the way.
+  /// None: the sheet's top is the list's, and a fling leaves it wherever
+  /// the list stops, the top or the rest included.
   @override
-  double? get pinSnapZone => 56;
+  double? get pinSnapZone => null;
 
   @override
   bool get panDisabledWithKeyboard => false;

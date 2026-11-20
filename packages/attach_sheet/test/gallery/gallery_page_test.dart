@@ -16,6 +16,7 @@ import 'package:mpx_library/testing.dart';
 import 'package:mpx_player/mpx_player.dart';
 import 'package:mpx_player/testing.dart';
 import 'package:mpx_ui/mpx_ui.dart';
+import 'package:viewport_scroll/viewport_scroll.dart';
 
 import '../page/pages_rig.dart';
 
@@ -514,6 +515,26 @@ void main() {
           ),
         )
         .position;
+
+    testWidgets("the track ends where the grid's visible content ends: "
+        'above the floating bar', (tester) async {
+      await open(tester);
+      await expand(tester);
+      final bar = tester.getRect(
+        find.byKey(const ValueKey('attach-sheet-bar')),
+      );
+      final scrollbar = tester.widget<FastScrollbar>(
+        find.byType(FastScrollbar),
+      );
+      expect(scrollbar.padding.bottom, closeTo(bar.height, 0.5));
+      grid(tester).jumpTo(grid(tester).maxScrollExtent);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(
+        tester.getRect(find.byKey(thumb)).bottom,
+        lessThanOrEqualTo(bar.top + 0.5),
+      );
+    });
 
     testWidgets(r'$Android: the thumb comes once the sheet is at its top, '
         'and the label names the month of the items in view', (tester) async {

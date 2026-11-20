@@ -104,7 +104,7 @@ void main() {
       expect(header().opacity, 1);
     });
 
-    testWidgets('left inside the header line it snaps to the top', (
+    testWidgets('left just below the top it stays there: no top snap', (
       tester,
     ) async {
       final rig = await SheetRig.open(tester, policy: policy);
@@ -112,7 +112,20 @@ void main() {
       await rig.drag(-(rest - pinned) + 40);
       await tester.pumpAndSettle();
 
-      expect(rig.top, pinned);
+      expect(rig.top, closeTo(pinned + 40, 1));
+    });
+
+    testWidgets('a fling down from the top goes to the rest, not past it', (
+      tester,
+    ) async {
+      final rig = await SheetRig.open(tester, policy: policy);
+      rig.controller.expand().ignore();
+      await tester.pumpAndSettle();
+
+      await rig.fling(300, 3000);
+      await tester.pumpAndSettle();
+      expect(rig.closed, isFalse);
+      expect(rig.top, closeTo(rest, 1));
     });
 
     testWidgets('left below the header line it stays where it is', (

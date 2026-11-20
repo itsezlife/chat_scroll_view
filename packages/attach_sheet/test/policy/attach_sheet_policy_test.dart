@@ -114,8 +114,8 @@ void main() {
       expect(release(24), isNull);
     });
 
-    test('snaps to the top inside the header line', () {
-      expect(android.pinSnapZone, 56);
+    test('has no snap at the top: the sheet stops where the list does', () {
+      expect(android.pinSnapZone, isNull);
     });
   });
 

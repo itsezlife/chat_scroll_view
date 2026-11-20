@@ -170,6 +170,41 @@ void main() {
       expect(rig.top, 24);
     });
 
+    testWidgets('a page too short to scroll still drags the sheet down and '
+        'closes it', (tester) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [
+          AttachPage(
+            id: const AttachPageId('short'),
+            label: 'short',
+            icon: const SizedBox(width: 24, height: 24),
+            kind: AttachPageKind.selection,
+            builder: (context, scope) => ListView(
+              controller: scope.scrollController,
+              children: const [SizedBox(key: ValueKey('row'), height: 50)],
+            ),
+          ),
+        ],
+      );
+      final rest = rig.top;
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(const ValueKey('row'))),
+      );
+      await gesture.moveBy(const Offset(0, 20));
+      await gesture.moveBy(const Offset(0, 40));
+      await tester.pump();
+      expect(rig.top, greaterThan(rest + 30), reason: 'it follows the drag');
+      for (var i = 0; i < 10; i++) {
+        await gesture.moveBy(const Offset(0, 30));
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(rig.outcome, isA<AttachOutcome$Cancelled>());
+    });
+
     testWidgets('a page moves the resting height', (tester) async {
       late AttachPageScope scope;
       final rig = await PagesRig.open(

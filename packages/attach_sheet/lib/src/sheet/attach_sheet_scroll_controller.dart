@@ -75,6 +75,15 @@ class _AttachSheetScrollPosition extends ScrollPositionWithSingleContext {
   bool get _atStart => pixels <= minScrollExtent + precisionErrorTolerance;
 
   @override
+  void applyNewDimensions() {
+    super.applyNewDimensions();
+    // A page too short to scroll still moves the sheet: the drag is the
+    // sheet's whatever the page's extent, unless the page turned user
+    // scrolling off (a gesture of its own).
+    if (physics.allowUserScrolling) context.setCanDrag(true);
+  }
+
+  @override
   Drag drag(DragStartDetails details, VoidCallback dragCancelCallback) {
     drive.dragStarted();
     _cancelDrag = dragCancelCallback;

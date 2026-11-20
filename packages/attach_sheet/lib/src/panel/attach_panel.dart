@@ -27,6 +27,12 @@ class AttachCaptionBar extends StatefulWidget {
   /// The panel's state.
   final AttachSendController controller;
 
+  /// The caption text's inset from the pill's start while no button leads
+  /// it: the pill's corner radius less the field's own end pad, so the hint
+  /// starts as far in as it ends.
+  static const double fieldStartInset =
+      ComposerMetrics.islandRadius - ComposerMetrics.fieldEndPad;
+
   /// Runs before a tap on Send sends (the viewer selects the item it shows
   /// when nothing is selected).
   final VoidCallback? beforeSend;
@@ -102,6 +108,9 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
                   autofocus: false,
                   safeAreaBottom: 0,
                   hintText: strings.captionPlaceholder,
+                  // No emoji button yet: the hint keeps off the pill's
+                  // round start.
+                  fieldStartInset: AttachCaptionBar.fieldStartInset,
                   spec: ComposerSpec(
                     messageLengthLimit: _send.captionLimit,
                     messageLengthCounterFrom: switch (from) {
