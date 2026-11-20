@@ -179,6 +179,7 @@ final class ChatAttach extends AttachSheetHost {
               library: library,
               label: 'Галерея',
               icon: const Icon(Icons.photo_library_outlined),
+              players: services.libraryPlayers,
               camera: GalleryCamera(
                 sessions: const PlatformCameraSessions(),
                 outputDirectory: directory,

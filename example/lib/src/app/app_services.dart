@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:chat_scroll_view_example/src/app/environment_specific/library_players.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/scrolling_surfaces.dart';
 import 'package:chat_scroll_view_example/src/app/system_reduced_motion.dart';
@@ -42,6 +43,7 @@ import 'package:l/l.dart';
 import 'package:mpx/mpx.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_library/mpx_library.dart';
+import 'package:mpx_player/mpx_player.dart' show PlayerPool;
 import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
@@ -811,6 +813,11 @@ final class AppServices {
   /// it is made on the first read.
   MediaLibrary? get mediaLibrary => _deviceLibrary.library;
 
+  /// The players the attach sheet's viewer plays [mediaLibrary]'s videos
+  /// on (each library video read in place); null where there is no library
+  /// or no native player. Made on the first read.
+  PlayerPool? get libraryPlayers => _deviceLibrary.players;
+
   final _DeviceLibrary _deviceLibrary;
 
   /// The clipboard every copy and paste goes through: plain text for other
@@ -1183,7 +1190,17 @@ final class _DeviceLibrary {
   /// The library if it was made, without making it.
   MediaLibrary? get made => _$library;
 
-  void dispose() => unawaited(_$library?.dispose());
+  /// The players the library's videos play on, made with the first read
+  /// after the library; null without a library or a native player.
+  PlayerPool? get players => switch (library) {
+    final library? => $libraryPlayers(library),
+    null => null,
+  };
+
+  void dispose() {
+    $disposeLibraryPlayers();
+    unawaited(_$library?.dispose());
+  }
 }
 
 /// Sends the device library's keys to its fetcher and every other key on.
