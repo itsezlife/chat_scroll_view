@@ -728,23 +728,10 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
     return AnimatedBuilder(
       animation: _$shown,
       // The composer's island floats over the page as it does over the
-      // chat, the page dimming under it in the composer's fade, not a band.
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: LayoutBuilder(
-              builder: (context, constraints) =>
-                  ComposerBottomFade(zoneHeight: constraints.maxHeight),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.only(bottom: padding.bottom),
-            child: AttachCaptionBar(
-              controller: widget.controller,
-              reveal: curved,
-            ),
-          ),
-        ],
+      // chat; the sheet's bottom fade is under it, not a band.
+      child: Padding(
+        padding: EdgeInsets.only(bottom: padding.bottom),
+        child: AttachCaptionBar(controller: widget.controller, reveal: curved),
       ),
       builder: (context, panel) {
         final t = _curve.transform(_$shown.value);

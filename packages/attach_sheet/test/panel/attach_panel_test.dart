@@ -615,7 +615,7 @@ void main() {
   });
 
   testWidgets("the caption is the chat's composer island floating over the "
-      "page in the composer's fade, Send beside it", (tester) async {
+      "page in the sheet's bottom fade, Send beside it", (tester) async {
     final (rig, _) = await open(tester);
     rig.selection.toggle(AttachItems.photo('p'));
     await tester.pumpAndSettle();
@@ -624,10 +624,7 @@ void main() {
       find.descendant(of: panel, matching: find.byType(ComposerView)),
       findsOneWidget,
     );
-    expect(
-      find.descendant(of: panel, matching: find.byType(ComposerBottomFade)),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('attach-bottom-fade')), findsOneWidget);
     expect(find.text('Add a caption…'), findsOneWidget);
     final island = tester.getRect(
       find.descendant(of: panel, matching: find.byType(ComposerView)),
@@ -693,5 +690,36 @@ void main() {
     // max(9 + text, 18) and the ring: three digits of the test face, 12 each.
     expect(at100.width, 9 + 36 + 4);
     expect(at100.width, greaterThan(at99.width));
+  });
+
+  testWidgets("the bottom fade: the sheet's background ramping in over 48 "
+      'above the safe area, under the tab bar and under the caption; it '
+      'drops away at the top with no bar up', (tester) async {
+    final (rig, scope) = await open(tester);
+    final fade = find.byKey(const ValueKey('attach-bottom-fade'));
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    expect(tester.getRect(fade).bottom, closeTo(screen.height, 0.5));
+    final box = tester.widget<DecoratedBox>(
+      find.descendant(of: fade, matching: find.byType(DecoratedBox)),
+    );
+    final gradient =
+        (box.decoration as BoxDecoration).gradient! as LinearGradient;
+    final background = ChromeThemeScope.attachOf(
+      tester.element(fade),
+    ).background;
+    expect(gradient.colors.first.a, 0);
+    expect(gradient.colors.last, background);
+
+    scope.requestExpansion();
+    await tester.pumpAndSettle();
+    expect(
+      tester.getRect(fade).top,
+      closeTo(screen.height, 0.5),
+      reason: 'dropped 48: no bar at the top',
+    );
+
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(fade).bottom, closeTo(screen.height, 0.5));
   });
 }

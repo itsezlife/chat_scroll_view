@@ -110,6 +110,12 @@ class _AttachPagesSheetState extends State<AttachPagesSheet> {
     bottomBar: Stack(
       alignment: Alignment.bottomCenter,
       children: [
+        Positioned.fill(
+          child: AttachBottomFade(
+            selection: widget.selection,
+            policy: widget.policy,
+          ),
+        ),
         AttachTabBar(model: _$model),
         AttachPanelReveal(controller: _$send),
       ],
@@ -512,6 +518,125 @@ extension on _AttachPageAreaState {
                 child: Transform.translate(offset: Offset(0, dy), child: child),
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The fade under the sheet's bottom bar: the sheet's background ramping in
+/// from clear over [zone] above the safe area's bottom, so the page dims
+/// toward the bar, whichever bar is up (the tab bar or the caption).
+///
+/// It drops [zone] out of sight while no bar is up (the tab bar gone at the
+/// sheet's top on a policy that hides it there, and no caption), on the
+/// tab bar's pinned motion.
+class AttachBottomFade extends StatefulWidget {
+  /// The fade under the bar of a sheet over [selection].
+  const AttachBottomFade({
+    required this.selection,
+    required this.policy,
+    super.key,
+  });
+
+  /// The open's selection: the caption is up while it is not empty.
+  final AttachSelection selection;
+
+  /// The tab bar's pinned motion.
+  final AttachSheetPolicy policy;
+
+  /// The fade's height above the safe area.
+  static const double zone = 48;
+
+  @override
+  State<AttachBottomFade> createState() => _AttachBottomFadeState();
+}
+
+class _AttachBottomFadeState extends State<AttachBottomFade>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _$shown = AnimationController(
+    vsync: this,
+    value: 1,
+  );
+  AttachSheetController? _sheet;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.selection.changes.addListener(_update);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final sheet = AttachSheetController.maybeOf(context);
+    if (identical(sheet, _sheet)) return;
+    _sheet?.top.removeListener(_update);
+    _sheet = sheet;
+    sheet?.top.addListener(_update);
+  }
+
+  @override
+  void dispose() {
+    widget.selection.changes.removeListener(_update);
+    _sheet?.top.removeListener(_update);
+    _$shown.dispose();
+    super.dispose();
+  }
+
+  bool get _barUp {
+    final hidesTabs = widget.policy.tabBar.pinnedHide != null;
+    final pinned = _sheet?.isExpanded ?? false;
+    return widget.selection.isNotEmpty || !(hidesTabs && pinned);
+  }
+
+  double _target = 1;
+
+  void _update() {
+    final target = _barUp ? 1.0 : 0.0;
+    if (target == _target) return;
+    _target = target;
+    _animate(target);
+  }
+
+  void _animate(double target) {
+    final motion =
+        widget.policy.tabBar.pinnedHide ??
+        const MotionSpec(Duration.zero, Curves.linear);
+    final spec = motion.withSpeed(ChromeMotionScope.of(context).speed);
+    unawaited(
+      _$shown.animateTo(target, duration: spec.duration, curve: spec.curve),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final background = ChromeThemeScope.attachOf(context).background;
+    final safe = MediaQuery.paddingOf(context).bottom;
+    final height = AttachBottomFade.zone + safe;
+    return IgnorePointer(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: AnimatedBuilder(
+          animation: _$shown,
+          builder: (context, fade) => Transform.translate(
+            offset: Offset(0, AttachBottomFade.zone * (1 - _$shown.value)),
+            child: fade,
+          ),
+          child: SizedBox(
+            key: const ValueKey('attach-bottom-fade'),
+            height: height,
+            width: double.infinity,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [background.withValues(alpha: 0), background],
+                ),
+              ),
+            ),
           ),
         ),
       ),
