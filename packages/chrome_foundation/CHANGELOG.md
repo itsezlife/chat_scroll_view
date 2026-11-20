@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (glass fade)
+
+- A glass that fades in no longer shows its bare tint first. An `Opacity`
+  above a scene-filtered glass gave the filter the opacity layer's empty
+  content in place of the scene until the fade ended. `GlassSurface.opacity`
+  fades the backdrop (inside the filter), the tint, the edges, the shadow
+  and the child with no layer over the filter; at 0 no backdrop is read.
+
 ### Changed (glass materials, breaking)
 
 - `GlassMaterial` is an immutable value (`colorRole`, `cornerRadius`,

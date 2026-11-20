@@ -13,6 +13,11 @@ import 'package:flutter/widgets.dart';
 ///
 /// The whole frame renders offscreen while this is on, and the first such
 /// frame after a few without one allocates that target again.
+///
+/// [opacity] fades the filtered scene inside the filter (its alpha scaled
+/// before it is drawn over the scene) and the tint with it, so a fading
+/// glass needs no opacity layer over the filter, whose input would then be
+/// the layer's empty content. At 0 the filter is off.
 class FilterGlassBackdrop extends StatelessWidget {
   /// A scene filter painted per [style].
   const FilterGlassBackdrop({
@@ -20,8 +25,12 @@ class FilterGlassBackdrop extends StatelessWidget {
     required this.programs,
     required this.shaderFilter,
     required this.devicePixelRatio,
+    this.opacity = 1,
     super.key,
   });
+
+  /// How opaque the filtered scene and the tint are.
+  final double opacity;
 
   /// Resolved material.
   final GlassStyle style;
@@ -57,7 +66,8 @@ class FilterGlassBackdrop extends StatelessWidget {
 
     if (filter != null) {
       return BackdropFilter(
-        filter: filter,
+        filter: _fade(filter),
+        enabled: opacity > 0,
         child: const ColoredBox(color: Color(0x00000000)),
       );
     }
@@ -67,18 +77,38 @@ class FilterGlassBackdrop extends StatelessWidget {
       sigmaY: sigma,
       tileMode: TileMode.clamp,
     );
+    final fill = style.fill;
     return BackdropFilter(
-      filter: style.backdropSaturation == 1
-          ? blur
-          : ui.ImageFilter.compose(
-              outer: ui.ColorFilter.matrix(
-                RenderGlassSource.saturationMatrix(style.backdropSaturation),
+      filter: _fade(
+        style.backdropSaturation == 1
+            ? blur
+            : ui.ImageFilter.compose(
+                outer: ui.ColorFilter.matrix(
+                  RenderGlassSource.saturationMatrix(style.backdropSaturation),
+                ),
+                inner: blur,
               ),
-              inner: blur,
-            ),
-      child: ColoredBox(color: style.fill),
+      ),
+      enabled: opacity > 0,
+      child: ColoredBox(
+        color: opacity == 1 ? fill : fill.withValues(alpha: fill.a * opacity),
+      ),
     );
   }
+
+  // The filtered scene is drawn over the scene source-over, so scaling its
+  // alpha by [opacity] blends it with the scene by that much.
+  ui.ImageFilter _fade(ui.ImageFilter filter) => opacity == 1
+      ? filter
+      : ui.ImageFilter.compose(
+          outer: ui.ColorFilter.matrix(<double>[
+            1, 0, 0, 0, 0, //
+            0, 1, 0, 0, 0, //
+            0, 0, 1, 0, 0, //
+            0, 0, 0, opacity, 0, //
+          ]),
+          inner: filter,
+        );
 }
 
 /// A backdrop sampled from the [GlassSource] of the enclosing scope.

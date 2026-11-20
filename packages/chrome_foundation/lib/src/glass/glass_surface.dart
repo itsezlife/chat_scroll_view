@@ -44,6 +44,14 @@ import 'package:flutter/widgets.dart';
 /// A chrome fade or wash painted over the content should sit outside the
 /// [GlassSource], or have a cutout under the surface, so it is not sampled
 /// into the glass.
+///
+/// Fade a surface with [opacity], not with an `Opacity` or `FadeTransition`
+/// above it: a scene filter inside an opacity layer reads the layer's own,
+/// still empty, content in place of the scene, so the glass shows the bare
+/// tint until the fade ends and the layer goes. [opacity] fades the backdrop,
+/// the tint, the edges, the shadow and [child] with no layer over the
+/// filter. A glass inside [child] is under that fade's layer: one that
+/// fades with this one is given the same [opacity] and kept out of [child].
 class GlassSurface extends StatefulWidget {
   /// A surface of [material] around [child].
   const GlassSurface({
@@ -52,8 +60,9 @@ class GlassSurface extends StatefulWidget {
     this.cornerRadius,
     this.borderRadius,
     this.colors,
+    this.opacity = 1,
     super.key,
-  });
+  }) : assert(opacity >= 0 && opacity <= 1, 'opacity is in [0, 1]');
 
   /// The named preset: its shape of effect and its theme colours.
   final GlassMaterial material;
@@ -72,6 +81,10 @@ class GlassSurface extends StatefulWidget {
   /// material's role (a preset's taken from the theme and adjusted, or new
   /// ones).
   final GlassMaterialColors? colors;
+
+  /// How opaque the whole surface is, its backdrop included: 1 is the
+  /// glass, 0 draws nothing and reads no backdrop.
+  final double opacity;
 
   /// Content drawn above the glass. Sizes the surface.
   final Widget child;
@@ -201,21 +214,27 @@ class _GlassSurfaceState extends State<GlassSurface> {
       _loadShaders().ignore();
     }
 
+    final opacity = widget.opacity;
     final backdrop = switch (strategy) {
-      GlassStrategy.sampledLiquid ||
-      GlassStrategy.sampledFrost => SampledGlassBackdrop(
-        link: link!,
-        style: style,
-        programs: _programs,
-        pixelRatio: pixelRatio,
+      // A capture is a picture of its own: an opacity layer fades it whole.
+      GlassStrategy.sampledLiquid || GlassStrategy.sampledFrost => Opacity(
+        opacity: opacity,
+        child: SampledGlassBackdrop(
+          link: link!,
+          style: style,
+          programs: _programs,
+          pixelRatio: pixelRatio,
+        ),
       ),
       GlassStrategy.backdropFilter => FilterGlassBackdrop(
         style: style,
         programs: _programs,
         shaderFilter: capabilities.shaderFilter,
         devicePixelRatio: pixelRatio,
+        opacity: opacity,
       ),
-      GlassStrategy.flat || GlassStrategy.none => ColoredBox(color: style.fill),
+      GlassStrategy.flat ||
+      GlassStrategy.none => ColoredBox(color: _faded(style.fill, opacity)),
     };
 
     final radius =
@@ -223,7 +242,7 @@ class _GlassSurfaceState extends State<GlassSurface> {
     final shadow = style.shadowColor.a > 0
         ? <BoxShadow>[
             BoxShadow(
-              color: style.shadowColor,
+              color: _faded(style.shadowColor, opacity),
               blurRadius: style.shadowBlur,
               offset: style.shadowOffset,
             ),
@@ -237,16 +256,22 @@ class _GlassSurfaceState extends State<GlassSurface> {
         child: Stack(
           children: <Widget>[
             Positioned.fill(child: backdrop),
-            Positioned.fill(
-              child: CustomPaint(painter: _GlassStrokePainter(style: style)),
+            Opacity(
+              opacity: opacity,
+              child: CustomPaint(
+                painter: _GlassStrokePainter(style: style),
+                child: widget.child,
+              ),
             ),
-            widget.child,
           ],
         ),
       ),
     );
   }
 }
+
+Color _faded(Color color, double opacity) =>
+    opacity == 1 ? color : color.withValues(alpha: color.a * opacity);
 
 /// Dual top/bottom edge stroke of the glass chrome.
 class _GlassStrokePainter extends CustomPainter {

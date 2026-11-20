@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/src/glass/shader/glass_shaders.dart';
 import 'package:chrome_foundation/src/glass/strategy/glass_backdrops.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,6 +18,7 @@ Widget _surface({
   bool lite = false,
   GlassCapabilities capabilities = GlassCapabilities.all,
   bool source = false,
+  double opacity = 1,
 }) {
   Widget glass = Center(
     child: SizedBox(
@@ -25,6 +27,7 @@ Widget _surface({
       child: GlassSurface(
         key: _glassKey,
         material: material,
+        opacity: opacity,
         child: const SizedBox.expand(),
       ),
     ),
@@ -264,6 +267,87 @@ void main() {
       );
 
       expect(tester.takeException(), isFlutterError);
+    });
+  });
+
+  group('GlassSurface opacity', () {
+    // The opacity layers between [layer] and the root that are not opaque.
+    List<OpacityLayer> fadingAbove(Layer layer) => [
+      for (Layer? l = layer.parent; l != null; l = l.parent)
+        if (l is OpacityLayer && (l.alpha ?? 255) < 255) l,
+    ];
+
+    testGlassWidgets('a scene filter fades without an opacity layer over it, '
+        'so it reads the scene from its first frame', (tester) async {
+      await tester.pumpWidget(_surface(quality: GlassQuality.frosted));
+      await tester.pumpWidget(
+        _surface(quality: GlassQuality.frosted, opacity: 0.5),
+      );
+
+      final filters = tester.layers.whereType<BackdropFilterLayer>().toList();
+      expect(filters, hasLength(1));
+      expect(fadingAbove(filters.single), isEmpty);
+      final backdrop = tester.widget<FilterGlassBackdrop>(
+        _inGlass(find.byType(FilterGlassBackdrop)),
+      );
+      expect(backdrop.opacity, 0.5);
+      final tint = tester
+          .widget<ColoredBox>(
+            find.descendant(
+              of: find.byType(BackdropFilter),
+              matching: find.byType(ColoredBox),
+            ),
+          )
+          .color;
+      expect(tint.a, closeTo(0.76 * 0.5, 1e-6));
+    });
+
+    testGlassWidgets('the child and the edges fade with the glass', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _surface(quality: GlassQuality.frosted, opacity: 0.25),
+      );
+
+      final fades = tester
+          .widgetList<Opacity>(_inGlass(find.byType(Opacity)))
+          .map((o) => o.opacity);
+      expect(fades, contains(0.25));
+    });
+
+    testGlassWidgets('a hidden glass reads no backdrop', (tester) async {
+      await tester.pumpWidget(
+        _surface(quality: GlassQuality.frosted, opacity: 0),
+      );
+
+      expect(
+        tester.widget<BackdropFilter>(_inGlass(find.byType(BackdropFilter))),
+        isA<BackdropFilter>().having((f) => f.enabled, 'enabled', isFalse),
+      );
+    });
+
+    testGlassWidgets('a sampled glass fades its capture', (tester) async {
+      await tester.pumpWidget(
+        _surface(quality: GlassQuality.frosted, source: true, opacity: 0.5),
+      );
+
+      expect(
+        find.ancestor(
+          of: find.byType(SampledGlassBackdrop),
+          matching: find.byWidgetPredicate(
+            (w) => w is Opacity && w.opacity == 0.5,
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testGlassWidgets('a flat glass fades its fill', (tester) async {
+      await tester.pumpWidget(
+        _surface(quality: GlassQuality.flat, opacity: 0.5),
+      );
+
+      expect(_flatFill()!.a, closeTo(0.5, 1e-6));
     });
   });
 
