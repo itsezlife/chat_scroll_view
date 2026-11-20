@@ -71,9 +71,19 @@ final class AttachSendController {
   /// selection empties.
   final ValueNotifier<bool> previewingSelection = ValueNotifier(false);
 
+  /// Whether a page can show the selected-items preview (a Gallery is
+  /// mounted): only then does the count take taps.
+  bool get selectionPreviewAvailable => _previewHosts > 0;
+  int _previewHosts = 0;
+
+  /// A page that shows the selected-items preview came ([present]) or went.
+  void hostSelectionPreview({required bool present}) =>
+      _previewHosts += present ? 1 : -1;
+
   /// Shows the selected-items preview, or goes back from it; nothing to
-  /// preview with nothing selected.
+  /// preview with nothing selected, or without a page to show it.
   void toggleSelectionPreview() {
+    if (!selectionPreviewAvailable) return;
     previewingSelection.value =
         !previewingSelection.value && selection.isNotEmpty;
   }

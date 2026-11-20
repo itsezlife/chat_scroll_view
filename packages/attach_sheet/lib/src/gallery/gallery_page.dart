@@ -166,6 +166,7 @@ class _GalleryViewState extends State<GalleryView> {
   @override
   void initState() {
     super.initState();
+    widget.panel.hostSelectionPreview(present: true);
     if (widget.camera case final camera? when _kinds != null) {
       unawaited(_openCamera(camera));
     }
@@ -197,6 +198,7 @@ class _GalleryViewState extends State<GalleryView> {
 
   @override
   void dispose() {
+    widget.panel.hostSelectionPreview(present: false);
     unawaited(_$session?.dispose());
     super.dispose();
   }

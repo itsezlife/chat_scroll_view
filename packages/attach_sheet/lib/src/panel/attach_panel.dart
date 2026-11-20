@@ -305,47 +305,115 @@ class _AttachSendButtonState extends State<AttachSendButton>
                 ),
               ),
               if (_count > 0)
+                // The count sits on the button's top-start corner, its top
+                // on the button's top, its centre on the button's start
+                // edge.
                 PositionedDirectional(
-                  end: -4,
-                  bottom: -4,
-                  child: AnimatedBuilder(
-                    animation: _$bounce,
-                    builder: (context, badge) => Transform.scale(
-                      key: const ValueKey('attach-send-bounce'),
-                      scale: _$bounce.value,
-                      child: badge,
+                  start: 0,
+                  top: 0,
+                  child: FractionalTranslation(
+                    translation: Offset(
+                      Directionality.of(context) == TextDirection.rtl
+                          ? 0.5
+                          : -0.5,
+                      0,
                     ),
-                    // A tap on the count opens the selected-items preview
-                    // (and closes it), not a send.
-                    child: GestureDetector(
-                      key: const ValueKey('attach-send-count-tap'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: widget.controller.toggleSelectionPreview,
-                      child: Container(
-                        key: const ValueKey('attach-send-count'),
-                        constraints: const BoxConstraints(minWidth: 18),
-                        height: 18,
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: palette.surfaceRaised,
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(color: palette.accent, width: 1.5),
-                        ),
-                        child: Text(
-                          '$_count',
-                          style: ChromeTypography.of(context).copyWith(
-                            color: palette.accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                    child: AnimatedBuilder(
+                      animation: _$bounce,
+                      builder: (context, badge) => Transform.scale(
+                        key: const ValueKey('attach-send-bounce'),
+                        scale: _$bounce.value,
+                        child: badge,
                       ),
+                      // A tap on the count opens the selected-items preview
+                      // (and closes it), not a send.
+                      child: widget.controller.selectionPreviewAvailable
+                          ? GestureDetector(
+                              key: const ValueKey('attach-send-count-tap'),
+                              behavior: HitTestBehavior.opaque,
+                              onTap: widget.controller.toggleSelectionPreview,
+                              child: AttachCountBadge(count: _count),
+                            )
+                          : AttachCountBadge(count: _count),
                     ),
                   ),
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The send button's count: the button's fill with a ring of the sheet's
+/// background around it, so it reads as cut out of what it overlaps, and
+/// the count in white bold 12 that rolls to its new value.
+///
+/// [diameter] at least, and wider by the count's width plus [padding] for
+/// a longer count; the ring is [ring] wide outside it.
+class AttachCountBadge extends StatelessWidget {
+  /// The badge of [count].
+  const AttachCountBadge({required this.count, super.key});
+
+  /// The count shown.
+  final int count;
+
+  /// The badge's least size (`max(9 + textWidth, 18)`).
+  static const double diameter = 18;
+
+  /// What the count's width is padded by.
+  static const double padding = 9;
+
+  /// The ring in the sheet's background around the fill.
+  static const double ring = 2;
+
+  /// The text size of the count.
+  static const double fontSize = 12;
+
+  /// How long the count takes to roll to a new value.
+  static const Duration roll = Duration(milliseconds: 320);
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ChromeThemeScope.paletteOf(context);
+    final tokens = ChromeThemeScope.attachOf(context);
+    final style = ChromeTypography.of(context).copyWith(
+      color: palette.onAccent,
+      fontSize: fontSize,
+      fontWeight: FontWeight.w700,
+      height: 1,
+    );
+    return Container(
+      key: const ValueKey('attach-send-count'),
+      constraints: const BoxConstraints(
+        minWidth: diameter + 2 * ring,
+        minHeight: diameter + 2 * ring,
+        maxHeight: diameter + 2 * ring,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: padding / 2),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: palette.accent,
+        borderRadius: BorderRadius.circular(diameter / 2 + ring),
+        border: Border.all(color: tokens.background, width: ring),
+      ),
+      child: ClipRect(
+        child: AnimatedSwitcher(
+          duration: ChromeMotionScope.of(context).speed.scale(roll),
+          switchInCurve: Curves.easeOutQuint,
+          switchOutCurve: Curves.easeOutQuint,
+          transitionBuilder: (child, animation) {
+            final incoming = child.key == ValueKey<int>(count);
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: Offset(0, incoming ? 0.6 : -0.6),
+                end: Offset.zero,
+              ).animate(animation),
+              child: FadeTransition(opacity: animation, child: child),
+            );
+          },
+          child: Text('$count', key: ValueKey<int>(count), style: style),
         ),
       ),
     );

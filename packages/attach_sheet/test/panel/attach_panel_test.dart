@@ -1,6 +1,7 @@
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart' as content;
 import 'package:content_model/testing.dart';
@@ -516,5 +517,53 @@ void main() {
     expect(badge.transform.storage[0], closeTo(1.2, 0.02));
     await tester.pumpAndSettle();
     expect(find.text('2'), findsOneWidget);
+  });
+
+  testWidgets('the count: the fill with a ring of the sheet background, '
+      'white bold 12, on the button top-start corner, rolling to a new '
+      'value', (tester) async {
+    final (rig, _) = await open(tester);
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final badge = find.byKey(const ValueKey('attach-send-count'));
+    final button = tester.getRect(find.byKey(const ValueKey('attach-send')));
+    final rect = tester.getRect(badge);
+    // max(9 + the count's width, 18), and the ring on both sides; the test
+    // face draws a digit 12 wide.
+    expect(rect.height, 18 + 4);
+    expect(rect.width, 9 + 12 + 4);
+    expect(rect.top, button.top);
+    expect(rect.center.dx, closeTo(button.left, 0.5));
+
+    final context = tester.element(badge);
+    final palette = ChromeThemeScope.paletteOf(context);
+    final tokens = ChromeThemeScope.attachOf(context);
+    final decoration =
+        tester.widget<Container>(badge).decoration! as BoxDecoration;
+    expect(decoration.color, palette.accent);
+    expect((decoration.border! as Border).top.color, tokens.background);
+    expect((decoration.border! as Border).top.width, 2);
+    final text = tester.widget<Text>(
+      find.descendant(of: badge, matching: find.text('1')),
+    );
+    expect(text.style!.fontSize, 12);
+    expect(text.style!.fontWeight, FontWeight.w700);
+    expect(text.style!.color, palette.onAccent);
+
+    rig.selection.toggle(AttachItems.photo('q'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    // Both values while it rolls.
+    expect(
+      find.descendant(of: badge, matching: find.text('1')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: badge, matching: find.text('2')),
+      findsOneWidget,
+    );
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: badge, matching: find.text('1')), findsNothing);
+    expectChromeText(tester, within: badge);
   });
 }
