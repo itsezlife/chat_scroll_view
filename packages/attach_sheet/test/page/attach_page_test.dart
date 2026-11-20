@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -93,20 +94,23 @@ void main() {
         policy: android,
         pages: [rowsPage('gallery'), rowsPage('files')],
       );
-      final bar = find.byKey(const ValueKey('attach-tab-bar'));
-      expect(tester.widget<Opacity>(_opacityOf(bar)).opacity, 1);
+      double shown() => tester
+          .widget<GlassSurface>(
+            find.byKey(const ValueKey('attach-tab-bar-glass')),
+          )
+          .opacity;
+      expect(shown(), 1);
 
       rig.selection.toggle(AttachItems.photo('p'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 90));
-      final mid = tester.widget<Opacity>(_opacityOf(bar)).opacity;
-      expect(mid, inExclusiveRange(0, 1));
+      expect(shown(), inExclusiveRange(0, 1));
       await tester.pumpAndSettle();
-      expect(tester.widget<Opacity>(_opacityOf(bar)).opacity, 0);
+      expect(shown(), 0);
 
       rig.selection.clear();
       await tester.pumpAndSettle();
-      expect(tester.widget<Opacity>(_opacityOf(bar)).opacity, 1);
+      expect(shown(), 1);
     });
 
     testWidgets('re-tapping the shown tab scrolls its page to the top and '
@@ -186,7 +190,9 @@ void main() {
         ],
       );
       double opacity() => tester
-          .widget<Opacity>(find.byKey(const ValueKey('attach-tab-bar-shown')))
+          .widget<GlassSurface>(
+            find.byKey(const ValueKey('attach-tab-bar-glass')),
+          )
           .opacity;
       expect(opacity(), 1);
       gallery.requestExpansion();
@@ -483,6 +489,3 @@ void main() {
     });
   });
 }
-
-Finder _opacityOf(Finder bar) =>
-    find.ancestor(of: bar, matching: find.byType(Opacity)).first;

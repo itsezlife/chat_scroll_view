@@ -6,6 +6,30 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (tab bar, breaking)
+
+- The Android tab bar is the reference's: a `GlassMaterial.tabs` stadium 56
+  tall, 7 from the sides and above the bottom inset (was a 70 pill 11 from
+  the sides); tabs 48 tall 4 inside it, clipped to the stadium; a 24 icon 4
+  from the tab's top and an 11 label from 28.33, medium, extra bold when
+  shown (measured at 12 for the tab's width, in whole pixels); the shown
+  tab in `AttachTokens.tabSelected` on a 9 % stadium that grows from 0.6
+  and fades in over 320 ms (decelerate) while the old one shrinks away,
+  the others in `tabUnselected`; a held tab washed in `tabPressed`. It drops
+  44 (was 36) while the sheet is at its top.
+- The bar fades by its glass's own opacity (`GlassSurface.opacity`), the
+  tabs and the iOS lens with it, so its glass reads the scene on every
+  frame of a show or hide; before, an opacity layer over it left the glass
+  see-through until the fade ended.
+- `AttachTabBarStyle` gains `bottomPadding`, `pinnedDrop`, `glass`,
+  `glassColors`, `colors` (an `AttachTabColorsOf`, by default
+  `AttachTabColors.fromTokens`), `tab` (`AttachTabStyle`: icon and label
+  layout, weights, the select motion, the `AttachTabIndicator` mark, the
+  press wash) and `copyWith`. `height` is the glass's height and
+  `innerPadding` the space between the glass and the tabs.
+- `AttachPage.selectedIcon`: the tab's icon while its page is shown.
+- The main button's sides line up with the tabs'.
+
 ### Changed (caption dock)
 
 - The caption's panel is the host's: `AttachSheetHost.createCaptionDock`

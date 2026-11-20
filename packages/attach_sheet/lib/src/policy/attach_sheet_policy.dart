@@ -546,21 +546,28 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   @override
   bool get expandsOnCaptionFocus => true;
 
-  /// A pill 70 tall with radius 28 and 7 inside, 11 from the sides; the
-  /// tabs pop in staggered by 32 ms; the bar drops 36 and fades over
-  /// 180 ms while something is selected; a badge on a tab whose page lacks
-  /// its permission; 8 of fade at a clipped edge; a tapped tab is scrolled
-  /// 70 clear of the edge.
+  /// A tab glass stadium 56 tall, 7 from the sides and above the bottom
+  /// inset, its tabs 48 tall 4 inside it (a 24 icon 4 from the tab's top,
+  /// an 11 label from 28.33, extra bold when shown, the shown tab marked
+  /// by a 9 % accent stadium growing from 0.6 over 320 ms, a tab held down
+  /// washed at 6 %); the tabs pop in staggered by 32 ms; the bar drops 36
+  /// and fades over 180 ms while something is selected, and 44 over
+  /// 380 ms while the sheet is at its top; a badge on a tab whose page
+  /// lacks its permission; 8 of fade at a clipped edge; a tapped tab is
+  /// scrolled 70 clear of the edge.
   @override
   AttachTabBarStyle get tabBar => const AttachTabBarStyle(
-    height: 70,
+    height: 56,
     radius: 28,
-    innerPadding: 7,
-    sidePadding: 11,
+    innerPadding: 4,
+    sidePadding: 7,
+    bottomPadding: 7,
+    glass: GlassMaterial.tabs,
     hideMotion: MotionSpec(Duration(milliseconds: 180), Curves.decelerate),
     showMotion: MotionSpec(Duration(milliseconds: 180), Curves.decelerate),
     pinnedHide: MotionSpec(Duration(milliseconds: 380), Curves.easeOutQuint),
     hideDrop: 36,
+    pinnedDrop: 44,
     permissionBadges: true,
     popIn: AttachTabPopIn(
       delay: Duration(milliseconds: 20),
@@ -578,12 +585,16 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   );
 
   /// Each tab is its label plus 16 a side, narrowing to 8 a side as the
-  /// label grows from 40 to 56, at most 84; room left over is shared evenly.
+  /// label grows from 40 to 56, in whole pixels, at most 84; room left over
+  /// is shared evenly.
   @override
   List<double> tabWidths(List<double> labelWidths, double available) {
     final widths = [
       for (final w in labelWidths)
-        math.min<double>(84, w + 2 * (16 - 8 * ((w - 40) / 16).clamp(0, 1))),
+        math.min<double>(
+          84,
+          (w + 2 * (16 - 8 * ((w - 40) / 16).clamp(0, 1))).floorToDouble(),
+        ),
     ];
     final total = widths.fold<double>(0, (a, b) => a + b);
     if (widths.isEmpty || available <= total) return widths;
@@ -821,14 +832,27 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
   @override
   bool get expandsOnCaptionFocus => true;
 
-  /// A capsule 62 tall; it fades over 0.1 s and shrinks to 0.85 while
-  /// something is selected, and fades back over 0.25 s.
+  /// A capsule 62 tall, 22 from the sides and 8 above the bottom inset,
+  /// its tabs a 24 icon over a 12 label, the shown one in the accent under
+  /// the lens and the others muted; it fades over 0.1 s and shrinks to 0.85
+  /// while something is selected, and fades back over 0.25 s.
   @override
   AttachTabBarStyle get tabBar => const AttachTabBarStyle(
     height: 62,
     radius: 31,
     innerPadding: 0,
     sidePadding: 22,
+    colors: _iosTabColors,
+    tab: AttachTabStyle(
+      iconTop: 11,
+      labelTop: 37,
+      labelSize: 12,
+      labelWeight: FontWeight.normal,
+      selectedLabelWeight: FontWeight.normal,
+      labelPadding: 0,
+      indicator: null,
+      pressFade: null,
+    ),
     hideMotion: MotionSpec(Duration(milliseconds: 100), Curves.linear),
     showMotion: MotionSpec(Duration(milliseconds: 250), Curves.easeInOut),
     hideScale: 0.85,
@@ -1044,3 +1068,14 @@ base class AttachSheetPolicy$Web extends AttachSheetPolicy$Android {
     analysedAtOnce: 10,
   );
 }
+
+/// The iOS tabs: the shown one in the accent, the others muted; the lens
+/// marks the shown one and a press washes none.
+AttachTabColors _iosTabColors(ChromePalette palette, AttachTokens tokens) =>
+    AttachTabColors(
+      selected: palette.accent,
+      selectedLabel: palette.accent,
+      unselected: palette.onSurfaceMuted,
+      indicator: const Color(0x00000000),
+      pressed: const Color(0x00000000),
+    );

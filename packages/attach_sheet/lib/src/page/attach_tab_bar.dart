@@ -10,12 +10,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/widgets.dart';
 
-/// The text size of a tab's label.
-const double _labelSize = 12;
-
 /// The sheet's tab bar: one tab per page, by the policy's style. A single
 /// page collapses it; a host page's main button replaces it; it leaves
 /// while the attach selection is not empty.
+///
+/// It leaves and comes back on one factor: its glass's own opacity (never
+/// an opacity layer over the glass, which would hide the scene from it),
+/// its tabs' opacity, its drop and its scale.
 @internal
 class AttachTabBar extends StatefulWidget {
   /// The tab bar of [model].
@@ -37,6 +38,10 @@ class _AttachTabBarState extends State<AttachTabBar>
   );
   bool _lensPlaced = false;
   int? _dragIndex;
+
+  /// How far the bar drops at the hidden end: the selection's drop, or the
+  /// sheet's top's while that hides it.
+  late double _drop = _style.hideDrop;
   final ScrollController _$strip = ScrollController();
 
   AttachPagesModel get _model => widget.model;
@@ -74,6 +79,7 @@ class _AttachTabBarState extends State<AttachTabBar>
     _pinned = pinned;
     final motion = _style.pinnedHide;
     if (motion == null || _model.selection.isNotEmpty) return;
+    _drop = _style.pinnedDrop ?? _style.hideDrop;
     final spec = motion.withSpeed(_speed);
     // Eased on time either way, from wherever the bar is.
     unawaited(
@@ -116,6 +122,9 @@ class _AttachTabBarState extends State<AttachTabBar>
 
   void _selectionChanged() {
     final hide = _model.selection.isNotEmpty || _hiddenByPin;
+    _drop = _model.selection.isEmpty && _hiddenByPin
+        ? _style.pinnedDrop ?? _style.hideDrop
+        : _style.hideDrop;
     final spec = (hide ? _style.hideMotion : _style.showMotion).withSpeed(
       _speed,
     );
@@ -227,12 +236,16 @@ class _AttachTabBarState extends State<AttachTabBar>
   }
 
   List<double> _widths(double screenWidth) {
+    final tab = _style.tab;
     final labels = [
       for (final page in _model.pages.pages)
         (TextPainter(
           text: TextSpan(
             text: page.label,
-            style: ChromeTypography.of(context).copyWith(fontSize: _labelSize),
+            style: ChromeTypography.of(context).copyWith(
+              fontSize: tab.measuredLabelSize,
+              fontWeight: tab.labelWeight,
+            ),
           ),
           textDirection: TextDirection.ltr,
           maxLines: 1,
@@ -263,46 +276,44 @@ class _AttachTabBarState extends State<AttachTabBar>
     valueListenable: _model.mainButton,
     builder: (context, button, _) {
       if (button != null) {
+        // Its sides line up with the tabs'.
+        final side = _style.sidePadding + _style.innerPadding;
         return Padding(
-          padding: EdgeInsets.fromLTRB(
-            _style.sidePadding,
-            8,
-            _style.sidePadding,
-            8 + padding.bottom,
-          ),
+          padding: EdgeInsets.fromLTRB(side, 8, side, 8 + padding.bottom),
           child: _MainButton(button: button, style: _style),
         );
       }
       if (pages.length < 2) return const SizedBox.shrink();
       return AnimatedBuilder(
         animation: _$hidden,
-        builder: (context, bar) {
+        builder: (context, _) {
           final h = _$hidden.value;
           return IgnorePointer(
-            ignoring: _$hidden.value > 0,
-            child: Opacity(
-              key: const ValueKey('attach-tab-bar-shown'),
-              opacity: 1 - h,
-              child: Transform.translate(
-                offset: Offset(0, _style.hideDrop * h),
-                child: Transform.scale(
-                  scale: 1 - (1 - _style.hideScale) * h,
-                  child: bar,
+            ignoring: h > 0,
+            child: Transform.translate(
+              offset: Offset(0, _drop * h),
+              child: Transform.scale(
+                scale: 1 - (1 - _style.hideScale) * h,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: padding.bottom + _style.bottomPadding,
+                  ),
+                  child: _bar(context, 1 - h),
                 ),
               ),
             ),
           );
         },
-        child: Padding(
-          padding: EdgeInsets.only(bottom: padding.bottom + 8),
-          child: _bar(context),
-        ),
       );
     },
   );
 
-  Widget _bar(BuildContext context) {
-    final palette = ChromeThemeScope.paletteOf(context);
+  /// The bar, its glass and its tabs at [shown] opacity.
+  Widget _bar(BuildContext context, double shown) {
+    final colors = _style.colors(
+      ChromeThemeScope.paletteOf(context),
+      ChromeThemeScope.attachOf(context),
+    );
     final width = MediaQuery.sizeOf(context).width;
     final widths = _widths(width);
     final pages = _model.pages.pages;
@@ -311,12 +322,14 @@ class _AttachTabBarState extends State<AttachTabBar>
       tabsWidth + 2 * _style.innerPadding,
       width - 2 * _style.sidePadding,
     );
+    final tabHeight = _style.height - 2 * _style.innerPadding;
     final lens = _style.lens;
     if (lens != null && !_lensPlaced) {
       _lensPlaced = true;
       _$lens.value = _lensX(widths, _activeIndex);
     }
     Widget row = Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < pages.length; i++)
           AnimatedBuilder(
@@ -338,20 +351,23 @@ class _AttachTabBarState extends State<AttachTabBar>
             child: _Tab(
               page: pages[i],
               width: widths[i],
+              height: tabHeight,
               selected: pages[i].id == _model.active.value,
-              fillsSelected: lens == null,
               badges: _style.permissionBadges,
               onTap: () => _model.select(pages[i].id),
-              palette: palette,
+              colors: colors,
+              style: _style.tab,
             ),
           ),
       ],
     );
+    // The tabs fade with the glass; a glass among them (the lens) fades by
+    // its own opacity, outside their fade.
+    row = Opacity(opacity: shown, child: row);
     if (lens != null) {
       // The lens sits under the tabs and follows a drag across them; the
       // tab under the finger when it lifts is selected.
-      final lensHeight =
-          _style.height - 2 * _style.innerPadding - 2 * lens.inset;
+      final lensHeight = tabHeight - 2 * lens.inset;
       row = GestureDetector(
         behavior: HitTestBehavior.translucent,
         onHorizontalDragStart: (d) => _dragLens(widths, d.localPosition.dx),
@@ -375,12 +391,13 @@ class _AttachTabBarState extends State<AttachTabBar>
                       key: const ValueKey('attach-tab-lens'),
                       material: GlassMaterial.button,
                       cornerRadius: lens.radius,
+                      opacity: shown,
                       child: const SizedBox.expand(),
                     ),
                   );
                 },
               ),
-              row,
+              Positioned.fill(child: row),
             ],
           ),
         ),
@@ -394,137 +411,311 @@ class _AttachTabBarState extends State<AttachTabBar>
     );
     final fade = _style.edgeFade;
     final clipped = tabsWidth > barWidth - 2 * _style.innerPadding;
+    final faded = fade > 0 && clipped
+        ? ShaderMask(
+            shaderCallback: (rect) => LinearGradient(
+              colors: const [
+                Color(0x00000000),
+                Color(0xFF000000),
+                Color(0xFF000000),
+                Color(0x00000000),
+              ],
+              stops: [0, fade / rect.width, 1 - fade / rect.width, 1],
+            ).createShader(rect),
+            blendMode: BlendMode.dstIn,
+            child: strip,
+          )
+        : strip;
+    // The tabs clip to the bar's stadium, inset by the inner padding.
+    final tabs = lens == null
+        ? ClipRRect(
+            borderRadius: BorderRadius.circular(_style.radius),
+            child: faded,
+          )
+        : faded;
     return Center(
-      child: GlassSurface(
-        material: GlassMaterial.island,
-        cornerRadius: _style.radius,
-        child: Container(
-          key: const ValueKey('attach-tab-bar'),
-          width: barWidth,
-          height: _style.height,
-          padding: EdgeInsets.all(_style.innerPadding),
-          child: fade > 0 && clipped
-              ? ShaderMask(
-                  shaderCallback: (rect) => LinearGradient(
-                    colors: const [
-                      Color(0x00000000),
-                      Color(0xFF000000),
-                      Color(0xFF000000),
-                      Color(0x00000000),
-                    ],
-                    stops: [0, fade / rect.width, 1 - fade / rect.width, 1],
-                  ).createShader(rect),
-                  blendMode: BlendMode.dstIn,
-                  child: strip,
-                )
-              : strip,
+      child: SizedBox(
+        key: const ValueKey('attach-tab-bar'),
+        width: barWidth,
+        height: _style.height,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GlassSurface(
+                key: const ValueKey('attach-tab-bar-glass'),
+                material: _style.glass,
+                colors: _style.glassColors,
+                cornerRadius: _style.radius,
+                opacity: shown,
+                child: const SizedBox.expand(),
+              ),
+            ),
+            Positioned.fill(
+              child: Padding(
+                padding: EdgeInsets.all(_style.innerPadding),
+                child: tabs,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _Tab extends StatelessWidget {
+/// One tab: its mark, its press wash, its icon and its label, coloured by
+/// one select factor that eases between shown and not.
+class _Tab extends StatefulWidget {
   const _Tab({
     required this.page,
     required this.width,
+    required this.height,
     required this.selected,
-    required this.fillsSelected,
     required this.badges,
     required this.onTap,
-    required this.palette,
+    required this.colors,
+    required this.style,
   });
 
   final AttachPage page;
   final double width;
+  final double height;
   final bool selected;
-  final bool fillsSelected;
   final bool badges;
   final VoidCallback onTap;
-  final ChromePalette palette;
+  final AttachTabColors colors;
+  final AttachTabStyle style;
+
+  @override
+  State<_Tab> createState() => _TabState();
+}
+
+class _TabState extends State<_Tab> with TickerProviderStateMixin {
+  // Time through the current select move; the factor eases from [_from] to
+  // [_to] along it, so a move turned back starts where the last one was.
+  late final AnimationController _$select = AnimationController(
+    vsync: this,
+    value: 1,
+  );
+  late final AnimationController _$press = AnimationController(vsync: this);
+  late double _from = widget.selected ? 1 : 0;
+  late double _to = _from;
+
+  double get _factor =>
+      _from +
+      (_to - _from) * widget.style.selectMotion.curve.transform(_$select.value);
+
+  @override
+  void didUpdateWidget(_Tab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selected == oldWidget.selected) return;
+    _from = _factor;
+    _to = widget.selected ? 1 : 0;
+    final spec = widget.style.selectMotion.withSpeed(
+      ChromeMotionScope.of(context).speed,
+    );
+    if (spec.duration == Duration.zero) {
+      _$select.value = 1;
+      return;
+    }
+    _$select
+      ..duration = spec.duration
+      ..forward(from: 0).ignore();
+  }
+
+  @override
+  void dispose() {
+    _$select.dispose();
+    _$press.dispose();
+    super.dispose();
+  }
+
+  void _pressDown() {
+    if (widget.style.pressFade == null) return;
+    _$press.value = 1;
+  }
+
+  void _pressUp() {
+    final fade = widget.style.pressFade;
+    if (fade == null || _$press.value == 0) return;
+    _$press
+        .animateTo(0, duration: ChromeMotionScope.of(context).speed.scale(fade))
+        .ignore();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? palette.accent : palette.onSurfaceMuted;
+    final page = widget.page;
+    final style = widget.style;
+    final colors = widget.colors;
     final permission = page.permission;
-    var icon = IconTheme.merge(
-      data: IconThemeData(color: color, size: 24),
-      child: page.icon,
-    );
-    if (badges && permission != null) {
-      icon = ValueListenableBuilder<bool>(
-        valueListenable: permission.granted,
-        child: icon,
-        builder: (context, granted, icon) => granted
-            ? icon!
-            : Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  icon!,
-                  PositionedDirectional(
-                    top: -4,
-                    end: -8,
-                    child: Semantics(
-                      label: ChromeStringsScope.attachOf(
-                        context,
-                      ).permissionNeeded,
-                      child: Container(
-                        key: const ValueKey('attach-tab-badge'),
-                        width: 16,
-                        height: 16,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: palette.destructive,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '!',
-                          style: ChromeTypography.of(context).copyWith(
-                            color: palette.onAccent,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-      );
-    }
+    final palette = ChromeThemeScope.paletteOf(context);
     return Semantics(
       button: true,
-      selected: selected,
+      selected: widget.selected,
       label: page.label,
       child: GestureDetector(
         key: ValueKey('attach-tab-${page.id}'),
         behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          width: width,
-          decoration: BoxDecoration(
-            color: selected && fillsSelected ? palette.surfaceSelected : null,
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              icon,
-              const SizedBox(height: 2),
-              Text(
-                page.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: ChromeTypography.of(
-                  context,
-                ).copyWith(color: color, fontSize: _labelSize),
-              ),
-            ],
+        onTapDown: (_) => _pressDown(),
+        onTapUp: (_) => _pressUp(),
+        onTapCancel: _pressUp,
+        onTap: widget.onTap,
+        child: SizedBox(
+          width: widget.width,
+          child: AnimatedBuilder(
+            animation: _$select,
+            builder: (context, _) {
+              final f = _factor;
+              final iconColor = Color.lerp(
+                colors.unselected,
+                colors.selected,
+                f,
+              )!;
+              final tinted = IconTheme.merge(
+                data: IconThemeData(color: iconColor, size: style.iconSize),
+                child: widget.selected
+                    ? page.selectedIcon ?? page.icon
+                    : page.icon,
+              );
+              final icon = widget.badges && permission != null
+                  ? _Badged(
+                      granted: permission.granted,
+                      palette: palette,
+                      child: tinted,
+                    )
+                  : tinted;
+              final indicator = style.indicator;
+              return Stack(
+                children: [
+                  if (indicator != null)
+                    Positioned.fill(
+                      child: Transform.scale(
+                        key: ValueKey('attach-tab-indicator-${page.id}'),
+                        scale:
+                            indicator.fromScale + (1 - indicator.fromScale) * f,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.indicator.withValues(
+                              alpha:
+                                  colors.indicator.a *
+                                  Curves.decelerate.transform(f),
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              math.min(widget.width, widget.height) / 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (style.pressFade != null)
+                    Positioned.fill(
+                      child: AnimatedBuilder(
+                        animation: _$press,
+                        builder: (context, wash) => Opacity(
+                          key: ValueKey('attach-tab-press-${page.id}'),
+                          opacity: _$press.value,
+                          child: wash,
+                        ),
+                        child: ColoredBox(color: colors.pressed),
+                      ),
+                    ),
+                  Positioned(
+                    top: style.iconTop,
+                    left: 0,
+                    right: 0,
+                    height: style.iconSize,
+                    child: Center(
+                      child: SizedBox(
+                        key: ValueKey('attach-tab-icon-${page.id}'),
+                        width: style.iconSize,
+                        height: style.iconSize,
+                        child: icon,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: style.labelTop,
+                    left: style.labelPadding,
+                    right: style.labelPadding,
+                    child: Text(
+                      page.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: ChromeTypography.of(context).copyWith(
+                        color: Color.lerp(
+                          colors.unselected,
+                          colors.selectedLabel,
+                          f,
+                        ),
+                        fontSize: style.labelSize,
+                        fontWeight: widget.selected
+                            ? style.selectedLabelWeight
+                            : style.labelWeight,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
     );
   }
+}
+
+/// [child] with a badge while [granted] is false.
+class _Badged extends StatelessWidget {
+  const _Badged({
+    required this.granted,
+    required this.palette,
+    required this.child,
+  });
+
+  final ValueListenable<bool> granted;
+  final ChromePalette palette;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+    valueListenable: granted,
+    child: child,
+    builder: (context, granted, icon) => granted
+        ? icon!
+        : Stack(
+            clipBehavior: Clip.none,
+            children: [
+              icon!,
+              PositionedDirectional(
+                top: -4,
+                end: -8,
+                child: Semantics(
+                  label: ChromeStringsScope.attachOf(context).permissionNeeded,
+                  child: Container(
+                    key: const ValueKey('attach-tab-badge'),
+                    width: 16,
+                    height: 16,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: palette.destructive,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '!',
+                      style: ChromeTypography.of(context).copyWith(
+                        color: palette.onAccent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+  );
 }
 
 class _MainButton extends StatelessWidget {

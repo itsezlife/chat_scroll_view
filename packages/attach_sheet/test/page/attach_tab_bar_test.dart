@@ -1,13 +1,326 @@
+import 'dart:async';
+
+import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:chrome_foundation/testing.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'pages_rig.dart';
 
+/// A host's own tab bar: its glass and colours, on the Android bar.
+final class _CustomTabs extends AttachSheetPolicy$Android {
+  const _CustomTabs();
+
+  static const glass = GlassMaterial.tabs;
+
+  @override
+  AttachTabBarStyle get tabBar => super.tabBar.copyWith(
+    glass: glass.copyWith(strokeWidth: 1),
+    colors: _colors,
+  );
+}
+
+AttachTabColors _colors(ChromePalette palette, AttachTokens tokens) =>
+    const AttachTabColors(
+      selected: Color(0xFFFF0000),
+      selectedLabel: Color(0xFFFF0000),
+      unselected: Color(0xFF00FF00),
+      indicator: Color(0x170000FF),
+      pressed: Color(0x0F000000),
+    );
+
+GlassSurface _barGlass(WidgetTester tester) => tester.widget<GlassSurface>(
+  find.byKey(const ValueKey('attach-tab-bar-glass')),
+);
+
+/// The opacity layers above [layer] that are not opaque.
+List<OpacityLayer> _fadingAbove(Layer layer) => [
+  for (Layer? l = layer.parent; l != null; l = l.parent)
+    if (l is OpacityLayer && (l.alpha ?? 255) < 255) l,
+];
+
+/// The scene filters of the tab bar's glass.
+Iterable<Layer> _barFilters(WidgetTester tester) => [
+  for (final element
+      in find
+          .descendant(
+            of: find.byKey(const ValueKey('attach-tab-bar')),
+            matching: find.byType(BackdropFilter),
+          )
+          .evaluate())
+    element.renderObject!.debugLayer!,
+];
+
 void main() {
   const android = AttachSheetPolicy.android();
   const ios = AttachSheetPolicy.ios();
+
+  group('Android bar', () {
+    testWidgets('a 56 glass pill 7 from the sides and above the bottom, the '
+        'tabs 48 tall 4 inside it', (tester) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [rowsPage('gallery'), rowsPage('files')],
+      );
+      final bar = tester.getRect(find.byKey(const ValueKey('attach-tab-bar')));
+      expect(bar, const Rect.fromLTRB(7, 800 - 7 - 56, 400 - 7, 800 - 7));
+      final glass = _barGlass(tester);
+      expect(glass.material, GlassMaterial.tabs);
+      expect(glass.cornerRadius, 28);
+
+      final tab = tester.getRect(rig.tab('gallery'));
+      expect(tab.top, bar.top + 4);
+      expect(tab.left, bar.left + 4);
+      expect(tab.height, 48);
+      final files = tester.getRect(rig.tab('files'));
+      expect(files.right, closeTo(bar.right - 4, 1));
+    });
+
+    testWidgets('a 24 icon 4 from the tab top; an 11 label from 28.33, '
+        'medium, extra bold when shown', (tester) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [rowsPage('gallery'), rowsPage('files')],
+      );
+      final tab = tester.getRect(rig.tab('files'));
+      final icon = tester.getRect(
+        find.byKey(const ValueKey('attach-tab-icon-files')),
+      );
+      expect(icon.size, const Size(24, 24));
+      expect(icon.top - tab.top, 4);
+      expect(icon.center.dx, closeTo(tab.center.dx, 0.01));
+
+      Text label(String id) => tester.widget<Text>(
+        find.descendant(of: rig.tab(id), matching: find.text(id)),
+      );
+      final labelTop = tester
+          .getTopLeft(
+            find.descendant(of: rig.tab('files'), matching: find.text('files')),
+          )
+          .dy;
+      expect(labelTop - tab.top, closeTo(28.33, 0.01));
+      expect(label('files').style!.fontSize, 11);
+      expect(label('files').style!.fontWeight, FontWeight.w500);
+      expect(label('gallery').style!.fontWeight, FontWeight.w800);
+      expectChromeText(
+        tester,
+        within: find.byKey(const ValueKey('attach-tab-bar')),
+      );
+    });
+
+    testWidgets('the shown tab in the accent, the others in the text colour', (
+      tester,
+    ) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [rowsPage('gallery'), rowsPage('files')],
+      );
+      final tokens = AttachTokens.fromPalette(const ChromePalette.light());
+      Color labelColor(String id) => tester
+          .widget<Text>(
+            find.descendant(of: rig.tab(id), matching: find.text(id)),
+          )
+          .style!
+          .color!;
+      expect(labelColor('gallery'), tokens.tabSelectedLabel);
+      expect(labelColor('files'), tokens.tabUnselected);
+    });
+
+    testWidgets('a tab held down is washed at 6 % until it lifts', (
+      tester,
+    ) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [rowsPage('gallery'), rowsPage('files')],
+      );
+      final press = find.byKey(const ValueKey('attach-tab-press-files'));
+      double wash() => tester.widget<Opacity>(press).opacity;
+      expect(wash(), 0);
+      final gesture = await tester.startGesture(
+        tester.getCenter(rig.tab('files')),
+      );
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(wash(), 1);
+      expect(
+        tester
+            .widget<ColoredBox>(
+              find.descendant(of: press, matching: find.byType(ColoredBox)),
+            )
+            .color,
+        AttachTokens.fromPalette(const ChromePalette.light()).tabPressed,
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(wash(), 0);
+    });
+
+    testWidgets("the shown tab's mark grows from 0.6 and fades in over "
+        '320 ms as the old one shrinks away', (tester) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [rowsPage('gallery'), rowsPage('files')],
+      );
+      final tokens = AttachTokens.fromPalette(const ChromePalette.light());
+      double scaleOf(String id) => tester
+          .widget<Transform>(find.byKey(ValueKey('attach-tab-indicator-$id')))
+          .transform
+          .storage[0];
+      double alphaOf(String id) {
+        final box = find.descendant(
+          of: find.byKey(ValueKey('attach-tab-indicator-$id')),
+          matching: find.byType(DecoratedBox),
+        );
+        return (tester.widget<DecoratedBox>(box).decoration as BoxDecoration)
+            .color!
+            .a;
+      }
+
+      expect(scaleOf('gallery'), 1);
+      expect(alphaOf('gallery'), closeTo(tokens.tabIndicator.a, 1e-6));
+      expect(scaleOf('files'), closeTo(0.6, 1e-6));
+      expect(alphaOf('files'), 0);
+
+      await tester.tap(rig.tab('files'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(scaleOf('files'), inExclusiveRange(0.6, 1));
+      expect(alphaOf('files'), inExclusiveRange(0, tokens.tabIndicator.a));
+      expect(scaleOf('gallery'), inExclusiveRange(0.6, 1));
+
+      await tester.pump(const Duration(milliseconds: 240));
+      expect(scaleOf('files'), 1);
+      expect(alphaOf('files'), closeTo(tokens.tabIndicator.a, 1e-6));
+      expect(alphaOf('gallery'), 0);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('as the selection fills, the bar drops 36 and fades as one, '
+        'its glass reading the scene on every frame', (tester) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [rowsPage('gallery'), rowsPage('files')],
+      );
+      final rest = tester.getRect(find.byKey(const ValueKey('attach-tab-bar')));
+      rig.selection.toggle(AttachItems.photo('p'));
+      await tester.pump();
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final shown = _barGlass(tester).opacity;
+        final drop =
+            tester.getRect(find.byKey(const ValueKey('attach-tab-bar'))).top -
+            rest.top;
+        expect(drop, closeTo(36 * (1 - shown), 0.01), reason: 'frame $i');
+        final filters = _barFilters(tester);
+        expect(filters, isNotEmpty, reason: 'frame $i');
+        for (final filter in filters) {
+          expect(_fadingAbove(filter), isEmpty, reason: 'frame $i');
+        }
+      }
+      await tester.pumpAndSettle();
+      expect(_barGlass(tester).opacity, 0);
+
+      rig.selection.clear();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(_barGlass(tester).opacity, inExclusiveRange(0, 1));
+      for (final filter in _barFilters(tester)) {
+        expect(_fadingAbove(filter), isEmpty);
+      }
+      await tester.pumpAndSettle();
+      expect(_barGlass(tester).opacity, 1);
+    });
+
+    testWidgets('it comes back from 44 below as the sheet leaves its top', (
+      tester,
+    ) async {
+      late AttachPageScope gallery;
+      await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [
+          rowsPage('gallery', onScope: (s) => gallery = s),
+          rowsPage('files'),
+        ],
+      );
+      final rest = tester.getRect(find.byKey(const ValueKey('attach-tab-bar')));
+      gallery.requestExpansion();
+      await tester.pumpAndSettle();
+      expect(_barGlass(tester).opacity, 0);
+      expect(
+        tester.getRect(find.byKey(const ValueKey('attach-tab-bar'))).top,
+        rest.top + 44,
+      );
+
+      final sheet = AttachSheetController.of(
+        tester.element(find.byKey(const ValueKey('gallery-row-0'))),
+      );
+      unawaited(sheet.collapse());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 100));
+      final shown = _barGlass(tester).opacity;
+      expect(shown, inExclusiveRange(0, 1));
+      expect(
+        tester.getRect(find.byKey(const ValueKey('attach-tab-bar'))).top -
+            rest.top,
+        closeTo(44 * (1 - shown), 0.01),
+      );
+      for (final filter in _barFilters(tester)) {
+        expect(_fadingAbove(filter), isEmpty);
+      }
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets("a host's style: its own glass and tab colours", (
+      tester,
+    ) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: const _CustomTabs(),
+        pages: [rowsPage('gallery'), rowsPage('files')],
+      );
+      expect(
+        _barGlass(tester).material,
+        _CustomTabs.glass.copyWith(strokeWidth: 1),
+      );
+      final label = tester.widget<Text>(
+        find.descendant(of: rig.tab('files'), matching: find.text('files')),
+      );
+      expect(label.style!.color, const Color(0xFF00FF00));
+    });
+
+    testWidgets('a page with a shown icon of its own wears it when shown', (
+      tester,
+    ) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [
+          AttachPage(
+            id: const AttachPageId('gallery'),
+            label: 'gallery',
+            icon: const SizedBox(key: ValueKey('outline'), width: 24),
+            selectedIcon: const SizedBox(key: ValueKey('filled'), width: 24),
+            builder: (context, scope) => const SizedBox.expand(),
+          ),
+          rowsPage('files'),
+        ],
+      );
+      expect(find.byKey(const ValueKey('filled')), findsOneWidget);
+      await rig.tapTab('files');
+      expect(find.byKey(const ValueKey('filled')), findsNothing);
+      expect(find.byKey(const ValueKey('outline')), findsOneWidget);
+    });
+  });
 
   group('Android widths', () {
     test('a label plus 16 a side, 8 a side from 56, at most 84', () {

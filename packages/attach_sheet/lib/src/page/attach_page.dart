@@ -66,6 +66,7 @@ final class AttachPage {
     required this.label,
     required this.icon,
     required this.builder,
+    this.selectedIcon,
     this.kind = AttachPageKind.selection,
     this.permission,
   });
@@ -76,8 +77,12 @@ final class AttachPage {
   /// Its tab's label.
   final String label;
 
-  /// Its tab's icon.
+  /// Its tab's icon, tinted by the tab bar through the `IconTheme`.
   final Widget icon;
+
+  /// Its tab's icon while the page is shown (a filled one, or one that
+  /// plays its own move to it); null wears [icon] throughout.
+  final Widget? selectedIcon;
 
   /// Builds its content.
   final AttachPageBuilder builder;
