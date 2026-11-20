@@ -404,11 +404,36 @@ void main() {
     tester.state<ScrollableState>(find.byType(Scrollable)).position.jumpTo(400);
     await tester.pump();
 
-    // A real flick: 120 px at 4000 px/s, from the list.
+    // A real flick: 120 px at 4000 px/s, from the list, at the device's
+    // frame rate (a coarse pump would step over the carry's first frames).
     await tester.flingFrom(const Offset(200, 400), const Offset(0, 120), 4000);
-    await tester.pumpAndSettle();
+    for (var i = 0; i < 120; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     expect(rig.scrolled, 0);
     expect(rig.top, closeTo(rest, 1), reason: 'not held at the top');
     expect(rig.closed, isFalse);
+  });
+
+  testWidgets("the page's viewport holds its size while the sheet moves: "
+      'the sheet top is the page padding, not a resize', (tester) async {
+    final rig = await SheetRig.open(tester, policy: policy);
+    double viewport() => tester
+        .state<ScrollableState>(find.byType(Scrollable))
+        .position
+        .viewportDimension;
+    final atRest = viewport();
+    final gesture = await tester.startGesture(const Offset(200, 500));
+    final seen = <double>{};
+    for (var i = 0; i < 10; i++) {
+      await gesture.moveBy(const Offset(0, -20));
+      await tester.pump();
+      seen.add(viewport());
+    }
+    await gesture.up();
+    rig.controller.expand().ignore();
+    await tester.pumpAndSettle();
+    seen.add(viewport());
+    expect(seen, {atRest});
   });
 }

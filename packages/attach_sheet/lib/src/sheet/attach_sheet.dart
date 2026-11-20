@@ -678,7 +678,12 @@ class _AttachSheetState extends State<AttachSheet>
     AttachLog.log(
       AttachLog.panel,
       'settle: released at ${_$top.value} (rest $_collapsedTop, top '
-      '$_expandedTop) moving $velocity px/s: ${decision?.name ?? 'the page'}',
+      '$_expandedTop) moving $velocity px/s: '
+      '${switch (decision) {
+        null => 'the page',
+        AttachSheetRelease.fling when velocity == 0 => 'stays (no fling)',
+        final AttachSheetRelease decision => decision.name,
+      }}',
     );
     switch (decision) {
       case null:
@@ -877,12 +882,12 @@ class _AttachSheetState extends State<AttachSheet>
           math.max(0, _size.height - top),
         );
         final rect = _morphed(target);
-        // Below its rest (pulled down, closing) the sheet keeps its content
-        // at the resting height and clips it, rather than squeezing it.
-        final contentHeight = math.max(
-          target.height,
-          math.max<double>(0, _size.height - _collapsedTop),
-        );
+        // The content is laid out once at the sheet's full height and the
+        // sheet's top only moves it, as a list whose top padding is the
+        // sheet's: its viewport (and a scrollbar's track over it) holds
+        // still while the sheet moves; below the screen's edge it is
+        // clipped.
+        final contentHeight = math.max<double>(0, _size.height - _expandedTop);
         final band = _bandAt(top);
         final corner = _morphedRadius(
           (squares ? radius * (1 - pinned) : radius) * band.radiusShare,
@@ -1170,15 +1175,17 @@ class _SheetFling extends Simulation {
   bool _hitMax = false;
   double lastVelocity = 0;
 
+  // An end is reached only moving toward it: a carry that starts at the
+  // top (or the rest) and moves away is not done at its first frame.
   @override
   double x(double time) {
     final raw = start + fling.x(time);
     lastVelocity = fling.dx(time);
-    if (raw <= min) {
+    if (raw <= min && (raw < min || lastVelocity < 0)) {
       hitMin = true;
       return min;
     }
-    if (raw >= max) {
+    if (raw >= max && (raw > max || lastVelocity > 0)) {
       _hitMax = true;
       return max;
     }

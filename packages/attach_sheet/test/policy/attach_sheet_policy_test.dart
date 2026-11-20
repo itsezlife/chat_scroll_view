@@ -91,6 +91,20 @@ void main() {
       expect(release(400 + 50.3), AttachSheetRelease.holdCollapsed);
     });
 
+    test('moving up, it never dismisses: it goes back to its rest, however '
+        'far below it', () {
+      expect(
+        release(400 + 54, velocity: -1303),
+        AttachSheetRelease.holdCollapsed,
+      );
+      expect(
+        release(400 + 300, velocity: -1),
+        AttachSheetRelease.holdCollapsed,
+      );
+      // Still: past 0.8 cm it goes.
+      expect(release(400 + 54), AttachSheetRelease.dismiss);
+    });
+
     test('a downward fling of 3500 physical px/s dismisses', () {
       expect(release(410, velocity: 3500 / 3), AttachSheetRelease.dismiss);
       expect(

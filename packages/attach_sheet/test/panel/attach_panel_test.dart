@@ -857,4 +857,32 @@ void main() {
     expect(host.drawn, contains('★'));
     expect(find.byKey(const ValueKey('inline-★')), findsOneWidget);
   });
+
+  testWidgets("the panel takes the keyboard's full height, not the inset of "
+      'a keyboard on its way down', (tester) async {
+    final (rig, scope) = await open(tester, host: _PanelHost());
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final english = ChromeStringsPresets.english.composer;
+    scope.panel.caption.focusNode.requestFocus();
+    final dpr = tester.view.devicePixelRatio;
+    addTearDown(tester.view.resetViewInsets);
+    // Up: rising to 358.
+    for (final inset in [40.0, 200.0, 358.0]) {
+      tester.view.viewInsets = FakeViewPadding(bottom: inset * dpr);
+      await tester.pump();
+    }
+    // Going down as the button is pressed: 4.6 left.
+    for (final inset in [200.0, 4.6]) {
+      tester.view.viewInsets = FakeViewPadding(bottom: inset * dpr);
+      await tester.pump();
+    }
+    await tester.tap(find.bySemanticsLabel(english.showPanelAction));
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byKey(const ValueKey('attach-caption-panel-slot'))),
+      const Size(400, 358),
+    );
+  });
 }

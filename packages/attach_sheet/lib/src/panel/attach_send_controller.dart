@@ -106,9 +106,28 @@ final class AttachSendController {
   /// Whether the caption's panel stands in the keyboard's place.
   final ValueNotifier<bool> captionPanelShown = ValueNotifier(false);
 
-  /// The keyboard's last height, the panel's height in its place; a
+  /// The keyboard's last full height, the panel's height in its place; a
   /// keyboard's usual height until one has shown.
   double keyboardHeight = 280;
+
+  // The tallest inset of the keyboard up now: a keyboard on its way up or
+  // down reports less than its height, which is never the panel's.
+  double _rising = 0;
+
+  /// Tells the controller the keyboard's inset now. A keyboard's full
+  /// height is the tallest inset it reaches while up: while it is on its
+  /// way up or down the height known before holds (never less), and once it
+  /// is down its tallest inset becomes the height.
+  void noteKeyboard(double inset) {
+    if (captionPanelHandingOff) return;
+    if (inset <= 0) {
+      if (_rising > 0) keyboardHeight = _rising;
+      _rising = 0;
+      return;
+    }
+    if (inset > _rising) _rising = inset;
+    if (_rising > keyboardHeight) keyboardHeight = _rising;
+  }
 
   /// The caption's button: the panel takes the keyboard's place (the field
   /// keeps focus and its caret, with no soft keyboard), or gives it back to

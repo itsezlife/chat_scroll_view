@@ -390,6 +390,11 @@ abstract base class AttachSheetPolicy {
   /// only while the sheet is at its top too.
   int get libraryFastScrollMinCount => 31;
 
+  /// Whether the fast scroll's month is the item's last change, the date
+  /// the device library sorts the grid by (Android's media store), rather
+  /// than when it was taken: the label then follows the grid's order.
+  bool get libraryMonthByModified => true;
+
   // --- Confirm box ---
 
   /// The confirm box every intake route leads to; null on a family that
@@ -492,6 +497,9 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   AttachSheetRelease? release(AttachSheetReleaseInput input) {
     final below = input.top - input.collapsedTop;
     if (below > 0) {
+      // Moving up the finger keeps the sheet: back to its rest, whatever
+      // the pull (the maintainer's rule over the 0.8 cm distance).
+      if (input.velocity < 0) return AttachSheetRelease.holdCollapsed;
       final fling = dismissFlingVelocity / input.devicePixelRatio;
       return below >= dismissDistance || input.velocity >= fling
           ? AttachSheetRelease.dismiss
@@ -863,6 +871,10 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
   /// of the grid is in view.
   @override
   FastScrollbarPolicy get libraryFastScroll => FastScrollbarPolicy.$IOS;
+
+  /// The photo library sorts by creation: the month is when it was taken.
+  @override
+  bool get libraryMonthByModified => false;
 
   @override
   int get libraryFastScrollMinCount => 0;

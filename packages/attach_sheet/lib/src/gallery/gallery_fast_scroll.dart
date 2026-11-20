@@ -79,7 +79,14 @@ class _GalleryFastScrollState extends State<GalleryFastScroll> {
         controller: widget.controller,
         policy: fast,
         style: _style(fast, palette),
-        labelAt: (offset) => switch (lookup.assetAt(offset)?.created) {
+        // The date the grid is sorted by, so the label moves with the
+        // grid's order.
+        labelAt: (offset) => switch (switch (lookup.assetAt(offset)) {
+          final asset? when policy.libraryMonthByModified =>
+            asset.modified ?? asset.created,
+          final asset? => asset.created ?? asset.modified,
+          null => null,
+        }) {
           final date? => strings.libraryMonth(date.toLocal()),
           null => null,
         },

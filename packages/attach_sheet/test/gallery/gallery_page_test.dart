@@ -536,6 +536,34 @@ void main() {
       );
     });
 
+    testWidgets(r"$Android: the month is the item's last change, the date "
+        'the grid is sorted by, not when it was taken', (tester) async {
+      // An old photo edited lately sorts first, by its change.
+      library.insert([
+        LibraryAsset(
+          id: const LibraryAssetId('edited'),
+          kind: LibraryAssetKind.photo,
+          created: DateTime.utc(2020, 4, 10),
+          modified: DateTime.utc(2026, 11, 20),
+        ),
+      ]);
+      await open(tester);
+      await expand(tester);
+      grid(tester).jumpTo(1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      final strings = ChromeStringsPresets.english.attach;
+      expect(
+        find.descendant(
+          of: find.byKey(label),
+          matching: find.text(
+            strings.libraryMonth(DateTime.utc(2026, 11, 20).toLocal()),
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets(r'$Android: the thumb comes once the sheet is at its top, '
         'and the label names the month of the items in view', (tester) async {
       await open(tester);

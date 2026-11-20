@@ -760,9 +760,7 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
     final padding = MediaQuery.paddingOf(context);
     // The keyboard's height, the panel's in its place.
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    if (keyboard > 0 && !widget.controller.captionPanelHandingOff) {
-      widget.controller.keyboardHeight = keyboard;
-    }
+    widget.controller.noteKeyboard(keyboard);
     final rise = widget.controller.policy.panel.revealRise;
     final curved = CurvedAnimation(parent: _$shown, curve: _curve);
     return AnimatedBuilder(
