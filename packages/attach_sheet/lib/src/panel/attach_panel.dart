@@ -176,14 +176,18 @@ class AttachSendButton extends StatefulWidget {
 }
 
 class _AttachSendButtonState extends State<AttachSendButton>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _$bounce;
+  late final AnimationController _$roll;
   late int _count = widget.controller.selection.length;
+  // The count rolling from [_from] to [_count]; 0 is no text.
+  late int _from = _count;
 
   @override
   void initState() {
     super.initState();
     _$bounce = AnimationController.unbounded(vsync: this, value: 1);
+    _$roll = AnimationController(vsync: this, value: 1);
     widget.controller.selection.changes.addListener(_counted);
   }
 
@@ -191,6 +195,7 @@ class _AttachSendButtonState extends State<AttachSendButton>
   void dispose() {
     widget.controller.selection.changes.removeListener(_counted);
     _$bounce.dispose();
+    _$roll.dispose();
     super.dispose();
   }
 
@@ -198,10 +203,25 @@ class _AttachSendButtonState extends State<AttachSendButton>
     final count = widget.controller.selection.length;
     if (count == _count) return;
     final grew = count > _count;
-    setState(() => _count = count);
+    final speed = ChromeMotionScope.of(context).speed;
+    setState(() {
+      // A roll in flight starts again from the value it shows most.
+      _from = _$roll.value < 0.5 ? _from : _count;
+      _count = count;
+    });
+    _$roll.value = 0;
+    unawaited(
+      _$roll
+          .animateTo(
+            1,
+            duration: speed.scale(AttachCountBadge.roll),
+            curve: Curves.easeOutQuint,
+          )
+          .orCancel
+          .then((_) {}, onError: (Object _) {}),
+    );
     if (count == 0) return;
     final bounce = widget.controller.policy.panel.countBounce;
-    final speed = ChromeMotionScope.of(context).speed;
     if (speed.isInstant) return;
     final peak = grew ? bounce.up : bounce.down;
     try {
@@ -299,40 +319,50 @@ class _AttachSendButtonState extends State<AttachSendButton>
                   ),
                 ),
               ),
-              if (_count > 0)
-                // The count sits on the button's top-start corner, its top
-                // on the button's top, its centre on the button's start
-                // edge.
-                PositionedDirectional(
-                  start: 0,
-                  top: 0,
-                  child: FractionalTranslation(
-                    translation: Offset(
-                      Directionality.of(context) == TextDirection.rtl
-                          ? 0.5
-                          : -0.5,
-                      0,
-                    ),
-                    child: AnimatedBuilder(
-                      animation: _$bounce,
-                      builder: (context, badge) => Transform.scale(
+              // The count sits on the button's top-start corner, its top on
+              // the button's top, its centre on the button's start edge. It
+              // stays while it rolls away to nothing.
+              PositionedDirectional(
+                start: 0,
+                top: 0,
+                child: FractionalTranslation(
+                  translation: Offset(
+                    Directionality.of(context) == TextDirection.rtl
+                        ? 0.5
+                        : -0.5,
+                    0,
+                  ),
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([_$bounce, _$roll]),
+                    builder: (context, _) {
+                      // Eased by its own animation (ease out quint).
+                      final t = _$roll.value;
+                      final old = _from == 0 ? '' : '$_from';
+                      final text = _count == 0 ? '' : '$_count';
+                      // Shown while either end has text, scaled by it.
+                      final shown =
+                          (old.isEmpty ? 0.0 : 1 - t) +
+                          (text.isEmpty ? 0.0 : t);
+                      if (shown <= 0) return const SizedBox.shrink();
+                      final badge = AttachCountBadge(from: old, to: text, t: t);
+                      return Transform.scale(
                         key: const ValueKey('attach-send-bounce'),
-                        scale: _$bounce.value,
-                        child: badge,
-                      ),
-                      // A tap on the count opens the selected-items preview
-                      // (and closes it), not a send.
-                      child: widget.controller.selectionPreviewAvailable
-                          ? GestureDetector(
-                              key: const ValueKey('attach-send-count-tap'),
-                              behavior: HitTestBehavior.opaque,
-                              onTap: widget.controller.toggleSelectionPreview,
-                              child: AttachCountBadge(count: _count),
-                            )
-                          : AttachCountBadge(count: _count),
-                    ),
+                        scale: _$bounce.value * shown,
+                        // A tap on the count opens the selected-items
+                        // preview (and closes it), not a send.
+                        child: widget.controller.selectionPreviewAvailable
+                            ? GestureDetector(
+                                key: const ValueKey('attach-send-count-tap'),
+                                behavior: HitTestBehavior.opaque,
+                                onTap: widget.controller.toggleSelectionPreview,
+                                child: badge,
+                              )
+                            : badge,
+                      );
+                    },
                   ),
                 ),
+              ),
             ],
           ),
         ),
@@ -343,16 +373,30 @@ class _AttachSendButtonState extends State<AttachSendButton>
 
 /// The send button's count: the button's fill with a ring of the sheet's
 /// background around it, so it reads as cut out of what it overlaps, and
-/// the count in white bold 12 that rolls to its new value.
+/// the count in white bold 12.
 ///
-/// [diameter] at least, and wider by the count's width plus [padding] for
-/// a longer count; the ring is [ring] wide outside it.
+/// The count rolls from [from] to [to] at [t] (0 to 1) as the reference's
+/// animated text does: aligned from the end, a digit that stays slides to
+/// its new place, a digit that goes drops [moveAmplitude] of the text size
+/// and fades, a digit that comes drops in from that far above and fades in;
+/// the badge's width follows the text's, at least [diameter].
 class AttachCountBadge extends StatelessWidget {
-  /// The badge of [count].
-  const AttachCountBadge({required this.count, super.key});
+  /// The badge of [to], rolling from [from] at [t].
+  const AttachCountBadge({
+    required this.to,
+    this.from = '',
+    this.t = 1,
+    super.key,
+  });
 
-  /// The count shown.
-  final int count;
+  /// The count shown, '' for none.
+  final String to;
+
+  /// The count it rolls from, '' for none.
+  final String from;
+
+  /// How far the roll is, 0 to 1 (already eased).
+  final double t;
 
   /// The badge's least size (`max(9 + textWidth, 18)`).
   static const double diameter = 18;
@@ -366,7 +410,10 @@ class AttachCountBadge extends StatelessWidget {
   /// The text size of the count.
   static const double fontSize = 12;
 
-  /// How long the count takes to roll to a new value.
+  /// How far a digit moves as it comes or goes, in text sizes.
+  static const double moveAmplitude = 0.3;
+
+  /// How long the count takes to roll to a new value (ease out quint).
   static const Duration roll = Duration(milliseconds: 320);
 
   @override
@@ -379,14 +426,58 @@ class AttachCountBadge extends StatelessWidget {
       fontWeight: FontWeight.w700,
       height: 1,
     );
+    final direction = Directionality.of(context);
+    double widthOf(String text) => text.isEmpty
+        ? 0
+        : (TextPainter(
+            text: TextSpan(text: text, style: style),
+            textDirection: direction,
+          )..layout()).width;
+    final oldWidth = widthOf(from);
+    final newWidth = widthOf(to);
+    final width = oldWidth + (newWidth - oldWidth) * t;
+    final inner = math.max(padding + width, diameter);
+    const move = fontSize * moveAmplitude;
+
+    // Digits from the end: the i-th from the end of each.
+    final children = <Widget>[];
+    final count = math.max(from.length, to.length);
+    for (var i = 0; i < count; i++) {
+      final o = i < from.length ? from[from.length - 1 - i] : null;
+      final n = i < to.length ? to[to.length - 1 - i] : null;
+      // Where the digit's end sits from the text's end, in each.
+      final oldEnd = widthOf(from.substring(math.max(0, from.length - i)));
+      final newEnd = widthOf(to.substring(math.max(0, to.length - i)));
+      Widget digit(
+        String c, {
+        required double end,
+        required double dy,
+        required double opacity,
+      }) => Positioned(
+        right: end,
+        top: dy,
+        child: Opacity(
+          opacity: opacity.clamp(0.0, 1.0),
+          child: Text(c, style: style),
+        ),
+      );
+      if (o != null && o == n) {
+        children.add(
+          digit(o, end: oldEnd + (newEnd - oldEnd) * t, dy: 0, opacity: 1),
+        );
+        continue;
+      }
+      if (o != null && t < 1) {
+        children.add(digit(o, end: oldEnd, dy: move * t, opacity: 1 - t));
+      }
+      if (n != null) {
+        children.add(digit(n, end: newEnd, dy: -move * (1 - t), opacity: t));
+      }
+    }
     return Container(
       key: const ValueKey('attach-send-count'),
-      constraints: const BoxConstraints(
-        minWidth: diameter + 2 * ring,
-        minHeight: diameter + 2 * ring,
-        maxHeight: diameter + 2 * ring,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: padding / 2),
+      width: inner + 2 * ring,
+      height: diameter + 2 * ring,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: palette.accent,
@@ -394,21 +485,10 @@ class AttachCountBadge extends StatelessWidget {
         border: Border.all(color: tokens.background, width: ring),
       ),
       child: ClipRect(
-        child: AnimatedSwitcher(
-          duration: ChromeMotionScope.of(context).speed.scale(roll),
-          switchInCurve: Curves.easeOutQuint,
-          switchOutCurve: Curves.easeOutQuint,
-          transitionBuilder: (child, animation) {
-            final incoming = child.key == ValueKey<int>(count);
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: Offset(0, incoming ? 0.6 : -0.6),
-                end: Offset.zero,
-              ).animate(animation),
-              child: FadeTransition(opacity: animation, child: child),
-            );
-          },
-          child: Text('$count', key: ValueKey<int>(count), style: style),
+        child: SizedBox(
+          width: width,
+          height: fontSize,
+          child: Stack(clipBehavior: Clip.none, children: children),
         ),
       ),
     );

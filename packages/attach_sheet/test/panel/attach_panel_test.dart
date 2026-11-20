@@ -553,19 +553,65 @@ void main() {
 
     rig.selection.toggle(AttachItems.photo('q'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    // Both values while it rolls.
-    expect(
-      find.descendant(of: badge, matching: find.text('1')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: badge, matching: find.text('2')),
-      findsOneWidget,
-    );
-    await tester.pumpAndSettle();
+    // The roll: 320 ms on an ease out quint; the old digit drops 0.3 of the
+    // text size and fades, the new one drops in from that far above.
+    double dyOf(String digit) => tester
+        .widget<Positioned>(
+          find
+              .ancestor(
+                of: find.descendant(of: badge, matching: find.text(digit)),
+                matching: find.byType(Positioned),
+              )
+              .first,
+        )
+        .top!;
+    double opacityOf(String digit) => tester
+        .widget<Opacity>(
+          find
+              .ancestor(
+                of: find.descendant(of: badge, matching: find.text(digit)),
+                matching: find.byType(Opacity),
+              )
+              .first,
+        )
+        .opacity;
+    await tester.pump(const Duration(milliseconds: 40));
+    final t = Curves.easeOutQuint.transform(40 / 320);
+    expect(dyOf('1'), closeTo(12 * 0.3 * t, 0.01));
+    expect(opacityOf('1'), closeTo(1 - t, 0.01));
+    expect(dyOf('2'), closeTo(-12 * 0.3 * (1 - t), 0.01));
+    expect(opacityOf('2'), closeTo(t, 0.01));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.descendant(of: badge, matching: find.text('1')), findsNothing);
+    expect(dyOf('2'), 0);
+    await tester.pumpAndSettle();
+
+    // 9 to 10: the badge widens with the text through the roll.
+    for (var i = 0; i < 7; i++) {
+      rig.selection.toggle(AttachItems.photo('r$i'));
+    }
+    await tester.pumpAndSettle();
+    final nine = tester.getSize(badge).width;
+    rig.selection.toggle(AttachItems.photo('x'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+    final mid = tester.getSize(badge).width;
+    await tester.pumpAndSettle();
+    final ten = tester.getSize(badge).width;
+    expect(mid, greaterThan(nine));
+    expect(mid, lessThan(ten));
+
+    // Emptied, it rolls away to nothing, shrinking with the text.
+    rig.selection.clear();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 40));
+    final scale = tester.widget<Transform>(
+      find.byKey(const ValueKey('attach-send-bounce')),
+    );
+    expect(scale.transform.storage[0], closeTo(1 - t, 0.02));
     expectChromeText(tester, within: badge);
+    await tester.pumpAndSettle();
+    expect(badge, findsNothing);
   });
 
   testWidgets("the caption is the chat's composer island floating over the "
