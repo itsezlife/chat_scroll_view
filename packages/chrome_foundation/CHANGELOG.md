@@ -14,6 +14,18 @@ package is pre-1.0.
   fades the backdrop (inside the filter), the tint, the edges, the shadow
   and the child with no layer over the filter; at 0 no backdrop is read.
 
+### Added (tab bar glass and colours, breaking)
+
+- `GlassColorRole.tabs` and `GlassMaterial.tabs`: a tab bar floating over
+  content (a 28 stadium, 0.4 edges, a 8/3 shadow 0.85 down). Its colours
+  are `GlassMaterialTokens.tabs` (required): the surface tint, faint dark
+  edges under a 0x20 shadow in light, faint white edges under a 0x04 white
+  glow in dark.
+- `AttachTokens` gains the tab bar's colours (required): `tabSelected`,
+  `tabSelectedLabel` (the accent), `tabUnselected` (the text colour),
+  `tabIndicator` (the accent at 9 %) and `tabPressed` (the text colour at
+  0x0F).
+
 ### Changed (glass materials, breaking)
 
 - `GlassMaterial` is an immutable value (`colorRole`, `cornerRadius`,

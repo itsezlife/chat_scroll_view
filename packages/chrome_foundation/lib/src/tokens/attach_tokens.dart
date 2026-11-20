@@ -16,11 +16,18 @@ final class AttachTokens {
     required this.background,
     required this.grabber,
     required this.header,
+    required this.tabSelected,
+    required this.tabSelectedLabel,
+    required this.tabUnselected,
+    required this.tabIndicator,
+    required this.tabPressed,
   });
 
   /// The group derived from [palette]: the sheet on the raised surface, a
   /// black scrim, and the grabber in the text colour at 7 % on a light
-  /// palette and 20 % on a dark one.
+  /// palette and 20 % on a dark one. The shown tab is in the accent, marked
+  /// by the accent at 9 %; the others are in the text colour, and a tab
+  /// held down is washed with it at 6 % (0x0F).
   factory AttachTokens.fromPalette(ChromePalette palette) => AttachTokens(
     scrim: const Color(0xFF000000),
     background: palette.surfaceRaised,
@@ -28,6 +35,11 @@ final class AttachTokens {
       alpha: palette.brightness == Brightness.light ? 0.07 : 0.2,
     ),
     header: palette.surfaceRaised,
+    tabSelected: palette.accent,
+    tabSelectedLabel: palette.accent,
+    tabUnselected: palette.onSurface,
+    tabIndicator: palette.accent.withValues(alpha: 0.09),
+    tabPressed: palette.onSurface.withAlpha(0x0F),
   );
 
   /// The colour dimming the screen behind the sheet, at full strength; the
@@ -43,17 +55,42 @@ final class AttachTokens {
   /// The header that fades in once the sheet is pinned at the top.
   final Color header;
 
+  /// The icon of the shown tab in the tab bar.
+  final Color tabSelected;
+
+  /// The label of the shown tab.
+  final Color tabSelectedLabel;
+
+  /// The icon and label of a tab not shown.
+  final Color tabUnselected;
+
+  /// The mark behind the shown tab, at its full strength.
+  final Color tabIndicator;
+
+  /// The wash over a tab held down.
+  final Color tabPressed;
+
   /// A copy with the named fields replaced.
   AttachTokens copyWith({
     Color? scrim,
     Color? background,
     Color? grabber,
     Color? header,
+    Color? tabSelected,
+    Color? tabSelectedLabel,
+    Color? tabUnselected,
+    Color? tabIndicator,
+    Color? tabPressed,
   }) => AttachTokens(
     scrim: scrim ?? this.scrim,
     background: background ?? this.background,
     grabber: grabber ?? this.grabber,
     header: header ?? this.header,
+    tabSelected: tabSelected ?? this.tabSelected,
+    tabSelectedLabel: tabSelectedLabel ?? this.tabSelectedLabel,
+    tabUnselected: tabUnselected ?? this.tabUnselected,
+    tabIndicator: tabIndicator ?? this.tabIndicator,
+    tabPressed: tabPressed ?? this.tabPressed,
   );
 
   /// Interpolates every field between [a] and [b].
@@ -65,6 +102,15 @@ final class AttachTokens {
         background: Color.lerp(a.background, b.background, t)!,
         grabber: Color.lerp(a.grabber, b.grabber, t)!,
         header: Color.lerp(a.header, b.header, t)!,
+        tabSelected: Color.lerp(a.tabSelected, b.tabSelected, t)!,
+        tabSelectedLabel: Color.lerp(
+          a.tabSelectedLabel,
+          b.tabSelectedLabel,
+          t,
+        )!,
+        tabUnselected: Color.lerp(a.tabUnselected, b.tabUnselected, t)!,
+        tabIndicator: Color.lerp(a.tabIndicator, b.tabIndicator, t)!,
+        tabPressed: Color.lerp(a.tabPressed, b.tabPressed, t)!,
       );
 
   @override
@@ -74,10 +120,25 @@ final class AttachTokens {
           scrim == other.scrim &&
           background == other.background &&
           grabber == other.grabber &&
-          header == other.header;
+          header == other.header &&
+          tabSelected == other.tabSelected &&
+          tabSelectedLabel == other.tabSelectedLabel &&
+          tabUnselected == other.tabUnselected &&
+          tabIndicator == other.tabIndicator &&
+          tabPressed == other.tabPressed;
 
   @override
-  int get hashCode => Object.hash(scrim, background, grabber, header);
+  int get hashCode => Object.hash(
+    scrim,
+    background,
+    grabber,
+    header,
+    tabSelected,
+    tabSelectedLabel,
+    tabUnselected,
+    tabIndicator,
+    tabPressed,
+  );
 
   @override
   String toString() => 'AttachTokens(background: $background)';

@@ -23,6 +23,9 @@ enum GlassColorRole {
 
   /// Small floating labels (a fast scroll's date).
   bubble,
+
+  /// A tab bar floating over content.
+  tabs,
 }
 
 /// What a glass surface is made of, apart from its colours: its corners,
@@ -112,6 +115,16 @@ final class GlassMaterial {
     shadowBlur: 1,
     shadowOffset: Offset(0, 1 / 3),
     refracts: false,
+  );
+
+  /// A tab bar floating over content: a stadium on a 56 dp bar, hairline
+  /// 0.4 dp edges and a soft shadow 0.85 dp down.
+  static const tabs = GlassMaterial(
+    colorRole: GlassColorRole.tabs,
+    cornerRadius: 28,
+    strokeWidth: 0.4,
+    shadowBlur: 8 / 3,
+    shadowOffset: Offset(0, 0.85),
   );
 
   /// The theme colours this material takes.

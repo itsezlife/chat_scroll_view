@@ -126,6 +126,7 @@ final class GlassMaterialTokens {
     required this.menu,
     required this.panel,
     required this.bubble,
+    required this.tabs,
   });
 
   /// The default mapping of [palette] roles onto the glass roles.
@@ -140,6 +141,10 @@ final class GlassMaterialTokens {
   /// 0.825 in a light one, over a backdrop saturated x2 and x3. A light menu
   /// has a white top edge at 0x44, a bottom one at 0x22 and a 0x38 black
   /// shadow; a dark one has neither.
+  ///
+  /// A tab bar tints [ChromePalette.surface]. Its light edges are the
+  /// shadow ink at 0x11 (top) and 0x20 (bottom) under a 0x20 shadow; its
+  /// dark ones white at 0x06 and 0x11 under a 0x04 white glow.
   factory GlassMaterialTokens.fromPalette(ChromePalette palette) {
     final isDark = palette.brightness == Brightness.dark;
     const white = Color(0xFFFFFFFF);
@@ -170,6 +175,16 @@ final class GlassMaterialTokens {
       ),
       panel: island,
       bubble: bar,
+      tabs: GlassMaterialColors(
+        tint: palette.surface,
+        strokeTop: isDark
+            ? white.withAlpha(0x06)
+            : palette.shadow.withAlpha(0x11),
+        strokeBottom: isDark
+            ? white.withAlpha(0x11)
+            : palette.shadow.withAlpha(0x20),
+        shadow: isDark ? white.withAlpha(0x04) : palette.shadow.withAlpha(0x20),
+      ),
     );
   }
 
@@ -191,6 +206,9 @@ final class GlassMaterialTokens {
   /// Small floating labels.
   final GlassMaterialColors bubble;
 
+  /// Tab bars floating over content.
+  final GlassMaterialColors tabs;
+
   /// The colours of [role].
   GlassMaterialColors of(GlassColorRole role) => switch (role) {
     GlassColorRole.island => island,
@@ -199,6 +217,7 @@ final class GlassMaterialTokens {
     GlassColorRole.menu => menu,
     GlassColorRole.panel => panel,
     GlassColorRole.bubble => bubble,
+    GlassColorRole.tabs => tabs,
   };
 
   /// The colours of [material]: those of its colour role.
@@ -213,6 +232,7 @@ final class GlassMaterialTokens {
     GlassMaterialColors? menu,
     GlassMaterialColors? panel,
     GlassMaterialColors? bubble,
+    GlassMaterialColors? tabs,
   }) => GlassMaterialTokens(
     island: island ?? this.island,
     button: button ?? this.button,
@@ -220,6 +240,7 @@ final class GlassMaterialTokens {
     menu: menu ?? this.menu,
     panel: panel ?? this.panel,
     bubble: bubble ?? this.bubble,
+    tabs: tabs ?? this.tabs,
   );
 
   /// Interpolates every role between [a] and [b].
@@ -236,6 +257,7 @@ final class GlassMaterialTokens {
     menu: GlassMaterialColors.lerp(a.menu, b.menu, t),
     panel: GlassMaterialColors.lerp(a.panel, b.panel, t),
     bubble: GlassMaterialColors.lerp(a.bubble, b.bubble, t),
+    tabs: GlassMaterialColors.lerp(a.tabs, b.tabs, t),
   );
 
   @override

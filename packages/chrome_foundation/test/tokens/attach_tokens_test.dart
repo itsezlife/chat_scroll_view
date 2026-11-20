@@ -30,6 +30,21 @@ void main() {
     });
   });
 
+  test('tabs: the accent when shown, the text colour when not, a 9 % accent '
+      'mark and a 6 % press', () {
+    for (final palette in [
+      const ChromePalette.light(),
+      const ChromePalette.dark(),
+    ]) {
+      final tokens = AttachTokens.fromPalette(palette);
+      expect(tokens.tabSelected, palette.accent);
+      expect(tokens.tabSelectedLabel, palette.accent);
+      expect(tokens.tabUnselected, palette.onSurface);
+      expect(tokens.tabIndicator, palette.accent.withValues(alpha: 0.09));
+      expect(tokens.tabPressed, palette.onSurface.withAlpha(0x0F));
+    }
+  });
+
   test('copyWith replaces only the named fields', () {
     final base = AttachTokens.fromPalette(const ChromePalette.light());
     final next = base.copyWith(background: const Color(0xFF010203));
@@ -37,6 +52,10 @@ void main() {
     expect(next.scrim, base.scrim);
     expect(next.grabber, base.grabber);
     expect(next.copyWith(background: base.background), base);
+    final tabs = base.copyWith(tabSelected: const Color(0xFF00FF00));
+    expect(tabs.tabSelected, const Color(0xFF00FF00));
+    expect(tabs.tabUnselected, base.tabUnselected);
+    expect(tabs, isNot(base));
   });
 
   test('lerp ends at each side', () {

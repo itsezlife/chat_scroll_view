@@ -31,6 +31,7 @@ void main() {
     GlassColorRole.menu: GlassMaterial.menu,
     GlassColorRole.panel: GlassMaterial.panel,
     GlassColorRole.bubble: GlassMaterial.bubble,
+    GlassColorRole.tabs: GlassMaterial.tabs,
   };
 
   test('every role has its preset, naming its own colours', () {
@@ -38,6 +39,31 @@ void main() {
     for (final MapEntry(key: role, value: material) in presets.entries) {
       expect(material.colorRole, role);
     }
+  });
+
+  test('a tab bar: a 28 stadium, 0.4 edges, a 2.667 shadow 0.85 down, '
+      'refracting', () {
+    expect(GlassMaterial.tabs.cornerRadius, 28);
+    expect(GlassMaterial.tabs.strokeWidth, 0.4);
+    expect(GlassMaterial.tabs.shadowBlur, closeTo(2.667, 1e-3));
+    expect(GlassMaterial.tabs.shadowOffset, const Offset(0, 0.85));
+    expect(GlassMaterial.tabs.refracts, isTrue);
+  });
+
+  test('tab bar colours: the surface tint, faint dark edges and a 0x20 '
+      'shadow in light; fainter white edges and a 0x04 white glow in dark', () {
+    const lightPalette = ChromePalette.light();
+    final light = GlassMaterialTokens.fromPalette(lightPalette).tabs;
+    expect(light.tint, lightPalette.surface);
+    expect(light.strokeTop, const Color(0x11000000));
+    expect(light.strokeBottom, const Color(0x20000000));
+    expect(light.shadow, const Color(0x20000000));
+    const darkPalette = ChromePalette.dark();
+    final dark = GlassMaterialTokens.fromPalette(darkPalette).tabs;
+    expect(dark.tint, darkPalette.surface);
+    expect(dark.strokeTop, const Color(0x06FFFFFF));
+    expect(dark.strokeBottom, const Color(0x11FFFFFF));
+    expect(dark.shadow, const Color(0x04FFFFFF));
   });
 
   test('a material is a value: copyWith, equality, lerp', () {
