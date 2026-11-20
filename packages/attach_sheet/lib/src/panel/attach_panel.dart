@@ -136,7 +136,25 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
   }
 
   @override
-  Widget build(BuildContext context) => Material(
+  Widget build(BuildContext context) => switch (widget.dock) {
+    // The dock's pad goes under the island and under Send alike, so Send
+    // stays on the island's baseline with the keyboard down, up, or the
+    // panel in its place.
+    final dock? => ListenableBuilder(
+      listenable: dock.changes,
+      builder: (context, _) => ValueListenableBuilder<double>(
+        valueListenable: dock.fieldBottomPad,
+        builder: (context, pad, _) => _bar(context, dock: dock, bottomPad: pad),
+      ),
+    ),
+    null => _bar(context, dock: null, bottomPad: 0),
+  };
+
+  Widget _bar(
+    BuildContext context, {
+    required AttachCaptionDock? dock,
+    required double bottomPad,
+  }) => Material(
     type: MaterialType.transparency,
     // The chat's own composer island: the field in its floating pill, with
     // the island's margins and glass, and Send beside it.
@@ -158,23 +176,14 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
                 ),
                 child: field,
               ),
-              child: switch (widget.dock) {
-                final dock? => ListenableBuilder(
-                  listenable: dock.changes,
-                  builder: (context, _) => ValueListenableBuilder<double>(
-                    valueListenable: dock.fieldBottomPad,
-                    builder: (context, pad, _) =>
-                        _composer(context, dock: dock, bottomPad: pad),
-                  ),
-                ),
-                null => _composer(context, dock: null, bottomPad: 0),
-              },
+              child: _composer(context, dock: dock, bottomPad: bottomPad),
             ),
           ),
-          // On the island's baseline: the composer's bottom margin.
+          // On the island's baseline: the composer's bottom margin and the
+          // dock's pad under it.
           Padding(
-            padding: const EdgeInsets.only(
-              bottom: ComposerMetrics.islandBottomGap,
+            padding: EdgeInsets.only(
+              bottom: ComposerMetrics.islandBottomGap + bottomPad,
             ),
             child: switch (widget.reveal) {
               final reveal? => AnimatedBuilder(

@@ -953,6 +953,43 @@ void main() {
     expect(view.safeAreaBottom, 34);
   });
 
+  testWidgets("Send stands on the island's baseline in every state of the "
+      'dock: keyboard down (the safe area padded), keyboard up, panel up', (
+    tester,
+  ) async {
+    final host = _DockHost();
+    final (rig, scope) = await open(tester, host: host, safeBottom: 34);
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final dock = host.dock;
+    final glass = find.descendant(
+      of: find.byKey(const ValueKey('attach-caption')),
+      matching: find.byType(GlassSurface),
+    );
+    final send = find.byKey(const ValueKey('attach-send'));
+    Future<void> state(
+      String name, {
+      required double place,
+      required double pad,
+    }) async {
+      dock
+        ..place = place
+        ..pad.value = pad;
+      dock.show(panel: dock.up);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(send).bottom,
+        closeTo(tester.getRect(glass.first).bottom, 0.5),
+        reason: name,
+      );
+    }
+
+    await state('keyboard down', place: 0, pad: 34);
+    await state('keyboard up', place: 300, pad: 0);
+    dock.show(panel: true);
+    await state('panel up', place: 300, pad: 0);
+  });
+
   testWidgets("the caption's taps go to the dock; with no panel up a field "
       'that lost its focus takes it back and asks for its keyboard', (
     tester,
