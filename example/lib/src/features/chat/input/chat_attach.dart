@@ -91,6 +91,8 @@ final class ChatAttach extends AttachSheetHost {
     required this.bulletins,
     required this.send,
     this.chatTitle,
+    this.yieldKeyboard,
+    this.returnKeyboard,
   });
 
   /// The app's services (the device library, the key-value store).
@@ -107,6 +109,20 @@ final class ChatAttach extends AttachSheetHost {
 
   /// The chat's name: the picker viewer's title.
   final String? chatTitle;
+
+  /// Puts the chat's panel in a raised keyboard's place as the sheet opens,
+  /// so the chat does not move under it; true when it did.
+  final bool Function()? yieldKeyboard;
+
+  /// Gives the place back to the keyboard once the sheet has gone.
+  final VoidCallback? returnKeyboard;
+
+  // Whether the open put the chat's panel in the keyboard's place.
+  bool _panelForKeyboard = false;
+
+  // The sheet's back claim, on top of the chat's own while the sheet is up.
+  ChatPreImeBackClaim? _backClaim;
+  ValueGetter<Future<bool>>? _back;
 
   /// The sheet or box family of this platform.
   final AttachSheetPolicy policy = AttachSheetPolicy.current();
@@ -167,8 +183,9 @@ final class ChatAttach extends AttachSheetHost {
     final intake = await _$intake;
     final directory = await _$work;
     if (!context.mounted) return;
+    // One text: the caption starts as the chat's text, which stays in the
+    // chat's field (nothing clears or blinks); see [_finish].
     final caption = composer.richText;
-    composer.clear();
     final library = services.mediaLibrary;
     // Back goes to the topmost surface: the sheet's claim stacks over the
     // panel's and is taken before the keyboard sees it, so it does what the
@@ -178,11 +195,14 @@ final class ChatAttach extends AttachSheetHost {
     // before dropping a selection), or what a page pushed over it.
     final navigator = Navigator.of(context);
     final view = View.of(context);
-    final backClaim = ChatPreImeBackClaim.push(() async {
+    Future<bool> back() async {
       if (keyboardTakesBack(view)) return true;
       unawaited(navigator.maybePop());
       return true;
-    });
+    }
+
+    _back = back;
+    _backClaim = ChatPreImeBackClaim.push(back);
     final AttachOutcome outcome;
     try {
       outcome = await AttachSheet.show(
@@ -217,7 +237,9 @@ final class ChatAttach extends AttachSheetHost {
         ]),
       );
     } finally {
-      backClaim.pop();
+      _backClaim?.pop();
+      _backClaim = null;
+      _back = null;
     }
     await _finish(outcome, library: library);
   }
@@ -236,7 +258,6 @@ final class ChatAttach extends AttachSheetHost {
     final directory = await _$work;
     if (!context.mounted) return;
     final caption = composer.richText;
-    composer.clear();
     final box = _$box = ConfirmBoxController(
       policy: policy,
       selection: AttachSelection(policy: attachPolicy, limits: limits),
@@ -274,9 +295,12 @@ final class ChatAttach extends AttachSheetHost {
   Future<void> _finish(AttachOutcome outcome, {MediaLibrary? library}) async {
     switch (outcome) {
       case AttachOutcome$Cancelled(:final caption):
-        // The caption goes back to the composer.
-        composer.restore(caption);
+        // The caption edited is the chat's text now; unchanged, the field
+        // is left as it is.
+        if (caption != composer.richText) composer.restore(caption);
       case AttachOutcome$Send(:final request, :final prepared):
+        // The text went with the media: the chat's field empties.
+        if (!request.caption.isEmpty) composer.clear();
         final plan = planSend(request, attachPolicy, limits);
         if (plan case SendPlan$Rejected(:final rejection)) {
           bulletins.show(
@@ -306,14 +330,33 @@ final class ChatAttach extends AttachSheetHost {
 
   // --- AttachSheetHost ---
 
+  // The sheet owns focus while it is up: the chat's field lets go (hardware
+  // keys go to the caption, not the chat), and a raised keyboard's place
+  // goes to the chat's panel, so the chat stays put under the sheet.
   @override
   void opened(AttachSheetOpening opening) {
     _keyboardWasUp = opening.keyboardWasUp;
+    _panelForKeyboard = yieldKeyboard?.call() ?? false;
     composer.focusNode.unfocus();
+    // The panel that came up claimed back over the sheet: the sheet's claim
+    // goes back on top, the topmost surface taking back first.
+    if (_panelForKeyboard) {
+      if (_back case final back?) {
+        _backClaim?.pop();
+        _backClaim = ChatPreImeBackClaim.push(back);
+      }
+    }
   }
 
+  // After the sheet: the keyboard comes back in the panel's place, or the
+  // field takes focus back where no panel stood in for it.
   @override
   void restoreKeyboard() {
+    if (_panelForKeyboard) {
+      _panelForKeyboard = false;
+      returnKeyboard?.call();
+      return;
+    }
     if (_keyboardWasUp) composer.focusNode.requestFocus();
   }
 

@@ -901,6 +901,18 @@ final class ChatInputSet {
     }
   }
 
+  /// A surface opens over the chat (the attach sheet): a soft keyboard the
+  /// composer raised gives its place to the panel, at its height, so the
+  /// chat does not move under the surface. True when the panel took the
+  /// keyboard's place; [handOffToKeyboard] gives it back when the surface
+  /// has gone. False with no keyboard up, or a panel already on screen.
+  bool yieldKeyboardToPanel() {
+    if (_disposed || isPanelVisible) return false;
+    if (!composer.hasFocus || ime.samples.value.height <= 1) return false;
+    presentation.show();
+    return _panelReplacesKeyboard;
+  }
+
   /// A tap on the composer's field: back to the keyboard while a panel
   /// replaces it.
   void onFieldTap() {

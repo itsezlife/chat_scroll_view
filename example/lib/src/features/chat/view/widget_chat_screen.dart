@@ -228,6 +228,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     bulletins: _bulletins,
     send: _handleSendMessage,
     chatTitle: widget.title,
+    yieldKeyboard: _input.yieldKeyboardToPanel,
+    returnKeyboard: _input.handOffToKeyboard,
   );
 
   /// The chat's bulletins: one slot for the screen, on the policy of the
