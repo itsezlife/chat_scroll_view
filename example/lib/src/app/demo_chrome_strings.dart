@@ -250,6 +250,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     libraryChangeSettings: 'Изменить настройки',
     libraryPartial: 'Доступны только выбранные фото и видео',
     libraryCameraDenied: 'Разрешите доступ к камере',
+    libraryMonth: (date) => '${_months[date.month - 1]} ${date.year}',
     mediaNotAllowed: 'Отправка медиа здесь запрещена',
     captureClose: 'Закрыть',
     captureShutter: 'Снять',
@@ -272,3 +273,18 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     stickerPackStripLabel: 'Наборы стикеров',
   ),
 );
+
+const _months = [
+  'Январь',
+  'Февраль',
+  'Март',
+  'Апрель',
+  'Май',
+  'Июнь',
+  'Июль',
+  'Август',
+  'Сентябрь',
+  'Октябрь',
+  'Ноябрь',
+  'Декабрь',
+];

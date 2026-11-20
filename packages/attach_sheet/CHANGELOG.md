@@ -24,6 +24,15 @@ package is pre-1.0.
 - `GalleryPage.create(players:)` / `GalleryView.players`: the viewer's
   videos play on the host's players.
 
+### Added (fast scroll)
+
+- The Gallery grid has a fast scroll thumb with the month of the items in
+  view beside it (`viewport_scroll`'s `FastScrollbar`): on Android it shows
+  while the sheet is at its top over more than 30 items, on iOS while the
+  grid scrolls. `AttachSheetPolicy.libraryFastScroll` and
+  `libraryFastScrollMinCount` set it; `AttachStrings.libraryMonth` names
+  the month.
+
 ### Fixed
 
 - Text in the sheet, its pages, the panel and the confirm box takes the

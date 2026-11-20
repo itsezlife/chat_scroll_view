@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/files/intake_items.dart';
 import 'package:attach_sheet/src/gallery/attach_picker_selection.dart';
+import 'package:attach_sheet/src/gallery/gallery_fast_scroll.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/panel/attach_panel.dart';
@@ -146,6 +147,8 @@ class _GalleryViewState extends State<GalleryView> {
   CameraSession? _$session;
   bool _cameraDenied = false;
   final GlobalKey _$slot = GlobalKey();
+  final LibraryGridLookup _$lookup = LibraryGridLookup();
+  ScrollController? _$ownController;
 
   AttachSelection get _selection => widget.panel.selection;
 
@@ -199,6 +202,8 @@ class _GalleryViewState extends State<GalleryView> {
   @override
   void dispose() {
     widget.panel.hostSelectionPreview(present: false);
+    _$lookup.dispose();
+    _$ownController?.dispose();
     unawaited(_$session?.dispose());
     super.dispose();
   }
@@ -286,16 +291,32 @@ class _GalleryViewState extends State<GalleryView> {
 
   /// The viewer's bottom slot: the panel's caption and Send; Send with
   /// nothing selected selects the item shown first.
-  Widget _viewerSlot(BuildContext context, PickerViewerItem item) =>
-      AttachCaptionBar(
-        controller: widget.panel,
-        beforeSend: () {
-          if (_selection.isNotEmpty) return;
-          if (item.asset case final asset?) {
-            _selection.toggle(AttachPickerSelection.itemOf(asset));
-          }
-        },
-      );
+  ///
+  /// Over the media it is the floating caption bar in the night palette,
+  /// on the safe area's bottom, and on the keyboard's top while it is up
+  /// (the viewer lifts the slot by the keyboard).
+  Widget _viewerSlot(BuildContext context, PickerViewerItem item) {
+    final media = MediaQuery.of(context);
+    final keyboard = media.viewInsets.bottom > 0;
+    return ChromeThemeScope(
+      palette: const ChromePalette.dark(),
+      child: ChromeTextRoot(
+        child: Padding(
+          key: const ValueKey('attach-viewer-slot'),
+          padding: EdgeInsets.only(bottom: keyboard ? 0 : media.padding.bottom),
+          child: AttachCaptionBar(
+            controller: widget.panel,
+            beforeSend: () {
+              if (_selection.isNotEmpty) return;
+              if (item.asset case final asset?) {
+                _selection.toggle(AttachPickerSelection.itemOf(asset));
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
   /// Opens the viewer over the picks, at the [index]th.
   Future<void> _openSelected(MediaKey key, int index) async {
@@ -314,6 +335,7 @@ class _GalleryViewState extends State<GalleryView> {
         tokens: _tokens(context),
         players: widget.players,
         bottomBuilder: _viewerSlot,
+        onReorder: _$picker.move,
       );
     } finally {
       source.dispose();
@@ -367,6 +389,12 @@ class _GalleryViewState extends State<GalleryView> {
     final camera = widget.camera;
     final android =
         widget.panel.policy.libraryGrid == LibraryGridPolicy.$Android;
+    // The sheet's, so a drag moves the sheet; on its own, the ambient one
+    // or the view's.
+    final controller =
+        widget.controller ??
+        PrimaryScrollController.maybeOf(context) ??
+        (_$ownController ??= ScrollController());
     Widget picker({bool active = true}) => LibraryPicker(
       key: const ValueKey('attach-gallery-picker'),
       library: _$picker.library,
@@ -395,10 +423,6 @@ class _GalleryViewState extends State<GalleryView> {
       policy: widget.panel.policy.libraryGrid,
       tokens: _tokens(context),
       players: widget.players,
-      // The sheet's scroll controller: a drag on the grid raises the sheet
-      // to its top before the grid scrolls, and at the grid's top lowers or
-      // dismisses it, in one gesture.
-      controller: widget.controller,
       mediaAllowed: _mediaAllowed,
       notAllowedText: strings.mediaNotAllowed,
       cameraDenied: _cameraDenied,
@@ -411,6 +435,19 @@ class _GalleryViewState extends State<GalleryView> {
           : () => unawaited(_systemCamera()),
       onCamera: camera == null ? null : () => unawaited(_systemCamera()),
       viewerBottomBuilder: _viewerSlot,
+      // A long press on the viewer strip's item drags it in the order.
+      onReorder: _$picker.move,
+      // The sheet's scroll controller: a drag on the grid raises the sheet
+      // to its top before the grid scrolls, and at the grid's top lowers or
+      // dismisses it, in one gesture.
+      controller: controller,
+      lookup: _$lookup,
+      gridBuilder: (context, grid) => GalleryFastScroll(
+        controller: controller,
+        lookup: _$lookup,
+        policy: widget.panel.policy,
+        child: grid,
+      ),
       headerBuilder: (context, switcher) => Row(
         children: [
           Expanded(child: switcher),

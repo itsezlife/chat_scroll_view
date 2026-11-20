@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
@@ -274,6 +276,46 @@ void main() {
     );
   });
 
+  testWidgets("the viewer's bottom is the floating caption bar with Send "
+      'beside it, on the safe area, in the chrome face; its strip reorders '
+      'into the attach selection', (tester) async {
+    final rig = await open(tester, size: const Size(800, 1200));
+    rig.selection.toggle(AttachItems.file('f'));
+    await tapCheck(tester, 0);
+    await tapCheck(tester, 1);
+    expect(
+      tester.widget<LibraryPicker>(find.byType(LibraryPicker)).onReorder,
+      isNotNull,
+    );
+    await tester.tap(cell(2));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final slot = find.byKey(const ValueKey('attach-viewer-slot'));
+    expect(slot, findsOneWidget);
+    final pill = find.descendant(
+      of: slot,
+      matching: find.byKey(const ValueKey('attach-caption-pill')),
+    );
+    final send = find.descendant(
+      of: slot,
+      matching: find.byKey(const ValueKey('attach-send')),
+    );
+    expect(pill, findsOneWidget);
+    expect(tester.getRect(send).left, greaterThan(tester.getRect(pill).right));
+    expectChromeText(tester, within: slot);
+
+    final chrome = tester.widget<PickerViewerChrome>(
+      find.byType(PickerViewerChrome),
+    );
+    chrome.onReorder!(_key(1), 0);
+    expect(rig.selection.items.map((item) => item.id.value), [
+      'f',
+      'library:${FakeMediaLibrary.assetAt(1).id.value}',
+      'library:${FakeMediaLibrary.assetAt(0).id.value}',
+    ]);
+  });
+
   testWidgets('the header carries the album switcher', (tester) async {
     final rig = await open(tester);
     expect(find.byType(LibraryAlbumSwitcher), findsOneWidget);
@@ -432,5 +474,66 @@ void main() {
     expect(rig.top, greaterThan(24), reason: 'lowered at the grid top');
     await down.up();
     await tester.pumpAndSettle();
+  });
+
+  group('fast scroll', () {
+    const thumb = ValueKey('fast-scrollbar-thumb');
+    const label = ValueKey('fast-scrollbar-label');
+
+    Future<void> expand(WidgetTester tester) async {
+      final sheet = AttachSheetController.of(
+        tester.element(find.byType(LibraryGrid)),
+      );
+      // Its future ends with the motion, which only pumping runs.
+      unawaited(sheet.expand());
+      await tester.pumpAndSettle();
+    }
+
+    ScrollPosition grid(WidgetTester tester) => tester
+        .state<ScrollableState>(
+          find.descendant(
+            of: find.byType(LibraryGrid),
+            matching: find.byType(Scrollable),
+          ),
+        )
+        .position;
+
+    testWidgets(r'$Android: the thumb comes once the sheet is at its top, '
+        'and the label names the month of the items in view', (tester) async {
+      await open(tester);
+      expect(find.byKey(thumb), findsNothing);
+      await expand(tester);
+      expect(find.byKey(thumb), findsOneWidget);
+
+      grid(tester).jumpTo(300);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      final top = tester
+          .state<LibraryGridState>(find.byType(LibraryGrid))
+          .pages
+          .assetAt(9)!;
+      final month = ChromeStringsPresets.english.attach.libraryMonth(
+        top.created!.toLocal(),
+      );
+      expect(
+        find.descendant(of: find.byKey(label), matching: find.text(month)),
+        findsOneWidget,
+      );
+      // The label hides 2 s after the scroll; the thumb stays.
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.byKey(label), findsNothing);
+      expect(find.byKey(thumb), findsOneWidget);
+    });
+
+    testWidgets(r'$Android: an album of 30 items or fewer has none', (
+      tester,
+    ) async {
+      final small = FakeMediaLibrary(assets: 30);
+      addTearDown(small.dispose);
+      await open(tester, source: small, size: const Size(400, 300));
+      await expand(tester);
+      expect(find.byKey(thumb), findsNothing);
+    });
   });
 }

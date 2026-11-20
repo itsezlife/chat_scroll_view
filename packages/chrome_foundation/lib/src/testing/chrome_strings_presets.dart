@@ -261,6 +261,7 @@ abstract final class ChromeStringsPresets {
       libraryChangeSettings: 'Change settings',
       libraryPartial: 'Only selected photos and videos are shared',
       libraryCameraDenied: 'Allow access to the camera to take photos',
+      libraryMonth: (date) => '${_englishMonths[date.month - 1]} ${date.year}',
       mediaNotAllowed: 'Sending media is not allowed here',
       captureClose: 'Close',
       captureShutter: 'Take photo',
@@ -528,6 +529,7 @@ abstract final class ChromeStringsPresets {
       libraryChangeSettings: 'Изменить настройки',
       libraryPartial: 'Доступны только выбранные фото и видео',
       libraryCameraDenied: 'Разрешите доступ к камере',
+      libraryMonth: (date) => '${_russianMonths[date.month - 1]} ${date.year}',
       mediaNotAllowed: 'Отправка медиа здесь запрещена',
       captureClose: 'Закрыть',
       captureShutter: 'Снять',
@@ -573,3 +575,33 @@ String _ru(int n, String one, String few, String many) =>
       _RussianPlural.few => few,
       _RussianPlural.many => many,
     };
+
+const _englishMonths = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+const _russianMonths = [
+  'Январь',
+  'Февраль',
+  'Март',
+  'Апрель',
+  'Май',
+  'Июнь',
+  'Июль',
+  'Август',
+  'Сентябрь',
+  'Октябрь',
+  'Ноябрь',
+  'Декабрь',
+];

@@ -27,6 +27,9 @@ class AttachCaptionBar extends StatefulWidget {
   /// The panel's state.
   final AttachSendController controller;
 
+  /// The radius of the caption field's pill.
+  static const double pillRadius = 20;
+
   /// Runs before a tap on Send sends (the viewer selects the item it shows
   /// when nothing is selected).
   final VoidCallback? beforeSend;
@@ -99,23 +102,40 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
                       ),
                       child: field,
                     ),
-                    child: ComposerFormField(
-                      key: const ValueKey('attach-caption'),
-                      controller: _send.caption,
-                      minLines: 1,
-                      maxLines: 6,
-                      style: ChromeTypography.of(context).copyWith(
-                        color: palette.onSurface,
-                        fontSize: 16,
-                        // A field's style stands alone: it names its baseline.
-                        textBaseline: TextBaseline.alphabetic,
+                    // The field floats in a pill of its own, as the
+                    // composer's does, with Send beside it.
+                    child: DecoratedBox(
+                      key: const ValueKey('attach-caption-pill'),
+                      decoration: BoxDecoration(
+                        color: palette.surfaceRaised,
+                        borderRadius: BorderRadius.circular(
+                          AttachCaptionBar.pillRadius,
+                        ),
                       ),
-                      decoration: InputDecoration.collapsed(
-                        hintText: strings.captionPlaceholder,
-                        hintStyle: ChromeTypography.of(context).copyWith(
-                          color: palette.onSurfaceMuted,
-                          fontSize: 16,
-                          textBaseline: TextBaseline.alphabetic,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 9,
+                        ),
+                        child: ComposerFormField(
+                          key: const ValueKey('attach-caption'),
+                          controller: _send.caption,
+                          minLines: 1,
+                          maxLines: 6,
+                          style: ChromeTypography.of(context).copyWith(
+                            color: palette.onSurface,
+                            fontSize: 16,
+                            // A field's style stands alone: it names its baseline.
+                            textBaseline: TextBaseline.alphabetic,
+                          ),
+                          decoration: InputDecoration.collapsed(
+                            hintText: strings.captionPlaceholder,
+                            hintStyle: ChromeTypography.of(context).copyWith(
+                              color: palette.onSurfaceMuted,
+                              fontSize: 16,
+                              textBaseline: TextBaseline.alphabetic,
+                            ),
+                          ),
                         ),
                       ),
                     ),
