@@ -6,6 +6,10 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `MotionRole.counterShow` (100 ms) and `MotionRole.digitRoll` (150 ms).
+
 ### Added (text root)
 
 - `ChromeTextRoot`: the chrome face as the inherited text style, for the

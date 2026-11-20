@@ -260,10 +260,11 @@ void main() {
       rig.selection.toggle(AttachItems.photo('p'));
       scope.panel.caption.restore(content.RichText.plain('a' * 99));
       await tester.pumpAndSettle();
-      expect(find.text('101'), findsNothing);
+      final counter = find.byKey(const ValueKey('composer-length-counter'));
+      expect(counter, findsNothing);
       scope.panel.caption.restore(content.RichText.plain('a' * 100));
       await tester.pumpAndSettle();
-      expect(find.text('100'), findsOneWidget);
+      expect(tester.widget<ComposerRollingNumber>(counter).value, 100);
     });
 
     testWidgets('iOS shows it under 5 left', (tester) async {

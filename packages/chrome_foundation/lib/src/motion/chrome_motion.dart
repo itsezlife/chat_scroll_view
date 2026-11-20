@@ -86,6 +86,12 @@ enum MotionRole {
 
   /// A bulletin leaving by a timed transition.
   bulletinHide,
+
+  /// A small count (a length counter) scaling in or out of view.
+  counterShow,
+
+  /// The digits of a count rolling to its new value.
+  digitRoll,
 }
 
 /// The **motion role** table: one [MotionSpec] per [MotionRole].
@@ -129,6 +135,8 @@ final class ChromeMotion {
     required this.pointerMenuHide,
     required this.bulletinShow,
     required this.bulletinHide,
+    required this.counterShow,
+    required this.digitRoll,
   });
 
   /// The shipped defaults.
@@ -191,6 +199,14 @@ final class ChromeMotion {
       bulletinHide = const MotionSpec(
         Duration(milliseconds: 175),
         Curves.easeInQuad,
+      ),
+      counterShow = const MotionSpec(
+        Duration(milliseconds: 100),
+        Curves.easeInOutSine,
+      ),
+      digitRoll = const MotionSpec(
+        Duration(milliseconds: 150),
+        Curves.easeInOutSine,
       );
 
   static const Duration _quarterSecond = Duration(milliseconds: 250);
@@ -274,6 +290,14 @@ final class ChromeMotion {
   /// [MotionRole.bulletinHide]: 175 ms ease-in quad, its timed exit.
   final MotionSpec bulletinHide;
 
+  /// [MotionRole.counterShow]: 100 ms ease-in-out, a count scaling in from
+  /// half its size as it fades in, and out the same way.
+  final MotionSpec counterShow;
+
+  /// [MotionRole.digitRoll]: 150 ms ease-in-out, the changed digits of a
+  /// count sliding out as the new ones slide in.
+  final MotionSpec digitRoll;
+
   /// The spec playing [role].
   MotionSpec operator [](MotionRole role) => switch (role) {
     MotionRole.listTransition => listTransition,
@@ -299,6 +323,8 @@ final class ChromeMotion {
     MotionRole.pointerMenuHide => pointerMenuHide,
     MotionRole.bulletinShow => bulletinShow,
     MotionRole.bulletinHide => bulletinHide,
+    MotionRole.counterShow => counterShow,
+    MotionRole.digitRoll => digitRoll,
   };
 
   /// A copy with the named roles replaced.
@@ -326,6 +352,8 @@ final class ChromeMotion {
     MotionSpec? pointerMenuHide,
     MotionSpec? bulletinShow,
     MotionSpec? bulletinHide,
+    MotionSpec? counterShow,
+    MotionSpec? digitRoll,
   }) => ChromeMotion(
     listTransition: listTransition ?? this.listTransition,
     panelSlide: panelSlide ?? this.panelSlide,
@@ -350,6 +378,8 @@ final class ChromeMotion {
     pointerMenuHide: pointerMenuHide ?? this.pointerMenuHide,
     bulletinShow: bulletinShow ?? this.bulletinShow,
     bulletinHide: bulletinHide ?? this.bulletinHide,
+    counterShow: counterShow ?? this.counterShow,
+    digitRoll: digitRoll ?? this.digitRoll,
   );
 
   @override

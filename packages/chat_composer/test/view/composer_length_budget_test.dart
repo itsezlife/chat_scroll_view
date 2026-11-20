@@ -77,6 +77,17 @@ void main() {
 
   Finder send() => find.byKey(const ValueKey<String>('send'));
 
+  final counterKey = find.byKey(const ValueKey('composer-length-counter'));
+
+  // The count the counter shows (or rolls to); null with no counter up.
+  String? counter(WidgetTester tester) {
+    if (counterKey.evaluate().isEmpty) return null;
+    return '${tester.widget<ComposerRollingNumber>(counterKey).value}';
+  }
+
+  Color? counterColor(WidgetTester tester) =>
+      tester.widget<ComposerRollingNumber>(counterKey).style.color;
+
   Future<void> tapSend(WidgetTester tester) async {
     await tester.tap(send());
     await tester.pump();
@@ -125,7 +136,7 @@ void main() {
       await tapSend(tester);
 
       expect(sent, hasLength(1));
-      expect(find.text('0'), findsOneWidget);
+      expect(counter(tester), '0');
     });
 
     testWidgets('one past the limit is refused and shakes the counter', (
@@ -134,16 +145,16 @@ void main() {
       await pump(tester);
       composer.restore(_formatted(_limit + 1));
       await tester.pumpAndSettle();
-      final resting = tester.getTopLeft(find.text('-1'));
+      final resting = tester.getTopLeft(counterKey);
 
       await tapSend(tester);
       await tester.pump(const Duration(milliseconds: 40));
 
       expect(sent, isEmpty);
-      expect(tester.getTopLeft(find.text('-1')).dx, isNot(resting.dx));
+      expect(tester.getTopLeft(counterKey).dx, isNot(resting.dx));
 
       await tester.pump(const Duration(seconds: 1));
-      expect(tester.getTopLeft(find.text('-1')), resting);
+      expect(tester.getTopLeft(counterKey), resting);
     });
 
     testWidgets(
@@ -197,33 +208,33 @@ void main() {
 
       composer.restore(_formatted(_limit - 101));
       await tester.pumpAndSettle();
-      expect(find.text('101'), findsNothing);
+      expect(counter(tester), isNull);
 
       composer.restore(_formatted(_limit - 100));
       await tester.pumpAndSettle();
-      expect(find.text('100'), findsOneWidget);
+      expect(counter(tester), '100');
     });
 
     testWidgets('follows the typing and goes negative', (tester) async {
       await pump(tester);
       composer.restore(_formatted(_limit - 2));
       await tester.pumpAndSettle();
-      expect(find.text('2'), findsOneWidget);
+      expect(counter(tester), '2');
 
       composer.insertText('xyz');
       await tester.pumpAndSettle();
 
-      expect(find.text('-1'), findsOneWidget);
+      expect(counter(tester), '-1');
     });
 
     testWidgets('counts a limit change at once', (tester) async {
       await pump(tester, limit: 1000);
       composer.restore(_formatted(950));
       await tester.pumpAndSettle();
-      expect(find.text('50'), findsOneWidget);
+      expect(counter(tester), '50');
 
       await pump(tester, limit: 960);
-      expect(find.text('10'), findsOneWidget);
+      expect(counter(tester), '10');
     });
 
     testWidgets('a host threshold of 800 of 1000 hides at 799, shows at 800', (
@@ -233,11 +244,11 @@ void main() {
 
       composer.restore(_formatted(799));
       await tester.pumpAndSettle();
-      expect(find.text('201'), findsNothing);
+      expect(counter(tester), isNull);
 
       composer.restore(_formatted(800));
       await tester.pumpAndSettle();
-      expect(find.text('200'), findsOneWidget);
+      expect(counter(tester), '200');
     });
 
     testWidgets('the count takes the destructive colour at 1000 and over', (
@@ -248,24 +259,117 @@ void main() {
 
       composer.restore(_formatted(999));
       await tester.pumpAndSettle();
-      expect(
-        tester.widget<Text>(find.text('1')).style?.color,
-        isNot(palette.destructive),
-      );
+      expect(counterColor(tester), isNot(palette.destructive));
 
       composer.restore(_formatted(1001));
       await tester.pumpAndSettle();
-      expect(
-        tester.widget<Text>(find.text('-1')).style?.color,
-        palette.destructive,
-      );
+      expect(counterColor(tester), palette.destructive);
 
       composer.restore(_formatted(1000));
       await tester.pumpAndSettle();
+      expect(counterColor(tester), isNot(palette.destructive));
+    });
+  });
+
+  group('the counter stands and moves as the reference has it', () {
+    Iterable<Text> digits(WidgetTester tester) => tester.widgetList<Text>(
+      find.descendant(of: counterKey, matching: find.byType(Text)),
+    );
+
+    // The slide of the digit [digit] in the counter.
+    Offset slideOf(WidgetTester tester, String digit) => tester
+        .widgetList<FractionalTranslation>(
+          find.descendant(
+            of: counterKey,
+            matching: find.byType(FractionalTranslation),
+          ),
+        )
+        .firstWhere((slide) => (slide.child! as Text).data == digit)
+        .translation;
+
+    testWidgets('over the primary button, centred on it, its bottom on the '
+        "button's top, outside the island and taking none of its room", (
+      tester,
+    ) async {
+      await pump(tester);
+      composer.restore(_formatted(_limit - 150));
+      await tester.pumpAndSettle();
+      final island = tester.getRect(find.byType(GlassSurface)).height;
+
+      composer.restore(_formatted(_limit - 50));
+      await tester.pumpAndSettle();
+      final count = tester.getRect(counterKey);
+      final button = tester.getRect(send());
+      expect(count.center.dx, closeTo(button.center.dx, 0.5));
+      expect(count.bottom, lessThanOrEqualTo(button.top + 0.5));
       expect(
-        tester.widget<Text>(find.text('0')).style?.color,
-        isNot(palette.destructive),
+        count.bottom,
+        greaterThan(button.top - ComposerLengthCounter.height),
       );
+      expect(
+        tester.getRect(find.byType(GlassSurface)).height,
+        island,
+        reason: 'the island keeps its height',
+      );
+    });
+
+    testWidgets('it scales in from half its size as it fades in, over '
+        '100 ms', (tester) async {
+      await pump(tester);
+      composer.restore(_formatted(_limit - 101));
+      await tester.pumpAndSettle();
+      composer.restore(_formatted(_limit - 100));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      final opacity = tester.widget<Opacity>(
+        find.ancestor(of: counterKey, matching: find.byType(Opacity)).last,
+      );
+      expect(opacity.opacity, inExclusiveRange(0, 1));
+      final scales = tester
+          .widgetList<Transform>(
+            find.ancestor(of: counterKey, matching: find.byType(Transform)),
+          )
+          .map((t) => t.transform.entry(0, 0));
+      expect(
+        scales,
+        contains(inExclusiveRange(ComposerLengthCounter.hiddenScale, 1)),
+      );
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(
+        tester
+            .widget<Opacity>(
+              find
+                  .ancestor(of: counterKey, matching: find.byType(Opacity))
+                  .last,
+            )
+            .opacity,
+        1,
+      );
+    });
+
+    testWidgets('a count change rolls the digits that changed: up from below '
+        'as the count falls, the unchanged digit still', (tester) async {
+      await pump(tester);
+      composer.restore(_formatted(_limit - 52));
+      await tester.pumpAndSettle();
+      expect(digits(tester).map((t) => t.data), ['5', '2']);
+
+      composer.insertText('x');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      // Mid-roll: the 5 stays, the 2 goes out as the 1 comes in.
+      expect(digits(tester).map((t) => t.data), ['5', '2', '1']);
+      expect(slideOf(tester, '1').dy, greaterThan(0), reason: 'from below');
+
+      await tester.pump(const ChromeMotion.standard().digitRoll.duration);
+      expect(digits(tester).map((t) => t.data), ['5', '1']);
+
+      // Growing: the new digit comes down from above.
+      composer.backspace();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(slideOf(tester, '2').dy, lessThan(0), reason: 'from above');
+      await tester.pumpAndSettle();
     });
   });
 }

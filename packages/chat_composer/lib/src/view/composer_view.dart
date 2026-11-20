@@ -416,6 +416,9 @@ class _ComposerViewState extends State<ComposerView>
     );
   }
 
+  // The row's inset from the island's sides.
+  static const double _rowInset = 2;
+
   Map<ShortcutActivator, Intent> get _shortcuts =>
       widget.shortcuts ??
       ComposerShortcutPolicy.forPlatform(
@@ -466,42 +469,56 @@ class _ComposerViewState extends State<ComposerView>
                 actions: _intentActions,
                 child: Material(
                   type: MaterialType.transparency,
-                  child: GlassSurface(
-                    key: widget.islandKey,
-                    material: GlassMaterial.composerIsland,
-                    cornerRadius: ComposerMetrics.islandRadius,
-                    child: AnimatedBuilder(
-                      animation: Listenable.merge([_reveal, _rowProgress]),
-                      child: row,
-                      builder: (context, row) => Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_shownHeader case final header?)
-                            RevealBox(
-                              progress: _reveal.value,
-                              extent: ComposerMetrics.headerHeight,
-                              child: ComposerHeaderStrip(header: header),
-                            ),
-                          DrivenHeightBox(
-                            height: _rowHeight,
-                            onChildSize: _onRowMeasured,
-                            child: Padding(
-                              padding: const EdgeInsetsDirectional.symmetric(
-                                horizontal: 2,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      GlassSurface(
+                        key: widget.islandKey,
+                        material: GlassMaterial.composerIsland,
+                        cornerRadius: ComposerMetrics.islandRadius,
+                        child: AnimatedBuilder(
+                          animation: Listenable.merge([_reveal, _rowProgress]),
+                          child: row,
+                          builder: (context, row) => Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_shownHeader case final header?)
+                                RevealBox(
+                                  progress: _reveal.value,
+                                  extent: ComposerMetrics.headerHeight,
+                                  child: ComposerHeaderStrip(header: header),
+                                ),
+                              DrivenHeightBox(
+                                height: _rowHeight,
+                                onChildSize: _onRowMeasured,
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsetsDirectional.symmetric(
+                                        horizontal: _rowInset,
+                                      ),
+                                  child: row,
+                                ),
                               ),
-                              child: row,
-                            ),
+                            ],
                           ),
-                          if (_spec.messageLengthLimit case final limit?)
-                            ComposerLengthCounter(
-                              controller: widget.controller,
-                              limit: limit,
-                              visibleFromLength: _spec.messageLengthCounterFrom,
-                              shake: _shake,
-                            ),
-                        ],
+                        ),
                       ),
-                    ),
+                      // Over the primary button, at the row's end: drawn
+                      // above the island, taking none of its room.
+                      if (_spec.messageLengthLimit case final limit?)
+                        PositionedDirectional(
+                          end: _rowInset,
+                          bottom: ComposerMetrics.actionSize,
+                          width: ComposerLengthCounter.width,
+                          height: ComposerLengthCounter.height,
+                          child: ComposerLengthCounter(
+                            controller: widget.controller,
+                            limit: limit,
+                            visibleFromLength: _spec.messageLengthCounterFrom,
+                            shake: _shake,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),

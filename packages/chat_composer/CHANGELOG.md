@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (length counter)
+
+- The length counter stands over the primary button as an overlay outside
+  the island (it no longer grows the island under the row), scales in from
+  half its size, and rolls the digits that change (`ComposerRollingNumber`).
+
 ### Added
 
 - `ComposerView.hintText`: the field's hint in place of the message hint
