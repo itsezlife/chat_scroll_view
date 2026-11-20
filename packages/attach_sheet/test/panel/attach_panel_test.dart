@@ -75,6 +75,7 @@ void main() {
     AttachSheetHost host = const AttachSheetHost(),
     content.RichText caption = content.RichText.empty,
     SendOptionStore? store,
+    double safeBottom = 0,
   }) async {
     late AttachPageScope scope;
     final rig = await PagesRig.open(
@@ -85,6 +86,25 @@ void main() {
       host: host,
       initialCaption: caption,
       optionStore: store,
+      // A safe area under the screen (a gesture bar), which a raised
+      // keyboard covers.
+      wrap: safeBottom == 0
+          ? null
+          : (app) => Builder(
+              builder: (context) {
+                final media = MediaQuery.of(context);
+                final keyboard = media.viewInsets.bottom;
+                return MediaQuery(
+                  data: media.copyWith(
+                    padding: media.padding.copyWith(bottom: safeBottom),
+                    viewPadding: media.viewPadding.copyWith(
+                      bottom: safeBottom + keyboard,
+                    ),
+                  ),
+                  child: app,
+                );
+              },
+            ),
       pages: [
         rowsPage('gallery', onScope: (s) => scope = s),
         rowsPage('files'),
@@ -884,5 +904,88 @@ void main() {
       tester.getSize(find.byKey(const ValueKey('attach-caption-panel-slot'))),
       const Size(400, 358),
     );
+  });
+
+  testWidgets('the caption stands on the keyboard and on the panel at the '
+      'same place: a raised keyboard covers the safe area, so the swap does '
+      'not move the bar', (tester) async {
+    final (rig, scope) = await open(tester, host: _PanelHost(), safeBottom: 34);
+    rig.selection.toggle(AttachItems.photo('p'));
+    final dpr = tester.view.devicePixelRatio;
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+    final english = ChromeStringsPresets.english.composer;
+    scope.panel.caption.focusNode.requestFocus();
+    tester.view.viewInsets = FakeViewPadding(bottom: 300 * dpr);
+    await tester.pumpAndSettle();
+    final screen = tester.view.physicalSize / dpr;
+    final island = find.byKey(const ValueKey('attach-caption'));
+    final onKeyboard = tester.getRect(island).bottom;
+
+    await tester.tap(find.bySemanticsLabel(english.showPanelAction));
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    expect(tester.getRect(island).bottom, closeTo(onKeyboard, 0.5));
+    expect(
+      tester
+          .getRect(find.byKey(const ValueKey('attach-caption-panel-slot')))
+          .top,
+      closeTo(screen.height - 300, 0.5),
+    );
+  });
+
+  testWidgets('a tap on the caption while its panel is up brings the '
+      'keyboard back in its place; after the panel closed with back, a tap '
+      'asks for the keyboard again', (tester) async {
+    final (rig, scope) = await open(tester, host: _PanelHost());
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final english = ChromeStringsPresets.english.composer;
+    final caption = scope.panel.caption;
+    await tester.tap(find.bySemanticsLabel(english.showPanelAction));
+    await tester.pumpAndSettle();
+    expect(scope.panel.captionPanelShown.value, isTrue);
+
+    await tester.tap(find.byKey(const ValueKey('attach-caption')));
+    await tester.pump();
+    expect(scope.panel.captionPanelShown.value, isFalse);
+    expect(caption.softKeyboard.value, SoftKeyboardMode.auto);
+    expect(caption.focusNode.hasFocus, isTrue);
+
+    // Panel again, closed with back: the field stays focused, attached with
+    // no keyboard; a tap asks for one.
+    await tester.tap(find.bySemanticsLabel(english.showPanelAction));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    var requests = 0;
+    void count() => requests++;
+    caption.keyboardRequests.addListener(count);
+    addTearDown(() => caption.keyboardRequests.removeListener(count));
+    await tester.tap(find.byKey(const ValueKey('attach-caption')));
+    await tester.pump();
+    expect(requests, 1);
+  });
+
+  testWidgets("the caption's handle goes down when its panel takes the "
+      "keyboard's place and with each pick the panel types", (tester) async {
+    final (rig, scope) = await open(tester, host: _PanelHost());
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final caption = scope.panel.caption;
+    var hides = 0;
+    void count() => hides++;
+    caption.selectionUiHides.addListener(count);
+    addTearDown(() => caption.selectionUiHides.removeListener(count));
+    await tester.tap(
+      find.bySemanticsLabel(
+        ChromeStringsPresets.english.composer.showPanelAction,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(hides, 1);
+    await tester.tap(find.byKey(const ValueKey('emoji-page')));
+    await tester.pump();
+    expect(hides, 2);
   });
 }

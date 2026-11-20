@@ -80,6 +80,8 @@ final class AttachSendController {
 
   // Logs each change of the inline content the caption holds.
   void _captionChanged() {
+    // Typed from the panel: no handle stays up over the caption.
+    if (captionPanelShown.value) caption.hideSelectionUi();
     final rich = caption.richText;
     final inline = rich.entities
         .where((e) => e.kind is EntityKind$InlineContent)
@@ -145,8 +147,43 @@ final class AttachSendController {
         ..setSoftKeyboard(SoftKeyboardMode.suppressed)
         ..requestFocus();
       unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.hide'));
+      AttachLog.log(
+        AttachLog.ime,
+        'keyboard hide: the caption panel took its place',
+      );
+      // The handle a tap left goes with the keyboard: the panel types now.
+      caption.hideSelectionUi();
       captionPanelHandingOff = false;
       captionPanelShown.value = true;
+    }
+  }
+
+  /// A tap on the caption field: the keyboard comes back in the panel's
+  /// place, or comes up for a field focused while its keyboard was held
+  /// back (as the chat's field answers a tap while its panel is up).
+  void captionTapped() {
+    AttachLog.log(
+      AttachLog.caption,
+      'tap (panel ${captionPanelShown.value ? 'up' : 'down'}, focus '
+      '${caption.focusNode.hasFocus}, soft keyboard '
+      '${caption.softKeyboard.value.name})',
+    );
+    if (captionPanelShown.value) {
+      showCaptionKeyboard();
+    } else {
+      AttachLog.log(AttachLog.ime, 'keyboard show: a tap on the caption');
+      caption
+        ..setSoftKeyboard(SoftKeyboardMode.auto)
+        ..requestKeyboard();
+    }
+  }
+
+  /// A pointer went down on the caption field: while the panel is up the
+  /// keyboard is allowed at once, so the focus the tap brings attaches with
+  /// a keyboard type.
+  void captionPointerDown() {
+    if (captionPanelShown.value) {
+      caption.setSoftKeyboard(SoftKeyboardMode.auto);
     }
   }
 
@@ -164,6 +201,10 @@ final class AttachSendController {
     _leftForKeyboard = true;
     captionPanelHandingOff = true;
     AttachLog.log(AttachLog.panel, 'keyboard back in the panel place');
+    AttachLog.log(
+      AttachLog.ime,
+      "keyboard show: back in the caption panel's place",
+    );
     captionPanelShown.value = false;
     caption
       ..setSoftKeyboard(SoftKeyboardMode.auto)

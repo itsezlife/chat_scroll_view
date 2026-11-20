@@ -320,10 +320,28 @@ class _AttachSheetState extends State<AttachSheet>
   void initState() {
     super.initState();
     _$top.addListener(_syncHeader);
+    FocusManager.instance.addListener(_logFocus);
+    _logFocus();
+  }
+
+  FocusNode? _loggedFocus;
+
+  // Every primary focus change while the sheet is up, with the node's label
+  // and the widget it belongs to.
+  void _logFocus() {
+    final focus = FocusManager.instance.primaryFocus;
+    if (identical(focus, _loggedFocus)) return;
+    _loggedFocus = focus;
+    AttachLog.log(
+      AttachLog.focus,
+      'primary: ${focus == null ? 'none' : '${focus.debugLabel ?? focus.runtimeType} '
+                '(${focus.context?.widget.runtimeType})'}',
+    );
   }
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_logFocus);
     _$dimDelay?.cancel();
     _$scroll.dispose();
     _$barExtent.dispose();

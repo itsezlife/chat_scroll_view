@@ -115,6 +115,8 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
                     key: const ValueKey('attach-caption'),
                     controller: _send.caption,
                     autofocus: false,
+                    onFieldTap: _send.captionTapped,
+                    onFieldPointerDown: _send.captionPointerDown,
                     safeAreaBottom: 0,
                     hintText: strings.captionPlaceholder,
                     // With no button leading it, the hint keeps off the
@@ -752,8 +754,11 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
   }
 
   // The safe area goes under the caption while no panel stands below it.
-  double _panelPadding(double safe) =>
-      widget.controller.captionPanelShown.value ? 0 : safe;
+  // A raised keyboard covers the safe area too: the caption then stands on
+  // the keyboard alone, as it stands on the panel alone in its place, so the
+  // swap between them does not move it.
+  double _panelPadding(double safe, double keyboard) =>
+      widget.controller.captionPanelShown.value || keyboard > 0 ? 0 : safe;
 
   @override
   Widget build(BuildContext context) {
@@ -773,7 +778,12 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
           ValueListenableBuilder<bool>(
             valueListenable: widget.controller.captionPanelShown,
             builder: (context, _, bar) => Padding(
-              padding: EdgeInsets.only(bottom: _panelPadding(padding.bottom)),
+              padding: EdgeInsets.only(
+                bottom: _panelPadding(
+                  padding.bottom,
+                  MediaQuery.viewInsetsOf(context).bottom,
+                ),
+              ),
               child: bar,
             ),
             child: AttachCaptionBar(
