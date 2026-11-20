@@ -240,6 +240,35 @@ void main() {
       expect(rig.set.composer.hasFocus, isTrue);
     });
 
+    testWidgets('while a surface over the chat owns the keyboard, the chat '
+        'neither lowers it nor follows its height; given back, it reads the '
+        'keyboard as it is', (tester) async {
+      final rig = await _mobileRig(tester);
+      rig.set.composer.requestFocus();
+      rig.keyboard.rest(300);
+      await rig.settle(tester);
+      // The sheet opens: the keyboard's place goes to the panel, and the
+      // sheet owns the keyboard from then on.
+      expect(rig.set.yieldKeyboardToPanel(), isTrue);
+      rig.set.surfaceOwnsKeyboard = true;
+      await rig.settle(tester);
+      final hides = rig.keyboard.hideCount;
+      final imeHeight = rig.set.ime.samples.value.height;
+
+      // The sheet's caption raises its keyboard: the chat's panel stays, and
+      // nothing of the chat lowers that keyboard.
+      rig.keyboard.rest(0);
+      await rig.settle(tester);
+      rig.keyboard.rest(300);
+      await rig.settle(tester);
+      expect(rig.keyboard.hideCount, hides);
+      expect(rig.set.ime.samples.value.height, imeHeight);
+      expect(rig.set.isPanelVisible, isTrue);
+
+      rig.set.surfaceOwnsKeyboard = false;
+      expect(rig.set.ime.samples.value.height, closeTo(300, 50));
+    });
+
     testWidgets('swapping the panel with the keyboard, both ways, never stops '
         'playback; opening it cold does while it moves', (tester) async {
       final rig = await _mobileRig(tester);

@@ -40,6 +40,8 @@ final class _Chat {
   int panelBacks = 0;
   int yields = 0;
   int returns = 0;
+  bool keyboardUp = true;
+  final owned = <bool>[];
   late BuildContext home;
   late final ChatAttach attach;
 
@@ -56,6 +58,8 @@ final class _Chat {
       send: (text) async => sent.add(text),
       yieldKeyboard: () {
         yields++;
+        // As the chat answers: only a raised keyboard gives its place.
+        if (!keyboardUp) return false;
         panelClaim = ChatPreImeBackClaim.push(() async {
           panelBacks++;
           return true;
@@ -63,6 +67,8 @@ final class _Chat {
         return true;
       },
       returnKeyboard: () => returns++,
+      keyboardUp: () => keyboardUp,
+      ownKeyboard: owned.add,
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -186,5 +192,27 @@ void main() {
     expect(await ChatPreImeBackBinding.handleNativeBack(), isTrue);
     expect(chat.panelBacks, 1);
     chat.panelClaim?.pop();
+  });
+
+  testWidgets('no keyboard before the sheet, no keyboard after: a field '
+      'focused with its keyboard down is not given the keyboard on close; '
+      'the sheet owns the keyboard while it is up', (tester) async {
+    final chat = await start(tester);
+    chat.keyboardUp = false;
+    chat.composer.focusNode.requestFocus();
+    await tester.pump();
+    await chat.open(tester);
+    expect(chat.owned, [true]);
+    expect(chat.yields, 1, reason: 'asked; the chat answers as it is');
+
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(find.byType(AttachSheet), findsNothing);
+    expect(chat.owned, [true, false]);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(chat.returns, 0);
+    expect(chat.composer.focusNode.hasFocus, isFalse, reason: 'no keyboard');
   });
 }

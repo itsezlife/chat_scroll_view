@@ -95,6 +95,8 @@ final class ChatAttach extends AttachSheetHost {
     this.yieldKeyboard,
     this.returnKeyboard,
     this.holdChatPlayback,
+    this.keyboardUp,
+    this.ownKeyboard,
   });
 
   /// The app's services (the device library, the key-value store).
@@ -118,6 +120,13 @@ final class ChatAttach extends AttachSheetHost {
 
   /// Gives the place back to the keyboard once the sheet has gone.
   final VoidCallback? returnKeyboard;
+
+  /// Whether the soft keyboard is up for the chat now (not merely whether
+  /// its field has focus: a field keeps focus with the keyboard down).
+  final bool Function()? keyboardUp;
+
+  /// Hands the soft keyboard to the sheet (true) and back (false).
+  final ValueChanged<bool>? ownKeyboard;
 
   /// Holds the chat's animations under the sheet while it is up (the sheet
   /// plays its own); the returned function gives the hold back.
@@ -217,7 +226,9 @@ final class ChatAttach extends AttachSheetHost {
         policy: policy,
         selection: AttachSelection(policy: attachPolicy, limits: limits),
         host: this,
-        opening: AttachSheetOpening(keyboardWasUp: composer.hasFocus),
+        opening: AttachSheetOpening(
+          keyboardWasUp: keyboardUp?.call() ?? composer.hasFocus,
+        ),
         initialCaption: caption,
         optionStore: _store,
         pages: AttachPageRegistry([
@@ -347,6 +358,13 @@ final class ChatAttach extends AttachSheetHost {
     _chatHold = holdChatPlayback?.call();
     _panelForKeyboard = yieldKeyboard?.call() ?? false;
     composer.focusNode.unfocus();
+    ownKeyboard?.call(true);
+    AttachLog.log(
+      AttachLog.chat,
+      'open: keyboard ${_keyboardWasUp ? 'up' : 'down'}, its place '
+      '${_panelForKeyboard ? "to the chat's panel" : 'not taken'}, focus '
+      '${_focusName()}',
+    );
     // The panel that came up claimed back over the sheet: the sheet's claim
     // goes back on top, the topmost surface taking back first.
     if (_panelForKeyboard) {
@@ -362,6 +380,22 @@ final class ChatAttach extends AttachSheetHost {
   void closed(AttachSheetOpening opening) {
     _chatHold?.call();
     _chatHold = null;
+    ownKeyboard?.call(false);
+    AttachLog.log(
+      AttachLog.chat,
+      'close: the keyboard ${_panelForKeyboard
+          ? "comes back in the panel's place"
+          : _keyboardWasUp
+          ? 'comes back to the field'
+          : 'stays down (it was down at open)'}',
+    );
+  }
+
+  static String _focusName() {
+    final focus = FocusManager.instance.primaryFocus;
+    return focus == null
+        ? 'none'
+        : (focus.debugLabel ?? focus.runtimeType.toString());
   }
 
   // After the sheet: the keyboard comes back in the panel's place, or the

@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 import 'dart:math' as math;
 import 'dart:ui' show FlutterView;
 
+import 'package:attach_sheet/attach_sheet.dart' show AttachLog;
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show
@@ -913,6 +914,43 @@ final class ChatInputSet {
     return _panelReplacesKeyboard;
   }
 
+  /// Whether the soft keyboard is up for the chat now.
+  bool get keyboardUp => _lastImeHeight > 1;
+
+  /// A surface over the chat (the attach sheet) owns the soft keyboard
+  /// while [surfaceOwnsKeyboard]: the chat neither reads the keyboard's
+  /// height (its panel keeps its place, its slot does not follow a
+  /// keyboard another field raised) nor lowers it (a panel taking the
+  /// keyboard's place would take the surface's field's keyboard down).
+  /// Set back, the chat reads the keyboard as it is then.
+  set surfaceOwnsKeyboard(bool value) {
+    if (_surfaceOwnsKeyboard == value) return;
+    _surfaceOwnsKeyboard = value;
+    AttachLog.log(
+      AttachLog.chat,
+      'keyboard ${value ? 'owned by the sheet' : 'back to the chat'} '
+      '(ime ${_lastImeHeight.toStringAsFixed(1)}, panel '
+      '${isPanelVisible ? 'up' : 'down'}, composer focus ${composer.hasFocus})',
+    );
+    if (!value) _reportIme();
+  }
+
+  bool _surfaceOwnsKeyboard = false;
+
+  // Lowers the keyboard for the chat, saying why; never while a surface over
+  // the chat owns it.
+  Future<void> _hideKeyboard(String why) async {
+    if (_surfaceOwnsKeyboard) {
+      AttachLog.log(
+        AttachLog.chat,
+        'keyboard hide skipped ($why): the sheet owns it',
+      );
+      return;
+    }
+    AttachLog.log(AttachLog.chat, 'keyboard hide: $why');
+    await _keyboardPort.hide();
+  }
+
   /// A tap on the composer's field: back to the keyboard while a panel
   /// replaces it.
   void onFieldTap() {
@@ -1070,13 +1108,13 @@ final class ChatInputSet {
     if (_handingOff) {
       _handOffRun++;
       _leaving.value = false;
-      unawaited(_keyboardPort.hide());
+      unawaited(_hideKeyboard('back during the hand-off'));
       shell.closeSearch();
       presentation.handleBack();
       return true;
     }
     if (shell.search.value.isOpen && ime.samples.value.height > 1) {
-      await _keyboardPort.hide();
+      await _hideKeyboard('back with search open');
       return true;
     }
     return presentation.handleBack();
@@ -1099,7 +1137,7 @@ final class ChatInputSet {
         ime.samples.value.height > 1 &&
         !composer.hasFocus &&
         !_leaving.value) {
-      unawaited(_keyboardPort.hide());
+      unawaited(_hideKeyboard('search let go of focus'));
     }
   }
 
@@ -1332,7 +1370,7 @@ final class ChatInputSet {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // A press in the same frame may have asked for the keyboard again.
       if (_disposed || !panelReplacesKeyboard) return;
-      unawaited(_keyboardPort.hide());
+      unawaited(_hideKeyboard("the panel took the keyboard's place"));
     });
   }
 
@@ -1352,7 +1390,7 @@ final class ChatInputSet {
   }
 
   void _reportIme() {
-    if (_disposed) return;
+    if (_disposed || _surfaceOwnsKeyboard) return;
     ime.report(
       ImeSample(
         height: _imeHeightWithSafeArea,
