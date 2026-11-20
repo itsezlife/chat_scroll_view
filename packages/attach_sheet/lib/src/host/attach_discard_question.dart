@@ -2,8 +2,9 @@ import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 
-/// The stock **discard guard** question: a small dialog asking whether to
-/// drop the selection, in the policy's wording.
+/// The stock **discard guard** question: the chrome's alert asking whether
+/// to drop the selection, in the policy's wording (title, a line under it,
+/// Keep and the destructive Discard).
 ///
 /// A host with its own dialogs overrides `AttachSheetHost.confirmDiscard`
 /// instead. Labels come from `ChromeStrings.attach`, colours from the
@@ -22,98 +23,50 @@ final class AttachDiscardQuestion extends StatelessWidget {
   /// Called with the answer: true drops the selection.
   final ValueChanged<bool> onAnswer;
 
-  /// Shows the question over [context]'s navigator and completes with the
-  /// answer; false when it is dismissed without one.
+  /// Shows the question over [context]'s navigator as the chrome's alert
+  /// and completes with the answer; false when it is dismissed without one.
   static Future<bool> show(
     BuildContext context,
     AttachDiscardWording wording,
   ) async {
-    final answer = await Navigator.of(context).push<bool>(
-      PageRouteBuilder<bool>(
-        opaque: false,
-        barrierDismissible: true,
-        barrierColor: const Color(0x00000000),
-        pageBuilder: (context, _, _) => ChromeTextRoot(
-          child: AttachDiscardQuestion(
-            wording: wording,
-            onAnswer: (value) => Navigator.of(context).pop(value),
-          ),
-        ),
-      ),
+    final strings = ChromeStringsScope.attachOf(context);
+    final words = _wordsOf(strings, wording);
+    final answer = await ChromeAlert.show(
+      context,
+      title: words.title,
+      message: words.message,
+      confirm: words.confirm,
+      cancel: words.keep,
     );
     return answer ?? false;
   }
 
+  static ({String title, String? message, String confirm, String keep})
+  _wordsOf(AttachStrings strings, AttachDiscardWording wording) =>
+      switch (wording) {
+        AttachDiscardWording.discardSelection => (
+          title: strings.discardSelectionTitle,
+          message: strings.discardSelectionMessage,
+          confirm: strings.discardSelectionConfirm,
+          keep: strings.discardSelectionKeep,
+        ),
+        AttachDiscardWording.cancelSelection => (
+          title: strings.cancelSelectionTitle,
+          message: null,
+          confirm: strings.cancelSelectionConfirm,
+          keep: strings.cancelSelectionKeep,
+        ),
+      };
+
   @override
   Widget build(BuildContext context) {
-    final strings = ChromeStringsScope.attachOf(context);
-    final palette = ChromeThemeScope.paletteOf(context);
-    final (title, confirm, keep) = switch (wording) {
-      AttachDiscardWording.discardSelection => (
-        strings.discardSelectionTitle,
-        strings.discardSelectionConfirm,
-        strings.discardSelectionKeep,
-      ),
-      AttachDiscardWording.cancelSelection => (
-        strings.cancelSelectionTitle,
-        strings.cancelSelectionConfirm,
-        strings.cancelSelectionKeep,
-      ),
-    };
-    Widget action(String label, Color color, {required bool answer}) =>
-        Semantics(
-          button: true,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => onAnswer(answer),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Text(
-                label,
-                style: ChromeTypography.of(
-                  context,
-                ).copyWith(color: color, fontSize: 15),
-              ),
-            ),
-          ),
-        );
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 300),
-        padding: const EdgeInsets.fromLTRB(20, 20, 8, 8),
-        decoration: BoxDecoration(
-          color: palette.surfaceRaised,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 24)],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 12, bottom: 12),
-              child: Semantics(
-                header: true,
-                child: Text(
-                  title,
-                  style: ChromeTypography.of(context).copyWith(
-                    color: palette.onSurface,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                action(keep, palette.accent, answer: false),
-                action(confirm, palette.destructive, answer: true),
-              ],
-            ),
-          ],
-        ),
-      ),
+    final words = _wordsOf(ChromeStringsScope.attachOf(context), wording);
+    return ChromeAlert(
+      title: words.title,
+      message: words.message,
+      confirm: words.confirm,
+      cancel: words.keep,
+      onAnswer: onAnswer,
     );
   }
 }

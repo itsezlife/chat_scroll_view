@@ -335,6 +335,10 @@ abstract base class AttachSheetPolicy {
   /// null for no snap.
   double? get pinSnapZone;
 
+  /// How a sheet a pull left low returns to its rest once the discard
+  /// question is answered "keep"; null for [holdMotion].
+  SpringDescription? get keepSpring => null;
+
   /// Whether the sheet stops following drags while the keyboard is up.
   bool get panDisabledWithKeyboard;
 
@@ -510,6 +514,12 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   /// the list stops, the top or the rest included.
   @override
   double? get pinSnapZone => null;
+
+  /// The alert's cancel springs the sheet back: damping ratio 1.5,
+  /// stiffness 1500.
+  @override
+  SpringDescription get keepSpring =>
+      SpringDescription.withDampingRatio(mass: 1, stiffness: 1500, ratio: 1.5);
 
   @override
   bool get panDisabledWithKeyboard => false;

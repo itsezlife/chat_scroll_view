@@ -172,6 +172,7 @@ abstract final class ChromeStringsSnapshot {
       'bulletin.undoAction': bulletin.undoAction,
       'bulletin.dismissAction': bulletin.dismissAction,
       'attach.discardSelectionTitle': attach.discardSelectionTitle,
+      'attach.discardSelectionMessage': attach.discardSelectionMessage,
       'attach.discardSelectionConfirm': attach.discardSelectionConfirm,
       'attach.discardSelectionKeep': attach.discardSelectionKeep,
       'attach.cancelSelectionTitle': attach.cancelSelectionTitle,

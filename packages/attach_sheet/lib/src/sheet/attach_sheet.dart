@@ -644,8 +644,7 @@ class _AttachSheetState extends State<AttachSheet>
     _$sheetMoved = false;
     if (_$discardPending) {
       _$discardPending = false;
-      unawaited(_moveTo(_collapsedTop, _holdMotion()));
-      unawaited(requestDismiss());
+      unawaited(_askThenSettle());
       return true;
     }
     final decision = _policy.release(
@@ -663,8 +662,7 @@ class _AttachSheetState extends State<AttachSheet>
         return false;
       case AttachSheetRelease.dismiss:
         if (widget.selection.isNotEmpty) {
-          unawaited(_moveTo(_collapsedTop, _holdMotion()));
-          unawaited(requestDismiss());
+          unawaited(_askThenSettle());
         } else {
           unawaited(close(const AttachOutcome.cancelled(), velocity: velocity));
         }
@@ -692,6 +690,19 @@ class _AttachSheetState extends State<AttachSheet>
         unawaited(_fling(velocity, handBack));
     }
     return true;
+  }
+
+  /// Asks before a pull with a selection closes the sheet, the sheet
+  /// staying where the pull left it while the question is up: kept, it
+  /// returns to its rest on the keep spring; discarded, it closes from
+  /// there.
+  Future<void> _askThenSettle() async {
+    await requestDismiss();
+    if (!mounted || _closing) return;
+    await _moveTo(_collapsedTop, switch (_policy.keepSpring) {
+      final spring? => AttachSheetMotion.spring(spring),
+      null => _holdMotion(),
+    });
   }
 
   AttachSheetMotion _holdMotion() => AttachSheetMotion.timed(

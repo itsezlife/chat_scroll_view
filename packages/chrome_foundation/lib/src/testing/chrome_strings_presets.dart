@@ -186,6 +186,7 @@ abstract final class ChromeStringsPresets {
     ),
     attach: AttachStrings(
       discardSelectionTitle: 'Discard selection?',
+      discardSelectionMessage: 'Do you want to close the attach menu?',
       discardSelectionConfirm: 'Discard',
       discardSelectionKeep: 'Cancel',
       cancelSelectionTitle: 'Cancel selection?',
@@ -454,6 +455,7 @@ abstract final class ChromeStringsPresets {
     ),
     attach: AttachStrings(
       discardSelectionTitle: 'Отменить выбор?',
+      discardSelectionMessage: 'Закрыть меню вложений?',
       discardSelectionConfirm: 'Отменить',
       discardSelectionKeep: 'Назад',
       cancelSelectionTitle: 'Отменить выбор?',

@@ -181,11 +181,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Cancel selection?'), findsOneWidget);
-    expect(rig.top, closeTo(rest, 0.5));
+    expect(rig.top, greaterThan(rest), reason: 'stays where the pan left it');
 
     await tester.tap(find.text('No'));
     await tester.pumpAndSettle();
     expect(rig.closed, isFalse);
+    expect(rig.top, closeTo(rest, 0.5));
 
     await rig.tapAbove();
     await tester.pumpAndSettle();

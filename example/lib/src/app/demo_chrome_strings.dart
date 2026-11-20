@@ -175,6 +175,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
   ),
   attach: AttachStrings(
     discardSelectionTitle: 'Отменить выбор?',
+    discardSelectionMessage: 'Закрыть меню вложений?',
     discardSelectionConfirm: 'Отменить',
     discardSelectionKeep: 'Назад',
     cancelSelectionTitle: 'Отменить выбор?',

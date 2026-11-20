@@ -247,7 +247,12 @@ void main() {
       await rig.tapAbove();
       await tester.pumpAndSettle();
       expect(find.text('Discard selection?'), findsOneWidget);
-      expectChromeText(tester, within: find.byType(AttachDiscardQuestion));
+      expectChromeText(tester, within: find.byType(ChromeAlert));
+      // The chrome's alert: the title, the line under it, two actions.
+      expect(
+        find.text('Do you want to close the attach menu?'),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -261,9 +266,9 @@ void main() {
       expect(rig.closed, isTrue);
     });
 
-    testWidgets('a pull to dismiss with a selection springs back and asks', (
-      tester,
-    ) async {
+    testWidgets('a pull to dismiss with a selection asks with the sheet '
+        'where the pull left it; Cancel springs it back, Discard closes it '
+        'from there', (tester) async {
       final rig = await SheetRig.open(tester, policy: policy);
       rig.selection.toggle(AttachItems.photo('p'));
 
@@ -271,8 +276,22 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(rig.closed, isFalse);
-      expect(rig.top, closeTo(rest, 0.5));
       expect(find.text('Discard selection?'), findsOneWidget);
+      final left = rig.top;
+      expect(left, greaterThan(rest + 40), reason: 'stays where pulled');
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(rig.top, lessThan(left), reason: 'the keep spring');
+      await tester.pumpAndSettle();
+      expect(rig.top, closeTo(rest, 0.5));
+
+      await rig.drag(80);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+      expect(rig.closed, isTrue);
     });
 
     testWidgets('Back asks too', (tester) async {

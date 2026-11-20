@@ -4,6 +4,7 @@
 library;
 
 export 'src/backdrop/backdrop_snapshot.dart';
+export 'src/box/chrome_alert.dart';
 export 'src/box/chrome_box_layer.dart';
 export 'src/button/chrome_badge_button.dart';
 export 'src/button/chrome_bar_button.dart';

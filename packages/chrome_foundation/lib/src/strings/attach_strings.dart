@@ -8,6 +8,7 @@ final class AttachStrings {
   /// Attach strings with every member given.
   const AttachStrings({
     required this.discardSelectionTitle,
+    required this.discardSelectionMessage,
     required this.discardSelectionConfirm,
     required this.discardSelectionKeep,
     required this.cancelSelectionTitle,
@@ -94,6 +95,9 @@ final class AttachStrings {
   /// The question before a selection is dropped, in the "discard" wording
   /// ("Discard selection?").
   final String discardSelectionTitle;
+
+  /// The line under it ("Do you want to close the attach menu?").
+  final String discardSelectionMessage;
 
   /// Its action that drops the selection ("Discard").
   final String discardSelectionConfirm;
