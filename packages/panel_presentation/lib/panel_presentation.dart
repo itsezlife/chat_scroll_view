@@ -15,6 +15,7 @@ export 'src/ime/ime_input_port.dart';
 export 'src/ime/ime_sample.dart';
 export 'src/keyboard/keyboard_height_store.dart';
 export 'src/keyboard/keyboard_nav_bar_fade.dart';
+export 'src/keyboard/keyboard_panel_dock.dart';
 export 'src/keyboard/keyboard_replacement_strategy.dart';
 export 'src/keyboard/keyboard_replacement_tuning.dart';
 export 'src/keyboard/keyboard_slot.dart';

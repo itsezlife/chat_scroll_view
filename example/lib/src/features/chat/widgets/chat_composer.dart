@@ -211,7 +211,7 @@ class _ChatComposerState extends State<ChatComposer> {
         composer.text,
         _input.editing,
         _input.busy,
-        _input.leavingForKeyboard,
+        ListenableBridge(_input.leavingForKeyboard),
         ListenableBridge(_input.presentation.state),
         ListenableBridge(_input.shell.selectedPageId),
         ListenableBridge(composer.query),
