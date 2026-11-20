@@ -114,6 +114,33 @@ void main() {
       await gesture.up();
     });
 
+    testWidgets('its diagnostic lines carry one prefix: the press, the drag '
+        'against the offset, its end', (tester) async {
+      final lines = <String>[];
+      final print = debugPrint;
+      debugPrint = (message, {wrapWidth}) => lines.add(message ?? '');
+      await pump(tester);
+      final gesture = await tester.startGesture(grip(tester));
+      await gesture.moveBy(const Offset(0, 40));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      expect(lines, everyElement(startsWith('[fastscroll] ')));
+      expect(lines.where((l) => l.contains('down at y')), hasLength(1));
+      expect(lines.where((l) => l.contains('drag to y')), isNotEmpty);
+      expect(lines.where((l) => l.contains('drag end')), hasLength(1));
+
+      lines.clear();
+      FastScrollbar.debugLog = false;
+      addTearDown(() => FastScrollbar.debugLog = true);
+      final again = await tester.startGesture(grip(tester));
+      await tester.pump();
+      await again.up();
+      // Given back before the test ends: the binding checks it.
+      debugPrint = print;
+      expect(lines, isEmpty);
+    });
+
     testWidgets('a press keeps the content where it is, wherever it lands '
         'on the thumb, and the drag goes on from there', (tester) async {
       await pump(tester);
