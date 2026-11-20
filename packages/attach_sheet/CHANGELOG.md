@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- Text in the sheet, its pages, the panel and the confirm box takes the
+  chrome face instead of the framework's underlined debug style: the sheet
+  is a `ChromeSheetRoute` opened by its content, and the box's page has a
+  `ChromeSheetRoot`.
+
 ### Added
 
 - `AttachSheet` and `AttachSheet.show`: the mobile container with its scrim,

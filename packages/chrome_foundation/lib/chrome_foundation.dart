@@ -46,6 +46,8 @@ export 'src/motion/scale_pressable.dart';
 export 'src/motion/spoiler_particle_motion.dart';
 export 'src/palette/chrome_contrast.dart';
 export 'src/palette/chrome_palette.dart';
+export 'src/sheet/chrome_sheet_pull.dart';
+export 'src/sheet/chrome_sheet_route.dart';
 export 'src/strings/attach_strings.dart';
 export 'src/strings/bulletin_strings.dart';
 export 'src/strings/chrome_strings.dart';

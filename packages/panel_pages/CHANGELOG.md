@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (bottom sheet)
+
+- The bottom pack sheet is a `ChromeSheetRoute` with its own motion and
+  dismiss rule, unchanged; `PackSheetDrag` and `PackSheetRelease` moved to
+  `chrome_foundation` as `ChromeSheetPull` and `ChromeSheetRelease`.
+
 ### Changed (loading stages)
 
 - A GIF page cell is clear until its preview or thumbnail (no skeleton

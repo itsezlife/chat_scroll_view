@@ -93,7 +93,7 @@ class AttachSheet extends StatefulWidget {
     SendOptionStore? optionStore,
   }) async {
     final outcome = await Navigator.of(context).push(
-      _AttachSheetRoute(
+      _attachSheetRoute(
         builder: (context) => AttachPagesSheet(
           policy: policy,
           selection: selection,
@@ -124,7 +124,7 @@ class AttachSheet extends StatefulWidget {
   }) async {
     final navigator = Navigator.of(context);
     final outcome = await navigator.push(
-      _AttachSheetRoute(
+      _attachSheetRoute(
         builder: (context) => AttachSheet(
           policy: policy,
           selection: selection,
@@ -1030,30 +1030,17 @@ void _closeRoute(BuildContext context, AttachOutcome outcome) {
   navigator.pop(outcome);
 }
 
-class _AttachSheetRoute extends PopupRoute<AttachOutcome> {
-  _AttachSheetRoute({required this.builder});
-
-  final WidgetBuilder builder;
-
-  @override
-  Color? get barrierColor => null;
-
-  @override
-  bool get barrierDismissible => false;
-
-  @override
-  String? get barrierLabel => null;
-
-  @override
-  Duration get transitionDuration => Duration.zero;
-
-  @override
-  Duration get reverseTransitionDuration => Duration.zero;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) => builder(context);
-}
+/// The chrome bottom sheet opened by its content: the attach sheet runs its
+/// own open and close (the springs to its rest and top, the morph out of
+/// the attach button, its scrim's delayed dim), so the route shows and goes
+/// at once, and the sheet places itself around the keyboard. The route's
+/// root gives every page, the panel and the boxes over them the chrome text
+/// style.
+ChromeSheetRoute<AttachOutcome> _attachSheetRoute({
+  required WidgetBuilder builder,
+}) => ChromeSheetRoute<AttachOutcome>(
+  builder: builder,
+  opening: const ChromeSheetOpening.byContent(),
+  barrierDismissible: false,
+  avoidsKeyboard: false,
+);

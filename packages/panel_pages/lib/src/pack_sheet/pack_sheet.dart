@@ -3,7 +3,6 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
-import 'package:panel_catalog/panel_catalog.dart';
 import 'package:panel_pages/src/pack_sheet/pack_sheet_drag.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -166,15 +165,8 @@ abstract final class PackSheet {
   }
 }
 
-/// The root of both routes' pages: the arrangement, the text style and room
-/// for the keyboard.
-///
-/// A popup route has no `Material` above it, and the context that opens the
-/// sheet often has none either (a host's screen above its scaffold), so an
-/// inherited style is the framework's debug one; the sheet's text is the
-/// chrome face ([ChromeTypography]) in the chrome palette's `onSurface`. The
-/// routes do not take focus, so a raised keyboard stays up: the page lays out
-/// above it.
+/// The root of both routes' pages: the arrangement over the chrome sheet
+/// root (the text style and room for the keyboard).
 class _SheetRoot extends StatelessWidget {
   const _SheetRoot({required this.arrangement, required this.child});
 
@@ -182,189 +174,67 @@ class _SheetRoot extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final palette = ChromeThemeScope.of(context).palette;
-    return PanelArrangementScope(
-      arrangement: arrangement,
-      child: DefaultTextStyle(
-        style: ChromeTypography.of(context).copyWith(color: palette.onSurface),
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => PanelArrangementScope(
+    arrangement: arrangement,
+    child: ChromeSheetRoot(child: child),
+  );
 }
 
 // --- Bottom sheet -----------------------------------------------------------
 
-final class _BottomSheetRoute extends PopupRoute<void> {
-  _BottomSheetRoute({required this.builder, this.speed, this.layer})
-    : super(
-        requestFocus: false,
+/// The chrome bottom sheet with the pack sheet's motion and dismiss rule: it
+/// slides up in 400 ms on an ease out (quintic) after 20 ms and down in
+/// 250 ms; a pull closes it past [PackSheet.dismissDistance] or on a flick
+/// of [PackSheet.dismissVelocity], and otherwise springs back in
+/// `250 * (pull / distance)` ms. It owns the bottom bar notifier its layer
+/// builder and its view share.
+final class _BottomSheetRoute extends ChromeSheetRoute<void> {
+  factory _BottomSheetRoute({
+    required WidgetBuilder builder,
+    ChromeMotionSpeed? speed,
+    PackSheetLayerBuilder? layer,
+  }) => _BottomSheetRoute._(builder, speed, layer, ValueNotifier(0));
+
+  _BottomSheetRoute._(
+    WidgetBuilder builder,
+    ChromeMotionSpeed? speed,
+    PackSheetLayerBuilder? layer,
+    ValueNotifier<double> bottomBar,
+  ) : _bottomBar = bottomBar,
+      super(
+        builder: (context) => PackSheetBottomBar(
+          extent: bottomBar,
+          child: PanelArrangementScope(
+            arrangement: PanelArrangement.touch,
+            child: PackSheetDragBridge(child: Builder(builder: builder)),
+          ),
+        ),
+        opening: const ChromeSheetOpening.slide(
+          open: PackSheet.openDuration,
+          delay: PackSheet.openDelay,
+          close: PackSheet.closeDuration,
+        ),
+        barrierColor: PackSheet.touchBarrier,
+        drag: const ChromeSheetDragSpec(
+          dismissDistance: PackSheet.dismissDistance,
+          dismissVelocity: PackSheet.dismissVelocity,
+          springBack: PackSheet.closeDuration,
+        ),
+        layer: switch (layer) {
+          final layer? => (context, child) => layer(context, bottomBar, child),
+          null => null,
+        },
+        speed: speed,
         settings: const RouteSettings(name: PackSheet.routeName),
       );
 
-  final WidgetBuilder builder;
-  final ChromeMotionSpeed? speed;
-  final PackSheetLayerBuilder? layer;
-  final ValueNotifier<double> _bottomBar = ValueNotifier(0);
+  final ValueNotifier<double> _bottomBar;
 
   @override
   void dispose() {
     _bottomBar.dispose();
     super.dispose();
   }
-
-  @override
-  Color get barrierColor => PackSheet.touchBarrier;
-
-  // A tap above the content dismisses.
-  @override
-  bool get barrierDismissible => true;
-
-  @override
-  String? get barrierLabel => null;
-
-  @override
-  Duration get transitionDuration =>
-      speed?.scale(PackSheet.openDuration) ?? PackSheet.openDuration;
-
-  @override
-  Duration get reverseTransitionDuration =>
-      speed?.scale(PackSheet.closeDuration) ?? PackSheet.closeDuration;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) => PackSheetBottomBar(
-    extent: _bottomBar,
-    child: _SheetRoot(
-      arrangement: PanelArrangement.touch,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: _SheetDrag(child: Builder(builder: builder)),
-      ),
-    ),
-  );
-
-  @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    final delay =
-        PackSheet.openDelay.inMicroseconds /
-        PackSheet.openDuration.inMicroseconds;
-    final curved = CurvedAnimation(
-      parent: animation,
-      curve: Interval(delay, 1, curve: Curves.easeOutQuint),
-      reverseCurve: Curves.easeOut,
-    );
-    final sheet = AnimatedBuilder(
-      animation: curved,
-      child: child,
-      builder: (context, child) => FractionalTranslation(
-        translation: Offset(0, 1 - curved.value),
-        child: child,
-      ),
-    );
-    return switch (layer) {
-      final layer? => layer(context, _bottomBar, sheet),
-      null => sheet,
-    };
-  }
-}
-
-/// The bottom sheet's drag owner ([PackSheetDrag]): translates the sheet
-/// under a pull from the grid or the header, closes it past
-/// [PackSheet.dismissDistance] or on a flick of [PackSheet.dismissVelocity],
-/// and otherwise springs it back in `250 * (pull / distance)` ms on an ease
-/// out. Its sink reaches the sheet's body through [PackSheetDragScope].
-class _SheetDrag extends StatefulWidget {
-  const _SheetDrag({required this.child});
-
-  final Widget child;
-
-  @override
-  State<_SheetDrag> createState() => _SheetDragState();
-}
-
-class _SheetDragState extends State<_SheetDrag>
-    with SingleTickerProviderStateMixin {
-  final _drag = PackSheetDrag(
-    dismissDistance: PackSheet.dismissDistance,
-    dismissVelocity: PackSheet.dismissVelocity,
-  );
-  late final AnimationController _back = AnimationController(vsync: this)
-    ..addListener(() => _moveTo(_back.value));
-  final _translation = ValueNotifier<double>(0);
-  var _dismissed = false;
-
-  late final _sink = CatalogOverscrollSink(
-    onStart: _back.stop,
-    onDelta: (pixels) {
-      if (_dismissed) return 0;
-      final taken = _drag.take(pixels);
-      _translation.value = _drag.translation;
-      return taken;
-    },
-    onEnd: _release,
-  );
-
-  void _moveTo(double translation) {
-    _drag.translation = translation;
-    _translation.value = _drag.translation;
-  }
-
-  bool _release(double velocity) {
-    final ratio = MediaQuery.devicePixelRatioOf(context);
-    switch (_drag.release(velocity * ratio)) {
-      case PackSheetRelease.rest:
-        return false;
-      case PackSheetRelease.dismiss:
-        _dismissed = true;
-        Navigator.of(context).pop();
-      case PackSheetRelease.springBack:
-        final back =
-            PackSheet.closeDuration *
-            (_drag.translation / PackSheet.dismissDistance);
-        final speed = ChromeMotionScope.maybeOf(context)?.speed;
-        _back
-          ..value = _drag.translation
-          ..animateTo(
-            0,
-            duration: speed?.scale(back) ?? back,
-            curve: Curves.easeOut,
-          );
-    }
-    return true;
-  }
-
-  @override
-  void dispose() {
-    _back.dispose();
-    _translation.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => PackSheetDragScope(
-    sink: _sink,
-    child: ValueListenableBuilder(
-      valueListenable: _translation,
-      child: widget.child,
-      builder: (context, translation, child) =>
-          Transform.translate(offset: Offset(0, translation), child: child),
-    ),
-  );
 }
 
 // --- Box --------------------------------------------------------------------

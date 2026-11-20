@@ -249,61 +249,66 @@ class _ConfirmBoxViewState extends State<ConfirmBoxView> {
       focusNode: _$keys,
       onKeyEvent: _key,
       child: Center(
+        // The box's text is the chrome face over whatever theme the route
+        // finds; the Material is for the checkboxes' and the bar's inks.
         child: Material(
           type: MaterialType.transparency,
-          child: Container(
-            key: const ValueKey('confirm-box'),
-            width: math.min(_style.width, size.width - 16),
-            constraints: BoxConstraints(maxHeight: maxHeight),
-            decoration: BoxDecoration(
-              color: tokens.background,
-              borderRadius: BorderRadius.circular(_style.radius),
-              boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 24)],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(strings, palette),
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: (_style.width - _style.previewWidth) / 2,
-                    ),
-                    child: _Blocks(
-                      box: _box,
-                      groupPreview: widget.groupPreview,
-                      thumbnail: widget.thumbnail,
-                    ),
-                  ),
-                ),
-                if (_style.options == ConfirmBoxOptions.checkboxes)
-                  _Checkboxes(box: _box, strings: strings, palette: palette),
-                ValueListenableBuilder<double?>(
-                  valueListenable: _box.preparing,
-                  builder: (context, share, _) => share == null
-                      ? const SizedBox.shrink()
-                      : LinearProgressIndicator(
-                          key: const ValueKey('confirm-box-preparing'),
-                          value: share,
-                          minHeight: 2,
-                          color: palette.accent,
-                          backgroundColor: palette.surfaceDim,
-                        ),
-                ),
-                AttachCaptionBar(controller: _box.panel),
-                if (_style.options == ConfirmBoxOptions.checkboxes)
-                  Align(
-                    alignment: AlignmentDirectional.centerEnd,
-                    child: _TextButton(
-                      key: const ValueKey('confirm-box-cancel'),
-                      label: strings.cancelAction,
-                      palette: palette,
-                      onTap: _cancel,
+          child: ChromeSheetRoot(
+            avoidsKeyboard: false,
+            child: Container(
+              key: const ValueKey('confirm-box'),
+              width: math.min(_style.width, size.width - 16),
+              constraints: BoxConstraints(maxHeight: maxHeight),
+              decoration: BoxDecoration(
+                color: tokens.background,
+                borderRadius: BorderRadius.circular(_style.radius),
+                boxShadow: [BoxShadow(color: palette.shadow, blurRadius: 24)],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _header(strings, palette),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: (_style.width - _style.previewWidth) / 2,
+                      ),
+                      child: _Blocks(
+                        box: _box,
+                        groupPreview: widget.groupPreview,
+                        thumbnail: widget.thumbnail,
+                      ),
                     ),
                   ),
-              ],
+                  if (_style.options == ConfirmBoxOptions.checkboxes)
+                    _Checkboxes(box: _box, strings: strings, palette: palette),
+                  ValueListenableBuilder<double?>(
+                    valueListenable: _box.preparing,
+                    builder: (context, share, _) => share == null
+                        ? const SizedBox.shrink()
+                        : LinearProgressIndicator(
+                            key: const ValueKey('confirm-box-preparing'),
+                            value: share,
+                            minHeight: 2,
+                            color: palette.accent,
+                            backgroundColor: palette.surfaceDim,
+                          ),
+                  ),
+                  AttachCaptionBar(controller: _box.panel),
+                  if (_style.options == ConfirmBoxOptions.checkboxes)
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: _TextButton(
+                        key: const ValueKey('confirm-box-cancel'),
+                        label: strings.cancelAction,
+                        palette: palette,
+                        onTap: _cancel,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

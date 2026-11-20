@@ -6,6 +6,16 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (bottom sheet)
+
+- `ChromeSheetRoute`: the chrome's modal bottom sheet, the touch counterpart
+  of `ChromeBoxLayer`. It opens by `ChromeSheetOpening.slide` (the route
+  slides it) or `ChromeSheetOpening.byContent` (the content runs its own
+  motion), takes no focus, and with a `ChromeSheetDragSpec` closes on a pull
+  (`ChromeSheetDrag`, `ChromeSheetPull`, `ChromeSheetRelease`).
+- `ChromeSheetRoot`: the chrome text style (no inherited debug style under a
+  popup route) and room for the keyboard, for any sheet or box page.
+
 ### Added (attach sheet group)
 
 - `AttachTokens` (scrim, sheet background, grabber, pinned header), derived from the palette and carried by `ChromeThemeData.attach`, `ChromeThemeScope(attach:)`, `ChromeThemeScope.attachOf` and `AnimatedChromeThemeScope`.
