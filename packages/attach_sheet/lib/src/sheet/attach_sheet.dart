@@ -253,6 +253,7 @@ class _AttachSheetState extends State<AttachSheet>
   double _expandedTop = 0;
   Rect? _card;
   bool _keyboardUp = false;
+  double _statusBar = 0;
   double _devicePixelRatio = 1;
   ChromeMotionSpeed _speed = ChromeMotionSpeed.normal;
 
@@ -736,6 +737,7 @@ class _AttachSheetState extends State<AttachSheet>
     _size = constraints.biggest;
     final padding = media.padding;
     _keyboardUp = media.viewInsets.bottom > 0;
+    _statusBar = padding.top;
     _devicePixelRatio = media.devicePixelRatio;
     _speed = ChromeMotionScope.of(context).speed;
     final anchor =
@@ -776,6 +778,7 @@ class _AttachSheetState extends State<AttachSheet>
                 if (_card case final card?)
                   _cardLayer(card, tokens)
                 else ...[
+                  _bandLayer(tokens),
                   _sheetLayer(tokens),
                   if (widget.bottomBar case final bar?) _barLayer(bar),
                 ],
@@ -832,7 +835,10 @@ class _AttachSheetState extends State<AttachSheet>
           target.height,
           math.max<double>(0, _size.height - _collapsedTop),
         );
-        final corner = _morphedRadius(squares ? radius * (1 - pinned) : radius);
+        final band = _bandAt(top);
+        final corner = _morphedRadius(
+          (squares ? radius * (1 - pinned) : radius) * band.radiusShare,
+        );
         // Growing out of the button the sheet is round at every corner;
         // at rest only its top corners are.
         final radii = _morphing
@@ -917,6 +923,36 @@ class _AttachSheetState extends State<AttachSheet>
       },
     );
   }
+
+  /// The background over the status bar band at a sheet top of [top], as
+  /// the pack sheet's frame draws it: within two status bars of the screen's
+  /// top the background grows up by the distance in, at most a status bar,
+  /// and the corners square twice as fast, so at its top the sheet meets the
+  /// screen's top edge square.
+  ({double top, double radiusShare}) _bandAt(double top) {
+    final bar = _statusBar;
+    if (_morphing || bar <= 0 || top >= 2 * bar) {
+      return (top: top, radiusShare: 1);
+    }
+    final diff = math.min(bar, 2 * bar - top);
+    return (top: top - diff, radiusShare: 1 - math.min(1, diff * 2 / bar));
+  }
+
+  Widget _bandLayer(AttachTokens tokens) => AnimatedBuilder(
+    animation: Listenable.merge([_$top, _morphChannels]),
+    builder: (context, _) {
+      final top = _shownTop;
+      final band = _bandAt(top);
+      return Positioned(
+        key: const ValueKey('attach-sheet-band'),
+        left: 0,
+        right: 0,
+        top: band.top,
+        height: math.max(0, top - band.top),
+        child: IgnorePointer(child: ColoredBox(color: tokens.background)),
+      );
+    },
+  );
 
   Widget _barLayer(Widget bar) => AnimatedBuilder(
     animation: Listenable.merge([_$top, _morphChannels]),

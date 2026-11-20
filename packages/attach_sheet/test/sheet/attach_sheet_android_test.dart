@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -335,5 +337,27 @@ void main() {
     );
     await tester.pump();
     expect(rig.top, closeTo(rest, 0.5));
+  });
+
+  testWidgets('at its top the sheet fills the status bar band and meets the '
+      "screen's top square, as the pack sheet's frame does", (tester) async {
+    final rig = await SheetRig.open(tester, policy: policy);
+    final band = find.byKey(const ValueKey('attach-sheet-band'));
+    // At rest, far from the top: no band.
+    expect(tester.getSize(band).height, 0);
+
+    unawaited(rig.controller.expand());
+    await tester.pumpAndSettle();
+    expect(rig.top, 24);
+    expect(tester.getRect(band), const Rect.fromLTWH(0, 0, 400, 24));
+    final clip = tester.widget<ClipRRect>(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('attach-sheet')),
+            matching: find.byType(ClipRRect),
+          )
+          .first,
+    );
+    expect(clip.borderRadius, BorderRadius.zero);
   });
 }
