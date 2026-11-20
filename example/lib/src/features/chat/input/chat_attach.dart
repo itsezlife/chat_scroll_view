@@ -9,6 +9,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart';
+import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_caption_dock.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:flutter/foundation.dart';
@@ -357,6 +358,9 @@ final class ChatAttach extends AttachSheetHost {
   }
 
   // --- AttachSheetHost ---
+
+  @override
+  bool get samplesGlass => ScrollLab.sheetSource.value;
 
   // The sheet owns focus while it is up: the chat's field lets go (hardware
   // keys go to the caption, not the chat), and a raised keyboard's place

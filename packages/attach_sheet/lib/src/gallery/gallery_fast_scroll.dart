@@ -70,6 +70,14 @@ class _GalleryFastScrollState extends State<GalleryFastScroll> {
   Widget build(BuildContext context) {
     final strings = ChromeStringsScope.attachOf(context);
     final palette = ChromeThemeScope.paletteOf(context);
+    return GlassSourceScope(child: _fastScroll(context, strings, palette));
+  }
+
+  Widget _fastScroll(
+    BuildContext context,
+    AttachStrings strings,
+    ChromePalette palette,
+  ) {
     final policy = widget.policy;
     final lookup = widget.lookup;
     final fast = policy.libraryFastScroll;
@@ -97,7 +105,9 @@ class _GalleryFastScrollState extends State<GalleryFastScroll> {
         padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
         child: child!,
       ),
-      child: widget.child,
+      // Inside the sheet's glass source the label's glass may not sample
+      // it: the grid is a source of its own for the label.
+      child: GlassSource(child: widget.child),
     );
   }
 

@@ -37,6 +37,12 @@ base class AttachSheetHost {
   /// question.
   const AttachSheetHost();
 
+  /// Whether the sheet's glass samples the sheet: its background and page
+  /// are the glass source the bars over them read, a capture drawn again
+  /// only when what lies under a bar changes. Off, each glass filters the
+  /// scene behind it on every frame. On by default.
+  bool get samplesGlass => true;
+
   /// The sheet started to open.
   void opened(AttachSheetOpening opening) {}
 

@@ -858,18 +858,30 @@ class _AttachSheetState extends State<AttachSheet>
         child: LayoutBuilder(
           builder: (context, constraints) {
             _measure(constraints);
-            return Stack(
+            final card = _card;
+            // The sheet's background and page are the glass source; the
+            // bars, outside it, sample it. A glass inside the page samples
+            // a scope of its own or filters the scene (never the source it
+            // is in).
+            Widget sampled(List<Widget> layers) => widget.host.samplesGlass
+                ? Positioned.fill(
+                    child: GlassSource(child: Stack(children: layers)),
+                  )
+                : Positioned.fill(child: Stack(children: layers));
+            final stack = Stack(
               children: [
                 Positioned.fill(child: _scrim(tokens)),
-                if (_card case final card?)
-                  _cardLayer(card, tokens)
+                if (card != null)
+                  sampled([_cardLayer(card, tokens)])
                 else ...[
-                  _bandLayer(tokens),
-                  _sheetLayer(tokens),
+                  sampled([_bandLayer(tokens), _sheetLayer(tokens)]),
                   if (widget.bottomBar case final bar?) _barLayer(bar),
                 ],
               ],
             );
+            return widget.host.samplesGlass
+                ? GlassSourceScope(child: stack)
+                : stack;
           },
         ),
       ),

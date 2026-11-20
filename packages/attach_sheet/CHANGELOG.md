@@ -6,6 +6,16 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (sampled glass)
+
+- The sheet is a glass source: its background and page (or the card) are
+  the `GlassSource` of a `GlassSourceScope` around the sheet, and the bars
+  over it, outside the source, sample it instead of filtering the scene on
+  every frame. The caption island samples too, so it no longer shows
+  see-through while the panel reveals under its fade. The gallery's fast
+  scroll label, inside the page, samples a scope of its own around the
+  grid. `AttachSheetHost.samplesGlass` (on by default) turns it off.
+
 ### Changed (tab bar, breaking)
 
 - The Android tab bar is the reference's: a `GlassMaterial.tabs` stadium 56

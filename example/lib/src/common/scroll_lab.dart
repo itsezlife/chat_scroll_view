@@ -56,6 +56,12 @@ abstract final class ScrollLab {
   /// switches it at run time.
   static final glass = ValueNotifier<bool>(true);
 
+  /// Whether the attach sheet's glass samples the sheet
+  /// (`AttachSheetHost.samplesGlass`); off, it filters the scene behind it.
+  /// Read as each sheet opens. `adb shell am broadcast -a lab.SET --es key
+  /// sheet_source --ez value false` switches it at run time.
+  static final sheetSource = ValueNotifier<bool>(true);
+
   /// Whether the app's glass refracts at its rim (`GlassQuality.fullLiquid`)
   /// instead of the default frosted look; off by default.
   /// `adb shell am broadcast -a lab.SET --es key liquid --ez value true`
@@ -77,6 +83,7 @@ abstract final class ScrollLab {
     'plain' => plainText,
     'textures' => textures,
     'glass' => glass,
+    'sheet_source' => sheetSource,
     'liquid' => liquid,
     'preview_blur' => previewBlur,
     _ => null,
@@ -109,6 +116,9 @@ abstract final class ScrollLab {
     });
     plainText.addListener(() => _log('switch plainText=${plainText.value}'));
     glass.addListener(() => _log('switch glass=${glass.value}'));
+    sheetSource.addListener(
+      () => _log('switch sheetSource=${sheetSource.value}'),
+    );
     liquid.addListener(() => _log('switch liquid=${liquid.value}'));
     previewBlur.addListener(
       () => _log('switch previewBlur=${previewBlur.value}'),
