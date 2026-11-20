@@ -590,4 +590,20 @@ void main() {
     expect(send.left, greaterThanOrEqualTo(island.right));
     expectChromeText(tester, within: panel);
   });
+
+  testWidgets('a close takes the keyboard down: the caption lets go of '
+      'focus as the sheet closes on a send', (tester) async {
+    final (rig, scope) = await open(tester);
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    scope.panel.caption.focusNode.requestFocus();
+    await tester.pump();
+    expect(scope.panel.caption.focusNode.hasFocus, isTrue);
+
+    await tester.tap(find.byKey(const ValueKey('attach-send')));
+    await tester.pump();
+    expect(scope.panel.caption.focusNode.hasFocus, isFalse);
+    await tester.pumpAndSettle();
+    expect(rig.outcome, isA<AttachOutcome$Send>());
+  });
 }

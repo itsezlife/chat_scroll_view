@@ -304,7 +304,7 @@ class _GalleryViewState extends State<GalleryView> {
         child: Padding(
           key: const ValueKey('attach-viewer-slot'),
           padding: EdgeInsets.only(bottom: keyboard ? 0 : media.padding.bottom),
-          child: AttachCaptionBar(
+          child: _ViewerCaption(
             controller: widget.panel,
             beforeSend: () {
               if (_selection.isNotEmpty) return;
@@ -465,4 +465,32 @@ class _GalleryViewState extends State<GalleryView> {
       null => picker(),
     };
   }
+}
+
+/// The caption bar of the viewer's bottom slot: it takes the keyboard down
+/// when the viewer closes, however it closes (back, the close button, a
+/// dismiss drag, a send).
+class _ViewerCaption extends StatefulWidget {
+  const _ViewerCaption({required this.controller, required this.beforeSend});
+
+  final AttachSendController controller;
+  final VoidCallback beforeSend;
+
+  @override
+  State<_ViewerCaption> createState() => _ViewerCaptionState();
+}
+
+class _ViewerCaptionState extends State<_ViewerCaption> {
+  @override
+  void dispose() {
+    final focus = widget.controller.caption.focusNode;
+    if (focus.hasFocus) focus.unfocus();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AttachCaptionBar(
+    controller: widget.controller,
+    beforeSend: widget.beforeSend,
+  );
 }

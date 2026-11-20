@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FlutterView;
 
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/attach_sheet.dart';
@@ -65,6 +66,17 @@ abstract final class ChatAttachMessages {
         },
     ];
   }
+}
+
+/// Takes a back press for the keyboard when one is up over [view]: the
+/// focused field lets go, which takes the keyboard down. False with no
+/// keyboard up (the back is the surface's).
+@visibleForTesting
+bool keyboardTakesBack(FlutterView view) {
+  final focus = FocusManager.instance.primaryFocus;
+  if (view.viewInsets.bottom <= 0 || focus == null) return false;
+  focus.unfocus();
+  return true;
 }
 
 /// The demo's **attach sheet host**: opens the sheet (Android, iOS) or the
@@ -155,11 +167,15 @@ final class ChatAttach extends AttachSheetHost {
     composer.clear();
     final library = services.mediaLibrary;
     // Back goes to the topmost surface: the sheet's claim stacks over the
-    // panel's (and is taken before a raised keyboard), and pops the top route
-    // of the sheet's navigator: the sheet itself (which asks before dropping
-    // a selection), or what a page pushed over it.
+    // panel's and is taken before the keyboard sees it, so it does what the
+    // keyboard would first: a raised keyboard (a focused caption, in the
+    // sheet or in the viewer over it) goes down, and only the next back pops
+    // the top route of the sheet's navigator: the sheet itself (which asks
+    // before dropping a selection), or what a page pushed over it.
     final navigator = Navigator.of(context);
+    final view = View.of(context);
     final backClaim = ChatPreImeBackClaim.push(() async {
+      if (keyboardTakesBack(view)) return true;
       unawaited(navigator.maybePop());
       return true;
     });

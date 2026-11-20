@@ -27,9 +27,8 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('back closes the attach sheet before the panel under it', (
-    tester,
-  ) async {
+  testWidgets('back takes the keyboard down, then closes the attach sheet, '
+      'then the panel under it', (tester) async {
     // The device's plugins answer nothing here: the gallery shows its
     // no-access state.
     final messenger = tester.binding.defaultBinaryMessenger;
@@ -52,6 +51,8 @@ void main() {
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     late BuildContext home;
+    final field = FocusNode();
+    addTearDown(field.dispose);
     await tester.pumpWidget(
       MaterialApp(
         builder: (context, child) =>
@@ -60,7 +61,7 @@ void main() {
           body: Builder(
             builder: (context) {
               home = context;
-              return const SizedBox.expand();
+              return Focus(focusNode: field, child: const SizedBox.expand());
             },
           ),
         ),
@@ -84,6 +85,20 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await _settle(tester);
     expect(find.byType(AttachSheet), findsOneWidget);
+
+    // A field focused with the keyboard up: the first back takes the
+    // keyboard down and leaves the sheet.
+    field.requestFocus();
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pump();
+    expect(field.hasFocus, isTrue);
+    expect(await ChatPreImeBackBinding.handleNativeBack(), isTrue);
+    await _settle(tester);
+    expect(field.hasFocus, isFalse);
+    expect(find.byType(AttachSheet), findsOneWidget);
+    expect(panelOpen, isTrue);
+    tester.view.resetViewInsets();
+    await tester.pump();
 
     expect(await ChatPreImeBackBinding.handleNativeBack(), isTrue);
     await _settle(tester);

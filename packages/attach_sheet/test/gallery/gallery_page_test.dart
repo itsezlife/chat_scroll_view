@@ -315,6 +315,17 @@ void main() {
       find.byType(PickerViewerChrome),
     );
     chrome.onReorder!(_key(1), 0);
+    final focus = tester.widget<ComposerView>(pill).controller.focusNode;
+    await tester.tap(pill);
+    await tester.pump();
+    expect(focus.hasFocus, isTrue);
+    // Any close of the viewer takes the keyboard down.
+    await tester.binding.handlePopRoute();
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(slot, findsNothing);
+    expect(focus.hasFocus, isFalse);
     expect(rig.selection.items.map((item) => item.id.value), [
       'f',
       'library:${FakeMediaLibrary.assetAt(1).id.value}',

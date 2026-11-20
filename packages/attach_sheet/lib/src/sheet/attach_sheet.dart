@@ -362,6 +362,9 @@ class _AttachSheetState extends State<AttachSheet>
   Future<void> close(AttachOutcome outcome, {double velocity = 0}) async {
     if (_closing) return;
     _closing = true;
+    // Every close takes the keyboard down as it starts (a focused caption
+    // in the sheet's route).
+    FocusScope.of(context).unfocus();
     _$dimDelay?.cancel();
     final dimOut = _policy.dimOut.withSpeed(_speed);
     _dimCurve = dimOut.curve;
