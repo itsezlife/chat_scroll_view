@@ -25,5 +25,6 @@ export 'src/policy/attach_panel_style.dart';
 export 'src/policy/attach_sheet_policy.dart';
 export 'src/policy/attach_tab_bar_style.dart';
 export 'src/policy/confirm_box_style.dart';
+export 'src/prepare/attach_preparation.dart';
 export 'src/sheet/attach_outcome.dart';
 export 'src/sheet/attach_sheet.dart';

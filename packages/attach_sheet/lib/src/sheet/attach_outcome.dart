@@ -2,6 +2,7 @@ import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mpx_capture/mpx_capture.dart' show PreparedMedia;
 
 /// The **attach outcome**: what the sheet hands the host when it closes.
 @immutable
@@ -14,8 +15,12 @@ sealed class AttachOutcome {
       AttachOutcome$Cancelled;
 
   /// The user sent [request]: the host plans it (`planSend`) and makes the
-  /// messages, and clears the composer.
-  const factory AttachOutcome.send(SendRequest request) = AttachOutcome$Send;
+  /// messages, and clears the composer. [prepared] holds the outputs of a
+  /// surface that prepared before closing (the confirm box), by item.
+  const factory AttachOutcome.send(
+    SendRequest request, {
+    Map<AttachItemId, PreparedMedia> prepared,
+  }) = AttachOutcome$Send;
 
   /// A host page finished with [payload], which the host reads.
   const factory AttachOutcome.custom(AttachPageId page, Object? payload) =
@@ -44,10 +49,14 @@ final class AttachOutcome$Cancelled extends AttachOutcome {
 /// [AttachOutcome.send].
 final class AttachOutcome$Send extends AttachOutcome {
   /// Sent [request].
-  const AttachOutcome$Send(this.request) : super._();
+  const AttachOutcome$Send(this.request, {this.prepared = const {}})
+    : super._();
 
   /// What to send.
   final SendRequest request;
+
+  /// The prepared outputs by item; empty when the host prepares itself.
+  final Map<AttachItemId, PreparedMedia> prepared;
 
   @override
   String toString() => 'AttachOutcome.send(${request.items.length} items)';

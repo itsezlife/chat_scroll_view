@@ -105,7 +105,7 @@ class _ConfirmBoxViewState extends State<ConfirmBoxView> {
   @override
   void initState() {
     super.initState();
-    _box.sendHandler = _sent;
+    _box.sendHandler = (request) => unawaited(_sent(request));
     _box.selection.changes.addListener(_selectionChanged);
     _box.panel.options.addListener(_rebuild);
     _box.remember.addListener(_rebuild);
@@ -138,9 +138,25 @@ class _ConfirmBoxViewState extends State<ConfirmBoxView> {
     setState(() {});
   }
 
-  void _sent(SendRequest request) {
+  Future<void> _sent(SendRequest request) async {
+    if (_box.preparing.value != null) return;
     _box.remembered(request.options);
-    Navigator.of(context).pop(AttachOutcome.send(request));
+    final preparation = _box.preparation;
+    if (preparation == null) {
+      Navigator.of(context).pop(AttachOutcome.send(request));
+      return;
+    }
+    // Send waits for every item to be prepared.
+    _box.preparing.value = 0;
+    final prepared = await preparation.prepareAll(
+      request,
+      onProgress: (share) {
+        if (mounted) _box.preparing.value = share;
+      },
+    );
+    if (!mounted) return;
+    _box.preparing.value = null;
+    Navigator.of(context).pop(AttachOutcome.send(request, prepared: prepared));
   }
 
   void _cancel() => Navigator.of(
@@ -264,6 +280,18 @@ class _ConfirmBoxViewState extends State<ConfirmBoxView> {
                 ),
                 if (_style.options == ConfirmBoxOptions.checkboxes)
                   _Checkboxes(box: _box, strings: strings, palette: palette),
+                ValueListenableBuilder<double?>(
+                  valueListenable: _box.preparing,
+                  builder: (context, share, _) => share == null
+                      ? const SizedBox.shrink()
+                      : LinearProgressIndicator(
+                          key: const ValueKey('confirm-box-preparing'),
+                          value: share,
+                          minHeight: 2,
+                          color: palette.accent,
+                          backgroundColor: palette.surfaceDim,
+                        ),
+                ),
                 AttachCaptionBar(controller: _box.panel),
                 if (_style.options == ConfirmBoxOptions.checkboxes)
                   Align(

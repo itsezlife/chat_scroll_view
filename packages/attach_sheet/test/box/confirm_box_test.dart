@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -7,6 +9,7 @@ import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_capture/mpx_capture.dart';
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_library/testing.dart';
 
@@ -50,6 +53,7 @@ final class _Rig {
     SendOptionStore? store,
     content.RichText caption = content.RichText.empty,
     GroupPreviewBuilder? groupPreview,
+    AttachPreparation? preparation,
   }) async {
     tester.view
       ..physicalSize = const Size(1200, 1600)
@@ -60,6 +64,7 @@ final class _Rig {
       selection: AttachSelection(policy: attachPolicy, limits: limits),
       intake: intake ?? FakeFileIntake(),
       store: store,
+      preparation: preparation,
       initialCaption: caption,
     )..addFiles(files);
     addTearDown(box.dispose);
@@ -434,5 +439,49 @@ void main() {
       (364.0, 308.0, 1280.0),
     );
     expect(desktop.dismissesOnOutsideTap, isFalse);
+  });
+
+  testWidgets('Send waits for preparation, ten at a time', (tester) async {
+    final started = <(String, PreparationIntent)>[];
+    final pending = <Completer<PreparedMedia>>[];
+    final preparation = AttachPreparation(
+      prepare: (input, intent) {
+        started.add((input.path, intent));
+        final done = Completer<PreparedMedia>();
+        pending.add(done);
+        return done.future;
+      },
+    );
+    final rig = await _Rig.open(
+      tester,
+      preparation: preparation,
+      files: [for (var i = 0; i < 12; i++) _photo('$i.jpg')],
+    );
+    await tester.tap(find.byKey(const ValueKey('attach-send')));
+    await tester.pump();
+    expect(started, hasLength(10));
+    expect(started.first.$2, isA<PreparationIntent$Photo>());
+    expect(started.first.$1, '/p/0.jpg');
+    expect(find.byKey(const ValueKey('confirm-box-preparing')), findsOneWidget);
+    expect(rig.outcome, isNull);
+
+    PreparedMedia out(int i) => PreparedMedia(
+      kind: PreparedKind.photo,
+      path: '/out/$i.jpg',
+      isOriginal: false,
+      byteSize: 100,
+    );
+    for (var i = 0; i < 12; i++) {
+      while (pending.length <= i) {
+        await tester.pump();
+      }
+      pending[i].complete(out(i));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+
+    final outcome = rig.outcome! as AttachOutcome$Send;
+    expect(outcome.prepared, hasLength(12));
+    expect(outcome.prepared.values.first.path, '/out/0.jpg');
   });
 }

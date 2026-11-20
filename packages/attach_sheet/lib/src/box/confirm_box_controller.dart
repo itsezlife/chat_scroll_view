@@ -7,6 +7,7 @@ import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:attach_sheet/src/policy/confirm_box_style.dart';
+import 'package:attach_sheet/src/prepare/attach_preparation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mpx_library/mpx_library.dart';
@@ -27,6 +28,7 @@ final class ConfirmBoxController {
     this.host = const AttachSheetHost(),
     RichText initialCaption = RichText.empty,
     this.store,
+    this.preparation,
     bool? asFiles,
     IntakeItems? items,
   }) : items = items ?? IntakeItems(),
@@ -70,6 +72,12 @@ final class ConfirmBoxController {
 
   /// Feedback and pickers.
   final AttachSheetHost host;
+
+  /// Prepares a send before the box closes; null to leave it to the host.
+  final AttachPreparation? preparation;
+
+  /// The share of a send prepared so far; null while not preparing.
+  final ValueNotifier<double?> preparing = ValueNotifier(null);
 
   /// Where the options are remembered (desktop: only with "Remember").
   final SendOptionStore? store;
@@ -173,5 +181,6 @@ final class ConfirmBoxController {
   void dispose() {
     panel.dispose();
     remember.dispose();
+    preparing.dispose();
   }
 }
