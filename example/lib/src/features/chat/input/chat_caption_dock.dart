@@ -30,12 +30,13 @@ import 'package:panel_shell/panel_shell.dart';
 /// the safe area the place does not cover ([fieldBottomPad]).
 final class ChatCaptionDock implements AttachCaptionDock {
   /// The dock of [caption] over [services], in [view]; [keyboard] is the
-  /// platform's soft keyboard.
+  /// platform's soft keyboard; [onDispose] runs as the dock is disposed.
   factory ChatCaptionDock({
     required AppServices services,
     required FlutterView view,
     required ComposerController caption,
     SoftKeyboardPort keyboard = const PlatformSoftKeyboard(),
+    VoidCallback? onDispose,
   }) {
     final ime = ImeInput();
     final window = listen.ValueNotifier<PanelWindow>(
@@ -74,6 +75,7 @@ final class ChatCaptionDock implements AttachCaptionDock {
       frames: frames,
       shell: shell,
       presentation: presentation,
+      onDispose: onDispose,
     );
   }
 
@@ -87,7 +89,9 @@ final class ChatCaptionDock implements AttachCaptionDock {
     required SchedulerBakeFrameSource frames,
     required this.shell,
     required this.presentation,
-  }) : _keyboard = keyboard,
+    VoidCallback? onDispose,
+  }) : _onDispose = onDispose,
+       _keyboard = keyboard,
        _window = window,
        _frames = frames {
     _feed = ImeSampleFeed(keyboard: keyboard, ime: ime);
@@ -124,6 +128,7 @@ final class ChatCaptionDock implements AttachCaptionDock {
   /// The swap between the caption's keyboard and the panel.
   late final KeyboardPanelDock swap;
 
+  final VoidCallback? _onDispose;
   final SoftKeyboardPort _keyboard;
   final listen.ValueNotifier<PanelWindow> _window;
   final SchedulerBakeFrameSource _frames;
@@ -229,6 +234,7 @@ final class ChatCaptionDock implements AttachCaptionDock {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _onDispose?.call();
     presentation.state.removeListener(_onState);
     slot.composerSafeInset.removeListener(_onPad);
     unawaited(_events.cancel());

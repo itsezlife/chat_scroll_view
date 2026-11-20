@@ -6,6 +6,7 @@ import 'package:attach_model/attach_model.dart';
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:chat_composer/chat_composer.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,7 @@ import 'package:mpx_player/testing.dart';
 import 'package:mpx_ui/mpx_ui.dart';
 import 'package:viewport_scroll/viewport_scroll.dart';
 
+import '../page/fake_caption_dock.dart';
 import '../page/pages_rig.dart';
 
 final class _Host extends AttachSheetHost {
@@ -386,6 +388,151 @@ void main() {
       );
     }
     expect(lift(), closeTo(rest, 0.5));
+  });
+
+  group("the viewer's caption, on a dock of its own", () {
+    final viewerSlot = find.byKey(const ValueKey('attach-viewer-slot'));
+    Finder inViewer(Finder of) => find.descendant(of: viewerSlot, matching: of);
+    final island = find.byKey(const ValueKey('attach-caption'));
+
+    Future<(PagesRig, DockHost)> openViewer(WidgetTester tester) async {
+      final host = DockHost();
+      final rig = await open(
+        tester,
+        size: const Size(800, 1200),
+        host: host,
+        viewBottomPadding: true,
+      );
+      rig.selection.toggle(AttachItems.file('f'));
+      final ratio = tester.view.devicePixelRatio;
+      tester.view
+        ..padding = FakeViewPadding(bottom: 34 * ratio)
+        ..viewPadding = FakeViewPadding(bottom: 34 * ratio);
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewPadding);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.tap(cell(1));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(viewerSlot, findsOneWidget);
+      return (rig, host);
+    }
+
+    Future<void> settle(WidgetTester tester) async {
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
+
+    testWidgets('its own field and dock: the button, the place under it; the '
+        'slot is never lifted, the island and Send follow the place and the '
+        'pad at every frame of a keyboard going down', (tester) async {
+      final (_, host) = await openViewer(tester);
+      expect(host.docks, hasLength(2), reason: "the sheet's, the viewer's");
+      final dock = host.docks.last;
+      final viewerField = tester
+          .widget<ComposerView>(inViewer(island))
+          .controller;
+      final sheetField = tester
+          .widget<ComposerView>(
+            find
+                .byWidgetPredicate(
+                  (w) =>
+                      w is ComposerView &&
+                      w.key == const ValueKey('attach-caption'),
+                  skipOffstage: false,
+                )
+                .first,
+          )
+          .controller;
+      expect(identical(viewerField, sheetField), isFalse);
+      expect(viewerField.text, same(sheetField.text), reason: 'one text');
+
+      final screen =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio;
+      final glass = inViewer(
+        find.descendant(of: island, matching: find.byType(GlassSurface)),
+      );
+      final send = inViewer(find.byKey(const ValueKey('attach-send')));
+      const bottomGap = ComposerMetrics.islandBottomGap;
+      for (var place = 300.0; place >= 0; place -= 30) {
+        final pad = place > 0 ? 0.0 : 34.0;
+        tester.view.viewInsets = FakeViewPadding(
+          bottom: place * tester.view.devicePixelRatio,
+        );
+        dock
+          ..place = place
+          ..pad.value = pad;
+        dock.show(panel: false);
+        await tester.pump(const Duration(milliseconds: 16));
+        final bottom = tester.getRect(glass.first).bottom;
+        expect(
+          bottom,
+          closeTo(screen - place - pad - bottomGap, 0.5),
+          reason: 'place $place',
+        );
+        expect(tester.getRect(send).bottom, closeTo(bottom, 0.5));
+      }
+      await tester.tap(
+        inViewer(
+          find.bySemanticsLabel(
+            ChromeStringsPresets.english.composer.showPanelAction,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(dock.calls, contains('toggle'));
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expect(dock.disposed, isTrue);
+    });
+
+    for (final close in ['back', 'drag start']) {
+      testWidgets('closed by $close with its caption focused and its panel up, '
+          "it lets go: the panel closes, the focus is back in the sheet's "
+          "route, and the sheet's caption takes the keyboard on a tap", (
+        tester,
+      ) async {
+        final (_, host) = await openViewer(tester);
+        final dock = host.docks.last;
+        final field = tester.widget<ComposerView>(inViewer(island)).controller;
+        field.requestFocus();
+        dock.show(panel: true);
+        await tester.pump();
+        expect(field.focusNode.hasFocus, isTrue);
+
+        if (close == 'back') {
+          await tester.binding.handlePopRoute();
+        } else {
+          // A dismiss drag starts: the chrome goes, the caption lets go.
+          await tester.drag(
+            find.byType(PickerViewerChrome),
+            const Offset(0, 300),
+          );
+        }
+        await settle(tester);
+        expect(dock.calls, contains('close'));
+        expect(field.focusNode.hasFocus, isFalse);
+        if (close != 'back') {
+          await tester.binding.handlePopRoute();
+          await settle(tester);
+        }
+        expect(viewerSlot, findsNothing);
+
+        final primary = FocusManager.instance.primaryFocus;
+        expect(primary, isNotNull);
+        expect(
+          ModalRoute.of(primary!.context!)?.settings.name,
+          AttachSheet.routeName,
+          reason: 'not the root',
+        );
+        final sheetField = tester.widget<ComposerView>(island).controller;
+        await tester.tap(island);
+        await tester.pump();
+        expect(sheetField.focusNode.hasFocus, isTrue);
+      });
+    }
   });
 
   testWidgets('the header carries the album switcher', (tester) async {

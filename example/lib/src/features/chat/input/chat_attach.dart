@@ -138,9 +138,10 @@ final class ChatAttach extends AttachSheetHost {
 
   // The sheet's back claim, on top of the chat's own while the sheet is up.
   ChatPreImeBackClaim? _backClaim;
-  // The view the open sheet is in, and its caption's dock.
+  // The view the open sheet is in, and the docks of its captions (the
+  // sheet's, a viewer's over it), the topmost last.
   FlutterView? _view;
-  ChatCaptionDock? _dock;
+  final List<ChatCaptionDock> _docks = [];
   ValueGetter<Future<bool>>? _back;
 
   /// The sheet or box family of this platform.
@@ -217,7 +218,8 @@ final class ChatAttach extends AttachSheetHost {
     Future<bool> back() async {
       // The caption's dock first, in the chat's order (its panel, a
       // hand-off under way); then a raised keyboard; then the sheet.
-      if (_dock?.handleBack() ?? false) return true;
+      // The topmost caption's dock: the viewer's over the sheet's.
+      if (_docks.lastOrNull?.handleBack() ?? false) return true;
       if (keyboardTakesBack(view)) return true;
       unawaited(navigator.maybePop());
       return true;
@@ -266,7 +268,6 @@ final class ChatAttach extends AttachSheetHost {
       _backClaim = null;
       _back = null;
       _view = null;
-      _dock = null;
     }
     await _finish(outcome, library: library);
   }
@@ -415,11 +416,15 @@ final class ChatAttach extends AttachSheetHost {
   AttachCaptionDock? createCaptionDock(ComposerController caption) {
     final view = _view;
     if (view == null) return null;
-    return _dock = ChatCaptionDock(
+    late final ChatCaptionDock dock;
+    dock = ChatCaptionDock(
       services: services,
       view: view,
       caption: caption,
+      onDispose: () => _docks.remove(dock),
     );
+    _docks.add(dock);
+    return dock;
   }
 
   // The caption draws inline content as the chat's composer does: custom

@@ -120,20 +120,23 @@ final class AttachSendController {
 
   /// A tap on the caption field: a field that lost its focus takes it back
   /// and asks for its keyboard (the dock then gives the panel's place back).
-  void captionTapped() {
+  void captionTapped() => fieldTapped(caption, captionDock);
+
+  /// A tap on a caption [field] on [dock] (the sheet's, or the viewer's own
+  /// over the same text).
+  void fieldTapped(ComposerController field, AttachCaptionDock? dock) {
     AttachLog.log(
       AttachLog.caption,
-      'tap (panel ${captionDock?.panelUp ?? false ? 'up' : 'down'}, focus '
-      '${caption.focusNode.hasFocus}, soft keyboard '
-      '${caption.softKeyboard.value.name})',
+      'tap (panel ${dock?.panelUp ?? false ? 'up' : 'down'}, focus '
+      '${field.focusNode.hasFocus}, soft keyboard '
+      '${field.softKeyboard.value.name})',
     );
-    final dock = captionDock;
     if (dock != null && dock.panelUp) {
       dock.onFieldTap();
       return;
     }
-    if (!caption.focusNode.hasFocus) caption.requestFocus();
-    caption.requestKeyboard();
+    if (!field.focusNode.hasFocus) field.requestFocus();
+    field.requestKeyboard();
     dock?.onFieldTap();
   }
 

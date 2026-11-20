@@ -1,15 +1,20 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:attach_model/attach_model.dart';
+import 'package:attach_sheet/src/debug/attach_log.dart';
 import 'package:attach_sheet/src/files/intake_items.dart';
 import 'package:attach_sheet/src/gallery/attach_picker_selection.dart';
 import 'package:attach_sheet/src/gallery/gallery_fast_scroll.dart';
+import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/panel/attach_panel.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
+import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mpx_capture/mpx_capture.dart';
 import 'package:mpx_core/mpx_core.dart' show MediaKey;
@@ -328,28 +333,25 @@ class _GalleryViewState extends State<GalleryView> {
   /// The viewer's bottom slot: the panel's caption and Send; Send with
   /// nothing selected selects the item shown first.
   ///
-  /// Over the media it is the floating caption bar in the night palette.
-  /// The viewer places the slot at the keyboard's top or the safe area's,
-  /// whichever is higher, so the slot pads neither: a safe area padded here
-  /// too would set the bar's rest a safe area higher than where it stands
-  /// on a keyboard going down, and it would dip and come back.
+  /// Over the media it is the floating caption bar in the night palette,
+  /// on its own dock from the host (the keyboard's place and the panel), as
+  /// the sheet's caption is. The viewer stands the slot on the screen's
+  /// bottom and never lifts it (`bottomSlotHoldsKeyboard`): the dock's
+  /// place holds the keyboard and the safe area.
   Widget _viewerSlot(BuildContext context, PickerViewerItem item) =>
       ChromeThemeScope(
         palette: const ChromePalette.dark(),
         child: ChromeTextRoot(
-          child: MediaQuery.removePadding(
+          child: _ViewerCaption(
             key: const ValueKey('attach-viewer-slot'),
-            context: context,
-            removeBottom: true,
-            child: _ViewerCaption(
-              controller: widget.panel,
-              beforeSend: () {
-                if (_selection.isNotEmpty) return;
-                if (item.asset case final asset?) {
-                  _selection.toggle(AttachPickerSelection.itemOf(asset));
-                }
-              },
-            ),
+            controller: widget.panel,
+            sheetFocus: FocusScope.of(this.context),
+            beforeSend: () {
+              if (_selection.isNotEmpty) return;
+              if (item.asset case final asset?) {
+                _selection.toggle(AttachPickerSelection.itemOf(asset));
+              }
+            },
           ),
         ),
       );
@@ -371,6 +373,7 @@ class _GalleryViewState extends State<GalleryView> {
         tokens: _tokens(context),
         players: widget.players,
         bottomBuilder: _viewerSlot,
+        bottomSlotHoldsKeyboard: true,
         onReorder: _$picker.move,
         title: widget.viewerTitle,
         subtitleOf: GalleryView.viewerInfoOf,
@@ -487,6 +490,7 @@ class _GalleryViewState extends State<GalleryView> {
           : () => unawaited(_systemCamera()),
       onCamera: camera == null ? null : () => unawaited(_systemCamera()),
       viewerBottomBuilder: _viewerSlot,
+      viewerBottomSlotHoldsKeyboard: true,
       // A long press on the viewer strip's item drags it in the order.
       onReorder: _$picker.move,
       // The sheet's scroll controller: a drag on the grid raises the sheet
@@ -519,13 +523,27 @@ class _GalleryViewState extends State<GalleryView> {
   }
 }
 
-/// The caption bar of the viewer's bottom slot: it takes the keyboard down
-/// when the viewer closes, however it closes (back, the close button, a
-/// dismiss drag, a send).
+/// The caption bar of the viewer's bottom slot, on a dock of its own.
+///
+/// The viewer's caption is its own field over the sheet caption's text: its
+/// own focus and keyboard, so the field the viewer takes away when it goes
+/// is its own, never the sheet's. Whenever the viewer's chrome goes (a
+/// dismiss drag starting, a tap that hides the chrome) and whenever the
+/// viewer closes (back, the close button, a dismiss, a send), the field
+/// lets go: its panel closes, its focus goes, the keyboard goes down; once
+/// the viewer has gone, the focus is back in the sheet's route
+/// ([sheetFocus]), not at the app's root, and the sheet's caption raises
+/// its keyboard as before.
 class _ViewerCaption extends StatefulWidget {
-  const _ViewerCaption({required this.controller, required this.beforeSend});
+  const _ViewerCaption({
+    required this.controller,
+    required this.sheetFocus,
+    required this.beforeSend,
+    super.key,
+  });
 
   final AttachSendController controller;
+  final FocusScopeNode sheetFocus;
   final VoidCallback beforeSend;
 
   @override
@@ -533,16 +551,99 @@ class _ViewerCaption extends StatefulWidget {
 }
 
 class _ViewerCaptionState extends State<_ViewerCaption> {
+  late final ComposerController _caption = ComposerController(
+    text: widget.controller.caption.text,
+  );
+  late final AttachCaptionDock? _dock = widget.controller.host
+      .createCaptionDock(_caption);
+  // The fade of the viewer's chrome, this slot in it.
+  Animation<double>? _chrome;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final chrome = context
+        .findAncestorWidgetOfExactType<FadeTransition>()
+        ?.opacity;
+    if (identical(chrome, _chrome)) return;
+    _chrome?.removeStatusListener(_onChrome);
+    _chrome = chrome?..addStatusListener(_onChrome);
+  }
+
+  // The chrome going (a dismiss drag starts, a tap hides it): a caption no
+  // one sees holds no keyboard.
+  void _onChrome(AnimationStatus status) {
+    if (status == AnimationStatus.reverse) _letGo('the chrome goes');
+  }
+
+  void _letGo(String why) {
+    final focused = _caption.focusNode.hasFocus;
+    final panel = _dock?.panelUp ?? false;
+    if (!focused && !panel) return;
+    AttachLog.log(
+      AttachLog.focus,
+      'viewer caption lets go ($why): focus $focused, panel $panel',
+    );
+    _dock?.closePanel();
+    if (focused) {
+      _caption.focusNode.unfocus();
+      unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.hide'));
+    }
+  }
+
   @override
   void dispose() {
-    final focus = widget.controller.caption.focusNode;
-    if (focus.hasFocus) focus.unfocus();
+    _letGo('the viewer closes');
+    _chrome?.removeStatusListener(_onChrome);
+    final sheet = widget.sheetFocus;
+    final sheetDock = widget.controller.captionDock;
+    // Once the viewer has gone: the focus back in the sheet's route (a route
+    // that asks for no focus of its own would leave it at the app's root),
+    // and the sheet's caption dock as it rests.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (sheet.context == null) return;
+      sheetDock?.closePanel();
+      final primary = FocusManager.instance.primaryFocus;
+      final inSheet =
+          primary != null &&
+          (identical(primary, sheet) || primary.ancestors.contains(sheet));
+      if (!inSheet) {
+        AttachLog.log(AttachLog.focus, 'focus back to the sheet route');
+        sheet.requestFocus();
+      }
+    });
+    _dock?.dispose();
+    _caption.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => AttachCaptionBar(
-    controller: widget.controller,
-    beforeSend: widget.beforeSend,
+  Widget build(BuildContext context) => PopScope<Object?>(
+    // Any close of the viewer lets go before it goes.
+    onPopInvokedWithResult: (didPop, _) {
+      if (didPop) _letGo('the viewer closes');
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AttachCaptionBar(
+          controller: widget.controller,
+          caption: _caption,
+          dock: _dock,
+          beforeSend: widget.beforeSend,
+        ),
+        switch (_dock) {
+          final dock? => dock.buildPlace(context),
+          // With no dock the viewer does not lift the slot: the keyboard's
+          // inset or the safe area, whichever is taller, under the bar.
+          null => SizedBox(
+            height: math.max(
+              MediaQuery.viewInsetsOf(context).bottom,
+              MediaQuery.viewPaddingOf(context).bottom,
+            ),
+          ),
+        },
+      ],
+    ),
   );
 }

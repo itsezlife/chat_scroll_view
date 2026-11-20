@@ -6,93 +6,12 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart' as content;
 import 'package:content_model/testing.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../page/fake_caption_dock.dart';
 import '../page/pages_rig.dart';
-
-/// A dock that stands in for the host's composer stack: a place of a fixed
-/// height under the bar, a panel it says is up or not, and the calls it got.
-final class _FakeDock implements AttachCaptionDock {
-  final _changes = ChangeNotifier();
-  final pad = ValueNotifier<double>(0);
-  double place = 0;
-  bool up = false;
-  bool takesBack = false;
-  final calls = <String>[];
-  bool disposed = false;
-
-  void show({required bool panel}) {
-    up = panel;
-    _changes.notifyListeners();
-  }
-
-  @override
-  Listenable get changes => _changes;
-
-  @override
-  bool get panelUp => up;
-
-  @override
-  void togglePanel() {
-    calls.add('toggle');
-    show(panel: !up);
-  }
-
-  @override
-  void onFieldTap() => calls.add('tap');
-
-  @override
-  void onFieldPointerDown() => calls.add('down');
-
-  @override
-  void onFieldPointerEnd() => calls.add('end');
-
-  @override
-  ValueListenable<double> get fieldBottomPad => pad;
-
-  @override
-  Widget buildPlace(BuildContext context) =>
-      SizedBox(key: const ValueKey('fake-dock-place'), height: place);
-
-  @override
-  bool handleBack() {
-    calls.add('back');
-    if (!takesBack) return false;
-    takesBack = false;
-    show(panel: false);
-    return true;
-  }
-
-  @override
-  void closePanel() {
-    calls.add('close');
-    show(panel: false);
-  }
-
-  @override
-  void dispose() {
-    disposed = true;
-    _changes.dispose();
-    pad.dispose();
-  }
-}
-
-/// A host whose caption has a dock.
-final class _DockHost extends AttachSheetHost {
-  final docks = <_FakeDock>[];
-
-  _FakeDock get dock => docks.single;
-
-  @override
-  AttachCaptionDock? createCaptionDock(ComposerController caption) {
-    final dock = _FakeDock();
-    docks.add(dock);
-    return dock;
-  }
-}
 
 /// A host whose caption draws inline content: its builder counts the spans
 /// it is asked for.
@@ -908,7 +827,7 @@ void main() {
       'panel; its place stands under the bar, the bar on the bottom and not '
       "on the keyboard's inset (the place holds it); the field pads what the "
       'place leaves', (tester) async {
-    final host = _DockHost();
+    final host = DockHost();
     final (rig, scope) = await open(tester, host: host, safeBottom: 34);
     rig.selection.toggle(AttachItems.photo('p'));
     await tester.pumpAndSettle();
@@ -957,7 +876,7 @@ void main() {
       'dock: keyboard down (the safe area padded), keyboard up, panel up', (
     tester,
   ) async {
-    final host = _DockHost();
+    final host = DockHost();
     final (rig, scope) = await open(tester, host: host, safeBottom: 34);
     rig.selection.toggle(AttachItems.photo('p'));
     await tester.pumpAndSettle();
@@ -994,7 +913,7 @@ void main() {
       'that lost its focus takes it back and asks for its keyboard', (
     tester,
   ) async {
-    final host = _DockHost();
+    final host = DockHost();
     final (rig, scope) = await open(tester, host: host);
     rig.selection.toggle(AttachItems.photo('p'));
     await tester.pumpAndSettle();
@@ -1014,7 +933,7 @@ void main() {
 
   testWidgets('back goes to the dock first (its panel closes), then the '
       'sheet; the dock is disposed with the sheet', (tester) async {
-    final host = _DockHost();
+    final host = DockHost();
     final (rig, scope) = await open(tester, host: host);
     rig.selection.toggle(AttachItems.photo('p'));
     await tester.pumpAndSettle();
@@ -1031,7 +950,7 @@ void main() {
   testWidgets("a pick the panel types takes the caption's handle down", (
     tester,
   ) async {
-    final host = _DockHost();
+    final host = DockHost();
     final (rig, scope) = await open(tester, host: host);
     rig.selection.toggle(AttachItems.photo('p'));
     await tester.pumpAndSettle();

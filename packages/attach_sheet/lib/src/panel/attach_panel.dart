@@ -23,8 +23,13 @@ class AttachCaptionBar extends StatefulWidget {
     this.reveal,
     this.beforeSend,
     this.dock,
+    this.caption,
     super.key,
   });
+
+  /// The field this bar edits: the panel's caption when null; the viewer's
+  /// own field over the same text otherwise.
+  final ComposerController? caption;
 
   /// The host's dock under this bar: its panel button leads the field and
   /// the field pads what the dock's place does not cover. Null: no button,
@@ -59,6 +64,7 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
   );
 
   AttachSendController get _send => widget.controller;
+  ComposerController get _caption => widget.caption ?? _send.caption;
 
   @override
   void initState() {
@@ -96,14 +102,11 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
     final panelUp = dock?.panelUp ?? false;
     return ComposerView(
       key: const ValueKey('attach-caption'),
-      controller: _send.caption,
+      controller: _caption,
       autofocus: false,
-      onFieldTap: switch (dock) {
-        null => _send.captionTapped,
-        final dock when identical(dock, _send.captionDock) =>
-          _send.captionTapped,
-        final dock => dock.onFieldTap,
-      },
+      onFieldTap: widget.caption == null
+          ? _send.captionTapped
+          : () => _send.fieldTapped(_caption, dock),
       onFieldPointerDown: dock?.onFieldPointerDown,
       onFieldPointerEnd: dock?.onFieldPointerEnd,
       safeAreaBottom: bottomPad,
