@@ -395,6 +395,10 @@ class _GalleryViewState extends State<GalleryView> {
       policy: widget.panel.policy.libraryGrid,
       tokens: _tokens(context),
       players: widget.players,
+      // The sheet's scroll controller: a drag on the grid raises the sheet
+      // to its top before the grid scrolls, and at the grid's top lowers or
+      // dismisses it, in one gesture.
+      controller: widget.controller,
       mediaAllowed: _mediaAllowed,
       notAllowedText: strings.mediaNotAllowed,
       cameraDenied: _cameraDenied,

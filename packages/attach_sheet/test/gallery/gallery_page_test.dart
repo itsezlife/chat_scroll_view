@@ -395,4 +395,42 @@ void main() {
       same(players),
     );
   });
+
+  testWidgets('the sheet moves with the grid: a drag up raises it to its top '
+      'before the grid scrolls, a drag down at the top lowers it', (
+    tester,
+  ) async {
+    final rig = await open(tester);
+    final rest = rig.top;
+    final grid = find.byType(LibraryGrid);
+    double offset() => tester
+        .state<ScrollableState>(
+          find.descendant(of: grid, matching: find.byType(Scrollable)).first,
+        )
+        .position
+        .pixels;
+
+    // One gesture: the sheet takes the first part, the grid the rest.
+    final gesture = await tester.startGesture(const Offset(200, 600));
+    for (var i = 0; i < 20; i++) {
+      await gesture.moveBy(const Offset(0, -30));
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(rest, greaterThan(24));
+    expect(rig.top, 24, reason: 'raised to its top');
+    expect(offset(), greaterThan(0), reason: 'then the grid scrolled');
+
+    // Back to the grid's top, then on down: the sheet lowers.
+    final down = await tester.startGesture(const Offset(200, 300));
+    for (var i = 0; i < 30; i++) {
+      await down.moveBy(const Offset(0, 30));
+      await tester.pump();
+    }
+    expect(offset(), 0);
+    expect(rig.top, greaterThan(24), reason: 'lowered at the grid top');
+    await down.up();
+    await tester.pumpAndSettle();
+  });
 }
