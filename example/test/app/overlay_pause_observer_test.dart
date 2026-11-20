@@ -112,6 +112,42 @@ void main() {
     expect(layers(), isEmpty);
   });
 
+  testWidgets('a route the attach sheet opens over itself (its media viewer) '
+      'is not held either: the caption under it plays its inline emoji; '
+      'after the sheet closes, a route pauses again', (tester) async {
+    await pumpHome(tester);
+    final navigator = Navigator.of(tester.element(find.text('open')));
+    unawaited(
+      navigator.push(
+        PageRouteBuilder<void>(
+          opaque: false,
+          settings: const RouteSettings(name: AttachSheet.routeName),
+          pageBuilder: (_, _, _) => const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // The viewer: an unnamed route over the sheet.
+    unawaited(
+      navigator.push(
+        PageRouteBuilder<void>(
+          opaque: false,
+          pageBuilder: (_, _, _) => const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(layers(), isEmpty);
+
+    navigator
+      ..pop()
+      ..pop();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(layers(), {PlaybackPauseLayer.overlayShown});
+  });
+
   testWidgets('a full-screen route over the chat pauses it too', (
     tester,
   ) async {

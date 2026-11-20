@@ -25,7 +25,9 @@ import 'package:panel_pages/panel_pages.dart';
 ///   chat under it on its own (`PanelPlaybackHold.holdChat`): one clock serves
 ///   both, so pausing the chat must not pause the sheet;
 /// - the attach sheet (`AttachSheet.routeName`) plays its caption's emoji
-///   panel and inline emoji, its opener holding the chat under it.
+///   panel and inline emoji, its opener holding the chat under it; so do
+///   the routes it opens over itself (its media viewer, unnamed), whose
+///   caption is the sheet's.
 ///
 /// The example opens no other menu as a route; a host with more filters on
 /// the route before holding.
@@ -54,6 +56,8 @@ final class PlaybackOverlayPauseObserver extends NavigatorObserver {
       Map<Route<dynamic>, PlaybackOverlayHold>.identity();
   final Map<Route<dynamic>, _MotionHold> _motions =
       Map<Route<dynamic>, _MotionHold>.identity();
+  // The attach sheets open, under which every route is the sheet's own.
+  final Set<Route<dynamic>> _sheets = Set<Route<dynamic>>.identity();
 
   void _hold(Route<dynamic> route) {
     if (route is! ModalRoute<dynamic> || route.isFirst || _isChat(route)) {
@@ -67,6 +71,7 @@ final class PlaybackOverlayPauseObserver extends NavigatorObserver {
       // (`PanelPlaybackHold.holdChat`), and its open and close are its
       // content's, not the route's.
       case AttachSheet.routeName:
+        _sheets.add(route);
         AttachLog.log(AttachLog.panel, 'playback: the sheet is not held');
         return;
       case PackSheet.routeName:
@@ -76,12 +81,23 @@ final class PlaybackOverlayPauseObserver extends NavigatorObserver {
         motion.follow(onDone: () => _motions.remove(route));
         return;
     }
+    if (_sheets.isNotEmpty) {
+      AttachLog.log(
+        AttachLog.caption,
+        'playback: a route over the sheet (${route.settings.name ?? 'unnamed'}) '
+        'is not held, its caption plays',
+      );
+      return;
+    }
     _holds.putIfAbsent(route, _activity.holdOverlay);
   }
 
   // A pack sheet's motion hold is not ended by its pop: the pop starts the
   // close, which it holds through to the end.
-  void _release(Route<dynamic> route) => _holds.remove(route)?.release();
+  void _release(Route<dynamic> route) {
+    _sheets.remove(route);
+    _holds.remove(route)?.release();
+  }
 
   void _remove(Route<dynamic> route) {
     _release(route);
@@ -112,6 +128,7 @@ final class PlaybackOverlayPauseObserver extends NavigatorObserver {
       hold.release();
     }
     _holds.clear();
+    _sheets.clear();
     for (final motion in _motions.values.toList()) {
       motion.dispose();
     }
