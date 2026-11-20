@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:attach_sheet/attach_sheet.dart' show AttachLog;
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter/widgets.dart';
@@ -57,6 +59,19 @@ class _CaptionEmojiPanelState extends State<CaptionEmojiPanel> {
       preferences: widget.services.preferences,
     );
     _events = shell.events.listen(_onEvent);
+    // What the panel plays through: the content assets above it and the
+    // tickers. A missing scope or muted tickers leave its animated emoji
+    // still.
+    AttachLog.log(
+      AttachLog.panel,
+      'emoji page mounted: content assets '
+      '${identical(ContentAssetProvider.maybeOf(context), widget.services.assets)
+          ? 'the app\'s'
+          : ContentAssetProvider.maybeOf(context) == null
+          ? 'missing'
+          : 'another'}'
+      ', tickers ${TickerMode.valuesOf(context).enabled ? 'on' : 'muted'}',
+    );
   }
 
   void _onEvent(PanelEvent event) {
@@ -66,6 +81,11 @@ class _CaptionEmojiPanelState extends State<CaptionEmojiPanel> {
           ContentKey$Unicode(:final sequence) => sequence,
           _ => AnimatedEmojiPack.of(key)?.sequence,
         };
+        AttachLog.log(
+          AttachLog.caption,
+          'picked $key from ${source.name}: '
+          '${text == null ? 'not text, ignored' : 'inserted as "$text"'}',
+        );
         if (text == null) return;
         unawaited(HapticFeedback.selectionClick());
         widget.caption.insertContent(

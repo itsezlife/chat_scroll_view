@@ -61,6 +61,12 @@ base class AttachSheetHost {
   /// a keyboard that was up at open.
   void restoreKeyboard() {}
 
+  /// The caption's text controller, for a host whose caption draws inline
+  /// content (custom and animated emoji) as its composer does; null for
+  /// plain text, inline content drawn as its alternative text. The sheet
+  /// owns and disposes it.
+  ComposerTextController? createCaptionText() => null;
+
   /// The caption's panel (an emoji page) for [caption], shown in the
   /// keyboard's place when its button is pressed; null for no panel and no
   /// button. What it picks goes into [caption].

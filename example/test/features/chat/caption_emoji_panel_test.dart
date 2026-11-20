@@ -58,5 +58,10 @@ void main() {
     expect(attach.buildCaptionPanel(home, caption), isA<CaptionEmojiPanel>());
     final shell = tester.widget<PanelShell>(find.byType(PanelShell));
     expect(shell.controller.pages.map((page) => page.id), [EmojiPanelPage.id]);
+    // The caption draws inline content as the chat's composer: its own text
+    // controller, given to the sheet.
+    final text = attach.createCaptionText();
+    expect(text, isNotNull);
+    text!.dispose();
   });
 }

@@ -10,6 +10,7 @@ library;
 export 'src/box/attach_drop_overlay.dart';
 export 'src/box/confirm_box.dart';
 export 'src/box/confirm_box_controller.dart';
+export 'src/debug/attach_log.dart';
 export 'src/files/files_page.dart';
 export 'src/files/intake_items.dart';
 export 'src/gallery/attach_picker_selection.dart';

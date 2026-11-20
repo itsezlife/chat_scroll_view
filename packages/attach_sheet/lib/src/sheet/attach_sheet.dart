@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:attach_model/attach_model.dart';
+import 'package:attach_sheet/src/debug/attach_log.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/page/attach_pages_sheet.dart';
@@ -66,6 +67,13 @@ class AttachSheet extends StatefulWidget {
 
   /// What the host knew at open.
   final AttachSheetOpening opening;
+
+  /// The `RouteSettings.name` of the route [show] and [showContent] push.
+  ///
+  /// A host that pauses its animations under modal routes tells the sheet
+  /// apart by it: the sheet plays its own content (the caption's panel,
+  /// inline content in the caption), so only what is under it pauses.
+  static const String routeName = 'attach_sheet';
 
   /// The header that fades in while the sheet is pinned at the top (on a
   /// policy with a header fade); null for none.
@@ -639,6 +647,16 @@ class _AttachSheetState extends State<AttachSheet>
   }
 
   @override
+  void carryFling(double velocity) {
+    AttachLog.log(
+      AttachLog.panel,
+      'settle: the page fling reached its top at $velocity px/s, the sheet '
+      'carries it from ${_$top.value}',
+    );
+    unawaited(_fling(velocity, (_) {}));
+  }
+
+  @override
   bool release(double velocity, void Function(double) handBack) {
     if (!_$sheetMoved) return false;
     _$sheetMoved = false;
@@ -656,6 +674,11 @@ class _AttachSheetState extends State<AttachSheet>
         startedExpanded: _$startedExpanded,
         devicePixelRatio: _devicePixelRatio,
       ),
+    );
+    AttachLog.log(
+      AttachLog.panel,
+      'settle: released at ${_$top.value} (rest $_collapsedTop, top '
+      '$_expandedTop) moving $velocity px/s: ${decision?.name ?? 'the page'}',
     );
     switch (decision) {
       case null:
@@ -1193,4 +1216,5 @@ ChromeSheetRoute<AttachOutcome> _attachSheetRoute({
   opening: const ChromeSheetOpening.byContent(),
   barrierDismissible: false,
   avoidsKeyboard: false,
+  settings: const RouteSettings(name: AttachSheet.routeName),
 );

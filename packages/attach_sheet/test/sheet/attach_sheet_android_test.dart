@@ -392,4 +392,23 @@ void main() {
     );
     expect(clip.borderRadius, BorderRadius.zero);
   });
+
+  testWidgets('one fling down on a scrolled list at the top carries through '
+      'its start to the rest: the list and the sheet are one list', (
+    tester,
+  ) async {
+    final rig = await SheetRig.open(tester, policy: policy);
+    rig.controller.expand().ignore();
+    await tester.pumpAndSettle();
+    expect(rig.top, pinned);
+    tester.state<ScrollableState>(find.byType(Scrollable)).position.jumpTo(400);
+    await tester.pump();
+
+    // A real flick: 120 px at 4000 px/s, from the list.
+    await tester.flingFrom(const Offset(200, 400), const Offset(0, 120), 4000);
+    await tester.pumpAndSettle();
+    expect(rig.scrolled, 0);
+    expect(rig.top, closeTo(rest, 1), reason: 'not held at the top');
+    expect(rig.closed, isFalse);
+  });
 }

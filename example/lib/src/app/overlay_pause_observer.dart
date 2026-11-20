@@ -1,3 +1,4 @@
+import 'package:attach_sheet/attach_sheet.dart' show AttachLog, AttachSheet;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -13,7 +14,7 @@ import 'package:panel_pages/panel_pages.dart';
 /// leaves, however it leaves. Holds count, so a sheet over a dialog keeps the
 /// pause until both are gone.
 ///
-/// It treats every `ModalRoute` the same, pickers included, except two:
+/// It treats every `ModalRoute` the same, pickers included, except three:
 ///
 /// - the message menu keeps the message it opens on in view, so the chat goes
 ///   on playing under it;
@@ -22,7 +23,9 @@ import 'package:panel_pages/panel_pages.dart';
 ///   sheet moves in or out: every animation is paused for its open and
 ///   close. While it is open the opener holds the
 ///   chat under it on its own (`PanelPlaybackHold.holdChat`): one clock serves
-///   both, so pausing the chat must not pause the sheet.
+///   both, so pausing the chat must not pause the sheet;
+/// - the attach sheet (`AttachSheet.routeName`) plays its caption's emoji
+///   panel and inline emoji, its opener holding the chat under it.
 ///
 /// The example opens no other menu as a route; a host with more filters on
 /// the route before holding.
@@ -58,6 +61,13 @@ final class PlaybackOverlayPauseObserver extends NavigatorObserver {
     }
     switch (route.settings.name) {
       case ChatMessageMenu.routeName:
+        return;
+      // The attach sheet plays its own content (the caption's emoji panel,
+      // inline emoji in the caption); its opener holds the chat under it
+      // (`PanelPlaybackHold.holdChat`), and its open and close are its
+      // content's, not the route's.
+      case AttachSheet.routeName:
+        AttachLog.log(AttachLog.panel, 'playback: the sheet is not held');
         return;
       case PackSheet.routeName:
         final animation = route.animation;

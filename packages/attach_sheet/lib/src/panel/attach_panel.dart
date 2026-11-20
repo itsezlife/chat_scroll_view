@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:attach_sheet/src/debug/attach_log.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
 import 'package:attach_sheet/src/policy/attach_panel_style.dart';
 import 'package:attach_sheet/src/sheet/attach_sheet.dart';
@@ -759,7 +760,9 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
     final padding = MediaQuery.paddingOf(context);
     // The keyboard's height, the panel's in its place.
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    if (keyboard > 0) widget.controller.keyboardHeight = keyboard;
+    if (keyboard > 0 && !widget.controller.captionPanelHandingOff) {
+      widget.controller.keyboardHeight = keyboard;
+    }
     final rise = widget.controller.policy.panel.revealRise;
     final curved = CurvedAnimation(parent: _$shown, curve: _curve);
     return AnimatedBuilder(
@@ -805,9 +808,15 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
 }
 
 /// The caption's panel in the keyboard's place, at the keyboard's last
-/// height, while it is shown (`AttachSendController.captionPanelShown`);
-/// nothing otherwise.
-class AttachCaptionPanelSlot extends StatelessWidget {
+/// height, while it is shown (`AttachSendController.captionPanelShown`).
+///
+/// It moves as the chat's panel does in the keyboard's place: opened over a
+/// raised keyboard it takes the keyboard's place at once (the keyboard goes
+/// down under it); opened with no keyboard it rises on the panel's slide.
+/// Given back to the keyboard it keeps the part of its height the rising
+/// keyboard does not cover yet, so the bar on top does not jump; closed with
+/// no keyboard (back) it slides down.
+class AttachCaptionPanelSlot extends StatefulWidget {
   /// The slot of [controller]'s caption panel.
   const AttachCaptionPanelSlot({required this.controller, super.key});
 
@@ -815,21 +824,127 @@ class AttachCaptionPanelSlot extends StatelessWidget {
   final AttachSendController controller;
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
-    valueListenable: controller.captionPanelShown,
-    builder: (context, shown, _) {
-      if (!shown) return const SizedBox.shrink();
-      final panel = controller.host.buildCaptionPanel(
-        context,
-        controller.caption,
+  State<AttachCaptionPanelSlot> createState() => _AttachCaptionPanelSlotState();
+}
+
+class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _$slide;
+  // The panel stays mounted while it hands its place to the keyboard or
+  // slides down.
+  bool _mounted = false;
+  bool _toKeyboard = false;
+  double _keyboard = 0;
+
+  AttachSendController get _send => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _$slide = AnimationController(vsync: this);
+    _send.captionPanelShown.addListener(_changed);
+    if (_send.captionPanelShown.value) {
+      _mounted = true;
+      _$slide.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _send.captionPanelShown.removeListener(_changed);
+    _$slide.dispose();
+    super.dispose();
+  }
+
+  void _changed() {
+    final shown = _send.captionPanelShown.value;
+    final spec = ChromeMotionScope.of(context).specOf(MotionRole.panelSlide);
+    if (shown) {
+      _toKeyboard = false;
+      final overKeyboard = _keyboard > 0;
+      AttachLog.log(
+        AttachLog.panel,
+        'show ${overKeyboard ? 'in the keyboard place' : 'rising'} '
+        '(height ${_send.keyboardHeight}, tickers '
+        '${TickerMode.valuesOf(context).enabled ? 'on' : 'muted'})',
       );
-      if (panel == null) return const SizedBox.shrink();
+      setState(() => _mounted = true);
+      if (overKeyboard || spec.duration == Duration.zero) {
+        _$slide.value = 1;
+      } else {
+        unawaited(
+          _$slide.animateTo(1, duration: spec.duration, curve: spec.curve),
+        );
+      }
+      return;
+    }
+    _toKeyboard = _send.captionPanelLeftForKeyboard;
+    AttachLog.log(
+      AttachLog.panel,
+      'hide ${_toKeyboard ? 'for the keyboard' : 'sliding down'}',
+    );
+    if (_toKeyboard) {
+      setState(() {});
+      return;
+    }
+    unawaited(
+      _$slide
+          .animateBack(0, duration: spec.duration, curve: spec.curve)
+          .orCancel
+          .then((_) {
+            if (mounted) setState(() => _mounted = false);
+          }, onError: (Object _) {}),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    if (keyboard != _keyboard) {
+      AttachLog.log(AttachLog.ime, 'inset $keyboard');
+      _keyboard = keyboard;
+    }
+    if (!_mounted) return const SizedBox.shrink();
+    final height = _send.keyboardHeight;
+    if (_toKeyboard) {
+      // The keyboard rising under: what it does not cover yet stays.
+      final left = math.max(0, height - keyboard).toDouble();
+      if (left <= 0.5) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _toKeyboard) {
+            _send.captionPanelHandingOff = false;
+            setState(() {
+              _mounted = false;
+              _toKeyboard = false;
+              _$slide.value = 0;
+            });
+          }
+        });
+      }
       return SizedBox(
         key: const ValueKey('attach-caption-panel-slot'),
         width: double.infinity,
-        height: controller.keyboardHeight,
-        child: panel,
+        height: left,
       );
-    },
-  );
+    }
+    final panel = _send.host.buildCaptionPanel(context, _send.caption);
+    if (panel == null) return const SizedBox.shrink();
+    return AnimatedBuilder(
+      animation: _$slide,
+      child: panel,
+      builder: (context, panel) => SizedBox(
+        key: const ValueKey('attach-caption-panel-slot'),
+        width: double.infinity,
+        height: height * _$slide.value,
+        child: ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.topCenter,
+            minHeight: height,
+            maxHeight: height,
+            child: panel,
+          ),
+        ),
+      ),
+    );
+  }
 }

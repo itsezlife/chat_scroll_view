@@ -94,6 +94,7 @@ final class ChatAttach extends AttachSheetHost {
     this.chatTitle,
     this.yieldKeyboard,
     this.returnKeyboard,
+    this.holdChatPlayback,
   });
 
   /// The app's services (the device library, the key-value store).
@@ -117,6 +118,11 @@ final class ChatAttach extends AttachSheetHost {
 
   /// Gives the place back to the keyboard once the sheet has gone.
   final VoidCallback? returnKeyboard;
+
+  /// Holds the chat's animations under the sheet while it is up (the sheet
+  /// plays its own); the returned function gives the hold back.
+  final VoidCallback Function()? holdChatPlayback;
+  VoidCallback? _chatHold;
 
   // Whether the open put the chat's panel in the keyboard's place.
   bool _panelForKeyboard = false;
@@ -337,6 +343,8 @@ final class ChatAttach extends AttachSheetHost {
   @override
   void opened(AttachSheetOpening opening) {
     _keyboardWasUp = opening.keyboardWasUp;
+    _chatHold?.call();
+    _chatHold = holdChatPlayback?.call();
     _panelForKeyboard = yieldKeyboard?.call() ?? false;
     composer.focusNode.unfocus();
     // The panel that came up claimed back over the sheet: the sheet's claim
@@ -349,6 +357,13 @@ final class ChatAttach extends AttachSheetHost {
     }
   }
 
+  // The sheet has gone: the chat plays again.
+  @override
+  void closed(AttachSheetOpening opening) {
+    _chatHold?.call();
+    _chatHold = null;
+  }
+
   // After the sheet: the keyboard comes back in the panel's place, or the
   // field takes focus back where no panel stood in for it.
   // The caption's emoji button brings the chat's emoji page, alone, in the
@@ -356,6 +371,13 @@ final class ChatAttach extends AttachSheetHost {
   @override
   Widget? buildCaptionPanel(BuildContext context, ComposerController caption) =>
       CaptionEmojiPanel(services: services, caption: caption);
+
+  // The caption draws inline content as the chat's composer does: custom
+  // and animated emoji through the app's content assets.
+  @override
+  ComposerTextController? createCaptionText() => ComposerTextController(
+    inlineContentBuilder: ContentViewSpans.builder(scope: services.assets),
+  );
 
   @override
   void restoreKeyboard() {

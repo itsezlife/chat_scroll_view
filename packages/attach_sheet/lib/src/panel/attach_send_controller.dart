@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:attach_model/attach_model.dart';
+import 'package:attach_sheet/src/debug/attach_log.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/policy/attach_panel_style.dart';
@@ -30,8 +31,16 @@ final class AttachSendController {
     RichText initialCaption = RichText.empty,
     SendOptions initialOptions = const SendOptions(),
     this.store,
-  }) : options = ValueNotifier(initialOptions) {
+  }) : options = ValueNotifier(initialOptions),
+       _captionText = host.createCaptionText() {
+    caption = ComposerController(text: _captionText);
+    AttachLog.log(
+      AttachLog.caption,
+      'created: inline content ${_captionText == null ? 'as text' : 'drawn'}',
+    );
     caption.restore(initialCaption);
+    caption.focusNode.addListener(_captionFocus);
+    caption.text.addListener(_captionChanged);
     selection.changes.addListener(_selectionChanged);
     if (store case final store?) {
       unawaited(
@@ -57,8 +66,31 @@ final class AttachSendController {
   /// Where the options are remembered; null for nowhere.
   final SendOptionStore? store;
 
-  /// The caption's input.
-  final ComposerController caption = ComposerController();
+  /// The caption's input, over the host's text controller when it gives
+  /// one (`AttachSheetHost.createCaptionText`).
+  late final ComposerController caption;
+  final ComposerTextController? _captionText;
+  int _loggedInline = 0;
+
+  void _captionFocus() => AttachLog.log(
+    AttachLog.caption,
+    'focus ${caption.focusNode.hasFocus ? 'in' : 'out'} '
+    '(soft keyboard ${caption.softKeyboard.value.name})',
+  );
+
+  // Logs each change of the inline content the caption holds.
+  void _captionChanged() {
+    final rich = caption.richText;
+    final inline = rich.entities
+        .where((e) => e.kind is EntityKind$InlineContent)
+        .length;
+    if (inline == _loggedInline) return;
+    _loggedInline = inline;
+    AttachLog.log(
+      AttachLog.caption,
+      'inline content: $inline in ${rich.plain.length} chars',
+    );
+  }
 
   /// The send options.
   final ValueNotifier<SendOptions> options;
@@ -82,6 +114,11 @@ final class AttachSendController {
   /// keeps focus and its caret, with no soft keyboard), or gives it back to
   /// the keyboard.
   void toggleCaptionPanel() {
+    AttachLog.log(
+      AttachLog.panel,
+      'toggle: ${captionPanelShown.value ? 'to keyboard' : 'to panel'} '
+      '(focus ${caption.focusNode.hasFocus}, height $keyboardHeight)',
+    );
     if (captionPanelShown.value) {
       showCaptionKeyboard();
     } else {
@@ -89,12 +126,25 @@ final class AttachSendController {
         ..setSoftKeyboard(SoftKeyboardMode.suppressed)
         ..requestFocus();
       unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.hide'));
+      captionPanelHandingOff = false;
       captionPanelShown.value = true;
     }
   }
 
+  /// Whether the panel last went for the keyboard (its place handed over)
+  /// rather than away (back, a close).
+  bool get captionPanelLeftForKeyboard => _leftForKeyboard;
+  bool _leftForKeyboard = false;
+
+  /// Whether the panel's place is going to the rising keyboard now: its
+  /// height is not a resting keyboard's to remember.
+  bool captionPanelHandingOff = false;
+
   /// The keyboard back in the panel's place.
   void showCaptionKeyboard() {
+    _leftForKeyboard = true;
+    captionPanelHandingOff = true;
+    AttachLog.log(AttachLog.panel, 'keyboard back in the panel place');
     captionPanelShown.value = false;
     caption
       ..setSoftKeyboard(SoftKeyboardMode.auto)
@@ -104,6 +154,8 @@ final class AttachSendController {
   /// The panel goes, the keyboard staying down (back, a close).
   void closeCaptionPanel() {
     if (!captionPanelShown.value) return;
+    AttachLog.log(AttachLog.panel, 'closed, the keyboard staying down');
+    _leftForKeyboard = false;
     captionPanelShown.value = false;
     caption.setSoftKeyboard(SoftKeyboardMode.auto);
   }
@@ -288,7 +340,10 @@ final class AttachSendController {
     selection.changes.removeListener(_selectionChanged);
     previewingSelection.dispose();
     captionPanelShown.dispose();
+    caption.focusNode.removeListener(_captionFocus);
+    caption.text.removeListener(_captionChanged);
     caption.dispose();
+    _captionText?.dispose();
     options.dispose();
     refusals.dispose();
   }

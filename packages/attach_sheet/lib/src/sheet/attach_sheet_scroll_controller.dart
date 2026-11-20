@@ -26,6 +26,10 @@ abstract interface class AttachSheetDrive {
   /// sheet did not take, for the page.
   double dragSheet(double delta);
 
+  /// The page's own fling ran into its start moving at [velocity] (positive
+  /// downward): the sheet carries it on, as one list with the page.
+  void carryFling(double velocity);
+
   /// A drag ended with [velocity] (positive downward). True when the sheet
   /// settles on its own; false to let the page fling. [handBack] starts a
   /// page fling of a scroll velocity, for a sheet fling that reaches the top.
@@ -107,6 +111,28 @@ class _AttachSheetScrollPosition extends ScrollPositionWithSingleContext {
       return;
     }
     if (rest != 0) super.applyUserOffset(rest);
+  }
+
+  // A page's fling that reaches its start hands what is left of it to the
+  // sheet, which goes on moving down: the page and the sheet are one list,
+  // so one fling from the top of a scrolled page carries the sheet to its
+  // rest instead of stopping there.
+  @override
+  double setPixels(double newPixels) {
+    final activity = this.activity;
+    if (activity is BallisticScrollActivity &&
+        newPixels < minScrollExtent &&
+        pixels > minScrollExtent - precisionErrorTolerance &&
+        drive.takesDrags) {
+      final velocity = activity.velocity;
+      final overscroll = super.setPixels(minScrollExtent);
+      goIdle();
+      // A scroll velocity is negative toward the start; the sheet's is
+      // positive downward.
+      if (velocity < 0) drive.carryFling(-velocity);
+      return overscroll;
+    }
+    return super.setPixels(newPixels);
   }
 
   @override

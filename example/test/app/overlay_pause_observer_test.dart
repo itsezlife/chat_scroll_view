@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:attach_sheet/attach_sheet.dart' show AttachSheet;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -90,6 +91,23 @@ void main() {
     expect(layers(), {PlaybackPauseLayer.overlayShown});
 
     Navigator.of(tester.element(find.text('dialog'))).pop();
+    await tester.pumpAndSettle();
+    expect(layers(), isEmpty);
+  });
+
+  testWidgets('the attach sheet is not held: it plays its own panel and '
+      'inline emoji, its opener holding the chat under it', (tester) async {
+    await pumpHome(tester);
+    final navigator = Navigator.of(tester.element(find.text('open')));
+    unawaited(
+      navigator.push(
+        PageRouteBuilder<void>(
+          opaque: false,
+          settings: const RouteSettings(name: AttachSheet.routeName),
+          pageBuilder: (_, _, _) => const SizedBox.expand(),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(layers(), isEmpty);
   });

@@ -23,6 +23,26 @@ final class _PanelHost extends AttachSheetHost {
       );
 }
 
+/// A host whose caption draws inline content: its builder counts the spans
+/// it is asked for.
+final class _InlineHost extends AttachSheetHost {
+  final drawn = <String>[];
+
+  @override
+  ComposerTextController? createCaptionText() => ComposerTextController(
+    inlineContentBuilder: (context, reference, style) {
+      drawn.add(reference.alternativeText);
+      return WidgetSpan(
+        child: SizedBox(
+          key: ValueKey('inline-${reference.alternativeText}'),
+          width: 20,
+          height: 20,
+        ),
+      );
+    },
+  );
+}
+
 final class _Host extends AttachSheetHost {
   final interactions = <AttachInteraction>[];
   SendSchedule? schedule;
@@ -788,16 +808,53 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel(english.showKeyboardAction));
     await tester.pumpAndSettle();
-    expect(panel, findsNothing);
     expect(caption.softKeyboard.value, SoftKeyboardMode.auto);
-
-    // Back: the panel first, the sheet stays.
-    await tester.tap(find.bySemanticsLabel(english.showPanelAction));
+    // Handed to the keyboard: the place stays, shrinking as it rises, so
+    // the bar does not jump.
+    expect(tester.getSize(panel).height, 300);
+    tester.view.viewInsets = FakeViewPadding(
+      bottom: 120 * tester.view.devicePixelRatio,
+    );
+    await tester.pump();
+    expect(tester.getSize(panel).height, 180);
+    tester.view.viewInsets = FakeViewPadding(
+      bottom: 300 * tester.view.devicePixelRatio,
+    );
     await tester.pumpAndSettle();
+    expect(panel, findsNothing);
+
+    // Opened over the keyboard it takes its place at once.
+    await tester.tap(find.bySemanticsLabel(english.showPanelAction));
+    await tester.pump();
+    expect(tester.getSize(panel).height, 300);
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+
+    // Back: the panel first, sliding down; the sheet stays.
     await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(tester.getSize(panel).height, inExclusiveRange(0, 300));
     await tester.pumpAndSettle();
     expect(panel, findsNothing);
     expect(rig.outcome, isNull);
     expectChromeText(tester, within: find.byType(AttachSheet));
+  });
+
+  testWidgets("custom content in the caption is drawn by the host's builder, "
+      'as in the chat composer', (tester) async {
+    final host = _InlineHost();
+    final (rig, scope) = await open(tester, host: host);
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    scope.panel.caption.insertContent(
+      const content.InlineContentRef(
+        key: content.ContentKey.document('party'),
+        alternativeText: '★',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(host.drawn, contains('★'));
+    expect(find.byKey(const ValueKey('inline-★')), findsOneWidget);
   });
 }
