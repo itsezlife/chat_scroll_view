@@ -30,7 +30,7 @@ API.
 | `chrome_foundation` | Leaf. Palette, token groups, theme scope, motion roles, strings scope, icon registry, glass. Nothing chat-specific | none |
 | `glyph_atlas` | The baked glyph atlas: plan, bake, pages, residency, disk cache, the glyph sources | `mpx_core` (git) |
 | `content_assets` | Content by `ContentKey` over `mpx_core`'s asset cache: `ContentAssetScope` (media to the cache, glyphs to the atlas), `ContentAssetView`, inline embeds, chat presets, the `ContentKey` / `MediaKey` mapping and `ContentMediaResolver` | `content_model`, `glyph_atlas`, `mpx_core` (git) |
-| `viewport_scroll` | Leaf. A viewport's user-driven scroll: the scroll physics (fling and edge effect, a preset per platform family), their runtime for a viewport that runs them (`engine.dart`), and the keyboard scroll keys. Nothing chat or panel specific | none (`flutter` only) |
+| `viewport_scroll` | Leaf. A viewport's user-driven scroll: the scroll physics (fling and edge effect, a preset per platform family), their runtime for a viewport that runs them (`engine.dart`), the keyboard scroll keys, and the fast scrollbar (a thumb over any scrollable's controller, a host-labelled section bubble, the host's colours). Nothing chat or panel specific | none (`flutter` only) |
 | `panel_catalog` | Catalog viewport. Public seams per [ADR 024](024-panel-catalog-seams.md) | `content_model`, `content_assets`, `mpx_core` (git), `viewport_scroll` |
 | `emoji_data` | Emoji-specific logic only: structure and keyword loaders, emoji `CollectionSource`, merged search, variants, pure-Dart glyph probe. No assets, no native code | `content_model` |
 | `emoji_catalog_pack` | Catalog structure and per-locale keyword pack assets, plus the pinned generator under `tool/` | `content_model` |

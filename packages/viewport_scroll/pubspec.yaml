@@ -1,8 +1,7 @@
 name: viewport_scroll
 description: >
-  A viewport's user-driven scroll: the scroll physics (a fling paired with an
-  edge effect, per platform), their per-viewport runtime, and the keyboard
-  scroll keys. Nothing chat or panel specific.
+  A viewport's user-driven scroll: per-platform scroll physics and their
+  runtime, the keyboard scroll keys, and a fast scrollbar with a section label.
 version: 0.1.0
 publish_to: none
 
