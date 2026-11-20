@@ -839,11 +839,16 @@ void main() {
     );
     await tester.pump();
     expect(tester.getSize(panel).height, 180);
+    // The panel itself stays under the rising keyboard, its top in view.
+    final page = find.byKey(const ValueKey('emoji-page'));
+    expect(page, findsOneWidget);
+    expect(tester.getRect(page).top, tester.getRect(panel).top);
     tester.view.viewInsets = FakeViewPadding(
       bottom: 300 * tester.view.devicePixelRatio,
     );
     await tester.pumpAndSettle();
     expect(panel, findsNothing);
+    expect(page, findsNothing);
 
     // Opened over the keyboard it takes its place at once.
     await tester.tap(find.bySemanticsLabel(english.showPanelAction));
@@ -1113,5 +1118,66 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getRect(island).bottom, closeTo(screen.height - 34, 0.5));
     expect(scope.panel.captionPanelHandingOff, isFalse);
+  });
+
+  testWidgets('the panel toggled up over an unfocused caption never asks '
+      'the platform for a keyboard: the field attaches with no keyboard '
+      'type', (tester) async {
+    final (rig, scope) = await open(tester, host: _PanelHost());
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final send = scope.panel;
+    expect(send.caption.focusNode.hasFocus, isFalse);
+    tester.testTextInput.log.clear();
+
+    send.toggleCaptionPanel();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(send.caption.focusNode.hasFocus, isTrue);
+    expect(send.captionPanelShown.value, isTrue);
+    String? type;
+    for (final call in tester.testTextInput.log) {
+      if (call.method == 'TextInput.setClient') {
+        final config = (call.arguments as List)[1] as Map;
+        type = (config['inputType'] as Map)['name'] as String?;
+      }
+      if (call.method == 'TextInput.show') {
+        expect(type, 'TextInputType.none', reason: 'a keyboard was shown');
+      }
+    }
+  });
+
+  testWidgets('a keyboard that starts rising under the shown panel takes '
+      'its place: the panel goes, never standing over a raised keyboard', (
+    tester,
+  ) async {
+    final (rig, scope) = await open(tester, host: _PanelHost());
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final send = scope.panel;
+    send.caption.requestFocus();
+    await tester.pump();
+    send.toggleCaptionPanel();
+    await tester.pumpAndSettle();
+    expect(send.captionPanelShown.value, isTrue);
+    final slot = find.byKey(const ValueKey('attach-caption-panel-slot'));
+    final full = tester.getSize(slot).height;
+
+    addTearDown(tester.view.resetViewInsets);
+    tester.view.viewInsets = FakeViewPadding(
+      bottom: 60 * tester.view.devicePixelRatio,
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(send.captionPanelShown.value, isFalse);
+    expect(send.caption.softKeyboard.value, SoftKeyboardMode.auto);
+    // The keyboard covers the panel from the bottom: no gap, no stack.
+    expect(tester.getSize(slot).height, closeTo(full - 60, 0.5));
+    tester.view.viewInsets = FakeViewPadding(
+      bottom: full * tester.view.devicePixelRatio,
+    );
+    await tester.pumpAndSettle();
+    expect(slot, findsNothing);
   });
 }

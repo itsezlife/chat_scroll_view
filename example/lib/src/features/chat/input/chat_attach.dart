@@ -71,11 +71,22 @@ abstract final class ChatAttachMessages {
 
 /// Takes a back press for the keyboard when one is up over [view]: the
 /// focused field lets go, which takes the keyboard down. False with no
-/// keyboard up (the back is the surface's).
+/// keyboard up, and false while [caption]'s panel stands in the keyboard's
+/// place (its soft keyboard held back): the back is then the surface's,
+/// which closes that panel first.
 @visibleForTesting
-bool keyboardTakesBack(FlutterView view) {
+bool keyboardTakesBack(FlutterView view, {ComposerController? caption}) {
   final focus = FocusManager.instance.primaryFocus;
   if (view.viewInsets.bottom <= 0 || focus == null) return false;
+  if (caption != null &&
+      caption.focusNode.hasFocus &&
+      caption.softKeyboard.value == SoftKeyboardMode.suppressed) {
+    AttachLog.log(
+      AttachLog.chat,
+      "back: the caption's panel is in the keyboard's place, not the keyboard",
+    );
+    return false;
+  }
   focus.unfocus();
   return true;
 }
@@ -138,6 +149,8 @@ final class ChatAttach extends AttachSheetHost {
 
   // The sheet's back claim, on top of the chat's own while the sheet is up.
   ChatPreImeBackClaim? _backClaim;
+  // The open sheet's caption, as its panel builder last saw it.
+  ComposerController? _caption;
   ValueGetter<Future<bool>>? _back;
 
   /// The sheet or box family of this platform.
@@ -212,7 +225,7 @@ final class ChatAttach extends AttachSheetHost {
     final navigator = Navigator.of(context);
     final view = View.of(context);
     Future<bool> back() async {
-      if (keyboardTakesBack(view)) return true;
+      if (keyboardTakesBack(view, caption: _caption)) return true;
       unawaited(navigator.maybePop());
       return true;
     }
@@ -258,6 +271,7 @@ final class ChatAttach extends AttachSheetHost {
       _backClaim?.pop();
       _backClaim = null;
       _back = null;
+      _caption = null;
     }
     await _finish(outcome, library: library);
   }
@@ -403,8 +417,10 @@ final class ChatAttach extends AttachSheetHost {
   // The caption's emoji button brings the chat's emoji page, alone, in the
   // keyboard's place.
   @override
-  Widget? buildCaptionPanel(BuildContext context, ComposerController caption) =>
-      CaptionEmojiPanel(services: services, caption: caption);
+  Widget? buildCaptionPanel(BuildContext context, ComposerController caption) {
+    _caption = caption;
+    return CaptionEmojiPanel(services: services, caption: caption);
+  }
 
   // The caption draws inline content as the chat's composer does: custom
   // and animated emoji through the app's content assets.

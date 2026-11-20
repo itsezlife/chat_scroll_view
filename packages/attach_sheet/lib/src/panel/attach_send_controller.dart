@@ -8,6 +8,7 @@ import 'package:attach_sheet/src/policy/attach_panel_style.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 
@@ -146,10 +147,22 @@ final class AttachSendController {
     if (captionPanelShown.value) {
       showCaptionKeyboard();
     } else {
-      caption
-        ..setSoftKeyboard(SoftKeyboardMode.suppressed)
-        ..requestFocus();
-      unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.hide'));
+      caption.setSoftKeyboard(SoftKeyboardMode.suppressed);
+      if (caption.focusNode.hasFocus) {
+        unawaited(
+          SystemChannels.textInput.invokeMethod<void>('TextInput.hide'),
+        );
+      } else {
+        // The focus lands before the field is rebuilt with no keyboard
+        // type: focused now, it would attach with a keyboard, which comes
+        // up over the panel. Focused after the frame that rebuilds it, it
+        // attaches with none.
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (_$disposed || !captionPanelShown.value) return;
+          if (!caption.focusNode.hasFocus) caption.requestFocus();
+        });
+        SchedulerBinding.instance.scheduleFrame();
+      }
       AttachLog.log(
         AttachLog.ime,
         'keyboard hide: the caption panel took its place',
@@ -214,6 +227,17 @@ final class AttachSendController {
     caption.setSoftKeyboard(SoftKeyboardMode.auto);
     if (!caption.focusNode.hasFocus) caption.requestFocus();
     caption.requestKeyboard();
+  }
+
+  /// A keyboard came up under the shown panel: it takes the panel's place
+  /// as if the button had asked for it, the panel covered from the bottom.
+  void keyboardTookCaptionPanelPlace() {
+    if (!captionPanelShown.value) return;
+    AttachLog.log(AttachLog.panel, 'a keyboard rose: it takes the panel place');
+    _leftForKeyboard = true;
+    captionPanelHandingOff = true;
+    captionPanelShown.value = false;
+    caption.setSoftKeyboard(SoftKeyboardMode.auto);
   }
 
   /// The panel goes, the keyboard staying down (back, a close).

@@ -909,6 +909,22 @@ class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
     if (keyboard != _keyboard) {
       AttachLog.log(AttachLog.ime, 'inset $keyboard');
+      // A keyboard rising under the shown panel (one the field asked for
+      // on its own) takes the panel's place: the panel never stands over
+      // a raised keyboard.
+      // (From down: a keyboard lowering under a panel opened over it may
+      // report a small rise on its way.)
+      if (_keyboard <= 0.5 &&
+          keyboard > _keyboard &&
+          _mounted &&
+          !_toKeyboard &&
+          _send.captionPanelShown.value) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _send.captionPanelShown.value) {
+            _send.keyboardTookCaptionPanelPlace();
+          }
+        });
+      }
       _keyboard = keyboard;
     }
     // The floor under the caption: the safe area, which a raised keyboard
@@ -921,8 +937,9 @@ class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
       height: math.max(panel, floor),
       child: Align(alignment: Alignment.topCenter, child: child),
     );
-    if (_toKeyboard) {
-      // The keyboard rising under: what it does not cover yet stays.
+    // The keyboard rising under: what it does not cover yet stays, the
+    // panel drawn in it as the keyboard covers it from the bottom.
+    double left() {
       final left = math.max(0, height - keyboard).toDouble();
       if (left <= 0.5) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -936,36 +953,37 @@ class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
           }
         });
       }
-      return floored(
-        left,
-        SizedBox(
-          key: const ValueKey('attach-caption-panel-slot'),
-          width: double.infinity,
-          height: left,
-        ),
-      );
+      return left;
     }
+
     final panel = _send.host.buildCaptionPanel(context, _send.caption);
     if (panel == null) return SizedBox(height: floor);
+    if (_toKeyboard) {
+      final visible = left();
+      return floored(visible, _clipped(visible, panel));
+    }
     return AnimatedBuilder(
       animation: _$slide,
       child: panel,
       builder: (context, panel) => floored(
         height * _$slide.value,
-        SizedBox(
-          key: const ValueKey('attach-caption-panel-slot'),
-          width: double.infinity,
-          height: height * _$slide.value,
-          child: ClipRect(
-            child: OverflowBox(
-              alignment: Alignment.topCenter,
-              minHeight: height,
-              maxHeight: height,
-              child: panel,
-            ),
-          ),
-        ),
+        _clipped(height * _$slide.value, panel!),
       ),
     );
   }
+
+  // The panel at its full height, shown from its top down to [visible].
+  Widget _clipped(double visible, Widget panel) => SizedBox(
+    key: const ValueKey('attach-caption-panel-slot'),
+    width: double.infinity,
+    height: visible,
+    child: ClipRect(
+      child: OverflowBox(
+        alignment: Alignment.topCenter,
+        minHeight: _send.keyboardHeight,
+        maxHeight: _send.keyboardHeight,
+        child: panel,
+      ),
+    ),
+  );
 }

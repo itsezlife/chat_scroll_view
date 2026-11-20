@@ -215,4 +215,34 @@ void main() {
     expect(chat.returns, 0);
     expect(chat.composer.focusNode.hasFocus, isFalse, reason: 'no keyboard');
   });
+
+  testWidgets("back takes no keyboard while the caption's panel stands in "
+      "its place: the field keeps its focus and back is the panel's", (
+    tester,
+  ) async {
+    final caption = ComposerController();
+    addTearDown(caption.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Focus(focusNode: caption.focusNode, child: const SizedBox()),
+      ),
+    );
+    caption.focusNode.requestFocus();
+    await tester.pump();
+    addTearDown(tester.view.resetViewInsets);
+    // A keyboard still reported up (on its way down, or raised under the
+    // panel by a stale attach).
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pump();
+
+    caption.setSoftKeyboard(SoftKeyboardMode.suppressed);
+    expect(keyboardTakesBack(tester.view, caption: caption), isFalse);
+    await tester.pump();
+    expect(caption.focusNode.hasFocus, isTrue);
+
+    caption.setSoftKeyboard(SoftKeyboardMode.auto);
+    expect(keyboardTakesBack(tester.view, caption: caption), isTrue);
+    await tester.pump();
+    expect(caption.focusNode.hasFocus, isFalse);
+  });
 }
