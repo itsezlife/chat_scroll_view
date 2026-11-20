@@ -11,7 +11,9 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mpx_capture/mpx_capture.dart';
+import 'package:mpx_core/mpx_core.dart' show MediaKey;
 import 'package:mpx_library/mpx_library.dart';
+import 'package:mpx_player/mpx_player.dart' show PlayerPool;
 import 'package:mpx_ui/mpx_ui.dart';
 
 /// The camera cell's wiring: the host's camera sessions, where captures are
@@ -48,7 +50,15 @@ final class GalleryCamera {
 /// the live preview: a tap opens the capture surface, a long press (Android)
 /// or a session that cannot open the system camera; captures join the
 /// selection first. The viewer's bottom slot is the panel's caption and
-/// Send; Send with nothing checked sends the item shown.
+/// Send; Send with nothing checked sends the item shown. The viewer's videos
+/// play on [players] (the host answers library keys with
+/// `LibraryPlayerSources.of`); without them they show their poster.
+///
+/// A tap on the panel's count swaps the grid for the **selected-items
+/// preview** (`PickerSelectionPreview`): the picks in their order, a tap on
+/// a number deselects, a tap on a picture opens the viewer over the picks,
+/// and a long press drags an item to another place in the order. The count
+/// again, or back, returns to the grid, as does emptying the selection.
 ///
 /// Thumbnails come through the `AssetCacheProvider` above the sheet, whose
 /// fetcher sends library keys to `LibraryFetcher(library)`.
@@ -59,19 +69,30 @@ abstract final class GalleryPage {
     required String label,
     required Widget icon,
     GalleryCamera? camera,
+    PlayerPool? players,
     AttachPagePermission? permission,
   }) => AttachPage(
     id: AttachPageId.gallery,
     label: label,
     icon: icon,
     permission: permission,
-    builder: (context, scope) => GalleryView(
-      library: library,
-      panel: scope.panel,
-      controller: scope.scrollController,
-      active: scope.isActive,
-      camera: camera,
-    ),
+    builder: (context, scope) {
+      // Back from the selected-items preview returns to the grid.
+      scope.dismissGuard = () async {
+        final previewing = scope.panel.previewingSelection;
+        if (!previewing.value) return true;
+        previewing.value = false;
+        return false;
+      };
+      return GalleryView(
+        library: library,
+        panel: scope.panel,
+        controller: scope.scrollController,
+        active: scope.isActive,
+        camera: camera,
+        players: players,
+      );
+    },
   );
 }
 
@@ -85,6 +106,7 @@ class GalleryView extends StatefulWidget {
     this.controller,
     this.active,
     this.camera,
+    this.players,
     this.showsOverflow = true,
     super.key,
   });
@@ -103,6 +125,9 @@ class GalleryView extends StatefulWidget {
 
   /// The camera cell's wiring; null for no camera cell.
   final GalleryCamera? camera;
+
+  /// The players the viewer's videos play on; null shows their posters.
+  final PlayerPool? players;
 
   /// Whether the header carries the overflow menu.
   final bool showsOverflow;
@@ -270,11 +295,73 @@ class _GalleryViewState extends State<GalleryView> {
         },
       );
 
-  @override
-  Widget build(BuildContext context) {
-    final strings = ChromeStringsScope.attachOf(context);
+  /// Opens the viewer over the picks, at the [index]th.
+  Future<void> _openSelected(MediaKey key, int index) async {
+    final album = _$picker.selectedAlbumNow;
+    if (index >= album.count) return;
+    final pages = LibraryPages(library: _$picker.library, album: album);
+    final source = LibraryGallerySource(pages);
+    try {
+      await PickerViewer.show(
+        context,
+        source: source,
+        initialIndex: index,
+        selection: _$picker,
+        labels: _labels(ChromeStringsScope.attachOf(context)),
+        gridPolicy: widget.panel.policy.libraryGrid,
+        tokens: _tokens(context),
+        players: widget.players,
+        bottomBuilder: _viewerSlot,
+      );
+    } finally {
+      source.dispose();
+      pages.dispose();
+    }
+  }
+
+  static LibraryGridLabels _labels(AttachStrings strings) => LibraryGridLabels(
+    photo: strings.libraryPhoto,
+    video: strings.libraryVideo,
+    open: strings.libraryOpen,
+    select: strings.librarySelect,
+    gif: strings.libraryGif,
+    camera: strings.libraryCamera,
+  );
+
+  static LibraryGridTokens _tokens(BuildContext context) {
     final palette = ChromeThemeScope.paletteOf(context);
     final tokens = ChromeThemeScope.attachOf(context);
+    return LibraryGridTokens(
+      background: tokens.background,
+      cameraSlotBackground: tokens.background,
+      checkFill: palette.accent,
+    );
+  }
+
+  Widget _preview(BuildContext context) => ColoredBox(
+    color: ChromeThemeScope.attachOf(context).background,
+    child: PickerSelectionPreview(
+      key: const ValueKey('attach-gallery-preview'),
+      selection: _$picker,
+      labels: _labels(ChromeStringsScope.attachOf(context)),
+      policy: widget.panel.policy.libraryGrid,
+      tokens: _tokens(context),
+      controller: widget.controller,
+      onOpen: (key, index) => unawaited(_openSelected(key, index)),
+      onReorder: _$picker.move,
+      onRefused: (_, _) {},
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+    valueListenable: widget.panel.previewingSelection,
+    builder: (context, previewing, _) =>
+        previewing ? _preview(context) : _grid(context),
+  );
+
+  Widget _grid(BuildContext context) {
+    final strings = ChromeStringsScope.attachOf(context);
     final camera = widget.camera;
     final android =
         widget.panel.policy.libraryGrid == LibraryGridPolicy.$Android;
@@ -282,14 +369,7 @@ class _GalleryViewState extends State<GalleryView> {
       key: const ValueKey('attach-gallery-picker'),
       library: _$picker.library,
       selection: _$picker,
-      labels: LibraryGridLabels(
-        photo: strings.libraryPhoto,
-        video: strings.libraryVideo,
-        open: strings.libraryOpen,
-        select: strings.librarySelect,
-        gif: strings.libraryGif,
-        camera: strings.libraryCamera,
-      ),
+      labels: _labels(strings),
       stateLabels: LibraryPickerLabels(
         allMedia: strings.albumAllMedia,
         allPhotos: strings.albumAllPhotos,
@@ -311,11 +391,8 @@ class _GalleryViewState extends State<GalleryView> {
         cameraDeniedText: strings.libraryCameraDenied,
       ),
       policy: widget.panel.policy.libraryGrid,
-      tokens: LibraryGridTokens(
-        background: tokens.background,
-        cameraSlotBackground: tokens.background,
-        checkFill: palette.accent,
-      ),
+      tokens: _tokens(context),
+      players: widget.players,
       mediaAllowed: _mediaAllowed,
       notAllowedText: strings.mediaNotAllowed,
       cameraDenied: _cameraDenied,

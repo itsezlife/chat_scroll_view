@@ -32,6 +32,7 @@ final class AttachSendController {
     this.store,
   }) : options = ValueNotifier(initialOptions) {
     caption.restore(initialCaption);
+    selection.changes.addListener(_selectionChanged);
     if (store case final store?) {
       unawaited(
         store.restore(initialOptions).then((restored) {
@@ -64,6 +65,22 @@ final class AttachSendController {
 
   /// Counts refused sends; the field shakes on each.
   final ValueNotifier<int> refusals = ValueNotifier(0);
+
+  /// Whether the selected-items preview is shown in place of the page's
+  /// grid: the counter's tap turns it on and off, and it goes when the
+  /// selection empties.
+  final ValueNotifier<bool> previewingSelection = ValueNotifier(false);
+
+  /// Shows the selected-items preview, or goes back from it; nothing to
+  /// preview with nothing selected.
+  void toggleSelectionPreview() {
+    previewingSelection.value =
+        !previewingSelection.value && selection.isNotEmpty;
+  }
+
+  void _selectionChanged() {
+    if (selection.isEmpty) previewingSelection.value = false;
+  }
 
   bool _$disposed = false;
 
@@ -221,6 +238,8 @@ final class AttachSendController {
   void dispose() {
     if (_$disposed) return;
     _$disposed = true;
+    selection.changes.removeListener(_selectionChanged);
+    previewingSelection.dispose();
     caption.dispose();
     options.dispose();
     refusals.dispose();

@@ -6,6 +6,18 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (selected-items preview, library video)
+
+- A tap on the panel's count swaps the Gallery's grid for the selected-items
+  preview (`PickerSelectionPreview`): the picks in their order, a tap on a
+  number deselects, a tap on a picture opens the viewer over the picks, a
+  long press drags a pick to another place in the order (files and captures
+  keep theirs). The count again, back, or an empty selection returns to the
+  grid. `AttachSendController.previewingSelection`,
+  `toggleSelectionPreview`; `AttachPickerSelection.move`.
+- `GalleryPage.create(players:)` / `GalleryView.players`: the viewer's
+  videos play on the host's players.
+
 ### Fixed
 
 - Text in the sheet, its pages, the panel and the confirm box takes the

@@ -9,6 +9,8 @@ import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_library/testing.dart';
+import 'package:mpx_player/mpx_player.dart';
+import 'package:mpx_player/testing.dart';
 import 'package:mpx_ui/mpx_ui.dart';
 
 import '../page/pages_rig.dart';
@@ -46,6 +48,7 @@ void main() {
     AttachSheetHost host = const AttachSheetHost(),
     FakeMediaLibrary? source,
     GalleryCamera? camera,
+    PlayerPool? players,
     Size size = const Size(400, 800),
   }) async {
     final rig = await PagesRig.open(
@@ -59,6 +62,7 @@ void main() {
         GalleryPage.create(
           library: source ?? library,
           camera: camera,
+          players: players,
           label: 'Gallery',
           icon: const SizedBox(width: 24, height: 24),
         ),
@@ -272,5 +276,117 @@ void main() {
   testWidgets('the header carries the album switcher', (tester) async {
     await open(tester);
     expect(find.byType(LibraryAlbumSwitcher), findsOneWidget);
+  });
+
+  group('the selected-items preview', () {
+    final preview = find.byKey(const ValueKey('attach-gallery-preview'));
+    final picker = find.byKey(const ValueKey('attach-gallery-picker'));
+    final count = find.byKey(const ValueKey('attach-send-count-tap'));
+    Finder item(int index) => find.descendant(
+      of: preview,
+      matching: find.byKey(ValueKey<MediaKey>(_key(index))),
+    );
+
+    Future<PagesRig> picked(WidgetTester tester) async {
+      final rig = await open(tester);
+      rig.selection.toggle(AttachItems.file('f'));
+      await tapCheck(tester, 0);
+      await tapCheck(tester, 1);
+      await tapCheck(tester, 2);
+      return rig;
+    }
+
+    testWidgets('the count swaps the grid for the picks in their order, '
+        'and back', (tester) async {
+      await picked(tester);
+      await tester.tap(count);
+      await tester.pumpAndSettle();
+      expect(preview, findsOneWidget);
+      expect(picker, findsNothing);
+      // The library picks, in order; the file is not a library item.
+      expect(tester.widget<PickerSelectionPreview>(preview).selection.keys, [
+        _key(0),
+        _key(1),
+        _key(2),
+      ]);
+      expect(item(1), findsOneWidget);
+
+      await tester.tap(count);
+      await tester.pumpAndSettle();
+      expect(preview, findsNothing);
+      expect(picker, findsOneWidget);
+    });
+
+    testWidgets('a tap on a number deselects; emptying it returns to the '
+        'grid', (tester) async {
+      final rig = await picked(tester);
+      await tester.tap(count);
+      await tester.pumpAndSettle();
+      await tester.tapAt(tester.getTopRight(item(1)) + const Offset(-10, 10));
+      await tester.pumpAndSettle();
+      expect(rig.selection.length, 3);
+      expect(item(1), findsNothing);
+
+      rig.selection.clear();
+      await tester.pumpAndSettle();
+      expect(preview, findsNothing);
+      expect(picker, findsOneWidget);
+    });
+
+    testWidgets('a reorder moves the pick among the library picks; the file '
+        'keeps its place', (tester) async {
+      final rig = await picked(tester);
+      await tester.tap(count);
+      await tester.pumpAndSettle();
+      tester.widget<PickerSelectionPreview>(preview).onReorder!(_key(2), 0);
+      await tester.pumpAndSettle();
+      expect(rig.selection.items.map((item) => item.id.value), [
+        'f',
+        'library:${FakeMediaLibrary.assetAt(2).id.value}',
+        'library:${FakeMediaLibrary.assetAt(0).id.value}',
+        'library:${FakeMediaLibrary.assetAt(1).id.value}',
+      ]);
+    });
+
+    testWidgets('back returns to the grid and keeps the sheet', (tester) async {
+      await picked(tester);
+      await tester.tap(count);
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(preview, findsNothing);
+      expect(picker, findsOneWidget);
+      expect(find.byType(AttachSheet), findsOneWidget);
+    });
+
+    testWidgets('a tap on a picture opens the viewer over the picks', (
+      tester,
+    ) async {
+      await picked(tester);
+      await tester.tap(count);
+      await tester.pumpAndSettle();
+      await tester.tap(item(1));
+      await tester.pumpAndSettle();
+      final chrome = tester.widget<PickerViewerChrome>(
+        find.byType(PickerViewerChrome),
+      );
+      expect(chrome.source.count, 3);
+      expect(chrome.index.value, 1);
+      expect(
+        chrome.source.itemAt(1)?.key,
+        LibraryKeys.libraryKeyOf(FakeMediaLibrary.assetAt(1)),
+      );
+    });
+  });
+
+  testWidgets("the viewer's videos play on the host's players", (tester) async {
+    final backend = FakePlayerBackend();
+    final players = PlayerPool(backend: backend);
+    addTearDown(players.dispose);
+    await open(tester, players: players);
+    expect(
+      tester.widget<LibraryPicker>(find.byType(LibraryPicker)).players,
+      same(players),
+    );
   });
 }

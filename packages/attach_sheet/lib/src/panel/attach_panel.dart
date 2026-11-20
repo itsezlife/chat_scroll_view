@@ -306,23 +306,30 @@ class _AttachSendButtonState extends State<AttachSendButton>
                       scale: _$bounce.value,
                       child: badge,
                     ),
-                    child: Container(
-                      key: const ValueKey('attach-send-count'),
-                      constraints: const BoxConstraints(minWidth: 18),
-                      height: 18,
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: palette.surfaceRaised,
-                        borderRadius: BorderRadius.circular(9),
-                        border: Border.all(color: palette.accent, width: 1.5),
-                      ),
-                      child: Text(
-                        '$_count',
-                        style: TextStyle(
-                          color: palette.accent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                    // A tap on the count opens the selected-items preview
+                    // (and closes it), not a send.
+                    child: GestureDetector(
+                      key: const ValueKey('attach-send-count-tap'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: widget.controller.toggleSelectionPreview,
+                      child: Container(
+                        key: const ValueKey('attach-send-count'),
+                        constraints: const BoxConstraints(minWidth: 18),
+                        height: 18,
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: palette.surfaceRaised,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(color: palette.accent, width: 1.5),
+                        ),
+                        child: Text(
+                          '$_count',
+                          style: TextStyle(
+                            color: palette.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
