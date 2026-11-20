@@ -191,6 +191,7 @@ class _ComposerFieldState extends State<ComposerField> {
     widget.controller.text.addListener(_onGutterText);
     widget.controller.keyboardRequests.addListener(_onKeyboardRequest);
     widget.controller.caretReveals.addListener(_onCaretReveal);
+    widget.controller.selectionUiHides.addListener(_onSelectionUiHide);
     widget.controller.focusNode.addListener(_onFocus);
     _onFocus();
   }
@@ -205,11 +206,13 @@ class _ComposerFieldState extends State<ComposerField> {
       _gutter = null;
       oldWidget.controller.keyboardRequests.removeListener(_onKeyboardRequest);
       oldWidget.controller.caretReveals.removeListener(_onCaretReveal);
+      oldWidget.controller.selectionUiHides.removeListener(_onSelectionUiHide);
       oldWidget.controller.focusNode.removeListener(_onFocus);
       widget.controller.text.addListener(_scheduleAnchor);
       widget.controller.text.addListener(_onGutterText);
       widget.controller.keyboardRequests.addListener(_onKeyboardRequest);
       widget.controller.caretReveals.addListener(_onCaretReveal);
+      widget.controller.selectionUiHides.addListener(_onSelectionUiHide);
       widget.controller.focusNode.addListener(_onFocus);
       _onFocus();
     }
@@ -221,6 +224,7 @@ class _ComposerFieldState extends State<ComposerField> {
     widget.controller.text.removeListener(_onGutterText);
     widget.controller.keyboardRequests.removeListener(_onKeyboardRequest);
     widget.controller.caretReveals.removeListener(_onCaretReveal);
+    widget.controller.selectionUiHides.removeListener(_onSelectionUiHide);
     widget.controller.focusNode.removeListener(_onFocus);
     _gutter?.dispose();
     super.dispose();
@@ -286,6 +290,8 @@ class _ComposerFieldState extends State<ComposerField> {
 
   // After the frame that lays the edit out, so the line is measured where the
   // caret landed. Edits in one frame reveal once.
+  void _onSelectionUiHide() => _editableTextState()?.hideToolbar();
+
   void _onCaretReveal() {
     if (_revealScheduled) return;
     _revealScheduled = true;

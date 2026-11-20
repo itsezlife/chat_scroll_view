@@ -79,6 +79,8 @@ import 'view/composer_selection_menu_fit_test.dart'
 import 'view/composer_selection_menu_golden_test.dart'
     as composer_selection_menu_golden_test;
 import 'view/composer_selection_menu_test.dart' as composer_selection_menu_test;
+import 'view/composer_selection_ui_hide_test.dart'
+    as composer_selection_ui_hide_test;
 import 'view/composer_semantics_test.dart' as composer_semantics_test;
 import 'view/composer_send_flow_test.dart' as composer_send_flow_test;
 import 'view/composer_shortcuts_test.dart' as composer_shortcuts_test;
@@ -226,6 +228,10 @@ void main() {
   group(
     'view/composer_selection_menu_test.dart',
     composer_selection_menu_test.main,
+  );
+  group(
+    'view/composer_selection_ui_hide_test.dart',
+    composer_selection_ui_hide_test.main,
   );
   group('view/composer_semantics_test.dart', composer_semantics_test.main);
   group('view/composer_send_flow_test.dart', composer_send_flow_test.main);

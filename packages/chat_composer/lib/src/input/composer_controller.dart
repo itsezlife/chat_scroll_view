@@ -116,6 +116,7 @@ final class ComposerController {
   final _query = listen.ValueNotifier<ComposerInputQuery?>(null);
   final _keyboardRequests = _Signal();
   final _caretReveals = _Signal();
+  final _selectionUiHides = _Signal();
   final _kinds = <ComposerQueryKind>[];
   final _resolvedMentions = <String>{};
   Rect? _anchor;
@@ -526,6 +527,17 @@ final class ComposerController {
   /// lines would leave the line an inserted emoji lands on out of sight.
   listen.Listenable get caretReveals => _caretReveals;
 
+  /// Takes down the field's selection handles and toolbar (a host whose
+  /// panel stands in for the keyboard, or that types into the field from
+  /// outside it: the handle a tap left must not stay up).
+  void hideSelectionUi() {
+    if (_disposed) return;
+    _selectionUiHides.signal();
+  }
+
+  /// Signals each [hideSelectionUi]; the field answers it. For the view.
+  listen.Listenable get selectionUiHides => _selectionUiHides;
+
   // --- Field geometry ---
 
   /// The height of the field as last reported, zero before the first report.
@@ -658,6 +670,7 @@ final class ComposerController {
     _softKeyboard.dispose();
     _keyboardRequests.dispose();
     _caretReveals.dispose();
+    _selectionUiHides.dispose();
     _fieldHeight.dispose();
     _extent.dispose();
     _query.dispose();
