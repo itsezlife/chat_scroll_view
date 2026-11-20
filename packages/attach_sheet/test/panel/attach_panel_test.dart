@@ -12,6 +12,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../page/pages_rig.dart';
 
+/// A host whose caption has a panel: a box that types an emoji.
+final class _PanelHost extends AttachSheetHost {
+  @override
+  Widget? buildCaptionPanel(BuildContext context, ComposerController caption) =>
+      GestureDetector(
+        key: const ValueKey('emoji-page'),
+        onTap: () => caption.insertText('🙂'),
+        child: const ColoredBox(color: Color(0xFF123456)),
+      );
+}
+
 final class _Host extends AttachSheetHost {
   final interactions = <AttachInteraction>[];
   SendSchedule? schedule;
@@ -742,5 +753,51 @@ void main() {
     expect(bar.bottom, closeTo(screen.height - 300, 0.5));
     final send = tester.getRect(find.byKey(const ValueKey('attach-send')));
     expect(send.bottom, lessThanOrEqualTo(screen.height - 300));
+  });
+
+  testWidgets("the caption's emoji button puts its panel in the keyboard's "
+      'place at its height, the field keeping focus; the button again brings '
+      'the keyboard back; back closes the panel before the sheet', (
+    tester,
+  ) async {
+    final (rig, scope) = await open(tester, host: _PanelHost());
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final english = ChromeStringsPresets.english.composer;
+    final caption = scope.panel.caption;
+
+    // The keyboard is up for the caption first.
+    caption.focusNode.requestFocus();
+    tester.view.viewInsets = FakeViewPadding(
+      bottom: 300 * tester.view.devicePixelRatio,
+    );
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel(english.showPanelAction));
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    final panel = find.byKey(const ValueKey('attach-caption-panel-slot'));
+    expect(panel, findsOneWidget);
+    expect(tester.getSize(panel).height, 300, reason: "the keyboard's height");
+    expect(caption.focusNode.hasFocus, isTrue);
+    expect(caption.softKeyboard.value, SoftKeyboardMode.suppressed);
+    await tester.tap(find.byKey(const ValueKey('emoji-page')));
+    await tester.pump();
+    expect(caption.richText.plain, '🙂');
+
+    await tester.tap(find.bySemanticsLabel(english.showKeyboardAction));
+    await tester.pumpAndSettle();
+    expect(panel, findsNothing);
+    expect(caption.softKeyboard.value, SoftKeyboardMode.auto);
+
+    // Back: the panel first, the sheet stays.
+    await tester.tap(find.bySemanticsLabel(english.showPanelAction));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(panel, findsNothing);
+    expect(rig.outcome, isNull);
+    expectChromeText(tester, within: find.byType(AttachSheet));
   });
 }

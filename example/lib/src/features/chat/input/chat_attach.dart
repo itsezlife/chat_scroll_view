@@ -9,6 +9,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/caption_emoji_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -350,6 +351,12 @@ final class ChatAttach extends AttachSheetHost {
 
   // After the sheet: the keyboard comes back in the panel's place, or the
   // field takes focus back where no panel stood in for it.
+  // The caption's emoji button brings the chat's emoji page, alone, in the
+  // keyboard's place.
+  @override
+  Widget? buildCaptionPanel(BuildContext context, ComposerController caption) =>
+      CaptionEmojiPanel(services: services, caption: caption);
+
   @override
   void restoreKeyboard() {
     if (_panelForKeyboard) {

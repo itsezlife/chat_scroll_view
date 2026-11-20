@@ -21,8 +21,13 @@ class AttachCaptionBar extends StatefulWidget {
     required this.controller,
     this.reveal,
     this.beforeSend,
+    this.offersPanel = true,
     super.key,
   });
+
+  /// Whether the caption's panel button shows (where the host builds a
+  /// panel); off where no panel slot is under the bar (the viewer).
+  final bool offersPanel;
 
   /// The panel's state.
   final AttachSendController controller;
@@ -79,6 +84,7 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
   @override
   Widget build(BuildContext context) {
     final strings = ChromeStringsScope.attachOf(context);
+    final composerStrings = ChromeStringsScope.of(context).composer;
     final from = _send.counterFrom;
     return Material(
       type: MaterialType.transparency,
@@ -102,21 +108,45 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
                   ),
                   child: field,
                 ),
-                child: ComposerView(
-                  key: const ValueKey('attach-caption'),
-                  controller: _send.caption,
-                  autofocus: false,
-                  safeAreaBottom: 0,
-                  hintText: strings.captionPlaceholder,
-                  // No emoji button yet: the hint keeps off the pill's
-                  // round start.
-                  fieldStartInset: AttachCaptionBar.fieldStartInset,
-                  spec: ComposerSpec(
-                    messageLengthLimit: _send.captionLimit,
-                    messageLengthCounterFrom: switch (from) {
-                      final from? => math.max(0, from),
-                      null => null,
-                    },
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _send.captionPanelShown,
+                  builder: (context, panelShown, _) => ComposerView(
+                    key: const ValueKey('attach-caption'),
+                    controller: _send.caption,
+                    autofocus: false,
+                    safeAreaBottom: 0,
+                    hintText: strings.captionPlaceholder,
+                    // With no button leading it, the hint keeps off the
+                    // pill's round start.
+                    fieldStartInset: AttachCaptionBar.fieldStartInset,
+                    spec: ComposerSpec(
+                      messageLengthLimit: _send.captionLimit,
+                      messageLengthCounterFrom: switch (from) {
+                        final from? => math.max(0, from),
+                        null => null,
+                      },
+                      actions: [
+                        // The caption's panel toggle, as the chat's: the
+                        // emoji page in the keyboard's place, or back.
+                        if (widget.offersPanel &&
+                            _send.host.buildCaptionPanel(
+                                  context,
+                                  _send.caption,
+                                ) !=
+                                null)
+                          ActionDescriptor(
+                            id: 'attach-caption-panel',
+                            icon: panelShown
+                                ? ChromeIconId.keyboard
+                                : ChromeIconId.emoji,
+                            semanticLabel: panelShown
+                                ? composerStrings.showKeyboardAction
+                                : composerStrings.showPanelAction,
+                            placement: ActionPlacement.leading,
+                            onTap: _send.toggleCaptionPanel,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -720,18 +750,38 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
     unawaited(_$shown.animateTo(show ? 1 : 0, duration: spec.duration));
   }
 
+  // The safe area goes under the caption while no panel stands below it.
+  double _panelPadding(double safe) =>
+      widget.controller.captionPanelShown.value ? 0 : safe;
+
   @override
   Widget build(BuildContext context) {
     final padding = MediaQuery.paddingOf(context);
+    // The keyboard's height, the panel's in its place.
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    if (keyboard > 0) widget.controller.keyboardHeight = keyboard;
     final rise = widget.controller.policy.panel.revealRise;
     final curved = CurvedAnimation(parent: _$shown, curve: _curve);
     return AnimatedBuilder(
       animation: _$shown,
       // The composer's island floats over the page as it does over the
       // chat; the sheet's bottom fade is under it, not a band.
-      child: Padding(
-        padding: EdgeInsets.only(bottom: padding.bottom),
-        child: AttachCaptionBar(controller: widget.controller, reveal: curved),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ValueListenableBuilder<bool>(
+            valueListenable: widget.controller.captionPanelShown,
+            builder: (context, _, bar) => Padding(
+              padding: EdgeInsets.only(bottom: _panelPadding(padding.bottom)),
+              child: bar,
+            ),
+            child: AttachCaptionBar(
+              controller: widget.controller,
+              reveal: curved,
+            ),
+          ),
+          AttachCaptionPanelSlot(controller: widget.controller),
+        ],
       ),
       builder: (context, panel) {
         final t = _curve.transform(_$shown.value);
@@ -752,4 +802,34 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
       },
     );
   }
+}
+
+/// The caption's panel in the keyboard's place, at the keyboard's last
+/// height, while it is shown (`AttachSendController.captionPanelShown`);
+/// nothing otherwise.
+class AttachCaptionPanelSlot extends StatelessWidget {
+  /// The slot of [controller]'s caption panel.
+  const AttachCaptionPanelSlot({required this.controller, super.key});
+
+  /// The panel's state.
+  final AttachSendController controller;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+    valueListenable: controller.captionPanelShown,
+    builder: (context, shown, _) {
+      if (!shown) return const SizedBox.shrink();
+      final panel = controller.host.buildCaptionPanel(
+        context,
+        controller.caption,
+      );
+      if (panel == null) return const SizedBox.shrink();
+      return SizedBox(
+        key: const ValueKey('attach-caption-panel-slot'),
+        width: double.infinity,
+        height: controller.keyboardHeight,
+        child: panel,
+      );
+    },
+  );
 }

@@ -2,6 +2,7 @@ import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/host/attach_discard_question.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
+import 'package:chat_composer/chat_composer.dart';
 import 'package:flutter/widgets.dart';
 
 /// What the host knew when it opened the sheet.
@@ -59,6 +60,12 @@ base class AttachSheetHost {
   /// Raise the keyboard again: the sheet closed and the policy brings back
   /// a keyboard that was up at open.
   void restoreKeyboard() {}
+
+  /// The caption's panel (an emoji page) for [caption], shown in the
+  /// keyboard's place when its button is pressed; null for no panel and no
+  /// button. What it picks goes into [caption].
+  Widget? buildCaptionPanel(BuildContext context, ComposerController caption) =>
+      null;
 
   /// Ask whether to drop a non-empty selection, in [wording]; true drops it
   /// and closes the sheet. The default shows [AttachDiscardQuestion].

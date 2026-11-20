@@ -89,7 +89,12 @@ class _AttachPagesSheetState extends State<AttachPagesSheet> {
   }
 
   /// A cancel hands the caption back to the composer.
-  void _closed(AttachOutcome outcome) => widget.onClosed(switch (outcome) {
+  void _closed(AttachOutcome outcome) {
+    _$send.closeCaptionPanel();
+    _report(outcome);
+  }
+
+  void _report(AttachOutcome outcome) => widget.onClosed(switch (outcome) {
     AttachOutcome$Cancelled() => AttachOutcome.cancelled(
       _$send.caption.richText,
     ),
@@ -213,10 +218,18 @@ final class AttachPagesModel {
     final sheet = _$sheet;
     if (sheet == null) return;
     final slot = slotOf(active.value);
+    final guard = slot._dismissGuard;
     sheet
       ..panEnabled = slot._panEnabled
       ..restTop = slot._topOffset
-      ..dismissGuard = slot._dismissGuard;
+      // Back closes the caption's panel before anything of the page's.
+      ..dismissGuard = () async {
+        if (send.captionPanelShown.value) {
+          send.closeCaptionPanel();
+          return false;
+        }
+        return guard == null || await guard();
+      };
     header.value = slot._headerItems;
     mainButton.value = slot._mainButton;
     panelHidden.value = slot._panelHidden;

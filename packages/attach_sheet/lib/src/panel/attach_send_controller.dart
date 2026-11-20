@@ -71,6 +71,43 @@ final class AttachSendController {
   /// selection empties.
   final ValueNotifier<bool> previewingSelection = ValueNotifier(false);
 
+  /// Whether the caption's panel stands in the keyboard's place.
+  final ValueNotifier<bool> captionPanelShown = ValueNotifier(false);
+
+  /// The keyboard's last height, the panel's height in its place; a
+  /// keyboard's usual height until one has shown.
+  double keyboardHeight = 280;
+
+  /// The caption's button: the panel takes the keyboard's place (the field
+  /// keeps focus and its caret, with no soft keyboard), or gives it back to
+  /// the keyboard.
+  void toggleCaptionPanel() {
+    if (captionPanelShown.value) {
+      showCaptionKeyboard();
+    } else {
+      caption
+        ..setSoftKeyboard(SoftKeyboardMode.suppressed)
+        ..requestFocus();
+      unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.hide'));
+      captionPanelShown.value = true;
+    }
+  }
+
+  /// The keyboard back in the panel's place.
+  void showCaptionKeyboard() {
+    captionPanelShown.value = false;
+    caption
+      ..setSoftKeyboard(SoftKeyboardMode.auto)
+      ..requestKeyboard();
+  }
+
+  /// The panel goes, the keyboard staying down (back, a close).
+  void closeCaptionPanel() {
+    if (!captionPanelShown.value) return;
+    captionPanelShown.value = false;
+    caption.setSoftKeyboard(SoftKeyboardMode.auto);
+  }
+
   /// Whether a page can show the selected-items preview (a Gallery is
   /// mounted): only then does the count take taps.
   bool get selectionPreviewAvailable => _previewHosts > 0;
@@ -250,6 +287,7 @@ final class AttachSendController {
     _$disposed = true;
     selection.changes.removeListener(_selectionChanged);
     previewingSelection.dispose();
+    captionPanelShown.dispose();
     caption.dispose();
     options.dispose();
     refusals.dispose();
