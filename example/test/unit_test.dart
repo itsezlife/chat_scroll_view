@@ -63,6 +63,7 @@ import 'common/scroll_lab_glass_test.dart' as scroll_lab_glass_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
 import 'features/chat/bundled_packs_test.dart' as bundled_packs_test;
+import 'features/chat/chat_attach_back_test.dart' as chat_attach_back_test;
 import 'features/chat/chat_attach_messages_test.dart'
     as chat_attach_messages_test;
 import 'features/chat/chat_body_host_test.dart' as chat_body_host_test;
@@ -574,6 +575,7 @@ void main() {
     'widgets/widget_chat_screen_source_test.dart',
     widget_chat_screen_source_test.main,
   );
+  group('features/chat/chat_attach_back_test.dart', chat_attach_back_test.main);
   group(
     'features/chat/chat_attach_messages_test.dart',
     chat_attach_messages_test.main,

@@ -4,6 +4,8 @@ import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:bulletins/bulletins.dart';
 import 'package:chat_composer/chat_composer.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart'
+    show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
@@ -152,35 +154,49 @@ final class ChatAttach extends AttachSheetHost {
     final caption = composer.richText;
     composer.clear();
     final library = services.mediaLibrary;
-    final outcome = await AttachSheet.show(
-      context,
-      policy: policy,
-      selection: AttachSelection(policy: attachPolicy, limits: limits),
-      host: this,
-      opening: AttachSheetOpening(keyboardWasUp: composer.hasFocus),
-      initialCaption: caption,
-      optionStore: _store,
-      pages: AttachPageRegistry([
-        if (library != null)
-          GalleryPage.create(
-            library: library,
-            label: 'Галерея',
-            icon: const Icon(Icons.photo_library_outlined),
-            camera: GalleryCamera(
-              sessions: const PlatformCameraSessions(),
-              outputDirectory: directory,
-              systemCamera: intake,
+    // Back goes to the topmost surface: the sheet's claim stacks over the
+    // panel's (and is taken before a raised keyboard), and pops the top route
+    // of the sheet's navigator: the sheet itself (which asks before dropping
+    // a selection), or what a page pushed over it.
+    final navigator = Navigator.of(context);
+    final backClaim = ChatPreImeBackClaim.push(() async {
+      unawaited(navigator.maybePop());
+      return true;
+    });
+    final AttachOutcome outcome;
+    try {
+      outcome = await AttachSheet.show(
+        context,
+        policy: policy,
+        selection: AttachSelection(policy: attachPolicy, limits: limits),
+        host: this,
+        opening: AttachSheetOpening(keyboardWasUp: composer.hasFocus),
+        initialCaption: caption,
+        optionStore: _store,
+        pages: AttachPageRegistry([
+          if (library != null)
+            GalleryPage.create(
+              library: library,
+              label: 'Галерея',
+              icon: const Icon(Icons.photo_library_outlined),
+              camera: GalleryCamera(
+                sessions: const PlatformCameraSessions(),
+                outputDirectory: directory,
+                systemCamera: intake,
+              ),
             ),
+          FilesPage.create(
+            intake: intake,
+            library: library,
+            items: _$items,
+            label: 'Файл',
+            icon: const Icon(Icons.insert_drive_file_outlined),
           ),
-        FilesPage.create(
-          intake: intake,
-          library: library,
-          items: _$items,
-          label: 'Файл',
-          icon: const Icon(Icons.insert_drive_file_outlined),
-        ),
-      ]),
-    );
+        ]),
+      );
+    } finally {
+      backClaim.pop();
+    }
     await _finish(outcome, library: library);
   }
 
