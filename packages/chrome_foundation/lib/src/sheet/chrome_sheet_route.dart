@@ -90,20 +90,43 @@ class ChromeSheetRoot extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final palette = ChromeThemeScope.of(context).palette;
-    return DefaultTextStyle(
-      style: ChromeTypography.of(context).copyWith(color: palette.onSurface),
-      child: avoidsKeyboard
-          ? Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.viewInsetsOf(context).bottom,
-              ),
-              child: child,
-            )
-          : child,
-    );
-  }
+  Widget build(BuildContext context) => ChromeTextRoot(
+    child: avoidsKeyboard
+        ? Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: child,
+          )
+        : child,
+  );
+}
+
+/// The **chrome text root**: the chrome face ([ChromeTypography]) in the
+/// chrome palette's `onSurface`, as the inherited text style below it.
+///
+/// Every route, overlay entry and popup the chrome pushes puts one at its
+/// page's root: a route's page inherits from the navigator, not from the
+/// widget that pushed it, and above the navigator the inherited style is
+/// the framework's debug one (a monospace face, underlined in yellow). A
+/// host puts one above its navigator too, so a route a package pushes
+/// without one still reads the chrome face. Text styles below it start
+/// from `ChromeTypography.of(context)`, never a bare `TextStyle`, so the
+/// face holds where the root is missing.
+class ChromeTextRoot extends StatelessWidget {
+  /// A root above [child].
+  const ChromeTextRoot({required this.child, super.key});
+
+  /// The page.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DefaultTextStyle(
+    style: ChromeTypography.of(
+      context,
+    ).copyWith(color: ChromeThemeScope.of(context).palette.onSurface),
+    child: child,
+  );
 }
 
 /// The chrome's modal **bottom sheet** route: the touch counterpart of

@@ -126,6 +126,10 @@ from `packages/` has not landed yet. `scripts/check` enforces the rules.
 - Fakes are exported only from `testing.dart`; production code never
   downcasts to a fake or a concrete cache.
 - A leaf that fails keeps the best picture stage it reached (preview, thumbnail or first frame); there is no failed picture. A surface that shows a status control turns it back to download, which is the retry. A leaf without a control (glyphs, panel cells, embeds in text) shows nothing more.
+- Every route, overlay and popup a package pushes puts a `ChromeTextRoot`
+  (or `ChromeSheetRoot`) at its page's root, and text styles start from
+  `ChromeTypography.of(context)`, never a bare `TextStyle`; surface tests
+  call `expectChromeText` (`chrome_foundation/testing.dart`).
 
 **Invariants agents must not silently reverse**
 

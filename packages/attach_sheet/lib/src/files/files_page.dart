@@ -103,8 +103,9 @@ class _FilesViewState extends State<_FilesView> {
     if (library == null) return;
     final send = await Navigator.of(context).push<bool>(
       PageRouteBuilder<bool>(
-        pageBuilder: (context, _, _) =>
-            _GalleryAsFiles(library: library, panel: _panel),
+        pageBuilder: (context, _, _) => ChromeTextRoot(
+          child: _GalleryAsFiles(library: library, panel: _panel),
+        ),
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
       ),
@@ -199,7 +200,9 @@ class _Recent extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Text(
             header,
-            style: TextStyle(color: palette.onSurfaceMuted, fontSize: 13),
+            style: ChromeTypography.of(
+              context,
+            ).copyWith(color: palette.onSurfaceMuted, fontSize: 13),
           ),
         ),
         if (files == null)
@@ -250,7 +253,9 @@ class _ActionRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Text(
           label,
-          style: TextStyle(color: palette.accent, fontSize: 16),
+          style: ChromeTypography.of(
+            context,
+          ).copyWith(color: palette.accent, fontSize: 16),
         ),
       ),
     ),
@@ -297,7 +302,9 @@ class _FileRow extends StatelessWidget {
                   ? null
                   : Text(
                       '$order',
-                      style: TextStyle(color: palette.onAccent, fontSize: 12),
+                      style: ChromeTypography.of(
+                        context,
+                      ).copyWith(color: palette.onAccent, fontSize: 12),
                     ),
             ),
             const SizedBox(width: 12),
@@ -306,13 +313,17 @@ class _FileRow extends StatelessWidget {
                 name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: palette.onSurface, fontSize: 15),
+                style: ChromeTypography.of(
+                  context,
+                ).copyWith(color: palette.onSurface, fontSize: 15),
               ),
             ),
             if (size case final size?)
               Text(
                 _sizeOf(size),
-                style: TextStyle(color: palette.onSurfaceMuted, fontSize: 13),
+                style: ChromeTypography.of(
+                  context,
+                ).copyWith(color: palette.onSurfaceMuted, fontSize: 13),
               ),
           ],
         ),
@@ -363,7 +374,9 @@ class _GalleryAsFiles extends StatelessWidget {
                     padding: const EdgeInsets.all(16),
                     child: Text(
                       strings.cancelAction,
-                      style: TextStyle(color: palette.accent, fontSize: 16),
+                      style: ChromeTypography.of(
+                        context,
+                      ).copyWith(color: palette.accent, fontSize: 16),
                     ),
                   ),
                 ),
@@ -380,7 +393,7 @@ class _GalleryAsFiles extends StatelessWidget {
                       padding: const EdgeInsets.all(16),
                       child: Text(
                         '${strings.sendAction} (${panel.selection.length})',
-                        style: TextStyle(
+                        style: ChromeTypography.of(context).copyWith(
                           color: panel.selection.isEmpty
                               ? palette.onSurfaceMuted
                               : palette.accent,

@@ -195,7 +195,7 @@ class _AttachTabBarState extends State<AttachTabBar>
         (TextPainter(
           text: TextSpan(
             text: page.label,
-            style: const TextStyle(fontSize: _labelSize),
+            style: ChromeTypography.of(context).copyWith(fontSize: _labelSize),
           ),
           textDirection: TextDirection.ltr,
           maxLines: 1,
@@ -441,7 +441,7 @@ class _Tab extends StatelessWidget {
                         ),
                         child: Text(
                           '!',
-                          style: TextStyle(
+                          style: ChromeTypography.of(context).copyWith(
                             color: palette.onAccent,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -477,7 +477,9 @@ class _Tab extends StatelessWidget {
                 page.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: color, fontSize: _labelSize),
+                style: ChromeTypography.of(
+                  context,
+                ).copyWith(color: color, fontSize: _labelSize),
               ),
             ],
           ),
@@ -511,7 +513,7 @@ class _MainButton extends StatelessWidget {
           ),
           child: Text(
             button.label,
-            style: TextStyle(
+            style: ChromeTypography.of(context).copyWith(
               color: palette.onAccent,
               fontSize: 15,
               fontWeight: FontWeight.w600,

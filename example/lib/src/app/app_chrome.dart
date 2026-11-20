@@ -74,7 +74,11 @@ class AppChrome extends StatelessWidget {
                 scope: services.assets.media,
                 child: ContentAssetProvider(
                   scope: services.assets,
-                  child: child,
+                  // Every route of the navigator below reads the chrome
+                  // face: a route a package pushes without a text root of
+                  // its own (a picker's menu, a viewer) inherits this one,
+                  // not the framework's underlined debug style.
+                  child: ChromeTextRoot(child: child),
                 ),
               ),
             ),

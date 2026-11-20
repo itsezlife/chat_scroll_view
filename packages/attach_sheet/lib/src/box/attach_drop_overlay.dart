@@ -136,7 +136,9 @@ class _AttachDropOverlayState extends State<AttachDropOverlay> {
         child: Text(
           label,
           textAlign: TextAlign.center,
-          style: TextStyle(color: palette.onSurface, fontSize: 17),
+          style: ChromeTypography.of(
+            context,
+          ).copyWith(color: palette.onSurface, fontSize: 17),
         ),
       ),
     );

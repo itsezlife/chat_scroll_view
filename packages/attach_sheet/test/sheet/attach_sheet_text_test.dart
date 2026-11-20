@@ -9,6 +9,7 @@ library;
 
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -36,11 +37,6 @@ void main() {
     rig.selection.toggle(AttachItems.photo('p'));
     await tester.pumpAndSettle();
 
-    final texts = find.descendant(
-      of: find.byType(AttachSheet),
-      matching: find.byType(RichText),
-    );
-    expect(texts, findsWidgets);
     expect(
       find.descendant(
         of: find.byType(AttachSheet),
@@ -48,11 +44,6 @@ void main() {
       ),
       findsOneWidget,
     );
-    for (final element in texts.evaluate()) {
-      final style = (element.widget as RichText).text.style;
-      expect(style, isNotNull);
-      expect(style!.decoration, isNot(TextDecoration.underline));
-      expect(style.decorationColor, isNot(const Color(0xFFFFFF00)));
-    }
+    expectChromeText(tester, within: find.byType(AttachSheet));
   });
 }

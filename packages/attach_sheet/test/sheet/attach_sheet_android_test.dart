@@ -1,6 +1,7 @@
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -231,6 +232,7 @@ void main() {
       await rig.tapAbove();
       await tester.pumpAndSettle();
       expect(find.text('Discard selection?'), findsOneWidget);
+      expectChromeText(tester, within: find.byType(AttachDiscardQuestion));
 
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();

@@ -104,10 +104,19 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
                       controller: _send.caption,
                       minLines: 1,
                       maxLines: 6,
-                      style: TextStyle(color: palette.onSurface, fontSize: 16),
+                      style: ChromeTypography.of(context).copyWith(
+                        color: palette.onSurface,
+                        fontSize: 16,
+                        // A field's style stands alone: it names its baseline.
+                        textBaseline: TextBaseline.alphabetic,
+                      ),
                       decoration: InputDecoration.collapsed(
                         hintText: strings.captionPlaceholder,
-                        hintStyle: TextStyle(color: palette.onSurfaceMuted),
+                        hintStyle: ChromeTypography.of(context).copyWith(
+                          color: palette.onSurfaceMuted,
+                          fontSize: 16,
+                          textBaseline: TextBaseline.alphabetic,
+                        ),
                       ),
                     ),
                   ),
@@ -325,7 +334,7 @@ class _AttachSendButtonState extends State<AttachSendButton>
                         ),
                         child: Text(
                           '$_count',
-                          style: TextStyle(
+                          style: ChromeTypography.of(context).copyWith(
                             color: palette.accent,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -447,8 +456,9 @@ abstract final class AttachMenu {
         barrierColor: const Color(0x00000000),
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
-        pageBuilder: (menuContext, _, _) =>
-            _AttachMenuView(anchor: anchor, entries: entries),
+        pageBuilder: (menuContext, _, _) => ChromeTextRoot(
+          child: _AttachMenuView(anchor: anchor, entries: entries),
+        ),
       ),
     );
     if (chosen == null || !context.mounted) return;
@@ -506,10 +516,9 @@ class _AttachMenuView extends StatelessWidget {
                         ),
                         child: Text(
                           entry.label,
-                          style: TextStyle(
-                            color: palette.onSurface,
-                            fontSize: 15,
-                          ),
+                          style: ChromeTypography.of(
+                            context,
+                          ).copyWith(color: palette.onSurface, fontSize: 15),
                         ),
                       ),
                     ),

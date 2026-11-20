@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (text root)
+
+- `ChromeTextRoot`: the chrome face as the inherited text style, for the
+  root of every route, overlay and popup (and above a host's navigator);
+  `ChromeSheetRoot` builds on it.
+- `expectChromeText` in `testing.dart`: fails on text in the fallback style
+  (underlined, monospace).
+
 ### Added (bottom sheet)
 
 - `ChromeSheetRoute`: the chrome's modal bottom sheet, the touch counterpart

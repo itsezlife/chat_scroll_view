@@ -61,10 +61,12 @@ abstract final class ConfirmBox {
             ),
           );
         },
-        pageBuilder: (context, _, _) => ConfirmBoxView(
-          controller: controller,
-          groupPreview: groupPreview,
-          thumbnail: thumbnail,
+        pageBuilder: (context, _, _) => ChromeTextRoot(
+          child: ConfirmBoxView(
+            controller: controller,
+            groupPreview: groupPreview,
+            thumbnail: thumbnail,
+          ),
         ),
       ),
     );
@@ -324,7 +326,7 @@ class _ConfirmBoxViewState extends State<ConfirmBoxView> {
           child: Text(
             _title(strings),
             key: const ValueKey('confirm-box-title'),
-            style: TextStyle(
+            style: ChromeTypography.of(context).copyWith(
               color: palette.onSurface,
               fontSize: 17,
               fontWeight: FontWeight.w600,
@@ -500,7 +502,9 @@ class _Check extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               label,
-              style: TextStyle(color: palette.onSurface, fontSize: 14),
+              style: ChromeTypography.of(
+                context,
+              ).copyWith(color: palette.onSurface, fontSize: 14),
             ),
           ],
         ),
@@ -527,7 +531,12 @@ class _TextButton extends StatelessWidget {
     onTap: onTap,
     child: Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 20, 14),
-      child: Text(label, style: TextStyle(color: palette.accent, fontSize: 15)),
+      child: Text(
+        label,
+        style: ChromeTypography.of(
+          context,
+        ).copyWith(color: palette.accent, fontSize: 15),
+      ),
     ),
   );
 }
@@ -944,7 +953,9 @@ class _FileRow extends StatelessWidget {
                 item.facts.name ?? '',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: palette.onSurface, fontSize: 15),
+                style: ChromeTypography.of(
+                  context,
+                ).copyWith(color: palette.onSurface, fontSize: 15),
               ),
             ),
           ],

@@ -105,6 +105,7 @@ void main() {
     testWidgets('desktop', (tester) async {
       final rig = await _Rig.open(tester, files: [_photo('a.jpg')]);
       expect(rig.title, 'Send photo');
+      expectChromeText(tester, within: find.byType(ConfirmBoxView));
       rig.box.addFiles([_photo('b.jpg'), _photo('c.jpg')]);
       await tester.pump();
       expect(rig.title, '3 photos selected');

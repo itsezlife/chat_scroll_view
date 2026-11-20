@@ -1,6 +1,7 @@
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_capture/mpx_capture.dart';
@@ -274,8 +275,13 @@ void main() {
   });
 
   testWidgets('the header carries the album switcher', (tester) async {
-    await open(tester);
+    final rig = await open(tester);
     expect(find.byType(LibraryAlbumSwitcher), findsOneWidget);
+    // The grid's order numbers and the switcher's title read the chrome
+    // face.
+    await tapCheck(tester, 0);
+    expect(rig.selection.length, 1);
+    expectChromeText(tester, within: find.byType(AttachSheet));
   });
 
   group('the selected-items preview', () {

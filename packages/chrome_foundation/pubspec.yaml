@@ -19,13 +19,16 @@ dependencies:
   # Icon morph transitions. Only the icon registry imports it, so a host never
   # names morphnext and swapping it touches one directory.
   morphnext: ^0.6.0
+  # Only lib/testing.dart needs this: its text check (expectChromeText) is
+  # written with the test framework, and a library cannot import a dev
+  # dependency. Production entry points never import it.
+  flutter_test:
+    sdk: flutter
 
 dev_dependencies:
   # Golden baselines are the CI runner's: compared and regenerated there only.
   golden_baseline:
     path: ../golden_baseline
-  flutter_test:
-    sdk: flutter
 
 flutter:
   # The three glass fragment programs, loaded by the glass stack on demand.

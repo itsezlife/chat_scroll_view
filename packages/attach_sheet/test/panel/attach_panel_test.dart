@@ -1,6 +1,7 @@
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart' as content;
 import 'package:content_model/testing.dart';
 import 'package:flutter/services.dart';
@@ -441,6 +442,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('attach-overflow')));
       await tester.pumpAndSettle();
       expect(find.text('Send as files'), findsOneWidget);
+      // The menu is a route of its own: it carries the chrome text root.
+      expectChromeText(tester);
       await tester.tap(find.text('Send without grouping'));
       await tester.pumpAndSettle();
 

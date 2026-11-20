@@ -33,9 +33,11 @@ final class AttachDiscardQuestion extends StatelessWidget {
         opaque: false,
         barrierDismissible: true,
         barrierColor: const Color(0x00000000),
-        pageBuilder: (context, _, _) => AttachDiscardQuestion(
-          wording: wording,
-          onAnswer: (value) => Navigator.of(context).pop(value),
+        pageBuilder: (context, _, _) => ChromeTextRoot(
+          child: AttachDiscardQuestion(
+            wording: wording,
+            onAnswer: (value) => Navigator.of(context).pop(value),
+          ),
         ),
       ),
     );
@@ -66,7 +68,12 @@ final class AttachDiscardQuestion extends StatelessWidget {
             onTap: () => onAnswer(answer),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Text(label, style: TextStyle(color: color, fontSize: 15)),
+              child: Text(
+                label,
+                style: ChromeTypography.of(
+                  context,
+                ).copyWith(color: color, fontSize: 15),
+              ),
             ),
           ),
         );
@@ -89,7 +96,7 @@ final class AttachDiscardQuestion extends StatelessWidget {
                 header: true,
                 child: Text(
                   title,
-                  style: TextStyle(
+                  style: ChromeTypography.of(context).copyWith(
                     color: palette.onSurface,
                     fontSize: 17,
                     fontWeight: FontWeight.w600,

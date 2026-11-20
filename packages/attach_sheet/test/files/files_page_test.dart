@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/attach_sheet.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -173,6 +174,10 @@ void main() {
     final rig = await open(tester);
     await tester.tap(find.byKey(const ValueKey('attach-files-gallery')));
     await tester.pumpAndSettle();
+    expectChromeText(
+      tester,
+      within: find.byKey(const ValueKey('attach-files-gallery-send')),
+    );
 
     final cell = find.byKey(
       ValueKey<MediaKey>(LibraryKeys.libraryKeyOf(FakeMediaLibrary.assetAt(0))),

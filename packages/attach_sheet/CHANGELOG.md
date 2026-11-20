@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (text style)
+
+- The send menu, the overflow menu, the discard question, the gallery as
+  files and the confirm box routes put a `ChromeTextRoot` at their root;
+  every text style starts from `ChromeTypography`.
+
 ### Added (selected-items preview, library video)
 
 - A tap on the panel's count swaps the Gallery's grid for the selected-items
