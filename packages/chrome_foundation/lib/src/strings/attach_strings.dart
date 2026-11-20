@@ -68,6 +68,26 @@ final class AttachStrings {
     required this.sendPhotos,
     required this.sendVideos,
     required this.sendFiles,
+    required this.albumAllMedia,
+    required this.albumAllPhotos,
+    required this.albumAllVideos,
+    required this.albumCamera,
+    required this.albumFavourites,
+    required this.libraryDeniedTitle,
+    required this.libraryOpenSettings,
+    required this.libraryCamera,
+    required this.libraryRestricted,
+    required this.libraryLimited,
+    required this.libraryManage,
+    required this.librarySelectMore,
+    required this.libraryChangeSettings,
+    required this.libraryPartial,
+    required this.libraryCameraDenied,
+    required this.mediaNotAllowed,
+    required this.captureClose,
+    required this.captureShutter,
+    required this.captureSwitchCamera,
+    required this.captureFlash,
   });
 
   /// The question before a selection is dropped, in the "discard" wording
@@ -253,4 +273,64 @@ final class AttachStrings {
 
   /// The web box title for several files or a mix.
   final String Function(int n) sendFiles;
+
+  /// The library album of every photo and video.
+  final String albumAllMedia;
+
+  /// The library album of every photo.
+  final String albumAllPhotos;
+
+  /// The library album of every video.
+  final String albumAllVideos;
+
+  /// The camera's library album.
+  final String albumCamera;
+
+  /// The favourites album.
+  final String albumFavourites;
+
+  /// The Gallery page's title when access is denied.
+  final String libraryDeniedTitle;
+
+  /// The button that opens the system settings.
+  final String libraryOpenSettings;
+
+  /// The camera cell's spoken label and the denied state's camera button.
+  final String libraryCamera;
+
+  /// The Gallery page when the system restricts the library.
+  final String libraryRestricted;
+
+  /// The banner when only some items were shared.
+  final String libraryLimited;
+
+  /// The banner's button.
+  final String libraryManage;
+
+  /// The manage menu entry that picks more items.
+  final String librarySelectMore;
+
+  /// The manage menu entry that opens the settings.
+  final String libraryChangeSettings;
+
+  /// The banner when the system shares selected items only.
+  final String libraryPartial;
+
+  /// The banner when the camera is denied.
+  final String libraryCameraDenied;
+
+  /// The Gallery page where media cannot be sent.
+  final String mediaNotAllowed;
+
+  /// The capture surface's close button.
+  final String captureClose;
+
+  /// The capture surface's shutter.
+  final String captureShutter;
+
+  /// The capture surface's switch button.
+  final String captureSwitchCamera;
+
+  /// The capture surface's flash button.
+  final String captureFlash;
 }

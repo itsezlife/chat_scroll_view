@@ -186,6 +186,25 @@ final class AttachSelection with ChangeNotifier {
     return result;
   }
 
+  /// Selects [item] ahead of everything selected (a capture joins first),
+  /// under the same cap and gates as [toggle]; an item already selected
+  /// moves to the front.
+  AttachToggle selectFirst(AttachItem item) {
+    final index = _indexOf(item.id);
+    if (index >= 0) {
+      if (index > 0) {
+        _$items.insert(0, _$items.removeAt(index));
+        notifyListeners();
+      }
+      return const AttachToggle.selected();
+    }
+    if (refusalOf(item) case final reason?) return AttachToggle.refused(reason);
+    if (limits.singleSelect) _$items.clear();
+    _$items.insert(0, item);
+    notifyListeners();
+    return const AttachToggle.selected();
+  }
+
   /// Toggles every item of [items] to the state the first one takes: when
   /// the first is not selected, every item is selected (those already
   /// selected stay); when it is, every item is deselected. Signals once.

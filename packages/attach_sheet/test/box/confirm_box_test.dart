@@ -380,27 +380,28 @@ void main() {
       return (source, drops);
     }
 
-    testWidgets('two zones while files are over it; the one under the drop decides', (
-      tester,
-    ) async {
-      final (source, drops) = await overlay(tester);
-      expect(find.byKey(const ValueKey('attach-drop-files')), findsNothing);
-      source.add(const DropEnter(DropOffer(types: ['Files'])));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('attach-drop-files')), findsOneWidget);
-      expect(find.byKey(const ValueKey('attach-drop-media')), findsOneWidget);
+    testWidgets(
+      'two zones while files are over it; the one under the drop decides',
+      (tester) async {
+        final (source, drops) = await overlay(tester);
+        expect(find.byKey(const ValueKey('attach-drop-files')), findsNothing);
+        source.add(const DropEnter(DropOffer(types: ['Files'])));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('attach-drop-files')), findsOneWidget);
+        expect(find.byKey(const ValueKey('attach-drop-media')), findsOneWidget);
 
-      // The bottom zone: as media.
-      source.drop([_photo('a.jpg')], at: const Offset(10, 500));
-      await tester.pumpAndSettle();
-      expect(drops.single.$2, isFalse);
-      expect(find.byKey(const ValueKey('attach-drop-files')), findsNothing);
+        // The bottom zone: as media.
+        source.drop([_photo('a.jpg')], at: const Offset(10, 500));
+        await tester.pumpAndSettle();
+        expect(drops.single.$2, isFalse);
+        expect(find.byKey(const ValueKey('attach-drop-files')), findsNothing);
 
-      // The top zone: as files, whatever the files are.
-      source.drop([_photo('b.jpg')], at: const Offset(10, 50));
-      await tester.pumpAndSettle();
-      expect(drops.last.$2, isTrue);
-    });
+        // The top zone: as files, whatever the files are.
+        source.drop([_photo('b.jpg')], at: const Offset(10, 50));
+        await tester.pumpAndSettle();
+        expect(drops.last.$2, isTrue);
+      },
+    );
 
     testWidgets('over an open box, one Add items zone', (tester) async {
       final (source, drops) = await overlay(tester, open: true);

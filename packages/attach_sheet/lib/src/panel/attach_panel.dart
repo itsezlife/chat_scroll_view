@@ -17,10 +17,19 @@ import 'package:flutter/material.dart';
 class AttachCaptionBar extends StatefulWidget {
   /// The panel of [controller]; the send button grows from the policy's
   /// scale with [reveal] when given.
-  const AttachCaptionBar({required this.controller, this.reveal, super.key});
+  const AttachCaptionBar({
+    required this.controller,
+    this.reveal,
+    this.beforeSend,
+    super.key,
+  });
 
   /// The panel's state.
   final AttachSendController controller;
+
+  /// Runs before a tap on Send sends (the viewer selects the item it shows
+  /// when nothing is selected).
+  final VoidCallback? beforeSend;
 
   /// The panel coming in, 0 to 1; null for a panel that is just there.
   final Animation<double>? reveal;
@@ -117,7 +126,10 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
             switch (widget.reveal) {
               final reveal? => AnimatedBuilder(
                 animation: reveal,
-                child: AttachSendButton(controller: _send),
+                child: AttachSendButton(
+                  controller: _send,
+                  beforeSend: widget.beforeSend,
+                ),
                 builder: (context, button) {
                   final from = _send.policy.panel.sendButtonFromScale;
                   return Transform.scale(
@@ -127,7 +139,10 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
                   );
                 },
               ),
-              null => AttachSendButton(controller: _send),
+              null => AttachSendButton(
+                controller: _send,
+                beforeSend: widget.beforeSend,
+              ),
             },
           ],
         ),
@@ -140,10 +155,17 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
 /// tap sends; a long press opens the send menu.
 class AttachSendButton extends StatefulWidget {
   /// The send button of [controller].
-  const AttachSendButton({required this.controller, super.key});
+  const AttachSendButton({
+    required this.controller,
+    this.beforeSend,
+    super.key,
+  });
 
   /// The panel's state.
   final AttachSendController controller;
+
+  /// Runs before a tap sends.
+  final VoidCallback? beforeSend;
 
   @override
   State<AttachSendButton> createState() => _AttachSendButtonState();
@@ -248,7 +270,10 @@ class _AttachSendButtonState extends State<AttachSendButton>
       child: GestureDetector(
         key: const ValueKey('attach-send'),
         behavior: HitTestBehavior.opaque,
-        onTap: () => widget.controller.send(),
+        onTap: () {
+          widget.beforeSend?.call();
+          widget.controller.send();
+        },
         onLongPress: _openMenu,
         onSecondaryTap: _openMenu,
         child: SizedBox(

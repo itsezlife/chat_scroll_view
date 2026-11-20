@@ -102,7 +102,7 @@ class AttachSheet extends StatefulWidget {
           opening: opening,
           initialCaption: initialCaption,
           optionStore: optionStore,
-          onClosed: (outcome) => Navigator.of(context).pop(outcome),
+          onClosed: (outcome) => _closeRoute(context, outcome),
         ),
       ),
     );
@@ -133,7 +133,7 @@ class AttachSheet extends StatefulWidget {
           opening: opening,
           header: header,
           bottomBar: bottomBar,
-          onClosed: (outcome) => Navigator.of(context).pop(outcome),
+          onClosed: (outcome) => _closeRoute(context, outcome),
         ),
       ),
     );
@@ -817,6 +817,12 @@ class _AttachSheetState extends State<AttachSheet>
           math.max(0, _size.height - top),
         );
         final rect = _morphed(target);
+        // Below its rest (pulled down, closing) the sheet keeps its content
+        // at the resting height and clips it, rather than squeezing it.
+        final contentHeight = math.max(
+          target.height,
+          math.max<double>(0, _size.height - _collapsedTop),
+        );
         final corner = _morphedRadius(squares ? radius * (1 - pinned) : radius);
         // Growing out of the button the sheet is round at every corner;
         // at rest only its top corners are.
@@ -842,8 +848,8 @@ class _AttachSheetState extends State<AttachSheet>
                         alignment: Alignment.topCenter,
                         minWidth: target.width,
                         maxWidth: target.width,
-                        minHeight: target.height,
-                        maxHeight: target.height,
+                        minHeight: contentHeight,
+                        maxHeight: contentHeight,
                         child: MediaQuery.removePadding(
                           context: context,
                           removeTop: true,
@@ -1011,6 +1017,17 @@ class _SheetFling extends Simulation {
 
   @override
   bool isDone(double time) => hitMin || _hitMax || fling.isDone(time);
+}
+
+/// Pops the sheet's route with [outcome], and whatever a page pushed over it
+/// (a viewer, a menu) first.
+void _closeRoute(BuildContext context, AttachOutcome outcome) {
+  final route = ModalRoute.of(context);
+  final navigator = Navigator.of(context);
+  if (route != null && !route.isCurrent) {
+    navigator.popUntil((r) => identical(r, route));
+  }
+  navigator.pop(outcome);
 }
 
 class _AttachSheetRoute extends PopupRoute<AttachOutcome> {

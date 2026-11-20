@@ -345,7 +345,11 @@ class _GalleryAsFiles extends StatelessWidget {
       child: Column(
         children: [
           Expanded(
-            child: GalleryView(library: library, panel: panel),
+            child: GalleryView(
+              library: library,
+              panel: panel,
+              showsOverflow: false,
+            ),
           ),
           SafeArea(
             top: false,

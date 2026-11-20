@@ -3,6 +3,8 @@ import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_capture/mpx_capture.dart';
+import 'package:mpx_capture/testing.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
 import 'package:mpx_library/mpx_library.dart';
@@ -43,9 +45,12 @@ void main() {
     AttachLimits limits = const AttachLimits(),
     AttachSheetHost host = const AttachSheetHost(),
     FakeMediaLibrary? source,
+    GalleryCamera? camera,
+    Size size = const Size(400, 800),
   }) async {
     final rig = await PagesRig.open(
       tester,
+      size: size,
       policy: const AttachSheetPolicy.android(),
       limits: limits,
       host: host,
@@ -53,6 +58,7 @@ void main() {
       pages: [
         GalleryPage.create(
           library: source ?? library,
+          camera: camera,
           label: 'Gallery',
           icon: const SizedBox(width: 24, height: 24),
         ),
@@ -143,12 +149,9 @@ void main() {
     final denied = FakeMediaLibrary(access: LibraryAccess.denied);
     addTearDown(denied.dispose);
     await open(tester, source: denied);
-    expect(
-      find.byKey(const ValueKey('attach-gallery-no-access')),
-      findsOneWidget,
-    );
+    expect(find.text('Access to media'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('attach-gallery-allow')));
+    await tester.tap(find.byKey(const ValueKey('mpx-denied-access')));
     await tester.pump();
     expect(denied.openSettingsCalls, 1);
   });
@@ -170,5 +173,104 @@ void main() {
       LibraryGridPolicy.$Android,
     );
     expect(const AttachSheetPolicy.ios().libraryGrid, LibraryGridPolicy.$IOS);
+  });
+
+  group('camera', () {
+    testWidgets('the first cell is the live preview; a tap opens the '
+        'capture surface', (tester) async {
+      final sessions = FakeCameraSessions();
+      // Wide enough for the capture surface's controls in the test font.
+      await open(
+        tester,
+        size: const Size(1200, 900),
+        camera: GalleryCamera(sessions: sessions, outputDirectory: '/tmp'),
+      );
+      expect(sessions.openCount, 1);
+      expect(find.byType(CameraSlotPreview), findsOneWidget);
+
+      await tester.tap(find.byType(CameraSlotPreview));
+      await tester.pumpAndSettle();
+      expect(find.byType(CameraCaptureSurface), findsOneWidget);
+    });
+
+    testWidgets('a long press takes a photo with the system camera, first', (
+      tester,
+    ) async {
+      final intake = FakeFileIntake()
+        ..enqueueCapture(
+          const IntakeFile(
+            source: IntakeSource.path('/dcim/shot.jpg'),
+            name: 'shot.jpg',
+            size: 2000,
+            mimeType: 'image/jpeg',
+          ),
+        );
+      final rig = await open(
+        tester,
+        camera: GalleryCamera(
+          sessions: FakeCameraSessions(),
+          outputDirectory: '/tmp',
+          systemCamera: intake,
+        ),
+      );
+      await tapCheck(tester, 0);
+      await tester.longPress(find.byType(CameraSlotPreview));
+      await tester.pumpAndSettle();
+
+      expect(intake.captureRequests, [IntakeCaptureKind.photo]);
+      expect(
+        rig.selection.items.first.source,
+        const AttachSource.captured('/dcim/shot.jpg'),
+      );
+      expect(rig.selection.orderOf(rig.selection.items.last.id), 2);
+    });
+
+    testWidgets('a denied camera falls back to the system camera', (
+      tester,
+    ) async {
+      final intake = FakeFileIntake()..enqueueCapture(null);
+      await open(
+        tester,
+        camera: GalleryCamera(
+          sessions: FakeCameraSessions(allowed: false),
+          outputDirectory: '/tmp',
+          systemCamera: intake,
+        ),
+      );
+      final camera = find.text('Camera');
+      if (camera.evaluate().isNotEmpty) {
+        await tester.tap(camera.first);
+        await tester.pumpAndSettle();
+      } else {
+        await tester.tap(find.byType(CameraSlotPreview));
+        await tester.pumpAndSettle();
+      }
+      expect(intake.captureRequests, isNotEmpty);
+    });
+  });
+
+  testWidgets('the viewer carries the caption and sends the item shown when '
+      'nothing is selected', (tester) async {
+    final rig = await open(tester, size: const Size(800, 1200));
+    await tester.tap(cell(1));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final sends = find.byKey(const ValueKey('attach-send'));
+    expect(sends, findsWidgets);
+    await tester.tap(sends.last);
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final outcome = rig.outcome! as AttachOutcome$Send;
+    expect(
+      outcome.request.items.single.source,
+      AttachSource.library(FakeMediaLibrary.assetAt(1).id.value),
+    );
+  });
+
+  testWidgets('the header carries the album switcher', (tester) async {
+    await open(tester);
+    expect(find.byType(LibraryAlbumSwitcher), findsOneWidget);
   });
 }

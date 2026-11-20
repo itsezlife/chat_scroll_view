@@ -277,6 +277,15 @@ void main() {
     });
   });
 
+  test('selectFirst puts a capture ahead of the selection', () {
+    final selection = selectionOf(const AttachPolicy.android())
+      ..toggle(photos[0])
+      ..toggle(photos[1]);
+    expect(selection.selectFirst(photos[2]), const AttachToggle.selected());
+    expect(selection.orderOf(photos[2].id), 1);
+    expect(selection.orderOf(photos[0].id), 2);
+  });
+
   test('refusalOf tells without changing anything', () {
     final selection = selectionOf(
       const AttachPolicy.android(),
