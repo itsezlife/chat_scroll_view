@@ -188,6 +188,13 @@ class _GalleryViewState extends State<GalleryView> {
   CameraSession? _$session;
   bool _cameraDenied = false;
   final GlobalKey _$slot = GlobalKey();
+
+  // Where the focus rests in the sheet's route when no field holds it (the
+  // viewer gone, its caption unfocused).
+  final FocusNode _restFocus = FocusNode(
+    debugLabel: 'Gallery',
+    skipTraversal: true,
+  );
   final LibraryGridLookup _$lookup = LibraryGridLookup();
   ScrollController? _$ownController;
 
@@ -242,6 +249,7 @@ class _GalleryViewState extends State<GalleryView> {
 
   @override
   void dispose() {
+    _restFocus.dispose();
     widget.panel.hostSelectionPreview(present: false);
     _$lookup.dispose();
     _$ownController?.dispose();
@@ -345,7 +353,7 @@ class _GalleryViewState extends State<GalleryView> {
           child: _ViewerCaption(
             key: const ValueKey('attach-viewer-slot'),
             controller: widget.panel,
-            sheetFocus: FocusScope.of(this.context),
+            sheetRest: _restFocus,
             beforeSend: () {
               if (_selection.isNotEmpty) return;
               if (item.asset case final asset?) {
@@ -422,14 +430,17 @@ class _GalleryViewState extends State<GalleryView> {
   );
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([
-      widget.panel.previewingSelection,
-      widget.panel.options,
-    ]),
-    builder: (context, _) => widget.panel.previewingSelection.value
-        ? _preview(context)
-        : _grid(context),
+  Widget build(BuildContext context) => Focus(
+    focusNode: _restFocus,
+    child: ListenableBuilder(
+      listenable: Listenable.merge([
+        widget.panel.previewingSelection,
+        widget.panel.options,
+      ]),
+      builder: (context, _) => widget.panel.previewingSelection.value
+          ? _preview(context)
+          : _grid(context),
+    ),
   );
 
   Widget _grid(BuildContext context) {
@@ -530,20 +541,23 @@ class _GalleryViewState extends State<GalleryView> {
 /// is its own, never the sheet's. Whenever the viewer's chrome goes (a
 /// dismiss drag starting, a tap that hides the chrome) and whenever the
 /// viewer closes (back, the close button, a dismiss, a send), the field
-/// lets go: its panel closes, its focus goes, the keyboard goes down; once
-/// the viewer has gone, the focus is back in the sheet's route
-/// ([sheetFocus]), not at the app's root, and the sheet's caption raises
-/// its keyboard as before.
+/// lets go: its panel closes, its focus goes, the keyboard goes down.
+///
+/// The sheet's caption is as the viewer found it: a panel that was up is
+/// still up, and its caption has the focus again (its keyboard held back);
+/// otherwise the focus is in the sheet's route on [sheetRest], never the
+/// caption, so a keyboard that was down stays down and one that was up
+/// (down as the viewer opened) does not come back.
 class _ViewerCaption extends StatefulWidget {
   const _ViewerCaption({
     required this.controller,
-    required this.sheetFocus,
+    required this.sheetRest,
     required this.beforeSend,
     super.key,
   });
 
   final AttachSendController controller;
-  final FocusScopeNode sheetFocus;
+  final FocusNode sheetRest;
   final VoidCallback beforeSend;
 
   @override
@@ -558,6 +572,14 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
       .createCaptionDock(_caption);
   // The fade of the viewer's chrome, this slot in it.
   Animation<double>? _chrome;
+  // Whether the sheet's caption panel was up as the viewer opened.
+  late bool _sheetPanelWasUp;
+
+  @override
+  void initState() {
+    super.initState();
+    _sheetPanelWasUp = widget.controller.captionDock?.panelUp ?? false;
+  }
 
   @override
   void didChangeDependencies() {
@@ -595,21 +617,24 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
   void dispose() {
     _letGo('the viewer closes');
     _chrome?.removeStatusListener(_onChrome);
-    final sheet = widget.sheetFocus;
-    final sheetDock = widget.controller.captionDock;
-    // Once the viewer has gone: the focus back in the sheet's route (a route
-    // that asks for no focus of its own would leave it at the app's root),
-    // and the sheet's caption dock as it rests.
+    final rest = widget.sheetRest;
+    final sheetCaption = widget.controller.caption;
+    final panelUp =
+        _sheetPanelWasUp && (widget.controller.captionDock?.panelUp ?? false);
+    // Once the viewer has gone, the focus is back in the sheet's route (a
+    // route that asks for no focus of its own would leave it at the app's
+    // root): on the caption under its panel, or on the sheet's rest.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (sheet.context == null) return;
-      sheetDock?.closePanel();
-      final primary = FocusManager.instance.primaryFocus;
-      final inSheet =
-          primary != null &&
-          (identical(primary, sheet) || primary.ancestors.contains(sheet));
-      if (!inSheet) {
-        AttachLog.log(AttachLog.focus, 'focus back to the sheet route');
-        sheet.requestFocus();
+      if (rest.context == null) return;
+      AttachLog.log(
+        AttachLog.focus,
+        'viewer gone: focus back to the sheet '
+        '(${panelUp ? 'the caption, its panel up' : 'its rest'})',
+      );
+      if (panelUp) {
+        sheetCaption.requestFocus();
+      } else {
+        rest.requestFocus();
       }
     });
     _dock?.dispose();

@@ -135,6 +135,9 @@ final class AttachSendController {
       dock.onFieldTap();
       return;
     }
+    // A tap asks for the keyboard: one held back (the panel closed away from
+    // the field) is let go.
+    field.setSoftKeyboard(SoftKeyboardMode.auto);
     if (!field.focusNode.hasFocus) field.requestFocus();
     field.requestKeyboard();
     dock?.onFieldTap();

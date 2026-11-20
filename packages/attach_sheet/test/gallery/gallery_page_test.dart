@@ -488,6 +488,91 @@ void main() {
       expect(dock.disposed, isTrue);
     });
 
+    // The keyboards asked of the platform: a show after a client of a
+    // keyboard type.
+    List<String> keyboardsShown(WidgetTester tester) {
+      final shown = <String>[];
+      String? type;
+      for (final call in tester.testTextInput.log) {
+        if (call.method == 'TextInput.setClient') {
+          final config = (call.arguments as List)[1] as Map;
+          type = (config['inputType'] as Map)['name'] as String?;
+        }
+        if (call.method == 'TextInput.show' && type != 'TextInputType.none') {
+          shown.add('$type');
+        }
+      }
+      return shown;
+    }
+
+    for (final start in ['panel up', 'keyboard down', 'keyboard up']) {
+      testWidgets('the viewer opened and closed twice over a sheet caption '
+          'with its $start leaves it as it was (a raised keyboard down): no '
+          'keyboard asked for, no focus taken without a tap', (tester) async {
+        final host = DockHost();
+        final rig = await open(tester, size: const Size(800, 1200), host: host);
+        rig.selection.toggle(AttachItems.file('f'));
+        await settle(tester);
+        final sheetDock = host.sheetDock;
+        final caption = tester.widget<ComposerView>(island).controller;
+        switch (start) {
+          case 'panel up':
+            caption
+              ..setSoftKeyboard(SoftKeyboardMode.suppressed)
+              ..requestFocus();
+            sheetDock.show(panel: true);
+          case 'keyboard up':
+            caption.requestFocus();
+        }
+        await settle(tester);
+        var gains = 0;
+        void count() {
+          if (caption.focusNode.hasFocus) gains++;
+        }
+
+        caption.focusNode.addListener(count);
+        addTearDown(() => caption.focusNode.removeListener(count));
+        tester.testTextInput.log.clear();
+
+        for (var round = 0; round < 2; round++) {
+          await tester.tap(cell(1));
+          await settle(tester);
+          expect(viewerSlot, findsOneWidget);
+          await tester.binding.handlePopRoute();
+          await settle(tester);
+          expect(viewerSlot, findsNothing);
+
+          expect(
+            sheetDock.calls,
+            isNot(contains('close')),
+            reason: 'round $round',
+          );
+          expect(
+            sheetDock.panelUp,
+            start == 'panel up',
+            reason: 'round $round',
+          );
+          expect(keyboardsShown(tester), isEmpty, reason: 'round $round');
+          final primary = FocusManager.instance.primaryFocus!;
+          expect(
+            ModalRoute.of(primary.context!)?.settings.name,
+            AttachSheet.routeName,
+          );
+          if (start == 'panel up') {
+            expect(
+              caption.focusNode.hasFocus,
+              isTrue,
+              reason: 'under its panel',
+            );
+            expect(caption.softKeyboard.value, SoftKeyboardMode.suppressed);
+          } else {
+            expect(caption.focusNode.hasFocus, isFalse, reason: 'round $round');
+            expect(gains, 0, reason: 'no focus without a tap');
+          }
+        }
+      });
+    }
+
     for (final close in ['back', 'drag start']) {
       testWidgets('closed by $close with its caption focused and its panel up, '
           "it lets go: the panel closes, the focus is back in the sheet's "

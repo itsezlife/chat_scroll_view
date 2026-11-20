@@ -421,8 +421,14 @@ final class ChatAttach extends AttachSheetHost {
       services: services,
       view: view,
       caption: caption,
-      onDispose: () => _docks.remove(dock),
+      onDispose: () {
+        _docks.remove(dock);
+        // The dock under it reads the keyboard again.
+        _docks.lastOrNull?.paused = false;
+      },
     );
+    // The keyboard is the new caption's: the one under it reads none.
+    _docks.lastOrNull?.paused = true;
     _docks.add(dock);
     return dock;
   }

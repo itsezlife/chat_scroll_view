@@ -147,10 +147,37 @@ final class ChatCaptionDock implements AttachCaptionDock {
 
   void _onState() {
     final up = swap.panelInKeyboardPlace;
+    // The swap sets the caption's keyboard on every change of the panel's
+    // state; a hold after a close stays through them.
+    if (up) {
+      _heldAfterClose = false;
+    } else if (_heldAfterClose) {
+      caption.setSoftKeyboard(SoftKeyboardMode.suppressed);
+    }
     if (up == _changes.value) return;
     AttachLog.log(AttachLog.panel, 'caption panel ${up ? 'up' : 'down'}');
     _changes.value = up;
+    // Closed (back, a close), not handed to the keyboard: no one asked for
+    // a keyboard, yet the caption may get the focus back as the panel goes
+    // (search had it, and the route's focus history returns it). The
+    // keyboard stays held back until the caption is tapped.
+    if (!up && !swap.leavingForKeyboard.value && !swap.handingOff) {
+      AttachLog.log(
+        AttachLog.ime,
+        'caption keyboard held: the panel closed, not for the keyboard',
+      );
+      _heldAfterClose = true;
+      caption.setSoftKeyboard(SoftKeyboardMode.suppressed);
+    }
   }
+
+  // The caption's keyboard held after the panel closed, until a tap.
+  var _heldAfterClose = false;
+
+  /// While paused (a viewer's caption dock is over this one) the dock reads
+  /// no keyboard: the keyboard is the other caption's. Unpaused, it reads
+  /// the keyboard as it is then.
+  set paused(bool value) => _feed.paused = value;
 
   void _onEvent(PanelEvent event) {
     switch (event) {
@@ -185,7 +212,11 @@ final class ChatCaptionDock implements AttachCaptionDock {
   void togglePanel() => swap.toggle();
 
   @override
-  void onFieldTap() => swap.onFieldTap();
+  void onFieldTap() {
+    // A tap asks for the keyboard: a hold after a close is over.
+    _heldAfterClose = false;
+    swap.onFieldTap();
+  }
 
   @override
   void onFieldPointerDown() => swap.onFieldPointerDown();

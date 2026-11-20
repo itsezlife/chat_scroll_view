@@ -290,4 +290,45 @@ void main() {
     await tester.pump();
     expect(rig.caption.richText.plain, '😀');
   });
+
+  testWidgets('search, back, back: the panel closes and the keyboard stays '
+      'down; the caption the focus comes back to holds its keyboard until '
+      'it is tapped', (tester) async {
+    final rig = await _Rig.pump(tester);
+    await rig.keyboardUp();
+    rig.dock.togglePanel();
+    await tester.pump();
+    await rig.keyboardMoves(_keyboardHeight, 0, steps: 4, check: (_) {});
+    await tester.pumpAndSettle();
+    expect(rig.dock.panelUp, isTrue);
+
+    // Search takes the focus and raises the keyboard for its field.
+    rig.dock.shell.openSearch();
+    await tester.pumpAndSettle();
+    final search = find.descendant(
+      of: find.byType(PanelShell),
+      matching: find.byType(EditableText),
+    );
+    expect(search, findsOneWidget);
+    await tester.tap(search);
+    await tester.pump();
+    expect(rig.caption.hasFocus, isFalse);
+    rig.keyboard.rest(_keyboardHeight);
+    await tester.pumpAndSettle();
+
+    for (var back = 0; back < 4 && rig.dock.panelUp; back++) {
+      expect(rig.dock.handleBack(), isTrue);
+      await tester.pump();
+      if (rig.keyboard.hideCount > 0) rig.keyboard.rest(0);
+      await tester.pumpAndSettle();
+    }
+    expect(rig.dock.panelUp, isFalse);
+    expect(
+      !rig.caption.hasFocus ||
+          rig.caption.softKeyboard.value == SoftKeyboardMode.suppressed,
+      isTrue,
+      reason: 'no keyboard comes up for the caption the focus came back to',
+    );
+    await rig.finish();
+  });
 }
