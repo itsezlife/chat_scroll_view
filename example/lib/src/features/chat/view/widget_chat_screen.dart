@@ -102,6 +102,7 @@ class WidgetChatScreen extends StatefulWidget {
     this.softKeyboard = const PlatformSoftKeyboard(),
     this.presentationPolicy,
     this.kind = ChatKind.standard,
+    this.title = 'Chat',
     super.key,
   });
 
@@ -124,6 +125,9 @@ class WidgetChatScreen extends StatefulWidget {
   /// The class of the conversation: its media attach with its download
   /// context ([ChatKind.downloadContext]).
   final ChatKind kind;
+
+  /// The chat's name: where attached media go (the picker viewer's title).
+  final String title;
 
   @override
   State<WidgetChatScreen> createState() => _WidgetChatScreenState();
@@ -223,6 +227,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     composer: _input.composer,
     bulletins: _bulletins,
     send: _handleSendMessage,
+    chatTitle: widget.title,
   );
 
   /// The chat's bulletins: one slot for the screen, on the policy of the

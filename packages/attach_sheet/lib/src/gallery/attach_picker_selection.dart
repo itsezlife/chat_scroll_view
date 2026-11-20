@@ -65,6 +65,24 @@ final class AttachPickerSelection implements PickerSelection {
     selection.reorder(from, places[to]);
   }
 
+  /// Drops the library items of [keys] from the selection (a library change
+  /// took them away: deleted on the device, or no longer allowed); the
+  /// items after them move up a number, files and captures included.
+  void remove(List<MediaKey> keys) {
+    for (final key in keys) {
+      final target = LibraryKeys.read(key);
+      if (target == null) continue;
+      final id = idOf(target.asset);
+      for (final item in selection.items) {
+        if (item.id == id) {
+          selection.toggle(item);
+          break;
+        }
+      }
+      _recording.assets.remove(target.asset);
+    }
+  }
+
   /// The attach item of a library asset.
   static AttachItem itemOf(LibraryAsset asset) => AttachItem(
     id: idOf(asset.id),
@@ -261,6 +279,10 @@ final class _RecordingLibrary implements MediaLibrary {
 
   @override
   bool isCloudHeld(LibraryAssetId asset) => _source.isCloudHeld(asset);
+
+  @override
+  Future<Set<LibraryAssetId>> missing(Iterable<LibraryAssetId> assets) =>
+      _source.missing(assets);
 
   @override
   Future<Uri?> playable(LibraryAssetId asset) => _source.playable(asset);

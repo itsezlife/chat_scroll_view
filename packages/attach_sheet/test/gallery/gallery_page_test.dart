@@ -553,4 +553,57 @@ void main() {
       expect(find.byKey(thumb), findsNothing);
     });
   });
+
+  testWidgets('a picked item deleted from the device leaves the attach '
+      'selection, and the picks after it move up a number', (tester) async {
+    final rig = await open(tester);
+    await tapCheck(tester, 0);
+    await tapCheck(tester, 1);
+    rig.selection.toggle(AttachItems.file('f'));
+    await tapCheck(tester, 2);
+    expect(rig.selection.length, 4);
+
+    library.remove({FakeMediaLibrary.assetAt(1).id});
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(rig.selection.items.map((item) => item.id.value), [
+      'library:${FakeMediaLibrary.assetAt(0).id.value}',
+      'f',
+      'library:${FakeMediaLibrary.assetAt(2).id.value}',
+    ]);
+    await tester.pumpAndSettle();
+    expect(tester.widget<LibraryGridCell>(cell(2)).order, 3);
+  });
+
+  testWidgets("the viewer's title is the chat's; a video's info line is what "
+      'is sent, a photo has none', (tester) async {
+    await PagesRig.open(
+      tester,
+      policy: const AttachSheetPolicy.android(),
+      wrap: (app) => AssetCacheProvider(scope: scope, child: app),
+      pages: [
+        GalleryPage.create(
+          library: library,
+          label: 'Gallery',
+          icon: const SizedBox(width: 24, height: 24),
+          viewerTitle: 'Saved Messages',
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+    final picker = tester.widget<LibraryPicker>(find.byType(LibraryPicker));
+    expect(picker.viewerTitle, 'Saved Messages');
+    expect(picker.viewerSubtitleOf, isNotNull);
+
+    final photo = FakeMediaLibrary.assetAt(0);
+    final video = FakeMediaLibrary.assetAt(3);
+    expect(GalleryView.viewerInfoOf(photo), isNull);
+    final info = GalleryView.viewerInfoOf(
+      video,
+      policy: PreparationPolicy.forPlatform(TargetPlatform.android),
+    );
+    expect(info, isNotNull);
+    expect(info, matches(RegExp(r'^\d+x\d+, \d+:\d\d, ~[\d.]+ (KB|MB)$')));
+  });
 }

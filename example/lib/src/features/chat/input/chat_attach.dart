@@ -90,6 +90,7 @@ final class ChatAttach extends AttachSheetHost {
     required this.composer,
     required this.bulletins,
     required this.send,
+    this.chatTitle,
   });
 
   /// The app's services (the device library, the key-value store).
@@ -103,6 +104,9 @@ final class ChatAttach extends AttachSheetHost {
 
   /// Posts one message.
   final Future<void> Function(String text) send;
+
+  /// The chat's name: the picker viewer's title.
+  final String? chatTitle;
 
   /// The sheet or box family of this platform.
   final AttachSheetPolicy policy = AttachSheetPolicy.current();
@@ -196,6 +200,7 @@ final class ChatAttach extends AttachSheetHost {
               label: 'Галерея',
               icon: const Icon(Icons.photo_library_outlined),
               players: services.libraryPlayers,
+              viewerTitle: chatTitle,
               camera: GalleryCamera(
                 sessions: const PlatformCameraSessions(),
                 outputDirectory: directory,

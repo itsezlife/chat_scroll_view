@@ -71,6 +71,7 @@ abstract final class GalleryPage {
     required Widget icon,
     GalleryCamera? camera,
     PlayerPool? players,
+    String? viewerTitle,
     AttachPagePermission? permission,
   }) => AttachPage(
     id: AttachPageId.gallery,
@@ -92,6 +93,7 @@ abstract final class GalleryPage {
         active: scope.isActive,
         camera: camera,
         players: players,
+        viewerTitle: viewerTitle,
       );
     },
   );
@@ -108,6 +110,7 @@ class GalleryView extends StatefulWidget {
     this.active,
     this.camera,
     this.players,
+    this.viewerTitle,
     this.showsOverflow = true,
     super.key,
   });
@@ -129,6 +132,39 @@ class GalleryView extends StatefulWidget {
 
   /// The players the viewer's videos play on; null shows their posters.
   final PlayerPool? players;
+
+  /// The viewer's title: the name of the chat the media goes to.
+  final String? viewerTitle;
+
+  /// The viewer's info line under the title for [asset]: for a video the
+  /// device can compress, what is sent at the default step of the platform's
+  /// [policy] (`WxH, m:ss, ~size`); nothing for a photo, or for a video that
+  /// goes as it is.
+  static String? viewerInfoOf(LibraryAsset asset, {PreparationPolicy? policy}) {
+    if (asset.kind != LibraryAssetKind.video) return null;
+    final dimensions = asset.dimensions;
+    final duration = asset.duration;
+    if (dimensions == null || duration == null) return null;
+    final source = SourceVideo(
+      dimensions: dimensions,
+      duration: duration,
+      codec: SourceCodec.other,
+    );
+    final rules =
+        policy ?? PreparationPolicy.forPlatform(defaultTargetPlatform);
+    final preset = rules.defaultPreset(source, byteSize: asset.byteSize);
+    if (preset == null) return null;
+    final plan = preset.planFor(source);
+    final bits =
+        (plan.videoBitrate + plan.audioBitrate) *
+        duration.inMilliseconds /
+        1000;
+    return [
+      '${plan.size.width}x${plan.size.height}',
+      LibraryGridLabels.formatDuration(duration),
+      '~${PickerViewer.formatBytes((bits / 8).round())}',
+    ].join(', ');
+  }
 
   /// Whether the header carries the overflow menu.
   final bool showsOverflow;
@@ -336,6 +372,8 @@ class _GalleryViewState extends State<GalleryView> {
         players: widget.players,
         bottomBuilder: _viewerSlot,
         onReorder: _$picker.move,
+        title: widget.viewerTitle,
+        subtitleOf: GalleryView.viewerInfoOf,
       );
     } finally {
       source.dispose();
@@ -423,6 +461,11 @@ class _GalleryViewState extends State<GalleryView> {
       policy: widget.panel.policy.libraryGrid,
       tokens: _tokens(context),
       players: widget.players,
+      viewerTitle: widget.viewerTitle,
+      viewerSubtitleOf: GalleryView.viewerInfoOf,
+      // A selected item a library change took away leaves the selection;
+      // the ones after it move up a number.
+      onRemoved: _$picker.remove,
       mediaAllowed: _mediaAllowed,
       notAllowedText: strings.mediaNotAllowed,
       cameraDenied: _cameraDenied,

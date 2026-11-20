@@ -242,19 +242,24 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
     home: switch (widget.start) {
       DemoStart.chat => _chat(context),
       DemoStart.chatList => ChatListScreen(
-        chat: (context, entry) => _chat(context, kind: entry.kind),
+        chat: (context, entry) =>
+            _chat(context, kind: entry.kind, title: entry.title),
       ),
     },
   );
 
-  Widget _chat(BuildContext context, {ChatKind kind = ChatKind.standard}) =>
-      WidgetChatScreen(
-        services: widget.services,
-        dataSourceLoader: widget.chatDataSourceLoader,
-        softKeyboard: widget.softKeyboard,
-        presentationPolicy: widget.presentationPolicy,
-        kind: kind,
-      );
+  Widget _chat(
+    BuildContext context, {
+    ChatKind kind = ChatKind.standard,
+    String title = 'Chat',
+  }) => WidgetChatScreen(
+    services: widget.services,
+    dataSourceLoader: widget.chatDataSourceLoader,
+    softKeyboard: widget.softKeyboard,
+    presentationPolicy: widget.presentationPolicy,
+    kind: kind,
+    title: title,
+  );
 }
 
 /// The page [ChatDemoApp] opens on.
