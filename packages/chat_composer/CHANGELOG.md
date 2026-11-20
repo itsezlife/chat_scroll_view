@@ -6,6 +6,11 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `ComposerView.hintText`: the field's hint in place of the message hint
+  (a caption field's).
+
 ### Changed (the asset cache moved to mpx)
 
 - Inline content draws through `content_assets`' `ContentAssetView` and the

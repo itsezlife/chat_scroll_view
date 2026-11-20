@@ -87,6 +87,7 @@ class ComposerField extends StatefulWidget {
     this.onPointerEnd,
     this.startInset = 0,
     this.hintFontSize,
+    this.hintText,
     this.hintMaxLines,
     this.layout = const ComposerFieldLayout.island(),
     super.key,
@@ -146,6 +147,10 @@ class ComposerField extends StatefulWidget {
   /// size. The hint's line box stays as tall as the field's, so a smaller hint
   /// stays centred on the caret's line.
   final double? hintFontSize;
+
+  /// The hint in place of the strings' message hint (a caption field's);
+  /// null for the message hint.
+  final String? hintText;
 
   /// Most lines the hint takes before it ends in an ellipsis (island layout
   /// only); null leaves it to wrap.
@@ -665,7 +670,7 @@ class _ComposerFieldState extends State<ComposerField> {
         // takes its padding up to the buttons beside it.
         decoration =
             InputDecoration.collapsed(
-              hintText: strings.messageHint,
+              hintText: widget.hintText ?? strings.messageHint,
               hintMaxLines: widget.hintMaxLines,
               hintStyle: TextStyle(
                 color: placeholder.fieldHint,

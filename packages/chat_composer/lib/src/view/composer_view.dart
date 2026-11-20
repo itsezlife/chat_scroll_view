@@ -75,6 +75,7 @@ class ComposerView extends StatefulWidget {
     this.maxWidth = ComposerMetrics.maxWidth,
     this.fieldStartInset = 0,
     this.hintFontSize,
+    this.hintText,
     this.hintMaxLines,
     this.primaryDiameter = ComposerMetrics.primaryDiscDiameter,
     this.autofocus = true,
@@ -163,6 +164,10 @@ class ComposerView extends StatefulWidget {
   /// Font size of the field's hint; null keeps the field's own size (the
   /// chat). A host with long hints sets a smaller one.
   final double? hintFontSize;
+
+  /// The field's hint in place of the strings' message hint (a caption
+  /// field says "Add a caption"); null for the message hint.
+  final String? hintText;
 
   /// Most lines the hint takes before an ellipsis; null lets it wrap (the
   /// chat). One keeps a long hint on the field's line.
@@ -393,6 +398,7 @@ class _ComposerViewState extends State<ComposerView>
             ? widget.fieldStartInset
             : 0,
         hintFontSize: widget.hintFontSize,
+        hintText: widget.hintText,
         hintMaxLines: widget.hintMaxLines,
       );
     }

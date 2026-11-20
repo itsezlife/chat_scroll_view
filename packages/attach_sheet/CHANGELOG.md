@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (caption bar)
+
+- The caption is the chat's composer island (`ComposerView` with the
+  caption hint and limit) floating over the page in the composer's fade,
+  with Send beside it, in the sheet, the viewer and the confirm box.
+
 ### Fixed (text style)
 
 - The send menu, the overflow menu, the discard question, the gallery as

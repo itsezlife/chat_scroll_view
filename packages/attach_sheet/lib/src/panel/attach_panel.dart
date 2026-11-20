@@ -27,9 +27,6 @@ class AttachCaptionBar extends StatefulWidget {
   /// The panel's state.
   final AttachSendController controller;
 
-  /// The radius of the caption field's pill.
-  static const double pillRadius = 20;
-
   /// Runs before a tap on Send sends (the viewer selects the item it shows
   /// when nothing is selected).
   final VoidCallback? beforeSend;
@@ -76,103 +73,72 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
   @override
   Widget build(BuildContext context) {
     final strings = ChromeStringsScope.attachOf(context);
-    final palette = ChromeThemeScope.paletteOf(context);
     final from = _send.counterFrom;
     return Material(
       type: MaterialType.transparency,
+      // The chat's own composer island: the field in its floating pill, with
+      // the island's margins and glass, and Send beside it.
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
+        padding: const EdgeInsetsDirectional.only(end: 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AnimatedBuilder(
-                    animation: _$shake,
-                    builder: (context, field) => Transform.translate(
-                      key: const ValueKey('attach-caption-shake'),
-                      offset: Offset(
-                        6 *
-                            math.sin(_$shake.value * 6 * math.pi) *
-                            (1 - _$shake.value),
-                        0,
-                      ),
-                      child: field,
-                    ),
-                    // The field floats in a pill of its own, as the
-                    // composer's does, with Send beside it.
-                    child: DecoratedBox(
-                      key: const ValueKey('attach-caption-pill'),
-                      decoration: BoxDecoration(
-                        color: palette.surfaceRaised,
-                        borderRadius: BorderRadius.circular(
-                          AttachCaptionBar.pillRadius,
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 9,
-                        ),
-                        child: ComposerFormField(
-                          key: const ValueKey('attach-caption'),
-                          controller: _send.caption,
-                          minLines: 1,
-                          maxLines: 6,
-                          style: ChromeTypography.of(context).copyWith(
-                            color: palette.onSurface,
-                            fontSize: 16,
-                            // A field's style stands alone: it names its baseline.
-                            textBaseline: TextBaseline.alphabetic,
-                          ),
-                          decoration: InputDecoration.collapsed(
-                            hintText: strings.captionPlaceholder,
-                            hintStyle: ChromeTypography.of(context).copyWith(
-                              color: palette.onSurfaceMuted,
-                              fontSize: 16,
-                              textBaseline: TextBaseline.alphabetic,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+              child: AnimatedBuilder(
+                animation: _$shake,
+                builder: (context, field) => Transform.translate(
+                  key: const ValueKey('attach-caption-shake'),
+                  offset: Offset(
+                    6 *
+                        math.sin(_$shake.value * 6 * math.pi) *
+                        (1 - _$shake.value),
+                    0,
                   ),
-                  if (from != null)
-                    ComposerLengthCounter(
-                      key: const ValueKey('attach-caption-counter'),
-                      controller: _send.caption,
-                      limit: _send.captionLimit,
-                      shake: _$shake,
-                      visibleFromLength: math.max(0, from),
-                    ),
-                ],
+                  child: field,
+                ),
+                child: ComposerView(
+                  key: const ValueKey('attach-caption'),
+                  controller: _send.caption,
+                  autofocus: false,
+                  safeAreaBottom: 0,
+                  hintText: strings.captionPlaceholder,
+                  spec: ComposerSpec(
+                    messageLengthLimit: _send.captionLimit,
+                    messageLengthCounterFrom: switch (from) {
+                      final from? => math.max(0, from),
+                      null => null,
+                    },
+                  ),
+                ),
               ),
             ),
-            const SizedBox(width: 8),
-            switch (widget.reveal) {
-              final reveal? => AnimatedBuilder(
-                animation: reveal,
-                child: AttachSendButton(
+            // On the island's baseline: the composer's bottom margin.
+            Padding(
+              padding: const EdgeInsets.only(
+                bottom: ComposerMetrics.islandBottomGap,
+              ),
+              child: switch (widget.reveal) {
+                final reveal? => AnimatedBuilder(
+                  animation: reveal,
+                  child: AttachSendButton(
+                    controller: _send,
+                    beforeSend: widget.beforeSend,
+                  ),
+                  builder: (context, button) {
+                    final from = _send.policy.panel.sendButtonFromScale;
+                    return Transform.scale(
+                      key: const ValueKey('attach-send-reveal'),
+                      scale: from + (1 - from) * reveal.value,
+                      child: button,
+                    );
+                  },
+                ),
+                null => AttachSendButton(
                   controller: _send,
                   beforeSend: widget.beforeSend,
                 ),
-                builder: (context, button) {
-                  final from = _send.policy.panel.sendButtonFromScale;
-                  return Transform.scale(
-                    key: const ValueKey('attach-send-reveal'),
-                    scale: from + (1 - from) * reveal.value,
-                    child: button,
-                  );
-                },
-              ),
-              null => AttachSendButton(
-                controller: _send,
-                beforeSend: widget.beforeSend,
-              ),
-            },
+              },
+            ),
           ],
         ),
       ),
@@ -667,21 +633,29 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
 
   @override
   Widget build(BuildContext context) {
-    final tokens = ChromeThemeScope.attachOf(context);
     final padding = MediaQuery.paddingOf(context);
     final rise = widget.controller.policy.panel.revealRise;
     final curved = CurvedAnimation(parent: _$shown, curve: _curve);
     return AnimatedBuilder(
       animation: _$shown,
-      child: ColoredBox(
-        color: tokens.background,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: padding.bottom),
-          child: AttachCaptionBar(
-            controller: widget.controller,
-            reveal: curved,
+      // The composer's island floats over the page as it does over the
+      // chat, the page dimming under it in the composer's fade, not a band.
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) =>
+                  ComposerBottomFade(zoneHeight: constraints.maxHeight),
+            ),
           ),
-        ),
+          Padding(
+            padding: EdgeInsets.only(bottom: padding.bottom),
+            child: AttachCaptionBar(
+              controller: widget.controller,
+              reveal: curved,
+            ),
+          ),
+        ],
       ),
       builder: (context, panel) {
         final t = _curve.transform(_$shown.value);

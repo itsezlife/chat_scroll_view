@@ -1,6 +1,7 @@
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
+import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart' as content;
@@ -565,5 +566,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.descendant(of: badge, matching: find.text('1')), findsNothing);
     expectChromeText(tester, within: badge);
+  });
+
+  testWidgets("the caption is the chat's composer island floating over the "
+      "page in the composer's fade, Send beside it", (tester) async {
+    final (rig, _) = await open(tester);
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final panel = find.byKey(const ValueKey('attach-panel'));
+    expect(
+      find.descendant(of: panel, matching: find.byType(ComposerView)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: panel, matching: find.byType(ComposerBottomFade)),
+      findsOneWidget,
+    );
+    expect(find.text('Add a caption…'), findsOneWidget);
+    final island = tester.getRect(
+      find.descendant(of: panel, matching: find.byType(ComposerView)),
+    );
+    final send = tester.getRect(find.byKey(const ValueKey('attach-send')));
+    expect(send.left, greaterThanOrEqualTo(island.right));
+    expectChromeText(tester, within: panel);
   });
 }

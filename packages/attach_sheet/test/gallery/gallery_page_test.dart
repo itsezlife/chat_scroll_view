@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
+import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -295,14 +296,19 @@ void main() {
     expect(slot, findsOneWidget);
     final pill = find.descendant(
       of: slot,
-      matching: find.byKey(const ValueKey('attach-caption-pill')),
+      matching: find.byKey(const ValueKey('attach-caption')),
     );
     final send = find.descendant(
       of: slot,
       matching: find.byKey(const ValueKey('attach-send')),
     );
+    // The chat's own composer, its island and margins, with Send beside it.
     expect(pill, findsOneWidget);
-    expect(tester.getRect(send).left, greaterThan(tester.getRect(pill).right));
+    expect(tester.widget(pill), isA<ComposerView>());
+    expect(
+      tester.getRect(send).left,
+      greaterThanOrEqualTo(tester.getRect(pill).right),
+    );
     expectChromeText(tester, within: slot);
 
     final chrome = tester.widget<PickerViewerChrome>(
