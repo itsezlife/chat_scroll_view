@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:attach_sheet/attach_sheet.dart' show AttachDropOverlay;
 import 'package:bulletins/bulletins.dart';
 import 'package:chat_composer/chat_composer.dart' show ComposerBottomFade;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
@@ -22,6 +23,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_p
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_attach.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_confirm_box.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
@@ -214,6 +216,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   int? _pendingLastReadBaseline;
 
   ChatInputSet get _input => _inputSet!;
+
+  /// The attach host: the sheet, the confirm box and the drop zones.
+  late final ChatAttach _attach = ChatAttach(
+    services: widget.services,
+    composer: _input.composer,
+    bulletins: _bulletins,
+    send: _handleSendMessage,
+  );
 
   /// The chat's bulletins: one slot for the screen, on the policy of the
   /// platform. A pack sheet over it shows its own while it is up
@@ -535,6 +545,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _dataSource?.dispose();
     _messageMenu = null;
     _bulletinObstruction?.dispose();
+    _attach.dispose();
     _bulletins.dispose();
     super.dispose();
   }
@@ -1130,6 +1141,23 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final chat = _buildChat(context);
+    final drop = _attach.dropSource;
+    if (drop == null || _loading || _dataSource == null) return chat;
+    // Desktop and web: files dragged over the chat open (or add to) the
+    // confirm box, by the zone they are dropped in.
+    return AttachDropOverlay(
+      source: drop,
+      policy: _attach.policy,
+      boxOpen: _attach.boxOpen,
+      maxFileBytes: ChatAttach.limits.fileSizeLimit,
+      onDrop: (files, {required asFiles}) =>
+          unawaited(_attach.openBox(context, files, asFiles: asFiles)),
+      child: chat,
+    );
+  }
+
+  Widget _buildChat(BuildContext context) {
     if (_errorMessage != null) {
       return DemoBackendError(message: _errorMessage!, onRetry: _init);
     }
@@ -1418,8 +1446,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             islandKey: _composerGlassKey,
             anchorSpace: _presentationSpace,
             bulletins: _bulletins,
-            onAttachPressed: () =>
-                _showNotice('Attachments are not in the demo'),
+            onAttachPressed: () => unawaited(_attach.open(context)),
             onVoicePressed: () => _showNotice('Voice is not in the demo'),
           ),
         ),

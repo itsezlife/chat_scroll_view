@@ -8,6 +8,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_assets/content_assets.dart';
 import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/widgets.dart';
+import 'package:mpx_core/mpx_core.dart' show AssetCacheProvider;
 import 'package:panel_pages/panel_pages.dart';
 
 /// The app-level scopes every chrome widget reads, over [child].
@@ -67,7 +68,15 @@ class AppChrome extends StatelessWidget {
             // How media look while they load (stand-ins, the status control,
             // the badge), in the app's tokens.
             child: DemoMediaLoadingStyle(
-              child: ContentAssetProvider(scope: services.assets, child: child),
+              // The attach sheet's grid reads its thumbnails from the media
+              // cache directly.
+              child: AssetCacheProvider(
+                scope: services.assets.media,
+                child: ContentAssetProvider(
+                  scope: services.assets,
+                  child: child,
+                ),
+              ),
             ),
           ),
         ),

@@ -41,6 +41,7 @@ import 'package:kv_shared_preferences/kv_shared_preferences.dart';
 import 'package:l/l.dart';
 import 'package:mpx/mpx.dart';
 import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_library/mpx_library.dart';
 import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
@@ -101,6 +102,7 @@ import 'package:rich_clipboard/rich_clipboard.dart';
 /// usable.
 final class AppServices {
   AppServices._({
+    required _DeviceLibrary deviceLibrary,
     required this.clipboard,
     required this.keyValueStore,
     required this.recents,
@@ -150,7 +152,8 @@ final class AppServices {
     required IBytesStore bytes,
     required HttpBytesClient? bytesClient,
     required RangedBytes? rangedBytes,
-  }) : _autoDownload = autoDownload,
+  }) : _deviceLibrary = deviceLibrary,
+       _autoDownload = autoDownload,
        _bytes = bytes,
        _ownedSignals = ownedSignals,
        _bytesClient = bytesClient,
@@ -482,11 +485,18 @@ final class AppServices {
         ),
         (policy) => policy.dispose(),
       );
+      // The device library for the attach sheet's Gallery, made on its first
+      // use (Android and iOS have adapters); its thumbnails go through the
+      // pipeline below.
+      final deviceLibrary = _DeviceLibrary();
       final pipeline = owned(
         AssetPipeline(
           // Giphy first, then the corpus, then the bundle: each takes its own
           // keys and hands the rest on.
-          fetcher: _contentFetcher(giphy, corpusPacks, rootBundle),
+          fetcher: _LibraryRoute(
+            deviceLibrary,
+            _contentFetcher(giphy, corpusPacks, rootBundle),
+          ),
           decoders: decoders,
           resolver: switch (giphy) {
             final giphy? => ContentMediaResolver(
@@ -714,6 +724,7 @@ final class AppServices {
       );
 
       return AppServices._(
+        deviceLibrary: deviceLibrary,
         keyValueStore: storage,
         recents: recents,
         recentsShown: recentsShown,
@@ -794,6 +805,13 @@ final class AppServices {
 
   /// The adapter every store writes through.
   final KeyValueStore keyValueStore;
+
+  /// The device photo library, on the platforms that have an adapter
+  /// (Android, iOS); null elsewhere. The attach sheet's Gallery reads it;
+  /// it is made on the first read.
+  MediaLibrary? get mediaLibrary => _deviceLibrary.library;
+
+  final _DeviceLibrary _deviceLibrary;
 
   /// The clipboard every copy and paste goes through: plain text for other
   /// apps, and the text with its entities for this one. Not disposed: it
@@ -1066,6 +1084,7 @@ final class AppServices {
     if (_disposed) return;
     _disposed = true;
     _webProbePass?.cancel();
+    _deviceLibrary.dispose();
     stickerPageSource.dispose();
     gifPageSource.dispose();
     for (final part in _pageParts) {
@@ -1143,4 +1162,54 @@ final class AppServices {
       glyphsPerFrame: () => 8,
     );
   }
+}
+
+/// The device library, made on first use where an adapter exists.
+final class _DeviceLibrary {
+  MediaLibrary? _$library;
+  bool _$made = false;
+
+  static bool get _supported =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  MediaLibrary? get library {
+    if (!_$made && _supported) _$library = PlatformMediaLibrary();
+    _$made = true;
+    return _$library;
+  }
+
+  /// The library if it was made, without making it.
+  MediaLibrary? get made => _$library;
+
+  void dispose() => unawaited(_$library?.dispose());
+}
+
+/// Sends the device library's keys to its fetcher and every other key on.
+final class _LibraryRoute implements ContentFetcher {
+  _LibraryRoute(this._device, this._otherwise);
+
+  final _DeviceLibrary _device;
+  final ContentFetcher _otherwise;
+
+  LibraryFetcher? get _library => switch (_device.made) {
+    final library? => LibraryFetcher(library),
+    null => null,
+  };
+
+  @override
+  Future<FetchedContent> fetch(FetchRequest request) => switch (_library) {
+    final library? when LibraryFetcher.handles(request.descriptor.key) =>
+      library.fetch(request),
+    _ => _otherwise.fetch(request),
+  };
+
+  @override
+  bool needsDownload(MediaKey key) => switch (_library) {
+    final library? when LibraryFetcher.handles(key) => library.needsDownload(
+      key,
+    ),
+    _ => _otherwise.needsDownload(key),
+  };
 }

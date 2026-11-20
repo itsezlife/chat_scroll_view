@@ -1,11 +1,23 @@
 PODS:
   - app_links (6.4.1):
     - FlutterMacOS
+  - device_info_plus (0.0.1):
+    - FlutterMacOS
+  - file_selector_macos (0.0.1):
+    - FlutterMacOS
   - FlutterMacOS (1.0.0)
+  - irondash_engine_context (0.0.1):
+    - FlutterMacOS
   - mpx (0.0.1):
     - Flutter
     - FlutterMacOS
+  - mpx_capture (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - mpx_core (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - mpx_player (0.0.1):
     - Flutter
     - FlutterMacOS
   - rich_clipboard (0.1.0):
@@ -13,41 +25,67 @@ PODS:
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - super_native_extensions (0.0.1):
+    - FlutterMacOS
   - url_launcher_macos (0.0.1):
     - FlutterMacOS
 
 DEPENDENCIES:
   - app_links (from `Flutter/ephemeral/.symlinks/plugins/app_links/macos`)
+  - device_info_plus (from `Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos`)
+  - file_selector_macos (from `Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
+  - irondash_engine_context (from `Flutter/ephemeral/.symlinks/plugins/irondash_engine_context/macos`)
   - mpx (from `Flutter/ephemeral/.symlinks/plugins/mpx/darwin`)
+  - mpx_capture (from `Flutter/ephemeral/.symlinks/plugins/mpx_capture/darwin`)
   - mpx_core (from `Flutter/ephemeral/.symlinks/plugins/mpx_core/darwin`)
+  - mpx_player (from `Flutter/ephemeral/.symlinks/plugins/mpx_player/darwin`)
   - rich_clipboard (from `Flutter/ephemeral/.symlinks/plugins/rich_clipboard/macos`)
   - shared_preferences_foundation (from `Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - super_native_extensions (from `Flutter/ephemeral/.symlinks/plugins/super_native_extensions/macos`)
   - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
 
 EXTERNAL SOURCES:
   app_links:
     :path: Flutter/ephemeral/.symlinks/plugins/app_links/macos
+  device_info_plus:
+    :path: Flutter/ephemeral/.symlinks/plugins/device_info_plus/macos
+  file_selector_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/file_selector_macos/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
+  irondash_engine_context:
+    :path: Flutter/ephemeral/.symlinks/plugins/irondash_engine_context/macos
   mpx:
     :path: Flutter/ephemeral/.symlinks/plugins/mpx/darwin
+  mpx_capture:
+    :path: Flutter/ephemeral/.symlinks/plugins/mpx_capture/darwin
   mpx_core:
     :path: Flutter/ephemeral/.symlinks/plugins/mpx_core/darwin
+  mpx_player:
+    :path: Flutter/ephemeral/.symlinks/plugins/mpx_player/darwin
   rich_clipboard:
     :path: Flutter/ephemeral/.symlinks/plugins/rich_clipboard/macos
   shared_preferences_foundation:
     :path: Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin
+  super_native_extensions:
+    :path: Flutter/ephemeral/.symlinks/plugins/super_native_extensions/macos
   url_launcher_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
 
 SPEC CHECKSUMS:
   app_links: 05a6ec2341985eb05e9f97dc63f5837c39895c3f
+  device_info_plus: 4fb280989f669696856f8b129e4a5e3cd6c48f76
+  file_selector_macos: 9e9e068e90ebee155097d00e89ae91edb2374db7
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  irondash_engine_context: 893c7d96d20ce361d7e996f39d360c4c2f9869ba
   mpx: ee4afd6125f6ec5d05f9bf3da39c91adde91c282
+  mpx_capture: 94cc85d1c7410a320e2ade3781a33651e3e15246
   mpx_core: 9ae8d0a68d78b47367b4bb8dd47d555532abb832
+  mpx_player: ac175bf85c8d8d97bcfdff9479c3056f8a06184a
   rich_clipboard: c490dc6e8dbb8f4813d8f80ff592c6add6b19d3a
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
+  super_native_extensions: c2795d6d9aedf4a79fae25cb6160b71b50549189
   url_launcher_macos: f87a979182d112f911de6820aefddaf56ee9fbfd
 
 PODFILE CHECKSUM: cd8b77a18b054f2337626456ab10c7fc6d0617fa
