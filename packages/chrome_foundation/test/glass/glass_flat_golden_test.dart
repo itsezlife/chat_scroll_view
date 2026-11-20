@@ -30,7 +30,7 @@ class _Row extends StatelessWidget {
               height: 44,
               child: GlassSurface(
                 material: material,
-                cornerRadius: material == GlassMaterial.topPanel ? 0 : 22,
+                cornerRadius: material == GlassMaterial.bar ? 0 : 22,
                 child: const SizedBox.expand(),
               ),
             ),
@@ -61,8 +61,15 @@ void main() {
     tolerance: _tolerance,
   );
 
-  for (final material in GlassMaterial.values) {
-    testWidgets('${material.name} flat glass, light and dark', (tester) async {
+  // The role presets, by the baseline names they had as the named presets.
+  const materials = {
+    'composerIsland': GlassMaterial.island,
+    'panelButton': GlassMaterial.button,
+    'topPanel': GlassMaterial.bar,
+    'messageMenu': GlassMaterial.menu,
+  };
+  for (final MapEntry(key: name, value: material) in materials.entries) {
+    testWidgets('$name flat glass, light and dark', (tester) async {
       await tester.binding.setSurfaceSize(const Size(400, 80));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
@@ -84,7 +91,7 @@ void main() {
       );
       await expectLater(
         find.byKey(const ValueKey('glass')),
-        matchesGoldenFile('../goldens/glass_flat_${material.name}.png'),
+        matchesGoldenFile('../goldens/glass_flat_$name.png'),
       );
     });
   }

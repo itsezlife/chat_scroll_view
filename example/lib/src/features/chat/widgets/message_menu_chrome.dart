@@ -9,7 +9,7 @@ import 'package:flutter/widgets.dart';
 /// family: the builders the host hands `ChatMessageMenu.show`.
 ///
 /// On Android a sheet menu takes the chrome's own rows ([MessageMenuRow])
-/// on the message menu glass ([GlassMaterial.messageMenu]), its reaction
+/// on the message menu glass ([GlassMaterial.menu]), its reaction
 /// strip on the same glass coming in on its own ([MessageMenuStripEnter]);
 /// the menu pops up from its bottom right corner (it hangs left of the
 /// press). On a desktop a popup
@@ -59,7 +59,7 @@ abstract final class MessageMenuChrome {
     Widget child,
   ) {
     final glass = GlassSurface(
-      material: GlassMaterial.messageMenu,
+      material: GlassMaterial.menu,
       cornerRadius: surface.cornerRadius,
       child: child,
     );

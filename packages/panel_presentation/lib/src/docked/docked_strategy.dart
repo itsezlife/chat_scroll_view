@@ -301,10 +301,9 @@ class _DockedBodyState extends State<_DockedBody>
                             null => null,
                           },
                         ),
-                        // The composer's glass, square at the window's edge.
+                        // The panel's glass, square at the window's edge.
                         child: GlassSurface(
-                          material: GlassMaterial.composerIsland,
-                          cornerRadius: 0,
+                          material: GlassMaterial.panel,
                           child: FocusScope(
                             node: _scope,
                             // Only at rest: while the dock moves or is

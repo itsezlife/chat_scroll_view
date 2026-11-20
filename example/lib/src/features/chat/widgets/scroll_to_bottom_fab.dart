@@ -233,7 +233,7 @@ class _GlassPageDownButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GlassSurface(
-    material: GlassMaterial.panelButton,
+    material: GlassMaterial.button,
     cornerRadius: size / 2,
     child: SizedBox(
       width: size,

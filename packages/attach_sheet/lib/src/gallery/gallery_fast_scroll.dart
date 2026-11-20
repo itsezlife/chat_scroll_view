@@ -139,7 +139,7 @@ class _GalleryFastScrollState extends State<GalleryFastScroll> {
 
   static Widget _glass(BuildContext context, ShapeBorder shape, Widget child) =>
       GlassSurface(
-        material: GlassMaterial.topPanel,
+        material: GlassMaterial.bubble,
         cornerRadius: switch (shape) {
           RoundedRectangleBorder(borderRadius: BorderRadius(:final topLeft)) =>
             topLeft.x,

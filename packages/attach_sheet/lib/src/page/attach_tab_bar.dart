@@ -373,7 +373,7 @@ class _AttachTabBarState extends State<AttachTabBar>
                     height: lensHeight,
                     child: GlassSurface(
                       key: const ValueKey('attach-tab-lens'),
-                      material: GlassMaterial.panelButton,
+                      material: GlassMaterial.button,
                       cornerRadius: lens.radius,
                       child: const SizedBox.expand(),
                     ),
@@ -396,7 +396,7 @@ class _AttachTabBarState extends State<AttachTabBar>
     final clipped = tabsWidth > barWidth - 2 * _style.innerPadding;
     return Center(
       child: GlassSurface(
-        material: GlassMaterial.composerIsland,
+        material: GlassMaterial.island,
         cornerRadius: _style.radius,
         child: Container(
           key: const ValueKey('attach-tab-bar'),

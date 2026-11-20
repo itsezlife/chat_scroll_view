@@ -74,9 +74,9 @@ class PaletteSwatch extends StatelessWidget {
       ],
       [
         for (final m in [
-          data.glass.composerIsland,
-          data.glass.panelButton,
-          data.glass.topPanel,
+          data.glass.island,
+          data.glass.button,
+          data.glass.bar,
         ]) ...[m.tint, m.strokeTop, m.strokeBottom, m.shadow],
       ],
     ];

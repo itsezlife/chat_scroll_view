@@ -109,34 +109,37 @@ final class GlassMaterialColors {
   String toString() => 'GlassMaterialColors(tint: $tint)';
 }
 
-/// Palette-derived colours of the named glass materials.
+/// Palette-derived colours of the glass roles.
 ///
-/// `GlassSurface` reads these through the chrome theme scope: [colorsOf] maps a
-/// [GlassMaterial] to its colours. Derived from a [ChromePalette] by
-/// [GlassMaterialTokens.fromPalette]; a host overrides one material with
+/// `GlassSurface` reads these through the chrome theme scope: [colorsOf] gives
+/// a [GlassMaterial] the colours of its [GlassMaterial.colorRole] (a surface
+/// may pass its own instead). Derived from a [ChromePalette] by
+/// [GlassMaterialTokens.fromPalette]; a host overrides one role with
 /// [copyWith] or supplies the whole group to a `ChromeThemeScope`.
 @immutable
 final class GlassMaterialTokens {
-  /// A glass token group with every material given.
+  /// A glass token group with every role given.
   const GlassMaterialTokens({
-    required this.composerIsland,
-    required this.panelButton,
-    required this.topPanel,
-    required this.messageMenu,
+    required this.island,
+    required this.button,
+    required this.bar,
+    required this.menu,
+    required this.panel,
+    required this.bubble,
   });
 
-  /// The default mapping of [palette] roles onto the named materials.
+  /// The default mapping of [palette] roles onto the glass roles.
   ///
-  /// The composer island and panel buttons tint [ChromePalette.surface], the
-  /// top panel [ChromePalette.surfaceDim]. Light edges are opaque white; dark
+  /// The island, buttons and panels tint [ChromePalette.surface], bars and
+  /// bubbles [ChromePalette.surfaceDim]. Light edges are opaque white; dark
   /// edges are faint white, the top one stronger than the bottom. Light
-  /// materials cast the palette shadow (the island and the top panel at
-  /// 0x20, a floating button at 0x40); dark materials cast none.
+  /// materials cast the palette shadow (the island, panels and bars at 0x20,
+  /// a floating button at 0x40); dark materials cast none.
   ///
-  /// The message menu tints [ChromePalette.surfaceRaised] at 0.85 in a dark
-  /// theme and 0.825 in a light one, over a backdrop saturated x2 and x3. A
-  /// light menu has a white top edge at 0x44, a bottom one at 0x22 and a
-  /// 0x38 black shadow; a dark one has neither.
+  /// A menu tints [ChromePalette.surfaceRaised] at 0.85 in a dark theme and
+  /// 0.825 in a light one, over a backdrop saturated x2 and x3. A light menu
+  /// has a white top edge at 0x44, a bottom one at 0x22 and a 0x38 black
+  /// shadow; a dark one has neither.
   factory GlassMaterialTokens.fromPalette(ChromePalette palette) {
     final isDark = palette.brightness == Brightness.dark;
     const white = Color(0xFFFFFFFF);
@@ -151,15 +154,13 @@ final class GlassMaterialTokens {
       strokeBottom: isDark ? white.withAlpha(0x14) : white,
       shadow: shadow(shadowAlpha),
     );
+    final island = material(palette.surface, darkTop: 0x28, shadowAlpha: 0x20);
+    final bar = material(palette.surfaceDim, darkTop: 0x20, shadowAlpha: 0x20);
     return GlassMaterialTokens(
-      composerIsland: material(
-        palette.surface,
-        darkTop: 0x28,
-        shadowAlpha: 0x20,
-      ),
-      panelButton: material(palette.surface, darkTop: 0x28, shadowAlpha: 0x40),
-      topPanel: material(palette.surfaceDim, darkTop: 0x20, shadowAlpha: 0x20),
-      messageMenu: GlassMaterialColors(
+      island: island,
+      button: material(palette.surface, darkTop: 0x28, shadowAlpha: 0x40),
+      bar: bar,
+      menu: GlassMaterialColors(
         tint: palette.surfaceRaised,
         strokeTop: white.withAlpha(isDark ? 0 : 0x44),
         strokeBottom: white.withAlpha(isDark ? 0 : 0x22),
@@ -167,43 +168,61 @@ final class GlassMaterialTokens {
         tintOpacity: isDark ? 0.85 : 0.825,
         backdropSaturation: isDark ? 2 : 3,
       ),
+      panel: island,
+      bubble: bar,
     );
   }
 
-  /// The composer input island.
-  final GlassMaterialColors composerIsland;
+  /// The composer's input island.
+  final GlassMaterialColors island;
 
-  /// Round or pill buttons floating over the panel.
-  final GlassMaterialColors panelButton;
+  /// Round or pill buttons floating over content.
+  final GlassMaterialColors button;
 
-  /// The bar docked at the top of the panel.
-  final GlassMaterialColors topPanel;
+  /// Bars docked at an edge.
+  final GlassMaterialColors bar;
 
-  /// A menu over a dimmed screen.
-  final GlassMaterialColors messageMenu;
+  /// Menus and popups over a dimmed screen.
+  final GlassMaterialColors menu;
 
-  /// The colours of [material].
-  GlassMaterialColors colorsOf(GlassMaterial material) => switch (material) {
-    GlassMaterial.composerIsland => composerIsland,
-    GlassMaterial.panelButton => panelButton,
-    GlassMaterial.topPanel => topPanel,
-    GlassMaterial.messageMenu => messageMenu,
+  /// Bottom panels.
+  final GlassMaterialColors panel;
+
+  /// Small floating labels.
+  final GlassMaterialColors bubble;
+
+  /// The colours of [role].
+  GlassMaterialColors of(GlassColorRole role) => switch (role) {
+    GlassColorRole.island => island,
+    GlassColorRole.button => button,
+    GlassColorRole.bar => bar,
+    GlassColorRole.menu => menu,
+    GlassColorRole.panel => panel,
+    GlassColorRole.bubble => bubble,
   };
 
-  /// A copy with the named materials replaced.
+  /// The colours of [material]: those of its colour role.
+  GlassMaterialColors colorsOf(GlassMaterial material) =>
+      of(material.colorRole);
+
+  /// A copy with the named roles replaced.
   GlassMaterialTokens copyWith({
-    GlassMaterialColors? composerIsland,
-    GlassMaterialColors? panelButton,
-    GlassMaterialColors? topPanel,
-    GlassMaterialColors? messageMenu,
+    GlassMaterialColors? island,
+    GlassMaterialColors? button,
+    GlassMaterialColors? bar,
+    GlassMaterialColors? menu,
+    GlassMaterialColors? panel,
+    GlassMaterialColors? bubble,
   }) => GlassMaterialTokens(
-    composerIsland: composerIsland ?? this.composerIsland,
-    panelButton: panelButton ?? this.panelButton,
-    topPanel: topPanel ?? this.topPanel,
-    messageMenu: messageMenu ?? this.messageMenu,
+    island: island ?? this.island,
+    button: button ?? this.button,
+    bar: bar ?? this.bar,
+    menu: menu ?? this.menu,
+    panel: panel ?? this.panel,
+    bubble: bubble ?? this.bubble,
   );
 
-  /// Interpolates every material between [a] and [b].
+  /// Interpolates every role between [a] and [b].
   // Flutter's `T.lerp(a, b, t)` shape; a constructor cannot take two sources.
   // ignore: prefer_constructors_over_static_methods
   static GlassMaterialTokens lerp(
@@ -211,29 +230,23 @@ final class GlassMaterialTokens {
     GlassMaterialTokens b,
     double t,
   ) => GlassMaterialTokens(
-    composerIsland: GlassMaterialColors.lerp(
-      a.composerIsland,
-      b.composerIsland,
-      t,
-    ),
-    panelButton: GlassMaterialColors.lerp(a.panelButton, b.panelButton, t),
-    topPanel: GlassMaterialColors.lerp(a.topPanel, b.topPanel, t),
-    messageMenu: GlassMaterialColors.lerp(a.messageMenu, b.messageMenu, t),
+    island: GlassMaterialColors.lerp(a.island, b.island, t),
+    button: GlassMaterialColors.lerp(a.button, b.button, t),
+    bar: GlassMaterialColors.lerp(a.bar, b.bar, t),
+    menu: GlassMaterialColors.lerp(a.menu, b.menu, t),
+    panel: GlassMaterialColors.lerp(a.panel, b.panel, t),
+    bubble: GlassMaterialColors.lerp(a.bubble, b.bubble, t),
   );
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is GlassMaterialTokens &&
-          composerIsland == other.composerIsland &&
-          panelButton == other.panelButton &&
-          topPanel == other.topPanel &&
-          messageMenu == other.messageMenu;
+          GlassColorRole.values.every((role) => of(role) == other.of(role));
 
   @override
-  int get hashCode =>
-      Object.hash(composerIsland, panelButton, topPanel, messageMenu);
+  int get hashCode => Object.hashAll(GlassColorRole.values.map(of));
 
   @override
-  String toString() => 'GlassMaterialTokens(composerIsland: $composerIsland)';
+  String toString() => 'GlassMaterialTokens(island: $island)';
 }

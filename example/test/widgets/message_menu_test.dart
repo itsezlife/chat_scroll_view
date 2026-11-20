@@ -652,8 +652,7 @@ void main() {
           of: card,
           matching: find.byWidgetPredicate(
             (widget) =>
-                widget is GlassSurface &&
-                widget.material == GlassMaterial.messageMenu,
+                widget is GlassSurface && widget.material == GlassMaterial.menu,
           ),
         ),
         findsOneWidget,
@@ -723,8 +722,7 @@ void main() {
 
       final glass = find.byWidgetPredicate(
         (widget) =>
-            widget is GlassSurface &&
-            widget.material == GlassMaterial.messageMenu,
+            widget is GlassSurface && widget.material == GlassMaterial.menu,
       );
       expect(
         find.ancestor(

@@ -44,10 +44,7 @@ void main() {
       matching: find.byType(GlassSurface),
     );
     expect(glass, findsOneWidget);
-    expect(
-      tester.widget<GlassSurface>(glass).material,
-      GlassMaterial.composerIsland,
-    );
+    expect(tester.widget<GlassSurface>(glass).material, GlassMaterial.panel);
     expect(
       tester.widget<PanelShell>(find.byType(PanelShell)).background,
       const Color(0x00000000),

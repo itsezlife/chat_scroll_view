@@ -99,7 +99,7 @@ abstract final class BulletinBuilders$Android {
     final glass = ChromeThemeScope.glassOf(context);
     return ChromeThemeScope(
       glass: glass.copyWith(
-        panelButton: GlassMaterialColors(
+        button: GlassMaterialColors(
           tint: view.tokens.background,
           strokeTop: none,
           strokeBottom: none,
@@ -107,7 +107,7 @@ abstract final class BulletinBuilders$Android {
         ),
       ),
       child: GlassSurface(
-        material: GlassMaterial.panelButton,
+        material: GlassMaterial.button,
         cornerRadius: view.policy.cornerRadius,
         child: ConstrainedBox(
           constraints: BoxConstraints(minHeight: view.policy.minHeight),

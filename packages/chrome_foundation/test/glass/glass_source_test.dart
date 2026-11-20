@@ -49,7 +49,7 @@ Widget _scene() => const GlassSourceScope(
           height: 44,
           child: GlassSurface(
             key: _glassKey,
-            material: GlassMaterial.composerIsland,
+            material: GlassMaterial.island,
             child: SizedBox.expand(),
           ),
         ),

@@ -474,7 +474,7 @@ class _ComposerViewState extends State<ComposerView>
                     children: [
                       GlassSurface(
                         key: widget.islandKey,
-                        material: GlassMaterial.composerIsland,
+                        material: GlassMaterial.island,
                         cornerRadius: ComposerMetrics.islandRadius,
                         child: AnimatedBuilder(
                           animation: Listenable.merge([_reveal, _rowProgress]),

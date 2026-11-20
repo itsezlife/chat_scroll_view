@@ -25,7 +25,7 @@ GlassStyle _resolve(
 
 void main() {
   group('frosted', () {
-    final style = _resolve(GlassMaterial.composerIsland, GlassFinish.frosted);
+    final style = _resolve(GlassMaterial.island, GlassFinish.frosted);
 
     test('tints at 0.76 over a 40 dp blur sampled at an eighth, saturation '
         'x3', () {
@@ -49,10 +49,7 @@ void main() {
 
   group('refracting', () {
     test('the island tints at 0.85 over a 6 dp blur sampled at a quarter', () {
-      final style = _resolve(
-        GlassMaterial.composerIsland,
-        GlassFinish.refracting,
-      );
+      final style = _resolve(GlassMaterial.island, GlassFinish.refracting);
 
       expect(style.fill, const Color(0xFF20242A).withValues(alpha: 0.85));
       expect(style.blurRadius, 6);
@@ -67,7 +64,7 @@ void main() {
 
     test('a top panel never refracts: the strong blur at the refracting '
         'opacity', () {
-      final style = _resolve(GlassMaterial.topPanel, GlassFinish.refracting);
+      final style = _resolve(GlassMaterial.bar, GlassFinish.refracting);
 
       expect(style.enableLiquid, isFalse);
       expect(style.fill.a, closeTo(0.85, 1e-6));
@@ -79,7 +76,7 @@ void main() {
     test('tints the raised surface at 0.85 in a dark theme, over an 80 dp '
         'blur saturated x2, whatever the finish', () {
       for (final finish in [GlassFinish.frosted, GlassFinish.refracting]) {
-        final style = _resolve(GlassMaterial.messageMenu, finish);
+        final style = _resolve(GlassMaterial.menu, finish);
         expect(
           style.fill,
           const ChromePalette.dark().surfaceRaised.withValues(alpha: 0.85),
@@ -92,7 +89,7 @@ void main() {
 
     test('at 0.825 in a light theme, saturated x3', () {
       final style = _resolve(
-        GlassMaterial.messageMenu,
+        GlassMaterial.menu,
         GlassFinish.refracting,
         palette: const ChromePalette.light(),
       );
@@ -106,7 +103,7 @@ void main() {
     test('12 dp corners; light: white edges at 0x44 and 0x22 of 2/3 dp, a '
         '0x38 shadow of 3.5 dp all round', () {
       final style = _resolve(
-        GlassMaterial.messageMenu,
+        GlassMaterial.menu,
         GlassFinish.frosted,
         palette: const ChromePalette.light(),
       );
@@ -120,20 +117,20 @@ void main() {
     });
 
     test('dark: no edges, no shadow', () {
-      final style = _resolve(GlassMaterial.messageMenu, GlassFinish.frosted);
+      final style = _resolve(GlassMaterial.menu, GlassFinish.frosted);
       expect(style.strokeTop.a, 0);
       expect(style.strokeBottom.a, 0);
       expect(style.shadowColor.a, 0);
     });
 
     test('opaque when flat', () {
-      final style = _resolve(GlassMaterial.messageMenu, GlassFinish.flat);
+      final style = _resolve(GlassMaterial.menu, GlassFinish.flat);
       expect(style.fill, const ChromePalette.dark().surfaceRaised);
     });
   });
 
   test('a flat glass is opaque: it reads no backdrop to tint', () {
-    final style = _resolve(GlassMaterial.composerIsland, GlassFinish.flat);
+    final style = _resolve(GlassMaterial.island, GlassFinish.flat);
 
     expect(style.fill, const Color(0xFF20242A));
   });
@@ -142,7 +139,7 @@ void main() {
     test('the composer island: 22 dp corners, 0.5 dp edges, a 1 dp shadow '
         '1/3 dp down', () {
       final style = _resolve(
-        GlassMaterial.composerIsland,
+        GlassMaterial.island,
         GlassFinish.frosted,
         palette: const ChromePalette.light(),
       );
@@ -157,7 +154,7 @@ void main() {
     test('a panel button: 18 dp corners, 0.5 dp edges, an 11/3 dp shadow '
         '2/3 dp down', () {
       final style = _resolve(
-        GlassMaterial.panelButton,
+        GlassMaterial.button,
         GlassFinish.frosted,
         palette: const ChromePalette.light(),
       );
@@ -170,7 +167,7 @@ void main() {
     });
 
     test('a top panel: square, 0.55 dp edges', () {
-      final style = _resolve(GlassMaterial.topPanel, GlassFinish.frosted);
+      final style = _resolve(GlassMaterial.bar, GlassFinish.frosted);
 
       expect(style.cornerRadius, 0);
       expect((style.strokeWidthTop, style.strokeWidthBottom), (0.55, 0.55));

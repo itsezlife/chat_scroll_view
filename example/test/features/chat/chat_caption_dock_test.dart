@@ -164,10 +164,13 @@ void main() {
       matching: find.byType(GlassSurface),
     );
     expect(surface, findsOneWidget);
-    final clip = tester.widget<ClipRRect>(
-      find.ancestor(of: surface, matching: find.byType(ClipRRect)).first,
+    final glass = tester.widget<GlassSurface>(surface);
+    expect(
+      glass.material,
+      GlassMaterial.panel,
+      reason: "the chat's panel role",
     );
-    final radius = clip.borderRadius.resolve(TextDirection.ltr);
+    final radius = glass.borderRadius!;
     expect(radius.topLeft.x, greaterThan(0));
     expect(radius.bottomLeft.x, 0);
   });

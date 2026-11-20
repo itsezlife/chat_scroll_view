@@ -298,54 +298,50 @@ class _KeyboardPanelState extends State<_KeyboardPanel>
       // slot too short to lay the shell out in (the first frames of a cold
       // open, the last of a close) gets a shell of the shortest height, cut
       // off from the bottom, instead of an overflow.
-      child: ClipRRect(
+      // The panel's glass, rounded at the top.
+      child: GlassSurface(
+        material: GlassMaterial.panel,
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(_slot.tuning.sheetCornerRadius),
         ),
-        // The composer's glass; the clip above rounds its top corners.
-        child: GlassSurface(
-          material: GlassMaterial.composerIsland,
-          cornerRadius: 0,
-          child: LayoutBuilder(
-            builder: (context, box) {
-              final height = box.hasBoundedHeight
-                  ? math.max(box.maxHeight, _minSheetHeight)
-                  : _slot.restingHeight;
-              return OverflowBox(
-                alignment: Alignment.topCenter,
-                minHeight: height,
-                maxHeight: height,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    // Emptied, not removed, while the keyboard takes over: the
-                    // sheet stays and the shell keeps its state.
-                    Offstage(
-                      offstage: handingOff,
-                      // Only at rest: while the sheet moves or is hidden
-                      // the panel's content holds (its catalogues keep
-                      // their cells and frames).
-                      child: TickerMode(
-                        enabled:
-                            widget.view.visibility is PanelVisibility$Shown,
-                        child: _shellView,
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final height = box.hasBoundedHeight
+                ? math.max(box.maxHeight, _minSheetHeight)
+                : _slot.restingHeight;
+            return OverflowBox(
+              alignment: Alignment.topCenter,
+              minHeight: height,
+              maxHeight: height,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  // Emptied, not removed, while the keyboard takes over: the
+                  // sheet stays and the shell keeps its state.
+                  Offstage(
+                    offstage: handingOff,
+                    // Only at rest: while the sheet moves or is hidden
+                    // the panel's content holds (its catalogues keep
+                    // their cells and frames).
+                    child: TickerMode(
+                      enabled: widget.view.visibility is PanelVisibility$Shown,
+                      child: _shellView,
+                    ),
+                  ),
+                  if (safe > 0)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: KeyboardNavBarFade(
+                        height: safe,
+                        color: panel.background,
                       ),
                     ),
-                    if (safe > 0)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: KeyboardNavBarFade(
-                          height: safe,
-                          color: panel.background,
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            },
-          ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );

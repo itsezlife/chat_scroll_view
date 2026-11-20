@@ -8,7 +8,7 @@ void main() {
         'shadow', () {
       final island = GlassMaterialTokens.fromPalette(
         const ChromePalette.light(),
-      ).composerIsland;
+      ).island;
       expect(island.tint, const Color(0xFFFFFFFF));
       expect(island.strokeTop, const Color(0xFFFFFFFF));
       expect(island.strokeBottom, const Color(0xFFFFFFFF));
@@ -18,7 +18,7 @@ void main() {
     test('dark composer island: faint strokes and no shadow', () {
       final island = GlassMaterialTokens.fromPalette(
         const ChromePalette.dark(),
-      ).composerIsland;
+      ).island;
       expect(island.tint, const Color(0xFF20242A));
       expect(island.strokeTop, const Color(0x28FFFFFF));
       expect(island.strokeBottom, const Color(0x14FFFFFF));
@@ -29,10 +29,10 @@ void main() {
         'only', () {
       final light = GlassMaterialTokens.fromPalette(
         const ChromePalette.light(),
-      ).panelButton;
+      ).button;
       final dark = GlassMaterialTokens.fromPalette(
         const ChromePalette.dark(),
-      ).panelButton;
+      ).button;
       expect(light.tint, const Color(0xFFFFFFFF));
       expect(light.shadow, const Color(0x40000000));
       expect(dark.tint, const Color(0xFF20242A));
@@ -42,10 +42,10 @@ void main() {
     test('a top panel tints the dim surface with a fainter dark top edge', () {
       final light = GlassMaterialTokens.fromPalette(
         const ChromePalette.light(),
-      ).topPanel;
+      ).bar;
       final dark = GlassMaterialTokens.fromPalette(
         const ChromePalette.dark(),
-      ).topPanel;
+      ).bar;
       expect(light.tint, const Color(0xFFF0F2F5));
       expect(light.shadow, const Color(0x20000000));
       expect(dark.strokeTop, const Color(0x20FFFFFF));
@@ -63,10 +63,10 @@ void main() {
         strokeBottom: Color(0xFFFFFFFF),
         shadow: Color(0x00000000),
       );
-      final next = base.copyWith(topPanel: custom);
-      expect(next.topPanel, custom);
-      expect(next.composerIsland, base.composerIsland);
-      expect(next.copyWith(topPanel: base.topPanel), base);
+      final next = base.copyWith(bar: custom);
+      expect(next.bar, custom);
+      expect(next.island, base.island);
+      expect(next.copyWith(bar: base.bar), base);
     });
 
     test('a material copyWith replaces one colour', () {
@@ -98,13 +98,10 @@ void main() {
 
     test('blends the materials halfway', () {
       final mid = GlassMaterialTokens.lerp(a, b, 0.5);
+      expect(mid.island.tint, Color.lerp(a.island.tint, b.island.tint, 0.5));
       expect(
-        mid.composerIsland.tint,
-        Color.lerp(a.composerIsland.tint, b.composerIsland.tint, 0.5),
-      );
-      expect(
-        mid.topPanel.strokeTop,
-        Color.lerp(a.topPanel.strokeTop, b.topPanel.strokeTop, 0.5),
+        mid.bar.strokeTop,
+        Color.lerp(a.bar.strokeTop, b.bar.strokeTop, 0.5),
       );
     });
   });

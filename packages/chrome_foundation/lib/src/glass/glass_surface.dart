@@ -8,6 +8,7 @@ import 'package:chrome_foundation/src/glass/shader/glass_shaders.dart';
 import 'package:chrome_foundation/src/glass/strategy/glass_backdrops.dart';
 import 'package:chrome_foundation/src/glass/strategy/glass_strategy.dart';
 import 'package:chrome_foundation/src/theme/chrome_theme_scope.dart';
+import 'package:chrome_foundation/src/tokens/glass_material_tokens.dart';
 import 'package:flutter/widgets.dart';
 
 /// A glass surface around [child]: a named [material] drawn over what is
@@ -49,6 +50,8 @@ class GlassSurface extends StatefulWidget {
     required this.material,
     required this.child,
     this.cornerRadius,
+    this.borderRadius,
+    this.colors,
     super.key,
   });
 
@@ -56,7 +59,19 @@ class GlassSurface extends StatefulWidget {
   final GlassMaterial material;
 
   /// Corner radius in logical px; defaults to [GlassMaterial.cornerRadius].
+  /// It is the radius of the effect (the refraction rim, the edge strokes)
+  /// and of the clip unless [borderRadius] is given.
   final double? cornerRadius;
+
+  /// Corners of their own for the surface's clip and shadow, for a surface
+  /// whose corners differ (a panel rounded at the top only); the effect
+  /// keeps [cornerRadius]. Null clips at [cornerRadius] all round.
+  final BorderRadius? borderRadius;
+
+  /// Colours of the surface's own, in place of the theme's for the
+  /// material's role (a preset's taken from the theme and adjusted, or new
+  /// ones).
+  final GlassMaterialColors? colors;
 
   /// Content drawn above the glass. Sizes the surface.
   final Widget child;
@@ -167,7 +182,9 @@ class _GlassSurfaceState extends State<GlassSurface> {
       _ when quality == GlassQuality.fullLiquid => GlassFinish.refracting,
       _ => GlassFinish.frosted,
     };
-    final colors = ChromeThemeScope.glassOf(context).colorsOf(widget.material);
+    final colors =
+        widget.colors ??
+        ChromeThemeScope.glassOf(context).colorsOf(widget.material);
     final style = GlassStyle.resolve(
       material: widget.material,
       colors: colors,
@@ -201,7 +218,8 @@ class _GlassSurfaceState extends State<GlassSurface> {
       GlassStrategy.flat || GlassStrategy.none => ColoredBox(color: style.fill),
     };
 
-    final radius = BorderRadius.circular(style.cornerRadius);
+    final radius =
+        widget.borderRadius ?? BorderRadius.circular(style.cornerRadius);
     final shadow = style.shadowColor.a > 0
         ? <BoxShadow>[
             BoxShadow(

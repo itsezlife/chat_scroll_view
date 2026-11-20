@@ -11,7 +11,7 @@ import '../support/missing_shaders.dart';
 const _glassKey = ValueKey('glass');
 
 Widget _surface({
-  GlassMaterial material = GlassMaterial.composerIsland,
+  GlassMaterial material = GlassMaterial.island,
   ChromePalette palette = const ChromePalette.dark(),
   GlassQuality quality = GlassQuality.fullLiquid,
   bool lite = false,
@@ -125,7 +125,7 @@ void main() {
               height: 44,
               child: GlassSurface(
                 key: _glassKey,
-                material: GlassMaterial.composerIsland,
+                material: GlassMaterial.island,
                 child: SizedBox.expand(),
               ),
             ),
@@ -196,7 +196,14 @@ void main() {
     testGlassWidgets('a flat fill is the opaque theme tint of the material', (
       tester,
     ) async {
-      for (final material in GlassMaterial.values) {
+      for (final material in const [
+        GlassMaterial.island,
+        GlassMaterial.button,
+        GlassMaterial.bar,
+        GlassMaterial.menu,
+        GlassMaterial.panel,
+        GlassMaterial.bubble,
+      ]) {
         await tester.pumpWidget(
           _surface(material: material, quality: GlassQuality.flat),
         );
@@ -224,7 +231,7 @@ void main() {
             child: ChromeThemeScope(
               glass: GlassMaterialTokens.fromPalette(
                 const ChromePalette.dark(),
-              ).copyWith(panelButton: custom),
+              ).copyWith(button: custom),
               child: const GlassQualityScope(
                 quality: GlassQuality.flat,
                 child: SizedBox(
@@ -232,7 +239,7 @@ void main() {
                   height: 44,
                   child: GlassSurface(
                     key: _glassKey,
-                    material: GlassMaterial.panelButton,
+                    material: GlassMaterial.button,
                     child: SizedBox.expand(),
                   ),
                 ),
@@ -250,7 +257,7 @@ void main() {
         const Directionality(
           textDirection: TextDirection.ltr,
           child: GlassSurface(
-            material: GlassMaterial.composerIsland,
+            material: GlassMaterial.island,
             child: SizedBox(),
           ),
         ),
@@ -266,12 +273,9 @@ void main() {
         const ChromePalette.dark(),
       );
 
-      expect(
-        tokens.colorsOf(GlassMaterial.composerIsland),
-        tokens.composerIsland,
-      );
-      expect(tokens.colorsOf(GlassMaterial.panelButton), tokens.panelButton);
-      expect(tokens.colorsOf(GlassMaterial.topPanel), tokens.topPanel);
+      expect(tokens.colorsOf(GlassMaterial.island), tokens.island);
+      expect(tokens.colorsOf(GlassMaterial.button), tokens.button);
+      expect(tokens.colorsOf(GlassMaterial.bar), tokens.bar);
     });
   });
 }

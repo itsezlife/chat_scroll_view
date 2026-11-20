@@ -1,48 +1,89 @@
-import 'dart:ui' show Offset;
+import 'dart:ui' show Offset, lerpDouble;
 
-/// A named glass preset.
+import 'package:flutter/foundation.dart';
+
+/// The role whose colours a glass material takes from the theme
+/// (`GlassMaterialTokens`): the same names as the presets of
+/// [GlassMaterial].
+enum GlassColorRole {
+  /// The composer's input island.
+  island,
+
+  /// Round or pill buttons floating over content.
+  button,
+
+  /// Bars docked at an edge.
+  bar,
+
+  /// Menus and popups over a dimmed screen.
+  menu,
+
+  /// Bottom panels: the one in the keyboard's place, docked, or a popup.
+  panel,
+
+  /// Small floating labels (a fast scroll's date).
+  bubble,
+}
+
+/// What a glass surface is made of, apart from its colours: its corners,
+/// edges, shadow and effect.
 ///
-/// A material fixes what does not vary with the theme: its corners, edge
-/// widths and shadow geometry. Its colours come from `GlassMaterialTokens` in
-/// the chrome theme scope, so one brightness mechanism drives it, and the
-/// effect behind it (blur, saturation, refraction, tint opacity) follows the
-/// host's `GlassQuality`. Pick a material by role and let the theme and the
-/// quality decide the rest; there are no per-widget glass flags.
-enum GlassMaterial {
+/// A value, not a fixed list: a surface takes the preset of its role and
+/// adjusts it (`GlassMaterial.panel.copyWith(cornerRadius: 16)`), or builds
+/// its own. Its colours come from `GlassMaterialTokens` in the chrome theme
+/// scope by [colorRole] (or a surface passes its own), so one brightness
+/// mechanism drives them. The finish (blur, refraction, tint opacity by
+/// quality, lite mode, a route in motion) stays the host's `GlassQuality`:
+/// a material cannot turn refraction on where the finish has it off.
+@immutable
+final class GlassMaterial {
+  /// A material with every part given.
+  const GlassMaterial({
+    required this.colorRole,
+    required this.cornerRadius,
+    required this.strokeWidth,
+    required this.shadowBlur,
+    required this.shadowOffset,
+    this.refracts = true,
+    this.blurRadius,
+  });
+
   /// The composer input island: a stadium at the default radius on a 44 dp
   /// island.
-  composerIsland(
+  static const island = GlassMaterial(
+    colorRole: GlassColorRole.island,
     cornerRadius: 22,
     strokeWidth: 0.5,
     shadowBlur: 1,
     shadowOffset: Offset(0, 1 / 3),
-  ),
+  );
 
-  /// Round or pill buttons floating over a panel; pass `cornerRadius` of half
-  /// the button size for a circle. Casts the deepest shadow.
-  panelButton(
+  /// Round or pill buttons floating over content; a surface passes half the
+  /// button's size as its corner radius for a circle. Casts the deepest
+  /// shadow.
+  static const button = GlassMaterial(
+    colorRole: GlassColorRole.button,
     cornerRadius: 18,
     strokeWidth: 0.5,
     shadowBlur: 11 / 3,
     shadowOffset: Offset(0, 2 / 3),
-  ),
+  );
 
-  /// A bar docked at the top edge of a panel: square corners, never
-  /// refracting.
-  topPanel(
+  /// A bar docked at an edge: square corners, never refracting.
+  static const bar = GlassMaterial(
+    colorRole: GlassColorRole.bar,
     cornerRadius: 0,
     strokeWidth: 0.55,
     shadowBlur: 1,
     shadowOffset: Offset(0, 1 / 3),
     refracts: false,
-  ),
+  );
 
-  /// The message menu and its reaction strip over a dimmed screen: 12 dp
-  /// corners, 2/3 dp edges, a soft 3.5 dp shadow all round, and a blur
-  /// stronger than the frosted one (80 dp), never refracting. Its tint
-  /// opacity, edges, shadow and backdrop saturation follow the theme's
-  /// brightness (`GlassMaterialColors`).
-  messageMenu(
+  /// A menu or popup over a dimmed screen: 12 dp corners, 2/3 dp edges, a
+  /// soft 3.5 dp shadow all round, and a blur stronger than the frosted one
+  /// (80 dp), never refracting.
+  static const menu = GlassMaterial(
+    colorRole: GlassColorRole.menu,
     cornerRadius: 12,
     strokeWidth: 2 / 3,
     shadowBlur: 3.5,
@@ -51,14 +92,30 @@ enum GlassMaterial {
     blurRadius: 80,
   );
 
-  const GlassMaterial({
-    required this.cornerRadius,
-    required this.strokeWidth,
-    required this.shadowBlur,
-    required this.shadowOffset,
-    this.refracts = true,
-    this.blurRadius,
-  });
+  /// A bottom panel (in the keyboard's place, docked, a popup panel): the
+  /// island's edges and shadow, its effect running to the panel's edges;
+  /// the surface rounds its top corners (`GlassSurface.borderRadius`).
+  static const panel = GlassMaterial(
+    colorRole: GlassColorRole.panel,
+    cornerRadius: 0,
+    strokeWidth: 0.5,
+    shadowBlur: 1,
+    shadowOffset: Offset(0, 1 / 3),
+  );
+
+  /// A small floating label (a fast scroll's date): a bar's edges, never
+  /// refracting; the surface gives its corners.
+  static const bubble = GlassMaterial(
+    colorRole: GlassColorRole.bubble,
+    cornerRadius: 0,
+    strokeWidth: 0.55,
+    shadowBlur: 1,
+    shadowOffset: Offset(0, 1 / 3),
+    refracts: false,
+  );
+
+  /// The theme colours this material takes.
+  final GlassColorRole colorRole;
 
   /// The corner radius (logical px) used when a surface names none.
   final double cornerRadius;
@@ -79,4 +136,69 @@ enum GlassMaterial {
   /// The backdrop blur radius (logical px) of the material, or null for its
   /// finish's.
   final double? blurRadius;
+
+  /// A copy with the given parts replaced.
+  GlassMaterial copyWith({
+    GlassColorRole? colorRole,
+    double? cornerRadius,
+    double? strokeWidth,
+    double? shadowBlur,
+    Offset? shadowOffset,
+    bool? refracts,
+    double? blurRadius,
+  }) => GlassMaterial(
+    colorRole: colorRole ?? this.colorRole,
+    cornerRadius: cornerRadius ?? this.cornerRadius,
+    strokeWidth: strokeWidth ?? this.strokeWidth,
+    shadowBlur: shadowBlur ?? this.shadowBlur,
+    shadowOffset: shadowOffset ?? this.shadowOffset,
+    refracts: refracts ?? this.refracts,
+    blurRadius: blurRadius ?? this.blurRadius,
+  );
+
+  /// Interpolates the geometry between [a] and [b]; the colour role and the
+  /// refraction switch at the middle.
+  // Flutter's `T.lerp(a, b, t)` shape; a constructor cannot take two sources.
+  // ignore: prefer_constructors_over_static_methods
+  static GlassMaterial lerp(GlassMaterial a, GlassMaterial b, double t) =>
+      GlassMaterial(
+        colorRole: t < 0.5 ? a.colorRole : b.colorRole,
+        cornerRadius: lerpDouble(a.cornerRadius, b.cornerRadius, t)!,
+        strokeWidth: lerpDouble(a.strokeWidth, b.strokeWidth, t)!,
+        shadowBlur: lerpDouble(a.shadowBlur, b.shadowBlur, t)!,
+        shadowOffset: Offset.lerp(a.shadowOffset, b.shadowOffset, t)!,
+        refracts: t < 0.5 ? a.refracts : b.refracts,
+        blurRadius: switch ((a.blurRadius, b.blurRadius)) {
+          (final from?, final to?) => lerpDouble(from, to, t),
+          (final from, final to) => t < 0.5 ? from : to,
+        },
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GlassMaterial &&
+          colorRole == other.colorRole &&
+          cornerRadius == other.cornerRadius &&
+          strokeWidth == other.strokeWidth &&
+          shadowBlur == other.shadowBlur &&
+          shadowOffset == other.shadowOffset &&
+          refracts == other.refracts &&
+          blurRadius == other.blurRadius;
+
+  @override
+  int get hashCode => Object.hash(
+    colorRole,
+    cornerRadius,
+    strokeWidth,
+    shadowBlur,
+    shadowOffset,
+    refracts,
+    blurRadius,
+  );
+
+  @override
+  String toString() =>
+      'GlassMaterial(${colorRole.name}, radius $cornerRadius, '
+      'refracts $refracts)';
 }

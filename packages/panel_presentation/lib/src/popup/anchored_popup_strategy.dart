@@ -545,12 +545,12 @@ class _PopupBodyState extends State<_PopupBody> with TickerProviderStateMixin {
     ),
   );
 
-  // The composer's glass, or the shell's own solid background (the shell
+  // The panel's glass, or the shell's own solid background (the shell
   // fills itself when it is given no background).
   static Widget _surface(AnchoredPopupStyle style, Widget child) =>
       switch (style.surface) {
         AnchoredPopupSurface.glass => GlassSurface(
-          material: GlassMaterial.composerIsland,
+          material: GlassMaterial.panel,
           cornerRadius: style.cornerRadius,
           child: child,
         ),
