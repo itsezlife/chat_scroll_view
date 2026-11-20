@@ -332,10 +332,19 @@ class _AttachSheetState extends State<AttachSheet>
     final focus = FocusManager.instance.primaryFocus;
     if (identical(focus, _loggedFocus)) return;
     _loggedFocus = focus;
+    final route = switch (focus?.context) {
+      final context? => ModalRoute.of(context),
+      null => null,
+    };
     AttachLog.log(
       AttachLog.focus,
       'primary: ${focus == null ? 'none' : '${focus.debugLabel ?? focus.runtimeType} '
-                '(${focus.context?.widget.runtimeType})'}',
+                '(${focus.context?.widget.runtimeType})'}'
+      ' in route ${route?.settings.name ?? route?.runtimeType ?? '-'}'
+      '${route == null ? '' : ' (current ${route.isCurrent}, gesture '
+                '${route.navigator?.userGestureInProgress ?? false}, '
+                'animation ${route.animation?.status.name})'}'
+      ', can focus ${focus?.canRequestFocus}',
     );
   }
 

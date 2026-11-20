@@ -753,16 +753,8 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
     unawaited(_$shown.animateTo(show ? 1 : 0, duration: spec.duration));
   }
 
-  // The safe area goes under the caption while no panel stands below it.
-  // A raised keyboard covers the safe area too: the caption then stands on
-  // the keyboard alone, as it stands on the panel alone in its place, so the
-  // swap between them does not move it.
-  double _panelPadding(double safe, double keyboard) =>
-      widget.controller.captionPanelShown.value || keyboard > 0 ? 0 : safe;
-
   @override
   Widget build(BuildContext context) {
-    final padding = MediaQuery.paddingOf(context);
     // The keyboard's height, the panel's in its place.
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
     widget.controller.noteKeyboard(keyboard);
@@ -775,22 +767,9 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ValueListenableBuilder<bool>(
-            valueListenable: widget.controller.captionPanelShown,
-            builder: (context, _, bar) => Padding(
-              padding: EdgeInsets.only(
-                bottom: _panelPadding(
-                  padding.bottom,
-                  MediaQuery.viewInsetsOf(context).bottom,
-                ),
-              ),
-              child: bar,
-            ),
-            child: AttachCaptionBar(
-              controller: widget.controller,
-              reveal: curved,
-            ),
-          ),
+          AttachCaptionBar(controller: widget.controller, reveal: curved),
+          // Under the caption: its panel, or the safe area, whichever is
+          // taller; nothing over a raised keyboard.
           AttachCaptionPanelSlot(controller: widget.controller),
         ],
       ),
@@ -843,6 +822,11 @@ class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
   bool _mounted = false;
   bool _toKeyboard = false;
   double _keyboard = 0;
+  Timer? _$noKeyboard;
+
+  /// How long the panel's place waits for the keyboard it was handed to;
+  /// with none by then (the field could not take focus), the place goes.
+  static const Duration keyboardWait = Duration(milliseconds: 600);
 
   AttachSendController get _send => widget.controller;
 
@@ -859,6 +843,7 @@ class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
 
   @override
   void dispose() {
+    _$noKeyboard?.cancel();
     _send.captionPanelShown.removeListener(_changed);
     _$slide.dispose();
     super.dispose();
@@ -867,6 +852,7 @@ class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
   void _changed() {
     final shown = _send.captionPanelShown.value;
     final spec = ChromeMotionScope.of(context).specOf(MotionRole.panelSlide);
+    _$noKeyboard?.cancel();
     if (shown) {
       _toKeyboard = false;
       final overKeyboard = _keyboard > 0;
@@ -893,17 +879,30 @@ class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
     );
     if (_toKeyboard) {
       setState(() {});
+      _$noKeyboard = Timer(keyboardWait, () {
+        if (!mounted || !_toKeyboard || _keyboard > 0) return;
+        AttachLog.log(
+          AttachLog.panel,
+          'no keyboard came in ${keyboardWait.inMilliseconds} ms: '
+          'the place goes',
+        );
+        _send.captionPanelHandingOff = false;
+        setState(() => _toKeyboard = false);
+        _slideDown(spec);
+      });
       return;
     }
-    unawaited(
-      _$slide
-          .animateBack(0, duration: spec.duration, curve: spec.curve)
-          .orCancel
-          .then((_) {
-            if (mounted) setState(() => _mounted = false);
-          }, onError: (Object _) {}),
-    );
+    _slideDown(spec);
   }
+
+  void _slideDown(MotionSpec spec) => unawaited(
+    _$slide
+        .animateBack(0, duration: spec.duration, curve: spec.curve)
+        .orCancel
+        .then((_) {
+          if (mounted) setState(() => _mounted = false);
+        }, onError: (Object _) {}),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -912,8 +911,16 @@ class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
       AttachLog.log(AttachLog.ime, 'inset $keyboard');
       _keyboard = keyboard;
     }
-    if (!_mounted) return const SizedBox.shrink();
+    // The floor under the caption: the safe area, which a raised keyboard
+    // covers. The caption's bottom is the panel's top or this floor,
+    // whichever is higher, at every frame of every motion.
+    final floor = keyboard > 0 ? 0.0 : MediaQuery.paddingOf(context).bottom;
+    if (!_mounted) return SizedBox(height: floor);
     final height = _send.keyboardHeight;
+    Widget floored(double panel, Widget child) => SizedBox(
+      height: math.max(panel, floor),
+      child: Align(alignment: Alignment.topCenter, child: child),
+    );
     if (_toKeyboard) {
       // The keyboard rising under: what it does not cover yet stays.
       final left = math.max(0, height - keyboard).toDouble();
@@ -929,27 +936,33 @@ class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
           }
         });
       }
-      return SizedBox(
-        key: const ValueKey('attach-caption-panel-slot'),
-        width: double.infinity,
-        height: left,
+      return floored(
+        left,
+        SizedBox(
+          key: const ValueKey('attach-caption-panel-slot'),
+          width: double.infinity,
+          height: left,
+        ),
       );
     }
     final panel = _send.host.buildCaptionPanel(context, _send.caption);
-    if (panel == null) return const SizedBox.shrink();
+    if (panel == null) return SizedBox(height: floor);
     return AnimatedBuilder(
       animation: _$slide,
       child: panel,
-      builder: (context, panel) => SizedBox(
-        key: const ValueKey('attach-caption-panel-slot'),
-        width: double.infinity,
-        height: height * _$slide.value,
-        child: ClipRect(
-          child: OverflowBox(
-            alignment: Alignment.topCenter,
-            minHeight: height,
-            maxHeight: height,
-            child: panel,
+      builder: (context, panel) => floored(
+        height * _$slide.value,
+        SizedBox(
+          key: const ValueKey('attach-caption-panel-slot'),
+          width: double.infinity,
+          height: height * _$slide.value,
+          child: ClipRect(
+            child: OverflowBox(
+              alignment: Alignment.topCenter,
+              minHeight: height,
+              maxHeight: height,
+              child: panel,
+            ),
           ),
         ),
       ),

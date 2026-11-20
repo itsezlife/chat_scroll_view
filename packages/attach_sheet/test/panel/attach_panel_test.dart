@@ -827,7 +827,9 @@ void main() {
     expect(caption.richText.plain, '🙂');
 
     await tester.tap(find.bySemanticsLabel(english.showKeyboardAction));
-    await tester.pumpAndSettle();
+    // (Within the wait for the keyboard: a settle would outlast it.)
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
     expect(caption.softKeyboard.value, SoftKeyboardMode.auto);
     // Handed to the keyboard: the place stays, shrinking as it rises, so
     // the bar does not jump.
@@ -987,5 +989,129 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('emoji-page')));
     await tester.pump();
     expect(hides, 2);
+  });
+
+  testWidgets('a caption that lost its focus takes it back on a tap and on '
+      "the keyboard's return from the panel, in the same frame", (
+    tester,
+  ) async {
+    final (rig, scope) = await open(tester, host: _PanelHost());
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final send = scope.panel;
+    final caption = send.caption;
+    caption.requestFocus();
+    await tester.pump();
+    caption.focusNode.unfocus();
+    await tester.pump();
+    expect(caption.focusNode.hasFocus, isFalse);
+
+    send.captionTapped();
+    await tester.pump();
+    expect(caption.focusNode.hasFocus, isTrue);
+
+    send.toggleCaptionPanel();
+    await tester.pumpAndSettle();
+    caption.focusNode.unfocus();
+    await tester.pump();
+    send.toggleCaptionPanel();
+    // The field re-attaches with a keyboard type: a frame without focus,
+    // then focused for good.
+    await tester.pump(const Duration(milliseconds: 16));
+    for (var i = 1; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(caption.focusNode.hasFocus, isTrue, reason: 'frame $i');
+    }
+    expect(caption.softKeyboard.value, SoftKeyboardMode.auto);
+  });
+
+  testWidgets("the caption's focus node logs who unfocuses it, with a stack", (
+    tester,
+  ) async {
+    final (rig, scope) = await open(tester);
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final lines = <String>[];
+    final print = debugPrint;
+    debugPrint = (message, {wrapWidth}) => lines.add(message ?? '');
+    scope.panel.caption.requestFocus();
+    await tester.pump();
+    scope.panel.caption.focusNode.unfocus();
+    await tester.pump();
+    debugPrint = print;
+    final line = lines.firstWhere(
+      (l) => l.startsWith('[attach.focus] caption unfocus'),
+    );
+    expect(line, contains('attach_panel_test.dart'));
+  });
+
+  testWidgets("the caption's bottom is the panel's top or the safe area, "
+      'whichever is higher, at every frame of the panel opening and closing: '
+      'never a jump', (tester) async {
+    final (rig, scope) = await open(tester, host: _PanelHost(), safeBottom: 34);
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    final island = find.byKey(const ValueKey('attach-caption'));
+    double bottom() => tester.getRect(island).bottom;
+    final rest = bottom();
+    expect(rest, closeTo(screen.height - 34, 0.5), reason: 'on the safe area');
+    final english = ChromeStringsPresets.english.composer;
+
+    // Opening with no keyboard: it rises, never below its floor.
+    await tester.tap(find.bySemanticsLabel(english.showPanelAction));
+    var last = bottom();
+    final rising = <double>[];
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final now = bottom();
+      rising.add(now);
+      expect(now, lessThanOrEqualTo(last + 0.01), reason: 'rising, frame $i');
+      expect(now, lessThanOrEqualTo(rest + 0.01), reason: 'floor, frame $i');
+      last = now;
+    }
+    final up = bottom();
+    expect(up, closeTo(screen.height - scope.panel.keyboardHeight, 0.5));
+
+    // Closing with back: it goes down without first going up.
+    await tester.binding.handlePopRoute();
+    last = bottom();
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final now = bottom();
+      expect(now, greaterThanOrEqualTo(last - 0.01), reason: 'falling, $i');
+      expect(now, lessThanOrEqualTo(rest + 0.01), reason: 'floor, $i');
+      last = now;
+    }
+    expect(bottom(), closeTo(rest, 0.5));
+    expect(up, lessThan(rest - 100), reason: 'it moved');
+    expect(rising, isNotEmpty);
+  });
+
+  testWidgets("handed to a keyboard that does not come, the panel's place "
+      'goes after the wait and the caption settles on the safe area', (
+    tester,
+  ) async {
+    final (rig, scope) = await open(tester, host: _PanelHost(), safeBottom: 34);
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    final island = find.byKey(const ValueKey('attach-caption'));
+    scope.panel.toggleCaptionPanel();
+    await tester.pumpAndSettle();
+    scope.panel.toggleCaptionPanel();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    final slot = find.byKey(const ValueKey('attach-caption-panel-slot'));
+    expect(
+      tester.getSize(slot).height,
+      scope.panel.keyboardHeight,
+      reason: 'still waiting for the keyboard',
+    );
+    expect(tester.getRect(island).bottom, tester.getRect(slot).top);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(island).bottom, closeTo(screen.height - 34, 0.5));
+    expect(scope.panel.captionPanelHandingOff, isFalse);
   });
 }

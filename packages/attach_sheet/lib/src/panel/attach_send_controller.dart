@@ -33,7 +33,10 @@ final class AttachSendController {
     this.store,
   }) : options = ValueNotifier(initialOptions),
        _captionText = host.createCaptionText() {
-    caption = ComposerController(text: _captionText);
+    caption = ComposerController(
+      text: _captionText,
+      focusNode: _CaptionFocusNode(),
+    );
     AttachLog.log(
       AttachLog.caption,
       'created: inline content ${_captionText == null ? 'as text' : 'drawn'}',
@@ -172,9 +175,11 @@ final class AttachSendController {
       showCaptionKeyboard();
     } else {
       AttachLog.log(AttachLog.ime, 'keyboard show: a tap on the caption');
-      caption
-        ..setSoftKeyboard(SoftKeyboardMode.auto)
-        ..requestKeyboard();
+      caption.setSoftKeyboard(SoftKeyboardMode.auto);
+      // A field that lost its focus (to the route's scope) takes it back
+      // first: asking for the keyboard alone does not focus it.
+      if (!caption.focusNode.hasFocus) caption.requestFocus();
+      caption.requestKeyboard();
     }
   }
 
@@ -206,9 +211,9 @@ final class AttachSendController {
       "keyboard show: back in the caption panel's place",
     );
     captionPanelShown.value = false;
-    caption
-      ..setSoftKeyboard(SoftKeyboardMode.auto)
-      ..requestKeyboard();
+    caption.setSoftKeyboard(SoftKeyboardMode.auto);
+    if (!caption.focusNode.hasFocus) caption.requestFocus();
+    caption.requestKeyboard();
   }
 
   /// The panel goes, the keyboard staying down (back, a close).
@@ -403,8 +408,35 @@ final class AttachSendController {
     caption.focusNode.removeListener(_captionFocus);
     caption.text.removeListener(_captionChanged);
     caption.dispose();
+    caption.focusNode.dispose();
     _captionText?.dispose();
     options.dispose();
     refusals.dispose();
   }
+}
+
+/// The caption's focus node: it logs who takes focus away from it, with a
+/// short stack, so a device log names the caller.
+final class _CaptionFocusNode extends FocusNode {
+  _CaptionFocusNode() : super(debugLabel: 'Caption');
+
+  @override
+  void unfocus({UnfocusDisposition disposition = UnfocusDisposition.scope}) {
+    if (hasFocus) {
+      AttachLog.log(
+        AttachLog.focus,
+        'caption unfocus (${disposition.name}) from:\n${_stack()}',
+      );
+    }
+    super.unfocus(disposition: disposition);
+  }
+
+  // The first frames past this node, the framework's own left out.
+  static String _stack() => StackTrace.current
+      .toString()
+      .split('\n')
+      .skip(2)
+      .where((line) => line.trim().isNotEmpty)
+      .take(10)
+      .join('\n');
 }
