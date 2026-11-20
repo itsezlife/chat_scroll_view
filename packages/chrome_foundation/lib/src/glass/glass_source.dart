@@ -113,11 +113,19 @@ class GlassSourceLink {
   GlassSourceLink._();
 
   /// The link of the nearest [GlassSourceScope] at [context], or null outside
-  /// one. Depends on the scope. Not exported: surfaces reach the link, hosts
-  /// only place the scope.
-  static GlassSourceLink? of(BuildContext context) => context
-      .dependOnInheritedWidgetOfExactType<_GlassSourceScopeMarker>()
-      ?.link;
+  /// one, and null inside that scope's own [GlassSource]: a glass there
+  /// would read a capture holding itself (a glass inside a source takes a
+  /// scope nested in it, or filters the scene). Depends on the scope. Not
+  /// exported: surfaces reach the link, hosts only place the scope.
+  static GlassSourceLink? of(BuildContext context) {
+    final link = context
+        .dependOnInheritedWidgetOfExactType<_GlassSourceScopeMarker>()
+        ?.link;
+    final inside = context
+        .dependOnInheritedWidgetOfExactType<_GlassSourceContent>()
+        ?.link;
+    return identical(link, inside) ? null : link;
+  }
 
   /// The capture grid, in image px: a captured region's edges lie on
   /// multiples of it in the source's coordinates. At an eighth of device
@@ -198,10 +206,24 @@ class GlassSourceLink {
 
   /// This frame's capture covering [sampler]'s region, or null when there is
   /// no source, nothing painted, or the sampler reads no region.
+  ///
+  /// A sampler composited while a capture renders (one inside the captured
+  /// subtree) gets null: its capture would hold itself.
   GlassCapture? captureFor(GlassSampler sampler) {
-    if (!_frame.containsKey(sampler)) _captureFrame();
+    if (_capturing) return null;
+    if (!_frame.containsKey(sampler)) {
+      _capturing = true;
+      try {
+        _captureFrame();
+      } finally {
+        _capturing = false;
+      }
+    }
     return _frame[sampler];
   }
+
+  /// Whether a capture of the source renders now.
+  var _capturing = false;
 
   void _captureFrame() {
     final source = _source;
@@ -333,9 +355,16 @@ class GlassSourceLink {
 /// A capture renders the requested region of this subtree into a small
 /// texture of its own, so a frame never reads back its onscreen target the
 /// way a [BackdropFilter] does.
-class GlassSource extends SingleChildRenderObjectWidget {
+class GlassSource extends StatelessWidget {
   /// Wraps [child] as the sample tree of the enclosing [GlassSourceScope].
-  const GlassSource({required Widget super.child, super.key});
+  ///
+  /// A glass inside [child] does not sample this source (its capture would
+  /// hold the glass); it samples a scope nested inside [child], or filters
+  /// the scene.
+  const GlassSource({required this.child, super.key});
+
+  /// The subtree captured.
+  final Widget child;
 
   /// The scale, relative to the frame, at which a frosted glass captures
   /// this subtree: its content is drawn a second time at that scale.
@@ -351,21 +380,43 @@ class GlassSource extends SingleChildRenderObjectWidget {
       1 / GlassStyle.refractingSourceDownscale;
 
   @override
+  Widget build(BuildContext context) {
+    final link = GlassSourceLink.of(context);
+    assert(link != null, 'GlassSource needs a GlassSourceScope ancestor.');
+    return _GlassSourceBoundary(
+      link: link!,
+      child: _GlassSourceContent(link: link, child: child),
+    );
+  }
+}
+
+/// Marks the subtree of the [GlassSource] of [link], whose glass must not
+/// sample it.
+class _GlassSourceContent extends InheritedWidget {
+  const _GlassSourceContent({required this.link, required super.child});
+
+  final GlassSourceLink link;
+
+  @override
+  bool updateShouldNotify(_GlassSourceContent oldWidget) =>
+      !identical(link, oldWidget.link);
+}
+
+class _GlassSourceBoundary extends SingleChildRenderObjectWidget {
+  const _GlassSourceBoundary({required this.link, required super.child});
+
+  final GlassSourceLink link;
+
+  @override
   RenderGlassSource createRenderObject(BuildContext context) =>
-      RenderGlassSource(link: _linkOf(context));
+      RenderGlassSource(link: link);
 
   @override
   void updateRenderObject(
     BuildContext context,
     RenderGlassSource renderObject,
   ) {
-    renderObject.link = _linkOf(context);
-  }
-
-  static GlassSourceLink _linkOf(BuildContext context) {
-    final link = GlassSourceLink.of(context);
-    assert(link != null, 'GlassSource needs a GlassSourceScope ancestor.');
-    return link!;
+    renderObject.link = link;
   }
 }
 

@@ -6,6 +6,16 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (glass inside its source)
+
+- A glass inside the `GlassSource` of its own scope no longer samples it.
+  Its capture held the glass, whose compositing captured again, without
+  end (a stack overflow each frame, the UI frozen). `GlassSourceLink.of`
+  is null there: such a glass samples a `GlassSourceScope` nested inside
+  the source, or filters the scene. A sampler composited while a capture
+  renders gets no capture. `GlassSource` is a `StatelessWidget` now (its
+  render object is still `RenderGlassSource`).
+
 ### Fixed (glass fade)
 
 - A glass that fades in no longer shows its bare tint first. An `Opacity`

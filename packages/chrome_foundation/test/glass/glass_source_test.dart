@@ -555,6 +555,143 @@ void main() {
       },
     );
 
+    testGlassWidgets('a glass inside the source never samples the source '
+        'it is in; one outside does', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: _themed(
+            const GlassSourceScope(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: GlassSource(
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: ColoredBox(color: Color(0xFF3366FF)),
+                          ),
+                          Align(
+                            alignment: Alignment.topCenter,
+                            child: SizedBox(
+                              width: 100,
+                              height: 30,
+                              child: GlassSurface(
+                                key: ValueKey('inner'),
+                                material: GlassMaterial.bubble,
+                                child: SizedBox.expand(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SizedBox(
+                      width: 200,
+                      height: 44,
+                      child: GlassSurface(
+                        key: ValueKey('outer'),
+                        material: GlassMaterial.island,
+                        child: SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      bool samples(String key) => find
+          .descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(SampledGlassBackdrop),
+          )
+          .evaluate()
+          .isNotEmpty;
+      expect(samples('outer'), isTrue);
+      expect(samples('inner'), isFalse);
+      expect(tester.takeException(), isNull);
+    });
+
+    testGlassWidgets('a glass inside the source samples a scope nested there', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: _themed(
+            const GlassSourceScope(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: GlassSource(
+                      child: GlassSourceScope(
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: GlassSource(
+                                child: ColoredBox(color: Color(0xFF3366FF)),
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.bottomCenter,
+                              child: SizedBox(
+                                width: 100,
+                                height: 30,
+                                child: GlassSurface(
+                                  key: ValueKey('inner'),
+                                  material: GlassMaterial.bubble,
+                                  child: SizedBox.expand(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SizedBox(
+                      width: 200,
+                      height: 44,
+                      child: GlassSurface(
+                        key: ValueKey('outer'),
+                        material: GlassMaterial.island,
+                        child: SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      for (final key in ['inner', 'outer']) {
+        expect(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(SampledGlassBackdrop),
+          ),
+          findsOneWidget,
+          reason: key,
+        );
+      }
+      expect(_readsBackdrop(tester), isFalse);
+      expect(tester.takeException(), isNull);
+    });
+
     testGlassWidgets('filters the scene when the backend cannot capture', (
       tester,
     ) async {
