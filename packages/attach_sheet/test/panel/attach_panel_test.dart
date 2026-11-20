@@ -722,4 +722,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getRect(fade).bottom, closeTo(screen.height, 0.5));
   });
+
+  testWidgets('Android: the caption raising the keyboard takes the sheet to '
+      'its top, and the caption bar stands on the keyboard', (tester) async {
+    final (rig, scope) = await open(tester);
+    rig.selection.toggle(AttachItems.photo('p'));
+    await tester.pumpAndSettle();
+    expect(rig.top, greaterThan(24));
+
+    scope.panel.caption.focusNode.requestFocus();
+    tester.view.viewInsets = FakeViewPadding(
+      bottom: 300 * tester.view.devicePixelRatio,
+    );
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+    expect(rig.top, 24, reason: 'expanded');
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    final bar = tester.getRect(find.byKey(const ValueKey('attach-sheet-bar')));
+    expect(bar.bottom, closeTo(screen.height - 300, 0.5));
+    final send = tester.getRect(find.byKey(const ValueKey('attach-send')));
+    expect(send.bottom, lessThanOrEqualTo(screen.height - 300));
+  });
 }

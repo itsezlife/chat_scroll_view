@@ -986,7 +986,8 @@ class _AttachSheetState extends State<AttachSheet>
       key: const ValueKey('attach-sheet-bar'),
       left: 0,
       right: 0,
-      bottom: 0,
+      // On the keyboard, as the chat's composer sits on it.
+      bottom: MediaQuery.viewInsetsOf(context).bottom,
       child: Opacity(
         opacity: _contentOpacity,
         child: Transform.translate(
@@ -1073,9 +1074,13 @@ class _ContentInsets extends StatelessWidget {
       child: child,
       builder: (context, extent, child) {
         final media = MediaQuery.of(context);
+        // The bar stands on the keyboard: the page keeps clear of both.
         return MediaQuery(
           data: media.copyWith(
-            padding: media.padding.copyWith(top: 0, bottom: extent),
+            padding: media.padding.copyWith(
+              top: 0,
+              bottom: extent + media.viewInsets.bottom,
+            ),
           ),
           child: child!,
         );

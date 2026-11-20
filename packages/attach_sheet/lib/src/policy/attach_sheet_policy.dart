@@ -534,8 +534,9 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   @override
   Duration? get keyboardReopenDelay => const Duration(milliseconds: 200);
 
+  /// The keyboard the caption raises takes the sheet to its top.
   @override
-  bool get expandsOnCaptionFocus => false;
+  bool get expandsOnCaptionFocus => true;
 
   /// A pill 70 tall with radius 28 and 7 inside, 11 from the sides; the
   /// tabs pop in staggered by 32 ms; the bar drops 36 and fades over
