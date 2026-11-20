@@ -328,31 +328,31 @@ class _GalleryViewState extends State<GalleryView> {
   /// The viewer's bottom slot: the panel's caption and Send; Send with
   /// nothing selected selects the item shown first.
   ///
-  /// Over the media it is the floating caption bar in the night palette,
-  /// on the safe area's bottom, and on the keyboard's top while it is up
-  /// (the viewer lifts the slot by the keyboard).
-  Widget _viewerSlot(BuildContext context, PickerViewerItem item) {
-    final media = MediaQuery.of(context);
-    final keyboard = media.viewInsets.bottom > 0;
-    return ChromeThemeScope(
-      palette: const ChromePalette.dark(),
-      child: ChromeTextRoot(
-        child: Padding(
-          key: const ValueKey('attach-viewer-slot'),
-          padding: EdgeInsets.only(bottom: keyboard ? 0 : media.padding.bottom),
-          child: _ViewerCaption(
-            controller: widget.panel,
-            beforeSend: () {
-              if (_selection.isNotEmpty) return;
-              if (item.asset case final asset?) {
-                _selection.toggle(AttachPickerSelection.itemOf(asset));
-              }
-            },
+  /// Over the media it is the floating caption bar in the night palette.
+  /// The viewer places the slot at the keyboard's top or the safe area's,
+  /// whichever is higher, so the slot pads neither: a safe area padded here
+  /// too would set the bar's rest a safe area higher than where it stands
+  /// on a keyboard going down, and it would dip and come back.
+  Widget _viewerSlot(BuildContext context, PickerViewerItem item) =>
+      ChromeThemeScope(
+        palette: const ChromePalette.dark(),
+        child: ChromeTextRoot(
+          child: MediaQuery.removePadding(
+            key: const ValueKey('attach-viewer-slot'),
+            context: context,
+            removeBottom: true,
+            child: _ViewerCaption(
+              controller: widget.panel,
+              beforeSend: () {
+                if (_selection.isNotEmpty) return;
+                if (item.asset case final asset?) {
+                  _selection.toggle(AttachPickerSelection.itemOf(asset));
+                }
+              },
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
 
   /// Opens the viewer over the picks, at the [index]th.
   Future<void> _openSelected(MediaKey key, int index) async {

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:math' as math;
+
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
@@ -55,10 +57,12 @@ void main() {
     GalleryCamera? camera,
     PlayerPool? players,
     Size size = const Size(400, 800),
+    bool viewBottomPadding = false,
   }) async {
     final rig = await PagesRig.open(
       tester,
       size: size,
+      viewBottomPadding: viewBottomPadding,
       policy: const AttachSheetPolicy.android(),
       limits: limits,
       host: host,
@@ -332,6 +336,56 @@ void main() {
       'library:${FakeMediaLibrary.assetAt(1).id.value}',
       'library:${FakeMediaLibrary.assetAt(0).id.value}',
     ]);
+  });
+
+  testWidgets("the viewer's caption bar stands at max(keyboard, safe area) "
+      'over the bottom at every frame of the keyboard going from 358 to 0: '
+      'no dip below its rest', (tester) async {
+    final rig = await open(
+      tester,
+      size: const Size(800, 1200),
+      viewBottomPadding: true,
+    );
+    rig.selection.toggle(AttachItems.file('f'));
+    final ratio = tester.view.devicePixelRatio;
+    tester.view
+      ..padding = FakeViewPadding(bottom: 34 * ratio)
+      ..viewPadding = FakeViewPadding(bottom: 34 * ratio);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.tap(cell(1));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final screen = tester.view.physicalSize.height / ratio;
+    final pill = find.descendant(
+      of: find.byKey(const ValueKey('attach-viewer-slot')),
+      matching: find.byKey(const ValueKey('attach-caption')),
+    );
+    double lift() => screen - tester.getRect(pill).bottom;
+    final rest = lift();
+    expect(rest, closeTo(34, 0.5), reason: 'on the safe area, once');
+
+    tester.view
+      ..padding = FakeViewPadding.zero
+      ..viewInsets = FakeViewPadding(bottom: 358 * ratio);
+    await tester.pump();
+    final up = lift();
+    expect(up - rest, closeTo(358 - 34, 0.5), reason: 'on the keyboard');
+    for (var inset = 358.0; inset >= 0; inset -= 17) {
+      final now = inset < 17 ? 0.0 : inset;
+      tester.view
+        ..viewInsets = FakeViewPadding(bottom: now * ratio)
+        ..padding = FakeViewPadding(bottom: math.max(0, 34 - now) * ratio);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(
+        lift(),
+        closeTo(rest + math.max(now, 34) - 34, 0.5),
+        reason: 'keyboard $now',
+      );
+    }
+    expect(lift(), closeTo(rest, 0.5));
   });
 
   testWidgets('the header carries the album switcher', (tester) async {

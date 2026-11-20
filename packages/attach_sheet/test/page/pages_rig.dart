@@ -53,6 +53,7 @@ final class PagesRig {
     content.RichText initialCaption = content.RichText.empty,
     SendOptionStore? optionStore,
     Widget Function(Widget app)? wrap,
+    bool viewBottomPadding = false,
   }) async {
     tester.view
       ..physicalSize = size * 3
@@ -63,9 +64,16 @@ final class PagesRig {
     await tester.pumpWidget(
       MaterialApp(
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(padding: const EdgeInsets.only(top: 24)),
+          data: MediaQuery.of(context).copyWith(
+            // With [viewBottomPadding] the view's bottom padding stays, as
+            // on a device with a gesture bar.
+            padding: EdgeInsets.only(
+              top: 24,
+              bottom: viewBottomPadding
+                  ? MediaQuery.paddingOf(context).bottom
+                  : 0,
+            ),
+          ),
           child: ChromeThemeScope(
             palette: const ChromePalette.light(),
             child: ChromeStringsScope(
