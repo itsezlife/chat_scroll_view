@@ -49,47 +49,47 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/http_bytes_cache
-      ref: fa53c71180130c67d75ea7134113d2bbecc684e7
+      ref: 8e6e4c668fb39c067cfa02781d1a1e1096580445
   mpx:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx
-      ref: fa53c71180130c67d75ea7134113d2bbecc684e7
+      ref: 8e6e4c668fb39c067cfa02781d1a1e1096580445
   mpx_core:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: fa53c71180130c67d75ea7134113d2bbecc684e7
+      ref: 8e6e4c668fb39c067cfa02781d1a1e1096580445
   mpx_capture:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_capture
-      ref: fa53c71180130c67d75ea7134113d2bbecc684e7
+      ref: 8e6e4c668fb39c067cfa02781d1a1e1096580445
   mpx_library:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_library
-      ref: fa53c71180130c67d75ea7134113d2bbecc684e7
+      ref: 8e6e4c668fb39c067cfa02781d1a1e1096580445
   mpx_lottie:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_lottie
-      ref: fa53c71180130c67d75ea7134113d2bbecc684e7
+      ref: 8e6e4c668fb39c067cfa02781d1a1e1096580445
   mpx_player:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_player
-      ref: fa53c71180130c67d75ea7134113d2bbecc684e7
+      ref: 8e6e4c668fb39c067cfa02781d1a1e1096580445
   mpx_ui:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_ui
-      ref: fa53c71180130c67d75ea7134113d2bbecc684e7
+      ref: 8e6e4c668fb39c067cfa02781d1a1e1096580445
   mpx_video_decoder:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_video_decoder
-      ref: fa53c71180130c67d75ea7134113d2bbecc684e7
+      ref: 8e6e4c668fb39c067cfa02781d1a1e1096580445
   panel_catalog:
     path: ../packages/panel_catalog
   panel_pages:
