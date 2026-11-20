@@ -409,7 +409,9 @@ void main() {
       var now = const Duration(seconds: 10);
       render(tester).debugFrameTime = () => now;
       producer.last
-        ..transfer(100, 100)
+        // Part of the bytes: a download whose bytes are all in is done and
+        // shows no progress.
+        ..transfer(60, 100)
         ..advance(AssetStage.placeholder);
       await tester.pump();
       producer.last.advance(AssetStage.firstFrame);
