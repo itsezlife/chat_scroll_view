@@ -15,6 +15,7 @@ export 'src/files/files_page.dart';
 export 'src/files/intake_items.dart';
 export 'src/gallery/attach_picker_selection.dart';
 export 'src/gallery/gallery_page.dart';
+export 'src/host/attach_caption_dock.dart';
 export 'src/host/attach_discard_question.dart';
 export 'src/host/attach_sheet_host.dart';
 export 'src/page/attach_page.dart';

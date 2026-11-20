@@ -6,6 +6,15 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `KeyboardPanelDock` and `KeyboardPanelField`: the swap between a field's
+  soft keyboard and the panel in its place (the button, the hand-off with
+  the panel held until the keyboard rose, staying on the panel, holding the
+  keyboard back and lowering a raised one, the field's tap arming, back
+  during a hand-off), for any host that docks a field over a
+  keyboard-replacing panel.
+
 ### Changed (a phone's browser shows the panel as a phone does)
 
 - `PanelPresentationPolicy$Web` (`PanelPresentationPolicy.web()`), the

@@ -298,7 +298,7 @@ class _ConfirmBoxViewState extends State<ConfirmBoxView> {
                             backgroundColor: palette.surfaceDim,
                           ),
                   ),
-                  AttachCaptionBar(controller: _box.panel, offersPanel: false),
+                  AttachCaptionBar(controller: _box.panel),
                   if (_style.options == ConfirmBoxOptions.checkboxes)
                     Align(
                       alignment: AlignmentDirectional.centerEnd,

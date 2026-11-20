@@ -64,8 +64,6 @@ import 'common/scroll_lab_glass_test.dart' as scroll_lab_glass_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
 import 'features/chat/bundled_packs_test.dart' as bundled_packs_test;
-import 'features/chat/caption_emoji_panel_test.dart'
-    as caption_emoji_panel_test;
 import 'features/chat/chat_attach_back_test.dart' as chat_attach_back_test;
 import 'features/chat/chat_attach_messages_test.dart'
     as chat_attach_messages_test;
@@ -74,6 +72,7 @@ import 'features/chat/chat_attach_ownership_test.dart'
 import 'features/chat/chat_body_host_test.dart' as chat_body_host_test;
 import 'features/chat/chat_body_markdown_test.dart' as chat_body_markdown_test;
 import 'features/chat/chat_bulletins_test.dart' as chat_bulletins_test;
+import 'features/chat/chat_caption_dock_test.dart' as chat_caption_dock_test;
 import 'features/chat/chat_composer_spec_test.dart' as chat_composer_spec_test;
 import 'features/chat/chat_copy_test.dart' as chat_copy_test;
 import 'features/chat/chat_data_source_bodies_test.dart'
@@ -582,8 +581,8 @@ void main() {
     widget_chat_screen_source_test.main,
   );
   group(
-    'features/chat/caption_emoji_panel_test.dart',
-    caption_emoji_panel_test.main,
+    'features/chat/chat_caption_dock_test.dart',
+    chat_caption_dock_test.main,
   );
   group('features/chat/chat_attach_back_test.dart', chat_attach_back_test.main);
   group(

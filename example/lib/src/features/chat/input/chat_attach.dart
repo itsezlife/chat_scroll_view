@@ -9,7 +9,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart';
-import 'package:chat_scroll_view_example/src/features/chat/input/caption_emoji_panel.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_caption_dock.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -71,22 +71,11 @@ abstract final class ChatAttachMessages {
 
 /// Takes a back press for the keyboard when one is up over [view]: the
 /// focused field lets go, which takes the keyboard down. False with no
-/// keyboard up, and false while [caption]'s panel stands in the keyboard's
-/// place (its soft keyboard held back): the back is then the surface's,
-/// which closes that panel first.
+/// keyboard up (the back is the surface's).
 @visibleForTesting
-bool keyboardTakesBack(FlutterView view, {ComposerController? caption}) {
+bool keyboardTakesBack(FlutterView view) {
   final focus = FocusManager.instance.primaryFocus;
   if (view.viewInsets.bottom <= 0 || focus == null) return false;
-  if (caption != null &&
-      caption.focusNode.hasFocus &&
-      caption.softKeyboard.value == SoftKeyboardMode.suppressed) {
-    AttachLog.log(
-      AttachLog.chat,
-      "back: the caption's panel is in the keyboard's place, not the keyboard",
-    );
-    return false;
-  }
   focus.unfocus();
   return true;
 }
@@ -149,8 +138,9 @@ final class ChatAttach extends AttachSheetHost {
 
   // The sheet's back claim, on top of the chat's own while the sheet is up.
   ChatPreImeBackClaim? _backClaim;
-  // The open sheet's caption, as its panel builder last saw it.
-  ComposerController? _caption;
+  // The view the open sheet is in, and its caption's dock.
+  FlutterView? _view;
+  ChatCaptionDock? _dock;
   ValueGetter<Future<bool>>? _back;
 
   /// The sheet or box family of this platform.
@@ -225,12 +215,16 @@ final class ChatAttach extends AttachSheetHost {
     final navigator = Navigator.of(context);
     final view = View.of(context);
     Future<bool> back() async {
-      if (keyboardTakesBack(view, caption: _caption)) return true;
+      // The caption's dock first, in the chat's order (its panel, a
+      // hand-off under way); then a raised keyboard; then the sheet.
+      if (_dock?.handleBack() ?? false) return true;
+      if (keyboardTakesBack(view)) return true;
       unawaited(navigator.maybePop());
       return true;
     }
 
     _back = back;
+    _view = view;
     _backClaim = ChatPreImeBackClaim.push(back);
     final AttachOutcome outcome;
     try {
@@ -271,7 +265,8 @@ final class ChatAttach extends AttachSheetHost {
       _backClaim?.pop();
       _backClaim = null;
       _back = null;
-      _caption = null;
+      _view = null;
+      _dock = null;
     }
     await _finish(outcome, library: library);
   }
@@ -417,9 +412,14 @@ final class ChatAttach extends AttachSheetHost {
   // The caption's emoji button brings the chat's emoji page, alone, in the
   // keyboard's place.
   @override
-  Widget? buildCaptionPanel(BuildContext context, ComposerController caption) {
-    _caption = caption;
-    return CaptionEmojiPanel(services: services, caption: caption);
+  AttachCaptionDock? createCaptionDock(ComposerController caption) {
+    final view = _view;
+    if (view == null) return null;
+    return _dock = ChatCaptionDock(
+      services: services,
+      view: view,
+      caption: caption,
+    );
   }
 
   // The caption draws inline content as the chat's composer does: custom

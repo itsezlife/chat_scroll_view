@@ -1,4 +1,5 @@
 import 'package:attach_model/attach_model.dart';
+import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/host/attach_discard_question.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
@@ -67,11 +68,12 @@ base class AttachSheetHost {
   /// owns and disposes it.
   ComposerTextController? createCaptionText() => null;
 
-  /// The caption's panel (an emoji page) for [caption], shown in the
-  /// keyboard's place when its button is pressed; null for no panel and no
-  /// button. What it picks goes into [caption].
-  Widget? buildCaptionPanel(BuildContext context, ComposerController caption) =>
-      null;
+  /// The dock under a caption bar for [caption]: the keyboard's place and
+  /// the panel (an emoji page) that can take it, the host's composer stack.
+  /// Asked once per bar (the sheet's, the viewer's); the bar disposes it.
+  /// Null for no panel and no button: the bar stands on the safe area and
+  /// on the keyboard's inset.
+  AttachCaptionDock? createCaptionDock(ComposerController caption) => null;
 
   /// Ask whether to drop a non-empty selection, in [wording]; true drops it
   /// and closes the sheet. The default shows [AttachDiscardQuestion].

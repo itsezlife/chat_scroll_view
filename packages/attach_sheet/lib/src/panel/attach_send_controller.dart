@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/debug/attach_log.dart';
+import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/policy/attach_panel_style.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 
@@ -85,7 +85,7 @@ final class AttachSendController {
   // Logs each change of the inline content the caption holds.
   void _captionChanged() {
     // Typed from the panel: no handle stays up over the caption.
-    if (captionPanelShown.value) caption.hideSelectionUi();
+    if (captionDock?.panelUp ?? false) caption.hideSelectionUi();
     final rich = caption.richText;
     final inline = rich.entities
         .where((e) => e.kind is EntityKind$InlineContent)
@@ -109,144 +109,32 @@ final class AttachSendController {
   /// selection empties.
   final ValueNotifier<bool> previewingSelection = ValueNotifier(false);
 
-  /// Whether the caption's panel stands in the keyboard's place.
-  final ValueNotifier<bool> captionPanelShown = ValueNotifier(false);
-
-  /// The keyboard's last full height, the panel's height in its place; a
-  /// keyboard's usual height until one has shown.
-  double keyboardHeight = 280;
-
-  // The tallest inset of the keyboard up now: a keyboard on its way up or
-  // down reports less than its height, which is never the panel's.
-  double _rising = 0;
-
-  /// Tells the controller the keyboard's inset now. A keyboard's full
-  /// height is the tallest inset it reaches while up: while it is on its
-  /// way up or down the height known before holds (never less), and once it
-  /// is down its tallest inset becomes the height.
-  void noteKeyboard(double inset) {
-    if (captionPanelHandingOff) return;
-    if (inset <= 0) {
-      if (_rising > 0) keyboardHeight = _rising;
-      _rising = 0;
-      return;
-    }
-    if (inset > _rising) _rising = inset;
-    if (_rising > keyboardHeight) keyboardHeight = _rising;
+  /// The dock under the sheet's caption bar, the host's; null with no
+  /// panel.
+  late final AttachCaptionDock? captionDock = _makeDock();
+  bool _dockMade = false;
+  AttachCaptionDock? _makeDock() {
+    _dockMade = true;
+    return host.createCaptionDock(caption);
   }
 
-  /// The caption's button: the panel takes the keyboard's place (the field
-  /// keeps focus and its caret, with no soft keyboard), or gives it back to
-  /// the keyboard.
-  void toggleCaptionPanel() {
-    AttachLog.log(
-      AttachLog.panel,
-      'toggle: ${captionPanelShown.value ? 'to keyboard' : 'to panel'} '
-      '(focus ${caption.focusNode.hasFocus}, height $keyboardHeight)',
-    );
-    if (captionPanelShown.value) {
-      showCaptionKeyboard();
-    } else {
-      caption.setSoftKeyboard(SoftKeyboardMode.suppressed);
-      if (caption.focusNode.hasFocus) {
-        unawaited(
-          SystemChannels.textInput.invokeMethod<void>('TextInput.hide'),
-        );
-      } else {
-        // The focus lands before the field is rebuilt with no keyboard
-        // type: focused now, it would attach with a keyboard, which comes
-        // up over the panel. Focused after the frame that rebuilds it, it
-        // attaches with none.
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (_$disposed || !captionPanelShown.value) return;
-          if (!caption.focusNode.hasFocus) caption.requestFocus();
-        });
-        SchedulerBinding.instance.scheduleFrame();
-      }
-      AttachLog.log(
-        AttachLog.ime,
-        'keyboard hide: the caption panel took its place',
-      );
-      // The handle a tap left goes with the keyboard: the panel types now.
-      caption.hideSelectionUi();
-      captionPanelHandingOff = false;
-      captionPanelShown.value = true;
-    }
-  }
-
-  /// A tap on the caption field: the keyboard comes back in the panel's
-  /// place, or comes up for a field focused while its keyboard was held
-  /// back (as the chat's field answers a tap while its panel is up).
+  /// A tap on the caption field: a field that lost its focus takes it back
+  /// and asks for its keyboard (the dock then gives the panel's place back).
   void captionTapped() {
     AttachLog.log(
       AttachLog.caption,
-      'tap (panel ${captionPanelShown.value ? 'up' : 'down'}, focus '
+      'tap (panel ${captionDock?.panelUp ?? false ? 'up' : 'down'}, focus '
       '${caption.focusNode.hasFocus}, soft keyboard '
       '${caption.softKeyboard.value.name})',
     );
-    if (captionPanelShown.value) {
-      showCaptionKeyboard();
-    } else {
-      AttachLog.log(AttachLog.ime, 'keyboard show: a tap on the caption');
-      caption.setSoftKeyboard(SoftKeyboardMode.auto);
-      // A field that lost its focus (to the route's scope) takes it back
-      // first: asking for the keyboard alone does not focus it.
-      if (!caption.focusNode.hasFocus) caption.requestFocus();
-      caption.requestKeyboard();
+    final dock = captionDock;
+    if (dock != null && dock.panelUp) {
+      dock.onFieldTap();
+      return;
     }
-  }
-
-  /// A pointer went down on the caption field: while the panel is up the
-  /// keyboard is allowed at once, so the focus the tap brings attaches with
-  /// a keyboard type.
-  void captionPointerDown() {
-    if (captionPanelShown.value) {
-      caption.setSoftKeyboard(SoftKeyboardMode.auto);
-    }
-  }
-
-  /// Whether the panel last went for the keyboard (its place handed over)
-  /// rather than away (back, a close).
-  bool get captionPanelLeftForKeyboard => _leftForKeyboard;
-  bool _leftForKeyboard = false;
-
-  /// Whether the panel's place is going to the rising keyboard now: its
-  /// height is not a resting keyboard's to remember.
-  bool captionPanelHandingOff = false;
-
-  /// The keyboard back in the panel's place.
-  void showCaptionKeyboard() {
-    _leftForKeyboard = true;
-    captionPanelHandingOff = true;
-    AttachLog.log(AttachLog.panel, 'keyboard back in the panel place');
-    AttachLog.log(
-      AttachLog.ime,
-      "keyboard show: back in the caption panel's place",
-    );
-    captionPanelShown.value = false;
-    caption.setSoftKeyboard(SoftKeyboardMode.auto);
     if (!caption.focusNode.hasFocus) caption.requestFocus();
     caption.requestKeyboard();
-  }
-
-  /// A keyboard came up under the shown panel: it takes the panel's place
-  /// as if the button had asked for it, the panel covered from the bottom.
-  void keyboardTookCaptionPanelPlace() {
-    if (!captionPanelShown.value) return;
-    AttachLog.log(AttachLog.panel, 'a keyboard rose: it takes the panel place');
-    _leftForKeyboard = true;
-    captionPanelHandingOff = true;
-    captionPanelShown.value = false;
-    caption.setSoftKeyboard(SoftKeyboardMode.auto);
-  }
-
-  /// The panel goes, the keyboard staying down (back, a close).
-  void closeCaptionPanel() {
-    if (!captionPanelShown.value) return;
-    AttachLog.log(AttachLog.panel, 'closed, the keyboard staying down');
-    _leftForKeyboard = false;
-    captionPanelShown.value = false;
-    caption.setSoftKeyboard(SoftKeyboardMode.auto);
+    dock?.onFieldTap();
   }
 
   /// Whether a page can show the selected-items preview (a Gallery is
@@ -428,9 +316,9 @@ final class AttachSendController {
     _$disposed = true;
     selection.changes.removeListener(_selectionChanged);
     previewingSelection.dispose();
-    captionPanelShown.dispose();
     caption.focusNode.removeListener(_captionFocus);
     caption.text.removeListener(_captionChanged);
+    if (_dockMade) captionDock?.dispose();
     caption.dispose();
     caption.focusNode.dispose();
     _captionText?.dispose();

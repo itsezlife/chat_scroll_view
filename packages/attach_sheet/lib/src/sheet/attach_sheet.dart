@@ -47,6 +47,7 @@ class AttachSheet extends StatefulWidget {
     this.opening = const AttachSheetOpening(),
     this.header,
     this.bottomBar,
+    this.bottomBarHoldsKeyboard = false,
     super.key,
   });
 
@@ -81,6 +82,11 @@ class AttachSheet extends StatefulWidget {
 
   /// The bar at the bottom edge (tabs, caption and send).
   final Widget? bottomBar;
+
+  /// Whether [bottomBar] holds the soft keyboard's place itself (a caption
+  /// dock under it): it then stands at the screen's bottom, not on the
+  /// keyboard's inset, and the page keeps clear of the bar alone.
+  final bool bottomBarHoldsKeyboard;
 
   /// Pushes a sheet of [pages] over [context]'s navigator, with the tab
   /// bar at the bottom (the attach panel in its place while something is
@@ -949,6 +955,7 @@ class _AttachSheetState extends State<AttachSheet>
                           barExtent: widget.bottomBar == null
                               ? null
                               : _$barExtent,
+                          barHoldsKeyboard: widget.bottomBarHoldsKeyboard,
                           child: content!,
                         ),
                       ),
@@ -1041,8 +1048,11 @@ class _AttachSheetState extends State<AttachSheet>
       key: const ValueKey('attach-sheet-bar'),
       left: 0,
       right: 0,
-      // On the keyboard, as the chat's composer sits on it.
-      bottom: MediaQuery.viewInsetsOf(context).bottom,
+      // On the keyboard, as the chat's composer sits on it; a bar that
+      // holds the keyboard's place stands on the bottom.
+      bottom: widget.bottomBarHoldsKeyboard
+          ? 0
+          : MediaQuery.viewInsetsOf(context).bottom,
       child: Opacity(
         opacity: _contentOpacity,
         child: Transform.translate(
@@ -1109,9 +1119,14 @@ class _AttachSheetState extends State<AttachSheet>
 /// area), so a page's scrollable keeps its last row clear of the floating
 /// bar as the bar grows and shrinks.
 class _ContentInsets extends StatelessWidget {
-  const _ContentInsets({required this.barExtent, required this.child});
+  const _ContentInsets({
+    required this.barExtent,
+    required this.barHoldsKeyboard,
+    required this.child,
+  });
 
   final ValueListenable<double>? barExtent;
+  final bool barHoldsKeyboard;
   final Widget child;
 
   @override
@@ -1134,7 +1149,9 @@ class _ContentInsets extends StatelessWidget {
           data: media.copyWith(
             padding: media.padding.copyWith(
               top: 0,
-              bottom: extent + media.viewInsets.bottom,
+              bottom: barHoldsKeyboard
+                  ? extent
+                  : extent + media.viewInsets.bottom,
             ),
           ),
           child: child!,

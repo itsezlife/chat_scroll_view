@@ -544,6 +544,5 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
   Widget build(BuildContext context) => AttachCaptionBar(
     controller: widget.controller,
     beforeSend: widget.beforeSend,
-    offersPanel: false,
   );
 }

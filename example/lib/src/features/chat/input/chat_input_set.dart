@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:developer' as dev;
-import 'dart:math' as math;
 import 'dart:ui' show FlutterView;
 
 import 'package:attach_sheet/attach_sheet.dart' show AttachLog;
@@ -14,6 +13,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
         RemoveBatchMutation;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/common/ime_sample_feed.dart';
 import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
@@ -353,17 +353,12 @@ final class ChatInputSet {
        _window = window,
        _text = text,
        linkPreview = ChatLinkPreview(text: text) {
-    StreamSubscription<double>? heights;
-    StreamSubscription<bool>? motion;
+    ImeSampleFeed? feed;
     StreamSubscription<PanelEvent>? panelEvents;
     KeyboardPanelDock? dock;
     try {
       // A screen opened with the keyboard already up has no stream event yet.
-      _lastImeHeight = keyboardPort.restingHeight;
-      _imeHeights = heights = keyboardPort.heights.listen(_onImeHeight);
-      _imeMotion = motion = keyboardPort.animatingChanges.listen(
-        (_) => _reportIme(),
-      );
+      _imeFeed = feed = ImeSampleFeed(keyboard: keyboardPort, ime: ime);
       _dock = dock = KeyboardPanelDock(
         presentation: presentation,
         keyboard: keyboardStrategy,
@@ -379,8 +374,7 @@ final class ChatInputSet {
       composer.text.addListener(_onComposerText);
     } on Object {
       // The factory frees what it passed in; the rest is this object's.
-      unawaited(heights?.cancel());
-      unawaited(motion?.cancel());
+      feed?.dispose();
       unawaited(panelEvents?.cancel());
       shell.autoHideHolds.removeListener(_onPanelHolds);
       shell.search.removeListener(_onSearchState);
@@ -493,16 +487,13 @@ final class ChatInputSet {
   final ValueNotifier<ChatFormatOffer?> _formatOffer =
       ValueNotifier<ChatFormatOffer?>(null);
 
-  late StreamSubscription<double> _imeHeights;
+  late final ImeSampleFeed _imeFeed;
   // The end of the keyboard's motion, which can come with no height of its
   // own: without it, the last reading stays "animating" and the slot never
   // sees the keyboard at rest, so it neither confirms a hand-off nor
   // remembers the height a cold open needs.
-  late StreamSubscription<bool> _imeMotion;
   late StreamSubscription<PanelEvent> _panelEvents;
   late final KeyboardPanelDock _dock;
-  double _lastImeHeight = 0;
-  double _safeBottom = 0;
   ChatPreImeBackClaim? _backClaim;
   PanelAutoHideHold? _autoHideHold;
   var _wasVisible = false;
@@ -611,10 +602,7 @@ final class ChatInputSet {
       _window.value = window;
       presentation.updateWindow(window);
     }
-    if (_safeBottom != safeBottom) {
-      _safeBottom = safeBottom;
-      _reportIme();
-    }
+    _imeFeed.safeBottom = safeBottom;
   }
 
   /// Tells the popup where the composer is, in the coordinates of the box the
@@ -918,7 +906,7 @@ final class ChatInputSet {
   }
 
   /// Whether the soft keyboard is up for the chat now.
-  bool get keyboardUp => _lastImeHeight > 1;
+  bool get keyboardUp => _imeFeed.height > 1;
 
   /// A surface over the chat (the attach sheet) owns the soft keyboard
   /// while [surfaceOwnsKeyboard]: the chat neither reads the keyboard's
@@ -932,10 +920,10 @@ final class ChatInputSet {
     AttachLog.log(
       AttachLog.chat,
       'keyboard ${value ? 'owned by the sheet' : 'back to the chat'} '
-      '(ime ${_lastImeHeight.toStringAsFixed(1)}, panel '
+      '(ime ${_imeFeed.height.toStringAsFixed(1)}, panel '
       '${isPanelVisible ? 'up' : 'down'}, composer focus ${composer.hasFocus})',
     );
-    if (!value) _reportIme();
+    _imeFeed.paused = value;
   }
 
   bool _surfaceOwnsKeyboard = false;
@@ -1242,32 +1230,6 @@ final class ChatInputSet {
     }
   }
 
-  void _onImeHeight(double height) {
-    _lastImeHeight = height;
-    _reportIme();
-  }
-
-  // The slot measures the keyboard with the bottom safe area in it. A
-  // platform that reports it without that band gets the band added back
-  // while the keyboard shows any height at all: an inset of nothing means
-  // no keyboard, and the band is the safe area's own.
-  double get _imeHeightWithSafeArea {
-    final height = math.max<double>(0, _lastImeHeight);
-    if (_keyboardPort.heightsIncludeSafeArea || height <= 0) return height;
-    return height + _safeBottom;
-  }
-
-  void _reportIme() {
-    if (_disposed || _surfaceOwnsKeyboard) return;
-    ime.report(
-      ImeSample(
-        height: _imeHeightWithSafeArea,
-        animating: _keyboardPort.isAnimating,
-        safeAreaBottom: _safeBottom,
-      ),
-    );
-  }
-
   // --- Lifecycle ------------------------------------------------------------
 
   /// Frees everything this set created, in the reverse of the order it made
@@ -1282,8 +1244,7 @@ final class ChatInputSet {
     _messages = null;
     _backClaim?.pop();
     _backClaim = null;
-    unawaited(_imeHeights.cancel());
-    unawaited(_imeMotion.cancel());
+    _imeFeed.dispose();
     unawaited(_panelEvents.cancel());
     presentation.state.removeListener(_onPresentationState);
     _dock.dispose();

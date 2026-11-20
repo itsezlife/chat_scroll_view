@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:attach_sheet/src/debug/attach_log.dart';
+import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
 import 'package:attach_sheet/src/policy/attach_panel_style.dart';
 import 'package:attach_sheet/src/sheet/attach_sheet.dart';
@@ -22,13 +22,14 @@ class AttachCaptionBar extends StatefulWidget {
     required this.controller,
     this.reveal,
     this.beforeSend,
-    this.offersPanel = true,
+    this.dock,
     super.key,
   });
 
-  /// Whether the caption's panel button shows (where the host builds a
-  /// panel); off where no panel slot is under the bar (the viewer).
-  final bool offersPanel;
+  /// The host's dock under this bar: its panel button leads the field and
+  /// the field pads what the dock's place does not cover. Null: no button,
+  /// and no pad (the bar's place pads the safe area).
+  final AttachCaptionDock? dock;
 
   /// The panel's state.
   final AttachSendController controller;
@@ -82,110 +83,125 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
     unawaited(AttachSheetController.maybeOf(context)?.expand());
   }
 
-  @override
-  Widget build(BuildContext context) {
+  // The chat's composer view over the caption, with the dock's panel
+  // button leading it.
+  Widget _composer(
+    BuildContext context, {
+    required AttachCaptionDock? dock,
+    required double bottomPad,
+  }) {
     final strings = ChromeStringsScope.attachOf(context);
     final composerStrings = ChromeStringsScope.of(context).composer;
     final from = _send.counterFrom;
-    return Material(
-      type: MaterialType.transparency,
-      // The chat's own composer island: the field in its floating pill, with
-      // the island's margins and glass, and Send beside it.
-      child: Padding(
-        padding: const EdgeInsetsDirectional.only(end: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: AnimatedBuilder(
-                animation: _$shake,
-                builder: (context, field) => Transform.translate(
-                  key: const ValueKey('attach-caption-shake'),
-                  offset: Offset(
-                    6 *
-                        math.sin(_$shake.value * 6 * math.pi) *
-                        (1 - _$shake.value),
-                    0,
-                  ),
-                  child: field,
-                ),
-                child: ValueListenableBuilder<bool>(
-                  valueListenable: _send.captionPanelShown,
-                  builder: (context, panelShown, _) => ComposerView(
-                    key: const ValueKey('attach-caption'),
-                    controller: _send.caption,
-                    autofocus: false,
-                    onFieldTap: _send.captionTapped,
-                    onFieldPointerDown: _send.captionPointerDown,
-                    safeAreaBottom: 0,
-                    hintText: strings.captionPlaceholder,
-                    // With no button leading it, the hint keeps off the
-                    // pill's round start.
-                    fieldStartInset: AttachCaptionBar.fieldStartInset,
-                    spec: ComposerSpec(
-                      messageLengthLimit: _send.captionLimit,
-                      messageLengthCounterFrom: switch (from) {
-                        final from? => math.max(0, from),
-                        null => null,
-                      },
-                      actions: [
-                        // The caption's panel toggle, as the chat's: the
-                        // emoji page in the keyboard's place, or back.
-                        if (widget.offersPanel &&
-                            _send.host.buildCaptionPanel(
-                                  context,
-                                  _send.caption,
-                                ) !=
-                                null)
-                          ActionDescriptor(
-                            id: 'attach-caption-panel',
-                            icon: panelShown
-                                ? ChromeIconId.keyboard
-                                : ChromeIconId.emoji,
-                            semanticLabel: panelShown
-                                ? composerStrings.showKeyboardAction
-                                : composerStrings.showPanelAction,
-                            placement: ActionPlacement.leading,
-                            onTap: _send.toggleCaptionPanel,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+    final panelUp = dock?.panelUp ?? false;
+    return ComposerView(
+      key: const ValueKey('attach-caption'),
+      controller: _send.caption,
+      autofocus: false,
+      onFieldTap: switch (dock) {
+        null => _send.captionTapped,
+        final dock when identical(dock, _send.captionDock) =>
+          _send.captionTapped,
+        final dock => dock.onFieldTap,
+      },
+      onFieldPointerDown: dock?.onFieldPointerDown,
+      onFieldPointerEnd: dock?.onFieldPointerEnd,
+      safeAreaBottom: bottomPad,
+      hintText: strings.captionPlaceholder,
+      // With no button leading it, the hint keeps off the pill's round
+      // start.
+      fieldStartInset: AttachCaptionBar.fieldStartInset,
+      spec: ComposerSpec(
+        messageLengthLimit: _send.captionLimit,
+        messageLengthCounterFrom: switch (from) {
+          final from? => math.max(0, from),
+          null => null,
+        },
+        actions: [
+          // The caption's panel toggle, as the chat's: the emoji page in the
+          // keyboard's place, or back.
+          if (dock != null)
+            ActionDescriptor(
+              id: 'attach-caption-panel',
+              icon: panelUp ? ChromeIconId.keyboard : ChromeIconId.emoji,
+              semanticLabel: panelUp
+                  ? composerStrings.showKeyboardAction
+                  : composerStrings.showPanelAction,
+              placement: ActionPlacement.leading,
+              onTap: dock.togglePanel,
             ),
-            // On the island's baseline: the composer's bottom margin.
-            Padding(
-              padding: const EdgeInsets.only(
-                bottom: ComposerMetrics.islandBottomGap,
-              ),
-              child: switch (widget.reveal) {
-                final reveal? => AnimatedBuilder(
-                  animation: reveal,
-                  child: AttachSendButton(
-                    controller: _send,
-                    beforeSend: widget.beforeSend,
-                  ),
-                  builder: (context, button) {
-                    final from = _send.policy.panel.sendButtonFromScale;
-                    return Transform.scale(
-                      key: const ValueKey('attach-send-reveal'),
-                      scale: from + (1 - from) * reveal.value,
-                      child: button,
-                    );
-                  },
-                ),
-                null => AttachSendButton(
-                  controller: _send,
-                  beforeSend: widget.beforeSend,
-                ),
-              },
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) => Material(
+    type: MaterialType.transparency,
+    // The chat's own composer island: the field in its floating pill, with
+    // the island's margins and glass, and Send beside it.
+    child: Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: AnimatedBuilder(
+              animation: _$shake,
+              builder: (context, field) => Transform.translate(
+                key: const ValueKey('attach-caption-shake'),
+                offset: Offset(
+                  6 *
+                      math.sin(_$shake.value * 6 * math.pi) *
+                      (1 - _$shake.value),
+                  0,
+                ),
+                child: field,
+              ),
+              child: switch (widget.dock) {
+                final dock? => ListenableBuilder(
+                  listenable: dock.changes,
+                  builder: (context, _) => ValueListenableBuilder<double>(
+                    valueListenable: dock.fieldBottomPad,
+                    builder: (context, pad, _) =>
+                        _composer(context, dock: dock, bottomPad: pad),
+                  ),
+                ),
+                null => _composer(context, dock: null, bottomPad: 0),
+              },
+            ),
+          ),
+          // On the island's baseline: the composer's bottom margin.
+          Padding(
+            padding: const EdgeInsets.only(
+              bottom: ComposerMetrics.islandBottomGap,
+            ),
+            child: switch (widget.reveal) {
+              final reveal? => AnimatedBuilder(
+                animation: reveal,
+                child: AttachSendButton(
+                  controller: _send,
+                  beforeSend: widget.beforeSend,
+                ),
+                builder: (context, button) {
+                  final from = _send.policy.panel.sendButtonFromScale;
+                  return Transform.scale(
+                    key: const ValueKey('attach-send-reveal'),
+                    scale: from + (1 - from) * reveal.value,
+                    child: button,
+                  );
+                },
+              ),
+              null => AttachSendButton(
+                controller: _send,
+                beforeSend: widget.beforeSend,
+              ),
+            },
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// The send button with the selection's count, bouncing when it changes. A
@@ -755,9 +771,6 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
 
   @override
   Widget build(BuildContext context) {
-    // The keyboard's height, the panel's in its place.
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    widget.controller.noteKeyboard(keyboard);
     final rise = widget.controller.policy.panel.revealRise;
     final curved = CurvedAnimation(parent: _$shown, curve: _curve);
     return AnimatedBuilder(
@@ -767,10 +780,22 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AttachCaptionBar(controller: widget.controller, reveal: curved),
-          // Under the caption: its panel, or the safe area, whichever is
-          // taller; nothing over a raised keyboard.
-          AttachCaptionPanelSlot(controller: widget.controller),
+          AttachCaptionBar(
+            controller: widget.controller,
+            reveal: curved,
+            dock: widget.controller.captionDock,
+          ),
+          // Under the caption: the dock's place (the keyboard's or the
+          // panel's, the safe area in it); with no dock, the safe area, which
+          // a raised keyboard covers (the sheet lifts the bar by its inset).
+          switch (widget.controller.captionDock) {
+            final dock? => dock.buildPlace(context),
+            null => SizedBox(
+              height: MediaQuery.viewInsetsOf(context).bottom > 0
+                  ? 0
+                  : MediaQuery.paddingOf(context).bottom,
+            ),
+          },
         ],
       ),
       builder: (context, panel) {
@@ -792,198 +817,4 @@ class _AttachPanelRevealState extends State<AttachPanelReveal>
       },
     );
   }
-}
-
-/// The caption's panel in the keyboard's place, at the keyboard's last
-/// height, while it is shown (`AttachSendController.captionPanelShown`).
-///
-/// It moves as the chat's panel does in the keyboard's place: opened over a
-/// raised keyboard it takes the keyboard's place at once (the keyboard goes
-/// down under it); opened with no keyboard it rises on the panel's slide.
-/// Given back to the keyboard it keeps the part of its height the rising
-/// keyboard does not cover yet, so the bar on top does not jump; closed with
-/// no keyboard (back) it slides down.
-class AttachCaptionPanelSlot extends StatefulWidget {
-  /// The slot of [controller]'s caption panel.
-  const AttachCaptionPanelSlot({required this.controller, super.key});
-
-  /// The panel's state.
-  final AttachSendController controller;
-
-  @override
-  State<AttachCaptionPanelSlot> createState() => _AttachCaptionPanelSlotState();
-}
-
-class _AttachCaptionPanelSlotState extends State<AttachCaptionPanelSlot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _$slide;
-  // The panel stays mounted while it hands its place to the keyboard or
-  // slides down.
-  bool _mounted = false;
-  bool _toKeyboard = false;
-  double _keyboard = 0;
-  Timer? _$noKeyboard;
-
-  /// How long the panel's place waits for the keyboard it was handed to;
-  /// with none by then (the field could not take focus), the place goes.
-  static const Duration keyboardWait = Duration(milliseconds: 600);
-
-  AttachSendController get _send => widget.controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _$slide = AnimationController(vsync: this);
-    _send.captionPanelShown.addListener(_changed);
-    if (_send.captionPanelShown.value) {
-      _mounted = true;
-      _$slide.value = 1;
-    }
-  }
-
-  @override
-  void dispose() {
-    _$noKeyboard?.cancel();
-    _send.captionPanelShown.removeListener(_changed);
-    _$slide.dispose();
-    super.dispose();
-  }
-
-  void _changed() {
-    final shown = _send.captionPanelShown.value;
-    final spec = ChromeMotionScope.of(context).specOf(MotionRole.panelSlide);
-    _$noKeyboard?.cancel();
-    if (shown) {
-      _toKeyboard = false;
-      final overKeyboard = _keyboard > 0;
-      AttachLog.log(
-        AttachLog.panel,
-        'show ${overKeyboard ? 'in the keyboard place' : 'rising'} '
-        '(height ${_send.keyboardHeight}, tickers '
-        '${TickerMode.valuesOf(context).enabled ? 'on' : 'muted'})',
-      );
-      setState(() => _mounted = true);
-      if (overKeyboard || spec.duration == Duration.zero) {
-        _$slide.value = 1;
-      } else {
-        unawaited(
-          _$slide.animateTo(1, duration: spec.duration, curve: spec.curve),
-        );
-      }
-      return;
-    }
-    _toKeyboard = _send.captionPanelLeftForKeyboard;
-    AttachLog.log(
-      AttachLog.panel,
-      'hide ${_toKeyboard ? 'for the keyboard' : 'sliding down'}',
-    );
-    if (_toKeyboard) {
-      setState(() {});
-      _$noKeyboard = Timer(keyboardWait, () {
-        if (!mounted || !_toKeyboard || _keyboard > 0) return;
-        AttachLog.log(
-          AttachLog.panel,
-          'no keyboard came in ${keyboardWait.inMilliseconds} ms: '
-          'the place goes',
-        );
-        _send.captionPanelHandingOff = false;
-        setState(() => _toKeyboard = false);
-        _slideDown(spec);
-      });
-      return;
-    }
-    _slideDown(spec);
-  }
-
-  void _slideDown(MotionSpec spec) => unawaited(
-    _$slide
-        .animateBack(0, duration: spec.duration, curve: spec.curve)
-        .orCancel
-        .then((_) {
-          if (mounted) setState(() => _mounted = false);
-        }, onError: (Object _) {}),
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    if (keyboard != _keyboard) {
-      AttachLog.log(AttachLog.ime, 'inset $keyboard');
-      // A keyboard rising under the shown panel (one the field asked for
-      // on its own) takes the panel's place: the panel never stands over
-      // a raised keyboard.
-      // (From down: a keyboard lowering under a panel opened over it may
-      // report a small rise on its way.)
-      if (_keyboard <= 0.5 &&
-          keyboard > _keyboard &&
-          _mounted &&
-          !_toKeyboard &&
-          _send.captionPanelShown.value) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _send.captionPanelShown.value) {
-            _send.keyboardTookCaptionPanelPlace();
-          }
-        });
-      }
-      _keyboard = keyboard;
-    }
-    // The floor under the caption: the safe area, which a raised keyboard
-    // covers. The caption's bottom is the panel's top or this floor,
-    // whichever is higher, at every frame of every motion.
-    final floor = keyboard > 0 ? 0.0 : MediaQuery.paddingOf(context).bottom;
-    if (!_mounted) return SizedBox(height: floor);
-    final height = _send.keyboardHeight;
-    Widget floored(double panel, Widget child) => SizedBox(
-      height: math.max(panel, floor),
-      child: Align(alignment: Alignment.topCenter, child: child),
-    );
-    // The keyboard rising under: what it does not cover yet stays, the
-    // panel drawn in it as the keyboard covers it from the bottom.
-    double left() {
-      final left = math.max(0, height - keyboard).toDouble();
-      if (left <= 0.5) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _toKeyboard) {
-            _send.captionPanelHandingOff = false;
-            setState(() {
-              _mounted = false;
-              _toKeyboard = false;
-              _$slide.value = 0;
-            });
-          }
-        });
-      }
-      return left;
-    }
-
-    final panel = _send.host.buildCaptionPanel(context, _send.caption);
-    if (panel == null) return SizedBox(height: floor);
-    if (_toKeyboard) {
-      final visible = left();
-      return floored(visible, _clipped(visible, panel));
-    }
-    return AnimatedBuilder(
-      animation: _$slide,
-      child: panel,
-      builder: (context, panel) => floored(
-        height * _$slide.value,
-        _clipped(height * _$slide.value, panel!),
-      ),
-    );
-  }
-
-  // The panel at its full height, shown from its top down to [visible].
-  Widget _clipped(double visible, Widget panel) => SizedBox(
-    key: const ValueKey('attach-caption-panel-slot'),
-    width: double.infinity,
-    height: visible,
-    child: ClipRect(
-      child: OverflowBox(
-        alignment: Alignment.topCenter,
-        minHeight: _send.keyboardHeight,
-        maxHeight: _send.keyboardHeight,
-        child: panel,
-      ),
-    ),
-  );
 }

@@ -90,7 +90,7 @@ class _AttachPagesSheetState extends State<AttachPagesSheet> {
 
   /// A cancel hands the caption back to the composer.
   void _closed(AttachOutcome outcome) {
-    _$send.closeCaptionPanel();
+    _$send.captionDock?.closePanel();
     _report(outcome);
   }
 
@@ -112,6 +112,7 @@ class _AttachPagesSheetState extends State<AttachPagesSheet> {
       valueListenable: _$model.header,
       builder: (context, header, _) => header ?? const SizedBox.shrink(),
     ),
+    bottomBarHoldsKeyboard: _$send.captionDock != null,
     bottomBar: Stack(
       alignment: Alignment.bottomCenter,
       children: [
@@ -224,10 +225,7 @@ final class AttachPagesModel {
       ..restTop = slot._topOffset
       // Back closes the caption's panel before anything of the page's.
       ..dismissGuard = () async {
-        if (send.captionPanelShown.value) {
-          send.closeCaptionPanel();
-          return false;
-        }
+        if (send.captionDock?.handleBack() ?? false) return false;
         return guard == null || await guard();
       };
     header.value = slot._headerItems;

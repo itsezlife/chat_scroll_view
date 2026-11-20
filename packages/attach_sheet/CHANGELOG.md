@@ -6,6 +6,17 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (caption dock)
+
+- The caption's panel is the host's: `AttachSheetHost.createCaptionDock`
+  returns an `AttachCaptionDock` (the keyboard's place under the bar, the
+  panel that can take it, the swap, back), replacing `buildCaptionPanel`.
+  A bar on a dock stands at the bottom (`AttachSheet.bottomBarHoldsKeyboard`)
+  and pads what the dock's place leaves; with no dock it stands on the safe
+  area and the keyboard's inset. The sheet's own caption panel code
+  (`AttachCaptionPanelSlot`, the toggle, the keyboard-height tracking) is
+  gone.
+
 ### Changed (caption bar)
 
 - The caption is the chat's composer island (`ComposerView` with the
