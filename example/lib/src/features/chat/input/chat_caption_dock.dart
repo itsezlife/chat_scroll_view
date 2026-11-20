@@ -246,6 +246,15 @@ final class ChatCaptionDock implements AttachCaptionDock {
   }
 
   @override
+  void settle() {
+    if (_disposed || !shell.search.value.isOpen) return;
+    AttachLog.log(AttachLog.panel, 'caption panel settles: search closes');
+    // As the panel's own search close: back on the page the search was on.
+    shell.closeSearch();
+    if (_feed.height > 1) unawaited(_hideKeyboard('search closed: settled'));
+  }
+
+  @override
   void closePanel() {
     if (presentation.state.value.isVisible) presentation.hide();
   }

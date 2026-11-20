@@ -331,4 +331,50 @@ void main() {
     );
     await rig.finish();
   });
+
+  testWidgets('settled (a viewer opens) with the panel up and its search '
+      'focused over a raised keyboard: search closes, the keyboard goes '
+      'down, the panel stays up on its page; and stays so', (tester) async {
+    final rig = await _Rig.pump(tester);
+    await rig.keyboardUp();
+    rig.dock.togglePanel();
+    await tester.pump();
+    await rig.keyboardMoves(_keyboardHeight, 0, steps: 4, check: (_) {});
+    await tester.pumpAndSettle();
+    final page = rig.dock.shell.selectedPageId.value;
+    rig.dock.shell.openSearch();
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(PanelShell),
+        matching: find.byType(EditableText),
+      ),
+    );
+    await tester.pump();
+    rig.keyboard.rest(_keyboardHeight);
+    await tester.pumpAndSettle();
+    final hides = rig.keyboard.hideCount;
+
+    rig.dock.settle();
+    await tester.pump();
+    expect(rig.dock.shell.search.value.isOpen, isFalse);
+    expect(rig.keyboard.hideCount, hides + 1, reason: 'the keyboard goes');
+    rig.keyboard.rest(0);
+    await tester.pumpAndSettle();
+    expect(rig.dock.panelUp, isTrue);
+    expect(rig.dock.shell.selectedPageId.value, page);
+    expect(
+      !rig.caption.hasFocus ||
+          rig.caption.softKeyboard.value == SoftKeyboardMode.suppressed,
+      isTrue,
+      reason: 'no keyboard for the caption under its panel',
+    );
+
+    // Settled again with nothing to settle: nothing changes.
+    rig.dock.settle();
+    await tester.pumpAndSettle();
+    expect(rig.dock.panelUp, isTrue);
+    expect(rig.keyboard.hideCount, hides + 1);
+    await rig.finish();
+  });
 }

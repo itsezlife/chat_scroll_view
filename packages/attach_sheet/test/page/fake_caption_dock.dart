@@ -66,6 +66,9 @@ final class FakeCaptionDock implements AttachCaptionDock {
   }
 
   @override
+  void settle() => calls.add('settle');
+
+  @override
   void dispose() {
     disposed = true;
     _changes.dispose();

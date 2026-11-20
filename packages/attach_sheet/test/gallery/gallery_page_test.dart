@@ -548,6 +548,11 @@ void main() {
             reason: 'round $round',
           );
           expect(
+            sheetDock.calls.where((c) => c == 'settle'),
+            hasLength(round + 1),
+            reason: "the sheet's caption settles as each viewer opens",
+          );
+          expect(
             sheetDock.panelUp,
             start == 'panel up',
             reason: 'round $round',

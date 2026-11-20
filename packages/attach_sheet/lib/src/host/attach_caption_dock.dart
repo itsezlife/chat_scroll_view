@@ -48,6 +48,11 @@ abstract interface class AttachCaptionDock {
   /// The panel goes, the keyboard staying down; nothing when it is down.
   void closePanel();
 
+  /// Something opens over the bar (the picker viewer): the panel's search
+  /// closes as its own close does, and a keyboard up for it goes down; a
+  /// panel that is up stays up on its page.
+  void settle();
+
   /// Frees what the dock made.
   void dispose();
 }

@@ -582,6 +582,9 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
   @override
   void initState() {
     super.initState();
+    // The sheet's caption rests under the viewer: its panel's search
+    // closes and the search's keyboard goes; its panel stays up.
+    widget.controller.captionDock?.settle();
     _sheetPanelWasUp = widget.controller.captionDock?.panelUp ?? false;
     widget.chromeShown.addListener(_onChrome);
   }
