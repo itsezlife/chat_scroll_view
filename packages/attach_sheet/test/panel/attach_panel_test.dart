@@ -658,4 +658,40 @@ void main() {
     await tester.pumpAndSettle();
     expect(rig.outcome, isA<AttachOutcome$Send>());
   });
+
+  testWidgets('99 to 100: the badge grows as a pill through the roll and '
+      'the count never leaves it', (tester) async {
+    final (rig, _) = await open(tester);
+    for (var i = 0; i < 99; i++) {
+      rig.selection.toggle(AttachItems.photo('p$i'));
+    }
+    await tester.pumpAndSettle();
+    final badge = find.byKey(const ValueKey('attach-send-count'));
+    final at99 = tester.getRect(badge);
+    expect(at99.height, 22);
+
+    rig.selection.toggle(AttachItems.photo('p99'));
+    await tester.pump();
+    for (final ms in [20, 60, 120, 320]) {
+      await tester.pump(Duration(milliseconds: ms == 20 ? 20 : ms - 20));
+      final rect = tester.getRect(badge);
+      expect(
+        tester.getSize(badge).height,
+        22,
+        reason: 'a pill: the height holds ($ms ms)',
+      );
+      // The text is drawn clipped to its box, and the box sits inside the
+      // badge at every frame.
+      final text = tester.getRect(
+        find.descendant(of: badge, matching: find.byType(ClipRect)),
+      );
+      expect(text.left, greaterThanOrEqualTo(rect.left - 0.01), reason: '$ms');
+      expect(text.right, lessThanOrEqualTo(rect.right + 0.01), reason: '$ms');
+    }
+    await tester.pumpAndSettle();
+    final at100 = tester.getSize(badge);
+    // max(9 + text, 18) and the ring: three digits of the test face, 12 each.
+    expect(at100.width, 9 + 36 + 4);
+    expect(at100.width, greaterThan(at99.width));
+  });
 }
