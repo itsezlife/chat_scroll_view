@@ -240,6 +240,26 @@ void main() {
       await gesture.up();
     });
 
+    testWidgets('an offset the content cannot label yet keeps the last '
+        'label up: no flicker while rows load', (tester) async {
+      // Answers every other band only, as rows still loading do.
+      await pump(
+        tester,
+        labelAt: (offset) =>
+            (offset ~/ 100).isEven ? 'Band ${offset ~/ 1000}' : null,
+      );
+      controller.jumpTo(400);
+      await settle(tester);
+      expect(find.text('Band 0'), findsOneWidget);
+      for (final offset in [500.0, 650.0, 720.0]) {
+        controller.jumpTo(offset);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(_opacity(tester, _label), 1, reason: 'at $offset');
+        expect(find.text('Band 0'), findsOneWidget, reason: 'at $offset');
+      }
+    });
+
     testWidgets('a null label shows none', (tester) async {
       await pump(tester, labelAt: (offset) => offset < 1000 ? null : 'Late');
       controller.jumpTo(500);

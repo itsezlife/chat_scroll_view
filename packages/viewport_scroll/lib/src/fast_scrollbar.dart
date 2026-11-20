@@ -248,8 +248,11 @@ class _FastScrollbarState extends State<FastScrollbar>
       );
       _loggedLabel = label;
     }
+    // A label the content cannot answer yet (its rows still loading) keeps
+    // the last one shown rather than hiding it.
+    final shownLabel = label ?? _label;
     final labelWanted =
-        thumbWanted && label != null && (_labelRecent || _press != null);
+        thumbWanted && shownLabel != null && (_labelRecent || _press != null);
     if (label != null && label != _label) {
       final pixels = position!.pixels;
       if (_label != null && dragging && policy.labelChangeHaptic) {
