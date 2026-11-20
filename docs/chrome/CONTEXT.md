@@ -34,8 +34,8 @@ Required, nestable, animatable theme scope. Lookup asserts without one; a nested
 _Avoid_: Silent light fallback, theme parameter on every widget
 
 **Glass material**:
-A named glass preset (composer island, panel button, top panel) drawn by `GlassSurface`. Its colours are a token group; its shape of effect is fixed by the material.
-_Avoid_: Flag-driven glass widgets
+What a glass surface is made of apart from its colours: corners, edges, shadow, refraction and blur. A value: a surface takes the preset of its role (island, button, bar, menu, panel, bubble) and adjusts it, or builds its own. Its colours are the theme's for its colour role, or the surface's own.
+_Avoid_: Flag-driven glass widgets; a closed list of looks named after their first call site
 
 **Glass quality**:
 Host policy (full liquid, frosted, flat, off) plus a lite-mode flag, combined with detected capabilities, the presence of a glass source and route motion to pick a strategy.

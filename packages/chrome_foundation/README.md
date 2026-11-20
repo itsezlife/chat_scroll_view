@@ -33,7 +33,7 @@ under a host quality policy
 | `ChromeStringsScope` | Required scope supplying `ChromeStrings`; a lookup with no scope fails in debug builds. |
 | `ChromeIconId`, `ChromeIconPainter`, `ChromeIconRegistry` | A **chrome icon** is a semantic id; the registry maps ids to painters (font glyph or paint callback). `ChromeIconRegistry.stock` paints the chrome's own ids; an unknown id draws a neutral fallback glyph. |
 | `ChromeIconScope`, `ChromeIcon`, `AnimatedChromeIcon` | Scope adding host painters, the widget that draws an id, and the variant that morphs (font to font) or cross-fades (custom painter) when the id changes. |
-| `GlassSurface`, `GlassMaterial` | A **glass material** (`composerIsland`, `panelButton`, `topPanel`) drawn over what is behind it. Colours come from `GlassMaterialTokens` in the chrome theme scope; the shape of the effect and the backdrop strategy are internal. |
+| `GlassSurface`, `GlassMaterial` | A **glass material** drawn over what is behind it: a value, from a preset by role (`island`, `button`, `bar`, `menu`, `panel`, `bubble`) adjusted with `copyWith`, or a surface's own. Colours come from `GlassMaterialTokens` by the material's role in the chrome theme scope, or the surface passes its own (`colors`); `borderRadius` gives a surface corners of its own. The backdrop strategy is internal. |
 | `GlassQuality`, `GlassQualityScope`, `GlassCapabilities` | The host's **glass quality** policy (`fullLiquid`, `frosted`, `flat`, `off`), a lite-mode flag, and the capabilities (shader filter, sampled backdrop, backdrop filter) that the strategy chain reads. `GlassCapabilities.detect()` is the default; a host or test can force a row of the matrix. |
 | `GlassSourceScope`, `GlassSource` | Marks the content that sampled glass reads. A scope above the content and the surfaces, a source around the content. |
 | `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `ChromeStringsSnapshot.of` for completeness checks. Tests and demos only. |
@@ -125,7 +125,7 @@ AnimatedChromeIcon(ChromeIconId.keyboard);       // morphs on id change
 GlassSourceScope(                       // chat screen: over content + chrome
   child: Stack(children: [
     GlassSource(child: messageList),    // what the glass frosts
-    GlassSurface(material: GlassMaterial.composerIsland, child: composer),
+    GlassSurface(material: GlassMaterial.island, child: composer),
   ]),
 )
 // Host policy (optional; the default is frosted on detected capabilities):

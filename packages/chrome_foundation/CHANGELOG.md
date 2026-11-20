@@ -6,6 +6,23 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (glass materials, breaking)
+
+- `GlassMaterial` is an immutable value (`colorRole`, `cornerRadius`,
+  `strokeWidth`, `shadowBlur`, `shadowOffset`, `refracts`, `blurRadius`)
+  with `copyWith`, `==` and `lerp`, not an enum. Presets by role:
+  `island`, `button`, `bar`, `menu`, `panel`, `bubble`. Before / after:
+  `composerIsland` → `island`, `panelButton` → `button`, `topPanel` → `bar`,
+  `messageMenu` → `menu`; the geometry is unchanged.
+- `GlassMaterialTokens` holds colours per `GlassColorRole` (`island`,
+  `button`, `bar`, `menu`, `panel`, `bubble`; `of(role)`, `colorsOf(material)`
+  by the material's role). Before / after: `.composerIsland` → `.island`,
+  `.panelButton` → `.button`, `.topPanel` → `.bar`, `.messageMenu` → `.menu`;
+  `panel` defaults to the island's colours, `bubble` to the bar's.
+- `GlassSurface` takes `colors` (a surface's own `GlassMaterialColors`) and
+  `borderRadius` (corners of its own for the clip and shadow; the effect
+  keeps `cornerRadius`).
+
 ### Added
 
 - `MotionRole.counterShow` (100 ms) and `MotionRole.digitRoll` (150 ms).
