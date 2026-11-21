@@ -274,6 +274,10 @@ abstract final class ChromeStringsPresets {
       capturePhotoMode: 'Photo',
       captureMicrophoneDenied:
           'Allow the microphone in Settings to record video',
+      capturedPhotos: (n) => n == 1 ? '$n photo' : '$n photos',
+      capturedVideos: (n) => n == 1 ? '$n video' : '$n videos',
+      capturedMedia: (n) => '$n media',
+      captionAddPhoto: 'Add photo',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Panel opened',
@@ -549,6 +553,11 @@ abstract final class ChromeStringsPresets {
       capturePhotoMode: 'Фото',
       captureMicrophoneDenied:
           'Чтобы снимать видео, разрешите доступ к микрофону в настройках',
+      capturedPhotos: (n) =>
+          '$n ${_ru(n, 'фотография', 'фотографии', 'фотографий')}',
+      capturedVideos: (n) => '$n видео',
+      capturedMedia: (n) => '$n медиа',
+      captionAddPhoto: 'Добавить фото',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Панель открыта',

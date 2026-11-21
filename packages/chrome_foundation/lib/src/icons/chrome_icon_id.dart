@@ -34,6 +34,10 @@ extension type const ChromeIconId._(String value) {
   /// Attach.
   static const ChromeIconId attach = ChromeIconId('attach');
 
+  /// Add more media: a camera's viewer goes back to the camera for another
+  /// shot.
+  static const ChromeIconId addPhoto = ChromeIconId('addPhoto');
+
   /// Search.
   static const ChromeIconId search = ChromeIconId('search');
 
@@ -59,6 +63,7 @@ extension type const ChromeIconId._(String value) {
     confirm,
     voice,
     attach,
+    addPhoto,
     search,
     close,
     backspace,

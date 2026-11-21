@@ -29,6 +29,9 @@ final class ChromeIconRegistry {
     ChromeIconId.confirm: ChromeIconPainter.font(Icons.check_rounded),
     ChromeIconId.voice: ChromeIconPainter.font(Icons.mic_none_rounded),
     ChromeIconId.attach: ChromeIconPainter.font(Icons.attach_file_rounded),
+    ChromeIconId.addPhoto: ChromeIconPainter.font(
+      Icons.add_photo_alternate_rounded,
+    ),
     ChromeIconId.search: ChromeIconPainter.font(Icons.search_rounded),
     ChromeIconId.close: ChromeIconPainter.font(Icons.close_rounded),
     ChromeIconId.backspace: ChromeIconPainter.font(Icons.backspace_outlined),

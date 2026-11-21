@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the capture flow, breaking)
+
+- `AttachStrings.capturedPhotos`, `capturedVideos` and `capturedMedia`
+  (required plurals) for the shots counter, and `captionAddPhoto` (required)
+  for the camera viewer's add-photo button, in the English and Russian
+  presets and the snapshot.
+- `ChromeIconId.addPhoto`, painted by the stock registry.
+
 ### Added (capture modes, breaking)
 
 - `AttachStrings.captureVideoMode` and `capturePhotoMode` (required): the

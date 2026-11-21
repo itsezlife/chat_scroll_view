@@ -263,6 +263,11 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     capturePhotoMode: 'Фото',
     captureMicrophoneDenied:
         'Чтобы снимать видео, разрешите доступ к микрофону в настройках',
+    capturedPhotos: (n) =>
+        '$n ${RussianPlural.wordOf(n, 'фотография', 'фотографии', 'фотографий')}',
+    capturedVideos: (n) => '$n видео',
+    capturedMedia: (n) => '$n медиа',
+    captionAddPhoto: 'Добавить фото',
   ),
   semantics: SemanticsStrings(
     panelOpened: 'Панель открыта',

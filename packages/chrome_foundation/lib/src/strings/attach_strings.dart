@@ -95,6 +95,10 @@ final class AttachStrings {
     required this.captureVideoMode,
     required this.capturePhotoMode,
     required this.captureMicrophoneDenied,
+    required this.capturedPhotos,
+    required this.capturedVideos,
+    required this.capturedMedia,
+    required this.captionAddPhoto,
   });
 
   /// The question before a selection is dropped, in the "discard" wording
@@ -364,4 +368,18 @@ final class AttachStrings {
   /// The notice when the microphone a video needs was refused, with where
   /// to allow it ("Allow the microphone in Settings to record video").
   final String captureMicrophoneDenied;
+
+  /// So many photos, in the capture surface's shots counter ("3 photos";
+  /// the counter upper-cases it).
+  final String Function(int n) capturedPhotos;
+
+  /// So many videos, in the shots counter ("2 videos").
+  final String Function(int n) capturedVideos;
+
+  /// So many shots of both kinds, in the shots counter ("5 media").
+  final String Function(int n) capturedMedia;
+
+  /// The camera viewer caption's add-photo button, which goes back to the
+  /// camera for another shot ("Add photo").
+  final String captionAddPhoto;
 }
