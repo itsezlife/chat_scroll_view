@@ -420,6 +420,20 @@ void main() {
     });
   });
 
+  test('a camera capture is local media: it groups with library media', () {
+    const capture = AttachItem(
+      id: AttachItemId('captured:local-1'),
+      source: AttachSource.captured('local-1'),
+      kind: AttachKind.photo,
+      facts: AttachFacts(),
+    );
+    for (final policy in _all) {
+      expect(_plan(policy, [AttachItems.photo('p'), capture]), [
+        'G(p,captured:local-1)',
+      ], reason: '$policy');
+    }
+  });
+
   group('rejections', () {
     test('nothing to send', () {
       expect(_plan(_android, const []), ['rejected: empty']);

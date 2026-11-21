@@ -313,6 +313,8 @@ final class ChatAttach extends AttachSheetHost {
       PreparationPolicy.forPlatform(defaultTargetPlatform),
       library: library,
       items: _$items,
+      // Camera shots are prepared from their files in the capture cache.
+      captures: services.captureCache,
       concurrency: 2,
     );
   }
