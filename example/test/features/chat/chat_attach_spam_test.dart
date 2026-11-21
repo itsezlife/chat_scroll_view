@@ -59,7 +59,18 @@ void main() {
       send: (_) async {},
     );
     final opens = [for (var i = 0; i < 4; i++) attach.open(home)];
-    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    // The open's own async steps run in real time: wait for the sheet,
+    // however long a loaded run takes, then let it settle.
+    for (
+      var i = 0;
+      i < 100 && find.byType(AttachSheet).evaluate().isEmpty;
+      i++
+    ) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
