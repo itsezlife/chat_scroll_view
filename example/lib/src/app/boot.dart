@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as dev;
-
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/listener_errors.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +23,8 @@ Future<void> bootApp({
   try {
     services = await createServices();
   } on Object catch (error, stackTrace) {
-    dev.log('Boot failed', error: error, stackTrace: stackTrace);
+    // To the log (`adb logcat -s flutter`), stack and all.
+    debugPrint('Boot failed: $error\n$stackTrace');
     run(BootFailureApp(error: error));
     return;
   }

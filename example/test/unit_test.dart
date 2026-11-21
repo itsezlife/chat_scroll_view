@@ -16,6 +16,7 @@ import 'app/boot_test.dart' as boot_test;
 import 'app/cache_directory_test.dart' as cache_directory_test;
 import 'app/demo_media_loading_style_test.dart'
     as demo_media_loading_style_test;
+import 'app/error_log_test.dart' as error_log_test;
 import 'app/listener_errors_test.dart' as listener_errors_test;
 import 'app/lottie_playback_cache_test.dart' as lottie_playback_cache_test;
 import 'app/lottie_playback_pixel_test.dart' as lottie_playback_pixel_test;
@@ -269,6 +270,7 @@ void main() {
     demo_media_loading_style_test.main,
   );
   group('app/cache_directory_test.dart', cache_directory_test.main);
+  group('app/error_log_test.dart', error_log_test.main);
   group('app/listener_errors_test.dart', listener_errors_test.main);
   group('app/lottie_playback_cache_test.dart', lottie_playback_cache_test.main);
   group('app/lottie_playback_pixel_test.dart', lottie_playback_pixel_test.main);

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as dev;
 
 import 'package:chat_composer/chat_composer.dart' show ComposerView;
 import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatDataSource;
@@ -9,6 +8,7 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/boot.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart'
     as environment_specific;
+import 'package:chat_scroll_view_example/src/app/error_log.dart';
 import 'package:chat_scroll_view_example/src/app/overlay_pause_observer.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_cache.dart';
@@ -43,40 +43,38 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Entry point for the widget-based [ChatScrollView] demo.
 void main() => l.capture<void>(
-  () => runZonedGuarded<void>(
-    () async {
-      AppBinding();
-      if (DemoConfig.scrollLab) ScrollLab.install();
-      FrameRateBoost.install();
-      // In a browser a right-click opens the browser's own menu over the
-      // app's (message menus, the composer's, the panel's) unless the app
-      // takes it over.
-      if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
-      bindExamplePreImeBack(
-        onBack: DemoConfig.scrollLab
-            ? () => PointerTape.note(TapeSystemEvent.backPreIme)
-            : null,
-      );
-      await bootApp(
-        createServices: _createServices,
-        appOf: (services) => ChatDemoApp(
-          services: services,
-          start: switch (DemoConfig.startAt) {
-            'chat' => DemoStart.chat,
-            _ => DemoStart.chatList,
-          },
-          chatDataSourceLoader: switch (DemoConfig.chatSource) {
-            'showcase' => _loadShowcase,
-            'comments+showcase' => _loadCommentsWithShowcase,
-            'sizes' => _loadSizeMix,
-            _ => null,
-          },
-        ),
-      );
-    },
-    (error, stackTrace) =>
-        dev.log('Top level exception', error: error, stackTrace: stackTrace),
-  ),
+  () => runZonedGuarded<void>(() async {
+    AppBinding();
+    // Every error, in full, to the log the device keeps.
+    logEveryError();
+    if (DemoConfig.scrollLab) ScrollLab.install();
+    FrameRateBoost.install();
+    // In a browser a right-click opens the browser's own menu over the
+    // app's (message menus, the composer's, the panel's) unless the app
+    // takes it over.
+    if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
+    bindExamplePreImeBack(
+      onBack: DemoConfig.scrollLab
+          ? () => PointerTape.note(TapeSystemEvent.backPreIme)
+          : null,
+    );
+    await bootApp(
+      createServices: _createServices,
+      appOf: (services) => ChatDemoApp(
+        services: services,
+        start: switch (DemoConfig.startAt) {
+          'chat' => DemoStart.chat,
+          _ => DemoStart.chatList,
+        },
+        chatDataSourceLoader: switch (DemoConfig.chatSource) {
+          'showcase' => _loadShowcase,
+          'comments+showcase' => _loadCommentsWithShowcase,
+          'sizes' => _loadSizeMix,
+          _ => null,
+        },
+      ),
+    );
+  }, reportTopLevelError),
   // Every log goes through `print`, so `adb logcat -s flutter`, `flutter run`
   // and `grep` all see it. Verbose levels follow `l`'s defaults.
   const LogOptions(
