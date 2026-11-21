@@ -378,6 +378,10 @@ class _FastScrollbarState extends State<FastScrollbar>
           GestureRecognizerFactoryWithHandlers<VerticalDragGestureRecognizer>(
             () => VerticalDragGestureRecognizer(debugOwner: this),
             (recognizer) => recognizer
+              ..gestureSettings = switch (_policy.dragSlop) {
+                final slop? => DeviceGestureSettings(touchSlop: slop),
+                null => MediaQuery.maybeGestureSettingsOf(context),
+              }
               ..onlyAcceptDragOnThreshold = true
               ..onDown = _down
               ..onStart = ((details) => _move(details.globalPosition, travel))

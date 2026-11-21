@@ -144,7 +144,7 @@ final class FastScrollMotion {
 /// |---|---|---|
 /// | Thumb | a half disc with chevrons | a thin capsule |
 /// | Thumb shown | while the host enables it | while scrolling, then 2 s |
-/// | Drag starts | on a move past touch slop | on a move, or a 200 ms hold |
+/// | Drag starts | on a move past 8 (the platform's touch slop) | on a move past touch slop, or a 200 ms hold |
 /// | Label shift while dragged | 30 | 80 |
 /// | Haptics | none | at the start, and as the label changes |
 @immutable
@@ -177,6 +177,7 @@ final class FastScrollbarPolicy {
     required this.labelChangeHaptic,
     required this.maxViewportFraction,
     required this.mirrorsInRtl,
+    this.dragSlop,
   });
 
   /// The half-disc thumb that shows while the host enables it, the label
@@ -204,6 +205,7 @@ final class FastScrollbarPolicy {
     labelChange: FastScrollMotion(Duration(milliseconds: 150)),
     labelChangeSlide: 15,
     holdToDrag: null,
+    dragSlop: 8,
     dragStartHaptic: false,
     labelChangeHaptic: false,
     maxViewportFraction: null,
@@ -329,6 +331,11 @@ final class FastScrollbarPolicy {
   /// A press held this long starts the drag without a move; null for a
   /// move past touch slop only.
   final Duration? holdToDrag;
+
+  /// How far a press on the thumb moves before the drag starts; null for
+  /// the gesture settings' touch slop. Below the scrollable's own slop, a
+  /// press on the thumb takes the drag before the content can.
+  final double? dragSlop;
 
   /// Whether a drag's start plays an impact haptic.
   final bool dragStartHaptic;

@@ -120,6 +120,21 @@ void main() {
       await gesture.up();
     });
 
+    testWidgets(r'$Android: the content follows the thumb once the finger '
+        'has moved 8, ahead of the list taking the drag', (tester) async {
+      await pump(tester);
+      expect(FastScrollbarPolicy.$Android.dragSlop, 8);
+      final gesture = await tester.startGesture(grip(tester));
+      await gesture.moveBy(const Offset(0, 6));
+      await tester.pump();
+      expect(controller.offset, 0, reason: 'inside the slop');
+      await gesture.moveBy(const Offset(0, 4));
+      await tester.pump();
+      // 10 of the travel from the press: the slop is not lost.
+      expect(controller.offset, closeTo(10 * _range / (_height - 54), 0.5));
+      await gesture.up();
+    });
+
     testWidgets('its diagnostic lines carry one prefix: the press, the drag '
         'against the offset, its end', (tester) async {
       final lines = <String>[];
