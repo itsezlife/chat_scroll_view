@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (video refusals)
+
+- `AttachInteraction.videoRefused(AttachVideoRefusal)`: a hold on the
+  capture surface where only photos may be sent (`notAllowed`; the surface
+  takes the kinds the limits allow), or whose microphone was refused
+  (`microphone`; the surface asks for it first and records nothing). The
+  host gives the bulletin.
+
 ### Changed (camera captures, breaking)
 
 - `GalleryCamera.cache` (a `CaptureCache`, required): each shot moves into

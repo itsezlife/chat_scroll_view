@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (capture refusals, breaking)
+
+- `AttachStrings.captureVideoNotAllowed` and `captureMicrophoneDenied`
+  (required): the notices for a hold on the capture surface where videos
+  may not be sent, and for a refused microphone, with where to allow it.
+  The English and Russian presets carry them.
+
 ### Fixed (glass inside its source)
 
 - A glass inside the `GlassSource` of its own scope no longer samples it.

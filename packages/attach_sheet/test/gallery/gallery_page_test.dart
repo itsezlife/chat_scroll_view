@@ -267,6 +267,80 @@ void main() {
       expect(find.byKey(const ValueKey('attach-viewer-slot')), findsOneWidget);
     });
 
+    // Holds the shutter past the record delay, lets the session answer,
+    // and lifts.
+    Future<void> holdShutter(WidgetTester tester) async {
+      final hold = await tester.startGesture(
+        tester.getCenter(find.byKey(const ValueKey('mpx-capture-shutter'))),
+      );
+      await tester.pump(
+        CameraCaptureSurface.holdToRecord + const Duration(milliseconds: 50),
+      );
+      for (var i = 0; i < 4; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump();
+      }
+      await hold.up();
+      await tester.pump();
+    }
+
+    testWidgets('with video restricted the surface takes photos, and a hold '
+        'tells the host videos are not allowed', (tester) async {
+      final host = _Host();
+      await open(
+        tester,
+        size: const Size(1200, 900),
+        host: host,
+        limits: const AttachLimits(allowedKinds: {AttachKind.photo}),
+        camera: GalleryCamera(
+          sessions: FakeCameraSessions(),
+          outputDirectory: '/tmp',
+          cache: CaptureCache(store: MemoryBytesCache()),
+        ),
+      );
+      await tester.tap(find.byType(CameraSlotPreview));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<CameraCaptureSurface>(find.byType(CameraCaptureSurface))
+            .kinds,
+        CaptureKinds.photo,
+      );
+      await holdShutter(tester);
+      expect(host.interactions, [
+        const AttachInteraction.videoRefused(AttachVideoRefusal.notAllowed),
+      ]);
+    });
+
+    testWidgets('a hold without the microphone asks for it; refused, the '
+        'host hears it and nothing is recorded', (tester) async {
+      final host = _Host();
+      final sessions = FakeCameraSessions(
+        microphone: MicrophoneAccess.notDetermined,
+        microphoneOnRequest: MicrophoneAccess.denied,
+      );
+      final rig = await open(
+        tester,
+        size: const Size(1200, 900),
+        host: host,
+        camera: GalleryCamera(
+          sessions: sessions,
+          outputDirectory: '/tmp',
+          cache: CaptureCache(store: MemoryBytesCache()),
+        ),
+      );
+      await tester.tap(find.byType(CameraSlotPreview));
+      await tester.pumpAndSettle();
+      await holdShutter(tester);
+      expect(sessions.microphoneRequests, 1);
+      expect(host.interactions, [
+        const AttachInteraction.videoRefused(AttachVideoRefusal.microphone),
+      ]);
+      expect(rig.selection.isEmpty, isTrue);
+    });
+
     testWidgets('a long press takes a photo with the system camera, first', (
       tester,
     ) async {

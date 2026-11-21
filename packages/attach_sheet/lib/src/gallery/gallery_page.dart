@@ -346,6 +346,14 @@ class _GalleryViewState extends State<GalleryView> {
       cache: camera.cache,
       from: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
       onCaptured: (shot) => _$shots?.add(shot),
+      // A hold where videos may not be sent, or one whose microphone was
+      // refused: the host says so.
+      onVideoRefused: (refusal) => widget.panel.host.interaction(
+        AttachInteraction.videoRefused(switch (refusal) {
+          CaptureVideoRefusal.notAllowed => AttachVideoRefusal.notAllowed,
+          CaptureVideoRefusal.microphone => AttachVideoRefusal.microphone,
+        }),
+      ),
     );
   }
 

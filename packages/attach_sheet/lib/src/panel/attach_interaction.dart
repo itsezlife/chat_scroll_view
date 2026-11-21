@@ -1,6 +1,15 @@
 import 'package:attach_model/attach_model.dart';
 import 'package:flutter/foundation.dart';
 
+/// Why the camera took no video.
+enum AttachVideoRefusal {
+  /// Only photos may be sent here: a hold asked for a video.
+  notAllowed,
+
+  /// The microphone a video needs was refused.
+  microphone,
+}
+
 /// An **attach interaction**: something the sheet did that the host may give
 /// feedback for (a bulletin, a sound). The sheet draws its own motion (a
 /// shake) and plays the policy's haptic; words are the host's.
@@ -15,6 +24,29 @@ sealed class AttachInteraction {
   /// An item could not join the selection, for [reason].
   const factory AttachInteraction.refused(AttachRefusal reason) =
       AttachInteraction$Refused;
+
+  /// The camera took no video, for [reason].
+  const factory AttachInteraction.videoRefused(AttachVideoRefusal reason) =
+      AttachInteraction$VideoRefused;
+}
+
+/// [AttachInteraction.videoRefused].
+final class AttachInteraction$VideoRefused extends AttachInteraction {
+  /// A video refused for [reason].
+  const AttachInteraction$VideoRefused(this.reason) : super._();
+
+  /// Why.
+  final AttachVideoRefusal reason;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AttachInteraction$VideoRefused && other.reason == reason;
+
+  @override
+  int get hashCode => Object.hash(AttachInteraction$VideoRefused, reason);
+
+  @override
+  String toString() => 'AttachInteraction.videoRefused(${reason.name})';
 }
 
 /// [AttachInteraction.captionTooLong].

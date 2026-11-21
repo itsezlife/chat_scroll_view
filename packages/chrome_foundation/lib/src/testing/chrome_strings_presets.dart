@@ -269,6 +269,9 @@ abstract final class ChromeStringsPresets {
       captureShutter: 'Take photo',
       captureSwitchCamera: 'Switch camera',
       captureFlash: 'Flash',
+      captureVideoNotAllowed: "Videos can't be sent here",
+      captureMicrophoneDenied:
+          'Allow the microphone in Settings to record video',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Panel opened',
@@ -539,6 +542,9 @@ abstract final class ChromeStringsPresets {
       captureShutter: 'Снять',
       captureSwitchCamera: 'Сменить камеру',
       captureFlash: 'Вспышка',
+      captureVideoNotAllowed: 'Здесь нельзя отправлять видео',
+      captureMicrophoneDenied:
+          'Чтобы снимать видео, разрешите доступ к микрофону в настройках',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Панель открыта',

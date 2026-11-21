@@ -91,6 +91,8 @@ final class AttachStrings {
     required this.captureShutter,
     required this.captureSwitchCamera,
     required this.captureFlash,
+    required this.captureVideoNotAllowed,
+    required this.captureMicrophoneDenied,
   });
 
   /// The question before a selection is dropped, in the "discard" wording
@@ -346,4 +348,12 @@ final class AttachStrings {
 
   /// The capture surface's flash button.
   final String captureFlash;
+
+  /// The notice when a hold on the capture surface asks for a video where
+  /// only photos may be sent ("Videos can't be sent here").
+  final String captureVideoNotAllowed;
+
+  /// The notice when the microphone a video needs was refused, with where
+  /// to allow it ("Allow the microphone in Settings to record video").
+  final String captureMicrophoneDenied;
 }

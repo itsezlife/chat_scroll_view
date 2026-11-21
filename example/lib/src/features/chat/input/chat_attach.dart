@@ -8,6 +8,7 @@ import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatPreImeBackClaim;
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
+import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_caption_dock.dart';
@@ -465,6 +466,10 @@ final class ChatAttach extends AttachSheetHost {
         'Файл больше 2000 МБ',
       AttachInteraction$Refused(reason: AttachRefusal.emptyFile) =>
         'Пустой файл',
+      AttachInteraction$VideoRefused(reason: AttachVideoRefusal.notAllowed) =>
+        demoChromeStrings.attach.captureVideoNotAllowed,
+      AttachInteraction$VideoRefused(reason: AttachVideoRefusal.microphone) =>
+        demoChromeStrings.attach.captureMicrophoneDenied,
     };
     bulletins.show(ChatBulletins.notice(text));
   }
