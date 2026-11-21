@@ -212,7 +212,7 @@ final class AttachTabStyle {
       Curves.decelerate,
     ),
     this.indicator = const AttachTabIndicator(),
-    this.pressFade = const Duration(milliseconds: 150),
+    this.ripple = const AttachTabRipple(),
   });
 
   /// The icon's size.
@@ -246,9 +246,8 @@ final class AttachTabStyle {
   /// The mark behind the shown tab; null for none.
   final AttachTabIndicator? indicator;
 
-  /// How long the wash over a tab held down takes to clear once it lifts;
-  /// null for no wash.
-  final Duration? pressFade;
+  /// The ripple over a tab held down; null for none.
+  final AttachTabRipple? ripple;
 
   /// A copy with the given fields replaced.
   AttachTabStyle copyWith({
@@ -262,7 +261,7 @@ final class AttachTabStyle {
     double? labelPadding,
     MotionSpec? selectMotion,
     AttachTabIndicator? indicator,
-    Duration? pressFade,
+    AttachTabRipple? ripple,
   }) => AttachTabStyle(
     iconSize: iconSize ?? this.iconSize,
     iconTop: iconTop ?? this.iconTop,
@@ -274,8 +273,52 @@ final class AttachTabStyle {
     labelPadding: labelPadding ?? this.labelPadding,
     selectMotion: selectMotion ?? this.selectMotion,
     indicator: indicator ?? this.indicator,
-    pressFade: pressFade ?? this.pressFade,
+    ripple: ripple ?? this.ripple,
   );
+}
+
+/// The ripple over a tab held down, in [AttachTabColors.pressed], clipped
+/// to the tab's stadium: a circle from [startShare] of the tab's longer
+/// side, at the finger, growing on [curve] over [grow] to reach the tab's
+/// corners from its centre. It fades in over [fadeIn]; once the finger
+/// lifts and the growth is done it fades out over [fadeOut].
+@immutable
+final class AttachTabRipple {
+  /// A ripple; the defaults are the Android platform ripple's.
+  const AttachTabRipple({
+    this.grow = const Duration(milliseconds: 225),
+    this.curve = const Cubic(0.4, 0, 0.2, 1),
+    this.startShare = 0.3,
+    this.fadeIn = const Duration(milliseconds: 75),
+    this.fadeOut = const Duration(milliseconds: 150),
+  });
+
+  /// How long the circle takes to grow.
+  final Duration grow;
+
+  /// The growth's curve, of the radius and of the centre's move.
+  final Curve curve;
+
+  /// The starting radius, as a share of the tab's longer side.
+  final double startShare;
+
+  /// How long it takes to show.
+  final Duration fadeIn;
+
+  /// How long it takes to clear.
+  final Duration fadeOut;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AttachTabRipple &&
+      grow == other.grow &&
+      curve == other.curve &&
+      startShare == other.startShare &&
+      fadeIn == other.fadeIn &&
+      fadeOut == other.fadeOut;
+
+  @override
+  int get hashCode => Object.hash(grow, curve, startShare, fadeIn, fadeOut);
 }
 
 /// The mark behind the shown tab: a stadium filling the tab in
@@ -392,8 +435,8 @@ final class AttachTabPopIn {
 sealed class AttachTabSwitch {
   const AttachTabSwitch._();
 
-  /// The old page drops [distance] and fades over [out]; then the new page,
-  /// starting [distance] low and transparent, rises and fades in on
+  /// Over [out] both pages drop [distance] while the new one fades in over
+  /// the old; then the old one goes and the new one, opaque, springs up on
   /// [inSpring].
   const factory AttachTabSwitch.slide({
     required double distance,

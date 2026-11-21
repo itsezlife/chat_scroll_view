@@ -423,6 +423,9 @@ class _AttachPageAreaState extends State<_AttachPageArea>
     try {
       switch (_model.policy.tabSwitch) {
         case AttachTabSwitch$Slide(:final out, :final inSpring):
+          // Both pages drop together while the new one fades in over the
+          // old; the old one goes at the end of it and the new one springs
+          // up from the drop.
           _$in.value = 0;
           _$fadeIn.value = 0;
           final spec = out.withSpeed(speed);
@@ -431,6 +434,7 @@ class _AttachPageAreaState extends State<_AttachPageArea>
               .animateTo(1, duration: spec.duration, curve: spec.curve)
               .orCancel;
           if (!mounted) return;
+          _$fadeIn.value = 1;
           setState(() => _leaving = null);
           _model.switching = false;
           unawaited(sheet.settle(expanded: expanded, spring: inSpring));
@@ -484,9 +488,13 @@ class _AttachPageAreaState extends State<_AttachPageArea>
       AttachTabSwitch$Slide() => true,
       AttachTabSwitch$CrossFade() => false,
     };
+    // The page coming in paints over the one going out.
+    final slots = [..._model.built]
+      ..sort((a, b) => (a.page == active ? 1 : 0) - (b.page == active ? 1 : 0));
     return Stack(
+      key: const ValueKey('attach-page-area'),
       children: [
-        for (final slot in _model.built)
+        for (final slot in slots)
           Positioned.fill(
             key: ValueKey(slot.page),
             child: _stage(slot, active: active, slide: slide, slides: slides),
@@ -518,13 +526,23 @@ extension on _AttachPageAreaState {
             animation: Listenable.merge([_$in, _$fadeIn, _$out]),
             child: slot.content,
             builder: (context, child) {
-              final (double opacity, double dy) = shown
-                  ? (
-                      (slides ? _$in.value : _$fadeIn.value).clamp(0.0, 1.0),
-                      slide * (1 - _$in.value),
-                    )
-                  : (1 - _$out.value, slides ? slide * _$out.value : 0);
+              final (double opacity, double dy) = switch ((shown, slides)) {
+                // Slide: in the out phase the new page fades in at the old
+                // one's drop; then it is opaque and springs up.
+                (true, true) when _leaving != null => (
+                  _$out.value,
+                  slide * _$out.value,
+                ),
+                (true, true) => (1, slide * (1 - _$in.value)),
+                (false, true) => (1, slide * _$out.value),
+                (true, false) => (
+                  _$fadeIn.value.clamp(0.0, 1.0),
+                  slide * (1 - _$in.value),
+                ),
+                (false, false) => (1 - _$out.value, 0),
+              };
               return Opacity(
+                key: ValueKey('attach-page-stage-${slot.page}'),
                 opacity: opacity,
                 child: Transform.translate(offset: Offset(0, dy), child: child),
               );

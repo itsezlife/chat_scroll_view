@@ -54,6 +54,29 @@ Iterable<Layer> _barFilters(WidgetTester tester) => [
     element.renderObject!.debugLayer!,
 ];
 
+/// The ripple's circle as [press] last painted it.
+({Offset center, double radius, Color color}) _ripple(
+  WidgetTester tester,
+  Finder press,
+) {
+  final canvas = _CircleCanvas();
+  final box = tester.renderObject<RenderBox>(press);
+  // The painter paints the ripple's circle once per frame.
+  (box as RenderCustomPaint).painter!.paint(canvas, box.size);
+  return canvas.circle!;
+}
+
+final class _CircleCanvas implements Canvas {
+  ({Offset center, double radius, Color color})? circle;
+
+  @override
+  void drawCircle(Offset c, double radius, Paint paint) =>
+      circle = (center: c, radius: radius, color: paint.color);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
 void main() {
   const android = AttachSheetPolicy.android();
   const ios = AttachSheetPolicy.ios();
@@ -132,33 +155,53 @@ void main() {
       expect(labelColor('files'), tokens.tabUnselected);
     });
 
-    testWidgets('a tab held down is washed at 6 % until it lifts', (
-      tester,
-    ) async {
+    testWidgets('a tab held down ripples from the finger, clipped to the '
+        "tab's stadium, and fades once it lifts", (tester) async {
       final rig = await PagesRig.open(
         tester,
         policy: android,
         pages: [rowsPage('gallery'), rowsPage('files')],
       );
+      final tokens = AttachTokens.fromPalette(const ChromePalette.light());
       final press = find.byKey(const ValueKey('attach-tab-press-files'));
-      double wash() => tester.widget<Opacity>(press).opacity;
-      expect(wash(), 0);
-      final gesture = await tester.startGesture(
-        tester.getCenter(rig.tab('files')),
+      final tab = tester.getRect(rig.tab('files'));
+      final stadium = RRect.fromRectAndRadius(
+        Offset.zero & tab.size,
+        Radius.circular(tab.shortestSide / 2),
       );
-      await tester.pump(const Duration(milliseconds: 150));
-      expect(wash(), 1);
+      expect(press, paintsNothing);
+
+      final down = tab.centerLeft + const Offset(12, 0);
+      final gesture = await tester.startGesture(down);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 16));
+      // Early: a small circle near the finger, inside the stadium.
+      final start = tab.size.longestSide * 0.3;
       expect(
-        tester
-            .widget<ColoredBox>(
-              find.descendant(of: press, matching: find.byType(ColoredBox)),
-            )
-            .color,
-        AttachTokens.fromPalette(const ChromePalette.light()).tabPressed,
+        press,
+        paints
+          ..clipRRect(rrect: stadium)
+          ..circle(),
       );
+      final early = _ripple(tester, press);
+      expect(early.center.dx, lessThan(tab.width / 2));
+      expect(early.radius, inExclusiveRange(start, tab.size.longestSide));
+
+      await tester.pump(const Duration(milliseconds: 300));
+      final held = _ripple(tester, press);
+      // Grown: centred on the tab, past every corner.
+      expect(held.center.dx, closeTo(tab.width / 2, 0.5));
+      expect(
+        held.radius,
+        closeTo(Offset(tab.width, tab.height).distance / 2, 0.5),
+      );
+      expect(held.color.a, closeTo(tokens.tabPressed.a, 1e-6));
+
       await gesture.up();
+      await tester.pump(const Duration(milliseconds: 75));
+      expect(_ripple(tester, press).color.a, inExclusiveRange(0, 1));
       await tester.pumpAndSettle();
-      expect(wash(), 0);
+      expect(press, paintsNothing);
     });
 
     testWidgets("the shown tab's mark grows from 0.6 and fades in over "
@@ -413,8 +456,10 @@ void main() {
   });
 
   group('switch', () {
-    testWidgets('Android: the old page drops 78 and fades over 180 ms, the '
-        'new one springs up', (tester) async {
+    testWidgets('Android: for 180 ms both pages drop together, the new one '
+        'fading in over the old; then the new one springs up from 78', (
+      tester,
+    ) async {
       final rig = await PagesRig.open(
         tester,
         policy: android,
@@ -423,19 +468,48 @@ void main() {
       final sheetTop = rig.top;
       double rowTop(String id) =>
           tester.getTopLeft(find.byKey(ValueKey('$id-row-0'))).dy - sheetTop;
+      double opacityOf(String id) => tester
+          .widget<Opacity>(
+            find
+                .ancestor(
+                  of: find.byKey(ValueKey('$id-row-0')),
+                  matching: find.byKey(ValueKey('attach-page-stage-$id')),
+                )
+                .first,
+          )
+          .opacity;
 
       await tester.tap(rig.tab('files'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 90));
-      expect(rowTop('gallery'), inExclusiveRange(0, 78));
+      // Mid out phase: both pages at one drop; the old one opaque, the new
+      // one partly in, painted over it.
+      final drop = rowTop('gallery');
+      expect(drop, inExclusiveRange(0, 78));
+      expect(rowTop('files'), closeTo(drop, 0.5));
+      expect(opacityOf('gallery'), 1);
+      expect(opacityOf('files'), inExclusiveRange(0, 1));
+      expect(opacityOf('files'), closeTo(drop / 78, 0.02));
+      final stage = tester
+          .widgetList<Positioned>(
+            find.descendant(
+              of: find.byKey(const ValueKey('attach-page-area')),
+              matching: find.byType(Positioned),
+            ),
+          )
+          .map((p) => (p.key! as ValueKey<Object?>).value)
+          .toList();
+      expect(stage.indexOf('files'), greaterThan(stage.indexOf('gallery')));
 
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump();
+      // The spring: the new page opaque, rising from 78; the old one gone.
+      expect(rig.shows('gallery'), isFalse);
+      expect(opacityOf('files'), 1);
       expect(rowTop('files'), inInclusiveRange(1, 78));
 
       await tester.pumpAndSettle();
       expect(rowTop('files'), closeTo(0, 0.5));
-      expect(rig.shows('gallery'), isFalse);
     });
 
     testWidgets('a tap during a switch waits (Android)', (tester) async {

@@ -497,7 +497,14 @@ class _TabState extends State<_Tab> with TickerProviderStateMixin {
     vsync: this,
     value: 1,
   );
-  late final AnimationController _$press = AnimationController(vsync: this);
+  // The press ripple: its growth from the finger, and its opacity.
+  late final AnimationController _$ripple = AnimationController(vsync: this)
+    ..addStatusListener(_rippleStatus);
+  late final AnimationController _$rippleOpacity = AnimationController(
+    vsync: this,
+  );
+  Offset? _rippleOrigin;
+  var _released = true;
   late double _from = widget.selected ? 1 : 0;
   late double _to = _from;
 
@@ -526,20 +533,41 @@ class _TabState extends State<_Tab> with TickerProviderStateMixin {
   @override
   void dispose() {
     _$select.dispose();
-    _$press.dispose();
+    _$ripple.dispose();
+    _$rippleOpacity.dispose();
     super.dispose();
   }
 
-  void _pressDown() {
-    if (widget.style.pressFade == null) return;
-    _$press.value = 1;
+  void _pressDown(Offset origin) {
+    final ripple = widget.style.ripple;
+    if (ripple == null) return;
+    final speed = ChromeMotionScope.of(context).speed;
+    _rippleOrigin = origin;
+    _released = false;
+    _$ripple.duration = speed.scale(ripple.grow);
+    _$ripple.forward(from: 0).ignore();
+    _$rippleOpacity.animateTo(1, duration: speed.scale(ripple.fadeIn)).ignore();
   }
 
   void _pressUp() {
-    final fade = widget.style.pressFade;
-    if (fade == null || _$press.value == 0) return;
-    _$press
-        .animateTo(0, duration: ChromeMotionScope.of(context).speed.scale(fade))
+    if (widget.style.ripple == null || _released) return;
+    _released = true;
+    // A lift during the growth fades once the growth is done.
+    if (!_$ripple.isAnimating) _fadeRipple();
+  }
+
+  void _rippleStatus(AnimationStatus status) {
+    if (status.isCompleted && _released) _fadeRipple();
+  }
+
+  void _fadeRipple() {
+    final ripple = widget.style.ripple;
+    if (ripple == null || !mounted) return;
+    _$rippleOpacity
+        .animateTo(
+          0,
+          duration: ChromeMotionScope.of(context).speed.scale(ripple.fadeOut),
+        )
         .ignore();
   }
 
@@ -557,7 +585,7 @@ class _TabState extends State<_Tab> with TickerProviderStateMixin {
       child: GestureDetector(
         key: ValueKey('attach-tab-${page.id}'),
         behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => _pressDown(),
+        onTapDown: (d) => _pressDown(d.localPosition),
         onTapUp: (_) => _pressUp(),
         onTapCancel: _pressUp,
         onTap: widget.onTap,
@@ -608,16 +636,17 @@ class _TabState extends State<_Tab> with TickerProviderStateMixin {
                         ),
                       ),
                     ),
-                  if (style.pressFade != null)
+                  if (style.ripple case final ripple?)
                     Positioned.fill(
-                      child: AnimatedBuilder(
-                        animation: _$press,
-                        builder: (context, wash) => Opacity(
-                          key: ValueKey('attach-tab-press-${page.id}'),
-                          opacity: _$press.value,
-                          child: wash,
+                      child: CustomPaint(
+                        key: ValueKey('attach-tab-press-${page.id}'),
+                        painter: _RipplePainter(
+                          grow: _$ripple,
+                          opacity: _$rippleOpacity,
+                          origin: () => _rippleOrigin,
+                          ripple: ripple,
+                          color: colors.pressed,
                         ),
-                        child: ColoredBox(color: colors.pressed),
                       ),
                     ),
                   Positioned(
@@ -664,6 +693,51 @@ class _TabState extends State<_Tab> with TickerProviderStateMixin {
       ),
     );
   }
+}
+
+/// A tab's press ripple: a circle of [color] growing from the finger
+/// towards the tab's centre, past its corners, clipped to the tab's
+/// stadium.
+class _RipplePainter extends CustomPainter {
+  _RipplePainter({
+    required this.grow,
+    required this.opacity,
+    required this.origin,
+    required this.ripple,
+    required this.color,
+  }) : super(repaint: Listenable.merge([grow, opacity]));
+
+  final Animation<double> grow;
+  final Animation<double> opacity;
+  final Offset? Function() origin;
+  final AttachTabRipple ripple;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final from = origin();
+    final alpha = opacity.value;
+    if (from == null || alpha <= 0 || size.isEmpty) return;
+    final rect = Offset.zero & size;
+    final t = ripple.curve.transform(grow.value);
+    final start = size.longestSide * ripple.startShare;
+    final end = Offset(size.width, size.height).distance / 2;
+    canvas
+      ..save()
+      ..clipRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(size.shortestSide / 2)),
+      )
+      ..drawCircle(
+        Offset.lerp(from, rect.center, t)!,
+        start + (end - start) * t,
+        Paint()..color = color.withValues(alpha: color.a * alpha),
+      )
+      ..restore();
+  }
+
+  @override
+  bool shouldRepaint(_RipplePainter old) =>
+      old.color != color || old.ripple != ripple;
 }
 
 /// [child] with a badge while [granted] is false.

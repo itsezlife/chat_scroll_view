@@ -6,6 +6,18 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (tab press and switch, breaking)
+
+- A held tab ripples instead of a flat wash: `AttachTabStyle.ripple`
+  (`AttachTabRipple`: from 0.3 of the tab's longer side at the finger, it
+  grows over 225 ms on `Cubic(0.4, 0, 0.2, 1)` to the tab's corners from its
+  centre, fades in over 75 ms and, once lifted and grown, out over 150 ms),
+  clipped to the tab's stadium. It replaces `pressFade`.
+- The Android tab switch is the reference's: for 180 ms both pages drop 78
+  together while the new one fades in over the old (it paints above it);
+  the old one goes and the new one, opaque, springs up from 78. Before, the
+  old page faded out alone and the new one faded in on the spring.
+
 ### Changed (sampled glass)
 
 - The sheet is a glass source: its background and page (or the card) are

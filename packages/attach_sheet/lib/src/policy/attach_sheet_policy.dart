@@ -550,7 +550,7 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   /// inset, its tabs 48 tall 4 inside it (a 24 icon 4 from the tab's top,
   /// an 11 label from 28.33, extra bold when shown, the shown tab marked
   /// by a 9 % accent stadium growing from 0.6 over 320 ms, a tab held down
-  /// washed at 6 %); the tabs pop in staggered by 32 ms; the bar drops 36
+  /// rippling at 6 % in its stadium); the tabs pop in staggered by 32 ms; the bar drops 36
   /// and fades over 180 ms while something is selected, and 44 over
   /// 380 ms while the sheet is at its top; a badge on a tab whose page
   /// lacks its permission; 8 of fade at a clipped edge; a tapped tab is
@@ -602,8 +602,9 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
     return [for (final w in widths) w + add];
   }
 
-  /// The old page drops 78 and fades over 180 ms; the new one springs up
-  /// from 78 (damping ratio 0.75, stiffness 500).
+  /// Both pages drop 78 over 180 ms while the new one fades in over the
+  /// old; the new one then springs up from 78 (damping ratio 0.75,
+  /// stiffness 500).
   @override
   AttachTabSwitch get tabSwitch => AttachTabSwitch.slide(
     distance: 78,
@@ -851,7 +852,7 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
       selectedLabelWeight: FontWeight.normal,
       labelPadding: 0,
       indicator: null,
-      pressFade: null,
+      ripple: null,
     ),
     hideMotion: MotionSpec(Duration(milliseconds: 100), Curves.linear),
     showMotion: MotionSpec(Duration(milliseconds: 250), Curves.easeInOut),
