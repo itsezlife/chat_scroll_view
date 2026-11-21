@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (fast scroll target)
+
+- The gallery's fast scroll drives its grid through
+  `ScrollControllerFastScrollTarget`, its month labels looked up at the
+  offset of the progress asked; nothing changes on screen.
+
 ### Changed (tab press and switch, breaking)
 
 - A held tab ripples instead of a flat wash: `AttachTabStyle.ripple`

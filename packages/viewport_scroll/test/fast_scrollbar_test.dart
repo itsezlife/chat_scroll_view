@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viewport_scroll/testing.dart';
 import 'package:viewport_scroll/viewport_scroll.dart';
 
 const _style = FastScrollbarStyle(
@@ -50,10 +51,15 @@ void main() {
         child: MediaQuery(
           data: const MediaQueryData(size: Size(_width, _height)),
           child: FastScrollbar(
-            controller: controller,
+            target: ScrollControllerFastScrollTarget(controller),
             policy: policy,
             style: _style,
-            labelAt: identical(labelAt, _noLabel) ? bands : labelAt,
+            labelAt: switch (identical(labelAt, _noLabel) ? bands : labelAt) {
+              final byOffset? => (progress) => byOffset(
+                ScrollControllerFastScrollTarget(controller).offsetAt(progress),
+              ),
+              null => null,
+            },
             enabled: enabled,
             child: ListView.builder(
               controller: controller,
@@ -490,6 +496,105 @@ void main() {
       await tester.pump();
       expect(controller.offset, greaterThan(100));
       await gesture.up();
+    });
+  });
+
+  group('any target', () {
+    Future<FakeFastScrollTarget> pumpFake(
+      WidgetTester tester, {
+      double? progress = 0,
+      String? Function(double progress)? labelAt,
+    }) async {
+      tester.view
+        ..physicalSize = const Size(_width, _height)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final target = FakeFastScrollTarget(progress: progress);
+      addTearDown(target.dispose);
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: MediaQuery(
+            data: const MediaQueryData(size: Size(_width, _height)),
+            child: FastScrollbar(
+              target: target,
+              policy: FastScrollbarPolicy.$Android,
+              style: _style,
+              labelAt: labelAt,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      return target;
+    }
+
+    testWidgets('the thumb stands at the target\'s progress', (tester) async {
+      final target = await pumpFake(tester, progress: 0.5);
+      await tester.pump();
+      expect(thumb(tester).top, closeTo(12 + (_height - 54) / 2, 0.01));
+      target.progress = 1;
+      await tester.pump();
+      expect(thumb(tester).bottom, _height - 12);
+    });
+
+    testWidgets('a press stops the target; a drag is bracketed and moves it '
+        'by the share of the travel', (tester) async {
+      final target = await pumpFake(tester);
+      final gesture = await tester.startGesture(grip(tester));
+      expect(target.stops, 1);
+      expect(target.dragsStarted, 0);
+      await gesture.moveBy(const Offset(0, 20));
+      await gesture.moveBy(const Offset(0, (_height - 54) / 4 - 20));
+      await tester.pump();
+      expect(target.dragsStarted, 1);
+      expect(target.jumps.last, closeTo(0.25, 1e-6));
+      await gesture.up();
+      await tester.pump();
+      expect(target.dragsEnded, 1);
+    });
+
+    testWidgets('content that cannot scroll shows no thumb', (tester) async {
+      await pumpFake(tester, progress: null);
+      await settle(tester);
+      expect(find.byKey(_thumb), findsNothing);
+    });
+
+    testWidgets('labels are asked by progress', (tester) async {
+      final asked = <double>[];
+      await pumpFake(
+        tester,
+        progress: 0.75,
+        labelAt: (p) {
+          asked.add(p);
+          return 'At $p';
+        },
+      );
+      await settle(tester);
+      expect(asked.last, 0.75);
+    });
+  });
+
+  group('ScrollControllerFastScrollTarget', () {
+    FastScrollTargetContract.run((tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: ListView.builder(
+            controller: controller,
+            itemCount: 100,
+            itemExtent: 50,
+            itemBuilder: (context, index) => Text('$index'),
+          ),
+        ),
+      );
+      return FastScrollTargetHarness(
+        target: ScrollControllerFastScrollTarget(controller),
+        settle: tester.pump,
+      );
     });
   });
 }

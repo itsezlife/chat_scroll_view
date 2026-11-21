@@ -10,6 +10,7 @@
 /// Depends on the Flutter SDK only.
 library;
 
+export 'src/fast_scroll_target.dart';
 export 'src/fast_scrollbar.dart';
 export 'src/fast_scrollbar_policy.dart';
 export 'src/fast_scrollbar_style.dart';

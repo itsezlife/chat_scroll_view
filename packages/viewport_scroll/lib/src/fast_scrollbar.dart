@@ -7,20 +7,23 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:viewport_scroll/src/fast_scroll_target.dart';
 import 'package:viewport_scroll/src/fast_scrollbar_policy.dart';
 import 'package:viewport_scroll/src/fast_scrollbar_style.dart';
 
-/// Labels a place in the scrolled content: the section at the scroll
-/// offset [offset] (a date, a letter), or null for none there.
-typedef FastScrollLabeler = String? Function(double offset);
+/// Labels a place in the scrolled content: the section at [progress] (0 at
+/// the start, 1 at the end: a date, a letter), or null for none there. A
+/// host whose sections are keyed by its engine's own units converts through
+/// its target (`ScrollControllerFastScrollTarget.offsetAt`).
+typedef FastScrollLabeler = String? Function(double progress);
 
 /// A thumb on the trailing edge of [child] that drags through the whole of
 /// its scroll range, and a label beside it naming the section at the
 /// offset reached ([labelAt]).
 ///
-/// It reads and moves [controller], the one [child]'s scrollable is on,
-/// and knows nothing of what is scrolled: the host says what a place is
-/// called. A drag is relative to where the finger went down (a press never
+/// It reads and moves [target], whatever engine scrolls [child]
+/// ([ScrollControllerFastScrollTarget] for a `Scrollable`), and knows
+/// nothing of what is scrolled: the host says what a place is called. A drag is relative to where the finger went down (a press never
 /// moves the content), the thumb's travel spanning the scroll range, the
 /// content following each move at once. [policy] sets the thumb's shape,
 /// when it and the label show, and the haptics; [style] the colours.
@@ -29,9 +32,9 @@ typedef FastScrollLabeler = String? Function(double offset);
 /// they show; everything else reaches [child]. A drag holds the content
 /// against the content's own gestures for its length.
 class FastScrollbar extends StatefulWidget {
-  /// A fast scrollbar over [child], moving [controller].
+  /// A fast scrollbar over [child], moving [target].
   const FastScrollbar({
-    required this.controller,
+    required this.target,
     required this.style,
     required this.child,
     this.policy,
@@ -53,8 +56,8 @@ class FastScrollbar extends StatefulWidget {
     debugPrint('[fastscroll] $message');
   }
 
-  /// The controller of [child]'s scrollable; it must have one position.
-  final ScrollController controller;
+  /// The content [child] scrolls, as the scrollbar reads and moves it.
+  final FastScrollTarget target;
 
   /// Colours and text from the host's tokens.
   final FastScrollbarStyle style;
@@ -69,7 +72,7 @@ class FastScrollbar extends StatefulWidget {
   /// label.
   final FastScrollLabeler? labelAt;
 
-  /// Tells when [labelAt] may answer differently for the same offset (the
+  /// Tells when [labelAt] may answer differently for the same place (the
   /// data under it landed); null when its answers never change.
   final Listenable? labelsChanged;
 
@@ -87,10 +90,10 @@ class FastScrollbar extends StatefulWidget {
 
 /// A press on the thumb or the label, from down to up.
 final class _Press {
-  _Press({required this.pixels, required this.y});
+  _Press({required this.progress, required this.y});
 
-  /// The content's offset at the press.
-  final double pixels;
+  /// The content's progress at the press.
+  final double progress;
 
   /// The finger's global y at the press.
   final double y;
@@ -113,10 +116,10 @@ class _FastScrollbarState extends State<FastScrollbar>
   bool _labelRecent = false;
   _Press? _press;
 
-  // The label shown (kept while it fades out) and the offset it was taken
+  // The label shown (kept while it fades out) and the progress it was taken
   // at, for the direction of the next change.
   String? _label;
-  double _labelPixels = 0;
+  double _labelProgress = 0;
   bool _labelForward = true;
   bool _thumbWanted = false;
   bool _labelWanted = false;
@@ -125,15 +128,12 @@ class _FastScrollbarState extends State<FastScrollbar>
   FastScrollbarPolicy get _policy =>
       widget.policy ?? FastScrollbarPolicy.forPlatform();
 
-  ScrollPosition? get _position {
-    final controller = widget.controller;
-    return controller.positions.length == 1 ? controller.position : null;
-  }
+  FastScrollTarget get _target => widget.target;
 
   @override
   void initState() {
     super.initState();
-    widget.controller.addListener(_onScroll);
+    widget.target.addListener(_onScroll);
     widget.labelsChanged?.addListener(_onLabels);
     WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
   }
@@ -141,9 +141,9 @@ class _FastScrollbarState extends State<FastScrollbar>
   @override
   void didUpdateWidget(FastScrollbar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.controller, widget.controller)) {
-      oldWidget.controller.removeListener(_onScroll);
-      widget.controller.addListener(_onScroll);
+    if (oldWidget.target != widget.target) {
+      oldWidget.target.removeListener(_onScroll);
+      widget.target.addListener(_onScroll);
     }
     if (!identical(oldWidget.labelsChanged, widget.labelsChanged)) {
       oldWidget.labelsChanged?.removeListener(_onLabels);
@@ -154,7 +154,7 @@ class _FastScrollbarState extends State<FastScrollbar>
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onScroll);
+    widget.target.removeListener(_onScroll);
     widget.labelsChanged?.removeListener(_onLabels);
     _$thumbIdle?.cancel();
     _$labelIdle?.cancel();
@@ -199,7 +199,7 @@ class _FastScrollbarState extends State<FastScrollbar>
     });
   }
 
-  // Scroll positions notify during layout too (an extent correcting the
+  // Targets notify during layout too (an extent correcting the
   // offset); state changes then wait for the frame's end.
   void _scheduleSync() {
     final phase = SchedulerBinding.instance.schedulerPhase;
@@ -220,32 +220,27 @@ class _FastScrollbarState extends State<FastScrollbar>
   void _sync() {
     if (!mounted) return;
     final policy = _policy;
-    final position = _position;
+    final target = _target;
+    final progress = target.progress;
     final dragging = _press?.dragging ?? false;
-    final scrolls = position != null && _scrolls(position, policy);
+    final scrolls = _scrolls(target, policy);
     final thumbWanted =
         widget.enabled &&
         scrolls &&
         (policy.thumbIdleHide == null || _thumbRecent || _press != null);
-    final label = position == null || !position.hasPixels
-        ? null
-        : widget.labelAt?.call(position.pixels);
-    if (position != null && position.hasContentDimensions) {
-      final range = position.maxScrollExtent - position.minScrollExtent;
-      if (range != _loggedRange) {
-        FastScrollbar._log(
-          'extent: range $_loggedRange -> $range, viewport '
-          '${position.hasViewportDimension ? position.viewportDimension : '-'}'
-          ', scrolls $scrolls',
-        );
-        _loggedRange = range;
-      }
+    final label = switch (progress) {
+      final p? => widget.labelAt?.call(p),
+      null => null,
+    };
+    final share = target.visibleShare;
+    if (share != _loggedShare) {
+      FastScrollbar._log(
+        'extent: visible share $_loggedShare -> $share, scrolls $scrolls',
+      );
+      _loggedShare = share;
     }
     if (label != _loggedLabel) {
-      FastScrollbar._log(
-        'label at ${position?.hasPixels ?? false ? position!.pixels : '-'}: '
-        '${label ?? 'none'}',
-      );
+      FastScrollbar._log('label at ${progress ?? '-'}: ${label ?? 'none'}');
       _loggedLabel = label;
     }
     // A label the content cannot answer yet (its rows still loading) keeps
@@ -253,13 +248,12 @@ class _FastScrollbarState extends State<FastScrollbar>
     final shownLabel = label ?? _label;
     final labelWanted =
         thumbWanted && shownLabel != null && (_labelRecent || _press != null);
-    if (label != null && label != _label) {
-      final pixels = position!.pixels;
+    if (label != null && label != _label && progress != null) {
       if (_label != null && dragging && policy.labelChangeHaptic) {
         unawaited(HapticFeedback.selectionClick());
       }
-      _labelForward = pixels >= _labelPixels;
-      _labelPixels = pixels;
+      _labelForward = progress >= _labelProgress;
+      _labelProgress = progress;
     }
     if (thumbWanted != _thumbWanted || labelWanted != _labelWanted) {
       FastScrollbar._log(
@@ -295,18 +289,15 @@ class _FastScrollbarState extends State<FastScrollbar>
     });
   }
 
-  double? _loggedRange;
+  double? _loggedShare;
   String? _loggedLabel;
 
-  static bool _scrolls(ScrollPosition position, FastScrollbarPolicy policy) {
-    if (!position.hasContentDimensions || !position.hasViewportDimension) {
-      return false;
-    }
-    final range = position.maxScrollExtent - position.minScrollExtent;
-    if (range <= 0) return false;
-    final viewport = position.viewportDimension;
+  static bool _scrolls(FastScrollTarget target, FastScrollbarPolicy policy) {
+    if (target.progress == null) return false;
+    final share = target.visibleShare;
+    if (share >= 1) return false;
     return switch (policy.maxViewportFraction) {
-      final fraction? => viewport / (viewport + range) < fraction,
+      final fraction? => share < fraction,
       null => true,
     };
   }
@@ -314,13 +305,14 @@ class _FastScrollbarState extends State<FastScrollbar>
   // --- Drag ---
 
   void _down(DragDownDetails details) {
-    final position = _position;
-    if (position == null || !position.hasPixels) return;
+    final target = _target;
+    final progress = target.progress;
+    if (progress == null) return;
     // A press stops a fling where it is.
-    position.jumpTo(position.pixels);
-    _press = _Press(pixels: position.pixels, y: details.globalPosition.dy);
+    target.stop();
+    _press = _Press(progress: progress, y: details.globalPosition.dy);
     FastScrollbar._log(
-      'down at y ${details.globalPosition.dy}, offset ${position.pixels}',
+      'down at y ${details.globalPosition.dy}, progress $progress',
     );
     if (_policy.holdToDrag case final hold?) {
       _$hold = Timer(hold, _startDrag);
@@ -334,7 +326,8 @@ class _FastScrollbarState extends State<FastScrollbar>
     if (press == null || press.dragging) return;
     _$hold?.cancel();
     press.dragging = true;
-    FastScrollbar._log('drag start from offset ${press.pixels}');
+    _target.dragStarted();
+    FastScrollbar._log('drag start from progress ${press.progress}');
     final policy = _policy;
     if (policy.dragStartHaptic) unawaited(HapticFeedback.mediumImpact());
     unawaited(
@@ -348,33 +341,30 @@ class _FastScrollbarState extends State<FastScrollbar>
   }
 
   // The drag's start reports where the finger is past slop, with no
-  // update of its own; both move the content to the finger.
+  // update of its own; both move the content to the finger. The thumb's
+  // travel spans the whole content, so a move of the finger is that share
+  // of it.
   void _move(Offset global, double travel) {
     final press = _press;
-    final position = _position;
-    if (press == null || position == null || travel <= 0) return;
+    if (press == null || travel <= 0) return;
     if (!press.dragging) _startDrag();
-    final range = position.maxScrollExtent - position.minScrollExtent;
-    final target = press.pixels + (global.dy - press.y) * range / travel;
-    final clamped = target
-        .clamp(position.minScrollExtent, position.maxScrollExtent)
+    final target = (press.progress + (global.dy - press.y) / travel)
+        .clamp(0.0, 1.0)
         .toDouble();
     FastScrollbar._log(
-      'drag to y ${global.dy}: offset $clamped of $range '
-      '(${range <= 0 ? 0 : (clamped / range * 100).toStringAsFixed(1)}%), '
-      'travel $travel',
+      'drag to y ${global.dy}: progress '
+      '${(target * 100).toStringAsFixed(1)}%, travel $travel',
     );
-    position.jumpTo(clamped);
+    _target.jumpTo(target);
   }
 
   void _end() {
-    if (_press == null) return;
-    FastScrollbar._log(
-      'drag end at offset '
-      '${_position?.hasPixels ?? false ? _position!.pixels : '-'}',
-    );
+    final press = _press;
+    if (press == null) return;
+    FastScrollbar._log('drag end at progress ${_target.progress ?? '-'}');
     _$hold?.cancel();
     _press = null;
+    if (press.dragging) _target.dragEnded();
     final out = _policy.dragShiftOut;
     unawaited(_$shift.animateTo(0, duration: out.duration, curve: out.curve));
     _poke();
@@ -425,12 +415,9 @@ class _FastScrollbarState extends State<FastScrollbar>
   );
 
   Widget _overlay(BuildContext context, Size size) {
-    final position = _position;
     final shown = _$thumb.value;
-    if (position == null ||
-        !position.hasPixels ||
-        !position.hasContentDimensions ||
-        (shown == 0 && !_thumbWanted)) {
+    final progress = _target.progress;
+    if (progress == null || (shown == 0 && !_thumbWanted)) {
       return const SizedBox.shrink();
     }
     final policy = _policy;
@@ -438,15 +425,10 @@ class _FastScrollbarState extends State<FastScrollbar>
     final extent = policy.thumbExtent;
     final travel =
         size.height - padding.vertical - 2 * policy.trackInset - extent;
-    final range = position.maxScrollExtent - position.minScrollExtent;
-    final progress = range <= 0
-        ? 0.0
-        : ((position.pixels - position.minScrollExtent) / range).clamp(
-            0.0,
-            1.0,
-          );
     final top =
-        padding.top + policy.trackInset + progress * math.max(0, travel);
+        padding.top +
+        policy.trackInset +
+        progress.clamp(0.0, 1.0) * math.max(0, travel);
     final left =
         policy.mirrorsInRtl && Directionality.of(context) == TextDirection.rtl;
     final takesPresses = _thumbWanted || _press != null;

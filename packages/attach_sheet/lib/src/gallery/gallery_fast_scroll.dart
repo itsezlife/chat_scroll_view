@@ -81,23 +81,25 @@ class _GalleryFastScrollState extends State<GalleryFastScroll> {
     final policy = widget.policy;
     final lookup = widget.lookup;
     final fast = policy.libraryFastScroll;
+    final target = ScrollControllerFastScrollTarget(widget.controller);
     return ListenableBuilder(
       listenable: lookup,
       builder: (context, child) => FastScrollbar(
-        controller: widget.controller,
+        target: target,
         policy: fast,
         style: _style(fast, palette),
         // The date the grid is sorted by, so the label moves with the
         // grid's order.
-        labelAt: (offset) => switch (switch (lookup.assetAt(offset)) {
-          final asset? when policy.libraryMonthByModified =>
-            asset.modified ?? asset.created,
-          final asset? => asset.created ?? asset.modified,
-          null => null,
-        }) {
-          final date? => strings.libraryMonth(date.toLocal()),
-          null => null,
-        },
+        labelAt: (progress) =>
+            switch (switch (lookup.assetAt(target.offsetAt(progress))) {
+              final asset? when policy.libraryMonthByModified =>
+                asset.modified ?? asset.created,
+              final asset? => asset.created ?? asset.modified,
+              null => null,
+            }) {
+              final date? => strings.libraryMonth(date.toLocal()),
+              null => null,
+            },
         labelsChanged: lookup,
         enabled: _atTop && lookup.count >= policy.libraryFastScrollMinCount,
         // The track ends where the grid's visible content ends: above the

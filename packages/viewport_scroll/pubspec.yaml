@@ -14,7 +14,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-dev_dependencies:
+  # Only lib/testing.dart needs this: its contract tests are written with
+  # the test framework, and a library cannot import a dev dependency.
+  # Production entry points never import it.
   flutter_test:
     sdk: flutter
