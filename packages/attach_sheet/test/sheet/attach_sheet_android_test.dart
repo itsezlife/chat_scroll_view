@@ -138,6 +138,27 @@ void main() {
       expect(policy.pinSnapZone, 56);
     });
 
+    testWidgets('pulled down from the top by 30 and let go, it docks back; '
+        'pulled past 56 it stays', (tester) async {
+      final rig = await SheetRig.open(tester, policy: policy);
+      final sheet = AttachSheetController.of(
+        tester.element(find.byKey(const ValueKey('row-1'))),
+      );
+      unawaited(sheet.expand());
+      await tester.pumpAndSettle();
+      expect(rig.top, pinned);
+
+      await rig.drag(30);
+      await tester.pump();
+      expect(rig.top, greaterThan(pinned + 10));
+      await tester.pumpAndSettle();
+      expect(rig.top, pinned);
+
+      await rig.drag(90);
+      await tester.pumpAndSettle();
+      expect(rig.top, closeTo(pinned + 90, 1));
+    });
+
     testWidgets('left further down than 56 it stays where it is', (
       tester,
     ) async {
