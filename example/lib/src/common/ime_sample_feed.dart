@@ -15,15 +15,23 @@ import 'package:panel_presentation/panel_presentation.dart';
 final class ImeSampleFeed {
   /// A feed of [keyboard] into [ime]. Reads the keyboard's resting height
   /// at once: a screen opened with the keyboard up has no event yet.
-  ImeSampleFeed({required SoftKeyboardPort keyboard, required this.ime})
-    : _keyboard = keyboard,
-      _height = keyboard.restingHeight {
+  ImeSampleFeed({
+    required SoftKeyboardPort keyboard,
+    required this.ime,
+    this.followsDownWhilePaused = false,
+  }) : _keyboard = keyboard,
+       _height = keyboard.restingHeight {
     _heights = keyboard.heights.listen(_onHeight);
     _motion = keyboard.animatingChanges.listen((_) => _onMotion());
   }
 
   /// Where the samples go.
   final ImeInput ime;
+
+  /// Whether a keyboard going down is still reported while paused: for a
+  /// surface that stood on the keyboard and has nothing to hold its place
+  /// (a caption under a viewer), not for one whose panel holds it.
+  final bool followsDownWhilePaused;
 
   final SoftKeyboardPort _keyboard;
   late final StreamSubscription<double> _heights;
@@ -46,9 +54,9 @@ final class ImeSampleFeed {
     report();
   }
 
-  /// While paused (another surface owns the keyboard) a keyboard rising
-  /// is not reported, but one going down still is: what this surface stood
-  /// on is gone, so it is at rest when it is unpaused. Unpaused, the
+  /// While paused (another surface owns the keyboard) nothing is reported,
+  /// except, with [followsDownWhilePaused], a keyboard going down: what this
+  /// surface stood on is gone, so it is at rest when it is unpaused. Unpaused, the
   /// keyboard is reported as it is then, on a frame of its own when the
   /// unpause comes in a frame's build (a surface disposed as its route
   /// goes), where listeners could not rebuild.
@@ -78,6 +86,7 @@ final class ImeSampleFeed {
 
   // While paused: a keyboard at or under the height last reported.
   void _followDown() {
+    if (!followsDownWhilePaused) return;
     final reported = _reported;
     if (reported == null || _height > reported) return;
     _send();

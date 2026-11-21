@@ -94,7 +94,11 @@ final class ChatCaptionDock implements AttachCaptionDock {
        _keyboard = keyboard,
        _window = window,
        _frames = frames {
-    _feed = ImeSampleFeed(keyboard: keyboard, ime: ime);
+    _feed = ImeSampleFeed(
+      keyboard: keyboard,
+      ime: ime,
+      followsDownWhilePaused: true,
+    );
     swap = KeyboardPanelDock(
       presentation: presentation,
       keyboard: slot,
