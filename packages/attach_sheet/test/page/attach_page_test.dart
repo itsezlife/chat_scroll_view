@@ -500,7 +500,8 @@ void main() {
           primaryDelta: -scroll,
         ),
       );
-      await tester.pump();
+      // A frame's time: the pinned bar and the edge run on their own.
+      await tester.pump(const Duration(milliseconds: 16));
     }
 
     testWidgets('forward raises the sheet first, step by step, then scrolls '
@@ -528,14 +529,16 @@ void main() {
         await step(tester, drag, 16);
       }
       expect(rig.top, 24);
-      await step(tester, drag, 16);
+      for (var i = 0; i < 3; i++) {
+        await step(tester, drag, 16);
+      }
       expect(position.pixels, greaterThan(0));
       drag.end(DragEndDetails(primaryVelocity: 0));
       await tester.pumpAndSettle();
       expect(rig.top, 24);
 
       final sheet = AttachSheetController.of(
-        tester.element(find.byKey(const ValueKey('gallery-row-0'))),
+        tester.element(find.byKey(const ValueKey('attach-page-area'))),
       );
       unawaited(sheet.collapse());
       await tester.pumpAndSettle();
@@ -583,7 +586,9 @@ void main() {
       for (var i = 0; i < 100 && rig.top > 24; i++) {
         await step(tester, drag, 16);
       }
-      await step(tester, drag, 16);
+      for (var i = 0; i < 3; i++) {
+        await step(tester, drag, 16);
+      }
       expect(rig.top, 24);
       expect(position.pixels, greaterThan(0));
       drag.end(DragEndDetails(primaryVelocity: 0));
@@ -634,6 +639,8 @@ void main() {
       for (var i = 0; i < 100 && position.pixels < 40; i++) {
         await step(tester, drag, 16);
       }
+      // The edge's run up to the top plays out on its own time.
+      await tester.pump(const Duration(milliseconds: 200));
       expect(rig.top, 24);
       for (var i = 0; i < 10; i++) {
         await step(tester, drag, -16);

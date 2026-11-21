@@ -740,14 +740,14 @@ class _GalleryViewState extends State<GalleryView> {
   }
 
   // The part of the grid the pinned bar covers at the sheet's top: the
-  // bar's height less the header's band over the grid.
+  // bar's height less where the grid starts there (the sheet's bleed and
+  // the band over the grid, whose growth goes upward).
   double get _pinnedOverGrid {
     if (widget.pinnedItems == null) return 0;
-    final style = widget.panel.policy.selectionHeader;
-    final band = _ownsHeader
-        ? style.band + (widget.panel.header.value.count > 0 ? style.rise : 0)
-        : 0.0;
-    return math.max(0, style.pinnedBarHeight - band);
+    final policy = widget.panel.policy;
+    final style = policy.selectionHeader;
+    final band = _ownsHeader ? style.band : 0.0;
+    return math.max(0, style.pinnedBarHeight - (policy.topBleed + band));
   }
 
   // Whether the header is the view's own, over the grid and the preview

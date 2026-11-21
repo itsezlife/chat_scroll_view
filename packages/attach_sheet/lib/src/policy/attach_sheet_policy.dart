@@ -269,6 +269,19 @@ abstract base class AttachSheetPolicy {
   /// The sheet's top edge when expanded.
   double expandedTop(EdgeInsets padding);
 
+  /// How far below its edge an expanded sheet's content starts: the sheet
+  /// docks that much below [expandedTop], and over the last of its way up
+  /// its edge bleeds up to [expandedTop] while the content moves with the
+  /// finger. 0 for none.
+  double get topBleed => 0;
+
+  /// How far below the edge's highest (the expanded top less [topBleed])
+  /// the sheet's top turns the pinned bar on: crossing it either way, the
+  /// pinned bar and the edge's run up to the top ([headerFade]) play out
+  /// on their own, the content following the finger. Null for at the
+  /// expanded top.
+  double? get pinnedWithin => null;
+
   /// The radius of the sheet's top corners at rest.
   double get cornerRadius;
 
@@ -455,6 +468,17 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
 
   @override
   double expandedTop(EdgeInsets padding) => padding.top;
+
+  /// Docked, the first row stands 7 below the pinned bar (56): the list's
+  /// top scroll offset. Rows stand 24 under the sheet's top (its band), so
+  /// the sheet docks 39 under the status bar and its edge bleeds up to it.
+  @override
+  double get topBleed => 56 + 7 - 24;
+
+  /// The action bar shows once the list's first row is within 12 and the
+  /// bar's 56 of the top: the sheet's top 24 above it, so within 44.
+  @override
+  double? get pinnedWithin => 12 + 56 - 24;
 
   @override
   double get cornerRadius => 12;

@@ -17,6 +17,9 @@ void main() {
     const EdgeInsets.only(top: 24),
   );
   const pinned = 24.0;
+  // Docked, the sheet's top stands the bleed under the edge drawn at the
+  // status bar: its first row 7 under the pinned bar.
+  final docked = pinned + policy.topBleed;
 
   group('open', () {
     testWidgets('springs up from the bottom edge to its rest', (tester) async {
@@ -79,7 +82,7 @@ void main() {
       expect(rig.top, closeTo(rest - 100, 1));
       expect(rig.scrolled, 0);
 
-      await rig.drag(-(rest - pinned) + 100 - 150);
+      await rig.drag(-(rest - docked) + 100 - 150);
       await tester.pumpAndSettle();
       expect(rig.top, pinned);
       expect(rig.scrolled, closeTo(150, 1));
@@ -117,29 +120,85 @@ void main() {
       expect(sheet.pinned.value, 1);
     });
 
-    testWidgets('left within 56 of the top it docks there by itself, '
-        'easing out over 300 ms and its share of the height', (tester) async {
+    testWidgets('crossing 44 under the status bar mid-drag, the edge runs up '
+        'to it and the pinned bar comes, on their own 180 ms, while the rows '
+        'stay on the finger; crossing back, both go back the same way', (
+      tester,
+    ) async {
       final rig = await SheetRig.open(tester, policy: policy);
-
-      await rig.drag(-(rest - pinned) + 40);
+      final sheet = AttachSheetController.of(
+        tester.element(find.byKey(const ValueKey('row-1'))),
+      );
+      double row() => tester.getTopLeft(find.byKey(const ValueKey('row-0'))).dy;
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(const ValueKey('row-1'))),
+      );
+      // Up to 50 under the status bar: not yet (past the touch slop first).
+      await gesture.moveBy(const Offset(0, -40));
       await tester.pump();
-      final from = rig.top;
-      expect(from, greaterThan(pinned + 20));
-      expect(from, lessThan(pinned + 56));
+      await gesture.moveBy(Offset(0, pinned + 50 - sheet.top.value));
+      await tester.pump();
+      expect(sheet.top.value - pinned, closeTo(50, 1));
+      expect(sheet.pinned.value, 0);
+      expect(rig.top, closeTo(sheet.top.value, 0.5));
+
+      // 10 more: across the line.
+      await gesture.moveBy(const Offset(0, -10));
+      await tester.pump();
+      final rowAt = row();
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(row(), rowAt, reason: 'the rows stay with the finger');
+      expect(sheet.pinned.value, inExclusiveRange(0.3, 0.7));
+      final half = sheet.pinned.value;
+      final content = sheet.top.value;
+      expect(rig.top, closeTo(content - (docked - pinned) * half, 1));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(sheet.pinned.value, 1);
+      // The edge the bleed above the content: at the status bar once docked.
+      expect(rig.top, closeTo(sheet.top.value - (docked - pinned), 0.5));
+
+      // Back down across it: the edge runs back on its own time.
+      await gesture.moveBy(const Offset(0, 20));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(sheet.pinned.value, inExclusiveRange(0.3, 0.7));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(sheet.pinned.value, 0);
+      expect(rig.top, closeTo(sheet.top.value, 0.5));
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('left with its edge within 56 of the top it docks by '
+        'itself, its first row 7 under the pinned bar, easing out over 300 '
+        'ms and its share of the height', (tester) async {
+      final rig = await SheetRig.open(tester, policy: policy);
+      final sheet = AttachSheetController.of(
+        tester.element(find.byKey(const ValueKey('row-1'))),
+      );
+
+      // The edge 50 under the status bar: within the zone.
+      await rig.drag(-(rest - pinned) + 50);
+      await tester.pump();
+      final from = sheet.top.value;
+      expect(from - pinned, closeTo(50, 1));
       // 300 ms and 300 more for the share of the viewport moved.
-      const viewport = 800 - pinned;
-      final ms = 300 * (1 + (from - pinned) / viewport);
+      final viewport = 800 - docked;
+      final ms = 300 * (1 + (from - docked) / viewport);
       await tester.pump(Duration(milliseconds: (ms / 2).round()));
       const t = 0.5;
       const eased = 1 - (1 - t) * (1 - t) * (1 - t) * (1 - t) * (1 - t);
-      expect(rig.top, closeTo(from + (pinned - from) * eased, 1.5));
+      expect(sheet.top.value, closeTo(from + (docked - from) * eased, 1.5));
       await tester.pumpAndSettle();
-      expect(rig.top, pinned);
+      expect(sheet.top.value, closeTo(docked, 0.5));
+      expect(rig.top, pinned, reason: 'its edge at the status bar');
       expect(policy.pinSnapZone, 56);
     });
 
-    testWidgets('pulled down from the top by 30 and let go, it docks back; '
-        'pulled past 56 it stays', (tester) async {
+    testWidgets('pulled down from the top a little (its edge still within '
+        '56) and let go, it docks back; pulled further it stays', (
+      tester,
+    ) async {
       final rig = await SheetRig.open(tester, policy: policy);
       final sheet = AttachSheetController.of(
         tester.element(find.byKey(const ValueKey('row-1'))),
@@ -147,16 +206,16 @@ void main() {
       unawaited(sheet.expand());
       await tester.pumpAndSettle();
       expect(rig.top, pinned);
+      expect(sheet.top.value, closeTo(docked, 0.5));
 
+      await rig.drag(10);
+      await tester.pumpAndSettle();
+      expect(sheet.top.value, closeTo(docked, 0.5));
+
+      // 30 down: the edge 69 under the status bar, past the zone.
       await rig.drag(30);
-      await tester.pump();
-      expect(rig.top, greaterThan(pinned + 10));
       await tester.pumpAndSettle();
-      expect(rig.top, pinned);
-
-      await rig.drag(90);
-      await tester.pumpAndSettle();
-      expect(rig.top, closeTo(pinned + 90, 1));
+      expect(sheet.top.value, closeTo(docked + 30, 1));
     });
 
     testWidgets('left further down than 56 it stays where it is', (
@@ -194,7 +253,7 @@ void main() {
       rig.controller.expand().ignore();
       await tester.pumpAndSettle();
 
-      await rig.fling(300, 3000);
+      await rig.fling(rest - docked, 3000);
       await tester.pumpAndSettle();
       expect(rig.closed, isFalse);
       expect(rig.top, closeTo(rest, 1));
@@ -253,7 +312,7 @@ void main() {
     // back to its start and lowers the sheet the last 40, short of 0.8 cm.
     Future<SheetRig> scrolledIn(WidgetTester tester) async {
       final rig = await SheetRig.open(tester, policy: policy);
-      await rig.drag(-(rest - pinned) - 60);
+      await rig.drag(-(rest - docked) - 60);
       await tester.pumpAndSettle();
       expect(rig.scrolled, closeTo(60, 1));
       return rig;

@@ -295,6 +295,8 @@ class _AttachSheetState extends State<AttachSheet>
   Size _size = Size.zero;
   double _collapsedTop = 0;
   double _expandedTop = 0;
+  // The highest the edge goes: the expanded top less the policy's bleed.
+  double _floorTop = 0;
   Rect? _card;
   bool _keyboardUp = false;
   double _statusBar = 0;
@@ -713,7 +715,13 @@ class _AttachSheetState extends State<AttachSheet>
   void _syncHeader() {
     final fade = _policy.headerFade;
     if (fade == null || !_opened || _closing) return;
-    final target = isExpanded ? 1.0 : 0.0;
+    // Crossing the policy's line (or reaching the top without one) turns
+    // the pinned bar on, and leaving it off, either way at once.
+    final within = _policy.pinnedWithin;
+    final pinnedNow = within == null
+        ? isExpanded
+        : _$top.value - _floorTop <= within + 0.5;
+    final target = pinnedNow ? 1.0 : 0.0;
     if (_headerTarget == target) return;
     _headerTarget = target;
     final spec = fade.withSpeed(_speed);
@@ -898,9 +906,11 @@ class _AttachSheetState extends State<AttachSheet>
   Future<void> _snap() async {
     final zone = _policy.pinSnapZone;
     final above = _$top.value - _expandedTop;
-    // From the edge drawn: a page header's growth over the top counts.
-    final grown = (_$extension.value?.value ?? 0).clamp(0.0, above);
-    if (zone != null && above > 0.5 && above - grown < zone) {
+    // From the edge as the content puts it (a page header's growth over
+    // the top counted), to the edge's highest.
+    final grown = math.max(0, _$extension.value?.value ?? 0);
+    final edge = _$top.value - grown - _floorTop;
+    if (zone != null && above > 0.5 && edge < zone) {
       await _moveTo(
         _expandedTop,
         _policy.dockMotion(above, _size.height - _expandedTop),
@@ -937,13 +947,17 @@ class _AttachSheetState extends State<AttachSheet>
     if (card != null) {
       _collapsedTop = card.top;
       _expandedTop = card.top;
+      _floorTop = card.top;
     } else {
       // With the keyboard up the rest is taken over the window above it.
       final over = _policy.restRisesWithKeyboard && keyboard > 0
           ? Size(_size.width, _size.height - keyboard)
           : _size;
       _collapsedTop = _$restTop ?? _policy.collapsedTop(over, padding);
-      _expandedTop = math.min(_policy.expandedTop(padding), _collapsedTop);
+      _floorTop = math.min(_policy.expandedTop(padding), _collapsedTop);
+      // Docked below the edge's highest by the bleed: the content starts
+      // there, the edge bleeds up over the last of the way.
+      _expandedTop = math.min(_floorTop + _policy.topBleed, _collapsedTop);
       if (_policy.restRisesWithKeyboard) _followRest();
     }
     if (!_opened) {
@@ -1076,14 +1090,9 @@ class _AttachSheetState extends State<AttachSheet>
     ]),
     child: content,
     builder: (context, content) {
-      // The edge stands above the top by the header's growth, never above
-      // the expanded top; the content moves up with it as the header's
-      // band grows by as much, so what is under the band holds still.
-      final grown = _morphing
-          ? 0.0
-          : extension.value.clamp(0.0, math.max(0.0, _shownTop - _expandedTop));
-      final top = _shownTop - grown;
       final pinned = _$header.value;
+      final (:contentTop, :top) = _edge(extension.value, pinned);
+      final inset = contentTop - top;
       final target = Rect.fromLTWH(
         0,
         top,
@@ -1119,6 +1128,8 @@ class _AttachSheetState extends State<AttachSheet>
                 // takes no top inset. While it morphs the content keeps
                 // the sheet's size and fades in.
                 Positioned.fill(
+                  top: inset,
+                  bottom: -inset,
                   child: Opacity(
                     opacity: _contentOpacity,
                     child: OverflowBox(
@@ -1199,10 +1210,40 @@ class _AttachSheetState extends State<AttachSheet>
     return (top: top - diff, radiusShare: 1 - math.min(1, diff * 2 / bar));
   }
 
-  Widget _bandLayer(AttachTokens tokens) => AnimatedBuilder(
-    animation: Listenable.merge([_$top, _morphChannels]),
+  /// The content's top and the edge drawn, for a header's growth [grown]
+  /// and the pinned bar's presence [pinned].
+  ({double contentTop, double top}) _edge(double grown, double pinned) {
+    // The content stands above the top by the header's growth (its band
+    // grows by as much, so what is under the band holds still). The edge
+    // stands at the content's top, and runs up by the bleed with the
+    // pinned bar (on its own time, the content following the finger),
+    // never above the floor.
+    final up = _morphing ? 0.0 : math.max<double>(0, grown);
+    final contentTop = _shownTop - up;
+    final bleed = _morphing
+        ? 0.0
+        : math.max<double>(0, _expandedTop - _floorTop - up);
+    final top = math.max(
+      _morphing ? double.negativeInfinity : _floorTop,
+      contentTop - bleed * pinned,
+    );
+    return (contentTop: contentTop, top: top);
+  }
+
+  Widget _bandLayer(AttachTokens tokens) =>
+      ValueListenableBuilder<ValueListenable<double>?>(
+        valueListenable: _$extension,
+        builder: (context, extension, _) =>
+            _bandLayerOver(tokens, extension ?? _uncovered),
+      );
+
+  Widget _bandLayerOver(
+    AttachTokens tokens,
+    ValueListenable<double> extension,
+  ) => AnimatedBuilder(
+    animation: Listenable.merge([_$top, _$header, extension, _morphChannels]),
     builder: (context, _) {
-      final top = _shownTop;
+      final top = _edge(extension.value, _$header.value).top;
       final band = _bandAt(top);
       return Positioned(
         key: const ValueKey('attach-sheet-band'),

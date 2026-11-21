@@ -6,6 +6,18 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (reaching the top, Android)
+
+- The pinned bar turns on once the sheet's top is within 44 of the status
+  bar (the list's first row within 68), either way, and plays out on its
+  own 180 ms. The edge runs up to the status bar and the corners square
+  with it, while the content keeps following the finger. It no longer
+  needs the sheet fully raised.
+- Docked, the first row stands 7 under the pinned bar (56): the sheet's
+  top stands 39 under the status bar and its edge bleeds up to it
+  (`AttachSheetPolicy.topBleed`, `pinnedWithin`). The dock zone is
+  measured from the status bar, and the fast scroll's inset follows.
+
 ### Added (the dock at the top, Android)
 
 - A sheet whose edge is left within 56 (the action bar's height) of the
