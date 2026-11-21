@@ -697,6 +697,16 @@ class _AttachSheetState extends State<AttachSheet>
   }
 
   @override
+  double raiseSheet(double delta) {
+    if (delta <= 0) return delta;
+    _$top.stop();
+    final next = math.max(_$top.value - delta, _expandedTop);
+    final taken = _$top.value - next;
+    _$top.value = next;
+    return delta - taken;
+  }
+
+  @override
   void carryFling(double velocity) {
     AttachLog.log(
       AttachLog.panel,

@@ -488,4 +488,48 @@ void main() {
       expect(rig.shows('music'), isTrue);
     });
   });
+
+  group('an edge auto-scroll (a swipe selection held at the edge)', () {
+    testWidgets('raises the sheet first, step by step, then scrolls the page; '
+        'a long jump (an album change) only scrolls the page', (tester) async {
+      late AttachPageScope gallery;
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [
+          rowsPage('gallery', onScope: (s) => gallery = s),
+          rowsPage('files'),
+        ],
+      );
+      final position = gallery.scrollController.position;
+      final rest = rig.top;
+      position.jumpTo(position.pixels + 16);
+      await tester.pump();
+      expect(rig.top, closeTo(rest - 16, 0.01));
+      expect(position.pixels, 0);
+
+      // Up to the top, then the page.
+      for (var i = 0; i < 100 && rig.top > 24; i++) {
+        position.jumpTo(position.pixels + 16);
+        await tester.pump();
+      }
+      expect(rig.top, 24);
+      position.jumpTo(position.pixels + 16);
+      await tester.pump();
+      expect(position.pixels, greaterThan(0));
+
+      final sheet = AttachSheetController.of(
+        tester.element(find.byKey(const ValueKey('gallery-row-0'))),
+      );
+      unawaited(sheet.collapse());
+      await tester.pumpAndSettle();
+      position.jumpTo(0);
+      await tester.pump();
+      final restAgain = rig.top;
+      position.jumpTo(400);
+      await tester.pump();
+      expect(rig.top, restAgain);
+      expect(position.pixels, 400);
+    });
+  });
 }

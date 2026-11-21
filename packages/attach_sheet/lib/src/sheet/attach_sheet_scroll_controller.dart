@@ -26,6 +26,11 @@ abstract interface class AttachSheetDrive {
   /// sheet did not take, for the page.
   double dragSheet(double delta);
 
+  /// Raises the sheet by [delta] (positive) toward its top, as a scroll of
+  /// the page would, with no drag to release after; returns the part it
+  /// did not take.
+  double raiseSheet(double delta);
+
   /// The page's own fling ran into its start moving at [velocity] (positive
   /// downward): the sheet carries it on, as one list with the page.
   void carryFling(double velocity);
@@ -92,6 +97,27 @@ class _AttachSheetScrollPosition extends ScrollPositionWithSingleContext {
     drive.dragStarted();
     _cancelDrag = dragCancelCallback;
     return super.drag(details, dragCancelCallback);
+  }
+
+  /// The most a programmatic step moves: an edge auto-scroll (a swipe
+  /// selection held at the grid's edge) steps 16 a frame. A step of at most
+  /// this forward raises the sheet first, as a scroll of the page does; a
+  /// longer jump (an album change, a fast scroll) is a placement and only
+  /// moves the page.
+  static const double autoScrollStep = 16;
+
+  @override
+  void jumpTo(double value) {
+    final delta = value - pixels;
+    if (delta > 0 &&
+        delta <= autoScrollStep + precisionErrorTolerance &&
+        drive.takesDrags &&
+        !drive.isAtTop) {
+      final rest = drive.raiseSheet(delta);
+      if (rest > 0) super.jumpTo(pixels + rest);
+      return;
+    }
+    super.jumpTo(value);
   }
 
   @override
