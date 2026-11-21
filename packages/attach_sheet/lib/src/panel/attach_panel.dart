@@ -24,8 +24,15 @@ class AttachCaptionBar extends StatefulWidget {
     this.beforeSend,
     this.dock,
     this.caption,
+    this.addMore,
     super.key,
   });
+
+  /// The add-photo button leading the field while the keyboard is down
+  /// (the camera's viewer: back to the camera for another shot); null for
+  /// none. With the field focused, the keyboard up or the panel in its
+  /// place, the panel button takes its place, and a tap on it is ignored.
+  final VoidCallback? addMore;
 
   /// The field this bar edits: the panel's caption when null; the viewer's
   /// own field over the same text otherwise.
@@ -44,6 +51,9 @@ class AttachCaptionBar extends StatefulWidget {
   /// starts as far in as it ends.
   static const double fieldStartInset =
       ComposerMetrics.islandRadius - ComposerMetrics.fieldEndPad;
+
+  /// How long add-photo and the panel button take to fade in as they swap.
+  static const Duration addMoreFade = Duration(milliseconds: 150);
 
   /// Runs before a tap on Send sends (the viewer selects the item it shows
   /// when nothing is selected).
@@ -71,12 +81,42 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
     super.initState();
     _send.refusals.addListener(_refused);
     _send.caption.focusNode.addListener(_focused);
+    _caption.focusNode.addListener(_focusChanged);
+  }
+
+  @override
+  void didUpdateWidget(AttachCaptionBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final old = oldWidget.caption ?? _send.caption;
+    if (!identical(old, _caption)) {
+      old.focusNode.removeListener(_focusChanged);
+      _caption.focusNode.addListener(_focusChanged);
+    }
+  }
+
+  // The add-photo button follows the field's focus.
+  void _focusChanged() {
+    if (widget.addMore != null && mounted) setState(() {});
+  }
+
+  // Whether the keyboard (or the panel in its place) is up or coming: the
+  // field focused, the panel up, or the keyboard's inset showing.
+  bool _keyboardUp(AttachCaptionDock? dock) =>
+      _caption.focusNode.hasFocus ||
+      (dock?.panelUp ?? false) ||
+      MediaQuery.viewInsetsOf(context).bottom > 0;
+
+  // A tap on add-photo while the caption is open does nothing.
+  void _addMore(AttachCaptionDock? dock) {
+    if (_keyboardUp(dock)) return;
+    widget.addMore?.call();
   }
 
   @override
   void dispose() {
     _send.refusals.removeListener(_refused);
     _send.caption.focusNode.removeListener(_focused);
+    _caption.focusNode.removeListener(_focusChanged);
     _$shake.dispose();
     super.dispose();
   }
@@ -100,6 +140,10 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
     final composerStrings = ChromeStringsScope.of(context).composer;
     final from = _send.counterFrom;
     final panelUp = dock?.panelUp ?? false;
+    final addMore = widget.addMore;
+    // With add-photo, it and the panel button share the leading place: one
+    // while the keyboard is down, the other while it is up, each fading in.
+    final addPhotoShown = addMore != null && !_keyboardUp(dock);
     return ComposerView(
       key: const ValueKey('attach-caption'),
       controller: _caption,
@@ -123,6 +167,16 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
         actions: [
           // The caption's panel toggle, as the chat's: the emoji page in the
           // keyboard's place, or back.
+          if (addMore != null)
+            ActionDescriptor(
+              id: 'attach-caption-add-photo',
+              icon: ChromeIconId.addPhoto,
+              semanticLabel: strings.captionAddPhoto,
+              placement: ActionPlacement.leading,
+              visible: addPhotoShown,
+              onTap: () => _addMore(dock),
+              wrap: _fadeIn,
+            ),
           if (dock != null)
             ActionDescriptor(
               id: 'attach-caption-panel',
@@ -131,12 +185,23 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
                   ? composerStrings.showKeyboardAction
                   : composerStrings.showPanelAction,
               placement: ActionPlacement.leading,
+              visible: !addPhotoShown,
               onTap: dock.togglePanel,
+              wrap: addMore == null ? null : _fadeIn,
             ),
         ],
       ),
     );
   }
+
+  // A leading button that takes the place fades in.
+  static Widget _fadeIn(BuildContext context, Widget button) =>
+      TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: AttachCaptionBar.addMoreFade,
+        builder: (context, t, child) => Opacity(opacity: t, child: child),
+        child: button,
+      );
 
   @override
   Widget build(BuildContext context) => switch (widget.dock) {

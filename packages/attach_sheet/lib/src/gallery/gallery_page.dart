@@ -20,7 +20,7 @@ import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:mpx_capture/mpx_capture.dart';
-import 'package:mpx_core/mpx_core.dart' show MediaKey;
+import 'package:mpx_core/mpx_core.dart' show AssetCacheProvider, MediaKey;
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_player/mpx_player.dart' show PlayerPool;
 import 'package:mpx_ui/mpx_ui.dart';
@@ -209,6 +209,11 @@ class _GalleryViewState extends State<GalleryView> {
   };
   CameraSession? _$session;
   bool _cameraDenied = false;
+  final GlobalKey<LibraryPickerState> _$pickerKey = GlobalKey();
+  // Whether the capture surface is shown: a viewer opened now is the
+  // camera's (its caption leads with add-photo, and back may take the shot
+  // back).
+  bool _surfaceOpen = false;
   final GlobalKey _$slot = GlobalKey();
 
   // Where the focus rests in the sheet's route when no field holds it (the
@@ -333,6 +338,23 @@ class _GalleryViewState extends State<GalleryView> {
     }
     final strings = ChromeStringsScope.attachOf(context);
     final box = _$slot.currentContext?.findRenderObject() as RenderBox?;
+    _surfaceOpen = true;
+    try {
+      await _showSurface(camera, session, kinds, strings, box);
+    } finally {
+      _surfaceOpen = false;
+      _$shots?.cameraClosed();
+    }
+  }
+
+  Future<void> _showSurface(
+    GalleryCamera camera,
+    CameraSession session,
+    CaptureKinds kinds,
+    AttachStrings strings,
+    RenderBox? box,
+  ) async {
+    final shots = _$shots;
     await CameraCaptureSurface.show(
       context,
       session: session,
@@ -343,6 +365,7 @@ class _GalleryViewState extends State<GalleryView> {
         flash: strings.captureFlash,
         videoMode: strings.captureVideoMode,
         photoMode: strings.capturePhotoMode,
+        shotsCount: (photos, videos) => shotsCount(strings, photos, videos),
       ),
       outputDirectory: camera.outputDirectory,
       kinds: kinds,
@@ -351,9 +374,13 @@ class _GalleryViewState extends State<GalleryView> {
       // The platform's surface: Android's shutter, or iOS's modes, lenses
       // and results strip.
       policy: CaptureSurfacePolicy.forPlatform(Theme.of(context).platform),
-      onCaptured: (shot) => _$shots?.add(shot),
-      resultBuilder: _$shots?.resultTile,
-      onShotRemoved: _$shots?.remove,
+      onCaptured: (shot) => shots?.add(shot),
+      // The strip and the counter show the shots this open keeps; the
+      // counter opens the viewer over them, at the newest.
+      shots: shots?.shots,
+      onShotsTap: shots == null ? null : _openCaptures,
+      resultBuilder: shots == null ? null : _shotCell,
+      onShotRemoved: shots?.remove,
       // A hold where videos may not be sent, or one whose microphone was
       // refused: the host says so.
       onVideoRefused: (refusal) => widget.panel.host.interaction(
@@ -362,6 +389,75 @@ class _GalleryViewState extends State<GalleryView> {
           CaptureVideoRefusal.microphone => AttachVideoRefusal.microphone,
         }),
       ),
+    );
+  }
+
+  /// The shots counter's words: so many photos, videos, or media of both,
+  /// upper-cased.
+  @visibleForTesting
+  static String shotsCount(AttachStrings strings, int photos, int videos) {
+    final n = photos + videos;
+    final words = switch ((photos, videos)) {
+      (_, 0) => strings.capturedPhotos(n),
+      (0, _) => strings.capturedVideos(n),
+      _ => strings.capturedMedia(n),
+    };
+    return words.toUpperCase();
+  }
+
+  // The shots counter: the viewer over the shots, at the newest; back from
+  // it may take a lone shot back.
+  void _openCaptures() {
+    final picker = _$pickerKey.currentState;
+    if (picker == null) return;
+    _$shots?.viewerOpenedFromCamera();
+    unawaited(picker.openCaptures());
+  }
+
+  // A viewer closed: the camera's may take its lone shot back.
+  void _viewerClosed() {
+    if (_surfaceOpen) _$shots?.viewerClosed();
+  }
+
+  // A shot in the camera's strip: the grid's cell for it, with its check
+  // and order number; a tap anywhere on it toggles it.
+  Widget _shotCell(BuildContext context, CameraShot shot) {
+    final key = shot.key;
+    final capture = key == null ? null : _$shots?.captureOf(key);
+    if (key == null || capture == null) return const SizedBox.expand();
+    // The gallery's words and colours: the surface's route may stand
+    // outside the chrome's scopes.
+    final strings = ChromeStringsScope.attachOf(this.context);
+    final tokens = _tokens(this.context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final extent = constraints.biggest.shortestSide;
+        final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
+        final pixels = (extent * dpr).ceil();
+        final asset = capture.asset;
+        AssetCacheProvider.maybeOf(
+          context,
+        )?.know(PickerCaptureKeys.thumbnailDescriptorOf(asset, pixels));
+        // A refusal reaches the host through the picker's selection.
+        void toggle() => _$picker.toggle(key);
+
+        return ListenableBuilder(
+          listenable: _$picker,
+          builder: (context, _) => LibraryGridCell(
+            key: ValueKey<MediaKey>(key),
+            asset: asset,
+            extent: extent,
+            thumbnailPixels: pixels,
+            policy: widget.panel.policy.libraryGrid,
+            tokens: tokens,
+            labels: _labels(strings),
+            order: _$picker.orderOf(key),
+            dimmed: _$picker.refusalOf(key) != null,
+            onToggle: toggle,
+            onOpen: toggle,
+          ),
+        );
+      },
     );
   }
 
@@ -407,6 +503,17 @@ class _GalleryViewState extends State<GalleryView> {
             },
             sheetRest: _restFocus,
             chromeShown: item.chromeShown,
+            // The camera's viewer leads its caption with add-photo, back to
+            // the camera for another shot, unless one item is all it takes.
+            addMore: switch (_$shots) {
+              final shots?
+                  when _surfaceOpen && !_selection.limits.singleSelect =>
+                () {
+                  shots.addMore();
+                  unawaited(item.close());
+                },
+              _ => null,
+            },
             beforeSend: () {
               if (_selection.isNotEmpty) return;
               if (item.asset case final asset?) {
@@ -508,7 +615,7 @@ class _GalleryViewState extends State<GalleryView> {
         PrimaryScrollController.maybeOf(context) ??
         (_$ownController ??= ScrollController());
     Widget picker({bool active = true}) => LibraryPicker(
-      key: const ValueKey('attach-gallery-picker'),
+      key: _$pickerKey,
       library: _$picker.library,
       selection: _$picker,
       // The camera's shots, ahead of the library; the first opens the
@@ -558,6 +665,7 @@ class _GalleryViewState extends State<GalleryView> {
       onCamera: camera == null ? null : () => unawaited(_systemCamera()),
       viewerBottomBuilder: _viewerSlot,
       viewerBottomSlotHoldsKeyboard: true,
+      onViewerClosed: _viewerClosed,
       // A long press on the viewer strip's item drags it in the order.
       onReorder: _$picker.move,
       // The sheet's scroll controller: a drag on the grid raises the sheet
@@ -611,6 +719,7 @@ class _ViewerCaption extends StatefulWidget {
     required this.sheetRest,
     required this.chromeShown,
     required this.beforeSend,
+    this.addMore,
     super.key,
   });
 
@@ -625,6 +734,10 @@ class _ViewerCaption extends StatefulWidget {
   /// moment it starts to go (a dismiss drag, a close, a tap that hides it).
   final ValueListenable<bool> chromeShown;
   final VoidCallback beforeSend;
+
+  /// The caption's add-photo button, in the camera's viewer: back to the
+  /// camera for another shot; null for none.
+  final VoidCallback? addMore;
 
   @override
   State<_ViewerCaption> createState() => _ViewerCaptionState();
@@ -766,6 +879,7 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
           caption: _caption,
           dock: _dock,
           beforeSend: widget.beforeSend,
+          addMore: widget.addMore,
         ),
         switch (_dock) {
           final dock? => dock.buildPlace(context),

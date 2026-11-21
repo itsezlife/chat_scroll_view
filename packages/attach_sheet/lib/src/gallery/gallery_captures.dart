@@ -40,6 +40,37 @@ final class GalleryCaptures {
   /// The captures, in the order taken: what the picker shows and pages.
   final ValueNotifier<List<PickerCapture>> list = ValueNotifier(const []);
 
+  /// The camera's shots behind [list], oldest first: what the capture
+  /// surface's strip and shots counter show.
+  final ValueNotifier<List<CameraShot>> shots = ValueNotifier(const []);
+
+  /// Whether back from the camera's viewer takes the taking back: set by
+  /// the first shot (whose viewer opens on it) and by the shots counter,
+  /// cleared by the viewer's add-photo button. Back then discards the shot
+  /// when it is the only one; two or more stay.
+  bool get cancelTakingPhotos => _cancelTakingPhotos;
+  bool _cancelTakingPhotos = false;
+
+  /// The viewer opened from the camera over its shots (the counter).
+  void viewerOpenedFromCamera() => _cancelTakingPhotos = true;
+
+  /// The viewer's add-photo button: back to the camera for another shot,
+  /// keeping this one.
+  void addMore() => _cancelTakingPhotos = false;
+
+  /// The capture surface closed: a viewer opened later is not the
+  /// camera's.
+  void cameraClosed() => _cancelTakingPhotos = false;
+
+  /// The camera's viewer closed: the one shot goes when the taking was
+  /// still cancellable (back, not add-photo).
+  void viewerClosed() {
+    final cancel = _cancelTakingPhotos;
+    _cancelTakingPhotos = false;
+    if (!cancel || shots.value.length != 1) return;
+    remove(shots.value.single);
+  }
+
   /// The attach item id of the capture under [key].
   static AttachItemId idOf(MediaKey$Local key) =>
       AttachItemId('captured:${key.encoded}');
@@ -87,6 +118,9 @@ final class GalleryCaptures {
       created: _now(),
     );
     list.value = [...list.value, capture];
+    shots.value = [...shots.value, shot];
+    // The first shot opens the viewer on it.
+    if (shots.value.length == 1) _cancelTakingPhotos = true;
     if (selection.toggle(itemOf(capture)) case AttachToggle$Refused(
       :final reason,
     )) {
@@ -106,28 +140,12 @@ final class GalleryCaptures {
     ];
     if (after.length == before.length) return;
     list.value = after;
+    shots.value = [
+      for (final s in shots.value)
+        if (s.key != key) s,
+    ];
     selection.remove(idOf(key));
     release(key);
-  }
-
-  /// A results strip tile for [shot]: the capture's picture, as the grid
-  /// draws it (cover, square), through the asset cache; empty for a shot
-  /// that is not a capture here.
-  Widget resultTile(BuildContext context, CameraShot shot) {
-    final key = shot.key;
-    final capture = key == null ? null : captureOf(key);
-    if (key == null || capture == null) return const SizedBox.expand();
-    AssetCacheProvider.maybeOf(context)?.know(capture.descriptor);
-    return LayoutBuilder(
-      builder: (context, constraints) => ContentView(
-        content: key,
-        preset: AssetPresets.square(
-          extent: constraints.biggest.shortestSide,
-          devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
-          profile: const AssetProfile(fit: AssetFit.cover),
-        ),
-      ),
-    );
   }
 
   /// The sheet is going: releases every capture but those [sent] carries,
@@ -137,8 +155,13 @@ final class GalleryCaptures {
       if (!sent.contains(idOf(capture.key))) release(capture.key);
     }
     list.value = const [];
+    shots.value = const [];
+    _cancelTakingPhotos = false;
   }
 
-  /// Releases the list.
-  void dispose() => list.dispose();
+  /// Releases the lists.
+  void dispose() {
+    list.dispose();
+    shots.dispose();
+  }
 }

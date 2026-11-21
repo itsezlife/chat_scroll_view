@@ -10,11 +10,9 @@ import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:attach_sheet/src/gallery/gallery_captures.dart';
 import 'package:content_model/content_model.dart' show RichText;
-import 'package:flutter/widgets.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_capture/mpx_capture.dart';
 import 'package:mpx_core/mpx_core.dart';
-import 'package:mpx_core/testing.dart';
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_library/testing.dart';
 import 'package:mpx_ui/mpx_ui.dart';
@@ -113,37 +111,6 @@ void main() {
     expect(released, [_key(1)]);
   });
 
-  testWidgets("a strip tile is the capture's picture, as the grid draws it", (
-    tester,
-  ) async {
-    final shot = _shot(1);
-    captures.add(shot);
-    final clock = PlaybackClock(ticks: ManualPlaybackTickSource());
-    final scope = AssetCacheScope(producer: FakeAssetProducer(), clock: clock);
-    addTearDown(() {
-      scope.dispose();
-      clock.dispose();
-    });
-    await tester.pumpWidget(
-      AssetCacheProvider(
-        scope: scope,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: Center(
-            child: SizedBox.square(
-              dimension: 48,
-              child: Builder(
-                builder: (context) => captures.resultTile(context, shot),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    final view = tester.widget<ContentView>(find.byType(ContentView));
-    expect(view.content, _key(1));
-  });
-
   test('the sheet going without a send releases every capture and clears '
       'the list', () {
     captures
@@ -221,5 +188,75 @@ void main() {
       SendRequest(items: selection.items, caption: RichText.empty),
     );
     expect(done, isEmpty);
+  });
+
+  group('the capture flow (the camera, its viewer, back)', () {
+    test('a shot joins the shots too, oldest first; a removal leaves them', () {
+      captures
+        ..add(_shot(1))
+        ..add(_shot(2, video: true));
+      expect(captures.shots.value.map((s) => s.key), [_key(1), _key(2)]);
+      captures.remove(_shot(1));
+      expect(captures.shots.value.map((s) => s.key), [_key(2)]);
+      captures.discard();
+      expect(captures.shots.value, isEmpty);
+    });
+
+    test('the first shot marks the taking cancellable; back from its viewer '
+        'discards it from the captures, the shots, the selection and the '
+        'cache', () {
+      captures.add(_shot(1));
+      expect(captures.cancelTakingPhotos, isTrue);
+      captures.viewerClosed();
+      expect(captures.list.value, isEmpty);
+      expect(captures.shots.value, isEmpty);
+      expect(selection.items, isEmpty);
+      expect(released, [_key(1)]);
+      expect(captures.cancelTakingPhotos, isFalse);
+    });
+
+    test('with two or more shots back keeps them', () {
+      captures
+        ..add(_shot(1))
+        ..add(_shot(2));
+      captures.viewerClosed();
+      expect(captures.shots.value, hasLength(2));
+      expect(selection.items, hasLength(2));
+      expect(released, isEmpty);
+
+      // The counter opens the viewer again: back still keeps two.
+      captures
+        ..viewerOpenedFromCamera()
+        ..viewerClosed();
+      expect(captures.shots.value, hasLength(2));
+    });
+
+    test('add-photo clears the mark: back after it keeps the one shot', () {
+      captures
+        ..add(_shot(1))
+        ..addMore()
+        ..viewerClosed();
+      expect(captures.shots.value, hasLength(1));
+      expect(selection.items, hasLength(1));
+      expect(released, isEmpty);
+    });
+
+    test('the counter over one shot marks it cancellable again', () {
+      captures
+        ..add(_shot(1))
+        ..addMore()
+        ..viewerOpenedFromCamera()
+        ..viewerClosed();
+      expect(captures.shots.value, isEmpty);
+      expect(released, [_key(1)]);
+    });
+
+    test('a shot the user unchecked is still the one back discards', () {
+      captures.add(_shot(1));
+      selection.remove(GalleryCaptures.idOf(_key(1)));
+      captures.viewerClosed();
+      expect(captures.shots.value, isEmpty);
+      expect(released, [_key(1)]);
+    });
   });
 }

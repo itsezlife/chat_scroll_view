@@ -43,11 +43,13 @@ void main() {
   late FakeMediaLibrary library;
   late PlaybackClock clock;
   late AssetCacheScope scope;
+  late FakeAssetProducer producer;
 
   setUp(() {
     library = FakeMediaLibrary(assets: 300);
     clock = PlaybackClock(ticks: ManualPlaybackTickSource());
-    scope = AssetCacheScope(producer: FakeAssetProducer(), clock: clock);
+    producer = FakeAssetProducer();
+    scope = AssetCacheScope(producer: producer, clock: clock);
   });
   tearDown(() async {
     scope.dispose();
@@ -395,6 +397,279 @@ void main() {
         const AttachInteraction.videoRefused(AttachVideoRefusal.microphone),
       ]);
       expect(rig.selection.isEmpty, isTrue);
+    });
+
+    group('the capture flow', () {
+      late Directory directory;
+      late MemoryBytesCache store;
+
+      // The gallery with a camera writing into a real folder, the surface
+      // open.
+      Future<PagesRig> openCamera(
+        WidgetTester tester, {
+        AttachLimits limits = const AttachLimits(),
+        AttachSheetHost host = const AttachSheetHost(),
+      }) async {
+        directory = (await tester.runAsync(
+          () => Directory.systemTemp.createTemp('attach-flow'),
+        ))!;
+        addTearDown(() => directory.deleteSync(recursive: true));
+        store = MemoryBytesCache();
+        final rig = await open(
+          tester,
+          size: const Size(1200, 900),
+          limits: limits,
+          host: host,
+          camera: GalleryCamera(
+            sessions: FakeCameraSessions(),
+            outputDirectory: directory.path,
+            cache: CaptureCache(store: store),
+          ),
+        );
+        await tester.tap(find.byType(CameraSlotPreview));
+        await tester.pumpAndSettle();
+        return rig;
+      }
+
+      Future<void> settle(WidgetTester tester) async {
+        for (var i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+      }
+
+      Future<void> shoot(WidgetTester tester) async {
+        await tester.tap(find.byKey(const ValueKey('mpx-capture-shutter')));
+        for (var i = 0; i < 6; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump();
+        }
+        await settle(tester);
+      }
+
+      final viewer = find.byKey(const ValueKey('attach-viewer-slot'));
+      final addPhoto = find.byKey(const ValueKey('attach-caption-add-photo'));
+
+      List<PickerCapture> capturesOf(WidgetTester tester) => tester
+          .widget<LibraryPicker>(
+            find.byType(LibraryPicker, skipOffstage: false),
+          )
+          .captures!
+          .value;
+
+      Future<void> back(WidgetTester tester) async {
+        await tester.binding.handlePopRoute();
+        await settle(tester);
+      }
+
+      testWidgets('the surface shows the shots this open keeps, counted in '
+          "the host's words, and the strip's cell is the grid's, with its "
+          'number', (tester) async {
+        final rig = await openCamera(tester);
+        final surface = tester.widget<CameraCaptureSurface>(
+          find.byType(CameraCaptureSurface),
+        );
+        expect(surface.shots, isNotNull);
+        expect(surface.onShotsTap, isNotNull);
+        expect(surface.labels.shotsCount!(1, 0), '1 PHOTO');
+        expect(surface.labels.shotsCount!(3, 0), '3 PHOTOS');
+        expect(surface.labels.shotsCount!(0, 2), '2 VIDEOS');
+        expect(surface.labels.shotsCount!(2, 3), '5 MEDIA');
+
+        await shoot(tester);
+        expect(surface.shots!.value, hasLength(1));
+        // Back to the camera, whose strip shows the shot as the grid's cell.
+        await tester.tap(addPhoto);
+        await settle(tester);
+        final strip = find.descendant(
+          of: find.byKey(const ValueKey('mpx-capture-shots')),
+          matching: find.byType(LibraryGridCell),
+        );
+        expect(strip, findsOneWidget);
+        expect(tester.widget<LibraryGridCell>(strip).order, 1);
+        tester.widget<LibraryGridCell>(strip).onToggle();
+        await tester.pump();
+        expect(rig.selection.isEmpty, isTrue);
+        expect(tester.widget<LibraryGridCell>(strip).order, isNull);
+        tester.widget<LibraryGridCell>(strip).onOpen();
+        await tester.pump();
+        expect(rig.selection.length, 1, reason: 'a tap on the picture too');
+      });
+
+      testWidgets('the first shot opens the viewer on it, whose page asks '
+          "for the capture's own picture at the page's size", (tester) async {
+        await openCamera(tester);
+        await shoot(tester);
+        expect(viewer, findsOneWidget);
+        final key = capturesOf(tester).single.key;
+
+        expect(producer.known.map((d) => d.key), contains(key));
+        expect(
+          producer.attempts
+              .where((a) => a.request.key == key)
+              .map((a) => a.request.spec.pixelHeight)
+              .fold<int>(0, math.max),
+          greaterThan(300),
+          reason: 'the full picture, not a cell',
+        );
+      });
+
+      testWidgets('back from the first shot takes it back: out of the '
+          'captures, the shots, the selection and the cache', (tester) async {
+        final rig = await openCamera(tester);
+        await shoot(tester);
+        final key = capturesOf(tester).single.key;
+        await back(tester);
+
+        expect(viewer, findsNothing);
+        expect(find.byType(CameraCaptureSurface), findsOneWidget);
+        expect(capturesOf(tester), isEmpty);
+        expect(
+          tester
+              .widget<CameraCaptureSurface>(find.byType(CameraCaptureSurface))
+              .shots!
+              .value,
+          isEmpty,
+        );
+        expect(rig.selection.isEmpty, isTrue);
+        expect(
+          await tester.runAsync(() => store.read(CaptureCache.cacheKeyOf(key))),
+          isNull,
+        );
+      });
+
+      testWidgets('add-photo leads the caption; a burst of taps closes the '
+          'viewer once and keeps the shot', (tester) async {
+        final rig = await openCamera(tester);
+        await shoot(tester);
+        expect(addPhoto, findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('attach-caption-panel')),
+          findsNothing,
+        );
+        for (var i = 0; i < 5; i++) {
+          await tester.tap(addPhoto, warnIfMissed: false);
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await settle(tester);
+
+        expect(viewer, findsNothing);
+        expect(find.byType(CameraCaptureSurface), findsOneWidget);
+        expect(capturesOf(tester), hasLength(1));
+        expect(rig.selection.length, 1);
+
+        // A second shot: the viewer stays shut; the counter opens it, and
+        // back keeps both.
+        await shoot(tester);
+        expect(viewer, findsNothing);
+        expect(capturesOf(tester), hasLength(2));
+        await tester.tap(find.byKey(const ValueKey('mpx-capture-counter')));
+        await settle(tester);
+        expect(viewer, findsOneWidget);
+        await back(tester);
+        expect(viewer, findsNothing);
+        expect(capturesOf(tester), hasLength(2));
+        expect(rig.selection.length, 2);
+      });
+
+      testWidgets('the counter over one shot opens the viewer; back then '
+          'takes that shot back', (tester) async {
+        final rig = await openCamera(tester);
+        await shoot(tester);
+        await tester.tap(addPhoto);
+        await settle(tester);
+        // A burst on the counter opens one viewer.
+        for (var i = 0; i < 3; i++) {
+          await tester.tap(
+            find.byKey(const ValueKey('mpx-capture-counter')),
+            warnIfMissed: false,
+          );
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await settle(tester);
+        expect(viewer, findsOneWidget);
+        await back(tester);
+        expect(viewer, findsNothing);
+        expect(capturesOf(tester), isEmpty);
+        expect(rig.selection.isEmpty, isTrue);
+      });
+
+      testWidgets('a tap on add-photo while the caption is focused does '
+          'nothing; focused, the panel button leads', (tester) async {
+        await openCamera(tester);
+        await shoot(tester);
+        final bar = tester.state(find.byType(AttachCaptionBar));
+        final caption = (bar.widget as AttachCaptionBar).caption!;
+        final onTap = tester
+            .widget<ComposerView>(find.byKey(const ValueKey('attach-caption')))
+            .spec
+            .actions
+            .firstWhere((a) => a.id == 'attach-caption-add-photo')
+            .onTap!;
+        caption.requestFocus();
+        await tester.pump();
+        await tester.pump();
+        expect(caption.focusNode.hasFocus, isTrue);
+        expect(addPhoto, findsNothing);
+        onTap();
+        await settle(tester);
+        expect(viewer, findsOneWidget);
+      });
+
+      testWidgets('on a dock, add-photo and the panel button share the '
+          'leading place: the panel button while the panel is up, add-photo '
+          'again when it goes', (tester) async {
+        final host = DockHost();
+        await openCamera(tester, host: host);
+        await shoot(tester);
+        final panelButton = find.byKey(const ValueKey('attach-caption-panel'));
+        expect(addPhoto, findsOneWidget);
+        expect(panelButton, findsNothing);
+
+        final dock = host.docks.last;
+        dock.show(panel: true);
+        await tester.pump();
+        expect(addPhoto, findsNothing);
+        expect(panelButton, findsOneWidget);
+
+        dock.show(panel: false);
+        await tester.pump();
+        expect(addPhoto, findsOneWidget);
+        expect(panelButton, findsNothing);
+      });
+
+      testWidgets('with one item allowed there is no add-photo', (
+        tester,
+      ) async {
+        await openCamera(
+          tester,
+          limits: const AttachLimits(singleSelect: true),
+        );
+        await shoot(tester);
+        expect(viewer, findsOneWidget);
+        expect(addPhoto, findsNothing);
+      });
+
+      testWidgets("a viewer opened from the grid is not the camera's: no "
+          'add-photo, and back keeps the shot', (tester) async {
+        await openCamera(tester);
+        await shoot(tester);
+        await tester.tap(addPhoto);
+        await settle(tester);
+        await tester.tap(find.byKey(const ValueKey('mpx-capture-close')));
+        await tester.pumpAndSettle();
+        expect(find.byType(CameraCaptureSurface), findsNothing);
+
+        final key = capturesOf(tester).single.key;
+        // The capture's cell in the grid opens the viewer on it.
+        await tester.tap(find.byKey(ValueKey<MediaKey>(key)));
+        await settle(tester);
+        expect(viewer, findsOneWidget);
+        expect(addPhoto, findsNothing);
+        await back(tester);
+        expect(capturesOf(tester), hasLength(1));
+      });
     });
 
     testWidgets('a long press takes a photo with the system camera, first', (
@@ -881,7 +1156,7 @@ void main() {
 
   group('the selected-items preview', () {
     final preview = find.byKey(const ValueKey('attach-gallery-preview'));
-    final picker = find.byKey(const ValueKey('attach-gallery-picker'));
+    final picker = find.byType(LibraryPicker);
     final count = find.byKey(const ValueKey('attach-send-count-tap'));
     Finder item(int index) => find.descendant(
       of: preview,

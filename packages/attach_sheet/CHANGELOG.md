@@ -6,6 +6,23 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the capture flow)
+
+- The capture surface shows the shots this open keeps: its strip draws each
+  as the grid's cell, with its check and order number (a tap toggles it),
+  and its shots counter reads "3 PHOTOS", "2 VIDEOS" or "5 MEDIA" from the
+  strings. A tap on the counter opens the viewer over the shots, at the
+  newest.
+- Back from the camera's viewer takes a lone shot back: it leaves the
+  captures, the strip, the selection and the capture cache. With two or
+  more shots back keeps them.
+- The camera viewer's caption leads with add-photo while the keyboard is
+  down (the panel button takes its place with the field focused or the
+  panel up). A tap goes back to the camera and keeps the shot; a tap while
+  the caption is open does nothing. There is no add-photo when one item is
+  all the selection takes.
+- `AttachCaptionBar.addMore`.
+
 ### Fixed (input guards)
 
 - A tab switch is one motion until the new page rests: taps on tabs wait
