@@ -104,6 +104,20 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
     if (_header.value.count > 0) _words = _header.value;
   }
 
+  // The sheet's grabber fades as the words fade in over its line.
+  AttachSheetController? _sheet;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final sheet = _style.showsSelection
+        ? AttachSheetController.maybeOf(context)
+        : null;
+    if (identical(sheet, _sheet)) return;
+    _sheet?.grabberCover = null;
+    _sheet = sheet?..grabberCover = _shown;
+  }
+
   @override
   void didUpdateWidget(AttachSelectionHeader oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -158,6 +172,7 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
 
   @override
   void dispose() {
+    _sheet?.grabberCover = null;
     _header.removeListener(_changed);
     _shown.dispose();
     _$shown.dispose();

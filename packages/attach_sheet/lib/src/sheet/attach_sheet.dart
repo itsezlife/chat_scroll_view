@@ -187,6 +187,11 @@ abstract interface class AttachSheetController {
   /// a policy without one.
   ValueListenable<double> get pinned;
 
+  /// How much a page's header covers the grabber, 0 to 1: the grabber fades
+  /// by its complement, as a header's words fade in over its line. Null
+  /// for none.
+  set grabberCover(ValueListenable<double>? value);
+
   /// Whether a tap on the scrim above the sheet dismisses it (a page turns
   /// it off while its camera is open).
   bool get dismissesOnTapAbove;
@@ -377,6 +382,7 @@ class _AttachSheetState extends State<AttachSheet>
     _$top.dispose();
     _$dim.dispose();
     _$header.dispose();
+    _$cover.dispose();
     _$morphPosition.dispose();
     _$morphBounds.dispose();
     _$morphCorners.dispose();
@@ -394,6 +400,25 @@ class _AttachSheetState extends State<AttachSheet>
 
   @override
   ValueListenable<double> get pinned => _$header;
+
+  // What covers the grabber (a page header's words), and its listener.
+  final ValueNotifier<ValueListenable<double>?> _$cover = ValueNotifier(null);
+  static const ValueListenable<double> _uncovered = _Zero();
+
+  // A header sets it while it builds: the sheet takes it after the frame.
+  ValueListenable<double>? _pendingCover;
+  bool _coverPending = false;
+
+  @override
+  set grabberCover(ValueListenable<double>? value) {
+    _pendingCover = value;
+    if (_coverPending) return;
+    _coverPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _coverPending = false;
+      if (mounted) _$cover.value = _pendingCover;
+    });
+  }
 
   @override
   Future<void> expand() => _moveTo(_expandedTop, _policy.expandMotion);
@@ -955,114 +980,134 @@ class _AttachSheetState extends State<AttachSheet>
       controller: _$scroll,
       child: Builder(builder: (context) => widget.builder(context, _$scroll)),
     );
-    return AnimatedBuilder(
-      animation: Listenable.merge([_$top, _$header, _morphChannels]),
-      child: content,
-      builder: (context, content) {
-        final top = _shownTop;
-        final pinned = _$header.value;
-        final target = Rect.fromLTWH(
-          0,
-          top,
-          _size.width,
-          math.max(0, _size.height - top),
-        );
-        final rect = _morphed(target);
-        // The content is laid out once at the sheet's full height and the
-        // sheet's top only moves it, as a list whose top padding is the
-        // sheet's: its viewport (and a scrollbar's track over it) holds
-        // still while the sheet moves; below the screen's edge it is
-        // clipped.
-        final contentHeight = math.max<double>(0, _size.height - _expandedTop);
-        final band = _bandAt(top);
-        final corner = _morphedRadius(
-          (squares ? radius * (1 - pinned) : radius) * band.radiusShare,
-        );
-        // Growing out of the button the sheet is round at every corner;
-        // at rest only its top corners are.
-        final radii = _morphing
-            ? BorderRadius.circular(corner)
-            : BorderRadius.vertical(top: Radius.circular(corner));
-        return Positioned.fromRect(
-          key: const ValueKey('attach-sheet'),
-          rect: rect,
-          child: ClipRRect(
-            borderRadius: radii,
-            child: ColoredBox(
-              color: tokens.background,
-              child: Stack(
-                children: [
-                  // The sheet starts below the status bar: its content
-                  // takes no top inset. While it morphs the content keeps
-                  // the sheet's size and fades in.
-                  Positioned.fill(
-                    child: Opacity(
-                      opacity: _contentOpacity,
-                      child: OverflowBox(
-                        alignment: Alignment.topCenter,
-                        minWidth: target.width,
-                        maxWidth: target.width,
-                        minHeight: contentHeight,
-                        maxHeight: contentHeight,
-                        child: _ContentInsets(
-                          barExtent: widget.bottomBar == null
-                              ? null
-                              : _$barExtent,
-                          barHoldsKeyboard: widget.bottomBarHoldsKeyboard,
-                          child: content!,
-                        ),
+    return ValueListenableBuilder<ValueListenable<double>?>(
+      valueListenable: _$cover,
+      builder: (context, cover, _) => _sheetLayerOver(
+        tokens,
+        content,
+        cover ?? _uncovered,
+        radius: radius,
+        grabber: grabber,
+        header: header,
+        squares: squares,
+      ),
+    );
+  }
+
+  Widget _sheetLayerOver(
+    AttachTokens tokens,
+    Widget content,
+    ValueListenable<double> cover, {
+    required double radius,
+    required AttachSheetGrabber? grabber,
+    required Widget? header,
+    required bool squares,
+  }) => AnimatedBuilder(
+    animation: Listenable.merge([_$top, _$header, _morphChannels, cover]),
+    child: content,
+    builder: (context, content) {
+      final top = _shownTop;
+      final pinned = _$header.value;
+      final target = Rect.fromLTWH(
+        0,
+        top,
+        _size.width,
+        math.max(0, _size.height - top),
+      );
+      final rect = _morphed(target);
+      // The content is laid out once at the sheet's full height and the
+      // sheet's top only moves it, as a list whose top padding is the
+      // sheet's: its viewport (and a scrollbar's track over it) holds
+      // still while the sheet moves; below the screen's edge it is
+      // clipped.
+      final contentHeight = math.max<double>(0, _size.height - _expandedTop);
+      final band = _bandAt(top);
+      final corner = _morphedRadius(
+        (squares ? radius * (1 - pinned) : radius) * band.radiusShare,
+      );
+      // Growing out of the button the sheet is round at every corner;
+      // at rest only its top corners are.
+      final radii = _morphing
+          ? BorderRadius.circular(corner)
+          : BorderRadius.vertical(top: Radius.circular(corner));
+      return Positioned.fromRect(
+        key: const ValueKey('attach-sheet'),
+        rect: rect,
+        child: ClipRRect(
+          borderRadius: radii,
+          child: ColoredBox(
+            color: tokens.background,
+            child: Stack(
+              children: [
+                // The sheet starts below the status bar: its content
+                // takes no top inset. While it morphs the content keeps
+                // the sheet's size and fades in.
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: _contentOpacity,
+                    child: OverflowBox(
+                      alignment: Alignment.topCenter,
+                      minWidth: target.width,
+                      maxWidth: target.width,
+                      minHeight: contentHeight,
+                      maxHeight: contentHeight,
+                      child: _ContentInsets(
+                        barExtent: widget.bottomBar == null
+                            ? null
+                            : _$barExtent,
+                        barHoldsKeyboard: widget.bottomBarHoldsKeyboard,
+                        child: content!,
                       ),
                     ),
                   ),
-                  if (grabber != null)
-                    Positioned(
-                      top: grabber.top,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        child: Center(
-                          child: Opacity(
-                            opacity: grabber.fadesWithHeader ? 1 - pinned : 1,
-                            child: Container(
-                              key: const ValueKey('attach-sheet-grabber'),
-                              width: grabber.size.width,
-                              height: grabber.size.height,
-                              decoration: BoxDecoration(
-                                color: tokens.grabber,
-                                borderRadius: BorderRadius.circular(
-                                  grabber.size.height / 2,
-                                ),
+                ),
+                if (grabber != null)
+                  Positioned(
+                    top: grabber.top,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Opacity(
+                          opacity:
+                              (grabber.fadesWithHeader ? 1 - pinned : 1) *
+                              (1 - cover.value).clamp(0.0, 1.0),
+                          child: Container(
+                            key: const ValueKey('attach-sheet-grabber'),
+                            width: grabber.size.width,
+                            height: grabber.size.height,
+                            decoration: BoxDecoration(
+                              color: tokens.grabber,
+                              borderRadius: BorderRadius.circular(
+                                grabber.size.height / 2,
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  if (header != null)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        ignoring: _policy.headerFade != null && pinned == 0,
-                        child: Opacity(
-                          key: const ValueKey('attach-sheet-header'),
-                          opacity: _policy.headerFade == null ? 1 : pinned,
-                          child: ColoredBox(
-                            color: tokens.header,
-                            child: header,
-                          ),
-                        ),
+                  ),
+                if (header != null)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      ignoring: _policy.headerFade != null && pinned == 0,
+                      child: Opacity(
+                        key: const ValueKey('attach-sheet-header'),
+                        opacity: _policy.headerFade == null ? 1 : pinned,
+                        child: ColoredBox(color: tokens.header, child: header),
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
 
   /// The background over the status bar band at a sheet top of [top], as
   /// the pack sheet's frame draws it: within two status bars of the screen's
@@ -1325,3 +1370,16 @@ ChromeSheetRoute<AttachOutcome> _attachSheetRoute({
   avoidsKeyboard: false,
   settings: const RouteSettings(name: AttachSheet.routeName),
 );
+
+final class _Zero implements ValueListenable<double> {
+  const _Zero();
+
+  @override
+  double get value => 0;
+
+  @override
+  void addListener(VoidCallback listener) {}
+
+  @override
+  void removeListener(VoidCallback listener) {}
+}

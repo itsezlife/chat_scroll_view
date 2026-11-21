@@ -40,6 +40,9 @@ package is pre-1.0.
   items and preview over the same behaviour. The stock skins are
   `AttachSelectionHeader`, `AttachPinnedItems` and `AttachPinnedBar`.
 - `AttachSheetController.pinned`: the pinned bar's presence, 0 to 1.
+- `AttachSheetController.grabberCover`: a header's share over the grabber.
+  The grabber fades by its complement, so on Android it fades out as "N
+  selected" fades in over its line.
 
 ### Changed (the pinned bar)
 

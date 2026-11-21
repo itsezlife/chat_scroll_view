@@ -137,6 +137,31 @@ void main() {
     expect(preview, findsNothing);
   });
 
+  testWidgets('the grabber fades out as the words fade in over its line, '
+      'and back as they go', (tester) async {
+    final rig = await open(tester);
+    double grabber() => tester
+        .widget<Opacity>(
+          find
+              .ancestor(
+                of: find.byKey(const ValueKey('attach-sheet-grabber')),
+                matching: find.byType(Opacity),
+              )
+              .first,
+        )
+        .opacity;
+    expect(grabber(), 1);
+    await tester.tapAt(tester.getTopRight(cell(0)) + const Offset(-10, 10));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+    expect(grabber(), inExclusiveRange(0.3, 0.7));
+    await tester.pumpAndSettle();
+    expect(grabber(), 0);
+    rig.selection.clear();
+    await tester.pumpAndSettle();
+    expect(grabber(), 1);
+  });
+
   testWidgets('the words follow the kinds: photos, videos, media', (
     tester,
   ) async {
