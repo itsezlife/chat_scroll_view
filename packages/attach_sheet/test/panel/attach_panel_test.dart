@@ -812,25 +812,67 @@ void main() {
     expect(tester.getRect(fade).bottom, closeTo(screen.height, 0.5));
   });
 
-  testWidgets('Android: the caption raising the keyboard takes the sheet to '
-      'its top, and the caption bar stands on the keyboard', (tester) async {
+  testWidgets('Android: the caption raising the keyboard raises the rest, '
+      'not the top: the sheet follows the keyboard up to the rest over the '
+      'window above it, the caption bar on the keyboard, and back down as '
+      'it goes', (tester) async {
     final (rig, scope) = await open(tester);
     rig.selection.toggle(AttachItems.photo('p'));
     await tester.pumpAndSettle();
-    expect(rig.top, greaterThan(24));
+    const policy = AttachSheetPolicy.android();
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    final padding = MediaQuery.paddingOf(
+      tester.element(find.byKey(const ValueKey('attach-sheet-bar'))),
+    );
+    final rest = policy.collapsedTop(screen, padding);
+    expect(rig.top, closeTo(rest, 0.5));
 
     scope.panel.caption.focusNode.requestFocus();
-    tester.view.viewInsets = FakeViewPadding(
-      bottom: 300 * tester.view.devicePixelRatio,
-    );
     addTearDown(tester.view.resetViewInsets);
+    // The keyboard rises over a few frames: the sheet keeps up.
+    for (final up in [100.0, 200.0, 300.0]) {
+      tester.view.viewInsets = FakeViewPadding(
+        bottom: up * tester.view.devicePixelRatio,
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(
+        rig.top,
+        closeTo(
+          policy.collapsedTop(Size(screen.width, screen.height - up), padding),
+          0.5,
+        ),
+        reason: 'keyboard $up',
+      );
+    }
     await tester.pumpAndSettle();
-    expect(rig.top, 24, reason: 'expanded');
-    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+    expect(rig.top, greaterThan(24), reason: 'not its top');
     final bar = tester.getRect(find.byKey(const ValueKey('attach-sheet-bar')));
     expect(bar.bottom, closeTo(screen.height - 300, 0.5));
     final send = tester.getRect(find.byKey(const ValueKey('attach-send')));
     expect(send.bottom, lessThanOrEqualTo(screen.height - 300));
+
+    // The keyboard goes: back to the rest.
+    tester.view.viewInsets = FakeViewPadding.zero;
+    await tester.pump();
+    await tester.pump();
+    expect(rig.top, closeTo(rest, 0.5));
+  });
+
+  testWidgets('Android: a sheet above the raised rest stays where it is as '
+      'the keyboard rises', (tester) async {
+    final (rig, scope) = await open(tester);
+    rig.selection.toggle(AttachItems.photo('p'));
+    scope.requestExpansion();
+    await tester.pumpAndSettle();
+    expect(rig.top, 24);
+    scope.panel.caption.focusNode.requestFocus();
+    addTearDown(tester.view.resetViewInsets);
+    tester.view.viewInsets = FakeViewPadding(
+      bottom: 300 * tester.view.devicePixelRatio,
+    );
+    await tester.pumpAndSettle();
+    expect(rig.top, 24);
   });
 
   testWidgets("custom content in the caption is drawn by the host's builder, "

@@ -304,6 +304,8 @@ class _AttachSheetState extends State<AttachSheet>
 
   // The drag in progress.
   bool _$sheetMoved = false;
+  // A drag of the sheet's is under way (its start to its release).
+  bool _$sheetDragging = false;
   bool _$startedExpanded = false;
   bool _$discardPending = false;
 
@@ -718,6 +720,7 @@ class _AttachSheetState extends State<AttachSheet>
 
   @override
   void dragStarted() {
+    _$sheetDragging = true;
     _$sheetMoved = false;
     _$discardPending = false;
     _$startedExpanded = isExpanded;
@@ -757,6 +760,7 @@ class _AttachSheetState extends State<AttachSheet>
 
   @override
   bool release(double velocity, void Function(double) handBack) {
+    _$sheetDragging = false;
     if (!_$sheetMoved) return false;
     _$sheetMoved = false;
     if (_$discardPending) {
@@ -888,7 +892,8 @@ class _AttachSheetState extends State<AttachSheet>
     final media = MediaQuery.of(context);
     _size = constraints.biggest;
     final padding = media.padding;
-    _keyboardUp = media.viewInsets.bottom > 0;
+    final keyboard = media.viewInsets.bottom;
+    _keyboardUp = keyboard > 0;
     _statusBar = padding.top;
     _devicePixelRatio = media.devicePixelRatio;
     _speed = ChromeMotionScope.of(context).speed;
@@ -901,14 +906,36 @@ class _AttachSheetState extends State<AttachSheet>
       _collapsedTop = card.top;
       _expandedTop = card.top;
     } else {
-      _collapsedTop = _$restTop ?? _policy.collapsedTop(_size, padding);
+      final was = _collapsedTop;
+      // With the keyboard up the rest is taken over the window above it.
+      final over = _policy.restRisesWithKeyboard && keyboard > 0
+          ? Size(_size.width, _size.height - keyboard)
+          : _size;
+      _collapsedTop = _$restTop ?? _policy.collapsedTop(over, padding);
       _expandedTop = math.min(_policy.expandedTop(padding), _collapsedTop);
+      if (_policy.restRisesWithKeyboard) _followRest(was);
     }
     if (!_opened) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_opened) _open();
       });
     }
+  }
+
+  // The rest moved with the keyboard: a sheet resting on the old one, or
+  // below the new one, follows it frame by frame as the keyboard moves.
+  void _followRest(double was) {
+    if (!_opened || _closing || _morphing || _$sheetDragging) return;
+    final top = _$top.value;
+    final resting = (top - was).abs() < 0.5;
+    if (!resting && top <= _collapsedTop) return;
+    final to = _collapsedTop;
+    if ((top - to).abs() < 0.5) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _closing || _$sheetDragging) return;
+      _$top.stop();
+      _$top.value = to;
+    });
   }
 
   @override

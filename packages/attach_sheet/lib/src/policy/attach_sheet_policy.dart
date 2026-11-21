@@ -362,6 +362,11 @@ abstract base class AttachSheetPolicy {
   /// Whether focusing the caption expands the sheet.
   bool get expandsOnCaptionFocus;
 
+  /// Whether the resting top is taken over the height above the keyboard
+  /// while it shows: the rest rises with the keyboard, a sheet below it
+  /// follows as the keyboard moves, and back down as it goes.
+  bool get restRisesWithKeyboard => false;
+
   // --- Tabs ---
 
   /// How the tab bar looks and moves.
@@ -429,17 +434,16 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   /// The downward fling, in physical pixels per second, that dismisses.
   static const double dismissFlingVelocity = 3500;
 
-  /// The resting top: the page's top padding (2/5 of the height below the
-  /// status bar in portrait, 1/3.5 in landscape), plus the header line
-  /// (56) less 52 plus 48, less the 13 between the sheet's edge and the
-  /// first row.
+  /// The resting top: under the status bar, the grid's top padding (2/5
+  /// of the window's whole height in portrait, 1/3.5 in landscape) plus
+  /// the header line (56) less 52, which puts the first row there; the
+  /// sheet's edge stands 24 above it (11, and the 13 of its band).
   @override
   double collapsedTop(Size size, EdgeInsets padding) {
-    final available = size.height - padding.vertical;
     final share = size.width > size.height
-        ? available / 3.5
-        : available * 2 / 5;
-    return padding.top + share + 56 - 52 + 48 - 13;
+        ? size.height / 3.5
+        : size.height * 2 / 5;
+    return padding.top + share + 56 - 52 - 11 - 13;
   }
 
   @override
@@ -451,12 +455,12 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   @override
   bool get squaresCornersWhenPinned => true;
 
-  /// A 36 x 4 pill in the middle of the 13 band over the grid, gone once
-  /// the header shows.
+  /// A 36 x 4 pill 10 below the edge, in the middle of the 24 band over
+  /// the grid, gone once the header shows.
   @override
   AttachSheetGrabber? get grabber => const AttachSheetGrabber(
     size: Size(36, 4),
-    top: 4.5,
+    top: 10,
     fadesWithHeader: true,
   );
 
@@ -560,9 +564,15 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   @override
   Duration? get keyboardReopenDelay => const Duration(milliseconds: 200);
 
-  /// The keyboard the caption raises takes the sheet to its top.
+  /// The caption's keyboard does not take the sheet to its top: the rest
+  /// rises with the keyboard instead ([restRisesWithKeyboard]).
   @override
-  bool get expandsOnCaptionFocus => true;
+  bool get expandsOnCaptionFocus => false;
+
+  /// The window above the keyboard is the height the rest is taken over,
+  /// and the keyboard's pan moves the sheet with it.
+  @override
+  bool get restRisesWithKeyboard => true;
 
   /// A tab glass stadium 56 tall, 7 from the sides and above the bottom
   /// inset, its tabs 48 tall 4 inside it (a 24 icon 4 from the tab's top,

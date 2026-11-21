@@ -191,6 +191,14 @@ void main() {
     addTearDown(denied.dispose);
     await open(tester, source: denied);
     expect(find.text('Access to media'), findsOneWidget);
+    // The page is laid out at the sheet's full height: at its top the
+    // button is clear of the tab bar.
+    unawaited(
+      AttachSheetController.of(
+        tester.element(find.text('Access to media')),
+      ).expand(),
+    );
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('mpx-denied-access')));
     await tester.pump();

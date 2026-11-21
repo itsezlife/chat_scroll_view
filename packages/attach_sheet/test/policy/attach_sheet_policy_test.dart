@@ -10,24 +10,30 @@ void main() {
   const ios = AttachSheetPolicy.ios();
 
   group('Android geometry', () {
-    test('rests at 2/5 of the height in portrait, plus the header line', () {
-      // 800 tall, 24 status bar: 776 available, 2/5 is 310.4; the header
-      // line adds 56 - 52 + 48 and the sheet's background starts 13 above the
-      // first row: 310.4 + 39 + 24.
+    test('rests at 2/5 of the whole window in portrait: the first row '
+        "there, the sheet's edge 24 above it", () {
+      // 800 tall with a 24 status bar and a 48 navigation bar: the first
+      // row at 24 + 320 + 56 - 52 = 348, the edge 11 + 13 above it.
       expect(
         android.collapsedTop(
           const Size(400, 800),
-          const EdgeInsets.only(top: 24),
+          const EdgeInsets.only(top: 24, bottom: 48),
         ),
-        closeTo(373.4, 0.01),
+        closeTo(324, 0.01),
       );
     });
 
     test('rests at 1/3.5 of the height in landscape', () {
       expect(
         android.collapsedTop(const Size(800, 400), EdgeInsets.zero),
-        closeTo(400 / 3.5 + 39, 0.01),
+        closeTo(400 / 3.5 + 4 - 24, 0.01),
       );
+    });
+
+    test('the rest rises with the keyboard; the caption does not expand', () {
+      expect(android.restRisesWithKeyboard, isTrue);
+      expect(android.expandsOnCaptionFocus, isFalse);
+      expect(ios.restRisesWithKeyboard, isFalse);
     });
 
     test('pins under the status bar', () {

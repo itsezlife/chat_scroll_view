@@ -40,7 +40,7 @@ final class AttachSelectionHeaderStyle {
   });
 
   /// The header of the reference's Android sheet:
-  /// - with nothing selected the band over the grid is 13, the handle's;
+  /// - with nothing selected the band over the grid is 24, the handle's;
   /// - with something selected, "N photos selected" (videos, media) stands
   ///   in the header, rising 26 into place as it fades in over 180 ms, the
   ///   band growing by as much and the handle fading out;
@@ -59,7 +59,7 @@ final class AttachSelectionHeaderStyle {
     switcherPinned: true,
     closeInPinnedBar: true,
     shown: MotionSpec(Duration(milliseconds: 180), accelerateDecelerate),
-    band: 13,
+    band: 24,
     rise: 26,
     previewSwitch: _criticalSpring,
     previewSlide: 16,

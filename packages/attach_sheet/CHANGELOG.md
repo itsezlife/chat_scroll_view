@@ -6,6 +6,20 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the sheet's rest and the keyboard, Android)
+
+- The resting top is taken over the window's whole height: the first row
+  at 2/5 of it (1/3.5 in landscape) plus 4 under the status bar, the
+  sheet's edge 24 above it. The band over the grid is 24 with nothing
+  selected, with the handle 10 below the edge.
+- `AttachSheetPolicy.restRisesWithKeyboard`. On Android the caption's
+  keyboard no longer takes the sheet to its top
+  (`expandsOnCaptionFocus` is false). The rest is taken over the window
+  above the keyboard, and a sheet resting there, or below it, follows the
+  keyboard frame by frame, back down as it goes. A sheet above it stays.
+- The selected-items preview keeps clear of the bar at the bottom, as the
+  grid does.
+
 ### Fixed (the page switch)
 
 - Each page on a switch is a sheet of its own: the sheet's background

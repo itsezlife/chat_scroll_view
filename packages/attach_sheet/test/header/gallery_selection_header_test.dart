@@ -133,9 +133,9 @@ void main() {
     expect(opacityOf(tester, words), 1);
     // Halfway through the fade it stood halfway down its 26.
     expect(overGrid() - halfway, closeTo(13, 2));
-    // At rest the words stand 3 over the grid, 22 high; the band is 39.
+    // At rest the words stand 3 over the grid, 22 high; the band is 50.
     expect(overGrid(), closeTo(25, 1));
-    expect(tester.getSize(header).height, 39);
+    expect(tester.getSize(header).height, 50);
     expect(arrow, findsNothing);
 
     await tester.tap(toggle);
@@ -144,9 +144,9 @@ void main() {
   });
 
   testWidgets("nothing selected: the band over the grid is the handle's "
-      '13', (tester) async {
+      '24', (tester) async {
     await open(tester);
-    expect(tester.getSize(header).height, 13);
+    expect(tester.getSize(header).height, 24);
   });
 
   testWidgets('the grabber fades out as the words fade in over its line, '
