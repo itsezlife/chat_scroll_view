@@ -393,5 +393,84 @@ void main() {
         expect(captures.list.value.single.thumbnail, isNull);
       },
     );
+
+    group('picks mixed with library items, as the preview reads them', () {
+      late FakeMediaLibrary library;
+      late AttachPickerSelection picker;
+      MediaKey libraryKey(int i) =>
+          LibraryKeys.keyOf(FakeMediaLibrary.assetAt(i).id);
+
+      setUp(() async {
+        library = FakeMediaLibrary(assets: 6);
+        picker = AttachPickerSelection(
+          selection: selection,
+          source: library,
+          captures: captures,
+        );
+        // The grid pages the album through the picker's library.
+        await picker.library.page(
+          FakeMediaLibrary.allMedia,
+          offset: 0,
+          limit: 6,
+        );
+        picker.toggle(libraryKey(0));
+        captures.add(_shot(1, video: true, poster: '/gone/1.jpg'));
+        kept.complete(_key(91));
+        await pumpEventQueue();
+        picker.toggle(libraryKey(3));
+        captures.add(_shot(2));
+      });
+
+      tearDown(() => library.dispose());
+
+      test('the order runs over library items and captures alike', () {
+        expect(picker.keys, [libraryKey(0), _key(1), libraryKey(3), _key(2)]);
+      });
+
+      test("a capture's asset carries its thumbnail: a recording's poster, "
+          "a photo's own key", () {
+        final video = picker.assetOf(_key(1))!;
+        expect(PickerCaptureKeys.isCapture(video), isTrue);
+        expect(PickerCaptureKeys.keyOf(video), _key(1));
+        expect(PickerCaptureKeys.thumbnailKeyOf(video, 200), _key(91));
+        expect(video.duration, const Duration(seconds: 3));
+        final photo = picker.assetOf(_key(2))!;
+        expect(PickerCaptureKeys.thumbnailKeyOf(photo, 200), _key(2));
+        expect(picker.assetOf(libraryKey(3)), FakeMediaLibrary.assetAt(3));
+      });
+
+      test('a move takes the place among all the picks, captures '
+          'included', () {
+        picker.move(_key(2), 0);
+        expect(picker.keys, [_key(2), libraryKey(0), _key(1), libraryKey(3)]);
+        picker.move(libraryKey(0), 3);
+        expect(picker.keys, [_key(2), _key(1), libraryKey(3), libraryKey(0)]);
+        picker.move(_key(1), 2);
+        expect(picker.keys, [_key(2), libraryKey(3), _key(1), libraryKey(0)]);
+      });
+
+      test('a file keeps its place while the picks move around it', () {
+        selection.toggle(AttachItems.file('file'));
+        picker.move(_key(2), 0);
+        expect(picker.keys, [_key(2), libraryKey(0), _key(1), libraryKey(3)]);
+        expect(selection.items.last.id, AttachItems.file('file').id);
+      });
+
+      test("the viewer's album holds every pick in order, so a pick opens "
+          'at its own place', () async {
+        final page = await picker.library.page(
+          AttachPickerSelection.selectedAlbum,
+          offset: 0,
+          limit: 10,
+        );
+        expect([
+          for (final asset in page.assets) PickerCaptureKeys.keyOf(asset),
+        ], picker.keys);
+        for (final (i, key) in picker.keys.indexed) {
+          expect(picker.selectedIndexOf(key), i);
+        }
+        expect(picker.selectedAlbumNow.count, 4);
+      });
+    });
   });
 }

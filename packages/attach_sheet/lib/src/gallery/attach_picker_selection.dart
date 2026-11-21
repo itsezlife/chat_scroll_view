@@ -21,7 +21,9 @@ final class AttachPickerSelection implements PickerSelection {
     this.onRefused,
     this.captures,
   }) : _recording = _RecordingLibrary(source) {
-    _recording._selection = selection;
+    _recording
+      .._selection = selection
+      .._captures = captures;
   }
 
   /// The open's attach selection.
@@ -40,13 +42,22 @@ final class AttachPickerSelection implements PickerSelection {
   /// pages.
   MediaLibrary get library => _recording;
 
-  /// The album [library] answers with the selected library items, in their
-  /// order: what the viewer pages when opened from the selected-items
-  /// preview.
+  /// The album [library] answers with the selected library items and
+  /// captures, in their order: what the viewer pages when opened from the
+  /// selected-items preview.
   static const LibraryAlbumId selectedAlbum = LibraryAlbumId('attach:selected');
 
-  /// The selected library assets, in the selection's order.
+  /// The selected library assets and captures (as their assets), in the
+  /// selection's order.
   List<LibraryAsset> get selectedAssets => _recording.selectedAssets(selection);
+
+  /// Where [key] stands in [selectedAlbum], or null when it is not there.
+  int? selectedIndexOf(MediaKey key) {
+    final index = selectedAssets.indexWhere(
+      (asset) => PickerCaptureKeys.keyOf(asset) == key,
+    );
+    return index < 0 ? null : index;
+  }
 
   /// The [selectedAlbum] as it is now.
   LibraryAlbum get selectedAlbumNow => LibraryAlbum(
@@ -56,20 +67,38 @@ final class AttachPickerSelection implements PickerSelection {
     count: selectedAssets.length,
   );
 
-  /// Moves the library item of [key] to the place [to] among the selected
-  /// library items (the preview's order); files and captures keep theirs.
+  /// Moves the item of [key] (a library item or a capture) to the place
+  /// [to] among the picks the picker shows ([keys]: the preview's and the
+  /// viewer strip's order); files keep their places.
   void move(MediaKey key, int to) {
-    final target = LibraryKeys.read(key);
-    if (target == null) return;
+    final id = _idOfKey(key);
+    if (id == null) return;
     final items = selection.items;
     final places = [
       for (var i = 0; i < items.length; i++)
-        if (items[i].source is AttachSource$Library) i,
+        if (_shown(items[i])) i,
     ];
-    final from = items.indexWhere((item) => item.id == idOf(target.asset));
+    final from = items.indexWhere((item) => item.id == id);
     if (from < 0 || to < 0 || to >= places.length) return;
     selection.reorder(from, places[to]);
   }
+
+  // Whether the picker shows [item] among its picks ([keys]).
+  static bool _shown(AttachItem item) => switch (item.source) {
+    AttachSource$Library() => true,
+    AttachSource$Captured(:final localKey) =>
+      MediaKey.tryParse(localKey) != null,
+    _ => false,
+  };
+
+  // The attach item id the picker's [key] stands for.
+  AttachItemId? _idOfKey(MediaKey key) => switch (key) {
+    final MediaKey$Local local => GalleryCaptures.idOf(local),
+    _ => switch (LibraryKeys.read(key)) {
+      final target? => idOf(target.asset),
+      null => null,
+    },
+  };
 
   /// Drops the library items of [keys] from the selection (a library change
   /// took them away: deleted on the device, or no longer allowed); the
@@ -89,10 +118,15 @@ final class AttachPickerSelection implements PickerSelection {
     }
   }
 
-  /// The library asset of [key] as the grid paged it, or null.
-  LibraryAsset? assetOf(MediaKey key) => switch (LibraryKeys.read(key)) {
-    final target? => _recording.assets[target.asset],
-    null => null,
+  /// The asset of [key]: a library item as the grid paged it, or a
+  /// capture's asset (which carries its thumbnail, a recording's first
+  /// frame); null otherwise.
+  LibraryAsset? assetOf(MediaKey key) => switch (key) {
+    final MediaKey$Local local => captures?.captureOf(local)?.asset,
+    _ => switch (LibraryKeys.read(key)) {
+      final target? => _recording.assets[target.asset],
+      null => null,
+    },
   };
 
   /// The attach item of a library asset.
@@ -242,11 +276,20 @@ final class _RecordingLibrary implements MediaLibrary {
 
   List<LibraryAsset> selectedAssets(AttachSelection selection) => [
     for (final item in selection.items)
-      if (item.source case AttachSource$Library(:final assetId))
-        ?assets[LibraryAssetId(assetId)],
+      ?switch (item.source) {
+        AttachSource$Library(:final assetId) => assets[LibraryAssetId(assetId)],
+        AttachSource$Captured(:final localKey) => switch (MediaKey.tryParse(
+          localKey,
+        )) {
+          final MediaKey$Local local => _captures?.captureOf(local)?.asset,
+          _ => null,
+        },
+        _ => null,
+      },
   ];
 
   AttachSelection? _selection;
+  GalleryCaptures? _captures;
 
   @override
   ValueListenable<LibraryAccess> get access => _source.access;

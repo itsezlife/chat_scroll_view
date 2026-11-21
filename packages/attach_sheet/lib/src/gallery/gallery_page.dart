@@ -601,10 +601,12 @@ class _GalleryViewState extends State<GalleryView> {
         ),
       );
 
-  /// Opens the viewer over the picks, at the [index]th.
-  Future<void> _openSelected(MediaKey key, int index) async {
+  /// Opens the viewer over the picks, at [key]'s place among them (the
+  /// preview's own index counts what the album may not hold).
+  Future<void> _openSelected(MediaKey key, int _) async {
     final album = _$picker.selectedAlbumNow;
-    if (index >= album.count) return;
+    final index = _$picker.selectedIndexOf(key);
+    if (index == null) return;
     final pages = LibraryPages(library: _$picker.library, album: album);
     final source = LibraryGallerySource(pages);
     try {
