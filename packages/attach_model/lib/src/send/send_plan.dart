@@ -37,13 +37,37 @@ enum CaptionPlacement {
   firstSendOrTextAhead,
 }
 
+/// How the shared caption (the sheet's) and each item's own caption
+/// relate, per platform family. What the picker viewer's caption edits for
+/// the item shown, and what a plan sends.
+enum ItemCaptions {
+  /// The shared caption is the first item's own; every other item carries
+  /// its own. While no other item has one, the viewer shows the shared
+  /// caption on every item ("for all media"), and giving another item a
+  /// different text ends that. A caption typed on an item not selected
+  /// selects it; deselecting an item clears its caption; a reorder keeps
+  /// each caption with its item, so the new first item's becomes the
+  /// shared one.
+  firstItem,
+
+  /// The shared caption, while set, is every item's: the viewer shows it
+  /// on every item and an edit edits it, and the plan places it once by
+  /// [CaptionPlacement]. While it is empty each item keeps its own,
+  /// selected or not, and sends it.
+  forced,
+
+  /// One caption for the batch; items carry none.
+  sharedOnly,
+}
+
 /// One **planned send**: a single item, a send group, or the caption sent
 /// as text. The host makes each one message (or one grouped message).
 @immutable
 sealed class PlannedSend {
   const PlannedSend._();
 
-  /// One item on its own, with the batch caption when it carries it.
+  /// One item on its own, with the caption it carries: the batch caption,
+  /// or the item's own.
   const factory PlannedSend.single(
     AttachItem item, {
     required SendForm form,
@@ -51,12 +75,14 @@ sealed class PlannedSend {
   }) = PlannedSend$Single;
 
   /// A **send group** of two to ten items; [captionIndex] is the item that
-  /// carries [caption], when one does.
+  /// carries the batch [caption], when one does, and [itemCaptions] each
+  /// item's own (null for none).
   factory PlannedSend.group(
     List<AttachItem> items, {
     required SendForm form,
     int? captionIndex,
     RichText? caption,
+    List<RichText?>? itemCaptions,
   }) = PlannedSend$Group;
 
   /// The batch caption sent as text, ahead of the media.
@@ -75,7 +101,7 @@ final class PlannedSend$Single extends PlannedSend {
   /// How it goes.
   final SendForm form;
 
-  /// The batch caption, when this send carries it.
+  /// The caption it carries: the batch caption, or the item's own.
   final RichText? caption;
 
   @override
@@ -90,8 +116,16 @@ final class PlannedSend$Group extends PlannedSend {
     required this.form,
     this.captionIndex,
     this.caption,
+    List<RichText?>? itemCaptions,
   }) : items = List.unmodifiable(items),
+       itemCaptions = List.unmodifiable(
+         itemCaptions ?? List<RichText?>.filled(items.length, null),
+       ),
        assert(items.length >= 2, 'a group of one is a single'),
+       assert(
+         itemCaptions == null || itemCaptions.length == items.length,
+         'one own caption slot per item',
+       ),
        assert(
          (captionIndex == null) == (caption == null),
          'a caption and its index come together',
@@ -109,6 +143,15 @@ final class PlannedSend$Group extends PlannedSend {
 
   /// The batch caption, when this group carries it.
   final RichText? caption;
+
+  /// Each item's own caption, in [items] order; null for none (and at
+  /// [captionIndex], which the batch caption takes).
+  final List<RichText?> itemCaptions;
+
+  /// The caption item [index] carries: the batch caption at
+  /// [captionIndex], else its own.
+  RichText? captionOf(int index) =>
+      index == captionIndex ? caption : itemCaptions[index];
 
   @override
   String toString() =>
@@ -201,7 +244,10 @@ SendPlan planSend(
   if (request.items.isEmpty && caption.isEmpty) {
     return const SendPlan$Rejected(SendRejection.empty);
   }
-  if (caption.length > limits.captionLength) {
+  if (caption.length > limits.captionLength ||
+      request.items.any(
+        (item) => (item.caption?.length ?? 0) > limits.captionLength,
+      )) {
     return const SendPlan$Rejected(SendRejection.captionTooLong);
   }
   final asFiles = options.asFiles && limits.sendAsFileAllowed;
@@ -235,8 +281,15 @@ SendPlan planSend(
     grouped: grouped,
     maxSize: policy.maxGroupSize,
   );
+  final own = _ownCaptions(items, caption, policy.itemCaptions);
   return SendPlan$Ready(
-    sends: _placeCaption(runs, caption, policy.captionPlacement, grouped),
+    sends: _placeCaption(
+      runs,
+      caption,
+      policy.captionPlacement,
+      grouped,
+      own: own,
+    ),
     caption: caption,
     options: options,
   );
@@ -246,6 +299,29 @@ SendPlan planSend(
 
 /// One run of items that go together, before the caption is placed.
 typedef _Run = ({List<AttachItem> items, SendForm form});
+
+/// Each item's own caption as it is sent, by item id: under
+/// [ItemCaptions.firstItem] every item's but the first's (the batch caption
+/// is that one, when set); under [ItemCaptions.forced] every item's while
+/// no batch caption is set; under [ItemCaptions.sharedOnly] none.
+Map<AttachItemId, RichText> _ownCaptions(
+  List<AttachItem> items,
+  RichText caption,
+  ItemCaptions rule,
+) {
+  final skip = switch (rule) {
+    ItemCaptions.sharedOnly => true,
+    ItemCaptions.forced => !caption.isEmpty,
+    ItemCaptions.firstItem => false,
+  };
+  if (skip) return const {};
+  return {
+    for (var i = 0; i < items.length; i++)
+      if (items[i].caption case final own? when !own.isEmpty)
+        if (!(rule == ItemCaptions.firstItem && i == 0 && !caption.isEmpty))
+          items[i].id: own,
+  };
+}
 
 AttachItem _asSent(
   AttachItem item, {
@@ -308,21 +384,24 @@ List<PlannedSend> _placeCaption(
   List<_Run> runs,
   RichText caption,
   CaptionPlacement placement,
-  bool grouped,
-) {
-  if (caption.isEmpty) return [for (final run in runs) _send(run)];
+  bool grouped, {
+  required Map<AttachItemId, RichText> own,
+}) {
+  PlannedSend send(_Run run, {int? captionIndex, RichText? caption}) =>
+      _sendOf(run, own, captionIndex: captionIndex, caption: caption);
+  if (caption.isEmpty) return [for (final run in runs) send(run)];
   final last = runs.length - 1;
   switch (placement) {
     case CaptionPlacement.firstSend:
       return [
         for (var i = 0; i < runs.length; i++)
-          _send(runs[i], captionIndex: i == 0 ? 0 : null, caption: caption),
+          send(runs[i], captionIndex: i == 0 ? 0 : null, caption: caption),
       ];
     case CaptionPlacement.firstWhenGroupedElseLast:
       final target = grouped ? 0 : last;
       return [
         for (var i = 0; i < runs.length; i++)
-          _send(
+          send(
             runs[i],
             captionIndex: i != target
                 ? null
@@ -338,7 +417,7 @@ List<PlannedSend> _placeCaption(
           lastRun.form == SendForm.media && lastRun.items.length > 1;
       return [
         for (var i = 0; i < runs.length; i++)
-          _send(
+          send(
             runs[i],
             captionIndex: i != last
                 ? null
@@ -350,25 +429,36 @@ List<PlannedSend> _placeCaption(
       ];
     case CaptionPlacement.firstSendOrTextAhead:
       if (runs.length > 1) {
-        return [PlannedSend.text(caption), for (final run in runs) _send(run)];
+        return [PlannedSend.text(caption), for (final run in runs) send(run)];
       }
-      return [_send(runs.single, captionIndex: 0, caption: caption)];
+      return [send(runs.single, captionIndex: 0, caption: caption)];
   }
 }
 
-PlannedSend _send(_Run run, {int? captionIndex, RichText? caption}) {
+PlannedSend _sendOf(
+  _Run run,
+  Map<AttachItemId, RichText> own, {
+  int? captionIndex,
+  RichText? caption,
+}) {
   final carried = captionIndex == null ? null : caption;
   if (run.items.length == 1) {
+    final item = run.items.single;
     return PlannedSend.single(
-      run.items.single,
+      item,
       form: run.form,
-      caption: carried,
+      caption: carried ?? own[item.id],
     );
   }
+  final index = carried == null ? null : captionIndex;
   return PlannedSend.group(
     run.items,
     form: run.form,
-    captionIndex: carried == null ? null : captionIndex,
+    captionIndex: index,
     caption: carried,
+    itemCaptions: [
+      for (var i = 0; i < run.items.length; i++)
+        i == index ? null : own[run.items[i].id],
+    ],
   );
 }

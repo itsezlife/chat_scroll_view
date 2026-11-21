@@ -88,6 +88,12 @@ abstract base class AttachPolicy {
   /// Which planned send carries the batch caption.
   CaptionPlacement get captionPlacement;
 
+  /// How the shared caption and each item's own caption relate: the
+  /// shared one is the first item's ([ItemCaptions.firstItem]), it is
+  /// forced over every item while set ([ItemCaptions.forced]), or it is
+  /// the only one ([ItemCaptions.sharedOnly]).
+  ItemCaptions get itemCaptions;
+
   /// Whether [item] turns grouping off for the whole batch. [asFiles] is
   /// whether media goes as files (timers are already cleared then).
   ///
@@ -124,6 +130,10 @@ base class AttachPolicy$Android extends AttachPolicy {
   @override
   CaptionPlacement get captionPlacement => CaptionPlacement.firstSend;
 
+  /// The sheet's caption is the first item's; the others carry their own.
+  @override
+  ItemCaptions get itemCaptions => ItemCaptions.firstItem;
+
   /// Nothing ungroups the batch: an item with a timer leaves only its own
   /// group.
   @override
@@ -156,6 +166,10 @@ base class AttachPolicy$IOS extends AttachPolicy {
   @override
   CaptionPlacement get captionPlacement =>
       CaptionPlacement.firstWhenGroupedElseLast;
+
+  /// The panel's caption, while set, is every item's.
+  @override
+  ItemCaptions get itemCaptions => ItemCaptions.forced;
 
   /// A timer, an animation or a muted video ungroups the batch.
   @override
@@ -192,6 +206,10 @@ base class AttachPolicy$Desktop extends AttachPolicy {
   CaptionPlacement get captionPlacement =>
       CaptionPlacement.lastMediaGroupElseLastItem;
 
+  /// The confirm box has one caption for the batch.
+  @override
+  ItemCaptions get itemCaptions => ItemCaptions.sharedOnly;
+
   /// Any timer ungroups the batch.
   @override
   bool ungroupsBatch(AttachItem item, {required bool asFiles}) =>
@@ -224,6 +242,10 @@ base class AttachPolicy$Web extends AttachPolicy {
   @override
   CaptionPlacement get captionPlacement =>
       CaptionPlacement.firstSendOrTextAhead;
+
+  /// The confirm box has one caption for the batch.
+  @override
+  ItemCaptions get itemCaptions => ItemCaptions.sharedOnly;
 
   /// Any animation sent as media ungroups the batch.
   @override

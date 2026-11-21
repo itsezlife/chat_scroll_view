@@ -6,6 +6,30 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (per-item captions, breaking)
+
+- Each item can carry its own caption beside the shared one (the sheet's
+  field), related by the new `AttachPolicy.itemCaptions` (`ItemCaptions`):
+  - `firstItem` (Android): the shared caption is the first item's. While no
+    other item has one, the viewer shows it on every item; a different
+    text on another item gives that item its own. A caption typed on an
+    unselected item selects it, deselecting clears it, and a reorder keeps
+    each caption with its item.
+  - `forced` (iOS): the shared caption, while set, is every item's; empty,
+    each item keeps its own, selected or not.
+  - `sharedOnly` (desktop, web): one caption.
+
+  A policy that extends `AttachPolicy` directly must implement it.
+- `AttachSelection.caption` (shared), `captionOf`, `setCaptionOf`,
+  `ownCaptionOf`, `captionsPerItem`, `itemsToSend` (the items with their
+  own captions on) and `captionChanges`, which caption edits signal in
+  place of `changes`.
+- `planSend` sends own captions: on a single item as its `caption`, in a
+  group as `PlannedSend$Group.itemCaptions` (`captionOf(i)` gives an item's
+  caption, batch or own). Under `firstItem` the first item takes the shared
+  caption; under `forced` a set shared caption wins over every own one and
+  is placed once. An own caption over the limit is `captionTooLong`.
+
 ### Added
 
 - The attach item (`AttachItem`, `AttachSource`, `AttachKind`, `AttachFacts`,

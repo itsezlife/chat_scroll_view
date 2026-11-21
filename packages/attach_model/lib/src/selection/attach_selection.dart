@@ -1,6 +1,8 @@
 import 'package:attach_model/src/item/attach_item.dart';
 import 'package:attach_model/src/item/attach_limits.dart';
 import 'package:attach_model/src/policy/attach_policy.dart';
+import 'package:attach_model/src/send/send_plan.dart';
+import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
 
@@ -119,6 +121,13 @@ final class AttachSelectionSnapshot {
 ///
 /// One selection serves every source of one open (library picks, captures,
 /// files), so they share one set of order numbers.
+///
+/// It also holds the captions: the shared [caption] (the sheet's field) and
+/// each item's own, related by the policy's [AttachPolicy.itemCaptions].
+/// [captionOf] is what the picker viewer shows for an item and
+/// [setCaptionOf] what it writes; [itemsToSend] are the items with their
+/// own captions on. A caption change signals [captionChanges], not
+/// [changes].
 final class AttachSelection with ChangeNotifier {
   /// An empty selection under [policy] and [limits].
   AttachSelection({required this.policy, required this.limits});
@@ -130,9 +139,134 @@ final class AttachSelection with ChangeNotifier {
   final AttachLimits limits;
 
   final List<AttachItem> _$items = [];
+  RichText _$caption = RichText.empty;
+  final Map<AttachItemId, RichText> _$captions = {};
+  final ChangeNotifier _$captionChanges = ChangeNotifier();
 
-  /// Signals once after every change.
+  /// Signals once after every change of the items (not of their captions).
   Listenable get changes => this;
+
+  // --- Captions ---
+
+  /// Signals once after every change of a caption, shared or an item's.
+  Listenable get captionChanges => _$captionChanges;
+
+  ItemCaptions get _rule => policy.itemCaptions;
+
+  /// The shared caption: the sheet's field.
+  RichText get caption => _$caption;
+  set caption(RichText value) {
+    if (value == _$caption) return;
+    _$caption = value;
+    _$captionChanges.notifyListeners();
+  }
+
+  /// The item [id]'s own caption, apart from the shared one; null for none.
+  RichText? ownCaptionOf(AttachItemId id) => _$captions[id];
+
+  /// Whether another item than the first has a caption of its own: under
+  /// [ItemCaptions.firstItem], the viewer no longer shows the shared
+  /// caption on every item.
+  bool get captionsPerItem => switch (_rule) {
+    ItemCaptions.sharedOnly => false,
+    ItemCaptions.forced => _$caption.isEmpty && _$captions.isNotEmpty,
+    ItemCaptions.firstItem =>
+      _$items.skip(1).any((item) => _$captions.containsKey(item.id)),
+  };
+
+  /// The caption the picker viewer shows for the item [id], selected or not.
+  RichText captionOf(AttachItemId id) => switch (_rule) {
+    ItemCaptions.sharedOnly => _$caption,
+    ItemCaptions.forced when !_$caption.isEmpty => _$caption,
+    ItemCaptions.forced => _$captions[id] ?? RichText.empty,
+    ItemCaptions.firstItem when _isFirst(id) => _$caption,
+    ItemCaptions.firstItem when !captionsPerItem => _$caption,
+    ItemCaptions.firstItem => _$captions[id] ?? RichText.empty,
+  };
+
+  /// Writes [text] as [item]'s caption from the picker viewer, by the
+  /// policy's rule: the shared caption, or the item's own (see
+  /// [ItemCaptions]). Under [ItemCaptions.firstItem] a non-empty caption on
+  /// an item not selected selects it first; one the selection refuses is
+  /// dropped.
+  void setCaptionOf(AttachItem item, RichText text) {
+    switch (_rule) {
+      case ItemCaptions.sharedOnly:
+        caption = text;
+      case ItemCaptions.forced when !_$caption.isEmpty:
+        caption = text;
+      case ItemCaptions.forced:
+        _setOwn(item.id, text);
+      case ItemCaptions.firstItem:
+        if (!contains(item.id)) {
+          if (text.isEmpty) return;
+          if (!toggle(item).changesSelection) return;
+        }
+        if (_isFirst(item.id)) {
+          caption = text;
+        } else if (!captionsPerItem && text == _$caption) {
+          return;
+        } else {
+          _setOwn(item.id, text);
+        }
+    }
+  }
+
+  /// The items in selection order with their own captions on
+  /// ([AttachItem.caption]), for a send request.
+  List<AttachItem> get itemsToSend => [
+    for (final item in _$items)
+      switch (_$captions[item.id]) {
+        final own? => item.copyWith(caption: own),
+        null when item.caption != null => item.copyWith(clearCaption: true),
+        null => item,
+      },
+  ];
+
+  bool _isFirst(AttachItemId id) =>
+      _$items.isNotEmpty && _$items.first.id == id;
+
+  void _setOwn(AttachItemId id, RichText text) {
+    final had = _$captions[id];
+    if (text.isEmpty) {
+      if (_$captions.remove(id) == null) return;
+    } else {
+      if (had == text) return;
+      _$captions[id] = text;
+    }
+    _$captionChanges.notifyListeners();
+  }
+
+  /// Under [ItemCaptions.firstItem] each caption stays with its item when
+  /// the first item changes: the one left first takes the shared caption as
+  /// its own when it is still selected, and the new first item's own becomes
+  /// the shared one. A first item deselected keeps the shared caption on
+  /// the field unless the new first item has its own.
+  void _firstChanged(AttachItemId? before, {required bool moved}) {
+    if (_rule != ItemCaptions.firstItem) return;
+    final after = _$items.isEmpty ? null : _$items.first.id;
+    if (after == before) return;
+    var next = _$caption;
+    if (before != null && moved && contains(before)) {
+      if (!_$caption.isEmpty) _$captions[before] = _$caption;
+      next = RichText.empty;
+    }
+    if (after != null) {
+      if (_$captions.remove(after) case final own?) next = own;
+    }
+    if (next != _$caption) _$caption = next;
+    _$captionChanges.notifyListeners();
+  }
+
+  /// Drops the own captions of items no longer selected, under
+  /// [ItemCaptions.firstItem]: deselecting clears an item's caption.
+  void _dropDeselected() {
+    if (_rule != ItemCaptions.firstItem) return;
+    final selected = {for (final item in _$items) item.id};
+    final before = _$captions.length;
+    _$captions.removeWhere((id, _) => !selected.contains(id));
+    if (_$captions.length != before) _$captionChanges.notifyListeners();
+  }
 
   /// The most items the selection takes; null for no cap.
   int? get cap => limits.singleSelect ? 1 : policy.selectionCap;
@@ -181,8 +315,12 @@ final class AttachSelection with ChangeNotifier {
   ///
   /// Under single select, selecting replaces the selected item.
   AttachToggle toggle(AttachItem item) {
+    final first = _firstId;
     final result = _toggle(item, select: !contains(item.id));
-    if (result.changesSelection) notifyListeners();
+    if (result.changesSelection) {
+      _afterChange(first);
+      notifyListeners();
+    }
     return result;
   }
 
@@ -193,7 +331,9 @@ final class AttachSelection with ChangeNotifier {
     final index = _indexOf(item.id);
     if (index >= 0) {
       if (index > 0) {
+        final first = _firstId;
         _$items.insert(0, _$items.removeAt(index));
+        _firstChanged(first, moved: true);
         notifyListeners();
       }
       return const AttachToggle.selected();
@@ -215,8 +355,12 @@ final class AttachSelection with ChangeNotifier {
     final list = items.toList();
     if (list.isEmpty) return const [];
     final select = !contains(list.first.id);
+    final first = _firstId;
     final results = [for (final item in list) _toggle(item, select: select)];
-    if (results.any((r) => r.changesSelection)) notifyListeners();
+    if (results.any((r) => r.changesSelection)) {
+      _afterChange(first);
+      notifyListeners();
+    }
     return results;
   }
 
@@ -224,7 +368,9 @@ final class AttachSelection with ChangeNotifier {
   void remove(AttachItemId id) {
     final index = _indexOf(id);
     if (index < 0) return;
+    final first = _firstId;
     _$items.removeAt(index);
+    _afterChange(first);
     notifyListeners();
   }
 
@@ -234,7 +380,9 @@ final class AttachSelection with ChangeNotifier {
     RangeError.checkValidIndex(from, _$items, 'from');
     RangeError.checkValidIndex(to, _$items, 'to');
     if (from == to) return;
+    final first = _firstId;
     _$items.insert(to, _$items.removeAt(from));
+    _firstChanged(first, moved: true);
     notifyListeners();
   }
 
@@ -257,6 +405,7 @@ final class AttachSelection with ChangeNotifier {
   void clear() {
     if (_$items.isEmpty) return;
     _$items.clear();
+    _dropDeselected();
     notifyListeners();
   }
 
@@ -271,10 +420,22 @@ final class AttachSelection with ChangeNotifier {
     _$items
       ..clear()
       ..addAll(snapshot.items.where((item) => seen.add(item.id)));
+    _dropDeselected();
     notifyListeners();
   }
 
   // --- Machinery ---
+
+  AttachItemId? get _firstId => _$items.isEmpty ? null : _$items.first.id;
+
+  // A change of membership: deselected items lose their captions, and a
+  // first item that left hands the shared caption on. An item added first
+  // (a capture) takes the shared caption over, as the field shows it.
+  void _afterChange(AttachItemId? first) {
+    final stillThere = first != null && contains(first);
+    _dropDeselected();
+    if (!stillThere) _firstChanged(first, moved: false);
+  }
 
   int _indexOf(AttachItemId id) => _$items.indexWhere((item) => item.id == id);
 

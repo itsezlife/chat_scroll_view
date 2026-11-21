@@ -22,12 +22,22 @@ List<String> _shape(SendPlan plan) => switch (plan) {
     for (final send in sends)
       switch (send) {
         PlannedSend$Single(:final item, :final caption, :final form) =>
-          '${_form(form)}S(${item.id}${caption == null ? '' : '*'})',
+          '${_form(form)}S(${item.id}${switch (caption) {
+            null => '',
+            final c when c == item.caption => '"${c.plain}"',
+            _ => '*',
+          }})',
         PlannedSend$Group(:final items, :final captionIndex, :final form) =>
-          '${_form(form)}G(${[for (var i = 0; i < items.length; i++) '${items[i].id}${i == captionIndex ? '*' : ''}'].join(',')})',
+          '${_form(form)}G(${[for (var i = 0; i < items.length; i++) '${items[i].id}${i == captionIndex ? '*' : ''}${_own(send, i)}'].join(',')})',
         PlannedSend$Text() => 'T*',
       },
   ],
+};
+
+// An item's own caption in a group, as `"text"`.
+String _own(PlannedSend$Group group, int i) => switch (group.itemCaptions[i]) {
+  final c? => '"${c.plain}"',
+  null => '',
 };
 
 String _form(SendForm form) => switch (form) {
@@ -309,6 +319,104 @@ void main() {
       final group = (plan as SendPlan$Ready).sends.single as PlannedSend$Group;
       expect(group.caption, _caption);
       expect(plan.caption, _caption);
+    });
+  });
+
+  group('own captions', () {
+    AttachItem own(String id, String caption) =>
+        AttachItems.photo(id).copyWith(caption: RichText.plain(caption));
+
+    test('Android, grouped: the shared caption on the first item, each '
+        'other item its own', () {
+      expect(
+        _plan(_android, [
+          AttachItems.photo('a'),
+          own('b', 'bee'),
+          AttachItems.photo('c'),
+        ], caption: _caption),
+        ['G(a*,b"bee",c)'],
+      );
+    });
+
+    test('Android, ungrouped: each send its own; the first the shared one', () {
+      expect(
+        _plan(
+          _android,
+          [AttachItems.photo('a'), own('b', 'bee')],
+          caption: _caption,
+          options: const SendOptions(grouped: false),
+        ),
+        ['S(a*)', 'S(b"bee")'],
+      );
+    });
+
+    test('Android, as files: each file keeps its own', () {
+      expect(
+        _plan(_android, [
+          own('a', 'aye'),
+          own('b', 'bee'),
+        ], options: const SendOptions(asFiles: true)),
+        ['FG(a"aye",b"bee")'],
+      );
+    });
+
+    test('one item with its own caption and no shared one', () {
+      expect(_plan(_android, [own('a', 'aye')]), ['S(a"aye")']);
+    });
+
+    test('iOS with a forced caption: own captions give way; grouped on the '
+        'first, ungrouped on the last', () {
+      final items = [own('a', 'aye'), own('b', 'bee')];
+      expect(_plan(_ios, items, caption: _caption), ['G(a*,b)']);
+      expect(
+        _plan(
+          _ios,
+          items,
+          caption: _caption,
+          options: const SendOptions(grouped: false),
+        ),
+        ['S(a)', 'S(b*)'],
+      );
+    });
+
+    test('iOS with no forced caption: each item its own', () {
+      expect(_plan(_ios, [own('a', 'aye'), own('b', 'bee')]), [
+        'G(a"aye",b"bee")',
+      ]);
+    });
+
+    test('desktop and web send the shared caption only', () {
+      for (final policy in [_desktop, _web]) {
+        expect(_plan(policy, [own('a', 'aye'), AttachItems.photo('b')]), [
+          'G(a,b)',
+        ], reason: '$policy');
+      }
+    });
+
+    test('an own caption over the limit is refused', () {
+      expect(
+        _plan(_android, [
+          AttachItems.photo('a'),
+          own('b', '12345'),
+        ], limits: const AttachLimits(captionLength: 4)),
+        ['rejected: captionTooLong'],
+      );
+    });
+
+    test('a group answers each item\'s caption', () {
+      final plan =
+          planSend(
+                SendRequest(
+                  items: [AttachItems.photo('a'), own('b', 'bee')],
+                  caption: _caption,
+                ),
+                _android,
+                const AttachLimits(),
+              )
+              as SendPlan$Ready;
+      final group = plan.sends.single as PlannedSend$Group;
+      expect(group.captionOf(0), _caption);
+      expect(group.captionOf(1), const RichText.plain('bee'));
     });
   });
 
