@@ -310,9 +310,18 @@ void main() {
       );
 
       final fades = tester
-          .widgetList<Opacity>(_inGlass(find.byType(Opacity)))
+          .renderObjectList<RenderOpacity>(
+            _inGlass(
+              find.byElementPredicate((e) => e.renderObject is RenderOpacity),
+            ),
+          )
           .map((o) => o.opacity);
       expect(fades, contains(0.25));
+      expect(
+        _inGlass(find.byType(Opacity)),
+        findsNothing,
+        reason: "a host's own fade stays the one Opacity",
+      );
     });
 
     testGlassWidgets('a hidden glass reads no backdrop', (tester) async {
@@ -332,13 +341,17 @@ void main() {
       );
 
       expect(
-        find.ancestor(
-          of: find.byType(SampledGlassBackdrop),
-          matching: find.byWidgetPredicate(
-            (w) => w is Opacity && w.opacity == 0.5,
-          ),
-        ),
-        findsOneWidget,
+        tester
+            .renderObjectList<RenderOpacity>(
+              find.ancestor(
+                of: find.byType(SampledGlassBackdrop),
+                matching: find.byElementPredicate(
+                  (e) => e.renderObject is RenderOpacity,
+                ),
+              ),
+            )
+            .map((o) => o.opacity),
+        contains(0.5),
       );
     });
 

@@ -35,6 +35,9 @@ package is pre-1.0.
   content in place of the scene until the fade ended. `GlassSurface.opacity`
   fades the backdrop (inside the filter), the tint, the edges, the shadow
   and the child with no layer over the filter; at 0 no backdrop is read.
+  The surface's own fade is a private render object, not an `Opacity`, so
+  a host's fade around a glass (a popup's appear) stays the one `Opacity`
+  above its content.
 
 ### Added (tab bar glass and colours, breaking)
 

@@ -9,6 +9,7 @@ import 'package:chrome_foundation/src/glass/strategy/glass_backdrops.dart';
 import 'package:chrome_foundation/src/glass/strategy/glass_strategy.dart';
 import 'package:chrome_foundation/src/theme/chrome_theme_scope.dart';
 import 'package:chrome_foundation/src/tokens/glass_material_tokens.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 /// A glass surface around [child]: a named [material] drawn over what is
@@ -217,7 +218,7 @@ class _GlassSurfaceState extends State<GlassSurface> {
     final opacity = widget.opacity;
     final backdrop = switch (strategy) {
       // A capture is a picture of its own: an opacity layer fades it whole.
-      GlassStrategy.sampledLiquid || GlassStrategy.sampledFrost => Opacity(
+      GlassStrategy.sampledLiquid || GlassStrategy.sampledFrost => _GlassFade(
         opacity: opacity,
         child: SampledGlassBackdrop(
           link: link!,
@@ -256,7 +257,7 @@ class _GlassSurfaceState extends State<GlassSurface> {
         child: Stack(
           children: <Widget>[
             Positioned.fill(child: backdrop),
-            Opacity(
+            _GlassFade(
               opacity: opacity,
               child: CustomPaint(
                 painter: _GlassStrokePainter(style: style),
@@ -267,6 +268,25 @@ class _GlassSurfaceState extends State<GlassSurface> {
         ),
       ),
     );
+  }
+}
+
+/// The surface's own fade of what it draws over the backdrop: an opacity
+/// layer below 1, nothing at 1. Not an `Opacity`, so a host's own fade
+/// around the surface (a popup's appear) stays the one `Opacity` a test or
+/// a lookup finds.
+class _GlassFade extends SingleChildRenderObjectWidget {
+  const _GlassFade({required this.opacity, required super.child});
+
+  final double opacity;
+
+  @override
+  RenderOpacity createRenderObject(BuildContext context) =>
+      RenderOpacity(opacity: opacity);
+
+  @override
+  void updateRenderObject(BuildContext context, RenderOpacity renderObject) {
+    renderObject.opacity = opacity;
   }
 }
 
