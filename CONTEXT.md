@@ -171,6 +171,14 @@ _Avoid_: Scrollbar builder, scrollbar widget, custom scrollbar (as the extension
 How the scrollbar takes pointers away from message scrolling: which presses and hovers it claims, and what a drag or track press does. A grab starts only on a fresh press nothing else in the viewport owns, then owns that pointer until release. Touch grabs only an enlarged target around a visible thumb; a hovering pointer may claim the whole strip even while it is hidden, since hover reveals it first. Chosen from a closed set — grab targets by pointer kind, or none (the scrollbar only shows position); hosts tune it, never replace it.
 _Avoid_: Scrollbar interaction (collides with **selection interaction**), scrollbar gesture, fast scroll
 
+**Scroll progress**:
+The band's place in the known span as a fraction (0 with the oldest known message at its top, 1 with the newest at its bottom) and its share of the span, both estimated as the thumb's are. What a host's own scrollbar reads, and moves by its inverse.
+_Avoid_: Scroll offset, scroll percentage, pixels (the span has no exact pixel length)
+
+**Fast scroll target**:
+Scrolled content as a fast scrollbar drives it, whatever engine scrolls it: its progress, the share in view, a jump to a progress, a stop, a drag's start and end, and a change signal. The chat's is its **scroll progress**; a plain scrollable's and the panel catalogue's are their offsets over their ranges.
+_Avoid_: Scroll controller (one engine's), scroll position
+
 **Scrollbar preset**:
 A host-chosen combination of scrollbar visibility, **scrollbar grab**, and **scrollbar painter**. The platform default picks the mobile or desktop preset per OS family; a preset with no scrollbar turns it off. The input device in use adjusts behavior inside a preset, never switches presets.
 _Avoid_: Scrollbar mode, adaptive scrollbar (as a live switch), ScrollBehavior
