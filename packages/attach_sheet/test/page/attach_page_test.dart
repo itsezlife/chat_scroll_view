@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -490,8 +491,22 @@ void main() {
   });
 
   group('an edge auto-scroll (a swipe selection held at the edge)', () {
-    testWidgets('raises the sheet first, step by step, then scrolls the page; '
-        'a long jump (an album change) only scrolls the page', (tester) async {
+    // The grid's auto-scroll: a drag of the page, stepped 16 a frame.
+    Future<void> step(WidgetTester tester, Drag drag, double scroll) async {
+      drag.update(
+        DragUpdateDetails(
+          globalPosition: Offset.zero,
+          delta: Offset(0, -scroll),
+          primaryDelta: -scroll,
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets('forward raises the sheet first, step by step, then scrolls '
+        'the page; a jump (an album change) only scrolls the page', (
+      tester,
+    ) async {
       late AttachPageScope gallery;
       final rig = await PagesRig.open(
         tester,
@@ -503,20 +518,21 @@ void main() {
       );
       final position = gallery.scrollController.position;
       final rest = rig.top;
-      position.jumpTo(position.pixels + 16);
-      await tester.pump();
+      final drag = position.drag(DragStartDetails(), () {});
+      await step(tester, drag, 16);
       expect(rig.top, closeTo(rest - 16, 0.01));
       expect(position.pixels, 0);
 
       // Up to the top, then the page.
       for (var i = 0; i < 100 && rig.top > 24; i++) {
-        position.jumpTo(position.pixels + 16);
-        await tester.pump();
+        await step(tester, drag, 16);
       }
       expect(rig.top, 24);
-      position.jumpTo(position.pixels + 16);
-      await tester.pump();
+      await step(tester, drag, 16);
       expect(position.pixels, greaterThan(0));
+      drag.end(DragEndDetails(primaryVelocity: 0));
+      await tester.pumpAndSettle();
+      expect(rig.top, 24);
 
       final sheet = AttachSheetController.of(
         tester.element(find.byKey(const ValueKey('gallery-row-0'))),
@@ -530,6 +546,45 @@ void main() {
       await tester.pump();
       expect(rig.top, restAgain);
       expect(position.pixels, 400);
+      // A short jump is a placement too.
+      position.jumpTo(408);
+      await tester.pump();
+      expect(rig.top, restAgain);
+    });
+
+    testWidgets('backward scrolls the page to its start, then lowers the '
+        'sheet', (tester) async {
+      late AttachPageScope gallery;
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [
+          rowsPage('gallery', onScope: (s) => gallery = s),
+          rowsPage('files'),
+        ],
+      );
+      final sheet = AttachSheetController.of(
+        tester.element(find.byKey(const ValueKey('gallery-row-0'))),
+      );
+      unawaited(sheet.expand());
+      await tester.pumpAndSettle();
+      expect(rig.top, 24);
+      final position = gallery.scrollController.position;
+      position.jumpTo(40);
+      await tester.pump();
+
+      final drag = position.drag(DragStartDetails(), () {});
+      for (var i = 0; i < 3; i++) {
+        await step(tester, drag, -16);
+      }
+      expect(position.pixels, 0);
+      // The step that reaches the start ends there, as a finger's does.
+      expect(rig.top, 24);
+      for (var i = 0; i < 4; i++) {
+        await step(tester, drag, -16);
+      }
+      expect(position.pixels, 0);
+      expect(rig.top, closeTo(24 + 64, 0.01));
     });
   });
 }

@@ -18,10 +18,11 @@ package is pre-1.0.
 ### Fixed (selection drag raises the sheet)
 
 - A swipe selection held at the grid's bottom edge raises the sheet to its
-  top first, then scrolls the grid, as a scroll of the page does. The
-  sheet's scroll position takes a forward programmatic step of at most 16
-  (the grid's edge auto-scroll) as a raise of the sheet; a longer jump (an
-  album change, a fast scroll) only moves the page.
+  top first, then scrolls the grid, as a scroll of the page does; held at
+  the top edge it scrolls the grid back and then lowers the sheet. The
+  grid's auto-scroll is a drag of the page, which the sheet's scroll
+  position shares as it shares a finger's. A jump (an album change, a fast
+  scroll) only moves the page.
 
 ### Changed (the camera per platform)
 
