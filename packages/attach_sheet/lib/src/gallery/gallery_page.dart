@@ -8,6 +8,7 @@ import 'package:attach_sheet/src/files/intake_items.dart';
 import 'package:attach_sheet/src/gallery/attach_picker_selection.dart';
 import 'package:attach_sheet/src/gallery/gallery_captures.dart';
 import 'package:attach_sheet/src/gallery/gallery_fast_scroll.dart';
+import 'package:attach_sheet/src/gallery/gallery_strip_album.dart';
 import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
@@ -357,6 +358,26 @@ class _GalleryViewState extends State<GalleryView> {
     AttachStrings strings,
     RenderBox? box,
   ) async {
+    // The strip lists the grid's album after the shots, as the grid does.
+    final album = switch (_$pickerKey.currentState?.pages) {
+      final pages? => GalleryStripAlbum(pages),
+      null => null,
+    };
+    try {
+      await _showSurfaceWith(camera, session, kinds, strings, box, album);
+    } finally {
+      album?.dispose();
+    }
+  }
+
+  Future<void> _showSurfaceWith(
+    GalleryCamera camera,
+    CameraSession session,
+    CaptureKinds kinds,
+    AttachStrings strings,
+    RenderBox? box,
+    GalleryStripAlbum? album,
+  ) async {
     final shots = _$shots;
     await CameraCaptureSurface.show(
       context,
@@ -391,6 +412,9 @@ class _GalleryViewState extends State<GalleryView> {
         if (shot.key case final key?) _$picker.toggle(key);
       },
       shotSelection: _$picker,
+      gallery: album,
+      galleryOrder: _$picker.orderOf,
+      onGalleryToggle: (key) => _$picker.toggle(key),
       onShotRemoved: shots?.remove,
       // A hold where videos may not be sent, or one whose microphone was
       // refused: the host says so.
@@ -537,6 +561,7 @@ class _GalleryViewState extends State<GalleryView> {
         bottomBuilder: _viewerSlot,
         bottomSlotHoldsKeyboard: true,
         onReorder: _$picker.move,
+        assetOf: _$picker.assetOf,
         title: widget.viewerTitle,
         subtitleOf: GalleryView.viewerInfoOf,
       );
@@ -662,6 +687,8 @@ class _GalleryViewState extends State<GalleryView> {
       onViewerClosed: _viewerClosed,
       // A long press on the viewer strip's item drags it in the order.
       onReorder: _$picker.move,
+      // Picks from another album keep their marks in the viewer's strip.
+      viewerAssetOf: _$picker.assetOf,
       // The sheet's scroll controller: a drag on the grid raises the sheet
       // to its top before the grid scrolls, and at the grid's top lowers or
       // dismisses it, in one gesture.

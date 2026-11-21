@@ -576,6 +576,30 @@ void main() {
         expect(surface.shotOrder!(surface.shots!.value.last), 2);
       });
 
+      testWidgets("the strip lists the grid's album after the shots: its "
+          'items by their library keys, a video with its duration, and a '
+          'tap picks one into the attach selection', (tester) async {
+        final rig = await openCamera(tester);
+        final surface = tester.widget<CameraCaptureSurface>(
+          find.byType(CameraCaptureSurface),
+        );
+        final album = surface.gallery!;
+        expect(album.count, greaterThan(0));
+        // Read as the grid read it: the same pages.
+        final first = album.itemAt(0, thumbnailPixels: 80)!;
+        expect(first.key, LibraryKeys.keyOf(FakeMediaLibrary.assetAt(0).id));
+        expect(first.thumbnail.kind, MediaKind.still);
+        expect(album.itemAt(3, thumbnailPixels: 80)!.duration, isNotNull);
+        expect(first.duration, isNull);
+
+        expect(surface.galleryOrder!(first.key), isNull);
+        surface.onGalleryToggle!(first.key);
+        expect(surface.galleryOrder!(first.key), 1);
+        expect(rig.selection.items.single.id.value, 'library:asset-0');
+        surface.onGalleryToggle!(first.key);
+        expect(rig.selection.isEmpty, isTrue);
+      });
+
       testWidgets('the viewer from the camera pages every medium, the shots '
           'then the album, with no dismiss drag', (tester) async {
         await openCamera(tester);
