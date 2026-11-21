@@ -49,7 +49,7 @@ package is pre-1.0.
 - On Android, with nothing selected, the band between the sheet's top and
   the grid is the handle's 13. It grows by 26 as the selection header
   rises in, and the handle fades out as the words come. The handle stands
-  10 below the sheet's top (it was 20).
+  in the middle of the 13 band, 4.5 below the sheet's top (it was 20).
 - The grid stays mounted under the selected-items preview, hidden and
   still: back from the preview it is as it was, with its loaded pages and
   its scroll. The preview scrolls on its own controller sharing the

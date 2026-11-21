@@ -451,11 +451,12 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   @override
   bool get squaresCornersWhenPinned => true;
 
-  /// A 36 x 4 pill 10 below the edge, gone once the header shows.
+  /// A 36 x 4 pill in the middle of the 13 band over the grid, gone once
+  /// the header shows.
   @override
   AttachSheetGrabber? get grabber => const AttachSheetGrabber(
     size: Size(36, 4),
-    top: 10,
+    top: 4.5,
     fadesWithHeader: true,
   );
 
