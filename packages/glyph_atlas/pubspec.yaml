@@ -18,7 +18,7 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: 8fb14a685f66baa958353fcb1876122a26dfb1f0
+      ref: 744eae11f689f64e187afd524a4fe46800ec8b2b
   # Only lib/testing.dart needs this: its contract suites are written with the
   # test framework, and a library cannot import a dev dependency.
   flutter_test:
