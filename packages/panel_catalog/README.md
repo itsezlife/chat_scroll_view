@@ -22,6 +22,8 @@ requirements: `PanelCatalogViewport` takes `snapshots`, `assets` and
   content height; layout fills parent constraints; drag-end ballistic fling;
   pointer-down while flinging cancels coast and suppresses leaf pick for that
   pointer
+- **Fast scroll** — `PanelCatalogFastScrollTarget` hands the controller to
+  `viewport_scroll`'s `FastScrollbar` as a fraction of the catalogue
 - **Controller** — scroll-controller style: the viewport attaches one
   `CatalogScrollPosition` (offset, extents, `jumpTo`, `animateTo`, `scrollBy`,
   `jumpToSection`) and the controller forwards commands to it. With no

@@ -6,6 +6,20 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (fast scroll target)
+
+- `PanelCatalogFastScrollTarget`: the catalogue's controller as a
+  `FastScrollTarget` (`viewport_scroll`), so a `FastScrollbar` can drive the
+  catalogue: offset over range, viewport over content, a jump by progress.
+  It notifies on the controller's events; a length change alone publishes
+  none, so the scrollbar catches up on the next move.
+
+### Fixed
+
+- A `jumpTo` the attached viewport is already at still ends its fling or
+  section jump (publishing nothing), as `CatalogScrollPosition.jumpTo`
+  says. Before, a fling ran on under it.
+
 ### Changed (loading stages)
 
 - A leaf at the new `preview` stage draws its binding's preview, as it draws

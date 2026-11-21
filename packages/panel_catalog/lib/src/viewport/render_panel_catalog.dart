@@ -1020,7 +1020,14 @@ class RenderPanelCatalog extends RenderBox
   /// motion and any fling, then clamps, recycles bindings and paints.
   @override
   void jumpTo(double pixels) {
-    if (_pixels == pixels) return;
+    // A jump to where it is moves nothing and publishes nothing, but still
+    // ends a fling or a programmatic motion: that is how a press on a fast
+    // scrollbar stops the content.
+    if (_pixels == pixels) {
+      _cancelSectionJumpMotion();
+      _cancelFling();
+      return;
+    }
     final delta = pixels - _pixels;
     _pixels = pixels;
     _controller

@@ -143,8 +143,9 @@ final class PanelCatalogController {
 
   /// Jumps to [pixels].
   ///
-  /// Same-value calls (`pixels == offset`) and calls after dispose are silent
-  /// no-ops. The attached viewport clamps after publishing: listeners that
+  /// Same-value calls (`pixels == offset`) publish nothing; on an attached
+  /// viewport they still end a fling or a programmatic motion. Calls after
+  /// dispose are silent no-ops. The attached viewport clamps after publishing: listeners that
   /// read [offset] inside the callback see the requested value, not
   /// necessarily the clamped one.
   void jumpTo(double pixels) {
