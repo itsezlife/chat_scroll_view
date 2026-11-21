@@ -10,6 +10,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'pages_rig.dart';
 
+/// A sheet whose tab bar stays at its top, switching pages the Android
+/// way: a switch can start and end at either height.
+final class _SlideAtTop extends AttachSheetPolicy$IOS {
+  const _SlideAtTop();
+
+  @override
+  AttachTabSwitch get tabSwitch => const AttachSheetPolicy.android().tabSwitch;
+}
+
 /// A host's own tab bar: its glass and colours, on the Android bar.
 final class _CustomTabs extends AttachSheetPolicy$Android {
   const _CustomTabs();
@@ -510,6 +519,84 @@ void main() {
 
       await tester.pumpAndSettle();
       expect(rowTop('files'), closeTo(0, 0.5));
+    });
+
+    // The out phase's curve at its middle, and the sheet's top drawn then:
+    // from where it was toward the new page's top, dropping 78 with it.
+    const ease = Cubic(0.25, 0.1, 0.25, 1);
+    double midTop(double from, double to) {
+      final v = ease.transform(90 / 180);
+      return from + (to - from) * v + 78 * v;
+    }
+
+    testWidgets('the slide, the sheet at its top to a page at rest: its top '
+        'moves to the rest and drops 78 over the out phase, then springs '
+        'up to the rest', (tester) async {
+      late AttachPageScope gallery;
+      final rig = await PagesRig.open(
+        tester,
+        policy: const _SlideAtTop(),
+        pages: [
+          rowsPage('gallery', onScope: (s) => gallery = s),
+          rowsPage('files'),
+        ],
+      );
+      final rest = rig.top;
+      gallery.requestExpansion();
+      await tester.pumpAndSettle();
+      final full = rig.top;
+      expect(full, lessThan(rest));
+
+      await tester.tap(rig.tab('files'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(rig.top, closeTo(midTop(full, rest), 1.5));
+      await tester.pump(const Duration(milliseconds: 90));
+      await tester.pump();
+      expect(rig.top, closeTo(rest + 78, 3));
+      // The spring, frame by frame: up from the drop, never above the rest.
+      var last = rig.top;
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(rig.top, lessThanOrEqualTo(last));
+        expect(rig.top, greaterThan(rest - 1));
+        last = rig.top;
+      }
+      expect(rig.top, inExclusiveRange(rest, rest + 78));
+      await tester.pumpAndSettle();
+      expect(rig.top, closeTo(rest, 0.5));
+    });
+
+    testWidgets('the slide, at rest to a page left at the top: the sheet\'s '
+        'top rises toward the top and drops 78, then springs up to it', (
+      tester,
+    ) async {
+      late AttachPageScope files;
+      final rig = await PagesRig.open(
+        tester,
+        policy: const _SlideAtTop(),
+        pages: [
+          rowsPage('gallery'),
+          rowsPage('files', onScope: (s) => files = s),
+        ],
+      );
+      final rest = rig.top;
+      await rig.tapTab('files');
+      files.requestExpansion();
+      await tester.pumpAndSettle();
+      final full = rig.top;
+      await rig.tapTab('gallery');
+      expect(rig.top, closeTo(rest, 0.5));
+
+      await tester.tap(rig.tab('files'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(rig.top, closeTo(midTop(rest, full), 1.5));
+      await tester.pump(const Duration(milliseconds: 90));
+      await tester.pump();
+      expect(rig.top, closeTo(full + 78, 3));
+      await tester.pumpAndSettle();
+      expect(rig.top, closeTo(full, 0.5));
     });
 
     testWidgets('a tap during a switch waits (Android)', (tester) async {

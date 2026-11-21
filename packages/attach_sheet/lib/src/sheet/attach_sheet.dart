@@ -215,6 +215,13 @@ abstract interface class AttachSheetController {
   /// the sheet to the height the new page had.
   Future<void> settle({required bool expanded, SpringDescription? spring});
 
+  /// The top at the sheet's top ([expanded]) or at rest.
+  double topOf({required bool expanded});
+
+  /// Puts the sheet's top at [value] at once, stopping its motion: a page
+  /// switch drawing the sheet's move frame by frame.
+  void jumpTop(double value);
+
   /// Closes the sheet, asking the discard question first when the
   /// selection is not empty.
   Future<void> requestDismiss();
@@ -391,6 +398,16 @@ class _AttachSheetState extends State<AttachSheet>
       final spring? => AttachSheetMotion.spring(spring),
       null => _policy.expandMotion,
     });
+  }
+
+  @override
+  double topOf({required bool expanded}) =>
+      expanded ? _expandedTop : _collapsedTop;
+
+  @override
+  void jumpTop(double value) {
+    if (!_opened || _closing) return;
+    _$top.value = value;
   }
 
   @override

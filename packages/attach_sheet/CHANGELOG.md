@@ -29,9 +29,12 @@ package is pre-1.0.
   grows over 225 ms on `Cubic(0.4, 0, 0.2, 1)` to the tab's corners from its
   centre, fades in over 75 ms and, once lifted and grown, out over 150 ms),
   clipped to the tab's stadium. It replaces `pressFade`.
-- The Android tab switch is the reference's: for 180 ms both pages drop 78
-  together while the new one fades in over the old (it paints above it);
-  the old one goes and the new one, opaque, springs up from 78. Before, the
+- The Android tab switch is the reference's: for 180 ms the sheet (its
+  top, with both pages in it) moves toward the new page's top and drops 78
+  while the new page fades in over the old (it paints above it); the old
+  one goes and the sheet springs up to the new page's top. Before, the
+  pages moved inside a sheet that held still and only then settled.
+  `AttachSheetController` gains `topOf(expanded:)` and `jumpTop`. Before, the
   old page faded out alone and the new one faded in on the spring.
 
 ### Changed (sampled glass)

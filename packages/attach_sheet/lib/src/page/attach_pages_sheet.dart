@@ -422,24 +422,48 @@ class _AttachPageAreaState extends State<_AttachPageArea>
     setState(() => _leaving = from);
     try {
       switch (_model.policy.tabSwitch) {
-        case AttachTabSwitch$Slide(:final out, :final inSpring):
-          // Both pages drop together while the new one fades in over the
-          // old; the old one goes at the end of it and the new one springs
-          // up from the drop.
+        case AttachTabSwitch$Slide(
+          :final out,
+          :final inSpring,
+          :final distance,
+        ):
+          // The sheet moves as one with the pages: over the out phase its
+          // top goes from where it is toward the new page's top and drops
+          // [distance] with it, while the new page fades in over the old;
+          // then the old one goes and the sheet springs up from the drop to
+          // the new page's top.
+          final from = sheet.top.value;
+          final to = sheet.topOf(expanded: expanded);
+          void outTop() => sheet.jumpTop(
+            from + (to - from) * _$out.value + distance * _$out.value,
+          );
+          void inTop() => sheet.jumpTop(to + distance * (1 - _$in.value));
           _$in.value = 0;
           _$fadeIn.value = 0;
           final spec = out.withSpeed(speed);
           _$out.value = 0;
-          await _$out
-              .animateTo(1, duration: spec.duration, curve: spec.curve)
-              .orCancel;
+          _$out.addListener(outTop);
+          try {
+            await _$out
+                .animateTo(1, duration: spec.duration, curve: spec.curve)
+                .orCancel;
+          } finally {
+            _$out.removeListener(outTop);
+          }
           if (!mounted) return;
           _$fadeIn.value = 1;
           setState(() => _leaving = null);
           _model.switching = false;
-          unawaited(sheet.settle(expanded: expanded, spring: inSpring));
-          await _$in.animateWith(SpringSimulation(inSpring, 0, 1, 0)).orCancel;
+          _$in.addListener(inTop);
+          try {
+            await _$in
+                .animateWith(SpringSimulation(inSpring, 0, 1, 0))
+                .orCancel;
+          } finally {
+            _$in.removeListener(inTop);
+          }
           _$in.value = 1;
+          sheet.jumpTop(to);
         case AttachTabSwitch$CrossFade(:final fade, :final inSpring):
           final spec = fade.withSpeed(speed);
           unawaited(sheet.settle(expanded: expanded, spring: inSpring));
@@ -529,12 +553,11 @@ extension on _AttachPageAreaState {
               final (double opacity, double dy) = switch ((shown, slides)) {
                 // Slide: in the out phase the new page fades in at the old
                 // one's drop; then it is opaque and springs up.
-                (true, true) when _leaving != null => (
-                  _$out.value,
-                  slide * _$out.value,
-                ),
-                (true, true) => (1, slide * (1 - _$in.value)),
-                (false, true) => (1, slide * _$out.value),
+                // The sheet itself drops and springs: the pages stand still
+                // in it.
+                (true, true) when _leaving != null => (_$out.value, 0),
+                (true, true) => (1, 0),
+                (false, true) => (1, 0),
                 (true, false) => (
                   _$fadeIn.value.clamp(0.0, 1.0),
                   slide * (1 - _$in.value),
