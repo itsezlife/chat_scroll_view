@@ -699,6 +699,40 @@ void main() {
         expect(rig.selection.isEmpty, isTrue);
       });
 
+      testWidgets("the strip's album lives through the camera page's close: "
+          'every frame of it rebuilds the page with the album still in use, '
+          'and it goes with the page', (tester) async {
+        await openCamera(tester);
+        final album =
+            tester
+                    .widget<CameraCaptureSurface>(
+                      find.byType(CameraCaptureSurface),
+                    )
+                    .gallery!
+                as ChangeNotifier;
+        var notified = 0;
+        void count() => notified++;
+        await tester.tap(find.byKey(const ValueKey('mpx-capture-close')));
+        for (var ms = 0; ms < 300; ms += 16) {
+          await tester.pump(const Duration(milliseconds: 16));
+          expect(tester.takeException(), isNull, reason: '$ms ms');
+          if (find.byType(CameraCaptureSurface).evaluate().isEmpty) break;
+          // Still alive: a listener may join it, as the page's do.
+          album
+            ..addListener(count)
+            ..removeListener(count);
+        }
+        await settle(tester);
+        expect(find.byType(CameraCaptureSurface), findsNothing);
+        expect(tester.takeException(), isNull);
+        expect(
+          () => album.addListener(count),
+          throwsFlutterError,
+          reason: 'freed once the page is gone',
+        );
+        expect(notified, 0);
+      });
+
       testWidgets('the viewer from the camera pages every medium, the shots '
           'then the album, with no dismiss drag', (tester) async {
         await openCamera(tester);
