@@ -540,7 +540,8 @@ void main() {
       });
 
       testWidgets('add-photo leads the caption; a burst of taps closes the '
-          'viewer once and keeps the shot', (tester) async {
+          'viewer once and keeps the shot; back from the counter later '
+          'discards every shot of the session', (tester) async {
         final rig = await openCamera(tester);
         await shoot(tester);
         expect(addPhoto, findsOneWidget);
@@ -560,17 +561,26 @@ void main() {
         expect(rig.selection.length, 1);
 
         // A second shot: the viewer stays shut; the counter opens it, and
-        // back keeps both.
+        // back takes the camera session's shots back, both of them.
         await shoot(tester);
         expect(viewer, findsNothing);
         expect(capturesOf(tester), hasLength(2));
+        final keys = [for (final c in capturesOf(tester)) c.key];
         await tester.tap(find.byKey(const ValueKey('mpx-capture-counter')));
         await settle(tester);
         expect(viewer, findsOneWidget);
         await back(tester);
         expect(viewer, findsNothing);
-        expect(capturesOf(tester), hasLength(2));
-        expect(rig.selection.length, 2);
+        expect(capturesOf(tester), isEmpty);
+        expect(rig.selection.isEmpty, isTrue);
+        for (final key in keys) {
+          expect(
+            await tester.runAsync(
+              () => store.read(CaptureCache.cacheKeyOf(key)),
+            ),
+            isNull,
+          );
+        }
       });
 
       testWidgets('the counter over one shot opens the viewer; back then '

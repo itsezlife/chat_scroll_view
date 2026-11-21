@@ -46,10 +46,19 @@ final class GalleryCaptures {
 
   /// Whether back from the camera's viewer takes the taking back: set by
   /// the first shot (whose viewer opens on it) and by the shots counter,
-  /// cleared by the viewer's add-photo button. Back then discards the shot
-  /// when it is the only one; two or more stay.
+  /// cleared by the viewer's add-photo button. Back then discards every
+  /// shot of the camera session.
   bool get cancelTakingPhotos => _cancelTakingPhotos;
   bool _cancelTakingPhotos = false;
+
+  // The keys of the shots taken since the capture surface opened.
+  final Set<MediaKey$Local> _session = {};
+
+  /// The capture surface opened: a new camera session.
+  void cameraOpened() {
+    _session.clear();
+    _cancelTakingPhotos = false;
+  }
 
   /// The viewer opened from the camera over its shots (the counter).
   void viewerOpenedFromCamera() => _cancelTakingPhotos = true;
@@ -60,15 +69,21 @@ final class GalleryCaptures {
 
   /// The capture surface closed: a viewer opened later is not the
   /// camera's.
-  void cameraClosed() => _cancelTakingPhotos = false;
+  void cameraClosed() {
+    _cancelTakingPhotos = false;
+    _session.clear();
+  }
 
-  /// The camera's viewer closed: the one shot goes when the taking was
-  /// still cancellable (back, not add-photo).
+  /// The camera's viewer closed: when the taking was still cancellable
+  /// (back, not add-photo), every shot of the camera session goes.
   void viewerClosed() {
     final cancel = _cancelTakingPhotos;
     _cancelTakingPhotos = false;
-    if (!cancel || shots.value.length != 1) return;
-    remove(shots.value.single);
+    if (!cancel) return;
+    for (final shot in [...shots.value]) {
+      if (_session.contains(shot.key)) remove(shot);
+    }
+    _session.clear();
   }
 
   /// The attach item id of the capture under [key].
@@ -119,6 +134,7 @@ final class GalleryCaptures {
     );
     list.value = [...list.value, capture];
     shots.value = [...shots.value, shot];
+    _session.add(key);
     // The first shot opens the viewer on it.
     if (shots.value.length == 1) _cancelTakingPhotos = true;
     if (selection.toggle(itemOf(capture)) case AttachToggle$Refused(

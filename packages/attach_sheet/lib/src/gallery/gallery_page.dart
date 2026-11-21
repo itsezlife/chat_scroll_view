@@ -339,6 +339,7 @@ class _GalleryViewState extends State<GalleryView> {
     final strings = ChromeStringsScope.attachOf(context);
     final box = _$slot.currentContext?.findRenderObject() as RenderBox?;
     _surfaceOpen = true;
+    _$shots?.cameraOpened();
     try {
       await _showSurface(camera, session, kinds, strings, box);
     } finally {

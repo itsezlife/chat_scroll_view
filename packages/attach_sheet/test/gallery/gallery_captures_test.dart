@@ -215,20 +215,48 @@ void main() {
       expect(captures.cancelTakingPhotos, isFalse);
     });
 
-    test('with two or more shots back keeps them', () {
+    test('back from the counter discards every shot of the camera session, '
+        'not only a lone one', () {
       captures
+        ..cameraOpened()
         ..add(_shot(1))
-        ..add(_shot(2));
-      captures.viewerClosed();
-      expect(captures.shots.value, hasLength(2));
-      expect(selection.items, hasLength(2));
-      expect(released, isEmpty);
-
-      // The counter opens the viewer again: back still keeps two.
-      captures
+        ..addMore()
+        ..add(_shot(2))
+        ..add(_shot(3, video: true))
         ..viewerOpenedFromCamera()
         ..viewerClosed();
+      expect(captures.shots.value, isEmpty);
+      expect(captures.list.value, isEmpty);
+      expect(selection.items, isEmpty);
+      expect(released, [_key(1), _key(2), _key(3)]);
+    });
+
+    test("an earlier camera session's shots stay: only this session's go", () {
+      captures
+        ..cameraOpened()
+        ..add(_shot(1))
+        ..addMore()
+        ..cameraClosed()
+        ..cameraOpened()
+        // Not the open's first shot: no viewer opens on it.
+        ..add(_shot(2))
+        ..viewerOpenedFromCamera()
+        ..viewerClosed();
+      expect(captures.shots.value.map((s) => s.key), [_key(1)]);
+      expect(selection.items, hasLength(1));
+      expect(released, [_key(2)]);
+    });
+
+    test('add-photo, then more shots: back without the counter keeps them '
+        'all', () {
+      captures
+        ..cameraOpened()
+        ..add(_shot(1))
+        ..addMore()
+        ..add(_shot(2))
+        ..viewerClosed();
       expect(captures.shots.value, hasLength(2));
+      expect(released, isEmpty);
     });
 
     test('add-photo clears the mark: back after it keeps the one shot', () {

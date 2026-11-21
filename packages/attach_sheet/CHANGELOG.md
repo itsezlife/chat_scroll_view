@@ -13,9 +13,10 @@ package is pre-1.0.
   and its shots counter reads "3 PHOTOS", "2 VIDEOS" or "5 MEDIA" from the
   strings. A tap on the counter opens the viewer over the shots, at the
   newest.
-- Back from the camera's viewer takes a lone shot back: it leaves the
-  captures, the strip, the selection and the capture cache. With two or
-  more shots back keeps them.
+- Back from the camera's viewer (the first shot's, or the counter's)
+  takes the camera session's shots back, however many: they leave the
+  captures, the strip, the selection and the capture cache. Shots of an
+  earlier camera session stay. Only add-photo keeps them.
 - The camera viewer's caption leads with add-photo while the keyboard is
   down (the panel button takes its place with the field focused or the
   panel up). A tap goes back to the camera and keeps the shot; a tap while
