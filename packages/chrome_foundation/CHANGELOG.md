@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the selection header, breaking)
+
+- `AttachStrings.selectedPhotos`, `selectedVideos` and `selectedMedia`
+  (required plurals) for the Gallery's selection header,
+  `selectionPreviewTitle` for its title over the selected-items preview,
+  and `closeSheet` for the pinned bar's close button. They are in the
+  English and Russian presets and the snapshot.
+
 ### Added (the capture flow, breaking)
 
 - `AttachStrings.capturedPhotos`, `capturedVideos` and `capturedMedia`

@@ -99,6 +99,11 @@ final class AttachStrings {
     required this.capturedVideos,
     required this.capturedMedia,
     required this.captionAddPhoto,
+    required this.selectedPhotos,
+    required this.selectedVideos,
+    required this.selectedMedia,
+    required this.selectionPreviewTitle,
+    required this.closeSheet,
   });
 
   /// The question before a selection is dropped, in the "discard" wording
@@ -382,4 +387,21 @@ final class AttachStrings {
   /// The camera viewer caption's add-photo button, which goes back to the
   /// camera for another shot ("Add photo").
   final String captionAddPhoto;
+
+  /// The Gallery header while photos are selected ("3 photos selected").
+  final String Function(int n) selectedPhotos;
+
+  /// The Gallery header while videos are selected ("2 videos selected").
+  final String Function(int n) selectedVideos;
+
+  /// The Gallery header while photos and videos are selected
+  /// ("5 media selected").
+  final String Function(int n) selectedMedia;
+
+  /// The Gallery header over the selected-items preview
+  /// ("Message preview").
+  final String selectionPreviewTitle;
+
+  /// The sheet's close button in its pinned bar ("Close").
+  final String closeSheet;
 }

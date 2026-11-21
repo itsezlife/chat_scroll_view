@@ -268,6 +268,13 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     capturedVideos: (n) => '$n видео',
     capturedMedia: (n) => '$n медиа',
     captionAddPhoto: 'Добавить фото',
+    selectedPhotos: (n) =>
+        '${RussianPlural.wordOf(n, 'Выбрана', 'Выбрано', 'Выбрано')} $n '
+        '${RussianPlural.wordOf(n, 'фотография', 'фотографии', 'фотографий')}',
+    selectedVideos: (n) => 'Выбрано $n видео',
+    selectedMedia: (n) => 'Выбрано $n медиа',
+    selectionPreviewTitle: 'Предпросмотр сообщения',
+    closeSheet: 'Закрыть',
   ),
   semantics: SemanticsStrings(
     panelOpened: 'Панель открыта',

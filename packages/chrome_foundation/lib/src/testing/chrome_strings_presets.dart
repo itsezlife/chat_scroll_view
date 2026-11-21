@@ -278,6 +278,13 @@ abstract final class ChromeStringsPresets {
       capturedVideos: (n) => n == 1 ? '$n video' : '$n videos',
       capturedMedia: (n) => '$n media',
       captionAddPhoto: 'Add photo',
+      selectedPhotos: (n) =>
+          n == 1 ? '$n photo selected' : '$n photos selected',
+      selectedVideos: (n) =>
+          n == 1 ? '$n video selected' : '$n videos selected',
+      selectedMedia: (n) => '$n media selected',
+      selectionPreviewTitle: 'Message preview',
+      closeSheet: 'Close',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Panel opened',
@@ -558,6 +565,13 @@ abstract final class ChromeStringsPresets {
       capturedVideos: (n) => '$n видео',
       capturedMedia: (n) => '$n медиа',
       captionAddPhoto: 'Добавить фото',
+      selectedPhotos: (n) =>
+          '${_ru(n, 'Выбрана', 'Выбрано', 'Выбрано')} $n '
+          '${_ru(n, 'фотография', 'фотографии', 'фотографий')}',
+      selectedVideos: (n) => 'Выбрано $n видео',
+      selectedMedia: (n) => 'Выбрано $n медиа',
+      selectionPreviewTitle: 'Предпросмотр сообщения',
+      closeSheet: 'Закрыть',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Панель открыта',
