@@ -15,10 +15,12 @@ import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/panel/attach_panel.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
+import 'package:attach_sheet/src/sheet/attach_sheet.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' show RichText;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide RichText;
@@ -308,6 +310,7 @@ class _GalleryViewState extends State<GalleryView> {
 
   @override
   void dispose() {
+    _$previewController?.dispose();
     _$switcher.dispose();
     _restFocus.dispose();
     widget.panel.hostSelectionPreview(present: false);
@@ -621,20 +624,58 @@ class _GalleryViewState extends State<GalleryView> {
     );
   }
 
+  // The preview's own scroll controller, sharing the sheet's drag: the
+  // grid keeps the page's while it stays mounted under the preview.
+  ScrollController? _$previewController;
+  ScrollController get _previewController => _$previewController ??=
+      AttachSheetController.maybeOf(context)?.createScrollController() ??
+      ScrollController();
+
+  // A drag anywhere on the preview, its empty area below the picks too,
+  // is a drag of its scroll (so of the sheet), as on the grid.
+  Widget _dragsAnywhere(Widget preview) {
+    Drag? drag;
+    void end(double velocity) {
+      drag?.end(DragEndDetails(primaryVelocity: velocity));
+      drag = null;
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        GestureDetector(
+          key: const ValueKey('attach-gallery-preview-drag'),
+          behavior: HitTestBehavior.opaque,
+          onVerticalDragStart: (details) {
+            final controller = _previewController;
+            if (!controller.hasClients) return;
+            drag = controller.position.drag(details, () => drag = null);
+          },
+          onVerticalDragUpdate: (details) => drag?.update(details),
+          onVerticalDragEnd: (details) => end(details.primaryVelocity ?? 0),
+          onVerticalDragCancel: () => end(0),
+        ),
+        preview,
+      ],
+    );
+  }
+
   Widget _preview(BuildContext context) => ColoredBox(
     color: ChromeThemeScope.attachOf(context).background,
-    child: PickerSelectionPreview(
-      key: const ValueKey('attach-gallery-preview'),
-      selection: _$picker,
-      labels: _labels(ChromeStringsScope.attachOf(context)),
-      policy: widget.panel.policy.libraryGrid,
-      tokens: _tokens(context),
-      controller: widget.controller,
-      onOpen: (key, index) => unawaited(_openSelected(key, index)),
-      onReorder: _$picker.move,
-      // The marks the grid shows on the item (a video's duration, HD).
-      assetOf: _$picker.assetOf,
-      onRefused: (_, _) {},
+    child: _dragsAnywhere(
+      PickerSelectionPreview(
+        key: const ValueKey('attach-gallery-preview'),
+        selection: _$picker,
+        labels: _labels(ChromeStringsScope.attachOf(context)),
+        policy: widget.panel.policy.libraryGrid,
+        tokens: _tokens(context),
+        controller: _previewController,
+        onOpen: (key, index) => unawaited(_openSelected(key, index)),
+        onReorder: _$picker.move,
+        // The marks the grid shows on the item (a video's duration, HD).
+        assetOf: _$picker.assetOf,
+        onRefused: (_, _) {},
+      ),
     ),
   );
 
@@ -642,12 +683,28 @@ class _GalleryViewState extends State<GalleryView> {
   Widget build(BuildContext context) {
     final body = ListenableBuilder(
       listenable: Listenable.merge([widget.panel.header, widget.panel.options]),
-      builder: (context, _) => widget.panel.header.value.previewing
-          ? switch (widget.previewBuilder) {
-              final wrap? => wrap(context, _preview(context)),
-              null => _preview(context),
-            }
-          : _grid(context),
+      builder: (context, _) {
+        final previewing = widget.panel.header.value.previewing;
+        // The grid stays mounted under the preview, still and hidden: back
+        // from the preview it is as it was (its pages, its scroll).
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Offstage(
+              offstage: previewing,
+              child: TickerMode(
+                enabled: !previewing,
+                child: _grid(context, previewing: previewing),
+              ),
+            ),
+            if (previewing)
+              switch (widget.previewBuilder) {
+                final wrap? => wrap(context, _preview(context)),
+                null => _preview(context),
+              },
+          ],
+        );
+      },
     );
     return Focus(
       focusNode: _restFocus,
@@ -742,7 +799,7 @@ class _GalleryViewState extends State<GalleryView> {
     });
   }
 
-  Widget _grid(BuildContext context) {
+  Widget _grid(BuildContext context, {bool previewing = false}) {
     final strings = ChromeStringsScope.attachOf(context);
     final camera = widget.camera;
     final android =
@@ -826,9 +883,9 @@ class _GalleryViewState extends State<GalleryView> {
     return switch (widget.active) {
       final active? => ValueListenableBuilder<bool>(
         valueListenable: active,
-        builder: (context, shown, _) => picker(active: shown),
+        builder: (context, shown, _) => picker(active: shown && !previewing),
       ),
-      null => picker(),
+      null => picker(active: !previewing),
     };
   }
 }

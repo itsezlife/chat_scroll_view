@@ -44,6 +44,19 @@ package is pre-1.0.
   The grabber fades by its complement, so on Android it fades out as "N
   selected" fades in over its line.
 
+### Changed (device round 1)
+
+- On Android, with nothing selected, the band between the sheet's top and
+  the grid is the handle's 13. It grows by 26 as the selection header
+  rises in, and the handle fades out as the words come. The handle stands
+  10 below the sheet's top (it was 20).
+- The grid stays mounted under the selected-items preview, hidden and
+  still: back from the preview it is as it was, with its loaded pages and
+  its scroll. The preview scrolls on its own controller sharing the
+  sheet's drag.
+- A drag anywhere on the preview, its empty area below the picks too,
+  moves the sheet as on the grid.
+
 ### Changed (the pinned bar)
 
 - On Android the pinned bar fades in over 180 ms on the platform's ease in

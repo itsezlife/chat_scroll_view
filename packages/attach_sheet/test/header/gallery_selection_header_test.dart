@@ -125,16 +125,28 @@ void main() {
     final words = find.text('1 photo selected');
     expect(words, findsOneWidget);
     expect(opacityOf(tester, words), inExclusiveRange(0.3, 0.7));
-    final halfway = tester.getTopLeft(words).dy;
+    // Over the grid's first row: the band grows as the words rise.
+    double overGrid() =>
+        tester.getTopLeft(cell(1)).dy - tester.getTopLeft(words).dy;
+    final halfway = overGrid();
     await tester.pump(const Duration(milliseconds: 100));
     expect(opacityOf(tester, words), 1);
     // Halfway through the fade it stood halfway down its 26.
-    expect(halfway - tester.getTopLeft(words).dy, closeTo(13, 2));
+    expect(overGrid() - halfway, closeTo(13, 2));
+    // At rest the words stand 3 over the grid, 22 high; the band is 39.
+    expect(overGrid(), closeTo(25, 1));
+    expect(tester.getSize(header).height, 39);
     expect(arrow, findsNothing);
 
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(preview, findsNothing);
+  });
+
+  testWidgets("nothing selected: the band over the grid is the handle's "
+      '13', (tester) async {
+    await open(tester);
+    expect(tester.getSize(header).height, 13);
   });
 
   testWidgets('the grabber fades out as the words fade in over its line, '
@@ -199,6 +211,57 @@ void main() {
     await tester.pumpAndSettle();
     expect(preview, findsNothing);
     expect(controller(tester).value.previewing, isFalse);
+  });
+
+  testWidgets('back from the preview finds the grid as it was: the same '
+      'picker, the same scroll, no reload', (tester) async {
+    final rig = await open(tester);
+    await tapCheck(tester, 0);
+    await tapCheck(tester, 1);
+    final picker = tester.state(find.byType(LibraryPicker));
+    final grid = tester.widget<LibraryPicker>(find.byType(LibraryPicker));
+    final position = grid.controller!.position;
+    // Up to the top, then down the grid.
+    position.jumpTo(600);
+    await tester.pumpAndSettle();
+    final offset = position.pixels;
+    final top = rig.top;
+
+    controller(tester).togglePreview();
+    await tester.pumpAndSettle();
+    expect(preview, findsOneWidget);
+    expect(
+      find.byType(LibraryPicker, skipOffstage: false),
+      findsOneWidget,
+      reason: 'kept under the preview',
+    );
+    expect(find.byType(LibraryPicker), findsNothing, reason: 'hidden');
+
+    controller(tester).togglePreview();
+    await tester.pumpAndSettle();
+    expect(identical(tester.state(find.byType(LibraryPicker)), picker), isTrue);
+    expect(position.pixels, offset);
+    expect(rig.top, top);
+  });
+
+  testWidgets('a drag on the empty area of the preview moves the sheet, '
+      'as on the grid', (tester) async {
+    final rig = await open(tester);
+    await tapCheck(tester, 0);
+    await tapCheck(tester, 1);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    final rest = rig.top;
+    // Far below the two picks.
+    final empty = Offset(200, rest + 250);
+    expect(
+      tester.getBottomLeft(find.byType(PickerSelectionPreview)).dy,
+      greaterThan(empty.dy),
+    );
+    await tester.dragFrom(empty, const Offset(0, -120));
+    await tester.pump();
+    expect(rig.top, lessThan(rest - 60));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('a burst of taps on the header is one switch', (tester) async {

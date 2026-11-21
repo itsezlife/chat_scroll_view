@@ -217,20 +217,28 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
     final slide = _style.previewSlide;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final value = _header.value;
-    return SizedBox(
-      key: const ValueKey('attach-selection-header'),
-      height: AttachSelectionHeader.height,
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_shown, _$mix, pinned]),
-        builder: (context, _) {
-          final shown = _shown.value;
-          final away = 1 - pinned.value;
-          final mix = _$mix.value.clamp(0.0, 1.0);
-          final live = shown > 0 && away > 0;
-          double dx(double d) => rtl ? -d : d;
-          return Stack(
+    return AnimatedBuilder(
+      animation: Listenable.merge([_shown, _$mix, pinned]),
+      builder: (context, _) {
+        final shown = _shown.value;
+        final away = 1 - pinned.value;
+        final mix = _$mix.value.clamp(0.0, 1.0);
+        final live = shown > 0 && away > 0;
+        double dx(double d) => rtl ? -d : d;
+        // The band over the grid grows by the rise as the words come: the
+        // handle's band with nothing selected, the words' band with them.
+        return SizedBox(
+          key: const ValueKey('attach-selection-header'),
+          height: _style.band + _style.rise * shown,
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Positioned.fill(
+              // The words stand on the band's bottom, 3 over the grid.
+              PositionedDirectional(
+                start: 0,
+                end: 0,
+                bottom: 3,
+                height: 22,
                 child: IgnorePointer(
                   ignoring: !live,
                   child: GestureDetector(
@@ -332,11 +340,12 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
                   ),
                 ),
               ),
-              // The overflow button grows in beside the header.
+              // The overflow button grows in beside the header: 48 high,
+              // from 37 over the grid.
               PositionedDirectional(
                 end: 12,
-                top: 0,
-                bottom: 0,
+                bottom: -11,
+                height: 48,
                 child: IgnorePointer(
                   ignoring: !live,
                   child: Opacity(
@@ -349,9 +358,9 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
                 ),
               ),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

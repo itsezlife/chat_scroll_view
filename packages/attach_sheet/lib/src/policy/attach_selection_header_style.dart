@@ -31,6 +31,7 @@ final class AttachSelectionHeaderStyle {
     required this.switcherPinned,
     required this.closeInPinnedBar,
     required this.shown,
+    required this.band,
     required this.rise,
     required this.previewSwitch,
     required this.previewSlide,
@@ -39,8 +40,10 @@ final class AttachSelectionHeaderStyle {
   });
 
   /// The header of the reference's Android sheet:
+  /// - with nothing selected the band over the grid is 13, the handle's;
   /// - with something selected, "N photos selected" (videos, media) stands
-  ///   in the header, rising 26 into place as it fades in over 180 ms;
+  ///   in the header, rising 26 into place as it fades in over 180 ms, the
+  ///   band growing by as much and the handle fading out;
   /// - from two picks on it carries an arrow, and a tap on it opens the
   ///   preview (and closes it); the send button's count only sends;
   /// - the album switcher stands only in the bar pinned at the sheet's
@@ -56,6 +59,7 @@ final class AttachSelectionHeaderStyle {
     switcherPinned: true,
     closeInPinnedBar: true,
     shown: MotionSpec(Duration(milliseconds: 180), accelerateDecelerate),
+    band: 13,
     rise: 26,
     previewSwitch: _criticalSpring,
     previewSlide: 16,
@@ -78,6 +82,7 @@ final class AttachSelectionHeaderStyle {
         switcherPinned: false,
         closeInPinnedBar: false,
         shown: MotionSpec(Duration(milliseconds: 180), Curves.easeInOut),
+        band: 44,
         rise: 0,
         previewSwitch: null,
         previewSlide: 0,
@@ -118,7 +123,12 @@ final class AttachSelectionHeaderStyle {
   /// The selection header's fade in and out.
   final MotionSpec shown;
 
-  /// How far the selection header rises into place as it fades in.
+  /// The band between the sheet's top and the grid with nothing selected
+  /// (the handle's).
+  final double band;
+
+  /// How far the selection header rises into place as it fades in; the
+  /// band grows by as much.
   final double rise;
 
   /// The spring the header and the preview title swap on; null for an
@@ -147,6 +157,7 @@ final class AttachSelectionHeaderStyle {
     bool? switcherPinned,
     bool? closeInPinnedBar,
     MotionSpec? shown,
+    double? band,
     double? rise,
     SpringDescription? previewSwitch,
     bool clearPreviewSwitch = false,
@@ -161,6 +172,7 @@ final class AttachSelectionHeaderStyle {
     switcherPinned: switcherPinned ?? this.switcherPinned,
     closeInPinnedBar: closeInPinnedBar ?? this.closeInPinnedBar,
     shown: shown ?? this.shown,
+    band: band ?? this.band,
     rise: rise ?? this.rise,
     previewSwitch: clearPreviewSwitch
         ? null
