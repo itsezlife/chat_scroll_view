@@ -217,6 +217,47 @@ void main() {
   });
 
   group("a swipe selection held at the screen's edges", () {
+    testWidgets('a finger held still at the bottom raises the sheet all '
+        'the way to its top, then scrolls the grid, as long as it stays', (
+      tester,
+    ) async {
+      final rig = await open(tester);
+      final rest = rig.top;
+      expect(rest, greaterThan(24), reason: 'the sheet is not at its top');
+      final grid = tester
+          .widget<LibraryPicker>(find.byType(LibraryPicker))
+          .controller!;
+      final gesture = await tester.startGesture(tester.getCenter(cell(4)));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 20));
+      await gesture.moveTo(const Offset(200, 790));
+      // Then still: no more pointer events while the sheet and the grid
+      // move under it.
+      final tops = <double>[];
+      for (var i = 0; i < 120; i++) {
+        // A tremor of the held finger while the sheet moves under it: its
+        // event's own local position is through the grid's place at the
+        // down, so the grid reads it against where it is now.
+        if (i == 10) await gesture.moveBy(const Offset(0, 1));
+        await tester.pump(const Duration(milliseconds: 16));
+        tops.add(rig.top);
+      }
+      expect(rig.top, lessThanOrEqualTo(24 + 0.5), reason: 'at its top');
+      for (var i = 1; i < tops.length; i++) {
+        expect(tops[i], lessThanOrEqualTo(tops[i - 1]), reason: 'never back');
+      }
+      final scrolled = grid.offset;
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(
+        grid.offset,
+        greaterThan(scrolled + 100),
+        reason: 'the grid goes on',
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('the bottom edge raises a sheet that is not at its top; '
         "the sheet's top edge never moves it", (tester) async {
       final rig = await open(tester);

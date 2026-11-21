@@ -20,7 +20,6 @@ import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' show RichText;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide RichText;
@@ -631,51 +630,21 @@ class _GalleryViewState extends State<GalleryView> {
       AttachSheetController.maybeOf(context)?.createScrollController() ??
       ScrollController();
 
-  // A drag anywhere on the preview, its empty area below the picks too,
-  // is a drag of its scroll (so of the sheet), as on the grid.
-  Widget _dragsAnywhere(Widget preview) {
-    Drag? drag;
-    void end(double velocity) {
-      drag?.end(DragEndDetails(primaryVelocity: velocity));
-      drag = null;
-    }
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        GestureDetector(
-          key: const ValueKey('attach-gallery-preview-drag'),
-          behavior: HitTestBehavior.opaque,
-          onVerticalDragStart: (details) {
-            final controller = _previewController;
-            if (!controller.hasClients) return;
-            drag = controller.position.drag(details, () => drag = null);
-          },
-          onVerticalDragUpdate: (details) => drag?.update(details),
-          onVerticalDragEnd: (details) => end(details.primaryVelocity ?? 0),
-          onVerticalDragCancel: () => end(0),
-        ),
-        preview,
-      ],
-    );
-  }
-
   Widget _preview(BuildContext context) => ColoredBox(
     color: ChromeThemeScope.attachOf(context).background,
-    child: _dragsAnywhere(
-      PickerSelectionPreview(
-        key: const ValueKey('attach-gallery-preview'),
-        selection: _$picker,
-        labels: _labels(ChromeStringsScope.attachOf(context)),
-        policy: widget.panel.policy.libraryGrid,
-        tokens: _tokens(context),
-        controller: _previewController,
-        onOpen: (key, index) => unawaited(_openSelected(key, index)),
-        onReorder: _$picker.move,
-        // The marks the grid shows on the item (a video's duration, HD).
-        assetOf: _$picker.assetOf,
-        onRefused: (_, _) {},
-      ),
+    // Its list fills it, so the area below the picks drags the sheet too.
+    child: PickerSelectionPreview(
+      key: const ValueKey('attach-gallery-preview'),
+      selection: _$picker,
+      labels: _labels(ChromeStringsScope.attachOf(context)),
+      policy: widget.panel.policy.libraryGrid,
+      tokens: _tokens(context),
+      controller: _previewController,
+      onOpen: (key, index) => unawaited(_openSelected(key, index)),
+      onReorder: _$picker.move,
+      // The marks the grid shows on the item (a video's duration, HD).
+      assetOf: _$picker.assetOf,
+      onRefused: (_, _) {},
     ),
   );
 
