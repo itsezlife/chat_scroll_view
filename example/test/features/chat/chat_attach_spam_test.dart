@@ -21,9 +21,30 @@ void main() {
   testWidgets('the attach button tapped again while its sheet opens or is '
       'open opens nothing more', (tester) async {
     final messenger = tester.binding.defaultBinaryMessenger;
-    const channel = MethodChannel('dev.mpx.device_signals');
-    messenger.setMockMethodCallHandler(channel, (_) async => null);
-    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    // The platform streams the app listens to here: the device's signals
+    // and the media library's changes (the Gallery page's).
+    for (final name in [
+      'dev.mpx.device_signals',
+      'dev.mpx.library',
+      'dev.mpx.library/events',
+    ]) {
+      final channel = MethodChannel(name);
+      messenger.setMockMethodCallHandler(channel, (_) async => null);
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    }
+    // Where the native reader is built, the Gallery's players are made
+    // (once per process) and talk to a platform player that is not here;
+    // that, and only that, is not this test's failure.
+    final reported = FlutterError.onError;
+    FlutterError.onError = (details) {
+      final exception = details.exception;
+      final absent =
+          details.library == 'mpx_player' ||
+          (exception is MissingPluginException &&
+              '$exception'.contains('dev.mpx.'));
+      if (!absent) reported?.call(details);
+    };
+    addTearDown(() => FlutterError.onError = reported);
     final services = (await tester.runAsync(createTestServices))!;
     addTearDown(services.dispose);
     final bulletins = BulletinController(
