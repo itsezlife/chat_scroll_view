@@ -11,6 +11,7 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
     <application
+        android:largeHeap="true"
         android:label="chat_scroll_view_example"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

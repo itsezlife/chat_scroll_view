@@ -30,27 +30,27 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_capture
-      ref: 827b7a354cd2bcd28351e218398f41214a03ccdc
+      ref: 9fbb8fc331b7c151f4a63c1ce3b9aa64ddf45f7a
   mpx_core:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: 827b7a354cd2bcd28351e218398f41214a03ccdc
+      ref: 9fbb8fc331b7c151f4a63c1ce3b9aa64ddf45f7a
   mpx_library:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_library
-      ref: 827b7a354cd2bcd28351e218398f41214a03ccdc
+      ref: 9fbb8fc331b7c151f4a63c1ce3b9aa64ddf45f7a
   mpx_player:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_player
-      ref: 827b7a354cd2bcd28351e218398f41214a03ccdc
+      ref: 9fbb8fc331b7c151f4a63c1ce3b9aa64ddf45f7a
   mpx_ui:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_ui
-      ref: 827b7a354cd2bcd28351e218398f41214a03ccdc
+      ref: 9fbb8fc331b7c151f4a63c1ce3b9aa64ddf45f7a
   # The page's fling, run by the sheet between its rest and its top.
   viewport_scroll:
     path: ../viewport_scroll
@@ -66,4 +66,4 @@ dev_dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/http_bytes_cache
-      ref: 827b7a354cd2bcd28351e218398f41214a03ccdc
+      ref: 9fbb8fc331b7c151f4a63c1ce3b9aa64ddf45f7a
