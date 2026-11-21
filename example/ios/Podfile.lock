@@ -1,15 +1,29 @@
 PODS:
   - app_links (7.0.0):
     - Flutter
+  - device_info_plus (0.0.1):
+    - Flutter
+  - file_selector_ios (0.0.1):
+    - Flutter
   - Flutter (1.0.0)
   - integration_test (0.0.1):
+    - Flutter
+  - irondash_engine_context (0.0.1):
     - Flutter
   - keyboard_insets_mobile (0.0.1):
     - Flutter
   - mpx (0.0.1):
     - Flutter
     - FlutterMacOS
+  - mpx_capture (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - mpx_core (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - mpx_library (0.0.1):
+    - Flutter
+  - mpx_player (0.0.1):
     - Flutter
     - FlutterMacOS
   - rich_clipboard (0.1.0):
@@ -17,51 +31,81 @@ PODS:
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - super_native_extensions (0.0.1):
+    - Flutter
   - url_launcher_ios (0.0.1):
     - Flutter
 
 DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
+  - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
+  - file_selector_ios (from `.symlinks/plugins/file_selector_ios/ios`)
   - Flutter (from `Flutter`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - irondash_engine_context (from `.symlinks/plugins/irondash_engine_context/ios`)
   - keyboard_insets_mobile (from `.symlinks/plugins/keyboard_insets_mobile/ios`)
   - mpx (from `.symlinks/plugins/mpx/darwin`)
+  - mpx_capture (from `.symlinks/plugins/mpx_capture/darwin`)
   - mpx_core (from `.symlinks/plugins/mpx_core/darwin`)
+  - mpx_library (from `.symlinks/plugins/mpx_library/darwin`)
+  - mpx_player (from `.symlinks/plugins/mpx_player/darwin`)
   - rich_clipboard (from `.symlinks/plugins/rich_clipboard/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - super_native_extensions (from `.symlinks/plugins/super_native_extensions/ios`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
 EXTERNAL SOURCES:
   app_links:
     :path: ".symlinks/plugins/app_links/ios"
+  device_info_plus:
+    :path: ".symlinks/plugins/device_info_plus/ios"
+  file_selector_ios:
+    :path: ".symlinks/plugins/file_selector_ios/ios"
   Flutter:
     :path: Flutter
   integration_test:
     :path: ".symlinks/plugins/integration_test/ios"
+  irondash_engine_context:
+    :path: ".symlinks/plugins/irondash_engine_context/ios"
   keyboard_insets_mobile:
     :path: ".symlinks/plugins/keyboard_insets_mobile/ios"
   mpx:
     :path: ".symlinks/plugins/mpx/darwin"
+  mpx_capture:
+    :path: ".symlinks/plugins/mpx_capture/darwin"
   mpx_core:
     :path: ".symlinks/plugins/mpx_core/darwin"
+  mpx_library:
+    :path: ".symlinks/plugins/mpx_library/darwin"
+  mpx_player:
+    :path: ".symlinks/plugins/mpx_player/darwin"
   rich_clipboard:
     :path: ".symlinks/plugins/rich_clipboard/ios"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
+  super_native_extensions:
+    :path: ".symlinks/plugins/super_native_extensions/ios"
   url_launcher_ios:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
   app_links: a754cbec3c255bd4bbb4d236ecc06f28cd9a7ce8
+  device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
+  file_selector_ios: ec57ec07954363dd730b642e765e58f199bb621a
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  irondash_engine_context: 8e58ca8e0212ee9d1c7dc6a42121849986c88486
   keyboard_insets_mobile: 5647380b488cc18e5ffe6b8f333f9da6afa8558b
   mpx: ee4afd6125f6ec5d05f9bf3da39c91adde91c282
+  mpx_capture: 94cc85d1c7410a320e2ade3781a33651e3e15246
   mpx_core: 9ae8d0a68d78b47367b4bb8dd47d555532abb832
+  mpx_library: 1cef2375b2808f3cecdcac4777d2b8f3b3661e7c
+  mpx_player: ac175bf85c8d8d97bcfdff9479c3056f8a06184a
   rich_clipboard: 10fd92d1fb5ab01016d3734358d484d86df1c401
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
+  super_native_extensions: b763c02dc3a8fd078389f410bf15149179020cb4
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 
-PODFILE CHECKSUM: 101d3cb3d592091446d35013c7e98941585a5efc
+PODFILE CHECKSUM: c11ba335227c5011b8d7622e4cc43ae5055e9e3b
 
 COCOAPODS: 1.16.2
