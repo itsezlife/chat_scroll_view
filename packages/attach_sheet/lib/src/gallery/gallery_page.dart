@@ -739,6 +739,17 @@ class _GalleryViewState extends State<GalleryView> {
     );
   }
 
+  // The part of the grid the pinned bar covers at the sheet's top: the
+  // bar's height less the header's band over the grid.
+  double get _pinnedOverGrid {
+    if (widget.pinnedItems == null) return 0;
+    final style = widget.panel.policy.selectionHeader;
+    final band = _ownsHeader
+        ? style.band + (widget.panel.header.value.count > 0 ? style.rise : 0)
+        : 0.0;
+    return math.max(0, style.pinnedBarHeight - band);
+  }
+
   // Whether the header is the view's own, over the grid and the preview
   // (the album switcher in the pinned bar), rather than the picker's.
   bool get _ownsHeader =>
@@ -878,6 +889,7 @@ class _GalleryViewState extends State<GalleryView> {
         controller: controller,
         lookup: _$lookup,
         policy: widget.panel.policy,
+        topInset: _pinnedOverGrid,
         child: grid,
       ),
       headerBuilder: _header,

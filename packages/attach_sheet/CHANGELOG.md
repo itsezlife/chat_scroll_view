@@ -16,6 +16,8 @@ package is pre-1.0.
   Android.
 - `grabberCover` and `topExtension` take effect on the next frame even in
   an idle app.
+- The Gallery's fast scroll starts its track under the bar pinned at the
+  sheet's top: its thumb and date label no longer slide under it.
 
 ### Changed (the sheet's rest and the keyboard, Android)
 

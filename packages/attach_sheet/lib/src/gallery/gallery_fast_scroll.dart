@@ -20,8 +20,13 @@ class GalleryFastScroll extends StatefulWidget {
     required this.lookup,
     required this.policy,
     required this.child,
+    this.topInset = 0,
     super.key,
   });
+
+  /// How far down the track starts: the part of the grid a bar pinned over
+  /// it covers (the sheet's pinned bar at its top).
+  final double topInset;
 
   /// The grid's scroll controller.
   final ScrollController controller;
@@ -104,7 +109,11 @@ class _GalleryFastScrollState extends State<GalleryFastScroll> {
         enabled: _atTop && lookup.count >= policy.libraryFastScrollMinCount,
         // The track ends where the grid's visible content ends: above the
         // floating bars and the safe area, the grid's own bottom padding.
-        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+        // It starts under the bar pinned over the grid's top.
+        padding: EdgeInsets.only(
+          top: widget.topInset,
+          bottom: MediaQuery.paddingOf(context).bottom,
+        ),
         child: child!,
       ),
       // Inside the sheet's glass source the label's glass may not sample

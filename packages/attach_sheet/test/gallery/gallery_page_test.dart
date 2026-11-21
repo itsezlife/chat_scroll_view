@@ -1654,6 +1654,23 @@ void main() {
         )
         .position;
 
+    testWidgets('the track starts under the pinned bar: at the grid\'s '
+        'start the thumb and its label stand below it', (tester) async {
+      await open(tester);
+      await expand(tester);
+      final pinned = tester.getRect(
+        find.byKey(const ValueKey('attach-sheet-header')),
+      );
+      expect(pinned.height, greaterThan(0));
+      grid(tester).jumpTo(1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(
+        tester.getRect(find.byKey(thumb)).top,
+        greaterThanOrEqualTo(pinned.bottom - 0.5),
+      );
+    });
+
     testWidgets("the track ends where the grid's visible content ends: "
         'above the floating bar', (tester) async {
       await open(tester);
