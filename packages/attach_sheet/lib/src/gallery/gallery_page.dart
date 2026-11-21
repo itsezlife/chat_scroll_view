@@ -122,6 +122,7 @@ abstract final class GalleryPage {
         pinnedItemsBuilder: pinnedItemsBuilder,
         previewBuilder: previewBuilder,
         pinnedItems: (items) => scope.headerItems = items,
+        presence: scope.presence,
       );
     },
   );
@@ -144,8 +145,13 @@ class GalleryView extends StatefulWidget {
     this.pinnedItemsBuilder,
     this.previewBuilder,
     this.pinnedItems,
+    this.presence,
     super.key,
   });
+
+  /// The page's presence on a page switch; the camera preview fades by it.
+  /// Null for always present.
+  final ValueListenable<double>? presence;
 
   /// Builds the resting header over the grid; null for
   /// [AttachSelectionHeader].
@@ -511,7 +517,7 @@ class _GalleryViewState extends State<GalleryView> {
     return key;
   }
 
-  Widget _cameraSlot(
+  Widget _cameraSlotOf(
     BuildContext context,
     ValueListenable<CameraSlotSignals> signals,
   ) {
@@ -530,6 +536,27 @@ class _GalleryViewState extends State<GalleryView> {
         }),
       ),
     );
+  }
+
+  // The live preview fades out with the page leaving on a switch, and in
+  // with the one coming.
+  Widget _cameraSlot(
+    BuildContext context,
+    ValueListenable<CameraSlotSignals> signals,
+  ) {
+    final slot = _cameraSlotOf(context, signals);
+    return switch (widget.presence) {
+      final presence? => ValueListenableBuilder<double>(
+        valueListenable: presence,
+        child: slot,
+        builder: (context, value, slot) => Opacity(
+          key: const ValueKey('attach-gallery-camera-presence'),
+          opacity: value,
+          child: slot,
+        ),
+      ),
+      null => slot,
+    };
   }
 
   /// The viewer's bottom slot: the panel's caption and Send; Send with

@@ -521,6 +521,67 @@ void main() {
       expect(rowTop('files'), closeTo(0, 0.5));
     });
 
+    testWidgets('Android, frame by frame: each page is a sheet of its own, '
+        'its background under its content, so the new one covers the old '
+        'as it fades in; the old page\'s presence (its camera) fades by '
+        '0.7 of the phase, the new one\'s with it', (tester) async {
+      late AttachPageScope gallery;
+      late AttachPageScope files;
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [
+          rowsPage('gallery', onScope: (s) => gallery = s),
+          rowsPage('files', onScope: (s) => files = s),
+        ],
+      );
+      final sheetTop = rig.top;
+      Finder stage(String id) =>
+          find.byKey(ValueKey('attach-page-stage-$id'), skipOffstage: false);
+      double opacityOf(String id) => tester.widget<Opacity>(stage(id)).opacity;
+      double rowTop(String id) =>
+          tester.getTopLeft(find.byKey(ValueKey('$id-row-0'))).dy - sheetTop;
+      // The stage's own backdrop: the sheet's background, under the page.
+      Color? backdropOf(String id) => tester
+          .widget<ColoredBox>(
+            find
+                .descendant(of: stage(id), matching: find.byType(ColoredBox))
+                .first,
+          )
+          .color;
+      expect(gallery.presence.value, 1);
+
+      await tester.tap(rig.tab('files'));
+      await tester.pump();
+      const ease = Cubic(0.25, 0.1, 0.25, 1);
+      var elapsed = 0;
+      for (final t in [0.25, 0.5, 0.75]) {
+        final at = (180 * t).round();
+        await tester.pump(Duration(milliseconds: at - elapsed));
+        elapsed = at;
+        final v = ease.transform(t);
+        expect(opacityOf('files'), closeTo(v, 0.02), reason: 'at $t');
+        expect(opacityOf('gallery'), 1, reason: 'the old one opaque at $t');
+        // Both stand at the sheet's drop, content and backdrop together.
+        expect(rowTop('files'), closeTo(78 * v, 1), reason: 'at $t');
+        expect(rowTop('gallery'), closeTo(78 * v, 1), reason: 'at $t');
+        expect(
+          gallery.presence.value,
+          closeTo(1 - (v / 0.7).clamp(0.0, 1.0), 0.02),
+          reason: 'at $t',
+        );
+        expect(files.presence.value, closeTo(v, 0.02), reason: 'at $t');
+      }
+      final background = backdropOf('files');
+      expect(background, isNotNull);
+      expect(background!.a, 1, reason: 'opaque: it covers the old page');
+      expect(backdropOf('gallery'), background);
+
+      await tester.pumpAndSettle();
+      expect(files.presence.value, 1);
+      expect(gallery.presence.value, 1, reason: 'whole again, offstage');
+    });
+
     // The out phase's curve at its middle, and the sheet's top drawn then:
     // from where it was toward the new page's top, dropping 78 with it.
     const ease = Cubic(0.25, 0.1, 0.25, 1);

@@ -292,6 +292,40 @@ void main() {
   });
 
   group('camera', () {
+    testWidgets('the live preview fades out with its page on a switch, '
+        'gone by 0.7 of the out phase, and is whole again on return', (
+      tester,
+    ) async {
+      final rig = await open(
+        tester,
+        camera: GalleryCamera(
+          sessions: FakeCameraSessions(),
+          outputDirectory: '/tmp',
+          cache: CaptureCache(store: MemoryBytesCache()),
+        ),
+      );
+      double camera() => tester
+          .widget<Opacity>(
+            find.byKey(
+              const ValueKey('attach-gallery-camera-presence'),
+              skipOffstage: false,
+            ),
+          )
+          .opacity;
+      expect(camera(), 1);
+      await tester.tap(rig.tab('files'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 45));
+      final early = camera();
+      expect(early, inExclusiveRange(0, 1));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(camera(), 0, reason: 'past 0.7 of the phase');
+      await tester.pumpAndSettle();
+      await tester.tap(rig.tab('gallery'));
+      await tester.pumpAndSettle();
+      expect(camera(), 1);
+    });
+
     testWidgets('the first cell is the live preview; a tap opens the '
         'capture surface', (tester) async {
       final sessions = FakeCameraSessions();

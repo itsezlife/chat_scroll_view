@@ -25,6 +25,12 @@ abstract interface class AttachPageScope {
   /// false. Its changes are the page's `onShow` and `onHide`.
   ValueListenable<bool> get isActive;
 
+  /// How present the page is on a page switch, 0 to 1: 1 at rest; the page
+  /// coming in goes from 0 with the switch, the one going out down to 0 by
+  /// 0.7 of it. A page fades what stands apart from its content (a live
+  /// camera preview) by it.
+  ValueListenable<double> get presence;
+
   /// The scroll controller the page's scrollable takes, shared with the
   /// sheet's drag.
   ScrollController get scrollController;

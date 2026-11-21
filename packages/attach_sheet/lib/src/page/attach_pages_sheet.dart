@@ -286,6 +286,7 @@ final class PageSlot implements AttachPageScope {
   final AttachPage definition;
 
   final ValueNotifier<bool> _isActive = ValueNotifier(false);
+  final ValueNotifier<double> _presence = ValueNotifier(1);
   bool _panEnabled = true;
   double? _topOffset;
   Widget? _headerItems;
@@ -305,6 +306,9 @@ final class PageSlot implements AttachPageScope {
 
   @override
   ValueListenable<bool> get isActive => _isActive;
+
+  @override
+  ValueListenable<double> get presence => _presence;
 
   @override
   final ScrollController scrollController;
@@ -375,6 +379,7 @@ final class PageSlot implements AttachPageScope {
   void dispose() {
     scrollController.dispose();
     _isActive.dispose();
+    _presence.dispose();
   }
 }
 
@@ -457,10 +462,16 @@ class _AttachPageAreaState extends State<_AttachPageArea>
           // the new page's top.
           final from = sheet.top.value;
           final to = sheet.topOf(expanded: expanded);
-          void outTop() => sheet.jumpTop(
-            from + (to - from) * _$out.value + distance * _$out.value,
-            movesBar: false,
-          );
+          final leaving = _model.slotOf(_leaving!);
+          final coming = _model.slotOf(_model.active.value);
+          void outTop() {
+            final v = _$out.value;
+            sheet.jumpTop(
+              from + (to - from) * v + distance * v,
+              movesBar: false,
+            );
+            _present(leaving: leaving, coming: coming, v: v);
+          }
           void inTop() =>
               sheet.jumpTop(to + distance * (1 - _$in.value), movesBar: false);
           _$in.value = 0;
@@ -477,6 +488,8 @@ class _AttachPageAreaState extends State<_AttachPageArea>
           }
           if (!mounted) return;
           _$fadeIn.value = 1;
+          leaving._presence.value = 1;
+          coming._presence.value = 1;
           setState(() => _leaving = null);
           // Taps on tabs wait through the spring too: the switch is one
           // motion until the new page rests.
@@ -492,6 +505,11 @@ class _AttachPageAreaState extends State<_AttachPageArea>
           sheet.jumpTop(to, movesBar: false);
         case AttachTabSwitch$CrossFade(:final fade, :final inSpring):
           final spec = fade.withSpeed(speed);
+          final leaving = _model.slotOf(_leaving!);
+          final coming = _model.slotOf(_model.active.value);
+          void present() =>
+              _present(leaving: leaving, coming: coming, v: _$out.value);
+          _$out.addListener(present);
           unawaited(sheet.settle(expanded: expanded, spring: inSpring));
           _$out.value = 0;
           _$in.value = 0;
@@ -508,9 +526,15 @@ class _AttachPageAreaState extends State<_AttachPageArea>
                 .orCancel
                 .then((_) {}, onError: (Object _) {}),
           );
-          await _$out
-              .animateTo(1, duration: spec.duration, curve: spec.curve)
-              .orCancel;
+          try {
+            await _$out
+                .animateTo(1, duration: spec.duration, curve: spec.curve)
+                .orCancel;
+          } finally {
+            _$out.removeListener(present);
+            leaving._presence.value = 1;
+            coming._presence.value = 1;
+          }
       }
     } on TickerCanceled {
       return;
@@ -521,6 +545,17 @@ class _AttachPageAreaState extends State<_AttachPageArea>
   }
 
   AttachPageId? _previous;
+
+  // The pages' presence at a switch's [v]: the one going out gone by 0.7 of
+  // it, the one coming in with it.
+  static void _present({
+    required PageSlot leaving,
+    required PageSlot coming,
+    required double v,
+  }) {
+    leaving._presence.value = 1 - (v / 0.7).clamp(0.0, 1.0);
+    coming._presence.value = v.clamp(0.0, 1.0);
+  }
 
   // Whether the sheet was at its top when each page was last left.
   final Map<AttachPageId, bool> _expandedOn = {};
@@ -566,6 +601,7 @@ extension on _AttachPageAreaState {
   }) {
     final shown = slot.page == active;
     final leaving = slot.page == _leaving;
+    final background = ChromeThemeScope.attachOf(context).background;
     return Offstage(
       offstage: !shown && !leaving,
       child: TickerMode(
@@ -593,7 +629,13 @@ extension on _AttachPageAreaState {
               return Opacity(
                 key: ValueKey('attach-page-stage-${slot.page}'),
                 opacity: opacity,
-                child: Transform.translate(offset: Offset(0, dy), child: child),
+                child: Transform.translate(
+                  offset: Offset(0, dy),
+                  // Each page is a sheet of its own: its background under
+                  // its content, moving and fading with it, so the page
+                  // coming in covers the one going out.
+                  child: ColoredBox(color: background, child: child),
+                ),
               );
             },
           ),

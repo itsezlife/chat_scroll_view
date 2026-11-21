@@ -6,6 +6,16 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (the page switch)
+
+- Each page on a switch is a sheet of its own: the sheet's background
+  stands under its content, moving and fading with it. The page coming in
+  covers the one going out as it fades in, instead of showing through
+  over it until it vanishes.
+- `AttachPageScope.presence`: how present a page is on a switch (the one
+  going out gone by 0.7 of the out phase, the one coming in with it). The
+  Gallery's live camera preview fades by it.
+
 ### Added (the selection header, breaking)
 
 - `AttachSelectionHeaderController`, the selection header's behaviour with
