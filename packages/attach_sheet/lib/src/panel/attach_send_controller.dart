@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/debug/attach_log.dart';
+import 'package:attach_sheet/src/header/attach_selection_header.dart';
 import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
@@ -46,7 +47,6 @@ final class AttachSendController {
     selection.caption = caption.richText;
     caption.focusNode.addListener(_captionFocus);
     caption.text.addListener(_captionChanged);
-    selection.changes.addListener(_selectionChanged);
     selection.captionChanges.addListener(_sharedCaptionChanged);
     if (store case final store?) {
       unawaited(
@@ -134,10 +134,14 @@ final class AttachSendController {
   /// Counts refused sends; the field shakes on each.
   final ValueNotifier<int> refusals = ValueNotifier(0);
 
-  /// Whether the selected-items preview is shown in place of the page's
-  /// grid: the counter's tap turns it on and off, and it goes when the
-  /// selection empties.
-  final ValueNotifier<bool> previewingSelection = ValueNotifier(false);
+  /// The selection header's behaviour: its state, and the selected-items
+  /// preview's toggle (which the header, or the send button's count, calls
+  /// by the policy's [AttachSheetPolicy.selectionHeader]).
+  late final AttachSelectionHeaderController header =
+      AttachSelectionHeaderController(
+        selection: selection,
+        style: policy.selectionHeader,
+      );
 
   /// The dock under the sheet's caption bar, the host's; null with no
   /// panel.
@@ -173,25 +177,12 @@ final class AttachSendController {
     dock?.onFieldTap();
   }
 
-  /// Whether a page can show the selected-items preview (a Gallery is
-  /// mounted): only then does the count take taps.
-  bool get selectionPreviewAvailable => _previewHosts > 0;
   int _previewHosts = 0;
 
   /// A page that shows the selected-items preview came ([present]) or went.
-  void hostSelectionPreview({required bool present}) =>
-      _previewHosts += present ? 1 : -1;
-
-  /// Shows the selected-items preview, or goes back from it; nothing to
-  /// preview with nothing selected, or without a page to show it.
-  void toggleSelectionPreview() {
-    if (!selectionPreviewAvailable) return;
-    previewingSelection.value =
-        !previewingSelection.value && selection.isNotEmpty;
-  }
-
-  void _selectionChanged() {
-    if (selection.isEmpty) previewingSelection.value = false;
+  void hostSelectionPreview({required bool present}) {
+    _previewHosts += present ? 1 : -1;
+    header.previewHosted = _previewHosts > 0;
   }
 
   bool _$disposed = false;
@@ -353,9 +344,8 @@ final class AttachSendController {
   void dispose() {
     if (_$disposed) return;
     _$disposed = true;
-    selection.changes.removeListener(_selectionChanged);
     selection.captionChanges.removeListener(_sharedCaptionChanged);
-    previewingSelection.dispose();
+    header.dispose();
     caption.focusNode.removeListener(_captionFocus);
     caption.text.removeListener(_captionChanged);
     if (_dockMade) captionDock?.dispose();

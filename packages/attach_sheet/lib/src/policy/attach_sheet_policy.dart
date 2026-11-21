@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:attach_sheet/src/policy/attach_panel_style.dart';
+import 'package:attach_sheet/src/policy/attach_selection_header_style.dart';
 import 'package:attach_sheet/src/policy/attach_tab_bar_style.dart';
 import 'package:attach_sheet/src/policy/confirm_box_style.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -383,6 +384,14 @@ abstract base class AttachSheetPolicy {
   /// camera placement.
   LibraryGridPolicy get libraryGrid => LibraryGridPolicy.$Android;
 
+  // --- Selection header ---
+
+  /// The selection header: what it shows per state, where the album
+  /// switcher stands, whether the selected-items preview exists and where
+  /// it opens from.
+  AttachSelectionHeaderStyle get selectionHeader =>
+      AttachSelectionHeaderStyle.switcherHeader;
+
   /// The Gallery grid's fast scroll thumb and its month label.
   FastScrollbarPolicy get libraryFastScroll => FastScrollbarPolicy.$Android;
 
@@ -476,9 +485,17 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   MotionSpec get dimOut =>
       const MotionSpec(Duration(milliseconds: 250), Cubic(0, 0, 0.58, 1));
 
+  /// The action bar's fade at the top: 180 ms for the whole way, on the
+  /// platform's ease in and out.
   @override
-  MotionSpec? get headerFade =>
-      const MotionSpec(Duration(milliseconds: 380), Curves.easeOutQuint);
+  MotionSpec? get headerFade => const MotionSpec(
+    Duration(milliseconds: 180),
+    AttachSelectionHeaderStyle.accelerateDecelerate,
+  );
+
+  @override
+  AttachSelectionHeaderStyle get selectionHeader =>
+      AttachSelectionHeaderStyle.android;
 
   /// The page scrolling the first row to the header line.
   @override

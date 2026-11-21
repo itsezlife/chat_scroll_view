@@ -85,7 +85,10 @@ void main() {
       expect(rig.scrolled, closeTo(150, 1));
     });
 
-    testWidgets('the header fades in over 380 ms once pinned', (tester) async {
+    testWidgets('the pinned bar fades in over 180 ms once pinned, on the '
+        "platform's ease in and out, and out over the share left", (
+      tester,
+    ) async {
       final rig = await SheetRig.open(
         tester,
         policy: policy,
@@ -98,10 +101,20 @@ void main() {
 
       await rig.drag(-(rest - pinned) - 10);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 190));
-      expect(header().opacity, inExclusiveRange(0, 1));
-      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(
+        header().opacity,
+        closeTo(
+          AttachSelectionHeaderStyle.accelerateDecelerate.transform(0.5),
+          0.02,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
       expect(header().opacity, 1);
+      final sheet = AttachSheetController.of(
+        tester.element(find.byKey(const ValueKey('attach-sheet-header'))),
+      );
+      expect(sheet.pinned.value, 1);
     });
 
     testWidgets('left just below the top it stays there: no top snap', (

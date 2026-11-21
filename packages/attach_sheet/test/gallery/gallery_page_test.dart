@@ -163,9 +163,25 @@ void main() {
     ]);
   });
 
-  testWidgets('the header carries the overflow menu', (tester) async {
-    await open(tester);
-    expect(find.byKey(const ValueKey('attach-overflow')), findsOneWidget);
+  testWidgets('the overflow menu stands in the pinned bar, and in the header '
+      'while something is selected', (tester) async {
+    final rig = await open(tester);
+    final overflow = find.byKey(const ValueKey('attach-overflow'));
+    final pinnedBar = find.byKey(const ValueKey('attach-sheet-header'));
+    final header = find.byKey(const ValueKey('attach-selection-header'));
+    expect(find.descendant(of: pinnedBar, matching: overflow), findsOneWidget);
+    expect(find.descendant(of: header, matching: overflow), findsOneWidget);
+    // Nothing selected: the header's is not there to tap.
+    expect(
+      find.descendant(of: header, matching: overflow).hitTestable(),
+      findsNothing,
+    );
+    await tapCheck(tester, 0);
+    expect(rig.selection.length, 1);
+    expect(
+      find.descendant(of: header, matching: overflow).hitTestable(),
+      findsOneWidget,
+    );
   });
 
   testWidgets('without access the page offers it; denied opens settings', (
@@ -1324,9 +1340,23 @@ void main() {
     }
   });
 
-  testWidgets('the header carries the album switcher', (tester) async {
+  testWidgets('the album switcher stands in the pinned bar, not in the '
+      'resting header', (tester) async {
     final rig = await open(tester);
-    expect(find.byType(LibraryAlbumSwitcher), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('attach-sheet-header')),
+        matching: find.byType(LibraryAlbumSwitcher),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('attach-selection-header')),
+        matching: find.byType(LibraryAlbumSwitcher),
+      ),
+      findsNothing,
+    );
     // The grid's order numbers and the switcher's title read the chrome
     // face.
     await tapCheck(tester, 0);
@@ -1337,7 +1367,8 @@ void main() {
   group('the selected-items preview', () {
     final preview = find.byKey(const ValueKey('attach-gallery-preview'));
     final picker = find.byType(LibraryPicker);
-    final count = find.byKey(const ValueKey('attach-send-count-tap'));
+    // The header's toggle ("N media selected ›").
+    final count = find.byKey(const ValueKey('attach-selection-header-tap'));
     Finder item(int index) => find.descendant(
       of: preview,
       matching: find.byKey(ValueKey<MediaKey>(_key(index))),
@@ -1352,7 +1383,7 @@ void main() {
       return rig;
     }
 
-    testWidgets('the count swaps the grid for the picks in their order, '
+    testWidgets('the header swaps the grid for the picks in their order, '
         'and back', (tester) async {
       await picked(tester);
       await tester.tap(count);
@@ -1667,12 +1698,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(picker().highQuality, isTrue);
 
-    await tester.tap(find.byKey(const ValueKey('attach-send-count-tap')));
+    await tapCheck(tester, 1);
+    await tester.tap(find.byKey(const ValueKey('attach-selection-header-tap')));
     await tester.pumpAndSettle();
     final preview = tester.widget<PickerSelectionPreview>(
       find.byType(PickerSelectionPreview),
     );
     expect(preview.assetOf!(_key(0)), FakeMediaLibrary.assetAt(0));
-    expect(rig.selection.length, 1);
+    expect(rig.selection.length, 2);
   });
 }

@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
 import 'package:attach_sheet/src/policy/attach_panel_style.dart';
+import 'package:attach_sheet/src/policy/attach_selection_header_style.dart';
 import 'package:attach_sheet/src/sheet/attach_sheet.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -474,13 +475,18 @@ class _AttachSendButtonState extends State<AttachSendButton>
                       return Transform.scale(
                         key: const ValueKey('attach-send-bounce'),
                         scale: _$bounce.value * shown,
-                        // A tap on the count opens the selected-items
+                        // Where the policy opens the preview from the
+                        // count, a tap on it opens the selected-items
                         // preview (and closes it), not a send.
-                        child: widget.controller.selectionPreviewAvailable
+                        child:
+                            widget.controller.policy.selectionHeader.opensFrom(
+                                  AttachPreviewEntry.sendCount,
+                                ) &&
+                                widget.controller.header.previewHosted
                             ? GestureDetector(
                                 key: const ValueKey('attach-send-count-tap'),
                                 behavior: HitTestBehavior.opaque,
-                                onTap: widget.controller.toggleSelectionPreview,
+                                onTap: widget.controller.header.togglePreview,
                                 child: badge,
                               )
                             : badge,

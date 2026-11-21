@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:attach_model/attach_model.dart';
+import 'package:attach_sheet/src/header/attach_selection_header_view.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/page/attach_page_scope.dart';
@@ -110,7 +111,14 @@ class _AttachPagesSheetState extends State<AttachPagesSheet> {
     onClosed: _closed,
     header: ValueListenableBuilder<Widget?>(
       valueListenable: _$model.header,
-      builder: (context, header, _) => header ?? const SizedBox.shrink(),
+      builder: (context, header, _) =>
+          widget.policy.selectionHeader.closeInPinnedBar
+          ? AttachPinnedBar(
+              style: widget.policy.selectionHeader,
+              onClose: _$model.closeFromPinnedBar,
+              items: header,
+            )
+          : header ?? const SizedBox.shrink(),
     ),
     bottomBarHoldsKeyboard: _$send.captionDock != null,
     bottomBar: Stack(
@@ -178,8 +186,22 @@ final class AttachPagesModel {
   /// Binds the model to the sheet above the page area.
   void attach(AttachSheetController sheet) {
     if (identical(_$sheet, sheet)) return;
+    _$sheet?.pinned.removeListener(_pinned);
     _$sheet = sheet;
+    sheet.pinned.addListener(_pinned);
+    _pinned();
     _apply();
+  }
+
+  // The header's pinned flag follows the sheet's pinned bar.
+  void _pinned() => send.header.pinned = (_$sheet?.pinned.value ?? 0) > 0;
+
+  /// The pinned bar's close: back from the header's preview first (a
+  /// switch still moving takes the press), else the sheet closes as back
+  /// would close it.
+  void closeFromPinnedBar() {
+    if (send.header.handleBack()) return;
+    unawaited(_$sheet?.requestDismiss());
   }
 
   /// The scope of page [id], made the first time it is shown.
@@ -239,6 +261,7 @@ final class AttachPagesModel {
 
   /// Releases what the pages hold.
   void dispose() {
+    _$sheet?.pinned.removeListener(_pinned);
     for (final slot in _$slots.values) {
       slot.dispose();
     }

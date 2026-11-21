@@ -182,6 +182,11 @@ abstract interface class AttachSheetController {
   /// Whether the sheet is at its top.
   bool get isExpanded;
 
+  /// The pinned bar's presence, 0 to 1: it fades in as the sheet reaches
+  /// its top and out as it leaves (the policy's `headerFade`); always 0 on
+  /// a policy without one.
+  ValueListenable<double> get pinned;
+
   /// Whether a tap on the scrim above the sheet dismisses it (a page turns
   /// it off while its camera is open).
   bool get dismissesOnTapAbove;
@@ -386,6 +391,9 @@ class _AttachSheetState extends State<AttachSheet>
 
   @override
   bool get isExpanded => _$top.value <= _expandedTop + 0.5;
+
+  @override
+  ValueListenable<double> get pinned => _$header;
 
   @override
   Future<void> expand() => _moveTo(_expandedTop, _policy.expandMotion);
@@ -655,7 +663,13 @@ class _AttachSheetState extends State<AttachSheet>
     if (_headerTarget == target) return;
     _headerTarget = target;
     final spec = fade.withSpeed(_speed);
-    _$header.animateTo(target, duration: spec.duration, curve: spec.curve);
+    // The whole fade takes the spec's time; a part of it, its share.
+    final share = (target - _$header.value).abs();
+    _$header.animateTo(
+      target,
+      duration: spec.duration * share,
+      curve: spec.curve,
+    );
   }
 
   double _headerTarget = 0;

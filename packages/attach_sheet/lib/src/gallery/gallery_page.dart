@@ -9,6 +9,7 @@ import 'package:attach_sheet/src/gallery/attach_picker_selection.dart';
 import 'package:attach_sheet/src/gallery/gallery_captures.dart';
 import 'package:attach_sheet/src/gallery/gallery_fast_scroll.dart';
 import 'package:attach_sheet/src/gallery/gallery_strip_album.dart';
+import 'package:attach_sheet/src/header/attach_selection_header_view.dart';
 import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
@@ -82,6 +83,13 @@ final class GalleryCamera {
 /// fetcher sends library keys to `LibraryFetcher(library)`.
 abstract final class GalleryPage {
   /// The Gallery page over [library], labelled [label] with [icon].
+  ///
+  /// The header is the host's to shape, over the sheet policy's
+  /// `selectionHeader` rules: [headerBuilder] builds the resting header
+  /// over the grid and [pinnedItemsBuilder] the pinned bar's items (both
+  /// from the header's behaviour, the album switcher and the overflow
+  /// button), and [previewBuilder] wraps or replaces the selected-items
+  /// preview. Null takes the stock skin for each.
   static AttachPage create({
     required MediaLibrary library,
     required String label,
@@ -90,6 +98,9 @@ abstract final class GalleryPage {
     PlayerPool? players,
     String? viewerTitle,
     AttachPagePermission? permission,
+    GalleryHeaderBuilder? headerBuilder,
+    GalleryHeaderBuilder? pinnedItemsBuilder,
+    Widget Function(BuildContext context, Widget preview)? previewBuilder,
   }) => AttachPage(
     id: AttachPageId.gallery,
     label: label,
@@ -97,12 +108,7 @@ abstract final class GalleryPage {
     permission: permission,
     builder: (context, scope) {
       // Back from the selected-items preview returns to the grid.
-      scope.dismissGuard = () async {
-        final previewing = scope.panel.previewingSelection;
-        if (!previewing.value) return true;
-        previewing.value = false;
-        return false;
-      };
+      scope.dismissGuard = () async => !scope.panel.header.handleBack();
       return GalleryView(
         library: library,
         panel: scope.panel,
@@ -111,6 +117,10 @@ abstract final class GalleryPage {
         camera: camera,
         players: players,
         viewerTitle: viewerTitle,
+        headerBuilder: headerBuilder,
+        pinnedItemsBuilder: pinnedItemsBuilder,
+        previewBuilder: previewBuilder,
+        pinnedItems: (items) => scope.headerItems = items,
       );
     },
   );
@@ -129,8 +139,27 @@ class GalleryView extends StatefulWidget {
     this.players,
     this.viewerTitle,
     this.showsOverflow = true,
+    this.headerBuilder,
+    this.pinnedItemsBuilder,
+    this.previewBuilder,
+    this.pinnedItems,
     super.key,
   });
+
+  /// Builds the resting header over the grid; null for
+  /// [AttachSelectionHeader].
+  final GalleryHeaderBuilder? headerBuilder;
+
+  /// Builds the pinned bar's items; null for [AttachPinnedItems].
+  final GalleryHeaderBuilder? pinnedItemsBuilder;
+
+  /// Wraps or replaces the selected-items preview; null shows it as it is.
+  final Widget Function(BuildContext context, Widget preview)? previewBuilder;
+
+  /// Where the view puts its pinned bar's items (the page's pinned header);
+  /// null for a view on its own, whose header then always carries the album
+  /// switcher.
+  final ValueSetter<Widget?>? pinnedItems;
 
   /// The device library.
   final MediaLibrary library;
@@ -279,6 +308,7 @@ class _GalleryViewState extends State<GalleryView> {
 
   @override
   void dispose() {
+    _$switcher.dispose();
     _restFocus.dispose();
     widget.panel.hostSelectionPreview(present: false);
     _$lookup.dispose();
@@ -609,18 +639,108 @@ class _GalleryViewState extends State<GalleryView> {
   );
 
   @override
-  Widget build(BuildContext context) => Focus(
-    focusNode: _restFocus,
-    child: ListenableBuilder(
-      listenable: Listenable.merge([
-        widget.panel.previewingSelection,
-        widget.panel.options,
-      ]),
-      builder: (context, _) => widget.panel.previewingSelection.value
-          ? _preview(context)
+  Widget build(BuildContext context) {
+    final body = ListenableBuilder(
+      listenable: Listenable.merge([widget.panel.header, widget.panel.options]),
+      builder: (context, _) => widget.panel.header.value.previewing
+          ? switch (widget.previewBuilder) {
+              final wrap? => wrap(context, _preview(context)),
+              null => _preview(context),
+            }
           : _grid(context),
-    ),
-  );
+    );
+    return Focus(
+      focusNode: _restFocus,
+      child: _ownsHeader
+          // The header stands over the grid and the preview alike, so it
+          // swaps between them as one.
+          ? ColoredBox(
+              color: ChromeThemeScope.attachOf(context).background,
+              child: Column(
+                children: [
+                  // Once the picker has its albums (its access states and
+                  // loading take the whole page).
+                  ValueListenableBuilder<Widget?>(
+                    valueListenable: _$switcher,
+                    builder: (context, switcher, _) => switch (switcher) {
+                      final switcher? =>
+                        (widget.headerBuilder ?? AttachSelectionHeader.builder)(
+                          context,
+                          _parts(switcher),
+                        ),
+                      null => const SizedBox.shrink(),
+                    },
+                  ),
+                  Expanded(child: body),
+                ],
+              ),
+            )
+          : body,
+    );
+  }
+
+  // Whether the header is the view's own, over the grid and the preview
+  // (the album switcher in the pinned bar), rather than the picker's.
+  bool get _ownsHeader =>
+      widget.pinnedItems != null &&
+      widget.panel.policy.selectionHeader.switcherPinned;
+
+  // The album switcher the picker built last.
+  final ValueNotifier<Widget?> _$switcher = ValueNotifier(null);
+
+  GalleryHeaderParts _parts(Widget switcher) {
+    final style = widget.panel.policy.selectionHeader;
+    return GalleryHeaderParts(
+      header: widget.panel.header,
+      // A view on its own keeps the switcher in its header.
+      style: _ownsHeader
+          ? style
+          : style.copyWith(showsSelection: false, switcherPinned: false),
+      albumSwitcher: switcher,
+      overflow: widget.showsOverflow
+          ? AttachOverflowButton(controller: widget.panel)
+          : const SizedBox.shrink(),
+    );
+  }
+
+  // The picker's header slot: the album switcher; with a header of the
+  // view's own the slot stays empty and the switcher goes to the header and
+  // the pinned bar.
+  Widget _header(BuildContext context, Widget switcher) {
+    if (!_ownsHeader) {
+      return (widget.headerBuilder ?? AttachSelectionHeader.builder)(
+        context,
+        _parts(switcher),
+      );
+    }
+    _publishPinned(switcher);
+    return const SizedBox.shrink();
+  }
+
+  // The switcher goes to the view's header and the page's pinned bar once
+  // this frame is built (both are other parts of the tree).
+  Widget? _pendingSwitcher;
+  void _publishPinned(Widget switcher) {
+    final first = _pendingSwitcher == null;
+    _pendingSwitcher = switcher;
+    if (!first) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final switcher = _pendingSwitcher;
+      _pendingSwitcher = null;
+      if (!mounted || switcher == null) return;
+      _$switcher.value = switcher;
+      final parts = _parts(switcher);
+      widget.pinnedItems?.call(
+        Builder(
+          builder: (context) =>
+              (widget.pinnedItemsBuilder ?? AttachPinnedItems.builder)(
+                context,
+                parts,
+              ),
+        ),
+      );
+    });
+  }
 
   Widget _grid(BuildContext context) {
     final strings = ChromeStringsScope.attachOf(context);
@@ -700,13 +820,7 @@ class _GalleryViewState extends State<GalleryView> {
         policy: widget.panel.policy,
         child: grid,
       ),
-      headerBuilder: (context, switcher) => Row(
-        children: [
-          Expanded(child: switcher),
-          if (widget.showsOverflow)
-            AttachOverflowButton(controller: widget.panel),
-        ],
-      ),
+      headerBuilder: _header,
       active: active,
     );
     return switch (widget.active) {

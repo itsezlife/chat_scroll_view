@@ -12,6 +12,10 @@ import 'box/confirm_box_test.dart' as confirm_box_test;
 import 'files/files_page_test.dart' as files_page_test;
 import 'gallery/gallery_captures_test.dart' as gallery_captures_test;
 import 'gallery/gallery_page_test.dart' as gallery_page_test;
+import 'header/attach_selection_header_controller_test.dart'
+    as attach_selection_header_controller_test;
+import 'header/gallery_selection_header_test.dart'
+    as gallery_selection_header_test;
 import 'page/attach_bar_inset_test.dart' as attach_bar_inset_test;
 import 'page/attach_page_test.dart' as attach_page_test;
 import 'page/attach_tab_bar_test.dart' as attach_tab_bar_test;
@@ -29,6 +33,14 @@ void main() {
   group('files/files_page_test.dart', files_page_test.main);
   group('gallery/gallery_captures_test.dart', gallery_captures_test.main);
   group('gallery/gallery_page_test.dart', gallery_page_test.main);
+  group(
+    'header/attach_selection_header_controller_test.dart',
+    attach_selection_header_controller_test.main,
+  );
+  group(
+    'header/gallery_selection_header_test.dart',
+    gallery_selection_header_test.main,
+  );
   group('page/attach_bar_inset_test.dart', attach_bar_inset_test.main);
   group('page/attach_page_test.dart', attach_page_test.main);
   group('page/attach_tab_bar_test.dart', attach_tab_bar_test.main);

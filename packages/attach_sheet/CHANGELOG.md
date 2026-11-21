@@ -6,6 +6,47 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the selection header, breaking)
+
+- `AttachSelectionHeaderController`, the selection header's behaviour with
+  no widgets: its state (`AttachSelectionHeaderValue`: nothing selected,
+  "N selected" by kind, the preview, the pinned bar) from the selection and
+  the sheet, and the preview toggle (`togglePreview`, `closePreview`,
+  `handleBack`), which ignores a toggle while the grid and preview swap
+  still moves (`switchSettled`). The panel owns one
+  (`AttachSendController.header`); it replaces `previewingSelection`,
+  `selectionPreviewAvailable` and `toggleSelectionPreview`.
+- `AttachSheetPolicy.selectionHeader` (`AttachSelectionHeaderStyle`, with
+  `copyWith`) holds the host's choices: whether the preview exists
+  (`previewEnabled`), from how many picks (`previewFrom`), where it opens
+  from (`previewEntries`: the header, the send button's count), whether
+  the header shows the selection and where the album switcher stands, the
+  close button in the pinned bar, and the motion. `android` is the
+  default on Android; `switcherHeader` (the previous header) elsewhere.
+- On Android:
+  - with nothing selected the header is empty;
+  - with a selection it reads "3 photos selected" (videos, media),
+    rising into place as it fades in, with the menu growing in beside it;
+  - from two picks an arrow follows the words, and a tap on the header
+    opens the selected-items preview under "Message preview", and a tap
+    goes back;
+  - the send button's count only sends;
+  - the album switcher stands in the bar pinned at the sheet's top, after
+    a close button and before the menu, and fades out while the preview
+    shows;
+  - the close button goes back from the preview first.
+- `GalleryPage.create(headerBuilder:, pinnedItemsBuilder:,
+  previewBuilder:)` and `GalleryHeaderParts`: a host's own header, pinned
+  items and preview over the same behaviour. The stock skins are
+  `AttachSelectionHeader`, `AttachPinnedItems` and `AttachPinnedBar`.
+- `AttachSheetController.pinned`: the pinned bar's presence, 0 to 1.
+
+### Changed (the pinned bar)
+
+- On Android the pinned bar fades in over 180 ms on the platform's ease in
+  and out (it was 380 ms ease out quint), and a part of the way takes its
+  share of that time.
+
 ### Added (the capture flow)
 
 - The capture surface shows the shots this open keeps: its strip's own
