@@ -192,6 +192,12 @@ abstract interface class AttachSheetController {
   /// for none.
   set grabberCover(ValueListenable<double>? value);
 
+  /// How far a page's header grows the sheet upward, in logical pixels:
+  /// the sheet's edge stands that much above its top while its content
+  /// holds still (the grid does not move as a header's band grows over
+  /// it). Never above the sheet's expanded top. Null for none.
+  set topExtension(ValueListenable<double>? value);
+
   /// Whether a tap on the scrim above the sheet dismisses it (a page turns
   /// it off while its camera is open).
   bool get dismissesOnTapAbove;
@@ -385,6 +391,7 @@ class _AttachSheetState extends State<AttachSheet>
     _$dim.dispose();
     _$header.dispose();
     _$cover.dispose();
+    _$extension.dispose();
     _$morphPosition.dispose();
     _$morphBounds.dispose();
     _$morphCorners.dispose();
@@ -406,6 +413,24 @@ class _AttachSheetState extends State<AttachSheet>
   // What covers the grabber (a page header's words), and its listener.
   final ValueNotifier<ValueListenable<double>?> _$cover = ValueNotifier(null);
   static const ValueListenable<double> _uncovered = _Zero();
+
+  // What grows the sheet upward (a page header's band).
+  final ValueNotifier<ValueListenable<double>?> _$extension = ValueNotifier(
+    null,
+  );
+  ValueListenable<double>? _pendingExtension;
+  bool _extensionPending = false;
+
+  @override
+  set topExtension(ValueListenable<double>? value) {
+    _pendingExtension = value;
+    if (_extensionPending) return;
+    _extensionPending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _extensionPending = false;
+      if (mounted) _$extension.value = _pendingExtension;
+    });
+  }
 
   // A header sets it while it builds: the sheet takes it after the frame.
   ValueListenable<double>? _pendingCover;
@@ -1009,31 +1034,49 @@ class _AttachSheetState extends State<AttachSheet>
     );
     return ValueListenableBuilder<ValueListenable<double>?>(
       valueListenable: _$cover,
-      builder: (context, cover, _) => _sheetLayerOver(
-        tokens,
-        content,
-        cover ?? _uncovered,
-        radius: radius,
-        grabber: grabber,
-        header: header,
-        squares: squares,
-      ),
+      builder: (context, cover, _) =>
+          ValueListenableBuilder<ValueListenable<double>?>(
+            valueListenable: _$extension,
+            builder: (context, extension, _) => _sheetLayerOver(
+              tokens,
+              content,
+              cover ?? _uncovered,
+              extension ?? _uncovered,
+              radius: radius,
+              grabber: grabber,
+              header: header,
+              squares: squares,
+            ),
+          ),
     );
   }
 
   Widget _sheetLayerOver(
     AttachTokens tokens,
     Widget content,
-    ValueListenable<double> cover, {
+    ValueListenable<double> cover,
+    ValueListenable<double> extension, {
     required double radius,
     required AttachSheetGrabber? grabber,
     required Widget? header,
     required bool squares,
   }) => AnimatedBuilder(
-    animation: Listenable.merge([_$top, _$header, _morphChannels, cover]),
+    animation: Listenable.merge([
+      _$top,
+      _$header,
+      _morphChannels,
+      cover,
+      extension,
+    ]),
     child: content,
     builder: (context, content) {
-      final top = _shownTop;
+      // The edge stands above the top by the header's growth, never above
+      // the expanded top; the content moves up with it as the header's
+      // band grows by as much, so what is under the band holds still.
+      final grown = _morphing
+          ? 0.0
+          : extension.value.clamp(0.0, math.max(0.0, _shownTop - _expandedTop));
+      final top = _shownTop - grown;
       final pinned = _$header.value;
       final target = Rect.fromLTWH(
         0,

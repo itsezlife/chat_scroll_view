@@ -19,6 +19,9 @@ package is pre-1.0.
   keyboard frame by frame, back down as it goes. A sheet above it stays.
 - The selected-items preview keeps clear of the bar at the bottom, as the
   grid does.
+- The selection header's band grows upward: the sheet's edge rises 26 as
+  the words come and the grid under it holds still
+  (`AttachSheetController.topExtension`; never above the sheet's top).
 
 ### Fixed (the page switch)
 

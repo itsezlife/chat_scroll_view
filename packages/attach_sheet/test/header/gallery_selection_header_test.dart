@@ -149,6 +149,23 @@ void main() {
     expect(tester.getSize(header).height, 24);
   });
 
+  testWidgets('the band grows upward: the sheet\'s edge rises 26 as the '
+      'words come, the grid under it holds still', (tester) async {
+    await open(tester);
+    final sheet = find.byKey(const ValueKey('attach-sheet'));
+    final edge = tester.getTopLeft(sheet).dy;
+    // A cell that stays unpicked, its top before any pick.
+    final row = tester.getTopLeft(cell(3)).dy;
+    await tester.tapAt(tester.getTopRight(cell(0)) + const Offset(-10, 10));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+    expect(tester.getTopLeft(cell(3)).dy, closeTo(row, 0.5));
+    expect(edge - tester.getTopLeft(sheet).dy, inExclusiveRange(5, 21));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(cell(3)).dy, closeTo(row, 0.5));
+    expect(edge - tester.getTopLeft(sheet).dy, closeTo(26, 0.5));
+  });
+
   testWidgets('the grabber fades out as the words fade in over its line, '
       'and back as they go', (tester) async {
     final rig = await open(tester);

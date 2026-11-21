@@ -81,6 +81,10 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
   late final AnimationController _$shown;
   late final CurvedAnimation _shown;
   late final AnimationController _$mix;
+  // The header's growth in logical pixels, for the sheet's edge.
+  late final Animation<double> _rise = _shown.drive(
+    Tween(begin: 0, end: _style.rise),
+  );
 
   // The words last shown, kept while the header fades out.
   AttachSelectionHeaderValue _words = AttachSelectionHeaderValue.initial;
@@ -114,8 +118,14 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
         ? AttachSheetController.maybeOf(context)
         : null;
     if (identical(sheet, _sheet)) return;
-    _sheet?.grabberCover = null;
-    _sheet = sheet?..grabberCover = _shown;
+    _sheet
+      ?..grabberCover = null
+      ..topExtension = null;
+    _sheet = sheet
+      ?..grabberCover = _shown
+      // The band grows upward: the sheet's edge rises as the words come,
+      // the grid under the band holds still.
+      ..topExtension = _rise;
   }
 
   @override
@@ -172,7 +182,9 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
 
   @override
   void dispose() {
-    _sheet?.grabberCover = null;
+    _sheet
+      ?..grabberCover = null
+      ..topExtension = null;
     _header.removeListener(_changed);
     _shown.dispose();
     _$shown.dispose();
