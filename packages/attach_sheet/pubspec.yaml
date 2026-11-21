@@ -61,3 +61,9 @@ dev_dependencies:
     path: ../golden_baseline
   flutter_test:
     sdk: flutter
+  # A memory store for the capture cache in the camera tests.
+  http_bytes_cache:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/http_bytes_cache
+      ref: 498dffc0e44fd4f884c13c4e35dcaa15fcccc339

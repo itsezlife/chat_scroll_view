@@ -54,6 +54,7 @@ import 'chat_perf/semantics_test.dart' as chat_perf_semantics_test;
 import 'chat_perf/table_test.dart' as chat_perf_table_test;
 import 'chat_perf/trace_counts_test.dart' as chat_perf_trace_counts_test;
 import 'chat_viewport_insets_test.dart' as chat_viewport_insets_test;
+import 'common/capture_media_test.dart' as capture_media_test;
 import 'common/chat_message_markdown_test.dart' as chat_message_markdown_test;
 import 'common/lab_net_test.dart' as lab_net_test;
 import 'common/lab_texture_host_test.dart' as lab_texture_host_test;
@@ -341,6 +342,7 @@ void main() {
     sticker_message_body_test.main,
   );
   group('frame_rate_boost_test.dart', frame_rate_boost_test.main);
+  group('common/capture_media_test.dart', capture_media_test.main);
   group(
     'common/chat_message_markdown_test.dart',
     chat_message_markdown_test.main,

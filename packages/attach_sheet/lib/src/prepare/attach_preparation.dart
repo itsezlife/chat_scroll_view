@@ -5,6 +5,7 @@ import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/files/intake_items.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mpx_capture/mpx_capture.dart';
+import 'package:mpx_core/mpx_core.dart' show MediaKey, MediaKey$Local;
 import 'package:mpx_library/mpx_library.dart';
 
 /// Prepares one source file for an intent; [AttachPreparation.withPreparer]
@@ -15,13 +16,22 @@ typedef PrepareFile =
       PreparationIntent intent,
     );
 
+/// A capture's file, leased from the capture cache: its [path] while the
+/// lease holds, and [release] to let it go.
+typedef CapturedFile = ({String path, Future<void> Function() release});
+
+/// Leases the file of the capture under [key]; null when the cache holds
+/// nothing there or keeps no files.
+typedef CapturedFileOf = Future<CapturedFile?> Function(MediaKey$Local key);
+
 /// **Media preparation** for a send: every item of a request prepared by
 /// its kind and the send options (photo downscale and JPEG, video preset,
 /// files as they are), a few at a time, before the host makes the
 /// messages.
 ///
 /// Library assets are read through their originals (a file lease released
-/// after); files and captures by their paths; a browser blob through
+/// after); files by their paths; captures through a lease of their file in
+/// the capture cache ([capturedFile]); a browser blob through
 /// [IntakeItems]. An item whose source cannot be read is left out of the
 /// result (the host sends what was prepared and tells the user).
 final class AttachPreparation {
@@ -30,6 +40,7 @@ final class AttachPreparation {
     required this.prepare,
     this.library,
     this.items,
+    this.capturedFile,
     this.concurrency = 10,
   });
 
@@ -39,11 +50,20 @@ final class AttachPreparation {
     PreparationPolicy policy, {
     MediaLibrary? library,
     IntakeItems? items,
+    CaptureCache? captures,
     int concurrency = 10,
   }) => AttachPreparation(
     prepare: (input, intent) => preparer.prepare(input, intent, policy).result,
     library: library,
     items: items,
+    capturedFile: switch (captures) {
+      final cache? => (key) async {
+        final lease = await cache.store.leaseFile(CaptureCache.cacheKeyOf(key));
+        if (lease == null) return null;
+        return (path: lease.path, release: () async => lease.release());
+      },
+      null => null,
+    },
     concurrency: concurrency,
   );
 
@@ -55,6 +75,9 @@ final class AttachPreparation {
 
   /// The intake files behind file and blob items.
   final IntakeItems? items;
+
+  /// The files of captures, by their local key; null leaves captures out.
+  final CapturedFileOf? capturedFile;
 
   /// How many items are prepared at once.
   final int concurrency;
@@ -127,8 +150,13 @@ final class AttachPreparation {
         } finally {
           await lease.release();
         }
-      case AttachSource$File(:final path) ||
-          AttachSource$Captured(localKey: final path):
+      case AttachSource$Captured(:final localKey):
+        final (key, leaseOf) = (MediaKey.tryParse(localKey), capturedFile);
+        if ((key, leaseOf) case (final MediaKey$Local key, final leaseOf?)) {
+          return _prepareCaptured(item, intent, await leaseOf(key));
+        }
+        return null;
+      case AttachSource$File(:final path):
         return prepare(
           PreparationInput(
             path,
@@ -152,6 +180,26 @@ final class AttachPreparation {
         return null;
       case AttachSource$Pasted(:final localKey):
         return prepare(PreparationInput(localKey), intent);
+    }
+  }
+
+  Future<PreparedMedia?> _prepareCaptured(
+    AttachItem item,
+    PreparationIntent intent,
+    CapturedFile? file,
+  ) async {
+    if (file == null) return null;
+    try {
+      return await prepare(
+        PreparationInput(
+          file.path,
+          mimeType: item.facts.mimeType,
+          byteSize: item.facts.byteSize,
+        ),
+        intent,
+      );
+    } finally {
+      await file.release();
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:attach_model/attach_model.dart';
+import 'package:attach_sheet/src/gallery/gallery_captures.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -18,6 +19,7 @@ final class AttachPickerSelection implements PickerSelection {
     required this.selection,
     required MediaLibrary source,
     this.onRefused,
+    this.captures,
   }) : _recording = _RecordingLibrary(source) {
     _recording._selection = selection;
   }
@@ -27,6 +29,10 @@ final class AttachPickerSelection implements PickerSelection {
 
   /// Called with each refusal, as an attach interaction.
   final ValueChanged<AttachInteraction>? onRefused;
+
+  /// The camera's captures, whose keys the grid also checks; null for
+  /// none.
+  final GalleryCaptures? captures;
 
   final _RecordingLibrary _recording;
 
@@ -115,6 +121,16 @@ final class AttachPickerSelection implements PickerSelection {
       AttachItemId('library:${id.value}');
 
   AttachItem? _itemOf(MediaKey key) {
+    if (key case final MediaKey$Local local) {
+      if (captures?.captureOf(local) case final capture?) {
+        return GalleryCaptures.itemOf(capture);
+      }
+      final id = GalleryCaptures.idOf(local);
+      for (final item in selection.items) {
+        if (item.id == id) return item;
+      }
+      return null;
+    }
     final target = LibraryKeys.read(key);
     if (target == null) return null;
     final asset = _recording.assets[target.asset];
@@ -131,14 +147,24 @@ final class AttachPickerSelection implements PickerSelection {
   @override
   List<MediaKey> get keys => [
     for (final item in selection.items)
-      if (item.source case AttachSource$Library(:final assetId))
-        LibraryKeys.keyOf(LibraryAssetId(assetId)),
+      ?switch (item.source) {
+        AttachSource$Library(:final assetId) => LibraryKeys.keyOf(
+          LibraryAssetId(assetId),
+        ),
+        AttachSource$Captured(:final localKey) => MediaKey.tryParse(localKey),
+        _ => null,
+      },
   ];
 
   @override
-  int? orderOf(MediaKey key) => switch (LibraryKeys.read(key)) {
-    final target? => selection.orderOf(idOf(target.asset)),
-    null => null,
+  int? orderOf(MediaKey key) => switch (key) {
+    final MediaKey$Local local => selection.orderOf(
+      GalleryCaptures.idOf(local),
+    ),
+    _ => switch (LibraryKeys.read(key)) {
+      final target? => selection.orderOf(idOf(target.asset)),
+      null => null,
+    },
   };
 
   @override

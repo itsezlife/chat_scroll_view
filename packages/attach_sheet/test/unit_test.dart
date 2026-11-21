@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'box/confirm_box_test.dart' as confirm_box_test;
 import 'files/files_page_test.dart' as files_page_test;
+import 'gallery/gallery_captures_test.dart' as gallery_captures_test;
 import 'gallery/gallery_page_test.dart' as gallery_page_test;
 import 'page/attach_bar_inset_test.dart' as attach_bar_inset_test;
 import 'page/attach_page_test.dart' as attach_page_test;
@@ -26,6 +27,7 @@ import 'sheet/attach_sheet_text_test.dart' as attach_sheet_text_test;
 void main() {
   group('box/confirm_box_test.dart', confirm_box_test.main);
   group('files/files_page_test.dart', files_page_test.main);
+  group('gallery/gallery_captures_test.dart', gallery_captures_test.main);
   group('gallery/gallery_page_test.dart', gallery_page_test.main);
   group('page/attach_bar_inset_test.dart', attach_bar_inset_test.main);
   group('page/attach_page_test.dart', attach_page_test.main);

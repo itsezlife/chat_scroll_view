@@ -128,6 +128,9 @@ final class AttachSendController {
   /// The send options.
   final ValueNotifier<SendOptions> options;
 
+  /// The request sent, once Send was accepted; null before.
+  SendRequest? sent;
+
   /// Counts refused sends; the field shakes on each.
   final ValueNotifier<int> refusals = ValueNotifier(0);
 
@@ -270,6 +273,7 @@ final class AttachSendController {
       options: sent,
     );
     if (store case final store?) unawaited(store.save(sent));
+    this.sent = request;
     onSend(request);
     return true;
   }

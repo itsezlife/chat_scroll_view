@@ -5,6 +5,7 @@ import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/debug/attach_log.dart';
 import 'package:attach_sheet/src/files/intake_items.dart';
 import 'package:attach_sheet/src/gallery/attach_picker_selection.dart';
+import 'package:attach_sheet/src/gallery/gallery_captures.dart';
 import 'package:attach_sheet/src/gallery/gallery_fast_scroll.dart';
 import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
@@ -24,16 +25,23 @@ import 'package:mpx_player/mpx_player.dart' show PlayerPool;
 import 'package:mpx_ui/mpx_ui.dart';
 
 /// The camera cell's wiring: the host's camera sessions, where captures are
-/// written, and the system camera for a long press (Android) or when the
-/// session cannot open.
+/// written and then kept, and the system camera for a long press (Android)
+/// or when the session cannot open.
 @immutable
 final class GalleryCamera {
-  /// A camera over [sessions], writing into [outputDirectory].
+  /// A camera over [sessions], writing into [outputDirectory] and moving
+  /// each shot into [cache].
   const GalleryCamera({
     required this.sessions,
     required this.outputDirectory,
+    required this.cache,
     this.systemCamera,
   });
+
+  /// Where each shot is kept under a `MediaKey.local`: the bytes store the
+  /// host's asset cache reads (for the grid's and the viewer's thumbnails)
+  /// and its players read (for a captured video).
+  final CaptureCache cache;
 
   /// Opens the live camera.
   final CameraSessions sessions;
@@ -184,8 +192,20 @@ class _GalleryViewState extends State<GalleryView> {
     selection: widget.panel.selection,
     source: widget.library,
     onRefused: widget.panel.host.interaction,
+    captures: _$shots,
   );
-  final IntakeItems _$captures = IntakeItems();
+  final IntakeItems _$intake = IntakeItems();
+
+  // The camera's shots of this open: the grid's captures, selected last,
+  // released if the sheet goes without sending them.
+  late final GalleryCaptures? _$shots = switch (widget.camera) {
+    final camera? => GalleryCaptures(
+      selection: widget.panel.selection,
+      release: (key) => unawaited(camera.cache.release(key)),
+      onRefused: widget.panel.host.interaction,
+    ),
+    null => null,
+  };
   CameraSession? _$session;
   bool _cameraDenied = false;
   final GlobalKey _$slot = GlobalKey();
@@ -255,14 +275,24 @@ class _GalleryViewState extends State<GalleryView> {
     _$lookup.dispose();
     _$ownController?.dispose();
     unawaited(_$session?.dispose());
+    // Shots the sheet did not send go with it.
+    _$shots
+      ?..discard(
+        sent: {
+          for (final item in widget.panel.sent?.items ?? const <AttachItem>[])
+            item.id,
+        },
+      )
+      ..dispose();
     super.dispose();
   }
 
-  /// A capture joins the selection ahead of everything picked.
+  /// A system camera capture joins the selection ahead of everything
+  /// picked, as a file.
   void _captured(String path, {required bool isVideo, String? mimeType}) {
     final item = AttachItem(
       id: AttachItemId('captured:$path'),
-      source: AttachSource.captured(path),
+      source: AttachSource.file(path),
       kind: isVideo ? AttachKind.video : AttachKind.photo,
       facts: AttachFacts(mimeType: mimeType),
     );
@@ -281,7 +311,7 @@ class _GalleryViewState extends State<GalleryView> {
       kinds.photos ? IntakeCaptureKind.photo : IntakeCaptureKind.video,
     );
     if (file == null || !mounted) return;
-    final item = _$captures.itemOf(file, asMedia: true);
+    final item = _$intake.itemOf(file, asMedia: true);
     _captured(
       switch (file.source) {
         IntakeSource$Path(:final path) => path,
@@ -313,8 +343,9 @@ class _GalleryViewState extends State<GalleryView> {
       ),
       outputDirectory: camera.outputDirectory,
       kinds: kinds,
+      cache: camera.cache,
       from: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
-      onCaptured: (shot) => _captured(shot.output.path, isVideo: shot.isVideo),
+      onCaptured: (shot) => _$shots?.add(shot),
     );
   }
 
@@ -464,6 +495,9 @@ class _GalleryViewState extends State<GalleryView> {
       key: const ValueKey('attach-gallery-picker'),
       library: _$picker.library,
       selection: _$picker,
+      // The camera's shots, ahead of the library; the first opens the
+      // viewer on it.
+      captures: _$shots?.list,
       labels: _labels(strings),
       stateLabels: LibraryPickerLabels(
         allMedia: strings.albumAllMedia,

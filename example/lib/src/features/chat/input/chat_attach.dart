@@ -247,6 +247,7 @@ final class ChatAttach extends AttachSheetHost {
               camera: GalleryCamera(
                 sessions: const PlatformCameraSessions(),
                 outputDirectory: directory,
+                cache: services.captureCache,
                 systemCamera: intake,
               ),
             ),

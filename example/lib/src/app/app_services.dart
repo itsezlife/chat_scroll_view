@@ -5,6 +5,7 @@ import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/scrolling_surfaces.dart';
 import 'package:chat_scroll_view_example/src/app/system_reduced_motion.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
+import 'package:chat_scroll_view_example/src/common/capture_media.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/emoji_glyph_probe.dart';
 import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
@@ -41,6 +42,7 @@ import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:kv_shared_preferences/kv_shared_preferences.dart';
 import 'package:l/l.dart';
 import 'package:mpx/mpx.dart';
+import 'package:mpx_capture/mpx_capture.dart' show CaptureCache;
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_player/mpx_player.dart' show PlayerPool;
@@ -490,14 +492,23 @@ final class AppServices {
       // The device library for the attach sheet's Gallery, made on its first
       // use (Android and iOS have adapters); its thumbnails go through the
       // pipeline below.
-      final deviceLibrary = _DeviceLibrary();
+      final deviceLibrary = _DeviceLibrary()..captures = bytes;
+      // The camera's captures are kept in the bytes store under local keys:
+      // the pipeline reads their pictures from there.
+      final captureClient =
+          bytesClient ??
+          owned<HttpBytesClient>(HttpBytesClient(), (client) => client.close());
       final pipeline = owned(
         AssetPipeline(
           // Giphy first, then the corpus, then the bundle: each takes its own
           // keys and hands the rest on.
           fetcher: _LibraryRoute(
             deviceLibrary,
-            _contentFetcher(giphy, corpusPacks, rootBundle),
+            CaptureMedia.fetcher(
+              store: bytes,
+              client: captureClient,
+              otherwise: _contentFetcher(giphy, corpusPacks, rootBundle),
+            ),
           ),
           decoders: decoders,
           resolver: switch (giphy) {
@@ -817,6 +828,10 @@ final class AppServices {
   /// on (each library video read in place); null where there is no library
   /// or no native player. Made on the first read.
   PlayerPool? get libraryPlayers => _deviceLibrary.players;
+
+  /// Where the attach sheet's camera keeps each shot: the bytes store the
+  /// pipeline and the library players read captures from.
+  late final CaptureCache captureCache = CaptureCache(store: _bytes);
 
   final _DeviceLibrary _deviceLibrary;
 
@@ -1193,9 +1208,12 @@ final class _DeviceLibrary {
   /// The players the library's videos play on, made with the first read
   /// after the library; null without a library or a native player.
   PlayerPool? get players => switch (library) {
-    final library? => $libraryPlayers(library),
+    final library? => $libraryPlayers(library, captures: captures),
     null => null,
   };
+
+  /// The capture cache's store, where the players read captured videos.
+  IBytesStore? captures;
 
   void dispose() {
     $disposeLibraryPlayers();

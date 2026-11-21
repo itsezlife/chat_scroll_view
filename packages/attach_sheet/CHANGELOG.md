@@ -6,6 +6,23 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (camera captures, breaking)
+
+- `GalleryCamera.cache` (a `CaptureCache`, required): each shot moves into
+  the host's bytes store under a `MediaKey.local`. The shots of an open are
+  the picker's captures (`LibraryPicker.captures`): ahead of the library in
+  the grid and the viewer, the first opening the viewer on it. Each joins
+  the attach selection last, as `AttachSource.captured` of its key's stable
+  form (it joined first, by its file path, before). A capture the selection
+  refuses stays in the grid and the refusal goes to the host. The sheet
+  going without a send releases its captures from the cache
+  (`AttachSendController.sent` says what was sent).
+- The grid's selection checks a capture by its local key.
+- `AttachPreparation.capturedFile` (and `withPreparer(captures:)`) leases a
+  capture's file from the cache to prepare it; a capture with no file is
+  left out.
+- A system camera capture is an `AttachSource.file` of its path.
+
 ### Changed (per-item captions)
 
 - The sheet's caption field is the selection's shared caption, both ways:

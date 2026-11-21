@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'dart:math' as math;
 
@@ -11,6 +12,7 @@ import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart' as content;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:mpx_capture/mpx_capture.dart';
 import 'package:mpx_capture/testing.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -201,7 +203,11 @@ void main() {
       await open(
         tester,
         size: const Size(1200, 900),
-        camera: GalleryCamera(sessions: sessions, outputDirectory: '/tmp'),
+        camera: GalleryCamera(
+          sessions: sessions,
+          outputDirectory: '/tmp',
+          cache: CaptureCache(store: MemoryBytesCache()),
+        ),
       );
       expect(sessions.openCount, 1);
       expect(find.byType(CameraSlotPreview), findsOneWidget);
@@ -209,6 +215,56 @@ void main() {
       await tester.tap(find.byType(CameraSlotPreview));
       await tester.pumpAndSettle();
       expect(find.byType(CameraCaptureSurface), findsOneWidget);
+    });
+
+    testWidgets('a shot lands in the capture cache under a local key, joins '
+        'the grid ahead of the library and the selection last, and the '
+        'first opens the viewer on it', (tester) async {
+      final directory = (await tester.runAsync(
+        () => Directory.systemTemp.createTemp('attach-capture'),
+      ))!;
+      addTearDown(() => directory.deleteSync(recursive: true));
+      final store = MemoryBytesCache();
+      final rig = await open(
+        tester,
+        size: const Size(1200, 900),
+        camera: GalleryCamera(
+          sessions: FakeCameraSessions(),
+          outputDirectory: directory.path,
+          cache: CaptureCache(store: store),
+        ),
+      );
+      rig.selection.toggle(AttachItems.file('f'));
+      await tester.tap(find.byType(CameraSlotPreview));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('mpx-capture-shutter')));
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump();
+      }
+
+      final captures = tester
+          .widget<LibraryPicker>(
+            find.byType(LibraryPicker, skipOffstage: false),
+          )
+          .captures!
+          .value;
+      expect(captures, hasLength(1));
+      final key = captures.single.key;
+      expect(
+        await tester.runAsync(() => store.read(CaptureCache.cacheKeyOf(key))),
+        isNotNull,
+      );
+      final item = rig.selection.items.last;
+      expect(item.source, AttachSource.captured(key.encoded));
+      expect(rig.selection.orderOf(item.id), 2);
+
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.byKey(const ValueKey('attach-viewer-slot')), findsOneWidget);
     });
 
     testWidgets('a long press takes a photo with the system camera, first', (
@@ -228,6 +284,7 @@ void main() {
         camera: GalleryCamera(
           sessions: FakeCameraSessions(),
           outputDirectory: '/tmp',
+          cache: CaptureCache(store: MemoryBytesCache()),
           systemCamera: intake,
         ),
       );
@@ -238,7 +295,7 @@ void main() {
       expect(intake.captureRequests, [IntakeCaptureKind.photo]);
       expect(
         rig.selection.items.first.source,
-        const AttachSource.captured('/dcim/shot.jpg'),
+        const AttachSource.file('/dcim/shot.jpg'),
       );
       expect(rig.selection.orderOf(rig.selection.items.last.id), 2);
     });
@@ -252,6 +309,7 @@ void main() {
         camera: GalleryCamera(
           sessions: FakeCameraSessions(allowed: false),
           outputDirectory: '/tmp',
+          cache: CaptureCache(store: MemoryBytesCache()),
           systemCamera: intake,
         ),
       );
