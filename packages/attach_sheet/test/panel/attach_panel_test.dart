@@ -814,8 +814,8 @@ void main() {
 
   testWidgets('Android: the caption raising the keyboard raises the rest, '
       'not the top: the sheet follows the keyboard up to the rest over the '
-      'window above it, the caption bar on the keyboard, and back down as '
-      'it goes', (tester) async {
+      'window above it, the caption bar on the keyboard; as it goes the '
+      'sheet stays', (tester) async {
     final (rig, scope) = await open(tester);
     rig.selection.toggle(AttachItems.photo('p'));
     await tester.pumpAndSettle();
@@ -852,11 +852,11 @@ void main() {
     final send = tester.getRect(find.byKey(const ValueKey('attach-send')));
     expect(send.bottom, lessThanOrEqualTo(screen.height - 300));
 
-    // The keyboard goes: back to the rest.
+    // The keyboard goes: the rest returns, the sheet stays where it is.
+    final raised = rig.top;
     tester.view.viewInsets = FakeViewPadding.zero;
-    await tester.pump();
-    await tester.pump();
-    expect(rig.top, closeTo(rest, 0.5));
+    await tester.pumpAndSettle();
+    expect(rig.top, closeTo(raised, 0.5));
   });
 
   testWidgets('Android: a sheet above the raised rest stays where it is as '

@@ -221,7 +221,7 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
     final text = ChromeTypography.of(context).copyWith(
       color: palette.onSurface,
       fontSize: 16,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w500,
     );
     final pinned =
         AttachSheetController.maybeOf(context)?.pinned ??
@@ -245,11 +245,12 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // The words stand on the band's bottom, 3 over the grid.
+              // The words stand 14 over the grid, 22 high: centred in the
+              // band once it has grown.
               PositionedDirectional(
                 start: 0,
                 end: 0,
-                bottom: 3,
+                bottom: 14,
                 height: 22,
                 child: IgnorePointer(
                   ignoring: !live,
@@ -353,10 +354,10 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
                 ),
               ),
               // The overflow button grows in beside the header: 48 high,
-              // from 37 over the grid.
+              // standing on the grid, centred in the band as the words.
               PositionedDirectional(
                 end: 12,
-                bottom: -11,
+                bottom: 0,
                 height: 48,
                 child: IgnorePointer(
                   ignoring: !live,

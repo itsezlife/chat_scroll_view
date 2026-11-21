@@ -931,14 +931,13 @@ class _AttachSheetState extends State<AttachSheet>
       _collapsedTop = card.top;
       _expandedTop = card.top;
     } else {
-      final was = _collapsedTop;
       // With the keyboard up the rest is taken over the window above it.
       final over = _policy.restRisesWithKeyboard && keyboard > 0
           ? Size(_size.width, _size.height - keyboard)
           : _size;
       _collapsedTop = _$restTop ?? _policy.collapsedTop(over, padding);
       _expandedTop = math.min(_policy.expandedTop(padding), _collapsedTop);
-      if (_policy.restRisesWithKeyboard) _followRest(was);
+      if (_policy.restRisesWithKeyboard) _followRest();
     }
     if (!_opened) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -947,13 +946,13 @@ class _AttachSheetState extends State<AttachSheet>
     }
   }
 
-  // The rest moved with the keyboard: a sheet resting on the old one, or
-  // below the new one, follows it frame by frame as the keyboard moves.
-  void _followRest(double was) {
+  // The rest rose with the keyboard: a sheet below it follows it up frame
+  // by frame as the keyboard rises. It only pulls up: as the keyboard goes
+  // and the rest returns, the sheet stays where it is.
+  void _followRest() {
     if (!_opened || _closing || _morphing || _$sheetDragging) return;
     final top = _$top.value;
-    final resting = (top - was).abs() < 0.5;
-    if (!resting && top <= _collapsedTop) return;
+    if (top <= _collapsedTop) return;
     final to = _collapsedTop;
     if ((top - to).abs() < 0.5) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {

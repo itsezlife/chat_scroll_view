@@ -16,12 +16,14 @@ package is pre-1.0.
   keyboard no longer takes the sheet to its top
   (`expandsOnCaptionFocus` is false). The rest is taken over the window
   above the keyboard, and a sheet resting there, or below it, follows the
-  keyboard frame by frame, back down as it goes. A sheet above it stays.
+  keyboard up frame by frame. As the keyboard goes the rest returns and
+  the sheet stays where it is. A sheet above the raised rest stays too.
 - The selected-items preview keeps clear of the bar at the bottom, as the
   grid does.
 - The selection header's band grows upward: the sheet's edge rises 26 as
   the words come and the grid under it holds still
   (`AttachSheetController.topExtension`; never above the sheet's top).
+  The words (16, medium) and the menu stand centred in the 50 band.
 
 ### Fixed (the page switch)
 

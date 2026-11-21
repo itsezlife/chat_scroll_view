@@ -133,9 +133,22 @@ void main() {
     expect(opacityOf(tester, words), 1);
     // Halfway through the fade it stood halfway down its 26.
     expect(overGrid() - halfway, closeTo(13, 2));
-    // At rest the words stand 3 over the grid, 22 high; the band is 50.
-    expect(overGrid(), closeTo(25, 1));
+    // At rest the words stand 14 over the grid, 22 high: centred in the
+    // 50 band, as the menu beside them.
+    expect(overGrid(), closeTo(36, 1));
     expect(tester.getSize(header).height, 50);
+    final band = tester.getRect(header);
+    final words_ = tester.getRect(words);
+    expect(words_.center.dy, closeTo(band.center.dy, 2));
+    final menu = tester.getRect(
+      find.descendant(
+        of: header,
+        matching: find.byKey(const ValueKey('attach-overflow')),
+      ),
+    );
+    expect(menu.center.dy, closeTo(band.center.dy, 1));
+    // Medium, not bold: the reference's 500.
+    expect(tester.widget<Text>(words).style?.fontWeight, FontWeight.w500);
     expect(arrow, findsNothing);
 
     await tester.tap(toggle);

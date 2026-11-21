@@ -363,8 +363,9 @@ abstract base class AttachSheetPolicy {
   bool get expandsOnCaptionFocus;
 
   /// Whether the resting top is taken over the height above the keyboard
-  /// while it shows: the rest rises with the keyboard, a sheet below it
-  /// follows as the keyboard moves, and back down as it goes.
+  /// while it shows: the rest rises with the keyboard and a sheet below it
+  /// follows it up; as the keyboard goes the rest returns and the sheet
+  /// stays where it is.
   bool get restRisesWithKeyboard => false;
 
   // --- Tabs ---
