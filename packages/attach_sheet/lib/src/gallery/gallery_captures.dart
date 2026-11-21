@@ -1,4 +1,5 @@
 import 'package:attach_model/attach_model.dart';
+import 'package:attach_sheet/src/debug/attach_log.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
@@ -18,13 +19,21 @@ import 'package:mpx_ui/mpx_ui.dart';
 @internal
 final class GalleryCaptures {
   /// The captures of an open over [selection]; [release] deletes a
-  /// capture's bytes, [onRefused] hears a capture the selection refused.
+  /// capture's bytes, [onRefused] hears a capture the selection refused,
+  /// [keepPoster] keeps a recording's poster in the capture cache.
   GalleryCaptures({
     required this.selection,
     required this.release,
     this.onRefused,
+    this.keepPoster,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
+
+  /// Keeps [CaptureOutput.posterPath] of a recording in the capture cache
+  /// under a key of its own, a still, and answers it; null for none. The
+  /// recording then lands with it as its thumbnail
+  /// (`PickerCapture.thumbnail`), so the grid draws its first frame.
+  final Future<MediaKey$Local?> Function(CameraShot shot)? keepPoster;
 
   /// The open's attach selection.
   final AttachSelection selection;
@@ -40,9 +49,28 @@ final class GalleryCaptures {
   /// The captures, in the order taken: what the picker shows and pages.
   final ValueNotifier<List<PickerCapture>> list = ValueNotifier(const []);
 
-  /// The camera's shots behind [list], oldest first: what the capture
-  /// surface's strip and shots counter show.
+  /// The camera's shots behind [list] that the capture surface's strip and
+  /// shots counter show, oldest first.
+  ///
+  /// A camera session's shots stay off it until the viewer's add-photo
+  /// keeps them, so the first shot opens the viewer with no change to the
+  /// camera's layout; from then on, and whenever the strip already shows
+  /// kept shots, each shot joins it as it lands.
   final ValueNotifier<List<CameraShot>> shots = ValueNotifier(const []);
+
+  // The session's shots not yet on the strip, oldest first.
+  final List<CameraShot> _hidden = [];
+
+  // Each recording's poster key, by the recording's.
+  final Map<MediaKey$Local, MediaKey$Local> _posters = {};
+
+  // Shots landing in the order taken: a recording waits for its poster,
+  // and the shots after it wait for the recording.
+  Future<void> _landing = Future.value();
+  int _waiting = 0;
+
+  // Set once the sheet went: a shot landing after it is released.
+  bool _closed = false;
 
   /// Whether back from the camera's viewer takes the taking back: set by
   /// the first shot (whose viewer opens on it) and by the shots counter,
@@ -51,13 +79,14 @@ final class GalleryCaptures {
   bool get cancelTakingPhotos => _cancelTakingPhotos;
   bool _cancelTakingPhotos = false;
 
-  // The keys of the shots taken since the capture surface opened.
-  final Set<MediaKey$Local> _session = {};
+  // The shots taken since the capture surface opened.
+  final List<CameraShot> _session = [];
 
   /// The capture surface opened: a new camera session.
   void cameraOpened() {
     _session.clear();
     _cancelTakingPhotos = false;
+    _hidden.clear();
   }
 
   /// The viewer opened from the camera over its shots (the counter).
@@ -65,13 +94,25 @@ final class GalleryCaptures {
 
   /// The viewer's add-photo button: back to the camera for another shot,
   /// keeping this one.
-  void addMore() => _cancelTakingPhotos = false;
+  void addMore() {
+    _cancelTakingPhotos = false;
+    _show();
+  }
+
+  // The hidden shots join the strip.
+  void _show() {
+    if (_hidden.isEmpty) return;
+    shots.value = [...shots.value, ..._hidden];
+    _hidden.clear();
+  }
 
   /// The capture surface closed: a viewer opened later is not the
   /// camera's.
   void cameraClosed() {
     _cancelTakingPhotos = false;
     _session.clear();
+    // Kept shots: the next session's strip shows them.
+    _show();
   }
 
   /// The camera's viewer closed: when the taking was still cancellable
@@ -80,9 +121,7 @@ final class GalleryCaptures {
     final cancel = _cancelTakingPhotos;
     _cancelTakingPhotos = false;
     if (!cancel) return;
-    for (final shot in [...shots.value]) {
-      if (_session.contains(shot.key)) remove(shot);
-    }
+    [..._session].forEach(remove);
     _session.clear();
   }
 
@@ -119,11 +158,41 @@ final class GalleryCaptures {
   }
 
   /// A shot landed: it joins the list and the selection, last. A shot with
-  /// no key (the camera was given no cache) is not a capture here.
+  /// no key (the camera was given no cache) is not a capture here. A
+  /// recording with a poster first has [keepPoster] keep it; the shots after
+  /// it wait, so the list stays in the order taken.
   void add(CameraShot shot) {
-    final key = shot.key;
-    if (key == null) return;
+    if (shot.key == null) return;
+    final keep = keepPoster;
+    final poster = shot.isVideo && shot.output.posterPath != null ? keep : null;
+    if (poster == null && _waiting == 0) return _land(shot, null);
+    _waiting++;
+    // The poster is kept at once; the landing waits for it in turn.
+    final keeping = poster?.call(shot);
+    _landing = _landing.then((_) async {
+      MediaKey$Local? kept;
+      if (keeping != null) {
+        try {
+          kept = await keeping;
+        } on Object catch (error) {
+          // No poster: the cell shows the recording's own key.
+          AttachLog.log(AttachLog.panel, 'poster not kept: $error');
+        }
+      }
+      _waiting--;
+      if (_closed) {
+        release(shot.key!);
+        if (kept != null) release(kept);
+        return;
+      }
+      _land(shot, kept);
+    });
+  }
+
+  void _land(CameraShot shot, MediaKey$Local? poster) {
+    final key = shot.key!;
     final output = shot.output;
+    if (poster != null) _posters[key] = poster;
     final capture = PickerCapture(
       key: key,
       kind: shot.isVideo ? LibraryAssetKind.video : LibraryAssetKind.photo,
@@ -131,12 +200,18 @@ final class GalleryCaptures {
       duration: shot.isVideo ? output.duration : null,
       byteSize: output.size,
       created: _now(),
+      thumbnail: poster,
     );
     list.value = [...list.value, capture];
-    shots.value = [...shots.value, shot];
-    _session.add(key);
-    // The first shot opens the viewer on it.
-    if (shots.value.length == 1) _cancelTakingPhotos = true;
+    _session.add(shot);
+    // On the strip once it shows; until then the session keeps it.
+    if (shots.value.isNotEmpty) {
+      shots.value = [...shots.value, shot];
+    } else {
+      _hidden.add(shot);
+    }
+    // The open's first capture opens the viewer on it.
+    if (list.value.length == 1) _cancelTakingPhotos = true;
     if (selection.toggle(itemOf(capture)) case AttachToggle$Refused(
       :final reason,
     )) {
@@ -160,18 +235,27 @@ final class GalleryCaptures {
       for (final s in shots.value)
         if (s.key != key) s,
     ];
+    _hidden.removeWhere((s) => s.key == key);
+    _session.removeWhere((s) => s.key == key);
     selection.remove(idOf(key));
     release(key);
+    if (_posters.remove(key) case final poster?) release(poster);
   }
 
   /// The sheet is going: releases every capture but those [sent] carries,
   /// and clears the list.
   void discard({Set<AttachItemId> sent = const {}}) {
+    _closed = true;
     for (final capture in list.value) {
       if (!sent.contains(idOf(capture.key))) release(capture.key);
     }
+    // The posters only drew the grid: they go whatever was sent.
+    _posters.values.forEach(release);
+    _posters.clear();
     list.value = const [];
     shots.value = const [];
+    _hidden.clear();
+    _session.clear();
     _cancelTakingPhotos = false;
   }
 

@@ -11,6 +11,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart' as content;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http_bytes_cache/http_bytes_cache.dart';
@@ -199,6 +200,40 @@ void main() {
     expect(const AttachSheetPolicy.ios().libraryGrid, LibraryGridPolicy.$IOS);
   });
 
+  group("a swipe selection held at the screen's edges", () {
+    testWidgets('the bottom edge raises a sheet that is not at its top; '
+        "the sheet's top edge never moves it", (tester) async {
+      final rig = await open(tester);
+      final rest = rig.top;
+      expect(rest, greaterThan(24), reason: 'the sheet is not at its top');
+      final gesture = await tester.startGesture(tester.getCenter(cell(4)));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 20));
+      // At the screen's bottom: the grid's band on its part on screen.
+      await gesture.moveTo(const Offset(200, 798));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      final raised = rig.top;
+      expect(raised, lessThan(rest - 20));
+
+      // Up at the sheet's own top edge: the sheet stays.
+      await gesture.moveTo(Offset(200, raised + 4));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(rig.top, lessThanOrEqualTo(raised));
+      final held = rig.top;
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(rig.top, held);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(rig.top, held, reason: 'the selection leaves it where it is');
+      expect(rig.selection.isNotEmpty, isTrue);
+    });
+  });
+
   group('camera', () {
     testWidgets('the first cell is the live preview; a tap opens the '
         'capture surface', (tester) async {
@@ -242,7 +277,19 @@ void main() {
       await tester.tap(find.byType(CameraSlotPreview));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('mpx-capture-shutter')));
-      for (var i = 0; i < 6; i++) {
+      // The surface reads the shot for its strip, then keeps it: real IO.
+      for (
+        var i = 0;
+        i < 50 &&
+            tester
+                .widget<LibraryPicker>(
+                  find.byType(LibraryPicker, skipOffstage: false),
+                )
+                .captures!
+                .value
+                .isEmpty;
+        i++
+      ) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 10)),
         );
@@ -290,7 +337,8 @@ void main() {
       expect(surface.policy, CaptureSurfacePolicy.$Android);
       expect(surface.labels.videoMode, 'Video');
       expect(surface.labels.photoMode, 'Photo');
-      expect(surface.resultBuilder, isNotNull);
+      expect(surface.resultBuilder, isNull, reason: "the strip's own cells");
+      expect(surface.shotOrder, isNotNull);
       expect(surface.onShotRemoved, isNotNull);
     });
 
@@ -437,15 +485,31 @@ void main() {
         }
       }
 
-      Future<void> shoot(WidgetTester tester) async {
-        await tester.tap(find.byKey(const ValueKey('mpx-capture-shutter')));
-        for (var i = 0; i < 6; i++) {
+      int landed(WidgetTester tester) => tester
+          .widget<LibraryPicker>(
+            find.byType(LibraryPicker, skipOffstage: false),
+          )
+          .captures!
+          .value
+          .length;
+
+      // Waits in real time for the shot to land: the surface reads it for
+      // its strip and keeps it in the cache, and a recording's poster is
+      // kept too.
+      Future<void> waitForShot(WidgetTester tester, int before) async {
+        for (var i = 0; i < 50 && landed(tester) == before; i++) {
           await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 10)),
           );
           await tester.pump();
         }
         await settle(tester);
+      }
+
+      Future<void> shoot(WidgetTester tester) async {
+        final before = landed(tester);
+        await tester.tap(find.byKey(const ValueKey('mpx-capture-shutter')));
+        await waitForShot(tester, before);
       }
 
       final viewer = find.byKey(const ValueKey('attach-viewer-slot'));
@@ -464,37 +528,119 @@ void main() {
       }
 
       testWidgets('the surface shows the shots this open keeps, counted in '
-          "the host's words, and the strip's cell is the grid's, with its "
-          'number', (tester) async {
+          "the host's words, numbered by the selection; the first shot "
+          'changes nothing on the camera until add-photo', (tester) async {
         final rig = await openCamera(tester);
         final surface = tester.widget<CameraCaptureSurface>(
           find.byType(CameraCaptureSurface),
         );
         expect(surface.shots, isNotNull);
         expect(surface.onShotsTap, isNotNull);
+        expect(surface.resultBuilder, isNull);
         expect(surface.labels.shotsCount!(1, 0), '1 PHOTO');
         expect(surface.labels.shotsCount!(3, 0), '3 PHOTOS');
         expect(surface.labels.shotsCount!(0, 2), '2 VIDEOS');
         expect(surface.labels.shotsCount!(2, 3), '5 MEDIA');
 
         await shoot(tester);
-        expect(surface.shots!.value, hasLength(1));
-        // Back to the camera, whose strip shows the shot as the grid's cell.
+        expect(viewer, findsOneWidget);
+        expect(surface.shots!.value, isEmpty, reason: 'no strip, no counter');
+        // Add-photo keeps the shot: back on the camera the strip shows it.
         await tester.tap(addPhoto);
         await settle(tester);
-        final strip = find.descendant(
-          of: find.byKey(const ValueKey('mpx-capture-shots')),
-          matching: find.byType(LibraryGridCell),
+        expect(surface.shots!.value, hasLength(1));
+        expect(
+          find.byKey(const ValueKey('mpx-capture-counter')),
+          findsOneWidget,
         );
-        expect(strip, findsOneWidget);
-        expect(tester.widget<LibraryGridCell>(strip).order, 1);
-        tester.widget<LibraryGridCell>(strip).onToggle();
+        final shot = surface.shots!.value.single;
+        expect(surface.shotOrder!(shot), 1);
+
+        // The strip's tap toggles it in the selection, and the strip hears.
+        var heard = 0;
+        void listener() => heard++;
+        surface.shotSelection!.addListener(listener);
+        addTearDown(() => surface.shotSelection!.removeListener(listener));
+        surface.onShotToggle!(shot);
         await tester.pump();
         expect(rig.selection.isEmpty, isTrue);
-        expect(tester.widget<LibraryGridCell>(strip).order, isNull);
-        tester.widget<LibraryGridCell>(strip).onOpen();
-        await tester.pump();
-        expect(rig.selection.length, 1, reason: 'a tap on the picture too');
+        expect(surface.shotOrder!(shot), isNull);
+        expect(heard, greaterThan(0));
+        surface.onShotToggle!(shot);
+        expect(surface.shotOrder!(shot), 1);
+
+        // A later shot joins the strip at once, with the next number.
+        await shoot(tester);
+        expect(viewer, findsNothing);
+        expect(surface.shots!.value, hasLength(2));
+        expect(surface.shotOrder!(surface.shots!.value.last), 2);
+      });
+
+      testWidgets('the viewer from the camera pages every medium, the shots '
+          'then the album, with no dismiss drag', (tester) async {
+        await openCamera(tester);
+        await shoot(tester);
+        var media = tester.widget<MediaViewer>(find.byType(MediaViewer));
+        expect(media.source.count, 1 + 300);
+        expect(media.policy?.dismissDrag, isFalse);
+        await tester.tap(addPhoto);
+        await settle(tester);
+        await shoot(tester);
+        await tester.tap(find.byKey(const ValueKey('mpx-capture-counter')));
+        await settle(tester);
+        media = tester.widget<MediaViewer>(find.byType(MediaViewer));
+        expect(media.source.count, 2 + 300);
+        expect(media.policy?.dismissDrag, isFalse);
+      });
+
+      testWidgets("a recording's poster is kept as a still under its own key "
+          "and is the grid's thumbnail for it; it goes with the shot", (
+        tester,
+      ) async {
+        await openCamera(tester);
+        final hold = await tester.startGesture(
+          tester.getCenter(find.byKey(const ValueKey('mpx-capture-shutter'))),
+        );
+        await tester.pump(
+          CameraCaptureSurface.holdToRecord + const Duration(milliseconds: 50),
+        );
+        for (var i = 0; i < 4; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump();
+        }
+        await hold.up();
+        await waitForShot(tester, 0);
+
+        final capture = capturesOf(tester).single;
+        expect(capture.kind, LibraryAssetKind.video);
+        final poster = capture.thumbnail;
+        expect(poster, isNotNull);
+        expect(poster, isNot(capture.key));
+        expect(
+          await tester.runAsync(
+            () => store.read(CaptureCache.cacheKeyOf(poster!)),
+          ),
+          isNotNull,
+        );
+        // The grid draws the poster for the recording, as a still.
+        final asset = capture.asset;
+        expect(PickerCaptureKeys.thumbnailKeyOf(asset, 100), poster);
+        expect(
+          PickerCaptureKeys.thumbnailDescriptorOf(asset, 100).kind,
+          MediaKind.still,
+        );
+
+        // Back from its viewer takes both away.
+        await back(tester);
+        expect(capturesOf(tester), isEmpty);
+        expect(
+          await tester.runAsync(
+            () => store.read(CaptureCache.cacheKeyOf(poster!)),
+          ),
+          isNull,
+        );
       });
 
       testWidgets('the first shot opens the viewer on it, whose page asks '

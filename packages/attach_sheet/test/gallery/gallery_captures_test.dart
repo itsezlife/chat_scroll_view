@@ -5,6 +5,8 @@
 /// cache's release; `AttachPickerSelection` reading capture keys.
 library;
 
+import 'dart:async';
+
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
@@ -20,7 +22,7 @@ import 'package:mpx_ui/mpx_ui.dart';
 MediaKey$Local _key(int n) =>
     MediaKey$Local('00000000-0000-4000-8000-${n.toString().padLeft(12, '0')}');
 
-CameraShot _shot(int n, {bool video = false}) => CameraShot(
+CameraShot _shot(int n, {bool video = false, String? poster}) => CameraShot(
   isVideo: video,
   key: _key(n),
   output: CaptureOutput(
@@ -29,6 +31,7 @@ CameraShot _shot(int n, {bool video = false}) => CameraShot(
     duration: video ? const Duration(seconds: 3) : Duration.zero,
     dimensions: const MediaDimensions(1080, 1920),
     headerRewritten: false,
+    posterPath: poster,
   ),
 );
 
@@ -191,15 +194,43 @@ void main() {
   });
 
   group('the capture flow (the camera, its viewer, back)', () {
-    test('a shot joins the shots too, oldest first; a removal leaves them', () {
+    test("the session's shots stay off the strip until add-photo; then "
+        'they and each later shot show, oldest first', () {
       captures
-        ..add(_shot(1))
-        ..add(_shot(2, video: true));
+        ..cameraOpened()
+        ..add(_shot(1));
+      expect(captures.shots.value, isEmpty, reason: 'no layout change yet');
+      expect(captures.list.value, hasLength(1));
+      captures.addMore();
+      expect(captures.shots.value.map((s) => s.key), [_key(1)]);
+      captures.add(_shot(2, video: true));
       expect(captures.shots.value.map((s) => s.key), [_key(1), _key(2)]);
       captures.remove(_shot(1));
       expect(captures.shots.value.map((s) => s.key), [_key(2)]);
       captures.discard();
       expect(captures.shots.value, isEmpty);
+    });
+
+    test('a later camera session shows its shots at once while the strip '
+        'already shows kept ones', () {
+      captures
+        ..cameraOpened()
+        ..add(_shot(1))
+        ..addMore()
+        ..cameraClosed()
+        ..cameraOpened()
+        ..add(_shot(2));
+      expect(captures.shots.value.map((s) => s.key), [_key(1), _key(2)]);
+    });
+
+    test('back discards the hidden shots too: the strip stays empty', () {
+      captures
+        ..cameraOpened()
+        ..add(_shot(1))
+        ..viewerClosed();
+      expect(captures.shots.value, isEmpty);
+      expect(captures.list.value, isEmpty);
+      expect(released, [_key(1)]);
     });
 
     test('the first shot marks the taking cancellable; back from its viewer '
@@ -286,5 +317,81 @@ void main() {
       expect(captures.shots.value, isEmpty);
       expect(released, [_key(1)]);
     });
+  });
+
+  group("a recording's poster", () {
+    late List<CameraShot> asked;
+    late Completer<MediaKey$Local?> kept;
+
+    setUp(() {
+      asked = [];
+      kept = Completer();
+      captures.dispose();
+      captures = GalleryCaptures(
+        selection: selection,
+        release: released.add,
+        keepPoster: (shot) {
+          asked.add(shot);
+          return kept.future;
+        },
+      );
+    });
+
+    test('a recording lands once its poster is kept, as its thumbnail; a '
+        'photo after it waits its turn', () async {
+      captures
+        ..add(_shot(1, video: true, poster: '/gone/1.jpg'))
+        ..add(_shot(2));
+      expect(asked.map((s) => s.key), [_key(1)]);
+      expect(captures.list.value, isEmpty, reason: 'in the order taken');
+      kept.complete(_key(91));
+      await pumpEventQueue();
+      expect(captures.list.value.map((c) => c.key), [_key(1), _key(2)]);
+      expect(captures.list.value.first.thumbnail, _key(91));
+      expect(captures.list.value.last.thumbnail, isNull);
+      expect(selection.items, hasLength(2));
+    });
+
+    test('a photo, or a recording with no poster, asks for none', () {
+      captures
+        ..add(_shot(1))
+        ..add(_shot(2, video: true));
+      expect(asked, isEmpty);
+      expect(captures.list.value, hasLength(2));
+    });
+
+    test(
+      'the poster goes with its capture: a removal, a discard, back',
+      () async {
+        captures.add(_shot(1, video: true, poster: '/gone/1.jpg'));
+        kept.complete(_key(91));
+        await pumpEventQueue();
+        captures.remove(_shot(1, video: true));
+        expect(released, [_key(1), _key(91)]);
+      },
+    );
+
+    test(
+      'a poster kept after the sheet went is released with its shot',
+      () async {
+        captures
+          ..add(_shot(1, video: true, poster: '/gone/1.jpg'))
+          ..discard();
+        kept.complete(_key(91));
+        await pumpEventQueue();
+        expect(captures.list.value, isEmpty);
+        expect(released, containsAll([_key(1), _key(91)]));
+      },
+    );
+
+    test(
+      'a poster that fails leaves the recording without a thumbnail',
+      () async {
+        captures.add(_shot(1, video: true, poster: '/gone/1.jpg'));
+        kept.completeError(StateError('no room'));
+        await pumpEventQueue();
+        expect(captures.list.value.single.thumbnail, isNull);
+      },
+    );
   });
 }

@@ -8,11 +8,18 @@ package is pre-1.0.
 
 ### Added (the capture flow)
 
-- The capture surface shows the shots this open keeps: its strip draws each
-  as the grid's cell, with its check and order number (a tap toggles it),
-  and its shots counter reads "3 PHOTOS", "2 VIDEOS" or "5 MEDIA" from the
-  strings. A tap on the counter opens the viewer over the shots, at the
+- The capture surface shows the shots this open keeps: its strip's own
+  cells, numbered by the selection (`shotOrder`, `shotSelection`; a tap
+  toggles, `onShotToggle`), and its shots counter reads "3 PHOTOS",
+  "2 VIDEOS" or "5 MEDIA" from the strings. A camera session's shots join
+  the strip only once the viewer's add-photo keeps them, so the first shot
+  opens the viewer with no change to the camera's layout; after that, and
+  while the strip shows kept shots, each shot joins it as it lands. A tap
+  on the counter opens the viewer over the shots and the album, at the
   newest.
+- A recording's poster is kept in the capture cache as a still under a key
+  of its own and is its thumbnail in the grid (`PickerCapture.thumbnail`);
+  it goes with the recording. The shots after a recording land after it.
 - Back from the camera's viewer (the first shot's, or the counter's)
   takes the camera session's shots back, however many: they leave the
   captures, the strip, the selection and the capture cache. Shots of an

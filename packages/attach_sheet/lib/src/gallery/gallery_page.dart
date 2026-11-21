@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:attach_model/attach_model.dart';
@@ -20,7 +21,7 @@ import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:mpx_capture/mpx_capture.dart';
-import 'package:mpx_core/mpx_core.dart' show AssetCacheProvider, MediaKey;
+import 'package:mpx_core/mpx_core.dart' show MediaKey, MediaKey$Local;
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_player/mpx_player.dart' show PlayerPool;
 import 'package:mpx_ui/mpx_ui.dart';
@@ -204,6 +205,7 @@ class _GalleryViewState extends State<GalleryView> {
       selection: widget.panel.selection,
       release: (key) => unawaited(camera.cache.release(key)),
       onRefused: widget.panel.host.interaction,
+      keepPoster: (shot) => _keepPoster(camera.cache, shot),
     ),
     null => null,
   };
@@ -380,7 +382,15 @@ class _GalleryViewState extends State<GalleryView> {
       // counter opens the viewer over them, at the newest.
       shots: shots?.shots,
       onShotsTap: shots == null ? null : _openCaptures,
-      resultBuilder: shots == null ? null : _shotCell,
+      // The strip's own cells, numbered by the selection; a tap toggles.
+      shotOrder: (shot) => switch (shot.key) {
+        final key? => _$picker.orderOf(key),
+        null => null,
+      },
+      onShotToggle: (shot) {
+        if (shot.key case final key?) _$picker.toggle(key);
+      },
+      shotSelection: _$picker,
       onShotRemoved: shots?.remove,
       // A hold where videos may not be sent, or one whose microphone was
       // refused: the host says so.
@@ -420,46 +430,29 @@ class _GalleryViewState extends State<GalleryView> {
     if (_surfaceOpen) _$shots?.viewerClosed();
   }
 
-  // A shot in the camera's strip: the grid's cell for it, with its check
-  // and order number; a tap anywhere on it toggles it.
-  Widget _shotCell(BuildContext context, CameraShot shot) {
-    final key = shot.key;
-    final capture = key == null ? null : _$shots?.captureOf(key);
-    if (key == null || capture == null) return const SizedBox.expand();
-    // The gallery's words and colours: the surface's route may stand
-    // outside the chrome's scopes.
-    final strings = ChromeStringsScope.attachOf(this.context);
-    final tokens = _tokens(this.context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final extent = constraints.biggest.shortestSide;
-        final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
-        final pixels = (extent * dpr).ceil();
-        final asset = capture.asset;
-        AssetCacheProvider.maybeOf(
-          context,
-        )?.know(PickerCaptureKeys.thumbnailDescriptorOf(asset, pixels));
-        // A refusal reaches the host through the picker's selection.
-        void toggle() => _$picker.toggle(key);
-
-        return ListenableBuilder(
-          listenable: _$picker,
-          builder: (context, _) => LibraryGridCell(
-            key: ValueKey<MediaKey>(key),
-            asset: asset,
-            extent: extent,
-            thumbnailPixels: pixels,
-            policy: widget.panel.policy.libraryGrid,
-            tokens: tokens,
-            labels: _labels(strings),
-            order: _$picker.orderOf(key),
-            dimmed: _$picker.refusalOf(key) != null,
-            onToggle: toggle,
-            onOpen: toggle,
-          ),
-        );
-      },
+  // A recording's poster (the first frame the platform wrote beside it)
+  // kept in the capture cache as a still under a key of its own: the
+  // grid's cell draws it. The poster's file stays where the camera wrote it
+  // (the surface's strip reads it too).
+  static Future<MediaKey$Local?> _keepPoster(
+    CaptureCache cache,
+    CameraShot shot,
+  ) async {
+    final path = shot.output.posterPath;
+    if (path == null) return null;
+    final key = cache.mintKey();
+    await cache.put(
+      key,
+      CaptureOutput(
+        path: path,
+        size: await File(path).length(),
+        duration: Duration.zero,
+        dimensions: shot.output.dimensions,
+        headerRewritten: false,
+      ),
+      deleteSource: false,
     );
+    return key;
   }
 
   Widget _cameraSlot(
