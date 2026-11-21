@@ -6,6 +6,18 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (the camera per platform)
+
+- The capture surface takes the platform's policy
+  (`CaptureSurfacePolicy.forPlatform` of the theme's platform): Android's
+  as before, iOS's modes, lenses and results strip, with the mode names
+  from `AttachStrings`.
+- A shot removed from the results strip leaves the picker's captures and
+  the selection, and its bytes are released; its tile is the capture's
+  picture as the grid draws it.
+- On the iOS sheet the grid's policy is `LibraryGridPolicy.$IOS`, so the
+  viewer also opens on every 10th capture.
+
 ### Added (video refusals)
 
 - `AttachInteraction.videoRefused(AttachVideoRefusal)`: a hold on the

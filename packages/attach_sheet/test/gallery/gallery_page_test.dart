@@ -10,6 +10,7 @@ import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart' as content;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http_bytes_cache/http_bytes_cache.dart';
@@ -64,12 +65,13 @@ void main() {
     Size size = const Size(400, 800),
     bool viewBottomPadding = false,
     AttachPolicy attachPolicy = const AttachPolicy.android(),
+    AttachSheetPolicy policy = const AttachSheetPolicy.android(),
   }) async {
     final rig = await PagesRig.open(
       tester,
       size: size,
       viewBottomPadding: viewBottomPadding,
-      policy: const AttachSheetPolicy.android(),
+      policy: policy,
       attachPolicy: attachPolicy,
       limits: limits,
       host: host,
@@ -265,6 +267,60 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
       expect(find.byKey(const ValueKey('attach-viewer-slot')), findsOneWidget);
+    });
+
+    testWidgets('Android: the surface keeps its own policy, the strip tiles '
+        "are the host's, and removing a shot drops it", (tester) async {
+      await open(
+        tester,
+        size: const Size(1200, 900),
+        camera: GalleryCamera(
+          sessions: FakeCameraSessions(),
+          outputDirectory: '/tmp',
+          cache: CaptureCache(store: MemoryBytesCache()),
+        ),
+      );
+      await tester.tap(find.byType(CameraSlotPreview));
+      await tester.pumpAndSettle();
+      final surface = tester.widget<CameraCaptureSurface>(
+        find.byType(CameraCaptureSurface),
+      );
+      expect(surface.policy, CaptureSurfacePolicy.$Android);
+      expect(surface.labels.videoMode, 'Video');
+      expect(surface.labels.photoMode, 'Photo');
+      expect(surface.resultBuilder, isNotNull);
+      expect(surface.onShotRemoved, isNotNull);
+    });
+
+    testWidgets('iOS: the surface takes the iOS policy with its mode names, '
+        'and the grid opens the viewer on every 10th capture', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      await open(
+        tester,
+        size: const Size(1200, 900),
+        policy: const AttachSheetPolicy.ios(),
+        camera: GalleryCamera(
+          sessions: FakeCameraSessions(),
+          outputDirectory: '/tmp',
+          cache: CaptureCache(store: MemoryBytesCache()),
+        ),
+      );
+      expect(
+        tester
+            .widget<LibraryPicker>(find.byType(LibraryPicker))
+            .policy
+            .captureViewerEvery,
+        10,
+      );
+      await tester.tap(find.byType(CameraSlotPreview));
+      await tester.pumpAndSettle();
+      final surface = tester.widget<CameraCaptureSurface>(
+        find.byType(CameraCaptureSurface),
+      );
+      expect(surface.policy, CaptureSurfacePolicy.$IOS);
+      expect(surface.labels.videoMode, 'Video');
+      debugDefaultTargetPlatformOverride = null;
     });
 
     // Holds the shutter past the record delay, lets the session answer,

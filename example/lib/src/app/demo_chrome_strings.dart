@@ -259,6 +259,8 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     captureSwitchCamera: 'Сменить камеру',
     captureFlash: 'Вспышка',
     captureVideoNotAllowed: 'Здесь нельзя отправлять видео',
+    captureVideoMode: 'Видео',
+    capturePhotoMode: 'Фото',
     captureMicrophoneDenied:
         'Чтобы снимать видео, разрешите доступ к микрофону в настройках',
   ),

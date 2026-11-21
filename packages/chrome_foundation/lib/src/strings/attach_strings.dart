@@ -92,6 +92,8 @@ final class AttachStrings {
     required this.captureSwitchCamera,
     required this.captureFlash,
     required this.captureVideoNotAllowed,
+    required this.captureVideoMode,
+    required this.capturePhotoMode,
     required this.captureMicrophoneDenied,
   });
 
@@ -352,6 +354,12 @@ final class AttachStrings {
   /// The notice when a hold on the capture surface asks for a video where
   /// only photos may be sent ("Videos can't be sent here").
   final String captureVideoNotAllowed;
+
+  /// The capture surface's video mode, in its mode control ("VIDEO").
+  final String captureVideoMode;
+
+  /// The capture surface's photo mode, in its mode control ("PHOTO").
+  final String capturePhotoMode;
 
   /// The notice when the microphone a video needs was refused, with where
   /// to allow it ("Allow the microphone in Settings to record video").

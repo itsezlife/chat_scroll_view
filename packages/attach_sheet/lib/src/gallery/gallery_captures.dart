@@ -1,6 +1,7 @@
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:meta/meta.dart';
 import 'package:mpx_capture/mpx_capture.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_library/mpx_library.dart';
@@ -91,6 +92,42 @@ final class GalleryCaptures {
     )) {
       onRefused?.call(AttachInteraction.refused(reason));
     }
+  }
+
+  /// The shot [shot] was removed from the camera's results strip: it leaves
+  /// the list and the selection, and its bytes go.
+  void remove(CameraShot shot) {
+    final key = shot.key;
+    if (key == null) return;
+    final before = list.value;
+    final after = [
+      for (final c in before)
+        if (c.key != key) c,
+    ];
+    if (after.length == before.length) return;
+    list.value = after;
+    selection.remove(idOf(key));
+    release(key);
+  }
+
+  /// A results strip tile for [shot]: the capture's picture, as the grid
+  /// draws it (cover, square), through the asset cache; empty for a shot
+  /// that is not a capture here.
+  Widget resultTile(BuildContext context, CameraShot shot) {
+    final key = shot.key;
+    final capture = key == null ? null : captureOf(key);
+    if (key == null || capture == null) return const SizedBox.expand();
+    AssetCacheProvider.maybeOf(context)?.know(capture.descriptor);
+    return LayoutBuilder(
+      builder: (context, constraints) => ContentView(
+        content: key,
+        preset: AssetPresets.square(
+          extent: constraints.biggest.shortestSide,
+          devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
+          profile: const AssetProfile(fit: AssetFit.cover),
+        ),
+      ),
+    );
   }
 
   /// The sheet is going: releases every capture but those [sent] carries,

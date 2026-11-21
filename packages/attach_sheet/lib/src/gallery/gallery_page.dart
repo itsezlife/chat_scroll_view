@@ -16,6 +16,7 @@ import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' show RichText;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:mpx_capture/mpx_capture.dart';
@@ -340,12 +341,19 @@ class _GalleryViewState extends State<GalleryView> {
         shutter: strings.captureShutter,
         switchCamera: strings.captureSwitchCamera,
         flash: strings.captureFlash,
+        videoMode: strings.captureVideoMode,
+        photoMode: strings.capturePhotoMode,
       ),
       outputDirectory: camera.outputDirectory,
       kinds: kinds,
       cache: camera.cache,
       from: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+      // The platform's surface: Android's shutter, or iOS's modes, lenses
+      // and results strip.
+      policy: CaptureSurfacePolicy.forPlatform(Theme.of(context).platform),
       onCaptured: (shot) => _$shots?.add(shot),
+      resultBuilder: _$shots?.resultTile,
+      onShotRemoved: _$shots?.remove,
       // A hold where videos may not be sent, or one whose microphone was
       // refused: the host says so.
       onVideoRefused: (refusal) => widget.panel.host.interaction(

@@ -10,9 +10,11 @@ import 'package:attach_model/testing.dart';
 import 'package:attach_sheet/attach_sheet.dart';
 import 'package:attach_sheet/src/gallery/gallery_captures.dart';
 import 'package:content_model/content_model.dart' show RichText;
+import 'package:flutter/widgets.dart' hide RichText;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_capture/mpx_capture.dart';
 import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_library/testing.dart';
 import 'package:mpx_ui/mpx_ui.dart';
@@ -96,6 +98,50 @@ void main() {
     expect(interactions, [
       const AttachInteraction.refused(AttachRefusal.kindNotAllowed),
     ]);
+  });
+
+  test('a shot removed from the camera strip leaves the list and the '
+      'selection, and its bytes go', () {
+    final shot = _shot(1);
+    captures
+      ..add(shot)
+      ..add(_shot(2));
+    captures.remove(shot);
+    expect(captures.list.value.map((c) => c.key), [_key(2)]);
+    expect(selection.contains(GalleryCaptures.idOf(_key(1))), isFalse);
+    expect(selection.contains(GalleryCaptures.idOf(_key(2))), isTrue);
+    expect(released, [_key(1)]);
+  });
+
+  testWidgets("a strip tile is the capture's picture, as the grid draws it", (
+    tester,
+  ) async {
+    final shot = _shot(1);
+    captures.add(shot);
+    final clock = PlaybackClock(ticks: ManualPlaybackTickSource());
+    final scope = AssetCacheScope(producer: FakeAssetProducer(), clock: clock);
+    addTearDown(() {
+      scope.dispose();
+      clock.dispose();
+    });
+    await tester.pumpWidget(
+      AssetCacheProvider(
+        scope: scope,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: SizedBox.square(
+              dimension: 48,
+              child: Builder(
+                builder: (context) => captures.resultTile(context, shot),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final view = tester.widget<ContentView>(find.byType(ContentView));
+    expect(view.content, _key(1));
   });
 
   test('the sheet going without a send releases every capture and clears '

@@ -270,6 +270,8 @@ abstract final class ChromeStringsPresets {
       captureSwitchCamera: 'Switch camera',
       captureFlash: 'Flash',
       captureVideoNotAllowed: "Videos can't be sent here",
+      captureVideoMode: 'Video',
+      capturePhotoMode: 'Photo',
       captureMicrophoneDenied:
           'Allow the microphone in Settings to record video',
     ),
@@ -543,6 +545,8 @@ abstract final class ChromeStringsPresets {
       captureSwitchCamera: 'Сменить камеру',
       captureFlash: 'Вспышка',
       captureVideoNotAllowed: 'Здесь нельзя отправлять видео',
+      captureVideoMode: 'Видео',
+      capturePhotoMode: 'Фото',
       captureMicrophoneDenied:
           'Чтобы снимать видео, разрешите доступ к микрофону в настройках',
     ),

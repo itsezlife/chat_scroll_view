@@ -251,6 +251,8 @@ abstract final class ChromeStringsSnapshot {
       'attach.captureSwitchCamera': attach.captureSwitchCamera,
       'attach.captureFlash': attach.captureFlash,
       'attach.captureVideoNotAllowed': attach.captureVideoNotAllowed,
+      'attach.captureVideoMode': attach.captureVideoMode,
+      'attach.capturePhotoMode': attach.capturePhotoMode,
       'attach.captureMicrophoneDenied': attach.captureMicrophoneDenied,
       for (final n in _pluralSamples)
         'attach.photosSelected[$n]': attach.photosSelected(n),

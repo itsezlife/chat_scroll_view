@@ -6,6 +6,11 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (capture modes, breaking)
+
+- `AttachStrings.captureVideoMode` and `capturePhotoMode` (required): the
+  capture surface's mode names, in the English and Russian presets.
+
 ### Added (capture refusals, breaking)
 
 - `AttachStrings.captureVideoNotAllowed` and `captureMicrophoneDenied`
