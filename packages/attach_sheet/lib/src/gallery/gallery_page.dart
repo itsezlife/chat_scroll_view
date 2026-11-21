@@ -666,6 +666,11 @@ class _GalleryViewState extends State<GalleryView> {
       labels: _labels(ChromeStringsScope.attachOf(context)),
       policy: widget.panel.policy.libraryGrid,
       tokens: _tokens(context),
+      // Clear of the bar at the bottom (the caption, the tabs), as the
+      // grid keeps.
+      padding:
+          EdgeInsets.all(widget.panel.policy.libraryGrid.padding) +
+          EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
       controller: _previewController,
       onOpen: (key, index) => unawaited(_openSelected(key, index)),
       onReorder: _$picker.move,

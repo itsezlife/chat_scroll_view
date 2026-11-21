@@ -264,6 +264,32 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('the preview keeps clear of the bar at the bottom, as the '
+      'grid does: its padding ends over it', (tester) async {
+    await open(tester);
+    await tapCheck(tester, 0);
+    await tapCheck(tester, 1);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    final shown = tester.widget<PickerSelectionPreview>(
+      find.byType(PickerSelectionPreview),
+    );
+    final bottom = MediaQuery.paddingOf(
+      tester.element(find.byType(PickerSelectionPreview)),
+    ).bottom;
+    expect(bottom, greaterThan(0), reason: 'the caption bar stands there');
+    final policy = shown.policy;
+    expect(
+      shown.padding,
+      EdgeInsets.fromLTRB(
+        policy.padding,
+        policy.padding,
+        policy.padding,
+        policy.padding + bottom,
+      ),
+    );
+  });
+
   testWidgets('a burst of taps on the header is one switch', (tester) async {
     await open(tester);
     await tapCheck(tester, 0);
