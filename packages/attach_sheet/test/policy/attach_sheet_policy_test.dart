@@ -134,9 +134,18 @@ void main() {
       expect(release(24), isNull);
     });
 
-    test('has no snap at the top: the sheet stops where the list does', () {
-      expect(android.pinSnapZone, isNull);
-    });
+    test(
+      'docks at the top from within the action bar (56), as the list '
+      'smooth-scrolls: 300 ms and its share of the viewport, on a quintic',
+      () {
+        expect(android.pinSnapZone, 56);
+        final motion = android.dockMotion(40, 800) as AttachSheetMotion$Timed;
+        expect(motion.spec.duration, const Duration(milliseconds: 315));
+        expect(motion.spec.curve.transform(0.5), closeTo(1 - 1 / 32, 1e-9));
+        final long = android.dockMotion(20000, 800) as AttachSheetMotion$Timed;
+        expect(long.spec.duration, const Duration(milliseconds: 2000));
+      },
+    );
   });
 
   group('iOS geometry', () {

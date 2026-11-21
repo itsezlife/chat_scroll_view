@@ -6,6 +6,17 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (the dock at the top, Android)
+
+- A sheet whose edge is left within 56 (the action bar's height) of the
+  top, once its drag and fling are over, docks at the top by itself, as
+  the list's smooth scroll: 300 ms and 300 more per viewport moved (at
+  most 2000), easing out on a quintic. The edge drawn counts (a header's
+  growth). `AttachSheetPolicy.dockMotion`, and `pinSnapZone` 56 on
+  Android.
+- `grabberCover` and `topExtension` take effect on the next frame even in
+  an idle app.
+
 ### Changed (the sheet's rest and the keyboard, Android)
 
 - The resting top is taken over the window's whole height: the first row

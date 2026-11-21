@@ -332,9 +332,15 @@ abstract base class AttachSheetPolicy {
   /// How the sheet returns to its rest from [distance] below it.
   MotionSpec holdMotion(double distance);
 
-  /// How far below the top a sheet left by a fling still snaps to the top;
-  /// null for no snap.
+  /// How far below the top a sheet left by a drag or a fling still snaps
+  /// to the top, measured from the edge drawn (a page header's growth
+  /// counted); null for no snap.
   double? get pinSnapZone;
+
+  /// How a sheet [distance] below its top docks there, in a [viewport] of
+  /// the page's height; the policy's expand motion unless a platform says.
+  AttachSheetMotion dockMotion(double distance, double viewport) =>
+      expandMotion;
 
   /// How a sheet a pull left low returns to its rest once the discard
   /// question is answered "keep"; null for [holdMotion].
@@ -541,10 +547,21 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
     const Cubic(0.25, 0.1, 0.25, 1),
   );
 
-  /// None: the sheet's top is the list's, and a fling leaves it wherever
-  /// the list stops, the top or the rest included.
+  /// The action bar's height: a sheet whose edge is left closer than it to
+  /// the top, once its drag and fling are over, docks at the top.
   @override
-  double? get pinSnapZone => null;
+  double? get pinSnapZone => 56;
+
+  /// The list's smooth scroll: 300 ms and 300 more for the share of the
+  /// viewport it moves (at most 2000), easing out on a quintic.
+  @override
+  AttachSheetMotion dockMotion(double distance, double viewport) {
+    final share = viewport > 0 ? distance.abs() / viewport : 0;
+    final ms = math.min(2000, (300 * (1 + share)).round());
+    return AttachSheetMotion.timed(
+      MotionSpec(Duration(milliseconds: ms), const _QuinticOut()),
+    );
+  }
 
   /// The alert's cancel springs the sheet back: damping ratio 1.5,
   /// stiffness 1500.
@@ -1109,3 +1126,14 @@ AttachTabColors _iosTabColors(ChromePalette palette, AttachTokens tokens) =>
       indicator: const Color(0x00000000),
       pressed: const Color(0x00000000),
     );
+
+// (t − 1)^5 + 1: the list's smooth scroll.
+final class _QuinticOut extends Curve {
+  const _QuinticOut();
+
+  @override
+  double transformInternal(double t) {
+    final u = t - 1;
+    return u * u * u * u * u + 1;
+  }
+}

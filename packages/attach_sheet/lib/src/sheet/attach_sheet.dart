@@ -430,6 +430,7 @@ class _AttachSheetState extends State<AttachSheet>
       _extensionPending = false;
       if (mounted) _$extension.value = _pendingExtension;
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   // A header sets it while it builds: the sheet takes it after the frame.
@@ -445,6 +446,7 @@ class _AttachSheetState extends State<AttachSheet>
       _coverPending = false;
       if (mounted) _$cover.value = _pendingCover;
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   @override
@@ -896,8 +898,13 @@ class _AttachSheetState extends State<AttachSheet>
   Future<void> _snap() async {
     final zone = _policy.pinSnapZone;
     final above = _$top.value - _expandedTop;
-    if (zone != null && above > 0.5 && above < zone) {
-      await _moveTo(_expandedTop, _policy.expandMotion);
+    // From the edge drawn: a page header's growth over the top counts.
+    final grown = (_$extension.value?.value ?? 0).clamp(0.0, above);
+    if (zone != null && above > 0.5 && above - grown < zone) {
+      await _moveTo(
+        _expandedTop,
+        _policy.dockMotion(above, _size.height - _expandedTop),
+      );
     }
   }
 

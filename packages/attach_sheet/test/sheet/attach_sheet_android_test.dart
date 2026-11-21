@@ -117,15 +117,53 @@ void main() {
       expect(sheet.pinned.value, 1);
     });
 
-    testWidgets('left just below the top it stays there: no top snap', (
+    testWidgets('left within 56 of the top it docks there by itself, '
+        'easing out over 300 ms and its share of the height', (tester) async {
+      final rig = await SheetRig.open(tester, policy: policy);
+
+      await rig.drag(-(rest - pinned) + 40);
+      await tester.pump();
+      final from = rig.top;
+      expect(from, greaterThan(pinned + 20));
+      expect(from, lessThan(pinned + 56));
+      // 300 ms and 300 more for the share of the viewport moved.
+      const viewport = 800 - pinned;
+      final ms = 300 * (1 + (from - pinned) / viewport);
+      await tester.pump(Duration(milliseconds: (ms / 2).round()));
+      const t = 0.5;
+      const eased = 1 - (1 - t) * (1 - t) * (1 - t) * (1 - t) * (1 - t);
+      expect(rig.top, closeTo(from + (pinned - from) * eased, 1.5));
+      await tester.pumpAndSettle();
+      expect(rig.top, pinned);
+      expect(policy.pinSnapZone, 56);
+    });
+
+    testWidgets('left further down than 56 it stays where it is', (
       tester,
     ) async {
       final rig = await SheetRig.open(tester, policy: policy);
 
-      await rig.drag(-(rest - pinned) + 40);
+      await rig.drag(-(rest - pinned) + 80);
       await tester.pumpAndSettle();
 
-      expect(rig.top, closeTo(pinned + 40, 1));
+      expect(rig.top, closeTo(pinned + 80, 1));
+    });
+
+    testWidgets("a header's growth counts: the zone is from the edge drawn", (
+      tester,
+    ) async {
+      final rig = await SheetRig.open(tester, policy: policy);
+      final sheet = AttachSheetController.of(
+        tester.element(find.byKey(const ValueKey('row-1'))),
+      );
+      final grown = ValueNotifier<double>(26);
+      addTearDown(grown.dispose);
+      sheet.topExtension = grown;
+      await tester.pump();
+      // 70 below the top, its edge 44 below: within the zone.
+      await rig.drag(-(rest - pinned) + 70);
+      await tester.pumpAndSettle();
+      expect(rig.top, pinned);
     });
 
     testWidgets('a fling down from the top goes to the rest, not past it', (
