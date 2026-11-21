@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:chat_scroll_view/src/chat_scroll/animate_to_busy_policy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/animate_to_disposition.dart';
@@ -52,6 +53,12 @@ typedef ChatVisibleRange = ({
   ChatVisibleRow lastRow,
   ChatVisibleRow? anchorNextRow,
 });
+
+/// Where the viewport's band stands in the known span, as its scrollbar
+/// reads it: [progress] from 0 (the oldest known message at the band's top)
+/// to 1 (the newest at its bottom), and [visibleShare], the band's share of
+/// the span, both estimated from the rows laid out so far (ADR 002).
+typedef ChatScrollProgress = ({double progress, double visibleShare});
 
 /// Band-fill reading of a [ChatVisibleRange]'s rows.
 extension ChatVisibleRangeBandFill on ChatVisibleRange {
@@ -444,6 +451,41 @@ class ChatScrollController {
     _navigationPlacement = NavigationPlacement.fractional(messageId, fraction);
     _requestedHighlightMessageId = null;
     _notifyJump(messageId);
+  }
+
+  /// Seats the band at [progress] (0 to 1) of the known span, the band
+  /// taking [visibleShare] of it: the inverse of [scrollProgress].
+  ///
+  /// The band top's fractional id is
+  /// `oldest + progress × (idCount − visibleShare × idCount)`, linear in ids
+  /// across the known span (ADR 002). Its whole part picks the row and its
+  /// fraction goes to [jumpToFraction], which applies it to the row's real
+  /// height once laid out, so the band moves continuously within one tall
+  /// message. A caller dragging through the span keeps [visibleShare] fixed
+  /// for the drag, so its mapping holds still under the pointer.
+  ///
+  /// Silent before the known span has two messages, when the same placement
+  /// is already armed, and after [dispose].
+  void jumpToProgress(double progress, {required double visibleShare}) {
+    final newest = _newestKnownId;
+    final oldest = _oldestKnownId;
+    if (_disposed || newest == null || oldest == null || newest <= oldest) {
+      return;
+    }
+    if (!progress.isFinite || !visibleShare.isFinite) return;
+    final idCount = newest - oldest + 1;
+    final visibleIds = visibleShare.clamp(0.0, 1.0) * idCount;
+    final bandTop =
+        oldest + progress.clamp(0.0, 1.0) * math.max(0.0, idCount - visibleIds);
+    final messageId = math.min(bandTop.floor(), newest);
+    final fraction = (bandTop - messageId).clamp(0.0, 1.0);
+    if (_navigationPlacement case FractionalPlacement(
+      messageId: final armedId,
+      fraction: final armedFraction,
+    ) when armedId == messageId && armedFraction == fraction) {
+      return;
+    }
+    jumpToFraction(messageId, fraction);
   }
 
   void _notifyJump(int messageId) {
@@ -868,7 +910,12 @@ class ChatScrollController {
       <ChatScrollbarSuppression>{};
 
   /// The bound viewport's reactions, or `null` while no viewport is bound.
-  ({VoidCallback onChanged, VoidCallback onFlash})? _scrollbarBinding;
+  ({
+    VoidCallback onChanged,
+    VoidCallback onFlash,
+    VoidCallback? onProgressWanted,
+  })?
+  _scrollbarBinding;
 
   /// Takes a **scrollbar hold**: while it is alive, the bound viewport's
   /// scrollbar stays shown — for a condition the viewport cannot see, such
@@ -954,7 +1001,9 @@ class ChatScrollController {
   /// [isScrollbarHeld] or [isScrollbarSuppressed] flips, synchronously
   /// inside the host's [holdScrollbar], [suppressScrollbar], or
   /// [ChatScrollbarHandle.release] call; [onFlash] runs on
-  /// [flashScrollbar].
+  /// [flashScrollbar]; [onProgressWanted] runs when [scrollProgress] gets
+  /// its first listener, so the viewport publishes it without waiting for
+  /// a move.
   ///
   /// Called by `RenderChatScrollView` on attach and when it switches to
   /// this controller; the viewport reads both getters right after binding,
@@ -963,13 +1012,18 @@ class ChatScrollController {
   void bindScrollbar({
     required VoidCallback onChanged,
     required VoidCallback onFlash,
+    VoidCallback? onProgressWanted,
   }) {
     assert(
       _scrollbarBinding == null,
       'bindScrollbar: a viewport is already bound to this controller',
     );
     if (_disposed) return;
-    _scrollbarBinding = (onChanged: onChanged, onFlash: onFlash);
+    _scrollbarBinding = (
+      onChanged: onChanged,
+      onFlash: onFlash,
+      onProgressWanted: onProgressWanted,
+    );
   }
 
   /// Unbinds the viewport bound by [bindScrollbar] and releases every live
@@ -1061,6 +1115,36 @@ class ChatScrollController {
   set centerBand(ChatCenterBand? value) {
     if (_disposed) return;
     _centerBand.value = value;
+  }
+
+  // --- Scroll progress ---------------------------------------------------
+
+  late final _DeferredValueNotifier<ChatScrollProgress?> _scrollProgress =
+      _DeferredValueNotifier<ChatScrollProgress?>(
+        null,
+        onListened: () => _scrollbarBinding?.onProgressWanted?.call(),
+      );
+
+  /// Where the band stands in the known span ([ChatScrollProgress]), for a
+  /// scrollbar of the host's own (a fast scrollbar); [jumpToProgress] moves
+  /// it. Null while nothing scrolls (the span unknown, or all of it in
+  /// view).
+  ///
+  /// Computed after each layout only while something listens: the first
+  /// value comes with the layout after the first listener. Same listener
+  /// safety as [visibleRange].
+  ValueListenable<ChatScrollProgress?> get scrollProgress => _scrollProgress;
+
+  /// Viewport-only: whether anything listens to [scrollProgress], so the
+  /// viewport computes it.
+  @internal
+  bool get isScrollProgressListened => _scrollProgress.listened;
+
+  /// Viewport-only setter, after every layout while [isScrollProgressListened].
+  @internal
+  set scrollProgress(ChatScrollProgress? value) {
+    if (_disposed) return;
+    _scrollProgress.value = value;
   }
 
   // --- Tail tracking -------------------------------------------------------
@@ -1316,6 +1400,7 @@ class ChatScrollController {
     if (hadScrollbarHandles) scrollbarBinding?.onChanged();
     _visibleRange.dispose();
     _centerBand.dispose();
+    _scrollProgress.dispose();
     _isAtTail.dispose();
   }
 }
@@ -1385,7 +1470,17 @@ final class ChatScrollbarSuppression extends ChatScrollbarHandle {
 /// equality short-circuit on `_controller.isAtTail.value == newValue` will
 /// see the freshly-set value and skip the redundant deferred dispatch.
 class _DeferredValueNotifier<T> extends ValueNotifier<T> {
-  _DeferredValueNotifier(super.value);
+  _DeferredValueNotifier(super.value, {this.onListened});
+
+  /// Runs when the first listener is added.
+  final VoidCallback? onListened;
+
+  @override
+  void addListener(VoidCallback listener) {
+    final first = !hasListeners;
+    super.addListener(listener);
+    if (first) onListened?.call();
+  }
 
   // Pending-write bookkeeping. `_pending` distinguishes "no pending write"
   // from "pending write whose new value is a typed null" — `_pendingValue`
@@ -1397,6 +1492,9 @@ class _DeferredValueNotifier<T> extends ValueNotifier<T> {
 
   @override
   T get value => _pending ? _pendingValue : super.value;
+
+  /// Whether any listener is registered.
+  bool get listened => hasListeners;
 
   @override
   set value(T newValue) {

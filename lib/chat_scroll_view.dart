@@ -35,6 +35,7 @@ export 'src/chat_scroll/animate_to_disposition.dart';
 export 'src/chat_scroll/animate_to_load_policy.dart';
 export 'src/chat_scroll/chat_data_source.dart';
 export 'src/chat_scroll/chat_day_header_delegate.dart';
+export 'src/chat_scroll/chat_fast_scroll_target.dart';
 export 'src/chat_scroll/chat_mutations.dart';
 export 'src/chat_scroll/chat_overscroll_sink.dart'
     show ChatOverscrollEdges, ChatOverscrollSink;

@@ -1,5 +1,15 @@
 ## Unreleased
 
+### Fast scroll target
+- **ADDED**: `ChatFastScrollTarget`, the chat as a `viewport_scroll`
+  `FastScrollTarget`, so a `FastScrollbar` can drive the anchor viewport by
+  its estimated progress over the known span (no pixel extent).
+- **ADDED**: `ChatScrollController.scrollProgress`
+  (`ChatScrollProgress`: progress and visible share, the estimate the
+  viewport's own scrollbar paints, computed only while listened) and
+  `ChatScrollController.jumpToProgress`, its inverse; the viewport's own
+  scrollbar grab now seats the band through it.
+
 ### Media on mpx
 - **CHANGED** (breaking): the embed adapter and the emoji bodies draw through
   `content_assets`' `ContentAssetScope` over `mpx_core`'s asset cache (from

@@ -5969,7 +5969,26 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _publishCenterBand();
     _publishNewestHeightSample();
     _publishIsAtTail();
+    _publishScrollProgress();
     _dispatchViewportGeometryScrollIfNeeded();
+  }
+
+  /// Push the thumb's progress and span share to
+  /// [ChatScrollController.scrollProgress], only while something listens:
+  /// it is the scrollbar's own estimate, not worth a layout's time for no
+  /// one. Null while the content fits the band.
+  void _publishScrollProgress() {
+    if (!_controller.isScrollProgressListened) return;
+    final computed = _contentFitsInViewport()
+        ? null
+        : _computeScrollbarProgress();
+    _controller.scrollProgress = switch (computed) {
+      final c? when c.thumbFraction < 1 => (
+        progress: c.progress,
+        visibleShare: c.thumbFraction,
+      ),
+      _ => null,
+    };
   }
 
   /// Set when [_setOffset] moves a child; consumed by
@@ -6437,6 +6456,7 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _controller.bindScrollbar(
       onChanged: _syncScrollbarHost,
       onFlash: _scrollbarRuntime.flash,
+      onProgressWanted: markNeedsLayout,
     );
     _syncScrollbarHost();
   }
@@ -6455,46 +6475,26 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
       ..suppressed = suppressed;
   }
 
-  /// Seats the band under a grab's thumb [position].
-  ///
-  /// Inverts the thumb-progress mapping of [_scrollbarBandMetrics] at the
-  /// grab's frozen span share, so the pointer and the painted thumb agree:
-  /// the band top's fractional id is
-  /// `oldest + progress × (idCount − visible ids)`, linear in ids across the
-  /// known span (ADR 002). Its whole part picks the row and its fraction
-  /// goes to [ChatScrollController.jumpToFraction], which applies it to the
-  /// row's real height once laid out, so the band moves continuously within
-  /// one tall message. Silent when the same placement is already armed.
+  /// Seats the band under a grab's thumb [position]: the controller's
+  /// [ChatScrollController.jumpToProgress] at the grab's frozen span share,
+  /// the inverse of the thumb-progress mapping of [_scrollbarBandMetrics],
+  /// so the pointer and the painted thumb agree.
   void _dragScrollbarTo(ChatScrollbarGrabPosition position) {
-    final newest = _dataSource.newestKnownId;
-    final oldest = _dataSource.oldestKnownId;
-    if (newest == null || oldest == null || newest <= oldest) return;
-    final idCount = newest - oldest + 1;
-    final visibleIds = position.spanShare * idCount;
-    final bandTop =
-        oldest + position.progress * math.max(0.0, idCount - visibleIds);
-    final messageId = math.min(bandTop.floor(), newest);
-    final fraction = (bandTop - messageId).clamp(0.0, 1.0);
     if (LogCategory.scrollbar.enabled) {
       final current = _computeScrollbarProgress();
       _scrollbarEvent('drag', {
         'dragProgress': LogFormat.f(position.progress),
         'spanShare': LogFormat.f(position.spanShare),
-        'targetId': messageId,
-        'fraction': LogFormat.f(fraction),
-        'oldest': oldest,
-        'newest': newest,
+        'oldest': _dataSource.oldestKnownId,
+        'newest': _dataSource.newestKnownId,
         if (current != null) 'thumbProgress': LogFormat.f(current.progress),
         'anchorId': _controller.anchorMessageId,
       });
     }
-    if (_controller.navigationPlacement case FractionalPlacement(
-      messageId: final armedId,
-      fraction: final armedFraction,
-    ) when armedId == messageId && armedFraction == fraction) {
-      return;
-    }
-    _controller.jumpToFraction(messageId, fraction);
+    _controller.jumpToProgress(
+      position.progress,
+      visibleShare: position.spanShare,
+    );
   }
 
   /// Maps a scroll-band Y coordinate through built rows into a fractional id.

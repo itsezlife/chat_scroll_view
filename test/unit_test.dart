@@ -67,6 +67,8 @@ import 'widgets/chat_desktop_stuck_pointer_test.dart'
 import 'widgets/chat_dispose_during_animate_test.dart'
     as chat_dispose_during_animate_test;
 import 'widgets/chat_drag_slop_test.dart' as chat_drag_slop_test;
+import 'widgets/chat_fast_scroll_target_test.dart'
+    as chat_fast_scroll_target_test;
 import 'widgets/chat_fling_release_test.dart' as chat_fling_release_test;
 import 'widgets/chat_follow_tail_growth_test.dart'
     as chat_follow_tail_growth_test;
@@ -401,6 +403,10 @@ void main() {
   group(
     'widgets/chat_scrollbar_fetch_test.dart',
     chat_scrollbar_fetch_test.main,
+  );
+  group(
+    'widgets/chat_fast_scroll_target_test.dart',
+    chat_fast_scroll_target_test.main,
   );
   group('widgets/chat_scrollbar_grab_test.dart', chat_scrollbar_grab_test.main);
   group('widgets/chat_scrollbar_host_test.dart', chat_scrollbar_host_test.main);
