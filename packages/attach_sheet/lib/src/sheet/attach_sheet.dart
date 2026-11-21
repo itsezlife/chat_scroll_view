@@ -219,8 +219,10 @@ abstract interface class AttachSheetController {
   double topOf({required bool expanded});
 
   /// Puts the sheet's top at [value] at once, stopping its motion: a page
-  /// switch drawing the sheet's move frame by frame.
-  void jumpTop(double value);
+  /// switch drawing the sheet's move frame by frame. With [movesBar] false
+  /// the bottom bar stays where it rests (a switch moves the pages, not
+  /// the tabs) until the sheet next moves otherwise.
+  void jumpTop(double value, {bool movesBar = true});
 
   /// Closes the sheet, asking the discard question first when the
   /// selection is not empty.
@@ -405,10 +407,16 @@ class _AttachSheetState extends State<AttachSheet>
       expanded ? _expandedTop : _collapsedTop;
 
   @override
-  void jumpTop(double value) {
+  void jumpTop(double value, {bool movesBar = true}) {
     if (!_opened || _closing) return;
+    _$top.stop();
+    _barStill = !movesBar;
     _$top.value = value;
   }
+
+  // Whether the bottom bar stays at its rest while the top moves: a page
+  // switch's drop is the pages', not the bar's.
+  var _barStill = false;
 
   @override
   Future<void> requestDismiss() async {
@@ -474,6 +482,7 @@ class _AttachSheetState extends State<AttachSheet>
     AttachSheetMotion motion, {
     double velocity = 0,
   }) async {
+    _barStill = false;
     if (_speed.isInstant) {
       _$top.value = target;
       return;
@@ -678,6 +687,7 @@ class _AttachSheetState extends State<AttachSheet>
 
   @override
   double dragSheet(double delta) {
+    _barStill = false;
     if (_$discardPending) return 0;
     _$sheetMoved = true;
     final next = _$top.value + delta;
@@ -1095,7 +1105,10 @@ class _AttachSheetState extends State<AttachSheet>
       child: Opacity(
         opacity: _contentOpacity,
         child: Transform.translate(
-          offset: Offset(0, math.max(0, _shownTop - _collapsedTop)),
+          offset: Offset(
+            0,
+            _barStill ? 0 : math.max(0, _shownTop - _collapsedTop),
+          ),
           child: bar,
         ),
       ),

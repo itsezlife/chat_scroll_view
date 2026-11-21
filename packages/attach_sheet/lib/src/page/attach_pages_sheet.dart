@@ -436,8 +436,10 @@ class _AttachPageAreaState extends State<_AttachPageArea>
           final to = sheet.topOf(expanded: expanded);
           void outTop() => sheet.jumpTop(
             from + (to - from) * _$out.value + distance * _$out.value,
+            movesBar: false,
           );
-          void inTop() => sheet.jumpTop(to + distance * (1 - _$in.value));
+          void inTop() =>
+              sheet.jumpTop(to + distance * (1 - _$in.value), movesBar: false);
           _$in.value = 0;
           _$fadeIn.value = 0;
           final spec = out.withSpeed(speed);
@@ -453,7 +455,8 @@ class _AttachPageAreaState extends State<_AttachPageArea>
           if (!mounted) return;
           _$fadeIn.value = 1;
           setState(() => _leaving = null);
-          _model.switching = false;
+          // Taps on tabs wait through the spring too: the switch is one
+          // motion until the new page rests.
           _$in.addListener(inTop);
           try {
             await _$in
@@ -463,7 +466,7 @@ class _AttachPageAreaState extends State<_AttachPageArea>
             _$in.removeListener(inTop);
           }
           _$in.value = 1;
-          sheet.jumpTop(to);
+          sheet.jumpTop(to, movesBar: false);
         case AttachTabSwitch$CrossFade(:final fade, :final inSpring):
           final spec = fade.withSpeed(speed);
           unawaited(sheet.settle(expanded: expanded, spring: inSpring));

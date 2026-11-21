@@ -599,6 +599,43 @@ void main() {
       expect(rig.top, closeTo(full, 0.5));
     });
 
+    testWidgets('Android: taps spammed through a switch, its spring '
+        'included, change nothing until it ends', (tester) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [rowsPage('gallery'), rowsPage('files'), rowsPage('music')],
+      );
+      await tester.tap(rig.tab('files'));
+      await tester.pump();
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        await tester.tap(rig.tab(i.isEven ? 'music' : 'gallery'));
+      }
+      await tester.pumpAndSettle();
+      expect(rig.shows('files'), isTrue);
+      expect(rig.shows('music'), isFalse);
+      expect(rig.shows('gallery'), isFalse);
+    });
+
+    testWidgets('Android: a tap during the switch\'s spring waits too', (
+      tester,
+    ) async {
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [rowsPage('gallery'), rowsPage('files'), rowsPage('music')],
+      );
+      await tester.tap(rig.tab('files'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 30));
+      await tester.tap(rig.tab('music'));
+      await tester.pumpAndSettle();
+      expect(rig.shows('files'), isTrue);
+      expect(rig.shows('music'), isFalse);
+    });
+
     testWidgets('a tap during a switch waits (Android)', (tester) async {
       final rig = await PagesRig.open(
         tester,

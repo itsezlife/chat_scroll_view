@@ -185,16 +185,27 @@ final class ChatAttach extends AttachSheetHost {
   SendOptionStore get _store =>
       SendOptionStore(services.keyValueStore, policy: attachPolicy);
 
-  /// The attach button.
+  /// The attach button. A press while the sheet (or the file picker) is
+  /// opening or open does nothing: the sheet is modal, and the time before
+  /// it shows must not open a second.
   Future<void> open(BuildContext context) async {
-    _$context = context;
-    if (policy.confirmBox != null) {
-      final files = await (await _$intake).pickFiles();
-      if (files.isEmpty || !context.mounted) return;
-      return openBox(context, files);
+    if (_$opening) return;
+    _$opening = true;
+    try {
+      _$context = context;
+      if (policy.confirmBox != null) {
+        final files = await (await _$intake).pickFiles();
+        if (files.isEmpty || !context.mounted) return;
+        return await openBox(context, files);
+      }
+      await _openSheet(context);
+    } finally {
+      _$opening = false;
     }
-    await _openSheet(context);
   }
+
+  // Whether an open (the sheet, or the picker before the box) runs.
+  var _$opening = false;
 
   Future<void> _openSheet(BuildContext context) async {
     final intake = await _$intake;

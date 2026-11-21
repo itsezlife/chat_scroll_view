@@ -258,7 +258,9 @@ final class AttachSendController {
   /// haptic plays and the host hears an [AttachInteraction.captionTooLong].
   /// Returns whether it was sent.
   bool send([SendOptions Function(SendOptions options)? change]) {
-    if (_$disposed) return false;
+    // One send per open: a second press (a spammed Send, the send menu
+    // after Send) is ignored.
+    if (_$disposed || this.sent != null) return false;
     final over = caption.length - captionLimit;
     if (over > 0) {
       refusals.value++;

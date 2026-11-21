@@ -6,6 +6,15 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (input guards)
+
+- A tab switch is one motion until the new page rests: taps on tabs wait
+  through its spring too, not only the out phase. The tab bar no longer
+  drops with the sheet's switch drop (`AttachSheetController.jumpTop`
+  takes `movesBar`).
+- Send sends once per open: a spammed Send, or the send menu after it,
+  does nothing more (`AttachSendController.send` answers false).
+
 ### Fixed (selection drag raises the sheet)
 
 - A swipe selection held at the grid's bottom edge raises the sheet to its

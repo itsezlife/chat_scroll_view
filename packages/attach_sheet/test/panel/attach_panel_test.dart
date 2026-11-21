@@ -309,6 +309,24 @@ void main() {
       ]);
     });
 
+    testWidgets('Send spammed sends once', (tester) async {
+      final sends = <SendRequest>[];
+      final controller = AttachSendController(
+        selection: AttachSelection(
+          policy: const AttachPolicy.android(),
+          limits: const AttachLimits(),
+        )..toggle(AttachItems.photo('p')),
+        policy: const AttachSheetPolicy.android(),
+        host: const AttachSheetHost(),
+        onSend: sends.add,
+      );
+      addTearDown(controller.dispose);
+      expect(controller.send(), isTrue);
+      expect(controller.send(), isFalse);
+      expect(controller.send(), isFalse);
+      expect(sends, hasLength(1));
+    });
+
     testWidgets('a cancel returns the caption', (tester) async {
       final (rig, _) = await open(
         tester,

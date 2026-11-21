@@ -70,6 +70,7 @@ import 'features/chat/chat_attach_messages_test.dart'
     as chat_attach_messages_test;
 import 'features/chat/chat_attach_ownership_test.dart'
     as chat_attach_ownership_test;
+import 'features/chat/chat_attach_spam_test.dart' as chat_attach_spam_test;
 import 'features/chat/chat_body_host_test.dart' as chat_body_host_test;
 import 'features/chat/chat_body_markdown_test.dart' as chat_body_markdown_test;
 import 'features/chat/chat_bulletins_test.dart' as chat_bulletins_test;
@@ -587,6 +588,7 @@ void main() {
     chat_caption_dock_test.main,
   );
   group('features/chat/chat_attach_back_test.dart', chat_attach_back_test.main);
+  group('features/chat/chat_attach_spam_test.dart', chat_attach_spam_test.main);
   group(
     'features/chat/chat_attach_messages_test.dart',
     chat_attach_messages_test.main,
