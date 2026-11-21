@@ -35,11 +35,14 @@ package is pre-1.0.
 ### Fixed (selection drag raises the sheet)
 
 - A swipe selection held at the grid's bottom edge raises the sheet to its
-  top first, then scrolls the grid, as a scroll of the page does; held at
-  the top edge it scrolls the grid back and then lowers the sheet. The
-  grid's auto-scroll is a drag of the page, which the sheet's scroll
-  position shares as it shares a finger's. A jump (an album change, a fast
-  scroll) only moves the page.
+  top first, then scrolls the grid, as a scroll of the page does. Held at
+  the top edge it scrolls the grid back to its start and never moves the
+  sheet: a drag while the page holds its own scroll (its physics turn user
+  scrolling off) never lowers the sheet, and a selection's end leaves the
+  sheet where it is. The grid's auto-scroll is a drag of the page, which
+  the sheet's scroll position shares. A finger's drag back past the start
+  still lowers the sheet. A jump (an album change, a fast scroll) only
+  moves the page.
 
 ### Changed (the camera per platform)
 

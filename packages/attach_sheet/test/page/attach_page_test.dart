@@ -552,7 +552,99 @@ void main() {
       expect(rig.top, restAgain);
     });
 
-    testWidgets('backward scrolls the page to its start, then lowers the '
+    // The swipe selection holds the page's scroll (its physics turn user
+    // scrolling off) and drives it from the edges.
+    Future<(PagesRig, AttachPageScope)> openLocked(WidgetTester tester) async {
+      late AttachPageScope gallery;
+      final locked = ValueNotifier(false);
+      addTearDown(locked.dispose);
+      final rig = await PagesRig.open(
+        tester,
+        policy: android,
+        pages: [
+          rowsPage('gallery', onScope: (s) => gallery = s, locked: locked),
+          rowsPage('files'),
+        ],
+      );
+      locked.value = true;
+      await tester.pump();
+      return (rig, gallery);
+    }
+
+    testWidgets('during a swipe selection, forward raises the sheet first, '
+        'then scrolls the page', (tester) async {
+      final (rig, gallery) = await openLocked(tester);
+      final position = gallery.scrollController.position;
+      final rest = rig.top;
+      final drag = position.drag(DragStartDetails(), () {});
+      await step(tester, drag, 16);
+      expect(rig.top, closeTo(rest - 16, 0.01));
+      expect(position.pixels, 0);
+      for (var i = 0; i < 100 && rig.top > 24; i++) {
+        await step(tester, drag, 16);
+      }
+      await step(tester, drag, 16);
+      expect(rig.top, 24);
+      expect(position.pixels, greaterThan(0));
+      drag.end(DragEndDetails(primaryVelocity: 0));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('during a swipe selection, backward never moves the sheet: '
+        'at rest, raised part way, or after the page reaches its start', (
+      tester,
+    ) async {
+      final (rig, gallery) = await openLocked(tester);
+      final position = gallery.scrollController.position;
+      final rest = rig.top;
+
+      // At rest: nothing moves.
+      var drag = position.drag(DragStartDetails(), () {});
+      for (var i = 0; i < 5; i++) {
+        await step(tester, drag, -16);
+      }
+      expect(rig.top, rest);
+      expect(position.pixels, 0);
+      drag.end(DragEndDetails(primaryVelocity: 0));
+      await tester.pumpAndSettle();
+      expect(rig.top, rest);
+
+      // Raised part way by the bottom edge, then held at the top edge.
+      drag = position.drag(DragStartDetails(), () {});
+      for (var i = 0; i < 3; i++) {
+        await step(tester, drag, 16);
+      }
+      final raised = rig.top;
+      expect(raised, closeTo(rest - 48, 0.01));
+      for (var i = 0; i < 5; i++) {
+        await step(tester, drag, -16);
+      }
+      expect(rig.top, raised);
+      drag.end(DragEndDetails(primaryVelocity: 0));
+      await tester.pumpAndSettle();
+      expect(
+        rig.top,
+        raised,
+        reason: 'a selection leaves the sheet where it is',
+      );
+
+      // Raised to the top and the page scrolled: back to the page's start,
+      // and no further.
+      drag = position.drag(DragStartDetails(), () {});
+      for (var i = 0; i < 100 && position.pixels < 40; i++) {
+        await step(tester, drag, 16);
+      }
+      expect(rig.top, 24);
+      for (var i = 0; i < 10; i++) {
+        await step(tester, drag, -16);
+      }
+      expect(position.pixels, 0);
+      expect(rig.top, 24);
+      drag.end(DragEndDetails(primaryVelocity: 0));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets("a finger's drag back past the page's start still lowers the "
         'sheet', (tester) async {
       late AttachPageScope gallery;
       final rig = await PagesRig.open(
@@ -563,28 +655,15 @@ void main() {
           rowsPage('files'),
         ],
       );
-      final sheet = AttachSheetController.of(
-        tester.element(find.byKey(const ValueKey('gallery-row-0'))),
+      final rest = rig.top;
+      await tester.drag(
+        find.byKey(const ValueKey('gallery-row-2')),
+        const Offset(0, 60),
       );
-      unawaited(sheet.expand());
-      await tester.pumpAndSettle();
-      expect(rig.top, 24);
-      final position = gallery.scrollController.position;
-      position.jumpTo(40);
       await tester.pump();
-
-      final drag = position.drag(DragStartDetails(), () {});
-      for (var i = 0; i < 3; i++) {
-        await step(tester, drag, -16);
-      }
-      expect(position.pixels, 0);
-      // The step that reaches the start ends there, as a finger's does.
-      expect(rig.top, 24);
-      for (var i = 0; i < 4; i++) {
-        await step(tester, drag, -16);
-      }
-      expect(position.pixels, 0);
-      expect(rig.top, closeTo(24 + 64, 0.01));
+      expect(rig.top, greaterThan(rest));
+      expect(gallery.scrollController.position.pixels, 0);
+      await tester.pumpAndSettle();
     });
   });
 }

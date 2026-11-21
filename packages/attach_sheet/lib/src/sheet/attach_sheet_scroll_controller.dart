@@ -98,7 +98,12 @@ class _AttachSheetScrollPosition extends ScrollPositionWithSingleContext {
   void applyUserOffset(double delta) {
     // `delta` is in the scroll's terms: positive when the finger moves down.
     if (!drive.takesDrags) return super.applyUserOffset(delta);
-    final movesSheet = delta < 0 ? !drive.isAtTop : _atStart;
+    // A drag while the page holds its own scroll (a swipe selection, whose
+    // physics turn user scrolling off) is the page's edge auto-scroll: it
+    // raises the sheet before scrolling forward, but never lowers it; back
+    // past the page's start it stops there.
+    final pageGesture = !physics.allowUserScrolling;
+    final movesSheet = delta < 0 ? !drive.isAtTop : _atStart && !pageGesture;
     if (!movesSheet) return super.applyUserOffset(delta);
     final rest = drive.dragSheet(delta);
     if (drive.endsDrag) {

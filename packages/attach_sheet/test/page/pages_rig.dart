@@ -3,6 +3,7 @@ import 'package:attach_sheet/attach_sheet.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart' as content;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,6 +15,7 @@ AttachPage rowsPage(
   AttachPagePermission? permission,
   void Function(AttachPageScope scope)? onScope,
   List<String>? builds,
+  ValueListenable<bool>? locked,
 }) => AttachPage(
   id: AttachPageId(id),
   label: label ?? id,
@@ -23,12 +25,22 @@ AttachPage rowsPage(
   builder: (context, scope) {
     builds?.add(id);
     onScope?.call(scope);
-    return ListView.builder(
+    Widget list({required bool locked}) => ListView.builder(
       controller: scope.scrollController,
+      // Locked, the page's own gesture holds the scroll (a swipe
+      // selection), as the grid's does.
+      physics: locked ? const NeverScrollableScrollPhysics() : null,
       itemCount: 60,
       itemBuilder: (context, i) =>
           SizedBox(key: ValueKey('$id-row-$i'), height: 50),
     );
+    return switch (locked) {
+      final locked? => ValueListenableBuilder<bool>(
+        valueListenable: locked,
+        builder: (context, value, _) => list(locked: value),
+      ),
+      null => list(locked: false),
+    };
   },
 );
 
