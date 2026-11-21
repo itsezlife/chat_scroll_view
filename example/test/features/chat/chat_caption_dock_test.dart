@@ -25,6 +25,35 @@ import '../../support/test_services.dart';
 const double _safe = 34;
 const double _keyboardHeight = 300;
 
+/// Stands in for a viewer over the sheet: while it is up the dock is
+/// paused, and it unpauses the dock as it is disposed, as the viewer's
+/// caption dock does when its route goes.
+class _Viewer extends StatefulWidget {
+  const _Viewer({required this.dock});
+
+  final ChatCaptionDock dock;
+
+  @override
+  State<_Viewer> createState() => _ViewerState();
+}
+
+class _ViewerState extends State<_Viewer> {
+  @override
+  void initState() {
+    super.initState();
+    widget.dock.paused = true;
+  }
+
+  @override
+  void dispose() {
+    widget.dock.paused = false;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
 final class _Rig {
   _Rig(this.tester, this.services, this.keyboard, this.caption, this.dock);
 
@@ -61,6 +90,9 @@ final class _Rig {
       keyboard: keyboard,
     );
     addTearDown(dock.dispose);
+    final viewer = ValueNotifier<bool>(false);
+    addTearDown(viewer.dispose);
+    _viewer = viewer;
     await tester.pumpWidget(
       MaterialApp(
         builder: (context, child) =>
@@ -68,6 +100,11 @@ final class _Rig {
         home: Builder(
           builder: (context) => Stack(
             children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: viewer,
+                builder: (context, up, _) =>
+                    up ? _Viewer(dock: dock) : const SizedBox.shrink(),
+              ),
               Positioned(
                 left: 0,
                 right: 0,
@@ -100,6 +137,12 @@ final class _Rig {
     await tester.pump();
     return _Rig(tester, services, keyboard, caption, dock);
   }
+
+  static late ValueNotifier<bool> _viewer;
+
+  /// Puts a viewer over the sheet (pausing the dock) or takes it away
+  /// (unpausing it from the viewer's dispose).
+  set viewerUp(bool value) => _viewer.value = value;
 
   double get screen => tester.view.physicalSize.height / 3;
 
@@ -278,6 +321,44 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(rig.lift, closeTo(_safe, 0.5));
+  });
+
+  testWidgets('keyboard up, a viewer opens, the keyboard goes down, the '
+      'viewer closes: the bar is at its rest place on the first frame', (
+    tester,
+  ) async {
+    final rig = await _Rig.pump(tester);
+    await rig.keyboardUp();
+    expect(rig.lift, closeTo(_keyboardHeight, 0.5));
+
+    rig.viewerUp = true;
+    await tester.pump();
+    await rig.keyboardMoves(_keyboardHeight, 0, steps: 12, check: (_) {});
+    await tester.pumpAndSettle();
+
+    rig.viewerUp = false;
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(rig.lift, closeTo(_safe, 0.5));
+  });
+
+  testWidgets('unpaused as a viewer is disposed, the dock reads the keyboard '
+      'on a frame of its own, never while the tree is locked', (tester) async {
+    final rig = await _Rig.pump(tester);
+    rig.viewerUp = true;
+    await tester.pump();
+    // The keyboard rises for the viewer's caption: the paused dock does not
+    // follow it up.
+    rig.keyboard.rest(_keyboardHeight);
+    await tester.pumpAndSettle();
+    expect(rig.lift, closeTo(_safe, 0.5));
+
+    rig.viewerUp = false;
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(tester.binding.hasScheduledFrame, isTrue);
+    await tester.pumpAndSettle();
+    expect(rig.lift, closeTo(_keyboardHeight, 0.5));
   });
 
   testWidgets('a pick types into the caption', (tester) async {

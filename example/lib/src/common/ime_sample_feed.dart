@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 
 /// Feeds the platform's soft keyboard into a panel presentation's
@@ -18,7 +19,7 @@ final class ImeSampleFeed {
     : _keyboard = keyboard,
       _height = keyboard.restingHeight {
     _heights = keyboard.heights.listen(_onHeight);
-    _motion = keyboard.animatingChanges.listen((_) => report());
+    _motion = keyboard.animatingChanges.listen((_) => _onMotion());
   }
 
   /// Where the samples go.
@@ -28,6 +29,9 @@ final class ImeSampleFeed {
   late final StreamSubscription<double> _heights;
   late final StreamSubscription<bool> _motion;
   double _height;
+  // The height last reported, while paused the one a keyboard going down
+  // is followed under.
+  double? _reported;
   double _safeBottom = 0;
   var _paused = false;
   var _disposed = false;
@@ -42,18 +46,51 @@ final class ImeSampleFeed {
     report();
   }
 
-  /// While paused nothing is reported (another surface owns the keyboard);
-  /// unpaused, the keyboard is reported as it is then.
+  /// While paused (another surface owns the keyboard) a keyboard rising
+  /// is not reported, but one going down still is: what this surface stood
+  /// on is gone, so it is at rest when it is unpaused. Unpaused, the
+  /// keyboard is reported as it is then, on a frame of its own when the
+  /// unpause comes in a frame's build (a surface disposed as its route
+  /// goes), where listeners could not rebuild.
   bool get paused => _paused;
   set paused(bool value) {
     if (_paused == value) return;
     _paused = value;
-    if (!value) report();
+    if (!value) _reportWhenUnlocked();
   }
 
   void _onHeight(double height) {
     _height = height;
-    report();
+    if (_paused) {
+      _followDown();
+    } else {
+      report();
+    }
+  }
+
+  void _onMotion() {
+    if (_paused) {
+      _followDown();
+    } else {
+      report();
+    }
+  }
+
+  // While paused: a keyboard at or under the height last reported.
+  void _followDown() {
+    final reported = _reported;
+    if (reported == null || _height > reported) return;
+    _send();
+  }
+
+  void _reportWhenUnlocked() {
+    final scheduler = SchedulerBinding.instance;
+    switch (scheduler.schedulerPhase) {
+      case SchedulerPhase.idle || SchedulerPhase.postFrameCallbacks:
+        report();
+      case _:
+        scheduler.addPostFrameCallback((_) => report());
+    }
   }
 
   double get _heightWithSafeArea {
@@ -64,7 +101,13 @@ final class ImeSampleFeed {
 
   /// Reports the keyboard as it is now.
   void report() {
-    if (_disposed || _paused) return;
+    if (_paused) return;
+    _send();
+  }
+
+  void _send() {
+    if (_disposed) return;
+    _reported = _height;
     ime.report(
       ImeSample(
         height: _heightWithSafeArea,
