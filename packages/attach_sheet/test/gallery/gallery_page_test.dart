@@ -8,6 +8,7 @@ import 'package:attach_sheet/attach_sheet.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
+import 'package:content_model/content_model.dart' as content;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_capture/mpx_capture.dart';
@@ -60,12 +61,14 @@ void main() {
     PlayerPool? players,
     Size size = const Size(400, 800),
     bool viewBottomPadding = false,
+    AttachPolicy attachPolicy = const AttachPolicy.android(),
   }) async {
     final rig = await PagesRig.open(
       tester,
       size: size,
       viewBottomPadding: viewBottomPadding,
       policy: const AttachSheetPolicy.android(),
+      attachPolicy: attachPolicy,
       limits: limits,
       host: host,
       wrap: (app) => AssetCacheProvider(scope: scope, child: app),
@@ -395,13 +398,17 @@ void main() {
     Finder inViewer(Finder of) => find.descendant(of: viewerSlot, matching: of);
     final island = find.byKey(const ValueKey('attach-caption'));
 
-    Future<(PagesRig, DockHost)> openViewer(WidgetTester tester) async {
+    Future<(PagesRig, DockHost)> openViewer(
+      WidgetTester tester, {
+      AttachPolicy attachPolicy = const AttachPolicy.android(),
+    }) async {
       final host = DockHost();
       final rig = await open(
         tester,
         size: const Size(800, 1200),
         host: host,
         viewBottomPadding: true,
+        attachPolicy: attachPolicy,
       );
       rig.selection.toggle(AttachItems.file('f'));
       final ratio = tester.view.devicePixelRatio;
@@ -425,6 +432,51 @@ void main() {
       }
     }
 
+    testWidgets('the caption follows the item shown: typing gives it its '
+        'own (selecting it), another page shows its own, back shows it '
+        'again; the first item shows the sheet\'s', (tester) async {
+      final (rig, _) = await openViewer(tester);
+      ComposerController field() =>
+          tester.widget<ComposerView>(inViewer(island)).controller;
+      final shown = AttachPickerSelection.itemOf(FakeMediaLibrary.assetAt(1));
+
+      field().restore(const content.RichText.plain('one'));
+      await tester.pump();
+      expect(rig.selection.contains(shown.id), isTrue);
+      expect(
+        rig.selection.ownCaptionOf(shown.id),
+        const content.RichText.plain('one'),
+      );
+
+      await tester.drag(find.byType(PickerViewerChrome), const Offset(-700, 0));
+      await settle(tester);
+      expect(field().richText, content.RichText.empty);
+
+      await tester.drag(find.byType(PickerViewerChrome), const Offset(700, 0));
+      await settle(tester);
+      expect(field().richText, const content.RichText.plain('one'));
+    });
+
+    testWidgets('iOS: with a sheet caption set, every item shows it and an '
+        'edit edits it', (tester) async {
+      final (rig, _) = await openViewer(
+        tester,
+        attachPolicy: const AttachPolicy.ios(),
+      );
+      rig.selection.caption = const content.RichText.plain('all');
+      await tester.pump();
+      ComposerController field() =>
+          tester.widget<ComposerView>(inViewer(island)).controller;
+      expect(field().richText, const content.RichText.plain('all'));
+      field().restore(const content.RichText.plain('all!'));
+      await tester.pump();
+      expect(rig.selection.caption, const content.RichText.plain('all!'));
+
+      await tester.drag(find.byType(PickerViewerChrome), const Offset(-700, 0));
+      await settle(tester);
+      expect(field().richText, const content.RichText.plain('all!'));
+    });
+
     testWidgets('its own field and dock: the button, the place under it; the '
         'slot is never lifted, the island and Send follow the place and the '
         'pad at every frame of a keyboard going down', (tester) async {
@@ -447,7 +499,11 @@ void main() {
           )
           .controller;
       expect(identical(viewerField, sheetField), isFalse);
-      expect(viewerField.text, same(sheetField.text), reason: 'one text');
+      expect(
+        identical(viewerField.text, sheetField.text),
+        isFalse,
+        reason: "the shown item's caption, not the sheet's text",
+      );
 
       final screen =
           tester.view.physicalSize.height / tester.view.devicePixelRatio;

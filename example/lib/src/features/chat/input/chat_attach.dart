@@ -53,17 +53,12 @@ abstract final class ChatAttachMessages {
             line(item),
             if (caption != null) caption.plain,
           ].join('\n'),
-          PlannedSend$Group(
-            :final items,
-            :final captionIndex,
-            :final caption,
-          ) =>
-            [
-              for (var i = 0; i < items.length; i++) ...[
-                line(items[i]),
-                if (i == captionIndex && caption != null) caption.plain,
-              ],
-            ].join('\n'),
+          final PlannedSend$Group group => [
+            for (var i = 0; i < group.items.length; i++) ...[
+              line(group.items[i]),
+              ?group.captionOf(i)?.plain,
+            ],
+          ].join('\n'),
           PlannedSend$Text(:final caption) => caption.plain,
         },
     ];

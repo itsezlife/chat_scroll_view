@@ -6,6 +6,16 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (per-item captions)
+
+- The sheet's caption field is the selection's shared caption, both ways:
+  a reorder that hands the first item's caption on (Android) loads it.
+  Sends carry each item's own caption (`AttachSelection.itemsToSend`).
+- The picker viewer's caption is the shown item's: the field has its own
+  text, loaded from `AttachSelection.captionOf` as the page changes and
+  written through `setCaptionOf` (on Android typing on an item not
+  selected selects it; on iOS a set sheet caption is every item's).
+
 ### Changed (fast scroll target)
 
 - The gallery's fast scroll drives its grid through

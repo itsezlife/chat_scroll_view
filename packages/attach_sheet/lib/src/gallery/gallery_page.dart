@@ -13,9 +13,10 @@ import 'package:attach_sheet/src/panel/attach_panel.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/content_model.dart' show RichText;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/widgets.dart' hide RichText;
 import 'package:mpx_capture/mpx_capture.dart';
 import 'package:mpx_core/mpx_core.dart' show MediaKey;
 import 'package:mpx_library/mpx_library.dart';
@@ -353,6 +354,10 @@ class _GalleryViewState extends State<GalleryView> {
           child: _ViewerCaption(
             key: const ValueKey('attach-viewer-slot'),
             controller: widget.panel,
+            item: switch (item.asset) {
+              final asset? => AttachPickerSelection.itemOf(asset),
+              null => null,
+            },
             sheetRest: _restFocus,
             chromeShown: item.chromeShown,
             beforeSend: () {
@@ -552,6 +557,7 @@ class _GalleryViewState extends State<GalleryView> {
 class _ViewerCaption extends StatefulWidget {
   const _ViewerCaption({
     required this.controller,
+    required this.item,
     required this.sheetRest,
     required this.chromeShown,
     required this.beforeSend,
@@ -559,6 +565,10 @@ class _ViewerCaption extends StatefulWidget {
   });
 
   final AttachSendController controller;
+
+  /// The item shown, whose caption the field edits (the shared one, or its
+  /// own, by the policy's rule); null for the shared caption.
+  final AttachItem? item;
   final FocusNode sheetRest;
 
   /// Whether the viewer's chrome (this slot in it) is shown: false the
@@ -571,9 +581,45 @@ class _ViewerCaption extends StatefulWidget {
 }
 
 class _ViewerCaptionState extends State<_ViewerCaption> {
-  late final ComposerController _caption = ComposerController(
-    text: widget.controller.caption.text,
-  );
+  // The field's own text, drawn as the sheet's is: it holds the caption of
+  // the item shown and is loaded again as the page changes.
+  late final ComposerTextController? _text = widget.controller.host
+      .createCaptionText();
+  late final ComposerController _caption = ComposerController(text: _text);
+
+  AttachSelection get _selection => widget.controller.selection;
+  var _loading = false;
+
+  RichText get _shownCaption => switch (widget.item) {
+    final item? => _selection.captionOf(item.id),
+    null => _selection.caption,
+  };
+
+  // Loads the shown item's caption, unless the field already holds it
+  // (an edit of ours coming back), so the caret stays where it is.
+  void _load() {
+    final caption = _shownCaption;
+    if (caption == _caption.richText) return;
+    _loading = true;
+    try {
+      _caption.restore(caption);
+    } finally {
+      _loading = false;
+    }
+  }
+
+  void _edited() {
+    if (_loading) return;
+    final text = _caption.richText;
+    if (text == _shownCaption) return;
+    switch (widget.item) {
+      case final item?:
+        _selection.setCaptionOf(item, text);
+      case null:
+        _selection.caption = text;
+    }
+  }
+
   late final AttachCaptionDock? _dock = widget.controller.host
       .createCaptionDock(_caption);
   // Whether the sheet's caption panel was up as the viewer opened.
@@ -587,6 +633,9 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
     widget.controller.captionDock?.settle();
     _sheetPanelWasUp = widget.controller.captionDock?.panelUp ?? false;
     widget.chromeShown.addListener(_onChrome);
+    _load();
+    _caption.text.addListener(_edited);
+    _selection.captionChanges.addListener(_load);
   }
 
   @override
@@ -596,6 +645,8 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
       oldWidget.chromeShown.removeListener(_onChrome);
       widget.chromeShown.addListener(_onChrome);
     }
+    // Another page: the field shows that item's caption.
+    if (oldWidget.item?.id != widget.item?.id) _load();
   }
 
   // The chrome going (a dismiss drag starts, a tap hides it, a close): a
@@ -643,8 +694,11 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
         rest.requestFocus();
       }
     });
+    _selection.captionChanges.removeListener(_load);
+    _caption.text.removeListener(_edited);
     _dock?.dispose();
     _caption.dispose();
+    _text?.dispose();
     super.dispose();
   }
 

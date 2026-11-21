@@ -280,6 +280,35 @@ void main() {
       expect(outcome.request.options, const SendOptions());
     });
 
+    testWidgets('the field is the selection\'s shared caption, both ways; '
+        'items go with their own captions', (tester) async {
+      final (rig, scope) = await open(tester);
+      final a = AttachItems.photo('a');
+      final b = AttachItems.photo('b');
+      rig.selection
+        ..toggle(a)
+        ..toggle(b);
+      await tester.pumpAndSettle();
+      scope.panel.caption.restore(const content.RichText.plain('aye'));
+      expect(rig.selection.caption, const content.RichText.plain('aye'));
+
+      rig.selection.setCaptionOf(b, const content.RichText.plain('bee'));
+      // The first item moves: its caption goes with it, and the new first
+      // item's becomes the field's.
+      rig.selection.reorder(1, 0);
+      await tester.pump();
+      expect(scope.panel.caption.richText, const content.RichText.plain('bee'));
+
+      await tester.tap(find.byKey(const ValueKey('attach-send')));
+      await tester.pumpAndSettle();
+      final outcome = rig.outcome! as AttachOutcome$Send;
+      expect(outcome.request.caption, const content.RichText.plain('bee'));
+      expect(outcome.request.items.map((i) => i.caption), [
+        null,
+        const content.RichText.plain('aye'),
+      ]);
+    });
+
     testWidgets('a cancel returns the caption', (tester) async {
       final (rig, _) = await open(
         tester,

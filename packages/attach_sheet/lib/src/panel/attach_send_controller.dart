@@ -43,9 +43,11 @@ final class AttachSendController {
       'created: inline content ${_captionText == null ? 'as text' : 'drawn'}',
     );
     caption.restore(initialCaption);
+    selection.caption = caption.richText;
     caption.focusNode.addListener(_captionFocus);
     caption.text.addListener(_captionChanged);
     selection.changes.addListener(_selectionChanged);
+    selection.captionChanges.addListener(_sharedCaptionChanged);
     if (store case final store?) {
       unawaited(
         store.restore(initialOptions).then((restored) {
@@ -82,8 +84,33 @@ final class AttachSendController {
     '(soft keyboard ${caption.softKeyboard.value.name})',
   );
 
+  // The field is the selection's shared caption: an edit here writes it,
+  // and a change there (the viewer, a reorder handing the first item's
+  // caption on) loads it here.
+  var _syncingCaption = false;
+
+  void _sharedCaptionChanged() {
+    if (_syncingCaption || _$disposed) return;
+    final shared = selection.caption;
+    if (shared == caption.richText) return;
+    _syncingCaption = true;
+    try {
+      caption.restore(shared);
+    } finally {
+      _syncingCaption = false;
+    }
+  }
+
   // Logs each change of the inline content the caption holds.
   void _captionChanged() {
+    if (!_syncingCaption) {
+      _syncingCaption = true;
+      try {
+        selection.caption = caption.richText;
+      } finally {
+        _syncingCaption = false;
+      }
+    }
     // Typed from the panel: no handle stays up over the caption.
     if (captionDock?.panelUp ?? false) caption.hideSelectionUi();
     final rich = caption.richText;
@@ -238,7 +265,7 @@ final class AttachSendController {
     }
     final sent = change == null ? options.value : change(options.value);
     final request = SendRequest(
-      items: selection.items,
+      items: selection.itemsToSend,
       caption: caption.richText,
       options: sent,
     );
@@ -321,6 +348,7 @@ final class AttachSendController {
     if (_$disposed) return;
     _$disposed = true;
     selection.changes.removeListener(_selectionChanged);
+    selection.captionChanges.removeListener(_sharedCaptionChanged);
     previewingSelection.dispose();
     caption.focusNode.removeListener(_captionFocus);
     caption.text.removeListener(_captionChanged);
