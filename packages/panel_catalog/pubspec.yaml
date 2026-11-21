@@ -21,7 +21,7 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: 6267c234f67353d97e9fe1e392f8ea87b220e914
+      ref: d3bfbee4c62ba5d9ede9ac309ea264bc99903cf8
   viewport_scroll:
     path: ../viewport_scroll
   # Only lib/testing.dart needs this: its contract suite
