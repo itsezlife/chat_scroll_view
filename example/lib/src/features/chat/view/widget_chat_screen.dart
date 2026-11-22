@@ -22,6 +22,7 @@ import 'package:chat_scroll_view_example/src/features/chat/controller/unread_bou
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/demo_documents.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_attach.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_confirm_box.dart';
@@ -35,6 +36,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_sourc
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_pack_targets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_texture_warmer.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/document_embed.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/link_activation.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
@@ -163,6 +165,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// screen is under, fed again when it changes (the bodies paint on a
   /// canvas, with no context to resolve it from).
   listen.ValueNotifier<MediaStageStyle>? _stages;
+
+  /// How the chat's document rows are set: the reference's metrics over the
+  /// chrome's text root, fed again when the root changes.
+  listen.ValueNotifier<DocumentRowStyle>? _documentStyle;
 
   /// Demo chat facts that gate the large emoji: a
   /// chat that allows stickers, in which the user is no admin.
@@ -327,6 +333,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         (bottom) => EdgeInsets.only(bottom: bottom),
       );
     }
+    // The document rows set their text over the chrome's text root, and
+    // a new root reaches the rows already in the chat.
+    final documentStyle = const DocumentRowStyle().withText(
+      DefaultTextStyle.of(context).style,
+    );
+    if (_documentStyle case final notifier?) {
+      notifier.value = documentStyle;
+    } else {
+      _documentStyle = listen.ValueNotifier(documentStyle);
+    }
     // A new loading style reaches the embeds already in the chat.
     final stages = MediaLoadingStyleScope.resolve(context).stages;
     if (_stages case final notifier?) {
@@ -344,6 +360,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         held: input.chatPlaybackHeld,
         downloadContext: widget.kind.downloadContext,
         stages: _stages,
+        documents: (id) =>
+            DemoDocuments.document(id) ??
+            widget.services.sentDocuments.document(id),
+        documentStyle: _documentStyle,
       );
     }
     // The chat's stickers and GIFs composite as texture layers: the pool is
@@ -546,6 +566,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     widget.services.largeEmoji.desktopLimit.removeListener(_refreshEmojiPolicy);
     _emojiPolicy.dispose();
     _stages?.dispose();
+    _documentStyle?.dispose();
     _stickerInteractions.dispose();
     _trace?.dispose();
     _inputSet?.dispose();

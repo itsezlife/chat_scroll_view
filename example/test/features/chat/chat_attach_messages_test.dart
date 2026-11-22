@@ -1,10 +1,13 @@
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_model/testing.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/sent_documents.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_attach.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart' as content;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_capture/mpx_capture.dart';
-import 'package:mpx_core/mpx_core.dart' show MediaDimensions;
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
 
 SendPlan$Ready _plan(
   List<AttachItem> items, {
@@ -64,5 +67,62 @@ void main() {
     expect(ChatAttachMessages.of(_plan([AttachItems.file('doc')])), [
       '📎 doc.pdf',
     ]);
+  });
+
+  group('with the host\'s sent documents', () {
+    test('a file from disk is sent as a document row, which the host then '
+        'knows and serves in place', () async {
+      final known = <content.ContentDescriptor>[];
+      final documents = SentDocuments(know: known.add);
+      const drawing = AttachItem(
+        id: AttachItemId('d1'),
+        source: AttachSource.file('/files/plan.svg'),
+        kind: AttachKind.file,
+        facts: AttachFacts(
+          name: 'plan.svg',
+          mimeType: 'image/svg+xml',
+          byteSize: 900,
+        ),
+      );
+
+      final texts = ChatAttachMessages.of(
+        _plan([drawing]),
+        documents: documents,
+      );
+
+      expect(texts, ['![plan.svg](file:d1)']);
+      final document = documents.document('d1')!;
+      expect(document.name, 'plan.svg');
+      expect(document.byteSize, 900);
+      expect(known.single.key, document.key);
+      expect(known.single.mediaForm, content.MediaForm.vectorImage);
+      final route = documents.route(FakeFetcher());
+      expect(route.needsDownload(document.key.mediaKey), isFalse);
+      final fetched = await route.fetch(
+        FetchRequest(
+          descriptor: known.single.mediaDescriptor!,
+          part: FetchPart.content,
+          priority: AssetPriority.visible,
+          cancellation: CancellationToken(),
+        ),
+      );
+      expect(fetched, isA<FetchedFile>());
+      expect((fetched as FetchedFile).path, '/files/plan.svg');
+    });
+
+    test('a file of no path (a web blob) stays a paperclip line', () {
+      final documents = SentDocuments(know: (_) {});
+      const blob = AttachItem(
+        id: AttachItemId('b1'),
+        source: AttachSource.blob('blob:1'),
+        kind: AttachKind.file,
+        facts: AttachFacts(name: 'a.svg'),
+      );
+
+      expect(ChatAttachMessages.of(_plan([blob]), documents: documents), [
+        '📎 a.svg',
+      ]);
+      expect(documents.document('b1'), isNull);
+    });
   });
 }

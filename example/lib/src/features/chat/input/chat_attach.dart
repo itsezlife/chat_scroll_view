@@ -11,8 +11,10 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/cache_directory.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/sent_documents.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_caption_dock.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/document_embed.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mpx_capture/mpx_capture.dart';
@@ -22,15 +24,22 @@ import 'package:mpx_library/mpx_library.dart';
 /// send, a send group as one message listing its items, the caption on the
 /// send the plan put it on, and the web's leading caption as a text message.
 ///
-/// The demo's messages carry text only, so a media item is a line naming it
-/// (and its prepared size when it was prepared).
+/// The demo's messages carry text, so a media item is a line naming it (and
+/// its prepared size when it was prepared); a file from disk goes as a
+/// document row, which the chat draws as one.
 abstract final class ChatAttachMessages {
-  /// The texts of [plan], in order.
+  /// The texts of [plan], in order. With [documents] a file from disk goes
+  /// as a document row (`![name](file:id)`), registered there.
   static List<String> of(
     SendPlan$Ready plan, {
     Map<AttachItemId, PreparedMedia> prepared = const {},
+    SentDocuments? documents,
   }) {
     String line(AttachItem item) {
+      if (documents?.register(item) case final id?) {
+        final name = item.facts.name ?? id;
+        return '![$name](${DocumentEmbedResolver.scheme}:$id)';
+      }
       final kind = switch (item.kind) {
         AttachKind.photo => '🖼',
         AttachKind.video => '🎬',
@@ -359,6 +368,7 @@ final class ChatAttach extends AttachSheetHost {
         for (final text in ChatAttachMessages.of(
           plan as SendPlan$Ready,
           prepared: outputs,
+          documents: services.sentDocuments,
         )) {
           await send(text);
         }

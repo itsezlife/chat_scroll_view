@@ -1,0 +1,1 @@
+Notes for the demo: a document that is not a drawing keeps its file icon.

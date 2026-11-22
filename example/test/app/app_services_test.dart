@@ -1136,6 +1136,30 @@ void main() {
   });
 
   group('loading stages', () {
+    test('an SVG document\'s preview never downloads: the scope shows only '
+        'what is already here', () async {
+      final services = await createTestServices();
+      addTearDown(services.dispose);
+      const document = MediaDescriptor(
+        key: MediaKey.remote('doc'),
+        kind: MediaKind.vectorImage,
+        byteSize: 2048,
+      );
+
+      expect(services.assets.autoDownload, same(services.autoDownload));
+      expect(
+        services.autoDownload.decide(
+          document,
+          SvgDocumentPreview.downloadContext,
+        ),
+        AutoDownload.manual,
+      );
+      expect(
+        services.autoDownload.decide(document, AutoDownloadContext.groups),
+        AutoDownload.now,
+      );
+    });
+
     test('the media scope downloads by the platform\'s rules over the '
         'device\'s network class', () async {
       final signals = FakeDeviceSignals(network: NetworkClass.metered);

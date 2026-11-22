@@ -26,6 +26,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/joined_collectio
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/library_content_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/sent_documents.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/shipped_packs_seed.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
@@ -155,12 +156,15 @@ final class AppServices {
     required ValueNotifier<bool> glyphFontsReady,
     required AssetPipeline pipeline,
     required NetworkAutoDownloadPolicy autoDownload,
+    required AutoDownloadPolicy downloads,
+    required this.sentDocuments,
     required IDeviceSignals? ownedSignals,
     required IBytesStore bytes,
     required HttpBytesClient? bytesClient,
     required RangedBytes? rangedBytes,
   }) : _deviceLibrary = deviceLibrary,
        _autoDownload = autoDownload,
+       _downloads = downloads,
        _bytes = bytes,
        _ownedSignals = ownedSignals,
        _bytesClient = bytesClient,
@@ -498,6 +502,9 @@ final class AppServices {
         ),
         (policy) => policy.dispose(),
       );
+      // An SVG document's preview is drawn only from bytes already here: its
+      // tag never downloads (the user's download of the file still does).
+      final downloads = SvgDocumentPreview.localOnly(autoDownload);
       // The device library for the attach sheet's Gallery, made on its first
       // use (Android and iOS have adapters); its thumbnails go through the
       // pipeline below.
@@ -507,7 +514,17 @@ final class AppServices {
       final captureClient =
           bytesClient ??
           owned<HttpBytesClient>(HttpBytesClient(), (client) => client.close());
-      final pipeline = owned(
+      // The files the user sends as documents: known to the pipeline below
+      // once sent, and read where they are.
+      late final AssetPipeline pipeline;
+      final sentDocuments = SentDocuments(
+        know: (descriptor) {
+          if (descriptor.mediaDescriptor case final media?) {
+            pipeline.know(media);
+          }
+        },
+      );
+      pipeline = owned(
         AssetPipeline(
           // Giphy first, then the corpus, then the bundle: each takes its own
           // keys and hands the rest on.
@@ -516,7 +533,9 @@ final class AppServices {
             CaptureMedia.fetcher(
               store: bytes,
               client: captureClient,
-              otherwise: _contentFetcher(giphy, corpusPacks, rootBundle),
+              otherwise: sentDocuments.route(
+                _contentFetcher(giphy, corpusPacks, rootBundle),
+              ),
             ),
           ),
           decoders: decoders,
@@ -557,7 +576,7 @@ final class AppServices {
           systemFonts: PaintingBinding.instance.systemFonts,
           textGlyphsReady: glyphFontsReady,
           textures: textures,
-          autoDownload: autoDownload,
+          autoDownload: downloads,
         ),
         (scope) => scope.dispose(),
       );
@@ -804,6 +823,8 @@ final class AppServices {
         glyphFontsReady: glyphFontsReady,
         pipeline: pipeline,
         autoDownload: autoDownload,
+        downloads: downloads,
+        sentDocuments: sentDocuments,
         ownedSignals: ownedSignals,
         bytes: bytes,
         bytesClient: bytesClient,
@@ -841,6 +862,9 @@ final class AppServices {
   /// Where the attach sheet's camera keeps each shot: the bytes store the
   /// pipeline and the library players read captures from.
   late final CaptureCache captureCache = CaptureCache(store: _bytes);
+
+  /// The files the user sent as documents this session.
+  final SentDocuments sentDocuments;
 
   /// The wallpaper patterns' artwork; a downloaded one is kept compiled in
   /// the bytes store.
@@ -1036,9 +1060,11 @@ final class AppServices {
   /// limits per conversation class over the device's network class, weighed
   /// per surface by the kind of chat it shows (`ChatKind.downloadContext`);
   /// the panel's catalogue previews always download
-  /// (`PanelCatalogViewport.catalogDownloadContext`).
-  AutoDownloadPolicy get autoDownload => _autoDownload;
+  /// (`PanelCatalogViewport.catalogDownloadContext`); an SVG document's
+  /// preview never does (`SvgDocumentPreview.downloadContext`).
+  AutoDownloadPolicy get autoDownload => _downloads;
   final NetworkAutoDownloadPolicy _autoDownload;
+  final AutoDownloadPolicy _downloads;
 
   // The limits of content that downloads whatever its size and network.
   static const AutoDownloadNetworkLimits _always =

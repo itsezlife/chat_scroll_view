@@ -157,6 +157,9 @@ flutter:
     # The same pattern gzipped, as a server sends it: the downloaded-artwork
     # path (WALLPAPER_ARTWORK=downloaded) reads it at run time.
     - assets/chat_wallpaper/career.tgv
+    # Documents the showcase sends: an SVG drawing, which previews, and a
+    # text file, which keeps its icon.
+    - assets/documents/
     # The animated emoji pack and its licence credit; see LICENSE.md there.
     - assets/animated_emoji/
     # Lottie stickers authored for the demo (no third-party artwork).

@@ -1,5 +1,6 @@
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_pack_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/demo_documents.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/frame_counter_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
@@ -62,6 +63,10 @@ abstract final class ShowcaseBodies {
     '\u{1F600}\u{1F602}\u{1F60D}\u{1F929}\u{1F970}\u{1F973}'
         '\u{1F60E}\u{1F913}\u{1F914}\u{1F644}\u{1F62C}\u{1F631}',
     '\u{1F44D}\n\n\u{1F44D} \u{1F44D}',
+    // Documents: an SVG one shows its drawing (its bytes are here), any
+    // other keeps its file icon.
+    DemoDocuments.bodyOf('diagram'),
+    DemoDocuments.bodyOf('notes'),
   ]);
 
   // `![name](document:id)` of a [sticker] of either pack: what picking it in

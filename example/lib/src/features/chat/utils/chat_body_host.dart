@@ -11,6 +11,8 @@ import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart'
     show DescribeContent;
+import 'package:chat_scroll_view_example/src/features/chat/data/demo_documents.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/document_embed.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/reference_media_sizes.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_play_memory.dart';
@@ -69,12 +71,22 @@ final class ChatBodyHost {
     ChatMediaSizePolicy? mediaSizes,
     AutoDownloadContext? downloadContext,
     listen.ValueListenable<MediaStageStyle>? stages,
+    ChatDocument? Function(String id) documents = DemoDocuments.document,
+    SvgDocumentPreview? documentPreviews = DemoDocuments.previews,
+    listen.ValueListenable<DocumentRowStyle>? documentStyle,
   }) : embedResolver = _resolverFor(
-         ContentEmbedResolver(
+         DocumentEmbedResolver(
            scope: assets,
-           held: held,
-           downloadContext: downloadContext,
+           documents: documents,
+           previews: documentPreviews,
+           style: documentStyle,
            stages: stages,
+           otherwise: ContentEmbedResolver(
+             scope: assets,
+             held: held,
+             downloadContext: downloadContext,
+             stages: stages,
+           ),
          ),
        ),
        embedFactory = ((content, preset) {
@@ -106,7 +118,7 @@ final class ChatBodyHost {
        _describe = describe;
 
   // The chat's resolver, noting what it embeds in a scroll lab build.
-  static InlineEmbedResolver _resolverFor(ContentEmbedResolver resolver) =>
+  static InlineEmbedResolver _resolverFor(InlineEmbedResolver resolver) =>
       DemoConfig.scrollLab ? _LabChatResolver(resolver) : resolver;
 
   /// What lies over the art of a lone GIF: the status control (cancel and an

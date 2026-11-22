@@ -91,6 +91,7 @@ import 'features/chat/corpus_sticker_pack_test.dart'
     as corpus_sticker_pack_test;
 import 'features/chat/deferred_library_view_test.dart'
     as deferred_library_view_test;
+import 'features/chat/document_embed_test.dart' as document_embed_test;
 import 'features/chat/emoji_chrome_test.dart' as emoji_chrome_test;
 import 'features/chat/emoji_service_colors_test.dart'
     as emoji_service_colors_test;
@@ -444,6 +445,7 @@ void main() {
   group('features/chat/giphy_client_test.dart', giphy_client_test.main);
   group('features/chat/giphy_content_test.dart', giphy_content_test.main);
   group('features/chat/giphy_gif_source_test.dart', giphy_gif_source_test.main);
+  group('features/chat/document_embed_test.dart', document_embed_test.main);
   group('features/chat/emoji_chrome_test.dart', emoji_chrome_test.main);
   group(
     'features/chat/emoji_service_colors_test.dart',

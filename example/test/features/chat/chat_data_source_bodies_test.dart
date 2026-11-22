@@ -4,6 +4,7 @@
 library;
 
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/demo_documents.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
@@ -93,11 +94,13 @@ void main() {
     });
 
     test('has emoji-only messages for each layout', () {
+      // Between the text bodies and the documents at the end.
+      final emoji = messages.sublist(
+        10,
+        messages.length - DemoDocuments.all.length,
+      );
       expect(
-        [
-          for (final message in messages.skip(10))
-            message.emojiOnly?.items.length,
-        ],
+        [for (final message in emoji) message.emojiOnly?.items.length],
         [
           // The unicode emoji, the animated one, the four Lottie stickers, the
           // four static ones and the ten video items; the frame counter line
@@ -108,10 +111,26 @@ void main() {
           3, 5, 12, 3,
         ],
       );
-      expect(
-        messages.last.emojiOnly!.items.map((item) => item.lineBreaksBefore),
-        [0, 2, 0],
+      expect(emoji.last.emojiOnly!.items.map((item) => item.lineBreaksBefore), [
+        0,
+        2,
+        0,
+      ]);
+    });
+
+    test('ends with each demo document, sent as a document row', () {
+      final documents = messages.skip(
+        messages.length - DemoDocuments.all.length,
       );
+
+      expect(
+        [for (final message in documents) message.content],
+        [
+          for (final document in DemoDocuments.all)
+            ChatBodyMarkdown.received(DemoDocuments.bodyOf(document.id)),
+        ],
+      );
+      expect(documents.every((message) => message.emojiOnly == null), isTrue);
     });
 
     test('has each Lottie sticker of the pack as a lone document', () {
