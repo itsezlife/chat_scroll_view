@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `InlineEmbedPaintContext.screen`: the screen in the paint's coordinates.
+  A `ContentEmbed`'s outline shimmer crosses it, so embeds side by side draw
+  one band.
 - `MediaForm.vectorImage` maps to the core's `MediaKind.vectorImage`, so
   `ContentAssetView` draws SVG content by its key through the host's SVG
   decoder.

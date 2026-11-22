@@ -185,15 +185,16 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
       rect,
       tint: context.tint,
       opacity: context.opacity,
-      outline: _outlineLook(context.tint),
+      outline: _outlineLook(context.tint, context.screen),
     );
   }
 
   // How an outline preview is drawn, or null when the content has none: a
   // template asset in the text colour, other content in the style's fill (a
   // sticker is not the colour of the text around it), and the sweep while
-  // the outline shows and the clock runs.
-  OutlineLook? _outlineLook(Color? tint) {
+  // the outline shows and the clock runs, across the body's [screen] span
+  // when it gives one.
+  OutlineLook? _outlineLook(Color? tint, Rect? screen) {
     if (_binding.descriptor?.preview case MediaPreview$Outline()) {
       final stages = _stageStyle;
       final fill = switch (tint) {
@@ -206,7 +207,11 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
         final shimmer?
             when !_clock.isPaused &&
                 _binding.readiness.stage == AssetStage.preview =>
-          OutlineLook(fill: fill, highlight: shimmer.phaseAt(_sweepTime())),
+          OutlineLook(
+            fill: fill,
+            highlight: shimmer.phaseAt(_sweepTime()),
+            sweep: screen,
+          ),
         _ => OutlineLook(fill: fill),
       };
     }

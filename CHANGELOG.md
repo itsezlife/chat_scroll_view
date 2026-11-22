@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Outline shimmer
+- **CHANGED**: an emoji or sticker body tells its embeds where the screen
+  is, so their outline shimmer crosses it as one band.
+
 ### Fast scroll target
 - **ADDED**: `ChatFastScrollTarget`, the chat as a `viewport_scroll`
   `FastScrollTarget`, so a `FastScrollbar` can drive the anchor viewport by

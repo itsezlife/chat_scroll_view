@@ -199,6 +199,9 @@ final class CatalogLeafPainter {
   Duration _frameTime = Duration.zero;
   Rect _viewport = Rect.zero;
   bool _animateWash = false;
+
+  // The screen in the pass's canvas coordinates, or null.
+  Rect? _screen;
   bool _needsFrame = false;
   ui.Shader? _washShader;
 
@@ -238,13 +241,17 @@ final class CatalogLeafPainter {
   ///
   /// [animateWash] is false when the host paused playback: washes then paint
   /// flat. The render object clears it together with the scope's pause layers.
+  /// [screen] is the screen in canvas coordinates: an outline preview's
+  /// shimmer crosses it, so the cells draw one band, not one each.
   void beginPass({
     required Duration frameTime,
     required Rect viewport,
     required bool animateWash,
+    Rect? screen,
   }) {
     _frameTime = frameTime;
     _viewport = viewport;
+    _screen = screen;
     _animateWash = animateWash;
     _needsFrame = false;
     _textures.clear();
@@ -865,7 +872,11 @@ final class CatalogLeafPainter {
 
   OutlineLook _sweptOutline(Color fill, OutlineShimmer shimmer) {
     _needsFrame = true;
-    return OutlineLook(fill: fill, highlight: shimmer.phaseAt(_frameTime));
+    return OutlineLook(
+      fill: fill,
+      highlight: shimmer.phaseAt(_frameTime),
+      sweep: _screen,
+    );
   }
 
   /// The download indicator of a GIF whose [binding] downloads, centred in

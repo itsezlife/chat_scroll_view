@@ -6,12 +6,18 @@ import 'package:meta/meta.dart';
 import 'package:mpx_core/mpx_core.dart';
 
 /// What an [InlineEmbed] is painted with besides its rectangle: the colour of
-/// the text it sits in and the opacity of the text.
+/// the text it sits in, the opacity of the text, and where the screen is.
 @immutable
 final class InlineEmbedPaintContext {
   /// Creates a context; the default is the embed's own colours, fully opaque.
-  const InlineEmbedPaintContext({this.tint, this.opacity = 1})
+  const InlineEmbedPaintContext({this.tint, this.opacity = 1, this.screen})
     : assert(opacity >= 0 && opacity <= 1, 'opacity must be within 0..1');
+
+  /// The screen, in the coordinates of the paint, or null when the body does
+  /// not know it. An effect that crosses the screen as one (an outline
+  /// preview's shimmer) crosses this span, so embeds side by side draw one
+  /// band; without it each embed is crossed on its own, in step.
+  final Rect? screen;
 
   /// The text colour, for an embed that is tinted by it (a template asset).
   /// Null leaves an embed in its own colours.

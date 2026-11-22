@@ -6,6 +6,9 @@ is pre-1.0.
 
 ## [Unreleased]
 
+- The outline shimmer crosses the screen (`CatalogLeafPainter.beginPass`
+  takes it), so the cells draw one band, not one each.
+
 ### Added (fast scroll target)
 
 - `PanelCatalogFastScrollTarget`: the catalogue's controller as a

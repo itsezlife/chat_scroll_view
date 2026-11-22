@@ -348,6 +348,35 @@ void main() {
         expect(heard, 1);
       });
 
+      testWidgets('sweeps across the screen the body says, so embeds side '
+          'by side draw one band', (tester) async {
+        final embed = ContentEmbed(
+          scope: scope,
+          content: _sticker,
+          preset: _preset,
+          stages: listen.ValueNotifier(
+            stages.copyWith(
+              outlineShimmer: const OutlineShimmer(
+                sweep: Duration(milliseconds: 1000),
+              ),
+            ),
+          ),
+        );
+        addTearDown(embed.dispose);
+        describeOutline(producer.last);
+        final preview = producer.last.advance(AssetStage.preview);
+        const screen = Rect.fromLTWH(-40, -300, 400, 800);
+
+        embed.paint(
+          canvas(),
+          _rect,
+          const InlineEmbedPaintContext(screen: screen),
+        );
+        await tester.pump();
+
+        expect(preview.paints.single.context.outline?.sweep, screen);
+      });
+
       test('content without an outline gets no look', () {
         final embed = outlined();
         final full = producer.last.advance(AssetStage.full);

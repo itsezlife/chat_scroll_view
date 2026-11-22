@@ -402,6 +402,22 @@ void main() {
       );
     });
 
+    testWidgets('a sticker is told where the screen is, so its outline\'s '
+        'shimmer crosses the screen as one band', (tester) async {
+      view(tester, const Size(360, 640));
+
+      await pumpBody(
+        tester,
+        EmojiOnly(const [EmojiOnlyItem(_thumb)]),
+        sticker: pack,
+      );
+
+      final (:rect, :context) = embeds.made.single.paints.last;
+      final origin = tester.getTopLeft(find.byType(ChatEmojiBody));
+      expect(context.screen?.size, const Size(360, 640));
+      expect(rect.topLeft - context.screen!.topLeft, origin);
+    });
+
     testWidgets('iOS sets a 112 pt sticker in a 10 pt inset', (tester) async {
       view(tester, const Size(360, 640));
 

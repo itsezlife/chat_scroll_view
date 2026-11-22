@@ -24,8 +24,9 @@ sealed class ChatEmojiLeaf {
   /// Stops calling [listener].
   void removeListener(VoidCallback listener) {}
 
-  /// Draws into [rect].
-  void paint(Canvas canvas, Rect rect, Color? tint);
+  /// Draws into [rect]. [screen] is the screen in the canvas's coordinates,
+  /// for an effect that crosses it as one (an outline preview's shimmer).
+  void paint(Canvas canvas, Rect rect, Color? tint, {Rect? screen});
 
   /// Whether the leaf may come as a layer of its own (an embed that plays on
   /// a platform texture), so the body composites. Signalled to the listeners
@@ -35,8 +36,12 @@ sealed class ChatEmojiLeaf {
   /// Shows the leaf in [rect] of [context]: as a layer, or on
   /// `context.canvas` read at the call, so a layer added before it is
   /// followed by a new picture.
-  void composite(PaintingContext context, Rect rect, Color? tint) =>
-      paint(context.canvas, rect, tint);
+  void composite(
+    PaintingContext context,
+    Rect rect,
+    Color? tint, {
+    Rect? screen,
+  }) => paint(context.canvas, rect, tint, screen: screen);
 
   /// Gives back what the leaf holds.
   void dispose() {}
@@ -52,10 +57,11 @@ final class ChatEmojiGlyphLeaf extends ChatEmojiLeaf {
   final TextPainter painter;
 
   @override
-  void paint(Canvas canvas, Rect rect, Color? tint) => painter.paint(
-    canvas,
-    rect.center - Offset(painter.width / 2, painter.height / 2),
-  );
+  void paint(Canvas canvas, Rect rect, Color? tint, {Rect? screen}) =>
+      painter.paint(
+        canvas,
+        rect.center - Offset(painter.width / 2, painter.height / 2),
+      );
 
   @override
   void dispose() => painter.dispose();
@@ -80,8 +86,8 @@ final class ChatEmojiEmbedLeaf extends ChatEmojiLeaf {
   void removeListener(VoidCallback listener) => embed.removeListener(listener);
 
   @override
-  void paint(Canvas canvas, Rect rect, Color? tint) =>
-      embed.paint(canvas, rect, InlineEmbedPaintContext(tint: tint));
+  void paint(Canvas canvas, Rect rect, Color? tint, {Rect? screen}) => embed
+      .paint(canvas, rect, InlineEmbedPaintContext(tint: tint, screen: screen));
 
   @override
   bool get needsCompositing => switch (embed) {
@@ -90,12 +96,21 @@ final class ChatEmojiEmbedLeaf extends ChatEmojiLeaf {
   };
 
   @override
-  void composite(PaintingContext context, Rect rect, Color? tint) {
+  void composite(
+    PaintingContext context,
+    Rect rect,
+    Color? tint, {
+    Rect? screen,
+  }) {
     switch (embed) {
       case final CompositingEmbed embed:
-        embed.composite(context, rect, InlineEmbedPaintContext(tint: tint));
+        embed.composite(
+          context,
+          rect,
+          InlineEmbedPaintContext(tint: tint, screen: screen),
+        );
       default:
-        paint(context.canvas, rect, tint);
+        paint(context.canvas, rect, tint, screen: screen);
     }
   }
 
@@ -111,7 +126,7 @@ final class ChatEmojiEmptyLeaf extends ChatEmojiLeaf {
   const ChatEmojiEmptyLeaf();
 
   @override
-  void paint(Canvas canvas, Rect rect, Color? tint) {}
+  void paint(Canvas canvas, Rect rect, Color? tint, {Rect? screen}) {}
 }
 
 /// Where an emoji-only body's text selection lives: the facade's markdown
@@ -423,14 +438,20 @@ final class RenderChatEmojiBody extends RenderBox
       Trace.end(TraceSection.paintSelection);
     }
     final count = math.min(_leaves.length, geometry.items.length);
+    // The screen in the canvas's coordinates: an outline's shimmer crosses
+    // it, so every sticker and emoji on screen draws one band.
+    final root = owner?.rootNode;
+    final screen = root is RenderView
+        ? (offset - localToGlobal(Offset.zero)) & root.size
+        : null;
     for (var i = 0; i < count; i++) {
       final rect = geometry.items[i].shift(offset);
       // A leaf that composites may add a layer, which ends the picture: the
       // leaves after it read the context's canvas afresh.
       if (_leavesComposite) {
-        _leaves[i].composite(context, rect, _tint);
+        _leaves[i].composite(context, rect, _tint, screen: screen);
       } else {
-        _leaves[i].paint(canvas, rect, _tint);
+        _leaves[i].paint(canvas, rect, _tint, screen: screen);
       }
     }
     _paintHandleLeaders(context, offset);

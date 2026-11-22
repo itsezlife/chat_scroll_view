@@ -140,6 +140,27 @@ void main() {
       );
     });
 
+    testWidgets('sweeps across the screen, so the cells draw one band', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        shimmer: const OutlineShimmer(sweep: Duration(milliseconds: 1000)),
+      );
+      describeOutline(producer.last);
+      final preview = producer.last.advance(AssetStage.preview);
+      await tester.pump();
+
+      paintOnce(tester);
+
+      // The 320 x 480 viewport sits centred on an 800 x 600 screen and is
+      // painted at the origin: the screen is up and to the left of it.
+      expect(
+        preview.paints.last.context.outline?.sweep,
+        const Rect.fromLTWH(-240, -60, 800, 600),
+      );
+    });
+
     testWidgets('rests flat while playback is paused', (tester) async {
       await pump(
         tester,

@@ -49,53 +49,53 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/http_bytes_cache
-      ref: b7bd0c70ecfb488214cb06c154e608f38c5eb403
+      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
   mpx:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx
-      ref: b7bd0c70ecfb488214cb06c154e608f38c5eb403
+      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
   mpx_core:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: b7bd0c70ecfb488214cb06c154e608f38c5eb403
+      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
   mpx_capture:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_capture
-      ref: b7bd0c70ecfb488214cb06c154e608f38c5eb403
+      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
   mpx_library:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_library
-      ref: b7bd0c70ecfb488214cb06c154e608f38c5eb403
+      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
   mpx_lottie:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_lottie
-      ref: b7bd0c70ecfb488214cb06c154e608f38c5eb403
+      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
   # SVG as a media kind (vector images, and SVG handed as a plain image).
   mpx_svg:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_svg
-      ref: b7bd0c70ecfb488214cb06c154e608f38c5eb403
+      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
   mpx_player:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_player
-      ref: b7bd0c70ecfb488214cb06c154e608f38c5eb403
+      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
   mpx_ui:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_ui
-      ref: b7bd0c70ecfb488214cb06c154e608f38c5eb403
+      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
   mpx_video_decoder:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_video_decoder
-      ref: b7bd0c70ecfb488214cb06c154e608f38c5eb403
+      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
   panel_catalog:
     path: ../packages/panel_catalog
   panel_pages:

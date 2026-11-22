@@ -2652,6 +2652,14 @@ class RenderPanelCatalog extends RenderBox
     _paintRemoveBadge(context, offset);
   }
 
+  // The screen (the view the panel is in), in the coordinates the panel is
+  // painted at [offset] in.
+  Rect? _screenAt(Offset offset) {
+    final root = owner?.rootNode;
+    if (root is! RenderView) return null;
+    return (offset - localToGlobal(Offset.zero)) & root.size;
+  }
+
   void _paintCanvas(PaintingContext context, Offset offset) {
     final sw = Stopwatch()..start();
     final canvas = context.canvas;
@@ -2668,6 +2676,7 @@ class RenderPanelCatalog extends RenderBox
       frameTime: _frameTime(),
       viewport: offset & size,
       animateWash: !_assets.clock.isPaused,
+      screen: _screenAt(offset),
     );
     final contentOrigin = offset.translate(0, -scroll);
     final (top, bottom) = _paintWindow();
