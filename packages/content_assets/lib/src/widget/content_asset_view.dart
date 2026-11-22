@@ -43,10 +43,10 @@ class ContentAssetProvider extends InheritedWidget {
 }
 
 /// Shows any content by [ContentKey]: media through `mpx_core`'s
-/// [ContentView] on the scope's media cache, a unicode glyph from the glyph
+/// [AssetView] on the scope's media cache, a unicode glyph from the glyph
 /// atlas (or as text).
 ///
-/// The parameters are [ContentView]'s, every one forwarded to it; for a
+/// The parameters are [AssetView]'s, every one forwarded to it; for a
 /// glyph, which is a still with nothing to download, [status], [badge],
 /// [onPlay], [statusBuilder], [placeholderUntil], [placeholderTint],
 /// [holdsWhileTickersOff], [loadingStyle], [downloadContext],
@@ -87,61 +87,61 @@ class ContentAssetView extends StatelessWidget {
   /// The size, decode and use of the content.
   final AssetPreset preset;
 
-  /// See [ContentView.tint].
+  /// See [AssetView.tint].
   final Color? tint;
 
-  /// See [ContentView.opacity].
+  /// See [AssetView.opacity].
   final double opacity;
 
-  /// See [ContentView.semanticLabel].
+  /// See [AssetView.semanticLabel].
   final String? semanticLabel;
 
   /// The scope to attach to, instead of the one a [ContentAssetProvider]
   /// provides.
   final ContentAssetScope? scope;
 
-  /// See [ContentView.status].
+  /// See [AssetView.status].
   final MediaStatusMode status;
 
-  /// See [ContentView.badge].
+  /// See [AssetView.badge].
   final bool badge;
 
-  /// See [ContentView.onPlay].
+  /// See [AssetView.onPlay].
   final VoidCallback? onPlay;
 
-  /// See [ContentView.statusBuilder].
+  /// See [AssetView.statusBuilder].
   final MediaStatusBuilder? statusBuilder;
 
-  /// See [ContentView.placeholder].
+  /// See [AssetView.placeholder].
   final AssetPaintable? placeholder;
 
-  /// See [ContentView.placeholderUntil].
+  /// See [AssetView.placeholderUntil].
   final AssetStage placeholderUntil;
 
-  /// See [ContentView.placeholderTint].
+  /// See [AssetView.placeholderTint].
   final Color? placeholderTint;
 
-  /// See [ContentView.inView].
+  /// See [AssetView.inView].
   final bool inView;
 
-  /// See [ContentView.visibleFraction]. A glyph is hidden at 0.
+  /// See [AssetView.visibleFraction]. A glyph is hidden at 0.
   final double visibleFraction;
 
-  /// See [ContentView.holdsWhileTickersOff].
+  /// See [AssetView.holdsWhileTickersOff].
   final bool holdsWhileTickersOff;
 
-  /// See [ContentView.loadingStyle].
+  /// See [AssetView.loadingStyle].
   final MediaLoadingStyle? loadingStyle;
 
   /// The class of conversation or surface the content is shown in, which the
   /// media scope's auto-download policy weighs. See
-  /// [ContentView.downloadContext].
+  /// [AssetView.downloadContext].
   final AutoDownloadContext? downloadContext;
 
-  /// See [ContentView.requestsDownload].
+  /// See [AssetView.requestsDownload].
   final bool requestsDownload;
 
-  /// See [ContentView.underlay].
+  /// See [AssetView.underlay].
   final Color? underlay;
 
   @override
@@ -159,7 +159,7 @@ class ContentAssetView extends StatelessWidget {
         inView: inView && visibleFraction > 0,
       );
     }
-    return ContentView(
+    return AssetView(
       content: content.mediaKey,
       preset: preset,
       scope: scope.media,

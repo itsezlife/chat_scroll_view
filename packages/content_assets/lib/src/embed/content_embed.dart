@@ -24,7 +24,7 @@ import 'package:mpx_core/mpx_core.dart';
 /// profile that does not loop.
 ///
 /// It is a [CompositingEmbed]: [composite] shows a playing asset whose frames
-/// go to a platform texture as a texture layer, the way `ContentView` does. [paint] stays canvas-only, so a body that has only
+/// go to a platform texture as a texture layer, the way `AssetView` does. [paint] stays canvas-only, so a body that has only
 /// a canvas draws the asset from its page slots.
 ///
 /// Which placeholder shows until the content has a thumbnail is the scope's
@@ -41,7 +41,7 @@ import 'package:mpx_core/mpx_core.dart';
 /// the scope's auto-download policy weighs (`ContentAssetScope.attach`). An
 /// embed paints no status control: content that does not download by itself
 /// keeps its best stand-in, and a failure shows nothing more, unless the host
-/// lays one over the embed from its [binding] (`ContentStatusOverlay`).
+/// lays one over the embed from its [binding] (`AssetStatusOverlay`).
 ///
 /// [stages] is how an outline preview is drawn: in its `outlineFill`, or for
 /// a template asset in the text colour at its `outlineTintOpacity`, swept by
@@ -94,7 +94,7 @@ final class ContentEmbed implements PlayableEmbed, CompositingEmbed {
   bool _disposed = false;
 
   /// The attach this embed draws: what a host reads to lay a status control
-  /// or a badge over the embed (`ContentStatusOverlay`). Detached once the
+  /// or a badge over the embed (`AssetStatusOverlay`). Detached once the
   /// embed is disposed.
   AssetBinding get binding => _binding;
 

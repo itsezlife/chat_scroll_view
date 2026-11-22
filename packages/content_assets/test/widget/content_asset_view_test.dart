@@ -1,6 +1,6 @@
 /// What [ContentAssetView] hands the media core's view.
 ///
-/// **Seam:** the [ContentView] it builds for media, over a
+/// **Seam:** the [AssetView] it builds for media, over a
 /// [ContentAssetScope] with a [FakeAssetProducer].
 library;
 
@@ -58,7 +58,7 @@ void main() {
       ),
     );
 
-    final view = tester.widget<ContentView>(find.byType(ContentView));
+    final view = tester.widget<AssetView>(find.byType(AssetView));
     expect(view.content, _clip.mediaKey);
     expect(view.scope, same(scope.media));
     expect(view.status, const MediaStatusMode.control(playAction: true));
@@ -86,7 +86,7 @@ void main() {
       ),
     );
 
-    final view = tester.widget<ContentView>(find.byType(ContentView));
+    final view = tester.widget<AssetView>(find.byType(AssetView));
     expect(view.statusBuilder, same(builder));
     expect(view.visibleFraction, 0.4);
     expect(view.loadingStyle, MediaLoadingStyle.$IOS);
@@ -101,7 +101,7 @@ void main() {
       ContentAssetView(content: _clip, preset: _preset, scope: scope),
     );
 
-    final view = tester.widget<ContentView>(find.byType(ContentView));
+    final view = tester.widget<AssetView>(find.byType(AssetView));
     expect(view.status, MediaStatusMode.none);
     expect(view.badge, isFalse);
     expect(view.onPlay, isNull);
@@ -169,7 +169,7 @@ void main() {
       ),
     );
 
-    expect(find.byType(ContentView), findsNothing);
+    expect(find.byType(AssetView), findsNothing);
     expect(find.byType(MediaStatusControl), findsNothing);
   });
 }

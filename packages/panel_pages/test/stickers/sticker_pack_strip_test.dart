@@ -565,7 +565,7 @@ void main() {
           .length;
       final catsView = tester.state(
         find.byWidgetPredicate(
-          (w) => w is ContentView && w.content == cats.mediaKey,
+          (w) => w is AssetView && w.content == cats.mediaKey,
         ),
       );
 
@@ -591,7 +591,7 @@ void main() {
       expect(
         tester.state(
           find.byWidgetPredicate(
-            (w) => w is ContentView && w.content == cats.mediaKey,
+            (w) => w is AssetView && w.content == cats.mediaKey,
           ),
         ),
         same(catsView),

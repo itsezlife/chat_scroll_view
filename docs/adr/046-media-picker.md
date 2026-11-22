@@ -74,7 +74,7 @@ attach_sheet   -> attach_model, chat_composer, chrome_foundation,
 example (host) -> all of the above
 ```
 
-`attach_sheet` takes `mpx_core` for `MediaKey` and `ContentView`, which the
+`attach_sheet` takes `mpx_core` for `MediaKey` and `AssetView`, which the
 three mpx packages expose in their API; hosts import what they use.
 
 | Package | Kind | Owns | Never |

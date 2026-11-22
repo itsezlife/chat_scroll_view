@@ -134,7 +134,7 @@ final class ChatBodyHost {
   ) => switch ((media.kind, embed)) {
     // The badge takes its narrow forms by the width of the art.
     (ChatMediaKind.gif, final ContentEmbed embed) => LayoutBuilder(
-      builder: (context, constraints) => ContentStatusOverlay(
+      builder: (context, constraints) => AssetStatusOverlay(
         binding: embed.binding,
         badge: true,
         width: constraints.maxWidth,

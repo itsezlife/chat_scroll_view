@@ -38,6 +38,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:l/l.dart';
+import 'package:mpx_ui/mpx_ui.dart' show ViewerBackdropScope, ViewerBackdropZoom;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -232,7 +233,11 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
       );
       // The window a content preview's menu blurs a still of: everything
       // but the lab's own overlay.
-      final backed = MouseBackButton(child: BackdropSnapshotSource(child: app));
+      // A viewer's backdrop scale, shared with the pages under it: the
+      // chat and the attach sheet zoom as a viewer opens over them.
+      final backed = ViewerBackdropScope(
+        child: MouseBackButton(child: BackdropSnapshotSource(child: app)),
+      );
       return DemoConfig.scrollLab ? ScrollLabOverlay(child: backed) : backed;
     },
     navigatorObservers: [_overlays],
@@ -251,13 +256,15 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
     BuildContext context, {
     ChatKind kind = ChatKind.standard,
     String title = 'Chat',
-  }) => WidgetChatScreen(
-    services: widget.services,
-    dataSourceLoader: widget.chatDataSourceLoader,
-    softKeyboard: widget.softKeyboard,
-    presentationPolicy: widget.presentationPolicy,
-    kind: kind,
-    title: title,
+  }) => ViewerBackdropZoom(
+    child: WidgetChatScreen(
+      services: widget.services,
+      dataSourceLoader: widget.chatDataSourceLoader,
+      softKeyboard: widget.softKeyboard,
+      presentationPolicy: widget.presentationPolicy,
+      kind: kind,
+      title: title,
+    ),
   );
 }
 

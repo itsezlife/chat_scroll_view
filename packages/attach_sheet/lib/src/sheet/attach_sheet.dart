@@ -16,6 +16,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart' show RenderProxyBox;
 import 'package:flutter/widgets.dart' hide RichText;
+import 'package:mpx_ui/mpx_ui.dart' show ViewerBackdropZoom;
 import 'package:viewport_scroll/engine.dart';
 
 /// Builds the sheet's content: the page, over the sheet's [scrollController]
@@ -1495,11 +1496,11 @@ void _closeRoute(BuildContext context, AttachOutcome outcome) {
 /// the attach button, its scrim's delayed dim), so the route shows and goes
 /// at once, and the sheet places itself around the keyboard. The route's
 /// root gives every page, the panel and the boxes over them the chrome text
-/// style.
+/// style. A viewer opened over it zooms it ([ViewerBackdropZoom]).
 ChromeSheetRoute<AttachOutcome> _attachSheetRoute({
   required WidgetBuilder builder,
 }) => ChromeSheetRoute<AttachOutcome>(
-  builder: builder,
+  builder: (context) => ViewerBackdropZoom(child: builder(context)),
   opening: const ChromeSheetOpening.byContent(),
   barrierDismissible: false,
   avoidsKeyboard: false,

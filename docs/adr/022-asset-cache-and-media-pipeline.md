@@ -194,7 +194,7 @@ specs.
 ## Amendment: arrival fade
 
 The readiness row left the crossfade to each painter, and only the catalogue
-viewport drew one; a `ContentView` (a GIF cell, a message's sticker) cut from
+viewport drew one; a `AssetView` (a GIF cell, a message's sticker) cut from
 the stand-in to the content. The reference client fades every image that is
 not a memory hit (`ImageReceiver.draw`, 150 ms `DEFAULT_CROSSFADE_DURATION`),
 so this is now one rule for every surface.
@@ -204,7 +204,7 @@ so this is now one rule for every surface.
 | When | A content stage (`firstFrame` or `full`) that reaches a binding after its attach, fetched or decoded, fades in from transparent to opaque over 150 ms, linear, from the first frame that draws it. A binding whose entry had content at the attach (a memory hit, including one a producer serves synchronously inside the attach, and a sibling's stage borrowed at the attach, *Amendment: sibling stages*) shows it at once, so a surface built again over loaded content, such as a cell scrolled back into view or a page shown again, never fades. A glyph never fades: it is text, not an image that arrives. |
 | Beneath | The kept thumbnail (`paintStandIn`) stays opaque under the rising content and is released once the content is opaque, as before; with no thumbnail the scope's placeholder fades out as the content rises. |
 | Texture | A texture layer cannot fade itself, so during the fade it is pushed under an opacity layer (`AssetTextureLayer.composite` with the fade's opacity); the stand-in is drawn on the canvas first, beneath it. |
-| Where | The fade is the surface's paint over its binding, read through one internal rule (`AssetFade`, the clock being the frame time): `ContentView` and the catalogue viewport (`CatalogBoundLeaf`, same 150 ms) apply it. `ContentEmbed` (glyphs and stickers inside text) does not yet. A surface's own entrance (the GIF page's cells fading in as a page arrives) is separate and composes with it. |
+| Where | The fade is the surface's paint over its binding, read through one internal rule (`AssetFade`, the clock being the frame time): `AssetView` and the catalogue viewport (`CatalogBoundLeaf`, same 150 ms) apply it. `ContentEmbed` (glyphs and stickers inside text) does not yet. A surface's own entrance (the GIF page's cells fading in as a page arrives) is separate and composes with it. |
 
 ## Amendment: one media disk store
 
@@ -237,12 +237,12 @@ cached file.
 | Pipeline | Relays the **content** part's fraction to the entry (`AssetProgress.download`), received over total, 0 while the total is unknown, and 1 once the fetch completes after a reported transfer or an announced download. A thumbnail's transfer is not relayed: it is a stand-in, not the download a surface shows. A decoder that opens its own stream may report through the same call. |
 | Binding | `AssetBinding.downloadProgress`: the entry's fraction from the first report until the content's final stage, signalled on change; null otherwise, so a memory hit, a disk hit, a glyph and a detached binding read null. A failed or cancelled attempt keeps the fraction, since the content is still missing (the reference keeps its arc while `!fileExist`); the next attempt starts without it (and reports 0 again if the content is still missing), and the last binding leaving forgets it. A borrowed sibling stage (*Amendment: sibling stages*) does not bring the sibling's download along. |
 | Indicator | `RadialProgress` is one stateful indicator per download, a port of the reference's `MediaActionDrawable` in its `ICON_EMPTY` state (a bare arc in the disc, no cross): it starts at 112 degrees with the progress first seen shown at once, sweeps `max(4, 360 * shown)` degrees, turns 360 degrees per 2500 ms with a frame counting at most 17 ms, eases a higher fraction from the arc shown over 200 ms with a decelerate curve, and shows a lower one at once. |
-| Where | `ContentView` (`loadingRadius`) and the catalogue viewport's GIF leaves draw it only while the binding's download is non-null and the content has no frame; each keeps its own indicator (the viewport beside each binding) and drops it when the download is null again. |
+| Where | `AssetView` (`loadingRadius`) and the catalogue viewport's GIF leaves draw it only while the binding's download is non-null and the content has no frame; each keeps its own indicator (the viewport beside each binding) and drops it when the download is null again. |
 
 **Superseded in part (2026-11-17, media-loading-stages; mpx ADR 0010).** The
 binding's fraction became its transfer state (`AssetBinding.transfer`: none,
 waiting, receiving with bytes, awaiting the user, failed), with `download()`
-and `cancelDownload()`; `ContentView.loadingRadius` became
+and `cancelDownload()`; `AssetView.loadingRadius` became
 `MediaStatusMode.arc`. A failed download no longer keeps the arc: the
 catalogue viewport's GIF leaves and the bare arc draw it only while the
 transfer is active, and a surface with a status control shows download again,

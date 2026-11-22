@@ -32,7 +32,7 @@ typedef ChatEmojiEmbedFactory =
 
 /// Builds what the host lays over the art of a lone sticker or GIF
 /// ([ChatEmojiBody.media]): a status control and a badge over the [embed]
-/// the body paints (`ContentStatusOverlay` over a `ContentEmbed`'s binding), sized to
+/// the body paints (`AssetStatusOverlay` over a `ContentEmbed`'s binding), sized to
 /// the art. Null lays nothing. The body owns the embed; the overlay only
 /// reads it, and is built again when the body makes another.
 typedef ChatMediaOverlayBuilder =

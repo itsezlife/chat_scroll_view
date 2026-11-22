@@ -206,8 +206,8 @@ void main() {
         ),
       );
       expect(
-        tester.widget(find.byType(ContentStatusOverlay)),
-        isA<ContentStatusOverlay>()
+        tester.widget(find.byType(AssetStatusOverlay)),
+        isA<AssetStatusOverlay>()
             .having(
               (o) => o.binding,
               'binding',

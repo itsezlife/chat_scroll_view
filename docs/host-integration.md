@@ -167,7 +167,7 @@ ChromeThemeScope(
 | `ChromeMotionScope` | No | Without it, roles run at normal speed. Reduce motion is only this scope's `speed` (section 6) |
 | `GlassQualityScope` | No | Default is the best strategy the device supports |
 | `EmojiTabIconScope` | With `EmojiCategoryStrip` | Registers the strip's icon painters |
-| `AssetCacheProvider` | With `ContentView`, `ContentViewSpans.builder()` without a `scope:`, inline embeds | Hands the host-created scope down; never disposes it |
+| `AssetCacheProvider` | With `AssetView`, `ContentViewSpans.builder()` without a `scope:`, inline embeds | Hands the host-created scope down; never disposes it |
 
 The chat screen adds `GlassSourceScope` over its content and glass surfaces,
 with a `GlassSource` around the message list, when sampled glass is wanted.
