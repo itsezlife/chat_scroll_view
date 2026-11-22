@@ -158,6 +158,16 @@ void main() {
       expect(media.preview, isNull);
     });
 
+    test('a vector image is the core\'s vector image kind', () {
+      const icon = ContentDescriptor(
+        key: ContentKey.external('https://host/icon.svg'),
+        semanticKind: SemanticKind.unknown,
+        mediaForm: MediaForm.vectorImage,
+      );
+
+      expect(icon.mediaDescriptor!.kind, MediaKind.vectorImage);
+    });
+
     test('a glyph has none: the core never decodes it', () {
       expect(_emoji.mediaDescriptor, isNull);
     });

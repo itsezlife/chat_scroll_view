@@ -8,6 +8,8 @@ package is pre-1.0.
 
 ### Added
 
+- `MediaForm.vectorImage` (`vector_image`): a resolution-independent still,
+  such as an SVG document.
 - `ContentDescriptor.byteSize`, `duration`, `streamable` and `preview`; the
   sealed `ContentPreview` (`raster` bytes, compared by content, or an
   `outline` path in a view box). A data source expands any wire form before

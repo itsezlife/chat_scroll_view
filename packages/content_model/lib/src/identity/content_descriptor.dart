@@ -68,6 +68,10 @@ enum MediaForm {
   /// A resolution-independent vector animation.
   vectorAnimation('vector_animation'),
 
+  /// A resolution-independent still (an SVG document), drawn at the size it
+  /// is shown at.
+  vectorImage('vector_image'),
+
   /// A sequence of frames in an image format (animated WebP, GIF, APNG),
   /// decoded by image codecs.
   ///

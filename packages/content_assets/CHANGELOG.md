@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `MediaForm.vectorImage` maps to the core's `MediaKind.vectorImage`, so
+  `ContentAssetView` draws SVG content by its key through the host's SVG
+  decoder.
 - Loading stages: `ContentAssetView` forwards every parameter of the core's
   view (`status`, `badge`, `onPlay`, `statusBuilder`, `placeholderUntil`,
   `visibleFraction`, `loadingStyle`, `downloadContext`, `requestsDownload`,

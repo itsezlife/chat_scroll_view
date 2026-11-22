@@ -56,6 +56,7 @@ extension ContentDescriptorMedia on ContentDescriptor {
       MediaForm.glyph => null,
       MediaForm.still => MediaKind.still,
       MediaForm.vectorAnimation => MediaKind.vectorAnimation,
+      MediaForm.vectorImage => MediaKind.vectorImage,
       MediaForm.animatedImage => MediaKind.animatedImage,
       MediaForm.video => MediaKind.video,
       MediaForm.unknown => MediaKind.unknown,

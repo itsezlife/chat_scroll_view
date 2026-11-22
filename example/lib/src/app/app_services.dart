@@ -46,6 +46,7 @@ import 'package:mpx_capture/mpx_capture.dart' show CaptureCache;
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_player/mpx_player.dart' show PlayerPool;
+import 'package:mpx_svg/mpx_svg.dart';
 import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
@@ -401,9 +402,15 @@ final class AppServices {
       }
       // The emoji pack is animated WebP and the static stickers are PNG: both
       // are the engine's image codecs' work, whether or not Lottie runs here.
+      // SVG is one more kind: drawn under the standard limits for content
+      // from anywhere, also when it arrives described as a plain image (the
+      // image codecs report it unsupported and the still's fallback draws it).
+      final svg = SvgDecoder();
       final decoders = DecoderRegistry()
         ..register(MediaKind.still, const ImageCodecDecoder())
-        ..register(MediaKind.animatedImage, const ImageCodecDecoder());
+        ..register(MediaKind.animatedImage, const ImageCodecDecoder())
+        ..register(MediaKind.vectorImage, svg)
+        ..registerFallback(MediaKind.still, svg);
       // The lab marks each decode start with whose content it is.
       Decoder traced(Decoder decoder, MediaKind kind) => DemoConfig.scrollLab
           ? LabMediaTrace.traceDecodes(decoder, kind)
