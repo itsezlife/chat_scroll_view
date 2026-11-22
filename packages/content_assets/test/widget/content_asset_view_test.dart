@@ -70,16 +70,16 @@ void main() {
     expect(view.underlay, const Color(0xFF336699));
   });
 
-  testWidgets('forwards the status builder, visible fraction, loading style '
-      'and download request', (tester) async {
-    Widget builder(BuildContext context, MediaStatusControl control) => control;
+  testWidgets('forwards the skin, visible fraction, loading style and '
+      'download request', (tester) async {
+    final skin = AssetViewSkin(status: (context, state, stock) => stock);
     await pump(
       tester,
       ContentAssetView(
         content: _clip,
         preset: _preset,
         scope: scope,
-        statusBuilder: builder,
+        skin: skin,
         visibleFraction: 0.4,
         loadingStyle: MediaLoadingStyle.$IOS,
         requestsDownload: true,
@@ -87,7 +87,7 @@ void main() {
     );
 
     final view = tester.widget<AssetView>(find.byType(AssetView));
-    expect(view.statusBuilder, same(builder));
+    expect(view.skin, same(skin));
     expect(view.visibleFraction, 0.4);
     expect(view.loadingStyle, MediaLoadingStyle.$IOS);
     expect(view.requestsDownload, isTrue);
@@ -108,7 +108,7 @@ void main() {
     expect(view.placeholderUntil, AssetStage.none);
     expect(view.downloadContext, isNull);
     expect(view.underlay, isNull);
-    expect(view.statusBuilder, isNull);
+    expect(view.skin, isNull);
     expect(view.visibleFraction, 1);
     expect(view.loadingStyle, isNull);
     expect(view.requestsDownload, isFalse);

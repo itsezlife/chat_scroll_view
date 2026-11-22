@@ -48,7 +48,7 @@ class ContentAssetProvider extends InheritedWidget {
 ///
 /// The parameters are [AssetView]'s, every one forwarded to it; for a
 /// glyph, which is a still with nothing to download, [status], [badge],
-/// [onPlay], [statusBuilder], [placeholderUntil], [placeholderTint],
+/// [onPlay], [skin], [placeholderUntil], [placeholderTint],
 /// [holdsWhileTickersOff], [loadingStyle], [downloadContext],
 /// [requestsDownload] and [underlay] change nothing.
 class ContentAssetView extends StatelessWidget {
@@ -63,7 +63,7 @@ class ContentAssetView extends StatelessWidget {
     this.status = MediaStatusMode.none,
     this.badge = false,
     this.onPlay,
-    this.statusBuilder,
+    this.skin,
     this.placeholder,
     this.placeholderUntil = AssetStage.none,
     this.placeholderTint,
@@ -109,8 +109,8 @@ class ContentAssetView extends StatelessWidget {
   /// See [AssetView.onPlay].
   final VoidCallback? onPlay;
 
-  /// See [AssetView.statusBuilder].
-  final MediaStatusBuilder? statusBuilder;
+  /// See [AssetView.skin].
+  final AssetViewSkin? skin;
 
   /// See [AssetView.placeholder].
   final AssetPaintable? placeholder;
@@ -169,7 +169,7 @@ class ContentAssetView extends StatelessWidget {
       status: status,
       badge: badge,
       onPlay: onPlay,
-      statusBuilder: statusBuilder,
+      skin: skin,
       placeholder: placeholder,
       placeholderUntil: placeholderUntil,
       placeholderTint: placeholderTint,
