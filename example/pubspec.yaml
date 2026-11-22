@@ -49,53 +49,53 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/http_bytes_cache
-      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
+      ref: b7f627294c5f1aadb66851bb77d93350b5662870
   mpx:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx
-      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
+      ref: b7f627294c5f1aadb66851bb77d93350b5662870
   mpx_core:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
+      ref: b7f627294c5f1aadb66851bb77d93350b5662870
   mpx_capture:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_capture
-      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
+      ref: b7f627294c5f1aadb66851bb77d93350b5662870
   mpx_library:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_library
-      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
+      ref: b7f627294c5f1aadb66851bb77d93350b5662870
   mpx_lottie:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_lottie
-      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
+      ref: b7f627294c5f1aadb66851bb77d93350b5662870
   # SVG as a media kind (vector images, and SVG handed as a plain image).
   mpx_svg:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_svg
-      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
+      ref: b7f627294c5f1aadb66851bb77d93350b5662870
   mpx_player:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_player
-      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
+      ref: b7f627294c5f1aadb66851bb77d93350b5662870
   mpx_ui:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_ui
-      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
+      ref: b7f627294c5f1aadb66851bb77d93350b5662870
   mpx_video_decoder:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_video_decoder
-      ref: fdf7ed6c082b45c092e32247886a6ecb7dbd4187
+      ref: b7f627294c5f1aadb66851bb77d93350b5662870
   panel_catalog:
     path: ../packages/panel_catalog
   panel_pages:
@@ -129,6 +129,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Reads the workspace pubspec in the build-wiring test (the video decoder's
+  # FFmpeg location).
+  yaml: ^3.1.3
   integration_test:
     sdk: flutter
   # Perf harness (integration_test/, test_driver/): timeline summary writer and

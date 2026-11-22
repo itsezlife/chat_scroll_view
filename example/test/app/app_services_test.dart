@@ -276,6 +276,9 @@ void main() {
       startLottie: startLottie ?? start,
       lottieFramesDirectory: Future.value(framesDirectory),
       diskCache: diskCache,
+      // The platform's signals have no plugin here; their channel's error
+      // would land in whichever test runs then.
+      deviceSignals: FakeDeviceSignals(),
     );
 
     test('is started on the clock and the memory pressure the app shares, '
@@ -384,6 +387,8 @@ void main() {
             keyValueStore: FakeKeyValueStore(),
             assetLoader: (key) async => throw StateError('no catalogue'),
             startLottie: failing,
+            // As above: only the Lottie close may be reported.
+            deviceSignals: FakeDeviceSignals(),
           ),
           throwsStateError,
         );
