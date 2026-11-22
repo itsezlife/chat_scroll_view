@@ -31,7 +31,7 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: 2bd398f408415b55f12aea32c6eb437800125258
+      ref: 0213e7b02c7deb4d0793031253dc02dfe702577b
   panel_catalog:
     path: ../panel_catalog
   panel_shell:

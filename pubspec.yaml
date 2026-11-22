@@ -59,7 +59,7 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: 2bd398f408415b55f12aea32c6eb437800125258
+      ref: 0213e7b02c7deb4d0793031253dc02dfe702577b
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
@@ -77,20 +77,14 @@ dev_dependencies:
   fake_async: ^1.3.3
   vm_service: ^15.0.0
 
-# Build-hook settings, read from the workspace root only. The software video
-# decoder (mpx_video_decoder) links FFmpeg, built by its recipe into
-# <mpx>/packages/mpx_video_decoder/native/.build/<target>/prefix. The pinned
-# git checkout has no such build, and the hook runner passes no shell
-# variable a hook could read, so the workspace names the sibling mpx
-# checkout's build here (relative to this file). Without it the app builds,
-# warns, and plays no video: every video sticker and GIF keeps its
-# placeholder. Build it with, in ../mpx:
-#   TARGET=android-arm64 packages/mpx_video_decoder/native/recipe/build.sh
-#   packages/mpx_video_decoder/native/recipe/build.sh   # macOS arm64
-hooks:
-  user_defines:
-    mpx_video_decoder:
-      ffmpeg_build: ../mpx/packages/mpx_video_decoder/native/.build
+# The native libraries of mpx (FFmpeg and the video wrapper, the Lottie
+# renderer) come prebuilt from mpx's releases through its build hooks; no
+# local build is needed. To try a local FFmpeg build instead, name its recipe
+# build directory here (read from the workspace root only):
+#   hooks:
+#     user_defines:
+#       mpx_video_decoder:
+#         ffmpeg_build: ../mpx/packages/mpx_video_decoder/native/.build
 
 # Overrides are honoured only here, never in members. Members and CI pin the
 # fork by git ref (itsezlife/md) so the lockfile is reproducible: a release tag,
