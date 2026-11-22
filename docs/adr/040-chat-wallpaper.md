@@ -9,7 +9,8 @@ nothing.
 
 **Status**: Accepted  
 **Date**: 2026-10-31  
-**Relates to**: [ADR 020](020-package-topology.md), [ADR 027](027-foundation-theme-glass-motion.md), [ADR 029](029-host-integration.md)
+**Relates to**: [ADR 020](020-package-topology.md), [ADR 027](027-foundation-theme-glass-motion.md), [ADR 029](029-host-integration.md)  
+**Amended**: 2026-11-22, runtime artwork through the media stack's SVG compiler
 
 ## Context
 
@@ -50,6 +51,7 @@ Telegram does neither:
 | Pattern raster | Keyed by slug and width, the width being the display's shorter side in physical pixels. The raster is drawn cover-fit into the box, never smaller than cover-fit into the window, so a thumbnail crops instead of shrinking and a resize only rescales the draw. Where the platform reports no display size, the window's shorter side stands in. |
 | Composite | One fragment shader (`shaders/patterned_fill.frag`) computes the fill (freeform keyframes with their crossfade, linear or solid) and blends the pattern over it per pixel: mask onto black, or W3C soft light of black or white ink. No offscreen layer, no snapshot, no composite cache. Until the pattern raster and the program have both landed the bare fill paints; the warm-up loads the program. |
 | Gradient | Unchanged: a 60 × 80 raster drawn cover-fit with bilinear upscale, as on both mobile platforms. A resize costs nothing. |
+| Runtime artwork (amended 2026-11-22) | Downloaded patterns go through the media stack's SVG compiler, not through the package. The host's loader takes the pattern's bytes (gzipped SVG, `.tgv`) and compiles them with mpx_svg's `SvgCompiler`: inflated to `SvgLimits.maxInflatedBytes`, then sanitized and compiled on a worker. It hands the package the compiled vector form through the same `BytesLoader` seam, and keeps that form in the bytes store under the slug, so a later start neither downloads nor parses. A pattern the limits refuse fails its loader, and the bare fill stays. The package keeps no compiler dependency; `flutter_svg` stays a dev dependency of its tests. |
 | Diagnostics | `chat_wallpaper_diagnostics.dart` counts pattern rasterizations and gradient rasters. Observation only, kept in profile and release builds so that on-device suites can attribute raster cost. |
 
 ## Rejected

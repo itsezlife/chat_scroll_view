@@ -129,6 +129,8 @@ import 'features/chat/sticker_interaction_stub_test.dart'
 import 'features/chat/sticker_message_body_test.dart'
     as sticker_message_body_test;
 import 'features/chat/video_sticker_pack_test.dart' as video_sticker_pack_test;
+import 'features/chat/wallpaper/downloaded_pattern_test.dart'
+    as downloaded_pattern_test;
 import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
 import 'flicker/gif_return_test.dart' as flicker_gif_return_test;
 import 'flicker/hidden_panel_textures_test.dart'
@@ -376,6 +378,10 @@ void main() {
     chat_texture_warmer_test.main,
   );
   group('features/chat/packed_path_test.dart', packed_path_test.main);
+  group(
+    'features/chat/wallpaper/downloaded_pattern_test.dart',
+    downloaded_pattern_test.main,
+  );
   group(
     'features/chat/panel_playback_hold_test.dart',
     panel_playback_hold_test.main,

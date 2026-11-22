@@ -1,6 +1,9 @@
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
+import 'package:chat_scroll_view_example/src/features/chat/wallpaper/downloaded_pattern.dart';
 import 'package:chat_wallpaper/chat_wallpaper.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:vector_graphics/vector_graphics.dart';
 
 /// The wallpaper the demo's chats show, and its artwork.
@@ -17,6 +20,30 @@ abstract final class DemoWallpaper {
   static const Map<String, BytesLoader> artwork = {
     careerPattern: AssetBytesLoader('assets/chat_wallpaper/career.svg'),
   };
+
+  /// Artwork per slug as [DemoConfig.wallpaperArtwork] says: [artwork], or
+  /// the pattern downloaded as gzipped SVG at run time, kept compiled in
+  /// [compiled]. The download reads the bundled `career.tgv`, standing in
+  /// for the server the demo does not have.
+  static Map<String, BytesLoader> artworkOf(IBytesCache compiled) =>
+      switch (DemoConfig.wallpaperArtwork) {
+        'downloaded' => {
+          careerPattern: DownloadedPattern(
+            slug: careerPattern,
+            download: () async {
+              final data = await rootBundle.load(
+                'assets/chat_wallpaper/career.tgv',
+              );
+              return data.buffer.asUint8List(
+                data.offsetInBytes,
+                data.lengthInBytes,
+              );
+            },
+            compiled: compiled,
+          ),
+        },
+        _ => artwork,
+      };
 
   /// The four colour points of [dark].
   static const ChatWallpaper$Freeform darkFill = ChatWallpaper$Freeform(
@@ -63,7 +90,15 @@ abstract final class DemoWallpaper {
 /// no new composite. Needs a [MediaQuery] above it.
 class DemoWallpaperScope extends StatelessWidget {
   /// Scopes [child] for [wallpaper].
-  const DemoWallpaperScope({required this.child, this.wallpaper, super.key});
+  const DemoWallpaperScope({
+    required this.child,
+    this.wallpaper,
+    this.artwork = DemoWallpaper.artwork,
+    super.key,
+  });
+
+  /// The patterns' artwork by slug.
+  final Map<String, BytesLoader> artwork;
 
   /// The wallpaper the chats below show; none when `null`.
   final ChatWallpaper? wallpaper;
@@ -75,7 +110,7 @@ class DemoWallpaperScope extends StatelessWidget {
   Widget build(BuildContext context) => ChatWallpaperMotionScope(
     child: switch (wallpaper) {
       final wallpaper? => ChatWallpaperPatterns(
-        artwork: DemoWallpaper.artwork,
+        artwork: artwork,
         child: ChatWallpaperTheme(
           wallpaper: wallpaper,
           child: ChatWallpaperWarmUp(wallpapers: [wallpaper], child: child),

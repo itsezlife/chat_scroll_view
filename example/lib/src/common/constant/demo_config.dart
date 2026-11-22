@@ -67,6 +67,15 @@ abstract final class DemoConfig {
     defaultValue: 'mask',
   );
 
+  /// Where the wallpaper's pattern comes from: `bundled` (compiled from SVG
+  /// at build time, the default) or `downloaded` (gzipped SVG fetched at run
+  /// time, compiled on a worker and kept compiled in the bytes store), from
+  /// `--dart-define=WALLPAPER_ARTWORK=downloaded`.
+  static const String wallpaperArtwork = String.fromEnvironment(
+    'WALLPAPER_ARTWORK',
+    defaultValue: 'bundled',
+  );
+
   /// Whether glass paints flat, as under a host's low-power mode, from
   /// `--dart-define=GLASS_LITE=true`. On-device suites use it to tell the
   /// glass's share of a frame from the wallpaper's.

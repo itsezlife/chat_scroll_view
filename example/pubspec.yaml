@@ -154,6 +154,9 @@ flutter:
       transformers:
         - package: vector_graphics_compiler
     - assets/chat_wallpaper/LICENSE.md
+    # The same pattern gzipped, as a server sends it: the downloaded-artwork
+    # path (WALLPAPER_ARTWORK=downloaded) reads it at run time.
+    - assets/chat_wallpaper/career.tgv
     # The animated emoji pack and its licence credit; see LICENSE.md there.
     - assets/animated_emoji/
     # Lottie stickers authored for the demo (no third-party artwork).

@@ -29,6 +29,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_p
 import 'package:chat_scroll_view_example/src/features/chat/data/shipped_packs_seed.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
@@ -51,6 +52,7 @@ import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:rich_clipboard/rich_clipboard.dart';
+import 'package:vector_graphics/vector_graphics.dart' show BytesLoader;
 
 /// The app's long-lived services: the composition root of the demo host.
 ///
@@ -839,6 +841,11 @@ final class AppServices {
   /// Where the attach sheet's camera keeps each shot: the bytes store the
   /// pipeline and the library players read captures from.
   late final CaptureCache captureCache = CaptureCache(store: _bytes);
+
+  /// The wallpaper patterns' artwork; a downloaded one is kept compiled in
+  /// the bytes store.
+  late final Map<String, BytesLoader> wallpaperArtwork =
+      DemoWallpaper.artworkOf(_bytes);
 
   final _DeviceLibrary _deviceLibrary;
 

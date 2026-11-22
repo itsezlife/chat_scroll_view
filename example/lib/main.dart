@@ -225,6 +225,7 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
           services: widget.services,
           child: DemoWallpaperScope(
             wallpaper: DemoWallpaper.configured,
+            artwork: widget.services.wallpaperArtwork,
             child: DemoMarkdownTheme(child: DemoChatTheme(child: child!)),
           ),
         ),
