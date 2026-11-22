@@ -6,6 +6,18 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (sheet polish, Android)
+
+- With a pick at the sheet's top no strip shows under the page: the
+  content's height grows with the header's upward growth, so its bottom
+  stays on the screen's bottom.
+- With a pick, the status bar band fills with the pinned bar once the
+  line is crossed, on its time, not by the distance to the top.
+- The open and close travel as the reference's container does
+  (`AttachSheetPolicy.openFrom`, `closeTo`): the spring starts a whole
+  height below the rest, and the close goes down a whole height, the
+  keyboard's, 10 and the navigation bar's over its 250 ms.
+
 ### Changed (reaching the top, Android)
 
 - The pinned bar turns on once the sheet's top is within 44 of the status

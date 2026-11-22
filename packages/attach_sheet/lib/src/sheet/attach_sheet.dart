@@ -517,7 +517,15 @@ class _AttachSheetState extends State<AttachSheet>
     if (velocity == 0 && _morph != null && !_speed.isInstant) {
       await _morphBack(_morph!);
     } else {
-      final end = _card == null ? _size.height + 10 : _size.height;
+      final media = MediaQuery.of(context);
+      final end = _card == null
+          ? _policy.closeTo(
+              _size,
+              _$top.value,
+              keyboard: media.viewInsets.bottom,
+              bottom: media.viewPadding.bottom,
+            )
+          : _size.height;
       final motion = velocity == 0
           ? _policy.closeMotion
           : _policy.settleMotion(AttachSheetRelease.dismiss);
@@ -582,7 +590,7 @@ class _AttachSheetState extends State<AttachSheet>
       _$top.value = _collapsedTop;
       unawaited(_morphOut(morph));
     } else {
-      _$top.value = _size.height;
+      _$top.value = _policy.openFrom(_size, _collapsedTop);
       unawaited(_moveTo(_collapsedTop, _policy.openMotion));
     }
     final dimIn = _policy.dimIn.withSpeed(_speed);
@@ -1105,8 +1113,13 @@ class _AttachSheetState extends State<AttachSheet>
       // sheet's: its viewport (and a scrollbar's track over it) holds
       // still while the sheet moves; below the screen's edge it is
       // clipped.
-      final contentHeight = math.max<double>(0, _size.height - _expandedTop);
-      final band = _bandAt(top);
+      // Grown by a header's upward growth, so its bottom stays on the
+      // screen's bottom as the content moves up with the header.
+      final contentHeight = math.max<double>(
+        0,
+        _size.height - _expandedTop + (_shownTop - contentTop),
+      );
+      final band = _bandAt(top, _$header.value);
       final corner = _morphedRadius(
         (squares ? radius * (1 - pinned) : radius) * band.radiusShare,
       );
@@ -1201,8 +1214,13 @@ class _AttachSheetState extends State<AttachSheet>
   /// top the background grows up by the distance in, at most a status bar,
   /// and the corners square twice as fast, so at its top the sheet meets the
   /// screen's top edge square.
-  ({double top, double radiusShare}) _bandAt(double top) {
+  ({double top, double radiusShare}) _bandAt(double top, double pinned) {
     final bar = _statusBar;
+    // Where the edge runs up with the pinned bar (a bleed), the status bar
+    // band fills with it too, on its time, not by the distance in.
+    if (!_morphing && _expandedTop > _floorTop) {
+      return (top: top - bar * pinned, radiusShare: 1);
+    }
     if (_morphing || bar <= 0 || top >= 2 * bar) {
       return (top: top, radiusShare: 1);
     }
@@ -1244,7 +1262,7 @@ class _AttachSheetState extends State<AttachSheet>
     animation: Listenable.merge([_$top, _$header, extension, _morphChannels]),
     builder: (context, _) {
       final top = _edge(extension.value, _$header.value).top;
-      final band = _bandAt(top);
+      final band = _bandAt(top, _$header.value);
       return Positioned(
         key: const ValueKey('attach-sheet-band'),
         left: 0,

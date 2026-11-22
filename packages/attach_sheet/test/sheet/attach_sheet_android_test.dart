@@ -26,8 +26,11 @@ void main() {
       final rig = await SheetRig.open(tester, policy: policy, settle: false);
       expect(rig.top, 800);
 
-      // The open starts on the frame after the sheet's first layout.
+      // The open starts on the frame after the sheet's first layout, its
+      // whole height below the rest.
       await tester.pump();
+      await tester.pump();
+      expect(rig.top, closeTo(rest + 800, 1));
       await tester.pump(const Duration(milliseconds: 100));
       expect(rig.top, inExclusiveRange(rest, 800));
 
@@ -341,13 +344,15 @@ void main() {
       expect(rig.top, closeTo(rest, 0.5));
     });
 
-    testWidgets('closes in 250 ms off the bottom edge', (tester) async {
+    testWidgets('closes in 250 ms on an ease out, going down its whole '
+        'height and 10 from where it is', (tester) async {
       final rig = await SheetRig.open(tester, policy: policy);
 
       await rig.tapAbove();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 125));
-      expect(rig.top, inExclusiveRange(rest, 810));
+      const ease = Cubic(0, 0, 0.58, 1);
+      expect(rig.top, closeTo(rest + 810 * ease.transform(0.5), 2));
       await tester.pump(const Duration(milliseconds: 130));
       await tester.pump();
       expect(rig.closed, isTrue);

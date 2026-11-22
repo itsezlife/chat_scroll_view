@@ -179,6 +179,39 @@ void main() {
     expect(edge - tester.getTopLeft(sheet).dy, closeTo(26, 0.5));
   });
 
+  testWidgets('with a pick at the top, the page still reaches the screen\'s '
+      'bottom: no strip under it', (tester) async {
+    await open(tester);
+    await tapCheck(tester, 0);
+    unawaited(AttachSheetController.of(tester.element(header)).expand());
+    await tester.pumpAndSettle();
+    final area = find.byKey(const ValueKey('attach-page-area'));
+    expect(tester.getBottomLeft(area).dy, closeTo(800, 0.5));
+  });
+
+  testWidgets('with a pick, the status bar band does not fill by the '
+      'distance to the top: it fills with the pinned bar, once the line is '
+      'crossed', (tester) async {
+    await open(tester);
+    await tapCheck(tester, 0);
+    final sheet = AttachSheetController.of(tester.element(header));
+    final band = find.byKey(const ValueKey('attach-sheet-band'));
+    // 46 under the status bar (24): not yet across the line (44); the edge,
+    // with the header's 26 above it, is 20 under the status bar.
+    sheet.jumpTop(24 + 46);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(sheet.pinned.value, 0);
+    expect(tester.getSize(band).height, 0);
+    // Across it: the band fills with the pinned bar, on its time.
+    sheet.jumpTop(24 + 40);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+    expect(tester.getSize(band).height, inExclusiveRange(4, 20));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(tester.getSize(band).height, closeTo(24, 0.5));
+  });
+
   testWidgets('the grabber fades out as the words fade in over its line, '
       'and back as they go', (tester) async {
     final rig = await open(tester);

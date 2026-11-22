@@ -309,6 +309,20 @@ abstract base class AttachSheetPolicy {
   /// How the sheet rises from the bottom edge to its resting height.
   AttachSheetMotion get openMotion;
 
+  /// Where the sheet's top starts its open, for a screen of [size] and a
+  /// resting top of [rest]: off the bottom edge.
+  double openFrom(Size size, double rest) => size.height;
+
+  /// Where a close takes the sheet's top from [top], for a screen of [size]
+  /// with the keyboard [keyboard] high and the bottom inset [bottom]: just
+  /// off the bottom edge.
+  double closeTo(
+    Size size,
+    double top, {
+    double keyboard = 0,
+    double bottom = 0,
+  }) => size.height + 10;
+
   /// How the sheet falls off the bottom edge when it closes.
   AttachSheetMotion get closeMotion;
 
@@ -503,6 +517,21 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
   AttachSheetMotion get openMotion => AttachSheetMotion.spring(
     SpringDescription.withDampingRatio(mass: 1, stiffness: 350, ratio: 0.75),
   );
+
+  /// The container comes up its whole height: from the rest that far
+  /// below.
+  @override
+  double openFrom(Size size, double rest) => rest + size.height;
+
+  /// The container goes down its whole height, the keyboard's, 10 and the
+  /// navigation bar's from where it is.
+  @override
+  double closeTo(
+    Size size,
+    double top, {
+    double keyboard = 0,
+    double bottom = 0,
+  }) => top + size.height + keyboard + 10 + bottom;
 
   /// 250 ms on an ease out (0, 0, 0.58, 1).
   @override
