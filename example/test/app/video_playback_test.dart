@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:l/l.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
+import 'package:mpx_player/native.dart' show PlatformStillDecoder;
 import 'package:mpx_video_decoder/mpx_video_decoder.dart';
 import 'package:mpx_video_decoder/testing.dart';
 
@@ -83,6 +84,33 @@ void main() {
       expect(logged.where((line) => line.contains('Video')), hasLength(1));
       expect(logged.single, contains('FormatException'));
     });
+  });
+
+  test('on a platform that draws stills, its still is the fallback of a clip '
+      'the library cannot read', () async {
+    for (final (platform, fallback) in [
+      (TargetPlatform.android, true),
+      (TargetPlatform.iOS, true),
+      (TargetPlatform.macOS, true),
+      (TargetPlatform.linux, false),
+    ]) {
+      debugDefaultTargetPlatformOverride = platform;
+      try {
+        final playback = await vm.$startVideoPlayback(
+          clock: clock,
+          memoryPressure: pressure,
+          spawn: () async => FakeVideoEngine(),
+        );
+        expect(
+          playback!.fallback,
+          fallback ? isA<PlatformStillDecoder>() : isNull,
+          reason: platform.name,
+        );
+        await playback.close();
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    }
   });
 
   test('an engine that starts gives a decoder that takes a demo clip to full '

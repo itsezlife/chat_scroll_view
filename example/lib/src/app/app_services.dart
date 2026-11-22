@@ -432,6 +432,9 @@ final class AppServices {
           MediaKind.video,
           traced(videoPlayback.decoder, MediaKind.video),
         );
+        if (videoPlayback.fallback case final fallback?) {
+          decoders.registerFallback(MediaKind.video, fallback);
+        }
       }
       // Content that is not bundled: the local corpus, found in the bundle
       // and in the directory the build was given, and Giphy, only with a key.

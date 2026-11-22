@@ -26,10 +26,16 @@ final class VideoPlayback {
   VideoPlayback({
     required this.decoder,
     required List<FutureOr<void> Function()> shutdown,
+    this.fallback,
   }) : _shutdown = List.unmodifiable(shutdown);
 
   /// The decoder to register for video-coded media.
   final Decoder decoder;
+
+  /// The decoder to register as video's fallback, or null for none: the
+  /// platform's still of a clip [decoder] cannot read (a codec it was built
+  /// without, a picture larger than it decodes), turned as the clip shows.
+  final Decoder? fallback;
 
   /// The platform's [VideoPlaybackStarter]: the native library behind
   /// `dart:ffi` where there is one, the browser's own `<video>` element behind
@@ -67,6 +73,7 @@ final class VideoPlayback {
     required Future<VideoEngine> Function() engineFactory,
     FrameTexturePool? textures,
     TextureFrameWriter? Function(VideoEngine engine)? textureWriter,
+    Decoder? fallback,
   }) async {
     final VideoEngine engine;
     try {
@@ -102,6 +109,7 @@ final class VideoPlayback {
     // The engine is disposed last and frees every clip still open.
     return VideoPlayback(
       decoder: VideoDecoder(engine: engine, scheduler: scheduler),
+      fallback: fallback,
       shutdown: [
         () => ScrollLab.videoCap.removeListener(applyCap),
         () => ScrollLab.textures.removeListener(applyTextures),
