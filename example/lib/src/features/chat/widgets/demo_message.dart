@@ -3,6 +3,7 @@ import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/document_embed.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
@@ -544,12 +545,25 @@ class _RegisteredChatMdBodyState extends State<_RegisteredChatMdBody> {
       data: bubbleMarkdownTheme,
       child: DefaultTextStyle.merge(
         style: widget.textStyle,
-        child: ChatMarkdownBody(
-          controller: widget.selection,
-          messageId: widget.messageId,
-          markdown: widget.markdown,
-          embedResolver: widget.embedResolver,
-        ),
+        // A document sent alone is its row laid out as a block; the body
+        // stays registered above, so selecting and copying the message work
+        // as for any other.
+        child: switch ((
+          widget.embedResolver,
+          DocumentMessageBody.of(widget.markdown.markdown),
+        )) {
+          (final resolver?, (:final id, :final alt)?) => DocumentRowView(
+            resolver: resolver,
+            id: id,
+            alt: alt,
+          ),
+          _ => ChatMarkdownBody(
+            controller: widget.selection,
+            messageId: widget.messageId,
+            markdown: widget.markdown,
+            embedResolver: widget.embedResolver,
+          ),
+        },
       ),
     );
     // Only a lab build listens for its plain-text switch: every row would

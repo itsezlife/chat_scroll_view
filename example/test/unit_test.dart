@@ -198,6 +198,7 @@ import 'widgets/demo_message_markdown_registration_test.dart'
     as demo_message_markdown_registration_test;
 import 'widgets/desktop_copy_shortcut_test.dart' as desktop_copy_shortcut_test;
 import 'widgets/desktop_key_focus_test.dart' as desktop_key_focus_test;
+import 'widgets/document_row_bubble_test.dart' as document_row_bubble_test;
 import 'widgets/emoji_selection_clear_test.dart' as emoji_selection_clear_test;
 import 'widgets/glyph_warmup_test.dart' as glyph_warmup_test;
 import 'widgets/large_emoji_limit_button_test.dart'
@@ -227,6 +228,7 @@ import 'widgets/widget_chat_screen_source_test.dart'
     as widget_chat_screen_source_test;
 
 void main() {
+  group('widgets/document_row_bubble_test.dart', document_row_bubble_test.main);
   group(
     'features/chat/reference_media_sizes_test.dart',
     reference_media_sizes_test.main,

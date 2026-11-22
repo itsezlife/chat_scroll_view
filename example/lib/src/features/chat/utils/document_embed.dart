@@ -2,8 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 import 'package:mpx_core/mpx_core.dart';
 
@@ -453,4 +452,152 @@ final class DocumentEmbedResolver implements InlineEmbedResolver {
             ),
     );
   }
+}
+
+/// A message whose whole body is one document (`![name](file:id)`): sent as
+/// a document, shown as its row laid out as a block. Anywhere else in text a
+/// document stays an inline embed.
+abstract final class DocumentMessageBody {
+  static final RegExp _lone = RegExp(
+    '^!\\[([^\\]]*)\\]\\(${DocumentEmbedResolver.scheme}:([^)\\s]+)\\)\$',
+  );
+
+  /// The document's id and alternative text when [body] is one document
+  /// alone, else null.
+  static ({String id, String alt})? of(String body) =>
+      switch (_lone.firstMatch(body.trim())) {
+        final match? => (id: match.group(2)!, alt: match.group(1)!),
+        null => null,
+      };
+}
+
+/// A document message's row, laid out as a block: as large as the row, so
+/// the bubble (its sender line above, its time below) makes room for all of
+/// it. Inline in text a row would get only a line's height, which is what
+/// markdown reserves for an embed (an emoji drawn larger overflows its
+/// line), and a row overflows into the lines around it.
+///
+/// Resolves the row through [resolver] like any embed, paints it into its
+/// own box, repaints when it signals, and disposes it. A document the
+/// resolver does not know shows its [alt] text.
+class DocumentRowView extends StatefulWidget {
+  /// The row of document [id].
+  const DocumentRowView({
+    required this.resolver,
+    required this.id,
+    required this.alt,
+    super.key,
+  });
+
+  /// Where the row comes from (the chat's embed resolver).
+  final InlineEmbedResolver resolver;
+
+  /// The document's id.
+  final String id;
+
+  /// What shows when the document is unknown.
+  final String alt;
+
+  @override
+  State<DocumentRowView> createState() => _DocumentRowViewState();
+}
+
+class _DocumentRowViewState extends State<DocumentRowView> {
+  DocumentEmbed? _row;
+  final _Changes _changes = _Changes();
+  double? _ratio;
+
+  void _changed() => _changes.ping();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ratio = MediaQuery.devicePixelRatioOf(context);
+    if (_row == null || ratio != _ratio) _resolve(ratio);
+  }
+
+  @override
+  void didUpdateWidget(DocumentRowView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.id != widget.id || oldWidget.resolver != widget.resolver) {
+      _resolve(_ratio ?? MediaQuery.devicePixelRatioOf(context));
+    }
+  }
+
+  void _resolve(double ratio) {
+    _release();
+    _ratio = ratio;
+    final fontSize = DefaultTextStyle.of(context).style.fontSize ?? 15;
+    final embed = widget.resolver.resolve(
+      InlineEmbedTarget(
+        scheme: DocumentEmbedResolver.scheme,
+        id: widget.id,
+        alt: widget.alt,
+      ),
+      InlineEmbedMetrics(
+        fontSize: fontSize,
+        ascent: fontSize * 0.8,
+        descent: fontSize * 0.2,
+        devicePixelRatio: ratio,
+      ),
+    );
+    if (embed is DocumentEmbed) {
+      _row = embed..addListener(_changed);
+    } else {
+      embed?.dispose();
+    }
+  }
+
+  void _release() {
+    _row
+      ?..removeListener(_changed)
+      ..dispose();
+    _row = null;
+  }
+
+  @override
+  void dispose() {
+    _release();
+    _changes.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final row = _row;
+    if (row == null) return Text(widget.alt);
+    return SizedBox.fromSize(
+      size: row.sizeHint,
+      child: CustomPaint(
+        painter: _DocumentRowPainter(
+          row,
+          tint: DefaultTextStyle.of(context).style.color,
+          repaint: _changes,
+        ),
+      ),
+    );
+  }
+}
+
+// Tells the painter the row signalled a change.
+final class _Changes extends ChangeNotifier {
+  void ping() => notifyListeners();
+}
+
+final class _DocumentRowPainter extends CustomPainter {
+  _DocumentRowPainter(this.row, {required this.tint, super.repaint});
+
+  final DocumentEmbed row;
+  final Color? tint;
+
+  @override
+  void paint(Canvas canvas, Size size) => row.paint(
+    canvas,
+    Offset.zero & size,
+    InlineEmbedPaintContext(tint: tint),
+  );
+
+  @override
+  bool shouldRepaint(_DocumentRowPainter old) =>
+      !identical(old.row, row) || old.tint != tint;
 }
