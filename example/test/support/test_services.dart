@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_bytes_cache/http_bytes_cache.dart';
+import 'package:mpx/testing.dart' show FakeDeviceSignals;
 import 'package:mpx_core/mpx_core.dart';
 
 /// The app's services over in-memory storage and the bundled emoji catalogue,
@@ -39,6 +40,9 @@ Future<AppServices> createTestServices({
   giphyHttpClient: giphyHttpClient,
   corpus: corpus,
   keyValueStore: storage ?? FakeKeyValueStore(),
+  // The platform's signals have no plugin under test: their channel's
+  // missing-plugin error lands asynchronously in whichever test runs then.
+  deviceSignals: FakeDeviceSignals(),
   assetLoader: loader ?? rootBundle.loadString,
   clipboard: FakeRichClipboard(),
 );
