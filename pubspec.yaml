@@ -59,7 +59,7 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: fff46b9c321562725e64982ea30103c131b7a2c9
+      ref: 68573f6d807e26d7674fd3422ead24def57b0d2c
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
