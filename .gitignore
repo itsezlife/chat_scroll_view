@@ -81,3 +81,6 @@ packages/composer_editable/tool/staging/
 
 # flutter_test golden comparator failure output
 **/failures/
+
+# Local build defines (keys); never committed.
+config/local.defines.json
