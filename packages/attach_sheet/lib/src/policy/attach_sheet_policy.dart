@@ -730,6 +730,8 @@ base class AttachSheetPolicy$Android extends AttachSheetPolicy {
     reveal: MotionSpec(Duration(milliseconds: 180), Curves.decelerate),
     revealRise: 0,
     sendButtonFromScale: 0.2,
+    // The viewer's send button shows no count.
+    viewerSendShowsCount: false,
     countBounce: AttachCountBounce(
       up: 0.9,
       down: 0.9,

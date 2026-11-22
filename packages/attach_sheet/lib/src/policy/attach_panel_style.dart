@@ -99,6 +99,7 @@ final class AttachPanelStyle {
     required this.sendMenu,
     required this.overflow,
     required this.sendButtonSize,
+    this.viewerSendShowsCount = true,
   });
 
   /// The counter shows once this many code points or fewer remain; null for
@@ -117,6 +118,10 @@ final class AttachPanelStyle {
 
   /// The scale the send button grows from as the panel comes in.
   final double sendButtonFromScale;
+
+  /// Whether the send button in the picker viewer's caption bar carries the
+  /// selection's count, as the sheet's does.
+  final bool viewerSendShowsCount;
 
   /// How the count on the send button bounces.
   final AttachCountBounce countBounce;

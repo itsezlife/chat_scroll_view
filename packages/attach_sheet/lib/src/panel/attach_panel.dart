@@ -26,8 +26,12 @@ class AttachCaptionBar extends StatefulWidget {
     this.dock,
     this.caption,
     this.addMore,
+    this.showsCount = true,
     super.key,
   });
+
+  /// Whether Send carries the selection's count.
+  final bool showsCount;
 
   /// The add-photo button leading the field while the keyboard is down
   /// (the camera's viewer: back to the camera for another shot); null for
@@ -260,6 +264,7 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
                 child: AttachSendButton(
                   controller: _send,
                   beforeSend: widget.beforeSend,
+                  showsCount: widget.showsCount,
                 ),
                 builder: (context, button) {
                   final from = _send.policy.panel.sendButtonFromScale;
@@ -273,6 +278,7 @@ class _AttachCaptionBarState extends State<AttachCaptionBar>
               null => AttachSendButton(
                 controller: _send,
                 beforeSend: widget.beforeSend,
+                showsCount: widget.showsCount,
               ),
             },
           ),
@@ -289,11 +295,15 @@ class AttachSendButton extends StatefulWidget {
   const AttachSendButton({
     required this.controller,
     this.beforeSend,
+    this.showsCount = true,
     super.key,
   });
 
   /// The panel's state.
   final AttachSendController controller;
+
+  /// Whether it carries the selection's count.
+  final bool showsCount;
 
   /// Runs before a tap sends.
   final VoidCallback? beforeSend;
@@ -470,7 +480,9 @@ class _AttachSendButtonState extends State<AttachSendButton>
                       final shown =
                           (old.isEmpty ? 0.0 : 1 - t) +
                           (text.isEmpty ? 0.0 : t);
-                      if (shown <= 0) return const SizedBox.shrink();
+                      if (shown <= 0 || !widget.showsCount) {
+                        return const SizedBox.shrink();
+                      }
                       final badge = AttachCountBadge(from: old, to: text, t: t);
                       return Transform.scale(
                         key: const ValueKey('attach-send-bounce'),

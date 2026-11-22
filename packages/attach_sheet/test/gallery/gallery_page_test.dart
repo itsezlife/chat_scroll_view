@@ -1043,6 +1043,38 @@ void main() {
     });
   });
 
+  testWidgets("Android: the viewer's Send carries no count, as the "
+      "reference's; the sheet's keeps its own", (tester) async {
+    final rig = await open(tester, size: const Size(800, 1200));
+    rig.selection.toggle(AttachItems.photo('p'));
+    rig.selection.toggle(AttachItems.photo('q'));
+    await tester.pumpAndSettle();
+    final viewerSlot = find.byKey(const ValueKey('attach-viewer-slot'));
+    final count = find.byKey(const ValueKey('attach-send-count'));
+    expect(count, findsOneWidget, reason: "the sheet's Send");
+    await tester.tap(cell(1));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(viewerSlot, findsOneWidget);
+    expect(
+      find.descendant(
+        of: viewerSlot,
+        matching: find.byKey(const ValueKey('attach-send')),
+      ),
+      findsOneWidget,
+    );
+    expect(find.descendant(of: viewerSlot, matching: count), findsNothing);
+    // A pick there changes nothing on it.
+    rig.selection.toggle(AttachItems.photo('r'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.descendant(of: viewerSlot, matching: count), findsNothing);
+    expect(
+      const AttachSheetPolicy.android().panel.viewerSendShowsCount,
+      isFalse,
+    );
+  });
+
   testWidgets('the viewer carries the caption and sends the item shown when '
       'nothing is selected', (tester) async {
     final rig = await open(tester, size: const Size(800, 1200));

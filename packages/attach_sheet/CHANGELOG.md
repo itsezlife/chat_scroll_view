@@ -8,6 +8,11 @@ package is pre-1.0.
 
 ### Fixed (sheet polish, Android)
 
+- The picker viewer's Send carries no count on Android, as the
+  reference's viewer (`AttachPanelStyle.viewerSendShowsCount`,
+  `AttachCaptionBar.showsCount`, `AttachSendButton.showsCount`). The
+  sheet's Send keeps its count.
+
 - With a pick at the sheet's top no strip shows under the page: the
   content's height grows with the header's upward growth, so its bottom
   stays on the screen's bottom.

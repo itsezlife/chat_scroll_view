@@ -1087,6 +1087,7 @@ class _ViewerCaptionState extends State<_ViewerCaption> {
           dock: _dock,
           beforeSend: widget.beforeSend,
           addMore: widget.addMore,
+          showsCount: widget.controller.policy.panel.viewerSendShowsCount,
         ),
         switch (_dock) {
           final dock? => dock.buildPlace(context),
