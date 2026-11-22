@@ -12,6 +12,7 @@
 /// re-exported.
 library;
 
+export 'src/document/svg_document_preview.dart';
 export 'src/embed/content_embed.dart';
 export 'src/embed/content_embed_resolver.dart';
 export 'src/embed/inline_embed.dart';

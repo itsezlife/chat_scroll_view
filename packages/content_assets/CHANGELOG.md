@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `SvgDocumentPreview`: when an SVG sent as a document shows a preview of
+  its drawing, and how. It is SVG by type, else by name; its preview
+  descriptor is the document as a vector image, capped at 1 MiB; it is drawn
+  at the thumbnail's pixels, up to 960; and `localOnly(policy)` makes its
+  download tag never download, so a preview draws only from bytes already
+  here.
 - `InlineEmbedPaintContext.screen`: the screen in the paint's coordinates.
   A `ContentEmbed`'s outline shimmer crosses it, so embeds side by side draw
   one band.
