@@ -1,7 +1,7 @@
 # ADR 049: Chat capabilities
 
 What the user may do in a chat is one immutable value, **chat
-capabilities**, in a new pure-Dart leaf `chat_capabilities`. The host
+capabilities**, in a new pure-Dart package `chat_capabilities`. The host
 resolves its backend's rights and hands each chat package a live value of
 outcomes and reasons, never protocol flags. Each package reads only its own
 group, draws the denied form of its own controls per platform, takes every
@@ -21,7 +21,8 @@ acceptance pass; refined at issue slicing: the feedback type, the copy hook, the
 [ADR 045](045-bulletins.md) (feedback is the host's),
 [ADR 046](046-media-picker.md) (attach limits),
 [ADR 047](047-message-media.md) (link preview availability),
-ADR 048 (outgoing messages; server denials)
+ADR 048 (outgoing messages; server denials),
+[ADR 050](050-diagnostics-events.md) (diagnostics events)
 
 Spec: `.scratch/chat-capabilities/spec.md`, with the per-platform inventory
 in `.scratch/message-media-transfers/research/` (research 19).
@@ -45,10 +46,11 @@ button with a tooltip, a link preview that silently does not appear.
 
 | Area | Decision |
 | ---- | -------- |
-| Home | `chat_capabilities`, pure Dart, depending only on `listen`. Every chat package may depend on it. |
+| Home | `chat_capabilities`, pure Dart, depending on `listen` and, for its diagnostics only, `content_model` ([ADR 050](050-diagnostics-events.md); ADR 020 rule 9 as amended). Every chat package may depend on it. |
 | Passing | The host passes a `ValueListenable<ChatCapabilities>` explicitly to the controllers and sessions that need it (composer controller, picker session, the message media policy, the outbox), together with a `CapabilityFeedback` (below). There is no scope widget. `chat_capabilities` ships `capabilities.select((c) => c.sending)`, a `ValueListenable` of one group that notifies only when that group changes by `==`, built on `listen`'s `ChangeNotifier`. |
 | Default | No value means everything allowed with the default limits: message 4096 code points ([ADR 034](034-rich-text-wire-and-persistence.md)), caption 1024 code points, file size unlimited, album 10. Every length counts code points; the attach limits' caption length, which counts UTF-16 units today, is aligned to it. |
 | Resolution | The host's. The value carries outcomes and reasons. |
+| Diagnostics | `chat_capabilities` emits its own `capabilities` events (value changes, invalid values, denials and feedback calls) through `ChatDiagnostics.current` ([ADR 050](050-diagnostics-events.md)); `capabilities.debugDescribe()` describes the value without user content. |
 
 ### Shape
 
@@ -103,8 +105,9 @@ than being removed.
 - Outcomes keep packages free of any backend's protocol; resolution order
   and bypass rules are the host's business.
 - Rights are a different context from content identity, so they do not
-  belong in `content_model`; a leaf with only `listen` lets every chat
-  package depend on it without pulling anything else.
+  belong in `content_model`; a package on `listen` and the shared leaf
+  (for diagnostics only) lets every chat package depend on it without
+  pulling anything else.
 - Passing the value explicitly to controllers makes the dependency visible
   and testable; a per-group selection keeps a slow-mode tick from
   rebuilding the picker's kind gate.

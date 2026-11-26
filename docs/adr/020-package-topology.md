@@ -102,11 +102,11 @@ for them.
 
 | Package | Role | Depends on |
 | ------- | ---- | ---------- |
-| `chat_capabilities` | Leaf. Chat capabilities: the per-chat value of outcomes and denial reasons, its groups (sending, write access, slow mode, protection, limits), the bit-flag sets, the denial feedback hooks; fakes in `testing.dart`. Nothing about a backend's protocol | none (`meta` and `listen` only) |
+| `chat_capabilities` | Chat capabilities: the per-chat value of outcomes and denial reasons, its groups (sending, write access, slow mode, protection, limits), the bit-flag sets, the denial feedback hooks, its own `capabilities` diagnostics events; fakes in `testing.dart`. Nothing about a backend's protocol | `content_model` (for `ChatDiagnostics`, [ADR 050](050-diagnostics-events.md)); `meta` and `listen` |
 | `chat_outbox` (ADR 048) | The outbox: outgoing messages over mpx publish jobs, their status, the provisional tail's id strategies (`allocate` / `rebase`, sequential server ids and local ids), the `chat.send` publisher over the host's sender, cancel, retry, the restart query, the send origin hand-off; fakes in `testing.dart`. No store of its own | `mpx_transfer` (git), `mpx_core` (git), `attach_model`, `content_model`, `chat_capabilities`, `chat_scroll_view` (root, for `rebaseTail`) |
 | `message_media` | Message media display: the message media policy, media layouts and their interpolation, cells and chrome slots, the file stack, the link preview card, the optional bubble layout helper, the per-chat media state, item semantics. No transfers, no outbox, no saving | `content_model`, `content_assets`, `chat_capabilities`, `chrome_foundation`, `mpx_core` (git), `chat_scroll_view` (root) |
 
-Edges into the new leaf: `chat_composer` (message length and the input row
+Edges into `chat_capabilities`: `chat_composer` (message length and the input row
 panel from the capabilities), `attach_sheet` (it builds `AttachLimits` from
 the capabilities itself) and, with ADR 048, `chat_outbox`. `attach_model`
 takes no edge: [ADR 046](046-media-picker.md) rule 1 stands (`attach_model`
@@ -116,8 +116,11 @@ take none either: the host sets both from the capabilities.
 
 Rules added:
 
-9. `chat_capabilities` is a leaf: it depends on no workspace package and
-   imports no Flutter.
+9. `chat_capabilities` imports no Flutter and depends on one workspace
+   package, `content_model`, for the diagnostics contract only
+   ([ADR 050](050-diagnostics-events.md); amended 2026-11-26, maintainer,
+   so it emits its own events). It takes no content identity types into its
+   value.
 10. `message_media` never depends on `mpx_transfer` (a display-only host must
     not inherit a transfer plugin) or on `chat_composer`; `chat_composer`
     never depends on `message_media`.

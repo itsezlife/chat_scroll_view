@@ -30,7 +30,8 @@ ticket 24's conflict answers and the acceptance pass; refined at issue slicing: 
 [ADR 034](034-rich-text-wire-and-persistence.md) (amended: options in the message and the draft),
 [ADR 046](046-media-picker.md) (attach kinds, send plan),
 [ADR 049](049-chat-capabilities.md) (link preview availability, protection),
-mpx ADR 0010 (loading stages, status control, badges)
+mpx ADR 0010 (loading stages, status control, badges),
+[ADR 050](050-diagnostics-events.md) (diagnostics events)
 
 Spec: `.scratch/message-media-display/spec.md`, with research and per-value
 provenance in `.scratch/message-media-transfers/research/` (01, 02, 03, 15,
@@ -136,6 +137,12 @@ does.
 | Dismissal | `LinkPreviewDismissal`: `fieldUntilBigEdit`, `perUrl`, `untilNoLinks`, a default per platform, one pickable everywhere. It and its state are a headless `chat_composer` type; the example's watcher uses it. |
 | Availability | Read from the chat capabilities' `sending.linkPreviews` ([ADR 049](049-chat-capabilities.md)). Denied: no resolve, the page is dropped, strip and options hidden, the message sent `removed`. Receivers draw what arrived. |
 | Draft options overlay | Its live preview is the real bubble from the host's bubble builder with the same policy; option changes ride `MediaLayout.lerp`. The chosen link's highlight (from the link hit's contour) and the pending spinner are an overlay layer above the bubble; the engine is untouched. |
+
+### Diagnostics
+
+| Area | Decision |
+| ---- | -------- |
+| Events | Layout, hits, media state, transitions and the link preview's resolve, cancel and dismissal are `media` and `linkPreview` events through `ChatDiagnostics` ([ADR 050](050-diagnostics-events.md)), correlated by scroll id, `MediaItemId` and `MediaKey`; a URL is reported by its host only. |
 
 ## Why
 
