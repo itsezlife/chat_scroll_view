@@ -31,6 +31,7 @@ types, so it depends on no workspace package (`scripts/check` enforces both).
 | `PackSource`, `CachingPackSource` | A pack by id: `lookup` answers `found`, `notFound` or `failed` and never throws; `peek` answers without loading. Found packs are kept, concurrent lookups share one fetch. `CachingPackSource` is that memory tier over a host `PackFetch` (its own cache, then the remote). |
 | `ContentLibrary`, `LibraryEdit`, `AppliedEdit` | The user's recent stickers, favourite stickers, saved GIFs (the GIF recents) and installed and archived packs per kind, one `ValueListenable` per list. Changed only by `apply(LibraryEdit)`, local first, with an optional undo window; edits commit in the order they were applied. |
 | `LibraryStorage`, `KeyValueLibraryStorage`, `StoredContentLibrary` | Where a library commits: the whole state plus the edit. `KeyValueLibraryStorage` writes one versioned record per list over a `KeyValueStore`; a backend adapter sends the edit. `StoredContentLibrary.load` is the reference library, loaded before use. |
+| `ChatDiagnostics`, `ChatEvent` | The diagnostics contract every chat package reports through: one process-wide policy, `ChatDiagnostics.current` (`silent` by default, `developer` for the `dart:developer` log under `chat.<category>`, `onEvent` for the host), and the structured event: level, closed `ChatEventCategory`, an operation from the emitting package's own enum over `DiagnosticOp`, `ChatCorrelation` ids, and a few numeric or short fields. No user content in an event. |
 | `KeyValueRecentsStore`, `KeyValuePreferenceStore` | The reference `RecentsStore` and `PreferenceStore` over a `KeyValueStore`. Created only by their async `load`, which reads persisted state first, so no store exists unloaded. Structured, versioned JSON records, one namespace per package. |
 
 ## Testing
@@ -51,6 +52,12 @@ it and `content_model.dart` never exports it (`scripts/check` enforces both).
 | `PackSource` | `FakePackSource` (scripted packs, `gate`, `failure`, `publish`, fetch counts) | `PackSourceContract.run` |
 | `ContentLibrary` | `FakeContentLibrary` (created at once, records commits, `failure`) | `ContentLibraryContract.run` |
 | `LibraryStorage` | `FakeLibraryStorage` (records edits, `gate`, `failure`) | `LibraryStorageContract.run` |
+
+`RecordingDiagnostics` records every `ChatEvent` and finds them by category,
+operation or correlation id; `RecordingDiagnostics.install()` makes it
+`ChatDiagnostics.current` for one test and puts the previous policy back in
+the test's tear-down, pass or fail. `isChatEvent` matches one event by the
+parts given.
 
 A contract suite takes a factory for the implementation under test. The
 suites for sources and resolvers also take a small harness that names facts
@@ -76,6 +83,7 @@ void main() {
 | Entries whose variant keys are the exact sequences it sends, and tags for each. | Compute a variant by appending a modifier to the base, or fold FE0F spellings into one key. Keys compare exactly. |
 | Implementations of the seams it needs: sources, a `ContentResolver`, a `KeyValueStore` adapter for its platform storage. Each seam's dartdoc states the contract to meet. | Reach a seam's implementation through a downcast, or let a seam throw for an expected condition. Missing data is null or an absent entry; a failed load is a `failed` state. |
 | Its stores from `KeyValueRecentsStore.load` and `KeyValuePreferenceStore.load` over its `KeyValueStore`, awaited once at startup. | Try to use a store before `load` completes (there is no such store), or wrap `load` in a second layer of caching. |
+| `ChatDiagnostics.current` set once at start: `onEvent` into its own journal or crash reporter, or `developer` while debugging. A callback that does not throw. | Pass a policy to a package (none takes one), or expect a package to write a log or a file itself. |
 | A test for every implementation of a seam: the matching `...Contract.run` suite from `testing.dart`. | Ship a fake, or import `testing.dart`, from production code. |
 | The decision that a pick counts: it calls `RecentsStore.record` on insert or send, with the `PickSource` it came from. | Record from inside a page, or record a pick made from search results. |
 | Sticker and GIF use filed in the `ContentLibrary`: `LibraryEdit.addRecentSticker` when a sticker is sent, `LibraryEdit.saveGif` when a GIF is (the saved GIFs are the GIF recents). Emoji stay in the `RecentsStore`. | File stickers or GIFs in the `RecentsStore` as well: two lists of the same use disagree. |
@@ -113,4 +121,5 @@ here is called from a scroll or paint path.
 - [Testing policy](../../docs/adr/030-testing-policy.md)
 - [Composer model](../../docs/adr/026-composer-model.md) (rich-text value and its home)
 - [Host integration](../../docs/adr/029-host-integration.md) (the markdown helper)
+- [Diagnostics events](../../docs/adr/050-diagnostics-events.md)
 - [Entity detection is host-invoked, not viewport paint](../../docs/adr/017-body-linkify-host-invoked.md)

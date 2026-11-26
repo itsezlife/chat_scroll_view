@@ -28,5 +28,6 @@ export 'src/testing/library_storage_contract.dart';
 export 'src/testing/pack_source_contract.dart';
 export 'src/testing/preference_store_contract.dart';
 export 'src/testing/recents_store_contract.dart';
+export 'src/testing/recording_diagnostics.dart';
 export 'src/testing/rich_clipboard_contract.dart';
 export 'src/testing/search_source_contract.dart';

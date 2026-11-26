@@ -8,6 +8,17 @@ package is pre-1.0.
 
 ### Added
 
+- Diagnostics events ([ADR 050](../../docs/adr/050-diagnostics-events.md)):
+  `ChatDiagnostics`, the process-wide policy chat packages report through
+  (`ChatDiagnostics.current`, `silent` by default, `developer`, `onEvent`
+  with an optional minimum level; `emit` builds fields only when the level
+  is enabled, and a throwing sink is swallowed); `ChatEvent` with
+  `ChatEventLevel`, the closed `ChatEventCategory`, `ChatCorrelation` and
+  fields held to numbers, booleans, enum values and strings of at most 64
+  characters; `DiagnosticOp`, the contract each package's own operation
+  enum implements. `testing.dart` adds `RecordingDiagnostics` (with
+  `install`, which restores the previous policy after the test) and the
+  `isChatEvent` matcher.
 - `MediaForm.vectorImage` (`vector_image`): a resolution-independent still,
   such as an SVG document.
 - `ContentDescriptor.byteSize`, `duration`, `streamable` and `preview`; the

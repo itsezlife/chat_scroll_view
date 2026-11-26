@@ -11,6 +11,7 @@ import 'package:test/test.dart';
 import 'collection/collection_id_test.dart' as collection_id_test;
 import 'collection/collection_test.dart' as collection_test;
 import 'data/seams_test.dart' as seams_test;
+import 'diagnostics/chat_diagnostics_test.dart' as chat_diagnostics_test;
 import 'emoji/emoji_entry_test.dart' as emoji_entry_test;
 import 'emoji/emoji_only_text_test.dart' as emoji_only_text_test;
 import 'identity/content_descriptor_test.dart' as content_descriptor_test;
@@ -55,11 +56,13 @@ import 'testing/fake_preference_store_test.dart' as fake_preference_store_test;
 import 'testing/fake_recents_store_test.dart' as fake_recents_store_test;
 import 'testing/fake_rich_clipboard_test.dart' as fake_rich_clipboard_test;
 import 'testing/fake_search_source_test.dart' as fake_search_source_test;
+import 'testing/recording_diagnostics_test.dart' as recording_diagnostics_test;
 
 void main() {
   group('collection/collection_id_test.dart', collection_id_test.main);
   group('collection/collection_test.dart', collection_test.main);
   group('data/seams_test.dart', seams_test.main);
+  group('diagnostics/chat_diagnostics_test.dart', chat_diagnostics_test.main);
   group('emoji/emoji_entry_test.dart', emoji_entry_test.main);
   group('emoji/emoji_only_text_test.dart', emoji_only_text_test.main);
   group('identity/content_descriptor_test.dart', content_descriptor_test.main);
@@ -138,4 +141,8 @@ void main() {
   group('testing/fake_recents_store_test.dart', fake_recents_store_test.main);
   group('testing/fake_rich_clipboard_test.dart', fake_rich_clipboard_test.main);
   group('testing/fake_search_source_test.dart', fake_search_source_test.main);
+  group(
+    'testing/recording_diagnostics_test.dart',
+    recording_diagnostics_test.main,
+  );
 }
