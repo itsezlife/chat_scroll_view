@@ -18,7 +18,7 @@ layout block.
 
 **Status**: Accepted (2026-11-26, maintainer; decided in the
 message-media-transfers map, tickets 07, 08, 13, 17, the card parts of 22,
-ticket 24's conflict answers and the acceptance pass)  
+ticket 24's conflict answers and the acceptance pass; refined at issue slicing: `LinkPreviewRequest`, the codec's home, the dismissal type's home, `allowedItemActions`)  
 **Date**: 2026-11-26  
 **Relates to**: [ADR 012](012-cross-platform-selection-policies.md) (policy shape),
 [ADR 013](013-viewport-owns-markdown-text-selection.md) (the caption's text selection),
@@ -63,8 +63,9 @@ message_media -> content_model, content_assets, chat_capabilities,
 ```
 
 Cells draw through `content_assets`' `ContentAssetView`. Of the capabilities
-the policy reads only protection, per message, for per-item menu entries and
-the viewer's share and save.
+the package reads only protection, per message, through one
+`allowedItemActions` helper; the host and the viewer build their menus,
+share and save from it.
 
 The edge to the root package is allowed: message media is a chat body and
 registers with the viewport's non-text body seam. A host without a chat
@@ -127,12 +128,12 @@ does.
 | Area | Decision |
 | ---- | -------- |
 | Model | `LinkPreview` in `content_model`: url, display url, an opaque type string (the policy takes a host set of small-media types), site name, title, rich-text description, author, optional photo and media descriptors, duration, a large-media hint. |
-| Options | `LinkPreviewOptions` belong to the message: chosen url, `media` (`auto`, `small`, `large`), `removed`, and a dismissal state that stays in the composer's draft and is never sent. The card's place above or below the text is the message's `invertMedia`, not an option; the draft options overlay edits that message field. Wire and draft forms are the [ADR 034](034-rich-text-wire-and-persistence.md) amendment's. `auto` follows the platform default; never small without text; the switch is offered only when the page has a photo or video that can shrink. |
-| Resolver | `LinkPreviewResolver.resolve(candidates)` in `content_model` returns a `ValueListenable<LinkPreviewState>` that starts `pending` and becomes `loaded` or `none`, following ADR 023's rule that state is a listenable value. It fits a backend that picks among all URLs and one that tries them in order ([ADR 023](023-data-layering-and-persistence.md) amendment). A client-side Open Graph resolver ships in the example only: fetching third-party pages leaks the user's address and follows redirects, so it is the host's choice. |
+| Options | `LinkPreviewOptions` belong to the message: chosen url, `media` (`auto`, `small`, `large`), `removed`, and a dismissal state that stays in the composer's draft and is never sent. The card's place above or below the text is the message's `invertMedia`, not an option; the draft options overlay edits that message field. Wire and draft forms are the [ADR 034](034-rich-text-wire-and-persistence.md) amendment's; the `linkPreview` / `invertMedia` codec lives in `content_model`, and the message envelope stays the host's. `auto` follows the platform default; never small without text; the switch is offered only when the page has a photo or video that can shrink. |
+| Resolver | `LinkPreviewResolver.resolve(candidates)` in `content_model` returns a `LinkPreviewRequest`: a `ValueListenable<LinkPreviewState>` that starts `pending` and becomes `loaded` or `none`, following ADR 023's rule that state is a listenable value, with `cancel()`; the watcher cancels the request on a text change. It fits a backend that picks among all URLs and one that tries them in order ([ADR 023](023-data-layering-and-persistence.md) amendment). A client-side Open Graph resolver ships in the example only: fetching third-party pages leaks the user's address and follows redirects, so it is the host's choice. |
 | Media | The page's photo or media is an ordinary media item drawn and transferred through the same path as message media. |
 | Card | A `linkPreview` layout block on the quote / reply block tokens. Metrics, the width rule (`fillBudget`, `fitMedia`, `fitContent`), the appear transition, press feedback over `ChromeInk` (never on links or the action button) and the time's placement under a last-block card are policy. Pending draws nothing. Changes ride `MediaLayout.lerp`; a new page cross-fades. The card's non-media area is an `activate` body part hit (`LinkPreviewHitPart`); description links are text links; card text is not selectable by default. No instant-view loading state in this cut. |
 | Composer | The example's watcher keeps detection and timing and gains every URL, the chosen URL, the options and the resolver's state. The header strip draws the same model and gains an open action that opens the draft options overlay. On send the options and the loaded page go into the payload. A message without link preview data shows no preview, unless a host flag resolves it at receive time. |
-| Dismissal | `LinkPreviewDismissal`: `fieldUntilBigEdit`, `perUrl`, `untilNoLinks`, a default per platform, one pickable everywhere. |
+| Dismissal | `LinkPreviewDismissal`: `fieldUntilBigEdit`, `perUrl`, `untilNoLinks`, a default per platform, one pickable everywhere. It and its state are a headless `chat_composer` type; the example's watcher uses it. |
 | Availability | Read from the chat capabilities' `sending.linkPreviews` ([ADR 049](049-chat-capabilities.md)). Denied: no resolve, the page is dropped, strip and options hidden, the message sent `removed`. Receivers draw what arrived. |
 | Draft options overlay | Its live preview is the real bubble from the host's bubble builder with the same policy; option changes ride `MediaLayout.lerp`. The chosen link's highlight (from the link hit's contour) and the pending spinner are an overlay layer above the bubble; the engine is untouched. |
 

@@ -110,7 +110,9 @@ Edges into the new leaf: `chat_composer` (message length and the input row
 panel from the capabilities), `attach_sheet` (it builds `AttachLimits` from
 the capabilities itself) and, with ADR 048, `chat_outbox`. `attach_model`
 takes no edge: [ADR 046](046-media-picker.md) rule 1 stands (`attach_model`
-depends on `content_model` only).
+depends on `content_model` only). The root `chat_scroll_view` (its
+`canCopy(messageId)` selection hook) and `panel_shell` (page availability)
+take none either: the host sets both from the capabilities.
 
 Rules added:
 

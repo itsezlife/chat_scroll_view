@@ -11,7 +11,7 @@ holds.
 
 **Status**: Accepted (2026-11-26, maintainer; decided in the
 message-media-transfers map, ticket 20, revised by ticket 24 and the
-acceptance pass)  
+acceptance pass; refined at issue slicing: the feedback type, the copy hook, the album limit and panel page availability)  
 **Date**: 2026-11-26  
 **Relates to**: [ADR 012](012-cross-platform-selection-policies.md) (policy shape),
 [ADR 020](020-package-topology.md) (amended: `chat_capabilities`),
@@ -46,7 +46,7 @@ button with a tooltip, a link preview that silently does not appear.
 | Area | Decision |
 | ---- | -------- |
 | Home | `chat_capabilities`, pure Dart, depending only on `listen`. Every chat package may depend on it. |
-| Passing | The host passes a `ValueListenable<ChatCapabilities>` explicitly to the controllers and sessions that need it (composer controller, picker session, the message media policy, the outbox). There is no scope widget. `chat_capabilities` ships `capabilities.select((c) => c.sending)`, a `ValueListenable` of one group that notifies only when that group changes by `==`, built on `listen`'s `ChangeNotifier`. |
+| Passing | The host passes a `ValueListenable<ChatCapabilities>` explicitly to the controllers and sessions that need it (composer controller, picker session, the message media policy, the outbox), together with a `CapabilityFeedback` (below). There is no scope widget. `chat_capabilities` ships `capabilities.select((c) => c.sending)`, a `ValueListenable` of one group that notifies only when that group changes by `==`, built on `listen`'s `ChangeNotifier`. |
 | Default | No value means everything allowed with the default limits: message 4096 code points ([ADR 034](034-rich-text-wire-and-persistence.md)), caption 1024 code points, file size unlimited, album 10. Every length counts code points; the attach limits' caption length, which counts UTF-16 units today, is aligned to it. |
 | Resolution | The host's. The value carries outcomes and reasons. |
 
@@ -64,7 +64,7 @@ button with a tooltip, a link preview that silently does not appear.
 
 | Type | Decision |
 | ---- | -------- |
-| Attach limits | `attach_sheet` takes the `ValueListenable<ChatCapabilities>` and builds `AttachLimits` with a function of its own. `attach_model` stays on `content_model` only ([ADR 046](046-media-picker.md) rule 1). |
+| Attach limits | `attach_sheet` takes the `ValueListenable<ChatCapabilities>` and builds `AttachLimits` with a function of its own. `attach_model` stays on `content_model` only ([ADR 046](046-media-picker.md) rule 1). `AttachLimits` gains `albumSize`; the send plan groups at the smaller of its policy's group size and that limit. |
 | Message length | The composer's message length limit comes from `limits`. |
 | Input row | `chat_composer` picks the panel from `writeAccess` and ships a default panel per kind, showing the host's `denialText` and an optional host action. The host may replace any panel's builder through the existing `ComposerPanelId` resolver; the `ComposerPanelId` documentation is updated to say so. |
 
@@ -76,16 +76,18 @@ nothing.
 | Area | Decision |
 | ---- | -------- |
 | Forms | Each package draws its control's denied form, with a per-platform default (spec §8): the input row replaced by a bar, a disabled field, a picker page or a toast with the ban text, a dimmed button with a tooltip, a link preview silently absent. |
+| Panel pages | The panel's page registry (`panel_shell`) gains a page availability, set by the host (from `sending.stickers` and `sending.animation`, with text from `denialText`); `panel_shell` takes no capabilities edge. Forms with per-platform defaults: `dimmed(hint)` (the tab dimmed, the panel moves to emoji, a tap on the tab shows the hint as a tooltip for 3.5 s), `hidden` (the tab removed, emoji only), `replaced(text)` (the page's content replaced by the text). |
+| Feedback type | `CapabilityFeedback` in `chat_capabilities` carries both hooks below; each controller and session takes it with the capabilities listenable. Without one, texts are null and attempts are not reported. |
 | Text | From the host: `denialText(action, reason)` for text drawn in place, null for the silent form. |
 | Attempts | `onDenied(action, reason)` when the user tries a denied action: a tap on a dimmed control, a send during slow mode, a server refusal. `action` is a `CapabilityAction`: `sendText`, `sendPhoto`, `sendVideo`, `sendAnimation`, `sendFile`, `sendAudio`, `sendVoice`, `sendRoundVideo`, `sendSticker`, `sendLinkPreview`, `sendPoll`, `sendInline`, `sendNow` (slow mode), `copy`, `forward`, `save`. Capture blocking is a flag, not an action. The host shows the tooltip, toast or bulletin. |
 | Semantics, RTL | A dimmed control stays focusable, labelled as not available, with the `denialText` as its hint. The slow-mode countdown is announced politely when it starts and ends, not every second. Restriction bars are plain text. Denied forms mirror with the layout. |
-| Readers | `message_media` reads only protection, per message, for per-item menu entries and the viewer's share and save. |
+| Readers | `message_media` reads only protection, per message, through an `allowedItemActions` helper; the host and the viewer build per-item menu entries, share and save from it. |
 
 ### Live changes
 
 | Change | Decision |
 | ------ | -------- |
-| Protection on | Copy, forward and save leave menus and the viewer. On desktop a selection holding a protected message is cleared; on mobile it stays and loses the entries. Capture blocking reaches the host, which sets the platform's secure flag. |
+| Protection on | Copy, forward and save leave menus and the viewer. The root package's selection facade gains a capability-agnostic `canCopy(messageId) → bool` hook that gates text-selection copy; the host wires it from `protection.forMessage`, so the root takes no capabilities edge. On desktop a selection holding a protected message is cleared; on mobile it stays and loses the entries. Capture blocking reaches the host, which sets the platform's secure flag. |
 | Slow mode | A countdown on the send button (Android, desktop) or in the empty field's placeholder (iOS); the picker sends one unit (an album is one); an early send is refused through `onDenied`. |
 | Server denial | The outgoing message becomes failed with a denied reason and `onDenied` fires (ADR 048). |
 
@@ -132,4 +134,5 @@ than being removed.
   (amendment). `chat_composer`, `attach_sheet`, `message_media` and
   `chat_outbox` depend on it; `attach_model` does not.
 - `chat_composer` gains a default panel per `writeAccess` replacement.
+- The root package's selection facade gains `canCopy(messageId)`; `panel_shell` gains page availability; `attach_model`'s `AttachLimits` gains `albumSize`. None of them depends on `chat_capabilities`.
 - A new Chat Capabilities glossary and a context map row.
