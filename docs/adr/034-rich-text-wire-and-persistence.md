@@ -64,3 +64,18 @@ checked from the visible text.
   client-enforced.
 - The server must publish its limit in configuration for the client budget to
   follow it; until then a host passes the constant.
+
+## Amendment (2026-11-26, accepted): link preview options in the message and the draft
+
+A message's link preview choices travel and persist next to its body
+([ADR 047](047-message-media.md)). The body stays one markdown string; the
+options are separate fields, not markdown.
+
+| Concern | Decision |
+| ------- | -------- |
+| Value | `LinkPreviewOptions` (`content_model`): the chosen URL, `media` (`auto`, `small`, `large`), `removed`, and the dismissal state the composer's dismissal policy needs. |
+| Card position | Not an option. The message carries one `invertMedia` flag that puts a link preview card above the text and a caption above media; the draft options overlay edits that message field. |
+| Message wire | Two optional fields beside the unchanged markdown `body`: `linkPreview: { url, media: auto \| small \| large, removed, page? }`, where `page` is the loaded `LinkPreview` when the sender has one, and `invertMedia: bool`, written only when true. `removed` also covers a chat whose capabilities deny link previews. A receiver that gets `linkPreview` without `page` resolves the URL itself. |
+| Dismissal state | Composer-only: kept in the draft, never sent. |
+| Draft | The draft changes from one markdown string to a small record `{ body, linkPreview?, invertMedia?, dismissal? }` under the same key. A stored plain string reads as `{ body }`; no migration. |
+| Absent field | A message without `linkPreview` (history, older clients) shows no preview. A host flag may resolve such messages at receive time, as the receive-time fallback of [ADR 017](017-body-linkify-host-invoked.md) does. |

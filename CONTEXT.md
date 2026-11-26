@@ -313,8 +313,8 @@ _Avoid_: Idle message tap (as the name of this path), toolbar dismiss, text sele
 Replaced by **entity detection** and **detection policy** ([Content and Assets](docs/content/CONTEXT.md)). The viewport still only paints and activates entities a body already carries, and never detects on paint ([ADR 017](docs/adr/017-body-linkify-host-invoked.md)).
 
 **Link preview**:
-Host- or backend-owned rich card for a URL (title, image, favicon, and so on). Outside this context: not an **inline hit**, not **entity detection**, and not viewport chrome.
-_Avoid_: OG fetch in the viewport, preview slot as markdown, conflating styled links with webpage cards
+The page a URL in a message points to (site name, title, description, an optional photo or video, GIF or file, each a **media item**) and the card that shows it: a block of the **media layout** in the bubble, and a compact strip in the composer. Its data comes from the host or a backend through the link preview resolver ([Content and Assets](docs/content/CONTEXT.md)); the viewport never fetches it. The card body is a **body part hit**; links in its description are ordinary **inline hits**. Not **entity detection**.
+_Avoid_: OG fetch in the viewport, preview slot as markdown, webpage card, conflating styled links with link previews
 
 **Tap highlight** (press highlight):
 A transient visual plate under a pressable surface — markdown inline hits (links, mentions, hashtags, inline code, fenced copy chrome) or host chrome such as a sender name via `ChatTapHighlight`. **Press-lifecycle:** expand on pointer down, hold while pressed, fade on up; abort / cancel clears immediately. Body ink aborts if the pointer is claimed by a **span gesture** or **text selection**, and under mobile **selection policy** does not arm while **message selection** or **text selection** is already active (desktop keeps press ink). `ChatTapHighlight` is selection-facade-free: under `ChatSelectionStateScope` it follows `canPerformActions`; padding expands paint/hit only (no layout shift). Null `onLongPress` on touch lets viewport **message selection** claim the press (sender-name chrome); mouse presses exclude viewport message pan. Same paint for short tap and long-press (host action is separate). Composed of a vector-smoothed contour path with an expanding touch-origin ripple. Not persistent **text selection**, and not a whole-row **Message highlight**.
@@ -407,6 +407,48 @@ _Avoid_: Near-sticker tap, sticker hitbox
 **Sticker interaction**:
 The event a tap on a sticker is for the host (`ChatStickerActivated`): the emoji, the message, the drawn rectangle in global coordinates and a monotonic time, emitted for every tap whether or not the sticker replayed. The viewport draws no effect and sends nothing; the host builds the larger effect, the peer broadcast and their acknowledgement on it, and applies a peer's interaction through the facade's incoming-side entry point.
 _Avoid_: Sticker effect (the effect is the host's drawing), tap animation
+
+### Message media
+
+A **media item** is a Content and Assets term ([docs/content/CONTEXT.md](docs/content/CONTEXT.md)).
+
+**Message media policy**:
+The per-platform strategy that turns a list of **media items** into a **media layout** and paints it: box sizes, fit, corners by neighbour, cell builders per kind and chrome slots (time pill rect, badge, status control, spoiler, options affordance). A host overrides one step or one builder.
+_Avoid_: Media theme, media style, gallery config
+
+**Media layout**:
+The value a **message media policy** lays out: ordered blocks (mosaic of boxes, file stack, link preview card), and per **media item** a rect, a fit mode, a neighbour per side and per-corner radii. Two media layouts of one message interpolate item by item; an item in only one of them enters or leaves.
+_Avoid_: Mosaic (for the whole result), grouped layout, album layout
+
+**Body part hit**:
+An **inline hit** on a non-text part of a message body (for media: which item, and whether its picture, status control, spoiler or options; for a link preview card: its body or its action button), named by a payload only the body understands, with a role the viewport does understand: activate (the body and host decide) or menu (opens the **message menu**, toggles in **message selection**). Media items and the link preview card answer with it; in message selection every tap on them toggles.
+_Avoid_: Media hit, media tap, attachment gesture
+
+**Draft options overlay**:
+The composer's overlay for one part of the draft (the link preview now; reply and forward later), a page per part, with a live preview drawn as the real message bubble. Mobile applies changes at once; desktop applies them on save.
+_Avoid_: Link preview menu, preview settings sheet, link options popup
+
+### Outgoing messages
+
+**Outgoing message**:
+A message the user sent from this device that the server has not confirmed yet, or that failed to send. Its identity is the host's client message id, not its row's **Message ID**; it is shown at once in the **provisional tail** and reports a status (preparing, uploading, publishing, sent, failed, cancelled; cancelled is the **outbox**'s own). A failed one says why, from a closed set of reasons, and offers Retry and Delete. A cancelled or deleted one becomes **Absent**; its client message id is never reused, while its provisional position may be taken by the next message.
+_Avoid_: Pending message, optimistic row, draft (a draft is unsent text in the composer), temp message
+
+**Outbox**:
+The per-chat owner of **outgoing messages**: it turns a send into one publish job, places the row, moves it on a **tail rebase**, reports its status, and offers cancel, retry, delete and the pending messages after a restart. It keeps no store of its own; the publish job's journal is the truth.
+_Avoid_: Send queue, pending store, message sender (the sender is the host's transport behind it)
+
+**Provisional tail**:
+The run of **outgoing message** rows after the newest server message, at the next ids. Their ids are positions, not identity: when an incoming message takes the first of them, they all move up by one. Sending rows keep the order they were sent in; failed rows sink to the bottom, so a failed message always sits at the bottom of the chat.
+_Avoid_: Temp ids, reserved range, optimistic ids, local id block
+
+**Tail rebase**:
+The one sanctioned move of the **provisional tail**: in a single atomic write the outgoing rows take a new order (a reorder, not only a shift) and any incoming messages take the positions before them. Message selection, highlight and a running change transition move with each row; a text selection on a moved row is cleared and an open menu on it closes. A reader who scrolled up is not pulled to the tail. Server rows a fetch returns inside the tail are placed through the same move, never written over a provisional row.
+_Avoid_: Renumber, rename, re-insert, remove and insert
+
+**Send origin**:
+Where each sent media item was on screen when the user sent it (its thumbnail's rectangle in the picker), handed with the send so the item can fly from there into its cell once on first paint. Without one, the platform's default appearance applies.
+_Avoid_: Hero tag, source frame, transition anchor (the viewer origin frame of a media hit is a different thing)
 
 ### Message menu
 

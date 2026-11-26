@@ -100,3 +100,39 @@ grep -rE '>>\s*6|<<\s*6' lib/ --include='*.dart' | grep -v chat_scroll_chunk.dar
 - `lib/src/chat_scroll/chat_scroll_common.dart` (`IChatMessage`, `ChatMessageStatus`)
 - `lib/src/chat_scroll/chat_data_source.dart`
 - `specs/010-message-id-contract/`
+
+## Amendment (2026-11-26, accepted): provisional tail positions
+
+Accepted with [ADR 048](048-outgoing-messages.md) (outgoing messages).
+
+An outgoing message is shown before the server has given it an id. It sits
+after the newest server message, at `tip+1 … tip+k`: the **provisional
+tail**. When an incoming message takes `tip+1`, the outgoing rows move up by
+one; when a row starts publishing it moves to `tip+1`; failed rows sink to
+the bottom of the tail.
+
+- **Provisional tail slots are positions, not identity.** The id of a row in
+  the provisional tail names where the row is, not which message it is.
+  Moving such a row is not a renumbering under §1.
+- **The outgoing message's identity is the host's `clientMessageId`**, as a
+  streamed reply's identity is the host's ([ADR 039](039-streaming-message-body.md)).
+  The host supplies `identityOf(message)` returning it for a provisional row,
+  and matches the server's answer and echo by it, never by slot.
+- **`rebaseTail` is the only sanctioned move.** `ChatDataSource.rebaseTail`
+  (`rebaseTail({required List<Object> order, List<IChatMessage> insert =
+  const []})`) takes a new order of the provisional rows' identities plus
+  the confirmed messages inserted before them (a reorder, not only a shift)
+  in one atomic write, with one notification and its own mutation, carrying
+  row-keyed state to the new ids (a moved row's text selection is cleared),
+  and applying a range fetch's rows inside the tail through the same move
+  instead of writing them into provisional slots. Removing a provisional row and inserting a different
+  message at its id through the ordinary calls is still a recycled id and
+  is still forbidden.
+- **"Do not recycle ids" (§1) applies to server-confirmed ids and to
+  host-local ids.** Under sequential server ids a provisional position is a
+  position the next message may take: when an outgoing message is cancelled,
+  the next message may take its position. The cancelled message's
+  `clientMessageId` is not reused.
+- Once the server confirms a message, its row id is a Message ID under §1:
+  unique and immutable from then on.
+- Every id outside the provisional tail keeps the contract above unchanged.

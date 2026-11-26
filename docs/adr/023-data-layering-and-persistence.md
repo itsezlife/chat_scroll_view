@@ -180,3 +180,15 @@ stickers and GIFs are most recently used first.
 
 The `RecentsStore` contract is unchanged and still accepts any kind; a host
 files stickers and GIFs in the library instead.
+
+## Amendment (2026-11-26, accepted): the link preview resolver seam
+
+`content_model` gains one more host seam beside `ContentResolver`
+([ADR 047](047-message-media.md)).
+
+| Area | Decision |
+| ---- | -------- |
+| Seam | `LinkPreviewResolver.resolve(List<Uri> candidates)` returns a `ValueListenable<LinkPreviewState>`: it starts `pending` and moves once to `loaded(LinkPreview)` or `none`. State is a listenable value, as this ADR's *Reactivity* row requires. |
+| Candidates | A list, in text order, so a backend that picks among every URL and one that tries them in order both fit. |
+| Implementations | Host-implemented. The workspace ships a fake and a contract suite in `content_model`'s `testing.dart`. A client-side Open Graph fetch lives in the example only, never in a package: fetching a third-party page leaks the user's address and follows redirects. |
+| Model | `LinkPreview` (the page; its `type` is an opaque string) and `LinkPreviewOptions` (the message's choices, persisted per [ADR 034](034-rich-text-wire-and-persistence.md)) are `content_model` values, as are the media item values `MediaItem`, `MediaItemId` and `MediaItemKind` ([ADR 047](047-message-media.md)). |

@@ -12,7 +12,8 @@ Decisions: [ADR 021](../adr/021-content-identity-and-collections.md),
 [ADR 034](../adr/034-rich-text-wire-and-persistence.md),
 [ADR 036](../adr/036-emoji-only-message-presentation.md),
 [ADR 042](../adr/042-native-media-decoding.md) (native decoders),
-[ADR 044](../adr/044-content-library-packs-and-preview.md) (content library, packs, preview, pack sheets).
+[ADR 044](../adr/044-content-library-packs-and-preview.md) (content library, packs, preview, pack sheets),
+[ADR 047](../adr/047-message-media.md) (media item, link preview model, options and resolver; descriptor file facts).
 
 ## Language
 
@@ -23,7 +24,7 @@ The one canonical identity of a piece of content. Closed: `unicode` (the full se
 _Avoid_: Kind-tagged id, emoji id, asset key, leaf identity, a second key for the same content
 
 **Content descriptor**:
-A value: content key, **semantic kind**, **media form** and facts (animated, tintable, locked, size hint, byte size, duration, streamable, thumbnail ref, **preview**, spoken name). Attached when a source knows it, resolved when it does not. Loading state is derived, never stored on lists.
+A value: content key, **semantic kind**, **media form** and facts (animated, tintable, locked, size hint, byte size, duration, streamable, thumbnail ref, **preview**, spoken name, file name, mime type). File name and mime type are optional facts of the content itself, read alike by every surface that picks, shows, saves or sends a file; there is no separate file-info value. Attached when a source knows it, resolved when it does not. Loading state is derived, never stored on lists.
 _Avoid_: Metadata blob, "loaded" flag on a list
 
 **Semantic kind**:
@@ -93,6 +94,18 @@ _Avoid_: A regular expression in the viewport, a count cap, classification per m
 **Presentation split**:
 Collections carry a semantic id, an optional data-provided title and an optional cover key. Icons and localized titles of built-in categories belong to pages and host presentation.
 _Avoid_: Icons or localized titles inside data sources
+
+**Media item**:
+One piece of media a message shows: a stable id unique in its chat, a content descriptor, a kind (photo, video, animation for GIFs, file, or a host kind drawn as a file) and a spoiler flag. A link preview's photo or media is a media item too, with an id derived from its message. The unit of message media layout, cells, status and hit-testing, and what the picker and the outbox name; none of them know whether the items came from one message or from several.
+_Avoid_: Attachment, media message, album entry, message media (for one item)
+
+**Link preview options**:
+A message's own choices about its link preview: which URL it shows, small, large or automatic media, and whether the preview is removed. Travels with the message and persists with the draft, apart from the page itself; the dismissal state the composer keeps lives in the draft only and is never sent. Whether the card sits above the text is not an option: it is the message's one above-or-below flag, which also places a caption above media.
+_Avoid_: Preview settings, page flags, webpage options (as part of the page)
+
+**Link preview resolver**:
+Host-implemented seam that turns a message's candidate URLs, in text order, into one page, as a live state that starts pending and settles on loaded or none. Serves a backend that picks among the URLs and one that tries them in turn; a client-side page fetch is a host choice, never a package default.
+_Avoid_: OG fetcher, link scraper, preview service in the viewport
 
 ### Asset pipeline
 

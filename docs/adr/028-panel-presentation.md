@@ -186,3 +186,12 @@ are separate signals, read for gestures and hover, not for layout.
 
 Native platforms are unchanged: Android and iOS keep the mobile policy, the
 desktop operating systems the desktop one.
+
+## Amendment (2026-11-26, accepted): occupancy hold
+
+Accepted with the draft-options-overlay spec (maintainer, 2026-11-26).
+
+| Area | Decision |
+| ---- | -------- |
+| Occupancy hold | The keyboard-replacement strategy can hold its bottom occupancy at the keyboard's height while the keyboard is hidden, with no animation, until the host releases the hold. It serves an overlay that hides the keyboard while it is up and does not want the composer to drop under it. On release the slot follows the keyboard again: a keyboard that reopens takes the held height over, and one that stays down lets the slot shrink with the usual `listTransition` motion. |
+| Who asks | The host, carrying out the composer's keyboard intent `hold` ([ADR 026](026-composer-model.md) amendment: the draft options overlay). The composer knows no panel and no occupancy. |

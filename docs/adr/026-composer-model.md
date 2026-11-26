@@ -63,3 +63,23 @@ neutral rich-text value. It knows neither the panel nor any inset arbiter.
 ## Related
 
 - Glossary: [Chat chrome](../chrome/CONTEXT.md), [Content and assets](../content/CONTEXT.md)
+
+## Amendment (2026-11-26, accepted): the draft options overlay
+
+Accepted with the draft-options-overlay spec (maintainer, 2026-11-26). A tap on the
+link preview strip opens a dedicated overlay with a live preview of the
+draft, not the selection menu ([ADR 047](047-message-media.md) *Rejected*:
+link preview options in the composer's menu).
+
+| Area | Decision |
+| ---- | -------- |
+| Draft options overlay | One overlay in `chat_composer` with a page per draft part, opened at the part of the strip that was tapped; tabs only with more than one part. The link page is the first and, for now, the only one: no tabs, no pager and no new package edge. Reply and forward pages are admitted by the shape and come with those features, in a page order that is policy; then the glass tab pill moves into `chrome_foundation` and the pages use `swipe_pager`. |
+| Strip | `ComposerHeader$LinkPreview` gains an open action beside its dismiss control. The strip's rect is the origin of the open and close motion where the platform grows the overlay from it. Denied link previews ([ADR 049](049-chat-capabilities.md)) hide the strip, so the overlay cannot open. |
+| Live preview | The draft is drawn as the real message bubble through the host's bubble builder with the chat's message media policy; the builder also draws the wallpaper, which the overlay knows nothing of, and the preview's text is not selectable; option changes ride the media layout interpolation. The builder receives `onLinkTap(url, contourPath)` (a `String` and a `dart:ui` `Path`), which the host calls from the viewport's link hit. `chat_composer` does not depend on `message_media` or on the root package and never sees the viewport. |
+| Link page | Above / below (the message-level `invertMedia`), larger / smaller (offered when the page has a photo or video that can shrink; one platform shows it always, inert without such media, and hides it only for a single link without media), remove (`removed`, applying the platform's dismissal policy as the strip's cross does), and apply. Row icons animate their state change through the icon morph helper. Mobile opens on a page that is still loading; desktop only on a loaded one. Denied link previews close an open overlay with its animation, and the draft becomes `removed` after it closes. A tap on a link in the preview chooses that link: the host asks its resolver again, and the overlay highlights the link from its hit contour with a spinner while the page is pending, in a layer above the bubble; the viewport is untouched. |
+| Apply | Policy: `liveApply` (each change is reported to the host at once; apply only closes) or `commitOnSave` (a copy local to the overlay until save; cancel and Escape discard; Enter saves). Mobile defaults to `liveApply`, desktop to `commitOnSave`. The host writes the draft, as for every draft. |
+| Presentation | A pure-Dart policy per platform family with host overrides: a full-window card with a glass menu; content that springs from the strip with an action list; a modal box with save and cancel. On the web there is no overlay, no scrim and no live preview: the options are a menu anchored at the strip, opened by hover after 200 ms with a mouse and by a tap with touch (the input class, [ADR 027](027-foundation-theme-glass-motion.md) amendment), each choice applied at once; another link is chosen only by tapping it in the text. Values per platform are the spec's. Rows press with `ChromeInk`; the backdrop is a `ChromeScrim` (ADR 027 amendment). |
+| Keyboard | The overlay states a keyboard intent through the composer controller: `keep`, `hold` (the keyboard hides while its height stays occupied, so the composer does not drop) or `hide`. The composer does not know the panel (row *Panel link*), so the host carries the intent out through the panel presentation ([ADR 028](028-panel-presentation.md) amendment: occupancy hold). Per platform: `hold` with the keyboard reopened shortly after close, `keep`, or, with no soft keyboard, focus moved to the box and back. |
+| Text | The overlay's entry puts a `ChromeTextRoot` at its root; its text styles start from `ChromeTypography.of(context)`. |
+
+Nothing was left open at acceptance.

@@ -1,0 +1,135 @@
+# ADR 049: Chat capabilities
+
+What the user may do in a chat is one immutable value, **chat
+capabilities**, in a new pure-Dart leaf `chat_capabilities`. The host
+resolves its backend's rights and hands each chat package a live value of
+outcomes and reasons, never protocol flags. Each package reads only its own
+group, draws the denied form of its own controls per platform, takes every
+text from the host and tells the host when the user tries a denied action.
+A host that provides nothing gets everything allowed, so today's behaviour
+holds.
+
+**Status**: Accepted (2026-11-26, maintainer; decided in the
+message-media-transfers map, ticket 20, revised by ticket 24 and the
+acceptance pass)  
+**Date**: 2026-11-26  
+**Relates to**: [ADR 012](012-cross-platform-selection-policies.md) (policy shape),
+[ADR 020](020-package-topology.md) (amended: `chat_capabilities`),
+[ADR 023](023-data-layering-and-persistence.md) (`package:listen`),
+[ADR 026](026-composer-model.md) (composer panels and limits),
+[ADR 034](034-rich-text-wire-and-persistence.md) (the message length budget),
+[ADR 045](045-bulletins.md) (feedback is the host's),
+[ADR 046](046-media-picker.md) (attach limits),
+[ADR 047](047-message-media.md) (link preview availability),
+ADR 048 (outgoing messages; server denials)
+
+Spec: `.scratch/chat-capabilities/spec.md`, with the per-platform inventory
+in `.scratch/message-media-transfers/research/` (research 19).
+
+## Context
+
+Each chat package took its own constant for what is allowed: the picker an
+`AttachLimits` per open, the composer a message length and a host-built
+"restricted" panel, the large-emoji gate a sticker flag. Nothing modelled
+content protection, slow mode or read-only chats, and nothing told the host
+why an action was refused. The reference clients resolve one wire model the
+same way on every platform (creator, admin, personal ban with an until date,
+default ban, a bypass the user can earn) and pick the feedback text from the
+reason. Their denied forms differ per platform: an input row replaced by a
+bar, a locked field, a picker tab showing the ban text or a toast, a dimmed
+button with a tooltip, a link preview that silently does not appear.
+
+## Decided
+
+### Package
+
+| Area | Decision |
+| ---- | -------- |
+| Home | `chat_capabilities`, pure Dart, depending only on `listen`. Every chat package may depend on it. |
+| Passing | The host passes a `ValueListenable<ChatCapabilities>` explicitly to the controllers and sessions that need it (composer controller, picker session, the message media policy, the outbox). There is no scope widget. `chat_capabilities` ships `capabilities.select((c) => c.sending)`, a `ValueListenable` of one group that notifies only when that group changes by `==`, built on `listen`'s `ChangeNotifier`. |
+| Default | No value means everything allowed with the default limits: message 4096 code points ([ADR 034](034-rich-text-wire-and-persistence.md)), caption 1024 code points, file size unlimited, album 10. Every length counts code points; the attach limits' caption length, which counts UTF-16 units today, is aligned to it. |
+| Resolution | The host's. The value carries outcomes and reasons. |
+
+### Shape
+
+| Area | Decision |
+| ---- | -------- |
+| Capability | `allowed` or `denied(reason)`. |
+| Denial reason | Sealed: `everyone`, `restricted(until?)` (null until is forever), `unlockable(kind)` (an opaque host string for a restriction the user can lift), `other(tag)`. |
+| Groups now | `sending` (`text`, `stickers`, `linkPreviews`, `polls`, `inline` as plain capabilities; `media` as a payload-free `MediaKindSet allowed` over photo, video, animation, file, audio, voice and round video, plus `Map<MediaKind, DenialReason> denials`, which `reasonFor(kind)` reads), `writeAccess` (`canWrite` or a replacement: `readOnly`, `join`, `requestToJoin`, `restricted(reason)`, `custom(tag)`), `slowMode` (interval, next send time, pending), `protection` (copy, forward, save, capture blocked for the chat; the value knows no messages, so `protection.forMessage(messageProtected: bool)` returns the `ProtectionFlags` for one message, the caller passing the message's own flag from its model), `limits` (message length, caption length, file size, album size). GIFs are their own `animation` right; a host may tie it to stickers. |
+| Later groups | Reactions, commands, paid messages, admin and others arrive as fields that default to allowed or none, so hosts keep compiling. `custom` maps host keys to capabilities for rules the packages do not model. |
+| Bit flags | Only for flag sets with no payload: `MediaKindSet` and `ProtectionFlags`. A private constructor and named constants, at most 31 flags per type (safe as a web integer), a stable bit order that is the serialised form, and a removed flag's bit never reused. Rights with reasons, slow mode and limits are sealed classes or values. |
+
+### Derived types
+
+| Type | Decision |
+| ---- | -------- |
+| Attach limits | `attach_sheet` takes the `ValueListenable<ChatCapabilities>` and builds `AttachLimits` with a function of its own. `attach_model` stays on `content_model` only ([ADR 046](046-media-picker.md) rule 1). |
+| Message length | The composer's message length limit comes from `limits`. |
+| Input row | `chat_composer` picks the panel from `writeAccess` and ships a default panel per kind, showing the host's `denialText` and an optional host action. The host may replace any panel's builder through the existing `ComposerPanelId` resolver; the `ComposerPanelId` documentation is updated to say so. |
+
+The existing constructors stay, so a host without capabilities changes
+nothing.
+
+### Denied forms and feedback
+
+| Area | Decision |
+| ---- | -------- |
+| Forms | Each package draws its control's denied form, with a per-platform default (spec §8): the input row replaced by a bar, a disabled field, a picker page or a toast with the ban text, a dimmed button with a tooltip, a link preview silently absent. |
+| Text | From the host: `denialText(action, reason)` for text drawn in place, null for the silent form. |
+| Attempts | `onDenied(action, reason)` when the user tries a denied action: a tap on a dimmed control, a send during slow mode, a server refusal. `action` is a `CapabilityAction`: `sendText`, `sendPhoto`, `sendVideo`, `sendAnimation`, `sendFile`, `sendAudio`, `sendVoice`, `sendRoundVideo`, `sendSticker`, `sendLinkPreview`, `sendPoll`, `sendInline`, `sendNow` (slow mode), `copy`, `forward`, `save`. Capture blocking is a flag, not an action. The host shows the tooltip, toast or bulletin. |
+| Semantics, RTL | A dimmed control stays focusable, labelled as not available, with the `denialText` as its hint. The slow-mode countdown is announced politely when it starts and ends, not every second. Restriction bars are plain text. Denied forms mirror with the layout. |
+| Readers | `message_media` reads only protection, per message, for per-item menu entries and the viewer's share and save. |
+
+### Live changes
+
+| Change | Decision |
+| ------ | -------- |
+| Protection on | Copy, forward and save leave menus and the viewer. On desktop a selection holding a protected message is cleared; on mobile it stays and loses the entries. Capture blocking reaches the host, which sets the platform's secure flag. |
+| Slow mode | A countdown on the send button (Android, desktop) or in the empty field's placeholder (iOS); the picker sends one unit (an album is one); an early send is refused through `onDenied`. |
+| Server denial | The outgoing message becomes failed with a denied reason and `onDenied` fires (ADR 048). |
+
+Two defaults are proposed and checked against the reference before their
+work lands (the spec's only open items): items already picked whose kind becomes denied are refused at
+send through `onDenied`; a message the server denies stays failed rather
+than being removed.
+
+## Why
+
+- Every send path, menu and picker asks the same questions, and the
+  feedback depends on why; one value with reasons answers both.
+- Outcomes keep packages free of any backend's protocol; resolution order
+  and bypass rules are the host's business.
+- Rights are a different context from content identity, so they do not
+  belong in `content_model`; a leaf with only `listen` lets every chat
+  package depend on it without pulling anything else.
+- Passing the value explicitly to controllers makes the dependency visible
+  and testable; a per-group selection keeps a slow-mode tick from
+  rebuilding the picker's kind gate.
+- Bit flags fit sets with no payload and match the engine's existing status
+  idiom; reasons need real values.
+- Packages know what their controls look like denied; hosts know their
+  language and their feedback surfaces.
+
+## Rejected
+
+| Alternative | Why not |
+| ----------- | ------- |
+| Capabilities in `content_model` | Chat rights are not content identity |
+| A scope widget above the chat | The consumers are controllers and sessions, which take their inputs as arguments; the maintainer chose explicit passing |
+| Protocol flags in the value | Ties portable packages to one backend's wire model |
+| Booleans without reasons | The host cannot choose the feedback text |
+| `ChatAction` as the action enum's name | Reads as a typing status |
+| A message-aware protection check on the value | The chat value would have to track messages; the caller already holds the message's flag |
+| A `fromCapabilities` constructor on `AttachLimits` | Breaks [ADR 046](046-media-picker.md) rule 1: `attach_model` depends on `content_model` only |
+| Bit flags for every right | Reasons and until dates are payloads |
+| Replacing `AttachLimits`, the length limit and panel ids | Breaks hosts; deriving them keeps both paths |
+| Packages showing their own denial toasts | Feedback UI is the host's |
+
+## Consequences
+
+- `chat_capabilities` joins the root `workspace:` list; ADR 020 gains its row
+  (amendment). `chat_composer`, `attach_sheet`, `message_media` and
+  `chat_outbox` depend on it; `attach_model` does not.
+- `chat_composer` gains a default panel per `writeAccess` replacement.
+- A new Chat Capabilities glossary and a context map row.

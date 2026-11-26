@@ -91,3 +91,48 @@ presentation ([ADR 028](028-panel-presentation.md)).
 - Glossary: [Content and assets](../content/CONTEXT.md), [Chat chrome](../chrome/CONTEXT.md), [Panel Catalog](../panel-catalog/CONTEXT.md)
 - Context map: [CONTEXT-MAP.md](../../CONTEXT-MAP.md)
 - Lint rules and conventions: [scripts/README.md](../../scripts/README.md)
+
+## Amendment (2026-11-26, accepted): `message_media` and `chat_capabilities`
+
+Two packages join the graph ([ADR 047](047-message-media.md),
+[ADR 049](049-chat-capabilities.md)); a third, `chat_outbox`, comes with
+[ADR 048](048-outgoing-messages.md) (Accepted 2026-11-26, maintainer;
+acceptance-2) and its row below is accepted with it. Held by convention: the dependency lint is not extended
+for them.
+
+| Package | Role | Depends on |
+| ------- | ---- | ---------- |
+| `chat_capabilities` | Leaf. Chat capabilities: the per-chat value of outcomes and denial reasons, its groups (sending, write access, slow mode, protection, limits), the bit-flag sets, the denial feedback hooks; fakes in `testing.dart`. Nothing about a backend's protocol | none (`meta` and `listen` only) |
+| `chat_outbox` (ADR 048) | The outbox: outgoing messages over mpx publish jobs, their status, the provisional tail's id strategies (`allocate` / `rebase`, sequential server ids and local ids), the `chat.send` publisher over the host's sender, cancel, retry, the restart query, the send origin hand-off; fakes in `testing.dart`. No store of its own | `mpx_transfer` (git), `mpx_core` (git), `attach_model`, `content_model`, `chat_capabilities`, `chat_scroll_view` (root, for `rebaseTail`) |
+| `message_media` | Message media display: the message media policy, media layouts and their interpolation, cells and chrome slots, the file stack, the link preview card, the optional bubble layout helper, the per-chat media state, item semantics. No transfers, no outbox, no saving | `content_model`, `content_assets`, `chat_capabilities`, `chrome_foundation`, `mpx_core` (git), `chat_scroll_view` (root) |
+
+Edges into the new leaf: `chat_composer` (message length and the input row
+panel from the capabilities), `attach_sheet` (it builds `AttachLimits` from
+the capabilities itself) and, with ADR 048, `chat_outbox`. `attach_model`
+takes no edge: [ADR 046](046-media-picker.md) rule 1 stands (`attach_model`
+depends on `content_model` only).
+
+Rules added:
+
+9. `chat_capabilities` is a leaf: it depends on no workspace package and
+   imports no Flutter.
+10. `message_media` never depends on `mpx_transfer` (a display-only host must
+    not inherit a transfer plugin) or on `chat_composer`; `chat_composer`
+    never depends on `message_media`.
+
+11. `message_media` may depend on the root `chat_scroll_view` package, the
+    first workspace package to do so: message media is a chat body and
+    registers with the viewport's non-text body seam and inline hits. A host
+    without a chat shows media through mpx's `AssetView` or `mpx_ui`. The
+    root never depends on `message_media`, so the graph stays a DAG.
+12. (Accepted with ADR 048.) `chat_outbox` may depend on the root
+    `chat_scroll_view` package (for `rebaseTail`) and on `mpx_core`, as
+    rule 11 allows for `message_media`. `message_media` never depends on
+    `chat_outbox` (rule 10 would be broken through it), and the root
+    `chat_scroll_view` never depends on it: the engine gains only
+    `rebaseTail` and knows no outbox. No cycle.
+
+`content_model` gains the media item values (`MediaItem`, `MediaItemId`,
+`MediaItemKind`), so the outbox and the picker name items without
+`message_media`; no edge changes for it. `message_media` takes
+`content_assets` because its cells draw through `ContentAssetView`.

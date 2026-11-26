@@ -45,6 +45,18 @@ _Avoid_: A public renderer interface, per-widget quality flags
 The content subtree that sampled glass frosts, marked by `GlassSource` inside a `GlassSourceScope`. One capture per frame is shared by every surface in the scope.
 _Avoid_: Reading back the onscreen target for each surface
 
+**Chrome scrim**:
+The backdrop under a surface that comes up over the whole window: an optional blurred, toned still of the window taken just before the surface first paints, under a dim fill. A press outside the surface and back close it; it fades in and out and can be cancelled; it owns its stills and disposes them. Presets per platform say whether there is a still, how it is blurred and toned, and how dark the dim is. The still is an opaque picture of the whole window, so nothing beneath needs to hold still. The dim and the still may fade on separate clocks, and an outside press closes on contact or on lift as the preset says. Under a reduce-transparency setting it keeps the dim only. It may also give the surfaces on it (a menu, a tab pill) a toned still to frost.
+_Avoid_: A full-window live blur filter; a backdrop each overlay builds for itself; a still that holds the surface it is under
+
+**Width class**:
+How wide the window is, in three live classes a web policy reads for layout and presentation: compact (up to 600 logical pixels), medium (601 to 925), expanded (over 925). It changes as the window resizes.
+_Avoid_: Reading the platform for layout on the web; a device type (phone, tablet) where a width is meant
+
+**Input class**:
+How the user points, touch or mouse, from the browser's operating system and the pointer kind of each event; a web policy reads it for interaction (hover, long press, tap, density).
+_Avoid_: Picking a whole platform family from the width alone; one class fixed for every event
+
 **Motion role**:
 A named duration and curve (list transition, panel slide, search, popup show). A global speed scale implements reduce-motion and lite mode.
 _Avoid_: Literal durations in components
