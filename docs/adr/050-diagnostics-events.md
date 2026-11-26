@@ -123,3 +123,15 @@ tested with `RecordingDiagnostics`.
   `BytesDiagnostics`.
 - Every chat spec gains a Diagnostics table; every issue tests its events;
   device checks attach a log.
+
+## Amendment (2026-11-26, accepted): `jobId` and the `overlay` category
+
+Decided with the maintainer while slicing the chat-outbox,
+draft-options-overlay and media-save specs (acceptance-3 §5 in the
+message-media-transfers map).
+
+| Area | Decision |
+| ---- | -------- |
+| Correlation ids | `ChatCorrelation` gains an optional `jobId`: the publish job's id for the outbox, the save job's id for a save. Chat events for a job then join mpx's events for the same job, which carry `jobId` too. |
+| Categories | `overlay` joins the set, for the draft options overlay and the chrome scrim. The scrim's operations are `overlay` operations prefixed `scrim`, not a category of their own. |
+| The leaf | `chrome_foundation` stays a leaf and emits nothing: `ChromeScrim` reports its phases (captured, still ready, still skipped, dismissed, cancelled, disposed, capture failed) through a callback its owner passes, and the owner emits the `scrim…` events with an `owner` field. |
