@@ -278,8 +278,9 @@ SendPlan planSend(
     );
   }
 
+  // One-send mode groups whatever the options say: an album is one unit.
   final grouped =
-      options.grouped &&
+      (options.grouped || limits.oneSend) &&
       limits.groupingAllowed &&
       !items.any((item) => policy.ungroupsBatch(item, asFiles: asFiles));
   final runs = _runs(

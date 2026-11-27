@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/files/intake_items.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
-import 'package:attach_sheet/src/panel/attach_interaction.dart';
+import 'package:attach_sheet/src/limits/attach_capabilities.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:attach_sheet/src/policy/confirm_box_style.dart';
@@ -31,6 +31,7 @@ final class ConfirmBoxController {
     this.preparation,
     bool? asFiles,
     IntakeItems? items,
+    AttachCapabilities? capabilities,
   }) : items = items ?? IntakeItems(),
        style =
            policy.confirmBox ?? const AttachSheetPolicy.desktop().confirmBox! {
@@ -41,6 +42,7 @@ final class ConfirmBoxController {
       initialCaption: initialCaption,
       initialOptions: SendOptions(asFiles: asFiles ?? false),
       onSend: (request) => _$onSend?.call(request),
+      capabilities: capabilities,
     );
     _$initial = panel.options.value;
     if (store case final store?) {
@@ -118,8 +120,9 @@ final class ConfirmBoxController {
       if (style.dedupesByFacts && _holds(file)) continue;
       final item = items.itemOf(file, asMedia: true);
       if (selection.contains(item.id)) continue;
+      // Each file is its own attach: a denied kind is reported per file.
       if (selection.toggle(item) case AttachToggle$Refused(:final reason)) {
-        host.interaction(AttachInteraction.refused(reason));
+        panel.refused(item, reason, guarded: false);
       }
     }
   }

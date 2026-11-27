@@ -66,6 +66,7 @@ final class PagesRig {
     SendOptionStore? optionStore,
     Widget Function(Widget app)? wrap,
     bool viewBottomPadding = false,
+    AttachCapabilities? capabilities,
   }) async {
     tester.view
       ..physicalSize = size * 3
@@ -108,6 +109,7 @@ final class PagesRig {
                   host: host,
                   initialCaption: initialCaption,
                   optionStore: optionStore,
+                  capabilities: capabilities,
                 );
               },
               child: const SizedBox(width: 40, height: 40),

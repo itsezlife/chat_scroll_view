@@ -24,6 +24,11 @@ enum CapabilitiesOp implements DiagnosticOp {
 
   /// A picker's limits were derived from a chat's value (debug): the allowed
   /// attach kinds, grouping, single select and the caption, file and album
-  /// limits. Emitted by the picker's package, which owns the derivation.
+  /// limits and one-send mode. Emitted by the picker's package, which owns
+  /// the derivation.
   limitsDerived,
+
+  /// A picker entered or left one-send mode (debug): `on`, and the album
+  /// cap one send unit holds. Emitted by the picker's package.
+  pickerOneSend,
 }

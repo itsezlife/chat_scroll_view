@@ -6,6 +6,34 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (denied forms and one-send mode)
+
+- `AttachCapabilities` (the chat's capabilities, the host's
+  `CapabilityFeedback`, the chat id), taken by `AttachSheet.show`,
+  `ConfirmBoxController` and `AttachSendController`. The open's
+  `AttachCapabilityGate` (`AttachSendController.capabilities`) narrows the
+  selection's limits live; `const ChatCapabilities()` changes nothing.
+- Denied forms: the Gallery page shows `AttachDeniedPage` when photos and
+  videos are both denied on a policy with `galleryDeniedPage` (Android), and
+  keeps the grid with the denied kinds not selectable otherwise (iOS). The Files
+  page shows the denial text when files are denied, in the policy's
+  `deniedForm` (`AttachDeniedForm.text` / `emptyState`). A tap on a denied kind
+  reports `onDenied` once per `AttachCapabilityGate.deniedGuard`; the confirm
+  box reports each refused file.
+- A kind denied mid-pick: the picks stay selected and are marked, and the send
+  is refused through `onDenied` with the picker open and the caption kept.
+- One-send mode under a slow mode: the selection caps at the album size, and a
+  selection that would go as several sends is refused with the new
+  `AttachInteraction.oneSendRefused`. `pickerOneSend` is reported on each
+  change; `limitsDerived` gains `oneSend`.
+- `AttachSendController.refused(item, reason)` raises a refusal to the right
+  hook; `AttachPickerSelection.onItemRefused`.
+
+### Changed
+
+- `AttachInteraction` gains `oneSendRefused`: a host that switches over it
+  exhaustively adds the case.
+
 ### Added (derived limits)
 
 - `deriveAttachLimits` and `attachLimitsOf` build `AttachLimits` from a chat's

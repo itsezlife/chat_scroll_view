@@ -26,6 +26,7 @@ final class AttachLimits {
     this.spoilerAllowed = true,
     this.sendAsFileAllowed = true,
     this.albumSize = defaultAlbumSize,
+    this.oneSend = false,
   }) : assert(captionLength >= 0, 'a caption length is never negative'),
        assert(albumSize >= 1, 'an album holds at least one item');
 
@@ -65,6 +66,17 @@ final class AttachLimits {
   /// the smaller of this and the policy's `maxGroupSize`.
   final int albumSize;
 
+  /// Whether a send must be one **send unit**: one item, or one album of
+  /// at most [albumSize] items (a slow mode, where the chat takes one unit
+  /// per interval).
+  ///
+  /// The selection then holds at most [albumSize] items, "send without
+  /// grouping" is not offered and the send plan groups whatever the
+  /// options say. A selection that still plans to more than one send (a
+  /// file beside photos, an item that never groups) is the picker's to
+  /// refuse.
+  final bool oneSend;
+
   /// A copy with the given fields replaced; [clearFileSizeLimit] lifts the
   /// file size limit.
   AttachLimits copyWith({
@@ -79,6 +91,7 @@ final class AttachLimits {
     bool? spoilerAllowed,
     bool? sendAsFileAllowed,
     int? albumSize,
+    bool? oneSend,
   }) => AttachLimits(
     allowedKinds: allowedKinds ?? this.allowedKinds,
     singleSelect: singleSelect ?? this.singleSelect,
@@ -92,6 +105,7 @@ final class AttachLimits {
     spoilerAllowed: spoilerAllowed ?? this.spoilerAllowed,
     sendAsFileAllowed: sendAsFileAllowed ?? this.sendAsFileAllowed,
     albumSize: albumSize ?? this.albumSize,
+    oneSend: oneSend ?? this.oneSend,
   );
 
   /// Whether [kind] is allowed.
@@ -110,7 +124,8 @@ final class AttachLimits {
       other.groupingAllowed == groupingAllowed &&
       other.spoilerAllowed == spoilerAllowed &&
       other.sendAsFileAllowed == sendAsFileAllowed &&
-      other.albumSize == albumSize;
+      other.albumSize == albumSize &&
+      other.oneSend == oneSend;
 
   @override
   int get hashCode => Object.hash(
@@ -124,5 +139,6 @@ final class AttachLimits {
     spoilerAllowed,
     sendAsFileAllowed,
     albumSize,
+    oneSend,
   );
 }

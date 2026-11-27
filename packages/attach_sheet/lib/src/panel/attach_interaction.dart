@@ -25,9 +25,30 @@ sealed class AttachInteraction {
   const factory AttachInteraction.refused(AttachRefusal reason) =
       AttachInteraction$Refused;
 
+  /// A send was refused in one-send mode (a slow mode): the selection would
+  /// go as more than one send unit (a file beside photos, an item that
+  /// never groups).
+  const factory AttachInteraction.oneSendRefused() =
+      AttachInteraction$OneSendRefused;
+
   /// The camera took no video, for [reason].
   const factory AttachInteraction.videoRefused(AttachVideoRefusal reason) =
       AttachInteraction$VideoRefused;
+}
+
+/// [AttachInteraction.oneSendRefused].
+final class AttachInteraction$OneSendRefused extends AttachInteraction {
+  /// A send refused in one-send mode.
+  const AttachInteraction$OneSendRefused() : super._();
+
+  @override
+  bool operator ==(Object other) => other is AttachInteraction$OneSendRefused;
+
+  @override
+  int get hashCode => (AttachInteraction$OneSendRefused).hashCode;
+
+  @override
+  String toString() => 'AttachInteraction.oneSendRefused()';
 }
 
 /// [AttachInteraction.videoRefused].

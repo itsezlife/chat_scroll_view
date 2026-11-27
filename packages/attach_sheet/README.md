@@ -26,7 +26,9 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | `AttachSendController` | The **attach panel**'s state, one per open: the caption (`ComposerController`, the host's composer text at open), the `SendOptions` (restored from a `SendOptionStore`, saved on send), the send and overflow entries that show (`sendMenu`, `overflow`), `send`, `runSendMenu`, `runOverflow`. A page reaches it as `AttachPageScope.panel`. |
 | `AttachCaptionBar`, `AttachSendButton`, `AttachPanelReveal`, `AttachOverflowButton`, `AttachMenu` | The caption field with its counter and the counter send button (tap sends, long press opens the send menu); the panel taking the tab bar's place while something is selected; the header's overflow button; the small menu both open. |
 | `AttachPanelStyle`, `AttachCountBounce`, `AttachSendMenuItem`, `AttachOverflowItem`, `AttachHaptic` | The panel's values per policy. |
-| `AttachInteraction` | `captionTooLong(over:)`, `refused(reason)`: what the host gives feedback for. |
+| `AttachInteraction` | `captionTooLong(over:)`, `refused(reason)`, `oneSendRefused()`, `videoRefused(reason)`: what the host gives feedback for. |
+| `AttachCapabilities`, `AttachCapabilityGate` | The chat's rights over one open (capabilities, `CapabilityFeedback`, chat id), passed to `AttachSheet.show` or `ConfirmBoxController`; the gate (`AttachSendController.capabilities`) narrows the selection's limits live, reports attempts at a denied kind through `onDenied` (once per guard window for a tap) and gives the pages their denial texts. |
+| `AttachDeniedPage`, `AttachDeniedForm` | A page's content in place of a denied kind: the host's text as a plain page or an empty state, by the policy's `deniedForm`. |
 | `AttachOutcome` | `cancelled(caption)`, `send(request)`, `custom(page, payload)`. |
 | `GalleryPage`, `GalleryView`, `AttachPickerSelection` | The stock Gallery page: `mpx_ui`'s `LibraryGrid` over the device library, its picker selection over the attach selection (shared order numbers, the cap and kind gate, refusals raised as attach interactions), the overflow menu in the header, the host's camera slot, a fast scroll thumb with the month in view. |
 | `FilesPage`, `RecentFilesSource`, `IntakeItems` | The stock Files page: the gallery as files, the file dialog (`FileIntake.pickFiles`), the host's recent files (placeholder rows while loading); intake files as attach items. |
@@ -45,6 +47,7 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | Caption move | Passes its composer text as `initialCaption`; on `cancelled(caption)` puts the caption back in the composer; on `send(request)` clears the composer and plans the request (`planSend`). |
 | Options | Passes a `SendOptionStore` built for the selection's attach policy. |
 | Feedback | `AttachSheetHost.interaction` (a caption over the limit, a refused item), `pickSchedule`, `pickTimer`, `openExternalPicker`. |
+| Chat rights | Passes `AttachCapabilities` with its own limits on the selection (not limits already derived from the chat, which would not widen again when a right is lifted). A denied kind's text comes from its `CapabilityFeedback.denialText`, an attempt reaches its `onDenied`. |
 | Library | An `AssetCacheProvider` above the sheet whose fetcher sends library keys to `LibraryFetcher(library)`; the `MediaLibrary` and `FileIntake` for the stock pages. |
 | Confirm box | One `ConfirmBoxController` per box; while `isOpen`, every route (dialog, drop, paste) goes to it. |
 | Outcome | Reads `AttachOutcome.custom(page, payload)` from a host page. |
@@ -67,6 +70,10 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | Tab bar | `tabs` glass stadium 56 tall, 7 from the sides and above the bottom inset; tabs 48 tall 4 inside it, clipped to the stadium: a 24 icon 4 from the top, an 11 label from 28.33 (medium, extra bold when shown); the shown tab in the accent on a 9 % accent stadium growing from 0.6 over 320 ms, the others in the text colour; a held tab ripples at 6 % from the finger, clipped to its stadium (225 ms growth, 75 ms in, 150 ms out); tab = label + 16 a side (8 from a 56 label), at most 84, spare room shared; 8 edge fade; a tapped tab scrolled 70 clear | glass capsule 62; 160 / 240 / 300 wide for 2 / 3 / 4 tabs, else the screen less 22 a side; a glass lens 3 inside the shown tab (radius 28) slides between tabs on a spring of damping 88 and follows a drag across them |
 | Tab pop-in | staggered 32 ms (the fourth tab first), 0 to 1.1 in 200 ms, 1.1 to 1 in 100 ms, after 20 ms | none |
 | With a selection | the bar drops 36 and fades over 180 ms (44 over 380 ms while the sheet is at its top) | fades over 0.1 s and shrinks to 0.85; back over 0.25 s |
+| Photos and videos both denied | the Gallery shows the denial text in place of the grid | the grid stays, no item selectable |
+| Files denied | the tab stays, its content is the denial text | the tab stays, an empty state with the denial text |
+| A kind denied mid-pick | picks stay selected and marked; the send is refused through `onDenied`, the sheet open and the caption kept | the same |
+| Slow mode | one-send mode: at most the album size (10) selected, grouped, a selection of several sends refused | the same |
 | Tab switch | the sheet moves as one with its pages: over 180 ms its top goes toward the new page's top (its rest, or its top if it was left there) and drops 78 while the new page fades in over the old; then it springs up to that top (ratio 0.75, stiffness 500); taps wait | 0.23 s cross-fade, the new page rising 10 on a spring of damping 70 |
 | Re-tap, single tab | scrolls the page to the top and expands; one tab collapses the bar | same |
 | Permission badge | "!" on a tab whose page lacks its permission; a tap asks for it | none |

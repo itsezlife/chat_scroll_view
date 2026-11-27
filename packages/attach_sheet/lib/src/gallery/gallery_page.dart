@@ -11,6 +11,7 @@ import 'package:attach_sheet/src/gallery/gallery_fast_scroll.dart';
 import 'package:attach_sheet/src/gallery/gallery_strip_album.dart';
 import 'package:attach_sheet/src/header/attach_selection_header_view.dart';
 import 'package:attach_sheet/src/host/attach_caption_dock.dart';
+import 'package:attach_sheet/src/limits/attach_denied_page.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/panel/attach_panel.dart';
@@ -231,6 +232,7 @@ class _GalleryViewState extends State<GalleryView> {
     selection: widget.panel.selection,
     source: widget.library,
     onRefused: widget.panel.host.interaction,
+    onItemRefused: widget.panel.refused,
     captures: _$shots,
   );
   final IntakeItems _$intake = IntakeItems();
@@ -266,9 +268,30 @@ class _GalleryViewState extends State<GalleryView> {
 
   AttachSelection get _selection => widget.panel.selection;
 
-  bool get _mediaAllowed =>
-      _selection.limits.allows(AttachKind.photo) ||
-      _selection.limits.allows(AttachKind.video);
+  // Whether the host lets media in at all; the chat's rights are drawn
+  // apart (the denied page, items not selectable), so they do not hide the
+  // grid behind the library's own message.
+  bool get _mediaAllowed {
+    final limits = widget.panel.capabilities?.base ?? _selection.limits;
+    return limits.allows(AttachKind.photo) || limits.allows(AttachKind.video);
+  }
+
+  // A selected item of a kind the chat now denies: marked over its cell, as
+  // the send is refused while it is there.
+  Widget? _deniedMark(BuildContext context, LibraryAsset asset) {
+    final gate = widget.panel.capabilities;
+    if (gate == null) return null;
+    final item = AttachPickerSelection.itemOf(asset);
+    if (!gate.isDeniedPick(item)) return null;
+    return IgnorePointer(
+      child: ColoredBox(
+        key: ValueKey('attach-gallery-denied-${item.id}'),
+        color: ChromeThemeScope.attachOf(
+          context,
+        ).background.withValues(alpha: 0.6),
+      ),
+    );
+  }
 
   CaptureKinds? get _kinds => switch ((
     _selection.limits.allows(AttachKind.photo),
@@ -344,7 +367,7 @@ class _GalleryViewState extends State<GalleryView> {
       facts: AttachFacts(mimeType: mimeType),
     );
     if (_selection.selectFirst(item) case AttachToggle$Refused(:final reason)) {
-      widget.panel.host.interaction(AttachInteraction.refused(reason));
+      widget.panel.refused(item, reason);
     }
   }
 
@@ -709,7 +732,7 @@ class _GalleryViewState extends State<GalleryView> {
         );
       },
     );
-    return Focus(
+    final page = Focus(
       focusNode: _restFocus,
       child: _ownsHeader
           // The header stands over the grid and the preview alike, so it
@@ -736,6 +759,30 @@ class _GalleryViewState extends State<GalleryView> {
               ),
             )
           : body,
+    );
+    final gate = widget.panel.capabilities;
+    if (gate == null) return page;
+    // The chat's rights, by group: a slow mode tick does not reach here.
+    return ValueListenableBuilder<Object?>(
+      valueListenable: gate.sending,
+      builder: (context, _, page) {
+        final policy = widget.panel.policy;
+        if (!policy.galleryDeniedPage ||
+            !gate.denies(AttachKind.photo) ||
+            !gate.denies(AttachKind.video)) {
+          return page!;
+        }
+        return ColoredBox(
+          color: ChromeThemeScope.attachOf(context).background,
+          child: AttachDeniedPage(
+            key: const ValueKey('attach-gallery-denied'),
+            text: gate.denialText(AttachKind.photo, form: 'galleryPage'),
+            form: policy.deniedForm,
+            controller: widget.controller,
+          ),
+        );
+      },
+      child: page,
     );
   }
 
@@ -862,6 +909,7 @@ class _GalleryViewState extends State<GalleryView> {
       // A selected item a library change took away leaves the selection;
       // the ones after it move up a number.
       onRemoved: _$picker.remove,
+      decorationBuilder: _deniedMark,
       mediaAllowed: _mediaAllowed,
       notAllowedText: strings.mediaNotAllowed,
       cameraDenied: _cameraDenied,
