@@ -1,5 +1,17 @@
 ## Unreleased
 
+### Copy refusal
+- **ADDED**: `ChatSelectionController.canCopy`, the host's answer to whether a
+  message may be copied (default: every message), with `isCopyAllowed`,
+  `reapplyCanCopy` and `refusesCopy` for a host's message-selection copy.
+  A refused message is copied by no path: the text selection's Copy (its
+  toolbar button is gone), inline code, and the fenced code block's copy
+  chrome, which is not drawn.
+- **ADDED** (breaking for exhaustive switches): `ChatCopyRefused`, the
+  interaction a refusal reports, once per attempt.
+- **ADDED**: `ChatSelectionOp.copyRefused`, a `capabilities` diagnostics
+  event with the copy path, the scroll id and the facade's new `chatId`.
+
 ### Outline shimmer
 - **CHANGED**: an emoji or sticker body tells its embeds where the screen
   is, so their outline shimmer crosses it as one band.

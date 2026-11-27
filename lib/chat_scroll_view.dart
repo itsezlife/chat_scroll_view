@@ -47,6 +47,7 @@ export 'src/chat_scroll/chat_scroll_controller.dart';
 export 'src/chat_scroll/chat_scroll_events.dart';
 export 'src/chat_scroll/chat_selection_allowed.dart';
 export 'src/chat_scroll/chat_selection_controller.dart';
+export 'src/chat_scroll/chat_selection_diagnostics.dart' show ChatSelectionOp;
 export 'src/chat_scroll/chat_selection_interaction.dart';
 export 'src/chat_scroll/chat_selection_policy.dart';
 export 'src/chat_scroll/chat_sender_run_layout.dart';

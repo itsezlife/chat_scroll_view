@@ -228,7 +228,9 @@ class _ChatBodySelectionScopeState extends State<ChatBodySelectionScope> {
   ) {
     if (!_selectionInViewport()) return const SizedBox.shrink();
     final items = <ContextMenuButtonItem>[];
-    if (_controller.textSelection case final sel? when !sel.isCollapsed) {
+    // A message that may not be copied offers no Copy.
+    if (_controller.textSelection case final sel?
+        when !sel.isCollapsed && _controller.isCopyAllowed(_id)) {
       items.add(
         ContextMenuButtonItem(
           type: ContextMenuButtonType.copy,

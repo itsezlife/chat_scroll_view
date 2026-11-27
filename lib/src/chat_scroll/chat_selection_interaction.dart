@@ -4,8 +4,8 @@ import 'package:content_model/content_model.dart'
     show ContentKey, ContentKey$Document;
 import 'package:flutter/foundation.dart';
 
-/// Host-observable outcome from the selection facade (Copy, link, code,
-/// mention, hashtag, embed, sticker).
+/// Host-observable outcome from the selection facade (Copy, a refused Copy,
+/// link, code, mention, hashtag, embed, sticker).
 ///
 /// One sealed channel replaces parallel typed hooks so hosts switch once for
 /// feedback UI and side effects. Message-menu entry
@@ -23,6 +23,14 @@ sealed class ChatSelectionInteraction {
     int? messageId,
     ChatInlineGesture? gesture,
   }) = ChatCopied;
+
+  /// A Copy the facade refused because the host's
+  /// `ChatSelectionController.canCopy` answered false for [messageId].
+  const factory ChatSelectionInteraction.copyRefused({
+    required int messageId,
+    required ChatCopyOrigin origin,
+    ChatInlineGesture? gesture,
+  }) = ChatCopyRefused;
 
   /// Hyperlink activation in a markdown body.
   const factory ChatSelectionInteraction.linkActivated({
@@ -91,7 +99,8 @@ enum ChatCopyOrigin {
   /// [ChatSelectionController.copyTextSelection] wrote the active range.
   textSelection,
 
-  /// Host or future engine path copied from message-selection membership.
+  /// A copy of the message-selection members, which the host writes after
+  /// asking [ChatSelectionController.refusesCopy].
   messageSelection,
 
   /// Inline code / monospace / fenced COPY chrome with
@@ -155,6 +164,52 @@ final class ChatCopied extends ChatSelectionInteraction {
   String toString() =>
       'ChatCopied(text: ${text.length} chars, origin: $origin, '
       'messageId: $messageId, gesture: $gesture)';
+}
+
+/// A Copy the facade refused: the host's `ChatSelectionController.canCopy`
+/// answered false for [messageId].
+///
+/// Nothing was written to the clipboard and the selection is unchanged. The
+/// host tells the user why (a bulletin, a tooltip); the facade shows nothing.
+/// One refusal is one interaction: a keyboard Copy, a menu Copy, a code tap
+/// each report once.
+///
+/// Construct via [ChatSelectionInteraction.copyRefused].
+@immutable
+final class ChatCopyRefused extends ChatSelectionInteraction {
+  /// Creates a refused-Copy interaction.
+  const ChatCopyRefused({
+    required this.messageId,
+    required this.origin,
+    this.gesture,
+  });
+
+  /// The message whose copy was refused: the text selection's subject, the
+  /// code's message, or the first refused member of a message selection.
+  final int messageId;
+
+  /// Which copy path was refused.
+  final ChatCopyOrigin origin;
+
+  /// Tap vs long-press when [origin] is [ChatCopyOrigin.codeTap]; otherwise
+  /// null.
+  final ChatInlineGesture? gesture;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatCopyRefused &&
+          messageId == other.messageId &&
+          origin == other.origin &&
+          gesture == other.gesture;
+
+  @override
+  int get hashCode => Object.hash(messageId, origin, gesture);
+
+  @override
+  String toString() =>
+      'ChatCopyRefused(messageId: $messageId, origin: $origin, '
+      'gesture: $gesture)';
 }
 
 /// Hyperlink activation in a markdown body.

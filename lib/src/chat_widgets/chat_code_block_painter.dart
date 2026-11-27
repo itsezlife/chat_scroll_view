@@ -101,6 +101,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     required MarkdownThemeData theme,
     ChatSelectionPolicy? policy,
     ChatCodeBlockLabels labels = ChatCodeBlockLabels.english,
+    bool copyable = true,
   }) {
     final resolvedPolicy = policy ?? ChatSelectionPolicy.forPlatform();
     final background =
@@ -114,6 +115,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
       theme: theme,
       policy: resolvedPolicy,
       labels: labels,
+      copyable: copyable,
       background: background,
       headerBackground: fenceChromeWash(background),
       dividerColor: theme.dividerColor ?? chromeInk.withValues(alpha: 0.14),
@@ -128,6 +130,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
     required this.theme,
     required this.policy,
     required this.labels,
+    required this.copyable,
     required Color background,
     required Color headerBackground,
     required Color dividerColor,
@@ -150,18 +153,22 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
          chromeInk,
          labels,
        ),
-       _bottomBarPainter = _buildBottomBarPainter(text, theme, policy, labels);
+       _bottomBarPainter = copyable
+           ? _buildBottomBarPainter(text, theme, policy, labels)
+           : null;
 
   /// Custom block painter builder for fenced markdown code blocks.
   ///
   /// Can be plugged into [MarkdownThemeData.builder] to render fenced code
   /// blocks with separated interactive header/bottom bars and offset text
-  /// selection coordinates.
+  /// selection coordinates. [copyable] false draws no copy chrome (see
+  /// [copyable]).
   static BlockPainter? builder(
     MD$Block block,
     MarkdownThemeData theme, {
     ChatSelectionPolicy? policy,
     ChatCodeBlockLabels labels = ChatCodeBlockLabels.english,
+    bool copyable = true,
   }) {
     if (block case MD$Code(:final text, :final language)) {
       return ChatCodeBlockPainter(
@@ -170,6 +177,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
         theme: theme,
         policy: policy,
         labels: labels,
+        copyable: copyable,
       );
     }
     return null;
@@ -177,6 +185,14 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
 
   /// Host chrome strings (copy bar / untitled language).
   final ChatCodeBlockLabels labels;
+
+  /// Whether the block's message may be copied. When false the block has no
+  /// copy chrome: the desktop header keeps its language label without the
+  /// copy button and is no hit, and the mobile copy bar is not drawn.
+  final bool copyable;
+
+  // Whether the header is the copy button (desktop, copyable).
+  bool get _copyHeader => copyable && policy.hasInteractiveCodeHeader;
 
   /// Ink used for header/footer labels and washes on [fenceBackground].
   ///
@@ -263,7 +279,8 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
   }
 
   /// Whether an interactive bottom copy bar is rendered for this block.
-  bool get hasBottomBar => policy.hasBottomCodeCopyBarForLength(text.length);
+  bool get hasBottomBar =>
+      copyable && policy.hasBottomCodeCopyBarForLength(text.length);
 
   /// Height of the bottom copy bar, or `0.0` if no bottom bar is rendered.
   double get bottomBarHeight => hasBottomBar ? mobileBottomBarHeight : 0.0;
@@ -309,9 +326,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
       return false;
     }
     // Interactive top header on desktop
-    if (hasHeader &&
-        policy.hasInteractiveCodeHeader &&
-        local.dy < top + headerHeight) {
+    if (hasHeader && _copyHeader && local.dy < top + headerHeight) {
       return true;
     }
     // Interactive bottom copy bar on mobile
@@ -346,7 +361,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
 
     final hHeight = headerHeight;
     if (hasHeader && _headerPainter != null) {
-      final headerContentWidth = policy.hasInteractiveCodeHeader
+      final headerContentWidth = _copyHeader
           ? math.max<double>(
               0,
               contentWidth - 36.0,
@@ -423,7 +438,7 @@ class ChatCodeBlockPainter with SelectableTextBlock implements BlockPainter {
       }
 
       // Desktop copy icon
-      if (policy.hasInteractiveCodeHeader) {
+      if (_copyHeader) {
         _paintCopyIcon(canvas, size.width, fillTop, hHeight);
       }
     }
