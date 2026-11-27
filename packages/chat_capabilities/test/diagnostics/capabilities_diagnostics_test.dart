@@ -50,6 +50,7 @@ void main() {
           'writeAccess': 'readOnly',
           'slowModeActive': true,
           'protected': 'copy,captureBlocked',
+          'protectionBits': 9,
         },
       ),
     ]);
@@ -116,6 +117,32 @@ void main() {
     // The value is still delivered before the assert.
     expect(notified, 1);
     expect(reported.value.limits.albumSize, 0);
+  });
+
+  test('invalidValue fires for a denial naming an allowed kind', () {
+    reported.addListener(() => notified++);
+    expect(
+      () => source.update(
+        sending: SendingCapabilities(
+          media: SendableMedia(
+            allowed: MediaKindSet.of([MediaKind.photo]),
+            denials: const {MediaKind.photo: DenialReason.everyone()},
+          ),
+        ),
+      ),
+      throwsA(isA<AssertionError>()),
+    );
+    expect(diagnostics.whereOp(CapabilitiesOp.invalidValue), [
+      isChatEvent(
+        level: ChatEventLevel.warning,
+        correlation: chat,
+        fields: {'rule': CapabilitiesRule.mediaDenialForAllowedKind},
+      ),
+    ]);
+    expect(
+      diagnostics.whereOp(CapabilitiesOp.valueChanged).single,
+      isChatEvent(fields: containsPair('groups', 'sending')),
+    );
   });
 
   test('an invalid first value is reported on attach', () {

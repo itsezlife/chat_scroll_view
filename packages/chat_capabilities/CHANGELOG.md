@@ -23,3 +23,10 @@ this package is pre-1.0.
   (`CapabilitiesOp.valueChanged`, `CapabilitiesOp.invalidValue`) for each
   distinct value; `brokenRules` and `debugDescribe()` on the value.
 - `testing.dart`: `FakeChatCapabilitiesSource`.
+- The bit flag sets `MediaKindSet` (over `MediaKind`) and `ProtectionFlags`,
+  with `bits` / `fromBits` as their serialised form. `sending.media`
+  (`SendableMedia`: `allowed` kinds, `denials`, `reasonFor`), all kinds
+  allowed by default, so existing values are unchanged.
+  `ChatProtection.flags` and `forMessage(messageProtected:)`. The rule
+  `mediaDenialForAllowedKind`; `debugDescribe()` and `valueChanged`
+  (`protectionBits`) carry the new bits.

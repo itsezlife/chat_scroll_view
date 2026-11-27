@@ -16,14 +16,22 @@ Decisions: [ADR 049](../../docs/adr/049-chat-capabilities.md). Glossary:
 | `ChatCapabilities` | One immutable, value-equal value per chat, one field per group. `const ChatCapabilities()` allows everything with the default limits, which is what a consumer assumes without a value. `brokenRules` names the rules a value breaks; `debugDescribe()` describes it without user content. |
 | `Capability` | `allowed` or `denied(reason)`; `isAllowed`. Carries no text. |
 | `DenialReason` | `everyone`, `restricted(until:)` (null until is for good), `unlockable(kind)` (an opaque host string for what lifts it), `other(tag)`. |
-| `SendingCapabilities` | `text`, `stickers`, `linkPreviews`, `polls`, `inline`. |
+| `SendingCapabilities` | `text`, `media`, `stickers`, `linkPreviews`, `polls`, `inline`. |
+| `SendableMedia` | `sending.media`: the `allowed` kinds (a `MediaKindSet`, every kind by default) and `denials`, a reason per kind outside `allowed`; `reasonFor(kind)` is null for an allowed kind and `everyone` for a denied kind without an entry. |
+| `MediaKind`, `MediaKindSet` | The kinds `photo`, `video`, `animation`, `file`, `audio`, `voice`, `roundVideo`, and a bit flag set of them (`none`, `all`, `of`, `\|`, `&`, `without`, `contains`, `kinds`). |
 | `WriteAccess` | `canWrite`, or what replaces the input row: `readOnly`, `join`, `requestToJoin`, `restricted(reason)`, `custom(tag)`. |
 | `SlowMode` | `interval`, `nextSendAt`, `pending`; `SlowMode.none` by default. `canSendAt(now)` and `remainingAt(now)` take the caller's clock. |
-| `ChatProtection` | Chat-level `copy`, `forward`, `save` (allowed by default) and `captureBlocked`. |
+| `ChatProtection` | Chat-level `copy`, `forward`, `save` (allowed by default) and `captureBlocked`; `flags`, and `forMessage(messageProtected:)`, which adds a protected message's copy, forward and save to the chat's flags. |
+| `ProtectionFlags` | A bit flag set of restrictions: `copy`, `forward`, `save`, `captureBlocked`. |
 | `ChatLimits` | `messageLength` 4096 and `captionLength` 1024 code points, `fileSize` unlimited (null), `albumSize` 10. |
 | `custom` | Host rules the packages do not model, by host key. |
 
 Every group has `copyWith`, and so does `ChatCapabilities`.
+
+The two flag sets have a private representation and a stable bit order,
+which is their serialised form: `bits` writes it, `fromBits` reads it and
+drops bits it does not know. A removed flag's bit is never reused, and a set
+holds at most 31 flags, so it stays a small integer on the web.
 
 ## Reading the value
 
@@ -46,7 +54,7 @@ first listener and unsubscribes after its last, so it needs no disposal.
 
 | Op | Level | Fields |
 | --- | --- | --- |
-| `valueChanged` | debug | `groups` (the changed group names), `writeAccess` (its form), `slowModeActive`, `protected` (what protection denies, or `none`) |
+| `valueChanged` | debug | `groups` (the changed group names), `writeAccess` (its form), `slowModeActive`, `protected` (what protection denies, or `none`), `protectionBits` |
 | `invalidValue` | warning | `rule`, one event per broken `CapabilitiesRule`; debug builds then assert |
 
 ## Testing

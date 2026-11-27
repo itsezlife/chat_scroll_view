@@ -81,6 +81,8 @@ final class ChatCapabilities {
   /// A value cannot check itself when it is built (it is const), so the
   /// listenable from `withDiagnostics` checks each value it passes on.
   List<CapabilitiesRule> get brokenRules => [
+    if (sending.media.deniedButAllowed.isNotEmpty)
+      CapabilitiesRule.mediaDenialForAllowedKind,
     if (slowMode.interval < Duration.zero)
       CapabilitiesRule.slowModeIntervalNegative,
     if (!slowMode.isActive && slowMode.nextSendAt != null)
@@ -94,7 +96,8 @@ final class ChatCapabilities {
   ];
 
   /// A short structured description of the value, for logs and debug
-  /// screens: each group's outcomes, denials by reason form, the slow mode
+  /// screens: each group's outcomes, denials by reason form, the allowed
+  /// media kinds and the protection flags with their bits, the slow mode
   /// state, the limits and the [custom] keys.
   ///
   /// Holds no user content: the only strings from the host are its tags
@@ -102,6 +105,14 @@ final class ChatCapabilities {
   Map<String, Object> debugDescribe() => {
     'sending': {
       'text': _describe(sending.text),
+      'media': {
+        'allowed': [for (final kind in sending.media.allowed.kinds) kind.name],
+        'bits': sending.media.allowed.bits,
+        'denials': <String, Object>{
+          for (final MapEntry(:key, :value) in sending.media.denials.entries)
+            key.name: '$value',
+        },
+      },
       'stickers': _describe(sending.stickers),
       'linkPreviews': _describe(sending.linkPreviews),
       'polls': _describe(sending.polls),
@@ -120,6 +131,7 @@ final class ChatCapabilities {
       'forward': protection.forward,
       'save': protection.save,
       'captureBlocked': protection.captureBlocked,
+      'bits': protection.flags.bits,
     },
     'limits': {
       'messageLength': limits.messageLength,
@@ -186,6 +198,9 @@ final class ChatCapabilities {
 ///
 /// A rule's name is stable: logs filter by it.
 enum CapabilitiesRule {
+  /// `sending.media.denials` gives a reason for a kind that is allowed.
+  mediaDenialForAllowedKind,
+
   /// The slow mode interval is negative.
   slowModeIntervalNegative,
 

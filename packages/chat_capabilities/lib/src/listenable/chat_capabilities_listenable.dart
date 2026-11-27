@@ -193,13 +193,7 @@ final class _ReportedCapabilities extends _LazySelection<ChatCapabilities> {
     ChatCapabilities previous,
     ChatCapabilities next,
   ) {
-    final protection = next.protection;
-    final protected = [
-      if (!protection.copy) 'copy',
-      if (!protection.forward) 'forward',
-      if (!protection.save) 'save',
-      if (protection.captureBlocked) 'captureBlocked',
-    ];
+    final protected = next.protection.flags;
     return {
       'groups': [
         if (previous.sending != next.sending) 'sending',
@@ -213,7 +207,8 @@ final class _ReportedCapabilities extends _LazySelection<ChatCapabilities> {
       ].join(','),
       'writeAccess': _formName(next.writeAccess),
       'slowModeActive': next.slowMode.isActive,
-      'protected': protected.isEmpty ? 'none' : protected.join(','),
+      'protected': protected.isEmpty ? 'none' : protected.names.join(','),
+      'protectionBits': protected.bits,
     };
   }
 
