@@ -38,4 +38,15 @@ enum CapabilitiesOp implements DiagnosticOp {
   /// host form), the `panel` id and the `builder` (`field`, `host` or
   /// `default`). Emitted by the composer once per change of those.
   panelChosen,
+
+  /// Slow mode's countdown started in the composer (debug): the slow mode
+  /// `intervalMs`, the `remainingMs` of the wait and whether a message is
+  /// still `pending`. Emitted by the composer.
+  slowModeStarted,
+
+  /// Slow mode's countdown ended in the composer (debug), at its next send
+  /// time or because the host's new value lifted it: `intervalMs`,
+  /// `remainingMs` (zero at the time, more when lifted early) and
+  /// `pending`. Emitted by the composer.
+  slowModeEnded,
 }

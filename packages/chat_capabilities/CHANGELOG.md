@@ -6,6 +6,11 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (slow mode)
+
+- `CapabilitiesOp.slowModeStarted` and `slowModeEnded`, emitted by the
+  composer when slow mode's countdown starts and ends.
+
 ### Added (limitsDerived)
 
 - `CapabilitiesOp.limitsDerived`, emitted by the picker package when it derives
