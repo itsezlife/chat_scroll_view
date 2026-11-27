@@ -20,8 +20,8 @@ Decisions: [ADR 049](../../docs/adr/049-chat-capabilities.md). Glossary:
 | `SendableMedia` | `sending.media`: the `allowed` kinds (a `MediaKindSet`, every kind by default) and `denials`, a reason per kind outside `allowed`; `reasonFor(kind)` is null for an allowed kind and `everyone` for a denied kind without an entry. |
 | `MediaKind`, `MediaKindSet` | The kinds `photo`, `video`, `animation`, `file`, `audio`, `voice`, `roundVideo`, and a bit flag set of them (`none`, `all`, `of`, `\|`, `&`, `without`, `contains`, `kinds`). |
 | `WriteAccess` | `canWrite`, or what replaces the input row: `readOnly`, `join`, `requestToJoin`, `restricted(reason)`, `custom(tag)`. |
-| `SlowMode` | `interval`, `nextSendAt`, `pending`; `SlowMode.none` by default. `canSendAt(now)` and `remainingAt(now)` take the caller's clock. |
-| `ChatProtection` | Chat-level `copy`, `forward`, `save` (allowed by default) and `captureBlocked`; `flags`, and `forMessage(messageProtected:)`, which adds a protected message's copy, forward and save to the chat's flags. |
+| `SlowMode` | Sealed: `SlowMode.none` (the default) or `SlowMode.active(interval:, nextSendAt:, pending:)`. `canSendAt(now)` and `remainingAt(now)` take the caller's clock. |
+| `ChatProtection` | Chat-level `copy`, `forward`, `save` (allowed by default) and `captureBlocked`, read from its `flags` (the one source; `ChatProtection.of(flags)`), and `forMessage(messageProtected:)`, which adds a protected message's copy, forward and save to the chat's flags. |
 | `ProtectionFlags` | A bit flag set of restrictions: `copy`, `forward`, `save`, `captureBlocked`. |
 | `ChatLimits` | `messageLength` 4096 and `captionLength` 1024 code points, `fileSize` unlimited (null), `albumSize` 10. |
 | `custom` | Host rules the packages do not model, by host key. |
@@ -44,7 +44,9 @@ final sending = chat.select((c) => c.sending);
 ```
 
 `select` notifies only when its group changes by `==`, subscribes on its
-first listener and unsubscribes after its last, so it needs no disposal.
+first listener and unsubscribes after its last, so it needs no disposal. A
+consumer that derives a value and reports it (the picker's limits) passes
+`onValue`, called with each distinct group before the listeners hear of it.
 `withDiagnostics` passes the value through and reports it (below).
 
 ## Denial feedback
@@ -70,26 +72,39 @@ final feedback = CapabilityFeedback(
 ```
 
 A package passes its `CapabilityConsumer` (`composer`, `picker`, `panel`,
-`selection`, `outbox`) to `onDenied`, and a send during slow mode its
-`remaining` wait; the hook itself sees only the action and the reason.
+`selection`, `outbox`) to `onDenied`, a send during slow mode its
+`remaining` wait, and a repeat inside its window `repeated: true` (logged,
+the hook skipped); the hook itself sees only the action and the reason. A
+package names where it draws a text with its own `DenialForm` enum.
+
+`DenialReason` has the host's forms (`everyone`, `restricted`, `unlockable`,
+`other`) and two the packages raise: `noWriteAccess(access)` for a panel
+that replaces the input row, and `sendPending()` for slow mode holding a
+send behind a message still sending.
 
 ## Diagnostics
 
 `capabilities` events through `ChatDiagnostics.current`, operations in
-`CapabilitiesOp`, all correlated by the chat id given to `withDiagnostics`:
+`CapabilitiesOp`, all correlated by the chat id given to `withDiagnostics`.
+A consumer's own `capabilities` events are in its package's enum
+(`chat_composer`'s `ComposerOp`, `attach_sheet`'s `AttachOp`).
 
 | Op | Level | Fields |
 | --- | --- | --- |
 | `valueChanged` | debug | `groups` (the changed group names), `writeAccess` (its form), `slowModeActive`, `protected` (what protection denies, or `none`), `protectionBits` |
 | `invalidValue` | warning | `rule`, one event per broken `CapabilitiesRule`; debug builds then assert |
 | `denialTextMissing` | debug | `action`, `reason` (its form), `form` (the silent form the package draws, when it names one) |
-| `denied` | info | `action`, `reason` (its form), `consumer`, `remainingMs` (when given); reported by `onDenied` for every attempt, with or without a host hook |
-| `panelChosen` | debug | `writeAccess` (its form), `reason` or `tag` when it has one, `panel`, `builder` (`field`, `host`, `default`); emitted by the composer |
-| `slowModeStarted`, `slowModeEnded` | debug | `intervalMs`, `remainingMs`, `pending`; emitted by the composer when slow mode's countdown starts and ends |
+| `denied` | info | `action`, `reason` (its form), `consumer`, `remainingMs` (when given), `repeated` (a repeat inside the consumer's window); reported by `onDenied` for every attempt, with or without a host hook |
 | `feedbackFailed` | error | `hook` (`denialText` or `onDenied`), `action`, `errorType`; the event carries the error and stack trace |
 
 The feedback events are correlated by the `correlation` the calling package
-passes (the chat id, and the message's when known).
+passes (the chat id, and the message's when known). A host string in a
+reason form (an `unlockable` kind, an `other` tag) is clipped to fit a
+field.
+
+The timeline section `chat_scroll_view.capabilities.select` (a group
+recomputed and compared) is compiled in with
+`--dart-define=chat_scroll_view.trace=phase`.
 
 ## Testing
 
