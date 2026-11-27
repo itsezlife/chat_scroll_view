@@ -5,9 +5,10 @@ import 'package:content_model/content_model.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
+import 'package:message_media/src/policy/desktop_mosaic_algorithm.dart';
+import 'package:message_media/src/policy/ios_mosaic_algorithm.dart';
 import 'package:message_media/src/policy/media_box_sizing.dart';
 import 'package:message_media/src/policy/mosaic_algorithm.dart';
-import 'package:message_media/src/policy/mosaic_algorithm_ios.dart';
 import 'package:meta/meta.dart';
 
 /// The layout step of a message media policy: items in, a [MediaLayout]
@@ -152,21 +153,22 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
         fileRowHeight: 56,
       );
 
-  /// The iOS family's layout, with its own mosaic ([MosaicAlgorithm$IOS]).
+  /// The iOS family's layout, with its own mosaic ([IosMosaicAlgorithm]).
   const MediaLayoutPolicy.ios()
     : this(
         box: const MediaBoxSizing.ios(),
         fit: const MediaFitPolicy.ios(),
         fileRowHeight: 65,
-        mosaicAlgorithm: const MosaicAlgorithm$IOS(),
+        mosaicAlgorithm: const IosMosaicAlgorithm(),
       );
 
-  /// The desktop family's layout (the default mosaic until its own lands).
+  /// The desktop family's layout, albums by [DesktopMosaicAlgorithm].
   const MediaLayoutPolicy.desktop()
     : this(
         box: const MediaBoxSizing.desktop(),
         fit: const MediaFitPolicy.desktop(),
         fileRowHeight: 60,
+        mosaicAlgorithm: const DesktopMosaicAlgorithm(),
       );
 
   /// Box sizing.

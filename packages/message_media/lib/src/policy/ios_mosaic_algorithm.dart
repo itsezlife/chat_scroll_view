@@ -55,9 +55,9 @@ import 'package:meta/meta.dart';
 /// reported as `media` / `layoutFallback` with the rule
 /// [MediaLayoutFallbackRule.mosaicRows].
 @immutable
-final class MosaicAlgorithm$IOS implements MosaicAlgorithm {
+final class IosMosaicAlgorithm implements MosaicAlgorithm {
   /// The iOS mosaic; any value can be replaced.
-  const MosaicAlgorithm$IOS({
+  const IosMosaicAlgorithm({
     this.compactMaxSize = const Size(300, 380),
     this.regularMaxSize = const Size(440, 440),
     this.compactMaxListWidth = 680,
@@ -450,14 +450,14 @@ final class MosaicAlgorithm$IOS implements MosaicAlgorithm {
   }
 
   /// A copy with the given values replaced.
-  MosaicAlgorithm$IOS copyWith({
+  IosMosaicAlgorithm copyWith({
     Size? compactMaxSize,
     Size? regularMaxSize,
     double? compactMaxListWidth,
     double? cellGap,
     double? minCellWidth,
     double? minCellHeight,
-  }) => MosaicAlgorithm$IOS(
+  }) => IosMosaicAlgorithm(
     compactMaxSize: compactMaxSize ?? this.compactMaxSize,
     regularMaxSize: regularMaxSize ?? this.regularMaxSize,
     compactMaxListWidth: compactMaxListWidth ?? this.compactMaxListWidth,
@@ -468,7 +468,7 @@ final class MosaicAlgorithm$IOS implements MosaicAlgorithm {
 
   @override
   bool operator ==(Object other) =>
-      other is MosaicAlgorithm$IOS &&
+      other is IosMosaicAlgorithm &&
       other.compactMaxSize == compactMaxSize &&
       other.regularMaxSize == regularMaxSize &&
       other.compactMaxListWidth == compactMaxListWidth &&

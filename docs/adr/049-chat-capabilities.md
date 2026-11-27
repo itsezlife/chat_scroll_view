@@ -80,8 +80,8 @@ nothing.
 | Forms | Each package draws its control's denied form, with a per-platform default (spec §8): the input row replaced by a bar, a disabled field, a picker page or a toast with the ban text, a dimmed button with a tooltip, a link preview silently absent. |
 | Panel pages | The panel's page registry (`panel_shell`) gains a page availability, set by the host (from `sending.stickers` and `sending.animation`, with text from `denialText`); `panel_shell` takes no capabilities edge. Forms with per-platform defaults: `dimmed(hint)` (the tab dimmed, the panel moves to emoji, a tap on the tab shows the hint as a tooltip for 3.5 s), `hidden` (the tab removed, emoji only), `replaced(text)` (the page's content replaced by the text). |
 | Feedback type | `CapabilityFeedback` in `chat_capabilities` carries both hooks below; each controller and session takes it with the capabilities listenable. Without one, texts are null and attempts are not reported. |
-| Text | From the host: `denialText(action, reason)` for text drawn in place, null for the silent form. |
-| Attempts | `onDenied(action, reason)` when the user tries a denied action: a tap on a dimmed control, a send during slow mode, a server refusal. `action` is a `CapabilityAction`: `sendText`, `sendPhoto`, `sendVideo`, `sendAnimation`, `sendFile`, `sendAudio`, `sendVoice`, `sendRoundVideo`, `sendSticker`, `sendLinkPreview`, `sendPoll`, `sendInline`, `sendNow` (slow mode), `copy`, `forward`, `save`. Capture blocking is a flag, not an action. The host shows the tooltip, toast or bulletin. |
+| Text | From the host: `denialText(action, reason)` for text drawn in place, null for the silent form. A package passes its own `DenialForm` (a closed enum implementing the interface in `chat_capabilities`) so the `denialTextMissing` event names where it drew the silent form. |
+| Attempts | `onDenied(action, reason)` (a package also passes its `CapabilityConsumer`: `composer`, `picker`, `panel`, `selection` or `outbox`, and for a slow-mode send the wait left; the seam logs every attempt as `denied`, a repeat inside the package's window with `repeated: true` and without calling the hook) when the user tries a denied action: a tap on a dimmed control, a send during slow mode, a server refusal. `action` is a `CapabilityAction`: `sendText`, `sendPhoto`, `sendVideo`, `sendAnimation`, `sendFile`, `sendAudio`, `sendVoice`, `sendRoundVideo`, `sendSticker`, `sendLinkPreview`, `sendPoll`, `sendInline`, `sendNow` (slow mode), `copy`, `forward`, `save`. Capture blocking is a flag, not an action. The host shows the tooltip, toast or bulletin. |
 | Semantics, RTL | A dimmed control stays focusable, labelled as not available, with the `denialText` as its hint. The slow-mode countdown is announced politely when it starts and ends, not every second. Restriction bars are plain text. Denied forms mirror with the layout. |
 | Readers | `message_media` reads only protection, per message, through an `allowedItemActions` helper; the host and the viewer build per-item menu entries, share and save from it. |
 
@@ -99,6 +99,26 @@ job exists, the picker stays open with the selection and caption kept and
 the denied items marked (decided with the maintainer 2026-11-27, after
 checking the reference clients, which either send and fail or drop the
 selection).
+
+## Amendment (2026-11-27, accepted): names that landed
+
+- The feedback seam is `CapabilityFeedback` (`denialText`, `onDenied`),
+  with `CapabilityConsumer` and `DenialForm` beside it; the hooks the host
+  gives keep the shapes above, the methods packages call take the extra
+  arguments named in the Attempts and Text rows.
+- The input row's default panels have ids `readOnly`, `join`,
+  `requestToJoin`, `restricted` and `writeAccessCustom`
+  (`ComposerPanelId.forWriteAccess`); the resolver is asked first, so a
+  host replaces any of them.
+- The copy hook is `ChatSelectionController.canCopy`
+  (`bool Function(int messageId)`), with `reapplyCanCopy()` and
+  `refusesCopy(ids)`; a refusal is reported as `ChatCopyRefused` and the
+  facade leaves the selection to the host.
+- Page availability is `PageAvailability` in `panel_shell`
+  (`available`, `dimmed(hint)`, `hidden`, `replaced(text)`).
+- The attach limits are derived by `attach_sheet` from the capabilities
+  (`AttachCapabilities`); the picker refuses a send of a denied kind
+  through `onDenied` before any job exists.
 
 ## Why
 

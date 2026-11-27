@@ -339,11 +339,17 @@ void main() {
     test('each platform has its mosaic', () {
       for (final (policy, algorithm) in const [
         (MediaLayoutPolicy.android(), GroupedMosaicAlgorithm()),
-        (MediaLayoutPolicy.ios(), MosaicAlgorithm$IOS()),
-        (MediaLayoutPolicy.desktop(), GroupedMosaicAlgorithm()),
+        (MediaLayoutPolicy.ios(), IosMosaicAlgorithm()),
       ]) {
         expect(policy.mosaicAlgorithm, algorithm);
       }
+    });
+
+    test('the desktop mosaic is its own', () {
+      expect(
+        const MediaLayoutPolicy.desktop().mosaicAlgorithm,
+        const DesktopMosaicAlgorithm(),
+      );
     });
 
     test('copyWith replaces one part and keeps the others', () {

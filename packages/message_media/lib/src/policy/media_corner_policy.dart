@@ -147,7 +147,7 @@ enum MediaTailRadius {
 /// | bubble edge | bubble radius − 2 (when over 2) | bubble radius − 1 | bubble radius |
 /// | [adjacentBubble] | 3 | 7 compact / 8 regular | 6 |
 /// | [text] | 4 | 0 compact / 5 regular | 0 |
-/// | [item] | 4 | 0 compact / 5 regular | 4 |
+/// | [item] | 4 | 0 compact / 5 regular | 0 |
 /// | [tail] | incoming with text: joined radius | none | ends its group: square |
 ///
 /// The bubble radius is the input's `MediaLayoutChrome.bubbleRadius`. A list
@@ -188,15 +188,14 @@ final class MediaCornerPolicy {
         tail: MediaTailRule.none,
       );
 
-  /// The desktop family's corners (the inner item radius is the Android
-  /// value until the desktop mosaic lands).
+  /// The desktop family's corners: square between the boxes of an album.
   const MediaCornerPolicy.desktop()
     : this(
         bubbleInset: 0,
         bubbleEdgeInset: 0,
         adjacentBubble: const MediaListRadius.all(6),
         text: const MediaListRadius.all(0),
-        item: const MediaListRadius.all(4),
+        item: const MediaListRadius.all(0),
         tail: MediaTailRule.desktop,
       );
 

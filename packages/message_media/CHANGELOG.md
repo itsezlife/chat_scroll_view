@@ -8,7 +8,7 @@ this package is pre-1.0.
 
 ### Added
 
-- `MosaicAlgorithm$IOS`, the iOS family's mosaic, now the
+- `IosMosaicAlgorithm`, the iOS family's mosaic, now the
   `MediaLayoutPolicy.ios()` `mosaicAlgorithm`: a fixed pattern by
   orientation mix for two to four boxes, else the best split into two to
   four rows, within 300 × 380 on a compact list and 440 × 440 on a regular
@@ -20,6 +20,12 @@ this package is pre-1.0.
 - `MediaCornerPolicy.ios()` rounds a corner between two boxes with 0 on a
   compact list and 5 on a regular one (was 4).
 
+- `DesktopMosaicAlgorithm` (`name` `desktop`; `maxWidth` 430, `minWidth`
+  100, `spacing` 4), the desktop policy's album layout: fixed forms for two
+  to four items, lines for five or more or a very wide item, laid out at
+  430 and scaled down to the block width. `MediaCornerPolicy.desktop()`
+  squares the corners between boxes (`item` 0, was the interim 4); the
+  desktop album goldens changed with it.
 - The paint step's first part. `MediaCornerPolicy` (`android()`, `ios()`,
   `desktop()`) resolves each cell's numeric `MediaCornerRadii` from its
   neighbours, the joined bubble's side, the list's width class and the

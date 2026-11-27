@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bulletins/bulletins.dart';
+import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_composer/chat_composer.dart'
     show LinkPreviewDismissalPolicy;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
@@ -16,6 +17,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:viewport_scroll/viewport_scroll.dart' show ViewportScrollRouter;
 
@@ -43,6 +45,7 @@ final class InputRig {
   bool Function()? _failSends;
   LinkPreviewResolver? _linkPreviewResolver;
   LinkPreviewDismissalPolicy? _linkPreviewDismissal;
+  listen.ValueListenable<ChatCapabilities>? _capabilities;
 
   /// Bodies sent.
   final List<String> sent = <String>[];
@@ -87,7 +90,8 @@ final class InputRig {
   /// fills the space under the composer where the screen has its chat.
   /// Link previews are looked up through [linkPreviewResolver] (the
   /// address alone by default) under [linkPreviewDismissal] (the
-  /// platform's), for the chat `rig-chat`.
+  /// platform's), for the chat `rig-chat`, whose rights are [capabilities]
+  /// (none: everything allowed).
   static Future<InputRig> pump(
     WidgetTester tester, {
     required AppServices services,
@@ -100,6 +104,7 @@ final class InputRig {
     Widget? chat,
     LinkPreviewResolver? linkPreviewResolver,
     LinkPreviewDismissalPolicy? linkPreviewDismissal,
+    listen.ValueListenable<ChatCapabilities>? capabilities,
   }) async {
     final rig =
         InputRig._(
@@ -109,7 +114,8 @@ final class InputRig {
           )
           .._failSends = failSends
           .._linkPreviewResolver = linkPreviewResolver
-          .._linkPreviewDismissal = linkPreviewDismissal;
+          .._linkPreviewDismissal = linkPreviewDismissal
+          .._capabilities = capabilities;
     addTearDown(() async {
       rig.selection.dispose();
       await rig.keyboard.dispose();
@@ -247,6 +253,7 @@ class _ScreenState extends State<_Screen> {
       linkPreviewResolver:
           _rig._linkPreviewResolver ?? const AddressLinkPreviewResolver(),
       linkPreviewDismissal: _rig._linkPreviewDismissal,
+      capabilities: _rig._capabilities,
     );
     _obstruction ??= input.insets.bottomPadding.map(
       (bottom) => EdgeInsets.only(bottom: bottom),

@@ -39,7 +39,7 @@ final _platforms = <String, _Values>{
     edge: 17,
     joined: 6,
     text: 0,
-    item: 4,
+    item: 0,
   ),
 };
 
@@ -231,7 +231,7 @@ void main() {
       expect(desktop.bubbleEdgeInset, 0);
       expect(desktop.adjacentBubble, const MediaListRadius.all(6));
       expect(desktop.text, const MediaListRadius.all(0));
-      expect(desktop.item, const MediaListRadius.all(4));
+      expect(desktop.item, const MediaListRadius.all(0));
       expect(desktop.tail, MediaTailRule.desktop);
     });
   });

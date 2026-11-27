@@ -293,7 +293,7 @@ void main() {
           listWidth: c.listWidth,
           contentWidth: c.contentWidth,
         );
-        final arrangement = const MosaicAlgorithm$IOS().arrange(
+        final arrangement = const IosMosaicAlgorithm().arrange(
           items: items,
           width: const MediaBoxSizing.ios().blockWidth(input),
           input: input,
@@ -312,7 +312,7 @@ void main() {
   group('rows fallback', () {
     test('a pattern that leaves a box no area lays the album in rows', () {
       final items = _photos(const [(16, 9), (1, 5), (1, 5), (2, 1)]);
-      final arrangement = const MosaicAlgorithm$IOS().arrange(
+      final arrangement = const IosMosaicAlgorithm().arrange(
         items: items,
         width: 300,
         input: _input(items),
@@ -330,7 +330,7 @@ void main() {
 
     test('an item without dimensions is a square', () {
       final input = _input(const []);
-      Rect lastOf(List<(int, int)?> sizes) => const MosaicAlgorithm$IOS()
+      Rect lastOf(List<(int, int)?> sizes) => const IosMosaicAlgorithm()
           .arrange(items: _photos(sizes), width: 300, input: input)
           .placements
           .last
@@ -342,7 +342,7 @@ void main() {
   });
 
   group('max mosaic', () {
-    const algorithm = MosaicAlgorithm$IOS();
+    const algorithm = IosMosaicAlgorithm();
 
     test('the list class picks the max size, scaled down to the width', () {
       expect(
@@ -382,7 +382,7 @@ void main() {
   group('the iOS policy', () {
     test('lays albums with the iOS mosaic and names it', () {
       final step = _ios.layoutStep as MediaLayoutPolicy;
-      expect(step.mosaicAlgorithm, const MosaicAlgorithm$IOS());
+      expect(step.mosaicAlgorithm, const IosMosaicAlgorithm());
       final recorder = RecordingDiagnostics.install();
       _ios.layout(_input(_photos(const [(1, 1), (1, 1)])));
       expect(
