@@ -327,6 +327,53 @@ void main() {
     test('a file row has no fit', () {
       expect(fitOf(_android, MediaItemKind.file), isNull);
     });
+
+    test('every platform crops each box of an album, whatever its kind', () {
+      for (final policy in const [
+        MessageMediaPolicy.android(),
+        MessageMediaPolicy.ios(),
+        MessageMediaPolicy.desktop(),
+      ]) {
+        final layout = policy.layout(
+          _input([
+            _item('p', MediaItemKind.photo),
+            _item('v', MediaItemKind.video, width: 900, height: 1600),
+            _item('a', MediaItemKind.animation, width: 1000, height: 1000),
+          ]),
+        );
+        expect(
+          [for (final cell in layout.cells) cell.fit],
+          everyElement(const MediaFit.crop()),
+          reason: '${policy.family}',
+        );
+      }
+    });
+
+    test('the album fit is a part of its own', () {
+      const base = MediaFitPolicy.desktop();
+      final changed = base.copyWith(album: const MediaFit.blurFit());
+      expect(changed.album, const MediaFit.blurFit());
+      expect(changed.photo, base.photo);
+      expect(changed, isNot(base));
+      final policy = const MessageMediaPolicy.desktop().copyWith(
+        layoutStep: const MediaLayoutPolicy.desktop().copyWith(fit: changed),
+      );
+      expect(
+        policy
+            .layout(_input([_photo('a'), _photo('b')]))
+            .cellOf(const MediaItemId('a'))
+            ?.fit,
+        changed.album,
+      );
+      expect(
+        policy
+            .layout(_input([_photo('a')]))
+            .cellOf(const MediaItemId('a'))
+            ?.fit,
+        base.photo,
+        reason: 'a box alone keeps its kind fit',
+      );
+    });
   });
 
   group('parts', () {

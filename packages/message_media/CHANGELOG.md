@@ -19,6 +19,11 @@ this package is pre-1.0.
   than the block width, as rows round each box up.
 - `MediaCornerPolicy.ios()` rounds a corner between two boxes with 0 on a
   compact list and 5 on a regular one (was 4).
+- `MediaFitPolicy.album`: the fit of every box in a mosaic of two or more,
+  `crop` on every platform. An album box's size follows the mosaic, not its
+  picture, so it fills. Existing albums on iOS (photos were `blurFit`) and
+  desktop (`cropIfVisible`) now crop each box; a box laid out alone keeps
+  its kind's fit.
 
 - `DesktopMosaicAlgorithm` (`name` `desktop`; `maxWidth` 430, `minWidth`
   100, `spacing` 4), the desktop policy's album layout: fixed forms for two
