@@ -16,6 +16,10 @@ enum MediaLayoutFallbackRule {
 
   /// The caption widened the box.
   captionWidening,
+
+  /// A mosaic pattern left the box with no area, so the mosaic was laid in
+  /// rows instead.
+  mosaicRows,
 }
 
 /// The box of one item, and the fallback rules that shaped it.

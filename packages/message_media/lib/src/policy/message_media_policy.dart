@@ -2,12 +2,14 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
+import 'package:message_media/src/diagnostics/media_trace.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/policy/media_autoplay_policy.dart';
 import 'package:message_media/src/policy/media_corner_policy.dart';
 import 'package:message_media/src/policy/media_layout_policy.dart';
+import 'package:message_media/src/transition/media_transition_policy.dart';
 
 /// The platform family a [MessageMediaPolicy]'s defaults come from.
 enum MessageMediaPlatform {
@@ -30,7 +32,8 @@ enum MessageMediaPlatform {
 /// [copyWith]: the layout step as a whole ([layoutStep]) or one of the
 /// default step's parts through [MediaLayoutPolicy.copyWith], the corner
 /// values ([corners]), the autoplay flag ([autoplay]), or one cell builder
-/// ([cells], `MediaCellBuilders.copyWith`) leaving the other.
+/// ([cells], `MediaCellBuilders.copyWith`) leaving the other, or the
+/// layout transition's timings ([transition]).
 ///
 /// [layout] runs the step, resolves each cell's corner radii, and reports
 /// `media` / `layoutComputed`; `MessageMediaView` paints the result with the
@@ -46,6 +49,7 @@ final class MessageMediaPolicy {
     required this.autoplay,
     required this.chrome,
     this.cells = const MediaCellBuilders(),
+    this.transition = const MediaTransitionPolicy.none(),
   });
 
   /// The Android family's defaults.
@@ -56,6 +60,7 @@ final class MessageMediaPolicy {
         corners: const MediaCornerPolicy.android(),
         autoplay: const MediaAutoplayPolicy.android(),
         chrome: const MediaChromeSlots.android(),
+        transition: const MediaTransitionPolicy.android(),
       );
 
   /// The iOS family's defaults.
@@ -66,6 +71,7 @@ final class MessageMediaPolicy {
         corners: const MediaCornerPolicy.ios(),
         autoplay: const MediaAutoplayPolicy.ios(),
         chrome: const MediaChromeSlots.ios(),
+        transition: const MediaTransitionPolicy.ios(),
       );
 
   /// The desktop family's defaults.
@@ -76,6 +82,7 @@ final class MessageMediaPolicy {
         corners: const MediaCornerPolicy.desktop(),
         autoplay: const MediaAutoplayPolicy.desktop(),
         chrome: const MediaChromeSlots.desktop(),
+        transition: const MediaTransitionPolicy.desktop(),
       );
 
   /// The family of [platform]: Android and iOS their own, every other
@@ -118,6 +125,9 @@ final class MessageMediaPolicy {
   /// `MediaChromeSlots.copyWith`.
   final MediaChromeSlots chrome;
 
+  /// How a change of the layout animates (`MessageMediaTransition`).
+  final MediaTransitionPolicy transition;
+
   /// Lays [input] out with [layoutStep], resolves each cell's corner radii
   /// with [corners] and reports the time pill's rect ([chrome]'s
   /// placement) when the time sits on the media.
@@ -157,8 +167,11 @@ final class MessageMediaPolicy {
   }
 
   MediaLayout _layout(MediaLayoutInput input) {
+    MediaTrace.begin(MediaTrace.layout);
     final laid = corners.resolve(layoutStep.layout(input), input);
-    return laid.withTimePill(chrome.timePill.of(laid, input));
+    final result = laid.withTimePill(chrome.timePill.of(laid, input));
+    MediaTrace.end(MediaTrace.layout);
+    return result;
   }
 
   /// A copy with the given parts replaced.
@@ -169,6 +182,7 @@ final class MessageMediaPolicy {
     MediaAutoplayPolicy? autoplay,
     MediaCellBuilders? cells,
     MediaChromeSlots? chrome,
+    MediaTransitionPolicy? transition,
   }) => MessageMediaPolicy(
     family: family ?? this.family,
     layoutStep: layoutStep ?? this.layoutStep,
@@ -176,5 +190,6 @@ final class MessageMediaPolicy {
     autoplay: autoplay ?? this.autoplay,
     cells: cells ?? this.cells,
     chrome: chrome ?? this.chrome,
+    transition: transition ?? this.transition,
   );
 }

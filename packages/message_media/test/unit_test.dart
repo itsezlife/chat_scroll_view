@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'chrome/media_cell_chrome_test.dart' as chrome_media_cell_chrome_test;
 import 'chrome/media_chrome_rules_test.dart' as chrome_media_chrome_rules_test;
+import 'diagnostics/media_trace_test.dart' as diagnostics_media_trace_test;
 import 'goldens/media_geometry_golden_test.dart'
     as goldens_media_geometry_golden_test;
 import 'goldens/message_media_view_golden_test.dart'
@@ -21,6 +22,10 @@ import 'message_media_hit_part_test.dart' as message_media_hit_part_test;
 import 'message_media_state_test.dart' as message_media_state_test;
 import 'mosaic_layout_test.dart' as mosaic_layout_test;
 import 'paint/message_media_view_test.dart' as paint_message_media_view_test;
+import 'policy/desktop_mosaic_algorithm_test.dart'
+    as policy_desktop_mosaic_algorithm_test;
+import 'policy/ios_mosaic_algorithm_test.dart'
+    as policy_ios_mosaic_algorithm_test;
 import 'policy/media_box_sizing_test.dart' as policy_media_box_sizing_test;
 import 'policy/media_corner_policy_test.dart'
     as policy_media_corner_policy_test;
@@ -29,10 +34,17 @@ import 'policy/media_layout_policy_test.dart'
 import 'policy/message_media_policy_test.dart'
     as policy_message_media_policy_test;
 import 'single_media_layout_test.dart' as single_media_layout_test;
+import 'transition/media_layout_lerp_test.dart'
+    as transition_media_layout_lerp_test;
+import 'transition/media_layout_transition_test.dart'
+    as transition_media_layout_transition_test;
+import 'transition/message_media_transition_test.dart'
+    as transition_message_media_transition_test;
 
 void main() {
   group('chrome/media_cell_chrome_test', chrome_media_cell_chrome_test.main);
   group('chrome/media_chrome_rules_test', chrome_media_chrome_rules_test.main);
+  group('diagnostics/media_trace_test', diagnostics_media_trace_test.main);
   group(
     'goldens/media_geometry_golden_test',
     goldens_media_geometry_golden_test.main,
@@ -50,6 +62,14 @@ void main() {
   group('message_media_state_test', message_media_state_test.main);
   group('mosaic_layout_test', mosaic_layout_test.main);
   group('paint/message_media_view_test', paint_message_media_view_test.main);
+  group(
+    'policy/desktop_mosaic_algorithm_test',
+    policy_desktop_mosaic_algorithm_test.main,
+  );
+  group(
+    'policy/ios_mosaic_algorithm_test',
+    policy_ios_mosaic_algorithm_test.main,
+  );
   group('policy/media_box_sizing_test', policy_media_box_sizing_test.main);
   group(
     'policy/media_corner_policy_test',
@@ -64,4 +84,16 @@ void main() {
     policy_message_media_policy_test.main,
   );
   group('single_media_layout_test', single_media_layout_test.main);
+  group(
+    'transition/media_layout_lerp_test',
+    transition_media_layout_lerp_test.main,
+  );
+  group(
+    'transition/media_layout_transition_test',
+    transition_media_layout_transition_test.main,
+  );
+  group(
+    'transition/message_media_transition_test',
+    transition_message_media_transition_test.main,
+  );
 }

@@ -28,4 +28,15 @@ enum MediaOp implements DiagnosticOp {
   /// reveal's form (`circle`, `spot`, `crossFade`) and whether reduce
   /// motion made it jump to revealed.
   spoilerRevealed,
+
+  /// A message's media layout changed and a transition toward the new one
+  /// started (trace): the trigger, the entering and exiting cell counts,
+  /// the duration in milliseconds (0 when it jumps to its end) and whether
+  /// reduce motion collapsed it.
+  transitionStarted,
+
+  /// A layout changed again while its transition ran, and the next leg
+  /// starts from the frame it reached (trace): the new trigger and the
+  /// milliseconds the interrupted leg had run.
+  transitionInterrupted,
 }
