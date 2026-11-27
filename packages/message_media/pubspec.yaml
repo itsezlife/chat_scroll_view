@@ -11,6 +11,10 @@ environment:
   flutter: '>=3.32.0'
 
 dependencies:
+  # ChatBodyPartRole and ChatDiagnosablePart, for the hit part message media
+  # puts in a body part hit (ADR 020 rule 11; the root never depends back).
+  chat_scroll_view:
+    path: ../..
   # MediaItemId and MediaItemKind, the identity and kind every cell is keyed
   # and sized by (ADR 047).
   content_model:

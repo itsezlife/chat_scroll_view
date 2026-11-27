@@ -1,5 +1,24 @@
 ## Unreleased
 
+### Body part hit
+- **ADDED** (breaking for exhaustive switches): `ChatInlineHit.bodyPart`
+  (`ChatInlineHit$BodyPart`), a hit on a part of a body that paints no text,
+  with an opaque `partId`, a `ChatBodyPartRole` (`activate` or `menu`) and
+  the part's global `rect`. In message selection every part toggles its
+  message; over a live text selection a tap dismisses it; otherwise an
+  `activate` part is reported and a `menu` part opens the message menu
+  through the policy's menu entry (the idle message tap on mobile, the
+  secondary message tap on desktop). A long press on a part is the
+  message's.
+- **ADDED** (breaking for exhaustive switches): `ChatBodyPartActivated`, the
+  interaction an `activate` part's tap reports.
+- **ADDED**: `ChatMessageMenuRequest.partId`, the touched part's id (null off
+  a body part), read from `inlineHit`.
+- **ADDED**: `ChatSelectionOp.hit`, a `media` debug event per arbitrated tap
+  or secondary click on a part (role, mode, `ChatBodyPartOutcome`), and
+  `ChatDiagnosablePart`, which a part id implements to name its part and
+  media item in it.
+
 ### Copy refusal
 - **ADDED**: `ChatSelectionController.canCopy`, the host's answer to whether a
   message may be copied (default: every message), with `isCopyAllowed`,

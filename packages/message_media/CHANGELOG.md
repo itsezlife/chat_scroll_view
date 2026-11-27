@@ -8,6 +8,11 @@ this package is pre-1.0.
 
 ### Added
 
+- `MessageMediaHitPart`, the sealed part id message media puts in a body
+  part hit: `MediaHitPart(itemId, part: MediaPart)` and
+  `LinkPreviewHitPart(messageId, zone: LinkPreviewZone)`, each with its
+  `ChatBodyPartRole` (only `MediaPart.options` opens the menu) and its
+  diagnostics name. The package now depends on the root `chat_scroll_view`.
 - The package ([ADR 047](../../docs/adr/047-message-media.md)) with the
   default media layout's geometry: `computeSingleMediaSize`,
   `GroupedMessages.calculate` with `GroupedMediaMember`,

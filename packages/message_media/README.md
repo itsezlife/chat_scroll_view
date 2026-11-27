@@ -18,6 +18,7 @@ layout) and [Content and Assets](../../docs/content/CONTEXT.md) (media item).
 | `GroupedMessagePosition`, `GroupedPositionFlags` | One cell's grid bounds, abstract size and outer edges. |
 | `MosaicLayout`, `MosaicCellLayout` | The positions projected into a pixel width: each cell's rect and corner radii, with a 1 px seam (`cellOf(id)`). |
 | `MediaLayoutMetrics` | The layout's constants, which become the policy's values. |
+| `MessageMediaHitPart`: `MediaHitPart`, `LinkPreviewHitPart` | The part a body part hit (`ChatInlineHit.bodyPart`) is on: a media item's content, status control, spoiler or options affordance, or a link preview card's body or button. The host reads it back from the activation and from the message menu request's `partId`. |
 
 Photo, video and animation share one geometry; a file or custom kind is a
 file row, not a box.
