@@ -25,6 +25,10 @@ keeps the default `MediaLayoutPolicy` and replaces one part:
 | `fit` (`MediaFitPolicy`) | Each box kind's fit mode: `crop`, `blurFit`, `cropIfVisible(fraction)`. |
 | `fileRowHeight` | A file row's height until the file stack lays rows out. |
 
+Beside the layout step, the policy holds the paint step's parts, each
+replaceable with `copyWith`: `corners` (`MediaCornerPolicy`), `autoplay`
+(`MediaAutoplayPolicy`, a host flag) and `cells` (`MediaCellBuilders`).
+
 ## Layout
 
 `MessageMediaPolicy.layout(MediaLayoutInput)` returns a `MediaLayout`. The
@@ -39,6 +43,30 @@ the link preview's card comes last. Each `MediaCell` has a rect in layout
 coordinates, a fit (none for a file row) and a `MediaNeighbour` per side
 (bubble edge, text, item, adjacent bubble), which the paint step reads for
 corner radii.
+
+## Paint
+
+`MessageMediaPolicy.layout` resolves each cell's corner radii
+(`MediaCell.radii`, a numeric `MediaCornerRadii` per corner, so two layouts
+interpolate). A corner takes the bubble-edge radius only when both its
+sides touch the bubble's edge; a side touching text or another item gives
+the inner radius. A side joined to another bubble rounds only its corner
+on the sender's side, and the bubble's tail may change the corner under
+it. `MediaCornerPolicy.android()`, `.ios()` and `.desktop()` list the
+values.
+
+`MessageMediaView` paints a layout: each cell at its rect, keyed by its
+`MediaItemId`, so a cell keeps its element and binding across any
+re-layout. A cell is built by the policy's builder for its shape: `box`
+(photo, video, animation; default `MediaBoxCell`) or `row` (file and
+custom kinds; default `MediaRowCell`, interim until the file stack lays
+rows out). Replacing one leaves the other. The default cells draw through
+`content_assets`' `ContentAssetView`, so the loading stages, status
+control and badge are the media core's; a `ContentAssetProvider` sits
+above the view. A box's fit is decided for the picture
+(`MediaFit.drawIn`): cropped, or whole over bars filled with a blur of the
+same cache entry (its preview or thumbnail until the content arrives).
+Videos and animations play inline, muted, as `MediaAutoplayPolicy` says.
 
 ## Geometry
 
@@ -56,11 +84,13 @@ corner radii.
 `media` events through `ChatDiagnostics.current` (`MediaOp`):
 `layoutComputed` (trace) for every layout, `layoutFallback` (debug) when a
 box takes a fallback rule, `unknownKind` (warning) when a custom kind is
-drawn as a file row. They carry the chat, message and item ids, never a
+drawn as a file row, `cellFailed` (error) when a cell builder throws or a
+cell's item is missing. They carry the chat, message and item ids, never a
 caption, a file name or a page.
 
 ## Goldens
 
 `test/goldens/` holds the single box and mosaic scenes, laid out by the
-Android policy. Baselines are the CI runner's; compare or regenerate them
+Android policy, and the painted view per platform policy (single box,
+albums of two and three, a captioned box, a whole fit over blurred bars). Baselines are the CI runner's; compare or regenerate them
 with `scripts/goldens [--update]`.

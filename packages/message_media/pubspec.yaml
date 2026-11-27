@@ -15,6 +15,9 @@ dependencies:
   # puts in a body part hit (ADR 020 rule 11; the root never depends back).
   chat_scroll_view:
     path: ../..
+  # Cells draw through ContentAssetView (ADR 020 amendment).
+  content_assets:
+    path: ../content_assets
   # MediaItemId and MediaItemKind, the identity and kind every cell is keyed
   # and sized by (ADR 047).
   content_model:
@@ -24,6 +27,13 @@ dependencies:
   # The state's change signals (ADR 023).
   listen: ^1.0.1
   meta: ^1.17.0
+  # The asset presets, status control and badge the cells draw with; mpx is
+  # consumed from git, pinned to one commit (see the root pubspec).
+  mpx_core:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_core
+      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
 
 dev_dependencies:
   # Golden baselines are the CI runner's: compared and regenerated there only.

@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
+import 'package:message_media/src/paint/media_cell_builders.dart';
+import 'package:message_media/src/policy/media_autoplay_policy.dart';
+import 'package:message_media/src/policy/media_corner_policy.dart';
 import 'package:message_media/src/policy/media_layout_policy.dart';
 
 /// The platform family a [MessageMediaPolicy]'s defaults come from.
@@ -23,20 +26,33 @@ enum MessageMediaPlatform {
 /// One object per platform family: [MessageMediaPolicy.android],
 /// [MessageMediaPolicy.ios], [MessageMediaPolicy.desktop], or the running
 /// app's with [MessageMediaPolicy.platform]. A host changes one part with
-/// [copyWith]: the layout step as a whole ([layoutStep]), or one of the
-/// default step's parts through [MediaLayoutPolicy.copyWith].
+/// [copyWith]: the layout step as a whole ([layoutStep]) or one of the
+/// default step's parts through [MediaLayoutPolicy.copyWith], the corner
+/// values ([corners]), the autoplay flag ([autoplay]), or one cell builder
+/// ([cells], `MediaCellBuilders.copyWith`) leaving the other.
 ///
-/// [layout] runs the step and reports `media` / `layoutComputed`.
+/// [layout] runs the step, resolves each cell's corner radii, and reports
+/// `media` / `layoutComputed`; `MessageMediaView` paints the result with the
+/// cell builders.
 @immutable
 final class MessageMediaPolicy {
-  /// A policy of [family] laying media out with [layoutStep].
-  const MessageMediaPolicy({required this.family, required this.layoutStep});
+  /// A policy of [family] laying media out with [layoutStep], rounding
+  /// corners by [corners] and drawing cells with [cells].
+  const MessageMediaPolicy({
+    required this.family,
+    required this.layoutStep,
+    required this.corners,
+    required this.autoplay,
+    this.cells = const MediaCellBuilders(),
+  });
 
   /// The Android family's defaults.
   const MessageMediaPolicy.android()
     : this(
         family: MessageMediaPlatform.android,
         layoutStep: const MediaLayoutPolicy.android(),
+        corners: const MediaCornerPolicy.android(),
+        autoplay: const MediaAutoplayPolicy.android(),
       );
 
   /// The iOS family's defaults.
@@ -44,6 +60,8 @@ final class MessageMediaPolicy {
     : this(
         family: MessageMediaPlatform.ios,
         layoutStep: const MediaLayoutPolicy.ios(),
+        corners: const MediaCornerPolicy.ios(),
+        autoplay: const MediaAutoplayPolicy.ios(),
       );
 
   /// The desktop family's defaults.
@@ -51,6 +69,8 @@ final class MessageMediaPolicy {
     : this(
         family: MessageMediaPlatform.desktop,
         layoutStep: const MediaLayoutPolicy.desktop(),
+        corners: const MediaCornerPolicy.desktop(),
+        autoplay: const MediaAutoplayPolicy.desktop(),
       );
 
   /// The family of [platform]: Android and iOS their own, every other
@@ -79,13 +99,23 @@ final class MessageMediaPolicy {
   /// The layout step.
   final MediaLayoutStep layoutStep;
 
-  /// Lays [input] out with [layoutStep].
+  /// How cells' corners are rounded from their neighbours.
+  final MediaCornerPolicy corners;
+
+  /// Which boxes play inline (a host flag).
+  final MediaAutoplayPolicy autoplay;
+
+  /// The cell builders, one per shape.
+  final MediaCellBuilders cells;
+
+  /// Lays [input] out with [layoutStep] and resolves each cell's corner
+  /// radii with [corners].
   MediaLayout layout(MediaLayoutInput input) {
     if (!ChatDiagnostics.current.isEnabled(ChatEventLevel.trace)) {
-      return layoutStep.layout(input);
+      return corners.resolve(layoutStep.layout(input), input);
     }
     final stopwatch = Stopwatch()..start();
-    final result = layoutStep.layout(input);
+    final result = corners.resolve(layoutStep.layout(input), input);
     stopwatch.stop();
     ChatDiagnostics.current.emit(
       ChatEventLevel.trace,
@@ -119,8 +149,14 @@ final class MessageMediaPolicy {
   MessageMediaPolicy copyWith({
     MessageMediaPlatform? family,
     MediaLayoutStep? layoutStep,
+    MediaCornerPolicy? corners,
+    MediaAutoplayPolicy? autoplay,
+    MediaCellBuilders? cells,
   }) => MessageMediaPolicy(
     family: family ?? this.family,
     layoutStep: layoutStep ?? this.layoutStep,
+    corners: corners ?? this.corners,
+    autoplay: autoplay ?? this.autoplay,
+    cells: cells ?? this.cells,
   );
 }

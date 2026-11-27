@@ -8,6 +8,22 @@ this package is pre-1.0.
 
 ### Added
 
+- The paint step's first part. `MediaCornerPolicy` (`android()`, `ios()`,
+  `desktop()`) resolves each cell's numeric `MediaCornerRadii` from its
+  neighbours, the joined bubble's side, the list's width class and the
+  bubble's tail (`MediaTailRule`); `MessageMediaPolicy.layout` returns the
+  cells with their radii (`MediaCell.radii`, `MediaLayout.mapCells`).
+- `MessageMediaView` paints a `MediaLayout`, each cell keyed by its item,
+  with the policy's `MediaCellBuilders` (`box`: `MediaBoxCell`, `row`:
+  `MediaRowCell`), each replaceable on its own. Cells draw through
+  `content_assets`' `ContentAssetView`; the package now depends on
+  `content_assets` and `mpx_core`.
+- `MediaFit.drawIn` and `MediaFitDraw`: a box crops, or draws the whole
+  picture over bars blurred from the same cache entry.
+- `MediaAutoplayPolicy` (`android()`, `ios()`, `desktop()`, `off`): which
+  videos and animations play inline, muted.
+- `media` / `cellFailed` diagnostics.
+
 - `MessageMediaHitPart`, the sealed part id message media puts in a body
   part hit: `MediaHitPart(itemId, part: MediaPart)` and
   `LinkPreviewHitPart(messageId, zone: LinkPreviewZone)`, each with its

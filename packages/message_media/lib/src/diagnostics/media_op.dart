@@ -18,4 +18,8 @@ enum MediaOp implements DiagnosticOp {
   /// An item of a custom kind was laid out as a file row (warning): its
   /// kind tag.
   unknownKind,
+
+  /// A cell could not be built (error): which builder (`box`, `row`) and
+  /// the error's type (`missingItem` for a cell whose item was not given).
+  cellFailed,
 }

@@ -1,7 +1,9 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:message_media/src/layout/media_corner_radii.dart';
 
 // --- Neighbours ---
 
@@ -92,6 +94,48 @@ sealed class MediaFit {
   /// fit over a blurred copy.
   const factory MediaFit.cropIfVisible(double fraction) =
       MediaFit$CropIfVisible;
+
+  /// How a picture of [picture] size is drawn in a box of [box] size under
+  /// this fit: cropped, or whole over blurred bars.
+  ///
+  /// A picture of unknown or empty size, or of the box's aspect, is cropped
+  /// (there is nothing to bar).
+  MediaFitDraw drawIn(Size box, Size? picture) {
+    if (picture == null || picture.isEmpty || box.isEmpty) {
+      return MediaFitDraw.crop;
+    }
+    final boxAspect = box.width / box.height;
+    final pictureAspect = picture.width / picture.height;
+    if (boxAspect == pictureAspect) return MediaFitDraw.crop;
+    return switch (this) {
+      MediaFit$Crop() => MediaFitDraw.crop,
+      MediaFit$BlurFit(:final overflowCrop) =>
+        // The bars a whole fit leaves, summed across the barred axis.
+        (boxAspect > pictureAspect
+                    ? box.width - box.height * pictureAspect
+                    : box.height - box.width / pictureAspect) <=
+                overflowCrop
+            ? MediaFitDraw.crop
+            : MediaFitDraw.blurredBars,
+      MediaFit$CropIfVisible(:final fraction) =>
+        // The share of the picture a crop keeps.
+        math.min(boxAspect / pictureAspect, pictureAspect / boxAspect) >=
+                fraction
+            ? MediaFitDraw.crop
+            : MediaFitDraw.blurredBars,
+    };
+  }
+}
+
+/// How a box draws its picture once its fit is decided for the picture's
+/// size ([MediaFit.drawIn]).
+enum MediaFitDraw {
+  /// Centre crop to the box.
+  crop,
+
+  /// The whole picture, the bars filled with a blur of it (the blurred
+  /// preview or thumbnail stage until the picture itself shows).
+  blurredBars,
 }
 
 /// [MediaFit.crop].
@@ -163,6 +207,7 @@ final class MediaCell {
     required this.rect,
     required this.neighbours,
     this.fit,
+    this.radii = MediaCornerRadii.zero,
   });
 
   /// The item this cell draws; it keys the cell across layouts.
@@ -182,6 +227,25 @@ final class MediaCell {
   /// What each side touches.
   final MediaNeighbours neighbours;
 
+  /// The corner radii the paint step resolved from [neighbours]
+  /// (`MediaCornerPolicy`); square until then.
+  final MediaCornerRadii radii;
+
+  /// A copy with the given fields replaced.
+  MediaCell copyWith({
+    Rect? rect,
+    MediaFit? fit,
+    MediaNeighbours? neighbours,
+    MediaCornerRadii? radii,
+  }) => MediaCell(
+    itemId: itemId,
+    kind: kind,
+    rect: rect ?? this.rect,
+    fit: fit ?? this.fit,
+    neighbours: neighbours ?? this.neighbours,
+    radii: radii ?? this.radii,
+  );
+
   @override
   bool operator ==(Object other) =>
       other is MediaCell &&
@@ -189,13 +253,14 @@ final class MediaCell {
       other.kind == kind &&
       other.rect == rect &&
       other.fit == fit &&
-      other.neighbours == neighbours;
+      other.neighbours == neighbours &&
+      other.radii == radii;
 
   @override
-  int get hashCode => Object.hash(itemId, kind, rect, fit, neighbours);
+  int get hashCode => Object.hash(itemId, kind, rect, fit, neighbours, radii);
 
   @override
-  String toString() => 'MediaCell($itemId, ${kind.value}, $rect, $fit)';
+  String toString() => 'MediaCell($itemId, ${kind.value}, $rect, $fit, $radii)';
 }
 
 /// One vertical run of a [MediaLayout]: boxes, file rows or a link preview
@@ -231,6 +296,10 @@ sealed class MediaBlock {
 
   /// The block's kind, as a diagnostics event names it.
   String get kindName;
+
+  /// This block with [cells] in place of its own (same count and order);
+  /// a block without cells is returned as it is.
+  MediaBlock withCells(List<MediaCell> cells);
 }
 
 /// Photo, video and animation boxes: one box, or a mosaic of two or more.
@@ -245,6 +314,10 @@ final class MediaBlock$Mosaic extends MediaBlock {
 
   @override
   String get kindName => 'mosaic';
+
+  @override
+  MediaBlock withCells(List<MediaCell> cells) =>
+      MediaBlock$Mosaic(rect: rect, cells: cells);
 
   @override
   bool operator ==(Object other) =>
@@ -272,6 +345,10 @@ final class MediaBlock$FileStack extends MediaBlock {
 
   @override
   String get kindName => 'fileStack';
+
+  @override
+  MediaBlock withCells(List<MediaCell> cells) =>
+      MediaBlock$FileStack(rect: rect, cells: cells);
 
   @override
   bool operator ==(Object other) =>
@@ -310,6 +387,9 @@ final class MediaBlock$LinkPreview extends MediaBlock {
 
   @override
   String get kindName => 'linkPreview';
+
+  @override
+  MediaBlock withCells(List<MediaCell> cells) => this;
 
   @override
   bool operator ==(Object other) =>
@@ -403,6 +483,39 @@ final class MediaLayout {
 
   /// The cell of the item [id], or null when it is not laid out.
   MediaCell? cellOf(MediaItemId id) => _cellsById[id];
+
+  /// This layout with every cell passed through [map] (which keeps its
+  /// item); the same layout when [map] changes no cell.
+  MediaLayout mapCells(MediaCell Function(MediaCell cell) map) {
+    var changed = false;
+    final mapped = <MediaBlock>[];
+    for (final block in blocks) {
+      if (block.cells.isEmpty) {
+        mapped.add(block);
+        continue;
+      }
+      final cells = [for (final cell in block.cells) map(cell)];
+      assert(
+        cells.indexed.every(
+          (entry) => entry.$2.itemId == block.cells[entry.$1].itemId,
+        ),
+        'mapCells keeps each cell on its item.',
+      );
+      if (listEquals(cells, block.cells)) {
+        mapped.add(block);
+      } else {
+        changed = true;
+        mapped.add(block.withCells(cells));
+      }
+    }
+    if (!changed) return this;
+    return MediaLayout(
+      size: size,
+      blocks: mapped,
+      widthMetrics: widthMetrics,
+      timePill: timePill,
+    );
+  }
 
   @override
   bool operator ==(Object other) =>
