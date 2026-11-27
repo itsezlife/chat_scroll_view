@@ -5,7 +5,6 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_attach.dar
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart' as content;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mpx_capture/mpx_capture.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
 

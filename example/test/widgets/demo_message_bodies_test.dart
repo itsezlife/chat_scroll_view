@@ -363,8 +363,8 @@ void main() {
       final paintable = attempt.paintables.single;
       await tester.pump();
       expect(host.plays.hasPlayed(1), isTrue);
-      // iOS: a fixed 112 pt sticker.
-      expect(attempt.request.spec.pixelWidth, 112);
+      // iOS: a fixed 112 pt sticker, on its rung.
+      expect(attempt.request.spec.pixelWidth, 128);
       expect(paintable.paints.last.context.animate, isTrue);
 
       // Leaving the screen's view of the row and coming back: the cache keeps

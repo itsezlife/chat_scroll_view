@@ -12,7 +12,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart';
-import 'package:mpx_core/testing.dart';
+import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
 
 MediaItem _item(
   String id, {

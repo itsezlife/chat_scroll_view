@@ -13,7 +13,7 @@ import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
-import 'package:mpx_core/testing.dart';
+import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
 
 MediaItem _photo(String id, {ContentSize size = const ContentSize(800, 600)}) =>
     MediaItem(

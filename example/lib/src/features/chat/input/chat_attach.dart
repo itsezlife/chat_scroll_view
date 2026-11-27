@@ -18,6 +18,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/document_embed.
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mpx_capture/mpx_capture.dart';
+import 'package:mpx_core/mpx_core.dart' show PreparedMedia;
 import 'package:mpx_library/mpx_library.dart';
 
 /// Turns a send plan into the demo chat's messages: one message per planned

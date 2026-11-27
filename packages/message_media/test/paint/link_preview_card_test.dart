@@ -23,7 +23,7 @@ import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/widgets.dart' as widgets show RichText;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
-import 'package:mpx_core/testing.dart';
+import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
 
 final class _Message implements IChatMessage {
   _Message(this.id);

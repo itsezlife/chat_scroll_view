@@ -2,7 +2,7 @@ import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
-import 'package:mpx_capture/mpx_capture.dart' show PreparedMedia;
+import 'package:mpx_core/mpx_core.dart' show PreparedMedia;
 
 /// The **attach outcome**: what the sheet hands the host when it closes.
 @immutable

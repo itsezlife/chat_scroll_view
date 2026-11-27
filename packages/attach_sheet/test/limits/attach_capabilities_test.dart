@@ -20,7 +20,7 @@ import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_core/mpx_core.dart' hide MediaKind;
-import 'package:mpx_core/testing.dart';
+import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_library/testing.dart';
 import 'package:mpx_ui/mpx_ui.dart';
