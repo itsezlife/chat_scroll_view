@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- `AttachLimits.captionLength` counts code points of the caption's plain text,
+  as the message length budget does, not UTF-16 code units; the send plan
+  checks the batch caption and each item's caption that way.
+
 ### Added (per-item captions, breaking)
 
 - Each item can carry its own caption beside the shared one (the sheet's

@@ -33,8 +33,9 @@ final class AttachLimits {
   /// Whether only one item may be selected: a toggle replaces it.
   final bool singleSelect;
 
-  /// The longest caption, in UTF-16 code units; a longer one is rejected by
-  /// the send plan.
+  /// The longest caption, in code points (the unit of the message length
+  /// budget, so an emoji is one and a ZWJ sequence is each of its code
+  /// points); a longer one is rejected by the send plan.
   final int captionLength;
 
   /// The largest file, in bytes; null for none. An item over it is refused.

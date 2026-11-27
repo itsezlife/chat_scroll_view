@@ -460,6 +460,45 @@ void main() {
       );
     });
 
+    test('a caption counts code points, not UTF-16 code units', () {
+      final emoji = '\u{1F600}' * 1024; // 2048 code units
+      expect(_plan(_ios, _photos(1), caption: RichText.plain(emoji)), [
+        'S(p0*)',
+      ]);
+      expect(
+        _plan(_ios, _photos(1), caption: RichText.plain('$emoji\u{1F600}')),
+        ['rejected: captionTooLong'],
+      );
+      final own = AttachItems.photo(
+        'o',
+      ).copyWith(caption: RichText.plain('$emoji\u{1F600}'));
+      expect(_plan(_ios, [own]), ['rejected: captionTooLong']);
+    });
+
+    test('a ZWJ sequence counts as its code points', () {
+      // Family: man, ZWJ, woman, ZWJ, girl = 5 code points.
+      const family = '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}';
+      const limits = AttachLimits(captionLength: 5);
+      expect(
+        _plan(
+          _ios,
+          _photos(1),
+          caption: const RichText.plain(family),
+          limits: limits,
+        ),
+        ['S(p0*)'],
+      );
+      expect(
+        _plan(
+          _ios,
+          _photos(1),
+          caption: const RichText.plain('${family}a'),
+          limits: limits,
+        ),
+        ['rejected: captionTooLong'],
+      );
+    });
+
     test('a timer with a schedule', () {
       expect(
         _plan(_android, [
