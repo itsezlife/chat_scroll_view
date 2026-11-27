@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (press scale)
+
+- `ChromeInk.scale` with `ChromeInkBounce` (a fixed factor, an overshoot on
+  release; presets `card` 0.99 and `button` 0.98) and `ChromeInkInset` (to
+  `(w - inset) / w` of the laid-out width; presets `card` and `button`). The
+  scale follows the feedback's press, slop and cancel and is removed by an
+  instant motion speed. Null by default: existing users are unchanged.
+
 ### Added (tooltip)
 
 - `ChromeTooltip` and `ChromeTooltipMetrics` (`pointer`, `hint`): the
