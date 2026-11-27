@@ -225,6 +225,10 @@ final class SendPlan$Rejected extends SendPlan {
   String toString() => 'SendPlan.rejected(${rejection.name})';
 }
 
+/// The length of [text]'s plain text in code points (`plain.runes.length`),
+/// the unit of the message length budget (ADR 034).
+int _codePoints(RichText? text) => text?.plain.runes.length ?? 0;
+
 /// Plans [request] under [policy] and [limits]: cuts the items into planned
 /// sends and places the caption.
 ///
@@ -244,9 +248,9 @@ SendPlan planSend(
   if (request.items.isEmpty && caption.isEmpty) {
     return const SendPlan$Rejected(SendRejection.empty);
   }
-  if (caption.length > limits.captionLength ||
+  if (_codePoints(caption) > limits.captionLength ||
       request.items.any(
-        (item) => (item.caption?.length ?? 0) > limits.captionLength,
+        (item) => _codePoints(item.caption) > limits.captionLength,
       )) {
     return const SendPlan$Rejected(SendRejection.captionTooLong);
   }
