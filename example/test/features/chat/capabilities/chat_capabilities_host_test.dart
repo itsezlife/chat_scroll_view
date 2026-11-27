@@ -85,7 +85,10 @@ void main() {
 
     test('a slow-mode group sends once every 30 s, free to send now', () {
       final value = DemoChatRights.slowMode.resolve(_now);
-      expect(value.slowMode, const SlowMode(interval: Duration(seconds: 30)));
+      expect(
+        value.slowMode,
+        const SlowMode.active(interval: Duration(seconds: 30)),
+      );
       expect(value.slowMode.canSendAt(_now), isTrue);
     });
 
@@ -163,7 +166,7 @@ void main() {
       expect(
         chat.feedback.denialText(
           CapabilityAction.sendText,
-          const DenialReason.other('readOnly'),
+          const DenialReason.noWriteAccess(WriteAccess.readOnly()),
         ),
         _strings.readOnly,
       );
@@ -274,13 +277,16 @@ void main() {
 
       expect(
         during,
-        SlowMode(
+        SlowMode.active(
           interval: const Duration(seconds: 30),
           nextSendAt: _now.add(const Duration(seconds: 30)),
           pending: true,
         ),
       );
-      expect(chat.value.slowMode.pending, isFalse);
+      expect(
+        chat.value.slowMode,
+        isA<SlowMode$Active>().having((s) => s.pending, 'pending', isFalse),
+      );
       expect(chat.value.slowMode.canSendAt(_now), isFalse);
       expect(
         chat.value.slowMode.canSendAt(_now.add(const Duration(seconds: 30))),

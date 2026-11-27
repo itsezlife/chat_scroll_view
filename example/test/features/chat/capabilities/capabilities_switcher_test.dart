@@ -87,13 +87,16 @@ void main() {
       switcher.toggle(CapabilityToggle.slowMode);
       expect(
         host.value.slowMode,
-        SlowMode(
+        SlowMode.active(
           interval: const Duration(seconds: 30),
           nextSendAt: _start.add(const Duration(seconds: 30)),
         ),
       );
       expect(switcher.toggle(CapabilityToggle.slowModePending), isTrue);
-      expect(host.value.slowMode.pending, isTrue);
+      expect(
+        host.value.slowMode,
+        isA<SlowMode$Active>().having((s) => s.pending, 'pending', isTrue),
+      );
     });
 
     test('each write access choice sets its form', () {

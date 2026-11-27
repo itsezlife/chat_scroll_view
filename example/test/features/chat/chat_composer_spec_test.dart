@@ -4,30 +4,35 @@
 /// action in the spec it returns.
 library;
 
+import 'package:chat_capabilities/chat_capabilities.dart' show CapabilityAction;
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-ComposerSpec _spec({required ActionPlacement panelPlacement}) =>
-    buildChatComposerSpec(
-      strings: ChromeStringsPresets.english,
-      editing: null,
-      hasText: false,
-      busy: false,
-      messageLengthLimit: 4096,
-      panelReplacesKeyboard: false,
-      panelDocked: false,
-      panelPlacement: panelPlacement,
-      wrapPanelToggle: null,
-      pageIcon: ChromeIconId.emoji,
-      onTogglePanel: () {},
-      onSubmit: () {},
-      onAttach: () {},
-      onVoice: () {},
-      onCancelEdit: () {},
-    );
+ComposerSpec _spec({
+  required ActionPlacement panelPlacement,
+  ComposerDeniedForms deniedForms = ComposerDeniedForms.android,
+  bool panelReplacesKeyboard = false,
+}) => buildChatComposerSpec(
+  deniedForms: deniedForms,
+  strings: ChromeStringsPresets.english,
+  editing: null,
+  hasText: false,
+  busy: false,
+  messageLengthLimit: 4096,
+  panelReplacesKeyboard: panelReplacesKeyboard,
+  panelDocked: false,
+  panelPlacement: panelPlacement,
+  wrapPanelToggle: null,
+  pageIcon: ChromeIconId.emoji,
+  onTogglePanel: () {},
+  onSubmit: () {},
+  onAttach: () {},
+  onVoice: () {},
+  onCancelEdit: () {},
+);
 
 ActionPlacement _placementOf(ComposerSpec spec, String id) =>
     spec.actions.firstWhere((action) => action.id == id).placement;
@@ -73,6 +78,40 @@ void main() {
       expect(
         _placementOf(spec, ChatComposerActions.attach),
         ActionPlacement.trailing,
+      );
+    });
+  });
+
+  group('the emoji toggle and plain text denied', () {
+    CapabilityAction? capabilityOf(ComposerSpec spec) => spec.actions
+        .firstWhere((action) => action.id == ChatComposerActions.panel)
+        .capability;
+
+    test('carries sendText where the forms dim it with the field', () {
+      expect(
+        capabilityOf(_spec(panelPlacement: ActionPlacement.leading)),
+        CapabilityAction.sendText,
+      );
+    });
+
+    test('carries none where they do not, or while it shows the keyboard', () {
+      expect(
+        capabilityOf(
+          _spec(
+            panelPlacement: ActionPlacement.leading,
+            deniedForms: ComposerDeniedForms.ios,
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        capabilityOf(
+          _spec(
+            panelPlacement: ActionPlacement.leading,
+            panelReplacesKeyboard: true,
+          ),
+        ),
+        isNull,
       );
     });
   });

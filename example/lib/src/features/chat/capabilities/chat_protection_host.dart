@@ -139,13 +139,6 @@ final class ChatProtectionHost {
   /// The tag of [DenialReason.other] for content its own message protects.
   static const protectedMessageTag = 'protectedMessage';
 
-  /// Applies a change of the message with [messageId]'s own protected flag,
-  /// as the chat's protection changing applies (its scope is `message`).
-  void messageProtectionChanged(int messageId) {
-    if (_disposed) return;
-    _apply(scope: 'message', messageId: messageId);
-  }
-
   void _onProtection() {
     if (_disposed) return;
     final next = _protection.value;
@@ -160,7 +153,10 @@ final class ChatProtectionHost {
     }
   }
 
-  void _apply({required String scope, int? messageId}) {
+  // The chat's protection changed. A message's own flag is set when the
+  // message arrives and never changes in the demo, so there is no message
+  // scope to apply.
+  void _apply({required String scope}) {
     selection.reapplyCanCopy();
     final held = {
       ...selection.selectedIds,
@@ -177,18 +173,12 @@ final class ChatProtectionHost {
     } else {
       outcome = 'kept';
     }
-    final bits = switch (messageId) {
-      final id? => flagsOf(id).bits,
-      null => _protection.value.flags.bits,
-    };
+    final bits = _protection.value.flags.bits;
     ChatDiagnostics.current.emit(
       ChatEventLevel.info,
       ChatEventCategory.capabilities,
       ChatProtectionOp.protectionApplied,
-      correlation: ChatCorrelation(
-        chatId: chatId,
-        scrollId: messageId?.toString(),
-      ),
+      correlation: ChatCorrelation(chatId: chatId),
       fields: () => {'scope': scope, 'bits': bits, 'selection': outcome},
     );
   }

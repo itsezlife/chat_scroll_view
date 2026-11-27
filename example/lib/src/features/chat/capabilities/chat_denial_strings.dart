@@ -1,5 +1,4 @@
 import 'package:chat_capabilities/chat_capabilities.dart';
-import 'package:chat_composer/chat_composer.dart' show ComposerSlowModeState;
 import 'package:chrome_foundation/chrome_foundation.dart' show ComposerStrings;
 import 'package:meta/meta.dart';
 
@@ -9,8 +8,9 @@ import 'package:meta/meta.dart';
 ///
 /// The packages never carry a denial text: the reason says why, and the
 /// host words it. The reason's form picks the sentence and the action its
-/// subject; the `other` tags the packages ask with (the write-access bars,
-/// a pending slow-mode send) have sentences of their own.
+/// subject; the packages' own reasons (`noWriteAccess` for the write-access
+/// bars, `sendPending` for a pending slow-mode send) have sentences of their
+/// own.
 ///
 /// [english] holds the English texts; [russian] is the demo's language, as
 /// `demoChromeStrings` is.
@@ -87,13 +87,14 @@ final class ChatDenialStrings {
   /// Any other reason: the action is not available.
   final String Function(String subject) unavailable;
 
-  /// The read-only bar (`DenialReason.other('readOnly')`).
+  /// The read-only bar (`DenialReason.noWriteAccess(WriteAccess.readOnly())`).
   final String readOnly;
 
-  /// The join bar (`DenialReason.other('join')`).
+  /// The join bar (`DenialReason.noWriteAccess(WriteAccess.join())`).
   final String join;
 
-  /// The request-to-join bar (`DenialReason.other('requestToJoin')`).
+  /// The request-to-join bar
+  /// (`DenialReason.noWriteAccess(WriteAccess.requestToJoin())`).
   final String requestToJoin;
 
   /// An early send during slow mode's countdown, with the wait left as
@@ -116,11 +117,12 @@ final class ChatDenialStrings {
     DenialReason$Restricted(:final until?)
         when action == CapabilityAction.sendNow =>
       slowModeWait(ComposerStrings.minutesSeconds(until.difference(now))),
-    DenialReason$Other(tag: ComposerSlowModeState.pendingTag) =>
-      slowModePending,
-    DenialReason$Other(tag: 'readOnly') => readOnly,
-    DenialReason$Other(tag: 'join') => join,
-    DenialReason$Other(tag: 'requestToJoin') => requestToJoin,
+    DenialReason$SendPending() => slowModePending,
+    DenialReason$NoWriteAccess(access: WriteAccess$ReadOnly()) => readOnly,
+    DenialReason$NoWriteAccess(access: WriteAccess$Join()) => join,
+    DenialReason$NoWriteAccess(access: WriteAccess$RequestToJoin()) =>
+      requestToJoin,
+    DenialReason$NoWriteAccess() ||
     DenialReason$Other() => unavailable(subject(action)),
     DenialReason$Everyone() => everyone(subject(action)),
     DenialReason$Restricted(:final until?) => restrictedUntil(

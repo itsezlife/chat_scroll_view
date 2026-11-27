@@ -28,6 +28,10 @@ abstract final class ChatComposerActions {
 /// at the start edge where the panel replaces the keyboard, and at the end
 /// edge, under the popup that anchors to it, where the panel is a popup or a
 /// dock ([panelPlacement]). Attach takes the other edge.
+///
+/// [deniedForms] are the composer's (the platform's by default): where they
+/// dim the emoji toggle with a locked field, the toggle carries the text
+/// right.
 ComposerSpec buildChatComposerSpec({
   required ChromeStrings strings,
   required ChatEditTarget? editing,
@@ -48,7 +52,11 @@ ComposerSpec buildChatComposerSpec({
   ComposerHeader? linkPreview,
   ComposerLinkPrompt? linkPrompt,
   ComposerBackPriority? backPriority,
+  ComposerDeniedForms? deniedForms,
 }) {
+  final forms =
+      deniedForms ??
+      ComposerDeniedForms.forPlatform(defaultTargetPlatform, isWeb: kIsWeb);
   final composer = strings.composer;
   final isEditing = editing != null;
   return ComposerSpec(
@@ -82,6 +90,12 @@ ComposerSpec buildChatComposerSpec({
         placement: panelPlacement,
         active: panelDocked,
         wrap: wrapPanelToggle,
+        // Where plain text denied dims the emoji toggle with the field (the
+        // Android form), the toggle is the text right; not while it shows
+        // the keyboard, which the locked field does not take.
+        capability: forms.textDeniedDimsEmoji && !panelReplacesKeyboard
+            ? CapabilityAction.sendText
+            : null,
         onTap: onTogglePanel,
       ),
       ActionDescriptor(

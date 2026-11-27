@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:content_model/content_model.dart' show ChatCorrelation;
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:listen/listen.dart' as listen;
 import 'package:panel_shell/panel_shell.dart';
 
@@ -29,7 +30,7 @@ final class ChatPanelAvailability {
     required this.gifPageId,
     String? chatId,
     PageUnavailableForm? form,
-  }) : form = form ?? PageUnavailableForm.forPlatform(defaultTargetPlatform),
+  }) : form = form ?? platformForm(defaultTargetPlatform, isWeb: kIsWeb),
        _correlation = ChatCorrelation(chatId: chatId) {
     capabilities.addListener(_apply);
     _events = shell.events.listen(_onEvent);
@@ -51,8 +52,27 @@ final class ChatPanelAvailability {
   /// The id of the GIF page in [shell].
   final String gifPageId;
 
-  /// The form a denied page takes; the platform's by default.
+  /// The form a denied page takes; the platform's by default
+  /// ([platformForm]).
   final PageUnavailableForm form;
+
+  /// The form of [platform]'s family; the web is not desktop.
+  ///
+  /// Until the chrome reads the window's width class and input class, a
+  /// web panel takes the mobile form of the browser's family: [hidden] for
+  /// an iOS browser, [dimmed] for any other (a desktop browser too).
+  ///
+  /// [hidden]: PageUnavailableForm.hidden
+  /// [dimmed]: PageUnavailableForm.dimmed
+  static PageUnavailableForm platformForm(
+    TargetPlatform platform, {
+    bool isWeb = false,
+  }) {
+    if (!isWeb) return PageUnavailableForm.forPlatform(platform);
+    return platform == TargetPlatform.iOS
+        ? PageUnavailableForm.hidden
+        : PageUnavailableForm.dimmed;
+  }
 
   final ChatCorrelation _correlation;
   late final StreamSubscription<PanelEvent> _events;
@@ -99,7 +119,11 @@ final class ChatPanelAvailability {
         action,
         reason,
         correlation: _correlation,
-        form: form.name,
+        form: switch (form) {
+          PageUnavailableForm.dimmed => ChatPanelDenialForm.dimmedTab,
+          PageUnavailableForm.hidden ||
+          PageUnavailableForm.replaced => ChatPanelDenialForm.replacedPage,
+        },
       ),
     ),
   };
@@ -124,4 +148,14 @@ final class ChatPanelAvailability {
     capabilities.removeListener(_apply);
     unawaited(_events.cancel());
   }
+}
+
+/// Where the panel's host draws a denial text, named in the
+/// `denialTextMissing` event when the chat's strings give none.
+enum ChatPanelDenialForm implements DenialForm {
+  /// The hint of a dimmed tab.
+  dimmedTab,
+
+  /// The text in place of a page's content.
+  replacedPage,
 }

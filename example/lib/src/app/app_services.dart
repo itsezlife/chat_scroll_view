@@ -821,7 +821,10 @@ final class AppServices {
         describe: describe,
         scrolling: scrolling,
         journal: diagnostics,
-        ownedJournal: journal == null ? diagnostics : null,
+        ownedJournal: switch (journal) {
+          null => diagnostics,
+          _ => null,
+        },
         pageParts: [
           recentStickers,
           recentGifs,

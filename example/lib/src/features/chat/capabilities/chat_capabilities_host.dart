@@ -119,8 +119,12 @@ final class ChatCapabilitiesHost {
   /// interval from now, and the slow mode is `pending` until [post]
   /// completes; outside slow mode [post] just runs.
   Future<void> send(Future<void> Function() post) async {
-    final slow = value.slowMode;
-    if (_disposed || !slow.isActive) return post();
+    if (_disposed) return post();
+    final slow = switch (value.slowMode) {
+      final SlowMode$Active slow => slow,
+      SlowMode$None() => null,
+    };
+    if (slow == null) return post();
     update(
       (c) => c.copyWith(
         slowMode: slow.copyWith(
@@ -132,7 +136,14 @@ final class ChatCapabilitiesHost {
     try {
       await post();
     } finally {
-      update((c) => c.copyWith(slowMode: c.slowMode.copyWith(pending: false)));
+      update(
+        (c) => c.copyWith(
+          slowMode: switch (c.slowMode) {
+            final SlowMode$Active slow => slow.copyWith(pending: false),
+            final none => none,
+          },
+        ),
+      );
     }
   }
 
@@ -161,8 +172,8 @@ final class ChatCapabilitiesHost {
         k == kind,
       _ => false,
     };
-    Capability open(Capability capability) =>
-        locked(capability) ? const Capability.allowed() : capability;
+    Capability open(Capability right) =>
+        locked(right) ? const Capability.allowed() : right;
     final current = value;
     final sending = current.sending;
     final media = sending.media;
@@ -179,20 +190,18 @@ final class ChatCapabilitiesHost {
           const WriteAccess.canWrite(),
         final access => access,
       },
-      sending: sending.copyWith(
-        text: open(sending.text),
-        stickers: open(sending.stickers),
-        linkPreviews: open(sending.linkPreviews),
-        polls: open(sending.polls),
-        inline: open(sending.inline),
-        media: SendableMedia(
-          allowed: media.allowed | unlocked,
-          denials: {
-            for (final MapEntry(:key, value: reason) in media.denials.entries)
-              if (!unlocked.contains(key)) key: reason,
-          },
-        ),
-      ),
+      sending: sending
+          .map(open)
+          .copyWith(
+            media: SendableMedia(
+              allowed: media.allowed | unlocked,
+              denials: {
+                for (final MapEntry(:key, value: reason)
+                    in media.denials.entries)
+                  if (!unlocked.contains(key)) key: reason,
+              },
+            ),
+          ),
     );
     if (next != current) set(next);
   }

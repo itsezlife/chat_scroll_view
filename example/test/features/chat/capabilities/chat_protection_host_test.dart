@@ -288,21 +288,18 @@ void main() {
       );
     });
 
-    test('leaves a selection that holds no protected message', () {
-      final (host, selection) = protect(
-        policy: const ChatSelectionPolicy.desktop(),
+    test('reports none when no selection is held', () {
+      protect(policy: const ChatSelectionPolicy.desktop());
+
+      capabilities.value = capabilities.value.copyWith(
+        protection: const ChatProtection(copy: false),
       );
-      selection.startSelection(1);
 
-      host.messageProtectionChanged(2);
-
-      expect(selection.selectedIds, {1});
       final event = diagnostics
           .whereOp(ChatProtectionOp.protectionApplied)
           .single;
-      expect(event.fields['scope'], 'message');
+      expect(event.fields['scope'], 'chat');
       expect(event.fields['selection'], 'none');
-      expect(event.correlation.scrollId, '2');
     });
   });
 

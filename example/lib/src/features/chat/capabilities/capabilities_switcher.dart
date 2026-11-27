@@ -100,7 +100,10 @@ enum CapabilityToggle {
       stickers => sending.stickers.isAllowed,
       linkPreviews => sending.linkPreviews.isAllowed,
       slowMode => value.slowMode.isActive,
-      slowModePending => value.slowMode.pending,
+      slowModePending => switch (value.slowMode) {
+        SlowMode$Active(:final pending) => pending,
+        SlowMode$None() => false,
+      },
       copyProtected => !protection.copy,
       forwardProtected => !protection.forward,
       saveProtected => !protection.save,
@@ -147,15 +150,19 @@ enum CapabilityToggle {
       ),
       slowMode => value.copyWith(
         slowMode: on
-            ? SlowMode(
+            ? SlowMode.active(
                 interval: DemoChatRights.slowModeInterval,
                 nextSendAt: now.add(DemoChatRights.slowModeInterval),
               )
             : SlowMode.none,
       ),
-      slowModePending => value.copyWith(
-        slowMode: value.slowMode.copyWith(pending: on),
-      ),
+      slowModePending => switch (value.slowMode) {
+        final SlowMode$Active slow => value.copyWith(
+          slowMode: slow.copyWith(pending: on),
+        ),
+        // Not flippable without a slow mode ([enabledIn]).
+        SlowMode$None() => value,
+      },
       copyProtected => value.copyWith(
         protection: protection.copyWith(copy: !on),
       ),

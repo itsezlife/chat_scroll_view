@@ -73,23 +73,27 @@ final class FileJournalStore implements JournalStore {
   void append(List<String> lines) {
     if (lines.isEmpty) return;
     final bytes = utf8.encode('${lines.join('\n')}\n');
-    final length = switch (_file) {
-      final file? => file.lengthSync(),
+    final open = switch (_file) {
+      final file? => file,
       null => throw StateError('The journal store is closed.'),
     };
+    final length = open.lengthSync();
     // Turned before the write that would take the current file past half,
     // so neither file holds more than half (a batch larger than half alone
     // aside).
-    if (length > 0 && length + bytes.length > _half) _turn();
-    _file!.writeFromSync(bytes);
+    final target = length > 0 && length + bytes.length > _half
+        ? _turn(open)
+        : open;
+    target.writeFromSync(bytes);
   }
 
-  void _turn() {
-    _file!.closeSync();
+  // Closes [full], keeps it as the previous file and opens a new current.
+  RandomAccessFile _turn(RandomAccessFile full) {
+    full.closeSync();
     _file = null;
     if (_previous.existsSync()) _previous.deleteSync();
     _current.renameSync(_previous.path);
-    _file = _current.openSync(mode: FileMode.append);
+    return _file = _current.openSync(mode: FileMode.append);
   }
 
   @override

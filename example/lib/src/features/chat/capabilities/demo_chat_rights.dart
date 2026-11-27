@@ -81,7 +81,7 @@ enum DemoChatRights {
       limits: limits,
     ),
     slowMode => const ChatCapabilities(
-      slowMode: SlowMode(interval: slowModeInterval),
+      slowMode: SlowMode.active(interval: slowModeInterval),
       limits: limits,
     ),
   };
