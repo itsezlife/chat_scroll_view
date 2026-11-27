@@ -20,7 +20,7 @@ const _interval = Duration(seconds: 30);
 final _start = DateTime.utc(2026, 11, 27, 12);
 
 SlowMode _waiting({Duration left = _interval, bool pending = false}) =>
-    SlowMode(
+    SlowMode.active(
       interval: _interval,
       nextSendAt: _start.add(left),
       pending: pending,
@@ -55,19 +55,55 @@ void main() {
 
   void slowMode(SlowMode value) => source.update(slowMode: value);
 
+  // The controller bound to the source as a mounted view binds it, then
+  // the chat's slow mode set to [value].
+  void track(SlowMode value) {
+    controller.bindCapabilities(
+      source,
+      forms: ComposerDeniedForms.android,
+      hostBuilds: (_) => false,
+    );
+    slowMode(value);
+  }
+
   // --- Controller ---
 
   group('the controller', () {
-    test('runs no timer while slow mode is free', () {
-      controller.trackSlowMode(SlowMode.none, refresh: _refresh);
-      expect(clock.pendingCount, 0);
-      controller.trackSlowMode(
-        const SlowMode(interval: _interval),
-        refresh: _refresh,
+    testWidgets('a send in slow mode is not swallowed by a tap on a dimmed '
+        'action just before', (tester) async {
+      track(_waiting());
+      expect(
+        controller.reportDenied(
+          CapabilityAction.sendVoice,
+          const DenialReason.everyone(),
+        ),
+        isTrue,
       );
+      expect(controller.refuseEarlySend(), isTrue);
+      expect(denials.map((d) => d.action), [
+        CapabilityAction.sendVoice,
+        CapabilityAction.sendNow,
+      ]);
+      await tester.pump(ComposerController.defaultDeniedRepeatWindow);
+    });
+
+    test('reports each start and end on slowModeEdges', () async {
+      final edges = <ComposerSlowModeEdge>[];
+      controller.slowModeEdges.listen(edges.add);
+      track(_waiting(left: const Duration(milliseconds: 150)));
+      clock
+        ..advance(_refresh)
+        ..advance(const Duration(milliseconds: 50));
+      expect(edges, [ComposerSlowModeEdge.started, ComposerSlowModeEdge.ended]);
+    });
+
+    test('runs no timer while slow mode is free', () {
+      track(SlowMode.none);
+      expect(clock.pendingCount, 0);
+      track(const SlowMode.active(interval: _interval));
       expect(clock.pendingCount, 0);
       expect(controller.slowMode.value.holdsSend, isFalse);
-      expect(diagnostics.whereOp(CapabilitiesOp.slowModeStarted), isEmpty);
+      expect(diagnostics.whereOp(ComposerOp.slowModeStarted), isEmpty);
     });
 
     test('redraws at the refresh period and ends at the next send time, '
@@ -76,10 +112,7 @@ void main() {
       controller.slowMode.addListener(
         () => states.add(controller.slowMode.value),
       );
-      controller.trackSlowMode(
-        _waiting(left: const Duration(milliseconds: 250)),
-        refresh: _refresh,
-      );
+      track(_waiting(left: const Duration(milliseconds: 250)));
       expect(clock.pendingDelays, [_refresh]);
       clock.advance(_refresh);
       expect(clock.pendingDelays, [_refresh]);
@@ -94,7 +127,7 @@ void main() {
         [250, 150, 50, 0],
       );
       expect(controller.slowMode.value.holdsSend, isFalse);
-      expect(diagnostics.whereOp(CapabilitiesOp.slowModeStarted), [
+      expect(diagnostics.whereOp(ComposerOp.slowModeStarted), [
         isChatEvent(
           level: ChatEventLevel.debug,
           category: ChatEventCategory.capabilities,
@@ -102,7 +135,7 @@ void main() {
           fields: {'intervalMs': 30000, 'remainingMs': 250, 'pending': false},
         ),
       ]);
-      expect(diagnostics.whereOp(CapabilitiesOp.slowModeEnded), [
+      expect(diagnostics.whereOp(ComposerOp.slowModeEnded), [
         isChatEvent(
           correlation: _chat,
           fields: {'intervalMs': 30000, 'remainingMs': 0, 'pending': false},
@@ -111,13 +144,13 @@ void main() {
     });
 
     test('a new value that lifts the wait ends it at once', () {
-      controller.trackSlowMode(_waiting(), refresh: _refresh);
+      track(_waiting());
       clock.advance(const Duration(seconds: 10));
-      controller.trackSlowMode(SlowMode.none, refresh: _refresh);
+      track(SlowMode.none);
 
       expect(controller.slowMode.value, ComposerSlowModeState.free);
       expect(clock.pendingCount, 0);
-      expect(diagnostics.whereOp(CapabilitiesOp.slowModeEnded), [
+      expect(diagnostics.whereOp(ComposerOp.slowModeEnded), [
         isChatEvent(
           fields: {'intervalMs': 30000, 'remainingMs': 20000, 'pending': false},
         ),
@@ -125,28 +158,25 @@ void main() {
     });
 
     test('a value that moves the wait keeps one countdown', () {
-      controller.trackSlowMode(_waiting(), refresh: _refresh);
-      controller.trackSlowMode(
-        _waiting(left: const Duration(minutes: 1)),
-        refresh: _refresh,
-      );
+      track(_waiting());
+      track(_waiting(left: const Duration(minutes: 1)));
       expect(controller.slowMode.value.remaining, const Duration(minutes: 1));
       expect(clock.pendingCount, 1);
-      expect(diagnostics.whereOp(CapabilitiesOp.slowModeStarted), hasLength(1));
+      expect(diagnostics.whereOp(ComposerOp.slowModeStarted), hasLength(1));
     });
 
     test('stops ticking when untracked and when disposed', () {
-      controller.trackSlowMode(_waiting(), refresh: _refresh);
+      track(_waiting());
       expect(clock.pendingCount, 1);
-      controller.untrackSlowMode();
+      controller.unbindCapabilities();
       expect(clock.pendingCount, 0);
-      controller.trackSlowMode(_waiting(), refresh: _refresh);
+      track(_waiting());
       controller.dispose();
       expect(clock.pendingCount, 0);
     });
 
     test('refuses a send during the wait with the time left', () {
-      controller.trackSlowMode(_waiting(), refresh: _refresh);
+      track(_waiting());
       // Between two redraws: the time of the send is what counts.
       clock.advance(const Duration(milliseconds: 1050));
 
@@ -172,16 +202,13 @@ void main() {
     });
 
     test('refuses a send while a message is still sending, with no wait', () {
-      controller.trackSlowMode(
-        const SlowMode(interval: _interval, pending: true),
-        refresh: _refresh,
-      );
+      track(const SlowMode.active(interval: _interval, pending: true));
       expect(clock.pendingCount, 0);
       expect(controller.refuseEarlySend(), isTrue);
       expect(denials, [
         (
           action: CapabilityAction.sendNow,
-          reason: const DenialReason.other(ComposerSlowModeState.pendingTag),
+          reason: const DenialReason.sendPending(),
         ),
       ]);
       expect(
@@ -191,7 +218,7 @@ void main() {
     });
 
     test('lets a send through once the wait is over', () {
-      controller.trackSlowMode(_waiting(), refresh: _refresh);
+      track(_waiting());
       clock.advance(_interval);
       expect(controller.refuseEarlySend(), isFalse);
       expect(denials, isEmpty);
@@ -327,7 +354,8 @@ void main() {
       expect(controller.text.text, 'hello');
       expect(denials, hasLength(1));
       expect(denials.single.action, CapabilityAction.sendNow);
-      expect(diagnostics.whereOp(CapabilitiesOp.denied), hasLength(1));
+      // Every attempt is logged; the repeats skip the host.
+      expect(diagnostics.whereOp(CapabilitiesOp.denied), hasLength(5));
 
       await settle(tester);
       await tester.tap(send());
@@ -351,7 +379,7 @@ void main() {
 
     testWidgets('while a message is still sending the send is dimmed and a '
         'tap is reported', (tester) async {
-      slowMode(const SlowMode(interval: _interval, pending: true));
+      slowMode(const SlowMode.active(interval: _interval, pending: true));
       await tester.pumpWidget(view());
 
       final dim = find.ancestor(of: send(), matching: find.byType(Opacity));
@@ -359,10 +387,7 @@ void main() {
       expect(button(tester, 'send').text, isNull);
       await tester.tap(send());
       expect(sends, 0);
-      expect(
-        denials.single.reason,
-        const DenialReason.other('slowModePending'),
-      );
+      expect(denials.single.reason, const DenialReason.sendPending());
       await settle(tester);
     });
 
@@ -428,7 +453,7 @@ void main() {
 
     testWidgets('while a message is still sending the send is disabled and '
         'reports nothing', (tester) async {
-      slowMode(const SlowMode(interval: _interval, pending: true));
+      slowMode(const SlowMode.active(interval: _interval, pending: true));
       await tester.pumpWidget(view(forms: ComposerDeniedForms.desktop));
       await enterFieldText(tester, 'hello');
 
@@ -558,10 +583,10 @@ void main() {
     );
     expect(
       ComposerDeniedForms.forPlatform(
-        TargetPlatform.android,
+        TargetPlatform.macOS,
         isWeb: true,
       ).slowMode,
-      ComposerSlowModeForms.desktop,
+      ComposerSlowModeForms.android,
     );
     expect(ComposerSlowModeForms.ios.holdsSendActions, isTrue);
     expect(ComposerSlowModeForms.android.holdsSendActions, isFalse);

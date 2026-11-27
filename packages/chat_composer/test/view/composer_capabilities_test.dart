@@ -8,6 +8,7 @@ import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide RichText;
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/composer_harness.dart';
@@ -136,7 +137,7 @@ void main() {
     testWidgets('reports the field as the chosen panel, once', (tester) async {
       await tester.pumpWidget(view());
       await tester.pumpWidget(view());
-      expect(diagnostics.whereOp(CapabilitiesOp.panelChosen), [
+      expect(diagnostics.whereOp(ComposerOp.panelChosen), [
         isChatEvent(
           level: ChatEventLevel.debug,
           category: ChatEventCategory.capabilities,
@@ -164,17 +165,17 @@ void main() {
     final forms = <WriteAccess, (ComposerPanelId, String, String)>{
       const WriteAccess.readOnly(): (
         ComposerPanelId.readOnly,
-        'sendText other(readOnly)',
+        'sendText noWriteAccess(readOnly)',
         'Unmute',
       ),
       const WriteAccess.join(): (
         ComposerPanelId.join,
-        'sendText other(join)',
+        'sendText noWriteAccess(join)',
         'Join',
       ),
       const WriteAccess.requestToJoin(): (
         ComposerPanelId.requestToJoin,
-        'sendText other(requestToJoin)',
+        'sendText noWriteAccess(requestToJoin)',
         'Request to join',
       ),
       const WriteAccess.restricted(DenialReason.unlockable('boost')): (
@@ -184,7 +185,7 @@ void main() {
       ),
       const WriteAccess.custom('topicClosed'): (
         ComposerPanelId.writeAccessCustom,
-        'sendText other(topicClosed)',
+        'sendText noWriteAccess(custom)',
         'Reopen',
       ),
     };
@@ -219,7 +220,7 @@ void main() {
         );
         expectChromeText(tester, within: find.byType(ComposerView));
         expect(
-          diagnostics.whereOp(CapabilitiesOp.panelChosen).single,
+          diagnostics.whereOp(ComposerOp.panelChosen).single,
           isChatEvent(
             correlation: _chat,
             fields: allOf(
@@ -238,23 +239,20 @@ void main() {
       await tester.pumpWidget(view());
       source.update(writeAccess: const WriteAccess.custom('premium'));
       await tester.pump();
-      expect(
-        diagnostics.whereOp(CapabilitiesOp.panelChosen).map((e) => e.fields),
-        [
-          {
-            'writeAccess': 'restricted',
-            'reason': 'restricted',
-            'panel': 'restricted',
-            'builder': 'default',
-          },
-          {
-            'writeAccess': 'custom',
-            'tag': 'premium',
-            'panel': 'writeAccessCustom',
-            'builder': 'default',
-          },
-        ],
-      );
+      expect(diagnostics.whereOp(ComposerOp.panelChosen).map((e) => e.fields), [
+        {
+          'writeAccess': 'restricted',
+          'reason': 'restricted',
+          'panel': 'restricted',
+          'builder': 'default',
+        },
+        {
+          'writeAccess': 'custom',
+          'tag': 'premium',
+          'panel': 'writeAccessCustom',
+          'builder': 'default',
+        },
+      ]);
     });
 
     testWidgets('a panel of text alone, and a bar is a plain text node', (
@@ -278,9 +276,9 @@ void main() {
         ),
       );
       expect(find.text('host join'), findsOneWidget);
-      expect(find.text('sendText other(join)'), findsNothing);
+      expect(find.text('sendText noWriteAccess(join)'), findsNothing);
       expect(
-        diagnostics.whereOp(CapabilitiesOp.panelChosen).single.fields,
+        diagnostics.whereOp(ComposerOp.panelChosen).single.fields,
         containsPair('builder', 'host'),
       );
     });
@@ -297,8 +295,8 @@ void main() {
         isChatEvent(
           fields: {
             'action': CapabilityAction.sendText,
-            'reason': 'other(readOnly)',
-            'form': 'restrictionBar',
+            'reason': 'noWriteAccess(readOnly)',
+            'form': ComposerDenialForm.restrictionBar,
           },
         ),
       ]);
@@ -312,7 +310,7 @@ void main() {
       source.update(writeAccess: const WriteAccess.join());
       await tester.pumpAndSettle();
       expect(find.byType(ExtendedTextField), findsNothing);
-      expect(find.text('sendText other(join)'), findsOneWidget);
+      expect(find.text('sendText noWriteAccess(join)'), findsOneWidget);
 
       source.update(writeAccess: const WriteAccess.canWrite());
       await tester.pumpAndSettle();
@@ -360,14 +358,38 @@ void main() {
         ComposerDeniedForms.forPlatform(TargetPlatform.macOS),
         ComposerDeniedForms.desktop,
       );
+      // The web is not desktop: the mobile form of the browser's family.
+      for (final platform in [
+        TargetPlatform.android,
+        TargetPlatform.macOS,
+        TargetPlatform.windows,
+        TargetPlatform.linux,
+      ]) {
+        expect(
+          ComposerDeniedForms.forPlatform(platform, isWeb: true),
+          ComposerDeniedForms.android,
+          reason: platform.name,
+        );
+      }
       expect(
-        ComposerDeniedForms.forPlatform(TargetPlatform.android, isWeb: true),
-        ComposerDeniedForms.desktop,
+        ComposerDeniedForms.forPlatform(TargetPlatform.iOS, isWeb: true),
+        ComposerDeniedForms.ios,
       );
       expect(ComposerDeniedForms.android.lockedFieldGlyph, isTrue);
       expect(ComposerDeniedForms.ios.lockedFieldGlyph, isFalse);
       expect(ComposerDeniedForms.desktop.lockedFieldGlyph, isFalse);
-      expect(ComposerDeniedForms.android.dimmedOpacity, 0.5);
+      // Plain text denied dims the emoji toggle on Android alone.
+      expect(ComposerDeniedForms.android.textDeniedDimsEmoji, isTrue);
+      expect(ComposerDeniedForms.ios.textDeniedDimsEmoji, isFalse);
+      expect(ComposerDeniedForms.desktop.textDeniedDimsEmoji, isFalse);
+      for (final forms in [
+        ComposerDeniedForms.android,
+        ComposerDeniedForms.ios,
+        ComposerDeniedForms.desktop,
+      ]) {
+        expect(forms.dimmedOpacity, ComposerDeniedForms.defaultDimmedOpacity);
+      }
+      expect(ComposerDeniedForms.defaultDimmedOpacity, 0.5);
     });
 
     for (final platform in [
@@ -388,6 +410,46 @@ void main() {
         debugDefaultTargetPlatformOverride = null;
       });
     }
+
+    testWidgets('stays focusable, announced as not available with the host '
+        'text as its hint; activating it reports the attempt', (tester) async {
+      final semantics = tester.ensureSemantics();
+      source.set(_textDenied);
+      await tester.pumpWidget(view());
+      final strings = ChromeStringsScope.composerOf(
+        tester.element(find.byType(ComposerView)),
+      );
+      final node = find.bySemanticsLabel(
+        strings.unavailableAction(strings.messageHint),
+      );
+      expect(
+        tester.getSemantics(node),
+        isSemantics(
+          label: strings.unavailableAction(strings.messageHint),
+          hint: 'sendText restricted',
+          isFocusable: true,
+          hasTapAction: true,
+        ),
+      );
+      tester.semantics.tap(
+        find.semantics.byLabel(strings.unavailableAction(strings.messageHint)),
+      );
+      expect(denials, [(action: CapabilityAction.sendText, reason: _ban)]);
+
+      // From the keyboard: it takes focus, and activating it reports.
+      await settle(tester);
+      denials.clear();
+      Focus.of(
+        tester.element(
+          find.byKey(const ValueKey<String>('composer-locked-field')),
+        ),
+      ).requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      expect(denials.map((d) => d.action), contains(CapabilityAction.sendText));
+      await settle(tester);
+      semantics.dispose();
+    });
 
     testWidgets('a tap reports sendText with its reason, and denied', (
       tester,
@@ -463,7 +525,8 @@ void main() {
       await settle(tester);
     });
 
-    testWidgets('a tap burst reports once per guard window', (tester) async {
+    testWidgets('a tap burst reaches the host once per guard window and '
+        'logs every tap', (tester) async {
       source.set(_voiceDenied);
       await tester.pumpWidget(view());
       for (var i = 0; i < 5; i++) {
@@ -471,12 +534,58 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(denials, hasLength(1));
+      final burst = diagnostics.whereOp(CapabilitiesOp.denied);
+      expect(burst, hasLength(5));
+      expect(burst.first.fields, isNot(contains('repeated')));
+      expect(
+        burst.skip(1).map((e) => e.fields['repeated']),
+        everyElement(isTrue),
+      );
 
       await settle(tester);
       await tester.tap(voice());
       expect(denials, hasLength(2));
-      expect(diagnostics.whereOp(CapabilitiesOp.denied), hasLength(2));
       await settle(tester);
+    });
+
+    testWidgets('the window is per action: a tap on another denied action '
+        'is its own', (tester) async {
+      source.set(
+        _textDenied.copyWith(
+          sending: _voiceDenied.sending.copyWith(
+            text: const Capability.denied(_ban),
+          ),
+        ),
+      );
+      await tester.pumpWidget(view());
+      await tester.tap(voice());
+      await tester.tap(find.byType(ExtendedTextField), warnIfMissed: false);
+      expect(denials.map((d) => d.action), [
+        CapabilityAction.sendVoice,
+        CapabilityAction.sendText,
+      ]);
+      await settle(tester);
+    });
+
+    testWidgets('asks the host for a text once per value, not per build', (
+      tester,
+    ) async {
+      var asked = 0;
+      final counting = ComposerController(
+        capabilityFeedback: CapabilityFeedback(
+          denialText: (action, reason) {
+            asked++;
+            return _text(action, reason);
+          },
+        ),
+      );
+      addTearDown(counting.dispose);
+      source.set(_voiceDenied);
+      await tester.pumpWidget(view(over: counting));
+      final first = asked;
+      await enterFieldText(tester, 'typing rebuilds the row');
+      await tester.pumpWidget(view(over: counting));
+      expect(asked, first);
     });
 
     testWidgets('stays focusable, announced as not available with the '

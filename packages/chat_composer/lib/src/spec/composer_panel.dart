@@ -27,15 +27,16 @@ extension type const ComposerPanelId(String value) {
 
   /// The user reads only (a broadcast): typically a mute / unmute bar, the
   /// host's verb as the action. Its text is asked for with
-  /// `DenialReason.other('readOnly')`.
+  /// `DenialReason.noWriteAccess(WriteAccess.readOnly())`.
   static const ComposerPanelId readOnly = ComposerPanelId('readOnly');
 
   /// The user must join to write: the host's join verb as the action. Its
-  /// text is asked for with `DenialReason.other('join')`.
+  /// text is asked for with `DenialReason.noWriteAccess(WriteAccess.join())`.
   static const ComposerPanelId join = ComposerPanelId('join');
 
   /// The user must ask to join: the host's request verb as the action. Its
-  /// text is asked for with `DenialReason.other('requestToJoin')`.
+  /// text is asked for with
+  /// `DenialReason.noWriteAccess(WriteAccess.requestToJoin())`.
   static const ComposerPanelId requestToJoin = ComposerPanelId('requestToJoin');
 
   /// Writing is denied: the restriction bar, with the ban text for the
@@ -45,7 +46,7 @@ extension type const ComposerPanelId(String value) {
 
   /// A host form of write access (`WriteAccess.custom(tag)`): premium
   /// required, a closed topic. Its text is asked for with
-  /// `DenialReason.other(tag)`; a host with several such forms builds this
+  /// `DenialReason.noWriteAccess(WriteAccess.custom(tag))`; a host with several such forms builds this
   /// id itself from its own capabilities.
   static const ComposerPanelId writeAccessCustom = ComposerPanelId(
     'writeAccessCustom',

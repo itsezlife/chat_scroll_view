@@ -19,19 +19,19 @@ final class ComposerSlowModeState {
 
   /// [slowMode] read at [now].
   factory ComposerSlowModeState.of(SlowMode slowMode, DateTime now) =>
-      ComposerSlowModeState(
-        interval: slowMode.interval,
-        nextSendAt: slowMode.nextSendAt,
-        remaining: slowMode.remainingAt(now),
-        pending: slowMode.isActive && slowMode.pending,
-      );
+      switch (slowMode) {
+        SlowMode$None() => free,
+        SlowMode$Active(:final interval, :final nextSendAt, :final pending) =>
+          ComposerSlowModeState(
+            interval: interval,
+            nextSendAt: nextSendAt,
+            remaining: slowMode.remainingAt(now),
+            pending: pending,
+          ),
+      };
 
   /// No slow mode, or one that holds nothing now.
   static const free = ComposerSlowModeState();
-
-  /// The tag of the [denial] of a send held only by a message still
-  /// sending.
-  static const pendingTag = 'slowModePending';
 
   /// The slow mode interval; zero without slow mode.
   final Duration interval;
@@ -57,10 +57,10 @@ final class ComposerSlowModeState {
   ///
   /// During the countdown it is a restriction until the next send time, so
   /// the host can say how long is left; a message still sending alone is
-  /// `other(`[pendingTag]`)`.
+  /// `DenialReason.sendPending()`.
   DenialReason? get denial => switch (nextSendAt) {
     final until? when isCounting => DenialReason.restricted(until: until),
-    _ when pending => const DenialReason.other(pendingTag),
+    _ when pending => const DenialReason.sendPending(),
     _ => null,
   };
 
@@ -79,4 +79,14 @@ final class ComposerSlowModeState {
   String toString() =>
       'ComposerSlowModeState(interval: $interval, remaining: $remaining, '
       'pending: $pending)';
+}
+
+/// A start or an end of slow mode's countdown
+/// (`ComposerController.slowModeEdges`): what a view announces.
+enum ComposerSlowModeEdge {
+  /// The countdown started: the user waits for the next send time.
+  started,
+
+  /// The countdown ended: the user may send again.
+  ended,
 }

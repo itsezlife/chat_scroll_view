@@ -1,7 +1,11 @@
 import 'dart:async';
 
 import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:chat_composer/src/capabilities/composer_capability_state.dart';
 import 'package:chat_composer/src/capabilities/composer_clock.dart';
+import 'package:chat_composer/src/capabilities/composer_denied_forms.dart';
+import 'package:chat_composer/src/capabilities/composer_op.dart';
+import 'package:chat_composer/src/capabilities/composer_slow_mode_forms.dart';
 import 'package:chat_composer/src/capabilities/composer_slow_mode_state.dart';
 import 'package:chat_composer/src/capabilities/slow_mode_countdown.dart';
 import 'package:chat_composer/src/input/composer_paste.dart';
@@ -9,6 +13,8 @@ import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/query/composer_input_query.dart';
 import 'package:chat_composer/src/query/composer_query_kind.dart';
 import 'package:chat_composer/src/query/query_detector.dart';
+import 'package:chat_composer/src/spec/action_descriptor.dart';
+import 'package:chat_composer/src/spec/composer_panel.dart';
 import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:chat_composer/src/text/mention_downgrade.dart';
 import 'package:chrome_foundation/chrome_foundation.dart'
@@ -45,17 +51,19 @@ import 'package:listen/listen.dart' as listen;
 ///
 /// ## Capabilities
 ///
-/// When the view's capabilities deny something (the write access, text, an
-/// action), the controller is how the composer talks to the host:
-/// [denialText] asks the host's [capabilityFeedback] for the text drawn in
-/// place, and [reportDenied] reports an attempt, at most once per
-/// [deniedRepeatWindow]. Without feedback texts are null and attempts go
-/// unreported, as before.
+/// What the chat's capabilities decide is the controller's, so a host that
+/// draws its own row keeps the rules: the view binds the chat's
+/// capabilities ([bindCapabilities]) while it is mounted, and
+/// [capabilities] says which panel replaces the row, whether the field is
+/// locked, which actions are denied ([actionDenial]) and the chat's
+/// message budget, with the host's texts already asked from
+/// [capabilityFeedback]. [reportDenied] reports an attempt, the host
+/// hearing of it once per [deniedRepeatWindow] per action. Without
+/// feedback texts are null and attempts go unreported, as before.
 ///
-/// Slow mode's countdown is the controller's too: the view hands it the
-/// chat's slow mode ([trackSlowMode]) while it is mounted, [slowMode] is the
-/// countdown it draws, read at [clock], and [refuseEarlySend] holds a send
-/// during the wait.
+/// Slow mode's countdown is the controller's too: [slowMode] is the
+/// countdown, read at [clock], [slowModeEdges] its starts and ends, and
+/// [refuseEarlySend] holds a send during the wait.
 ///
 /// Commands are no-ops after [dispose].
 final class ComposerController {
@@ -137,9 +145,10 @@ final class ComposerController {
   /// diagnostics events; null correlates none.
   final String? chatId;
 
-  /// How long after a reported attempt [reportDenied] ignores the next one,
-  /// so a burst of taps on a dimmed control reports once: the host's
-  /// tooltip for the first is still showing.
+  /// How long after an attempt the host heard of [reportDenied] keeps the
+  /// next one of the same action from the host, so a burst of taps on a
+  /// dimmed control shows one hint: the host's tooltip for the first is
+  /// still showing.
   final Duration deniedRepeatWindow;
 
   /// The stock [deniedRepeatWindow]: how long the host's hint at the
@@ -163,8 +172,20 @@ final class ComposerController {
   final _resolvedMentions = <String>{};
   Rect? _anchor;
   void Function()? _detachClipboard;
-  Timer? _deniedRepeat;
+  final _deniedGuards = <CapabilityAction, Timer>{};
   late final SlowModeCountdown _slowMode;
+  final _capabilities = listen.ValueNotifier<ComposerCapabilityState>(
+    ComposerCapabilityState.unbound,
+  );
+  listen.ValueListenable<ChatCapabilities>? _source;
+  listen.ValueListenable<_RowGroup>? _rowGroup;
+  listen.ValueListenable<SlowMode>? _slowModeGroup;
+  final _actionDenials = <CapabilityAction, ComposerDenial>{};
+  Map<String, Object>? _reportedPanel;
+  ComposerDeniedForms _forms = ComposerDeniedForms.android;
+  bool Function(ComposerPanelId panel) _hostBuilds = _noHostPanels;
+
+  static bool _noHostPanels(ComposerPanelId panel) => false;
   var _disposed = false;
 
   /// Whether [dispose] has been called.
@@ -712,12 +733,12 @@ final class ComposerController {
   };
 
   /// The host's text for [action] denied for [reason], drawn in place as
-  /// [form] (`restrictionBar`, `lockedField`, `dimmedAction`), or null for
-  /// the silent form; a null text is reported as `denialTextMissing`.
+  /// [form], or null for the silent form; a null text is reported as
+  /// `denialTextMissing`.
   String? denialText(
     CapabilityAction action,
     DenialReason reason, {
-    required String form,
+    required ComposerDenialForm form,
   }) => capabilityFeedback.denialText(
     action,
     reason,
@@ -726,12 +747,15 @@ final class ComposerController {
   );
 
   /// Reports that the user attempted [action], denied for [reason] (a tap
-  /// on the locked field or a dimmed action), and returns whether it did.
+  /// on the locked field or a dimmed action), and returns whether the host
+  /// heard of it.
   ///
-  /// An attempt within [deniedRepeatWindow] of the last reported one, or
-  /// after [dispose], is dropped: the host's feedback for the first is
-  /// still up, and a second would stack on it. A reported attempt reaches
-  /// the host's `onDenied` and the `denied` event.
+  /// The window is per action: an attempt of the same action within
+  /// [deniedRepeatWindow] of the last one the host heard of reports
+  /// `denied` as `repeated` and skips the host's `onDenied`, whose feedback
+  /// for the first is still up; an attempt of another action (a send in
+  /// slow mode after a tap on a dimmed action) is its own. After [dispose]
+  /// nothing is reported.
   ///
   /// [remaining] is slow mode's wait, for a `sendNow`.
   bool reportDenied(
@@ -739,16 +763,215 @@ final class ComposerController {
     DenialReason reason, {
     Duration? remaining,
   }) {
-    if (_disposed || _deniedRepeat != null) return false;
-    _deniedRepeat = Timer(deniedRepeatWindow, () => _deniedRepeat = null);
+    if (_disposed) return false;
+    final repeated = _deniedGuards.containsKey(action);
+    if (!repeated) {
+      _deniedGuards[action] = Timer(
+        deniedRepeatWindow,
+        () => _deniedGuards.remove(action),
+      );
+    }
     capabilityFeedback.onDenied(
       action,
       reason,
       consumer: CapabilityConsumer.composer,
       remaining: remaining,
+      repeated: repeated,
       correlation: correlation,
     );
+    return !repeated;
+  }
+
+  /// The chat's capabilities as the row draws them: the replacing panel,
+  /// the locked field, the denied actions and the message budget, with the
+  /// host's texts already asked.
+  ///
+  /// [ComposerCapabilityState.unbound] until a view binds capabilities
+  /// ([bindCapabilities]); it changes on each new value of the groups it
+  /// reads (a slow mode tick is not one).
+  listen.ValueListenable<ComposerCapabilityState> get capabilities =>
+      _capabilities;
+
+  /// Follows [source], the chat's capabilities, drawn in [forms]: called by
+  /// the view while it is mounted, with each new source or forms.
+  ///
+  /// From then on the controller owns what the capabilities decide: the
+  /// panel that replaces the row (reported as `panelChosen` once per
+  /// change of the choice, with [hostBuilds] telling whether the host's
+  /// resolver builds that panel), the locked field and its text, the denied
+  /// actions, the chat's message budget and slow mode's countdown,
+  /// redrawn at the forms' refresh. Null unbinds.
+  void bindCapabilities(
+    listen.ValueListenable<ChatCapabilities>? source, {
+    required ComposerDeniedForms forms,
+    required bool Function(ComposerPanelId panel) hostBuilds,
+  }) {
+    if (_disposed) return;
+    _hostBuilds = hostBuilds;
+    final rebind = !identical(source, _source);
+    _forms = forms;
+    if (!rebind) {
+      if (_slowModeGroup case final group?) _trackSlowMode(group.value);
+      return;
+    }
+    _unsubscribe();
+    _source = source;
+    if (source == null) {
+      _slowMode.untrack();
+      _reportedPanel = null;
+      _capabilities.value = ComposerCapabilityState.unbound;
+      return;
+    }
+    _rowGroup = source.select(
+      (c) => (
+        writeAccess: c.writeAccess,
+        sending: c.sending,
+        messageLength: c.limits.messageLength,
+        slowModeActive: c.slowMode.isActive,
+      ),
+    )..addListener(_onRowGroup);
+    final slowMode = _slowModeGroup = source.select((c) => c.slowMode)
+      ..addListener(_onSlowModeGroup);
+    _trackSlowMode(slowMode.value);
+    _onRowGroup();
+  }
+
+  /// Stops following the capabilities (the view went away): the countdown
+  /// stops redrawing and [capabilities] is unbound.
+  void unbindCapabilities() {
+    if (_disposed) return;
+    _unsubscribe();
+    _source = null;
+    _slowMode.untrack();
+    _reportedPanel = null;
+    _capabilities.value = ComposerCapabilityState.unbound;
+  }
+
+  /// The denial of [action] in the current capabilities, with the host's
+  /// text for its dimmed form, or null when it is allowed (or unbound).
+  ///
+  /// The text is asked once per change of the capabilities, not per build.
+  ComposerDenial? actionDenial(CapabilityAction action) {
+    final reason = _capabilities.value.denialOf(action);
+    if (reason == null) return null;
+    return _actionDenials[action] ??= (
+      reason: reason,
+      text: denialText(action, reason, form: ComposerDenialForm.dimmedAction),
+    );
+  }
+
+  /// Whether [action] is held by slow mode now: an action that starts a
+  /// send (`ActionDescriptor.heldBySlowMode`) during the wait, where the
+  /// forms hold such actions.
+  bool isHeldBySlowMode(ActionDescriptor action) =>
+      action.heldBySlowMode &&
+      _forms.slowMode.holdsSendActions &&
+      _capabilities.value.slowModeActive &&
+      _slowMode.state.value.holdsSend;
+
+  /// Whether slow mode disables the primary action now: a message still
+  /// sending, where the forms disable the send for it.
+  bool get isSendDisabledBySlowMode =>
+      _capabilities.value.slowModeActive &&
+      _slowMode.state.value.pending &&
+      _forms.slowMode.pendingSend == ComposerPendingSend.disabled;
+
+  /// The forms the capabilities are drawn in, as last bound.
+  ComposerDeniedForms get deniedForms => _forms;
+
+  void _trackSlowMode(SlowMode value) =>
+      _slowMode.track(value, refresh: _forms.slowMode.refresh);
+
+  void _onSlowModeGroup() {
+    if (_slowModeGroup case final group?) _trackSlowMode(group.value);
+  }
+
+  void _onRowGroup() {
+    final group = _rowGroup?.value;
+    if (group == null) return;
+    final before = _capabilities.value;
+    final textChanged =
+        !before.isBound ||
+        before.writeAccess != group.writeAccess ||
+        before.sending != group.sending;
+    if (textChanged) _actionDenials.clear();
+    _capabilities.value = ComposerCapabilityState(
+      writeAccess: group.writeAccess,
+      sending: group.sending,
+      messageLength: group.messageLength,
+      slowModeActive: group.slowModeActive,
+      accessText: textChanged
+          ? _accessText(group.writeAccess)
+          : before.accessText,
+      lockedHint: textChanged
+          ? _lockedHint(group.writeAccess, group.sending)
+          : before.lockedHint,
+    );
+    if (textChanged) _reportPanel(group.writeAccess);
+  }
+
+  String? _accessText(WriteAccess access) => switch (access.denialReason) {
+    final reason? => denialText(
+      CapabilityAction.sendText,
+      reason,
+      form: ComposerDenialForm.restrictionBar,
+    ),
+    null => null,
+  };
+
+  // The field is not drawn while a panel replaces the row, so its text is
+  // not asked for then.
+  String? _lockedHint(WriteAccess access, SendingCapabilities sending) =>
+      switch ((access, sending.text.reason)) {
+        (WriteAccess$CanWrite(), final reason?) => denialText(
+          CapabilityAction.sendText,
+          reason,
+          form: ComposerDenialForm.lockedField,
+        ),
+        _ => null,
+      };
+
+  // Once per change of the choice: a new value with the same write access
+  // says nothing new.
+  void _reportPanel(WriteAccess access) {
+    final panel = ComposerPanelId.forWriteAccess(access);
+    final choice = <String, Object>{
+      'writeAccess': access.diagnosticForm,
+      if (access case WriteAccess$Restricted(:final reason))
+        'reason': reason.diagnosticForm,
+      if (access case WriteAccess$Custom(:final tag))
+        'tag': ChatEvent.clip(tag),
+      'panel': ChatEvent.clip((panel ?? ComposerPanelId.text).value),
+      'builder': switch (panel) {
+        null => 'field',
+        final panel when _hostBuilds(panel) => 'host',
+        _ => 'default',
+      },
+    };
+    if (_samePanelChoice(choice, _reportedPanel)) return;
+    _reportedPanel = choice;
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.capabilities,
+      ComposerOp.panelChosen,
+      correlation: correlation,
+      fields: () => choice,
+    );
+  }
+
+  static bool _samePanelChoice(Map<String, Object> a, Map<String, Object>? b) {
+    if (b == null || a.length != b.length) return false;
+    for (final MapEntry(:key, :value) in a.entries) {
+      if (b[key] != value) return false;
+    }
     return true;
+  }
+
+  void _unsubscribe() {
+    _rowGroup?.removeListener(_onRowGroup);
+    _rowGroup = null;
+    _slowModeGroup?.removeListener(_onSlowModeGroup);
+    _slowModeGroup = null;
   }
 
   // --- Slow mode ---
@@ -756,37 +979,29 @@ final class ComposerController {
   /// Slow mode's countdown as the composer draws it: the wait left and
   /// whether a message is still sending, redrawn while the wait runs.
   ///
-  /// [ComposerSlowModeState.free] until a view tracks a slow mode. It
-  /// changes on each redraw while counting, and at once on a new value from
-  /// the host (slow mode cleared, a bypass); the countdown ends at the next
-  /// send time without one. No timer runs while slow mode holds nothing or
-  /// no view tracks it.
+  /// [ComposerSlowModeState.free] until capabilities with a slow mode are
+  /// bound. It changes on each redraw while counting, and at once on a new
+  /// value from the host (slow mode cleared, a bypass); the countdown ends
+  /// at the next send time without one. No timer runs while slow mode
+  /// holds nothing or nothing is bound.
   listen.ValueListenable<ComposerSlowModeState> get slowMode => _slowMode.state;
 
-  /// Takes the chat's [value], redrawing the countdown every [refresh]
-  /// while it runs. Called by the view, with each new value, while mounted.
+  /// Each start and end of slow mode's countdown, as it happens: what a
+  /// view announces (politely). A listener that subscribes during a
+  /// running countdown hears only its end.
   ///
-  /// When a countdown starts and ends, `capabilities / slowModeStarted` and
-  /// `slowModeEnded` are reported (debug) with the interval, the wait left
-  /// and whether a message is pending.
-  void trackSlowMode(SlowMode value, {required Duration refresh}) {
-    if (_disposed) return;
-    _slowMode.track(value, refresh: refresh);
-  }
-
-  /// Stops the countdown's redraws: the view that tracked it went away.
-  void untrackSlowMode() {
-    if (_disposed) return;
-    _slowMode.untrack();
-  }
+  /// The same moments report `capabilities / slowModeStarted` and
+  /// `slowModeEnded` (debug) with the interval, the wait left and whether a
+  /// message is pending.
+  Stream<ComposerSlowModeEdge> get slowModeEdges => _slowMode.edges;
 
   /// Whether slow mode holds a send now: during the countdown, or while a
   /// message is still sending. When it does, the text stays where it is
   /// and the attempt is reported as `sendNow` with the wait left
-  /// ([reportDenied], so at most once per [deniedRepeatWindow]); the reason
-  /// is the state's [ComposerSlowModeState.denial].
+  /// ([reportDenied], its own repeat window); the reason is the state's
+  /// [ComposerSlowModeState.denial].
   ///
-  /// Read at [clock] from the last tracked value, so a send between two
+  /// Read at [clock] from the last bound value, so a send between two
   /// redraws is judged by the time it is made.
   bool refuseEarlySend() {
     if (_disposed) return false;
@@ -807,9 +1022,13 @@ final class ComposerController {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    _deniedRepeat?.cancel();
-    _deniedRepeat = null;
+    for (final guard in _deniedGuards.values) {
+      guard.cancel();
+    }
+    _deniedGuards.clear();
+    _unsubscribe();
     _slowMode.dispose();
+    _capabilities.dispose();
     _detachClipboard?.call();
     text.removeListener(_detectQuery);
     _softKeyboard.dispose();
@@ -872,3 +1091,15 @@ final class _ClipboardField implements RichClipboardField {
 final class _Signal extends listen.ChangeNotifier {
   void signal() => notifyListeners();
 }
+
+/// A denied action as the row draws it: why, and the host's text for its
+/// dimmed form (null for the silent form).
+typedef ComposerDenial = ({DenialReason reason, String? text});
+
+// The groups the row reads, compared by value.
+typedef _RowGroup = ({
+  WriteAccess writeAccess,
+  SendingCapabilities sending,
+  int messageLength,
+  bool slowModeActive,
+});

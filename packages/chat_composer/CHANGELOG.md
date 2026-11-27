@@ -6,6 +6,39 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (review, breaking)
+
+- The capability rules moved from `ComposerView`'s state into
+  `ComposerController`: `bindCapabilities(source, forms:, hostBuilds:)` /
+  `unbindCapabilities()` (the view calls them while mounted),
+  `capabilities` (a `ComposerCapabilityState` listenable: the replacing
+  panel, the locked field and its text, the chat's message budget),
+  `actionDenial(action)` (a `ComposerDenial`, its text asked once per
+  value), `isHeldBySlowMode`, `isSendDisabledBySlowMode` and
+  `slowModeEdges` (the countdown's starts and ends, which the view
+  announces). `trackSlowMode` and `untrackSlowMode` are gone: binding the
+  capabilities tracks slow mode. `panelChosen` is reported when the
+  capabilities change, never from a build.
+- `ComposerOp` (`panelChosen`, `slowModeStarted`, `slowModeEnded`) replaces
+  the same names in `CapabilitiesOp`; category and names are unchanged.
+- `denialText(form:)` takes a `ComposerDenialForm` (`restrictionBar`,
+  `lockedField`, `dimmedAction`) in place of a string.
+- The default write-access panels ask their text with
+  `DenialReason.noWriteAccess(access)`, and a send held by a pending message
+  is refused with `DenialReason.sendPending()`, in place of the
+  `other('readOnly' | 'join' | 'requestToJoin' | tag | 'slowModePending')`
+  tags; `ComposerSlowModeState.pendingTag` is gone.
+- `reportDenied` guards per action: a repeat of the same action inside
+  `deniedRepeatWindow` reports `denied` with `repeated: true` and skips the
+  host's hook; another action (a send in slow mode) is its own.
+- The locked field stays focusable, is announced as not available with the
+  host's text as its hint, and reports an activation from the keyboard or
+  assistive technology.
+- `ComposerDeniedForms.forPlatform(isWeb: true)` takes the mobile form of
+  the browser's family (iOS, otherwise Android) instead of desktop.
+  `ComposerDeniedForms.textDeniedDimsEmoji` (Android) and
+  `defaultDimmedOpacity`; `dimmedOpacity` is optional.
+
 ### Added (slow mode)
 
 - `ComposerController.slowMode` (a `ComposerSlowModeState` listenable),

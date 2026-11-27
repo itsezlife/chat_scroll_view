@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:chat_composer/src/capabilities/composer_capability_state.dart';
 import 'package:chat_composer/src/capabilities/composer_denied_forms.dart';
 import 'package:chat_composer/src/capabilities/composer_slow_mode_forms.dart';
 import 'package:chat_composer/src/capabilities/composer_slow_mode_state.dart';
-import 'package:chat_composer/src/capabilities/sending_denial.dart';
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/menu/composer_menu_policy.dart';
 import 'package:chat_composer/src/shortcuts/composer_formatting_actions.dart';
@@ -25,12 +26,10 @@ import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:composer_editable/composer_editable.dart'
     show ExtendedEditableTextState, ProcessTextQueryCache;
-import 'package:content_model/content_model.dart'
-    show ChatDiagnostics, ChatEventCategory, ChatEventLevel;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Material, MaterialType;
 import 'package:flutter/semantics.dart' show SemanticsService;
-import 'package:flutter/services.dart' show BinaryMessenger;
+import 'package:flutter/services.dart' show BinaryMessenger, LogicalKeyboardKey;
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
 
@@ -61,8 +60,9 @@ import 'package:listen/listen.dart' as listen;
 ///   built by [panelResolver] when it knows the id, else as a plain text
 ///   node with the host's denial text and [accessAction];
 /// - `sending.text` denied locks the field: disabled, the host's denial text
-///   as its placeholder (after a lock on Android), a tap reported to the
-///   host; the actions stay usable;
+///   as its placeholder (after a lock on Android), still focusable and
+///   announced as not available with that text as its hint, a tap (or
+///   activation) reported to the host; the actions stay usable;
 /// - an action whose `ActionDescriptor.capability` is denied is drawn
 ///   dimmed ([deniedForms]), stays focusable, is announced as not available
 ///   with the denial text as its hint, and a tap reports the attempt instead
@@ -74,9 +74,12 @@ import 'package:listen/listen.dart' as listen;
 ///   announced politely when it starts and when it ends. A view that mounts
 ///   into a running countdown announces only its end.
 ///
-/// Texts come from, and attempts are reported through, the controller's
-/// `capabilityFeedback` (`ComposerController.denialText`, `reportDenied`).
-/// Without capabilities the view is what it was before them.
+/// The rules are the controller's: the view binds [capabilities] to it
+/// while mounted (`ComposerController.bindCapabilities`) and draws
+/// `ComposerController.capabilities`; texts come from, and attempts are
+/// reported through, its `capabilityFeedback`. A host that draws its own
+/// row binds the controller itself and keeps every rule. Without
+/// capabilities the view is what it was before them.
 ///
 /// ## Extent
 ///
@@ -287,45 +290,30 @@ class _ComposerViewState extends State<ComposerView>
 
   ComposerSpec get _spec => widget.spec;
 
-  // The write access and sending rights, selected from the capabilities so a slow mode tick does not rebuild the row; null without
-  // capabilities.
-  listen.ValueListenable<_Gate>? _gateSource;
-
-  // The panel choice last reported as `panelChosen`.
-  Map<String, Object>? _reportedPanel;
-
-  _Gate? get _gate => _gateSource?.value;
-
-  // The slow mode group, heard only while capabilities are set.
-  listen.ValueListenable<SlowMode>? _slowModeSource;
-
-  // The countdown last heard, to tell a start and an end from a redraw.
+  // The countdown last heard, to tell which redraws change the row.
   var _slowState = ComposerSlowModeState.free;
-  // The limits group of the capabilities, heard only while it is set.
-  listen.ValueListenable<ChatLimits>? _limits;
+
+  // The countdown's starts and ends, announced; heard once bound.
+  StreamSubscription<ComposerSlowModeEdge>? _slowModeEdges;
+
+  // Whether the capabilities were bound: on the first dependencies, since
+  // the host's panel resolver may read inherited widgets.
+  var _bound = false;
+
+  ComposerController get _controller => widget.controller;
+
+  ComposerCapabilityState get _capabilities => _controller.capabilities.value;
 
   // The budget in force: the spec's, else the chat's.
   int? get _messageLengthLimit =>
-      _spec.messageLengthLimit ?? _limits?.value.messageLength;
-
-  void _bindLimits() {
-    _limits?.removeListener(_onLimits);
-    _limits = widget.capabilities?.select((c) => c.limits)
-      ?..addListener(_onLimits);
-  }
-
-  void _onLimits() {
-    if (mounted) setState(() {});
-  }
+      _spec.messageLengthLimit ?? _capabilities.messageLength;
 
   @override
   void initState() {
     super.initState();
-    _subscribeGate();
     _shownHeader = _spec.header;
-    _bindLimits();
-    _bindSlowMode();
-    widget.controller.slowMode.addListener(_onSlowModeState);
+    _controller.capabilities.addListener(_onCapabilities);
+    _controller.slowMode.addListener(_onSlowModeState);
     _reveal = AnimationController(
       vsync: this,
       value: switch (_spec.header) {
@@ -338,61 +326,52 @@ class _ComposerViewState extends State<ComposerView>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_bound) return;
+    _bound = true;
+    _bind();
+  }
+
+  @override
   void didUpdateWidget(ComposerView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.capabilities, widget.capabilities)) {
-      _bindLimits();
-      _gateSource?.removeListener(_onGate);
-      _subscribeGate();
-      _bindSlowMode();
-    } else if (oldWidget.deniedForms != widget.deniedForms) {
-      _trackSlowMode();
+    if (!identical(oldWidget.capabilities, widget.capabilities) ||
+        oldWidget.deniedForms != widget.deniedForms) {
+      _bind();
     }
     _syncHeader();
   }
 
   // --- Capabilities ---
 
-  void _subscribeGate() {
-    _gateSource = widget.capabilities?.select(
-      (c) => (writeAccess: c.writeAccess, sending: c.sending),
-    )?..addListener(_onGate);
+  // Hands the controller the chat's capabilities; what they decide is the
+  // controller's, and this view draws it.
+  void _bind() {
+    if (widget.capabilities == null && !_capabilities.isBound) return;
+    _controller.bindCapabilities(
+      widget.capabilities,
+      forms: _deniedForms,
+      hostBuilds: _hostBuilds,
+    );
+    _slowState = _controller.slowMode.value;
+    // After the first bind, so a view that mounts into a running countdown
+    // announces only its end.
+    _slowModeEdges ??= _controller.slowModeEdges.listen(_announceEdge);
   }
 
-  void _onGate() {
+  bool _hostBuilds(ComposerPanelId panel) =>
+      mounted && widget.panelResolver?.call(context, panel) != null;
+
+  void _onCapabilities() {
     if (mounted) setState(() {});
   }
 
   // --- Slow mode ---
 
-  void _bindSlowMode() {
-    _slowModeSource?.removeListener(_onSlowModeSource);
-    _slowModeSource = widget.capabilities?.select((c) => c.slowMode)
-      ?..addListener(_onSlowModeSource);
-    if (_slowModeSource == null) widget.controller.untrackSlowMode();
-    _trackSlowMode();
-    _slowState = widget.controller.slowMode.value;
-  }
-
-  void _trackSlowMode() {
-    if (_slowModeSource case final source?) {
-      widget.controller.trackSlowMode(
-        source.value,
-        refresh: _slowModeForms.refresh,
-      );
-    }
-  }
-
-  void _onSlowModeSource() {
-    if (!mounted) return;
-    _trackSlowMode();
-    // Slow mode turning on or off swaps the send button's form.
-    setState(() {});
-  }
-
   ComposerSlowModeForms get _slowModeForms => _deniedForms.slowMode;
 
-  bool get _slowModeActive => _slowModeSource?.value.isActive ?? false;
+  bool get _slowModeActive => _capabilities.slowModeActive;
 
   // Rebuilds the row only when what it draws changes: the held send (held
   // actions, the submit key) or, with the countdown in the placeholder, the
@@ -400,21 +379,23 @@ class _ComposerViewState extends State<ComposerView>
   void _onSlowModeState() {
     if (!mounted) return;
     final before = _slowState;
-    final next = widget.controller.slowMode.value;
+    final next = _controller.slowMode.value;
     _slowState = next;
-    if (!before.isCounting && next.isCounting) {
-      _announce(
-        ChromeStringsScope.composerOf(
-          context,
-        ).slowModeStarted(_countdownText(next)),
-      );
-    } else if (before.isCounting && !next.isCounting) {
-      _announce(ChromeStringsScope.composerOf(context).slowModeEnded);
-    }
     if (before.holdsSend != next.holdsSend ||
         _countdownHint(before) != _countdownHint(next)) {
       setState(() {});
     }
+  }
+
+  void _announceEdge(ComposerSlowModeEdge edge) {
+    if (!mounted) return;
+    final strings = ChromeStringsScope.composerOf(context);
+    _announce(switch (edge) {
+      ComposerSlowModeEdge.started => strings.slowModeStarted(
+        _countdownText(_controller.slowMode.value),
+      ),
+      ComposerSlowModeEdge.ended => strings.slowModeEnded,
+    });
   }
 
   // Politely, so it waits for what the reader is saying.
@@ -434,85 +415,23 @@ class _ComposerViewState extends State<ComposerView>
   // The empty field's placeholder during the countdown, where the platform
   // puts it there; null otherwise.
   String? _countdownHint(ComposerSlowModeState state) =>
-      _slowModeForms.countdown == ComposerCountdownPlacement.placeholder &&
-          state.isCounting
-      ? _countdownText(state)
-      : null;
-
-  // Whether the primary action takes no tap now: a message still sending,
-  // where the platform disables the send for it.
-  bool get _sendDisabledBySlowMode =>
-      _slowModeActive &&
-      widget.controller.slowMode.value.pending &&
-      _slowModeForms.pendingSend == ComposerPendingSend.disabled;
-
-  // Whether an action that starts a send is held now, where the platform
-  // holds such actions during the wait.
-  bool _heldBySlowMode(ActionDescriptor action) =>
-      action.heldBySlowMode &&
-      _slowModeForms.holdsSendActions &&
-      _slowModeActive &&
-      _slowState.holdsSend;
+      switch ((_slowModeForms.countdown, state.isCounting)) {
+        (ComposerCountdownPlacement.placeholder, true) => _countdownText(state),
+        _ => null,
+      };
 
   ComposerDeniedForms get _deniedForms =>
       widget.deniedForms ??
       ComposerDeniedForms.forPlatform(defaultTargetPlatform, isWeb: kIsWeb);
 
-  // The write access's panel in place of the spec's, or null when the user
-  // may write (and without capabilities).
-  ComposerPanelId? get _accessPanel => switch (_gate) {
-    final gate? => ComposerPanelId.forWriteAccess(gate.writeAccess),
-    null => null,
-  };
-
-  ComposerPanelId get _panelId => _accessPanel ?? _spec.panel;
-
-  // Once per change of the choice, not per build: rebuilds of the same row
-  // (typing, a header) say nothing new.
-  void _reportPanel(ComposerPanelId panel, String builder) {
-    final gate = _gate;
-    if (gate == null) return;
-    final access = gate.writeAccess;
-    final choice = <String, Object>{
-      'writeAccess': _accessForm(access),
-      if (access case WriteAccess$Restricted(:final reason))
-        'reason': reason.diagnosticForm,
-      if (access case WriteAccess$Custom(:final tag)) 'tag': _clip(tag),
-      'panel': _clip(panel.value),
-      'builder': builder,
-    };
-    if (mapEquals(choice, _reportedPanel)) return;
-    _reportedPanel = choice;
-    ChatDiagnostics.current.emit(
-      ChatEventLevel.debug,
-      ChatEventCategory.capabilities,
-      CapabilitiesOp.panelChosen,
-      correlation: widget.controller.correlation,
-      fields: () => choice,
-    );
-  }
-
-  static String _accessForm(WriteAccess access) => switch (access) {
-    WriteAccess$CanWrite() => 'canWrite',
-    WriteAccess$ReadOnly() => 'readOnly',
-    WriteAccess$Join() => 'join',
-    WriteAccess$RequestToJoin() => 'requestToJoin',
-    WriteAccess$Restricted() => 'restricted',
-    WriteAccess$Custom() => 'custom',
-  };
-
-  // An event string holds at most 64 characters; a host tag or panel id can
-  // run longer.
-  static String _clip(String value) =>
-      value.length <= 64 ? value : value.substring(0, 64);
+  ComposerPanelId get _panelId => _capabilities.accessPanel ?? _spec.panel;
 
   @override
   void dispose() {
-    widget.controller.slowMode.removeListener(_onSlowModeState);
-    _slowModeSource?.removeListener(_onSlowModeSource);
-    if (_slowModeSource != null) widget.controller.untrackSlowMode();
-    _gateSource?.removeListener(_onGate);
-    _limits?.removeListener(_onLimits);
+    _controller.slowMode.removeListener(_onSlowModeState);
+    _controller.capabilities.removeListener(_onCapabilities);
+    unawaited(_slowModeEdges?.cancel());
+    if (_capabilities.isBound) _controller.unbindCapabilities();
     _reveal
       ..removeStatusListener(_onRevealStatus)
       ..dispose();
@@ -588,7 +507,7 @@ class _ComposerViewState extends State<ComposerView>
   bool _usable(ActionDescriptor action) =>
       _spec.enabled &&
       action.isTappable &&
-      !(action.primary && (_spec.busy || _sendDisabledBySlowMode));
+      !(action.primary && (_spec.busy || _controller.isSendDisabledBySlowMode));
 
   bool get _overBudget {
     final limit = _messageLengthLimit;
@@ -602,7 +521,7 @@ class _ComposerViewState extends State<ComposerView>
   // In slow mode a send during the wait is refused first: the text stays
   // and the controller reports the attempt.
   void _activate(ActionDescriptor action) {
-    if (action.primary && widget.controller.refuseEarlySend()) return;
+    if (action.primary && _controller.refuseEarlySend()) return;
     if (action.primary && _overBudget) {
       final duration = ChromeMotionScope.of(
         context,
@@ -623,10 +542,13 @@ class _ComposerViewState extends State<ComposerView>
         // Redrawn with each tick of the countdown, without the row.
         ? ListenValueBuilder<ComposerSlowModeState>(
             key: ValueKey<String>('slowMode:${action.id}'),
-            listenable: widget.controller.slowMode,
+            listenable: _controller.slowMode,
             builder: (context, state) => _slowModeButton(action, state),
           )
-        : _face(action, enabled: _usable(action) && !_heldBySlowMode(action));
+        : _face(
+            action,
+            enabled: _usable(action) && !_controller.isHeldBySlowMode(action),
+          );
     final wrap = action.wrap;
     if (wrap == null) return button;
     // The wrapper's slot in the row is keyed apart from the button's own key,
@@ -698,11 +620,9 @@ class _ComposerViewState extends State<ComposerView>
   // activating it reports the attempt, which is how the user learns why.
   Widget? _deniedButton(ActionDescriptor action) {
     final capability = action.capability;
-    final gate = _gate;
-    if (capability == null || gate == null) return null;
-    final reason = sendingDenial(gate.sending, capability);
-    if (reason == null) return null;
-    final controller = widget.controller;
+    if (capability == null) return null;
+    final denial = _controller.actionDenial(capability);
+    if (denial == null) return null;
     final strings = ChromeStringsScope.composerOf(context);
     final button = Opacity(
       key: ValueKey<String>('denied:${action.id}'),
@@ -711,12 +631,8 @@ class _ComposerViewState extends State<ComposerView>
         key: ValueKey<String>(action.id),
         icon: action.icon,
         semanticLabel: strings.unavailableAction(action.semanticLabel),
-        semanticHint: controller.denialText(
-          capability,
-          reason,
-          form: 'dimmedAction',
-        ),
-        onTap: () => controller.reportDenied(capability, reason),
+        semanticHint: denial.text,
+        onTap: () => _controller.reportDenied(capability, denial.reason),
         enabled: _spec.enabled,
         primary: action.primary,
         primaryStyle: widget.primaryStyle,
@@ -736,25 +652,15 @@ class _ComposerViewState extends State<ComposerView>
 
   Widget _panel(BuildContext context) {
     final panel = _panelId;
+    final capabilities = _capabilities;
     if (panel == ComposerPanelId.text) {
-      _reportPanel(panel, 'field');
       final autofocus = _autofocusPending;
       _autofocusPending = false;
-      final textDenial = switch (_gate) {
-        final gate? => sendingDenial(gate.sending, CapabilityAction.sendText),
-        null => null,
-      };
-      final lockedHint = switch (textDenial) {
-        final reason? => widget.controller.denialText(
-          CapabilityAction.sendText,
-          reason,
-          form: 'lockedField',
-        ),
-        null => null,
-      };
+      final textDenial = capabilities.textDenial;
+      final locked = textDenial != null;
       final field = ComposerField(
-        controller: widget.controller,
-        enabled: _spec.enabled && textDenial == null,
+        controller: _controller,
+        enabled: _spec.enabled && !locked,
         autofocus: autofocus,
         formatting: _spec.formatting,
         linkPrompt: _spec.linkPrompt,
@@ -768,33 +674,33 @@ class _ComposerViewState extends State<ComposerView>
             ? widget.fieldStartInset
             : 0,
         hintFontSize: widget.hintFontSize,
-        hintText: lockedHint ?? _countdownHint(_slowState) ?? widget.hintText,
+        hintText:
+            capabilities.lockedHint ??
+            _countdownHint(_slowState) ??
+            widget.hintText,
         hintMaxLines: widget.hintMaxLines,
-        hintIcon: textDenial != null && _deniedForms.lockedFieldGlyph
+        hintIcon: locked && _deniedForms.lockedFieldGlyph
             ? ChromeIconId.lock
             : null,
       );
-      if (textDenial == null) return field;
-      // The disabled field takes no pointer; the tap that would have
-      // focused it reports the attempt instead.
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => widget.controller.reportDenied(
-          CapabilityAction.sendText,
-          textDenial,
+      return switch (textDenial) {
+        null => field,
+        final DenialReason reason => _lockedField(
+          field,
+          reason,
+          capabilities.lockedHint,
         ),
-        child: field,
-      );
+      };
     }
-    final hostBuilt = widget.panelResolver?.call(context, panel);
-    final built = switch ((hostBuilt, _gate)) {
-      (final host?, _) => host,
-      (null, final gate?) when _accessPanel != null => _defaultAccessPanel(
-        gate.writeAccess,
-      ),
-      _ => null,
-    };
-    _reportPanel(panel, hostBuilt != null ? 'host' : 'default');
+    final built =
+        widget.panelResolver?.call(context, panel) ??
+        switch (capabilities.accessPanel) {
+          null => null,
+          _ => ComposerAccessPanel(
+            text: capabilities.accessText,
+            action: widget.accessAction?.call(capabilities.writeAccess),
+          ),
+        };
     assert(
       built != null,
       'No panel built for ${panel.value}: pass a panelResolver that knows it.',
@@ -808,17 +714,47 @@ class _ComposerViewState extends State<ComposerView>
     );
   }
 
-  Widget _defaultAccessPanel(WriteAccess access) => ComposerAccessPanel(
-    text: switch (writeAccessReason(access)) {
-      final reason? => widget.controller.denialText(
-        CapabilityAction.sendText,
-        reason,
-        form: 'restrictionBar',
+  // The locked field: the disabled field takes no pointer, so a tap on it,
+  // or activating it from the keyboard or assistive technology, reports
+  // the attempt. It stays focusable and is announced as not available,
+  // with the host's text as its hint, like a dimmed action.
+  Widget _lockedField(Widget field, DenialReason reason, String? hint) {
+    void report() =>
+        _controller.reportDenied(CapabilityAction.sendText, reason);
+    final strings = ChromeStringsScope.composerOf(context);
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      focusable: true,
+      label: strings.unavailableAction(widget.hintText ?? strings.messageHint),
+      hint: hint,
+      onTap: report,
+      child: FocusableActionDetector(
+        // Its own keys: the composer's shortcuts map Enter to the send.
+        shortcuts: _lockedFieldKeys,
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              report();
+              return null;
+            },
+          ),
+        },
+        child: GestureDetector(
+          key: const ValueKey<String>('composer-locked-field'),
+          behavior: HitTestBehavior.opaque,
+          onTap: report,
+          child: field,
+        ),
       ),
-      null => null,
-    },
-    action: widget.accessAction?.call(access),
-  );
+    );
+  }
+
+  static const _lockedFieldKeys = <ShortcutActivator, Intent>{
+    SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+    SingleActivator(LogicalKeyboardKey.numpadEnter): ActivateIntent(),
+    SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+  };
 
   // The row's inset from the island's sides.
   static const double _rowInset = 2;
@@ -933,10 +869,6 @@ class _ComposerViewState extends State<ComposerView>
     );
   }
 }
-
-/// What the row reads of the chat's capabilities: a record, so a selection
-/// of it compares by value.
-typedef _Gate = ({WriteAccess writeAccess, SendingCapabilities sending});
 
 class _SubmitAction extends Action<SubmitComposerIntent> {
   _SubmitAction(this._state);

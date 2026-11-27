@@ -60,13 +60,18 @@ morphs in place).
 
 Given the chat's capabilities (`ComposerView.capabilities`) and the host's
 `CapabilityFeedback` (`ComposerController.capabilityFeedback`, both from
-`chat_capabilities`), the view draws what is denied and the controller
-reports the attempts:
+`chat_capabilities`), the controller decides what is denied and reports
+the attempts, and the view draws it. The view binds the capabilities to
+the controller while mounted (`ComposerController.bindCapabilities`); a
+host that draws its own row binds them itself and reads
+`ComposerController.capabilities` (`ComposerCapabilityState`: the replacing
+panel, the locked field, the denied actions through `actionDenial`, the
+chat's message budget, with the host's texts asked once per value):
 
 | Right | Form |
 | --- | --- |
 | `writeAccess` other than `canWrite` | Its `ComposerPanelId` replaces the requested panel: the host's panel, or a plain text node with the host's `denialText` (asked for `sendText`) and the host's `accessAction`. |
-| `sending.text` denied | The field is disabled with the denial text as its placeholder (after a lock on Android); a tap reports `sendText`; the actions stay usable; the draft is kept. |
+| `sending.text` denied | The field is disabled with the denial text as its placeholder (after a lock on Android), stays focusable and is announced "…, not available" with that text as its hint; a tap or activation reports `sendText`; the actions stay usable; the draft is kept. On Android (`ComposerDeniedForms.textDeniedDimsEmoji`) the host gives its emoji toggle `capability: sendText`, so it dims with the field. |
 | An action's `capability` denied | Drawn at half opacity, still focusable, announced "…, not available" (`ComposerStrings.unavailableAction`) with the denial text as its hint; a tap reports the attempt instead of calling `onTap`. |
 | `slowMode` waiting or `pending` | A send (tap or submit key) is refused, the text kept, and reported as `sendNow` with the wait left. |
 
@@ -76,7 +81,11 @@ Slow mode's forms (`ComposerDeniedForms.slowMode`):
 | --- | --- | --- | --- |
 | Android | `m:ss` on the send button | 100 ms | send dimmed, a tap reported |
 | iOS | the empty field's placeholder; actions marked `heldBySlowMode` (attach) dimmed and disabled | 0.5 s | send dimmed, a tap reported |
-| Desktop, web | `m:ss` on the send button | 200 ms | send disabled |
+| Desktop | `m:ss` on the send button | 200 ms | send disabled |
+
+The web is not desktop: until the chrome reads the window's width and
+input classes, a web composer takes the mobile form of the browser's family
+(`forPlatform(isWeb: true)`: iOS for an iOS browser, Android otherwise).
 
 The countdown text is `ComposerStrings.slowModeCountdown` (`m:ss` by
 default). It ends at `nextSendAt` on its own; a new value from the host
@@ -84,15 +93,20 @@ applies at once. It is announced politely when it starts
 (`slowModeStarted`) and when it ends (`slowModeEnded`), not on every tick.
 No timer runs while slow mode holds nothing or no view is mounted, and the
 controller cancels its timer on dispose. A send held only by a pending
-message is refused with `DenialReason.other('slowModePending')`; during the
-wait the reason is `restricted(until: nextSendAt)`.
+message is refused with `DenialReason.sendPending()`; during the wait the
+reason is `restricted(until: nextSendAt)`. `ComposerController.slowModeEdges`
+gives each start and end, which the view announces.
 
 A report reaches the host's `onDenied` at most once per
-`deniedRepeatWindow`, so a burst of taps shows one hint; the host shows it.
-Without capabilities the composer is unchanged. Events: `panelChosen`
-(`CapabilitiesOp`) when the row's panel choice changes, `slowModeStarted`
-and `slowModeEnded` when the countdown starts and ends, and the seam's
-`denied`, `denialTextMissing` and `feedbackFailed`.
+`deniedRepeatWindow` per action, so a burst of taps shows one hint (the
+host shows it) and a send in slow mode right after a tap on a dimmed action
+is still heard; every attempt is logged as `denied`, the repeats with
+`repeated: true`. Without capabilities the composer is unchanged. Events
+(`ComposerOp`, category `capabilities`): `panelChosen` when the row's panel
+choice changes (from the capabilities, never from a build),
+`slowModeStarted` and `slowModeEnded` when the countdown starts and ends;
+and the seam's `denied`, `denialTextMissing` (with the `ComposerDenialForm`)
+and `feedbackFailed`.
 
 ## Extent
 

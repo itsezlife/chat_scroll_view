@@ -697,34 +697,38 @@ class _ComposerFieldState extends State<ComposerField> {
             InputDecoration.collapsed(
               // A glyph needs the hint as a widget, which the decoration
               // takes instead of the text, never beside it.
-              hintText: hintIcon == null ? hintText : null,
+              hintText: switch (hintIcon) {
+                null => hintText,
+                _ => null,
+              },
               hintMaxLines: widget.hintMaxLines,
               hintStyle: hintStyle,
             ).copyWith(
-              hint: hintIcon == null
-                  ? null
-                  : Text.rich(
-                      TextSpan(
-                        children: [
-                          WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: Padding(
-                              padding: const EdgeInsetsDirectional.only(
-                                end: _hintIconGap,
-                              ),
-                              child: ChromeIcon(
-                                hintIcon,
-                                size: hintSize,
-                                color: placeholder.fieldHint,
-                              ),
-                            ),
+              hint: switch (hintIcon) {
+                null => null,
+                final hintIcon => Text.rich(
+                  TextSpan(
+                    children: [
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.only(
+                            end: _hintIconGap,
                           ),
-                          TextSpan(text: hintText),
-                        ],
+                          child: ChromeIcon(
+                            hintIcon,
+                            size: hintSize,
+                            color: placeholder.fieldHint,
+                          ),
+                        ),
                       ),
-                      style: hintStyle,
-                      maxLines: widget.hintMaxLines,
-                    ),
+                      TextSpan(text: hintText),
+                    ],
+                  ),
+                  style: hintStyle,
+                  maxLines: widget.hintMaxLines,
+                ),
+              },
               contentPadding: EdgeInsetsDirectional.only(
                 start: widget.startInset,
                 top: ComposerMetrics.fieldTopPad,
