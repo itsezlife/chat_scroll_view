@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:chat_composer/src/capabilities/composer_clock.dart';
+import 'package:chat_composer/src/capabilities/composer_slow_mode_state.dart';
+import 'package:chat_composer/src/capabilities/slow_mode_countdown.dart';
 import 'package:chat_composer/src/input/composer_paste.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/query/composer_input_query.dart';
@@ -49,6 +52,11 @@ import 'package:listen/listen.dart' as listen;
 /// [deniedRepeatWindow]. Without feedback texts are null and attempts go
 /// unreported, as before.
 ///
+/// Slow mode's countdown is the controller's too: the view hands it the
+/// chat's slow mode ([trackSlowMode]) while it is mounted, [slowMode] is the
+/// countdown it draws, read at [clock], and [refuseEarlySend] holds a send
+/// during the wait.
+///
 /// Commands are no-ops after [dispose].
 final class ComposerController {
   /// Creates a controller.
@@ -68,6 +76,7 @@ final class ComposerController {
     this.capabilityFeedback = CapabilityFeedback.none,
     this.chatId,
     this.deniedRepeatWindow = defaultDeniedRepeatWindow,
+    this.clock = ComposerClock.system,
   }) : text = text ?? ComposerTextController(),
        focusNode = focusNode ?? FocusNode(debugLabel: 'Composer'),
        fieldScroll = fieldScroll ?? ScrollController(),
@@ -79,6 +88,7 @@ final class ComposerController {
     this.text.addListener(_detectQuery);
     _detectQuery();
     _detachClipboard = clipboard?.attach(_ClipboardField(this));
+    _slowMode = SlowModeCountdown(clock: clock, correlation: () => correlation);
   }
 
   /// The entity-aware text of the field.
@@ -136,6 +146,9 @@ final class ComposerController {
   /// control stays up.
   static const defaultDeniedRepeatWindow = ChromeHintTiming.controlHint;
 
+  /// The time slow mode's countdown is read at and redrawn by.
+  final ComposerClock clock;
+
   final bool _ownsText;
   final bool _ownsFocus;
   final bool _ownsScroll;
@@ -151,6 +164,7 @@ final class ComposerController {
   Rect? _anchor;
   void Function()? _detachClipboard;
   Timer? _deniedRepeat;
+  late final SlowModeCountdown _slowMode;
   var _disposed = false;
 
   /// Whether [dispose] has been called.
@@ -718,14 +732,71 @@ final class ComposerController {
   /// after [dispose], is dropped: the host's feedback for the first is
   /// still up, and a second would stack on it. A reported attempt reaches
   /// the host's `onDenied` and the `denied` event.
-  bool reportDenied(CapabilityAction action, DenialReason reason) {
+  ///
+  /// [remaining] is slow mode's wait, for a `sendNow`.
+  bool reportDenied(
+    CapabilityAction action,
+    DenialReason reason, {
+    Duration? remaining,
+  }) {
     if (_disposed || _deniedRepeat != null) return false;
     _deniedRepeat = Timer(deniedRepeatWindow, () => _deniedRepeat = null);
     capabilityFeedback.onDenied(
       action,
       reason,
       consumer: CapabilityConsumer.composer,
+      remaining: remaining,
       correlation: correlation,
+    );
+    return true;
+  }
+
+  // --- Slow mode ---
+
+  /// Slow mode's countdown as the composer draws it: the wait left and
+  /// whether a message is still sending, redrawn while the wait runs.
+  ///
+  /// [ComposerSlowModeState.free] until a view tracks a slow mode. It
+  /// changes on each redraw while counting, and at once on a new value from
+  /// the host (slow mode cleared, a bypass); the countdown ends at the next
+  /// send time without one. No timer runs while slow mode holds nothing or
+  /// no view tracks it.
+  listen.ValueListenable<ComposerSlowModeState> get slowMode => _slowMode.state;
+
+  /// Takes the chat's [value], redrawing the countdown every [refresh]
+  /// while it runs. Called by the view, with each new value, while mounted.
+  ///
+  /// When a countdown starts and ends, `capabilities / slowModeStarted` and
+  /// `slowModeEnded` are reported (debug) with the interval, the wait left
+  /// and whether a message is pending.
+  void trackSlowMode(SlowMode value, {required Duration refresh}) {
+    if (_disposed) return;
+    _slowMode.track(value, refresh: refresh);
+  }
+
+  /// Stops the countdown's redraws: the view that tracked it went away.
+  void untrackSlowMode() {
+    if (_disposed) return;
+    _slowMode.untrack();
+  }
+
+  /// Whether slow mode holds a send now: during the countdown, or while a
+  /// message is still sending. When it does, the text stays where it is
+  /// and the attempt is reported as `sendNow` with the wait left
+  /// ([reportDenied], so at most once per [deniedRepeatWindow]); the reason
+  /// is the state's [ComposerSlowModeState.denial].
+  ///
+  /// Read at [clock] from the last tracked value, so a send between two
+  /// redraws is judged by the time it is made.
+  bool refuseEarlySend() {
+    if (_disposed) return false;
+    final state = _slowMode.now();
+    final reason = state.denial;
+    if (reason == null) return false;
+    reportDenied(
+      CapabilityAction.sendNow,
+      reason,
+      remaining: state.isCounting ? state.remaining : null,
     );
     return true;
   }
@@ -738,6 +809,7 @@ final class ComposerController {
     _disposed = true;
     _deniedRepeat?.cancel();
     _deniedRepeat = null;
+    _slowMode.dispose();
     _detachClipboard?.call();
     text.removeListener(_detectQuery);
     _softKeyboard.dispose();

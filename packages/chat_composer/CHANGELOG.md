@@ -6,6 +6,24 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (slow mode)
+
+- `ComposerController.slowMode` (a `ComposerSlowModeState` listenable),
+  fed by the view from `ComposerView.capabilities`' `slowMode`
+  (`trackSlowMode`, `untrackSlowMode`), and `refuseEarlySend`: a send during
+  the wait, or while a message is still sending, is refused, the text kept,
+  and reported as `sendNow` with the wait left. `reportDenied` takes
+  `remaining`.
+- `ComposerClock` (`ComposerController.clock`) and `testing.dart` with
+  `ManualComposerClock`.
+- `ComposerSlowModeForms` per platform, as the new required
+  `ComposerDeniedForms.slowMode`: the countdown on the send button (Android
+  100 ms, desktop 200 ms) or in the empty field's placeholder (iOS 0.5 s,
+  with actions marked `ActionDescriptor.heldBySlowMode` held); the send
+  dimmed or disabled while a message is still sending.
+- The countdown is announced politely when it starts and when it ends; the
+  `capabilities` / `slowModeStarted` and `slowModeEnded` events.
+
 ### Added (chat capabilities)
 
 - `ComposerController` takes the host's `capabilityFeedback` and a

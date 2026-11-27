@@ -5,7 +5,10 @@
 /// the host registers kinds for.
 library;
 
+export 'src/capabilities/composer_clock.dart';
 export 'src/capabilities/composer_denied_forms.dart';
+export 'src/capabilities/composer_slow_mode_forms.dart';
+export 'src/capabilities/composer_slow_mode_state.dart';
 export 'src/input/composer_controller.dart';
 export 'src/input/composer_paste.dart';
 export 'src/input/soft_keyboard_mode.dart';

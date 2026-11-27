@@ -39,6 +39,9 @@ abstract final class ComposerMetrics {
   /// Diameter of the filled disc behind a primary action's glyph.
   static const double primaryDiscDiameter = 32;
 
+  /// Font size of slow mode's countdown drawn in place of an action's glyph.
+  static const double countdownFontSize = 12;
+
   /// Most lines the field grows to before it scrolls.
   static const int fieldMaxLines = 6;
 

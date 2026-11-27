@@ -40,8 +40,13 @@ class ComposerButton extends StatefulWidget {
     this.iconSize = ComposerMetrics.actionIconSize,
     this.width = ComposerMetrics.actionSize,
     this.height = ComposerMetrics.actionSize,
+    this.text,
     super.key,
   });
+
+  /// Text drawn in place of the [icon] (slow mode's countdown on the send
+  /// button), in the glyph's colour; null draws the icon.
+  final String? text;
 
   /// The semantic icon.
   final ChromeIconId icon;
@@ -189,11 +194,26 @@ class _ComposerButtonState extends State<ComposerButton>
           ),
         FadeTransition(
           opacity: _glyphOpacity,
-          child: AnimatedChromeIcon(
-            widget.icon,
-            size: widget.iconSize,
-            color: glyph,
-          ),
+          child: switch (widget.text) {
+            final text? => Text(
+              text,
+              maxLines: 1,
+              softWrap: false,
+              style: ChromeTypography.of(context).copyWith(
+                fontSize: ComposerMetrics.countdownFontSize,
+                fontWeight: FontWeight.w600,
+                color: glyph,
+                // Digits of one width, so the text does not shift as they
+                // count down.
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            null => AnimatedChromeIcon(
+              widget.icon,
+              size: widget.iconSize,
+              color: glyph,
+            ),
+          },
         ),
       ],
     );

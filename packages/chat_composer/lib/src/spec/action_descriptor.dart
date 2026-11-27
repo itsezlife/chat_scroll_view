@@ -49,6 +49,7 @@ final class ActionDescriptor {
     this.onFill,
     this.iconSize,
     this.capability,
+    this.heldBySlowMode = false,
   }) : assert(id != '', 'an action id must not be empty'),
        assert(semanticLabel != '', 'an action needs a semantic label');
 
@@ -119,6 +120,13 @@ final class ActionDescriptor {
   /// [onTap]. Without capabilities it changes nothing.
   final CapabilityAction? capability;
 
+  /// Whether the action starts a send that slow mode holds, other than the
+  /// primary one (attach, whose picker sends). Where the platform's slow
+  /// mode form holds such actions (`ComposerSlowModeForms.holdsSendActions`),
+  /// it is dimmed and disabled while slow mode holds the next send. The
+  /// primary action is held by the composer whatever this says.
+  final bool heldBySlowMode;
+
   /// Whether a tap would do anything: visible, enabled and given a handler.
   bool get isTappable => visible && enabled && onTap != null;
 
@@ -137,6 +145,7 @@ final class ActionDescriptor {
     Color? onFill,
     double? iconSize,
     CapabilityAction? capability,
+    bool? heldBySlowMode,
   }) => ActionDescriptor(
     id: id,
     icon: icon ?? this.icon,
@@ -152,5 +161,6 @@ final class ActionDescriptor {
     onFill: onFill ?? this.onFill,
     iconSize: iconSize ?? this.iconSize,
     capability: capability ?? this.capability,
+    heldBySlowMode: heldBySlowMode ?? this.heldBySlowMode,
   );
 }

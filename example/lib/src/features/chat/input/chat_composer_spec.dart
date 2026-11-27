@@ -96,6 +96,8 @@ ComposerSpec buildChatComposerSpec({
           ActionPlacement.leading => ActionPlacement.trailing,
         },
         visible: !isEditing,
+        // Its picker sends: held during slow mode where the platform holds it.
+        heldBySlowMode: true,
         onTap: onAttach,
       ),
       ActionDescriptor(

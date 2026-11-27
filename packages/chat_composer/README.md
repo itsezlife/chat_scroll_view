@@ -36,7 +36,10 @@ morphs in place).
 | `ComposerHeader` | Sealed: `reply`, `edit`, `forward`, `linkPreview`, `suggestion`. Reply and edit titles come from `ChromeStrings.composer`. |
 | `ActionDescriptor`, `ActionPlacement`, `ActionWrap` | One action as data. `active` draws the glyph in the accent colour and announces the button as selected (a toggle that is on keeps its one glyph). `wrap` is a widget the composer builds around the rendered button, for whatever the host needs around it (a hover region, a tooltip, a measuring probe); the composer knows none of them. |
 | `ComposerPanelId`, `ComposerPanelResolver` | An open set of panel names and the host function that builds the non-default ones. The write access's ids (`readOnly`, `join`, `requestToJoin`, `restricted`, `writeAccessCustom`) have default panels the composer builds when the resolver returns null. |
-| `ComposerPanelAction`, `ComposerDeniedForms` | The host's action on a default write-access panel; how a denied action and the locked field are drawn, per platform. |
+| `ComposerPanelAction`, `ComposerDeniedForms` | The host's action on a default write-access panel; how a denied action, the locked field and slow mode are drawn, per platform. |
+| `ComposerSlowModeForms`, `ComposerCountdownPlacement`, `ComposerPendingSend` | Slow mode's chrome per platform: where the countdown shows, its redraw period, the send while a message is still sending, whether send-starting actions are held. |
+| `ComposerSlowModeState` | Slow mode at one moment (`ComposerController.slowMode`): the wait left, `pending`, whether a send is held and the `denial` it is refused with. |
+| `ComposerClock`, `ComposerTimer` | The clock slow mode's countdown reads and waits on; `ComposerClock.system` by default. |
 | `ComposerFormField` | The same field in a host's form: a `FormField<RichText>` under the host's `InputDecoration`, with the selection menu, lists and formatting keys of the island, `formatting`, `linkPrompt`, `backPriority`, focus through the controller, Flutter's validation and reset, and a `maxLength` counted in code points that is never enforced. |
 | `ComposerBottomFade` | The soft fade under the composer. Mounts under the island, outside the glass source. |
 | `ComposerShortcutPolicy`, `SubmitComposerIntent`, `DismissComposerHeaderIntent`, `ToggleStyleIntent`, `ToggleCodeBlockIntent`, `ApplyLinkIntent`, `ClearFormattingIntent`, `ToggleListIntent` | Intents and the `$Mobile` / `$Desktop` default key maps (formatting keys follow the desktop set). |
@@ -65,12 +68,31 @@ reports the attempts:
 | `writeAccess` other than `canWrite` | Its `ComposerPanelId` replaces the requested panel: the host's panel, or a plain text node with the host's `denialText` (asked for `sendText`) and the host's `accessAction`. |
 | `sending.text` denied | The field is disabled with the denial text as its placeholder (after a lock on Android); a tap reports `sendText`; the actions stay usable; the draft is kept. |
 | An action's `capability` denied | Drawn at half opacity, still focusable, announced "…, not available" (`ComposerStrings.unavailableAction`) with the denial text as its hint; a tap reports the attempt instead of calling `onTap`. |
+| `slowMode` waiting or `pending` | A send (tap or submit key) is refused, the text kept, and reported as `sendNow` with the wait left. |
+
+Slow mode's forms (`ComposerDeniedForms.slowMode`):
+
+| Platform | Countdown | Redraw | While a message is still sending |
+| --- | --- | --- | --- |
+| Android | `m:ss` on the send button | 100 ms | send dimmed, a tap reported |
+| iOS | the empty field's placeholder; actions marked `heldBySlowMode` (attach) dimmed and disabled | 0.5 s | send dimmed, a tap reported |
+| Desktop, web | `m:ss` on the send button | 200 ms | send disabled |
+
+The countdown text is `ComposerStrings.slowModeCountdown` (`m:ss` by
+default). It ends at `nextSendAt` on its own; a new value from the host
+applies at once. It is announced politely when it starts
+(`slowModeStarted`) and when it ends (`slowModeEnded`), not on every tick.
+No timer runs while slow mode holds nothing or no view is mounted, and the
+controller cancels its timer on dispose. A send held only by a pending
+message is refused with `DenialReason.other('slowModePending')`; during the
+wait the reason is `restricted(until: nextSendAt)`.
 
 A report reaches the host's `onDenied` at most once per
 `deniedRepeatWindow`, so a burst of taps shows one hint; the host shows it.
 Without capabilities the composer is unchanged. Events: `panelChosen`
-(`CapabilitiesOp`) when the row's panel choice changes, and the
-seam's `denied`, `denialTextMissing` and `feedbackFailed`.
+(`CapabilitiesOp`) when the row's panel choice changes, `slowModeStarted`
+and `slowModeEnded` when the countdown starts and ends, and the seam's
+`denied`, `denialTextMissing` and `feedbackFailed`.
 
 ## Extent
 
@@ -245,7 +267,8 @@ edits commit on finished IME composition),
 
 ## Testing
 
-The package defines no data seam, so there is no `testing.dart`. The pure
+`testing.dart` exports `ManualComposerClock`, a `ComposerClock` a test
+moves by hand (`advance`), for slow mode's countdown. The pure
 parts (`TextReplacement.between`, query detection, header priority) and the controllers run
 in plain `flutter test` with `TextEditingValue` writes standing in for the
 platform (`test/support/simulated_input.dart`); the view runs under

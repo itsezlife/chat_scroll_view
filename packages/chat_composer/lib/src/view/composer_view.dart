@@ -2,6 +2,8 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_composer/src/capabilities/composer_denied_forms.dart';
+import 'package:chat_composer/src/capabilities/composer_slow_mode_forms.dart';
+import 'package:chat_composer/src/capabilities/composer_slow_mode_state.dart';
 import 'package:chat_composer/src/capabilities/sending_denial.dart';
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/menu/composer_menu_policy.dart';
@@ -18,6 +20,7 @@ import 'package:chat_composer/src/view/composer_header_strip.dart';
 import 'package:chat_composer/src/view/composer_length_counter.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chat_composer/src/view/composer_primary_style.dart';
+import 'package:chat_composer/src/view/listen_value_builder.dart';
 import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:composer_editable/composer_editable.dart'
@@ -26,6 +29,7 @@ import 'package:content_model/content_model.dart'
     show ChatDiagnostics, ChatEventCategory, ChatEventLevel;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Material, MaterialType;
+import 'package:flutter/semantics.dart' show SemanticsService;
 import 'package:flutter/services.dart' show BinaryMessenger;
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' as listen;
@@ -62,7 +66,13 @@ import 'package:listen/listen.dart' as listen;
 /// - an action whose `ActionDescriptor.capability` is denied is drawn
 ///   dimmed ([deniedForms]), stays focusable, is announced as not available
 ///   with the denial text as its hint, and a tap reports the attempt instead
-///   of calling its `onTap`.
+///   of calling its `onTap`;
+/// - in slow mode, a send during the wait or while a message is still
+///   sending is refused (the text stays) and reported as `sendNow` with the
+///   wait left; the countdown shows as [deniedForms]' `slowMode` places it
+///   (on the send button, or as the empty field's placeholder), and is
+///   announced politely when it starts and when it ends. A view that mounts
+///   into a running countdown announces only its end.
 ///
 /// Texts come from, and attempts are reported through, the controller's
 /// `capabilityFeedback` (`ComposerController.denialText`, `reportDenied`).
@@ -285,6 +295,12 @@ class _ComposerViewState extends State<ComposerView>
   Map<String, Object>? _reportedPanel;
 
   _Gate? get _gate => _gateSource?.value;
+
+  // The slow mode group, heard only while capabilities are set.
+  listen.ValueListenable<SlowMode>? _slowModeSource;
+
+  // The countdown last heard, to tell a start and an end from a redraw.
+  var _slowState = ComposerSlowModeState.free;
   // The limits group of the capabilities, heard only while it is set.
   listen.ValueListenable<ChatLimits>? _limits;
 
@@ -308,6 +324,8 @@ class _ComposerViewState extends State<ComposerView>
     _subscribeGate();
     _shownHeader = _spec.header;
     _bindLimits();
+    _bindSlowMode();
+    widget.controller.slowMode.addListener(_onSlowModeState);
     _reveal = AnimationController(
       vsync: this,
       value: switch (_spec.header) {
@@ -326,6 +344,9 @@ class _ComposerViewState extends State<ComposerView>
       _bindLimits();
       _gateSource?.removeListener(_onGate);
       _subscribeGate();
+      _bindSlowMode();
+    } else if (oldWidget.deniedForms != widget.deniedForms) {
+      _trackSlowMode();
     }
     _syncHeader();
   }
@@ -341,6 +362,97 @@ class _ComposerViewState extends State<ComposerView>
   void _onGate() {
     if (mounted) setState(() {});
   }
+
+  // --- Slow mode ---
+
+  void _bindSlowMode() {
+    _slowModeSource?.removeListener(_onSlowModeSource);
+    _slowModeSource = widget.capabilities?.select((c) => c.slowMode)
+      ?..addListener(_onSlowModeSource);
+    if (_slowModeSource == null) widget.controller.untrackSlowMode();
+    _trackSlowMode();
+    _slowState = widget.controller.slowMode.value;
+  }
+
+  void _trackSlowMode() {
+    if (_slowModeSource case final source?) {
+      widget.controller.trackSlowMode(
+        source.value,
+        refresh: _slowModeForms.refresh,
+      );
+    }
+  }
+
+  void _onSlowModeSource() {
+    if (!mounted) return;
+    _trackSlowMode();
+    // Slow mode turning on or off swaps the send button's form.
+    setState(() {});
+  }
+
+  ComposerSlowModeForms get _slowModeForms => _deniedForms.slowMode;
+
+  bool get _slowModeActive => _slowModeSource?.value.isActive ?? false;
+
+  // Rebuilds the row only when what it draws changes: the held send (held
+  // actions, the submit key) or, with the countdown in the placeholder, the
+  // text it shows. The send button's countdown rebuilds by itself.
+  void _onSlowModeState() {
+    if (!mounted) return;
+    final before = _slowState;
+    final next = widget.controller.slowMode.value;
+    _slowState = next;
+    if (!before.isCounting && next.isCounting) {
+      _announce(
+        ChromeStringsScope.composerOf(
+          context,
+        ).slowModeStarted(_countdownText(next)),
+      );
+    } else if (before.isCounting && !next.isCounting) {
+      _announce(ChromeStringsScope.composerOf(context).slowModeEnded);
+    }
+    if (before.holdsSend != next.holdsSend ||
+        _countdownHint(before) != _countdownHint(next)) {
+      setState(() {});
+    }
+  }
+
+  // Politely, so it waits for what the reader is saying.
+  void _announce(String message) {
+    final view = View.maybeOf(context);
+    if (view == null) return;
+    SemanticsService.sendAnnouncement(
+      view,
+      message,
+      Directionality.of(context),
+    ).ignore();
+  }
+
+  String _countdownText(ComposerSlowModeState state) =>
+      ChromeStringsScope.composerOf(context).slowModeCountdown(state.remaining);
+
+  // The empty field's placeholder during the countdown, where the platform
+  // puts it there; null otherwise.
+  String? _countdownHint(ComposerSlowModeState state) =>
+      _slowModeForms.countdown == ComposerCountdownPlacement.placeholder &&
+          state.isCounting
+      ? _countdownText(state)
+      : null;
+
+  // Whether the primary action takes no tap now: a message still sending,
+  // where the platform disables the send for it.
+  bool get _sendDisabledBySlowMode =>
+      _slowModeActive &&
+      widget.controller.slowMode.value.pending &&
+      _slowModeForms.pendingSend == ComposerPendingSend.disabled;
+
+  // Whether an action that starts a send is held now, where the platform
+  // holds such actions during the wait.
+  bool _heldBySlowMode(ActionDescriptor action) =>
+      action.heldBySlowMode &&
+      _slowModeForms.holdsSendActions &&
+      _slowModeActive &&
+      _slowState.holdsSend;
 
   ComposerDeniedForms get _deniedForms =>
       widget.deniedForms ??
@@ -396,6 +508,9 @@ class _ComposerViewState extends State<ComposerView>
 
   @override
   void dispose() {
+    widget.controller.slowMode.removeListener(_onSlowModeState);
+    _slowModeSource?.removeListener(_onSlowModeSource);
+    if (_slowModeSource != null) widget.controller.untrackSlowMode();
     _gateSource?.removeListener(_onGate);
     _limits?.removeListener(_onLimits);
     _reveal
@@ -471,7 +586,9 @@ class _ComposerViewState extends State<ComposerView>
   // --- Actions ---
 
   bool _usable(ActionDescriptor action) =>
-      _spec.enabled && action.isTappable && !(_spec.busy && action.primary);
+      _spec.enabled &&
+      action.isTappable &&
+      !(action.primary && (_spec.busy || _sendDisabledBySlowMode));
 
   bool get _overBudget {
     final limit = _messageLengthLimit;
@@ -481,7 +598,11 @@ class _ComposerViewState extends State<ComposerView>
   // The primary action is the send: over the budget it is refused, with the
   // counter shaking, and the host's handler is not called. Under an instant
   // motion speed nothing shakes (the refusal is the unsent text).
+  //
+  // In slow mode a send during the wait is refused first: the text stays
+  // and the controller reports the attempt.
   void _activate(ActionDescriptor action) {
+    if (action.primary && widget.controller.refuseEarlySend()) return;
     if (action.primary && _overBudget) {
       final duration = ChromeMotionScope.of(
         context,
@@ -498,22 +619,14 @@ class _ComposerViewState extends State<ComposerView>
 
   Widget _button(ActionDescriptor action) {
     if (_deniedButton(action) case final denied?) return denied;
-    final button = ComposerButton(
-      key: ValueKey<String>(action.id),
-      icon: action.icon,
-      semanticLabel: action.semanticLabel,
-      onTap: action.primary && action.onTap != null
-          ? () => _activate(action)
-          : action.onTap,
-      enabled: _usable(action),
-      primary: action.primary,
-      primaryStyle: widget.primaryStyle,
-      discDiameter: widget.primaryDiameter,
-      fill: action.fill,
-      onFill: action.onFill,
-      iconSize: action.iconSize ?? ComposerMetrics.actionIconSize,
-      active: action.active,
-    );
+    final button = action.primary && _slowModeActive
+        // Redrawn with each tick of the countdown, without the row.
+        ? ListenValueBuilder<ComposerSlowModeState>(
+            key: ValueKey<String>('slowMode:${action.id}'),
+            listenable: widget.controller.slowMode,
+            builder: (context, state) => _slowModeButton(action, state),
+          )
+        : _face(action, enabled: _usable(action) && !_heldBySlowMode(action));
     final wrap = action.wrap;
     if (wrap == null) return button;
     // The wrapper's slot in the row is keyed apart from the button's own key,
@@ -523,6 +636,61 @@ class _ComposerViewState extends State<ComposerView>
       key: ValueKey<String>('wrap:${action.id}'),
       builder: (context) => wrap(context, button),
     );
+  }
+
+  ComposerButton _face(
+    ActionDescriptor action, {
+    required bool enabled,
+    String? text,
+    String? semanticLabel,
+    String? semanticHint,
+  }) => ComposerButton(
+    key: ValueKey<String>(action.id),
+    icon: action.icon,
+    text: text,
+    semanticLabel: semanticLabel ?? action.semanticLabel,
+    semanticHint: semanticHint,
+    onTap: action.primary && action.onTap != null
+        ? () => _activate(action)
+        : action.onTap,
+    enabled: enabled,
+    primary: action.primary,
+    primaryStyle: widget.primaryStyle,
+    discDiameter: widget.primaryDiameter,
+    fill: action.fill,
+    onFill: action.onFill,
+    iconSize: action.iconSize ?? ComposerMetrics.actionIconSize,
+    active: action.active,
+  );
+
+  // The send in slow mode. During the wait, where the platform puts the
+  // countdown on it, it reads `m:ss` and is announced as not available
+  // with the countdown as its hint; a tap is refused and reported. While a
+  // message is still sending it is dimmed (a tap reported) or disabled, as
+  // the platform draws it.
+  Widget _slowModeButton(ActionDescriptor action, ComposerSlowModeState state) {
+    final forms = _slowModeForms;
+    final countdown =
+        state.isCounting &&
+            forms.countdown == ComposerCountdownPlacement.primaryAction
+        ? _countdownText(state)
+        : null;
+    final disabled =
+        state.pending && forms.pendingSend == ComposerPendingSend.disabled;
+    final face = _face(
+      action,
+      enabled: _usable(action) && !disabled,
+      text: countdown,
+      semanticLabel: switch (countdown) {
+        null => null,
+        _ => ChromeStringsScope.composerOf(
+          context,
+        ).unavailableAction(action.semanticLabel),
+      },
+      semanticHint: countdown,
+    );
+    if (!state.pending || disabled) return face;
+    return Opacity(opacity: _deniedForms.dimmedOpacity, child: face);
   }
 
   // The denied form of an action whose capability the chat denies, or null
@@ -600,7 +768,7 @@ class _ComposerViewState extends State<ComposerView>
             ? widget.fieldStartInset
             : 0,
         hintFontSize: widget.hintFontSize,
-        hintText: lockedHint ?? widget.hintText,
+        hintText: lockedHint ?? _countdownHint(_slowState) ?? widget.hintText,
         hintMaxLines: widget.hintMaxLines,
         hintIcon: textDenial != null && _deniedForms.lockedFieldGlyph
             ? ChromeIconId.lock
