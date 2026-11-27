@@ -18,6 +18,11 @@ package is pre-1.0.
   `(w - inset) / w` of the laid-out width; presets `card` and `button`). The
   scale follows the feedback's press, slop and cancel and is removed by an
   instant motion speed. Null by default: existing users are unchanged.
+- `ChromeInk.yieldsTap`: the target shows its press but leaves the gesture
+  arena on the pointer's up, so a recognizer above it (a chat list that
+  arbitrates taps on its rows) takes the tap; `onTap` may be null and is not
+  called. `ChromeInk.pressableAt`: where a press may start, for a target
+  whose links or buttons press on their own. Both off by default.
 
 ### Added (tooltip)
 

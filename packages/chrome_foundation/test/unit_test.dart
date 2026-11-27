@@ -35,6 +35,7 @@ import 'motion/appear_motion_test.dart' as appear_motion_test;
 import 'motion/bulletin_motion_test.dart' as bulletin_motion_test;
 import 'motion/chrome_ink_scale_test.dart' as chrome_ink_scale_test;
 import 'motion/chrome_ink_test.dart' as chrome_ink_test;
+import 'motion/chrome_ink_yield_test.dart' as chrome_ink_yield_test;
 import 'motion/chrome_motion_scope_test.dart' as chrome_motion_scope_test;
 import 'motion/chrome_motion_speed_test.dart' as chrome_motion_speed_test;
 import 'motion/chrome_motion_test.dart' as chrome_motion_test;
@@ -98,6 +99,7 @@ void main() {
   group('motion/bulletin_motion_test.dart', bulletin_motion_test.main);
   group('motion/chrome_ink_scale_test.dart', chrome_ink_scale_test.main);
   group('motion/chrome_ink_test.dart', chrome_ink_test.main);
+  group('motion/chrome_ink_yield_test.dart', chrome_ink_yield_test.main);
   group('motion/chrome_motion_scope_test.dart', chrome_motion_scope_test.main);
   group('motion/chrome_motion_speed_test.dart', chrome_motion_speed_test.main);
   group('motion/chrome_motion_test.dart', chrome_motion_test.main);

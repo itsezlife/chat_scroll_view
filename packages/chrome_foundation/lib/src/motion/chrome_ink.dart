@@ -104,6 +104,8 @@ class ChromeInk extends StatefulWidget {
     this.behindChild = false,
     this.onHighlightChanged,
     this.scale,
+    this.yieldsTap = false,
+    this.pressableAt,
     super.key,
   });
 
@@ -150,6 +152,28 @@ class ChromeInk extends StatefulWidget {
   /// a [ChromeInkInset] the iOS one's; it runs beside the feedback and
   /// follows the same press, slop and cancel.
   final ChromeInkScale? scale;
+
+  /// Whether the target only shows the press and leaves the tap to a
+  /// recognizer above it.
+  ///
+  /// A target inside a list that arbitrates every tap on its rows itself (a
+  /// chat body's part, which in message selection toggles the message
+  /// instead) must not win the tap: a press recognizer of its own, deeper
+  /// in the tree, would win the arena on the pointer's up and the list
+  /// would never see the tap. With this set the feedback follows the press
+  /// as usual, and on the pointer's up the target leaves the gesture arena
+  /// before it is swept, so the list's recognizer takes the tap. [onTap] is
+  /// not called (it may be null: the target still presses); the cursor and
+  /// the semantics tap stay the host's.
+  final bool yieldsTap;
+
+  /// Whether a press starting at a point (in the target's coordinates)
+  /// presses the target; null presses anywhere.
+  ///
+  /// For a target holding parts that answer a press of their own (a link in
+  /// its text, a button with its own feedback), so the target's feedback
+  /// does not run under them.
+  final bool Function(Offset localPosition)? pressableAt;
 
   @override
   State<ChromeInk> createState() => _ChromeInkState();
@@ -231,8 +255,10 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
     _scaleTowards(1, scale.releaseDuration, scale.releaseCurve);
   }
 
+  bool get _enabled => widget.onTap != null || widget.yieldsTap;
+
   void _down(Offset position) {
-    if (widget.onTap == null) return;
+    if (!_enabled) return;
     _pressed = true;
     _setShown(true);
     _scaleDown();
@@ -293,7 +319,8 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
 
   void _up(Offset position) {
     if (!_pressed) return;
-    final tap = _shown && _over(position);
+    // A yielding target's tap is the recognizer's above it.
+    final tap = !widget.yieldsTap && _shown && _over(position);
     _cancel();
     if (tap) widget.onTap?.call();
   }
@@ -331,7 +358,7 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = widget.onTap != null;
+    final enabled = _enabled;
     final hover = _kind == ChromeInkKind.pointer ? widget.hoverColor : null;
     final ink = _InkPainter(
       grow: _grow,
@@ -344,7 +371,9 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
       circleRadius: widget.circleRadius,
     );
     return MouseRegion(
-      cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+      cursor: widget.onTap != null
+          ? SystemMouseCursors.click
+          : MouseCursor.defer,
       onEnter: (event) {
         if (hover != null && event.kind == PointerDeviceKind.mouse) {
           setState(() => _hovered = true);
@@ -364,6 +393,8 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
                   GestureRecognizerFactoryWithHandlers<_PressRecognizer>(
                     () => _PressRecognizer(debugOwner: this),
                     (recognizer) => recognizer
+                      ..yields = widget.yieldsTap
+                      ..pressableAt = widget.pressableAt
                       ..onDown = _down
                       ..onMove = _move
                       ..onUp = _up
@@ -402,6 +433,14 @@ final class _PressRecognizer extends PrimaryPointerGestureRecognizer {
   ValueChanged<Offset>? onUp;
   VoidCallback? onCancel;
 
+  /// Whether the press leaves the arena on the pointer's up, so a
+  /// recognizer above takes the tap (`ChromeInk.yieldsTap`).
+  bool yields = false;
+
+  /// Where a press may start (`ChromeInk.pressableAt`); a pointer down
+  /// elsewhere is not tracked at all, so it never enters the arena.
+  bool Function(Offset localPosition)? pressableAt;
+
   var _won = false;
   Offset? _upAt;
 
@@ -409,7 +448,9 @@ final class _PressRecognizer extends PrimaryPointerGestureRecognizer {
   // one): a secondary or middle click is for the host's context handlers.
   @override
   bool isPointerAllowed(PointerDownEvent event) =>
-      event.buttons & kPrimaryButton != 0 && super.isPointerAllowed(event);
+      event.buttons & kPrimaryButton != 0 &&
+      (pressableAt?.call(event.localPosition) ?? true) &&
+      super.isPointerAllowed(event);
 
   @override
   void addAllowedPointer(PointerDownEvent event) {
@@ -426,6 +467,12 @@ final class _PressRecognizer extends PrimaryPointerGestureRecognizer {
     switch (event) {
       case PointerMoveEvent(:final localPosition):
         onMove?.call(localPosition);
+      case PointerUpEvent(:final localPosition) when yields:
+        // The up is dispatched to the recognizers before the arena is
+        // swept: leaving now hands the tap to whoever else holds the
+        // pointer. The release runs as a cancel does (the same path).
+        onUp?.call(localPosition);
+        resolve(GestureDisposition.rejected);
       case PointerUpEvent(:final localPosition):
         _upAt = localPosition;
         if (_won) _finish();
