@@ -170,6 +170,7 @@ void main() {
     });
 
     testWidgets('a lookup that finds no page hides the strip', (tester) async {
+      final diagnostics = RecordingDiagnostics.install();
       final fake = FakeLinkPreviewResolver()..answer([_a], null);
       final rig = await _pumpRig(tester, resolver: fake);
       await rig.typeInField(tester, 'see $_a ');
@@ -179,6 +180,9 @@ void main() {
 
       expect(rig.set.linkPreview.card.value, isNull);
       expect(find.text('a.example'), findsNothing);
+      expect(diagnostics.whereOp(ChatLinkPreviewOp.resolveNone), [
+        isChatEvent(fields: contains('durationMs')),
+      ]);
     });
 
     testWidgets('a text change cancels the pending lookup', (tester) async {
@@ -392,6 +396,7 @@ void main() {
     testWidgets('the message carries the options and the loaded page', (
       tester,
     ) async {
+      final diagnostics = RecordingDiagnostics.install();
       final fake = FakeLinkPreviewResolver()..answer([_a], _pageA);
       final rig = await _pumpRig(tester, resolver: fake);
       await rig.typeInField(tester, 'see $_a ');
@@ -414,6 +419,15 @@ void main() {
       final payload = message.toJson();
       expect(LinkPreviewWire.readLinkPreview(payload), message.linkPreview);
       expect(LinkPreviewWire.readInvertMedia(payload), isTrue);
+      expect(
+        diagnostics
+            .whereOp(ChatLinkPreviewOp.optionsChanged)
+            .map((event) => event.fields),
+        [
+          {'media': 'small', 'removed': false, 'invertMedia': false},
+          {'media': 'small', 'removed': false, 'invertMedia': true},
+        ],
+      );
     });
 
     testWidgets('a pending lookup sends the options alone, and is dropped', (
