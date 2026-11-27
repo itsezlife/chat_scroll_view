@@ -68,6 +68,11 @@ final class MosaicLayout {
   /// [MediaLayoutMetrics.mediaOuterRadius]. [maxSizeWidth] / [maxSizeHeight]
   /// MUST match the calculate pass that produced [positions] (defaults match
   /// [MediaLayoutMetrics]).
+  ///
+  /// [rowHeightUnit] is the pixel height a position's `ph` of 1 maps to.
+  /// Null keeps the mosaic's own proportions: [maxSizeHeight] scaled with
+  /// the width. A policy that bounds album height by the screen passes its
+  /// max height here.
   factory MosaicLayout.project({
     required List<GroupedMessagePosition> positions,
     required double mosaicWidth,
@@ -75,13 +80,14 @@ final class MosaicLayout {
     double bubbleRadius = 17,
     double maxSizeWidth = MediaLayoutMetrics.groupedMaxSizeWidth,
     double maxSizeHeight = MediaLayoutMetrics.groupedMaxSizeHeight,
+    double? rowHeightUnit,
   }) {
     if (positions.isEmpty || mosaicWidth <= 0) {
       return MosaicLayout._(size: Size.zero, cells: const []);
     }
 
     final sx = mosaicWidth / maxSizeWidth;
-    final heightUnit = maxSizeHeight * sx;
+    final heightUnit = rowHeightUnit ?? maxSizeHeight * sx;
     final outerR = MediaLayoutMetrics.mediaOuterRadius(
       bubbleRadius: bubbleRadius,
     );

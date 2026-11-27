@@ -13,6 +13,7 @@
 /// | [groupedMaxSizeHeight] | 814 | Abstract mosaic height (span units) |
 /// | [firstSpanAdditionalSize] | 200 | Pad on the edge cells' span size |
 /// | [minMediaHeight] | 120 | Single box and mosaic minimum height |
+/// | [noDimensionsSide] | 150 | A box side the picture gives no size for |
 /// | [minGroupedLineHeight] | 100 | Minimum mosaic line height |
 /// | [singlePhotoHeightExtra] | 100 | Single box max height over its max width |
 /// | [photoSizeCap] | 1280 | Soft cap on a single box side |
@@ -36,6 +37,10 @@ abstract final class MediaLayoutMetrics {
 
   /// Floor height after the aspect scale in [computeSingleMediaSize].
   static const double minMediaHeight = 120;
+
+  /// The side of a single box whose picture gives no usable size, and of a
+  /// side that truncates to zero.
+  static const double noDimensionsSide = 150;
 
   /// Floor for a mosaic line's height before it is normalised.
   static const double minGroupedLineHeight = 100;
