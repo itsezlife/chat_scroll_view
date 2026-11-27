@@ -8,6 +8,16 @@ this package is pre-1.0.
 
 ### Added
 
+- Outgoing messages: `MediaSendState` (`sendState` on `MessageMediaView`,
+  `MessageMediaTransition` and `MessageMediaBubbleLayout`). Uploads show on
+  the status control through the scope's tracked transfers; a sent upload
+  shows the new `MediaChromeSlots.sentCheck` slot (`MediaSentCheck`) until
+  the content is published; a cancel on an item being sent is its cross,
+  heard through `onItemCancelled`; a failed send shows no control. The iOS
+  flight from the send origin, `MediaSendFlightPolicy`
+  (`MessageMediaPolicy.sendFlight`). `MediaCellData.sendState`,
+  `MediaRowCell.skin` (a row's status control takes the chrome slots too).
+  `MediaOp.uploadState`, `itemCancelled` and `sendOriginFlight`.
 - The link preview card: `LinkPreviewCardPolicy` (`android()`, `ios()`,
   `desktop()`; `MediaLayoutPolicy.card`, `MessageMediaPolicy.linkPreview`)
   with `LinkPreviewBlockStyle`, `LinkPreviewCardMetrics`,

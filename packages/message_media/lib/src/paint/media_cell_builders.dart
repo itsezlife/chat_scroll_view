@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/layout/media_file_row.dart';
 import 'package:message_media/src/layout/media_layout.dart';
+import 'package:message_media/src/outgoing/media_send_state.dart';
 import 'package:message_media/src/paint/media_box_cell.dart';
 import 'package:message_media/src/paint/media_row_cell.dart';
 import 'package:message_media/src/policy/media_file_stack_policy.dart';
@@ -25,6 +26,7 @@ final class MediaCellData {
     this.fileStack,
     this.chrome,
     this.correlation = ChatCorrelation.none,
+    this.sendState = MediaSendState.none,
   });
 
   /// The cell: rect, fit, neighbours and resolved corner radii.
@@ -55,12 +57,17 @@ final class MediaCellData {
   /// draws by; null for a box.
   final MediaFileStackPolicy? fileStack;
 
-  /// The policy's chrome slots, whose info badge and status control a box
-  /// draws; null keeps the stock parts.
+  /// The policy's chrome slots, whose info badge (a box's) and status
+  /// control and sent check (a box's and a row's) the cell draws; null keeps
+  /// the stock parts.
   final MediaChromeSlots? chrome;
 
   /// The ids a slot's failure names.
   final ChatCorrelation correlation;
+
+  /// Where the message stands if it is being sent: a failed one shows no
+  /// status control.
+  final MediaSendState sendState;
 
   @override
   bool operator ==(Object other) =>
@@ -74,7 +81,8 @@ final class MediaCellData {
       other.fileRow == fileRow &&
       other.fileStack == fileStack &&
       other.chrome == chrome &&
-      other.correlation == correlation;
+      other.correlation == correlation &&
+      other.sendState == sendState;
 
   @override
   int get hashCode => Object.hash(
@@ -88,6 +96,7 @@ final class MediaCellData {
     fileStack,
     chrome,
     correlation,
+    sendState,
   );
 }
 

@@ -58,4 +58,19 @@ enum MediaOp implements DiagnosticOp {
   /// hit had none) or close (the viewer asked for it by id and it was off
   /// screen).
   originRectMissing,
+
+  /// An item's upload changed what its cell shows (debug): the transfer
+  /// `state` (`sending`, `sent`, or `none` once published), with the
+  /// `sent` and `total` bytes while sending. Reported on a change of state,
+  /// not of bytes.
+  uploadState,
+
+  /// The cross on an item of a message being sent dropped it (info): the
+  /// `albumBefore` and `albumAfter` item counts.
+  itemCancelled,
+
+  /// A cell was handed its item's send origin (debug): the `platform`,
+  /// `originPresent`, the `outcome` (`flown`, or `skipped` under
+  /// `reduceMotion` or for want of an overlay, `reason: noOverlay`).
+  sendOriginFlight,
 }

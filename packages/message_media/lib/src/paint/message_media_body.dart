@@ -18,6 +18,7 @@ import 'package:message_media/src/gesture/media_viewer_request.dart';
 import 'package:message_media/src/layout/link_preview_card.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/message_media_hit_part.dart';
+import 'package:message_media/src/outgoing/media_send_state.dart';
 import 'package:message_media/src/paint/link_preview_card_view.dart';
 import 'package:message_media/src/paint/media_box_cell.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
@@ -79,12 +80,20 @@ typedef LinkPreviewActivated =
 /// [MediaGesturePolicy.activationGuard] of the last accepted one is dropped
 /// (`media` / `activationDropped`).
 ///
+/// On a message being sent ([sendState]) a cancel on an item's status
+/// control, or any upload's cancel, is the item's cross: the binding's
+/// cancel reaches the upload's owner (`TrackedTransfers.cancel`), and
+/// [onItemCancelled] hears the item (`media` / `itemCancelled`). A message
+/// whose send failed has no status part.
+///
 /// ## Bindings
 ///
 /// Each item has a binding of the view's own, attached with its cell's
 /// preset so that it shares the cell's cache entry: what the status part,
 /// the actions and the semantics read and command. Without a
 /// `ContentAssetProvider` there are none, and the status part never shows.
+/// Each binding's upload state is watched: a change between sending, sent
+/// and none reports `media` / `uploadState`.
 @internal
 class MessageMediaBody extends StatefulWidget {
   /// The body of [layout] of [items].
@@ -106,6 +115,8 @@ class MessageMediaBody extends StatefulWidget {
     this.leavingCardOpacity = 0,
     this.chromeContext = MediaChromeContext.none,
     this.correlation = ChatCorrelation.none,
+    this.sendState = MediaSendState.none,
+    this.onItemCancelled,
     super.key,
   });
 
@@ -163,6 +174,12 @@ class MessageMediaBody extends StatefulWidget {
   /// The ids the body's events name.
   final ChatCorrelation correlation;
 
+  /// Where the message stands if it is being sent.
+  final MediaSendState sendState;
+
+  /// Hears the item whose cross was tapped.
+  final ValueChanged<MediaItemId>? onItemCancelled;
+
   @override
   State<MessageMediaBody> createState() => _MessageMediaBodyState();
 }
@@ -171,6 +188,8 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     implements ChatNonTextBody {
   final Map<MediaItemId, AssetBinding> _bindings = {};
   final Map<MediaItemId, AssetPreset> _presets = {};
+  final Map<MediaItemId, VoidCallback> _uploadListeners = {};
+  final Map<MediaItemId, String> _uploadStates = {};
   AssetCacheScope? _scope;
   ChatSelectionController? _registeredWith;
   int? _registeredId;
@@ -224,10 +243,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
   void dispose() {
     widget.state.detachOrigins(_rectOf);
     _unregister();
-    for (final binding in _bindings.values) {
-      binding.detach();
-    }
-    _bindings.clear();
+    _detachAll();
     super.dispose();
   }
 
@@ -278,11 +294,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
   void _syncBindings() {
     final scope = ContentAssetProvider.maybeOf(context)?.media;
     if (!identical(scope, _scope)) {
-      for (final binding in _bindings.values) {
-        binding.detach();
-      }
-      _bindings.clear();
-      _presets.clear();
+      _detachAll();
       _scope = scope;
     }
     if (scope == null) return;
@@ -298,20 +310,86 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
       if (_presets[id]?.spec == preset.spec && _bindings.containsKey(id)) {
         continue;
       }
-      _bindings.remove(id)?.detach();
+      _detach(id);
       _presets[id] = preset;
-      _bindings[id] = scope.attach(
-        data.item.descriptor.key.mediaKey,
-        preset.spec,
-        preset.profile,
-        downloadContext: data.downloadContext,
+      _watchUpload(
+        id,
+        _bindings[id] = scope.attach(
+          data.item.descriptor.key.mediaKey,
+          preset.spec,
+          preset.profile,
+          downloadContext: data.downloadContext,
+        ),
       );
     }
     for (final id in _bindings.keys.toList()) {
       if (live.contains(id)) continue;
-      _bindings.remove(id)?.detach();
+      _detach(id);
       _presets.remove(id);
     }
+  }
+
+  void _detach(MediaItemId id) {
+    final binding = _bindings.remove(id);
+    if (binding == null) return;
+    if (_uploadListeners.remove(id) case final listener?) {
+      binding.removeListener(listener);
+    }
+    _uploadStates.remove(id);
+    binding.detach();
+  }
+
+  void _detachAll() {
+    _bindings.keys.toList().forEach(_detach);
+    _presets.clear();
+  }
+
+  // --- Uploads ------------------------------------------------------------
+
+  void _watchUpload(MediaItemId id, AssetBinding binding) {
+    void listener() => _onUpload(id, binding);
+    _uploadListeners[id] = listener;
+    binding.addListener(listener);
+    _onUpload(id, binding);
+  }
+
+  // Reports a change of what the item's upload shows: sending, sent, then
+  // none once the content is published. Bytes alone are no change.
+  void _onUpload(MediaItemId id, AssetBinding binding) {
+    final transfer = binding.transfer;
+    final next = switch (transfer) {
+      AssetTransfer$Sending() => 'sending',
+      AssetTransfer$Sent() => 'sent',
+      _ => null,
+    };
+    final last = _uploadStates[id];
+    final state = next ?? (last == null ? null : 'none');
+    if (state == null || state == last) return;
+    if (next == null) {
+      _uploadStates.remove(id);
+    } else {
+      _uploadStates[id] = next;
+    }
+    final correlation = widget.correlation;
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.media,
+      MediaOp.uploadState,
+      correlation: ChatCorrelation(
+        chatId: correlation.chatId,
+        scrollId: correlation.scrollId,
+        clientMessageId: correlation.clientMessageId,
+        mediaItemId: id.toString(),
+        mediaKey: binding.key.encoded,
+      ),
+      fields: () => {
+        'state': state,
+        if (transfer case AssetTransfer$Sending(:final sent, :final total)) ...{
+          'sent': sent,
+          'total': ?total,
+        },
+      },
+    );
   }
 
   AssetLoadState _loadOf(MediaItemId id) => switch (_bindings[id]) {
@@ -357,6 +435,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
   /// The status control's rect of [cell], in layout coordinates, while it
   /// offers a download or a cancel; null otherwise.
   Rect? _statusRectOf(MediaBlock block, MediaCell cell) {
+    if (widget.sendState == MediaSendState.failed) return null;
     final icon = _loadOf(cell.itemId).status().icon;
     if (icon != MediaStatusIcon.download && icon != MediaStatusIcon.cancel) {
       return null;
@@ -552,13 +631,35 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
       case MediaPartAction.download:
         _bindings[id]?.download();
       case MediaPartAction.cancel:
+        final cross =
+            part.part == MediaPart.status &&
+            (widget.sendState == MediaSendState.sending ||
+                _loadOf(id).status().upload);
         _bindings[id]?.cancelDownload();
         _emitOutcome(part, 'cancel');
+        if (cross) _itemCancelled(id);
       case MediaPartAction.openViewer:
         _openViewer(id, rect);
       case MediaPartAction.none:
         break;
     }
+  }
+
+  // The cross on [id]: the owner heard the cancel through the binding; the
+  // host hears the item, which leaves the message's list.
+  void _itemCancelled(MediaItemId id) {
+    final before = [
+      for (final block in widget.layout.blocks)
+        if (block case MediaBlock$Mosaic() || MediaBlock$FileStack())
+          ...block.cells,
+    ].length;
+    _emit(
+      ChatEventLevel.info,
+      MediaOp.itemCancelled,
+      id,
+      () => {'albumBefore': before, 'albumAfter': before - 1},
+    );
+    widget.onItemCancelled?.call(id);
   }
 
   // Where the reveal starts in the item's cell: the point the tap's hit was
@@ -749,7 +850,9 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
       );
     }
     final hidden = _spoilerHidden(item, cell);
-    final icon = load.status().icon;
+    final icon = widget.sendState == MediaSendState.failed
+        ? MediaStatusIcon.none
+        : load.status().icon;
     final affordance = widget.policy.chrome.options.affordanceOf(
       cell,
       block,

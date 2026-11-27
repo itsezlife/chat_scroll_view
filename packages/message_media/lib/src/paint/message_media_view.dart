@@ -10,6 +10,8 @@ import 'package:message_media/src/diagnostics/media_trace.dart';
 import 'package:message_media/src/gesture/media_viewer_request.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/message_media_hit_part.dart';
+import 'package:message_media/src/outgoing/media_send_flight.dart';
+import 'package:message_media/src/outgoing/media_send_state.dart';
 import 'package:message_media/src/paint/link_preview_card_view.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/paint/message_media_body.dart';
@@ -80,6 +82,21 @@ import 'package:mpx_core/mpx_core.dart';
 /// cell is sized to its interpolated rect, its status control re-centres
 /// on that rect every frame. `MessageMediaTransition` drives the frames.
 ///
+/// ## Outgoing
+///
+/// For a message being sent the host passes its [sendState]. In a scope
+/// with tracked transfers each item's status control shows its upload by
+/// the item's media key: the ring with the bytes sent and an upload's
+/// cancel, then the sent check until the content is published. The cancel
+/// is the item's cross: it reaches the upload's owner through the scope's
+/// `TrackedTransfers.cancel`, which drops the item from its job, and
+/// [onItemCancelled] tells the host the item's id, so the item leaves the
+/// message's list and exits under the layout transition. A message whose
+/// send failed shows no status control (the error badge and Retry / Delete
+/// are the host's). Where the policy's [MessageMediaPolicy.sendFlight]
+/// flies (iOS), a cell built for the first time asks the chat's
+/// `MessageMediaState.takeSendOrigin` once and flies in from that rect.
+///
 /// ## Diagnostics
 ///
 /// A builder that throws, or a cell whose item is not among [items],
@@ -105,6 +122,8 @@ class MessageMediaView extends StatelessWidget {
     this.cardOpacity = 1,
     this.leavingCard,
     this.leavingCardOpacity = 0,
+    this.sendState = MediaSendState.none,
+    this.onItemCancelled,
     super.key,
   }) : assert(
          selection == null || messageId != null,
@@ -180,6 +199,15 @@ class MessageMediaView extends StatelessWidget {
   /// The leaving card's opacity.
   final double leavingCardOpacity;
 
+  /// Where the message stands if it is being sent.
+  final MediaSendState sendState;
+
+  /// Called with the item whose cross was tapped on a message being sent,
+  /// after the cancel went to the upload's owner; the host takes the item
+  /// out of the message (or tells an owner that names items by id). Null
+  /// tells no one.
+  final ValueChanged<MediaItemId>? onItemCancelled;
+
   @override
   Widget build(BuildContext context) => SizedBox.fromSize(
     size: layout.size,
@@ -204,6 +232,8 @@ class MessageMediaView extends StatelessWidget {
         leavingCardOpacity: leavingCardOpacity,
         chromeContext: chromeContext,
         correlation: correlation,
+        sendState: sendState,
+        onItemCancelled: onItemCancelled,
       ),
     ),
   );
@@ -224,11 +254,32 @@ class MessageMediaView extends StatelessWidget {
         opacity: fade.opacity,
         child: Transform.scale(
           scale: fade.scale,
-          child: decorate(block, cell, _chromed(context, state, block, cell)),
+          child: _flown(
+            state,
+            block,
+            cell,
+            decorate(block, cell, _chromed(context, state, block, cell)),
+          ),
         ),
       ),
     );
   }
+
+  Widget _flown(
+    MessageMediaState state,
+    MediaBlock block,
+    MediaCell cell,
+    Widget child,
+  ) => MediaSendFlight(
+    itemId: cell.itemId,
+    size: cell.rect.size,
+    state: state,
+    policy: policy.sendFlight,
+    family: policy.family,
+    correlation: correlation,
+    flying: (context) => _cell(context, block, cell),
+    child: child,
+  );
 
   Widget _chromed(
     BuildContext context,
@@ -303,6 +354,7 @@ class MessageMediaView extends StatelessWidget {
       fileStack: isRow ? policy.fileStack : null,
       chrome: policy.chrome,
       correlation: correlation,
+      sendState: sendState,
     );
   }
 

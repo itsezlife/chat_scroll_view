@@ -54,9 +54,13 @@ final class ContentAssetScope {
   }
 
   /// A scope over a media cache of its own, made from [producer],
-  /// [budgets], [clock], [memoryPressure], [mediaPlaceholder], [textures] and
-  /// [autoDownload] (see [AssetCacheScope]); [dispose] disposes it too. The
-  /// glyph parameters are the main constructor's.
+  /// [budgets], [clock], [memoryPressure], [mediaPlaceholder], [textures],
+  /// [autoDownload] and [tracked] (see [AssetCacheScope]); [dispose] disposes
+  /// it too. The glyph parameters are the main constructor's.
+  ///
+  /// [tracked] is the host's transfer engine: with it, a surface with a
+  /// status control downloads in a tracked job, and shows an upload whose
+  /// source is the content it draws (`AssetTransfer.sending`, `sent`).
   ///
   /// [autoDownload] decides which missing content downloads by itself; the
   /// default downloads everything. A composition root that builds its media
@@ -70,6 +74,7 @@ final class ContentAssetScope {
     AssetPaintable? mediaPlaceholder,
     FrameTexturePool? textures,
     AutoDownloadPolicy autoDownload = AutoDownloadPolicy.always,
+    TrackedTransfers? tracked,
     GlyphSpriteSource? glyphSource,
     Listenable? systemFonts,
     ValueListenable<bool>? textGlyphsReady,
@@ -82,6 +87,7 @@ final class ContentAssetScope {
          placeholder: mediaPlaceholder,
          textures: textures,
          autoDownload: autoDownload,
+         tracked: tracked,
        ),
        _glyphSource = glyphSource,
        _systemFonts = systemFonts,

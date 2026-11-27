@@ -5,6 +5,7 @@ import 'package:message_media/src/chrome/media_spoiler_cover.dart';
 import 'package:message_media/src/chrome/media_spoiler_reveal.dart';
 import 'package:message_media/src/chrome/media_time_pill.dart';
 import 'package:message_media/src/layout/media_layout.dart';
+import 'package:message_media/src/outgoing/media_sent_check.dart';
 import 'package:message_media/src/policy/media_layout_policy.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -110,12 +111,15 @@ typedef MediaOptionsBuilder =
 /// | --- | --- |
 /// | [timePill] | host chrome; the rect is reported as `MediaLayout.timePill` |
 /// | [infoBadge] | the loading stages' badge (duration, size, GIF label) |
-/// | [statusControl] | the core's status control (download, cancel, play) |
+/// | [statusControl] | the core's status control (download, cancel, play; an upload's ring and cancel) |
+/// | [sentCheck] | [MediaSentCheck], while an item's upload is done and its message not yet published |
 /// | [spoiler] | [MediaSpoilerCover]: a blurred copy under moving particles, revealed as [reveal] says |
 /// | [optionsAffordance] | [MediaOptionsDots], where [options] places them |
 ///
 /// The status control fades in with a spoiler's reveal and takes no taps
-/// while the spoiler hides the item, since a tap there only reveals.
+/// while the spoiler hides the item, since a tap there only reveals. The
+/// sent check stands in the status control's place, faded with it; on a
+/// message whose send failed neither shows (`MediaSendState.failed`).
 @immutable
 final class MediaChromeSlots {
   /// The given slots; each builder defaults to the package's own.
@@ -126,6 +130,7 @@ final class MediaChromeSlots {
     this.spoilerBlocksPinch = false,
     this.infoBadge = stockPart,
     this.statusControl = stockPart,
+    this.sentCheck = MediaSentCheck.builder,
     this.spoiler = MediaSpoilerCover.builder,
     this.optionsAffordance = defaultOptions,
   });
@@ -179,8 +184,13 @@ final class MediaChromeSlots {
   /// Builds the info badge.
   final MediaLoadSlotBuilder infoBadge;
 
-  /// Builds the status control (downloads).
+  /// Builds the status control (downloads, and an outgoing item's
+  /// upload).
   final MediaLoadSlotBuilder statusControl;
+
+  /// Builds the per-item sent check, given the stock control (which shows
+  /// nothing for a sent upload).
+  final MediaLoadSlotBuilder sentCheck;
 
   /// Builds a spoiler's cover.
   final MediaSpoilerBuilder spoiler;
@@ -221,6 +231,7 @@ final class MediaChromeSlots {
     bool? spoilerBlocksPinch,
     MediaLoadSlotBuilder? infoBadge,
     MediaLoadSlotBuilder? statusControl,
+    MediaLoadSlotBuilder? sentCheck,
     MediaSpoilerBuilder? spoiler,
     MediaOptionsBuilder? optionsAffordance,
   }) => MediaChromeSlots(
@@ -230,6 +241,7 @@ final class MediaChromeSlots {
     spoilerBlocksPinch: spoilerBlocksPinch ?? this.spoilerBlocksPinch,
     infoBadge: infoBadge ?? this.infoBadge,
     statusControl: statusControl ?? this.statusControl,
+    sentCheck: sentCheck ?? this.sentCheck,
     spoiler: spoiler ?? this.spoiler,
     optionsAffordance: optionsAffordance ?? this.optionsAffordance,
   );
@@ -243,6 +255,7 @@ final class MediaChromeSlots {
       other.spoilerBlocksPinch == spoilerBlocksPinch &&
       other.infoBadge == infoBadge &&
       other.statusControl == statusControl &&
+      other.sentCheck == sentCheck &&
       other.spoiler == spoiler &&
       other.optionsAffordance == optionsAffordance;
 
@@ -254,6 +267,7 @@ final class MediaChromeSlots {
     spoilerBlocksPinch,
     infoBadge,
     statusControl,
+    sentCheck,
     spoiler,
     optionsAffordance,
   );

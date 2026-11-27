@@ -28,6 +28,7 @@ import 'media_item_keying_test.dart' as media_item_keying_test;
 import 'message_media_hit_part_test.dart' as message_media_hit_part_test;
 import 'message_media_state_test.dart' as message_media_state_test;
 import 'mosaic_layout_test.dart' as mosaic_layout_test;
+import 'outgoing/media_outgoing_test.dart' as outgoing_media_outgoing_test;
 import 'paint/link_preview_card_test.dart' as paint_link_preview_card_test;
 import 'paint/media_row_cell_test.dart' as paint_media_row_cell_test;
 import 'paint/message_media_view_test.dart' as paint_message_media_view_test;
@@ -87,6 +88,7 @@ void main() {
   group('message_media_hit_part_test', message_media_hit_part_test.main);
   group('message_media_state_test', message_media_state_test.main);
   group('mosaic_layout_test', mosaic_layout_test.main);
+  group('outgoing/media_outgoing_test', outgoing_media_outgoing_test.main);
   group('paint/link_preview_card_test', paint_link_preview_card_test.main);
   group('paint/media_row_cell_test', paint_media_row_cell_test.main);
   group('paint/message_media_view_test', paint_message_media_view_test.main);

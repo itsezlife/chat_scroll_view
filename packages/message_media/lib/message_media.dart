@@ -21,7 +21,10 @@
 /// [MessageMediaTransition]), and the optional bubble content around it
 /// ([MessageMediaBubbleLayout] with its [MediaBubbleComposition]: caption,
 /// header and time placed by `invertMedia`, the caption's width metrics from
-/// [MediaCaptionWidthPolicy]).
+/// [MediaCaptionWidthPolicy]), and what an outgoing message's media shows
+/// ([MediaSendState]: uploads on the status control, the [MediaSentCheck],
+/// the item's cross, and the iOS [MediaSendFlightPolicy] from the send
+/// origin).
 library;
 
 export 'src/bubble/media_bubble_composition.dart';
@@ -49,6 +52,9 @@ export 'src/layout/media_layout_input.dart';
 export 'src/media_layout_metrics.dart';
 export 'src/message_media_hit_part.dart';
 export 'src/mosaic_layout.dart';
+export 'src/outgoing/media_send_flight_policy.dart';
+export 'src/outgoing/media_send_state.dart';
+export 'src/outgoing/media_sent_check.dart';
 export 'src/paint/link_preview_card_view.dart' show LinkPreviewCardColors;
 export 'src/paint/media_box_cell.dart';
 export 'src/paint/media_cell_builders.dart';

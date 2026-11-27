@@ -153,6 +153,35 @@ share, cancel download) the item's kind supports and the chat's
 `ChatProtection.forMessage` allows; the host's menu and viewer build from
 it.
 
+## Outgoing messages
+
+A host shows a message being sent by passing its `sendState`
+(`MediaSendState.sending`, `failed`, or `none`) to `MessageMediaView`,
+`MessageMediaTransition` or `MessageMediaBubbleLayout`. The uploads come
+from the media scope: given the host's `TrackedTransfers`
+(`ContentAssetScope.withMedia(tracked:)`, or an `AssetCacheScope(tracked:)`
+of its own), each item's status control reads the upload by the item's
+media key (its `ContentKey` mapped by `content_assets`):
+
+| Upload | Cell |
+| --- | --- |
+| `AssetTransfer.sending(sent, total)` | the ring with the bytes sent and an upload's cancel |
+| `AssetTransfer.sent` | the sent check (`MediaChromeSlots.sentCheck`, default `MediaSentCheck`) |
+| `AssetTransfer.none` (published) | nothing; the local picture stays |
+
+The cancel on an item of a message being sent is its cross: it goes to the
+upload's owner through `TrackedTransfers.cancel`, which drops the item from
+its job, and `onItemCancelled` hands the host the item's `MediaItemId`, so
+the item leaves the message's list and exits under the layout transition.
+A failed send shows no status control: the error badge and Retry / Delete
+are the host's.
+
+On iOS (`MessageMediaPolicy.sendFlight`, `MediaSendFlightPolicy.ios()`) a
+cell built for the first time asks the chat's
+`MessageMediaState.takeSendOrigin` once and flies from that rect to its own
+over 300 ms, in the overlay, re-reading its rect every frame; reduce
+motion shows it in place. The row's own appearance is the host's.
+
 ## Transitions
 
 `MediaLayout.lerp(a, b, t)` interpolates two layouts cell by cell, matched
@@ -266,7 +295,10 @@ change and each change mid-flight, `hit` (debug) when an activation
 revealed a spoiler or cancelled a download, `activationDropped` (debug)
 for a tap the input guard dropped, `viewerOpened` (info) and
 `originRectMissing` (warning, at open or close); `hit` also reports a
-card's `open` and `action`. `linkPreview` / `cardShown` (debug,
+card's `open` and `action`. For an outgoing message, `uploadState`
+(debug) names each change of an item's upload (`sending`, `sent`, `none`)
+with its media key, `itemCancelled` (info) the album's size before and after
+a cross, and `sendOriginFlight` (debug) whether a cell given an origin flew. `linkPreview` / `cardShown` (debug,
 `LinkPreviewCardOp`) names a shown card's media size, width rule and appear
 form. They carry the chat, message and item ids, never a caption, a file
 name or a page.

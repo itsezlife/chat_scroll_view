@@ -12,6 +12,7 @@ import 'package:message_media/src/gesture/media_viewer_request.dart';
 import 'package:message_media/src/layout/link_preview_card.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/message_media_hit_part.dart';
+import 'package:message_media/src/outgoing/media_send_state.dart';
 import 'package:message_media/src/paint/link_preview_card_view.dart';
 import 'package:message_media/src/paint/message_media_body.dart'
     show LinkPreviewActivated;
@@ -103,6 +104,8 @@ class MessageMediaBubbleLayout extends StatefulWidget {
     this.onItemMenu,
     this.onLinkPreview,
     this.linkPreviewColors = LinkPreviewCardColors.fallback,
+    this.sendState = MediaSendState.none,
+    this.onItemCancelled,
     super.key,
   });
 
@@ -168,6 +171,12 @@ class MessageMediaBubbleLayout extends StatefulWidget {
 
   /// See `MessageMediaView.linkPreviewColors`.
   final LinkPreviewCardColors linkPreviewColors;
+
+  /// See `MessageMediaView.sendState`.
+  final MediaSendState sendState;
+
+  /// See `MessageMediaView.onItemCancelled`.
+  final ValueChanged<MediaItemId>? onItemCancelled;
 
   @override
   State<MessageMediaBubbleLayout> createState() =>
@@ -243,6 +252,8 @@ class _MessageMediaBubbleLayoutState extends State<MessageMediaBubbleLayout> {
     onItemMenu: widget.onItemMenu,
     onLinkPreview: widget.onLinkPreview,
     linkPreviewColors: widget.linkPreviewColors,
+    sendState: widget.sendState,
+    onItemCancelled: widget.onItemCancelled,
     builder: _bubble,
   );
 

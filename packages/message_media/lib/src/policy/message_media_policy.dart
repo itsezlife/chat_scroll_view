@@ -7,6 +7,7 @@ import 'package:message_media/src/gesture/media_gesture_policy.dart';
 import 'package:message_media/src/gesture/media_semantics_strings.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
+import 'package:message_media/src/outgoing/media_send_flight_policy.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/policy/link_preview_card_policy.dart';
 import 'package:message_media/src/policy/media_autoplay_policy.dart';
@@ -36,8 +37,9 @@ enum MessageMediaPlatform {
 /// [copyWith]: the layout step as a whole ([layoutStep]) or one of the
 /// default step's parts through [MediaLayoutPolicy.copyWith], the corner
 /// values ([corners]), the autoplay flag ([autoplay]), or one cell builder
-/// ([cells], `MediaCellBuilders.copyWith`) leaving the other, or the
-/// layout transition's timings ([transition]).
+/// ([cells], `MediaCellBuilders.copyWith`) leaving the other, the layout
+/// transition's timings ([transition]), or a sent item's flight from its
+/// send origin ([sendFlight]).
 ///
 /// [layout] runs the step, resolves each cell's corner radii, and reports
 /// `media` / `layoutComputed`; `MessageMediaView` paints the result with the
@@ -54,6 +56,7 @@ final class MessageMediaPolicy {
     required this.chrome,
     this.cells = const MediaCellBuilders(),
     this.transition = const MediaTransitionPolicy.none(),
+    this.sendFlight = const MediaSendFlightPolicy.none(),
     this.gestures = const MediaGesturePolicy(),
     this.semantics = MediaSemanticsStrings.english,
   });
@@ -79,6 +82,7 @@ final class MessageMediaPolicy {
         autoplay: const MediaAutoplayPolicy.ios(),
         chrome: const MediaChromeSlots.ios(),
         transition: const MediaTransitionPolicy.ios(),
+        sendFlight: const MediaSendFlightPolicy.ios(),
         gestures: const MediaGesturePolicy.ios(),
       );
 
@@ -136,6 +140,9 @@ final class MessageMediaPolicy {
 
   /// How a change of the layout animates (`MessageMediaTransition`).
   final MediaTransitionPolicy transition;
+
+  /// How a freshly sent item flies in from its send origin (iOS), or none.
+  final MediaSendFlightPolicy sendFlight;
 
   /// How the media answers taps, the mouse and repeated activations in
   /// normal mode (`MessageMediaView` with a selection facade).
@@ -221,6 +228,7 @@ final class MessageMediaPolicy {
     MediaCellBuilders? cells,
     MediaChromeSlots? chrome,
     MediaTransitionPolicy? transition,
+    MediaSendFlightPolicy? sendFlight,
     MediaGesturePolicy? gestures,
     MediaSemanticsStrings? semantics,
   }) => MessageMediaPolicy(
@@ -231,6 +239,7 @@ final class MessageMediaPolicy {
     cells: cells ?? this.cells,
     chrome: chrome ?? this.chrome,
     transition: transition ?? this.transition,
+    sendFlight: sendFlight ?? this.sendFlight,
     gestures: gestures ?? this.gestures,
     semantics: semantics ?? this.semantics,
   );

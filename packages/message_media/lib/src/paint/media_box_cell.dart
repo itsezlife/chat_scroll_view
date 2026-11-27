@@ -8,6 +8,8 @@ import 'package:message_media/src/chrome/media_cell_chrome.dart';
 import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/layout/media_corner_radii.dart';
 import 'package:message_media/src/layout/media_layout.dart';
+import 'package:message_media/src/outgoing/media_send_state.dart';
+import 'package:message_media/src/outgoing/media_sent_check.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:mpx_core/mpx_core.dart';
 
@@ -43,6 +45,16 @@ import 'package:mpx_core/mpx_core.dart';
 /// control fades with the cell's `MediaControlsScope` (a spoiler's reveal)
 /// and takes no pointer: its taps are the view's body part hits.
 ///
+/// ## Uploads
+///
+/// The status control attaches as a surface that tracks its transfer, so
+/// in a scope with tracked transfers (`ContentAssetScope.withMedia
+/// (tracked:)`) an item whose content is the source of an upload shows it:
+/// the ring with the bytes sent and an upload's cancel while it is
+/// `AssetTransfer.sending`, then the sent check (`MediaChromeSlots
+/// .sentCheck`) while it is `sent`, until the content is published and the
+/// transfer reads `none`. A message whose send failed shows no control.
+///
 /// ## Press
 ///
 /// The picture has no press visual; the status control's own feedback is
@@ -75,8 +87,10 @@ class MediaBoxCell extends StatelessWidget {
 
   /// The asset view skin of [data]'s chrome slots: the info badge and the
   /// status control built by the slots over the stock parts, the status
-  /// control faded by the cell's `MediaControlsScope`. A slot that throws is
-  /// reported (`media` / `cellFailed`) and the stock part shows.
+  /// control faded by the cell's `MediaControlsScope`. A sent upload shows
+  /// the sent check in the control's place, and a failed send no control.
+  /// A slot that throws is reported (`media` / `cellFailed`) and the stock
+  /// part shows.
   static AssetViewSkin skinOf(MediaCellData data) {
     final chrome = MediaChromeData(
       cell: data.cell,
@@ -111,15 +125,28 @@ class MediaBoxCell extends StatelessWidget {
     return AssetViewSkin(
       badge: (context, state, stock) =>
           guarded('infoBadge', slots?.infoBadge, context, state, stock),
-      status: (context, state, stock) => _ControlsFade(
-        child: guarded(
-          'statusControl',
-          slots?.statusControl,
-          context,
-          state,
-          stock,
-        ),
-      ),
+      status: (context, state, stock) =>
+          switch ((data.sendState, state.transfer)) {
+            (MediaSendState.failed, _) => const SizedBox.shrink(),
+            (_, AssetTransfer$Sent()) => _ControlsFade(
+              child: guarded(
+                'sentCheck',
+                slots?.sentCheck ?? MediaSentCheck.builder,
+                context,
+                state,
+                stock,
+              ),
+            ),
+            _ => _ControlsFade(
+              child: guarded(
+                'statusControl',
+                slots?.statusControl,
+                context,
+                state,
+                stock,
+              ),
+            ),
+          },
     );
   }
 

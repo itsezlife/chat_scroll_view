@@ -6,6 +6,7 @@ import 'package:message_media/src/layout/media_corner_radii.dart';
 import 'package:message_media/src/layout/media_file_row.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
+import 'package:message_media/src/paint/media_box_cell.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/paint/middle_elided_text.dart';
 import 'package:message_media/src/policy/media_file_stack_policy.dart';
@@ -45,6 +46,7 @@ class MediaRowCell extends StatelessWidget {
     this.nameColor,
     this.infoColor,
     this.linkColor,
+    this.skin,
     super.key,
   });
 
@@ -61,6 +63,7 @@ class MediaRowCell extends StatelessWidget {
         radii: data.cell.radii,
         neighbours: data.cell.neighbours,
         downloadContext: data.downloadContext,
+        skin: MediaBoxCell.skinOf(data),
       );
 
   /// The row geometry the default row of [data] draws by: the layout's, or,
@@ -114,6 +117,10 @@ class MediaRowCell extends StatelessWidget {
 
   /// The link line's colour; null is the name's.
   final Color? linkColor;
+
+  /// The look of the row's status control (the policy's chrome slots, the
+  /// sent check, none on a failed send); null keeps the loading style's.
+  final AssetViewSkin? skin;
 
   /// The preset the row's control attaches with: the view's own binding of
   /// the item uses the same, so the two share one cache entry.
@@ -174,6 +181,7 @@ class MediaRowCell extends StatelessWidget {
                     preset: preset,
                     status: const MediaStatusMode.control(),
                     downloadContext: downloadContext,
+                    skin: skin,
                   ),
                 ),
               ),
