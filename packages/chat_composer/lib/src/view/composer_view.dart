@@ -1,5 +1,9 @@
 import 'dart:ui' show lerpDouble;
 
+import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:chat_composer/src/capabilities/composer_capabilities_op.dart';
+import 'package:chat_composer/src/capabilities/composer_denied_forms.dart';
+import 'package:chat_composer/src/capabilities/sending_denial.dart';
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/menu/composer_menu_policy.dart';
 import 'package:chat_composer/src/shortcuts/composer_formatting_actions.dart';
@@ -8,6 +12,7 @@ import 'package:chat_composer/src/spec/action_descriptor.dart';
 import 'package:chat_composer/src/spec/composer_header.dart';
 import 'package:chat_composer/src/spec/composer_panel.dart';
 import 'package:chat_composer/src/spec/composer_spec.dart';
+import 'package:chat_composer/src/view/composer_access_panel.dart';
 import 'package:chat_composer/src/view/composer_button.dart';
 import 'package:chat_composer/src/view/composer_field.dart';
 import 'package:chat_composer/src/view/composer_header_strip.dart';
@@ -18,10 +23,13 @@ import 'package:chat_composer/src/view/slot_boxes.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:composer_editable/composer_editable.dart'
     show ExtendedEditableTextState, ProcessTextQueryCache;
+import 'package:content_model/content_model.dart'
+    show ChatDiagnostics, ChatEventCategory, ChatEventLevel;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Material, MaterialType;
 import 'package:flutter/services.dart' show BinaryMessenger;
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 
 /// The composer: a glass island holding a header strip, a row of actions
 /// around a panel, laid out and animated from a host-built [ComposerSpec].
@@ -39,6 +47,25 @@ import 'package:flutter/widgets.dart';
 ///   by default; any other id is built by [panelResolver].
 /// - **Actions** ([ComposerSpec.actions]): buttons before and after the
 ///   panel, mirrored in right-to-left text.
+///
+/// ## Capabilities
+///
+/// With the controller's `capabilities`, the chat's rights shape the row
+/// (each change applies on the next value, the draft kept):
+///
+/// - a write access other than `canWrite` puts its default panel in the
+///   row in place of [ComposerSpec.panel] (`ComposerPanelId.forWriteAccess`),
+///   built by [panelResolver] when it knows the id, else as a plain text
+///   node with the host's denial text and [accessAction];
+/// - `sending.text` denied locks the field: disabled, the host's denial text
+///   as its placeholder (after a lock on Android), a tap reported to the
+///   host; the actions stay usable;
+/// - an action whose `ActionDescriptor.capability` is denied is drawn
+///   dimmed ([deniedForms]), stays focusable, is announced as not available
+///   with the denial text as its hint, and a tap reports the attempt instead
+///   of calling its `onTap`.
+///
+/// Without capabilities the view is what it was before them.
 ///
 /// ## Extent
 ///
@@ -79,6 +106,8 @@ class ComposerView extends StatefulWidget {
     this.hintMaxLines,
     this.primaryDiameter = ComposerMetrics.primaryDiscDiameter,
     this.autofocus = true,
+    this.accessAction,
+    this.deniedForms,
     super.key,
   });
 
@@ -190,6 +219,15 @@ class ComposerView extends StatefulWidget {
   /// Read when the view mounts; a later change has no effect.
   final bool autofocus;
 
+  /// The host's action on a default write-access panel (a join verb, the
+  /// unlock of an `unlockable` restriction), or null for panels of text
+  /// alone.
+  final ComposerPanelActionResolver? accessAction;
+
+  /// How denied actions and the locked field are drawn; null takes the
+  /// platform's ([ComposerDeniedForms.forPlatform]).
+  final ComposerDeniedForms? deniedForms;
+
   @override
   State<ComposerView> createState() => _ComposerViewState();
 }
@@ -228,9 +266,20 @@ class _ComposerViewState extends State<ComposerView>
 
   ComposerSpec get _spec => widget.spec;
 
+  // The write access and sending rights, selected from the controller's
+  // capabilities so a slow mode tick does not rebuild the row; null without
+  // capabilities.
+  listen.ValueListenable<_Gate>? _gateSource;
+
+  // The panel choice last reported as `panelChosen`.
+  Map<String, Object>? _reportedPanel;
+
+  _Gate? get _gate => _gateSource?.value;
+
   @override
   void initState() {
     super.initState();
+    _subscribeGate();
     _shownHeader = _spec.header;
     _reveal = AnimationController(
       vsync: this,
@@ -246,11 +295,83 @@ class _ComposerViewState extends State<ComposerView>
   @override
   void didUpdateWidget(ComposerView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(
+      oldWidget.controller.capabilities,
+      widget.controller.capabilities,
+    )) {
+      _gateSource?.removeListener(_onGate);
+      _subscribeGate();
+    }
     _syncHeader();
   }
 
+  // --- Capabilities ---
+
+  void _subscribeGate() {
+    _gateSource = widget.controller.capabilities?.select(
+      (c) => (writeAccess: c.writeAccess, sending: c.sending),
+    )?..addListener(_onGate);
+  }
+
+  void _onGate() {
+    if (mounted) setState(() {});
+  }
+
+  ComposerDeniedForms get _deniedForms =>
+      widget.deniedForms ??
+      ComposerDeniedForms.forPlatform(defaultTargetPlatform, isWeb: kIsWeb);
+
+  // The write access's panel in place of the spec's, or null when the user
+  // may write (and without capabilities).
+  ComposerPanelId? get _accessPanel => switch (_gate) {
+    final gate? => ComposerPanelId.forWriteAccess(gate.writeAccess),
+    null => null,
+  };
+
+  ComposerPanelId get _panelId => _accessPanel ?? _spec.panel;
+
+  // Once per change of the choice, not per build: rebuilds of the same row
+  // (typing, a header) say nothing new.
+  void _reportPanel(ComposerPanelId panel, String builder) {
+    final gate = _gate;
+    if (gate == null) return;
+    final access = gate.writeAccess;
+    final choice = <String, Object>{
+      'writeAccess': _accessForm(access),
+      if (access case WriteAccess$Restricted(:final reason))
+        'reason': reason.diagnosticForm,
+      if (access case WriteAccess$Custom(:final tag)) 'tag': _clip(tag),
+      'panel': _clip(panel.value),
+      'builder': builder,
+    };
+    if (mapEquals(choice, _reportedPanel)) return;
+    _reportedPanel = choice;
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.capabilities,
+      ComposerCapabilitiesOp.panelChosen,
+      correlation: widget.controller.correlation,
+      fields: () => choice,
+    );
+  }
+
+  static String _accessForm(WriteAccess access) => switch (access) {
+    WriteAccess$CanWrite() => 'canWrite',
+    WriteAccess$ReadOnly() => 'readOnly',
+    WriteAccess$Join() => 'join',
+    WriteAccess$RequestToJoin() => 'requestToJoin',
+    WriteAccess$Restricted() => 'restricted',
+    WriteAccess$Custom() => 'custom',
+  };
+
+  // An event string holds at most 64 characters; a host tag or panel id can
+  // run longer.
+  static String _clip(String value) =>
+      value.length <= 64 ? value : value.substring(0, 64);
+
   @override
   void dispose() {
+    _gateSource?.removeListener(_onGate);
     _reveal
       ..removeStatusListener(_onRevealStatus)
       ..dispose();
@@ -350,6 +471,7 @@ class _ComposerViewState extends State<ComposerView>
   }
 
   Widget _button(ActionDescriptor action) {
+    if (_deniedButton(action) case final denied?) return denied;
     final button = ComposerButton(
       key: ValueKey<String>(action.id),
       icon: action.icon,
@@ -377,14 +499,68 @@ class _ComposerViewState extends State<ComposerView>
     );
   }
 
+  // The denied form of an action whose capability the chat denies, or null
+  // for its own form. Enabled and focusable for assistive technology:
+  // activating it reports the attempt, which is how the user learns why.
+  Widget? _deniedButton(ActionDescriptor action) {
+    final capability = action.capability;
+    final gate = _gate;
+    if (capability == null || gate == null) return null;
+    final reason = sendingDenial(gate.sending, capability);
+    if (reason == null) return null;
+    final controller = widget.controller;
+    final strings = ChromeStringsScope.composerOf(context);
+    final button = Opacity(
+      key: ValueKey<String>('denied:${action.id}'),
+      opacity: _deniedForms.dimmedOpacity,
+      child: ComposerButton(
+        key: ValueKey<String>(action.id),
+        icon: action.icon,
+        semanticLabel: strings.unavailableAction(action.semanticLabel),
+        semanticHint: controller.denialText(
+          capability,
+          reason,
+          form: 'dimmedAction',
+        ),
+        onTap: () => controller.reportDenied(capability, reason),
+        enabled: _spec.enabled,
+        primary: action.primary,
+        primaryStyle: widget.primaryStyle,
+        discDiameter: widget.primaryDiameter,
+        fill: action.fill,
+        onFill: action.onFill,
+        iconSize: action.iconSize ?? ComposerMetrics.actionIconSize,
+      ),
+    );
+    final wrap = action.wrap;
+    if (wrap == null) return button;
+    return Builder(
+      key: ValueKey<String>('wrap:${action.id}'),
+      builder: (context) => wrap(context, button),
+    );
+  }
+
   Widget _panel(BuildContext context) {
-    final panel = _spec.panel;
+    final panel = _panelId;
     if (panel == ComposerPanelId.text) {
+      _reportPanel(panel, 'field');
       final autofocus = _autofocusPending;
       _autofocusPending = false;
-      return ComposerField(
+      final textDenial = switch (_gate) {
+        final gate? => sendingDenial(gate.sending, CapabilityAction.sendText),
+        null => null,
+      };
+      final lockedHint = switch (textDenial) {
+        final reason? => widget.controller.denialText(
+          CapabilityAction.sendText,
+          reason,
+          form: 'lockedField',
+        ),
+        null => null,
+      };
+      final field = ComposerField(
         controller: widget.controller,
-        enabled: _spec.enabled,
+        enabled: _spec.enabled && textDenial == null,
         autofocus: autofocus,
         formatting: _spec.formatting,
         linkPrompt: _spec.linkPrompt,
@@ -398,11 +574,33 @@ class _ComposerViewState extends State<ComposerView>
             ? widget.fieldStartInset
             : 0,
         hintFontSize: widget.hintFontSize,
-        hintText: widget.hintText,
+        hintText: lockedHint ?? widget.hintText,
         hintMaxLines: widget.hintMaxLines,
+        hintIcon: textDenial != null && _deniedForms.lockedFieldGlyph
+            ? ChromeIconId.lock
+            : null,
+      );
+      if (textDenial == null) return field;
+      // The disabled field takes no pointer; the tap that would have
+      // focused it reports the attempt instead.
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => widget.controller.reportDenied(
+          CapabilityAction.sendText,
+          textDenial,
+        ),
+        child: field,
       );
     }
-    final built = widget.panelResolver?.call(context, panel);
+    final hostBuilt = widget.panelResolver?.call(context, panel);
+    final built = switch ((hostBuilt, _gate)) {
+      (final host?, _) => host,
+      (null, final gate?) when _accessPanel != null => _defaultAccessPanel(
+        gate.writeAccess,
+      ),
+      _ => null,
+    };
+    _reportPanel(panel, hostBuilt != null ? 'host' : 'default');
     assert(
       built != null,
       'No panel built for ${panel.value}: pass a panelResolver that knows it.',
@@ -415,6 +613,18 @@ class _ComposerViewState extends State<ComposerView>
       child: Align(child: built),
     );
   }
+
+  Widget _defaultAccessPanel(WriteAccess access) => ComposerAccessPanel(
+    text: switch (writeAccessReason(access)) {
+      final reason? => widget.controller.denialText(
+        CapabilityAction.sendText,
+        reason,
+        form: 'restrictionBar',
+      ),
+      null => null,
+    },
+    action: widget.accessAction?.call(access),
+  );
 
   // The row's inset from the island's sides.
   static const double _rowInset = 2;
@@ -440,7 +650,7 @@ class _ComposerViewState extends State<ComposerView>
           _button(action),
         Expanded(
           child: KeyedSubtree(
-            key: ValueKey<String>(_spec.panel.value),
+            key: ValueKey<String>(_panelId.value),
             child: _panel(context),
           ),
         ),
@@ -529,6 +739,10 @@ class _ComposerViewState extends State<ComposerView>
     );
   }
 }
+
+/// What the row reads of the chat's capabilities: a record, so a selection
+/// of it compares by value.
+typedef _Gate = ({WriteAccess writeAccess, SendingCapabilities sending});
 
 class _SubmitAction extends Action<SubmitComposerIntent> {
   _SubmitAction(this._state);

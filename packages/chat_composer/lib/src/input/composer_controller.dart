@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:chat_composer/src/capabilities/sending_denial.dart';
 import 'package:chat_composer/src/input/composer_paste.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/query/composer_input_query.dart';
@@ -8,7 +10,7 @@ import 'package:chat_composer/src/query/query_detector.dart';
 import 'package:chat_composer/src/text/composer_text_controller.dart';
 import 'package:chat_composer/src/text/mention_downgrade.dart';
 import 'package:chrome_foundation/chrome_foundation.dart'
-    show PointerMenuTiming;
+    show ChromeHintTiming, PointerMenuTiming;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show Clipboard;
@@ -39,6 +41,16 @@ import 'package:listen/listen.dart' as listen;
 /// passed in is the host's and is left alone by [dispose]; the ones the
 /// controller makes for itself are disposed with it.
 ///
+/// ## Capabilities
+///
+/// Given the chat's [capabilities] and the host's [capabilityFeedback], the
+/// view puts the write access's default panel in the input row, locks the
+/// field while text is denied and draws a denied action dimmed. The
+/// controller owns the rules: [denialFor] says what is denied, [denialText]
+/// asks the host for the text drawn in place, and [reportDenied] reports an
+/// attempt, at most once per [deniedRepeatWindow]. Without capabilities
+/// everything is allowed and nothing is reported, as before.
+///
 /// Commands are no-ops after [dispose].
 final class ComposerController {
   /// Creates a controller.
@@ -55,6 +67,10 @@ final class ComposerController {
     this.onPastedMedia,
     this.onPaste,
     this.confirmMention,
+    this.capabilities,
+    this.capabilityFeedback = CapabilityFeedback.none,
+    this.chatId,
+    this.deniedRepeatWindow = defaultDeniedRepeatWindow,
   }) : text = text ?? ComposerTextController(),
        focusNode = focusNode ?? FocusNode(debugLabel: 'Composer'),
        fieldScroll = fieldScroll ?? ScrollController(),
@@ -107,6 +123,26 @@ final class ComposerController {
   /// none, so every pasted mention is sent as its `@name`.
   final bool Function(String id)? confirmMention;
 
+  /// The chat's capabilities, which the view reads through `select`; null
+  /// allows everything (the composer before capabilities).
+  final listen.ValueListenable<ChatCapabilities>? capabilities;
+
+  /// The host's denial texts and the report of attempts.
+  final CapabilityFeedback capabilityFeedback;
+
+  /// The chat the capabilities are of, correlating the composer's
+  /// diagnostics events; null correlates none.
+  final String? chatId;
+
+  /// How long after a reported attempt [reportDenied] ignores the next one,
+  /// so a burst of taps on a dimmed control reports once: the host's
+  /// tooltip for the first is still showing.
+  final Duration deniedRepeatWindow;
+
+  /// The stock [deniedRepeatWindow]: how long the host's hint at the
+  /// control stays up.
+  static const defaultDeniedRepeatWindow = ChromeHintTiming.controlHint;
+
   final bool _ownsText;
   final bool _ownsFocus;
   final bool _ownsScroll;
@@ -121,6 +157,7 @@ final class ComposerController {
   final _resolvedMentions = <String>{};
   Rect? _anchor;
   void Function()? _detachClipboard;
+  Timer? _deniedRepeat;
   var _disposed = false;
 
   /// Whether [dispose] has been called.
@@ -659,12 +696,63 @@ final class ComposerController {
     _query.value = detected.withAnchor(_anchor);
   }
 
+  // --- Capabilities ---
+
+  /// The diagnostics correlation of this composer's chat.
+  ChatCorrelation get correlation => switch (chatId) {
+    final chatId? => ChatCorrelation(chatId: chatId),
+    null => ChatCorrelation.none,
+  };
+
+  /// Why the chat denies [action] now, or null when it allows it (always
+  /// without [capabilities]). Reads the sending rights; slow mode and
+  /// protection are not an action's here.
+  DenialReason? denialFor(CapabilityAction action) => switch (capabilities) {
+    final capabilities? => sendingDenial(capabilities.value.sending, action),
+    null => null,
+  };
+
+  /// The host's text for [action] denied for [reason], drawn in place as
+  /// [form] (`restrictionBar`, `lockedField`, `dimmedAction`), or null for
+  /// the silent form; a null text is reported as `denialTextMissing`.
+  String? denialText(
+    CapabilityAction action,
+    DenialReason reason, {
+    required String form,
+  }) => capabilityFeedback.denialText(
+    action,
+    reason,
+    correlation: correlation,
+    form: form,
+  );
+
+  /// Reports that the user attempted [action], denied for [reason] (a tap
+  /// on the locked field or a dimmed action), and returns whether it did.
+  ///
+  /// An attempt within [deniedRepeatWindow] of the last reported one, or
+  /// after [dispose], is dropped: the host's feedback for the first is
+  /// still up, and a second would stack on it. A reported attempt reaches
+  /// the host's `onDenied` and the `denied` event.
+  bool reportDenied(CapabilityAction action, DenialReason reason) {
+    if (_disposed || _deniedRepeat != null) return false;
+    _deniedRepeat = Timer(deniedRepeatWindow, () => _deniedRepeat = null);
+    capabilityFeedback.onDenied(
+      action,
+      reason,
+      consumer: CapabilityConsumer.composer,
+      correlation: correlation,
+    );
+    return true;
+  }
+
   // --- Lifecycle ---
 
   /// Stops listening and disposes what this controller created. Idempotent.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _deniedRepeat?.cancel();
+    _deniedRepeat = null;
     _detachClipboard?.call();
     text.removeListener(_detectQuery);
     _softKeyboard.dispose();

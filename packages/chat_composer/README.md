@@ -35,7 +35,8 @@ morphs in place).
 | `ComposerView` | The island: glass surface, header reveal, row with field-height animation, action slots, panel resolver, shortcuts. Publishes `ComposerController.extent`. |
 | `ComposerHeader` | Sealed: `reply`, `edit`, `forward`, `linkPreview`, `suggestion`. Reply and edit titles come from `ChromeStrings.composer`. |
 | `ActionDescriptor`, `ActionPlacement`, `ActionWrap` | One action as data. `active` draws the glyph in the accent colour and announces the button as selected (a toggle that is on keeps its one glyph). `wrap` is a widget the composer builds around the rendered button, for whatever the host needs around it (a hover region, a tooltip, a measuring probe); the composer knows none of them. |
-| `ComposerPanelId`, `ComposerPanelResolver` | An open set of panel names and the host function that builds the non-default ones. |
+| `ComposerPanelId`, `ComposerPanelResolver` | An open set of panel names and the host function that builds the non-default ones. The write access's ids (`readOnly`, `join`, `requestToJoin`, `restricted`, `writeAccessCustom`) have default panels the composer builds when the resolver returns null. |
+| `ComposerPanelAction`, `ComposerDeniedForms` | The host's action on a default write-access panel; how a denied action and the locked field are drawn, per platform. |
 | `ComposerFormField` | The same field in a host's form: a `FormField<RichText>` under the host's `InputDecoration`, with the selection menu, lists and formatting keys of the island, `formatting`, `linkPrompt`, `backPriority`, focus through the controller, Flutter's validation and reset, and a `maxLength` counted in code points that is never enforced. |
 | `ComposerBottomFade` | The soft fade under the composer. Mounts under the island, outside the glass source. |
 | `ComposerShortcutPolicy`, `SubmitComposerIntent`, `DismissComposerHeaderIntent`, `ToggleStyleIntent`, `ToggleCodeBlockIntent`, `ApplyLinkIntent`, `ClearFormattingIntent`, `ToggleListIntent` | Intents and the `$Mobile` / `$Desktop` default key maps (formatting keys follow the desktop set). |
@@ -51,6 +52,24 @@ morphs in place).
 | `ComposerInputQuery` | The token at the caret: kind, text after the trigger, replace range and the caret anchor rectangle. Published by `ComposerController.query` (a `ValueListenable`); `null` when there is no token. |
 | `ComposerEntityStyles` | The host's colours for links, mentions, code, spoiler and quote in the field. |
 | `InlineContentSpanBuilder` | How the field shows an inline content reference. |
+
+## Capabilities
+
+Given the chat's capabilities and the host's `CapabilityFeedback`
+(`chat_capabilities`), the controller decides what is denied and the view
+draws it:
+
+| Right | Form |
+| --- | --- |
+| `writeAccess` other than `canWrite` | Its `ComposerPanelId` replaces the requested panel: the host's panel, or a plain text node with the host's `denialText` (asked for `sendText`) and the host's `accessAction`. |
+| `sending.text` denied | The field is disabled with the denial text as its placeholder (after a lock on Android); a tap reports `sendText`; the actions stay usable; the draft is kept. |
+| An action's `capability` denied | Drawn at half opacity, still focusable, announced "…, not available" (`ComposerStrings.unavailableAction`) with the denial text as its hint; a tap reports the attempt instead of calling `onTap`. |
+
+A report reaches the host's `onDenied` at most once per
+`deniedRepeatWindow`, so a burst of taps shows one hint; the host shows it.
+Without capabilities the composer is unchanged. Events: `panelChosen`
+(`ComposerCapabilitiesOp`) when the row's panel choice changes, and the
+seam's `denied`, `denialTextMissing` and `feedbackFailed`.
 
 ## Extent
 

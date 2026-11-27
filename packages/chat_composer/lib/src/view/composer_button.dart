@@ -29,6 +29,7 @@ class ComposerButton extends StatefulWidget {
     required this.icon,
     required this.semanticLabel,
     required this.onTap,
+    this.semanticHint,
     this.enabled = true,
     this.primary = false,
     this.active = false,
@@ -47,6 +48,10 @@ class ComposerButton extends StatefulWidget {
 
   /// What assistive technology announces.
   final String semanticLabel;
+
+  /// What assistive technology adds after the label, such as why the
+  /// action is not available; null for none.
+  final String? semanticHint;
 
   /// Called on tap, click or keyboard activation; ignored when not
   /// [enabled].
@@ -226,6 +231,7 @@ class _ComposerButtonState extends State<ComposerButton>
       // Null, not false: an inactive button is not a selectable one.
       selected: widget.active ? true : null,
       label: widget.semanticLabel,
+      hint: widget.semanticHint,
       onTap: _active ? widget.onTap : null,
       excludeSemantics: true,
       // Inside the semantics, so the button's own node stays its root.
