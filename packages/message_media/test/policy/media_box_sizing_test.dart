@@ -352,7 +352,6 @@ void main() {
       expect(sizing.bubbleMinWidth, 200);
       expect(sizing.minWidthWithoutBubble, 100);
       expect(sizing.minHeight, 100);
-      expect(sizing.noDimensionsSide, 200);
       expect(sizing.lessCropGrowth, 4 / 3);
       expect(const MediaBoxSizing.desktop(), isA<MediaBoxSizing$Desktop>());
     });
@@ -442,13 +441,60 @@ void main() {
       expect(capped.size.width, 430);
     });
 
-    test('no dimensions give the interim 200 square', () {
-      final box = sizing.single(
-        _item(MediaItemKind.photo),
-        _input(availableWidth: 800),
+    group('no dimensions', () {
+      const kinds = [
+        MediaItemKind.photo,
+        MediaItemKind.video,
+        MediaItemKind.animation,
+      ];
+
+      test('every kind is the bubble width floor by the height floor', () {
+        for (final kind in kinds) {
+          final box = sizing.single(_item(kind), _input(availableWidth: 800));
+          expect(box.size, const Size(200, 100), reason: '$kind');
+          expect(box.fallbacks, {MediaLayoutFallbackRule.noDimensions});
+        }
+      });
+
+      test('without a bubble the width floor is 100', () {
+        for (final kind in kinds) {
+          final box = sizing.single(
+            _item(kind),
+            _input(availableWidth: 800, inBubble: false),
+          );
+          expect(box.size, const Size(100, 100), reason: '$kind');
+        }
+      });
+
+      test('the width floor never passes the width it may take', () {
+        final box = sizing.single(
+          _item(MediaItemKind.photo),
+          _input(availableWidth: 150),
+        );
+        expect(box.size, const Size(150, 100));
+      });
+
+      test(
+        'a caption widens the box; only video and animation grow taller',
+        () {
+          final input = _input(
+            availableWidth: 800,
+            captionPosition: MediaCaptionPosition.below,
+            captionWidth: 300,
+          );
+          final photo = sizing.single(_item(MediaItemKind.photo), input);
+          expect(photo.size, const Size(300, 100));
+          for (final kind in [MediaItemKind.video, MediaItemKind.animation]) {
+            final box = sizing.single(_item(kind), input);
+            expect(box.size.width, 300, reason: '$kind');
+            expect(
+              box.size.height,
+              closeTo(100 * 4 / 3, 1e-9),
+              reason: '$kind',
+            );
+          }
+        },
       );
-      expect(box.size, const Size(200, 200));
-      expect(box.fallbacks, {MediaLayoutFallbackRule.noDimensions});
     });
 
     test('a block spans up to 430', () {

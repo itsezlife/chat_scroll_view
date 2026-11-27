@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chat_composer/src/spec/composer_header.dart';
 import 'package:chat_composer/src/view/composer_button.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
@@ -35,6 +37,9 @@ class ComposerHeaderStrip extends StatelessWidget {
         onRemove: onRemove,
       );
     }
+    if (header case final ComposerHeader$LinkPreview link) {
+      return _LinkPreviewStrip(header: link);
+    }
     return SizedBox(
       height: ComposerMetrics.headerHeight,
       child: Row(
@@ -70,11 +75,16 @@ class ComposerHeaderStrip extends StatelessWidget {
         ),
         ComposerHeader$Forward(:final icon, :final title, :final preview) =>
           _TextStrip(icon: icon, title: title, subtitle: preview),
-        ComposerHeader$LinkPreview(:final icon, :final title, :final preview) =>
-          _TextStrip(icon: icon, title: title, subtitle: preview),
+        // Drawn by _LinkPreviewStrip, which guards its taps.
+        ComposerHeader$LinkPreview() => const SizedBox.shrink(),
         ComposerHeader$Suggestion(:final builder) => builder(context),
         ComposerHeader$Attachment() => const SizedBox.shrink(),
       };
+
+  /// How long after an accepted tap a link preview strip ignores the next
+  /// one, on its open action and its dismiss control alike: a burst of taps
+  /// opens the options or dismisses once.
+  static const Duration tapGuard = ChromeTapTiming.repeatGuard;
 
   static const double _edgePad = 12;
   static const double _glyph = 20;
@@ -119,27 +129,168 @@ class _TextStrip extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: tokens.replyName,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.1,
-                  ),
+                  style: _titleStyle(context, tokens),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: tokens.replyText,
-                    fontSize: 13,
-                    height: 1.1,
-                  ),
+                  style: _subtitleStyle(context, tokens),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+TextStyle _titleStyle(BuildContext context, ComposerTokens tokens) =>
+    ChromeTypography.of(context).copyWith(
+      color: tokens.replyName,
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      height: 1.1,
+    );
+
+TextStyle _subtitleStyle(BuildContext context, ComposerTokens tokens) =>
+    ChromeTypography.of(
+      context,
+    ).copyWith(color: tokens.replyText, fontSize: 13, height: 1.1);
+
+/// The strip of a [ComposerHeader$LinkPreview]: a thumbnail or glyph, the
+/// page's two lines, the dismiss control; a tap opens the host's options.
+///
+/// Both taps go through one time window ([ComposerHeaderStrip.tapGuard]):
+/// without it a double tap on the cross would dismiss twice (the second
+/// landing on whatever the host shows next), and one on the body would open
+/// the options twice.
+class _LinkPreviewStrip extends StatefulWidget {
+  const _LinkPreviewStrip({required this.header});
+
+  final ComposerHeader$LinkPreview header;
+
+  @override
+  State<_LinkPreviewStrip> createState() => _LinkPreviewStripState();
+}
+
+class _LinkPreviewStripState extends State<_LinkPreviewStrip> {
+  Timer? _$guard;
+
+  static const double _thumbnail = 34;
+
+  bool _accept() {
+    if (_$guard != null) return false;
+    _$guard = Timer(ComposerHeaderStrip.tapGuard, () => _$guard = null);
+    return true;
+  }
+
+  void _open() {
+    final onOpen = widget.header.onOpen;
+    if (onOpen == null || !_accept()) return;
+    if (context.findRenderObject() case final RenderBox box
+        when box.hasSize && box.attached) {
+      onOpen(box.localToGlobal(Offset.zero) & box.size);
+    }
+  }
+
+  void _dismiss() {
+    final onDismiss = widget.header.onDismiss;
+    if (onDismiss == null || !_accept()) return;
+    onDismiss();
+  }
+
+  @override
+  void dispose() {
+    _$guard?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final header = widget.header;
+    final strings = ChromeStringsScope.composerOf(context);
+    final tokens = ChromeThemeScope.composerOf(context);
+    final thumbnail = switch ((header.page, header.thumbnail)) {
+      (final page?, final builder?) when page.photo != null => builder(
+        context,
+        page,
+        const Size.square(_thumbnail),
+      ),
+      _ => null,
+    };
+    final title = header.title;
+    final preview = header.preview;
+    final content = Row(
+      children: [
+        const SizedBox(width: ComposerHeaderStrip._edgePad),
+        switch (thumbnail) {
+          final thumbnail? => ClipRRect(
+            borderRadius: const BorderRadius.all(Radius.circular(4)),
+            child: SizedBox.square(dimension: _thumbnail, child: thumbnail),
+          ),
+          null => ChromeIcon(
+            header.icon,
+            size: ComposerHeaderStrip._glyph,
+            color: tokens.replyLine,
+          ),
+        },
+        const SizedBox(width: ComposerHeaderStrip._glyphGap),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _titleStyle(context, tokens),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                preview,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _subtitleStyle(context, tokens),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    return SizedBox(
+      height: ComposerMetrics.headerHeight,
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              container: true,
+              liveRegion: true,
+              button: header.onOpen != null,
+              label: '$title, $preview',
+              excludeSemantics: true,
+              onTap: header.onOpen == null ? null : _open,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: header.onOpen == null ? null : _open,
+                child: content,
+              ),
+            ),
+          ),
+          if (header.onDismiss != null)
+            ComposerButton(
+              icon: ChromeIconId.close,
+              semanticLabel: strings.dismissHeaderAction,
+              onTap: _dismiss,
+              iconSize: ComposerHeaderStrip._closeGlyph,
+              width: ComposerMetrics.headerHeight,
+              height: ComposerMetrics.headerHeight - 2,
+            )
+          else
+            const SizedBox(width: ComposerHeaderStrip._edgePad),
         ],
       ),
     );

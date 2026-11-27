@@ -93,6 +93,8 @@ import 'features/chat/chat_messages_copy_format_test.dart'
     as chat_messages_copy_format_test;
 import 'features/chat/chat_pack_sheets_test.dart' as chat_pack_sheets_test;
 import 'features/chat/chat_pack_targets_test.dart' as chat_pack_targets_test;
+import 'features/chat/chat_received_link_preview_test.dart'
+    as chat_received_link_preview_test;
 import 'features/chat/chat_texture_warmer_test.dart'
     as chat_texture_warmer_test;
 import 'features/chat/corpus_sticker_pack_test.dart'
@@ -414,6 +416,10 @@ void main() {
     chat_data_source_bodies_test.main,
   );
   group('features/chat/chat_draft_store_test.dart', chat_draft_store_test.main);
+  group(
+    'features/chat/chat_received_link_preview_test.dart',
+    chat_received_link_preview_test.main,
+  );
   group(
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,

@@ -1,12 +1,16 @@
 import 'dart:async';
 
 import 'package:bulletins/bulletins.dart';
+import 'package:chat_composer/chat_composer.dart'
+    show LinkPreviewDismissalPolicy;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenable.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/address_link_preview_resolver.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_outgoing_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
@@ -37,9 +41,14 @@ final class InputRig {
   final ChatSelectionController selection;
 
   bool Function()? _failSends;
+  LinkPreviewResolver? _linkPreviewResolver;
+  LinkPreviewDismissalPolicy? _linkPreviewDismissal;
 
   /// Bodies sent.
   final List<String> sent = <String>[];
+
+  /// Messages sent, with their link preview fields.
+  final List<ChatOutgoingMessage> messages = <ChatOutgoingMessage>[];
 
   /// Edits saved, as `id:body`.
   final List<String> edited = <String>[];
@@ -76,6 +85,9 @@ final class InputRig {
   /// Pumps the rig into [tester]. [policy] is the platform's unless given,
   /// and so is [selectionPolicy]; [size] is the window. [chat], when given,
   /// fills the space under the composer where the screen has its chat.
+  /// Link previews are looked up through [linkPreviewResolver] (the
+  /// address alone by default) under [linkPreviewDismissal] (the
+  /// platform's), for the chat `rig-chat`.
   static Future<InputRig> pump(
     WidgetTester tester, {
     required AppServices services,
@@ -86,12 +98,18 @@ final class InputRig {
     bool Function()? failSends,
     int? messageLengthLimit = DemoConfig.messageLengthMax,
     Widget? chat,
+    LinkPreviewResolver? linkPreviewResolver,
+    LinkPreviewDismissalPolicy? linkPreviewDismissal,
   }) async {
-    final rig = InputRig._(
-      services,
-      keyboard ?? FakeSoftKeyboard(),
-      ChatSelectionController(policy: selectionPolicy),
-    ).._failSends = failSends;
+    final rig =
+        InputRig._(
+            services,
+            keyboard ?? FakeSoftKeyboard(),
+            ChatSelectionController(policy: selectionPolicy),
+          )
+          .._failSends = failSends
+          .._linkPreviewResolver = linkPreviewResolver
+          .._linkPreviewDismissal = linkPreviewDismissal;
     addTearDown(() async {
       rig.selection.dispose();
       await rig.keyboard.dispose();
@@ -200,9 +218,10 @@ class _ScreenState extends State<_Screen> {
     final input = _input ??= _rig.set = ChatInputSet(
       services: _rig.services,
       view: View.of(context),
-      send: (body) async {
+      send: (message) async {
         if (_rig._failSends?.call() ?? false) throw Exception('network');
-        _rig.sent.add(body);
+        _rig.sent.add(message.body);
+        _rig.messages.add(message);
       },
       edit: (id, body) async => _rig.edited.add('$id:$body'),
       confirmClearRecents: (kind) async {
@@ -224,6 +243,10 @@ class _ScreenState extends State<_Screen> {
       keyboard: _rig.keyboard,
       policy: widget.policy,
       messageLengthLimit: widget.messageLengthLimit,
+      chatId: 'rig-chat',
+      linkPreviewResolver:
+          _rig._linkPreviewResolver ?? const AddressLinkPreviewResolver(),
+      linkPreviewDismissal: _rig._linkPreviewDismissal,
     );
     _obstruction ??= input.insets.bottomPadding.map(
       (bottom) => EdgeInsets.only(bottom: bottom),

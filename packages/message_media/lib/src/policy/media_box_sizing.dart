@@ -500,7 +500,6 @@ final class MediaBoxSizing$IOS extends MediaBoxSizing {
 /// | [bubbleMinWidth] | 200 | Width floor in a bubble |
 /// | [minWidthWithoutBubble] | 100 | Width floor without a bubble |
 /// | [minHeight] | 100 | Height floor |
-/// | [noDimensionsSide] | 200 | Interim square without dimensions |
 /// | [lessCropGrowth] | 4/3 | A widened box grows its height up to this factor to crop less |
 ///
 /// The box is never taller than the width it may take. A caption widens it
@@ -513,7 +512,6 @@ final class MediaBoxSizing$Desktop extends MediaBoxSizing {
     this.bubbleMinWidth = 200,
     this.minWidthWithoutBubble = 100,
     this.minHeight = 100,
-    this.noDimensionsSide = 200,
     this.lessCropGrowth = 4 / 3,
   });
 
@@ -533,9 +531,6 @@ final class MediaBoxSizing$Desktop extends MediaBoxSizing {
   final double minHeight;
 
   /// See the class table.
-  final double noDimensionsSide;
-
-  /// See the class table.
   final double lessCropGrowth;
 
   /// The max box side of [kind].
@@ -552,13 +547,12 @@ final class MediaBoxSizing$Desktop extends MediaBoxSizing {
       input.inBubble ? bubbleMinWidth : minWidthWithoutBubble,
     );
     final dimensions = item.descriptor.size;
-    if (dimensions == null) {
-      fallbacks.add(MediaLayoutFallbackRule.noDimensions);
-      final side = math.min(noDimensionsSide, thumbMax);
-      return MediaBoxResult(Size.square(side), fallbacks: fallbacks);
-    }
-    final dw = dimensions.width.toDouble();
-    final dh = dimensions.height.toDouble();
+    // Without dimensions the picture counts as one pixel square: the box is
+    // the width and height floors, and only a video or an animation grows
+    // taller when a caption widens it.
+    final dw = dimensions?.width.toDouble() ?? 1;
+    final dh = dimensions?.height.toDouble() ?? 1;
+    if (dimensions == null) fallbacks.add(MediaLayoutFallbackRule.noDimensions);
     // Scaled down (never up) into the square max box, then to the width it
     // may take, and never taller than that width.
     var scale = math.min(1, math.min(maxSide / dw, maxSide / dh)).toDouble();
@@ -577,22 +571,28 @@ final class MediaBoxSizing$Desktop extends MediaBoxSizing {
     var width = mediaWidth;
     if (width < minWidth) {
       width = minWidth;
-      fallbacks.add(MediaLayoutFallbackRule.minWidth);
+      if (dimensions != null) fallbacks.add(MediaLayoutFallbackRule.minWidth);
     }
     var height = math.max(mediaHeight, minHeight);
+    var captionWidened = false;
     if (input.captionWidth case final caption?
         when input.hasText && input.inBubble) {
       final widened = math.min(math.max(width, caption), thumbMax);
       if (widened > width) {
         width = widened;
+        captionWidened = true;
         fallbacks.add(MediaLayoutFallbackRule.captionWidening);
       }
     }
-    if (width > mediaWidth) {
-      height = math.max(
-        height,
-        math.min(width * dh / dw, mediaHeight * lessCropGrowth),
-      );
+    if (dimensions != null) {
+      if (width > mediaWidth) {
+        height = math.max(
+          height,
+          math.min(width * dh / dw, mediaHeight * lessCropGrowth),
+        );
+      }
+    } else if (captionWidened && item.kind != MediaItemKind.photo) {
+      height = math.max(height, math.min(width, height * lessCropGrowth));
     }
     return MediaBoxResult(Size(width, height), fallbacks: fallbacks);
   }
@@ -608,7 +608,6 @@ final class MediaBoxSizing$Desktop extends MediaBoxSizing {
     double? bubbleMinWidth,
     double? minWidthWithoutBubble,
     double? minHeight,
-    double? noDimensionsSide,
     double? lessCropGrowth,
   }) => MediaBoxSizing$Desktop(
     photoMaxSize: photoMaxSize ?? this.photoMaxSize,
@@ -616,7 +615,6 @@ final class MediaBoxSizing$Desktop extends MediaBoxSizing {
     bubbleMinWidth: bubbleMinWidth ?? this.bubbleMinWidth,
     minWidthWithoutBubble: minWidthWithoutBubble ?? this.minWidthWithoutBubble,
     minHeight: minHeight ?? this.minHeight,
-    noDimensionsSide: noDimensionsSide ?? this.noDimensionsSide,
     lessCropGrowth: lessCropGrowth ?? this.lessCropGrowth,
   );
 }

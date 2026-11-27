@@ -6,6 +6,11 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `ChromeTapTiming.repeatGuard` (400 ms): the window in which a control
+  that opens or removes something ignores a repeat tap.
+
 ### Added (press scale)
 
 - `ChromeInk.scale` with `ChromeInkBounce` (a fixed factor, an overshoot on

@@ -9,6 +9,7 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/widgets.dart' show SizedBox;
@@ -256,6 +257,38 @@ void main() {
       await tester.pump();
 
       expect(other.set.composer.text.text, isEmpty);
+    });
+
+    testWidgets('the link preview options and dismissal come back', (
+      tester,
+    ) async {
+      final diagnostics = RecordingDiagnostics.install();
+      await boot(tester);
+      var rig = await _open(tester);
+      await rig.typeInField(tester, 'see https://a.b ');
+      await tester.pump();
+      rig.set.linkPreview
+        ..setMedia(LinkPreviewMedia.large)
+        ..invertMedia = true;
+      await tester.pump(_debounce);
+      final shown = (await _stored())!.linkPreview;
+      expect(shown.options?.media, LinkPreviewMedia.large);
+      expect(shown.invertMedia, isTrue);
+
+      rig.set.linkPreview.dismiss();
+      await _leave(tester);
+      final stored = (await _stored())!.linkPreview;
+      expect(stored.invertMedia, isTrue);
+      expect(stored.dismissal?.isClear, isFalse);
+
+      rig = await _open(tester);
+
+      expect(rig.set.linkPreview.invertMedia, isTrue);
+      expect(rig.set.linkPreview.dismissal.state, stored.dismissal);
+      expect(rig.set.linkPreview.card.value, isNull);
+      expect(diagnostics.whereOp(ChatLinkPreviewOp.draftRestored), [
+        isChatEvent(fields: {'hadOptions': false, 'hadDismissal': true}),
+      ]);
     });
   });
 }
