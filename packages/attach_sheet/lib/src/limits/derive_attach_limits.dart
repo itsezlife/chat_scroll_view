@@ -8,10 +8,10 @@ import 'package:listen/listen.dart';
 /// - `allowedKinds` is the media kinds of `sending.media` that have an
 ///   attach kind: `photo`, `video`, `animation`, `file` and `audio`. Voice
 ///   and round video are recorded, never picked, so they have none.
-/// - Under a slow mode the picker is in one-send mode: one send unit, and an
-///   album is one unit. Grouping stays on and single select stays off, so
-///   one album or one item goes; a host that wants fewer sets its own limits.
-///   Without a slow mode both keep their defaults.
+/// - Under a slow mode the picker is in one-send mode (`oneSend`): one send
+///   unit, and an album is one unit. Grouping stays on and single select
+///   stays off, so one album or one item goes; a host that wants fewer sets
+///   its own limits. Without a slow mode all three keep their defaults.
 /// - `captionLength`, `fileSizeLimit` and `albumSize` are the `limits` of
 ///   the chat.
 ///
@@ -29,6 +29,7 @@ AttachLimits deriveAttachLimits(ChatCapabilities capabilities) {
     // grouping is on and the selection is not cut to one item.
     groupingAllowed: true,
     singleSelect: false,
+    oneSend: capabilities.slowMode.isActive,
   );
 }
 
@@ -123,6 +124,7 @@ final class _AttachLimitsListenable extends ChangeNotifier
         'captionLength': limits.captionLength,
         'fileSizeLimit': limits.fileSizeLimit ?? 'none',
         'albumSize': limits.albumSize,
+        'oneSend': limits.oneSend,
       },
     );
   }

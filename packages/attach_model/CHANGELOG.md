@@ -6,6 +6,15 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (one-send mode)
+
+- `AttachLimits.oneSend` (default off, in `==`, `hashCode` and `copyWith`): one
+  send unit, an album being one. The selection caps at `albumSize`, "send
+  without grouping" is not offered, and the send plan groups whatever the
+  options say.
+- `AttachSelection.limits` can be set while the picker is open; a change
+  signals `changes` once and keeps the items already selected.
+
 ### Added (album size)
 
 - `AttachLimits.albumSize` (default 10, at least 1), in `==`, `hashCode` and the new

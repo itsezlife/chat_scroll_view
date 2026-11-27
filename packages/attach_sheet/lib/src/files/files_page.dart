@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/files/intake_items.dart';
 import 'package:attach_sheet/src/gallery/gallery_page.dart';
+import 'package:attach_sheet/src/limits/attach_denied_page.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/page/attach_page_scope.dart';
-import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
 import 'package:attach_sheet/src/panel/selection_listenable.dart';
+import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mpx_library/mpx_library.dart';
@@ -61,7 +62,7 @@ void _addFiles(
     final item = items.itemOf(file, asMedia: false);
     if (panel.selection.contains(item.id)) continue;
     if (panel.selection.toggle(item) case AttachToggle$Refused(:final reason)) {
-      panel.host.interaction(AttachInteraction.refused(reason));
+      panel.refused(item, reason);
     }
   }
 }
@@ -117,59 +118,90 @@ class _FilesViewState extends State<_FilesView> {
   Widget build(BuildContext context) {
     final strings = ChromeStringsScope.attachOf(context);
     final palette = ChromeThemeScope.paletteOf(context);
+    final gate = _panel.capabilities;
     return ListenableBuilder(
-      listenable: SelectionListenable(_panel.selection),
-      builder: (context, _) => ListView(
-        controller: widget.scope.scrollController,
-        padding: const EdgeInsets.only(top: 16, bottom: 120),
-        children: [
-          if (widget.library != null)
-            _ActionRow(
-              key: const ValueKey('attach-files-gallery'),
-              label: strings.chooseFromGallery,
-              palette: palette,
-              onTap: () => unawaited(_pickFromGallery()),
-            ),
-          _ActionRow(
-            key: const ValueKey('attach-files-dialog'),
-            label: strings.chooseFromFiles,
-            palette: palette,
-            onTap: () => unawaited(_pickFiles()),
+      // The chat's rights by group: a slow mode tick does not reach here.
+      listenable: Listenable.merge([
+        SelectionListenable(_panel.selection),
+        ?gate?.sending,
+      ]),
+      builder: (context, _) => switch (gate) {
+        // Files denied: the tab stays, its content is the denial text.
+        final gate? when gate.denies(AttachKind.file) => AttachDeniedPage(
+          key: const ValueKey('attach-files-denied'),
+          text: gate.denialText(
+            AttachKind.file,
+            form: switch (_panel.policy.deniedForm) {
+              AttachDeniedForm.text => 'filesPage',
+              AttachDeniedForm.emptyState => 'filesEmptyState',
+            },
           ),
-          for (final item in _panel.selection.items)
-            if (widget.items.fileOf(item.id) != null)
-              _FileRow(
-                key: ValueKey('attach-files-picked-${item.id}'),
-                name: item.facts.name ?? '',
-                size: item.facts.byteSize,
-                order: _panel.selection.orderOf(item.id),
-                palette: palette,
-                onTap: () => _panel.selection.remove(item.id),
-              ),
-          if (_$recent case final recent?)
-            FutureBuilder<List<IntakeFile>>(
-              future: recent,
-              builder: (context, snapshot) => _Recent(
-                header: strings.recentFiles,
-                files: snapshot.data,
-                palette: palette,
-                orderOf: (file) => _panel.selection.orderOf(
-                  widget.items.itemOf(file, asMedia: false).id,
-                ),
-                onTap: (file) {
-                  final item = widget.items.itemOf(file, asMedia: false);
-                  if (_panel.selection.contains(item.id)) {
-                    _panel.selection.remove(item.id);
-                  } else {
-                    _addFiles(_panel, widget.items, [file]);
-                  }
-                },
-              ),
-            ),
-        ],
-      ),
+          form: _panel.policy.deniedForm,
+          controller: widget.scope.scrollController,
+        ),
+        _ => _content(context, strings, palette),
+      },
     );
   }
+
+  Widget _content(
+    BuildContext context,
+    AttachStrings strings,
+    ChromePalette palette,
+  ) => ListView(
+    controller: widget.scope.scrollController,
+    padding: const EdgeInsets.only(top: 16, bottom: 120),
+    children: [
+      if (widget.library != null)
+        _ActionRow(
+          key: const ValueKey('attach-files-gallery'),
+          label: strings.chooseFromGallery,
+          palette: palette,
+          onTap: () => unawaited(_pickFromGallery()),
+        ),
+      _ActionRow(
+        key: const ValueKey('attach-files-dialog'),
+        label: strings.chooseFromFiles,
+        palette: palette,
+        onTap: () => unawaited(_pickFiles()),
+      ),
+      for (final item in _panel.selection.items)
+        if (widget.items.fileOf(item.id) != null)
+          // A pick of a kind the chat denied since is marked: the send
+          // is refused while it is there.
+          Opacity(
+            key: ValueKey('attach-files-picked-${item.id}'),
+            opacity: _panel.capabilities?.isDeniedPick(item) ?? false ? 0.5 : 1,
+            child: _FileRow(
+              name: item.facts.name ?? '',
+              size: item.facts.byteSize,
+              order: _panel.selection.orderOf(item.id),
+              palette: palette,
+              onTap: () => _panel.selection.remove(item.id),
+            ),
+          ),
+      if (_$recent case final recent?)
+        FutureBuilder<List<IntakeFile>>(
+          future: recent,
+          builder: (context, snapshot) => _Recent(
+            header: strings.recentFiles,
+            files: snapshot.data,
+            palette: palette,
+            orderOf: (file) => _panel.selection.orderOf(
+              widget.items.itemOf(file, asMedia: false).id,
+            ),
+            onTap: (file) {
+              final item = widget.items.itemOf(file, asMedia: false);
+              if (_panel.selection.contains(item.id)) {
+                _panel.selection.remove(item.id);
+              } else {
+                _addFiles(_panel, widget.items, [file]);
+              }
+            },
+          ),
+        ),
+    ],
+  );
 }
 
 class _Recent extends StatelessWidget {

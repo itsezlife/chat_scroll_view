@@ -28,6 +28,7 @@ void main() {
       expect(derived.spoilerAllowed, today.spoilerAllowed);
       expect(derived.sendAsFileAllowed, today.sendAsFileAllowed);
       expect(derived.albumSize, today.albumSize);
+      expect(derived.oneSend, today.oneSend);
     });
 
     const attachOf = {
@@ -78,6 +79,7 @@ void main() {
         );
         expect(derived.groupingAllowed, isTrue);
         expect(derived.singleSelect, isFalse);
+        expect(derived.oneSend, isTrue);
         expect(derived.albumSize, 10);
       },
     );
@@ -145,7 +147,7 @@ void main() {
         ..update(limits: const ChatLimits(albumSize: 4, fileSize: 99))
         ..update(slowMode: const SlowMode(interval: Duration(seconds: 5)));
       final events = diagnostics.whereOp(CapabilitiesOp.limitsDerived);
-      expect(events, hasLength(2));
+      expect(events, hasLength(3));
       expect(events.first.correlation.chatId, 'c1');
       expect(events.first.fields, {
         'kinds': 'animation,audio,file,photo,video',
@@ -154,9 +156,11 @@ void main() {
         'captionLength': 1024,
         'fileSizeLimit': 'none',
         'albumSize': 10,
+        'oneSend': false,
       });
-      expect(events.last.fields['albumSize'], 4);
-      expect(events.last.fields['fileSizeLimit'], 99);
+      expect(events[1].fields['albumSize'], 4);
+      expect(events[1].fields['fileSizeLimit'], 99);
+      expect(events.last.fields['oneSend'], isTrue);
     });
   });
 }

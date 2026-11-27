@@ -443,6 +443,20 @@ abstract base class AttachSheetPolicy {
   /// than when it was taken: the label then follows the grid's order.
   bool get libraryMonthByModified => true;
 
+  // --- Denied forms ---
+
+  /// Whether the Gallery page shows a page with the chat's denial text in
+  /// place of its grid when the chat denies both photos and videos (true,
+  /// the Android form), or keeps the grid with no item selectable (false,
+  /// the iOS form). With one of the two denied, the grid stays on both and
+  /// items of the denied kind are not selectable.
+  bool get galleryDeniedPage => true;
+
+  /// How a page whose kind the chat denies (Files with files denied, the
+  /// Gallery under [galleryDeniedPage]) draws the denial text in place of
+  /// its content.
+  AttachDeniedForm get deniedForm => AttachDeniedForm.text;
+
   // --- Confirm box ---
 
   /// The confirm box every intake route leads to; null on a family that
@@ -454,6 +468,15 @@ abstract base class AttachSheetPolicy {
 }
 
 // --- Stock families ---
+
+/// How a page draws the chat's denial text in place of its content.
+enum AttachDeniedForm {
+  /// The text alone at the top of the page.
+  text,
+
+  /// An empty state: the text centred in the page.
+  emptyState,
+}
 
 /// The Android family: a sheet that springs up from the bottom, rises with
 /// its page's scroll and pins at the top under a header, and is pulled down
@@ -992,6 +1015,14 @@ base class AttachSheetPolicy$IOS extends AttachSheetPolicy {
 
   @override
   LibraryGridPolicy get libraryGrid => LibraryGridPolicy.$IOS;
+
+  /// The grid stays: the chat's denied kinds are not selectable in it.
+  @override
+  bool get galleryDeniedPage => false;
+
+  /// An empty state, the text centred.
+  @override
+  AttachDeniedForm get deniedForm => AttachDeniedForm.emptyState;
 
   /// The thin thumb that shows while the grid scrolls, hidden while most
   /// of the grid is in view.

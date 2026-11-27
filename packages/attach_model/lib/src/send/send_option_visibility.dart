@@ -67,8 +67,10 @@ final class SendOptionVisibility {
       _hasMedia &&
       !(policy.sendAsFileHiddenBySpoiler && items.any((i) => i.spoiler));
 
-  /// "Send without grouping": more than one item, grouping allowed.
-  bool get withoutGrouping => limits.groupingAllowed && items.length > 1;
+  /// "Send without grouping": more than one item, grouping allowed, and not
+  /// in one-send mode (where the items go as one album).
+  bool get withoutGrouping =>
+      limits.groupingAllowed && !limits.oneSend && items.length > 1;
 
   /// "Send in high quality", by [AttachPolicy.highQualityOffer].
   bool get highQuality => switch (policy.highQualityOffer) {

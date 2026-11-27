@@ -30,7 +30,8 @@ enum CapabilitiesOp implements DiagnosticOp {
 
   /// A picker's limits were derived from a chat's value (debug): the allowed
   /// attach kinds, grouping, single select and the caption, file and album
-  /// limits. Emitted by the picker's package, which owns the derivation.
+  /// limits and one-send mode. Emitted by the picker's package, which owns
+  /// the derivation.
   limitsDerived,
 
   /// The composer chose its input row's panel from the write access (debug):
@@ -38,6 +39,10 @@ enum CapabilitiesOp implements DiagnosticOp {
   /// host form), the `panel` id and the `builder` (`field`, `host` or
   /// `default`). Emitted by the composer once per change of those.
   panelChosen,
+
+  /// A picker entered or left one-send mode (debug): `on`, and the album
+  /// cap one send unit holds. Emitted by the picker's package.
+  pickerOneSend,
 
   /// Slow mode's countdown started in the composer (debug): the slow mode
   /// `intervalMs`, the `remainingMs` of the wait and whether a message is

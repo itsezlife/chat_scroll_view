@@ -5,6 +5,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/debug/attach_log.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
+import 'package:attach_sheet/src/limits/attach_capabilities.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/page/attach_pages_sheet.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
@@ -97,7 +98,9 @@ class AttachSheet extends StatefulWidget {
   ///
   /// [initialCaption] is the composer's text, moved into the caption; a
   /// cancel returns the caption as it is then. [optionStore] remembers the
-  /// send options per the selection's attach policy.
+  /// send options per the selection's attach policy. [capabilities] are
+  /// the chat's rights, applied over the selection's limits while the sheet
+  /// is up (`AttachCapabilities`).
   static Future<AttachOutcome> show(
     BuildContext context, {
     required AttachSheetPolicy policy,
@@ -107,6 +110,7 @@ class AttachSheet extends StatefulWidget {
     AttachSheetOpening opening = const AttachSheetOpening(),
     RichText initialCaption = RichText.empty,
     SendOptionStore? optionStore,
+    AttachCapabilities? capabilities,
   }) async {
     final outcome = await Navigator.of(context).push(
       _attachSheetRoute(
@@ -118,6 +122,7 @@ class AttachSheet extends StatefulWidget {
           opening: opening,
           initialCaption: initialCaption,
           optionStore: optionStore,
+          capabilities: capabilities,
           onClosed: (outcome) => _closeRoute(context, outcome),
         ),
       ),

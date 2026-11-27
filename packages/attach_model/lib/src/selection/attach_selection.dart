@@ -130,13 +130,25 @@ final class AttachSelectionSnapshot {
 /// [changes].
 final class AttachSelection with ChangeNotifier {
   /// An empty selection under [policy] and [limits].
-  AttachSelection({required this.policy, required this.limits});
+  AttachSelection({required this.policy, required AttachLimits limits})
+    : _$limits = limits;
 
   /// The rules for the cap.
   final AttachPolicy policy;
 
   /// The host's limits for this open.
-  final AttachLimits limits;
+  ///
+  /// They may change while the picker is open (the chat's rights changed):
+  /// a change signals [changes] once and gates what joins from then on.
+  /// Items already selected stay, even of a kind no longer allowed or past
+  /// a smaller cap; the send is where they are refused.
+  AttachLimits get limits => _$limits;
+  AttachLimits _$limits;
+  set limits(AttachLimits value) {
+    if (value == _$limits) return;
+    _$limits = value;
+    notifyListeners();
+  }
 
   final List<AttachItem> _$items = [];
   RichText _$caption = RichText.empty;
@@ -268,8 +280,18 @@ final class AttachSelection with ChangeNotifier {
     if (_$captions.length != before) _$captionChanges.notifyListeners();
   }
 
-  /// The most items the selection takes; null for no cap.
-  int? get cap => limits.singleSelect ? 1 : policy.selectionCap;
+  /// The most items the selection takes; null for no cap. In one-send mode
+  /// ([AttachLimits.oneSend]) one album is the most, so the cap is the
+  /// album size when that is smaller.
+  int? get cap {
+    if (limits.singleSelect) return 1;
+    final policyCap = policy.selectionCap;
+    if (!limits.oneSend) return policyCap;
+    return switch (policyCap) {
+      final cap? when cap < limits.albumSize => cap,
+      _ => limits.albumSize,
+    };
+  }
 
   /// The items, in selection order. Unmodifiable.
   List<AttachItem> get items => List.unmodifiable(_$items);

@@ -6,6 +6,11 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (pickerOneSend)
+
+- `CapabilitiesOp.pickerOneSend`, emitted by the picker package when it enters
+  or leaves one-send mode.
+
 ### Added (slow mode)
 
 - `CapabilitiesOp.slowModeStarted` and `slowModeEnded`, emitted by the

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/header/attach_selection_header_view.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
+import 'package:attach_sheet/src/limits/attach_capabilities.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/page/attach_page_scope.dart';
 import 'package:attach_sheet/src/page/attach_tab_bar.dart';
@@ -33,6 +34,7 @@ class AttachPagesSheet extends StatefulWidget {
     required this.onClosed,
     this.initialCaption = RichText.empty,
     this.optionStore,
+    this.capabilities,
     super.key,
   });
 
@@ -41,6 +43,10 @@ class AttachPagesSheet extends StatefulWidget {
 
   /// Where the send options are remembered; null for nowhere.
   final SendOptionStore? optionStore;
+
+  /// The chat's rights over this open; null for the selection's limits
+  /// alone.
+  final AttachCapabilities? capabilities;
 
   /// The sheet's policy.
   final AttachSheetPolicy policy;
@@ -71,6 +77,7 @@ class _AttachPagesSheetState extends State<AttachPagesSheet> {
     host: widget.host,
     initialCaption: widget.initialCaption,
     store: widget.optionStore,
+    capabilities: widget.capabilities,
     onSend: (request) =>
         unawaited(_$model.sheet.close(AttachOutcome.send(request))),
   );

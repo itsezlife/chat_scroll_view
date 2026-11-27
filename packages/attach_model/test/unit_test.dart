@@ -12,6 +12,7 @@ import 'item/attach_item_test.dart' as attach_item_test;
 import 'policy/attach_policy_test.dart' as attach_policy_test;
 import 'selection/attach_captions_test.dart' as attach_captions_test;
 import 'selection/attach_selection_test.dart' as attach_selection_test;
+import 'selection/one_send_test.dart' as one_send_test;
 import 'send/plan_send_test.dart' as plan_send_test;
 import 'send/send_option_visibility_test.dart' as send_option_visibility_test;
 import 'store/send_option_store_test.dart' as send_option_store_test;
@@ -21,6 +22,7 @@ void main() {
   group('policy/attach_policy_test.dart', attach_policy_test.main);
   group('selection/attach_captions_test.dart', attach_captions_test.main);
   group('selection/attach_selection_test.dart', attach_selection_test.main);
+  group('selection/one_send_test.dart', one_send_test.main);
   group('send/plan_send_test.dart', plan_send_test.main);
   group(
     'send/send_option_visibility_test.dart',

@@ -5,6 +5,7 @@ import 'package:attach_sheet/src/debug/attach_log.dart';
 import 'package:attach_sheet/src/header/attach_selection_header.dart';
 import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
+import 'package:attach_sheet/src/limits/attach_capabilities.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/policy/attach_panel_style.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
@@ -33,7 +34,12 @@ final class AttachSendController {
     RichText initialCaption = RichText.empty,
     SendOptions initialOptions = const SendOptions(),
     this.store,
+    AttachCapabilities? capabilities,
   }) : options = ValueNotifier(initialOptions),
+       capabilities = switch (capabilities) {
+         final given? => AttachCapabilityGate(given, selection: selection),
+         null => null,
+       },
        _captionText = host.createCaptionText() {
     caption = ComposerController(
       text: _captionText,
@@ -71,6 +77,22 @@ final class AttachSendController {
 
   /// Where the options are remembered; null for nowhere.
   final SendOptionStore? store;
+
+  /// The chat's rights over this open, when the host gave them: they narrow
+  /// the selection's limits live, and the pages read them to draw a denied
+  /// kind. Null for the host's limits alone.
+  final AttachCapabilityGate? capabilities;
+
+  /// Raises a refusal of [item] for [reason]: a kind the chat denies goes
+  /// to the host's `onDenied` (once per guard window when [guarded]; a
+  /// file attached on desktop is reported each time), any other refusal
+  /// to [host] as an attach interaction.
+  void refused(AttachItem item, AttachRefusal reason, {bool guarded = true}) {
+    if (capabilities?.reportRefusal(item, reason, guarded: guarded) ?? false) {
+      return;
+    }
+    host.interaction(AttachInteraction.refused(reason));
+  }
 
   /// The caption's input, over the host's text controller when it gives
   /// one (`AttachSheetHost.createCaptionText`).
@@ -247,16 +269,24 @@ final class AttachSendController {
   /// Sends with the options, changed by [change] for this send only. A
   /// caption over the limit is refused: the field shakes, the policy's
   /// haptic plays and the host hears an [AttachInteraction.captionTooLong].
-  /// Returns whether it was sent.
+  ///
+  /// The send is refused the same way, the picker staying open with its
+  /// selection and caption, while an item of a kind the chat denies is
+  /// selected (the host's `onDenied`), and in one-send mode when the
+  /// selection would go as more than one send
+  /// ([AttachInteraction.oneSendRefused]). Returns whether it was sent.
   bool send([SendOptions Function(SendOptions options)? change]) {
     // One send per open: a second press (a spammed Send, the send menu
     // after Send) is ignored.
     if (_$disposed || this.sent != null) return false;
     final over = caption.length - captionLimit;
     if (over > 0) {
-      refusals.value++;
-      _haptic(policy.panel.overLimitHaptic);
+      _refuse();
       host.interaction(AttachInteraction.captionTooLong(over: over));
+      return false;
+    }
+    if (capabilities?.refusesSend(selection.items) ?? false) {
+      _refuse();
       return false;
     }
     final sent = change == null ? options.value : change(options.value);
@@ -265,11 +295,29 @@ final class AttachSendController {
       caption: caption.richText,
       options: sent,
     );
+    if (selection.limits.oneSend && !_isOneUnit(request)) {
+      _refuse();
+      host.interaction(const AttachInteraction.oneSendRefused());
+      return false;
+    }
     if (store case final store?) unawaited(store.save(sent));
     this.sent = request;
     onSend(request);
     return true;
   }
+
+  void _refuse() {
+    refusals.value++;
+    _haptic(policy.panel.overLimitHaptic);
+  }
+
+  // Whether [request] plans to one send unit: one item, or one album. A
+  // plan the planner rejects is left to the host, as outside one-send mode.
+  bool _isOneUnit(SendRequest request) =>
+      switch (planSend(request, selection.policy, selection.limits)) {
+        SendPlan$Ready(:final sends) => sends.length <= 1,
+        SendPlan$Rejected() => true,
+      };
 
   /// Runs the send menu's [item].
   Future<void> runSendMenu(
@@ -345,6 +393,7 @@ final class AttachSendController {
     if (_$disposed) return;
     _$disposed = true;
     selection.captionChanges.removeListener(_sharedCaptionChanged);
+    capabilities?.dispose();
     header.dispose();
     caption.focusNode.removeListener(_captionFocus);
     caption.text.removeListener(_captionChanged);

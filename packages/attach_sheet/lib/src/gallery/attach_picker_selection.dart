@@ -19,6 +19,7 @@ final class AttachPickerSelection implements PickerSelection {
     required this.selection,
     required MediaLibrary source,
     this.onRefused,
+    this.onItemRefused,
     this.captures,
   }) : _recording = _RecordingLibrary(source) {
     _recording
@@ -31,6 +32,11 @@ final class AttachPickerSelection implements PickerSelection {
 
   /// Called with each refusal, as an attach interaction.
   final ValueChanged<AttachInteraction>? onRefused;
+
+  /// Called with each refusal and the item refused, in place of
+  /// [onRefused]: the panel's `refused`, which sends a kind the chat denies
+  /// to the host's `onDenied`.
+  final void Function(AttachItem item, AttachRefusal reason)? onItemRefused;
 
   /// The camera's captures, whose keys the grid also checks; null for
   /// none.
@@ -229,7 +235,7 @@ final class AttachPickerSelection implements PickerSelection {
       final result = selection.toggle(item);
       if (result case AttachToggle$Refused(:final reason)) {
         refused.add((key, _pickerReason(reason)!));
-        onRefused?.call(AttachInteraction.refused(reason));
+        _report(item, reason);
       }
     }
     return refused;
@@ -241,12 +247,17 @@ final class AttachPickerSelection implements PickerSelection {
           selection.orderOf(item.id) ?? 0,
         ),
         AttachToggle$Deselected() => const PickerToggle$Deselected(),
-        AttachToggle$Refused(:final reason) => _refuse(reason),
+        AttachToggle$Refused(:final reason) => _refuse(item, reason),
       };
 
-  PickerToggle _refuse(AttachRefusal reason) {
-    onRefused?.call(AttachInteraction.refused(reason));
+  PickerToggle _refuse(AttachItem item, AttachRefusal reason) {
+    _report(item, reason);
     return PickerToggle$Refused(_pickerReason(reason)!);
+  }
+
+  void _report(AttachItem item, AttachRefusal reason) {
+    if (onItemRefused case final report?) return report(item, reason);
+    onRefused?.call(AttachInteraction.refused(reason));
   }
 
   static PickerRefusal? _pickerReason(AttachRefusal? reason) =>

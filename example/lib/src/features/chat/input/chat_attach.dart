@@ -491,6 +491,8 @@ final class ChatAttach extends AttachSheetHost {
         demoChromeStrings.attach.captureVideoNotAllowed,
       AttachInteraction$VideoRefused(reason: AttachVideoRefusal.microphone) =>
         demoChromeStrings.attach.captureMicrophoneDenied,
+      AttachInteraction$OneSendRefused() =>
+        'В медленном режиме можно отправить один альбом',
     };
     bulletins.show(ChatBulletins.notice(text));
   }
