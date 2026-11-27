@@ -109,10 +109,11 @@ final class MediaTimePillPlacement {
 
   /// Whether the time sits over the media of [layout] laid out from
   /// [input]: a time is shown, nothing follows the media in the bubble (no
-  /// caption below, no link preview card) and the last block is boxes.
+  /// caption below, no reactions below, no link preview card:
+  /// `MediaLayoutInput.mediaIsBottom`) and the last block is boxes.
   static bool sitsOnMedia(MediaLayout layout, MediaLayoutInput input) =>
       input.chrome.timeWidth > 0 &&
-      input.captionPosition != MediaCaptionPosition.below &&
+      input.mediaIsBottom &&
       switch (layout.blocks) {
         [..., MediaBlock$Mosaic()] => true,
         _ => false,

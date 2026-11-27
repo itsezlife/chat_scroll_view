@@ -131,6 +131,8 @@ final class MediaLayoutInput {
     this.inBubble = true,
     this.joinedAbove = false,
     this.joinedBelow = false,
+    this.headerAbove = false,
+    this.reactionsBelow = false,
     this.chrome = MediaLayoutChrome.none,
     this.correlation = ChatCorrelation.none,
     Map<MediaItemId, double> fileCaptionHeights = const {},
@@ -181,6 +183,14 @@ final class MediaLayoutInput {
   /// Whether the bubble is joined to the bubble below it.
   final bool joinedBelow;
 
+  /// Whether a header (the sender's name, a forward or reply header) sits
+  /// above the media in the bubble: the first block's top touches text.
+  final bool headerAbove;
+
+  /// Whether reactions sit under the media in the bubble: the media is not
+  /// the bubble's bottom element, so the time leaves it.
+  final bool reactionsBelow;
+
   /// Measured chrome widths.
   final MediaLayoutChrome chrome;
 
@@ -201,6 +211,51 @@ final class MediaLayoutInput {
   /// The bubble's max content width.
   double get contentWidth => maxContentWidth ?? availableWidth;
 
+  /// Whether the media blocks end the bubble: no text and no reactions
+  /// under them.
+  bool get mediaIsBottom =>
+      captionPosition != MediaCaptionPosition.below && !reactionsBelow;
+
+  /// Whether the link preview card is the bubble's bottom element, which
+  /// moves the time under the card (its own line, or the card's bottom
+  /// inset, by platform).
+  bool get cardIsLast => linkPreview != null && mediaIsBottom;
+
+  /// A copy with the given fields replaced.
+  MediaLayoutInput copyWith({
+    List<MediaItem>? items,
+    double? availableWidth,
+    MediaCaptionPosition? captionPosition,
+    double? captionWidth,
+    bool? isOutgoing,
+    bool? joinedAbove,
+    bool? joinedBelow,
+    bool? headerAbove,
+    bool? reactionsBelow,
+    MediaLayoutChrome? chrome,
+    Map<MediaItemId, double>? fileCaptionHeights,
+  }) => MediaLayoutInput(
+    items: items ?? this.items,
+    availableWidth: availableWidth ?? this.availableWidth,
+    displaySize: displaySize,
+    tabletMinSide: tabletMinSide,
+    maxContentWidth: maxContentWidth,
+    captionPosition: captionPosition ?? this.captionPosition,
+    captionWidth: captionWidth ?? this.captionWidth,
+    linkPreview: linkPreview,
+    isOutgoing: isOutgoing ?? this.isOutgoing,
+    showsAvatar: showsAvatar,
+    hasSideButton: hasSideButton,
+    inBubble: inBubble,
+    joinedAbove: joinedAbove ?? this.joinedAbove,
+    joinedBelow: joinedBelow ?? this.joinedBelow,
+    headerAbove: headerAbove ?? this.headerAbove,
+    reactionsBelow: reactionsBelow ?? this.reactionsBelow,
+    chrome: chrome ?? this.chrome,
+    correlation: correlation,
+    fileCaptionHeights: fileCaptionHeights ?? this.fileCaptionHeights,
+  );
+
   @override
   bool operator ==(Object other) =>
       other is MediaLayoutInput &&
@@ -218,6 +273,8 @@ final class MediaLayoutInput {
       other.inBubble == inBubble &&
       other.joinedAbove == joinedAbove &&
       other.joinedBelow == joinedBelow &&
+      other.headerAbove == headerAbove &&
+      other.reactionsBelow == reactionsBelow &&
       other.chrome == chrome &&
       other.correlation == correlation &&
       _mapEquals(other.fileCaptionHeights, fileCaptionHeights);
@@ -238,6 +295,8 @@ final class MediaLayoutInput {
     inBubble,
     joinedAbove,
     joinedBelow,
+    headerAbove,
+    reactionsBelow,
     chrome,
     correlation,
     Object.hashAllUnordered(

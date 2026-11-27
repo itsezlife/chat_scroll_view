@@ -342,7 +342,9 @@ final class MediaBoxSizing$Android extends MediaBoxSizing {
 /// | [animationFillSize] | 480 × 480 | An animation's native size fills this first |
 ///
 /// The box is capped by the bubble's max content width as well. In a
-/// mosaic, an item without dimensions is a square.
+/// mosaic, an item without dimensions is a square. A caption wider than the
+/// box (`MediaLayoutInput.captionWidth`) widens it up to the max box width,
+/// at the same height.
 final class MediaBoxSizing$IOS extends MediaBoxSizing {
   /// The iOS defaults; any value can be replaced.
   const MediaBoxSizing$IOS({
@@ -456,6 +458,19 @@ final class MediaBoxSizing$IOS extends MediaBoxSizing {
       minSize.height,
       math.min(width * native.height / native.width, maxSize.height),
     );
+    // The caption wraps at the media's max width; a caption wider than the
+    // box widens it up to that width, keeping its height (the fit fills the
+    // bars).
+    if (input.captionWidth case final caption? when input.hasText) {
+      final widened = math.min(
+        caption,
+        math.min(maxSize.width, input.contentWidth),
+      );
+      if (widened > width) {
+        width = widened;
+        fallbacks.add(MediaLayoutFallbackRule.captionWidening);
+      }
+    }
     return MediaBoxResult(Size(width, height), fallbacks: fallbacks);
   }
 

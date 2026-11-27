@@ -25,6 +25,20 @@ this package is pre-1.0.
 - `MediaBoxCell.presetFor`, `MediaRowCell.presetOf` and `rowOf`.
 - `media` / `hit`, `activationDropped`, `viewerOpened` and
   `originRectMissing` diagnostics.
+- `MessageMediaBubbleLayout`, the optional bubble content: media, caption,
+  header, each file's caption and the time pill placed by `invertMedia`,
+  the caption moved and cross-faded on the media's clock.
+  `MediaBubbleComposition` (`inputFor`, `captionPositionFor`, `textFirst`),
+  `MediaBubbleShape`, `MediaBubbleTime`, `MediaBubbleGeometry` and
+  `MediaBubbleText`.
+- `MediaCaptionWidthPolicy` (`android()`, `ios()`, `desktop()`) on
+  `MediaLayoutPolicy.captionWidth`: a layout with a caption now carries
+  `widthMetrics`.
+- `MediaLayoutInput.headerAbove` (the first block's top touches text),
+  `reactionsBelow`, `mediaIsBottom`, `cardIsLast` and `copyWith`. The time
+  pill is not reported with reactions below.
+- `MessageMediaTransition.revision` (a leg for a change the layout does not
+  show), and `chromeContext` / `selectionProgress` forwarded to the view.
 
 - Chrome slots (`MessageMediaPolicy.chrome`, `MediaChromeSlots` with
   `android()`, `ios()`, `desktop()`): the time pill's rect
@@ -101,6 +115,11 @@ this package is pre-1.0.
 - The status control of a box and of a row takes no pointer: its taps are
   the view's body part hits, so a tap on it toggles the message in
   selection instead of downloading.
+- The iOS box widens to a measured caption wider than it, up to the max
+  box width, at the same height (`captionWidening`).
+- `MediaTailPresence.withText` is `withTextBelow`: only a caption below
+  gives an Android bubble its tail corner; a caption above leaves the
+  bottom corners on the bubble edge.
 
 - `MediaLayoutPolicy.fileRowHeight` is replaced by `fileStack`. A file
   stack is no longer the box budget wide with fixed 56 / 65 / 60 rows: an

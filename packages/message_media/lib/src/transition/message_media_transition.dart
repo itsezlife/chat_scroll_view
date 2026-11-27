@@ -33,6 +33,8 @@ typedef MessageMediaTransitionBuilder =
 /// viewport's anchor and follow-tail rules move the neighbours, as for an
 /// edit morph; the viewport needs nothing else.
 ///
+/// - **Revision.** A new [revision] starts a leg though the layout is the
+///   same, for a change only the bubble shows (a caption edit).
 /// - **Interrupt.** A [layout] that changes while a leg runs starts the
 ///   next leg from the frame reached, not from the old layout.
 /// - **Items.** The cells that leave keep the item they draw until their
@@ -57,6 +59,7 @@ class MessageMediaTransition extends StatefulWidget {
     required this.items,
     required this.policy,
     this.trigger,
+    this.revision,
     this.builder,
     this.downloadContext,
     this.correlation = ChatCorrelation.none,
@@ -85,6 +88,11 @@ class MessageMediaTransition extends StatefulWidget {
   /// of the same items and from a card change.
   final MediaTransitionTrigger? trigger;
 
+  /// A change the media layout does not show (a caption edit that keeps
+  /// the media's size): a new value starts a leg though [layout] is equal,
+  /// so the bubble and the caption still move on the clock.
+  final Object? revision;
+
   /// Builds the bubble around the media for each frame; unset, the media
   /// alone.
   final MessageMediaTransitionBuilder? builder;
@@ -95,10 +103,12 @@ class MessageMediaTransition extends StatefulWidget {
   /// The chat and message the diagnostics events name.
   final ChatCorrelation correlation;
 
-  /// See `MessageMediaView.chromeContext`.
+  /// What the message is drawn in, which the chrome slots weigh
+  /// (`MessageMediaView.chromeContext`).
   final MediaChromeContext chromeContext;
 
-  /// See `MessageMediaView.selectionProgress`.
+  /// The selection checkbox's appearance, 0 to 1
+  /// (`MessageMediaView.selectionProgress`).
   final Animation<double>? selectionProgress;
 
   /// See `MessageMediaView.selection`.
@@ -133,7 +143,10 @@ class _MessageMediaTransitionState extends State<MessageMediaTransition>
   @override
   void didUpdateWidget(MessageMediaTransition oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.layout == oldWidget.layout) return;
+    if (widget.layout == oldWidget.layout &&
+        widget.revision == oldWidget.revision) {
+      return;
+    }
     final kept = {for (final item in widget.items) item.id};
     for (final item in oldWidget.items) {
       if (!kept.contains(item.id)) _leaving[item.id] = item;

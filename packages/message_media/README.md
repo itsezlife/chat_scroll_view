@@ -45,6 +45,12 @@ coordinates, a fit (none for a file row) and a `MediaNeighbour` per side
 (bubble edge, text, item, adjacent bubble), which the paint step reads for
 corner radii.
 
+A layout with a caption carries `MediaWidthMetrics` from the step's
+`MediaCaptionWidthPolicy`: `widenMedia` on Android (the caption wraps at
+the bubble's max content width) and desktop (up to 430), `wrapAtMedia` on
+iOS (at the media's max width). A host that passes the caption's measured
+width (`captionWidth`) gets media widened to it, up to the policy's limit.
+
 ## File stack
 
 Files never join a mosaic. Each file is a row; a file has a thumbnail when
@@ -171,6 +177,27 @@ the pure leg underneath.
 | enter | 250 ms fade, scale 0.9 → 1 | 250 ms fade | none |
 
 With `MediaQuery.disableAnimations` every change jumps to its end.
+
+## Bubble layout
+
+`MessageMediaBubbleLayout` is the optional bubble content: the media, the
+caption (the host's text body), a header (name, forward, reply) and the
+time pill, placed by the message's `invertMedia`. `MediaBubbleComposition`
+says what the bubble holds; its `inputFor` tells the layout which media
+sides touch text (caption above or below, header above, reactions below),
+and `MediaBubbleShape.of` and `MediaBubbleTime.of` give the bubble's shape
+(a media bubble has no tail; a caption below makes a tailed text bubble)
+and where the time goes (over the media, on the last file row, under a
+last card, or in the host's text).
+
+The caption wraps at the metrics' width; the header is laid out to the
+media's width and truncates there. An album has one caption, above or
+below; each file of a stack keeps its own in its row's caption slot. The
+widget runs `MessageMediaTransition` itself: an `invertMedia` flip slides
+the caption to its other side and a caption edit (`captionRevision`)
+cross-fades the old caption into the new, both on the media's clock, with
+the `invertMedia` and `caption` triggers. The host keeps the bubble's fill
+and tail around it.
 
 ## Geometry
 
