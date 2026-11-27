@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_shell/src/input/panel_intents.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
+import 'package:panel_shell/src/widgets/panel_page_availability_view.dart';
 
 /// How the type tabs show a page's [PanelTab].
 enum PanelTabDisplay {
@@ -310,40 +311,45 @@ class _TabButtonState extends State<_TabButton> {
         child: ChromeIcon(widget.page.tab.icon, size: 22, color: color),
       ),
     };
-    return Semantics(
-      button: true,
-      selected: widget.selected,
+    return PanelTabAvailability(
+      pageId: widget.page.id,
       label: label,
-      onTap: _select,
-      child: FocusableActionDetector(
-        mouseCursor: SystemMouseCursors.click,
-        onShowFocusHighlight: (value) => setState(() => _focused = value),
-        actions: <Type, Action<Intent>>{
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              _select();
-              return null;
-            },
-          ),
-        },
-        child: ExcludeSemantics(
-          child: ScalePressable(
-            pressedScaleReduction: 0.025,
-            releaseTension: 1.2,
-            onPressed: _select,
-            child: DecoratedBox(
-              position: DecorationPosition.foreground,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(PanelTypeTabs.height / 2),
-                border: _focused
-                    ? Border.all(color: action.floatingLabel, width: 1.5)
-                    : null,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: PanelTypeTabs.tabPadding,
+      tabBuilder: (context, spoken, hint) => Semantics(
+        button: true,
+        selected: widget.selected,
+        label: spoken,
+        hint: hint,
+        onTap: _select,
+        child: FocusableActionDetector(
+          mouseCursor: SystemMouseCursors.click,
+          onShowFocusHighlight: (value) => setState(() => _focused = value),
+          actions: <Type, Action<Intent>>{
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                _select();
+                return null;
+              },
+            ),
+          },
+          child: ExcludeSemantics(
+            child: ScalePressable(
+              pressedScaleReduction: 0.025,
+              releaseTension: 1.2,
+              onPressed: _select,
+              child: DecoratedBox(
+                position: DecorationPosition.foreground,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(PanelTypeTabs.height / 2),
+                  border: _focused
+                      ? Border.all(color: action.floatingLabel, width: 1.5)
+                      : null,
                 ),
-                child: Center(child: content),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: PanelTypeTabs.tabPadding,
+                  ),
+                  child: Center(child: content),
+                ),
               ),
             ),
           ),

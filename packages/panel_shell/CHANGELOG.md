@@ -6,6 +6,26 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (page availability, breaking)
+
+- `PageAvailability`: `available` (the default), `dimmed(hint)`, `hidden`
+  and `replaced(text)`, on the registry entry (`PanelPage.availability`)
+  and set live by the host with `PanelShellController.setPageAvailability`.
+  The controller exposes `availability`, `availabilityOf(id)`, `shownPages`
+  and `selectedCapabilities`; a page that cannot be selected is left for
+  the first that can, without persisting the move.
+- `PageDenied`: a try on a dimmed page (tab, swipe, shortcut), at most once
+  per `deniedRepeatWindow` (`ChromeHintTiming.tabHint`, 3.5 s); the shell
+  shows the page's hint at its tab for as long. A host's exhaustive switch
+  over `PanelEvent` must add it.
+- The tabs draw a dimmed page at 0.15 alpha, still focusable, spoken as
+  `PanelStrings.unavailableTab` with the hint as their hint; a hidden page
+  has no tab and no place in the pager; a replaced page shows its text and
+  none of its search or actions.
+- `PageUnavailableForm.forPlatform`: dimmed on Android, hidden on iOS,
+  replaced on desktop. `PanelShellOp.pageAvailability`, the debug event in
+  the `capabilities` category.
+
 ### Changed (off-screen pages give their textures back)
 
 - A page of the pager that is not on screen is under an invisible

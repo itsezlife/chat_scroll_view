@@ -1,18 +1,22 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:panel_shell/src/controller/panel_shell_controller.dart';
 import 'package:panel_shell/src/event/panel_event.dart';
 import 'package:panel_shell/src/input/panel_announcer.dart';
 import 'package:panel_shell/src/input/panel_focus_policy.dart';
 import 'package:panel_shell/src/input/panel_intents.dart';
+import 'package:panel_shell/src/page/page_availability.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
 import 'package:panel_shell/src/scroll/bottom_bar_visibility.dart';
 import 'package:panel_shell/src/widgets/listen_value_builder.dart';
 import 'package:panel_shell/src/widgets/panel_arrangement.dart';
 import 'package:panel_shell/src/widgets/panel_background_scope.dart';
 import 'package:panel_shell/src/widgets/panel_bottom_bar.dart';
+import 'package:panel_shell/src/widgets/panel_page_availability_view.dart';
 import 'package:panel_shell/src/widgets/panel_pager.dart';
 import 'package:panel_shell/src/widgets/panel_search_field.dart';
 import 'package:panel_shell/src/widgets/panel_section_tabs.dart';
@@ -44,6 +48,17 @@ import 'package:panel_shell/src/widgets/panel_type_tabs.dart';
 /// controllers. It positions nothing and reads no insets other than the
 /// bottom padding it is given: where it sits, how tall it is and what it does
 /// to the keyboard are for a presentation.
+///
+/// ## Page availability
+///
+/// The tabs and the pager are the controller's shown pages
+/// (`PanelShellController.shownPages`): a hidden page has neither. A dimmed
+/// page's tab is drawn at [PanelTabAvailabilityScope.dimmedOpacity], stays
+/// focusable and is spoken as not available with its hint as the spoken
+/// hint; an attempt on it ([PageDenied]) shows the hint at the tab for
+/// `ChromeHintTiming.tabHint`, above the tab under `touch` and below it
+/// under `pointer`. A replaced page shows its text in place of its content,
+/// with none of the search field or actions it declares.
 ///
 /// ## Requirements
 ///
@@ -138,10 +153,19 @@ class _PanelShellState extends State<PanelShell> {
   // pointer arrangement) are mounted before it, so a change there would mark
   // them dirty during build.
   late final _position = ValueNotifier<double>(
-    _shell.pages
-        .indexWhere((page) => page.id == _shell.selectedPageId.value)
+    math
+        .max(
+          0,
+          _shell.shownPages.value.indexWhere(
+            (page) => page.id == _shell.selectedPageId.value,
+          ),
+        )
         .toDouble(),
   );
+  final _tabLinks = PanelTabLinks();
+  // The page whose hint is up, with its text.
+  final _hint = listen.ValueNotifier<({String pageId, String text})?>(null);
+  Timer? _hintTimer;
   final _dragging = ValueNotifier<bool>(false);
   late final _barVisibility = BottomBarVisibility(
     hidesOnScroll: widget.arrangement.barHidesOnScroll,
@@ -175,6 +199,8 @@ class _PanelShellState extends State<PanelShell> {
   @override
   void dispose() {
     _unbind(widget.controller);
+    _hintTimer?.cancel();
+    _hint.dispose();
     _barVisibility.dispose();
     _position.dispose();
     _dragging.dispose();
@@ -218,6 +244,7 @@ class _PanelShellState extends State<PanelShell> {
   void _onFreshOpen() => _barVisibility.show();
 
   void _onEvent(PanelEvent event) {
+    if (event case PageDenied(:final pageId)) _showHint(pageId);
     if (event case PageChanged(:final pageId)) {
       final strings = ChromeStringsScope.of(context);
       final page = _shell.pages.firstWhere((page) => page.id == pageId);
@@ -227,6 +254,19 @@ class _PanelShellState extends State<PanelShell> {
           strings.panel.tabLabel(page.tab.labelKey),
         ),
       );
+    }
+  }
+
+  // The controller already keeps a burst of attempts to one event per
+  // window; the hint stays up as long as that window, and a new one replaces
+  // it.
+  void _showHint(String pageId) {
+    if (_shell.availability.value[pageId] case PageAvailability$Dimmed(
+      hint: final text?,
+    )) {
+      _hintTimer?.cancel();
+      _hint.value = (pageId: pageId, text: text);
+      _hintTimer = Timer(ChromeHintTiming.tabHint, () => _hint.value = null);
     }
   }
 
@@ -308,9 +348,8 @@ class _PanelShellState extends State<PanelShell> {
               bottom: extent,
               // A page with nothing to offer here (its only action is a touch
               // idiom) has no bar, and an empty one would still take the room.
-              child: ListenValueBuilder<String>(
-                listenable: _shell.selectedPageId,
-                builder: (context, _) => _barActions().isEmpty
+              child: _onChrome(
+                (context) => _barActions().isEmpty
                     ? const SizedBox.shrink()
                     : FocusTraversalOrder(
                         order: const NumericFocusOrder(2),
@@ -366,22 +405,27 @@ class _PanelShellState extends State<PanelShell> {
                 color: widget.background ?? panel.background,
                 child: ColoredBox(
                   color: widget.background ?? panel.background,
-                  child: Column(
-                    children: [
-                      if (pointer) _sectionTabs(),
-                      ListenValueBuilder<String>(
-                        listenable: _shell.selectedPageId,
-                        builder: (context, _) => _searchSlot(motion),
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            bottom: pointer ? safeBottom : 0,
-                          ),
-                          child: stack,
+                  child: _withAvailability(
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Column(
+                          children: [
+                            if (pointer) _sectionTabs(),
+                            _onChrome((context) => _searchSlot(motion)),
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: pointer ? safeBottom : 0,
+                                ),
+                                child: stack,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                        _hintLayer(below: pointer),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -394,23 +438,64 @@ class _PanelShellState extends State<PanelShell> {
 
   static const Duration _sectionSlide = Duration(milliseconds: 200);
 
+  // The tabs below read the pages' availability from the scope; the column
+  // passed in is built once per shell build, so a change of availability
+  // rebuilds the scope's dependents only.
+  Widget _withAvailability(Widget child) =>
+      ListenValueBuilder<Map<String, PageAvailability>>(
+        listenable: _shell.availability,
+        builder: (context, availability) => PanelTabAvailabilityScope(
+          availability: availability,
+          links: _tabLinks,
+          child: child,
+        ),
+      );
+
+  // Chrome that follows the selected page, the pages shown and their
+  // availability.
+  Widget _onChrome(WidgetBuilder builder) => ListenValueBuilder<String>(
+    listenable: _shell.selectedPageId,
+    builder: (context, _) => ListenValueBuilder<List<PanelPage>>(
+      listenable: _shell.shownPages,
+      builder: (context, _) =>
+          ListenValueBuilder<Map<String, PageAvailability>>(
+            listenable: _shell.availability,
+            builder: (context, _) => builder(context),
+          ),
+    ),
+  );
+
+  // The hint of a dimmed tab, over everything the shell draws and after the
+  // tabs it follows; gone once the page is no longer dimmed.
+  Widget _hintLayer({required bool below}) => Positioned(
+    left: 0,
+    top: 0,
+    child: ListenValueBuilder<({String pageId, String text})?>(
+      listenable: _hint,
+      builder: (context, hint) => switch (hint) {
+        (:final pageId, :final text)
+            when _shell.availability.value[pageId] is PageAvailability$Dimmed =>
+          PanelTabHint(link: _tabLinks.of(pageId), text: text, below: below),
+        _ => const SizedBox.shrink(),
+      },
+    ),
+  );
+
   // The pointer arrangement's tabs: the sections above the search field. One page has nothing to switch to.
   Widget _sectionTabs() => FocusTraversalOrder(
     order: const NumericFocusOrder(2),
-    child: ListenValueBuilder<String>(
-      listenable: _shell.selectedPageId,
-      builder: (context, selectedId) {
-        if (_shell.pages.length < 2) return const SizedBox.shrink();
-        return MediaQuery.withClampedTextScaling(
-          maxScaleFactor: PanelBottomBar.maxTextScale,
-          child: PanelSectionTabs(
-            pages: _shell.pages,
-            selectedPageId: selectedId,
-            bar: widget.sectionTabsBar,
-          ),
-        );
-      },
-    ),
+    child: _onChrome((context) {
+      final pages = _shell.shownPages.value;
+      if (pages.length < 2) return const SizedBox.shrink();
+      return MediaQuery.withClampedTextScaling(
+        maxScaleFactor: PanelBottomBar.maxTextScale,
+        child: PanelSectionTabs(
+          pages: pages,
+          selectedPageId: _shell.selectedPageId.value,
+          bar: widget.sectionTabsBar,
+        ),
+      );
+    }),
   );
 
   // The field comes and goes with the selected page. A zero duration (instant
@@ -418,7 +503,7 @@ class _PanelShellState extends State<PanelShell> {
   // its own layout when it is asked to resize over no time, which is a
   // framework error, and there is nothing to animate anyway.
   Widget _searchSlot(ChromeMotionData motion) {
-    final capabilities = _shell.selectedPage.capabilities;
+    final capabilities = _shell.selectedCapabilities;
     final slot =
         _fieldMounted &&
             capabilities.search &&
@@ -444,7 +529,7 @@ class _PanelShellState extends State<PanelShell> {
 
   // What the selected page declares and the arrangement offers.
   List<PageAction> _barActions() => [
-    for (final action in _shell.selectedPage.capabilities.actions)
+    for (final action in _shell.selectedCapabilities.actions)
       if (widget.arrangement.offersAction(action)) action,
   ];
 
@@ -472,10 +557,9 @@ class _PanelShellState extends State<PanelShell> {
               Transform.translate(offset: Offset(0, y), child: child),
           child: Padding(
             padding: EdgeInsets.only(bottom: lift),
-            child: ListenValueBuilder<String>(
-              listenable: _shell.selectedPageId,
-              builder: (context, _) => PanelBottomBar(
-                pages: _shell.pages,
+            child: _onChrome(
+              (context) => PanelBottomBar(
+                pages: _shell.shownPages.value,
                 selected: _shell.selectedPage,
                 actions: _barActions(),
                 position: _position,

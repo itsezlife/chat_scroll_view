@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:panel_shell/src/controller/panel_shell_controller.dart';
+import 'package:panel_shell/src/page/page_availability.dart';
+import 'package:panel_shell/src/page/panel_page.dart';
+import 'package:panel_shell/src/widgets/listen_value_builder.dart';
+import 'package:panel_shell/src/widgets/panel_page_availability_view.dart';
 import 'package:swipe_pager/swipe_pager.dart';
 
 /// The pager: one swipeable page per registered page, kept in step with the
@@ -31,6 +35,12 @@ import 'package:swipe_pager/swipe_pager.dart';
 ///
 /// Swiping direction follows the reading direction, so in a right-to-left
 /// layout the first page sits at the right and swipes mirror.
+///
+/// The pager holds the controller's shown pages: a hidden page has no place
+/// in it, and a page that is hidden or comes back moves the others along,
+/// each keeping its state. A page's content follows its availability: its
+/// own while available, its text while replaced, nothing while dimmed. A
+/// swipe onto a dimmed page is refused by the controller and slides back.
 class PanelPager extends StatefulWidget {
   /// A pager over the pages of [controller].
   ///
@@ -62,10 +72,17 @@ class PanelPager extends StatefulWidget {
 }
 
 class _PanelPagerState extends State<PanelPager> {
-  late final SwipePagerController _pages;
+  late SwipePagerController _pages;
+  // The pages the pager was last built with.
+  var _count = 0;
 
-  int _indexOf(String pageId) =>
-      widget.controller.pages.indexWhere((page) => page.id == pageId);
+  // Keyed by page id across the pager's slots, so a page keeps its state
+  // when a page before it is hidden or comes back and it changes index.
+  final _keys = <String, GlobalKey>{};
+
+  List<PanelPage> get _shown => widget.controller.shownPages.value;
+
+  int _indexOf(String pageId) => _shown.indexWhere((page) => page.id == pageId);
 
   @override
   void initState() {
@@ -75,6 +92,7 @@ class _PanelPagerState extends State<PanelPager> {
       ..addPositionListener(_onPosition);
     widget.position.value = _pages.position;
     widget.controller.selectedPageId.addListener(_onSelected);
+    widget.controller.shownPages.addListener(_onShown);
   }
 
   @override
@@ -82,7 +100,9 @@ class _PanelPagerState extends State<PanelPager> {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.controller, widget.controller)) {
       oldWidget.controller.selectedPageId.removeListener(_onSelected);
+      oldWidget.controller.shownPages.removeListener(_onShown);
       widget.controller.selectedPageId.addListener(_onSelected);
+      widget.controller.shownPages.addListener(_onShown);
       _onSelected();
     }
   }
@@ -90,6 +110,7 @@ class _PanelPagerState extends State<PanelPager> {
   @override
   void dispose() {
     widget.controller.selectedPageId.removeListener(_onSelected);
+    widget.controller.shownPages.removeListener(_onShown);
     // The pager under this state is unmounted, and has let the controller
     // go, before this state is disposed.
     _pages
@@ -119,17 +140,48 @@ class _PanelPagerState extends State<PanelPager> {
     );
   }
 
+  // The selected page stays on screen at its new index. An index the pager
+  // has now is a jump; one past its count (a page before it came back) is
+  // not reachable until the pager has rebuilt with the new count, and a jump
+  // after that would show the page now at the old index for a frame, so the
+  // pager starts over on a new controller at the right page. Pages kept
+  // alive off screen are dropped then and built again when shown; the
+  // selected page keeps its state through its key.
+  void _onShown() {
+    final index = _indexOf(widget.controller.selectedPageId.value);
+    if (index >= 0 && index != _pages.page) {
+      if (index < _count) {
+        _pages.jumpTo(index);
+      } else {
+        final previous = _pages..removePositionListener(_onPosition);
+        _pages = SwipePagerController(initialPage: index)
+          ..addPositionListener(_onPosition);
+        _onPosition(_pages.position);
+        // The pager lets the old controller go on its next build.
+        WidgetsBinding.instance.addPostFrameCallback((_) => previous.dispose());
+      }
+    }
+    setState(() {});
+  }
+
   void _onPageChanged(int index) {
-    final id = widget.controller.pages[index].id;
+    final shown = _shown;
+    if (index >= shown.length) return;
+    final id = shown[index].id;
     // A move we made ourselves also lands here; only a swipe differs.
-    if (id != widget.controller.selectedPageId.value) {
-      widget.controller.selectPage(id);
+    if (id == widget.controller.selectedPageId.value) return;
+    widget.controller.selectPage(id);
+    // A page the controller refused (dimmed): back to the one selected.
+    final selected = _indexOf(widget.controller.selectedPageId.value);
+    if (selected >= 0 && selected != _pages.page) {
+      unawaited(_pages.animateTo(selected));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final pages = widget.controller.pages;
+    final pages = _shown;
+    _count = pages.length;
     return SwipePager(
       controller: _pages,
       pageCount: pages.length,
@@ -137,8 +189,21 @@ class _PanelPagerState extends State<PanelPager> {
       pageBuilder: (context, index) {
         final page = pages[index];
         return KeyedSubtree(
-          key: ValueKey<String>(page.id),
-          child: page.builder(context, widget.controller.hostFor(page.id)),
+          key: _keys.putIfAbsent(page.id, () => GlobalKey(debugLabel: page.id)),
+          child: ListenValueBuilder<PageAvailability>(
+            listenable: widget.controller.availabilityOf(page.id),
+            builder: (context, availability) => switch (availability) {
+              PageAvailability$Available() => page.builder(
+                context,
+                widget.controller.hostFor(page.id),
+              ),
+              PageAvailability$Replaced(:final text) => PanelReplacedPage(
+                text: text,
+              ),
+              PageAvailability$Dimmed() ||
+              PageAvailability$Hidden() => const SizedBox.expand(),
+            },
+          ),
         );
       },
     );

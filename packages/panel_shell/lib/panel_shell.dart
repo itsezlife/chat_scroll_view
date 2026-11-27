@@ -9,10 +9,12 @@ library;
 
 export 'src/controller/panel_search_state.dart';
 export 'src/controller/panel_shell_controller.dart';
+export 'src/diagnostics/panel_shell_op.dart';
 export 'src/event/panel_event.dart';
 export 'src/input/panel_announcer.dart';
 export 'src/input/panel_focus_policy.dart';
 export 'src/input/panel_intents.dart';
+export 'src/page/page_availability.dart';
 export 'src/page/page_controller_registry.dart';
 export 'src/page/panel_page.dart';
 export 'src/page/panel_page_host.dart';

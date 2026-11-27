@@ -1,5 +1,6 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:panel_shell/src/page/page_availability.dart';
 import 'package:panel_shell/src/page/panel_page_host.dart';
 
 /// Builds the content of a page below the shell.
@@ -162,6 +163,9 @@ final class PageCapabilities {
 ///
 /// The shell takes an ordered list of pages and never imports a concrete
 /// one; adding a kind of content is adding an entry, not editing the shell.
+///
+/// An entry also carries its [availability] at registration; the host
+/// changes it live through `PanelShellController.setPageAvailability`.
 @immutable
 final class PanelPage {
   /// A page named [id], shown in the tabs as [tab] and built by [builder].
@@ -170,6 +174,7 @@ final class PanelPage {
     required this.tab,
     required this.builder,
     this.capabilities = PageCapabilities.none,
+    this.availability = const PageAvailability.available(),
   }) : assert(id != '', 'a page id must not be empty');
 
   /// Stable identity of the page: persisted as the selected page and used as
@@ -183,7 +188,15 @@ final class PanelPage {
   final PanelPageBuilder builder;
 
   /// What the page declares it can do.
+  ///
+  /// Declared for the page's own content: while the page is not
+  /// [PageAvailability.available] (its content replaced by a text), the
+  /// shell offers none of it.
   final PageCapabilities capabilities;
+
+  /// Whether the page can be used when the shell starts, and how it shows
+  /// when it cannot.
+  final PageAvailability availability;
 
   @override
   String toString() => 'PanelPage($id)';

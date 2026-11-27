@@ -19,6 +19,8 @@ import 'testing/page_controller_registry_test.dart'
     as page_controller_registry_test;
 import 'testing/panel_semantics_rule_test.dart' as panel_semantics_rule_test;
 import 'widgets/panel_arrangement_test.dart' as panel_arrangement_test;
+import 'widgets/panel_page_availability_test.dart'
+    as panel_page_availability_test;
 import 'widgets/panel_shell_pointer_test.dart' as panel_shell_pointer_test;
 import 'widgets/panel_shell_test.dart' as panel_shell_test;
 
@@ -44,6 +46,10 @@ void main() {
     panel_semantics_rule_test.main,
   );
   group('widgets/panel_arrangement_test.dart', panel_arrangement_test.main);
+  group(
+    'widgets/panel_page_availability_test.dart',
+    panel_page_availability_test.main,
+  );
   group('widgets/panel_shell_pointer_test.dart', panel_shell_pointer_test.main);
   group('widgets/panel_shell_test.dart', panel_shell_test.main);
 }

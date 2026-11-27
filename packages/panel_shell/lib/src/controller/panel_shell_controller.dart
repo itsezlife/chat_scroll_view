@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:chrome_foundation/chrome_foundation.dart' show ChromeHintTiming;
 import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart';
 import 'package:panel_shell/src/controller/event_publisher.dart';
 import 'package:panel_shell/src/controller/panel_search_state.dart';
+import 'package:panel_shell/src/diagnostics/panel_shell_op.dart';
 import 'package:panel_shell/src/event/panel_event.dart';
+import 'package:panel_shell/src/page/page_availability.dart';
 import 'package:panel_shell/src/page/page_controller_registry.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
 import 'package:panel_shell/src/page/panel_page_host.dart';
@@ -22,6 +25,12 @@ import 'package:panel_shell/src/scroll/page_scroll_activity.dart';
 /// reports so a host can wire the pause signals of work that must not run
 /// while the panel is hidden or moving, and the **fresh open** signal a
 /// presentation sends its pages ([reportFreshOpen]).
+///
+/// It also keeps each page's **availability** ([PageAvailability]), which
+/// the host sets ([setPageAvailability]) and the controller never decides.
+/// The panel leaves a page that cannot be selected (dimmed or hidden) for
+/// the first selectable page shown, and publishes an attempt on a dimmed
+/// page as [PageDenied], at most once per [deniedRepeatWindow].
 ///
 /// **Does not own:** whether the panel is open on screen, its height, the
 /// soft keyboard or any inset; those belong to a presentation controller that
@@ -41,21 +50,26 @@ import 'package:panel_shell/src/scroll/page_scroll_activity.dart';
 ///
 /// The selected page id is written to the [PreferenceStore] as a string and
 /// read back at construction; a remembered id that is no longer registered
-/// falls back to the first page. A failure to persist is reported to the zone
-/// and leaves the in-memory selection as it is.
+/// falls back to the first page, and one that cannot be selected to the
+/// first selectable page. A move the controller makes because a page stopped
+/// being available is not persisted: the user's choice holds for when the
+/// page comes back. A failure to persist is reported to the zone and leaves
+/// the in-memory selection as it is.
 final class PanelShellController {
   /// Creates a controller over [pages], in tab order.
   ///
   /// [preferences] is already loaded, so the remembered page is known
   /// synchronously. [controllers] lets a test or host supply the registry;
   /// when omitted the controller creates one and disposes it. A supplied
-  /// registry is left to its owner.
+  /// registry is left to its owner. Each page starts at its registered
+  /// [PanelPage.availability].
   ///
   /// Throws an [ArgumentError] for an empty [pages] or a repeated page id.
   factory PanelShellController({
     required List<PanelPage> pages,
     required PreferenceStore preferences,
     PageControllerRegistry? controllers,
+    Duration deniedRepeatWindow = defaultDeniedRepeatWindow,
   }) {
     final owned = switch (controllers) {
       null => PanelPageControllers(),
@@ -66,6 +80,7 @@ final class PanelShellController {
       preferences,
       controllers ?? owned!,
       owned,
+      deniedRepeatWindow,
     );
   }
 
@@ -74,6 +89,7 @@ final class PanelShellController {
     PreferenceStore preferences,
     this.controllers,
     this._ownedControllers,
+    this.deniedRepeatWindow,
   ) : pages = List.unmodifiable(pages),
       _preferences = preferences {
     if (pages.isEmpty) {
@@ -85,13 +101,27 @@ final class PanelShellController {
       }
       _byId[page.id] = page;
     }
+    final availability = Map<String, PageAvailability>.unmodifiable({
+      for (final page in pages) page.id: page.availability,
+    });
+    _availability = ValueNotifier(availability);
+    _shown = ValueNotifier(_shownOf(availability));
     final remembered = preferences.selectedPageId;
+    final wanted = remembered != null && _byId.containsKey(remembered)
+        ? remembered
+        : pages.first.id;
     _selected = ValueNotifier<String>(
-      remembered != null && _byId.containsKey(remembered)
-          ? remembered
-          : pages.first.id,
+      availability[wanted]!.isSelectable ? wanted : _fallback() ?? wanted,
     );
   }
+
+  /// The stock [deniedRepeatWindow]: as long as the hint at the tab stays
+  /// up.
+  static const Duration defaultDeniedRepeatWindow = ChromeHintTiming.tabHint;
+
+  /// How long after a published [PageDenied] another attempt on the same
+  /// page is ignored, so a burst of taps on a dimmed tab shows its hint once.
+  final Duration deniedRepeatWindow;
 
   /// The registered pages, in tab order. Unmodifiable.
   final List<PanelPage> pages;
@@ -116,6 +146,10 @@ final class PanelShellController {
   final _autoHideHolds = ValueNotifier<int>(0);
   final _bottomExtents = <String, double>{};
   final _hosts = <String, _PageHost>{};
+  late final ValueNotifier<Map<String, PageAvailability>> _availability;
+  late final ValueNotifier<List<PanelPage>> _shown;
+  final _availabilityOf = <String, _AvailabilityOf>{};
+  final _deniedGuards = <String, Timer>{};
   var _disposed = false;
 
   /// The id of the selected page.
@@ -123,6 +157,21 @@ final class PanelShellController {
 
   /// The selected page.
   PanelPage get selectedPage => _byId[_selected.value]!;
+
+  /// What the selected page offers around it now: its declared
+  /// [PanelPage.capabilities] while it is available, none otherwise (its
+  /// content replaced by a text).
+  PageCapabilities get selectedCapabilities => _capabilitiesOf(selectedPage);
+
+  /// The availability of every registered page, by id. Unmodifiable; a new
+  /// map on each change.
+  ValueListenable<Map<String, PageAvailability>> get availability =>
+      _availability;
+
+  /// The pages that have a tab and a place in the pager: the registered ones
+  /// in tab order, less the hidden. Never empty: with every page hidden the
+  /// first stays, since a panel always shows one.
+  ValueListenable<List<PanelPage>> get shownPages => _shown;
 
   /// The search state: open, query and focus intent in one snapshot.
   ValueListenable<PanelSearchState> get search => _search;
@@ -182,6 +231,21 @@ final class PanelShellController {
     return _hosts.putIfAbsent(pageId, () => _PageHost(this, page));
   }
 
+  /// The availability of page [pageId], signalling only when it changes, so
+  /// that page's content rebuilds and no other page's does.
+  ///
+  /// The same listenable is returned for the same id. Throws an
+  /// [ArgumentError] for an id that is not registered.
+  ValueListenable<PageAvailability> availabilityOf(String pageId) {
+    if (!_byId.containsKey(pageId)) {
+      throw ArgumentError.value(pageId, 'pageId', 'not a registered page');
+    }
+    return _availabilityOf.putIfAbsent(
+      pageId,
+      () => _AvailabilityOf(_availability, pageId),
+    );
+  }
+
   // --- Intents --------------------------------------------------------------
 
   /// Selects the page [pageId].
@@ -190,19 +254,82 @@ final class PanelShellController {
   /// publishes [PageChanged]. Selecting the page that is already selected
   /// changes nothing but signals that page's `reselected`. An id that is not
   /// registered is ignored.
+  ///
+  /// A page that cannot be selected is refused: a hidden one silently, a
+  /// dimmed one by publishing [PageDenied] (a tap on its tab, a swipe onto
+  /// it, a shortcut), unless one was published for it within
+  /// [deniedRepeatWindow].
   void selectPage(String pageId) {
     if (_disposed) return;
     final page = _byId[pageId];
     if (page == null) return;
+    switch (_availability.value[pageId]!) {
+      case PageAvailability$Dimmed():
+        _reportDenied(pageId);
+        return;
+      case PageAvailability$Hidden():
+        return;
+      case PageAvailability$Available() || PageAvailability$Replaced():
+        break;
+    }
     if (pageId == _selected.value) {
       _hosts[pageId]?._reselect();
       return;
     }
-    _selected.value = pageId;
-    _bottomExtent.value = _bottomExtents[pageId] ?? 0;
-    if (_search.value.isOpen && !page.capabilities.search) closeSearch();
+    _moveTo(page);
     unawaited(_persist(pageId));
-    _events.publish(PageChanged(pageId));
+  }
+
+  /// Sets the availability of page [pageId], as the host decides it; the
+  /// panel follows within this call, and only that page's content rebuilds.
+  ///
+  /// When the selected page can no longer be selected, the panel moves to
+  /// the first selectable page shown and publishes [PageChanged] (the move
+  /// is not persisted); when its content stops being available, an open
+  /// search closes. Emits `capabilities / pageAvailability` (debug) under
+  /// [correlation], with the page id and the form, never its text. A value
+  /// equal to the current one, an id that is not registered and any call
+  /// after [dispose] change nothing.
+  void setPageAvailability(
+    String pageId,
+    PageAvailability availability, {
+    ChatCorrelation correlation = ChatCorrelation.none,
+  }) {
+    if (_disposed) return;
+    final current = _availability.value[pageId];
+    if (current == null || current == availability) return;
+    final next = Map<String, PageAvailability>.unmodifiable({
+      ..._availability.value,
+      pageId: availability,
+    });
+    _availability.value = next;
+    final shown = _shownOf(next);
+    if (!_sameIds(shown, _shown.value)) _shown.value = shown;
+    if (availability is! PageAvailability$Dimmed) {
+      _deniedGuards.remove(pageId)?.cancel();
+    }
+    String? movedTo;
+    if (pageId == _selected.value) {
+      if (!availability.isSelectable) {
+        if (_fallback() case final fallback?) {
+          _moveTo(_byId[fallback]!);
+          movedTo = fallback;
+        }
+      } else if (_search.value.isOpen && !selectedCapabilities.search) {
+        closeSearch();
+      }
+    }
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.capabilities,
+      PanelShellOp.pageAvailability,
+      correlation: correlation,
+      fields: () => {
+        'page': pageId,
+        'form': availability.diagnosticForm,
+        'movedTo': ?movedTo,
+      },
+    );
   }
 
   /// Opens search mode above the selected page.
@@ -212,7 +339,7 @@ final class PanelShellController {
   /// search with [focus] only adds the focus intent. Publishes [SearchOpened]
   /// when it opened.
   void openSearch({bool focus = true}) {
-    if (_disposed || !selectedPage.capabilities.search) return;
+    if (_disposed || !selectedCapabilities.search) return;
     final current = _search.value;
     if (!current.isOpen) {
       _search.value = PanelSearchState(isOpen: true, wantsFocus: focus);
@@ -240,7 +367,7 @@ final class PanelShellController {
   /// page's actions are on screen.
   void invokeAction(String pageId, String actionId) {
     if (_disposed || pageId != _selected.value) return;
-    final declared = selectedPage.capabilities.actions.any(
+    final declared = selectedCapabilities.actions.any(
       (action) => action.id == actionId,
     );
     if (!declared) return;
@@ -335,10 +462,69 @@ final class PanelShellController {
     _searchResultCounts.dispose();
     _bottomExtent.dispose();
     _autoHideHolds.dispose();
+    for (final guard in _deniedGuards.values) {
+      guard.cancel();
+    }
+    _deniedGuards.clear();
+    for (final listenable in _availabilityOf.values) {
+      listenable.dispose();
+    }
+    _availability.dispose();
+    _shown.dispose();
     for (final host in _hosts.values) {
       host.dispose();
     }
     _ownedControllers?.dispose();
+  }
+
+  // The selection change itself, shared by the user's selection and the
+  // move off a page that stopped being available.
+  void _moveTo(PanelPage page) {
+    _selected.value = page.id;
+    _bottomExtent.value = _bottomExtents[page.id] ?? 0;
+    if (_search.value.isOpen && !_capabilitiesOf(page).search) closeSearch();
+    _events.publish(PageChanged(page.id));
+  }
+
+  PageCapabilities _capabilitiesOf(PanelPage page) =>
+      switch (_availability.value[page.id]!) {
+        PageAvailability$Available() => page.capabilities,
+        _ => PageCapabilities.none,
+      };
+
+  // A timer rather than a timestamp: it needs no clock, and a test's fake
+  // time drives it.
+  void _reportDenied(String pageId) {
+    if (_deniedGuards.containsKey(pageId)) return;
+    _deniedGuards[pageId] = Timer(
+      deniedRepeatWindow,
+      () => _deniedGuards.remove(pageId),
+    );
+    _events.publish(PageDenied(pageId));
+  }
+
+  // The first selectable page shown, in tab order.
+  String? _fallback() {
+    for (final page in _shown.value) {
+      if (_availability.value[page.id]!.isSelectable) return page.id;
+    }
+    return null;
+  }
+
+  List<PanelPage> _shownOf(Map<String, PageAvailability> availability) {
+    final shown = [
+      for (final page in pages)
+        if (availability[page.id]!.isShown) page,
+    ];
+    return List.unmodifiable(shown.isEmpty ? [pages.first] : shown);
+  }
+
+  static bool _sameIds(List<PanelPage> a, List<PanelPage> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id) return false;
+    }
+    return true;
   }
 
   Future<void> _persist(String pageId) async {
@@ -500,6 +686,36 @@ final class _Hold implements PanelPageHold {
 /// reaches it through this subclass.
 final class _Signal with ChangeNotifier {
   void signal() => notifyListeners();
+}
+
+/// The availability of one page out of the map of all, signalling only when
+/// that page's changes.
+final class _AvailabilityOf
+    with ChangeNotifier
+    implements ValueListenable<PageAvailability> {
+  _AvailabilityOf(this._source, this._id) : _value = _source.value[_id]! {
+    _source.addListener(_onSource);
+  }
+
+  final ValueNotifier<Map<String, PageAvailability>> _source;
+  final String _id;
+  PageAvailability _value;
+
+  void _onSource() {
+    final next = _source.value[_id]!;
+    if (next == _value) return;
+    _value = next;
+    notifyListeners();
+  }
+
+  @override
+  PageAvailability get value => _value;
+
+  @override
+  void dispose() {
+    _source.removeListener(_onSource);
+    super.dispose();
+  }
 }
 
 /// Whether the observed page id equals [id]; signals only when that answer

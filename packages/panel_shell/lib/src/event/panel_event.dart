@@ -62,6 +62,9 @@ sealed class PanelEvent {
   /// The selected page changed to [pageId]; see [PageChanged].
   const factory PanelEvent.pageChanged(String pageId) = PageChanged;
 
+  /// The user tried page [pageId], which is not available; see [PageDenied].
+  const factory PanelEvent.pageDenied(String pageId) = PageDenied;
+
   /// Search mode opened; see [SearchOpened].
   const factory PanelEvent.searchOpened() = SearchOpened;
 
@@ -300,6 +303,32 @@ final class PageChanged extends PanelEvent {
 
   @override
   String toString() => 'PageChanged($pageId)';
+}
+
+/// The user tried to select page [pageId], whose availability is dimmed: a
+/// tap on its tab, a swipe onto it or a shortcut.
+///
+/// The selection did not change, and the shell shows the page's hint at its
+/// tab. Published at most once per `PanelShellController.deniedRepeatWindow`
+/// for a page, so a burst of taps is one attempt. The host reports it as the
+/// attempt of whatever made the page unavailable (a sticker the chat does
+/// not allow) through its own feedback; the shell knows no reason.
+final class PageDenied extends PanelEvent {
+  /// An attempt on the dimmed page [pageId].
+  const PageDenied(this.pageId);
+
+  /// The page tried.
+  final String pageId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PageDenied && other.pageId == pageId;
+
+  @override
+  int get hashCode => Object.hash(PageDenied, pageId);
+
+  @override
+  String toString() => 'PageDenied($pageId)';
 }
 
 /// Search mode opened.

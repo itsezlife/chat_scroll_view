@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show clampDouble;
 import 'package:flutter/widgets.dart';
 import 'package:panel_shell/src/input/panel_intents.dart';
 import 'package:panel_shell/src/page/panel_page.dart';
+import 'package:panel_shell/src/widgets/panel_page_availability_view.dart';
 
 /// The pointer arrangement's page switcher: a tabs slider at the top of the
 /// panel.
@@ -224,14 +225,20 @@ class _PanelSectionTabsState extends State<PanelSectionTabs>
                       top: 0,
                       width: section,
                       height: PanelSectionTabs.height,
-                      child: _Section(
+                      child: PanelTabAvailability(
+                        pageId: widget.pages[i].id,
                         label: labels[i],
-                        selected: i == _selected,
-                        active: 1 - clampDouble((position - i).abs(), 0, 1),
-                        muted: palette.onSurfaceMuted,
-                        accent: palette.accent,
-                        ripple: palette.onSurface.withAlpha(0x12),
-                        onSelect: () => _select(widget.pages[i]),
+                        tabBuilder: (context, spoken, hint) => _Section(
+                          label: labels[i],
+                          spoken: spoken,
+                          hint: hint,
+                          selected: i == _selected,
+                          active: 1 - clampDouble((position - i).abs(), 0, 1),
+                          muted: palette.onSurfaceMuted,
+                          accent: palette.accent,
+                          ripple: palette.onSurface.withAlpha(0x12),
+                          onSelect: () => _select(widget.pages[i]),
+                        ),
                       ),
                     ),
                   Positioned(
@@ -263,6 +270,8 @@ class _PanelSectionTabsState extends State<PanelSectionTabs>
 class _Section extends StatefulWidget {
   const _Section({
     required this.label,
+    required this.spoken,
+    required this.hint,
     required this.selected,
     required this.active,
     required this.muted,
@@ -272,6 +281,8 @@ class _Section extends StatefulWidget {
   });
 
   final String label;
+  final String spoken;
+  final String? hint;
   final bool selected;
   final double active;
   final Color muted;
@@ -290,7 +301,8 @@ class _SectionState extends State<_Section> {
   Widget build(BuildContext context) => Semantics(
     button: true,
     selected: widget.selected,
-    label: widget.label,
+    label: widget.spoken,
+    hint: widget.hint,
     onTap: widget.onSelect,
     excludeSemantics: true,
     // Reached by the keyboard like any control, Enter or Space choosing it.

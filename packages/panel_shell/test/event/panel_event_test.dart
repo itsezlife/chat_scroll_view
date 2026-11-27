@@ -107,6 +107,7 @@ void main() {
       ContentCopyRequested() => 'copy',
       RecentRemoveRequested() => 'remove',
       PageChanged() => 'page',
+      PageDenied() => 'denied',
       SearchOpened() => 'opened',
       SearchClosed() => 'closed',
       LibraryEditRequested() => 'library',
