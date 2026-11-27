@@ -1,4 +1,6 @@
 import 'package:chat_capabilities/src/capability/capability.dart';
+import 'package:chat_capabilities/src/feedback/capability_action.dart';
+import 'package:chat_capabilities/src/flags/media_kind.dart';
 import 'package:chat_capabilities/src/group/sendable_media.dart';
 import 'package:meta/meta.dart';
 
@@ -36,6 +38,30 @@ final class SendingCapabilities {
 
   /// Results of inline queries.
   final Capability inline;
+
+  /// Why these rights deny [action], or null when they allow it or
+  /// [action] is not a sending right.
+  ///
+  /// `sendNow` is slow mode's and `copy`, `forward` and `save` are
+  /// protection's, so they read null here.
+  DenialReason? reasonFor(CapabilityAction action) => switch (action) {
+    CapabilityAction.sendText => text.reason,
+    CapabilityAction.sendPhoto => media.reasonFor(MediaKind.photo),
+    CapabilityAction.sendVideo => media.reasonFor(MediaKind.video),
+    CapabilityAction.sendAnimation => media.reasonFor(MediaKind.animation),
+    CapabilityAction.sendFile => media.reasonFor(MediaKind.file),
+    CapabilityAction.sendAudio => media.reasonFor(MediaKind.audio),
+    CapabilityAction.sendVoice => media.reasonFor(MediaKind.voice),
+    CapabilityAction.sendRoundVideo => media.reasonFor(MediaKind.roundVideo),
+    CapabilityAction.sendSticker => stickers.reason,
+    CapabilityAction.sendLinkPreview => linkPreviews.reason,
+    CapabilityAction.sendPoll => polls.reason,
+    CapabilityAction.sendInline => inline.reason,
+    CapabilityAction.sendNow ||
+    CapabilityAction.copy ||
+    CapabilityAction.forward ||
+    CapabilityAction.save => null,
+  };
 
   /// A copy with [change] applied to each plain right: [text], [stickers],
   /// [linkPreviews], [polls] and [inline]. [media] is kept: its kinds are

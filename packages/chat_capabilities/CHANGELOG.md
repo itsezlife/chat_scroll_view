@@ -38,7 +38,8 @@ this package is pre-1.0.
   `denied` with `repeated: true` and skips the hook.
 - `ChatProtection` holds its `ProtectionFlags` as its one source; the bools
   read from them. `ChatProtection.of(flags)`.
-- `Capability.reason`, `WriteAccess.diagnosticForm`,
+- `Capability.reason`, `WriteAccess.diagnosticForm`, `WriteAccess.denialReason`
+  (a replacing panel's reason), `SendingCapabilities.reasonFor(action)` and
   `SendingCapabilities.map` (each plain right at once).
 - `select(onValue:)`, the reporting hook a consumer that derives a value
   (the picker's limits) uses instead of its own lazy listenable.

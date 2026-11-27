@@ -349,4 +349,49 @@ void main() {
       expect(const ChatProtection(save: false).flags, ProtectionFlags.save);
     });
   });
+
+  group('reasons by action', () {
+    test('sending reads each action from its right', () {
+      const sticker = DenialReason.unlockable('boost');
+      final sending = SendingCapabilities(
+        text: denied,
+        stickers: const Capability.denied(sticker),
+        media: SendableMedia(
+          allowed: MediaKindSet.all.without(MediaKindSet.of({MediaKind.voice})),
+          denials: const {MediaKind.voice: DenialReason.everyone()},
+        ),
+      );
+      expect(sending.reasonFor(CapabilityAction.sendText), isNotNull);
+      expect(sending.reasonFor(CapabilityAction.sendSticker), sticker);
+      expect(
+        sending.reasonFor(CapabilityAction.sendVoice),
+        const DenialReason.everyone(),
+      );
+      expect(sending.reasonFor(CapabilityAction.sendPhoto), isNull);
+      for (final action in [
+        CapabilityAction.sendNow,
+        CapabilityAction.copy,
+        CapabilityAction.forward,
+        CapabilityAction.save,
+      ]) {
+        expect(sending.reasonFor(action), isNull, reason: action.name);
+      }
+    });
+
+    test('a write access gives the reason of its panel', () {
+      expect(const WriteAccess.canWrite().denialReason, isNull);
+      expect(
+        const WriteAccess.restricted(DenialReason.everyone()).denialReason,
+        const DenialReason.everyone(),
+      );
+      expect(
+        const WriteAccess.join().denialReason,
+        const DenialReason.noWriteAccess(WriteAccess.join()),
+      );
+      expect(
+        const WriteAccess.custom('topic').denialReason,
+        const DenialReason.noWriteAccess(WriteAccess.custom('topic')),
+      );
+    });
+  });
 }

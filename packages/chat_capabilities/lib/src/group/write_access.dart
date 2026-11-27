@@ -33,6 +33,15 @@ sealed class WriteAccess {
   /// Whether the user may write.
   bool get canWrite => false;
 
+  /// Why the user may not write, as a host's text for the replacing panel
+  /// is asked with: a restriction's own reason, otherwise
+  /// [DenialReason.noWriteAccess] of this form; null for [canWrite].
+  DenialReason? get denialReason => switch (this) {
+    WriteAccess$CanWrite() => null,
+    WriteAccess$Restricted(:final reason) => reason,
+    _ => DenialReason.noWriteAccess(this),
+  };
+
   /// The form alone, for diagnostics events: `canWrite`, `readOnly`,
   /// `join`, `requestToJoin`, `restricted` or `custom`. A restriction's
   /// reason and a host form's tag are left out, so the field stays short.
