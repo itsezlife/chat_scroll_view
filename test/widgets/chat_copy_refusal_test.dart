@@ -172,11 +172,52 @@ void main() {
           messageId: 1,
           code: 'void main() {}',
           language: 'dart',
+          kind: ChatCodeKind.block,
         ),
       );
       await pumpEventQueue();
 
       expectRefusedEvent(1, 'codeBlock');
+    });
+
+    test('names an inline span by its kind, not by a fenced twin', () async {
+      final selection = facade(policy: const ChatSelectionPolicy.desktop())
+        ..putBody(
+          1,
+          Markdown.fromString(
+            '`void main() {}`\n\n```dart\nvoid main() {}\n```',
+          ),
+        );
+      final span = selection.inlineHitAt(
+        messageId: 1,
+        blockIndex: 0,
+        offset: 2,
+      );
+      final chrome = selection.inlineHitAt(
+        messageId: 1,
+        // The paragraph, a spacer, then the fence.
+        blockIndex: 2,
+        offset: 0,
+        isHeader: true,
+      );
+      expect(
+        span,
+        isA<ChatInlineHit$Code>()
+            .having((hit) => hit.kind, 'kind', ChatCodeKind.inline)
+            .having((hit) => hit.code, 'code', 'void main() {}'),
+      );
+      expect(
+        chrome,
+        isA<ChatInlineHit$Code>()
+            .having((hit) => hit.kind, 'kind', ChatCodeKind.block)
+            .having((hit) => hit.code, 'code', 'void main() {}'),
+      );
+
+      refused.add(1);
+      selection.handleInlineHit(span!);
+      await pumpEventQueue();
+
+      expectRefusedEvent(1, 'inlineCode');
     });
 
     test('refuses a message-selection copy that holds it', () {
@@ -297,6 +338,50 @@ void main() {
         withBar - withoutBar,
         moreOrLessEquals(ChatCodeBlockPainter.mobileBottomBarHeight),
       );
+    });
+
+    testWidgets('refuses a copy bar tap that lands after the refusal', (
+      tester,
+    ) async {
+      final selection = facade();
+      selection.putBody(1, Markdown.fromString('```dart\n$longCode```'));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 400,
+                child: ChatMarkdownBody(controller: selection, messageId: 1),
+              ),
+            ),
+          ),
+        ),
+      );
+      final body = tester.getRect(find.byType(ChatMarkdownBody));
+      final bar = body.bottomLeft + const Offset(100, -12);
+      // The bar is read while the message may be copied.
+      final hit = selection.resolveInlineHit(1, bar);
+      expect(hit, isA<ChatInlineHit$Code>());
+      expect((hit! as ChatInlineHit$Code).kind, ChatCodeKind.block);
+
+      refused.add(1);
+      selection.reapplyCanCopy();
+      await tester.pump();
+
+      expect(selection.handleInlineHit(hit), isTrue);
+      await tester.pump();
+      expect(clipboard, isEmpty);
+      expect(interactions, [
+        const ChatSelectionInteraction.copyRefused(
+          messageId: 1,
+          origin: ChatCopyOrigin.codeTap,
+          gesture: ChatInlineGesture.tap,
+        ),
+      ]);
+      expectRefusedEvent(1, 'codeBlock');
+      // The bar is gone: the same point hits nothing now.
+      expect(selection.resolveInlineHit(1, bar), isNull);
     });
   });
 }

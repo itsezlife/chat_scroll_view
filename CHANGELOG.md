@@ -11,6 +11,17 @@
   interaction a refusal reports, once per attempt.
 - **ADDED**: `ChatSelectionOp.copyRefused`, a `capabilities` diagnostics
   event with the copy path, the scroll id and the facade's new `chatId`.
+- **ADDED**: `ChatCodeKind` and `ChatInlineHit$Code.kind` (`inline` by
+  default, `block` for a fenced block's copy chrome), set by the body where
+  the hit is found. A refused code copy names its path from it, so an inline
+  span whose text equals a fenced block's in the same message reports
+  `inlineCode`, not `codeBlock`. A host that builds a fenced block's hit
+  itself passes `kind: ChatCodeKind.block`.
+- **ADDED**: `ChatCopyPath` (exported), the `copyRefused` event's path, which
+  carries the `ChatCopyOrigin` a `ChatCopyRefused` reports (`origin`).
+- **CHANGED** (breaking): `refusesCopy` takes `path: ChatCopyPath` (default
+  `messageSelection`) in place of `origin: ChatCopyOrigin`; the origin is read
+  from the path. Before, `origin: codeTap` always reported `inlineCode`.
 
 ### Outline shimmer
 - **CHANGED**: an emoji or sticker body tells its embeds where the screen

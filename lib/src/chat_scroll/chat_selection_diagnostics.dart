@@ -1,3 +1,5 @@
+import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 import 'package:content_model/content_model.dart' show DiagnosticOp;
 
 /// The operations of the diagnostics events the selection facade emits
@@ -13,17 +15,30 @@ enum ChatSelectionOp implements DiagnosticOp {
   copyRefused,
 }
 
-/// The copy path a `copyRefused` event names.
+/// The copy path a `copyRefused` event names: the one source a refusal's
+/// [ChatCopyOrigin] is read from ([origin]), so the two never disagree.
 enum ChatCopyPath {
   /// The text selection's Copy (menu, toolbar or key).
-  textSelection,
+  textSelection(ChatCopyOrigin.textSelection),
 
   /// A copy of the message-selection members.
-  messageSelection,
+  messageSelection(ChatCopyOrigin.messageSelection),
 
   /// A tap or hold on an inline code span.
-  inlineCode,
+  inlineCode(ChatCopyOrigin.codeTap),
 
   /// A fenced code block's copy chrome.
-  codeBlock,
+  codeBlock(ChatCopyOrigin.codeTap);
+
+  const ChatCopyPath(this.origin);
+
+  /// The path of a copy of code of [kind].
+  static ChatCopyPath ofCode(ChatCodeKind kind) => switch (kind) {
+    ChatCodeKind.inline => inlineCode,
+    ChatCodeKind.block => codeBlock,
+  };
+
+  /// The origin a [ChatCopyRefused] of this path carries: the coarser
+  /// grouping hosts switch on.
+  final ChatCopyOrigin origin;
 }

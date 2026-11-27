@@ -33,11 +33,13 @@ sealed class ChatInlineHit {
     Offset? touchOrigin,
   }) = ChatInlineHit$Link;
 
-  /// Creates a code or monospace snippet hit.
+  /// Creates a hit on code: an inline monospace span ([ChatCodeKind.inline],
+  /// the default) or a fenced block's copy chrome ([ChatCodeKind.block]).
   const factory ChatInlineHit.code({
     required int messageId,
     required String code,
     String? language,
+    ChatCodeKind kind,
     Path? contourPath,
     Offset? touchOrigin,
   }) = ChatInlineHit$Code;
@@ -157,10 +159,21 @@ final class ChatInlineHit$Link extends ChatInlineHit {
       'contourPath: $contourPath, touchOrigin: $touchOrigin)';
 }
 
-/// An inline code hit in a markdown message body.
+/// Which code a [ChatInlineHit$Code] is on.
+enum ChatCodeKind {
+  /// An inline monospace span.
+  inline,
+
+  /// A fenced code block, through its copy chrome.
+  block,
+}
+
+/// A code hit in a markdown message body.
 ///
-/// Produced by taps on fenced code blocks or inline monospace code snippets,
-/// alongside optional geometry for tactile tap feedback.
+/// Produced by taps on fenced code blocks' copy chrome or inline monospace
+/// code snippets, alongside optional geometry for tactile tap feedback.
+/// [kind] says which, read from the body where the hit was found, so two
+/// snippets with the same text stay apart.
 @immutable
 final class ChatInlineHit$Code extends ChatInlineHit {
   /// Creates a code hit descriptor.
@@ -168,12 +181,16 @@ final class ChatInlineHit$Code extends ChatInlineHit {
     required this.messageId,
     required this.code,
     this.language,
+    this.kind = ChatCodeKind.inline,
     this.contourPath,
     this.touchOrigin,
   });
 
   @override
   final int messageId;
+
+  /// Whether the hit is on an inline span or a fenced block.
+  final ChatCodeKind kind;
 
   /// Text content of the code block or monospace span.
   final String code;
@@ -195,17 +212,18 @@ final class ChatInlineHit$Code extends ChatInlineHit {
           other.messageId == messageId &&
           other.code == code &&
           other.language == language &&
+          other.kind == kind &&
           other.contourPath == contourPath &&
           other.touchOrigin == touchOrigin;
 
   @override
   int get hashCode =>
-      Object.hash(messageId, code, language, contourPath, touchOrigin);
+      Object.hash(messageId, code, language, kind, contourPath, touchOrigin);
 
   @override
   String toString() =>
       r'ChatInlineHit$Code(messageId: '
-      '$messageId, code: $code, language: $language, '
+      '$messageId, code: $code, language: $language, kind: ${kind.name}, '
       'contourPath: $contourPath, touchOrigin: $touchOrigin)';
 }
 
