@@ -13,6 +13,7 @@ void main() {
       {
         'chat_scroll_view.media.layout': false,
         'chat_scroll_view.media.lerp': false,
+        'chat_scroll_view.media.cardLayout': false,
         'chat_scroll_view.media.cellBuild': true,
       },
     );

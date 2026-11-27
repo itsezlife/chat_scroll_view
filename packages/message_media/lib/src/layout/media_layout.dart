@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:message_media/src/diagnostics/media_trace.dart';
+import 'package:message_media/src/layout/link_preview_card.dart';
 import 'package:message_media/src/layout/media_corner_radii.dart';
 import 'package:message_media/src/layout/media_file_row.dart';
 
@@ -286,11 +287,15 @@ sealed class MediaBlock {
     Rect? footer,
   }) = MediaBlock$FileStack;
 
-  /// The link preview card of [page].
+  /// The link preview card of [page], its media [item] drawn as the cell
+  /// [media], laid out as [card].
   const factory MediaBlock.linkPreview({
     required Rect rect,
     required LinkPreview page,
     LinkPreviewOptions? options,
+    MediaItem? item,
+    MediaCell? media,
+    LinkPreviewCard? card,
   }) = MediaBlock$LinkPreview;
 
   /// The block's bounds in layout coordinates.
@@ -404,16 +409,22 @@ final class MediaBlock$FileStack extends MediaBlock {
   String toString() => 'MediaBlock.fileStack($rect, ${cells.length} rows)';
 }
 
-/// The link preview card: page data and the message's preview options.
+/// The link preview card: page data, the message's preview options, the
+/// page's media as an ordinary item and cell, and the card's geometry.
 ///
-/// Its [rect] is a placeholder (the card's own metrics are not laid out
-/// yet): the width of the layout's box budget and no height.
+/// The media [item] has a `MediaItemId.linkPreviewOf` id and its [media]
+/// cell is one of the layout's cells: it draws, loads, hits and moves
+/// through the same path as any message media. [card] is null for a block
+/// a host's own layout step made without the card's geometry.
 final class MediaBlock$LinkPreview extends MediaBlock {
   /// The card of [page] with [options].
   const MediaBlock$LinkPreview({
     required super.rect,
     required this.page,
     this.options,
+    this.item,
+    this.media,
+    this.card,
   }) : super._();
 
   /// The page the card shows.
@@ -422,27 +433,57 @@ final class MediaBlock$LinkPreview extends MediaBlock {
   /// The message's options for the preview, when it carries any.
   final LinkPreviewOptions? options;
 
+  /// The page's media as an item, when the card shows one.
+  final MediaItem? item;
+
+  /// The cell of [item]: a thumbnail or a box under the text.
+  final MediaCell? media;
+
+  /// The card's geometry.
+  final LinkPreviewCard? card;
+
+  /// Whether the card draws its media as a small thumbnail.
+  bool get smallMedia => card?.mediaSize == LinkPreviewMediaSize.small;
+
   @override
-  List<MediaCell> get cells => const [];
+  List<MediaCell> get cells => [?media];
 
   @override
   String get kindName => 'linkPreview';
 
   @override
-  MediaBlock withCells(List<MediaCell> cells) => this;
+  MediaBlock withCells(List<MediaCell> cells) => MediaBlock$LinkPreview(
+    rect: rect,
+    page: page,
+    options: options,
+    item: item,
+    media: cells.isEmpty ? null : cells.first,
+    card: card,
+  );
 
   @override
   bool operator ==(Object other) =>
       other is MediaBlock$LinkPreview &&
       other.rect == rect &&
       other.page == page &&
-      other.options == options;
+      other.options == options &&
+      other.item == item &&
+      other.media == media &&
+      other.card == card;
 
   @override
-  int get hashCode => Object.hash(MediaBlock$LinkPreview, rect, page, options);
+  int get hashCode => Object.hash(
+    MediaBlock$LinkPreview,
+    rect,
+    page,
+    options,
+    item,
+    media,
+    card,
+  );
 
   @override
-  String toString() => 'MediaBlock.linkPreview($rect)';
+  String toString() => 'MediaBlock.linkPreview($rect, $card)';
 }
 
 // --- Width metrics ---
@@ -712,8 +753,19 @@ final class MediaLayout {
           _ => footer,
         },
       ),
-      MediaBlock$LinkPreview(:final page, :final options) =>
-        MediaBlock$LinkPreview(rect: rect, page: page, options: options),
+      MediaBlock$LinkPreview(:final page, :final options, :final item) =>
+        MediaBlock$LinkPreview(
+          rect: rect,
+          page: page,
+          options: options,
+          item: item,
+          media: cells.isEmpty ? null : cells.first,
+          card: switch ((match, block.card)) {
+            (MediaBlock$LinkPreview(card: final old?), final now?) =>
+              LinkPreviewCard.lerp(old, now, t),
+            (_, final now) => now,
+          },
+        ),
     };
   }
 

@@ -18,6 +18,9 @@ enum MediaTrace {
   /// One frame of a layout transition (`MediaLayout.lerp`).
   lerp('media.lerp'),
 
+  /// The link preview card's layout (`LinkPreviewCardPolicy.layout`).
+  cardLayout('media.cardLayout'),
+
   /// One cell's builder (`fine` only: one span per cell per build).
   cellBuild('media.cellBuild', fine: true);
 

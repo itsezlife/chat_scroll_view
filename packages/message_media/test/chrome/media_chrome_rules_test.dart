@@ -150,7 +150,11 @@ void main() {
             policy,
             [_item('a')],
             linkPreview: MediaLinkPreviewInput(
-              page: LinkPreview(url: Uri.parse('https://example.com/')),
+              messageId: 'm1',
+              page: LinkPreview(
+                url: Uri.parse('https://example.com/'),
+                title: 'Example',
+              ),
             ),
           ).timePill,
           isNull,

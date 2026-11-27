@@ -199,6 +199,48 @@ cross-fades the old caption into the new, both on the media's clock, with
 the `invertMedia` and `caption` triggers. The host keeps the bubble's fill
 and tail around it.
 
+## Link preview card
+
+The `linkPreview` block is laid out by `LinkPreviewCardPolicy`
+(`MediaLayoutPolicy.card`, `MessageMediaPolicy.linkPreview`; `android()`,
+`ios()`, `desktop()`, every value a field). The host passes the page as
+`MediaLinkPreviewInput` (the message id the media ids derive from, the
+options, the action button's label, compact mode, the chat's direction);
+nothing is passed while the page is pending, and a removed or empty page
+makes no block.
+
+| Part | Role |
+| --- | --- |
+| `LinkPreviewBlockStyle` | The quote block's bar (3), fill (0.10, 0.12 outgoing dark / 0.1 / 0.12) and radius (5 / 4 / 5) |
+| `LinkPreviewCardMetrics` | Offsets in the bubble, insets, gaps, the thumbnail (48 / 54 / from the text), large media's caps, media corners (4 / 4 / 3), the button (42 / 36 / 36) |
+| `LinkPreviewCardText` | Sizes, weights and line limits (the desktop's 5-line budget) |
+| `LinkPreviewCardWidth` | `fillBudget` / `fitMedia` / `fitContent` |
+| `LinkPreviewMediaSizeRule` | `small` or `large` from the options and each platform's `auto` default, over the host's `smallMediaTypes` |
+| `LinkPreviewAppearForm` | `jump` / `fade` (250 ms) / `relayout` when the page arrives |
+| `LinkPreviewCardPress` | The press over `ChromeInk`: ripple and bounce, the inset scale, or the ripple |
+| `photoTapOpensPage`, `LinkPreviewEnlargeButton` | What a tap on the photo of a card with text does |
+| `LinkPreviewTimePlacement` | The time under a last card: its own line, or inside the card |
+| `LinkPreviewTextMeasure` | How the text is measured (the framework painter by default) |
+
+The block carries the page, the media as an ordinary `MediaItem`
+(`MediaItemId.linkPreviewOf`) and its cell, and the `LinkPreviewCard`
+geometry (text pieces, button, enlarge button, time slot). The media
+loads, draws, hits and moves as any other item; small ↔ large, height and
+above ↔ below go through `MediaLayout.lerp`, a new page cross-fades, and
+the card fades in or shows at once per the appear form.
+
+The card's area is a body part hit with a `LinkPreviewHitPart`: `body`
+(the site name included) or `button`, both `activate`; the view calls the
+host's `onLinkPreview` with the part and the page, behind the input guard.
+A description link is an ordinary text link. The photo of a card with text
+opens the page where `photoTapOpensPage` says, the desktop's enlarge
+button the viewer. In message selection any tap toggles; a menu request
+on the card carries the part. The press feedback yields its tap to the
+viewport and never runs under a link, the button or the media. Colours are
+the host's (`LinkPreviewCardColors`). One node reads "Page preview, title,
+text"; the button is a node of its own. In a right-to-left chat the bar is
+on the right and, on desktop, the thumbnail on the left.
+
 ## Geometry
 
 | Type | Role |
@@ -223,11 +265,15 @@ builder or a chrome slot throws or a cell's item is missing,
 change and each change mid-flight, `hit` (debug) when an activation
 revealed a spoiler or cancelled a download, `activationDropped` (debug)
 for a tap the input guard dropped, `viewerOpened` (info) and
-`originRectMissing` (warning, at open or close). They carry the chat, message and item
-ids, never a caption, a file name or a page.
+`originRectMissing` (warning, at open or close); `hit` also reports a
+card's `open` and `action`. `linkPreview` / `cardShown` (debug,
+`LinkPreviewCardOp`) names a shown card's media size, width rule and appear
+form. They carry the chat, message and item ids, never a caption, a file
+name or a page.
 
 Timeline sections (`--dart-define=chat_scroll_view.trace=phase`):
-`chat_scroll_view.media.layout`, `chat_scroll_view.media.lerp`, and at
+`chat_scroll_view.media.layout`, `chat_scroll_view.media.lerp`,
+`chat_scroll_view.media.cardLayout`, and at
 `fine` `chat_scroll_view.media.cellBuild` per cell.
 
 ## Goldens

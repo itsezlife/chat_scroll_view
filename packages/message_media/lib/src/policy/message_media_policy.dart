@@ -8,6 +8,7 @@ import 'package:message_media/src/gesture/media_semantics_strings.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
+import 'package:message_media/src/policy/link_preview_card_policy.dart';
 import 'package:message_media/src/policy/media_autoplay_policy.dart';
 import 'package:message_media/src/policy/media_corner_policy.dart';
 import 'package:message_media/src/policy/media_file_stack_policy.dart';
@@ -151,6 +152,17 @@ final class MessageMediaPolicy {
       MessageMediaPlatform.android => const MediaFileStackPolicy.android(),
       MessageMediaPlatform.ios => const MediaFileStackPolicy.ios(),
       MessageMediaPlatform.desktop => const MediaFileStackPolicy.desktop(),
+    },
+  };
+
+  /// The link preview card's policy the card draws by: the default layout
+  /// step's, or the family's own under a host's step.
+  LinkPreviewCardPolicy get linkPreview => switch (layoutStep) {
+    MediaLayoutPolicy(:final card) => card,
+    _ => switch (family) {
+      MessageMediaPlatform.android => const LinkPreviewCardPolicy.android(),
+      MessageMediaPlatform.ios => const LinkPreviewCardPolicy.ios(),
+      MessageMediaPlatform.desktop => const LinkPreviewCardPolicy.desktop(),
     },
   };
 

@@ -9,8 +9,12 @@ import 'package:message_media/src/bubble/media_bubble_composition.dart';
 import 'package:message_media/src/bubble/media_bubble_geometry.dart';
 import 'package:message_media/src/chrome/media_options_affordance.dart';
 import 'package:message_media/src/gesture/media_viewer_request.dart';
+import 'package:message_media/src/layout/link_preview_card.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/message_media_hit_part.dart';
+import 'package:message_media/src/paint/link_preview_card_view.dart';
+import 'package:message_media/src/paint/message_media_body.dart'
+    show LinkPreviewActivated;
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:message_media/src/transition/media_layout_transition.dart';
 import 'package:message_media/src/transition/media_transition_policy.dart';
@@ -97,6 +101,8 @@ class MessageMediaBubbleLayout extends StatefulWidget {
     this.messageId,
     this.onOpenViewer,
     this.onItemMenu,
+    this.onLinkPreview,
+    this.linkPreviewColors = LinkPreviewCardColors.fallback,
     super.key,
   });
 
@@ -157,12 +163,32 @@ class MessageMediaBubbleLayout extends StatefulWidget {
   /// See `MessageMediaView.onItemMenu`.
   final void Function(MediaHitPart part, Rect rect)? onItemMenu;
 
+  /// See `MessageMediaView.onLinkPreview`.
+  final LinkPreviewActivated? onLinkPreview;
+
+  /// See `MessageMediaView.linkPreviewColors`.
+  final LinkPreviewCardColors linkPreviewColors;
+
   @override
   State<MessageMediaBubbleLayout> createState() =>
       _MessageMediaBubbleLayoutState();
 }
 
 class _MessageMediaBubbleLayoutState extends State<MessageMediaBubbleLayout> {
+  // Where the host's time goes: the pill over the media, or the slot a
+  // card that ends the bubble keeps for it (its own line, or its bottom
+  // inset).
+  static Rect? _timeSlotOf(MediaLayout layout) =>
+      layout.timePill ??
+      switch (layout.blocks) {
+        [
+          ...,
+          MediaBlock$LinkPreview(card: LinkPreviewCard(:final timeSlot?)),
+        ] =>
+          timeSlot,
+        _ => null,
+      };
+
   /// Counts the changes only the bubble shows (caption, invertMedia).
   int _revision = 0;
 
@@ -215,6 +241,8 @@ class _MessageMediaBubbleLayoutState extends State<MessageMediaBubbleLayout> {
     messageId: widget.messageId,
     onOpenViewer: widget.onOpenViewer,
     onItemMenu: widget.onItemMenu,
+    onLinkPreview: widget.onLinkPreview,
+    linkPreviewColors: widget.linkPreviewColors,
     builder: _bubble,
   );
 
@@ -248,7 +276,7 @@ class _MessageMediaBubbleLayoutState extends State<MessageMediaBubbleLayout> {
         ),
         _ => null,
       },
-      time: switch (layout.timePill) {
+      time: switch (_timeSlotOf(layout)) {
         final _? => widget.time,
         null => null,
       },
@@ -268,7 +296,7 @@ class _MessageMediaBubbleLayoutState extends State<MessageMediaBubbleLayout> {
           child: Stack(clipBehavior: Clip.none, children: positioned),
         ),
       },
-      timePill: layout.timePill,
+      timePill: _timeSlotOf(layout),
       captionMaxWidth: layout.widthMetrics?.captionMaxWidth,
       mediaInset: widget.policy.corners.bubbleInset,
       textPadding: widget.textPadding,

@@ -8,6 +8,29 @@ this package is pre-1.0.
 
 ### Added
 
+- The link preview card: `LinkPreviewCardPolicy` (`android()`, `ios()`,
+  `desktop()`; `MediaLayoutPolicy.card`, `MessageMediaPolicy.linkPreview`)
+  with `LinkPreviewBlockStyle`, `LinkPreviewCardMetrics`,
+  `LinkPreviewCardText`, `LinkPreviewCardWidth`, `LinkPreviewMediaSizeRule`
+  (the `auto` table, `smallMediaTypes`, `offersSwitch`),
+  `LinkPreviewAppearForm`, `LinkPreviewCardPress`,
+  `LinkPreviewEnlargeButton`, `LinkPreviewTimePlacement` and
+  `LinkPreviewTextMeasure`. `MediaBlock$LinkPreview` gains `item`, `media`
+  (an ordinary cell) and `card` (`LinkPreviewCard`); the view draws it,
+  answers `LinkPreviewHitPart` hits and description links, and calls
+  `onLinkPreview` (`MessageMediaView`, `MessageMediaTransition`,
+  `MessageMediaBubbleLayout`) with `LinkPreviewCardColors` for the colours.
+  `MediaTransitionFrame` gains `cardOpacity` and the leaving card;
+  `MessageMediaBubbleLayout` lays the time in a last card's time slot.
+  `MediaSemanticsStrings.pagePreview` and `cardLabel`;
+  `LinkPreviewCardOp.cardShown`; the `media.cardLayout` trace section.
+
+### Changed (breaking)
+
+- `MediaLinkPreviewInput` requires `messageId` (the card's media ids).
+- A link preview block is laid out: its rect is the card's footprint, not
+  a zero-height placeholder; a removed or empty page makes no block.
+
 - Gestures: `MessageMediaView` (and `MessageMediaTransition`) take
   `selection`, `messageId`, `onOpenViewer` and `onItemMenu`; with a
   facade the view registers as the message's non-text body and answers

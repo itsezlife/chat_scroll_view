@@ -150,23 +150,32 @@ void main() {
       expect(block.cells.every((cell) => cell.fit == null), isTrue);
     });
 
-    test('the link preview card is the last block, a placeholder of the block '
-        'width and no height', () {
-      final page = LinkPreview(url: Uri.parse('https://example.org/a'));
+    test('the link preview card is the last block, under the boxes', () {
+      final page = LinkPreview(
+        url: Uri.parse('https://example.org/a'),
+        title: 'A page',
+      );
       final options = LinkPreviewOptions(
         url: Uri.parse('https://example.org/a'),
       );
       final layout = _android.layout(
-        _input([
-          _photo('p'),
-        ], linkPreview: MediaLinkPreviewInput(page: page, options: options)),
+        _input(
+          [_photo('p')],
+          linkPreview: MediaLinkPreviewInput(
+            messageId: 'm1',
+            page: page,
+            options: options,
+          ),
+        ),
       );
       final card = layout.blocks.last;
       expect(card, isA<MediaBlock$LinkPreview>());
       card as MediaBlock$LinkPreview;
       expect(card.page, page);
       expect(card.options, options);
-      expect(card.rect, const Rect.fromLTWH(0, 168, 364 * 0.8, 0));
+      expect(card.rect.top, 168);
+      expect(card.rect.height, greaterThan(0));
+      expect(layout.size.height, card.rect.bottom);
       // The box above the card meets an item, not the bubble's edge.
       expect(
         layout.cellOf(const MediaItemId('p'))?.neighbours.bottom,
@@ -552,6 +561,7 @@ void main() {
             _item('s', const MediaItemKind.custom('sticker')),
           ],
           linkPreview: MediaLinkPreviewInput(
+            messageId: 'm1',
             page: LinkPreview(
               url: Uri.parse('https://example.org/private/path?q=1'),
               title: 'A private title',

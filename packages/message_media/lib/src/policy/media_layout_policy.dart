@@ -7,6 +7,7 @@ import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/policy/desktop_mosaic_algorithm.dart';
 import 'package:message_media/src/policy/ios_mosaic_algorithm.dart';
+import 'package:message_media/src/policy/link_preview_card_policy.dart';
 import 'package:message_media/src/policy/media_box_sizing.dart';
 import 'package:message_media/src/policy/media_caption_width_policy.dart';
 import 'package:message_media/src/policy/media_file_stack_policy.dart';
@@ -127,6 +128,7 @@ final class MediaFitPolicy {
 /// | [fit] | Each box kind's fit mode alone, and the album boxes' fit |
 /// | [fileStack] | File and custom items as rows in a vertical stack |
 /// | [captionWidth] | The caption's width metrics (`widenMedia` / `wrapAtMedia`) |
+/// | [card] | The link preview card's geometry |
 ///
 /// ## Blocks
 ///
@@ -135,8 +137,8 @@ final class MediaFitPolicy {
 /// Consecutive file and custom items make one file stack. A list mixing
 /// them gives consecutive blocks in item order, so every item has exactly
 /// one cell. [fileStack] lays a stack's rows out, its width by its own rule
-/// rather than the box budget. The link preview's card comes last, a placeholder rect of the
-/// block width and no height.
+/// rather than the box budget. The link preview's card comes last, laid
+/// out by [card]; a removed or empty page makes no block.
 ///
 /// ## Neighbours
 ///
@@ -161,6 +163,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     required this.fileStack,
     this.mosaicAlgorithm = const GroupedMosaicAlgorithm(),
     this.captionWidth = const MediaCaptionWidthPolicy.android(),
+    this.card = const LinkPreviewCardPolicy.android(),
   });
 
   /// The Android family's layout.
@@ -179,6 +182,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
         fileStack: const MediaFileStackPolicy.ios(),
         mosaicAlgorithm: const IosMosaicAlgorithm(),
         captionWidth: const MediaCaptionWidthPolicy.ios(),
+        card: const LinkPreviewCardPolicy.ios(),
       );
 
   /// The desktop family's layout, albums by [DesktopMosaicAlgorithm].
@@ -189,6 +193,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
         fileStack: const MediaFileStackPolicy.desktop(),
         mosaicAlgorithm: const DesktopMosaicAlgorithm(),
         captionWidth: const MediaCaptionWidthPolicy.desktop(),
+        card: const LinkPreviewCardPolicy.desktop(),
       );
 
   /// Box sizing.
@@ -206,6 +211,9 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
   /// The caption's width metrics.
   final MediaCaptionWidthPolicy captionWidth;
 
+  /// The link preview card.
+  final LinkPreviewCardPolicy card;
+
   /// Whether [kind] is laid out as a box (else a file row).
   static bool isBox(MediaItemKind kind) =>
       kind == MediaItemKind.photo ||
@@ -215,7 +223,12 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
   @override
   MediaLayout layout(MediaLayoutInput input) {
     final runs = _runsOf(input);
-    final blockCount = runs.length + (input.linkPreview == null ? 0 : 1);
+    final showsCard = switch (input.linkPreview) {
+      MediaLinkPreviewInput(:final page, :final options) =>
+        !(options?.removed ?? false) && !LinkPreviewCardPolicy.isEmpty(page),
+      null => false,
+    };
+    final blockCount = runs.length + (showsCard ? 1 : 0);
     final blocks = <MediaBlock>[];
     var top = 0.0;
     for (final (index, run) in runs.indexed) {
@@ -233,17 +246,9 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
       blocks.add(block);
       top = block.rect.bottom;
     }
-    if (input.linkPreview case MediaLinkPreviewInput(
-      :final page,
-      :final options,
-    )) {
-      final card = MediaBlock.linkPreview(
-        rect: Rect.fromLTWH(0, top, box.blockWidth(input), 0),
-        page: page,
-        options: options,
-      );
-      blocks.add(card);
-      top = card.rect.bottom;
+    if (card.layout(input, top: top, box: box) case final cardBlock?) {
+      blocks.add(cardBlock);
+      top = cardBlock.rect.bottom;
     }
     final width = blocks.fold<double>(
       0,
@@ -399,12 +404,14 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     MediaFitPolicy? fit,
     MediaFileStackPolicy? fileStack,
     MediaCaptionWidthPolicy? captionWidth,
+    LinkPreviewCardPolicy? card,
   }) => MediaLayoutPolicy(
     box: box ?? this.box,
     mosaicAlgorithm: mosaicAlgorithm ?? this.mosaicAlgorithm,
     fit: fit ?? this.fit,
     fileStack: fileStack ?? this.fileStack,
     captionWidth: captionWidth ?? this.captionWidth,
+    card: card ?? this.card,
   );
 }
 

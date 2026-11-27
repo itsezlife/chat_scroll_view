@@ -15,8 +15,10 @@ import 'package:message_media/src/chrome/media_options_affordance.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/gesture/media_gesture_policy.dart';
 import 'package:message_media/src/gesture/media_viewer_request.dart';
+import 'package:message_media/src/layout/link_preview_card.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/message_media_hit_part.dart';
+import 'package:message_media/src/paint/link_preview_card_view.dart';
 import 'package:message_media/src/paint/media_box_cell.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/paint/media_row_cell.dart';
@@ -33,15 +35,24 @@ typedef MediaCellDecorator =
     Widget Function(MediaBlock block, MediaCell cell, Widget built);
 
 /// Builds one cell of the view at its place, chrome included, with
-/// [decorate] around the cell inside its place.
+/// [decorate] around the cell inside its place; [origin] is the top-left of
+/// the stack it is placed in, in layout coordinates (a card's, for the
+/// card's media).
 @internal
 typedef MediaBodyCellBuilder =
     Widget Function(
       BuildContext context,
       MediaBlock block,
       MediaCell cell,
-      MediaCellDecorator decorate,
-    );
+      MediaCellDecorator decorate, {
+      Offset origin,
+    });
+
+/// Called with the zone of a link preview card the user activated and the
+/// page: the host opens the page's URL ([LinkPreviewZone.body]) or runs the
+/// button's action ([LinkPreviewZone.button]).
+typedef LinkPreviewActivated =
+    void Function(LinkPreviewHitPart part, LinkPreview page);
 
 /// The media of one message as the viewport sees it: a non-text body whose
 /// parts are body part hits, the actions those parts take in normal mode,
@@ -88,6 +99,11 @@ class MessageMediaBody extends StatefulWidget {
     this.messageId,
     this.onOpenViewer,
     this.onItemMenu,
+    this.onLinkPreview,
+    this.linkPreviewColors = LinkPreviewCardColors.fallback,
+    this.cardOpacity = 1,
+    this.leavingCard,
+    this.leavingCardOpacity = 0,
     this.chromeContext = MediaChromeContext.none,
     this.correlation = ChatCorrelation.none,
     super.key,
@@ -129,6 +145,21 @@ class MessageMediaBody extends StatefulWidget {
   /// What the message is drawn in.
   final MediaChromeContext chromeContext;
 
+  /// Called when a link preview card's body or button is activated.
+  final LinkPreviewActivated? onLinkPreview;
+
+  /// The link preview card's colours.
+  final LinkPreviewCardColors linkPreviewColors;
+
+  /// The card's opacity while it fades in.
+  final double cardOpacity;
+
+  /// A card on its way out, painted bare at [leavingCardOpacity].
+  final MediaBlock$LinkPreview? leavingCard;
+
+  /// The leaving card's opacity.
+  final double leavingCardOpacity;
+
   /// The ids the body's events name.
   final ChatCorrelation correlation;
 
@@ -150,8 +181,16 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
   Offset? _hoverAt;
   MouseCursor _cursor = MouseCursor.defer;
   bool _wasInSelection = false;
+  final GlobalKey<LinkPreviewCardViewState> _cardKey = GlobalKey();
 
   MediaGesturePolicy get _gestures => widget.policy.gestures;
+
+  MediaBlock$LinkPreview? get _cardBlock {
+    for (final block in widget.layout.blocks) {
+      if (block case final MediaBlock$LinkPreview card) return card;
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -348,7 +387,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
   }
 
   /// The part under [local] (layout coordinates) and its rect there.
-  (MediaHitPart, Rect)? _partAt(Offset local) {
+  (MessageMediaHitPart, Rect)? _partAt(Offset local) {
     for (final (block, cell) in _cells) {
       final item = widget.items[cell.itemId];
       if (item == null) continue;
@@ -357,6 +396,10 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
         block,
         context: widget.chromeContext,
         spoilerHidden: _spoilerHidden(item, cell),
+        smallImage: switch (block) {
+          final MediaBlock$LinkPreview card => card.smallMedia,
+          _ => false,
+        },
       );
       if (affordance case final options? when options.hitRect.contains(local)) {
         return (
@@ -376,10 +419,33 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
           when status.contains(local)) {
         return (MediaHitPart(item.id, part: MediaPart.status), status);
       }
+      if (block case MediaBlock$LinkPreview(card: final card?)) {
+        if (card.enlarge case final enlarge? when enlarge.contains(local)) {
+          return (MediaHitPart(item.id, part: MediaPart.content), cell.rect);
+        }
+        // A photo in a card with text opens the page where the policy says
+        // so (the enlarge button, where there is one, opens the viewer).
+        if (card.hasText &&
+            item.kind == MediaItemKind.photo &&
+            widget.policy.linkPreview.photoTapOpensPage) {
+          return (_cardPart(LinkPreviewZone.body), card.rect);
+        }
+      }
       return (MediaHitPart(item.id, part: MediaPart.content), cell.rect);
+    }
+    if (_cardBlock case MediaBlock$LinkPreview(
+      card: final card?,
+    ) when card.rect.contains(local)) {
+      if (card.button case final button? when button.rect.contains(local)) {
+        return (_cardPart(LinkPreviewZone.button), button.rect);
+      }
+      return (_cardPart(LinkPreviewZone.body), card.rect);
     }
     return null;
   }
+
+  LinkPreviewHitPart _cardPart(LinkPreviewZone zone) =>
+      LinkPreviewHitPart(widget.messageId ?? 0, zone: zone);
 
   // --- ChatNonTextBody ----------------------------------------------------
 
@@ -395,9 +461,22 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     final id = widget.messageId;
     if (box == null || id == null || !mounted) return null;
     _lastQuery = globalOffset;
-    final found = _partAt(box.globalToLocal(globalOffset));
+    final local = box.globalToLocal(globalOffset);
+    final found = _partAt(local);
     if (found == null) return null;
     final (part, rect) = found;
+    // A link in the card's description is an ordinary text link.
+    if (part case LinkPreviewHitPart(zone: LinkPreviewZone.body)) {
+      if (_cardKey.currentState?.linkAt(local) case final link?) {
+        return ChatInlineHit.link(
+          messageId: id,
+          title: link.title,
+          url: link.url,
+          contourPath: link.contour,
+          touchOrigin: local,
+        );
+      }
+    }
     return ChatInlineHit.bodyPart(
       messageId: id,
       partId: part,
@@ -416,9 +495,15 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     ) when messageId == widget.messageId && mounted) {
       if (widget.items.containsKey(part.itemId)) _activate(part, rect);
     }
+    if (interaction case ChatBodyPartActivated(
+      :final messageId,
+      partId: final LinkPreviewHitPart part,
+    ) when messageId == widget.messageId && mounted) {
+      _activateCard(part);
+    }
   }
 
-  bool _accept(MediaHitPart part) {
+  bool _accept(String part, MediaItemId? id) {
     final clock = widget.selection?.monotonicClock;
     if (clock == null) return true;
     final now = clock();
@@ -427,8 +512,8 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
       _emit(
         ChatEventLevel.debug,
         MediaOp.activationDropped,
-        part.itemId,
-        () => {'part': part.part.name, 'sinceMs': (now - last).inMilliseconds},
+        id,
+        () => {'part': part, 'sinceMs': (now - last).inMilliseconds},
       );
       return false;
     }
@@ -436,8 +521,29 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     return true;
   }
 
+  void _activateCard(LinkPreviewHitPart part) {
+    final card = _cardBlock;
+    if (card == null) return;
+    if (!_accept(part.zone.name, null)) return;
+    widget.onLinkPreview?.call(part, card.page);
+    _emit(
+      ChatEventLevel.debug,
+      MediaOp.hit,
+      null,
+      () => {
+        'part': part.zone.name,
+        'role': part.role,
+        'mode': 'normal',
+        'outcome': switch (part.zone) {
+          LinkPreviewZone.body => 'open',
+          LinkPreviewZone.button => 'action',
+        },
+      },
+    );
+  }
+
   void _activate(MediaHitPart part, Rect? rect) {
-    if (!_accept(part)) return;
+    if (!_accept(part.part.name, part.itemId)) return;
     final id = part.itemId;
     switch (_gestures.actionOf(part.part, _loadOf(id))) {
       case MediaPartAction.reveal:
@@ -539,7 +645,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
   void _emit(
     ChatEventLevel level,
     MediaOp op,
-    MediaItemId id,
+    MediaItemId? id,
     Map<String, Object> Function() fields,
   ) => _emitWith(widget.correlation, level, op, id, fields);
 
@@ -547,7 +653,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     ChatCorrelation correlation,
     ChatEventLevel level,
     MediaOp op,
-    MediaItemId id,
+    MediaItemId? id,
     Map<String, Object> Function() fields,
   ) => ChatDiagnostics.current.emit(
     level,
@@ -557,7 +663,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
       chatId: correlation.chatId,
       scrollId: correlation.scrollId,
       clientMessageId: correlation.clientMessageId,
-      mediaItemId: id.toString(),
+      mediaItemId: id?.toString(),
     ),
     fields: fields,
   );
@@ -570,7 +676,10 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     final found = global == null || box == null || _inSelection
         ? null
         : _partAt(box.globalToLocal(global));
-    _hovered = found?.$1.itemId;
+    _hovered = switch (found?.$1) {
+      MediaHitPart(:final itemId) => itemId,
+      _ => null,
+    };
     _cursor = found != null && _gestures.clickCursor
         ? SystemMouseCursors.click
         : MouseCursor.defer;
@@ -724,7 +833,32 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
       clipBehavior: Clip.none,
       children: [
         for (final (block, cell) in _cells)
-          widget.cellBuilder(context, block, cell, _decorate),
+          if (block case MediaBlock$Mosaic() || MediaBlock$FileStack())
+            widget.cellBuilder(context, block, cell, _decorate),
+        if (_cardBlock
+            case final MediaBlock$LinkPreview block &&
+                MediaBlock$LinkPreview(card: final card?))
+          _card(context, block, card),
+        if (widget.leavingCard
+            case final MediaBlock$LinkPreview block &&
+                MediaBlock$LinkPreview(card: final card?))
+          Positioned.fromRect(
+            rect: card.rect,
+            child: IgnorePointer(
+              child: ExcludeSemantics(
+                child: Opacity(
+                  opacity: widget.leavingCardOpacity,
+                  child: LinkPreviewCardView(
+                    block: block,
+                    card: card,
+                    policy: widget.policy.linkPreview,
+                    colors: widget.linkPreviewColors,
+                    pressable: false,
+                  ),
+                ),
+              ),
+            ),
+          ),
         // A cell on its way out is no part any more: drawn bare.
         for (final cell in widget.layout.exiting)
           widget.cellBuilder(
@@ -748,4 +882,78 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
   }
 
   static Widget _bare(MediaBlock block, MediaCell cell, Widget built) => built;
+
+  // --- Link preview card --------------------------------------------------
+
+  Widget _card(
+    BuildContext context,
+    MediaBlock$LinkPreview block,
+    LinkPreviewCard card,
+  ) {
+    final page = block.page;
+    final strings = widget.policy.semantics;
+    final selection = widget.selection;
+    final messageId = widget.messageId;
+    final inSelection = _inSelection && selection != null && messageId != null;
+    VoidCallback? tapOf(LinkPreviewZone zone) => switch (selection) {
+      final selection? when inSelection =>
+        selection.isSelectable(messageId)
+            ? () => selection.toggle(messageId)
+            : null,
+      _ => () => _activateCard(_cardPart(zone)),
+    };
+    final media = switch (block.media) {
+      final cell? => widget.cellBuilder(
+        context,
+        block,
+        cell,
+        _decorate,
+        origin: card.rect.topLeft,
+      ),
+      null => null,
+    };
+    final view = LinkPreviewCardView(
+      key: _cardKey,
+      block: block,
+      card: card,
+      policy: widget.policy.linkPreview,
+      colors: widget.linkPreviewColors,
+      media: media,
+      pressable: !_inSelection,
+      correlation: widget.correlation,
+    );
+    return Positioned.fromRect(
+      key: const ValueKey('linkPreviewCard'),
+      rect: card.rect,
+      child: Opacity(
+        opacity: widget.cardOpacity,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: Semantics(
+                container: true,
+                label: strings.cardLabel(
+                  title: page.title,
+                  text: page.description.plain,
+                ),
+                onTap: tapOf(LinkPreviewZone.body),
+              ),
+            ),
+            view,
+            if (card.button case final button?)
+              Positioned.fromRect(
+                rect: button.rect.shift(-card.rect.topLeft),
+                child: Semantics(
+                  container: true,
+                  button: true,
+                  label: button.label,
+                  onTap: tapOf(LinkPreviewZone.button),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -8,6 +8,9 @@ import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/gesture/media_viewer_request.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/message_media_hit_part.dart';
+import 'package:message_media/src/paint/link_preview_card_view.dart';
+import 'package:message_media/src/paint/message_media_body.dart'
+    show LinkPreviewActivated;
 import 'package:message_media/src/paint/message_media_view.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:message_media/src/transition/media_layout_transition.dart';
@@ -69,6 +72,8 @@ class MessageMediaTransition extends StatefulWidget {
     this.messageId,
     this.onOpenViewer,
     this.onItemMenu,
+    this.onLinkPreview,
+    this.linkPreviewColors = LinkPreviewCardColors.fallback,
     super.key,
   });
 
@@ -123,6 +128,12 @@ class MessageMediaTransition extends StatefulWidget {
   /// See `MessageMediaView.onItemMenu`.
   final void Function(MediaHitPart part, Rect rect)? onItemMenu;
 
+  /// See `MessageMediaView.onLinkPreview`.
+  final LinkPreviewActivated? onLinkPreview;
+
+  /// See `MessageMediaView.linkPreviewColors`.
+  final LinkPreviewCardColors linkPreviewColors;
+
   @override
   State<MessageMediaTransition> createState() => _MessageMediaTransitionState();
 }
@@ -166,10 +177,13 @@ class _MessageMediaTransitionState extends State<MessageMediaTransition>
     final collapsed =
         (MediaQuery.maybeDisableAnimationsOf(context) ?? false) ||
         !TickerMode.valuesOf(context).enabled;
+    final card = widget.policy.linkPreview;
     final leg = MediaLayoutTransition(
       from: _frame,
       to: widget.layout,
       policy: transition,
+      cardAppear: card.appear,
+      cardFade: card.appearDuration,
     );
     final runs = !collapsed && leg.duration > Duration.zero;
     _emit(MediaOp.transitionStarted, {
@@ -267,6 +281,11 @@ class _MessageMediaTransitionState extends State<MessageMediaTransition>
       messageId: widget.messageId,
       onOpenViewer: widget.onOpenViewer,
       onItemMenu: widget.onItemMenu,
+      onLinkPreview: widget.onLinkPreview,
+      linkPreviewColors: widget.linkPreviewColors,
+      cardOpacity: frame.cardOpacity,
+      leavingCard: frame.leavingCard,
+      leavingCardOpacity: frame.leavingCardOpacity,
     );
     return switch (widget.builder) {
       final builder? => builder(context, frame, media),

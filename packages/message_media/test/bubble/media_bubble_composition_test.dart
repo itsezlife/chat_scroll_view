@@ -45,7 +45,9 @@ MediaLayoutInput _base(
   maxContentWidth: maxContentWidth,
   captionWidth: captionWidth,
   isOutgoing: isOutgoing,
-  linkPreview: card ? MediaLinkPreviewInput(page: _page) : null,
+  linkPreview: card
+      ? MediaLinkPreviewInput(messageId: 'm1', page: _page)
+      : null,
   chrome: chrome,
 );
 

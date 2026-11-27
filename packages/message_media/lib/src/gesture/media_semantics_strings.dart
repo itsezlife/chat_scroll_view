@@ -20,6 +20,7 @@ final class MediaSemanticsStrings {
     required this.download,
     required this.cancel,
     required this.options,
+    this.pagePreview = 'Page preview',
   });
 
   /// English: Photo, Video, GIF, File; `1:05`; `3.4 MB`; `Downloading,
@@ -55,6 +56,15 @@ final class MediaSemanticsStrings {
   /// The options affordance's action.
   final String options;
 
+  /// What a link preview card's node starts with, before the page's title
+  /// and text.
+  final String pagePreview;
+
+  /// A card's label: [pagePreview], then the [title] and the [text] where
+  /// the page has them.
+  String cardLabel({String? title, String? text}) =>
+      [pagePreview, ?title, ?text].join(', ');
+
   /// The node's label: [kind], then [duration] or [size] where the item
   /// has one, then [progress] while [loading].
   String label({
@@ -79,6 +89,7 @@ final class MediaSemanticsStrings {
     String? download,
     String? cancel,
     String? options,
+    String? pagePreview,
   }) => MediaSemanticsStrings(
     kind: kind ?? this.kind,
     duration: duration ?? this.duration,
@@ -87,6 +98,7 @@ final class MediaSemanticsStrings {
     download: download ?? this.download,
     cancel: cancel ?? this.cancel,
     options: options ?? this.options,
+    pagePreview: pagePreview ?? this.pagePreview,
   );
 
   @override
@@ -98,11 +110,20 @@ final class MediaSemanticsStrings {
       other.progress == progress &&
       other.download == download &&
       other.cancel == cancel &&
-      other.options == options;
+      other.options == options &&
+      other.pagePreview == pagePreview;
 
   @override
-  int get hashCode =>
-      Object.hash(kind, duration, size, progress, download, cancel, options);
+  int get hashCode => Object.hash(
+    kind,
+    duration,
+    size,
+    progress,
+    download,
+    cancel,
+    options,
+    pagePreview,
+  );
 }
 
 String _englishKind(MediaItemKind kind) => switch (kind) {

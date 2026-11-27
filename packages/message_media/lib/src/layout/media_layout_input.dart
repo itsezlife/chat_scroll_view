@@ -86,27 +86,61 @@ final class MediaLayoutChrome {
   );
 }
 
-/// A link preview to lay out as a card block: the page and the message's
-/// options for it.
+/// A link preview to lay out as a card block: the page, the message's
+/// options for it, and what the card needs from the host.
 @immutable
 final class MediaLinkPreviewInput {
-  /// The card of [page] with [options].
-  const MediaLinkPreviewInput({required this.page, this.options});
+  /// The card of [page] with [options] in the message [messageId].
+  const MediaLinkPreviewInput({
+    required this.page,
+    required this.messageId,
+    this.options,
+    this.buttonLabel,
+    this.compact = false,
+    this.textDirection = TextDirection.ltr,
+  });
 
   /// The page.
   final LinkPreview page;
 
+  /// The message's id, which the card's media item ids derive from
+  /// (`MediaItemId.linkPreviewOf`).
+  final String messageId;
+
   /// The message's preview options.
   final LinkPreviewOptions? options;
+
+  /// The action button's label (for example an instant view); null draws
+  /// no button. What the button does is the host's.
+  final String? buttonLabel;
+
+  /// Whether the host draws the chat in its compact layout (shorter
+  /// descriptions; Android shows a photo small).
+  final bool compact;
+
+  /// The chat's direction: in a right-to-left chat the bar is on the right
+  /// and, where the policy mirrors, the thumbnail on the left.
+  final TextDirection textDirection;
 
   @override
   bool operator ==(Object other) =>
       other is MediaLinkPreviewInput &&
       other.page == page &&
-      other.options == options;
+      other.messageId == messageId &&
+      other.options == options &&
+      other.buttonLabel == buttonLabel &&
+      other.compact == compact &&
+      other.textDirection == textDirection;
 
   @override
-  int get hashCode => Object.hash(page, options);
+  int get hashCode => Object.hash(
+    page,
+    messageId,
+    options,
+    buttonLabel,
+    compact,
+    textDirection,
+  );
 }
 
 /// Everything the layout step reads: the items and the bubble they sit in.
@@ -162,7 +196,8 @@ final class MediaLayoutInput {
   /// policy that widens media for its caption reads it.
   final double? captionWidth;
 
-  /// The link preview drawn as a card block after the media, if any.
+  /// The link preview drawn as a card block after the media, if any; none
+  /// while its page is pending.
   final MediaLinkPreviewInput? linkPreview;
 
   /// Whether the message is outgoing (its time carries status checks).

@@ -10,6 +10,7 @@ import 'package:message_media/src/diagnostics/media_trace.dart';
 import 'package:message_media/src/gesture/media_viewer_request.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/message_media_hit_part.dart';
+import 'package:message_media/src/paint/link_preview_card_view.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/paint/message_media_body.dart';
 import 'package:message_media/src/policy/media_layout_policy.dart';
@@ -99,12 +100,22 @@ class MessageMediaView extends StatelessWidget {
     this.messageId,
     this.onOpenViewer,
     this.onItemMenu,
+    this.onLinkPreview,
+    this.linkPreviewColors = LinkPreviewCardColors.fallback,
+    this.cardOpacity = 1,
+    this.leavingCard,
+    this.leavingCardOpacity = 0,
     super.key,
   }) : assert(
          selection == null || messageId != null,
          'A view that takes gestures names its message.',
        ),
-       items = {for (final item in items) item.id: item};
+       items = {
+         for (final item in items) item.id: item,
+         // A card's media item comes with its block.
+         for (final block in layout.blocks)
+           if (block case MediaBlock$LinkPreview(:final item?)) item.id: item,
+       };
 
   /// The layout painted, with its corner radii resolved
   /// ([MessageMediaPolicy.layout] resolves them).
@@ -151,6 +162,24 @@ class MessageMediaView extends StatelessWidget {
   /// action. A pointer reaches the menu through the viewport.
   final void Function(MediaHitPart part, Rect rect)? onItemMenu;
 
+  /// Called when the link preview card's body (open the page) or button
+  /// (run its action) is activated; null does nothing (the host still hears
+  /// the activation from the facade).
+  final LinkPreviewActivated? onLinkPreview;
+
+  /// The link preview card's colours: the sender's colour on an incoming
+  /// message, the bubble's accent on an outgoing one.
+  final LinkPreviewCardColors linkPreviewColors;
+
+  /// The card's opacity while a transition fades it in.
+  final double cardOpacity;
+
+  /// A card a transition fades out (removed, or replaced by a new page).
+  final MediaBlock$LinkPreview? leavingCard;
+
+  /// The leaving card's opacity.
+  final double leavingCardOpacity;
+
   @override
   Widget build(BuildContext context) => SizedBox.fromSize(
     size: layout.size,
@@ -162,12 +191,17 @@ class MessageMediaView extends StatelessWidget {
         policy: policy,
         state: state,
         dataOf: _dataOf,
-        cellBuilder: (context, block, cell, decorate) =>
-            _positioned(context, state, block, cell, decorate),
+        cellBuilder: (context, block, cell, decorate, {origin = Offset.zero}) =>
+            _positioned(context, state, block, cell, decorate, origin),
         selection: selection,
         messageId: messageId,
         onOpenViewer: onOpenViewer,
         onItemMenu: onItemMenu,
+        onLinkPreview: onLinkPreview,
+        linkPreviewColors: linkPreviewColors,
+        cardOpacity: cardOpacity,
+        leavingCard: leavingCard,
+        leavingCardOpacity: leavingCardOpacity,
         chromeContext: chromeContext,
         correlation: correlation,
       ),
@@ -180,11 +214,12 @@ class MessageMediaView extends StatelessWidget {
     MediaBlock block,
     MediaCell cell,
     MediaCellDecorator decorate,
+    Offset origin,
   ) {
     final fade = fades[cell.itemId] ?? MediaCellFade.settled;
     return Positioned.fromRect(
       key: ValueKey(cell.itemId),
-      rect: cell.rect,
+      rect: cell.rect.shift(-origin),
       child: Opacity(
         opacity: fade.opacity,
         child: Transform.scale(

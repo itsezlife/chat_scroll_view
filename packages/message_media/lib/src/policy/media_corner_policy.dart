@@ -287,8 +287,20 @@ final class MediaCornerPolicy {
   }
 
   /// [layout] with every cell's radii resolved for [input].
-  MediaLayout resolve(MediaLayout layout, MediaLayoutInput input) =>
-      layout.mapCells((cell) => cell.copyWith(radii: radiiOf(cell, input)));
+  ///
+  /// A link preview card's media keeps the radii its card laid out: it
+  /// sits inside the card, not against the bubble.
+  MediaLayout resolve(MediaLayout layout, MediaLayoutInput input) {
+    final inCards = {
+      for (final block in layout.blocks)
+        if (block case MediaBlock$LinkPreview(:final media?)) media.itemId,
+    };
+    return layout.mapCells(
+      (cell) => inCards.contains(cell.itemId)
+          ? cell
+          : cell.copyWith(radii: radiiOf(cell, input)),
+    );
+  }
 
   /// A copy with the given values replaced.
   MediaCornerPolicy copyWith({

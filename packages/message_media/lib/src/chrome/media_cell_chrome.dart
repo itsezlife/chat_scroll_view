@@ -276,6 +276,10 @@ class _MediaCellChromeState extends State<MediaCellChrome>
       widget.block,
       context: widget.context,
       spoilerHidden: _hidden,
+      smallImage: switch (widget.block) {
+        final MediaBlock$LinkPreview card => card.smallMedia,
+        _ => false,
+      },
     );
     final controls = _covers ? _reveal : kAlwaysCompleteAnimation;
     return Stack(

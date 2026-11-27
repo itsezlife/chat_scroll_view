@@ -3,6 +3,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:message_media/src/layout/link_preview_card.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/transition/media_transition_policy.dart';
 
@@ -46,6 +47,9 @@ final class MediaTransitionFrame {
     required this.layout,
     Map<MediaItemId, MediaCellFade> fades = const {},
     this.progress = 1,
+    this.cardOpacity = 1,
+    this.leavingCard,
+    this.leavingCardOpacity = 0,
   }) : fades = Map.unmodifiable(fades);
 
   /// [layout] at rest: no fades, the move done.
@@ -61,9 +65,24 @@ final class MediaTransitionFrame {
   /// The move's curved progress, `0` at the old layout and `1` at the new.
   final double progress;
 
+  /// The link preview card's opacity: below 1 while it fades in (its page
+  /// arrived, or a new page replaced the old one).
+  final double cardOpacity;
+
+  /// A card on its way out (removed, or replaced by a new page), painted
+  /// at [leavingCardOpacity] over the layout; null when none.
+  final MediaBlock$LinkPreview? leavingCard;
+
+  /// The leaving card's opacity.
+  final double leavingCardOpacity;
+
   /// Whether nothing moves or fades any more.
   bool get isSettled =>
-      progress >= 1 && fades.isEmpty && layout.exiting.isEmpty;
+      progress >= 1 &&
+      fades.isEmpty &&
+      layout.exiting.isEmpty &&
+      cardOpacity >= 1 &&
+      leavingCard == null;
 
   /// The fade of the cell of [id].
   MediaCellFade fadeOf(MediaItemId id) => fades[id] ?? MediaCellFade.settled;
@@ -73,12 +92,18 @@ final class MediaTransitionFrame {
       other is MediaTransitionFrame &&
       other.layout == layout &&
       other.progress == progress &&
+      other.cardOpacity == cardOpacity &&
+      other.leavingCard == leavingCard &&
+      other.leavingCardOpacity == leavingCardOpacity &&
       mapEquals(other.fades, fades);
 
   @override
   int get hashCode => Object.hash(
     layout,
     progress,
+    cardOpacity,
+    leavingCard,
+    leavingCardOpacity,
     Object.hashAllUnordered(
       fades.entries.map((entry) => Object.hash(entry.key, entry.value)),
     ),
@@ -94,10 +119,19 @@ final class MediaTransitionFrame {
 @immutable
 final class MediaLayoutTransition {
   /// The leg from [from] to [to] under [policy].
+  ///
+  /// A link preview card that arrives shows by [cardAppear]: under
+  /// [LinkPreviewAppearForm.fade] it fades in over [cardFade]; under `jump`
+  /// and `relayout` the whole leg ends at once. A card removed fades out
+  /// and a card whose page changed cross-fades, over [cardFade] or else the
+  /// policy's exit and enter fades; under a policy that does not animate
+  /// both happen at once.
   factory MediaLayoutTransition({
     required MediaTransitionFrame from,
     required MediaLayout to,
     required MediaTransitionPolicy policy,
+    LinkPreviewAppearForm cardAppear = LinkPreviewAppearForm.relayout,
+    Duration cardFade = Duration.zero,
   }) {
     final shown = {for (final cell in from.layout.cells) cell.itemId};
     final entering = {
@@ -108,12 +142,42 @@ final class MediaLayoutTransition {
       for (final cell in [...from.layout.cells, ...from.layout.exiting])
         if (to.cellOf(cell.itemId) == null) cell.itemId,
     };
+    final before = _cardOf(from.layout);
+    final after = _cardOf(to);
+    final change = switch ((before, after)) {
+      (null, null) => _CardChange.none,
+      (null, _?) => _CardChange.appear,
+      (_?, null) => _CardChange.remove,
+      (final a?, final b?) when a.page.url != b.page.url => _CardChange.replace,
+      _ => _CardChange.keep,
+    };
+    final animates = policy.animates;
+    final instant =
+        change == _CardChange.appear &&
+        cardAppear != LinkPreviewAppearForm.fade;
+    final cardIn = switch (change) {
+      _ when !animates => Duration.zero,
+      _CardChange.appear => cardFade,
+      _CardChange.replace =>
+        cardFade > Duration.zero ? cardFade : policy.enterFade,
+      _ => Duration.zero,
+    };
+    final cardOut = switch (change) {
+      _ when !animates => Duration.zero,
+      _CardChange.remove || _CardChange.replace =>
+        cardFade > Duration.zero ? cardFade : policy.exitFade,
+      _ => Duration.zero,
+    };
     return MediaLayoutTransition._(
       from: from,
       to: to,
       policy: policy,
       entering: entering,
       exiting: exiting,
+      instant: instant,
+      cardIn: cardIn,
+      cardOut: cardOut,
+      leavingCard: cardOut > Duration.zero ? before : null,
     );
   }
 
@@ -123,7 +187,31 @@ final class MediaLayoutTransition {
     required this.policy,
     required this.entering,
     required this.exiting,
+    this.instant = false,
+    this.cardIn = Duration.zero,
+    this.cardOut = Duration.zero,
+    this.leavingCard,
   });
+
+  static MediaBlock$LinkPreview? _cardOf(MediaLayout layout) {
+    for (final block in layout.blocks) {
+      if (block case final MediaBlock$LinkPreview card) return card;
+    }
+    return null;
+  }
+
+  /// Whether the leg ends at once: a card arrived under a policy that
+  /// jumps or relays out for it.
+  final bool instant;
+
+  /// How long the card fades in; zero is no fade.
+  final Duration cardIn;
+
+  /// How long the leaving card fades out; zero is none.
+  final Duration cardOut;
+
+  /// The card that fades out, when one does.
+  final MediaBlock$LinkPreview? leavingCard;
 
   /// The frame the leg starts from.
   final MediaTransitionFrame from;
@@ -147,7 +235,10 @@ final class MediaLayoutTransition {
 
   /// When the last track ends.
   Duration get duration {
+    if (instant) return Duration.zero;
     final micros = [
+      cardIn.inMicroseconds,
+      cardOut.inMicroseconds,
       if (policy.move > Duration.zero) (moveDelay + policy.move).inMicroseconds,
       if (exiting.isNotEmpty) policy.exitFade.inMicroseconds,
       if (entering.isNotEmpty) policy.enterFade.inMicroseconds,
@@ -188,11 +279,18 @@ final class MediaLayoutTransition {
         fades[id] = _lerpFade(from.fadeOf(id), _gone, faded);
       }
     }
+    final cardShown = policy.fadeCurve.transform(_progress(elapsed, cardIn));
+    final cardGone = _progress(elapsed, cardOut);
     return MediaTransitionFrame(
       // A cell whose exit has ended is no longer painted.
       layout: exitDone ? layout.withExiting(const []) : layout,
       fades: fades,
       progress: move,
+      cardOpacity: cardIn > Duration.zero ? cardShown : 1,
+      leavingCard: cardGone < 1 ? leavingCard : null,
+      leavingCardOpacity: cardGone < 1
+          ? 1 - policy.fadeCurve.transform(cardGone)
+          : 0,
     );
   }
 
@@ -209,3 +307,6 @@ final class MediaLayoutTransition {
         scale: lerpDouble(a.scale, b.scale, t)!,
       );
 }
+
+/// How a leg changes the link preview card.
+enum _CardChange { none, appear, remove, replace, keep }
