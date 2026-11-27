@@ -26,6 +26,8 @@ import 'policy/media_layout_policy_test.dart'
     as policy_media_layout_policy_test;
 import 'policy/message_media_policy_test.dart'
     as policy_message_media_policy_test;
+import 'policy/mosaic_algorithm_ios_test.dart'
+    as policy_mosaic_algorithm_ios_test;
 import 'single_media_layout_test.dart' as single_media_layout_test;
 
 void main() {
@@ -58,6 +60,10 @@ void main() {
   group(
     'policy/message_media_policy_test',
     policy_message_media_policy_test.main,
+  );
+  group(
+    'policy/mosaic_algorithm_ios_test',
+    policy_mosaic_algorithm_ios_test.main,
   );
   group('single_media_layout_test', single_media_layout_test.main);
 }

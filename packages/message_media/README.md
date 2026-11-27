@@ -21,7 +21,7 @@ keeps the default `MediaLayoutPolicy` and replaces one part:
 | Part | Role |
 | --- | --- |
 | `box` (`MediaBoxSizing`) | A single box's size and the width of a block spanning the media budget. `MediaBoxSizing$Android`, `$IOS` and `$Desktop` each list their values, each a field with `copyWith`. |
-| `mosaicAlgorithm` (`MosaicAlgorithm`) | Two or more boxes into a mosaic. `GroupedMosaicAlgorithm` is the default on every platform, with rows bounded by half of `max(list width, screen height)`. |
+| `mosaicAlgorithm` (`MosaicAlgorithm`) | Two or more boxes into a mosaic. `GroupedMosaicAlgorithm` is the default, with rows bounded by half of `max(list width, screen height)`. iOS uses `MosaicAlgorithm$IOS`: a fixed pattern by orientation for two to four boxes, else the best split into two to four rows, within the list class's max size (300 × 380 compact, 440 × 440 regular). |
 | `fit` (`MediaFitPolicy`) | Each box kind's fit mode: `crop`, `blurFit`, `cropIfVisible(fraction)`. |
 | `fileRowHeight` | A file row's height until the file stack lays rows out. |
 
@@ -83,7 +83,8 @@ Videos and animations play inline, muted, as `MediaAutoplayPolicy` says.
 
 `media` events through `ChatDiagnostics.current` (`MediaOp`):
 `layoutComputed` (trace) for every layout, `layoutFallback` (debug) when a
-box takes a fallback rule, `unknownKind` (warning) when a custom kind is
+box takes a fallback rule (`mosaicRows` when an iOS pattern would leave a
+box no area and the album is laid in rows), `unknownKind` (warning) when a custom kind is
 drawn as a file row, `cellFailed` (error) when a cell builder throws or a
 cell's item is missing. They carry the chat, message and item ids, never a
 caption, a file name or a page.
@@ -92,5 +93,5 @@ caption, a file name or a page.
 
 `test/goldens/` holds the single box and mosaic scenes, laid out by the
 Android policy, and the painted view per platform policy (single box,
-albums of two and three, a captioned box, a whole fit over blurred bars). Baselines are the CI runner's; compare or regenerate them
+albums of two and three, of four and ten on iOS, a captioned box, a whole fit over blurred bars). Baselines are the CI runner's; compare or regenerate them
 with `scripts/goldens [--update]`.

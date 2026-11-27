@@ -8,6 +8,18 @@ this package is pre-1.0.
 
 ### Added
 
+- `MosaicAlgorithm$IOS`, the iOS family's mosaic, now the
+  `MediaLayoutPolicy.ios()` `mosaicAlgorithm`: a fixed pattern by
+  orientation mix for two to four boxes, else the best split into two to
+  four rows, within 300 × 380 on a compact list and 440 × 440 on a regular
+  one (`maxSizeFor`), seams of 1. A pattern that would leave a box no area
+  is laid in rows instead and reports `layoutFallback` with the new rule
+  `MediaLayoutFallbackRule.mosaicRows`. iOS albums now lay out differently
+  from the Android ones; a row-laid album can be up to a few pixels wider
+  than the block width, as rows round each box up.
+- `MediaCornerPolicy.ios()` rounds a corner between two boxes with 0 on a
+  compact list and 5 on a regular one (was 4).
+
 - The paint step's first part. `MediaCornerPolicy` (`android()`, `ios()`,
   `desktop()`) resolves each cell's numeric `MediaCornerRadii` from its
   neighbours, the joined bubble's side, the list's width class and the

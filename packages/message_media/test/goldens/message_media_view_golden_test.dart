@@ -1,6 +1,6 @@
 /// Goldens of the paint step per platform policy: a single box, albums of
-/// two and three, a box with a caption below (text corners) and a whole
-/// fit over blurred bars.
+/// two and three (and of four and ten on iOS, mixed orientations), a box
+/// with a caption below (text corners) and a whole fit over blurred bars.
 ///
 /// Pictures come from a producer local to the test that answers at once
 /// with a gradient of the item's own size, placed as the attach's fit
@@ -212,6 +212,32 @@ void main() {
           ContentSize(1, 1),
         ]);
       });
+
+      if (platform == 'ios') {
+        testWidgets('album of four', (tester) async {
+          await expectScene(tester, '${platform}_album_4', policy, const [
+            ContentSize(1600, 900),
+            ContentSize(1, 1),
+            ContentSize(3, 4),
+            ContentSize(4, 3),
+          ]);
+        });
+
+        testWidgets('album of ten', (tester) async {
+          await expectScene(tester, '${platform}_album_10', policy, const [
+            ContentSize(4, 3),
+            ContentSize(3, 4),
+            ContentSize(1, 1),
+            ContentSize(16, 9),
+            ContentSize(9, 16),
+            ContentSize(4, 3),
+            ContentSize(3, 4),
+            ContentSize(1, 1),
+            ContentSize(16, 9),
+            ContentSize(9, 16),
+          ]);
+        });
+      }
 
       testWidgets('captioned box', (tester) async {
         await expectScene(tester, '${platform}_captioned', policy, const [

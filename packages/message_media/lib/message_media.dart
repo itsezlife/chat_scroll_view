@@ -33,6 +33,7 @@ export 'src/policy/media_corner_policy.dart';
 export 'src/policy/media_layout_policy.dart';
 export 'src/policy/message_media_policy.dart';
 export 'src/policy/mosaic_algorithm.dart';
+export 'src/policy/mosaic_algorithm_ios.dart';
 export 'src/single_media_layout.dart';
 export 'src/state/media_state_op.dart';
 export 'src/state/message_media_state.dart';
