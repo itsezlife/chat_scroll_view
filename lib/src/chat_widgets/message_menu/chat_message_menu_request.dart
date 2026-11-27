@@ -154,6 +154,18 @@ final class ChatMessageMenuRequest {
   /// [ChatMessageMenuPointState.inside]; otherwise null.
   final ChatInlineHit? inlineHit;
 
+  /// The touched body part's id when the menu gesture landed on a part of a
+  /// body that paints no text ([ChatInlineHit$BodyPart.partId]): a long
+  /// press, a secondary click, or a tap on a `menu` part. Null when the press
+  /// was on no body part. The host reads its own value back from it to add
+  /// entries for that part.
+  ///
+  /// Read from [inlineHit], the one source of both.
+  Object? get partId => switch (inlineHit) {
+    ChatInlineHit$BodyPart(:final partId) => partId,
+    _ => null,
+  };
+
   /// Whether [selectUpToIds] offers a usable Select-up-to row.
   bool get canSelectUpTo => selectUpToIds != null && selectUpToIds!.isNotEmpty;
 

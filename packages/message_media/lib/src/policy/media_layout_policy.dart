@@ -1,0 +1,426 @@
+import 'dart:math' as math;
+import 'dart:ui';
+
+import 'package:content_model/content_model.dart';
+import 'package:message_media/src/diagnostics/media_op.dart';
+import 'package:message_media/src/layout/media_layout.dart';
+import 'package:message_media/src/layout/media_layout_input.dart';
+import 'package:message_media/src/policy/media_box_sizing.dart';
+import 'package:message_media/src/policy/mosaic_algorithm.dart';
+import 'package:meta/meta.dart';
+
+/// The layout step of a message media policy: items in, a [MediaLayout]
+/// out. Pure: the same input gives an equal layout.
+///
+/// [MediaLayoutPolicy] is the default; a host that lays media out its own
+/// way implements this and hands it to the policy whole.
+abstract interface class MediaLayoutStep {
+  /// Lays [input] out.
+  MediaLayout layout(MediaLayoutInput input);
+}
+
+/// The fit mode of each box kind.
+///
+/// | | Android | iOS | Desktop |
+/// | --- | --- | --- | --- |
+/// | [photo] | crop | blurFit (4 cropped) | cropIfVisible(0.75) |
+/// | [video] | crop | crop | cropIfVisible(0.5) |
+/// | [animation] | crop | crop | cropIfVisible(0.5) |
+@immutable
+final class MediaFitPolicy {
+  /// A fit per box kind.
+  const MediaFitPolicy({
+    required this.photo,
+    required this.video,
+    required this.animation,
+  });
+
+  /// The Android family: every box crops.
+  const MediaFitPolicy.android()
+    : this(
+        photo: const MediaFit.crop(),
+        video: const MediaFit.crop(),
+        animation: const MediaFit.crop(),
+      );
+
+  /// The iOS family: a photo fits over a blur with up to 4 cropped; video
+  /// and animation fill.
+  const MediaFitPolicy.ios()
+    : this(
+        photo: const MediaFit.blurFit(overflowCrop: 4),
+        video: const MediaFit.crop(),
+        animation: const MediaFit.crop(),
+      );
+
+  /// The desktop family: crop while 3/4 of a photo or 1/2 of a video or
+  /// animation stays visible, otherwise a blurred fit.
+  const MediaFitPolicy.desktop()
+    : this(
+        photo: const MediaFit.cropIfVisible(0.75),
+        video: const MediaFit.cropIfVisible(0.5),
+        animation: const MediaFit.cropIfVisible(0.5),
+      );
+
+  /// A photo's fit.
+  final MediaFit photo;
+
+  /// A video's fit.
+  final MediaFit video;
+
+  /// An animation's fit.
+  final MediaFit animation;
+
+  /// The fit of a box of [kind]; null for a file row.
+  MediaFit? fitOf(MediaItemKind kind) => switch (kind) {
+    MediaItemKind.photo => photo,
+    MediaItemKind.video => video,
+    MediaItemKind.animation => animation,
+    _ => null,
+  };
+
+  /// A copy with the given fits replaced.
+  MediaFitPolicy copyWith({
+    MediaFit? photo,
+    MediaFit? video,
+    MediaFit? animation,
+  }) => MediaFitPolicy(
+    photo: photo ?? this.photo,
+    video: video ?? this.video,
+    animation: animation ?? this.animation,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is MediaFitPolicy &&
+      other.photo == photo &&
+      other.video == video &&
+      other.animation == animation;
+
+  @override
+  int get hashCode => Object.hash(photo, video, animation);
+}
+
+/// The default layout step: boxes into mosaic blocks, file and custom kinds
+/// into file stacks, the link preview into a card block last; each part a
+/// replaceable value.
+///
+/// | Part | Role |
+/// | --- | --- |
+/// | [box] | A single box's size and a block's width |
+/// | [mosaicAlgorithm] | Two or more boxes into a mosaic |
+/// | [fit] | Each box kind's fit mode |
+/// | [fileRowHeight] | Interim: a file row's height until the file stack lays its rows out (Android 56, iOS 65, desktop 60) |
+///
+/// ## Blocks
+///
+/// Consecutive boxes (photo, video, animation) make one mosaic block: one
+/// box laid out alone, two or more by [mosaicAlgorithm] at the block width.
+/// Consecutive file and custom items make one file stack. A list mixing
+/// them gives consecutive blocks in item order, so every item has exactly
+/// one cell. The link preview's card comes last, a placeholder rect of the
+/// block width and no height.
+///
+/// ## Neighbours
+///
+/// The first block's top side touches the text when it sits above, else
+/// the bubble joined above, else the bubble's edge; the last block's bottom
+/// side likewise with the text below and the bubble joined below. Sides
+/// between blocks, and the inner sides of a mosaic, touch an item. Left and
+/// right outer sides are the bubble's edge.
+///
+/// ## Diagnostics
+///
+/// A custom kind laid out as a file row reports `media` / `unknownKind`; a
+/// box that takes a fallback rule reports `media` / `layoutFallback`, both
+/// with the item's id.
+@immutable
+final class MediaLayoutPolicy implements MediaLayoutStep {
+  /// A layout step of the given parts.
+  const MediaLayoutPolicy({
+    required this.box,
+    required this.fit,
+    required this.fileRowHeight,
+    this.mosaicAlgorithm = const GroupedMosaicAlgorithm(),
+  });
+
+  /// The Android family's layout.
+  const MediaLayoutPolicy.android()
+    : this(
+        box: const MediaBoxSizing.android(),
+        fit: const MediaFitPolicy.android(),
+        fileRowHeight: 56,
+      );
+
+  /// The iOS family's layout (the default mosaic until its own lands).
+  const MediaLayoutPolicy.ios()
+    : this(
+        box: const MediaBoxSizing.ios(),
+        fit: const MediaFitPolicy.ios(),
+        fileRowHeight: 65,
+      );
+
+  /// The desktop family's layout (the default mosaic until its own lands).
+  const MediaLayoutPolicy.desktop()
+    : this(
+        box: const MediaBoxSizing.desktop(),
+        fit: const MediaFitPolicy.desktop(),
+        fileRowHeight: 60,
+      );
+
+  /// Box sizing.
+  final MediaBoxSizing box;
+
+  /// The mosaic slot.
+  final MosaicAlgorithm mosaicAlgorithm;
+
+  /// Fit modes.
+  final MediaFitPolicy fit;
+
+  /// A file row's interim height.
+  final double fileRowHeight;
+
+  /// Whether [kind] is laid out as a box (else a file row).
+  static bool isBox(MediaItemKind kind) =>
+      kind == MediaItemKind.photo ||
+      kind == MediaItemKind.video ||
+      kind == MediaItemKind.animation;
+
+  @override
+  MediaLayout layout(MediaLayoutInput input) {
+    final runs = _runsOf(input);
+    final blockCount = runs.length + (input.linkPreview == null ? 0 : 1);
+    final blocks = <MediaBlock>[];
+    var top = 0.0;
+    for (final (index, run) in runs.indexed) {
+      final sides = _BlockSides.of(input, index: index, count: blockCount);
+      final block = run.boxes
+          ? _mosaic(run.items, input, top, sides)
+          : _fileStack(run.items, input, top, sides);
+      blocks.add(block);
+      top = block.rect.bottom;
+    }
+    if (input.linkPreview case MediaLinkPreviewInput(
+      :final page,
+      :final options,
+    )) {
+      final card = MediaBlock.linkPreview(
+        rect: Rect.fromLTWH(0, top, box.blockWidth(input), 0),
+        page: page,
+        options: options,
+      );
+      blocks.add(card);
+      top = card.rect.bottom;
+    }
+    final width = blocks.fold<double>(
+      0,
+      (w, block) => math.max(w, block.rect.right),
+    );
+    return MediaLayout(size: Size(width, top), blocks: blocks);
+  }
+
+  /// Consecutive items of the same layout (box or row), in item order.
+  List<({bool boxes, List<MediaItem> items})> _runsOf(MediaLayoutInput input) {
+    final runs = <({bool boxes, List<MediaItem> items})>[];
+    for (final item in input.items) {
+      final boxes = isBox(item.kind);
+      if (item.kind.isCustom) {
+        ChatDiagnostics.current.emit(
+          ChatEventLevel.warning,
+          ChatEventCategory.media,
+          MediaOp.unknownKind,
+          correlation: _itemCorrelation(input, item),
+          fields: () => {
+            'kind': ChatEvent.clip(item.kind.value),
+            'drawnAs': 'fileRow',
+          },
+        );
+      }
+      if (runs.isNotEmpty && runs.last.boxes == boxes) {
+        runs.last.items.add(item);
+      } else {
+        runs.add((boxes: boxes, items: [item]));
+      }
+    }
+    return runs;
+  }
+
+  MediaBlock _mosaic(
+    List<MediaItem> items,
+    MediaLayoutInput input,
+    double top,
+    _BlockSides sides,
+  ) {
+    if (items case [final item]) {
+      final result = box.single(item, input);
+      _reportFallbacks(input, item, result.fallbacks, result.size);
+      final rect = Offset(0, top) & result.size;
+      return MediaBlock.mosaic(
+        rect: rect,
+        cells: [
+          MediaCell(
+            itemId: item.id,
+            kind: item.kind,
+            rect: rect,
+            fit: fit.fitOf(item.kind),
+            neighbours: MediaNeighbours(
+              top: sides.top,
+              bottom: sides.bottom,
+              left: MediaNeighbour.bubbleEdge,
+              right: MediaNeighbour.bubbleEdge,
+            ),
+          ),
+        ],
+      );
+    }
+    final arrangement = mosaicAlgorithm.arrange(
+      items: items,
+      width: box.blockWidth(input),
+      input: input,
+    );
+    final byId = {for (final item in items) item.id: item};
+    final cells = <MediaCell>[];
+    for (final placement in arrangement.placements) {
+      final item = byId[placement.itemId];
+      assert(
+        item != null,
+        '${mosaicAlgorithm.name} placed ${placement.itemId}, an item it was '
+        'not given: an algorithm places exactly its items.',
+      );
+      if (item == null) continue;
+      final rect = placement.rect.shift(Offset(0, top));
+      if (item.descriptor.size == null) {
+        _reportFallbacks(input, item, const {
+          MediaLayoutFallbackRule.noDimensions,
+        }, rect.size);
+      }
+      final edges = placement.edges;
+      cells.add(
+        MediaCell(
+          itemId: item.id,
+          kind: item.kind,
+          rect: rect,
+          fit: fit.fitOf(item.kind),
+          neighbours: MediaNeighbours(
+            top: edges.hasTop ? sides.top : MediaNeighbour.item,
+            bottom: edges.hasBottom ? sides.bottom : MediaNeighbour.item,
+            left: edges.hasLeft
+                ? MediaNeighbour.bubbleEdge
+                : MediaNeighbour.item,
+            right: edges.hasRight
+                ? MediaNeighbour.bubbleEdge
+                : MediaNeighbour.item,
+          ),
+        ),
+      );
+    }
+    return MediaBlock.mosaic(
+      rect: Offset(0, top) & arrangement.size,
+      cells: cells,
+    );
+  }
+
+  MediaBlock _fileStack(
+    List<MediaItem> items,
+    MediaLayoutInput input,
+    double top,
+    _BlockSides sides,
+  ) {
+    final width = box.blockWidth(input);
+    final cells = [
+      for (final (index, item) in items.indexed)
+        MediaCell(
+          itemId: item.id,
+          kind: item.kind,
+          rect: Rect.fromLTWH(
+            0,
+            top + index * fileRowHeight,
+            width,
+            fileRowHeight,
+          ),
+          neighbours: MediaNeighbours(
+            top: index == 0 ? sides.top : MediaNeighbour.item,
+            bottom: index == items.length - 1
+                ? sides.bottom
+                : MediaNeighbour.item,
+            left: MediaNeighbour.bubbleEdge,
+            right: MediaNeighbour.bubbleEdge,
+          ),
+        ),
+    ];
+    return MediaBlock.fileStack(
+      rect: Rect.fromLTWH(0, top, width, items.length * fileRowHeight),
+      cells: cells,
+    );
+  }
+
+  static ChatCorrelation _itemCorrelation(
+    MediaLayoutInput input,
+    MediaItem item,
+  ) => ChatCorrelation(
+    chatId: input.correlation.chatId,
+    scrollId: input.correlation.scrollId,
+    clientMessageId: input.correlation.clientMessageId,
+    mediaItemId: item.id.toString(),
+  );
+
+  static void _reportFallbacks(
+    MediaLayoutInput input,
+    MediaItem item,
+    Set<MediaLayoutFallbackRule> rules,
+    Size size,
+  ) {
+    for (final rule in rules) {
+      ChatDiagnostics.current.emit(
+        ChatEventLevel.debug,
+        ChatEventCategory.media,
+        MediaOp.layoutFallback,
+        correlation: _itemCorrelation(input, item),
+        fields: () => {
+          'rule': rule,
+          'width': size.width,
+          'height': size.height,
+        },
+      );
+    }
+  }
+
+  /// A copy with the given parts replaced.
+  MediaLayoutPolicy copyWith({
+    MediaBoxSizing? box,
+    MosaicAlgorithm? mosaicAlgorithm,
+    MediaFitPolicy? fit,
+    double? fileRowHeight,
+  }) => MediaLayoutPolicy(
+    box: box ?? this.box,
+    mosaicAlgorithm: mosaicAlgorithm ?? this.mosaicAlgorithm,
+    fit: fit ?? this.fit,
+    fileRowHeight: fileRowHeight ?? this.fileRowHeight,
+  );
+}
+
+/// What the outer top and bottom sides of one block touch.
+final class _BlockSides {
+  const _BlockSides(this.top, this.bottom);
+
+  factory _BlockSides.of(
+    MediaLayoutInput input, {
+    required int index,
+    required int count,
+  }) => _BlockSides(
+    switch ((index, input.captionPosition, input.joinedAbove)) {
+      (> 0, _, _) => MediaNeighbour.item,
+      (_, MediaCaptionPosition.above, _) => MediaNeighbour.text,
+      (_, _, true) => MediaNeighbour.adjacentBubble,
+      _ => MediaNeighbour.bubbleEdge,
+    },
+    switch ((count - 1 - index, input.captionPosition, input.joinedBelow)) {
+      (> 0, _, _) => MediaNeighbour.item,
+      (_, MediaCaptionPosition.below, _) => MediaNeighbour.text,
+      (_, _, true) => MediaNeighbour.adjacentBubble,
+      _ => MediaNeighbour.bubbleEdge,
+    },
+  );
+
+  final MediaNeighbour top;
+  final MediaNeighbour bottom;
+}

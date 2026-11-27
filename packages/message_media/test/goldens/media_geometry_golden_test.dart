@@ -1,8 +1,9 @@
-/// Goldens of the default media layout's geometry: a single box and the
-/// mosaics of two and three items, each cell a flat rounded fill.
+/// Goldens of the Android media layout: a single box and the mosaics of two
+/// and three items, laid out by the message media policy, each cell a flat
+/// rounded fill.
 ///
 /// The fills stand in for pictures, which are drawn by the cells, not by
-/// the geometry: the scenes check sizes, seams and corner radii only.
+/// the layout: the scenes check sizes, seams and corner radii only.
 /// Regenerate with `scripts/goldens --update` (baselines are the CI
 /// runner's).
 library;
@@ -34,40 +35,36 @@ Widget _box({required Widget child, double width = 420, double height = 480}) =>
       ),
     );
 
-/// Paints rounded rects at the geometry's rects, with the geometry's radii.
+/// Paints a media layout's cells as rounded rects: a corner whose two sides
+/// touch the bubble's edge takes the outer media radius, any other the inner
+/// one.
 class _GeometryFill extends StatelessWidget {
-  const _GeometryFill({required this.size, required this.cells});
+  _GeometryFill(this.layout)
+    : cells = [for (final cell in layout.cells) _rrectOf(cell)];
 
-  /// A single box at [maxWidth] with the outer media corner on every side.
-  factory _GeometryFill.single({
-    required double aspectRatio,
-    double maxWidth = 300,
-  }) {
-    final size = computeSingleMediaSize(
-      aspectRatio: aspectRatio,
-      maxWidth: maxWidth,
-    );
-    final radius = BorderRadius.circular(MediaLayoutMetrics.mediaOuterRadius());
-    return _GeometryFill(
-      size: size,
-      cells: [radius.toRRect(Offset.zero & size)],
+  final MediaLayout layout;
+  final List<RRect> cells;
+
+  static RRect _rrectOf(MediaCell cell) {
+    final outer = Radius.circular(MediaLayoutMetrics.mediaOuterRadius());
+    const inner = Radius.circular(MediaLayoutMetrics.mediaInnerRadius);
+    final MediaCell(:rect, neighbours: n) = cell;
+    Radius corner(MediaNeighbour a, MediaNeighbour b) =>
+        a == MediaNeighbour.bubbleEdge && b == MediaNeighbour.bubbleEdge
+        ? outer
+        : inner;
+    return RRect.fromRectAndCorners(
+      rect,
+      topLeft: corner(n.top, n.left),
+      topRight: corner(n.top, n.right),
+      bottomLeft: corner(n.bottom, n.left),
+      bottomRight: corner(n.bottom, n.right),
     );
   }
 
-  /// Every cell of [mosaic].
-  factory _GeometryFill.mosaic(MosaicLayout mosaic) => _GeometryFill(
-    size: mosaic.size,
-    cells: [
-      for (final cell in mosaic.cells) cell.borderRadius.toRRect(cell.rect),
-    ],
-  );
-
-  final Size size;
-  final List<RRect> cells;
-
   @override
   Widget build(BuildContext context) =>
-      CustomPaint(size: size, painter: _FillPainter(cells));
+      CustomPaint(size: layout.size, painter: _FillPainter(cells));
 }
 
 class _FillPainter extends CustomPainter {
@@ -88,15 +85,38 @@ class _FillPainter extends CustomPainter {
       oldDelegate.cells != cells;
 }
 
-MosaicLayout _mosaic(List<double> aspects) {
-  final grouped = GroupedMessages.calculate(
-    members: [
-      for (final (index, aspect) in aspects.indexed)
-        GroupedMediaMember(id: MediaItemId('$index'), aspectRatio: aspect),
-    ],
-  );
-  return MosaicLayout.project(positions: grouped.positions, mosaicWidth: 300);
-}
+const _policy = MessageMediaPolicy.android();
+
+MediaItem _item(int index, ContentSize size) => MediaItem(
+  id: MediaItemId('$index'),
+  kind: MediaItemKind.photo,
+  descriptor: ContentDescriptor(key: ContentKey.document('$index'), size: size),
+);
+
+/// A single box 300 wide: a list 364 wide less the landscape inset of 64.
+_GeometryFill _single(ContentSize size) => _GeometryFill(
+  _policy.layout(
+    MediaLayoutInput(
+      items: [_item(0, size)],
+      availableWidth: 364,
+      displaySize: const Size(364, 800),
+    ),
+  ),
+);
+
+/// An album 300 wide (0.8 of a list 375 wide) whose rows are bounded by
+/// half of a 610.5 screen height: 305.25, the height the mosaic's own
+/// proportions give at that width, so the scenes keep the geometry's
+/// baselines.
+_GeometryFill _album(List<ContentSize> sizes) => _GeometryFill(
+  _policy.layout(
+    MediaLayoutInput(
+      items: [for (final (index, size) in sizes.indexed) _item(index, size)],
+      availableWidth: 375,
+      displaySize: const Size(375, 610.5),
+    ),
+  ),
+);
 
 void main() {
   useGoldenBaselines('test/goldens/media_geometry_golden_test.dart');
@@ -118,7 +138,7 @@ void main() {
     await expectScene(
       tester,
       'single_16x9',
-      _GeometryFill.single(aspectRatio: 16 / 9),
+      _single(const ContentSize(1600, 900)),
     );
   });
 
@@ -126,7 +146,7 @@ void main() {
     await expectScene(
       tester,
       'album_2_square',
-      _GeometryFill.mosaic(_mosaic(const [1, 1])),
+      _album(const [ContentSize(1, 1), ContentSize(1, 1)]),
     );
   });
 
@@ -134,7 +154,7 @@ void main() {
     await expectScene(
       tester,
       'album_2_wide_stacked',
-      _GeometryFill.mosaic(_mosaic(const [2, 2])),
+      _album(const [ContentSize(2, 1), ContentSize(2, 1)]),
     );
   });
 
@@ -142,7 +162,7 @@ void main() {
     await expectScene(
       tester,
       'album_3_first_wide',
-      _GeometryFill.mosaic(_mosaic(const [1.5, 1, 1])),
+      _album(const [ContentSize(3, 2), ContentSize(1, 1), ContentSize(1, 1)]),
       height: 560,
     );
   });
@@ -151,7 +171,7 @@ void main() {
     await expectScene(
       tester,
       'album_3_first_narrow',
-      _GeometryFill.mosaic(_mosaic(const [0.5, 1, 1])),
+      _album(const [ContentSize(1, 2), ContentSize(1, 1), ContentSize(1, 1)]),
       height: 560,
     );
   });
@@ -160,7 +180,7 @@ void main() {
     await expectScene(
       tester,
       'album_awkward',
-      _GeometryFill.mosaic(_mosaic(const [2.5, 2.5, 1])),
+      _album(const [ContentSize(5, 2), ContentSize(5, 2), ContentSize(1, 1)]),
       height: 560,
     );
   });

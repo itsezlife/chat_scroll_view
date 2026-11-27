@@ -334,6 +334,7 @@ abstract final class MessageMenuCatalog {
     ChatInlineHit$Hashtag() ||
     ChatInlineHit$Embed() ||
     ChatInlineHit$Sticker() ||
+    ChatInlineHit$BodyPart() ||
     null => const <ChatMessageMenuItem>[],
   };
 

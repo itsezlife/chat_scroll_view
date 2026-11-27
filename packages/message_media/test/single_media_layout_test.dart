@@ -59,6 +59,22 @@ void main() {
       }
     });
 
+    test('a side that truncates to zero takes the no-dimensions side', () {
+      // Corrected from the port's 120 (the minimum height) to 150, the
+      // Android box without dimensions.
+      final size = computeSingleMediaSize(aspectRatio: 500, maxWidth: 300);
+      expect(size, const Size(300, 150));
+    });
+
+    test('an explicit max height is not soft-capped', () {
+      final size = computeSingleMediaSize(
+        aspectRatio: 9 / 16,
+        maxWidth: 300,
+        maxHeight: 350,
+      );
+      expect(size.height, 350);
+    });
+
     test('non-positive aspect or width gives Size.zero', () {
       expect(computeSingleMediaSize(aspectRatio: 0, maxWidth: 300), Size.zero);
       expect(computeSingleMediaSize(aspectRatio: 1, maxWidth: 0), Size.zero);

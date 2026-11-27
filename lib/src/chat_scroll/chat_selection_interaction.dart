@@ -5,7 +5,7 @@ import 'package:content_model/content_model.dart'
 import 'package:flutter/foundation.dart';
 
 /// Host-observable outcome from the selection facade (Copy, a refused Copy,
-/// link, code, mention, hashtag, embed, sticker).
+/// link, code, mention, hashtag, embed, sticker, body part).
 ///
 /// One sealed channel replaces parallel typed hooks so hosts switch once for
 /// feedback UI and side effects. Message-menu entry
@@ -85,6 +85,14 @@ sealed class ChatSelectionInteraction {
     required Rect stickerRect,
     required Duration tapTime,
   }) = ChatStickerActivated;
+
+  /// A part of a body that paints no text tapped: a media item, its status
+  /// control, a card's area. See [ChatBodyPartActivated].
+  const factory ChatSelectionInteraction.bodyPartActivated({
+    required int messageId,
+    required Object partId,
+    required Rect rect,
+  }) = ChatBodyPartActivated;
 
   /// Code / monospace activation when the facade does **not** auto-copy.
   const factory ChatSelectionInteraction.codeActivated({
@@ -535,4 +543,51 @@ final class ChatStickerActivated extends ChatSelectionInteraction {
   String toString() =>
       'ChatStickerActivated(messageId: $messageId, content: $content, '
       'gesture: $gesture, stickerRect: $stickerRect, tapTime: $tapTime)';
+}
+
+/// A tap on a body part whose role is `ChatBodyPartRole.activate`, outside
+/// message selection.
+///
+/// The viewport decided only that the tap is the part's and not the message's
+/// (no toggle, no idle message tap, no menu). What it means is the body's and
+/// the host's: the body that registered the part reads its own [partId] and
+/// acts (open, download, reveal), the host reads it for what it adds. [rect]
+/// is the part's global rectangle when the tap landed, an opening frame for
+/// whatever the tap opens.
+///
+/// Only a tap is reported: a long press on a body part is the message's.
+/// Construct via [ChatSelectionInteraction.bodyPartActivated].
+@immutable
+final class ChatBodyPartActivated extends ChatSelectionInteraction {
+  /// Creates a body-part-activation interaction.
+  const ChatBodyPartActivated({
+    required this.messageId,
+    required this.partId,
+    required this.rect,
+  });
+
+  /// Message whose body shows the part.
+  final int messageId;
+
+  /// The body's value naming the part, as the hit carried it.
+  final Object partId;
+
+  /// Where the part was drawn when the tap landed, in global coordinates.
+  final Rect rect;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatBodyPartActivated &&
+          messageId == other.messageId &&
+          partId == other.partId &&
+          rect == other.rect;
+
+  @override
+  int get hashCode => Object.hash(messageId, partId, rect);
+
+  @override
+  String toString() =>
+      'ChatBodyPartActivated(messageId: $messageId, partId: $partId, '
+      'rect: $rect)';
 }
