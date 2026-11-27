@@ -8,6 +8,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'chrome/media_cell_chrome_test.dart' as chrome_media_cell_chrome_test;
+import 'chrome/media_chrome_rules_test.dart' as chrome_media_chrome_rules_test;
 import 'diagnostics/media_trace_test.dart' as diagnostics_media_trace_test;
 import 'goldens/media_geometry_golden_test.dart'
     as goldens_media_geometry_golden_test;
@@ -43,6 +45,8 @@ import 'transition/message_media_transition_test.dart'
     as transition_message_media_transition_test;
 
 void main() {
+  group('chrome/media_cell_chrome_test', chrome_media_cell_chrome_test.main);
+  group('chrome/media_chrome_rules_test', chrome_media_chrome_rules_test.main);
   group('diagnostics/media_trace_test', diagnostics_media_trace_test.main);
   group(
     'goldens/media_geometry_golden_test',

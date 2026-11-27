@@ -632,6 +632,18 @@ final class MediaLayout {
     );
   }
 
+  /// This layout with the time pill at [rect] (null: the time is not on
+  /// the media); the same layout when it is already there.
+  MediaLayout withTimePill(Rect? rect) => rect == timePill
+      ? this
+      : MediaLayout(
+          size: size,
+          blocks: blocks,
+          widthMetrics: widthMetrics,
+          timePill: rect,
+          exiting: exiting,
+        );
+
   /// This layout with [exiting] in place of its own exiting cells.
   MediaLayout withExiting(List<MediaCell> exiting) => MediaLayout(
     size: size,

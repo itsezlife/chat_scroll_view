@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:message_media/src/chrome/media_cell_chrome.dart';
+import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/layout/media_corner_radii.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
@@ -33,6 +35,14 @@ import 'package:mpx_core/mpx_core.dart';
 /// animation size. A cell that moves or resizes keeps its binding; only
 /// another item does not.
 ///
+/// ## Chrome
+///
+/// The badge and the status control are the policy's chrome slots
+/// (`MediaChromeSlots.infoBadge`, `statusControl`), given the stock part of
+/// the loading stages through the asset view's skin ([skinOf]). The status
+/// control fades with the cell's `MediaControlsScope` (a spoiler's reveal)
+/// and takes no taps until it is fully shown.
+///
 /// ## Press
 ///
 /// The picture has no press visual; the status control's own feedback is
@@ -47,6 +57,7 @@ class MediaBoxCell extends StatelessWidget {
     this.autoplay = false,
     this.downloadContext,
     this.barsBlurSigma = 24,
+    this.skin,
     super.key,
   });
 
@@ -59,7 +70,58 @@ class MediaBoxCell extends StatelessWidget {
         fit: data.cell.fit ?? const MediaFit.crop(),
         autoplay: data.autoplay,
         downloadContext: data.downloadContext,
+        skin: skinOf(data),
       );
+
+  /// The asset view skin of [data]'s chrome slots: the info badge and the
+  /// status control built by the slots over the stock parts, the status
+  /// control faded by the cell's `MediaControlsScope`. A slot that throws is
+  /// reported (`media` / `cellFailed`) and the stock part shows.
+  static AssetViewSkin skinOf(MediaCellData data) {
+    final chrome = MediaChromeData(
+      cell: data.cell,
+      item: data.item,
+      family: data.family,
+      downloadContext: data.downloadContext,
+    );
+    final slots = data.chrome;
+    Widget guarded(
+      String name,
+      MediaLoadSlotBuilder? slot,
+      BuildContext context,
+      AssetLoadState state,
+      Widget stock,
+    ) {
+      if (slot == null) return stock;
+      try {
+        return slot(context, chrome, state, stock);
+      } on Object catch (error, stackTrace) {
+        reportMediaChromeFailure(
+          builder: name,
+          itemId: data.item.id,
+          item: data.item,
+          correlation: data.correlation,
+          error: error,
+          stackTrace: stackTrace,
+        );
+        return stock;
+      }
+    }
+
+    return AssetViewSkin(
+      badge: (context, state, stock) =>
+          guarded('infoBadge', slots?.infoBadge, context, state, stock),
+      status: (context, state, stock) => _ControlsFade(
+        child: guarded(
+          'statusControl',
+          slots?.statusControl,
+          context,
+          state,
+          stock,
+        ),
+      ),
+    );
+  }
 
   /// The longest side, in pixels, a photo is decoded at.
   static const int decodeExtent = 1280;
@@ -84,6 +146,10 @@ class MediaBoxCell extends StatelessWidget {
 
   /// The blur of the bars of a whole fit, in logical pixels.
   final double barsBlurSigma;
+
+  /// The look of the picture's badge and status control; null keeps the
+  /// closest loading style's.
+  final AssetViewSkin? skin;
 
   /// The picture's own size, when its descriptor knows it.
   Size? get pictureSize => switch (item.descriptor.size) {
@@ -132,6 +198,7 @@ class MediaBoxCell extends StatelessWidget {
       ),
       badge: _plays,
       downloadContext: downloadContext,
+      skin: skin,
     );
     return ClipRRect(
       borderRadius: BorderRadius.only(
@@ -167,6 +234,27 @@ class MediaBoxCell extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// The status control at the cell's controls opacity, without taps until it
+// is fully shown: a tap on a hidden spoiler only reveals it.
+class _ControlsFade extends StatelessWidget {
+  const _ControlsFade({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final controls = MediaControlsScope.of(context);
+    return AnimatedBuilder(
+      animation: controls,
+      builder: (context, child) => IgnorePointer(
+        ignoring: controls.value < 1,
+        child: Opacity(opacity: controls.value.clamp(0, 1), child: child),
+      ),
+      child: child,
     );
   }
 }

@@ -19,9 +19,15 @@ enum MediaOp implements DiagnosticOp {
   /// kind tag.
   unknownKind,
 
-  /// A cell could not be built (error): which builder (`box`, `row`) and
+  /// A cell could not be built (error): which builder (`box`, `row`, or a
+  /// chrome slot: `infoBadge`, `statusControl`, `spoiler`, `options`) and
   /// the error's type (`missingItem` for a cell whose item was not given).
   cellFailed,
+
+  /// A spoiler's reveal started (debug): the policy's platform family, the
+  /// reveal's form (`circle`, `spot`, `crossFade`) and whether reduce
+  /// motion made it jump to revealed.
+  spoilerRevealed,
 
   /// A message's media layout changed and a transition toward the new one
   /// started (trace): the trigger, the entering and exiting cell counts,

@@ -43,13 +43,14 @@ class MessageMediaStateScope extends InheritedWidget {
 class MessageMediaStateBuilder extends StatefulWidget {
   /// A cell's access to the state.
   const MessageMediaStateBuilder({
-    required this.scrollId,
     required this.builder,
+    this.scrollId,
     super.key,
   });
 
-  /// The engine's id of the message this cell paints, for the diagnostics.
-  final String scrollId;
+  /// The engine's id of the message this cell paints, for the diagnostics;
+  /// null when the host gave none.
+  final String? scrollId;
 
   /// Builds the cell with its state.
   final Widget Function(BuildContext context, MessageMediaState state) builder;

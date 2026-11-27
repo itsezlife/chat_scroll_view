@@ -1,5 +1,6 @@
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/layout/media_file_row.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/paint/media_box_cell.dart';
@@ -22,6 +23,8 @@ final class MediaCellData {
     this.downloadContext,
     this.fileRow,
     this.fileStack,
+    this.chrome,
+    this.correlation = ChatCorrelation.none,
   });
 
   /// The cell: rect, fit, neighbours and resolved corner radii.
@@ -52,6 +55,13 @@ final class MediaCellData {
   /// draws by; null for a box.
   final MediaFileStackPolicy? fileStack;
 
+  /// The policy's chrome slots, whose info badge and status control a box
+  /// draws; null keeps the stock parts.
+  final MediaChromeSlots? chrome;
+
+  /// The ids a slot's failure names.
+  final ChatCorrelation correlation;
+
   @override
   bool operator ==(Object other) =>
       other is MediaCellData &&
@@ -62,7 +72,9 @@ final class MediaCellData {
       other.autoplay == autoplay &&
       other.downloadContext == downloadContext &&
       other.fileRow == fileRow &&
-      other.fileStack == fileStack;
+      other.fileStack == fileStack &&
+      other.chrome == chrome &&
+      other.correlation == correlation;
 
   @override
   int get hashCode => Object.hash(
@@ -74,6 +86,8 @@ final class MediaCellData {
     downloadContext,
     fileRow,
     fileStack,
+    chrome,
+    correlation,
   );
 }
 
