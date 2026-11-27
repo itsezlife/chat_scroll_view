@@ -1,6 +1,8 @@
 import 'package:chat_scroll_view_example/src/common/models/chat_kind.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/chat_page_route.dart';
 import 'package:chat_scroll_view_example/src/features/chat_list/widgets/chat_list_tile.dart';
+import 'package:chat_scroll_view_example/src/features/logs/data/diagnostics_journal.dart';
+import 'package:chat_scroll_view_example/src/features/logs/view/journal_page.dart';
 import 'package:flutter/material.dart';
 
 /// The page a chat is opened from: a list of chats, each pushing [chat] with
@@ -16,8 +18,12 @@ class ChatListScreen extends StatelessWidget {
   const ChatListScreen({
     required this.chat,
     this.entries = demoEntries,
+    this.journal,
     super.key,
   });
+
+  /// The diagnostics journal the Logs action opens; no action when null.
+  final DiagnosticsJournal? journal;
 
   /// Builds the chat a row opens, for the row's entry.
   final Widget Function(BuildContext context, ChatListEntry entry) chat;
@@ -69,7 +75,18 @@ class ChatListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Chats')),
+    appBar: AppBar(
+      title: const Text('Chats'),
+      actions: [
+        if (journal case final journal?)
+          IconButton(
+            tooltip: 'Logs',
+            onPressed: () =>
+                Navigator.of(context).push(JournalPage.route(journal: journal)),
+            icon: const Icon(Icons.receipt_long_outlined),
+          ),
+      ],
+    ),
     body: ListView.builder(
       itemCount: entries.length,
       itemBuilder: (context, index) => ChatListTile(

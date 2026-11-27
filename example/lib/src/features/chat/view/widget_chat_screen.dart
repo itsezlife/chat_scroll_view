@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 
 import 'package:attach_sheet/attach_sheet.dart' show AttachDropOverlay;
 import 'package:bulletins/bulletins.dart';
+import 'package:chat_capabilities/chat_capabilities.dart' show ChatCapabilities;
 import 'package:chat_composer/chat_composer.dart' show ComposerBottomFade;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
@@ -59,6 +60,8 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bot
 import 'package:chat_scroll_view_example/src/features/chat/widgets/selection_app_bar.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/side_controls/chat_side_controls.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
+import 'package:chat_scroll_view_example/src/features/logs/model/journal_view.dart';
+import 'package:chat_scroll_view_example/src/features/logs/view/journal_page.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart'
     show
@@ -214,6 +217,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// reaches the tail, and a `setState` there rebuilt the whole screen (every
   /// mounted row with it) in the frame of that scroll.
   final _pageDownChromeVisible = ValueNotifier<bool>(false);
+
+  /// The chat's capabilities, which the Logs screen opened from it shows.
+  ///
+  /// Allows everything, which is what the demo enforces until the chat
+  /// resolves its own signal from its kind (chat-capabilities ticket 09
+  /// replaces this with that signal).
+  final _capabilities = listen.ValueNotifier<ChatCapabilities>(
+    const ChatCapabilities(),
+  );
 
   ChatSearchController? _search;
 
@@ -555,6 +567,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
     _pageDownChromeVisible.dispose();
+    _capabilities.dispose();
     _unreadBoundary?.dispose();
     _search?.dispose();
     _stopScrollReport();
@@ -659,6 +672,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           onLibraryEdit: (edit) =>
               _onLibraryEdited(widget.services.libraryShown.apply(edit)),
           onNotice: _showNotice,
+          onMessageLogs: kDebugMode ? _openMessageLogs : null,
         ),
         contentOf: (id) => switch (backend.getMessage(id)?.text) {
           final text? => _menuContentOf(text),
@@ -775,6 +789,18 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _pendingLastReadBaseline = null;
     unawaited(backend.updateLastReadMessageId(baseline));
   }
+
+  /// Opens the Logs screen on the events of the message with [messageId],
+  /// the chat's capabilities at its top.
+  void _openMessageLogs(int messageId) => unawaited(
+    Navigator.of(context).push(
+      JournalPage.route(
+        journal: widget.services.journal,
+        filter: JournalFilter.ofMessage('$messageId'),
+        capabilities: _capabilities,
+      ),
+    ),
+  );
 
   /// Key of [source]'s chat in the per-chat stores, the center-band and the
   /// draft store (a key-value name), or `null` for a chat whose history does

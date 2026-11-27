@@ -78,3 +78,7 @@ void $reportBootProgress(int percent, String status) {
     status.toJS,
   );
 }
+
+/// The web hook: no operating system version to read (the browser's user
+/// agent is not one, and names the user's setup).
+String? $operatingSystemVersion() => null;

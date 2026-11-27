@@ -132,6 +132,10 @@ abstract final class MessageMenuActionId {
 
   /// Save the message's GIF.
   static const saveGif = 'save_gif';
+
+  /// Open the Logs screen on the message's events (debug builds; see
+  /// [MessageMenuActions.onMessageLogs]).
+  static const messageLogs = 'message_logs';
 }
 
 /// Policy- and hit-aware row / reaction catalogs driven by a
@@ -493,6 +497,7 @@ final class MessageMenuActions {
     this.onViewPack,
     this.onLibraryEdit,
     this.onNotice,
+    this.onMessageLogs,
   });
 
   /// Delete one message.
@@ -545,6 +550,11 @@ final class MessageMenuActions {
   /// Shows what a demo row with no handler would do (a reaction, a reply, a
   /// pin, a forward): the host's bulletin. Nothing shows when null.
   final ValueChanged<String>? onNotice;
+
+  /// Opens the Logs screen on the events of the message with the given id
+  /// ([MessageMenuActionId.messageLogs]). The row is in the menu of one
+  /// message while this is set; the host sets it in debug builds only.
+  final ValueChanged<int>? onMessageLogs;
 }
 
 /// Host-owned **message menu** session.
@@ -678,6 +688,13 @@ final class MessageMenu {
               _ => excludeActionIds,
             },
           ),
+          if (actions.onMessageLogs != null &&
+              request.membership == ChatMessageMenuMembership.idle)
+            const ChatMessageMenuItem(
+              id: MessageMenuActionId.messageLogs,
+              label: 'Logs of this message',
+              icon: Icons.receipt_long_outlined,
+            ),
           if (packsInCard && packs.isNotEmpty && packsSource != null) ...[
             ChatMessageMenuItem.custom(
               builder: (_) => switch (packsLook) {
@@ -828,6 +845,8 @@ final class MessageMenu {
             }
           case MessageMenuActionId.clearSelection:
             selection?.clear();
+          case MessageMenuActionId.messageLogs:
+            actions.onMessageLogs?.call(request.messageId);
           case MessageMenuActionId.reply:
             if (actions.onReply case final onReply?) {
               onReply(request.messageId);
