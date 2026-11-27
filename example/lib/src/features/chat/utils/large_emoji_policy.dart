@@ -1,3 +1,4 @@
+import 'package:chat_capabilities/chat_capabilities.dart' show Capability;
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatEmojiPolicy, ChatEmojiPolicy$Desktop, IChatMessage;
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
@@ -14,7 +15,8 @@ import 'package:meta/meta.dart';
 ///
 /// - the user keeps the large-emoji setting on ([enabled]);
 /// - on a platform that gates on it (Android), the chat allows stickers
-///   ([stickersAllowed]), or the user is an admin of it ([isAdmin]);
+///   (its capabilities' `sending.stickers`, given as [stickers]), or the
+///   user is an admin of it ([isAdmin]);
 /// - the message has no media, a link preview included;
 /// - the platform admits the emoji (`ChatEmojiPolicy.admits`: desktop shows at
 ///   most [desktopRegularLimit] regular emoji large, 3 by default).
@@ -24,7 +26,7 @@ final class LargeEmojiPolicy {
   /// until said otherwise.
   const LargeEmojiPolicy({
     required this.enabled,
-    this.stickersAllowed = true,
+    this.stickers = const Capability.allowed(),
     this.isAdmin = false,
     this.desktopRegularLimit = ChatEmojiPolicy$Desktop.defaultRegularLimit,
   });
@@ -32,8 +34,9 @@ final class LargeEmojiPolicy {
   /// The user's large-emoji setting.
   final bool enabled;
 
-  /// Whether the chat lets its members send stickers.
-  final bool stickersAllowed;
+  /// Whether the chat lets the user send stickers: its capabilities'
+  /// `sending.stickers`.
+  final Capability stickers;
 
   /// Whether the user administers the chat, which overrides a chat that does
   /// not allow stickers.
@@ -58,7 +61,7 @@ final class LargeEmojiPolicy {
   EmojiOnly? emojiOnlyOf(IChatMessage message, {ChatEmojiPolicy? platform}) {
     final family = platform ?? const ChatEmojiPolicy.android();
     final allowed =
-        !family.gatesOnStickerPermission || stickersAllowed || isAdmin;
+        !family.gatesOnStickerPermission || stickers.isAllowed || isAdmin;
     if (!enabled || !allowed || message.hasMedia) return null;
     final emoji = message.emojiOnly;
     return emoji != null && family.admits(emoji) ? emoji : null;
@@ -68,11 +71,11 @@ final class LargeEmojiPolicy {
   bool operator ==(Object other) =>
       other is LargeEmojiPolicy &&
       other.enabled == enabled &&
-      other.stickersAllowed == stickersAllowed &&
+      other.stickers == stickers &&
       other.isAdmin == isAdmin &&
       other.desktopRegularLimit == desktopRegularLimit;
 
   @override
   int get hashCode =>
-      Object.hash(enabled, stickersAllowed, isAdmin, desktopRegularLimit);
+      Object.hash(enabled, stickers, isAdmin, desktopRegularLimit);
 }

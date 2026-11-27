@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view_example/src/common/models/chat_kind.dart';
+import 'package:chat_scroll_view_example/src/features/chat/capabilities/demo_chat_rights.dart';
 import 'package:flutter/material.dart';
 
 /// One chat in the chat list: avatar, title, the last message and its time.
@@ -39,13 +40,19 @@ class ChatListTile extends StatelessWidget {
 @immutable
 final class ChatListEntry {
   /// A chat titled [title] whose last message is [preview], sent at [time].
+  /// Its [rights] are those of its [kind] unless named.
   const ChatListEntry({
+    required this.id,
     required this.title,
     required this.preview,
     required this.time,
     required this.color,
     this.kind = ChatKind.standard,
-  });
+    DemoChatRights? rights,
+  }) : _rights = rights;
+
+  /// The chat's id, on its diagnostics events.
+  final String id;
 
   /// The chat's name.
   final String title;
@@ -61,4 +68,8 @@ final class ChatListEntry {
 
   /// The class of the conversation the row opens.
   final ChatKind kind;
+
+  /// What the user may do in the chat.
+  DemoChatRights get rights => _rights ?? DemoChatRights.forKind(kind);
+  final DemoChatRights? _rights;
 }

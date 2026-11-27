@@ -3,7 +3,7 @@ import 'dart:developer' as dev;
 
 import 'package:attach_sheet/attach_sheet.dart' show AttachDropOverlay;
 import 'package:bulletins/bulletins.dart';
-import 'package:chat_capabilities/chat_capabilities.dart' show ChatCapabilities;
+import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_composer/chat_composer.dart' show ComposerBottomFade;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
@@ -17,6 +17,10 @@ import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/common/utils/mapped_value_listenable.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
+import 'package:chat_scroll_view_example/src/features/chat/capabilities/capabilities_switcher.dart';
+import 'package:chat_scroll_view_example/src/features/chat/capabilities/capabilities_switcher_sheet.dart';
+import 'package:chat_scroll_view_example/src/features/chat/capabilities/chat_capabilities_host.dart';
+import 'package:chat_scroll_view_example/src/features/chat/capabilities/demo_chat_rights.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/unread_boundary_controller.dart';
@@ -108,6 +112,8 @@ class WidgetChatScreen extends StatefulWidget {
     this.presentationPolicy,
     this.kind = ChatKind.standard,
     this.title = 'Chat',
+    this.chatId = 'chat',
+    this.rights,
     super.key,
   });
 
@@ -133,6 +139,13 @@ class WidgetChatScreen extends StatefulWidget {
 
   /// The chat's name: where attached media go (the picker viewer's title).
   final String title;
+
+  /// The chat's id: every capabilities event of the chat carries it.
+  final String chatId;
+
+  /// What the user may do in the chat, resolved into its capabilities; null
+  /// for the rights of its [kind] (`DemoChatRights.forKind`).
+  final DemoChatRights? rights;
 
   @override
   State<WidgetChatScreen> createState() => _WidgetChatScreenState();
@@ -173,9 +186,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// chrome's text root, fed again when the root changes.
   listen.ValueNotifier<DocumentRowStyle>? _documentStyle;
 
-  /// Demo chat facts that gate the large emoji: a
-  /// chat that allows stickers, in which the user is no admin.
-  static const bool _chatAllowsStickers = true;
+  /// The demo chat's other fact that gates the large emoji: the user is no
+  /// admin of it (its stickers right is the capabilities').
   static const bool _isChatAdmin = false;
   static const int _demoEffectCount = 3;
   final GlobalKey _composerGlassKey = GlobalKey(debugLabel: 'ComposerGlass');
@@ -218,14 +230,22 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// mounted row with it) in the frame of that scroll.
   final _pageDownChromeVisible = ValueNotifier<bool>(false);
 
-  /// The chat's capabilities, which the Logs screen opened from it shows.
-  ///
-  /// Allows everything, which is what the demo enforces until the chat
-  /// resolves its own signal from its kind (chat-capabilities ticket 09
-  /// replaces this with that signal).
-  final _capabilities = listen.ValueNotifier<ChatCapabilities>(
-    const ChatCapabilities(),
+  /// The chat's capabilities, resolved from its rights: the one signal the
+  /// composer, the picker, the large-emoji gate and the Logs screen read,
+  /// with the denial feedback that shows an attempt as a bulletin.
+  late final ChatCapabilitiesHost _rights = ChatCapabilitiesHost.forRights(
+    widget.rights ?? DemoChatRights.forKind(widget.kind),
+    chatId: widget.chatId,
+    bulletins: _bulletins,
   );
+
+  /// The debug switcher's rows over [_rights].
+  late final CapabilitiesSwitcher _switcher = CapabilitiesSwitcher(_rights);
+
+  /// The stickers right, which the large-emoji gate follows.
+  late final listen.ValueListenable<Capability> _stickersRight = _rights
+      .capabilities
+      .select((c) => c.sending.stickers);
 
   ChatSearchController? _search;
 
@@ -244,8 +264,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     services: widget.services,
     composer: _input.composer,
     bulletins: _bulletins,
-    send: _handleSendMessage,
+    send: _sendInChat,
     chatTitle: widget.title,
+    capabilities: _rights.attach,
     yieldKeyboard: _input.yieldKeyboardToPanel,
     returnKeyboard: _input.handOffToKeyboard,
     holdChatPlayback: () => _input.holdChatPlayback().release,
@@ -288,6 +309,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       spoilerClock: widget.services.assets.clock,
     )..selectionCap = 100;
     _emojiPolicy = ValueNotifier(_currentEmojiPolicy());
+    _stickersRight.addListener(_refreshEmojiPolicy);
     widget.services.largeEmoji.enabled.addListener(_refreshEmojiPolicy);
     widget.services.largeEmoji.desktopLimit.addListener(_refreshEmojiPolicy);
     _stickerInteractions = StickerInteractionStub(
@@ -313,7 +335,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// own facts.
   LargeEmojiPolicy _currentEmojiPolicy() => LargeEmojiPolicy(
     enabled: widget.services.largeEmoji.enabled.value,
-    stickersAllowed: _chatAllowsStickers,
+    stickers: _stickersRight.value,
     isAdmin: _isChatAdmin,
     desktopRegularLimit: widget.services.largeEmoji.desktopLimit.value,
   );
@@ -328,7 +350,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     final input = _inputSet ??= ChatInputSet(
       services: widget.services,
       view: View.of(context),
-      send: _handleSendMessage,
+      send: _sendInChat,
       edit: _handleEditSelected,
       confirmClearRecents: _confirmClearRecents,
       keyboard: widget.softKeyboard,
@@ -338,6 +360,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       onPackRequested: _openPack,
       onPackEditRequested: _editPack,
       onLibraryEdited: _onLibraryEdited,
+      // The composer's length follows the chat's limits.
+      messageLengthLimit: null,
+      capabilities: _rights.capabilities,
+      capabilityFeedback: _rights.feedback,
+      chatId: _rights.chatId,
+      accessAction: _rights.accessAction,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
     if (fresh) {
@@ -567,7 +595,6 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _persistLastReadTimer?.cancel();
     _pillLastSeenBaseline.dispose();
     _pageDownChromeVisible.dispose();
-    _capabilities.dispose();
     _unreadBoundary?.dispose();
     _search?.dispose();
     _stopScrollReport();
@@ -575,6 +602,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _bodyPainters.clear();
     _selection.dispose();
     _spoilers.dispose();
+    _stickersRight.removeListener(_refreshEmojiPolicy);
     widget.services.largeEmoji.enabled.removeListener(_refreshEmojiPolicy);
     widget.services.largeEmoji.desktopLimit.removeListener(_refreshEmojiPolicy);
     _emojiPolicy.dispose();
@@ -590,6 +618,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _messageMenu = null;
     _bulletinObstruction?.dispose();
     _attach.dispose();
+    _rights.dispose();
     _bulletins.dispose();
     super.dispose();
   }
@@ -797,7 +826,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       JournalPage.route(
         journal: widget.services.journal,
         filter: JournalFilter.ofMessage('$messageId'),
-        capabilities: _capabilities,
+        capabilities: _rights.capabilities,
       ),
     ),
   );
@@ -865,6 +894,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// Demo "signed-in user" — same predicate for viewport follow-tail and FAB.
   static bool _isSelfMessage(IChatMessage message) =>
       message.sender == _demoSender;
+
+  /// Sends [text] as one send of the chat: in slow mode the next send waits
+  /// an interval, and this one is pending until it lands.
+  Future<void> _sendInChat(String text) =>
+      _rights.send(() => _handleSendMessage(text));
 
   /// Sends [text] as the signed-in user. A send that succeeds clears the
   /// unread boundary of the open it was sent from, whether or not the tail
@@ -1068,7 +1102,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       _ => PackKind.stickers,
     };
     final input = _input;
-    final canPick = kind == PackKind.emoji || _chatAllowsStickers;
+    final canPick = kind == PackKind.emoji || _stickersRight.value.isAllowed;
     await _overChat(
       ChatPackSheets.open(
         context,
@@ -1207,7 +1241,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       source: drop,
       policy: _attach.policy,
       boxOpen: _attach.boxOpen,
-      maxFileBytes: ChatAttach.limits.fileSizeLimit,
+      maxFileBytes: _rights.value.limits.fileSize,
       onDrop: (files, {required asFiles}) =>
           unawaited(_attach.openBox(context, files, asFiles: asFiles)),
       child: chat,
@@ -1577,6 +1611,20 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                       onPressed: _openNotes,
                       icon: const Icon(Icons.checklist, size: 20),
                     ),
+                    if (kDebugMode) ...[
+                      const SizedBox(width: 4),
+                      IconButton.filledTonal(
+                        key: const ValueKey('chat-rights-switcher'),
+                        tooltip: 'Chat rights',
+                        onPressed: () => unawaited(
+                          CapabilitiesSwitcherSheet.show(
+                            context,
+                            switcher: _switcher,
+                          ),
+                        ),
+                        icon: const Icon(Icons.admin_panel_settings, size: 20),
+                      ),
+                    ],
                     const SizedBox(width: 4),
                     IconButton.filledTonal(
                       tooltip: 'Message corners',

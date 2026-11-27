@@ -22,6 +22,7 @@ import 'package:chat_scroll_view_example/src/common/pointer_tape.dart';
 import 'package:chat_scroll_view_example/src/common/pre_ime_back.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/features/chat/capabilities/demo_chat_rights.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
@@ -284,8 +285,13 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
       DemoStart.chat => _chat(context),
       DemoStart.chatList => ChatListScreen(
         journal: widget.services.journal,
-        chat: (context, entry) =>
-            _chat(context, kind: entry.kind, title: entry.title),
+        chat: (context, entry) => _chat(
+          context,
+          kind: entry.kind,
+          title: entry.title,
+          chatId: entry.id,
+          rights: entry.rights,
+        ),
       ),
     },
   );
@@ -294,6 +300,8 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
     BuildContext context, {
     ChatKind kind = ChatKind.standard,
     String title = 'Chat',
+    String chatId = 'chat',
+    DemoChatRights? rights,
   }) => ViewerBackdropZoom(
     child: WidgetChatScreen(
       services: widget.services,
@@ -302,6 +310,8 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
       presentationPolicy: widget.presentationPolicy,
       kind: kind,
       title: title,
+      chatId: chatId,
+      rights: rights,
     ),
   );
 }

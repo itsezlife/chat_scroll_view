@@ -3,6 +3,8 @@
 /// message's media that gate it.
 library;
 
+import 'package:chat_capabilities/chat_capabilities.dart'
+    show Capability, DenialReason;
 import 'package:chat_scroll_view/chat_scroll_view.dart' show ChatEmojiPolicy;
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/large_emoji_setting.dart';
@@ -11,6 +13,8 @@ import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
+
+const _stickersDenied = Capability.denied(DenialReason.restricted());
 
 UserChatMessage _message(String content, {bool hasMedia = false}) =>
     UserChatMessage(
@@ -207,10 +211,10 @@ void main() {
     });
 
     test('needs the chat to allow stickers, or the user to be an admin', () {
-      const closed = LargeEmojiPolicy(enabled: true, stickersAllowed: false);
+      const closed = LargeEmojiPolicy(enabled: true, stickers: _stickersDenied);
       const admin = LargeEmojiPolicy(
         enabled: true,
-        stickersAllowed: false,
+        stickers: _stickersDenied,
         isAdmin: true,
       );
 
@@ -219,7 +223,7 @@ void main() {
     });
 
     group('by platform family (04 section 4, rows 1 and 2)', () {
-      const closed = LargeEmojiPolicy(enabled: true, stickersAllowed: false);
+      const closed = LargeEmojiPolicy(enabled: true, stickers: _stickersDenied);
       final four = _message('\u{1F44D}\u{1F680}\u{1F525}\u{1F600}');
 
       test('Android keeps the sticker permission as a gate', () {

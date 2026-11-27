@@ -1,3 +1,4 @@
+import 'package:chat_capabilities/chat_capabilities.dart' show CapabilityAction;
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -113,6 +114,9 @@ ComposerSpec buildChatComposerSpec({
           (false, false) => composer.recordVoiceAction,
         },
         primary: hasText,
+        // The voice button is the chat's voice right: dimmed and reporting
+        // where the chat denies it.
+        capability: isEditing || hasText ? null : CapabilityAction.sendVoice,
         onTap: hasText ? onSubmit : onVoice,
       ),
     ],

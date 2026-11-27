@@ -103,7 +103,13 @@ final class ChatAttach extends AttachSheetHost {
     this.holdChatPlayback,
     this.keyboardUp,
     this.ownKeyboard,
+    this.capabilities,
   });
+
+  /// The chat's rights over the picker: the kinds it lets join, slow mode's
+  /// one send and the chat's caption, file and album limits, applied over
+  /// [limits] while the sheet or the box is up; null allows everything.
+  final AttachCapabilities? capabilities;
 
   /// The app's services (the device library, the key-value store).
   final AppServices services;
@@ -166,12 +172,17 @@ final class ChatAttach extends AttachSheetHost {
     isWeb: kIsWeb,
   );
 
-  /// The demo chat's rights: captions of 1024, files up to 2000 MB, no
-  /// timers (a group chat), scheduling allowed.
-  static const AttachLimits limits = AttachLimits(
-    fileSizeLimit: 2000 * 1024 * 1024,
-    timerAllowed: false,
-  );
+  /// The host's own limits, before the chat's [capabilities] narrow them:
+  /// no timers (a group chat), scheduling allowed. The kinds, the caption,
+  /// file and album limits and one-send mode are the chat's, derived from
+  /// its capabilities by the picker.
+  static const AttachLimits limits = AttachLimits(timerAllowed: false);
+
+  // The selection of the open picker: its limits are the chat's, live.
+  AttachSelection? _$selection;
+
+  AttachSelection _select() =>
+      _$selection = AttachSelection(policy: attachPolicy, limits: limits);
 
   late final Future<FileIntake> _$intake = PlatformIntake.fileIntake();
   late final Future<String> _$work = _workDirectory();
@@ -250,8 +261,9 @@ final class ChatAttach extends AttachSheetHost {
       outcome = await AttachSheet.show(
         context,
         policy: policy,
-        selection: AttachSelection(policy: attachPolicy, limits: limits),
+        selection: _select(),
         host: this,
+        capabilities: capabilities,
         opening: AttachSheetOpening(
           keyboardWasUp: keyboardUp?.call() ?? composer.hasFocus,
         ),
@@ -306,7 +318,8 @@ final class ChatAttach extends AttachSheetHost {
     final caption = composer.richText;
     final box = _$box = ConfirmBoxController(
       policy: policy,
-      selection: AttachSelection(policy: attachPolicy, limits: limits),
+      selection: _select(),
+      capabilities: capabilities,
       intake: intake,
       host: this,
       initialCaption: caption,
@@ -349,7 +362,12 @@ final class ChatAttach extends AttachSheetHost {
       case AttachOutcome$Send(:final request, :final prepared):
         // The text went with the media: the chat's field empties.
         if (!request.caption.isEmpty) composer.clear();
-        final plan = planSend(request, attachPolicy, limits);
+        // The limits the picker sent under: the chat's, as they were then.
+        final plan = planSend(
+          request,
+          attachPolicy,
+          _$selection?.limits ?? limits,
+        );
         if (plan case SendPlan$Rejected(:final rejection)) {
           bulletins.show(
             ChatBulletins.error('Не отправлено: ${rejection.name}'),
@@ -484,7 +502,10 @@ final class ChatAttach extends AttachSheetHost {
       AttachInteraction$Refused(reason: AttachRefusal.kindNotAllowed) =>
         'Такие файлы здесь отправлять нельзя',
       AttachInteraction$Refused(reason: AttachRefusal.fileTooLarge) =>
-        'Файл больше 2000 МБ',
+        switch (_$selection?.limits.fileSizeLimit) {
+          final bytes? => 'Файл больше ${bytes ~/ (1024 * 1024)} МБ',
+          null => 'Файл слишком большой',
+        },
       AttachInteraction$Refused(reason: AttachRefusal.emptyFile) =>
         'Пустой файл',
       AttachInteraction$VideoRefused(reason: AttachVideoRefusal.notAllowed) =>

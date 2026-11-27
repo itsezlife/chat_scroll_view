@@ -66,6 +66,10 @@ import 'common/scroll_lab_glass_test.dart' as scroll_lab_glass_test;
 import 'features/chat/animated_emoji_pack_test.dart'
     as animated_emoji_pack_test;
 import 'features/chat/bundled_packs_test.dart' as bundled_packs_test;
+import 'features/chat/capabilities/capabilities_switcher_test.dart'
+    as capabilities_switcher_test;
+import 'features/chat/capabilities/chat_capabilities_host_test.dart'
+    as chat_capabilities_host_test;
 import 'features/chat/chat_attach_back_test.dart' as chat_attach_back_test;
 import 'features/chat/chat_attach_messages_test.dart'
     as chat_attach_messages_test;
@@ -460,6 +464,14 @@ void main() {
   group(
     'features/chat/emoji_service_colors_test.dart',
     emoji_service_colors_test.main,
+  );
+  group(
+    'features/chat/capabilities/capabilities_switcher_test.dart',
+    capabilities_switcher_test.main,
+  );
+  group(
+    'features/chat/capabilities/chat_capabilities_host_test.dart',
+    chat_capabilities_host_test.main,
   );
   group('features/chat/large_emoji_test.dart', large_emoji_test.main);
   group(

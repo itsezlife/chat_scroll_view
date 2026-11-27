@@ -3,6 +3,7 @@ import 'dart:developer' as dev;
 import 'dart:ui' show FlutterView;
 
 import 'package:attach_sheet/attach_sheet.dart' show AttachLog;
+import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show
@@ -135,6 +136,10 @@ final class ChatInputSet {
   /// the soft keyboard's readings and commands. [send] and [edit] take the
   /// markdown body of a message. [policy] defaults to the one of the platform.
   /// [selection] is the chat's: back clears it before it closes the panel.
+  /// [capabilities] are the chat's rights, read by the composer, whose
+  /// denials go to [capabilityFeedback] under [chatId]; with them the
+  /// message length is the capabilities' unless [messageLengthLimit] names
+  /// one.
   factory ChatInputSet({
     required AppServices services,
     required FlutterView view,
@@ -149,6 +154,10 @@ final class ChatInputSet {
     ValueChanged<LibraryPackEdit>? onPackEditRequested,
     ValueChanged<AppliedEdit>? onLibraryEdited,
     int? messageLengthLimit = DemoConfig.messageLengthMax,
+    listen.ValueListenable<ChatCapabilities>? capabilities,
+    CapabilityFeedback capabilityFeedback = CapabilityFeedback.none,
+    String? chatId,
+    ComposerPanelActionResolver? accessAction,
   }) {
     // What has been made so far, to free in reverse if a later step throws
     // (a constructor assertion, a keyboard that cannot be read): a half-built
@@ -184,6 +193,8 @@ final class ChatInputSet {
           queryKinds: ChatDirectory.queryKinds,
           onPaste: (paste) => set._onPaste(paste),
           confirmMention: ChatDirectory.knowsUser,
+          capabilityFeedback: capabilityFeedback,
+          chatId: chatId,
         ),
         (composer) => composer.dispose(),
       );
@@ -291,6 +302,8 @@ final class ChatInputSet {
         onLibraryEdited: onLibraryEdited,
         selection: selection,
         messageLengthLimit: messageLengthLimit,
+        capabilities: capabilities,
+        accessAction: accessAction,
         ime: ime,
         window: window,
         text: text,
@@ -324,7 +337,9 @@ final class ChatInputSet {
     required ValueChanged<LibraryPackEdit>? onPackEditRequested,
     required ValueChanged<AppliedEdit>? onLibraryEdited,
     required ChatSelectionController? selection,
-    required this.messageLengthLimit,
+    required int? messageLengthLimit,
+    required this.capabilities,
+    required this.accessAction,
     required this.ime,
     required listen.ValueNotifier<PanelWindow> window,
     required ComposerTextController text,
@@ -338,7 +353,8 @@ final class ChatInputSet {
     required this.presentation,
     required PanelPlaybackHold playbackHold,
     required this.insets,
-  }) : _frames = frames,
+  }) : _messageLengthLimit = messageLengthLimit,
+       _frames = frames,
        _playbackHold = playbackHold,
        _stopScrollReport = stopScrollReport,
        _textureWarmer = textureWarmer,
@@ -411,10 +427,25 @@ final class ChatInputSet {
   /// The app's services this set is wired to.
   final AppServices services;
 
-  /// The most code points of plain text a message may have, or null for no
-  /// limit (`ComposerSpec.messageLengthLimit`). Unit and rules: see
+  /// The most code points of plain text a message may have now, or null for
+  /// no limit: the one the set was made with, else the [capabilities]'
+  /// `limits.messageLength`, read live. Unit and rules: see
   /// [DemoConfig.messageLengthMax].
-  final int? messageLengthLimit;
+  int? get messageLengthLimit =>
+      _messageLengthLimit ?? capabilities?.value.limits.messageLength;
+  final int? _messageLengthLimit;
+
+  /// The limit the composer's spec names (`ComposerSpec.messageLengthLimit`):
+  /// the one the set was made with. Null with capabilities lets the composer
+  /// follow their `limits` live.
+  int? get specMessageLengthLimit => _messageLengthLimit;
+
+  /// The chat's capabilities, which the composer view is given; null for a
+  /// composer that allows everything.
+  final listen.ValueListenable<ChatCapabilities>? capabilities;
+
+  /// The action on the composer's default write-access panels.
+  final ComposerPanelActionResolver? accessAction;
 
   /// The single port the soft keyboard's readings enter the presentation by.
   final ImeInput ime;

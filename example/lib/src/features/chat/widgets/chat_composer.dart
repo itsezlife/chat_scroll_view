@@ -223,7 +223,7 @@ class _ChatComposerState extends State<ChatComposer> {
           editing: _input.editing.value,
           hasText: composer.text.text.trim().isNotEmpty,
           busy: _input.busy.value,
-          messageLengthLimit: _input.messageLengthLimit,
+          messageLengthLimit: _input.specMessageLengthLimit,
           panelReplacesKeyboard: _input.panelReplacesKeyboard,
           panelDocked: _input.isPanelDocked,
           panelPlacement: _input.panelPlacement,
@@ -258,6 +258,8 @@ class _ChatComposerState extends State<ChatComposer> {
             onFieldPointerDown: _input.onFieldPointerDown,
             onFieldPointerEnd: _input.onFieldPointerEnd,
             safeAreaBottom: safeAreaBottom,
+            capabilities: _input.capabilities,
+            accessAction: _input.accessAction,
           ),
         );
         // The keyboard presentation owns the bottom band while it is up; the

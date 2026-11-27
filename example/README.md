@@ -121,6 +121,20 @@ search); a clip listed only among the saved GIFs stays out until then.
 Offline or with a busy server the page shows "Couldn't load GIFs" with a
 retry button under the saved GIFs; there are no demo clips beneath it.
 
+## Chat rights
+
+Each chat in the list resolves its own chat capabilities: the private chats
+and "Design review" allow everything, the channels are read only, "Moderated
+group" bans photos and videos until tomorrow, files and GIFs for everyone,
+voice for good and stickers until a boost, and "Slow lane" sends once every
+30 seconds. The composer, the attach picker and the large-emoji gate read
+that one value; an attempted denied action shows a bulletin, a hint on
+Android and iOS and a toast on desktop and the web. In a debug build the
+shield button at the chat's top right opens a sheet that flips any right
+live (text, each media kind, stickers, link previews, the write access
+forms, slow mode and its pending send, protection, tight limits). The
+changes land in the Logs screen as `capabilities` events.
+
 ## Disk caches
 
 What the app fetches or renders is kept on disk between launches, as in a

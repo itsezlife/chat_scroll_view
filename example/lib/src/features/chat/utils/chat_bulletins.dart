@@ -247,6 +247,25 @@ abstract final class ChatBulletins {
   /// A plain notice; the factory's length rule picks its duration.
   static Bulletin notice(String message) => Bulletin(message: message);
 
+  /// An attempted action the chat denies, with the info icon and, for a
+  /// restriction the user can lift, [action].
+  ///
+  /// As a [hint] it stays up as long as a hint at a control does (the
+  /// touch families, which show the denial at the control it was tried
+  /// on); otherwise it is a toast on the length rule (desktop, web).
+  static Bulletin denied(
+    String message, {
+    required bool hint,
+    BulletinAction? action,
+  }) => Bulletin(
+    message: message,
+    leading: const BulletinLeading.icon(infoIcon),
+    action: action,
+    duration: hint
+        ? const BulletinDuration.exactly(ChromeHintTiming.controlHint)
+        : null,
+  );
+
   /// The offer to apply the formatting of a plain paste: up until the
   /// offer's owner ends it, and [onApply] on a tap.
   static Bulletin formatOffer(

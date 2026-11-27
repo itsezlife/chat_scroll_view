@@ -8,6 +8,8 @@
 /// right body is chosen for each message.
 library;
 
+import 'package:chat_capabilities/chat_capabilities.dart'
+    show Capability, DenialReason;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
@@ -23,6 +25,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
+
+const _stickersDenied = Capability.denied(DenialReason.restricted());
 
 class _LoadedSource extends ChatDataSource {
   _LoadedSource(List<IChatMessage> messages) {
@@ -287,14 +291,14 @@ void main() {
       (tester) async {
         policy.value = const LargeEmojiPolicy(
           enabled: true,
-          stickersAllowed: false,
+          stickers: _stickersDenied,
         );
         await pump(tester, newSelection(), [_message(1, three)]);
         expect(find.byType(ChatEmojiBody), findsNothing);
 
         policy.value = const LargeEmojiPolicy(
           enabled: true,
-          stickersAllowed: false,
+          stickers: _stickersDenied,
           isAdmin: true,
         );
         await tester.pumpAndSettle();
