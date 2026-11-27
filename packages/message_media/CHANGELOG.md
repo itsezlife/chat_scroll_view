@@ -8,6 +8,24 @@ this package is pre-1.0.
 
 ### Added
 
+- Gestures: `MessageMediaView` (and `MessageMediaTransition`) take
+  `selection`, `messageId`, `onOpenViewer` and `onItemMenu`; with a
+  facade the view registers as the message's non-text body and answers
+  body part hits for the content, the status control, a hidden spoiler
+  and the options affordance. `MediaGesturePolicy` (`android()`, `ios()`,
+  `desktop()`; `MessageMediaPolicy.gestures`) says what a tap does
+  (`MediaPartAction`, `MediaLoadingTap`), the cursor, the hover highlight
+  (`MediaHoverLook`) and the input guard. `MediaViewerRequest` and
+  `MessageMediaState.rectOf` give the viewer its origin frames.
+- Semantics: one node per item, worded by `MediaSemanticsStrings`
+  (`MessageMediaPolicy.semantics`).
+- `MediaItemAction.allowedItemActions`, the per-item actions an item
+  allows under the chat's protection; `message_media` now depends on
+  `chat_capabilities` for `ChatProtection`.
+- `MediaBoxCell.presetFor`, `MediaRowCell.presetOf` and `rowOf`.
+- `media` / `hit`, `activationDropped`, `viewerOpened` and
+  `originRectMissing` diagnostics.
+
 - Chrome slots (`MessageMediaPolicy.chrome`, `MediaChromeSlots` with
   `android()`, `ios()`, `desktop()`): the time pill's rect
   (`MediaTimePillPlacement`, reported as `MediaLayout.timePill` when the
@@ -79,6 +97,10 @@ this package is pre-1.0.
   `chrome_foundation`. `MediaCellData` carries `fileRow` and `fileStack`.
 
 ### Changed
+
+- The status control of a box and of a row takes no pointer: its taps are
+  the view's body part hits, so a tap on it toggles the message in
+  selection instead of downloading.
 
 - `MediaLayoutPolicy.fileRowHeight` is replaced by `fileStack`. A file
   stack is no longer the box budget wide with fixed 56 / 65 / 60 rows: an

@@ -1,8 +1,13 @@
+import 'package:chat_scroll_view/chat_scroll_view.dart'
+    show ChatSelectionController;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:message_media/src/chrome/media_options_affordance.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
+import 'package:message_media/src/gesture/media_viewer_request.dart';
 import 'package:message_media/src/layout/media_layout.dart';
+import 'package:message_media/src/message_media_hit_part.dart';
 import 'package:message_media/src/paint/message_media_view.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:message_media/src/transition/media_layout_transition.dart';
@@ -55,6 +60,12 @@ class MessageMediaTransition extends StatefulWidget {
     this.builder,
     this.downloadContext,
     this.correlation = ChatCorrelation.none,
+    this.chromeContext = MediaChromeContext.none,
+    this.selectionProgress,
+    this.selection,
+    this.messageId,
+    this.onOpenViewer,
+    this.onItemMenu,
     super.key,
   });
 
@@ -83,6 +94,24 @@ class MessageMediaTransition extends StatefulWidget {
 
   /// The chat and message the diagnostics events name.
   final ChatCorrelation correlation;
+
+  /// See `MessageMediaView.chromeContext`.
+  final MediaChromeContext chromeContext;
+
+  /// See `MessageMediaView.selectionProgress`.
+  final Animation<double>? selectionProgress;
+
+  /// See `MessageMediaView.selection`.
+  final ChatSelectionController? selection;
+
+  /// See `MessageMediaView.messageId`.
+  final int? messageId;
+
+  /// See `MessageMediaView.onOpenViewer`.
+  final ValueChanged<MediaViewerRequest>? onOpenViewer;
+
+  /// See `MessageMediaView.onItemMenu`.
+  final void Function(MediaHitPart part, Rect rect)? onItemMenu;
 
   @override
   State<MessageMediaTransition> createState() => _MessageMediaTransitionState();
@@ -219,6 +248,12 @@ class _MessageMediaTransitionState extends State<MessageMediaTransition>
       fades: frame.fades,
       downloadContext: widget.downloadContext,
       correlation: widget.correlation,
+      chromeContext: widget.chromeContext,
+      selectionProgress: widget.selectionProgress,
+      selection: widget.selection,
+      messageId: widget.messageId,
+      onOpenViewer: widget.onOpenViewer,
+      onItemMenu: widget.onItemMenu,
     );
     return switch (widget.builder) {
       final builder? => builder(context, frame, media),

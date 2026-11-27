@@ -347,7 +347,11 @@ class ChatSelectionPointer {
     final callback = _onSecondaryMessageTap;
     if (callback == null) return;
     if (_pointerDownInlineHit case final ChatInlineHit$BodyPart hit) {
-      _reportBodyPartHit(hit, ChatBodyPartOutcome.menu);
+      _reportBodyPartHit(
+        hit,
+        ChatBodyPartOutcome.menu,
+        gesture: ChatBodyPartGesture.secondaryTap,
+      );
     }
     callback(id, details.localPosition);
   }
@@ -469,8 +473,31 @@ class ChatSelectionPointer {
       // abort ink so message / text selection can own the pointer.
       selection.abortSpanFeedback();
     }
+    final bodyPart = switch (inlineHit) {
+      final ChatInlineHit$BodyPart hit => hit,
+      _ => null,
+    };
+    final inSelection = selection.isSelectionMode;
 
-    if (!selection.isSelectable(id)) return;
+    if (!selection.isSelectable(id)) {
+      if (bodyPart != null) {
+        _reportBodyPartHit(
+          bodyPart,
+          ChatBodyPartOutcome.none,
+          gesture: ChatBodyPartGesture.longPress,
+          inSelection: inSelection,
+        );
+      }
+      return;
+    }
+    if (bodyPart != null) {
+      _reportBodyPartHit(
+        bodyPart,
+        ChatBodyPartOutcome.toggle,
+        gesture: ChatBodyPartGesture.longPress,
+        inSelection: inSelection,
+      );
+    }
 
     selection.abortSpanFeedback();
     HapticFeedback.vibrate();
@@ -685,11 +712,13 @@ class ChatSelectionPointer {
   void _reportBodyPartHit(
     ChatInlineHit$BodyPart hit,
     ChatBodyPartOutcome outcome, {
+    ChatBodyPartGesture gesture = ChatBodyPartGesture.tap,
     bool? inSelection,
   }) => emitBodyPartHit(
     hit: hit,
     inSelection: inSelection ?? selection?.isSelectionMode ?? false,
     outcome: outcome,
+    gesture: gesture,
     chatId: selection?.chatId,
   );
 }

@@ -15,6 +15,10 @@ dependencies:
   # puts in a body part hit (ADR 020 rule 11; the root never depends back).
   chat_scroll_view:
     path: ../..
+  # Protection only, through ChatProtection.forMessage, for the per-item
+  # actions a host and its viewer offer (ADR 049 Readers).
+  chat_capabilities:
+    path: ../chat_capabilities
   # File rows' text starts from ChromeTypography (ADR 020 amendment).
   chrome_foundation:
     path: ../chrome_foundation

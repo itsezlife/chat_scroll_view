@@ -39,4 +39,23 @@ enum MediaOp implements DiagnosticOp {
   /// starts from the frame it reached (trace): the new trigger and the
   /// milliseconds the interrupted leg had run.
   transitionInterrupted,
+
+  /// What an activated part did beyond the viewport's arbitration (debug):
+  /// the `part`, its `role`, the `mode` (`normal`) and the `outcome`,
+  /// `reveal` (a hidden spoiler revealed) or `cancel` (a download stopped).
+  /// The viewport's own `hit` event says the tap was an activation.
+  hit,
+
+  /// An activation dropped by the input guard (debug): the `part` and the
+  /// milliseconds since the last accepted one (`sinceMs`).
+  activationDropped,
+
+  /// The host's viewer was asked to open (info): the `index` of the item
+  /// and the `count` of items it pages through.
+  viewerOpened,
+
+  /// An item had no rectangle for the viewer (warning): `at` open (the tap's
+  /// hit had none) or close (the viewer asked for it by id and it was off
+  /// screen).
+  originRectMissing,
 }

@@ -1,3 +1,5 @@
+import 'package:chat_scroll_view/chat_scroll_view.dart'
+    show ChatSelectionController;
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
@@ -5,8 +7,11 @@ import 'package:message_media/src/chrome/media_cell_chrome.dart';
 import 'package:message_media/src/chrome/media_options_affordance.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/diagnostics/media_trace.dart';
+import 'package:message_media/src/gesture/media_viewer_request.dart';
 import 'package:message_media/src/layout/media_layout.dart';
+import 'package:message_media/src/message_media_hit_part.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
+import 'package:message_media/src/paint/message_media_body.dart';
 import 'package:message_media/src/policy/media_layout_policy.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:message_media/src/state/message_media_state.dart';
@@ -23,8 +28,37 @@ import 'package:mpx_core/mpx_core.dart';
 /// it; only an item that leaves the layout loses its cell.
 ///
 /// The cells draw through the asset pipeline, so a `ContentAssetProvider`
-/// sits above the view. No gestures yet: taps and the long press reach the
-/// message through the body part hit.
+/// sits above the view.
+///
+/// ## Gestures
+///
+/// With a [selection] facade and the [messageId], the view registers as the
+/// message's non-text body and the viewport arbitrates every tap on it as a
+/// body part hit (`ChatInlineHit.bodyPart` with a [MediaHitPart]): the
+/// content, the status control, a hidden spoiler, the options affordance.
+/// In message selection each toggles the message; a long press is always
+/// the message's. In normal mode the view performs the part's action as the
+/// policy's [MessageMediaPolicy.gestures] say: the content opens the host's
+/// viewer through [onOpenViewer] (or cancels a load where the policy says),
+/// the status control downloads or cancels, a hidden spoiler is revealed.
+/// The options affordance opens the message menu, the request carrying the
+/// part. A burst of activations acts once. On desktop the cursor is the
+/// click cursor over a part and the item under the mouse is highlighted.
+/// Without a facade the view takes no gesture.
+///
+/// ## Semantics
+///
+/// One node per item: its kind, then its duration or size, then its
+/// progress while it loads, worded by [MessageMediaPolicy.semantics]. The
+/// node's tap opens the item (reveals its spoiler); the status control and
+/// the options affordance are separate actions ([onItemMenu]). In message
+/// selection the node's only action is the toggle.
+///
+/// ## Viewer origin
+///
+/// A [MediaViewerRequest] carries the item's rectangle when it was tapped
+/// and a lookup of any item's rectangle by id (`MessageMediaState.rectOf`),
+/// which answers for every mounted view of the chat.
 ///
 /// ## Chrome
 ///
@@ -61,8 +95,16 @@ class MessageMediaView extends StatelessWidget {
     this.chromeContext = MediaChromeContext.none,
     this.selectionProgress,
     this.fades = const {},
+    this.selection,
+    this.messageId,
+    this.onOpenViewer,
+    this.onItemMenu,
     super.key,
-  }) : items = {for (final item in items) item.id: item};
+  }) : assert(
+         selection == null || messageId != null,
+         'A view that takes gestures names its message.',
+       ),
+       items = {for (final item in items) item.id: item};
 
   /// The layout painted, with its corner radii resolved
   /// ([MessageMediaPolicy.layout] resolves them).
@@ -93,20 +135,41 @@ class MessageMediaView extends StatelessWidget {
   /// paints fully.
   final Map<MediaItemId, MediaCellFade> fades;
 
+  /// The selection facade of the chat list the message is in; null for a
+  /// view that takes no gestures.
+  final ChatSelectionController? selection;
+
+  /// The engine's id of the message, which the view registers under.
+  final int? messageId;
+
+  /// Opens the host's viewer on an activated item; null opens nothing (the
+  /// host still hears the activation from the facade).
+  final ValueChanged<MediaViewerRequest>? onOpenViewer;
+
+  /// Opens the message menu for an item from the options affordance's
+  /// semantics action, with the affordance's global rect; null drops that
+  /// action. A pointer reaches the menu through the viewport.
+  final void Function(MediaHitPart part, Rect rect)? onItemMenu;
+
   @override
   Widget build(BuildContext context) => SizedBox.fromSize(
     size: layout.size,
     child: MessageMediaStateBuilder(
       scrollId: correlation.scrollId,
-      builder: (context, state) => Stack(
-        clipBehavior: Clip.none,
-        children: [
-          for (final block in layout.blocks)
-            for (final cell in block.cells)
-              _positioned(context, state, block, cell),
-          for (final cell in layout.exiting)
-            _positioned(context, state, _blockOfExiting(cell), cell),
-        ],
+      builder: (context, state) => MessageMediaBody(
+        layout: layout,
+        items: items,
+        policy: policy,
+        state: state,
+        dataOf: _dataOf,
+        cellBuilder: (context, block, cell, decorate) =>
+            _positioned(context, state, block, cell, decorate),
+        selection: selection,
+        messageId: messageId,
+        onOpenViewer: onOpenViewer,
+        onItemMenu: onItemMenu,
+        chromeContext: chromeContext,
+        correlation: correlation,
       ),
     ),
   );
@@ -116,6 +179,7 @@ class MessageMediaView extends StatelessWidget {
     MessageMediaState state,
     MediaBlock block,
     MediaCell cell,
+    MediaCellDecorator decorate,
   ) {
     final fade = fades[cell.itemId] ?? MediaCellFade.settled;
     return Positioned.fromRect(
@@ -125,17 +189,11 @@ class MessageMediaView extends StatelessWidget {
         opacity: fade.opacity,
         child: Transform.scale(
           scale: fade.scale,
-          child: _chromed(context, state, block, cell),
+          child: decorate(block, cell, _chromed(context, state, block, cell)),
         ),
       ),
     );
   }
-
-  /// The one-cell block an exiting cell is drawn in: its own block is gone.
-  static MediaBlock _blockOfExiting(MediaCell cell) =>
-      MediaLayoutPolicy.isBox(cell.kind)
-      ? MediaBlock.mosaic(rect: cell.rect, cells: [cell])
-      : MediaBlock.fileStack(rect: cell.rect, cells: [cell]);
 
   Widget _chromed(
     BuildContext context,
@@ -170,27 +228,12 @@ class MessageMediaView extends StatelessWidget {
 
   Widget _cell(BuildContext context, MediaBlock block, MediaCell cell) {
     final builderName = MediaLayoutPolicy.isBox(cell.kind) ? 'box' : 'row';
-    final item = items[cell.itemId];
-    if (item == null) {
+    final data = _dataOf(block, cell);
+    if (data == null) {
       _report(cell, null, builderName, 'missingItem');
       return const SizedBox.shrink();
     }
-    final isRow = !MediaLayoutPolicy.isBox(cell.kind);
-    final data = MediaCellData(
-      cell: cell,
-      item: item,
-      block: block,
-      family: policy.family,
-      autoplay: policy.autoplay.plays(cell, block),
-      downloadContext: downloadContext,
-      fileRow: switch (block) {
-        MediaBlock$FileStack() => block.rowOf(cell.itemId),
-        _ => null,
-      },
-      fileStack: isRow ? policy.fileStack : null,
-      chrome: policy.chrome,
-      correlation: correlation,
-    );
+    final item = data.item;
     try {
       return policy.cells.of(cell.kind)(context, data);
     } on Object catch (error, stackTrace) {
@@ -205,6 +248,27 @@ class MessageMediaView extends StatelessWidget {
       );
       return const SizedBox.shrink();
     }
+  }
+
+  MediaCellData? _dataOf(MediaBlock block, MediaCell cell) {
+    final item = items[cell.itemId];
+    if (item == null) return null;
+    final isRow = !MediaLayoutPolicy.isBox(cell.kind);
+    return MediaCellData(
+      cell: cell,
+      item: item,
+      block: block,
+      family: policy.family,
+      autoplay: policy.autoplay.plays(cell, block),
+      downloadContext: downloadContext,
+      fileRow: switch (block) {
+        MediaBlock$FileStack() => block.rowOf(cell.itemId),
+        _ => null,
+      },
+      fileStack: isRow ? policy.fileStack : null,
+      chrome: policy.chrome,
+      correlation: correlation,
+    );
   }
 
   void _report(

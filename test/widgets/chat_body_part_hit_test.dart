@@ -499,6 +499,40 @@ void main() {
       expect(idleRequests, isEmpty);
     });
 
+    testWidgets('a long press on a part reports the hit as the message\'s', (
+      tester,
+    ) async {
+      await pump(tester);
+
+      await tester.longPressAt(activateAt(tester));
+      await tester.pumpAndSettle();
+
+      final event = diagnostics.whereOp(ChatSelectionOp.hit).single;
+      expect(event.fields['gesture'], ChatBodyPartGesture.longPress);
+      expect(event.fields['mode'], 'normal');
+      expect(event.fields['outcome'], ChatBodyPartOutcome.toggle);
+      expect(event.fields['part'], 'content');
+      expect(event.correlation.mediaItemId, 'm1');
+    });
+
+    testWidgets('a tap and a secondary click name their gesture', (
+      tester,
+    ) async {
+      await pump(tester, policy: const ChatSelectionPolicy.desktop());
+
+      await tester.tapAt(activateAt(tester));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tapAt(activateAt(tester), buttons: kSecondaryMouseButton);
+      await tester.pump();
+
+      expect(
+        diagnostics
+            .whereOp(ChatSelectionOp.hit)
+            .map((event) => event.fields['gesture']),
+        [ChatBodyPartGesture.tap, ChatBodyPartGesture.secondaryTap],
+      );
+    });
+
     testWidgets('a part id that names nothing logs no part and no item', (
       tester,
     ) async {

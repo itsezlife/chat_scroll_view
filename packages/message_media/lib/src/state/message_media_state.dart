@@ -11,6 +11,10 @@ import 'package:meta/meta.dart';
 /// line and neither package depends on the other.
 typedef MediaSendOrigin = Rect? Function(MediaItemId id);
 
+/// A mounted view's answer to where one of its items is drawn, in global
+/// coordinates, or null for an item it does not show.
+typedef MediaOriginRect = Rect? Function(MediaItemId id);
+
 /// What the chat remembers about one media item.
 @immutable
 final class MediaItemState {
@@ -45,6 +49,7 @@ final class MessageMediaState {
   final MediaSendOrigin? _sendOrigin;
   final Map<MediaItemId, ValueNotifier<MediaItemState>> _items = {};
   final Map<MediaItemId, Offset> _revealOrigins = {};
+  final List<MediaOriginRect> _origins = [];
   bool _disposed = false;
 
   /// The state of [id]; notifies only when that item's state changes.
@@ -88,6 +93,30 @@ final class MessageMediaState {
     return _sendOrigin?.call(id);
   }
 
+  /// Where [id] is drawn now, in global coordinates, or null when no
+  /// mounted view of this chat shows it (scrolled away, never shown).
+  ///
+  /// Asks the views that showed themselves through [attachOrigins], the
+  /// latest first, so a row recycled and mounted again answers.
+  Rect? rectOf(MediaItemId id) {
+    _assertAlive();
+    for (final lookup in _origins.reversed) {
+      if (lookup(id) case final rect?) return rect;
+    }
+    return null;
+  }
+
+  /// Adds a mounted view's lookup to [rectOf]; [detachOrigins] removes it.
+  @internal
+  void attachOrigins(MediaOriginRect lookup) {
+    if (_disposed || _origins.contains(lookup)) return;
+    _origins.add(lookup);
+  }
+
+  /// Removes a lookup [attachOrigins] added.
+  @internal
+  void detachOrigins(MediaOriginRect lookup) => _origins.remove(lookup);
+
   /// Releases the item notifiers; the state is unusable afterwards.
   void dispose() {
     if (_disposed) return;
@@ -97,6 +126,7 @@ final class MessageMediaState {
     }
     _items.clear();
     _revealOrigins.clear();
+    _origins.clear();
   }
 
   ValueNotifier<MediaItemState> _notifier(MediaItemId id) =>

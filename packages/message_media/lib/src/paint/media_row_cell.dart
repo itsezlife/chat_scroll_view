@@ -52,33 +52,37 @@ class MediaRowCell extends StatelessWidget {
   ///
   /// A layout step that reported no row geometry (a host's own step) gets
   /// the policy's row for the cell's width.
-  static Widget builder(BuildContext context, MediaCellData data) {
+  static Widget builder(BuildContext context, MediaCellData data) =>
+      MediaRowCell(
+        item: data.item,
+        size: data.cell.rect.size,
+        row: rowOf(data),
+        policy: data.fileStack ?? const MediaFileStackPolicy.android(),
+        radii: data.cell.radii,
+        neighbours: data.cell.neighbours,
+        downloadContext: data.downloadContext,
+      );
+
+  /// The row geometry the default row of [data] draws by: the layout's, or,
+  /// when the layout step reported none, the policy's row for the cell's
+  /// width.
+  static MediaFileRow rowOf(MediaCellData data) {
+    if (data.fileRow case final row?) return row;
     final policy = data.fileStack ?? const MediaFileStackPolicy.android();
-    final size = data.cell.rect.size;
-    return MediaRowCell(
-      item: data.item,
-      size: size,
-      row:
-          data.fileRow ??
-          policy
-              .layout(
-                [data.item],
-                MediaLayoutInput(
-                  items: [data.item],
-                  availableWidth: size.width,
-                ),
-                top: 0,
-                topSide: data.cell.neighbours.top,
-                bottomSide: data.cell.neighbours.bottom,
-                isLastBlock: false,
-              )
-              .rows
-              .single,
-      policy: policy,
-      radii: data.cell.radii,
-      neighbours: data.cell.neighbours,
-      downloadContext: data.downloadContext,
-    );
+    return policy
+        .layout(
+          [data.item],
+          MediaLayoutInput(
+            items: [data.item],
+            availableWidth: data.cell.rect.width,
+          ),
+          top: 0,
+          topSide: data.cell.neighbours.top,
+          bottomSide: data.cell.neighbours.bottom,
+          isLastBlock: false,
+        )
+        .rows
+        .single;
   }
 
   /// The item drawn.
@@ -111,7 +115,9 @@ class MediaRowCell extends StatelessWidget {
   /// The link line's colour; null is the name's.
   final Color? linkColor;
 
-  AssetPreset get _preset => AssetPreset(
+  /// The preset the row's control attaches with: the view's own binding of
+  /// the item uses the same, so the two share one cache entry.
+  static AssetPreset presetOf(MediaFileRow row) => AssetPreset(
     size: row.leading.size,
     spec: AssetSpec(
       pixelWidth: (row.leading.width * 3).round(),
@@ -143,7 +149,7 @@ class MediaRowCell extends StatelessWidget {
         .infoOver(base)
         .copyWith(color: linkColor ?? nameColor);
     final align = mirrored ? TextAlign.right : TextAlign.left;
-    final preset = _preset;
+    final preset = presetOf(row);
     return ClipRRect(
       borderRadius: _border(radii, mirrored: false),
       child: SizedBox.fromSize(
@@ -160,11 +166,15 @@ class MediaRowCell extends StatelessWidget {
                         mirrored: mirrored,
                       )
                     : BorderRadius.circular(row.leading.shortestSide / 2),
-                child: ContentAssetView(
-                  content: item.descriptor.key,
-                  preset: preset,
-                  status: const MediaStatusMode.control(),
-                  downloadContext: downloadContext,
+                // The control takes no pointer: its taps are the view's body
+                // part hits (`MediaPart.status`), arbitrated by the viewport.
+                child: IgnorePointer(
+                  child: ContentAssetView(
+                    content: item.descriptor.key,
+                    preset: preset,
+                    status: const MediaStatusMode.control(),
+                    downloadContext: downloadContext,
+                  ),
                 ),
               ),
             ),

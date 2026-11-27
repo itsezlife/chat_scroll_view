@@ -102,9 +102,50 @@ the cells; each slot is replaced on its own with `copyWith`:
 The revealed fact is the chat's `MessageMediaState`
 (`revealSpoiler(id, at:)`), so a re-layout or a new view keeps it; the
 reveal's motion is the cell's, and reduce motion jumps to revealed. The
-status control fades in with the reveal and takes no taps before it.
+status control fades in with the reveal; it never takes a pointer of its
+own (its taps are body part hits, below).
 `MediaChromeSlots.spoilerRectOf` and `MediaOptionsPlacement.affordanceOf`
 give the `spoiler` and `options` hit parts' rects.
+
+## Gestures and semantics
+
+Given the chat list's `ChatSelectionController` and the `messageId`,
+`MessageMediaView` registers as the message's non-text body and answers
+`inlineHitAt` with `ChatInlineHit.bodyPart` carrying a `MediaHitPart`:
+the options affordance's hit area, a hidden spoiler, the status control
+while it offers a download or a cancel, else the content. The viewport
+arbitrates every tap: in message selection each part toggles the message,
+a long press is the message's, a secondary click or the options open the
+message menu with the part (`ChatMessageMenuRequest.partId`). No detector
+of the media's own takes a tap.
+
+In normal mode the view performs the part's action
+(`MediaGesturePolicy.actionOf`, `MessageMediaPolicy.gestures`):
+
+| Part | Android | iOS | Desktop |
+| --- | --- | --- | --- |
+| content | opens the viewer (`onOpenViewer`) | the same; a loading item cancels | the same; a loading item cancels |
+| status | downloads, cancels, retries | the same | the same |
+| hidden spoiler | reveals only | the same | the same |
+| cursor, hover | none | none | click cursor over a part, a 200 ms highlight on the item; plain in selection |
+
+An activation within 400 ms of the last accepted one is dropped
+(`activationGuard`). A `MediaViewerRequest` carries the items to page
+(a message's pictures together, a file alone), the index, the item's
+rectangle at the tap, and `rectOf` by id (`MessageMediaState.rectOf`,
+answered by every mounted view of the chat) for the frame the viewer
+closes on.
+
+Each item is one semantics node: its kind, then duration or size, then
+progress while it loads (`MediaSemanticsStrings`, from the host). The
+node's tap opens the item; the status control and the options affordance
+(`onItemMenu`) are separate actions; in message selection the tap toggles.
+
+The package builds no menu. `MediaItemAction.allowedItemActions(item,
+protection:, messageProtected:)` says which per-item actions (save, copy,
+share, cancel download) the item's kind supports and the chat's
+`ChatProtection.forMessage` allows; the host's menu and viewer build from
+it.
 
 ## Transitions
 
@@ -152,7 +193,10 @@ custom kind is drawn as a file row, `cellFailed` (error) when a cell
 builder or a chrome slot throws or a cell's item is missing,
 `spoilerRevealed` (debug) when a reveal starts (form, reduce motion),
 `transitionStarted` and `transitionInterrupted` (trace) for each layout
-change and each change mid-flight. They carry the chat, message and item
+change and each change mid-flight, `hit` (debug) when an activation
+revealed a spoiler or cancelled a download, `activationDropped` (debug)
+for a tap the input guard dropped, `viewerOpened` (info) and
+`originRectMissing` (warning, at open or close). They carry the chat, message and item
 ids, never a caption, a file name or a page.
 
 Timeline sections (`--dart-define=chat_scroll_view.trace=phase`):

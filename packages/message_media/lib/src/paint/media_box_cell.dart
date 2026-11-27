@@ -41,7 +41,7 @@ import 'package:mpx_core/mpx_core.dart';
 /// (`MediaChromeSlots.infoBadge`, `statusControl`), given the stock part of
 /// the loading stages through the asset view's skin ([skinOf]). The status
 /// control fades with the cell's `MediaControlsScope` (a spoiler's reveal)
-/// and takes no taps until it is fully shown.
+/// and takes no pointer: its taps are the view's body part hits.
 ///
 /// ## Press
 ///
@@ -123,6 +123,19 @@ class MediaBoxCell extends StatelessWidget {
     );
   }
 
+  /// The preset the default box of [data] attaches its picture with: a
+  /// binding the view takes for the item's status uses the same, so the two
+  /// share one cache entry.
+  static AssetPreset presetFor(MediaCellData data) {
+    final cell = MediaBoxCell(
+      item: data.item,
+      size: data.cell.rect.size,
+      fit: data.cell.fit ?? const MediaFit.crop(),
+      autoplay: data.autoplay,
+    );
+    return cell.presetOf(cell._assetFit, animate: cell._animates);
+  }
+
   /// The longest side, in pixels, a photo is decoded at.
   static const int decodeExtent = 1280;
 
@@ -163,6 +176,13 @@ class MediaBoxCell extends StatelessWidget {
   bool get _plays =>
       item.kind == MediaItemKind.video || item.kind == MediaItemKind.animation;
 
+  bool get _animates => autoplay && _plays;
+
+  AssetFit get _assetFit => switch (fit.drawIn(size, pictureSize)) {
+    MediaFitDraw.crop => AssetFit.cover,
+    MediaFitDraw.blurredBars => AssetFit.contain,
+  };
+
   /// The preset the picture attaches with, drawn as [assetFit].
   AssetPreset presetOf(AssetFit assetFit, {required bool animate}) {
     final profile = AssetProfile(animate: animate, fit: assetFit);
@@ -189,10 +209,7 @@ class MediaBoxCell extends StatelessWidget {
     final key = item.descriptor.key;
     final picture = ContentAssetView(
       content: key,
-      preset: presetOf(switch (draw) {
-        MediaFitDraw.crop => AssetFit.cover,
-        MediaFitDraw.blurredBars => AssetFit.contain,
-      }, animate: autoplay && _plays),
+      preset: presetOf(_assetFit, animate: _animates),
       status: MediaStatusMode.control(
         playAction: item.kind == MediaItemKind.video && !autoplay,
       ),
@@ -238,8 +255,11 @@ class MediaBoxCell extends StatelessWidget {
   }
 }
 
-// The status control at the cell's controls opacity, without taps until it
-// is fully shown: a tap on a hidden spoiler only reveals it.
+// The status control at the cell's controls opacity, never taking a pointer:
+// the viewport owns every tap on the media and reports it as a body part
+// hit, which the view turns into the download, cancel or retry. A detector of
+// the control's own would win the tap from the viewport, in message selection
+// too, where the tap must toggle the message.
 class _ControlsFade extends StatelessWidget {
   const _ControlsFade({required this.child});
 
@@ -248,13 +268,13 @@ class _ControlsFade extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controls = MediaControlsScope.of(context);
-    return AnimatedBuilder(
-      animation: controls,
-      builder: (context, child) => IgnorePointer(
-        ignoring: controls.value < 1,
-        child: Opacity(opacity: controls.value.clamp(0, 1), child: child),
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: controls,
+        builder: (context, child) =>
+            Opacity(opacity: controls.value.clamp(0, 1), child: child),
+        child: child,
       ),
-      child: child,
     );
   }
 }

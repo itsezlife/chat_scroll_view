@@ -11,6 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'chrome/media_cell_chrome_test.dart' as chrome_media_cell_chrome_test;
 import 'chrome/media_chrome_rules_test.dart' as chrome_media_chrome_rules_test;
 import 'diagnostics/media_trace_test.dart' as diagnostics_media_trace_test;
+import 'gesture/media_gesture_rules_test.dart'
+    as gesture_media_gesture_rules_test;
+import 'gesture/media_gestures_test.dart' as gesture_media_gestures_test;
 import 'goldens/media_geometry_golden_test.dart'
     as goldens_media_geometry_golden_test;
 import 'goldens/message_media_view_golden_test.dart'
@@ -48,6 +51,11 @@ void main() {
   group('chrome/media_cell_chrome_test', chrome_media_cell_chrome_test.main);
   group('chrome/media_chrome_rules_test', chrome_media_chrome_rules_test.main);
   group('diagnostics/media_trace_test', diagnostics_media_trace_test.main);
+  group(
+    'gesture/media_gesture_rules_test',
+    gesture_media_gesture_rules_test.main,
+  );
+  group('gesture/media_gestures_test', gesture_media_gestures_test.main);
   group(
     'goldens/media_geometry_golden_test',
     goldens_media_geometry_golden_test.main,

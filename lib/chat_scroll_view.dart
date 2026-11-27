@@ -49,6 +49,7 @@ export 'src/chat_scroll/chat_selection_allowed.dart';
 export 'src/chat_scroll/chat_selection_controller.dart';
 export 'src/chat_scroll/chat_selection_diagnostics.dart'
     show
+        ChatBodyPartGesture,
         ChatBodyPartOutcome,
         ChatCopyPath,
         ChatDiagnosablePart,

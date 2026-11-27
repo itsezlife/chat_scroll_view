@@ -14,10 +14,10 @@
   interaction an `activate` part's tap reports.
 - **ADDED**: `ChatMessageMenuRequest.partId`, the touched part's id (null off
   a body part), read from `inlineHit`.
-- **ADDED**: `ChatSelectionOp.hit`, a `media` debug event per arbitrated tap
-  or secondary click on a part (role, mode, `ChatBodyPartOutcome`), and
-  `ChatDiagnosablePart`, which a part id implements to name its part and
-  media item in it.
+- **ADDED**: `ChatSelectionOp.hit`, a `media` debug event per arbitrated tap,
+  secondary click or long press on a part (role, `ChatBodyPartGesture`,
+  mode, `ChatBodyPartOutcome`), and `ChatDiagnosablePart`, which a part id
+  implements to name its part and media item in it.
 
 ### Copy refusal
 - **ADDED**: `ChatSelectionController.canCopy`, the host's answer to whether a

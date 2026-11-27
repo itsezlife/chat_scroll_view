@@ -20,19 +20,35 @@ enum ChatSelectionOp implements DiagnosticOp {
   /// scroll id and the facade's chat id.
   copyRefused,
 
-  /// A tap or secondary click on a body part (`ChatInlineHit.bodyPart`)
-  /// arbitrated (debug, `media` category): the `part` when the part id names
-  /// itself ([ChatDiagnosablePart]), its `role`, the `mode` (`normal` or
+  /// A tap, secondary click or long press on a body part
+  /// (`ChatInlineHit.bodyPart`) arbitrated (debug, `media` category): the
+  /// `part` when the part id names itself ([ChatDiagnosablePart]), its
+  /// `role`, the [ChatBodyPartGesture] as `gesture`, the `mode` (`normal` or
   /// `selection`) and the [ChatBodyPartOutcome] as `outcome`, with the chat
   /// id, the message's scroll id and the media item's id when the part
   /// names one.
   hit,
 }
 
-/// What the viewport did with a tap on a body part; the `outcome` of a
+/// Which gesture landed on a body part; the `gesture` of a
+/// [ChatSelectionOp.hit] event.
+enum ChatBodyPartGesture {
+  /// A primary tap (a click).
+  tap,
+
+  /// A secondary click: the message menu.
+  secondaryTap,
+
+  /// A long press: the message's (message selection, span), never the
+  /// part's.
+  longPress,
+}
+
+/// What the viewport did with a gesture on a body part; the `outcome` of a
 /// [ChatSelectionOp.hit] event.
 enum ChatBodyPartOutcome {
-  /// The message's membership toggled (message selection).
+  /// The message's membership toggled (message selection; a long press
+  /// that started it or took the message out).
   toggle,
 
   /// The part was reported to the body and the host (`ChatBodyPartActivated`).
@@ -63,12 +79,14 @@ abstract interface class ChatDiagnosablePart {
   String? get diagnosticItemId;
 }
 
-/// Emits the [ChatSelectionOp.hit] event for a tap on [hit] the viewport
-/// arbitrated as [outcome]; [inSelection] is the mode when the tap landed.
+/// Emits the [ChatSelectionOp.hit] event for [gesture] on [hit] the
+/// viewport arbitrated as [outcome]; [inSelection] is the mode when the
+/// gesture landed.
 void emitBodyPartHit({
   required ChatInlineHit$BodyPart hit,
   required bool inSelection,
   required ChatBodyPartOutcome outcome,
+  ChatBodyPartGesture gesture = ChatBodyPartGesture.tap,
   String? chatId,
 }) {
   final named = switch (hit.partId) {
@@ -87,6 +105,7 @@ void emitBodyPartHit({
     fields: () => {
       if (named != null) 'part': named.diagnosticName,
       'role': hit.role,
+      'gesture': gesture,
       'mode': inSelection ? 'selection' : 'normal',
       'outcome': outcome,
     },

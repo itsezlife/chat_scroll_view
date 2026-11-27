@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/diagnostics/media_trace.dart';
+import 'package:message_media/src/gesture/media_gesture_policy.dart';
+import 'package:message_media/src/gesture/media_semantics_strings.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
@@ -51,6 +53,8 @@ final class MessageMediaPolicy {
     required this.chrome,
     this.cells = const MediaCellBuilders(),
     this.transition = const MediaTransitionPolicy.none(),
+    this.gestures = const MediaGesturePolicy(),
+    this.semantics = MediaSemanticsStrings.english,
   });
 
   /// The Android family's defaults.
@@ -62,6 +66,7 @@ final class MessageMediaPolicy {
         autoplay: const MediaAutoplayPolicy.android(),
         chrome: const MediaChromeSlots.android(),
         transition: const MediaTransitionPolicy.android(),
+        gestures: const MediaGesturePolicy.android(),
       );
 
   /// The iOS family's defaults.
@@ -73,6 +78,7 @@ final class MessageMediaPolicy {
         autoplay: const MediaAutoplayPolicy.ios(),
         chrome: const MediaChromeSlots.ios(),
         transition: const MediaTransitionPolicy.ios(),
+        gestures: const MediaGesturePolicy.ios(),
       );
 
   /// The desktop family's defaults.
@@ -84,6 +90,7 @@ final class MessageMediaPolicy {
         autoplay: const MediaAutoplayPolicy.desktop(),
         chrome: const MediaChromeSlots.desktop(),
         transition: const MediaTransitionPolicy.desktop(),
+        gestures: const MediaGesturePolicy.desktop(),
       );
 
   /// The family of [platform]: Android and iOS their own, every other
@@ -128,6 +135,13 @@ final class MessageMediaPolicy {
 
   /// How a change of the layout animates (`MessageMediaTransition`).
   final MediaTransitionPolicy transition;
+
+  /// How the media answers taps, the mouse and repeated activations in
+  /// normal mode (`MessageMediaView` with a selection facade).
+  final MediaGesturePolicy gestures;
+
+  /// What a screen reader hears for each item.
+  final MediaSemanticsStrings semantics;
 
   /// The file rows' policy the row cells draw by: the default layout
   /// step's, or the family's own under a host's step.
@@ -195,6 +209,8 @@ final class MessageMediaPolicy {
     MediaCellBuilders? cells,
     MediaChromeSlots? chrome,
     MediaTransitionPolicy? transition,
+    MediaGesturePolicy? gestures,
+    MediaSemanticsStrings? semantics,
   }) => MessageMediaPolicy(
     family: family ?? this.family,
     layoutStep: layoutStep ?? this.layoutStep,
@@ -203,5 +219,7 @@ final class MessageMediaPolicy {
     cells: cells ?? this.cells,
     chrome: chrome ?? this.chrome,
     transition: transition ?? this.transition,
+    gestures: gestures ?? this.gestures,
+    semantics: semantics ?? this.semantics,
   );
 }

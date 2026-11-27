@@ -14,7 +14,9 @@
 /// [computeSingleMediaSize], the default mosaic [GroupedMessages] and
 /// [MosaicLayout], [MediaLayoutMetrics]), what a chat's items remember while
 /// it is open ([MessageMediaState]), and the part a body part hit is on
-/// ([MessageMediaHitPart]), and how a change of the layout animates
+/// ([MessageMediaHitPart]) with what a tap on it does ([MediaGesturePolicy],
+/// [MediaViewerRequest]) and the per-item actions protection allows
+/// ([MediaItemAction.allowedItemActions]), and how a change of the layout animates
 /// ([MediaLayout.lerp], [MediaTransitionPolicy] and the per-message clock
 /// [MessageMediaTransition]).
 library;
@@ -26,6 +28,10 @@ export 'src/chrome/media_spoiler_cover.dart';
 export 'src/chrome/media_spoiler_reveal.dart';
 export 'src/chrome/media_time_pill.dart';
 export 'src/diagnostics/media_op.dart';
+export 'src/gesture/media_gesture_policy.dart';
+export 'src/gesture/media_item_action.dart';
+export 'src/gesture/media_semantics_strings.dart';
+export 'src/gesture/media_viewer_request.dart';
 export 'src/grouped_message_position.dart';
 export 'src/grouped_messages.dart';
 export 'src/layout/media_corner_radii.dart';
