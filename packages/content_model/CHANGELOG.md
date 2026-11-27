@@ -8,6 +8,18 @@ package is pre-1.0.
 
 ### Added
 
+- Link preview model and wire ([ADR 034](../../docs/adr/034-rich-text-wire-and-persistence.md)
+  amendment): `LinkPreview`, the page (an opaque `type`, a `RichText`
+  description, `photo` and `media` descriptors, a nullable `hasLargeMedia`
+  hint); `LinkPreviewOptions` with `LinkPreviewMedia` (`auto`, `small`,
+  `large`; an unknown value reads as `auto`) and `removed`; and
+  `LinkPreviewWire` with `MessageLinkPreview`, the codec of a message's
+  `linkPreview` and `invertMedia` fields over a host map. The envelope stays
+  the host's; `invertMedia` is written only when true; a message without
+  `linkPreview` has no preview. A tolerated value is reported as
+  `linkPreview` / `codecTolerated` (`LinkPreviewOp`), with the field and the
+  kind of problem, never the value.
+
 - Diagnostics events ([ADR 050](../../docs/adr/050-diagnostics-events.md)):
   `ChatDiagnostics`, the process-wide policy chat packages report through
   (`ChatDiagnostics.current`, `silent` by default, `developer`, `onEvent`

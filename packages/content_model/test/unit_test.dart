@@ -17,6 +17,8 @@ import 'emoji/emoji_only_text_test.dart' as emoji_only_text_test;
 import 'identity/content_descriptor_test.dart' as content_descriptor_test;
 import 'identity/content_key_test.dart' as content_key_test;
 import 'identity/inline_content_ref_test.dart' as inline_content_ref_test;
+import 'link_preview/link_preview_test.dart' as link_preview_test;
+import 'link_preview/link_preview_wire_test.dart' as link_preview_wire_test;
 import 'markdown/markdown_codec_test.dart' as markdown_codec_test;
 import 'markdown/markdown_decode_test.dart' as markdown_decode_test;
 import 'markdown/markdown_encode_test.dart' as markdown_encode_test;
@@ -68,6 +70,11 @@ void main() {
   group('identity/content_descriptor_test.dart', content_descriptor_test.main);
   group('identity/content_key_test.dart', content_key_test.main);
   group('identity/inline_content_ref_test.dart', inline_content_ref_test.main);
+  group('link_preview/link_preview_test.dart', link_preview_test.main);
+  group(
+    'link_preview/link_preview_wire_test.dart',
+    link_preview_wire_test.main,
+  );
   group('markdown/markdown_codec_test.dart', markdown_codec_test.main);
   group('markdown/markdown_decode_test.dart', markdown_decode_test.main);
   group('markdown/markdown_encode_test.dart', markdown_encode_test.main);
