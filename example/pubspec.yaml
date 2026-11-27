@@ -45,6 +45,9 @@ dependencies:
     path: ../packages/glyph_atlas
   kv_shared_preferences:
     path: ../packages/kv_shared_preferences
+  # The chat's media messages and link preview cards: layout, cells, hits.
+  message_media:
+    path: ../packages/message_media
   # mpx, from git at one pinned commit (see the root pubspec): the media core,
   # the bytes cache and its fetch adapter, and the two decoders whose build
   # hooks build their native libraries for the app.
@@ -166,6 +169,10 @@ flutter:
     # Documents the showcase sends: an SVG drawing, which previews, and a
     # text file, which keeps its icon.
     - assets/documents/
+    # Photos the demo chat's media messages send, generated for it from
+    # synthetic sources (no third-party artwork); the README there has the
+    # commands.
+    - assets/media_photos/
     # The animated emoji pack and its licence credit; see LICENSE.md there.
     - assets/animated_emoji/
     # Lottie stickers authored for the demo (no third-party artwork).
