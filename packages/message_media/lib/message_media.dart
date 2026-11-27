@@ -6,7 +6,10 @@
 /// and fit modes), the [MediaLayout] value it returns (blocks of cells keyed
 /// by `MediaItemId`, each corner's radius resolved by [MediaCornerPolicy]),
 /// its paint step ([MessageMediaView] and the replaceable
-/// [MediaCellBuilders], drawing through the asset pipeline), the geometry
+/// [MediaCellBuilders], drawing through the asset pipeline, and the
+/// [MediaChromeSlots] over them: the time pill's rect, the info badge, the
+/// status control, the spoiler and its reveal, the options affordance), the
+/// geometry
 /// under it (the single box size
 /// [computeSingleMediaSize], the default mosaic [GroupedMessages] and
 /// [MosaicLayout], [MediaLayoutMetrics]), what a chat's items remember while
@@ -14,6 +17,12 @@
 /// ([MessageMediaHitPart]).
 library;
 
+export 'src/chrome/media_cell_chrome.dart' show MediaControlsScope;
+export 'src/chrome/media_chrome_slots.dart';
+export 'src/chrome/media_options_affordance.dart';
+export 'src/chrome/media_spoiler_cover.dart';
+export 'src/chrome/media_spoiler_reveal.dart';
+export 'src/chrome/media_time_pill.dart';
 export 'src/diagnostics/media_op.dart';
 export 'src/grouped_message_position.dart';
 export 'src/grouped_messages.dart';

@@ -27,7 +27,8 @@ keeps the default `MediaLayoutPolicy` and replaces one part:
 
 Beside the layout step, the policy holds the paint step's parts, each
 replaceable with `copyWith`: `corners` (`MediaCornerPolicy`), `autoplay`
-(`MediaAutoplayPolicy`, a host flag) and `cells` (`MediaCellBuilders`).
+(`MediaAutoplayPolicy`, a host flag), `cells` (`MediaCellBuilders`) and
+`chrome` (`MediaChromeSlots`).
 
 ## Layout
 
@@ -68,6 +69,25 @@ above the view. A box's fit is decided for the picture
 same cache entry (its preview or thumbnail until the content arrives).
 Videos and animations play inline, muted, as `MediaAutoplayPolicy` says.
 
+## Chrome slots
+
+`MediaChromeSlots.android()`, `.ios()` and `.desktop()` lay chrome over
+the cells; each slot is replaced on its own with `copyWith`:
+
+| Slot | Default |
+| --- | --- |
+| `timePill` (`MediaTimePillPlacement`) | The pill is the host's chrome. When the time sits on the media (no caption below, no card, boxes last), `MessageMediaPolicy.layout` reports its rect as `MediaLayout.timePill`, at the bottom-right per platform. |
+| `infoBadge`, `statusControl` | The loading stages' badge and the media core's status control, given to the slot as the stock part. |
+| `spoiler`, `reveal` | `MediaSpoilerCover`: a blurred copy of the picture (the same cache entry) under drifting particles, clipped to the cell. `MediaSpoilerReveal` uncovers it: a circle from the touch point (`circle`), a spot after a short delay (`spot`), or a fade (`crossFade`). |
+| `options`, `optionsAffordance` | `MediaOptionsDots` where `MediaOptionsPlacement` puts them: Android videos, animations and a file stack's first row; none on iOS and desktop. Hidden in compact mode (`MediaChromeContext`), on a preview, under a hidden spoiler and on a small image; fading out as the view's `selectionProgress` rises. |
+
+The revealed fact is the chat's `MessageMediaState`
+(`revealSpoiler(id, at:)`), so a re-layout or a new view keeps it; the
+reveal's motion is the cell's, and reduce motion jumps to revealed. The
+status control fades in with the reveal and takes no taps before it.
+`MediaChromeSlots.spoilerRectOf` and `MediaOptionsPlacement.affordanceOf`
+give the `spoiler` and `options` hit parts' rects.
+
 ## Geometry
 
 | Type | Role |
@@ -84,8 +104,9 @@ Videos and animations play inline, muted, as `MediaAutoplayPolicy` says.
 `media` events through `ChatDiagnostics.current` (`MediaOp`):
 `layoutComputed` (trace) for every layout, `layoutFallback` (debug) when a
 box takes a fallback rule, `unknownKind` (warning) when a custom kind is
-drawn as a file row, `cellFailed` (error) when a cell builder throws or a
-cell's item is missing. They carry the chat, message and item ids, never a
+drawn as a file row, `cellFailed` (error) when a cell builder or a chrome
+slot throws or a cell's item is missing, `spoilerRevealed` (debug) when a
+reveal starts (form, reduce motion). They carry the chat, message and item ids, never a
 caption, a file name or a page.
 
 ## Goldens

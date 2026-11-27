@@ -8,6 +8,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'chrome/media_cell_chrome_test.dart' as chrome_media_cell_chrome_test;
+import 'chrome/media_chrome_rules_test.dart' as chrome_media_chrome_rules_test;
 import 'goldens/media_geometry_golden_test.dart'
     as goldens_media_geometry_golden_test;
 import 'goldens/message_media_view_golden_test.dart'
@@ -29,6 +31,8 @@ import 'policy/message_media_policy_test.dart'
 import 'single_media_layout_test.dart' as single_media_layout_test;
 
 void main() {
+  group('chrome/media_cell_chrome_test', chrome_media_cell_chrome_test.main);
+  group('chrome/media_chrome_rules_test', chrome_media_chrome_rules_test.main);
   group(
     'goldens/media_geometry_golden_test',
     goldens_media_geometry_golden_test.main,

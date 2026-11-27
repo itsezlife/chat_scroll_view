@@ -1,11 +1,15 @@
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:message_media/src/chrome/media_cell_chrome.dart';
+import 'package:message_media/src/chrome/media_options_affordance.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/policy/media_layout_policy.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
+import 'package:message_media/src/state/message_media_state.dart';
+import 'package:message_media/src/state/message_media_state_scope.dart';
 import 'package:mpx_core/mpx_core.dart';
 
 /// Paints a [MediaLayout]: each cell at its rect, built by the [policy]'s
@@ -20,6 +24,15 @@ import 'package:mpx_core/mpx_core.dart';
 /// sits above the view. No gestures yet: taps and the long press reach the
 /// message through the body part hit.
 ///
+/// ## Chrome
+///
+/// Over each cell lie the policy's chrome slots (`MessageMediaPolicy.chrome`):
+/// a spoiler's cover until the item is revealed, revealed per item in the
+/// chat's `MessageMediaState` (the scope's, else the view's own), and the
+/// options affordance where the placement puts one, fading out as
+/// [selectionProgress] rises. The time pill is the host's, at
+/// `MediaLayout.timePill`.
+///
 /// ## Diagnostics
 ///
 /// A builder that throws, or a cell whose item is not among [items],
@@ -33,6 +46,8 @@ class MessageMediaView extends StatelessWidget {
     required this.policy,
     this.downloadContext,
     this.correlation = ChatCorrelation.none,
+    this.chromeContext = MediaChromeContext.none,
+    this.selectionProgress,
     super.key,
   }) : items = {for (final item in items) item.id: item};
 
@@ -53,22 +68,57 @@ class MessageMediaView extends StatelessWidget {
   /// The chat and message the view's diagnostics events name.
   final ChatCorrelation correlation;
 
+  /// What the message is drawn in (compact mode, a preview), which the
+  /// chrome slots weigh.
+  final MediaChromeContext chromeContext;
+
+  /// The selection checkbox's appearance, 0 to 1, which fades the options
+  /// affordance out; null is no checkbox.
+  final Animation<double>? selectionProgress;
+
   @override
   Widget build(BuildContext context) => SizedBox.fromSize(
     size: layout.size,
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        for (final block in layout.blocks)
-          for (final cell in block.cells)
-            Positioned.fromRect(
-              key: ValueKey(cell.itemId),
-              rect: cell.rect,
-              child: _cell(context, block, cell),
-            ),
-      ],
+    child: MessageMediaStateBuilder(
+      scrollId: correlation.scrollId,
+      builder: (context, state) => Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (final block in layout.blocks)
+            for (final cell in block.cells)
+              Positioned.fromRect(
+                key: ValueKey(cell.itemId),
+                rect: cell.rect,
+                child: _chromed(context, state, block, cell),
+              ),
+        ],
+      ),
     ),
   );
+
+  Widget _chromed(
+    BuildContext context,
+    MessageMediaState state,
+    MediaBlock block,
+    MediaCell cell,
+  ) {
+    final child = _cell(context, block, cell);
+    final item = items[cell.itemId];
+    if (item == null) return child;
+    return MediaCellChrome(
+      cell: cell,
+      item: item,
+      block: block,
+      family: policy.family,
+      slots: policy.chrome,
+      state: state,
+      context: chromeContext,
+      selectionProgress: selectionProgress,
+      downloadContext: downloadContext,
+      correlation: correlation,
+      child: child,
+    );
+  }
 
   Widget _cell(BuildContext context, MediaBlock block, MediaCell cell) {
     final builderName = MediaLayoutPolicy.isBox(cell.kind) ? 'box' : 'row';
@@ -84,6 +134,8 @@ class MessageMediaView extends StatelessWidget {
       family: policy.family,
       autoplay: policy.autoplay.plays(cell, block),
       downloadContext: downloadContext,
+      chrome: policy.chrome,
+      correlation: correlation,
     );
     try {
       return policy.cells.of(cell.kind)(context, data);

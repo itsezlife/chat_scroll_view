@@ -28,11 +28,15 @@ final class MediaLayoutChrome {
   /// Chrome widths; each defaults to not shown.
   const MediaLayoutChrome({
     this.timeWidth = 0,
+    this.timeHeight = 0,
     this.infoBadgeWidth = 0,
     this.progressLabelWidth = 0,
     this.bubbleRadius = 17,
   }) : assert(
-         timeWidth >= 0 && infoBadgeWidth >= 0 && progressLabelWidth >= 0,
+         timeWidth >= 0 &&
+             timeHeight >= 0 &&
+             infoBadgeWidth >= 0 &&
+             progressLabelWidth >= 0,
          'Chrome widths are not negative.',
        );
 
@@ -41,6 +45,10 @@ final class MediaLayoutChrome {
 
   /// The time text's width (the time pill's content).
   final double timeWidth;
+
+  /// The time text's height, which sets the time pill's; 0 is the
+  /// platform's default (`MediaTimePillPlacement.defaultTextHeight`).
+  final double timeHeight;
 
   /// The video's duration / size badge text width.
   final double infoBadgeWidth;
@@ -56,13 +64,19 @@ final class MediaLayoutChrome {
   bool operator ==(Object other) =>
       other is MediaLayoutChrome &&
       other.timeWidth == timeWidth &&
+      other.timeHeight == timeHeight &&
       other.infoBadgeWidth == infoBadgeWidth &&
       other.progressLabelWidth == progressLabelWidth &&
       other.bubbleRadius == bubbleRadius;
 
   @override
-  int get hashCode =>
-      Object.hash(timeWidth, infoBadgeWidth, progressLabelWidth, bubbleRadius);
+  int get hashCode => Object.hash(
+    timeWidth,
+    timeHeight,
+    infoBadgeWidth,
+    progressLabelWidth,
+    bubbleRadius,
+  );
 }
 
 /// A link preview to lay out as a card block: the page and the message's

@@ -8,6 +8,24 @@ this package is pre-1.0.
 
 ### Added
 
+- Chrome slots (`MessageMediaPolicy.chrome`, `MediaChromeSlots` with
+  `android()`, `ios()`, `desktop()`): the time pill's rect
+  (`MediaTimePillPlacement`, reported as `MediaLayout.timePill` when the
+  time sits on the media), the info badge and status control over the
+  stock parts, the spoiler cover (`MediaSpoilerCover`, `MediaSpoilerLook`)
+  with its reveal (`MediaSpoilerReveal`: `circle`, `spot`, `crossFade`),
+  and the options affordance (`MediaOptionsPlacement`,
+  `MediaOptionsAffordance`, `MediaOptionsDots`, `MediaChromeContext`).
+  `MessageMediaView` takes `chromeContext` and `selectionProgress`.
+  `MessageMediaPolicy`'s main constructor now requires `chrome`.
+- `MessageMediaState.revealSpoiler(id, at:)` and `takeRevealOrigin`;
+  `MessageMediaStateBuilder.scrollId` is optional.
+- `MediaLayoutChrome.timeHeight`, `MediaLayout.withTimePill`,
+  `MediaCellData.chrome` and `.correlation`, `MediaBoxCell.skin` and
+  `skinOf`.
+- `media` / `spoilerRevealed` diagnostics; `cellFailed` also names a
+  failed chrome slot.
+
 - The paint step's first part. `MediaCornerPolicy` (`android()`, `ios()`,
   `desktop()`) resolves each cell's numeric `MediaCornerRadii` from its
   neighbours, the joined bubble's side, the list's width class and the

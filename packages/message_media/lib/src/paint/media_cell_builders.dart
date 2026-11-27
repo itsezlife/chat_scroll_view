@@ -1,5 +1,6 @@
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/paint/media_box_cell.dart';
 import 'package:message_media/src/paint/media_row_cell.dart';
@@ -18,6 +19,8 @@ final class MediaCellData {
     required this.family,
     required this.autoplay,
     this.downloadContext,
+    this.chrome,
+    this.correlation = ChatCorrelation.none,
   });
 
   /// The cell: rect, fit, neighbours and resolved corner radii.
@@ -40,6 +43,13 @@ final class MediaCellData {
   /// auto-download rules weigh.
   final AutoDownloadContext? downloadContext;
 
+  /// The policy's chrome slots, whose info badge and status control a box
+  /// draws; null keeps the stock parts.
+  final MediaChromeSlots? chrome;
+
+  /// The ids a slot's failure names.
+  final ChatCorrelation correlation;
+
   @override
   bool operator ==(Object other) =>
       other is MediaCellData &&
@@ -48,11 +58,21 @@ final class MediaCellData {
       other.block == block &&
       other.family == family &&
       other.autoplay == autoplay &&
-      other.downloadContext == downloadContext;
+      other.downloadContext == downloadContext &&
+      other.chrome == chrome &&
+      other.correlation == correlation;
 
   @override
-  int get hashCode =>
-      Object.hash(cell, item, block, family, autoplay, downloadContext);
+  int get hashCode => Object.hash(
+    cell,
+    item,
+    block,
+    family,
+    autoplay,
+    downloadContext,
+    chrome,
+    correlation,
+  );
 }
 
 /// Builds the widget of one cell, sized to the cell's rect by the view.

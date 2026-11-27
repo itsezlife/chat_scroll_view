@@ -1,4 +1,4 @@
-import 'dart:ui' show Rect;
+import 'dart:ui' show Offset, Rect;
 
 import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart';
@@ -44,6 +44,7 @@ final class MessageMediaState {
 
   final MediaSendOrigin? _sendOrigin;
   final Map<MediaItemId, ValueNotifier<MediaItemState>> _items = {};
+  final Map<MediaItemId, Offset> _revealOrigins = {};
   bool _disposed = false;
 
   /// The state of [id]; notifies only when that item's state changes.
@@ -61,9 +62,22 @@ final class MessageMediaState {
   }
 
   /// Reveals the spoiler of [id]; revealing a revealed one does nothing.
-  void revealSpoiler(MediaItemId id) {
+  ///
+  /// [at] is where the reveal starts in the item's cell (the touch point,
+  /// in the cell's coordinates); the cell takes it once
+  /// ([takeRevealOrigin]) and starts from its centre without one.
+  void revealSpoiler(MediaItemId id, {Offset? at}) {
     _assertAlive();
-    _notifier(id).value = const MediaItemState(spoilerRevealed: true);
+    final notifier = _notifier(id);
+    if (notifier.value.spoilerRevealed) return;
+    if (at case final origin?) _revealOrigins[id] = origin;
+    notifier.value = const MediaItemState(spoilerRevealed: true);
+  }
+
+  /// Hands out the origin [revealSpoiler] was given for [id] once, or null.
+  Offset? takeRevealOrigin(MediaItemId id) {
+    _assertAlive();
+    return _revealOrigins.remove(id);
   }
 
   /// Hands out the send origin of [id] once, or null when there is none.
@@ -82,6 +96,7 @@ final class MessageMediaState {
       notifier.dispose();
     }
     _items.clear();
+    _revealOrigins.clear();
   }
 
   ValueNotifier<MediaItemState> _notifier(MediaItemId id) =>

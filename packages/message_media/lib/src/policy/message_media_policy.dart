@@ -1,5 +1,6 @@
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
@@ -43,6 +44,7 @@ final class MessageMediaPolicy {
     required this.layoutStep,
     required this.corners,
     required this.autoplay,
+    required this.chrome,
     this.cells = const MediaCellBuilders(),
   });
 
@@ -53,6 +55,7 @@ final class MessageMediaPolicy {
         layoutStep: const MediaLayoutPolicy.android(),
         corners: const MediaCornerPolicy.android(),
         autoplay: const MediaAutoplayPolicy.android(),
+        chrome: const MediaChromeSlots.android(),
       );
 
   /// The iOS family's defaults.
@@ -62,6 +65,7 @@ final class MessageMediaPolicy {
         layoutStep: const MediaLayoutPolicy.ios(),
         corners: const MediaCornerPolicy.ios(),
         autoplay: const MediaAutoplayPolicy.ios(),
+        chrome: const MediaChromeSlots.ios(),
       );
 
   /// The desktop family's defaults.
@@ -71,6 +75,7 @@ final class MessageMediaPolicy {
         layoutStep: const MediaLayoutPolicy.desktop(),
         corners: const MediaCornerPolicy.desktop(),
         autoplay: const MediaAutoplayPolicy.desktop(),
+        chrome: const MediaChromeSlots.desktop(),
       );
 
   /// The family of [platform]: Android and iOS their own, every other
@@ -108,14 +113,20 @@ final class MessageMediaPolicy {
   /// The cell builders, one per shape.
   final MediaCellBuilders cells;
 
-  /// Lays [input] out with [layoutStep] and resolves each cell's corner
-  /// radii with [corners].
+  /// The chrome slots over the cells (time pill rect, info badge, status
+  /// control, spoiler, options affordance), each replaceable through
+  /// `MediaChromeSlots.copyWith`.
+  final MediaChromeSlots chrome;
+
+  /// Lays [input] out with [layoutStep], resolves each cell's corner radii
+  /// with [corners] and reports the time pill's rect ([chrome]'s
+  /// placement) when the time sits on the media.
   MediaLayout layout(MediaLayoutInput input) {
     if (!ChatDiagnostics.current.isEnabled(ChatEventLevel.trace)) {
-      return corners.resolve(layoutStep.layout(input), input);
+      return _layout(input);
     }
     final stopwatch = Stopwatch()..start();
-    final result = corners.resolve(layoutStep.layout(input), input);
+    final result = _layout(input);
     stopwatch.stop();
     ChatDiagnostics.current.emit(
       ChatEventLevel.trace,
@@ -145,6 +156,11 @@ final class MessageMediaPolicy {
     return result;
   }
 
+  MediaLayout _layout(MediaLayoutInput input) {
+    final laid = corners.resolve(layoutStep.layout(input), input);
+    return laid.withTimePill(chrome.timePill.of(laid, input));
+  }
+
   /// A copy with the given parts replaced.
   MessageMediaPolicy copyWith({
     MessageMediaPlatform? family,
@@ -152,11 +168,13 @@ final class MessageMediaPolicy {
     MediaCornerPolicy? corners,
     MediaAutoplayPolicy? autoplay,
     MediaCellBuilders? cells,
+    MediaChromeSlots? chrome,
   }) => MessageMediaPolicy(
     family: family ?? this.family,
     layoutStep: layoutStep ?? this.layoutStep,
     corners: corners ?? this.corners,
     autoplay: autoplay ?? this.autoplay,
     cells: cells ?? this.cells,
+    chrome: chrome ?? this.chrome,
   );
 }
