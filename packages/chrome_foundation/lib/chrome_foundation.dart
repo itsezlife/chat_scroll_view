@@ -44,6 +44,7 @@ export 'src/motion/chrome_motion.dart';
 export 'src/motion/chrome_motion_scope.dart';
 export 'src/motion/chrome_motion_speed.dart';
 export 'src/motion/chrome_spinner.dart';
+export 'src/motion/chrome_tap_timing.dart';
 export 'src/motion/motion_spec.dart';
 export 'src/motion/overshoot_curve.dart';
 export 'src/motion/pointer_menu_motion.dart';

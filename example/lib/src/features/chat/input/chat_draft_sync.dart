@@ -2,13 +2,15 @@ import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:chat_composer/chat_composer.dart';
+import 'package:chat_scroll_view_example/src/common/widgets/listen_value_builder.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:flutter/foundation.dart';
 
 /// Keeps one chat's [ChatDraftStore] record equal to its composer: written a
-/// moment after the text or the edit target changes, removed when the
-/// composer is empty and not editing.
+/// moment after the text, the edit target or the link preview's draft fields
+/// change, removed when the composer is empty and not editing.
 ///
 /// The write is debounced because a record is the whole markdown and a
 /// keystroke changes it: typing costs one write when the user pauses, not one
@@ -19,7 +21,8 @@ import 'package:flutter/foundation.dart';
 /// A write that fails is logged and retried on the next change or flush; the
 /// composer never waits on storage.
 final class ChatDraftSync {
-  /// Starts keeping [chatKey]'s record equal to [composer] and [editing].
+  /// Starts keeping [chatKey]'s record equal to [composer], [editing] and
+  /// [linkPreview].
   ///
   /// [saved] is what the store holds now, so a draft just restored is not
   /// written back unchanged.
@@ -30,10 +33,12 @@ final class ChatDraftSync {
     required this.editing,
     required this.editingId,
     required ChatDraft? saved,
+    this.linkPreview,
     this.debounce = defaultDebounce,
   }) : _saved = saved {
     composer.text.addListener(_onChange);
     editing.addListener(_onChange);
+    _linkPreviewChanges?.addListener(_onChange);
     // Text typed before the record was read differs from it already.
     if (_current() != _saved) _onChange();
   }
@@ -55,6 +60,15 @@ final class ChatDraftSync {
 
   /// The id of the message being edited, or null; part of the draft.
   final int? Function() editingId;
+
+  /// The link preview whose options and dismissal are part of the draft;
+  /// null keeps none.
+  final ChatLinkPreview? linkPreview;
+
+  late final Listenable? _linkPreviewChanges = switch (linkPreview) {
+    final preview? => ListenableBridge(preview.draftChanged),
+    null => null,
+  };
 
   /// The pause before a change is written.
   final Duration debounce;
@@ -94,6 +108,7 @@ final class ChatDraftSync {
     _disposed = true;
     composer.text.removeListener(_onChange);
     editing.removeListener(_onChange);
+    _linkPreviewChanges?.removeListener(_onChange);
   }
 
   // Drafts are composer state, not a wire body: no detection, no trim, and a
@@ -105,6 +120,7 @@ final class ChatDraftSync {
     return ChatDraft(
       markdown: ChatBodyMarkdown.encodeDraft(text),
       editing: target,
+      linkPreview: linkPreview?.draft ?? ChatLinkPreviewDraft.empty,
     );
   }
 

@@ -100,6 +100,14 @@ abstract final class DemoConfig {
   /// its tests run without them.
   static const bool scrollLab = bool.fromEnvironment('SCROLL_LAB');
 
+  /// Whether a received message without a `linkPreview` field (history,
+  /// older clients) has the URLs of its body looked up at receive time, from
+  /// `--dart-define=RESOLVE_HISTORY_LINK_PREVIEWS=true`. Off, such a message
+  /// shows no preview (`ChatReceivedLinkPreview.read`).
+  static const bool resolveHistoryLinkPreviews = bool.fromEnvironment(
+    'RESOLVE_HISTORY_LINK_PREVIEWS',
+  );
+
   /// Whether what the app fetches or renders is kept on disk between
   /// launches (the baked glyph pages, the rendered Lottie frames, Giphy's
   /// stills and clips), from `--dart-define=DISK_CACHE=false`. On by

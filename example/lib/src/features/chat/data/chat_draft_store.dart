@@ -1,12 +1,30 @@
+import 'dart:convert';
+
+import 'package:chat_composer/chat_composer.dart'
+    show LinkPreviewDismissalState;
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
 
-/// The unsent text of one chat's composer: the markdown the wire would carry,
-/// and the message being edited when the composer was in edit mode.
+/// The operation of the `linkPreview` diagnostics event [ChatDraftStore]
+/// emits.
+enum ChatDraftOp implements DiagnosticOp {
+  /// A stored record could not be read (warning): `errorType`, the kind of
+  /// problem (`noBody`). The record is ignored.
+  draftDecodeFailed,
+}
+
+/// The unsent state of one chat's composer: the markdown the wire would
+/// carry, the message being edited when the composer was in edit mode, and
+/// the link preview fields.
 @immutable
 final class ChatDraft {
-  /// A draft of [markdown], for editing message [editing] when it is not null.
-  const ChatDraft({required this.markdown, this.editing});
+  /// A draft of [markdown], for editing message [editing] when it is not
+  /// null, with the link preview fields of [linkPreview].
+  const ChatDraft({
+    required this.markdown,
+    this.editing,
+    this.linkPreview = ChatLinkPreviewDraft.empty,
+  });
 
   /// The composer's text as markdown, with the blanks the user left in it.
   final String markdown;
@@ -14,17 +32,59 @@ final class ChatDraft {
   /// The id of the message the draft edits, or null for a new message.
   final int? editing;
 
+  /// The link preview's options, the message's `invertMedia` and the
+  /// dismissal state.
+  final ChatLinkPreviewDraft linkPreview;
+
   @override
   bool operator ==(Object other) =>
       other is ChatDraft &&
       other.markdown == markdown &&
-      other.editing == editing;
+      other.editing == editing &&
+      other.linkPreview == linkPreview;
 
   @override
-  int get hashCode => Object.hash(markdown, editing);
+  int get hashCode => Object.hash(markdown, editing, linkPreview);
 
   @override
   String toString() => 'ChatDraft(editing: $editing, ${markdown.length} chars)';
+}
+
+/// The link preview fields of a draft: the options, the message's
+/// [invertMedia] and the dismissal state, which is never sent.
+@immutable
+final class ChatLinkPreviewDraft {
+  /// The fields of a draft.
+  const ChatLinkPreviewDraft({
+    this.options,
+    this.invertMedia = false,
+    this.dismissal,
+  });
+
+  /// Nothing to keep.
+  static const ChatLinkPreviewDraft empty = ChatLinkPreviewDraft();
+
+  /// The options of the preview the draft showed, if any.
+  final LinkPreviewOptions? options;
+
+  /// Whether the message puts its media above its text.
+  final bool invertMedia;
+
+  /// What the dismissal had turned off; null when nothing.
+  final LinkPreviewDismissalState? dismissal;
+
+  /// Whether there is nothing to keep.
+  bool get isEmpty => options == null && !invertMedia && dismissal == null;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChatLinkPreviewDraft &&
+      other.options == options &&
+      other.invertMedia == invertMedia &&
+      other.dismissal == dismissal;
+
+  @override
+  int get hashCode => Object.hash(options, invertMedia, dismissal);
 }
 
 /// Drafts of the chats, one [ChatDraft] per chat key, kept in the host's
@@ -38,8 +98,19 @@ final class ChatDraft {
 /// ## Record
 ///
 /// One record per chat, so a crash cannot leave the text of one edit beside
-/// the id of another: the first line is the edited message's id (empty for a
-/// new message), the rest is the markdown.
+/// the id of another. The record is a JSON object (version 2):
+///
+/// ```text
+/// { body: markdown, editing?: id, linkPreview?: { url, media, removed },
+///   invertMedia?: true, dismissal?: { policy, dismissed?, urls? } }
+/// ```
+///
+/// `linkPreview` and `invertMedia` are `LinkPreviewWire`'s fields, without a
+/// page (a restored draft looks its link up again); `dismissal` is the
+/// composer-only `LinkPreviewDismissalState`, never sent. A record of
+/// version 1 (the edited message's id on the first line, the markdown after
+/// it) and a version 2 value that is a plain string, not an object, read as
+/// a draft of that text alone; there is no migration.
 final class ChatDraftStore {
   /// A store over [storage].
   ChatDraftStore(this._storage);
@@ -47,8 +118,12 @@ final class ChatDraftStore {
   /// The key-value namespace of every record.
   static const String namespace = 'chat_draft';
 
-  /// The schema version of a record; a record of another version is ignored.
-  static const int version = 1;
+  /// The schema version of a record written now; a record of a version
+  /// other than this and [legacyVersion] is ignored.
+  static const int version = 2;
+
+  /// The version of the records written before the link preview fields.
+  static const int legacyVersion = 1;
 
   final KeyValueStore _storage;
 
@@ -66,9 +141,11 @@ final class ChatDraftStore {
     if (_written.containsKey(chatKey)) return _written[chatKey];
     final stored = await _storage.read(namespace, chatKey);
     if (_written.containsKey(chatKey)) return _written[chatKey];
-    return stored == null || stored.version != version
-        ? null
-        : _decode(stored.value);
+    return switch (stored) {
+      StoredValue(version: legacyVersion, :final value) => _decodeLegacy(value),
+      StoredValue(version: version, :final value) => _decode(value, chatKey),
+      _ => null,
+    };
   }
 
   /// Saves [draft] for [chatKey], or removes the saved one when [draft] is
@@ -80,15 +157,74 @@ final class ChatDraftStore {
     _written[chatKey] = draft;
     return switch (draft) {
       null => _storage.remove(namespace, chatKey),
-      ChatDraft(:final markdown, :final editing) => _storage.write(
+      final draft => _storage.write(
         namespace,
         chatKey,
-        StoredValue('${editing ?? ''}\n$markdown', version: version),
+        StoredValue(jsonEncode(_encode(draft)), version: version),
       ),
     };
   }
 
-  static ChatDraft? _decode(String record) {
+  static Map<String, Object?> _encode(ChatDraft draft) {
+    final ChatDraft(:markdown, :editing, :linkPreview) = draft;
+    final record = <String, Object?>{'body': markdown, 'editing': ?editing};
+    LinkPreviewWire.write(
+      record,
+      linkPreview: switch (linkPreview.options) {
+        final options? => MessageLinkPreview(options: options),
+        null => null,
+      },
+      invertMedia: linkPreview.invertMedia,
+    );
+    if (linkPreview.dismissal case final dismissal?) {
+      record['dismissal'] = dismissal.toJson();
+    }
+    return record;
+  }
+
+  static ChatDraft? _decode(String value, String chatKey) {
+    final Object? json;
+    try {
+      json = jsonDecode(value);
+    } on FormatException {
+      // A plain string is a draft of that text.
+      return ChatDraft(markdown: value);
+    }
+    switch (json) {
+      case final Map<String, Object?> record:
+        if (record['body'] case final String body) {
+          return ChatDraft(
+            markdown: body,
+            editing: switch (record['editing']) {
+              final int id => id,
+              _ => null,
+            },
+            linkPreview: ChatLinkPreviewDraft(
+              options: LinkPreviewWire.readLinkPreview(record)?.options,
+              invertMedia: LinkPreviewWire.readInvertMedia(record),
+              dismissal: LinkPreviewDismissalState.fromJson(
+                record['dismissal'],
+              ),
+            ),
+          );
+        }
+        ChatDiagnostics.current.emit(
+          ChatEventLevel.warning,
+          ChatEventCategory.linkPreview,
+          ChatDraftOp.draftDecodeFailed,
+          correlation: ChatCorrelation(chatId: chatKey),
+          fields: () => {'errorType': 'noBody'},
+        );
+        return null;
+      case final String body:
+        return ChatDraft(markdown: body);
+      case _:
+        // JSON that is no record (a number, a list) is still text.
+        return ChatDraft(markdown: value);
+    }
+  }
+
+  static ChatDraft? _decodeLegacy(String record) {
     final split = record.indexOf('\n');
     if (split < 0) return null;
     final header = record.substring(0, split);

@@ -33,6 +33,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_d
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_attach.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_confirm_box.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_outgoing_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
@@ -365,7 +366,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     final input = _inputSet ??= ChatInputSet(
       services: widget.services,
       view: View.of(context),
-      send: _sendInChat,
+      send: _sendComposed,
       edit: _handleEditSelected,
       confirmClearRecents: _confirmClearRecents,
       keyboard: widget.softKeyboard,
@@ -925,6 +926,12 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// an interval, and this one is pending until it lands.
   Future<void> _sendInChat(String text) =>
       _rights.send(() => _handleSendMessage(text));
+
+  /// Sends what the composer produced. The demo's message sources store a
+  /// body only, so the link preview fields stop here; the bubbles draw
+  /// previews once the sources keep the payload.
+  Future<void> _sendComposed(ChatOutgoingMessage message) =>
+      _sendInChat(message.body);
 
   /// Sends [text] as the signed-in user. A send that succeeds clears the
   /// unread boundary of the open it was sent from, whether or not the tail
