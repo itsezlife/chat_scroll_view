@@ -16,6 +16,7 @@ import 'header/attach_selection_header_controller_test.dart'
     as attach_selection_header_controller_test;
 import 'header/gallery_selection_header_test.dart'
     as gallery_selection_header_test;
+import 'limits/derive_attach_limits_test.dart' as derive_attach_limits_test;
 import 'page/attach_bar_inset_test.dart' as attach_bar_inset_test;
 import 'page/attach_page_test.dart' as attach_page_test;
 import 'page/attach_tab_bar_test.dart' as attach_tab_bar_test;
@@ -40,6 +41,10 @@ void main() {
   group(
     'header/gallery_selection_header_test.dart',
     gallery_selection_header_test.main,
+  );
+  group(
+    'limits/derive_attach_limits_test.dart',
+    derive_attach_limits_test.main,
   );
   group('page/attach_bar_inset_test.dart', attach_bar_inset_test.main);
   group('page/attach_page_test.dart', attach_page_test.main);

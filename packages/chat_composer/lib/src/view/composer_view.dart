@@ -1,5 +1,6 @@
 import 'dart:ui' show lerpDouble;
 
+import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/menu/composer_menu_policy.dart';
 import 'package:chat_composer/src/shortcuts/composer_formatting_actions.dart';
@@ -22,6 +23,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Material, MaterialType;
 import 'package:flutter/services.dart' show BinaryMessenger;
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 
 /// The composer: a glass island holding a header strip, a row of actions
 /// around a panel, laid out and animated from a host-built [ComposerSpec].
@@ -79,6 +81,7 @@ class ComposerView extends StatefulWidget {
     this.hintMaxLines,
     this.primaryDiameter = ComposerMetrics.primaryDiscDiameter,
     this.autofocus = true,
+    this.capabilities,
     super.key,
   });
 
@@ -190,6 +193,12 @@ class ComposerView extends StatefulWidget {
   /// Read when the view mounts; a later change has no effect.
   final bool autofocus;
 
+  /// The chat's capabilities, whose `limits.messageLength` is the message
+  /// length budget when [ComposerSpec.messageLengthLimit] is null; an explicit
+  /// spec limit wins. Null leaves the budget to the spec alone. A change of
+  /// the limit reaches the counter and the send refusal at once.
+  final listen.ValueListenable<ChatCapabilities>? capabilities;
+
   @override
   State<ComposerView> createState() => _ComposerViewState();
 }
@@ -228,10 +237,28 @@ class _ComposerViewState extends State<ComposerView>
 
   ComposerSpec get _spec => widget.spec;
 
+  // The limits group of the capabilities, heard only while it is set.
+  listen.ValueListenable<ChatLimits>? _limits;
+
+  // The budget in force: the spec's, else the chat's.
+  int? get _messageLengthLimit =>
+      _spec.messageLengthLimit ?? _limits?.value.messageLength;
+
+  void _bindLimits() {
+    _limits?.removeListener(_onLimits);
+    _limits = widget.capabilities?.select((c) => c.limits)
+      ?..addListener(_onLimits);
+  }
+
+  void _onLimits() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     _shownHeader = _spec.header;
+    _bindLimits();
     _reveal = AnimationController(
       vsync: this,
       value: switch (_spec.header) {
@@ -246,11 +273,13 @@ class _ComposerViewState extends State<ComposerView>
   @override
   void didUpdateWidget(ComposerView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.capabilities, widget.capabilities)) _bindLimits();
     _syncHeader();
   }
 
   @override
   void dispose() {
+    _limits?.removeListener(_onLimits);
     _reveal
       ..removeStatusListener(_onRevealStatus)
       ..dispose();
@@ -327,7 +356,7 @@ class _ComposerViewState extends State<ComposerView>
       _spec.enabled && action.isTappable && !(_spec.busy && action.primary);
 
   bool get _overBudget {
-    final limit = _spec.messageLengthLimit;
+    final limit = _messageLengthLimit;
     return limit != null && widget.controller.length > limit;
   }
 
@@ -505,7 +534,7 @@ class _ComposerViewState extends State<ComposerView>
                       ),
                       // Over the primary button, at the row's end: drawn
                       // above the island, taking none of its room.
-                      if (_spec.messageLengthLimit case final limit?)
+                      if (_messageLengthLimit case final limit?)
                         PositionedDirectional(
                           end: _rowInset,
                           bottom: ComposerMetrics.actionSize,

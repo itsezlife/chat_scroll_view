@@ -21,4 +21,9 @@ enum CapabilitiesOp implements DiagnosticOp {
   /// A host feedback hook threw and was swallowed (error): which hook, the
   /// action and the error's type.
   feedbackFailed,
+
+  /// A picker's limits were derived from a chat's value (debug): the allowed
+  /// attach kinds, grouping, single select and the caption, file and album
+  /// limits. Emitted by the picker's package, which owns the derivation.
+  limitsDerived,
 }

@@ -10,6 +10,7 @@ void main() {
 
   test('imports only the packages the composer may know', () {
     const allowed = {
+      'chat_capabilities',
       'chat_composer',
       'chrome_foundation',
       'composer_editable',

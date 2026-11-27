@@ -20,6 +20,7 @@ export 'src/header/attach_selection_header_view.dart';
 export 'src/host/attach_caption_dock.dart';
 export 'src/host/attach_discard_question.dart';
 export 'src/host/attach_sheet_host.dart';
+export 'src/limits/derive_attach_limits.dart';
 export 'src/page/attach_page.dart';
 export 'src/page/attach_page_scope.dart' show AttachPageScope;
 export 'src/panel/attach_interaction.dart';
