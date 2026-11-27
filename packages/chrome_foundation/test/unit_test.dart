@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'backdrop/backdrop_snapshot_test.dart' as backdrop_snapshot_test;
 import 'backdrop/stack_blur_test.dart' as stack_blur_test;
 import 'box/chrome_box_layer_test.dart' as chrome_box_layer_test;
+import 'box/chrome_tooltip_test.dart' as chrome_tooltip_test;
 import 'button/chrome_buttons_test.dart' as chrome_buttons_test;
 import 'glass/glass_flat_golden_test.dart' as glass_flat_golden_test;
 import 'glass/glass_layer_watch_test.dart' as glass_layer_watch_test;
@@ -69,6 +70,7 @@ void main() {
   group('backdrop/backdrop_snapshot_test.dart', backdrop_snapshot_test.main);
   group('backdrop/stack_blur_test.dart', stack_blur_test.main);
   group('box/chrome_box_layer_test.dart', chrome_box_layer_test.main);
+  group('box/chrome_tooltip_test.dart', chrome_tooltip_test.main);
   group('button/chrome_buttons_test.dart', chrome_buttons_test.main);
   group('glass/glass_flat_golden_test.dart', glass_flat_golden_test.main);
   group('glass/glass_public_api_test.dart', glass_public_api_test.main);

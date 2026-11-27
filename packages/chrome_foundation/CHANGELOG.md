@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (tooltip)
+
+- `ChromeTooltip` and `ChromeTooltipMetrics` (`pointer`, `hint`): the
+  chrome's one tooltip box, in the panel tokens' tooltip colours, with its
+  own text root and an optional live region. The panel's tab hint and the
+  catalogue's pointer tooltip draw it instead of their own boxes.
+
 ### Added (panel page availability, breaking)
 
 - `PanelStrings.unavailableTab` (required): the spoken name of a type tab
