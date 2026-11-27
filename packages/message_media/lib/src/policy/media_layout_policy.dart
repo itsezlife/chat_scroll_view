@@ -5,6 +5,7 @@ import 'package:content_model/content_model.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
+import 'package:message_media/src/policy/desktop_mosaic_algorithm.dart';
 import 'package:message_media/src/policy/media_box_sizing.dart';
 import 'package:message_media/src/policy/mosaic_algorithm.dart';
 import 'package:meta/meta.dart';
@@ -159,12 +160,13 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
         fileRowHeight: 65,
       );
 
-  /// The desktop family's layout (the default mosaic until its own lands).
+  /// The desktop family's layout, albums by [DesktopMosaicAlgorithm].
   const MediaLayoutPolicy.desktop()
     : this(
         box: const MediaBoxSizing.desktop(),
         fit: const MediaFitPolicy.desktop(),
         fileRowHeight: 60,
+        mosaicAlgorithm: const DesktopMosaicAlgorithm(),
       );
 
   /// Box sizing.

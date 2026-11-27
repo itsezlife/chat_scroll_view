@@ -22,7 +22,12 @@ this package is pre-1.0.
 - `media` / `transitionStarted` and `transitionInterrupted` diagnostics,
   and the package's timeline sections `media.layout`, `media.lerp` and
   `media.cellBuild`.
-
+- `DesktopMosaicAlgorithm` (`name` `desktop`; `maxWidth` 430, `minWidth`
+  100, `spacing` 4), the desktop policy's album layout: fixed forms for two
+  to four items, lines for five or more or a very wide item, laid out at
+  430 and scaled down to the block width. `MediaCornerPolicy.desktop()`
+  squares the corners between boxes (`item` 0, was the interim 4); the
+  desktop album goldens changed with it.
 - The paint step's first part. `MediaCornerPolicy` (`android()`, `ios()`,
   `desktop()`) resolves each cell's numeric `MediaCornerRadii` from its
   neighbours, the joined bubble's side, the list's width class and the

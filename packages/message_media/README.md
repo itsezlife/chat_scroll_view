@@ -21,7 +21,7 @@ keeps the default `MediaLayoutPolicy` and replaces one part:
 | Part | Role |
 | --- | --- |
 | `box` (`MediaBoxSizing`) | A single box's size and the width of a block spanning the media budget. `MediaBoxSizing$Android`, `$IOS` and `$Desktop` each list their values, each a field with `copyWith`. |
-| `mosaicAlgorithm` (`MosaicAlgorithm`) | Two or more boxes into a mosaic. `GroupedMosaicAlgorithm` is the default on every platform, with rows bounded by half of `max(list width, screen height)`. |
+| `mosaicAlgorithm` (`MosaicAlgorithm`) | Two or more boxes into a mosaic. `GroupedMosaicAlgorithm` is the default, with rows bounded by half of `max(list width, screen height)`; the desktop policy uses `DesktopMosaicAlgorithm`, laid out at 430 and scaled to the block width. |
 | `fit` (`MediaFitPolicy`) | Each box kind's fit mode: `crop`, `blurFit`, `cropIfVisible(fraction)`. |
 | `fileRowHeight` | A file row's height until the file stack lays rows out. |
 
