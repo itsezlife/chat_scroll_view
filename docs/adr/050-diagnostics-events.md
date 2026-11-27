@@ -136,7 +136,7 @@ message-media-transfers map).
 | Categories | `overlay` joins the set, for the draft options overlay and the chrome scrim. The scrim's operations are `overlay` operations prefixed `scrim`, not a category of their own. |
 | The leaf | `chrome_foundation` stays a leaf and emits nothing: `ChromeScrim` reports its phases (captured, still ready, still skipped, dismissed, cancelled, disposed, capture failed) through a callback its owner passes, and the owner emits the `scrim…` events with an `owner` field. |
 
-## Amendment (2026-11-27, proposed): the `diagnostics` category
+## Amendment (2026-11-27, accepted): the `diagnostics` category
 
 Found implementing the example's log journal (chat-capabilities ticket 17):
 the journal reports its own steps (opened, restored with a count, exported,
