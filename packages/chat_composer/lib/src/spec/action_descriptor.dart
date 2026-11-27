@@ -1,3 +1,4 @@
+import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -47,6 +48,7 @@ final class ActionDescriptor {
     this.fill,
     this.onFill,
     this.iconSize,
+    this.capability,
   }) : assert(id != '', 'an action id must not be empty'),
        assert(semanticLabel != '', 'an action needs a semantic label');
 
@@ -106,6 +108,17 @@ final class ActionDescriptor {
   /// Glyph size; null keeps the composer's action icon size.
   final double? iconSize;
 
+  /// The capability the action performs (`sendVoice` for a record button,
+  /// `sendSticker` for a sticker toggle), or null for an action the chat's
+  /// capabilities never deny (attach opens a picker that gates itself).
+  ///
+  /// When the controller's capabilities deny it, the composer draws the
+  /// action in its denied form: dimmed, still focusable, announced as not
+  /// available with the host's denial text as its hint, and a tap reports
+  /// the attempt (`ComposerController.reportDenied`) instead of calling
+  /// [onTap]. Without capabilities it changes nothing.
+  final CapabilityAction? capability;
+
   /// Whether a tap would do anything: visible, enabled and given a handler.
   bool get isTappable => visible && enabled && onTap != null;
 
@@ -123,6 +136,7 @@ final class ActionDescriptor {
     Color? fill,
     Color? onFill,
     double? iconSize,
+    CapabilityAction? capability,
   }) => ActionDescriptor(
     id: id,
     icon: icon ?? this.icon,
@@ -137,5 +151,6 @@ final class ActionDescriptor {
     fill: fill ?? this.fill,
     onFill: onFill ?? this.onFill,
     iconSize: iconSize ?? this.iconSize,
+    capability: capability ?? this.capability,
   );
 }

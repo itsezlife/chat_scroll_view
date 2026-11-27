@@ -57,6 +57,7 @@ import 'text/composer_text_controller_paint_test.dart'
 import 'text/content_span_builder_test.dart' as content_span_builder_test;
 import 'view/composer_actions_test.dart' as composer_actions_test;
 import 'view/composer_bottom_fade_test.dart' as composer_bottom_fade_test;
+import 'view/composer_capabilities_test.dart' as composer_capabilities_test;
 import 'view/composer_caret_reveal_test.dart' as composer_caret_reveal_test;
 import 'view/composer_clipboard_test.dart' as view_composer_clipboard_test;
 import 'view/composer_field_editable_test.dart' as composer_field_editable_test;
@@ -180,6 +181,10 @@ void main() {
   group('text/content_span_builder_test.dart', content_span_builder_test.main);
   group('view/composer_actions_test.dart', composer_actions_test.main);
   group('view/composer_bottom_fade_test.dart', composer_bottom_fade_test.main);
+  group(
+    'view/composer_capabilities_test.dart',
+    composer_capabilities_test.main,
+  );
   group(
     'view/composer_caret_reveal_test.dart',
     composer_caret_reveal_test.main,

@@ -55,7 +55,7 @@ host's two hooks, and packages call them through its methods:
 | Method | When | Returns |
 | --- | --- | --- |
 | `denialText(action, reason)` | a package draws a denied control with text in place | the host's text, or null for the package's silent form |
-| `onDenied(action, reason)` | the user attempts a denied action | nothing; the host shows the feedback |
+| `onDenied(action, reason, consumer:)` | the user attempts a denied action | nothing; the host shows the feedback |
 
 `action` is a `CapabilityAction`, whose names and order are stable;
 `CapabilityAction.forMediaKind` maps a `MediaKind` to its send action.
@@ -69,6 +69,10 @@ final feedback = CapabilityFeedback(
 );
 ```
 
+A package passes its `CapabilityConsumer` (`composer`, `picker`, `panel`,
+`selection`, `outbox`) to `onDenied`, and a send during slow mode its
+`remaining` wait; the hook itself sees only the action and the reason.
+
 ## Diagnostics
 
 `capabilities` events through `ChatDiagnostics.current`, operations in
@@ -79,6 +83,8 @@ final feedback = CapabilityFeedback(
 | `valueChanged` | debug | `groups` (the changed group names), `writeAccess` (its form), `slowModeActive`, `protected` (what protection denies, or `none`), `protectionBits` |
 | `invalidValue` | warning | `rule`, one event per broken `CapabilitiesRule`; debug builds then assert |
 | `denialTextMissing` | debug | `action`, `reason` (its form), `form` (the silent form the package draws, when it names one) |
+| `denied` | info | `action`, `reason` (its form), `consumer`, `remainingMs` (when given); reported by `onDenied` for every attempt, with or without a host hook |
+| `panelChosen` | debug | `writeAccess` (its form), `reason` or `tag` when it has one, `panel`, `builder` (`field`, `host`, `default`); emitted by the composer |
 | `feedbackFailed` | error | `hook` (`denialText` or `onDenied`), `action`, `errorType`; the event carries the error and stack trace |
 
 The feedback events are correlated by the `correlation` the calling package

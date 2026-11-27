@@ -53,6 +53,9 @@ extension type const ChromeIconId._(String value) {
   /// Edit.
   static const ChromeIconId edit = ChromeIconId('edit');
 
+  /// Locked: an input the user may not use here.
+  static const ChromeIconId lock = ChromeIconId('lock');
+
   /// Every id the stock registry paints.
   static const List<ChromeIconId> stockIds = [
     emoji,
@@ -69,5 +72,6 @@ extension type const ChromeIconId._(String value) {
     backspace,
     reply,
     edit,
+    lock,
   ];
 }

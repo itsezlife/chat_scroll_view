@@ -6,6 +6,26 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (chat capabilities)
+
+- `ComposerController` takes the host's `capabilityFeedback` and a
+  `chatId`; without them nothing changes. `denialText` and `reportDenied`
+  (one report per `deniedRepeatWindow`, 2.3 s by default). The rights are
+  read from `ComposerView.capabilities`.
+- The input row follows the write access: `ComposerPanelId.readOnly`,
+  `join`, `requestToJoin`, `restricted` and `writeAccessCustom`
+  (`ComposerPanelId.forWriteAccess`) replace the requested panel, each with
+  a default panel (the host's denial text and `ComposerView.accessAction`,
+  a `ComposerPanelAction`) used when the `panelResolver` returns null.
+- `sending.text` denied locks the field: disabled, the host's text as its
+  placeholder (after a lock on Android), a tap reported as `sendText`.
+- `ActionDescriptor.capability`: an action the chat denies is drawn dimmed
+  (`ComposerDeniedForms`, per platform, `ComposerView.deniedForms`), stays
+  focusable, is announced "…, not available" with the denial text as its
+  hint, and a tap reports the attempt instead of calling `onTap`.
+- The `capabilities` / `panelChosen` diagnostics event
+  (`CapabilitiesOp.panelChosen`); attempts report `denied` through the
+  feedback seam.
 ### Added (capabilities)
 
 - `ComposerView.capabilities`: `limits.messageLength` is the message length

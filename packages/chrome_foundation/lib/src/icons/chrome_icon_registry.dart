@@ -37,6 +37,7 @@ final class ChromeIconRegistry {
     ChromeIconId.backspace: ChromeIconPainter.font(Icons.backspace_outlined),
     ChromeIconId.reply: ChromeIconPainter.font(Icons.reply_rounded),
     ChromeIconId.edit: ChromeIconPainter.font(Icons.edit_rounded),
+    ChromeIconId.lock: ChromeIconPainter.font(Icons.lock_outline_rounded),
   });
 
   final Map<ChromeIconId, ChromeIconPainter> _painters;

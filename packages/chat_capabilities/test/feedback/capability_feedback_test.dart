@@ -19,9 +19,26 @@ void main() {
       expect(feedback.denialText(CapabilityAction.sendText, everyone), isNull);
     });
 
-    test('an attempt reports nothing', () {
-      feedback.onDenied(CapabilityAction.copy, everyone, correlation: chat);
-      expect(diagnostics.events, isEmpty);
+    test('an attempt reaches no host but still reports denied', () {
+      feedback.onDenied(
+        CapabilityAction.copy,
+        everyone,
+        consumer: CapabilityConsumer.selection,
+        correlation: chat,
+      );
+      expect(diagnostics.events, [
+        isChatEvent(
+          level: ChatEventLevel.info,
+          category: ChatEventCategory.capabilities,
+          op: CapabilitiesOp.denied,
+          correlation: chat,
+          fields: {
+            'action': CapabilityAction.copy,
+            'reason': 'everyone',
+            'consumer': CapabilityConsumer.selection,
+          },
+        ),
+      ]);
     });
   });
 
@@ -114,13 +131,69 @@ void main() {
         onDenied: (action, reason) => attempts.add((action, reason)),
       );
       feedback
-        ..onDenied(CapabilityAction.sendNow, restricted)
-        ..onDenied(CapabilityAction.forward, everyone);
+        ..onDenied(
+          CapabilityAction.sendNow,
+          restricted,
+          consumer: CapabilityConsumer.composer,
+        )
+        ..onDenied(
+          CapabilityAction.forward,
+          everyone,
+          consumer: CapabilityConsumer.selection,
+        );
       expect(attempts, [
         (CapabilityAction.sendNow, restricted),
         (CapabilityAction.forward, everyone),
       ]);
-      expect(diagnostics.events, isEmpty);
+    });
+
+    test('each attempt reports denied with its consumer and reason form', () {
+      final feedback = CapabilityFeedback(onDenied: (_, _) {});
+      final until = DateTime.utc(2030);
+      feedback
+        ..onDenied(
+          CapabilityAction.sendNow,
+          DenialReason.restricted(until: until),
+          consumer: CapabilityConsumer.composer,
+          remaining: const Duration(seconds: 12, milliseconds: 5),
+          correlation: chat,
+        )
+        ..onDenied(
+          CapabilityAction.sendSticker,
+          const DenialReason.other('host-tag'),
+          consumer: CapabilityConsumer.panel,
+        );
+      expect(diagnostics.events, [
+        isChatEvent(
+          level: ChatEventLevel.info,
+          op: CapabilitiesOp.denied,
+          correlation: chat,
+          fields: {
+            'action': CapabilityAction.sendNow,
+            'reason': 'restrictedUntil',
+            'consumer': CapabilityConsumer.composer,
+            'remainingMs': 12005,
+          },
+        ),
+        isChatEvent(
+          op: CapabilitiesOp.denied,
+          fields: {
+            'action': CapabilityAction.sendSticker,
+            'reason': 'other(host-tag)',
+            'consumer': CapabilityConsumer.panel,
+          },
+        ),
+      ]);
+    });
+
+    test('the consumer names and order are stable', () {
+      expect(CapabilityConsumer.values.map((c) => c.name), [
+        'composer',
+        'picker',
+        'panel',
+        'selection',
+        'outbox',
+      ]);
     });
 
     test('a throwing hook is swallowed and reports feedbackFailed', () {
@@ -131,11 +204,13 @@ void main() {
         () => feedback.onDenied(
           CapabilityAction.save,
           everyone,
+          consumer: CapabilityConsumer.selection,
           correlation: chat,
         ),
         returnsNormally,
       );
       expect(diagnostics.events, [
+        isChatEvent(op: CapabilitiesOp.denied),
         isChatEvent(
           level: ChatEventLevel.error,
           op: CapabilitiesOp.feedbackFailed,

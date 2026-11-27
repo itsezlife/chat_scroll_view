@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (denied forms, breaking)
+
+- `ComposerStrings.unavailableAction` (required): the label of an action
+  the chat does not allow, from the action's own label. In the English and
+  Russian presets and the snapshot.
+- `ChromeIconId.lock` (a stock icon) and `ChromeHintTiming.controlHint`,
+  how long a hint at a control stays up.
+
 ### Added (the selection header, breaking)
 
 - `AttachStrings.selectedPhotos`, `selectedVideos` and `selectedMedia`
