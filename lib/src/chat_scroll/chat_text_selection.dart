@@ -312,6 +312,7 @@ final class ChatTextSelection {
           messageId: messageId,
           code: text,
           language: language,
+          kind: ChatCodeKind.block,
         );
       }
       return null;
@@ -410,6 +411,7 @@ final class ChatTextSelection {
           messageId: messageId,
           code: text,
           language: language,
+          kind: ChatCodeKind.block,
         );
       }
       if (isBottomBar) {
@@ -421,6 +423,7 @@ final class ChatTextSelection {
           messageId: messageId,
           code: text,
           language: language,
+          kind: ChatCodeKind.block,
         );
       }
       return null;

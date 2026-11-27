@@ -990,7 +990,7 @@ class ChatSelectionController implements Listenable {
     if (_disposed || !_text.isActive || _isCopying) return false;
     final currentSubject = _text.subjectId;
     if (currentSubject case final subject? when !isCopyAllowed(subject)) {
-      _refuseCopy(subject, ChatCopyOrigin.textSelection);
+      _refuseCopy(subject, ChatCopyPath.textSelection);
       return false;
     }
     final text = _text.getText();
@@ -1136,16 +1136,9 @@ class ChatSelectionController implements Listenable {
     // nor handed to the host as [ChatCodeActivated].
     if (hit case ChatInlineHit$Code(
       :final messageId,
-      :final code,
+      :final kind,
     ) when !isCopyAllowed(messageId)) {
-      _refuseCopy(
-        messageId,
-        ChatCopyOrigin.codeTap,
-        gesture: gesture,
-        path: _isFencedCode(messageId, code)
-            ? ChatCopyPath.codeBlock
-            : ChatCopyPath.inlineCode,
-      );
+      _refuseCopy(messageId, ChatCopyPath.ofCode(kind), gesture: gesture);
       return true;
     }
     // A tapped code snippet copies itself when the facade owns the clipboard;
@@ -1230,20 +1223,6 @@ class ChatSelectionController implements Listenable {
       ),
   };
 
-  // Whether [code] is a fenced block of [messageId]'s body (its copy chrome)
-  // rather than an inline span. Asked on a refusal only.
-  bool _isFencedCode(int messageId, String code) =>
-      _text
-          .bodyOf(messageId)
-          ?.blocks
-          .any(
-            (block) => switch (block) {
-              MD$Code(:final text) => text == code,
-              _ => false,
-            },
-          ) ??
-      false;
-
   // --- Copy refusal ---
 
   /// The host's answer to whether a message may be copied; null (the
@@ -1274,27 +1253,20 @@ class ChatSelectionController implements Listenable {
 
   /// Whether a copy of [messageIds] (a message selection, say) is refused:
   /// true when [canCopy] answers false for any of them, after reporting one
-  /// [ChatCopyRefused] for the first such message with [origin].
+  /// [ChatCopyRefused] for the first such message, with [path]'s origin, and
+  /// the `copyRefused` event naming [path].
   ///
   /// The facade writes no message-selection copy itself; a host asks this
   /// before it writes one, so that copy is refused and reported like the
   /// facade's own. False when disposed.
   bool refusesCopy(
     Iterable<int> messageIds, {
-    ChatCopyOrigin origin = ChatCopyOrigin.messageSelection,
+    ChatCopyPath path = ChatCopyPath.messageSelection,
   }) {
     if (_disposed) return false;
     for (final id in messageIds) {
       if (isCopyAllowed(id)) continue;
-      _refuseCopy(
-        id,
-        origin,
-        path: switch (origin) {
-          ChatCopyOrigin.textSelection => ChatCopyPath.textSelection,
-          ChatCopyOrigin.messageSelection => ChatCopyPath.messageSelection,
-          ChatCopyOrigin.codeTap => ChatCopyPath.inlineCode,
-        },
-      );
+      _refuseCopy(id, path);
       return true;
     }
     return false;
@@ -1302,9 +1274,8 @@ class ChatSelectionController implements Listenable {
 
   void _refuseCopy(
     int messageId,
-    ChatCopyOrigin origin, {
+    ChatCopyPath path, {
     ChatInlineGesture? gesture,
-    ChatCopyPath path = ChatCopyPath.textSelection,
   }) {
     ChatDiagnostics.current.emit(
       ChatEventLevel.info,
@@ -1319,7 +1290,7 @@ class ChatSelectionController implements Listenable {
     _notifyInteraction(
       ChatSelectionInteraction.copyRefused(
         messageId: messageId,
-        origin: origin,
+        origin: path.origin,
         gesture: gesture,
       ),
     );
