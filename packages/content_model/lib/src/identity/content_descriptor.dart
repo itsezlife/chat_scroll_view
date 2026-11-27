@@ -255,6 +255,8 @@ final class ContentDescriptor {
     this.spokenName,
     this.shortcode,
     this.pack,
+    this.fileName,
+    this.mimeType,
   }) : assert(byteSize == null || byteSize >= 0, 'byteSize is not negative.');
 
   /// The content this descriptor describes.
@@ -320,6 +322,54 @@ final class ContentDescriptor {
   /// key alone says which content this is.
   final PackId? pack;
 
+  /// The name to show for the content and to save it under, when the host
+  /// knows one. A fact of the content, not of a message that carries it.
+  final String? fileName;
+
+  /// The content's type (a MIME type such as `image/png`), when known. A fact
+  /// of the content, not of a message that carries it.
+  final String? mimeType;
+
+  /// A copy with the given facts replaced. A null argument keeps the current
+  /// value; a descriptor loses a fact by being built again without it.
+  ContentDescriptor copyWith({
+    ContentKey? key,
+    SemanticKind? semanticKind,
+    MediaForm? mediaForm,
+    bool? animated,
+    bool? tintable,
+    bool? locked,
+    ContentSize? size,
+    int? byteSize,
+    Duration? duration,
+    bool? streamable,
+    ThumbnailRef? thumbnail,
+    ContentPreview? preview,
+    String? spokenName,
+    String? shortcode,
+    PackId? pack,
+    String? fileName,
+    String? mimeType,
+  }) => ContentDescriptor(
+    key: key ?? this.key,
+    semanticKind: semanticKind ?? this.semanticKind,
+    mediaForm: mediaForm ?? this.mediaForm,
+    animated: animated ?? this.animated,
+    tintable: tintable ?? this.tintable,
+    locked: locked ?? this.locked,
+    size: size ?? this.size,
+    byteSize: byteSize ?? this.byteSize,
+    duration: duration ?? this.duration,
+    streamable: streamable ?? this.streamable,
+    thumbnail: thumbnail ?? this.thumbnail,
+    preview: preview ?? this.preview,
+    spokenName: spokenName ?? this.spokenName,
+    shortcode: shortcode ?? this.shortcode,
+    pack: pack ?? this.pack,
+    fileName: fileName ?? this.fileName,
+    mimeType: mimeType ?? this.mimeType,
+  );
+
   @override
   bool operator ==(Object other) =>
       other is ContentDescriptor &&
@@ -337,7 +387,9 @@ final class ContentDescriptor {
       other.preview == preview &&
       other.spokenName == spokenName &&
       other.shortcode == shortcode &&
-      other.pack == pack;
+      other.pack == pack &&
+      other.fileName == fileName &&
+      other.mimeType == mimeType;
 
   @override
   int get hashCode => Object.hash(
@@ -356,6 +408,8 @@ final class ContentDescriptor {
     spokenName,
     shortcode,
     pack,
+    fileName,
+    mimeType,
   );
 
   @override
