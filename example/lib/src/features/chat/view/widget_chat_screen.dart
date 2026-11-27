@@ -364,6 +364,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       messageLengthLimit: null,
       capabilities: _rights.capabilities,
       capabilityFeedback: _rights.feedback,
+      panelFeedback: _rights.panelFeedback,
       chatId: _rights.chatId,
       accessAction: _rights.accessAction,
     );

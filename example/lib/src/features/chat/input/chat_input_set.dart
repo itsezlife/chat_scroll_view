@@ -17,6 +17,7 @@ import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/ime_sample_feed.dart';
 import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
+import 'package:chat_scroll_view_example/src/features/chat/capabilities/chat_panel_availability.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_directory.dart';
@@ -139,7 +140,8 @@ final class ChatInputSet {
   /// [capabilities] are the chat's rights, read by the composer, whose
   /// denials go to [capabilityFeedback] under [chatId]; with them the
   /// message length is the capabilities' unless [messageLengthLimit] names
-  /// one.
+  /// one, and the sticker and GIF pages follow them, their attempts going to
+  /// [panelFeedback] (the composer's feedback when null).
   factory ChatInputSet({
     required AppServices services,
     required FlutterView view,
@@ -156,6 +158,7 @@ final class ChatInputSet {
     int? messageLengthLimit = DemoConfig.messageLengthMax,
     listen.ValueListenable<ChatCapabilities>? capabilities,
     CapabilityFeedback capabilityFeedback = CapabilityFeedback.none,
+    CapabilityFeedback? panelFeedback,
     String? chatId,
     ComposerPanelActionResolver? accessAction,
   }) {
@@ -242,6 +245,21 @@ final class ChatInputSet {
         ),
         (shell) => shell.dispose(),
       );
+      // The sticker and GIF pages take the chat's denied form.
+      final pageAvailability = switch (capabilities) {
+        final capabilities? => owned(
+          ChatPanelAvailability(
+            shell: shell,
+            capabilities: capabilities,
+            feedback: panelFeedback ?? capabilityFeedback,
+            chatId: chatId,
+            stickersPageId: MediaPanelPages.stickersId,
+            gifPageId: MediaPanelPages.gifId,
+          ),
+          (availability) => availability.dispose(),
+        ),
+        null => null,
+      };
       // The texture pool creates nothing while the panel's page moves, and
       // is warmed for the page that plays when it opens (ADR 043, "Pool").
       final stopScrollReport = owned(
@@ -312,6 +330,7 @@ final class ChatInputSet {
         popup: popup,
         docked: docked,
         shell: shell,
+        pageAvailability: pageAvailability,
         stopScrollReport: stopScrollReport,
         textureWarmer: textureWarmer,
         presentation: presentation,
@@ -348,12 +367,14 @@ final class ChatInputSet {
     required this.popup,
     required this.docked,
     required this.shell,
+    required ChatPanelAvailability? pageAvailability,
     required VoidCallback stopScrollReport,
     required PanelTextureWarmer? textureWarmer,
     required this.presentation,
     required PanelPlaybackHold playbackHold,
     required this.insets,
   }) : _messageLengthLimit = messageLengthLimit,
+       _pageAvailability = pageAvailability,
        _frames = frames,
        _playbackHold = playbackHold,
        _stopScrollReport = stopScrollReport,
@@ -468,6 +489,9 @@ final class ChatInputSet {
 
   /// The panel's pages, search and events.
   final PanelShellController shell;
+
+  // The sticker and GIF pages' availability, with capabilities.
+  final ChatPanelAvailability? _pageAvailability;
 
   /// Where the panel appears.
   final PanelPresentationController presentation;
@@ -1079,7 +1103,8 @@ final class ChatInputSet {
         // The search field's keyboard goes with its focus; the composer takes
         // it back, still with no keyboard of its own while the panel is up.
         if (isPanelVisible) composer.requestFocus();
-      case ActionInvoked() || PageChanged() || SearchOpened():
+      // A try on a dimmed page is the page availability's to report.
+      case ActionInvoked() || PageChanged() || PageDenied() || SearchOpened():
         break;
     }
   }
@@ -1293,6 +1318,7 @@ final class ChatInputSet {
     docked.dispose();
     _textureWarmer?.dispose();
     _stopScrollReport();
+    _pageAvailability?.dispose();
     shell.dispose();
     ime.dispose();
     _window.dispose();

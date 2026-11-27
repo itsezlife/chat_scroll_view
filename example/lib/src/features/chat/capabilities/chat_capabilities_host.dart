@@ -43,10 +43,10 @@ final class ChatCapabilitiesHost {
        _hint = hintBulletins ?? _touchFamily(),
        _value = listen.ValueNotifier(initial) {
     capabilities = _value.withDiagnostics(chatId: chatId);
-    feedback = CapabilityFeedback(
-      denialText: (action, reason) => strings.text(action, reason, now: _now()),
-      onDenied: _showDenied,
-    );
+    String text(CapabilityAction action, DenialReason reason) =>
+        strings.text(action, reason, now: _now());
+    feedback = CapabilityFeedback(denialText: text, onDenied: _showDenied);
+    panelFeedback = CapabilityFeedback(denialText: text);
   }
 
   /// The host of a demo chat with [rights], resolved now.
@@ -87,6 +87,11 @@ final class ChatCapabilitiesHost {
   /// The denial texts and the report of attempts, passed beside
   /// [capabilities].
   late final CapabilityFeedback feedback;
+
+  /// The panel's feedback: [feedback]'s texts, and attempts reported
+  /// (the `denied` event) but not shown again: the panel shows a try on a
+  /// dimmed page as the hint at its tab.
+  late final CapabilityFeedback panelFeedback;
 
   /// The picker's view of the chat: [capabilities], [feedback] and the id.
   AttachCapabilities get attach => AttachCapabilities(
