@@ -19,7 +19,13 @@ package is pre-1.0.
   `linkPreview` has no preview. A tolerated value is reported as
   `linkPreview` / `codecTolerated` (`LinkPreviewOp`), with the field and the
   kind of problem, never the value.
-
+- Media items ([ADR 047](../../docs/adr/047-message-media.md)): `MediaItem`
+  (id, descriptor, kind, per-item spoiler; the kind defaults from the
+  descriptor and the host's kind wins), `MediaItemId` (host-issued, or
+  `linkPreviewOf(messageId, slot:)` with `LinkPreviewMediaSlot`; a lossless
+  string form read by `parse` / `tryParse`) and `MediaItemKind` (`photo`,
+  `video`, `animation`, `file`, `custom(tag)`; a stable `value`, unknown
+  values decode as `custom`, `fromDescriptor` maps media form and MIME type).
 - Diagnostics events ([ADR 050](../../docs/adr/050-diagnostics-events.md)):
   `ChatDiagnostics`, the process-wide policy chat packages report through
   (`ChatDiagnostics.current`, `silent` by default, `developer`, `onEvent`

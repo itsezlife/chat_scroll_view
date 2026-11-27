@@ -38,6 +38,8 @@ void main() {
     spokenName: 'clip',
     shortcode: ':clip:',
     pack: PackId('pack-1'),
+    fileName: 'clip.mp4',
+    mimeType: 'video/mp4',
   );
 
   final page = LinkPreview(

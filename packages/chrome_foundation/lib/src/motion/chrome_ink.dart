@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:chrome_foundation/src/motion/chrome_ink_scale.dart';
 import 'package:chrome_foundation/src/motion/chrome_motion_scope.dart';
 import 'package:chrome_foundation/src/motion/pointer_menu_motion.dart';
 import 'package:flutter/foundation.dart';
@@ -102,6 +103,7 @@ class ChromeInk extends StatefulWidget {
     this.circleRadius,
     this.behindChild = false,
     this.onHighlightChanged,
+    this.scale,
     super.key,
   });
 
@@ -143,6 +145,12 @@ class ChromeInk extends StatefulWidget {
   /// cancel as the feedback.
   final ValueChanged<bool>? onHighlightChanged;
 
+  /// How the whole target (child and feedback) scales while pressed, or null
+  /// for none. A [ChromeInkBounce] is the Android card's and button's press,
+  /// a [ChromeInkInset] the iOS one's; it runs beside the feedback and
+  /// follows the same press, slop and cancel.
+  final ChromeInkScale? scale;
+
   @override
   State<ChromeInk> createState() => _ChromeInkState();
 }
@@ -152,6 +160,12 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
   late final AnimationController _grow = AnimationController(vsync: this);
   // The ripple's or the highlight's alpha, 0 to 1.
   late final AnimationController _alpha = AnimationController(vsync: this);
+  // The scale of the target: from [_scaleFrom] to [_scaleTo] over this
+  // controller's 0 to 1 on [_scaleCurve].
+  late final AnimationController _scaleClock = AnimationController(vsync: this);
+  var _scaleFrom = 1.0;
+  var _scaleTo = 1.0;
+  Curve _scaleCurve = Curves.linear;
   Offset _origin = Offset.zero;
   var _hovered = false;
   // A press is down; for a highlight it may be away from the target.
@@ -171,6 +185,7 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
   void dispose() {
     _grow.dispose();
     _alpha.dispose();
+    _scaleClock.dispose();
     super.dispose();
   }
 
@@ -180,10 +195,47 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
     widget.onHighlightChanged?.call(shown);
   }
 
+  double get _scaleValue =>
+      _scaleFrom +
+      (_scaleTo - _scaleFrom) * _scaleCurve.transform(_scaleClock.value);
+
+  // Runs the scale to [to] over [duration].
+  void _scaleTowards(double to, Duration duration, Curve curve) {
+    _scaleFrom = _scaleValue;
+    _scaleTo = to;
+    _scaleCurve = curve;
+    _scaleClock
+      ..duration = duration
+      ..forward(from: 0).ignore();
+  }
+
+  void _scaleDown() {
+    final scale = widget.scale;
+    final width = context.size?.width;
+    if (scale == null || width == null || _instant) return;
+    _scaleTowards(
+      scale.pressedScale(width),
+      scale.pressDuration,
+      scale.pressCurve,
+    );
+  }
+
+  void _scaleUp() {
+    final scale = widget.scale;
+    if (scale == null) return;
+    if (_instant) {
+      _scaleClock.stop();
+      _scaleFrom = _scaleTo = 1;
+      return;
+    }
+    _scaleTowards(1, scale.releaseDuration, scale.releaseCurve);
+  }
+
   void _down(Offset position) {
     if (widget.onTap == null) return;
     _pressed = true;
     _setShown(true);
+    _scaleDown();
     setState(() => _origin = position);
     if (_instant) {
       _grow.value = 1;
@@ -249,6 +301,7 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
   void _cancel() {
     if (!_pressed) return;
     _pressed = false;
+    _scaleUp();
     if (_shown) _fade();
     _setShown(false);
   }
@@ -264,6 +317,16 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
       ChromeInkKind.highlight => ChromeInkTiming.highlightFade,
     };
     _alpha.reverse().ignore();
+  }
+
+  Widget _scaled(Widget child) {
+    if (widget.scale == null) return child;
+    return AnimatedBuilder(
+      animation: _scaleClock,
+      child: child,
+      builder: (context, child) =>
+          Transform.scale(scale: _scaleValue, child: child),
+    );
   }
 
   @override
@@ -307,10 +370,12 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
                       ..onCancel = _cancel,
                   ),
           },
-          child: CustomPaint(
-            painter: widget.behindChild ? ink : null,
-            foregroundPainter: widget.behindChild ? null : ink,
-            child: widget.child,
+          child: _scaled(
+            CustomPaint(
+              painter: widget.behindChild ? ink : null,
+              foregroundPainter: widget.behindChild ? null : ink,
+              child: widget.child,
+            ),
           ),
         ),
       ),

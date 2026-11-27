@@ -189,6 +189,8 @@ abstract final class LinkPreviewWire {
     'spokenName': ?value.spokenName,
     'shortcode': ?value.shortcode,
     'pack': ?value.pack?.value,
+    'fileName': ?value.fileName,
+    'mimeType': ?value.mimeType,
   };
 }
 
@@ -392,6 +394,8 @@ final class _WireReader {
         final id? => PackId(id),
         null => null,
       },
+      fileName: string(fields, 'fileName', path: '$path.fileName'),
+      mimeType: string(fields, 'mimeType', path: '$path.mimeType'),
     );
   }
 
