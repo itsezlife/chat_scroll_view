@@ -19,6 +19,9 @@ final class ComposerStrings {
     required this.replyTo,
     required this.editingMessage,
     required this.unavailableAction,
+    required this.slowModeStarted,
+    required this.slowModeEnded,
+    this.slowModeCountdown = minutesSeconds,
   });
 
   /// Hint of the empty message field.
@@ -60,4 +63,30 @@ final class ComposerStrings {
   /// `unavailableAction('Record voice message')` reads "Record voice
   /// message, not available".
   final String Function(String label) unavailableAction;
+
+  /// What assistive technology announces, politely, when slow mode's
+  /// countdown starts, from the wait as [slowModeCountdown] formats it:
+  /// `slowModeStarted('0:30')` reads "Slow mode: you can send again in
+  /// 0:30".
+  final String Function(String countdown) slowModeStarted;
+
+  /// What assistive technology announces, politely, when slow mode's
+  /// countdown ends and the user may send again.
+  final String slowModeEnded;
+
+  /// The wait slow mode's countdown shows, from the time [remaining]:
+  /// [minutesSeconds] (`m:ss`) unless the host formats it otherwise.
+  final String Function(Duration remaining) slowModeCountdown;
+
+  /// [remaining] as `m:ss`, the seconds rounded up, so a countdown reads
+  /// `0:01` until the wait is over: `minutesSeconds(Duration(seconds: 90))`
+  /// is `1:30`. Minutes are not wrapped into hours.
+  static String minutesSeconds(Duration remaining) {
+    const second = Duration.millisecondsPerSecond;
+    final ms = remaining.inMilliseconds;
+    final seconds = ms <= 0 ? 0 : (ms + second - 1) ~/ second;
+    final minutes = seconds ~/ Duration.secondsPerMinute;
+    final rest = seconds % Duration.secondsPerMinute;
+    return '$minutes:${rest.toString().padLeft(2, '0')}';
+  }
 }

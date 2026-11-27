@@ -6,6 +6,16 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (slow mode, breaking)
+
+- `ComposerStrings.slowModeStarted` and `slowModeEnded` (required): what
+  assistive technology announces when slow mode's countdown starts and
+  ends. `ComposerStrings.slowModeCountdown` formats the wait, `m:ss` by
+  default (`ComposerStrings.minutesSeconds`). In the English and Russian
+  presets and the snapshot.
+- `ChromeCountdownTiming`: how often a countdown redraws in a control, in a
+  polled control and in a placeholder.
+
 ### Added (denied forms, breaking)
 
 - `ComposerStrings.unavailableAction` (required): the label of an action

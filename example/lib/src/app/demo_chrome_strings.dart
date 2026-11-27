@@ -68,6 +68,9 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     replyTo: (name) => 'Ответ для $name',
     editingMessage: 'Редактирование сообщения',
     unavailableAction: (label) => '$label, недоступно',
+    slowModeStarted: (countdown) =>
+        'Медленный режим: отправить снова можно через $countdown',
+    slowModeEnded: 'Можно отправить сообщение',
   ),
   formatting: FormattingStrings(
     quoteAction: 'Цитата',

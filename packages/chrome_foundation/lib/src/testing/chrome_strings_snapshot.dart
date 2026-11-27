@@ -1,3 +1,4 @@
+import 'package:chrome_foundation/src/motion/chrome_countdown_timing.dart';
 import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 
 /// A flat view of a [ChromeStrings], for completeness checks in tests.
@@ -65,6 +66,13 @@ abstract final class ChromeStringsSnapshot {
       'composer.replyTo[name]': composer.replyTo('name'),
       'composer.editingMessage': composer.editingMessage,
       'composer.unavailableAction[label]': composer.unavailableAction('label'),
+      'composer.slowModeStarted[countdown]': composer.slowModeStarted('0:30'),
+      'composer.slowModeEnded': composer.slowModeEnded,
+      // 90 s, spelled from a motion constant: only the motion directory
+      // writes a literal duration.
+      'composer.slowModeCountdown[90s]': composer.slowModeCountdown(
+        ChromeCountdownTiming.placeholder * 180,
+      ),
       'formatting.quoteAction': formatting.quoteAction,
       'formatting.spoilerAction': formatting.spoilerAction,
       'formatting.boldAction': formatting.boldAction,

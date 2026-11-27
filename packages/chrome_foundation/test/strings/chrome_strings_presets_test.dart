@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +9,7 @@ const _sameInBoth = {
   'panel.tabLabel[gif]',
   'attach.libraryGif',
   'attach.libraryHighQuality',
+  'composer.slowModeCountdown[90s]',
 };
 
 void main() {
@@ -240,6 +242,28 @@ void main() {
       expect(
         ChromeStringsPresets.russian.panel.tabLabel('stickers'),
         'Стикеры',
+      );
+    });
+  });
+
+  group('slow mode countdown', () {
+    test('formats m:ss with the seconds rounded up', () {
+      String format(int ms) =>
+          ComposerStrings.minutesSeconds(Duration(milliseconds: ms));
+      expect(format(90000), '1:30');
+      expect(format(29001), '0:30');
+      expect(format(1), '0:01');
+      expect(format(0), '0:00');
+      expect(format(-5), '0:00');
+      expect(format(3600000), '60:00');
+    });
+
+    test('is the presets\' default formatter', () {
+      expect(
+        ChromeStringsPresets.english.composer.slowModeCountdown(
+          const Duration(seconds: 5),
+        ),
+        '0:05',
       );
     });
   });

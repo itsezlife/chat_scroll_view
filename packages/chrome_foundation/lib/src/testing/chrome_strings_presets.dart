@@ -81,6 +81,9 @@ abstract final class ChromeStringsPresets {
       replyTo: (name) => 'Reply to $name',
       editingMessage: 'Editing message',
       unavailableAction: (label) => '$label, not available',
+      slowModeStarted: (countdown) =>
+          'Slow mode: you can send again in $countdown',
+      slowModeEnded: 'You can send a message now',
     ),
     formatting: FormattingStrings(
       quoteAction: 'Quote',
@@ -368,6 +371,9 @@ abstract final class ChromeStringsPresets {
       replyTo: (name) => 'Ответ для $name',
       editingMessage: 'Редактирование сообщения',
       unavailableAction: (label) => '$label, недоступно',
+      slowModeStarted: (countdown) =>
+          'Медленный режим: отправить снова можно через $countdown',
+      slowModeEnded: 'Можно отправить сообщение',
     ),
     formatting: FormattingStrings(
       quoteAction: 'Цитата',
