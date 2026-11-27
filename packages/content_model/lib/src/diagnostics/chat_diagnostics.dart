@@ -31,7 +31,7 @@ typedef ChatDeveloperLog =
 /// ChatDiagnostics.current.emit(
 ///   ChatEventLevel.debug,
 ///   ChatEventCategory.capabilities,
-///   CapabilityOp.denied,
+///   CapabilitiesOp.denied,
 ///   correlation: ChatCorrelation(chatId: chatId),
 ///   fields: () => {'action': action.name},
 /// );
@@ -74,14 +74,27 @@ sealed class ChatDiagnostics {
   ///
   /// Never throws: a sink that throws is ignored, so a report inside a
   /// failure path (a `catchError`, an unawaited future) cannot raise a second,
-  /// unhandled error over the first.
+  /// unhandled error over the first. Debug builds write the sink's failure
+  /// to the `dart:developer` log (`chat.diagnostics`), so a broken sink is
+  /// seen during development; release builds drop it.
   void report(ChatEvent event) {
     if (!isEnabled(event.level)) return;
     try {
       _deliver(event);
-    } on Object {
-      // Best-effort by contract: there is no sink left to report the sink's
-      // own failure to.
+    } on Object catch (error, stackTrace) {
+      // Not an assert: it would throw inside the failure path the event
+      // describes, the second error this method exists to prevent. The log
+      // is the sink of last resort.
+      assert(() {
+        developer.log(
+          'A diagnostics sink threw on ${event.op.name}',
+          name: 'chat.diagnostics',
+          level: 1000,
+          error: error,
+          stackTrace: stackTrace,
+        );
+        return true;
+      }(), 'unreachable');
     }
   }
 

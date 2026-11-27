@@ -274,6 +274,16 @@ void main() {
       );
     });
 
+    test('clips a string to the longest a field holds', () {
+      expect(ChatEvent.clip('short'), 'short');
+      expect(ChatEvent.clip('x' * 64), 'x' * 64);
+      expect(ChatEvent.clip('x' * 200), 'x' * 64);
+      expect(
+        () => _event(fields: {'tag': ChatEvent.clip('y' * 200)}),
+        returnsNormally,
+      );
+    });
+
     test('rejects a nested map or a list', () {
       expect(
         () => _event(

@@ -171,6 +171,15 @@ final class ChatEvent {
   /// host, too short for a sentence of user text.
   static const maxStringFieldLength = 64;
 
+  /// [value] cut to [maxStringFieldLength] characters: a host tag, a panel
+  /// id or a type name that may run longer than a field holds.
+  ///
+  /// A call site whose string comes from outside the package clips it, so
+  /// an event never fails its own assert on a host's long tag.
+  static String clip(String value) => value.length <= maxStringFieldLength
+      ? value
+      : value.substring(0, maxStringFieldLength);
+
   /// When it happened.
   final DateTime time;
 
@@ -261,5 +270,8 @@ final class ChatEvent {
   @override
   String toString() =>
       'ChatEvent(${level.name} ${category.name}.${op.name}, $correlation, '
-      'fields: $fields${error == null ? '' : ', error: $error'})';
+      'fields: $fields${switch (error) {
+        final error? => ', error: $error',
+        null => '',
+      }})';
 }

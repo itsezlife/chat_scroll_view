@@ -19,6 +19,10 @@ package is pre-1.0.
   enum implements. `testing.dart` adds `RecordingDiagnostics` (with
   `install`, which restores the previous policy after the test) and the
   `isChatEvent` matcher.
+- `ChatEvent.clip`: a host string (a tag, a panel id, a type name) cut to
+  the 64 characters a field holds, so an event never fails its assert on
+  it. A throwing sink is now written to the `dart:developer` log
+  (`chat.diagnostics`) in debug builds; release builds still drop it.
 - `ChatEventCategory.diagnostics`: the host's diagnostics pipeline itself
   (its journal opening, restoring, exporting, a store that failed).
 - `MediaForm.vectorImage` (`vector_image`): a resolution-independent still,
