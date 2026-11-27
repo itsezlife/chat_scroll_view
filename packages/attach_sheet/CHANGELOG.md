@@ -6,6 +6,24 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (review, breaking)
+
+- The public top-level functions are members of their types:
+  `deriveAttachLimits(capabilities)` is `capabilities.attachLimits`,
+  `attachLimitsOf(listenable, chatId:)` is `listenable.attachLimits(chatId:)`
+  (a `select` with `onValue`, no listenable of its own),
+  `mediaKindOf(kind)` is `kind.mediaKind` and `attachKindOf(kind)` is
+  `kind.attachKind`.
+- `AttachOp` (`limitsDerived`, `pickerOneSend`) replaces the same names in
+  `CapabilitiesOp`; category and names are unchanged.
+- `AttachCapabilityGate.denialText(form:)` takes an `AttachDenialForm`
+  (`galleryPage`, `filesPage`, `filesEmptyState`) in place of a string.
+- A guarded repeat of a tap on a denied kind still reports `denied`, with
+  `repeated: true`, and skips the host's hook.
+- The trace section `chat_scroll_view.capabilities.deriveLimits`.
+- `AttachDeniedPage` names its measures (`textSize`, `emptyStateSize`,
+  `textPadding`, `emptyStatePadding`).
+
 ### Added (denied forms and one-send mode)
 
 - `AttachCapabilities` (the chat's capabilities, the host's

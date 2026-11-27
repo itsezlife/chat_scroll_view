@@ -1,7 +1,7 @@
 /// The picker's attach limits derived from a chat's capabilities.
 ///
-/// **Seam:** `deriveAttachLimits` over a `ChatCapabilities` value, and
-/// `attachLimitsOf` over a capabilities listenable, observed through the
+/// **Seam:** `attachLimits` on a `ChatCapabilities` value and on a
+/// capabilities listenable, observed through the
 /// `AttachLimits` they hold, who is notified, and the diagnostics events.
 library;
 
@@ -13,9 +13,9 @@ import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('deriveAttachLimits', () {
+  group('ChatCapabilities.attachLimits', () {
     test('the default capabilities give exactly the default limits', () {
-      final derived = deriveAttachLimits(const ChatCapabilities());
+      final derived = const ChatCapabilities().attachLimits;
       const today = AttachLimits();
       expect(derived, today);
       expect(derived.allowedKinds, today.allowedKinds);
@@ -41,42 +41,36 @@ void main() {
 
     for (final MapEntry(key: kind, value: attach) in attachOf.entries) {
       test('${kind.name} denied removes ${attach.name} and only it', () {
-        final derived = deriveAttachLimits(
-          ChatCapabilities(
-            sending: SendingCapabilities(
-              media: SendableMedia(
-                allowed: MediaKindSet.all.without(MediaKindSet.of([kind])),
-              ),
+        final derived = ChatCapabilities(
+          sending: SendingCapabilities(
+            media: SendableMedia(
+              allowed: MediaKindSet.all.without(MediaKindSet.of([kind])),
             ),
           ),
-        );
+        ).attachLimits;
         expect(derived.allowedKinds, {...attachOf.values}..remove(attach));
       });
     }
 
     test('voice and round video have no attach kind', () {
-      expect(attachKindOf(MediaKind.voice), isNull);
-      expect(attachKindOf(MediaKind.roundVideo), isNull);
-      final derived = deriveAttachLimits(
-        ChatCapabilities(
-          sending: SendingCapabilities(
-            media: SendableMedia(
-              allowed: MediaKindSet.of([MediaKind.voice, MediaKind.roundVideo]),
-            ),
+      expect(MediaKind.voice.attachKind, isNull);
+      expect(MediaKind.roundVideo.attachKind, isNull);
+      final derived = ChatCapabilities(
+        sending: SendingCapabilities(
+          media: SendableMedia(
+            allowed: MediaKindSet.of([MediaKind.voice, MediaKind.roundVideo]),
           ),
         ),
-      );
+      ).attachLimits;
       expect(derived.allowedKinds, isEmpty);
     });
 
     test(
       'a slow mode gives the one-send-unit limits: an album is one unit',
       () {
-        final derived = deriveAttachLimits(
-          const ChatCapabilities(
-            slowMode: SlowMode(interval: Duration(seconds: 30)),
-          ),
-        );
+        final derived = (const ChatCapabilities(
+          slowMode: SlowMode.active(interval: Duration(seconds: 30)),
+        )).attachLimits;
         expect(derived.groupingAllowed, isTrue);
         expect(derived.singleSelect, isFalse);
         expect(derived.oneSend, isTrue);
@@ -85,18 +79,16 @@ void main() {
     );
 
     test('caption, file size and album size flow through', () {
-      final derived = deriveAttachLimits(
-        const ChatCapabilities(
-          limits: ChatLimits(captionLength: 200, fileSize: 2000, albumSize: 4),
-        ),
-      );
+      final derived = (const ChatCapabilities(
+        limits: ChatLimits(captionLength: 200, fileSize: 2000, albumSize: 4),
+      )).attachLimits;
       expect(derived.captionLength, 200);
       expect(derived.fileSizeLimit, 2000);
       expect(derived.albumSize, 4);
     });
   });
 
-  group('attachLimitsOf', () {
+  group('the listenable attachLimits', () {
     late RecordingDiagnostics diagnostics;
     late FakeChatCapabilitiesSource source;
     late int notified;
@@ -108,7 +100,7 @@ void main() {
     });
 
     test('reads the current limits and follows a change', () {
-      final limits = attachLimitsOf(source, chatId: 'c1');
+      final limits = source.attachLimits(chatId: 'c1');
       expect(limits.value, const AttachLimits());
       limits.addListener(() => notified++);
       source.update(limits: const ChatLimits(albumSize: 4));
@@ -117,11 +109,13 @@ void main() {
     });
 
     test('a slow mode tick that changes only nextSendAt notifies nobody', () {
-      source.update(slowMode: const SlowMode(interval: Duration(seconds: 30)));
-      final limits = attachLimitsOf(source, chatId: 'c1');
+      source.update(
+        slowMode: const SlowMode.active(interval: Duration(seconds: 30)),
+      );
+      final limits = source.attachLimits(chatId: 'c1');
       limits.addListener(() => notified++);
       source.update(
-        slowMode: SlowMode(
+        slowMode: SlowMode.active(
           interval: const Duration(seconds: 30),
           nextSendAt: DateTime(2026),
           pending: true,
@@ -132,7 +126,7 @@ void main() {
     });
 
     test('holds no subscription without listeners', () {
-      final limits = attachLimitsOf(source, chatId: 'c1');
+      final limits = source.attachLimits(chatId: 'c1');
       void listener() {}
       limits.addListener(listener);
       expect(source.isListenedTo, isTrue);
@@ -141,12 +135,14 @@ void main() {
     });
 
     test('reports limitsDerived with no content, once per distinct value', () {
-      final limits = attachLimitsOf(source, chatId: 'c1');
+      final limits = source.attachLimits(chatId: 'c1');
       limits.addListener(() {});
       source
         ..update(limits: const ChatLimits(albumSize: 4, fileSize: 99))
-        ..update(slowMode: const SlowMode(interval: Duration(seconds: 5)));
-      final events = diagnostics.whereOp(CapabilitiesOp.limitsDerived);
+        ..update(
+          slowMode: const SlowMode.active(interval: Duration(seconds: 5)),
+        );
+      final events = diagnostics.whereOp(AttachOp.limitsDerived);
       expect(events, hasLength(3));
       expect(events.first.correlation.chatId, 'c1');
       expect(events.first.fields, {

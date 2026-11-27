@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:attach_model/attach_model.dart';
+import 'package:attach_sheet/src/limits/attach_op.dart';
 import 'package:attach_sheet/src/limits/derive_attach_limits.dart';
 import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:content_model/content_model.dart';
@@ -16,7 +17,7 @@ import 'package:listen/listen.dart' as listen;
 /// chat denies stops joining, a slow mode puts the picker in one-send mode,
 /// and the chat's caption, file and album limits apply when they are
 /// narrower than the host's. Pass the host's own limits rather than
-/// `deriveAttachLimits(capabilities.value)`: limits narrowed at open stay
+/// `capabilities.value.attachLimits`: limits narrowed at open stay
 /// narrow when the chat lifts a right.
 ///
 /// `const ChatCapabilities()` changes nothing, so a picker given it behaves
@@ -56,8 +57,9 @@ final class AttachCapabilities {
 /// (the picker keeps the user's work); the send is refused while they are
 /// there, through `onDenied`, and the pages mark them.
 ///
-/// A tap on a denied kind reports `onDenied` once per [deniedGuard] per
-/// action, so a burst of taps is one report.
+/// A tap on a denied kind reaches the host's `onDenied` once per
+/// [deniedGuard] per action, so a burst of taps is one hint; each tap of the
+/// burst is still logged as `denied` (the repeats `repeated`).
 final class AttachCapabilityGate {
   /// The gate of [capabilities] over [selection]; the selection's limits
   /// now are the host's, kept as the base the chat's rights narrow.
@@ -65,8 +67,7 @@ final class AttachCapabilityGate {
     : base = selection.limits,
       _id = ChatCorrelation(chatId: capabilities.chatId),
       _$chatSending = capabilities.capabilities.select((c) => c.sending),
-      _$limits = attachLimitsOf(
-        capabilities.capabilities,
+      _$limits = capabilities.capabilities.attachLimits(
         chatId: capabilities.chatId,
       ) {
     _$sending = ValueNotifier(_$chatSending.value);
@@ -105,7 +106,7 @@ final class AttachCapabilityGate {
 
   /// Why the chat denies [kind], or null when it allows it.
   DenialReason? reasonFor(AttachKind kind) =>
-      sending.value.media.reasonFor(mediaKindOf(kind));
+      sending.value.media.reasonFor(kind.mediaKind);
 
   /// Whether the chat denies [kind].
   bool denies(AttachKind kind) => reasonFor(kind) != null;
@@ -118,11 +119,11 @@ final class AttachCapabilityGate {
   /// The host's text for [kind] denied, drawn in place as [form] (the
   /// page's name for it, reported when the text is missing); null when the
   /// chat allows [kind] or the host gives none.
-  String? denialText(AttachKind kind, {required String form}) {
+  String? denialText(AttachKind kind, {required AttachDenialForm form}) {
     final reason = reasonFor(kind);
     if (reason == null) return null;
     return _feedback.denialText(
-      CapabilityAction.forMediaKind(mediaKindOf(kind)),
+      CapabilityAction.forMediaKind(kind.mediaKind),
       reason,
       correlation: _id,
       form: form,
@@ -159,15 +160,16 @@ final class AttachCapabilityGate {
   }
 
   void _denied(AttachKind kind, DenialReason reason, {required bool guarded}) {
-    final action = CapabilityAction.forMediaKind(mediaKindOf(kind));
-    if (guarded) {
-      if (_$guards.containsKey(action)) return;
+    final action = CapabilityAction.forMediaKind(kind.mediaKind);
+    final repeated = guarded && _$guards.containsKey(action);
+    if (guarded && !repeated) {
       _$guards[action] = Timer(deniedGuard, () => _$guards.remove(action));
     }
     _feedback.onDenied(
       action,
       reason,
       consumer: CapabilityConsumer.picker,
+      repeated: repeated,
       correlation: _id,
     );
   }
@@ -194,13 +196,17 @@ final class AttachCapabilityGate {
     _$oneSend = next.oneSend;
     // The first value is reported only when it is on: a picker that never
     // enters one-send mode stays quiet.
-    if (was == null ? next.oneSend : was != next.oneSend) _reportOneSend(next);
+    final changed = switch (was) {
+      null => next.oneSend,
+      final was => was != next.oneSend,
+    };
+    if (changed) _reportOneSend(next);
   }
 
   void _reportOneSend(AttachLimits limits) => ChatDiagnostics.current.emit(
     ChatEventLevel.debug,
     ChatEventCategory.capabilities,
-    CapabilitiesOp.pickerOneSend,
+    AttachOp.pickerOneSend,
     correlation: _id,
     fields: () => {'on': limits.oneSend, 'albumCap': limits.albumSize},
   );
@@ -220,12 +226,3 @@ final class AttachCapabilityGate {
     _$guards.clear();
   }
 }
-
-/// The media kind of an attach kind: the chat's right that gates it.
-MediaKind mediaKindOf(AttachKind kind) => switch (kind) {
-  AttachKind.photo => MediaKind.photo,
-  AttachKind.video => MediaKind.video,
-  AttachKind.animation => MediaKind.animation,
-  AttachKind.file => MediaKind.file,
-  AttachKind.audio => MediaKind.audio,
-};

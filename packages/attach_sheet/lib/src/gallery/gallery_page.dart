@@ -12,6 +12,7 @@ import 'package:attach_sheet/src/gallery/gallery_strip_album.dart';
 import 'package:attach_sheet/src/header/attach_selection_header_view.dart';
 import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/limits/attach_denied_page.dart';
+import 'package:attach_sheet/src/limits/attach_op.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/panel/attach_panel.dart';
@@ -776,7 +777,10 @@ class _GalleryViewState extends State<GalleryView> {
           color: ChromeThemeScope.attachOf(context).background,
           child: AttachDeniedPage(
             key: const ValueKey('attach-gallery-denied'),
-            text: gate.denialText(AttachKind.photo, form: 'galleryPage'),
+            text: gate.denialText(
+              AttachKind.photo,
+              form: AttachDenialForm.galleryPage,
+            ),
             form: policy.deniedForm,
             controller: widget.controller,
           ),

@@ -28,6 +28,23 @@ class AttachDeniedPage extends StatelessWidget {
   /// The page's scroll controller.
   final ScrollController? controller;
 
+  /// Size of the text in the [AttachDeniedForm.text] form.
+  static const double textSize = 15;
+
+  /// Size of the text in the [AttachDeniedForm.emptyState] form.
+  static const double emptyStateSize = 16;
+
+  /// Space around the text in the [AttachDeniedForm.text] form: the page's
+  /// side gutter, and room above and below.
+  static const EdgeInsetsDirectional textPadding =
+      EdgeInsetsDirectional.fromSTEB(16, 24, 16, 24);
+
+  /// Space beside the centred text of the [AttachDeniedForm.emptyState]
+  /// form.
+  static const EdgeInsets emptyStatePadding = EdgeInsets.symmetric(
+    horizontal: 32,
+  );
+
   @override
   Widget build(BuildContext context) {
     final palette = ChromeThemeScope.paletteOf(context);
@@ -45,8 +62,8 @@ class AttachDeniedPage extends StatelessWidget {
           style: ChromeTypography.of(context).copyWith(
             color: palette.onSurfaceMuted,
             fontSize: switch (form) {
-              AttachDeniedForm.text => 15,
-              AttachDeniedForm.emptyState => 16,
+              AttachDeniedForm.text => textSize,
+              AttachDeniedForm.emptyState => emptyStateSize,
             },
           ),
         ),
@@ -63,14 +80,14 @@ class AttachDeniedPage extends StatelessWidget {
           ),
           child: switch (form) {
             AttachDeniedForm.text => Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(16, 24, 16, 24),
+              padding: textPadding,
               child: Align(
                 alignment: AlignmentDirectional.topStart,
                 child: label,
               ),
             ),
             AttachDeniedForm.emptyState => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: emptyStatePadding,
               child: Center(child: label),
             ),
           },

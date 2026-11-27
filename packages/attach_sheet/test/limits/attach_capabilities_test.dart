@@ -51,7 +51,7 @@ SendingCapabilities _denying(List<MediaKind> kinds) => SendingCapabilities(
   ),
 );
 
-const _slow = SlowMode(interval: Duration(seconds: 30));
+const _slow = SlowMode$Active(interval: Duration(seconds: 30));
 
 void main() {
   late FakeMediaLibrary library;
@@ -211,7 +211,14 @@ void main() {
         ),
       ]);
       expect(host.interactions, isEmpty, reason: 'onDenied, not a refusal');
-      final denied = diagnostics.whereOp(CapabilitiesOp.denied).single;
+      // Every tap is logged; the repeats skip the host.
+      final burst = diagnostics.whereOp(CapabilitiesOp.denied);
+      expect(burst, hasLength(5));
+      expect(
+        burst.skip(1).map((e) => e.fields['repeated']),
+        everyElement(isTrue),
+      );
+      final denied = burst.first;
       expect(denied.fields, {
         'action': CapabilityAction.sendPhoto,
         'reason': 'everyone',
@@ -355,7 +362,7 @@ void main() {
       expect(find.byKey(const ValueKey('attach-files-denied')), findsOne);
       expect(find.byKey(deniedText), findsNothing);
       final missing = diagnostics.whereOp(CapabilitiesOp.denialTextMissing);
-      expect(missing.last.fields['form'], 'filesPage');
+      expect(missing.last.fields['form'], AttachDenialForm.filesPage);
       expect(missing.last.correlation.chatId, 'c1');
     });
 
@@ -489,7 +496,7 @@ void main() {
       final rig = await open(tester);
       expect(rig.selection.limits, const AttachLimits());
       expect(rig.selection.cap, 100);
-      expect(diagnostics.whereOp(CapabilitiesOp.pickerOneSend), isEmpty);
+      expect(diagnostics.whereOp(AttachOp.pickerOneSend), isEmpty);
     });
 
     testWidgets('pickerOneSend reports on and off, not a slow mode tick', (
@@ -508,7 +515,7 @@ void main() {
       expect(signals, afterOn, reason: 'a tick does not reach the selection');
       source.update(slowMode: SlowMode.none);
 
-      final events = diagnostics.whereOp(CapabilitiesOp.pickerOneSend);
+      final events = diagnostics.whereOp(AttachOp.pickerOneSend);
       expect(
         [for (final e in events) e.fields],
         [

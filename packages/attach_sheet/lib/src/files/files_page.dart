@@ -4,6 +4,7 @@ import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/files/intake_items.dart';
 import 'package:attach_sheet/src/gallery/gallery_page.dart';
 import 'package:attach_sheet/src/limits/attach_denied_page.dart';
+import 'package:attach_sheet/src/limits/attach_op.dart';
 import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/page/attach_page_scope.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
@@ -132,8 +133,8 @@ class _FilesViewState extends State<_FilesView> {
           text: gate.denialText(
             AttachKind.file,
             form: switch (_panel.policy.deniedForm) {
-              AttachDeniedForm.text => 'filesPage',
-              AttachDeniedForm.emptyState => 'filesEmptyState',
+              AttachDeniedForm.text => AttachDenialForm.filesPage,
+              AttachDeniedForm.emptyState => AttachDenialForm.filesEmptyState,
             },
           ),
           form: _panel.policy.deniedForm,
