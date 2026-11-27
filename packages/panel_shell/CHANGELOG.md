@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (tooltip)
+
+- The tab hint (`PanelTabHint`) draws chrome_foundation's `ChromeTooltip`
+  with its `hint` measures; `PanelTabHint.maxWidth` is gone (it is
+  `ChromeTooltipMetrics.hint.maxWidth`).
+
 ### Added (page availability, breaking)
 
 - `PageAvailability`: `available` (the default), `dimmed(hint)`, `hidden`

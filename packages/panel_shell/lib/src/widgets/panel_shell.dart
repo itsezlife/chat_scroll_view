@@ -472,11 +472,13 @@ class _PanelShellState extends State<PanelShell> {
     top: 0,
     child: ListenValueBuilder<({String pageId, String text})?>(
       listenable: _hint,
-      builder: (context, hint) => switch (hint) {
-        (:final pageId, :final text)
-            when _shell.availability.value[pageId] is PageAvailability$Dimmed =>
-          PanelTabHint(link: _tabLinks.of(pageId), text: text, below: below),
-        _ => const SizedBox.shrink(),
+      builder: (context, hint) {
+        final availability = _shell.availability.value;
+        return switch ((hint, availability[hint?.pageId])) {
+          ((:final pageId, :final text), PageAvailability$Dimmed()) =>
+            PanelTabHint(link: _tabLinks.of(pageId), text: text, below: below),
+          _ => const SizedBox.shrink(),
+        };
       },
     ),
   );

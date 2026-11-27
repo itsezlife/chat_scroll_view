@@ -122,50 +122,19 @@ class PanelTabHint extends StatelessWidget {
   /// Space between the tab and the hint.
   static const double gap = 6;
 
-  /// The widest a hint is laid out.
-  static const double maxWidth = 260;
-
   @override
-  Widget build(BuildContext context) {
-    final panel = ChromeThemeScope.panelOf(context);
-    return CompositedTransformFollower(
-      link: link,
-      showWhenUnlinked: false,
-      targetAnchor: below ? Alignment.bottomCenter : Alignment.topCenter,
-      followerAnchor: below ? Alignment.topCenter : Alignment.bottomCenter,
-      offset: Offset(0, below ? gap : -gap),
-      child: IgnorePointer(
-        child: ChromeTextRoot(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: maxWidth),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: panel.tooltipFill,
-                border: Border.all(color: panel.tooltipBorder),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    text,
-                    textAlign: TextAlign.center,
-                    style: ChromeTypography.of(
-                      context,
-                    ).copyWith(color: panel.tooltipText, fontSize: 14),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => CompositedTransformFollower(
+    link: link,
+    showWhenUnlinked: false,
+    targetAnchor: below ? Alignment.bottomCenter : Alignment.topCenter,
+    followerAnchor: below ? Alignment.topCenter : Alignment.bottomCenter,
+    offset: Offset(0, below ? gap : -gap),
+    child: ChromeTooltip(
+      text: text,
+      metrics: ChromeTooltipMetrics.hint,
+      liveRegion: true,
+    ),
+  );
 }
 
 /// The content of a page whose availability is replaced: its text, centred,

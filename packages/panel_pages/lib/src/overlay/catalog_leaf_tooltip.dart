@@ -122,7 +122,7 @@ final class CatalogLeafTooltip {
         IgnorePointer(
           child: CustomSingleChildLayout(
             delegate: _TooltipLayout(cursor: cursor, rtl: rtl),
-            child: _TooltipBox(text: text),
+            child: ChromeTooltip(text: text),
           ),
         ),
       ),
@@ -136,48 +136,6 @@ final class CatalogLeafTooltip {
       ?..remove()
       ..dispose();
     _entry = null;
-  }
-}
-
-/// The box: a 1 px edge, 5 and 2 px of padding and 13 px text, rounded at 3,
-/// with no shadow.
-class _TooltipBox extends StatelessWidget {
-  const _TooltipBox({required this.text});
-
-  final String text;
-
-  static const double _edge = 1;
-  static const EdgeInsets _padding = EdgeInsets.fromLTRB(5, 2, 5, 2);
-  static const double _radius = 3;
-  static const double _maxWidth = 800;
-  static const int _maxLines = 12;
-
-  @override
-  Widget build(BuildContext context) {
-    final panel = ChromeThemeScope.panelOf(context);
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: _maxWidth),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: panel.tooltipFill,
-          border: Border.all(color: panel.tooltipBorder, width: _edge),
-          borderRadius: BorderRadius.circular(_radius),
-        ),
-        child: Padding(
-          padding: _padding + const EdgeInsets.all(_edge),
-          child: Text(
-            text,
-            maxLines: _maxLines,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: panel.tooltipText,
-              fontSize: 13,
-              decoration: TextDecoration.none,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 

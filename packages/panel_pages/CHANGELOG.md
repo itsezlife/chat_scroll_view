@@ -6,6 +6,11 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (tooltip)
+
+- The catalogue's pointer tooltip draws chrome_foundation's `ChromeTooltip`,
+  whose text starts from the chrome face rather than a bare style.
+
 ### Changed (bottom sheet)
 
 - The bottom pack sheet is a `ChromeSheetRoute` with its own motion and

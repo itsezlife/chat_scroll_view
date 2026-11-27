@@ -110,9 +110,10 @@ final class PanelShellController {
     final wanted = remembered != null && _byId.containsKey(remembered)
         ? remembered
         : pages.first.id;
-    _selected = ValueNotifier<String>(
-      availability[wanted]!.isSelectable ? wanted : _fallback() ?? wanted,
-    );
+    _selected = ValueNotifier<String>(switch (availability[wanted]) {
+      PageAvailability(isSelectable: true) => wanted,
+      _ => _fallback() ?? wanted,
+    });
   }
 
   /// The stock [deniedRepeatWindow]: as long as the hint at the tab stays
@@ -305,7 +306,9 @@ final class PanelShellController {
     _availability.value = next;
     final shown = _shownOf(next);
     if (!_sameIds(shown, _shown.value)) _shown.value = shown;
-    if (availability is! PageAvailability$Dimmed) {
+    if (availability case PageAvailability$Dimmed()) {
+      // Still dimmed: the guard of the last hint stands.
+    } else {
       _deniedGuards.remove(pageId)?.cancel();
     }
     String? movedTo;
