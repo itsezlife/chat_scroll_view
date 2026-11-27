@@ -336,14 +336,20 @@ void main() {
       expect(const MediaLayoutPolicy.desktop().fileRowHeight, 60);
     });
 
-    test('the default mosaic is the grouped algorithm on every platform', () {
+    test('the grouped mosaic is the Android and iOS default', () {
       for (final policy in const [
         MediaLayoutPolicy.android(),
         MediaLayoutPolicy.ios(),
-        MediaLayoutPolicy.desktop(),
       ]) {
         expect(policy.mosaicAlgorithm, const GroupedMosaicAlgorithm());
       }
+    });
+
+    test('the desktop mosaic is its own', () {
+      expect(
+        const MediaLayoutPolicy.desktop().mosaicAlgorithm,
+        const DesktopMosaicAlgorithm(),
+      );
     });
 
     test('copyWith replaces one part and keeps the others', () {

@@ -19,6 +19,8 @@ import 'message_media_hit_part_test.dart' as message_media_hit_part_test;
 import 'message_media_state_test.dart' as message_media_state_test;
 import 'mosaic_layout_test.dart' as mosaic_layout_test;
 import 'paint/message_media_view_test.dart' as paint_message_media_view_test;
+import 'policy/desktop_mosaic_algorithm_test.dart'
+    as policy_desktop_mosaic_algorithm_test;
 import 'policy/media_box_sizing_test.dart' as policy_media_box_sizing_test;
 import 'policy/media_corner_policy_test.dart'
     as policy_media_corner_policy_test;
@@ -46,6 +48,10 @@ void main() {
   group('message_media_state_test', message_media_state_test.main);
   group('mosaic_layout_test', mosaic_layout_test.main);
   group('paint/message_media_view_test', paint_message_media_view_test.main);
+  group(
+    'policy/desktop_mosaic_algorithm_test',
+    policy_desktop_mosaic_algorithm_test.main,
+  );
   group('policy/media_box_sizing_test', policy_media_box_sizing_test.main);
   group(
     'policy/media_corner_policy_test',
