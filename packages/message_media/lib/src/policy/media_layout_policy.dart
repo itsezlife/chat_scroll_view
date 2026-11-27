@@ -6,6 +6,7 @@ import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/policy/media_box_sizing.dart';
+import 'package:message_media/src/policy/media_file_stack_policy.dart';
 import 'package:message_media/src/policy/mosaic_algorithm.dart';
 import 'package:meta/meta.dart';
 
@@ -109,7 +110,7 @@ final class MediaFitPolicy {
 /// | [box] | A single box's size and a block's width |
 /// | [mosaicAlgorithm] | Two or more boxes into a mosaic |
 /// | [fit] | Each box kind's fit mode |
-/// | [fileRowHeight] | Interim: a file row's height until the file stack lays its rows out (Android 56, iOS 65, desktop 60) |
+/// | [fileStack] | File and custom items as rows in a vertical stack |
 ///
 /// ## Blocks
 ///
@@ -117,7 +118,8 @@ final class MediaFitPolicy {
 /// box laid out alone, two or more by [mosaicAlgorithm] at the block width.
 /// Consecutive file and custom items make one file stack. A list mixing
 /// them gives consecutive blocks in item order, so every item has exactly
-/// one cell. The link preview's card comes last, a placeholder rect of the
+/// one cell. [fileStack] lays a stack's rows out, its width by its own rule
+/// rather than the box budget. The link preview's card comes last, a placeholder rect of the
 /// block width and no height.
 ///
 /// ## Neighbours
@@ -139,7 +141,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
   const MediaLayoutPolicy({
     required this.box,
     required this.fit,
-    required this.fileRowHeight,
+    required this.fileStack,
     this.mosaicAlgorithm = const GroupedMosaicAlgorithm(),
   });
 
@@ -148,7 +150,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     : this(
         box: const MediaBoxSizing.android(),
         fit: const MediaFitPolicy.android(),
-        fileRowHeight: 56,
+        fileStack: const MediaFileStackPolicy.android(),
       );
 
   /// The iOS family's layout (the default mosaic until its own lands).
@@ -156,7 +158,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     : this(
         box: const MediaBoxSizing.ios(),
         fit: const MediaFitPolicy.ios(),
-        fileRowHeight: 65,
+        fileStack: const MediaFileStackPolicy.ios(),
       );
 
   /// The desktop family's layout (the default mosaic until its own lands).
@@ -164,7 +166,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     : this(
         box: const MediaBoxSizing.desktop(),
         fit: const MediaFitPolicy.desktop(),
-        fileRowHeight: 60,
+        fileStack: const MediaFileStackPolicy.desktop(),
       );
 
   /// Box sizing.
@@ -176,8 +178,8 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
   /// Fit modes.
   final MediaFitPolicy fit;
 
-  /// A file row's interim height.
-  final double fileRowHeight;
+  /// File rows.
+  final MediaFileStackPolicy fileStack;
 
   /// Whether [kind] is laid out as a box (else a file row).
   static bool isBox(MediaItemKind kind) =>
@@ -195,7 +197,14 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
       final sides = _BlockSides.of(input, index: index, count: blockCount);
       final block = run.boxes
           ? _mosaic(run.items, input, top, sides)
-          : _fileStack(run.items, input, top, sides);
+          : fileStack.layout(
+              run.items,
+              input,
+              top: top,
+              topSide: sides.top,
+              bottomSide: sides.bottom,
+              isLastBlock: index == blockCount - 1,
+            );
       blocks.add(block);
       top = block.rect.bottom;
     }
@@ -319,40 +328,6 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     );
   }
 
-  MediaBlock _fileStack(
-    List<MediaItem> items,
-    MediaLayoutInput input,
-    double top,
-    _BlockSides sides,
-  ) {
-    final width = box.blockWidth(input);
-    final cells = [
-      for (final (index, item) in items.indexed)
-        MediaCell(
-          itemId: item.id,
-          kind: item.kind,
-          rect: Rect.fromLTWH(
-            0,
-            top + index * fileRowHeight,
-            width,
-            fileRowHeight,
-          ),
-          neighbours: MediaNeighbours(
-            top: index == 0 ? sides.top : MediaNeighbour.item,
-            bottom: index == items.length - 1
-                ? sides.bottom
-                : MediaNeighbour.item,
-            left: MediaNeighbour.bubbleEdge,
-            right: MediaNeighbour.bubbleEdge,
-          ),
-        ),
-    ];
-    return MediaBlock.fileStack(
-      rect: Rect.fromLTWH(0, top, width, items.length * fileRowHeight),
-      cells: cells,
-    );
-  }
-
   static ChatCorrelation _itemCorrelation(
     MediaLayoutInput input,
     MediaItem item,
@@ -389,12 +364,12 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     MediaBoxSizing? box,
     MosaicAlgorithm? mosaicAlgorithm,
     MediaFitPolicy? fit,
-    double? fileRowHeight,
+    MediaFileStackPolicy? fileStack,
   }) => MediaLayoutPolicy(
     box: box ?? this.box,
     mosaicAlgorithm: mosaicAlgorithm ?? this.mosaicAlgorithm,
     fit: fit ?? this.fit,
-    fileRowHeight: fileRowHeight ?? this.fileRowHeight,
+    fileStack: fileStack ?? this.fileStack,
   );
 }
 

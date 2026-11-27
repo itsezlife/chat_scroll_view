@@ -1,8 +1,10 @@
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
+import 'package:message_media/src/layout/media_file_row.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/paint/media_box_cell.dart';
 import 'package:message_media/src/paint/media_row_cell.dart';
+import 'package:message_media/src/policy/media_file_stack_policy.dart';
 import 'package:message_media/src/policy/media_layout_policy.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -18,6 +20,8 @@ final class MediaCellData {
     required this.family,
     required this.autoplay,
     this.downloadContext,
+    this.fileRow,
+    this.fileStack,
   });
 
   /// The cell: rect, fit, neighbours and resolved corner radii.
@@ -40,6 +44,14 @@ final class MediaCellData {
   /// auto-download rules weigh.
   final AutoDownloadContext? downloadContext;
 
+  /// A file row's laid-out geometry; null for a box, or a row whose layout
+  /// step reported none.
+  final MediaFileRow? fileRow;
+
+  /// The file rows' policy (type, strings, corners, mirroring) a row cell
+  /// draws by; null for a box.
+  final MediaFileStackPolicy? fileStack;
+
   @override
   bool operator ==(Object other) =>
       other is MediaCellData &&
@@ -48,11 +60,21 @@ final class MediaCellData {
       other.block == block &&
       other.family == family &&
       other.autoplay == autoplay &&
-      other.downloadContext == downloadContext;
+      other.downloadContext == downloadContext &&
+      other.fileRow == fileRow &&
+      other.fileStack == fileStack;
 
   @override
-  int get hashCode =>
-      Object.hash(cell, item, block, family, autoplay, downloadContext);
+  int get hashCode => Object.hash(
+    cell,
+    item,
+    block,
+    family,
+    autoplay,
+    downloadContext,
+    fileRow,
+    fileStack,
+  );
 }
 
 /// Builds the widget of one cell, sized to the cell's rect by the view.

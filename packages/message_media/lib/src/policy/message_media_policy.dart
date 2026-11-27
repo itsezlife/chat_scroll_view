@@ -6,6 +6,7 @@ import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/policy/media_autoplay_policy.dart';
 import 'package:message_media/src/policy/media_corner_policy.dart';
+import 'package:message_media/src/policy/media_file_stack_policy.dart';
 import 'package:message_media/src/policy/media_layout_policy.dart';
 
 /// The platform family a [MessageMediaPolicy]'s defaults come from.
@@ -107,6 +108,17 @@ final class MessageMediaPolicy {
 
   /// The cell builders, one per shape.
   final MediaCellBuilders cells;
+
+  /// The file rows' policy the row cells draw by: the default layout
+  /// step's, or the family's own under a host's step.
+  MediaFileStackPolicy get fileStack => switch (layoutStep) {
+    MediaLayoutPolicy(:final fileStack) => fileStack,
+    _ => switch (family) {
+      MessageMediaPlatform.android => const MediaFileStackPolicy.android(),
+      MessageMediaPlatform.ios => const MediaFileStackPolicy.ios(),
+      MessageMediaPlatform.desktop => const MediaFileStackPolicy.desktop(),
+    },
+  };
 
   /// Lays [input] out with [layoutStep] and resolves each cell's corner
   /// radii with [corners].

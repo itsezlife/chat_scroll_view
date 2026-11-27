@@ -137,8 +137,16 @@ void main() {
         ]),
       );
       final block = layout.blocks.single as MediaBlock$FileStack;
-      expect(block.rect, const Rect.fromLTWH(0, 0, 364 * 0.8, 112));
-      expect(block.cells.map((cell) => cell.rect.top), [0, 56]);
+      // A stack is min(364 − 50, 300) wide. Each name ("secret-f1.pdf",
+      // 13 glyphs of the 15 px test font) wraps at 300 − 108 onto two lines
+      // (+16); the second row pulls up 6 and the first gives up 6, and the
+      // last row grows 4 for the time.
+      expect(block.rect, const Rect.fromLTWH(0, 0, 300, 72 + 72 - 12 + 4));
+      expect(block.cells.map((cell) => cell.rect.top), [0, 60]);
+      expect(block.rows.map((row) => row.itemId), [
+        const MediaItemId('f1'),
+        const MediaItemId('f2'),
+      ]);
       expect(block.cells.every((cell) => cell.fit == null), isTrue);
     });
 
@@ -330,10 +338,19 @@ void main() {
   });
 
   group('parts', () {
-    test('each platform pins its file row height', () {
-      expect(const MediaLayoutPolicy.android().fileRowHeight, 56);
-      expect(const MediaLayoutPolicy.ios().fileRowHeight, 65);
-      expect(const MediaLayoutPolicy.desktop().fileRowHeight, 60);
+    test('each platform lays files out by its own file stack policy', () {
+      expect(
+        const MediaLayoutPolicy.android().fileStack,
+        const MediaFileStackPolicy.android(),
+      );
+      expect(
+        const MediaLayoutPolicy.ios().fileStack,
+        const MediaFileStackPolicy.ios(),
+      );
+      expect(
+        const MediaLayoutPolicy.desktop().fileStack,
+        const MediaFileStackPolicy.desktop(),
+      );
     });
 
     test('the default mosaic is the grouped algorithm on every platform', () {

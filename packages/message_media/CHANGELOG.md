@@ -8,6 +8,29 @@ this package is pre-1.0.
 
 ### Added
 
+- The file stack. `MediaFileStackPolicy` (`android()`, `ios()`,
+  `desktop()`, `copyWith`) lays files out as rows in a vertical stack with
+  each platform's bubble width, row metrics with and without a thumbnail,
+  name lines, row pull-ups, the time's growth and the desktop footer line.
+  `MediaBlock$FileStack` now carries a `MediaFileRow` per row (`rows`,
+  `rowOf`) and its `footer`; `MediaLayoutInput.fileCaptionHeights` gives
+  each file its own caption slot; `MediaLayoutChrome.hasFooterInfo` asks
+  for the desktop footer line.
+- `MediaRowCell` draws the row: control or thumbnail, the name cut in the
+  middle (`MiddleElidedText`, `middleElide`), the info line with its
+  progress, the desktop link line; desktop rows mirror in right-to-left
+  lists. Words come from `MediaFileStrings` (English by default), type from
+  `MediaFileText` over `ChromeTypography`; the package now depends on
+  `chrome_foundation`. `MediaCellData` carries `fileRow` and `fileStack`.
+
+### Changed
+
+- `MediaLayoutPolicy.fileRowHeight` is replaced by `fileStack`. A file
+  stack is no longer the box budget wide with fixed 56 / 65 / 60 rows: an
+  Android stack of two is now `min(listWidth − 50, 300)` wide and its rows
+  overlap, so code that asserted the interim rects sees the new ones.
+  `MediaRowCell` takes a `row` and a `policy`.
+
 - The paint step's first part. `MediaCornerPolicy` (`android()`, `ios()`,
   `desktop()`) resolves each cell's numeric `MediaCornerRadii` from its
   neighbours, the joined bubble's side, the list's width class and the

@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:message_media/src/layout/media_corner_radii.dart';
+import 'package:message_media/src/layout/media_file_row.dart';
 
 // --- Neighbours ---
 
@@ -275,10 +276,13 @@ sealed class MediaBlock {
     required List<MediaCell> cells,
   }) = MediaBlock$Mosaic;
 
-  /// File rows, one per item.
+  /// File rows, one per item, each with its laid-out [rows] entry, and the
+  /// [footer] line under the stack where the platform draws one.
   factory MediaBlock.fileStack({
     required Rect rect,
     required List<MediaCell> cells,
+    List<MediaFileRow> rows,
+    Rect? footer,
   }) = MediaBlock$FileStack;
 
   /// The link preview card of [page].
@@ -334,31 +338,66 @@ final class MediaBlock$Mosaic extends MediaBlock {
 }
 
 /// File and custom-kind rows stacked vertically, one row per item.
+///
+/// [rows] holds each row's inner geometry (control or thumbnail, name, info
+/// and link lines, caption slot), in the order of [cells]; a host's own
+/// layout step may leave it empty. [footer] is the extra line some
+/// platforms draw under a stack for views, signature or the edited mark.
 final class MediaBlock$FileStack extends MediaBlock {
   /// A file stack block of [cells].
-  MediaBlock$FileStack({required super.rect, required List<MediaCell> cells})
-    : cells = List.unmodifiable(cells),
-      super._();
+  MediaBlock$FileStack({
+    required super.rect,
+    required List<MediaCell> cells,
+    List<MediaFileRow> rows = const [],
+    this.footer,
+  }) : cells = List.unmodifiable(cells),
+       rows = List.unmodifiable(rows),
+       super._();
 
   @override
   final List<MediaCell> cells;
+
+  /// Each row's inner geometry, in item order.
+  final List<MediaFileRow> rows;
+
+  /// The extra line under the stack, in layout coordinates; null when none.
+  final Rect? footer;
+
+  /// The row of the item [id], or null when the block has none for it.
+  MediaFileRow? rowOf(MediaItemId id) {
+    for (final row in rows) {
+      if (row.itemId == id) return row;
+    }
+    return null;
+  }
 
   @override
   String get kindName => 'fileStack';
 
   @override
-  MediaBlock withCells(List<MediaCell> cells) =>
-      MediaBlock$FileStack(rect: rect, cells: cells);
+  MediaBlock withCells(List<MediaCell> cells) => MediaBlock$FileStack(
+    rect: rect,
+    cells: cells,
+    rows: rows,
+    footer: footer,
+  );
 
   @override
   bool operator ==(Object other) =>
       other is MediaBlock$FileStack &&
       other.rect == rect &&
-      listEquals(other.cells, cells);
+      other.footer == footer &&
+      listEquals(other.cells, cells) &&
+      listEquals(other.rows, rows);
 
   @override
-  int get hashCode =>
-      Object.hash(MediaBlock$FileStack, rect, Object.hashAll(cells));
+  int get hashCode => Object.hash(
+    MediaBlock$FileStack,
+    rect,
+    footer,
+    Object.hashAll(cells),
+    Object.hashAll(rows),
+  );
 
   @override
   String toString() => 'MediaBlock.fileStack($rect, ${cells.length} rows)';

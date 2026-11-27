@@ -31,6 +31,7 @@ final class MediaLayoutChrome {
     this.infoBadgeWidth = 0,
     this.progressLabelWidth = 0,
     this.bubbleRadius = 17,
+    this.hasFooterInfo = false,
   }) : assert(
          timeWidth >= 0 && infoBadgeWidth >= 0 && progressLabelWidth >= 0,
          'Chrome widths are not negative.',
@@ -52,17 +53,27 @@ final class MediaLayoutChrome {
   /// The bubble's corner radius, which picks the time pill's padding.
   final double bubbleRadius;
 
+  /// Whether the message shows views, a signature or the edited mark, which
+  /// some platforms put on an extra line under a file stack.
+  final bool hasFooterInfo;
+
   @override
   bool operator ==(Object other) =>
       other is MediaLayoutChrome &&
       other.timeWidth == timeWidth &&
       other.infoBadgeWidth == infoBadgeWidth &&
       other.progressLabelWidth == progressLabelWidth &&
-      other.bubbleRadius == bubbleRadius;
+      other.bubbleRadius == bubbleRadius &&
+      other.hasFooterInfo == hasFooterInfo;
 
   @override
-  int get hashCode =>
-      Object.hash(timeWidth, infoBadgeWidth, progressLabelWidth, bubbleRadius);
+  int get hashCode => Object.hash(
+    timeWidth,
+    infoBadgeWidth,
+    progressLabelWidth,
+    bubbleRadius,
+    hasFooterInfo,
+  );
 }
 
 /// A link preview to lay out as a card block: the page and the message's
@@ -112,8 +123,10 @@ final class MediaLayoutInput {
     this.joinedBelow = false,
     this.chrome = MediaLayoutChrome.none,
     this.correlation = ChatCorrelation.none,
+    Map<MediaItemId, double> fileCaptionHeights = const {},
   }) : assert(availableWidth >= 0, 'availableWidth is not negative.'),
-       items = List.unmodifiable(items);
+       items = List.unmodifiable(items),
+       fileCaptionHeights = Map.unmodifiable(fileCaptionHeights);
 
   /// The media items, in order.
   final List<MediaItem> items;
@@ -164,6 +177,11 @@ final class MediaLayoutInput {
   /// The chat and message the layout's diagnostics events name.
   final ChatCorrelation correlation;
 
+  /// The measured height of each file's own caption, by item: a file in a
+  /// stack keeps a caption of its own under its row. The caption body is
+  /// the host's text; the file stack reports where each one goes.
+  final Map<MediaItemId, double> fileCaptionHeights;
+
   /// Whether the message has text next to its media.
   bool get hasText => captionPosition != MediaCaptionPosition.none;
 
@@ -191,7 +209,8 @@ final class MediaLayoutInput {
       other.joinedAbove == joinedAbove &&
       other.joinedBelow == joinedBelow &&
       other.chrome == chrome &&
-      other.correlation == correlation;
+      other.correlation == correlation &&
+      _mapEquals(other.fileCaptionHeights, fileCaptionHeights);
 
   @override
   int get hashCode => Object.hash(
@@ -211,7 +230,21 @@ final class MediaLayoutInput {
     joinedBelow,
     chrome,
     correlation,
+    Object.hashAllUnordered(
+      fileCaptionHeights.entries.map((e) => Object.hash(e.key, e.value)),
+    ),
   );
+
+  static bool _mapEquals(
+    Map<MediaItemId, double> a,
+    Map<MediaItemId, double> b,
+  ) {
+    if (a.length != b.length) return false;
+    for (final MapEntry(:key, :value) in a.entries) {
+      if (b[key] != value) return false;
+    }
+    return true;
+  }
 
   static bool _listEquals(List<MediaItem> a, List<MediaItem> b) {
     if (a.length != b.length) return false;

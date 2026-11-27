@@ -77,6 +77,7 @@ class MessageMediaView extends StatelessWidget {
       _report(cell, null, builderName, 'missingItem');
       return const SizedBox.shrink();
     }
+    final isRow = !MediaLayoutPolicy.isBox(cell.kind);
     final data = MediaCellData(
       cell: cell,
       item: item,
@@ -84,6 +85,11 @@ class MessageMediaView extends StatelessWidget {
       family: policy.family,
       autoplay: policy.autoplay.plays(cell, block),
       downloadContext: downloadContext,
+      fileRow: switch (block) {
+        MediaBlock$FileStack() => block.rowOf(cell.itemId),
+        _ => null,
+      },
+      fileStack: isRow ? policy.fileStack : null,
     );
     try {
       return policy.cells.of(cell.kind)(context, data);

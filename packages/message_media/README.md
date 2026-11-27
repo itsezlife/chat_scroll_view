@@ -23,7 +23,7 @@ keeps the default `MediaLayoutPolicy` and replaces one part:
 | `box` (`MediaBoxSizing`) | A single box's size and the width of a block spanning the media budget. `MediaBoxSizing$Android`, `$IOS` and `$Desktop` each list their values, each a field with `copyWith`. |
 | `mosaicAlgorithm` (`MosaicAlgorithm`) | Two or more boxes into a mosaic. `GroupedMosaicAlgorithm` is the default on every platform, with rows bounded by half of `max(list width, screen height)`. |
 | `fit` (`MediaFitPolicy`) | Each box kind's fit mode: `crop`, `blurFit`, `cropIfVisible(fraction)`. |
-| `fileRowHeight` | A file row's height until the file stack lays rows out. |
+| `fileStack` (`MediaFileStackPolicy`) | File and custom items as rows in a vertical stack: the bubble width rule (`MediaFileStackWidth`), row metrics with and without a thumbnail (`MediaFileRowMetrics`, grouped variants on desktop), name lines, pull-ups between rows, the time's growth, the desktop footer line, thumbnail corners (`MediaFileThumbCorners`), mirroring in right-to-left lists, the type (`MediaFileText`), the host's words (`MediaFileStrings`) and the text measure (`MediaFileTextMeasure`). |
 
 Beside the layout step, the policy holds the paint step's parts, each
 replaceable with `copyWith`: `corners` (`MediaCornerPolicy`), `autoplay`
@@ -44,6 +44,19 @@ coordinates, a fit (none for a file row) and a `MediaNeighbour` per side
 (bubble edge, text, item, adjacent bubble), which the paint step reads for
 corner radii.
 
+## File stack
+
+Files never join a mosaic. Each file is a row; a file has a thumbnail when
+its mime type is `image/*` or `video/mp4` or its descriptor carries one.
+The stack block (`MediaBlock$FileStack`) reports each row's inner geometry
+as a `MediaFileRow`: the control or thumbnail, the name's box and line
+count, the info line, the desktop link line, whether the time sits on the
+row (the last file), and the slot for the file's own caption
+(`MediaLayoutInput.fileCaptionHeights`, measured by the host, whose text
+body draws it). The layout measures names with `MediaFileTextMeasure`
+(the framework painter by default); a host drawing rows in a font family
+of its own passes a measure over that family.
+
 ## Paint
 
 `MessageMediaPolicy.layout` resolves each cell's corner radii
@@ -59,8 +72,13 @@ values.
 `MediaItemId`, so a cell keeps its element and binding across any
 re-layout. A cell is built by the policy's builder for its shape: `box`
 (photo, video, animation; default `MediaBoxCell`) or `row` (file and
-custom kinds; default `MediaRowCell`, interim until the file stack lays
-rows out). Replacing one leaves the other. The default cells draw through
+custom kinds; default `MediaRowCell`, which draws a `MediaFileRow`: the
+control, or the thumbnail with the control centred on it, the name cut in
+the middle (`MiddleElidedText`; a tooltip with the full name on desktop),
+and the info line, which shows received / total while bytes arrive). Row
+text starts from `ChromeTypography`; sizes and words come from the
+`MediaFileStackPolicy`. Desktop rows mirror in a right-to-left list,
+mobile rows do not. Replacing one builder leaves the other. The default cells draw through
 `content_assets`' `ContentAssetView`, so the loading stages, status
 control and badge are the media core's; a `ContentAssetProvider` sits
 above the view. A box's fit is decided for the picture

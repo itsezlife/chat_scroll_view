@@ -18,10 +18,13 @@ import 'media_item_keying_test.dart' as media_item_keying_test;
 import 'message_media_hit_part_test.dart' as message_media_hit_part_test;
 import 'message_media_state_test.dart' as message_media_state_test;
 import 'mosaic_layout_test.dart' as mosaic_layout_test;
+import 'paint/media_row_cell_test.dart' as paint_media_row_cell_test;
 import 'paint/message_media_view_test.dart' as paint_message_media_view_test;
 import 'policy/media_box_sizing_test.dart' as policy_media_box_sizing_test;
 import 'policy/media_corner_policy_test.dart'
     as policy_media_corner_policy_test;
+import 'policy/media_file_stack_policy_test.dart'
+    as policy_media_file_stack_policy_test;
 import 'policy/media_layout_policy_test.dart'
     as policy_media_layout_policy_test;
 import 'policy/message_media_policy_test.dart'
@@ -45,11 +48,16 @@ void main() {
   group('message_media_hit_part_test', message_media_hit_part_test.main);
   group('message_media_state_test', message_media_state_test.main);
   group('mosaic_layout_test', mosaic_layout_test.main);
+  group('paint/media_row_cell_test', paint_media_row_cell_test.main);
   group('paint/message_media_view_test', paint_message_media_view_test.main);
   group('policy/media_box_sizing_test', policy_media_box_sizing_test.main);
   group(
     'policy/media_corner_policy_test',
     policy_media_corner_policy_test.main,
+  );
+  group(
+    'policy/media_file_stack_policy_test',
+    policy_media_file_stack_policy_test.main,
   );
   group(
     'policy/media_layout_policy_test',
