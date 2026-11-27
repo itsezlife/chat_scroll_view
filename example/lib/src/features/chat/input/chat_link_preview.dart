@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:content_model/content_model.dart';
@@ -39,6 +40,14 @@ enum ChatLinkPreviewOp implements DiagnosticOp {
   /// `hadDismissal`. A record that cannot be read is the draft store's
   /// `draftDecodeFailed`.
   draftRestored,
+}
+
+/// The operations of the `capabilities` diagnostics events [ChatLinkPreview]
+/// emits for its availability.
+enum ChatLinkPreviewAvailabilityOp implements DiagnosticOp {
+  /// The chat's permission for link previews changed, or was first applied
+  /// (info): `allowed`.
+  linkPreviewsAvailability,
 }
 
 /// Why [ChatLinkPreview] dropped a pending lookup.
@@ -130,6 +139,8 @@ final class ChatLinkPreviewCard {
 /// policy, which decides when search comes back. While the chat does not
 /// allow link previews ([available] false) nothing is looked up, the card is
 /// dropped, and a message with links is sent with its preview `removed`.
+/// Given the chat's `capabilities`, the watcher follows `sending.linkPreviews`
+/// itself, silently: no denial text, no `onDenied`.
 final class ChatLinkPreview {
   /// Watches [text], looking pages up through [resolver]; the cross follows
   /// [policy]. [correlation] gives the ids of the events (the chat).
@@ -138,6 +149,7 @@ final class ChatLinkPreview {
     required LinkPreviewResolver resolver,
     required LinkPreviewDismissalPolicy policy,
     ChatCorrelation Function()? correlation,
+    listen.ValueListenable<ChatCapabilities>? capabilities,
   }) : _text = text,
        _resolver = resolver,
        _correlation = correlation,
@@ -147,6 +159,11 @@ final class ChatLinkPreview {
        ) {
     _lastText = text.text;
     text.addListener(_onText);
+    if (capabilities != null) {
+      _allowance = capabilities.select((c) => c.sending.linkPreviews)
+        ..addListener(_onAllowance);
+      _onAllowance();
+    }
   }
 
   /// How long after the last keystroke the text is read.
@@ -167,6 +184,7 @@ final class ChatLinkPreview {
   late String _lastText;
   var _disposed = false;
   var _available = true;
+  listen.ValueListenable<Capability>? _allowance;
 
   List<Uri> _urls = const [];
   Uri? _chosen;
@@ -241,6 +259,12 @@ final class ChatLinkPreview {
   set available(bool value) {
     if (_disposed || value == _available) return;
     _available = value;
+    _emit(
+      ChatEventLevel.info,
+      ChatLinkPreviewAvailabilityOp.linkPreviewsAvailability,
+      () => {'allowed': value},
+      category: ChatEventCategory.capabilities,
+    );
     if (value) {
       _read();
     } else {
@@ -339,10 +363,20 @@ final class ChatLinkPreview {
     if (_disposed) return;
     _cancel(ChatLinkPreviewCancel.disposed);
     _disposed = true;
+    _allowance?.removeListener(_onAllowance);
     _timer?.cancel();
     _text.removeListener(_onText);
     _card.dispose();
     _draftChanged.dispose();
+  }
+
+  void _onAllowance() {
+    if (_allowance case final allowance?) {
+      available = switch (allowance.value) {
+        Capability$Allowed() => true,
+        Capability$Denied() => false,
+      };
+    }
   }
 
   // --- Reading -------------------------------------------------------------
@@ -540,13 +574,14 @@ final class ChatLinkPreview {
 
   void _emit(
     ChatEventLevel level,
-    ChatLinkPreviewOp op,
+    DiagnosticOp op,
     Map<String, Object> Function() fields, {
+    ChatEventCategory category = ChatEventCategory.linkPreview,
     Object? error,
     StackTrace? stackTrace,
   }) => ChatDiagnostics.current.emit(
     level,
-    ChatEventCategory.linkPreview,
+    category,
     op,
     correlation: _correlation?.call() ?? ChatCorrelation.none,
     fields: fields,
