@@ -52,6 +52,22 @@ Decisions: [ADR 046](../../docs/adr/046-media-picker.md).
 | Confirm box | One `ConfirmBoxController` per box; while `isOpen`, every route (dialog, drop, paste) goes to it. |
 | Outcome | Reads `AttachOutcome.custom(page, payload)` from a host page. |
 
+## Diagnostics
+
+Events through `ChatDiagnostics.current`, category `capabilities`, operations
+in `AttachOp` (no user content):
+
+| Op | Level | Fields |
+| --- | --- | --- |
+| `limitsDerived` | debug | the allowed attach kinds, grouping, single select, the caption, file and album limits, one-send mode |
+| `pickerOneSend` | debug | `on`, and the album cap one send unit holds |
+
+The seam's own events (`denied`, `denialTextMissing` with an
+`AttachDenialForm`, `feedbackFailed`) come from `chat_capabilities`. The
+timeline section `chat_scroll_view.capabilities.deriveLimits` (the limits
+derived from a chat's value) is compiled in with
+`--dart-define=chat_scroll_view.trace=phase`.
+
 ## Rules and values
 
 | Rule | Android | iOS |
