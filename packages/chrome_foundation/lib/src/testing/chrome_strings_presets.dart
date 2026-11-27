@@ -80,6 +80,7 @@ abstract final class ChromeStringsPresets {
       pastePlainAction: 'Paste as plain text',
       replyTo: (name) => 'Reply to $name',
       editingMessage: 'Editing message',
+      unavailableAction: (label) => '$label, not available',
     ),
     formatting: FormattingStrings(
       quoteAction: 'Quote',
@@ -366,6 +367,7 @@ abstract final class ChromeStringsPresets {
       pastePlainAction: 'Вставить без форматирования',
       replyTo: (name) => 'Ответ для $name',
       editingMessage: 'Редактирование сообщения',
+      unavailableAction: (label) => '$label, недоступно',
     ),
     formatting: FormattingStrings(
       quoteAction: 'Цитата',

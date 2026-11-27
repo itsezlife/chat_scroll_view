@@ -64,6 +64,7 @@ abstract final class ChromeStringsSnapshot {
       'composer.pastePlainAction': composer.pastePlainAction,
       'composer.replyTo[name]': composer.replyTo('name'),
       'composer.editingMessage': composer.editingMessage,
+      'composer.unavailableAction[label]': composer.unavailableAction('label'),
       'formatting.quoteAction': formatting.quoteAction,
       'formatting.spoilerAction': formatting.spoilerAction,
       'formatting.boldAction': formatting.boldAction,
