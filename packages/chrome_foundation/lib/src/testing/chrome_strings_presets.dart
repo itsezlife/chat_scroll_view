@@ -67,6 +67,7 @@ abstract final class ChromeStringsPresets {
       saveGifAction: 'Save to GIFs',
       deleteGifAction: 'Delete',
       removePackAction: 'Remove pack',
+      unavailableTab: (label) => '$label, not available',
     ),
     composer: ComposerStrings(
       messageHint: 'Message',
@@ -357,6 +358,7 @@ abstract final class ChromeStringsPresets {
       saveGifAction: 'Сохранить в GIF',
       deleteGifAction: 'Удалить',
       removePackAction: 'Удалить набор',
+      unavailableTab: (label) => '$label, недоступно',
     ),
     composer: ComposerStrings(
       messageHint: 'Сообщение',

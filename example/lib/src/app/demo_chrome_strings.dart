@@ -54,6 +54,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     saveGifAction: 'Сохранить в GIF',
     deleteGifAction: 'Удалить',
     removePackAction: 'Удалить набор',
+    unavailableTab: (label) => '$label, недоступно',
   ),
   composer: ComposerStrings(
     messageHint: 'Сообщение',

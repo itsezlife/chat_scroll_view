@@ -44,6 +44,7 @@ ChromeStrings stringsWith({
       saveGifAction: base.panel.saveGifAction,
       deleteGifAction: base.panel.deleteGifAction,
       removePackAction: base.panel.removePackAction,
+      unavailableTab: base.panel.unavailableTab,
     ),
     composer: base.composer,
     formatting: base.formatting,

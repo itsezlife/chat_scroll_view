@@ -40,6 +40,7 @@ final class PanelStrings {
     required this.saveGifAction,
     required this.deleteGifAction,
     required this.removePackAction,
+    required this.unavailableTab,
   });
 
   /// The name of the panel page registered under [pageId]. Page ids are open
@@ -162,4 +163,9 @@ final class PanelStrings {
   /// The button at the end of a removable pack's section header that removes
   /// the pack (its spoken label).
   final String removePackAction;
+
+  /// The spoken name of a type tab whose page is not available now, from the
+  /// tab's [label]: `unavailableTab('Stickers')` reads "Stickers, not
+  /// available". The tab stays focusable; the reason is its hint.
+  final String Function(String label) unavailableTab;
 }

@@ -54,6 +54,7 @@ abstract final class ChromeStringsSnapshot {
       'panel.saveGifAction': panel.saveGifAction,
       'panel.deleteGifAction': panel.deleteGifAction,
       'panel.removePackAction': panel.removePackAction,
+      'panel.unavailableTab[label]': panel.unavailableTab('label'),
       'composer.messageHint': composer.messageHint,
       'composer.sendAction': composer.sendAction,
       'composer.confirmEditAction': composer.confirmEditAction,

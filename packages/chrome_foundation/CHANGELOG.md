@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (panel page availability, breaking)
+
+- `PanelStrings.unavailableTab` (required): the spoken name of a type tab
+  whose page is not available, from the tab's own label. In the English and
+  Russian presets and the snapshot.
+- `ChromeHintTiming.tabHint`: how long a hint at such a tab stays up
+  (3.5 s), longer than a control's.
+
 ### Added (slow mode, breaking)
 
 - `ComposerStrings.slowModeStarted` and `slowModeEnded` (required): what
