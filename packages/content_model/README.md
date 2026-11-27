@@ -28,6 +28,7 @@ types, so it depends on no workspace package (`scripts/check` enforces both).
 | `GlyphSupport` | Which unicode keys the device draws, and the identity of its emoji art. Optimistic: `true` until known missing. |
 | `KeyValueStore`, `StoredValue` | Namespaced, versioned string persistence; the only way logic packages reach durable storage. |
 | `ContentResolver` | Batched async resolution of bare keys to descriptors. |
+| `LinkPreviewResolver`, `LinkPreviewRequest`, `LinkPreviewState`, `LinkPreviewCompleter` | Candidate URLs, in text order, to the page a link preview shows. The request is a `ValueListenable<LinkPreviewState>` that starts `pending` and moves once to `loaded(page)` or `none`, with `cancel()` (no notification after it; idempotent). `LinkPreviewCompleter` is the producer side for an implementation. |
 | `Pack`, `PackId`, `PackKind` | A published set of stickers, masks or custom emoji: id, kind, title, items in order, cover, official. Its listing is the collection `CollectionId.set(id)` (`Pack.collection`). Install state is not on it. |
 | `PackSource`, `CachingPackSource` | A pack by id: `lookup` answers `found`, `notFound` or `failed` and never throws; `peek` answers without loading. Found packs are kept, concurrent lookups share one fetch. `CachingPackSource` is that memory tier over a host `PackFetch` (its own cache, then the remote). |
 | `ContentLibrary`, `LibraryEdit`, `AppliedEdit` | The user's recent stickers, favourite stickers, saved GIFs (the GIF recents) and installed and archived packs per kind, one `ValueListenable` per list. Changed only by `apply(LibraryEdit)`, local first, with an optional undo window; edits commit in the order they were applied. |
@@ -52,6 +53,7 @@ it and `content_model.dart` never exports it (`scripts/check` enforces both).
 | `KeywordSource` | `FakeKeywordSource` | `KeywordSourceContract.run` |
 | `GlyphSupport` | `FakeGlyphSupport` | `GlyphSupportContract.run` |
 | `ContentResolver` | `FakeContentResolver` (records batches) | `ContentResolverContract.run` |
+| `LinkPreviewResolver` | `FakeLinkPreviewResolver` (scripted answers per candidate list, completes on `completeAll`, records calls and cancels, `failure`) | `LinkPreviewResolverContract.run` |
 | `PackSource` | `FakePackSource` (scripted packs, `gate`, `failure`, `publish`, fetch counts) | `PackSourceContract.run` |
 | `ContentLibrary` | `FakeContentLibrary` (created at once, records commits, `failure`) | `ContentLibraryContract.run` |
 | `LibraryStorage` | `FakeLibraryStorage` (records edits, `gate`, `failure`) | `LibraryStorageContract.run` |

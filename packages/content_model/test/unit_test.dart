@@ -17,6 +17,8 @@ import 'emoji/emoji_only_text_test.dart' as emoji_only_text_test;
 import 'identity/content_descriptor_test.dart' as content_descriptor_test;
 import 'identity/content_key_test.dart' as content_key_test;
 import 'identity/inline_content_ref_test.dart' as inline_content_ref_test;
+import 'link_preview/link_preview_resolver_test.dart'
+    as link_preview_resolver_test;
 import 'link_preview/link_preview_test.dart' as link_preview_test;
 import 'link_preview/link_preview_wire_test.dart' as link_preview_wire_test;
 import 'markdown/markdown_codec_test.dart' as markdown_codec_test;
@@ -54,6 +56,8 @@ import 'testing/fake_glyph_support_test.dart' as fake_glyph_support_test;
 import 'testing/fake_key_value_store_test.dart' as fake_key_value_store_test;
 import 'testing/fake_keyword_source_test.dart' as fake_keyword_source_test;
 import 'testing/fake_library_storage_test.dart' as fake_library_storage_test;
+import 'testing/fake_link_preview_resolver_test.dart'
+    as fake_link_preview_resolver_test;
 import 'testing/fake_pack_source_test.dart' as fake_pack_source_test;
 import 'testing/fake_preference_store_test.dart' as fake_preference_store_test;
 import 'testing/fake_recents_store_test.dart' as fake_recents_store_test;
@@ -72,6 +76,10 @@ void main() {
   group('identity/content_key_test.dart', content_key_test.main);
   group('identity/inline_content_ref_test.dart', inline_content_ref_test.main);
   group('link_preview/link_preview_test.dart', link_preview_test.main);
+  group(
+    'link_preview/link_preview_resolver_test.dart',
+    link_preview_resolver_test.main,
+  );
   group(
     'link_preview/link_preview_wire_test.dart',
     link_preview_wire_test.main,
@@ -141,6 +149,10 @@ void main() {
   group(
     'testing/fake_library_storage_test.dart',
     fake_library_storage_test.main,
+  );
+  group(
+    'testing/fake_link_preview_resolver_test.dart',
+    fake_link_preview_resolver_test.main,
   );
   group('testing/fake_pack_source_test.dart', fake_pack_source_test.main);
   group(

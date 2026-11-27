@@ -8,6 +8,14 @@ package is pre-1.0.
 
 ### Added
 
+- Link preview resolver seam ([ADR 023](../../docs/adr/023-data-layering-and-persistence.md)
+  amendment): `LinkPreviewResolver.resolve(List<Uri>)` returns a
+  `LinkPreviewRequest`, a `ValueListenable<LinkPreviewState>` that starts
+  `pending` and moves once to `loaded(page)` or `none` (a failed lookup is
+  `none`), with an idempotent `cancel()` after which it notifies no more.
+  `LinkPreviewCompleter` keeps those rules for an implementation.
+  `testing.dart` adds `FakeLinkPreviewResolver` and
+  `LinkPreviewResolverContract`.
 - Link preview model and wire ([ADR 034](../../docs/adr/034-rich-text-wire-and-persistence.md)
   amendment): `LinkPreview`, the page (an opaque `type`, a `RichText`
   description, `photo` and `media` descriptors, a nullable `hasLargeMedia`

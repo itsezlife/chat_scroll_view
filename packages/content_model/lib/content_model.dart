@@ -27,6 +27,8 @@ export 'src/identity/content_key.dart';
 export 'src/identity/inline_content_ref.dart';
 export 'src/link_preview/link_preview.dart';
 export 'src/link_preview/link_preview_op.dart';
+export 'src/link_preview/link_preview_resolver.dart';
+export 'src/link_preview/link_preview_state.dart';
 export 'src/link_preview/link_preview_wire.dart';
 export 'src/media/media_item.dart';
 export 'src/media/media_item_id.dart';
