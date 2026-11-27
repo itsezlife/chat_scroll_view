@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:message_media/src/diagnostics/media_trace.dart';
 import 'package:message_media/src/layout/media_corner_radii.dart';
 
 // --- Neighbours ---
@@ -445,7 +446,8 @@ final class MediaWidthMetrics {
 ///
 /// A value: two layouts of the same items compare equal when every block,
 /// cell, rect, fit and neighbour does, and a cell is found by its item in
-/// either ([cellOf]), so two layouts can be matched item by item.
+/// either ([cellOf]), so two layouts can be matched item by item, which is
+/// what [lerp] does.
 @immutable
 final class MediaLayout {
   /// A layout of [blocks] in a box of [size].
@@ -454,11 +456,77 @@ final class MediaLayout {
     required List<MediaBlock> blocks,
     this.widthMetrics,
     this.timePill,
+    List<MediaCell> exiting = const [],
   }) : blocks = List.unmodifiable(blocks),
+       exiting = List.unmodifiable(exiting),
        _cellsById = {
          for (final block in blocks)
            for (final cell in block.cells) cell.itemId: cell,
        };
+
+  /// The layout [t] of the way from [a] to [b], matching cells by item.
+  ///
+  /// - A cell in both interpolates its rect and, when [radii] is set, each
+  ///   corner's radius; without [radii] the corners snap to [b]'s. Its fit,
+  ///   kind and neighbours are [b]'s: they snap.
+  /// - A cell only in [b] sits at its [b] rect (it enters; the transition
+  ///   fades it in).
+  /// - A cell only in [a], or among [a]'s [exiting], is in the result's
+  ///   [exiting] at its [a] rect (it leaves; the transition fades it out).
+  ///   A cell of [a]'s [exiting] that is back in [b] moves from its exit
+  ///   rect.
+  /// - A block of [b] interpolates its rect from the block of [a] of the
+  ///   same kind that shares a cell with it, else from the block of that
+  ///   kind at the same index (a link preview card from [a]'s card); a
+  ///   block with no match takes its [b] rect.
+  /// - The size, the time pill and the caption's wrap width interpolate;
+  ///   a time pill or metrics present on one side only take [b]'s, and the
+  ///   caption width rule snaps.
+  ///
+  /// So `lerp(a, b, 1)` is [b] plus the cells that left, and a transition
+  /// interrupted mid-flight starts its next leg from the frame it reached.
+  factory MediaLayout.lerp(
+    MediaLayout a,
+    MediaLayout b,
+    double t, {
+    bool radii = true,
+  }) {
+    MediaTrace.begin(MediaTrace.lerp);
+    final from = <MediaItemId, MediaCell>{
+      for (final cell in a.exiting) cell.itemId: cell,
+      for (final cell in a.cells) cell.itemId: cell,
+    };
+    final blocks = [
+      for (final (index, block) in b.blocks.indexed)
+        _lerpBlock(_matchOf(a, block, index), block, from, t, radii: radii),
+    ];
+    final exiting = [
+      for (final cell in from.values)
+        if (b.cellOf(cell.itemId) == null) cell,
+    ];
+    final result = MediaLayout(
+      size: Size.lerp(a.size, b.size, t)!,
+      blocks: blocks,
+      widthMetrics: switch ((a.widthMetrics, b.widthMetrics)) {
+        (final from?, final to?) => MediaWidthMetrics(
+          rule: to.rule,
+          captionMaxWidth: lerpDouble(
+            from.captionMaxWidth,
+            to.captionMaxWidth,
+            t,
+          )!,
+        ),
+        (_, final to) => to,
+      },
+      timePill: switch ((a.timePill, b.timePill)) {
+        (final from?, final to?) => Rect.lerp(from, to, t),
+        (_, final to) => to,
+      },
+      exiting: exiting,
+    );
+    MediaTrace.end(MediaTrace.lerp);
+    return result;
+  }
 
   /// The empty layout: no items, no preview.
   static final empty = MediaLayout(size: Size.zero, blocks: const []);
@@ -475,6 +543,13 @@ final class MediaLayout {
   /// The time pill's rect when the time sits on the media; null when it does
   /// not, or until the chrome slots fill it.
   final Rect? timePill;
+
+  /// Cells of items that left the layout and are still painted at their
+  /// last rect while a transition fades them out; empty outside one.
+  ///
+  /// They are not among [cells] and [cellOf] does not find them: they are
+  /// on their way out, not laid out.
+  final List<MediaCell> exiting;
 
   final Map<MediaItemId, MediaCell> _cellsById;
 
@@ -514,7 +589,67 @@ final class MediaLayout {
       blocks: mapped,
       widthMetrics: widthMetrics,
       timePill: timePill,
+      exiting: exiting,
     );
+  }
+
+  /// This layout with [exiting] in place of its own exiting cells.
+  MediaLayout withExiting(List<MediaCell> exiting) => MediaLayout(
+    size: size,
+    blocks: blocks,
+    widthMetrics: widthMetrics,
+    timePill: timePill,
+    exiting: exiting,
+  );
+
+  /// The block of [a] that [block] (at [index] in its layout) moves from.
+  static MediaBlock? _matchOf(MediaLayout a, MediaBlock block, int index) {
+    bool sameKind(MediaBlock other) => other.kindName == block.kindName;
+    final ids = {for (final cell in block.cells) cell.itemId};
+    for (final other in a.blocks) {
+      if (!sameKind(other)) continue;
+      final shares = switch (other) {
+        // A message has one card: it is the same card in both.
+        MediaBlock$LinkPreview() => true,
+        _ => other.cells.any((cell) => ids.contains(cell.itemId)),
+      };
+      if (shares) return other;
+    }
+    if (index < a.blocks.length && sameKind(a.blocks[index])) {
+      return a.blocks[index];
+    }
+    return null;
+  }
+
+  static MediaBlock _lerpBlock(
+    MediaBlock? match,
+    MediaBlock block,
+    Map<MediaItemId, MediaCell> from,
+    double t, {
+    required bool radii,
+  }) {
+    final rect = switch (match) {
+      final match? => Rect.lerp(match.rect, block.rect, t)!,
+      null => block.rect,
+    };
+    final cells = [
+      for (final cell in block.cells)
+        switch (from[cell.itemId]) {
+          final old? => cell.copyWith(
+            rect: Rect.lerp(old.rect, cell.rect, t),
+            radii: radii
+                ? MediaCornerRadii.lerp(old.radii, cell.radii, t)
+                : cell.radii,
+          ),
+          null => cell,
+        },
+    ];
+    return switch (block) {
+      MediaBlock$Mosaic() => MediaBlock$Mosaic(rect: rect, cells: cells),
+      MediaBlock$FileStack() => MediaBlock$FileStack(rect: rect, cells: cells),
+      MediaBlock$LinkPreview(:final page, :final options) =>
+        MediaBlock$LinkPreview(rect: rect, page: page, options: options),
+    };
   }
 
   @override
@@ -523,11 +658,17 @@ final class MediaLayout {
       other.size == size &&
       other.widthMetrics == widthMetrics &&
       other.timePill == timePill &&
-      listEquals(other.blocks, blocks);
+      listEquals(other.blocks, blocks) &&
+      listEquals(other.exiting, exiting);
 
   @override
-  int get hashCode =>
-      Object.hash(size, Object.hashAll(blocks), widthMetrics, timePill);
+  int get hashCode => Object.hash(
+    size,
+    Object.hashAll(blocks),
+    widthMetrics,
+    timePill,
+    Object.hashAll(exiting),
+  );
 
   @override
   String toString() => 'MediaLayout($size, $blocks)';

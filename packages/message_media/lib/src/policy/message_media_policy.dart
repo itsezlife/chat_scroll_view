@@ -1,12 +1,14 @@
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
+import 'package:message_media/src/diagnostics/media_trace.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/policy/media_autoplay_policy.dart';
 import 'package:message_media/src/policy/media_corner_policy.dart';
 import 'package:message_media/src/policy/media_layout_policy.dart';
+import 'package:message_media/src/transition/media_transition_policy.dart';
 
 /// The platform family a [MessageMediaPolicy]'s defaults come from.
 enum MessageMediaPlatform {
@@ -29,7 +31,8 @@ enum MessageMediaPlatform {
 /// [copyWith]: the layout step as a whole ([layoutStep]) or one of the
 /// default step's parts through [MediaLayoutPolicy.copyWith], the corner
 /// values ([corners]), the autoplay flag ([autoplay]), or one cell builder
-/// ([cells], `MediaCellBuilders.copyWith`) leaving the other.
+/// ([cells], `MediaCellBuilders.copyWith`) leaving the other, or the
+/// layout transition's timings ([transition]).
 ///
 /// [layout] runs the step, resolves each cell's corner radii, and reports
 /// `media` / `layoutComputed`; `MessageMediaView` paints the result with the
@@ -44,6 +47,7 @@ final class MessageMediaPolicy {
     required this.corners,
     required this.autoplay,
     this.cells = const MediaCellBuilders(),
+    this.transition = const MediaTransitionPolicy.none(),
   });
 
   /// The Android family's defaults.
@@ -53,6 +57,7 @@ final class MessageMediaPolicy {
         layoutStep: const MediaLayoutPolicy.android(),
         corners: const MediaCornerPolicy.android(),
         autoplay: const MediaAutoplayPolicy.android(),
+        transition: const MediaTransitionPolicy.android(),
       );
 
   /// The iOS family's defaults.
@@ -62,6 +67,7 @@ final class MessageMediaPolicy {
         layoutStep: const MediaLayoutPolicy.ios(),
         corners: const MediaCornerPolicy.ios(),
         autoplay: const MediaAutoplayPolicy.ios(),
+        transition: const MediaTransitionPolicy.ios(),
       );
 
   /// The desktop family's defaults.
@@ -71,6 +77,7 @@ final class MessageMediaPolicy {
         layoutStep: const MediaLayoutPolicy.desktop(),
         corners: const MediaCornerPolicy.desktop(),
         autoplay: const MediaAutoplayPolicy.desktop(),
+        transition: const MediaTransitionPolicy.desktop(),
       );
 
   /// The family of [platform]: Android and iOS their own, every other
@@ -108,14 +115,17 @@ final class MessageMediaPolicy {
   /// The cell builders, one per shape.
   final MediaCellBuilders cells;
 
+  /// How a change of the layout animates (`MessageMediaTransition`).
+  final MediaTransitionPolicy transition;
+
   /// Lays [input] out with [layoutStep] and resolves each cell's corner
   /// radii with [corners].
   MediaLayout layout(MediaLayoutInput input) {
     if (!ChatDiagnostics.current.isEnabled(ChatEventLevel.trace)) {
-      return corners.resolve(layoutStep.layout(input), input);
+      return _layout(input);
     }
     final stopwatch = Stopwatch()..start();
-    final result = corners.resolve(layoutStep.layout(input), input);
+    final result = _layout(input);
     stopwatch.stop();
     ChatDiagnostics.current.emit(
       ChatEventLevel.trace,
@@ -145,6 +155,13 @@ final class MessageMediaPolicy {
     return result;
   }
 
+  MediaLayout _layout(MediaLayoutInput input) {
+    MediaTrace.begin(MediaTrace.layout);
+    final result = corners.resolve(layoutStep.layout(input), input);
+    MediaTrace.end(MediaTrace.layout);
+    return result;
+  }
+
   /// A copy with the given parts replaced.
   MessageMediaPolicy copyWith({
     MessageMediaPlatform? family,
@@ -152,11 +169,13 @@ final class MessageMediaPolicy {
     MediaCornerPolicy? corners,
     MediaAutoplayPolicy? autoplay,
     MediaCellBuilders? cells,
+    MediaTransitionPolicy? transition,
   }) => MessageMediaPolicy(
     family: family ?? this.family,
     layoutStep: layoutStep ?? this.layoutStep,
     corners: corners ?? this.corners,
     autoplay: autoplay ?? this.autoplay,
     cells: cells ?? this.cells,
+    transition: transition ?? this.transition,
   );
 }

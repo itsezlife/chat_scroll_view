@@ -8,6 +8,21 @@ this package is pre-1.0.
 
 ### Added
 
+- Layout transitions. `MediaLayout.lerp` interpolates two layouts by
+  item (rect, corner radii, block rects, size, time pill, caption wrap
+  width; fit and kind snap); the cells that left are in
+  `MediaLayout.exiting` until their exit ends. `MediaTransitionPolicy`
+  (`android()`, `ios()`, `desktop()`, `none()`) holds each platform's
+  move, exit and enter timings, and `MessageMediaPolicy.transition`
+  carries it. `MessageMediaTransition` is the per-message clock
+  (`MediaLayoutTransition` legs, `MediaTransitionFrame` with
+  `MediaCellFade`s), continuing from the current frame when the layout
+  changes mid-flight and jumping to the end under reduce motion.
+  `MessageMediaView` takes `fades` and paints the exiting cells.
+- `media` / `transitionStarted` and `transitionInterrupted` diagnostics,
+  and the package's timeline sections `media.layout`, `media.lerp` and
+  `media.cellBuild`.
+
 - The paint step's first part. `MediaCornerPolicy` (`android()`, `ios()`,
   `desktop()`) resolves each cell's numeric `MediaCornerRadii` from its
   neighbours, the joined bubble's side, the list's width class and the
