@@ -17,6 +17,8 @@ dependencies:
     path: ../content_model
   flutter:
     sdk: flutter
+  # The state's change signals (ADR 023).
+  listen: ^1.0.1
   meta: ^1.17.0
 
 dev_dependencies:

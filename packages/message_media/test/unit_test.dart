@@ -13,6 +13,7 @@ import 'goldens/media_geometry_golden_test.dart'
 import 'grouped_messages_calculate_test.dart'
     as grouped_messages_calculate_test;
 import 'media_item_keying_test.dart' as media_item_keying_test;
+import 'message_media_state_test.dart' as message_media_state_test;
 import 'mosaic_layout_test.dart' as mosaic_layout_test;
 import 'single_media_layout_test.dart' as single_media_layout_test;
 
@@ -27,5 +28,6 @@ void main() {
   );
   group('media_item_keying_test', media_item_keying_test.main);
   group('mosaic_layout_test', mosaic_layout_test.main);
+  group('message_media_state_test', message_media_state_test.main);
   group('single_media_layout_test', single_media_layout_test.main);
 }
