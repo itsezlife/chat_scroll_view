@@ -1,6 +1,7 @@
 /// Goldens of the paint step per platform policy: a single box, albums of
 /// two and three, a box with a caption below (text corners) and a whole
-/// fit over blurred bars.
+/// fit over blurred bars; on the iOS and desktop policies also albums of
+/// four and ten (mixed orientations), each its own mosaic.
 ///
 /// Pictures come from a producer local to the test that answers at once
 /// with a gradient of the item's own size, placed as the attach's fit
@@ -236,4 +237,60 @@ void main() {
       });
     });
   }
+
+  group('desktop mosaic', () {
+    const desktop = MessageMediaPolicy.desktop();
+
+    testWidgets('album of four', (tester) async {
+      await expectScene(tester, 'desktop_album_4', desktop, const [
+        ContentSize(1600, 900),
+        ContentSize(1000, 1000),
+        ContentSize(600, 1000),
+        ContentSize(1600, 900),
+      ]);
+    });
+
+    testWidgets('album of ten', (tester) async {
+      await expectScene(tester, 'desktop_album_10', desktop, const [
+        ContentSize(1600, 900),
+        ContentSize(600, 1000),
+        ContentSize(1000, 1000),
+        ContentSize(1600, 900),
+        ContentSize(900, 1600),
+        ContentSize(1000, 1000),
+        ContentSize(1600, 900),
+        ContentSize(600, 1000),
+        ContentSize(1200, 900),
+        ContentSize(900, 1200),
+      ]);
+    });
+  });
+
+  group('ios mosaic', () {
+    const ios = MessageMediaPolicy.ios();
+
+    testWidgets('album of four', (tester) async {
+      await expectScene(tester, 'ios_album_4', ios, const [
+        ContentSize(1600, 900),
+        ContentSize(1000, 1000),
+        ContentSize(600, 800),
+        ContentSize(1200, 900),
+      ]);
+    });
+
+    testWidgets('album of ten', (tester) async {
+      await expectScene(tester, 'ios_album_10', ios, const [
+        ContentSize(1200, 900),
+        ContentSize(900, 1200),
+        ContentSize(1000, 1000),
+        ContentSize(1600, 900),
+        ContentSize(900, 1600),
+        ContentSize(1200, 900),
+        ContentSize(900, 1200),
+        ContentSize(1000, 1000),
+        ContentSize(1600, 900),
+        ContentSize(900, 1600),
+      ]);
+    });
+  });
 }

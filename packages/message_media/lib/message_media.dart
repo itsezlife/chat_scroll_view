@@ -11,7 +11,9 @@
 /// [computeSingleMediaSize], the default mosaic [GroupedMessages] and
 /// [MosaicLayout], [MediaLayoutMetrics]), what a chat's items remember while
 /// it is open ([MessageMediaState]), and the part a body part hit is on
-/// ([MessageMediaHitPart]).
+/// ([MessageMediaHitPart]), and how a change of the layout animates
+/// ([MediaLayout.lerp], [MediaTransitionPolicy] and the per-message clock
+/// [MessageMediaTransition]).
 library;
 
 export 'src/diagnostics/media_op.dart';
@@ -29,6 +31,8 @@ export 'src/paint/media_cell_builders.dart';
 export 'src/paint/media_row_cell.dart';
 export 'src/paint/message_media_view.dart';
 export 'src/paint/middle_elided_text.dart';
+export 'src/policy/desktop_mosaic_algorithm.dart';
+export 'src/policy/ios_mosaic_algorithm.dart';
 export 'src/policy/media_autoplay_policy.dart';
 export 'src/policy/media_box_sizing.dart';
 export 'src/policy/media_corner_policy.dart';
@@ -42,3 +46,6 @@ export 'src/single_media_layout.dart';
 export 'src/state/media_state_op.dart';
 export 'src/state/message_media_state.dart';
 export 'src/state/message_media_state_scope.dart';
+export 'src/transition/media_layout_transition.dart';
+export 'src/transition/media_transition_policy.dart';
+export 'src/transition/message_media_transition.dart';

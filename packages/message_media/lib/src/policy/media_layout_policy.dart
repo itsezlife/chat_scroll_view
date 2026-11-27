@@ -5,6 +5,8 @@ import 'package:content_model/content_model.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
+import 'package:message_media/src/policy/desktop_mosaic_algorithm.dart';
+import 'package:message_media/src/policy/ios_mosaic_algorithm.dart';
 import 'package:message_media/src/policy/media_box_sizing.dart';
 import 'package:message_media/src/policy/media_file_stack_policy.dart';
 import 'package:message_media/src/policy/mosaic_algorithm.dart';
@@ -20,20 +22,26 @@ abstract interface class MediaLayoutStep {
   MediaLayout layout(MediaLayoutInput input);
 }
 
-/// The fit mode of each box kind.
+/// The fit mode of each box kind alone, and of every box in an album.
 ///
 /// | | Android | iOS | Desktop |
 /// | --- | --- | --- | --- |
 /// | [photo] | crop | blurFit (4 cropped) | cropIfVisible(0.75) |
 /// | [video] | crop | crop | cropIfVisible(0.5) |
 /// | [animation] | crop | crop | cropIfVisible(0.5) |
+/// | [album] | crop | crop | crop |
+///
+/// The per-kind fits are for a box laid out alone, whose size follows its
+/// picture; an album box's size follows the mosaic, so every platform fills
+/// it.
 @immutable
 final class MediaFitPolicy {
-  /// A fit per box kind.
+  /// A fit per box kind alone, and the [album] fit.
   const MediaFitPolicy({
     required this.photo,
     required this.video,
     required this.animation,
+    this.album = const MediaFit.crop(),
   });
 
   /// The Android family: every box crops.
@@ -71,7 +79,10 @@ final class MediaFitPolicy {
   /// An animation's fit.
   final MediaFit animation;
 
-  /// The fit of a box of [kind]; null for a file row.
+  /// The fit of every box in a mosaic of two or more, whatever its kind.
+  final MediaFit album;
+
+  /// The fit of a box of [kind] laid out alone; null for a file row.
   MediaFit? fitOf(MediaItemKind kind) => switch (kind) {
     MediaItemKind.photo => photo,
     MediaItemKind.video => video,
@@ -84,10 +95,12 @@ final class MediaFitPolicy {
     MediaFit? photo,
     MediaFit? video,
     MediaFit? animation,
+    MediaFit? album,
   }) => MediaFitPolicy(
     photo: photo ?? this.photo,
     video: video ?? this.video,
     animation: animation ?? this.animation,
+    album: album ?? this.album,
   );
 
   @override
@@ -95,10 +108,11 @@ final class MediaFitPolicy {
       other is MediaFitPolicy &&
       other.photo == photo &&
       other.video == video &&
-      other.animation == animation;
+      other.animation == animation &&
+      other.album == album;
 
   @override
-  int get hashCode => Object.hash(photo, video, animation);
+  int get hashCode => Object.hash(photo, video, animation, album);
 }
 
 /// The default layout step: boxes into mosaic blocks, file and custom kinds
@@ -109,7 +123,7 @@ final class MediaFitPolicy {
 /// | --- | --- |
 /// | [box] | A single box's size and a block's width |
 /// | [mosaicAlgorithm] | Two or more boxes into a mosaic |
-/// | [fit] | Each box kind's fit mode |
+/// | [fit] | Each box kind's fit mode alone, and the album boxes' fit |
 /// | [fileStack] | File and custom items as rows in a vertical stack |
 ///
 /// ## Blocks
@@ -153,20 +167,22 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
         fileStack: const MediaFileStackPolicy.android(),
       );
 
-  /// The iOS family's layout (the default mosaic until its own lands).
+  /// The iOS family's layout, with its own mosaic ([IosMosaicAlgorithm]).
   const MediaLayoutPolicy.ios()
     : this(
         box: const MediaBoxSizing.ios(),
         fit: const MediaFitPolicy.ios(),
         fileStack: const MediaFileStackPolicy.ios(),
+        mosaicAlgorithm: const IosMosaicAlgorithm(),
       );
 
-  /// The desktop family's layout (the default mosaic until its own lands).
+  /// The desktop family's layout, albums by [DesktopMosaicAlgorithm].
   const MediaLayoutPolicy.desktop()
     : this(
         box: const MediaBoxSizing.desktop(),
         fit: const MediaFitPolicy.desktop(),
         fileStack: const MediaFileStackPolicy.desktop(),
+        mosaicAlgorithm: const DesktopMosaicAlgorithm(),
       );
 
   /// Box sizing.
@@ -308,7 +324,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
           itemId: item.id,
           kind: item.kind,
           rect: rect,
-          fit: fit.fitOf(item.kind),
+          fit: fit.album,
           neighbours: MediaNeighbours(
             top: edges.hasTop ? sides.top : MediaNeighbour.item,
             bottom: edges.hasBottom ? sides.bottom : MediaNeighbour.item,

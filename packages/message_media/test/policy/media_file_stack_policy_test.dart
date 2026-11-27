@@ -403,6 +403,22 @@ void main() {
       expect(base.copyWith(), base);
     });
 
+    test('a transition keeps each row\'s geometry and moves the footer', () {
+      const chrome = MediaLayoutChrome(hasFooterInfo: true);
+      final a = _desktop.layout(
+        _input([_file('a'), _file('b')], chrome: chrome),
+      );
+      final b = _desktop.layout(
+        _input([_file('a'), _file('b'), _file('c')], chrome: chrome),
+      );
+      final mid = MediaLayout.lerp(a, b, 0.5);
+      final stack = mid.blocks.single as MediaBlock$FileStack;
+      final end = b.blocks.single as MediaBlock$FileStack;
+      final start = a.blocks.single as MediaBlock$FileStack;
+      expect(stack.rows, end.rows);
+      expect(stack.footer, Rect.lerp(start.footer, end.footer, 0.5));
+    });
+
     test('a layout of files is a value', () {
       final input = _input([_file('a'), _image('b')]);
       expect(_android.layout(input), _android.layout(input));

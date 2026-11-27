@@ -8,6 +8,43 @@ this package is pre-1.0.
 
 ### Added
 
+- `IosMosaicAlgorithm`, the iOS family's mosaic, now the
+  `MediaLayoutPolicy.ios()` `mosaicAlgorithm`: a fixed pattern by
+  orientation mix for two to four boxes, else the best split into two to
+  four rows, within 300 × 380 on a compact list and 440 × 440 on a regular
+  one (`maxSizeFor`), seams of 1. A pattern that would leave a box no area
+  is laid in rows instead and reports `layoutFallback` with the new rule
+  `MediaLayoutFallbackRule.mosaicRows`. iOS albums now lay out differently
+  from the Android ones; a row-laid album can be up to a few pixels wider
+  than the block width, as rows round each box up.
+- `MediaCornerPolicy.ios()` rounds a corner between two boxes with 0 on a
+  compact list and 5 on a regular one (was 4).
+- `MediaFitPolicy.album`: the fit of every box in a mosaic of two or more,
+  `crop` on every platform. An album box's size follows the mosaic, not its
+  picture, so it fills. Existing albums on iOS (photos were `blurFit`) and
+  desktop (`cropIfVisible`) now crop each box; a box laid out alone keeps
+  its kind's fit.
+
+- Layout transitions. `MediaLayout.lerp` interpolates two layouts by
+  item (rect, corner radii, block rects, size, time pill, caption wrap
+  width; fit and kind snap); the cells that left are in
+  `MediaLayout.exiting` until their exit ends. `MediaTransitionPolicy`
+  (`android()`, `ios()`, `desktop()`, `none()`) holds each platform's
+  move, exit and enter timings, and `MessageMediaPolicy.transition`
+  carries it. `MessageMediaTransition` is the per-message clock
+  (`MediaLayoutTransition` legs, `MediaTransitionFrame` with
+  `MediaCellFade`s), continuing from the current frame when the layout
+  changes mid-flight and jumping to the end under reduce motion.
+  `MessageMediaView` takes `fades` and paints the exiting cells.
+- `media` / `transitionStarted` and `transitionInterrupted` diagnostics,
+  and the package's timeline sections `media.layout`, `media.lerp` and
+  `media.cellBuild`.
+- `DesktopMosaicAlgorithm` (`name` `desktop`; `maxWidth` 430, `minWidth`
+  100, `spacing` 4), the desktop policy's album layout: fixed forms for two
+  to four items, lines for five or more or a very wide item, laid out at
+  430 and scaled down to the block width. `MediaCornerPolicy.desktop()`
+  squares the corners between boxes (`item` 0, was the interim 4); the
+  desktop album goldens changed with it.
 - The file stack. `MediaFileStackPolicy` (`android()`, `ios()`,
   `desktop()`, `copyWith`) lays files out as rows in a vertical stack with
   each platform's bubble width, row metrics with and without a thumbnail,

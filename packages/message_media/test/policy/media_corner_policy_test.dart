@@ -32,14 +32,14 @@ final _platforms = <String, _Values>{
     edge: 16,
     joined: 7,
     text: 0,
-    item: 4,
+    item: 0,
   ),
   'desktop': (
     policy: const MediaCornerPolicy.desktop(),
     edge: 17,
     joined: 6,
     text: 0,
-    item: 4,
+    item: 0,
   ),
 };
 
@@ -223,7 +223,7 @@ void main() {
       expect(ios.bubbleEdgeInset, 1);
       expect(ios.adjacentBubble, const MediaListRadius(compact: 7, regular: 8));
       expect(ios.text, const MediaListRadius(compact: 0, regular: 5));
-      expect(ios.item, const MediaListRadius.all(4));
+      expect(ios.item, const MediaListRadius(compact: 0, regular: 5));
       expect(ios.tail, MediaTailRule.none);
       expect(ios.compactListMaxWidth, 680);
       const desktop = MediaCornerPolicy.desktop();
@@ -231,7 +231,7 @@ void main() {
       expect(desktop.bubbleEdgeInset, 0);
       expect(desktop.adjacentBubble, const MediaListRadius.all(6));
       expect(desktop.text, const MediaListRadius.all(0));
-      expect(desktop.item, const MediaListRadius.all(4));
+      expect(desktop.item, const MediaListRadius.all(0));
       expect(desktop.tail, MediaTailRule.desktop);
     });
   });

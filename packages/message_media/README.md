@@ -21,13 +21,14 @@ keeps the default `MediaLayoutPolicy` and replaces one part:
 | Part | Role |
 | --- | --- |
 | `box` (`MediaBoxSizing`) | A single box's size and the width of a block spanning the media budget. `MediaBoxSizing$Android`, `$IOS` and `$Desktop` each list their values, each a field with `copyWith`. |
-| `mosaicAlgorithm` (`MosaicAlgorithm`) | Two or more boxes into a mosaic. `GroupedMosaicAlgorithm` is the default on every platform, with rows bounded by half of `max(list width, screen height)`. |
-| `fit` (`MediaFitPolicy`) | Each box kind's fit mode: `crop`, `blurFit`, `cropIfVisible(fraction)`. |
+| `mosaicAlgorithm` (`MosaicAlgorithm`) | Two or more boxes into a mosaic. `GroupedMosaicAlgorithm` is the default, with rows bounded by half of `max(list width, screen height)`. The iOS policy uses `IosMosaicAlgorithm`: a fixed pattern by orientation for two to four boxes, else the best split into two to four rows, within the list class's max size (300 × 380 compact, 440 × 440 regular). The desktop policy uses `DesktopMosaicAlgorithm`, laid out at 430 and scaled to the block width. |
+| `fit` (`MediaFitPolicy`) | Each box kind's fit mode alone: `crop`, `blurFit`, `cropIfVisible(fraction)`; and `album`, the fit of every box in a mosaic of two or more (`crop` on every platform). |
 | `fileStack` (`MediaFileStackPolicy`) | File and custom items as rows in a vertical stack: the bubble width rule (`MediaFileStackWidth`), row metrics with and without a thumbnail (`MediaFileRowMetrics`, grouped variants on desktop), name lines, pull-ups between rows, the time's growth, the desktop footer line, thumbnail corners (`MediaFileThumbCorners`), mirroring in right-to-left lists, the type (`MediaFileText`), the host's words (`MediaFileStrings`) and the text measure (`MediaFileTextMeasure`). |
 
 Beside the layout step, the policy holds the paint step's parts, each
 replaceable with `copyWith`: `corners` (`MediaCornerPolicy`), `autoplay`
-(`MediaAutoplayPolicy`, a host flag) and `cells` (`MediaCellBuilders`).
+(`MediaAutoplayPolicy`, a host flag), `cells` (`MediaCellBuilders`) and
+`transition` (`MediaTransitionPolicy`).
 
 ## Layout
 
@@ -86,6 +87,31 @@ above the view. A box's fit is decided for the picture
 same cache entry (its preview or thumbnail until the content arrives).
 Videos and animations play inline, muted, as `MediaAutoplayPolicy` says.
 
+## Transitions
+
+`MediaLayout.lerp(a, b, t)` interpolates two layouts cell by cell, matched
+by `MediaItemId`: rect and each corner's radius (or the corners snap), the
+fit and kind snap, block rects, the size, the time pill and the caption's
+wrap width follow. A cell only in `b` enters at its rect; a cell only in
+`a` is in the result's `exiting`, painted at its last rect until its exit
+ends.
+
+`MessageMediaTransition` is one message's clock: each new layout animates
+from the frame on screen (so a change mid-flight continues from where it
+is), and its `builder` gets every `MediaTransitionFrame` to drive the
+bubble and the caption from the same clock. The widget is the frame's
+size, so the row reports an interpolated height and the viewport's anchor
+and follow-tail rules move the rows around it. `MediaLayoutTransition` is
+the pure leg underneath.
+
+| `MediaTransitionPolicy` | Android | iOS | Desktop |
+| --- | --- | --- | --- |
+| move | 250 ms, the list-item change curve | 400 ms, the system list curve; corners snap | none |
+| exit | 120 ms fade; the move waits 120 ms | 250 ms fade | none |
+| enter | 250 ms fade, scale 0.9 → 1 | 250 ms fade | none |
+
+With `MediaQuery.disableAnimations` every change jumps to its end.
+
 ## Geometry
 
 | Type | Role |
@@ -101,14 +127,20 @@ Videos and animations play inline, muted, as `MediaAutoplayPolicy` says.
 
 `media` events through `ChatDiagnostics.current` (`MediaOp`):
 `layoutComputed` (trace) for every layout, `layoutFallback` (debug) when a
-box takes a fallback rule, `unknownKind` (warning) when a custom kind is
+box takes a fallback rule (`mosaicRows` when an iOS pattern would leave a
+box no area and the album is laid in rows), `unknownKind` (warning) when a custom kind is
 drawn as a file row, `cellFailed` (error) when a cell builder throws or a
-cell's item is missing. They carry the chat, message and item ids, never a
-caption, a file name or a page.
+cell's item is missing, `transitionStarted` and `transitionInterrupted`
+(trace) for each layout change and each change mid-flight. They carry the
+chat, message and item ids, never a caption, a file name or a page.
+
+Timeline sections (`--dart-define=chat_scroll_view.trace=phase`):
+`chat_scroll_view.media.layout`, `chat_scroll_view.media.lerp`, and at
+`fine` `chat_scroll_view.media.cellBuild` per cell.
 
 ## Goldens
 
 `test/goldens/` holds the single box and mosaic scenes, laid out by the
 Android policy, and the painted view per platform policy (single box,
-albums of two and three, a captioned box, a whole fit over blurred bars). Baselines are the CI runner's; compare or regenerate them
+albums of two and three, of four and ten on iOS, a captioned box, a whole fit over blurred bars). Baselines are the CI runner's; compare or regenerate them
 with `scripts/goldens [--update]`.
