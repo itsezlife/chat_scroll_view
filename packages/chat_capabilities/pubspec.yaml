@@ -1,0 +1,21 @@
+name: chat_capabilities
+description: >
+  Pure-Dart chat capabilities: what the user may do in one chat, as outcomes
+  with denial reasons, and a per-group listenable selection.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  # For the diagnostics contract only (ChatDiagnostics, DiagnosticOp); the
+  # value takes no content identity type.
+  content_model:
+    path: ../content_model
+  listen: ^1.0.1
+  meta: ^1.17.0
+
+dev_dependencies:
+  test: ^1.25.0
