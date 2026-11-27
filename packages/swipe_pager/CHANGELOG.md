@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (a new controller)
+
+- A pager handed another `SwipePagerController` follows it. It used to
+  throw on the switch, since each controller animates on a ticker of the
+  pager's own and the pager could only make one.
+
 ### Changed (an off-screen page says it is invisible)
 
 - A page that is not on screen is under an invisible `Visibility` that keeps

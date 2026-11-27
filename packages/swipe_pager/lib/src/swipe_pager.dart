@@ -518,7 +518,7 @@ class SwipePager extends StatefulWidget {
 }
 
 class _SwipePagerState extends State<SwipePager>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   SwipePagerController? _own;
   late SwipePagerController _controller;
   late final SwipeDragRecognizer _recognizer = SwipeDragRecognizer(

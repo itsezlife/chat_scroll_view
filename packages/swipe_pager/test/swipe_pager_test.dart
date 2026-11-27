@@ -368,6 +368,23 @@ void main() {
       expect(created.keys, [2]);
     });
 
+    testWidgets('a pager handed another controller follows it and still '
+        'slides', (tester) async {
+      await pump(tester);
+      final next = SwipePagerController(initialPage: 2);
+      addTearDown(next.dispose);
+      final previous = controller;
+      controller = next;
+      await pump(tester);
+      expect(find.text('page 2'), findsOneWidget);
+
+      unawaited(next.animateTo(0));
+      await tester.pumpAndSettle();
+      expect(next.page, 0);
+      expect(find.text('page 0'), findsOneWidget);
+      controller = previous;
+    });
+
     testWidgets('after dispose, moves are silent', (tester) async {
       final spent = SwipePagerController()..dispose();
       spent.jumpTo(3);
