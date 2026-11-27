@@ -32,6 +32,18 @@ sealed class WriteAccess {
 
   /// Whether the user may write.
   bool get canWrite => false;
+
+  /// The form alone, for diagnostics events: `canWrite`, `readOnly`,
+  /// `join`, `requestToJoin`, `restricted` or `custom`. A restriction's
+  /// reason and a host form's tag are left out, so the field stays short.
+  String get diagnosticForm => switch (this) {
+    WriteAccess$CanWrite() => 'canWrite',
+    WriteAccess$ReadOnly() => 'readOnly',
+    WriteAccess$Join() => 'join',
+    WriteAccess$RequestToJoin() => 'requestToJoin',
+    WriteAccess$Restricted() => 'restricted',
+    WriteAccess$Custom() => 'custom',
+  };
 }
 
 /// [WriteAccess.canWrite].

@@ -83,10 +83,10 @@ final class ChatCapabilities {
   List<CapabilitiesRule> get brokenRules => [
     if (sending.media.deniedButAllowed.isNotEmpty)
       CapabilitiesRule.mediaDenialForAllowedKind,
-    if (slowMode.interval < Duration.zero)
-      CapabilitiesRule.slowModeIntervalNegative,
-    if (!slowMode.isActive && slowMode.nextSendAt != null)
-      CapabilitiesRule.slowModeWaitWithoutInterval,
+    if (slowMode case SlowMode$Active(
+      :final interval,
+    ) when interval <= Duration.zero)
+      CapabilitiesRule.slowModeIntervalNotPositive,
     if (limits.messageLength < 1) CapabilitiesRule.messageLengthBelowOne,
     if (limits.captionLength < 0) CapabilitiesRule.captionLengthNegative,
     if (limits.fileSize case final size? when size < 1)
@@ -119,13 +119,15 @@ final class ChatCapabilities {
       'inline': _describe(sending.inline),
     },
     'writeAccess': '$writeAccess',
-    'slowMode': slowMode == SlowMode.none
-        ? 'none'
-        : <String, Object>{
-            'intervalMs': slowMode.interval.inMilliseconds,
-            'nextSendAt': ?slowMode.nextSendAt?.toIso8601String(),
-            'pending': slowMode.pending,
-          },
+    'slowMode': switch (slowMode) {
+      SlowMode$None() => 'none',
+      SlowMode$Active(:final interval, :final nextSendAt, :final pending) =>
+        <String, Object>{
+          'intervalMs': interval.inMilliseconds,
+          'nextSendAt': ?nextSendAt?.toIso8601String(),
+          'pending': pending,
+        },
+    },
     'protection': {
       'copy': protection.copy,
       'forward': protection.forward,
@@ -158,12 +160,13 @@ final class ChatCapabilities {
       other.slowMode == slowMode &&
       other.protection == protection &&
       other.limits == limits &&
-      _sameCustom(other._custom, _custom);
+      sameCustom(other._custom, _custom);
 
-  static bool _sameCustom(
-    Map<String, Capability> a,
-    Map<String, Capability> b,
-  ) {
+  /// Whether [a] and [b] hold the same custom capabilities, for a consumer
+  /// that compares the [custom] groups of two values without building new
+  /// ones.
+  @internal
+  static bool sameCustom(Map<String, Capability> a, Map<String, Capability> b) {
     if (identical(a, b)) return true;
     if (a.length != b.length) return false;
     for (final MapEntry(:key, :value) in a.entries) {
@@ -201,11 +204,8 @@ enum CapabilitiesRule {
   /// `sending.media.denials` gives a reason for a kind that is allowed.
   mediaDenialForAllowedKind,
 
-  /// The slow mode interval is negative.
-  slowModeIntervalNegative,
-
-  /// A next send time is set with no slow mode interval.
-  slowModeWaitWithoutInterval,
+  /// An active slow mode's interval is zero or negative.
+  slowModeIntervalNotPositive,
 
   /// The message length limit is below one code point.
   messageLengthBelowOne,

@@ -27,6 +27,16 @@ enum CapabilityConsumer {
   outbox,
 }
 
+/// Where a package draws a denial text in place (a restriction bar, a
+/// locked field, a picker page), named in the `denialTextMissing` event
+/// when the host gives no text.
+///
+/// Each package keeps its own closed enum implementing this, as it does
+/// its diagnostics operations, so this package knows no package's forms.
+/// Only an enum can implement it; its `name` is what logs show, so names
+/// are stable.
+abstract interface class DenialForm implements Enum {}
+
 /// The host's text for [action] denied for [reason], or null for the
 /// package's silent form.
 typedef CapabilityDenialText =
@@ -67,7 +77,7 @@ base class CapabilityFeedback {
   /// its silent form.
   ///
   /// A null text reports `denialTextMissing` (debug), with [form], the
-  /// package's name for the silent form it then draws, so a host sees which
+  /// package's [DenialForm] for the silent form it then draws, so a host sees which
   /// texts it never gave. A throwing hook reports `feedbackFailed` instead
   /// and reads as null. [correlation] carries the chat id.
   @nonVirtual
@@ -75,7 +85,7 @@ base class CapabilityFeedback {
     CapabilityAction action,
     DenialReason reason, {
     ChatCorrelation correlation = ChatCorrelation.none,
-    String? form,
+    DenialForm? form,
   }) {
     final String? text;
     try {
@@ -110,7 +120,13 @@ base class CapabilityFeedback {
   /// milliseconds. The event lives here rather than in each consumer so
   /// every consumer reports the same fields.
   ///
-  /// A throwing hook is swallowed and reports `feedbackFailed`.
+  /// A [repeated] attempt (one inside the consumer's repeat window for the
+  /// same action, while the host's feedback for the first is still up)
+  /// reports `denied` with `repeated: true` and skips the hook, so the log
+  /// keeps every attempt and the host's hints do not stack.
+  ///
+  /// The hook runs whatever the event does: diagnostics never stop the
+  /// feedback. A throwing hook is swallowed and reports `feedbackFailed`.
   /// [correlation] carries the chat id and, when known, the message's.
   @nonVirtual
   void onDenied(
@@ -118,20 +134,33 @@ base class CapabilityFeedback {
     DenialReason reason, {
     required CapabilityConsumer consumer,
     Duration? remaining,
+    bool repeated = false,
     ChatCorrelation correlation = ChatCorrelation.none,
   }) {
-    ChatDiagnostics.current.emit(
-      ChatEventLevel.info,
-      ChatEventCategory.capabilities,
-      CapabilitiesOp.denied,
-      correlation: correlation,
-      fields: () => {
-        'action': action,
-        'reason': reason.diagnosticForm,
-        'consumer': consumer,
-        'remainingMs': ?remaining?.inMilliseconds,
-      },
-    );
+    try {
+      ChatDiagnostics.current.emit(
+        ChatEventLevel.info,
+        ChatEventCategory.capabilities,
+        CapabilitiesOp.denied,
+        correlation: correlation,
+        fields: () => {
+          'action': action,
+          'reason': reason.diagnosticForm,
+          'consumer': consumer,
+          'remainingMs': ?remaining?.inMilliseconds,
+          if (repeated) 'repeated': true,
+        },
+      );
+    } finally {
+      if (!repeated) _callOnDenied(action, reason, correlation);
+    }
+  }
+
+  void _callOnDenied(
+    CapabilityAction action,
+    DenialReason reason,
+    ChatCorrelation correlation,
+  ) {
     try {
       _onDenied?.call(action, reason);
     } on Object catch (error, stackTrace) {
@@ -153,14 +182,10 @@ base class CapabilityFeedback {
     fields: () => {
       'hook': hook,
       'action': action,
-      'errorType': _clip(error.runtimeType.toString()),
+      // A generic type's name can run longer than a field holds.
+      'errorType': ChatEvent.clip(error.runtimeType.toString()),
     },
     error: error,
     stackTrace: stackTrace,
   );
-
-  // A field string holds at most 64 characters; a generic type's name can
-  // run longer.
-  static String _clip(String name) =>
-      name.length <= 64 ? name : name.substring(0, 64);
 }

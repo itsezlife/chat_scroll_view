@@ -11,32 +11,40 @@ import 'package:meta/meta.dart';
 final class ChatProtection {
   /// Chat-level protection; the default protects nothing.
   const ChatProtection({
-    this.copy = true,
-    this.forward = true,
-    this.save = true,
-    this.captureBlocked = false,
-  });
+    bool copy = true,
+    bool forward = true,
+    bool save = true,
+    bool captureBlocked = false,
+  }) : _bits =
+           // The bit order of `ProtectionFlags`, its serialised form. A
+           // const constructor cannot call the flags' own constructor.
+           (copy ? 0 : 1 << 0) |
+           (forward ? 0 : 1 << 1) |
+           (save ? 0 : 1 << 2) |
+           (captureBlocked ? 1 << 3 : 0);
+
+  /// Chat-level protection of [flags] (a set flag restricts).
+  ChatProtection.of(ProtectionFlags flags) : _bits = flags.bits;
+
+  // The one source of the value: what [flags] holds, which every getter
+  // below reads.
+  final int _bits;
+
+  /// What the chat's protection denies, as flags (a set flag restricts).
+  ProtectionFlags get flags => ProtectionFlags.fromBits(_bits);
 
   /// Whether messages may be copied (menus and text selection).
-  final bool copy;
+  bool get copy => !flags.contains(ProtectionFlags.copy);
 
   /// Whether messages may be forwarded.
-  final bool forward;
+  bool get forward => !flags.contains(ProtectionFlags.forward);
 
   /// Whether media may be saved to the device.
-  final bool save;
+  bool get save => !flags.contains(ProtectionFlags.save);
 
   /// Whether screen capture is blocked while the chat shows; the host sets
   /// the platform's secure flag from it.
-  final bool captureBlocked;
-
-  /// What the chat's protection denies, as flags (a set flag restricts).
-  ProtectionFlags get flags => ProtectionFlags.fromBits(
-    (copy ? 0 : ProtectionFlags.copy.bits) |
-        (forward ? 0 : ProtectionFlags.forward.bits) |
-        (save ? 0 : ProtectionFlags.save.bits) |
-        (captureBlocked ? ProtectionFlags.captureBlocked.bits : 0),
-  );
+  bool get captureBlocked => flags.contains(ProtectionFlags.captureBlocked);
 
   /// What protection denies for one message: the chat's [flags], plus copy,
   /// forward and save when the message itself is protected
@@ -65,14 +73,10 @@ final class ChatProtection {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatProtection &&
-      other.copy == copy &&
-      other.forward == forward &&
-      other.save == save &&
-      other.captureBlocked == captureBlocked;
+      other is ChatProtection && other._bits == _bits;
 
   @override
-  int get hashCode => Object.hash(copy, forward, save, captureBlocked);
+  int get hashCode => _bits.hashCode;
 
   @override
   String toString() =>

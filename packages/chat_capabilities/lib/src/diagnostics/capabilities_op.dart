@@ -4,7 +4,9 @@ import 'package:content_model/content_model.dart';
 /// emits through `ChatDiagnostics.current`.
 ///
 /// Closed: an operation is added here with the path that emits it. Names are
-/// stable, since logs filter by them.
+/// stable, since logs filter by them. A consumer's own `capabilities`
+/// events (a composer's panel choice, a picker's derived limits) are in that
+/// package's own operation enum, under the same category.
 enum CapabilitiesOp implements DiagnosticOp {
   /// A chat's value changed (debug): the changed group names, the write
   /// access form, whether slow mode is active and what protection denies.
@@ -27,31 +29,4 @@ enum CapabilitiesOp implements DiagnosticOp {
   /// milliseconds left. Emitted by `CapabilityFeedback.onDenied`, so every
   /// consumer reports it the same way.
   denied,
-
-  /// A picker's limits were derived from a chat's value (debug): the allowed
-  /// attach kinds, grouping, single select and the caption, file and album
-  /// limits and one-send mode. Emitted by the picker's package, which owns
-  /// the derivation.
-  limitsDerived,
-
-  /// The composer chose its input row's panel from the write access (debug):
-  /// the `writeAccess` form (with `reason` for a restriction and `tag` for a
-  /// host form), the `panel` id and the `builder` (`field`, `host` or
-  /// `default`). Emitted by the composer once per change of those.
-  panelChosen,
-
-  /// A picker entered or left one-send mode (debug): `on`, and the album
-  /// cap one send unit holds. Emitted by the picker's package.
-  pickerOneSend,
-
-  /// Slow mode's countdown started in the composer (debug): the slow mode
-  /// `intervalMs`, the `remainingMs` of the wait and whether a message is
-  /// still `pending`. Emitted by the composer.
-  slowModeStarted,
-
-  /// Slow mode's countdown ended in the composer (debug), at its next send
-  /// time or because the host's new value lifted it: `intervalMs`,
-  /// `remainingMs` (zero at the time, more when lifted early) and
-  /// `pending`. Emitted by the composer.
-  slowModeEnded,
 }

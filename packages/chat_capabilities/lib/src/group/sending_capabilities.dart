@@ -37,6 +37,23 @@ final class SendingCapabilities {
   /// Results of inline queries.
   final Capability inline;
 
+  /// A copy with [change] applied to each plain right: [text], [stickers],
+  /// [linkPreviews], [polls] and [inline]. [media] is kept: its kinds are
+  /// not plain capabilities.
+  ///
+  /// A host that lifts or imposes one reason on every right (an unlock, a
+  /// ban) changes them in one place, and a right added later is covered
+  /// without the host listing it.
+  SendingCapabilities map(Capability Function(Capability right) change) =>
+      SendingCapabilities(
+        text: change(text),
+        media: media,
+        stickers: change(stickers),
+        linkPreviews: change(linkPreviews),
+        polls: change(polls),
+        inline: change(inline),
+      );
+
   /// A copy with the given rights replaced.
   SendingCapabilities copyWith({
     Capability? text,

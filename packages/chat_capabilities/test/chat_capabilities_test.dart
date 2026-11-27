@@ -13,7 +13,7 @@ void main() {
       final built = ChatCapabilities(
         sending: SendingCapabilities(),
         writeAccess: WriteAccess$CanWrite(),
-        slowMode: SlowMode(),
+        slowMode: SlowMode$None(),
         protection: ChatProtection(),
         limits: ChatLimits(),
         custom: <String, Capability>{},
@@ -74,7 +74,7 @@ void main() {
         const SendingCapabilities(polls: denied),
       );
       expect(
-        const SlowMode(interval: Duration(seconds: 30)),
+        const SlowMode.active(interval: Duration(seconds: 30)),
         isNot(SlowMode.none),
       );
       expect(
@@ -126,7 +126,7 @@ void main() {
     test('per group', () {
       expect(const SendingCapabilities().copyWith(text: denied).text, denied);
       final at = DateTime.utc(2026, 11, 27);
-      final slow = const SlowMode(
+      final slow = const SlowMode$Active(
         interval: Duration(minutes: 1),
       ).copyWith(nextSendAt: at, pending: true);
       expect(slow.nextSendAt, at);
@@ -159,7 +159,7 @@ void main() {
             },
           ),
         ),
-        slowMode: SlowMode(nextSendAt: DateTime.utc(2026)),
+        slowMode: const SlowMode.active(interval: Duration.zero),
         limits: const ChatLimits(
           messageLength: 0,
           captionLength: -1,
@@ -170,7 +170,7 @@ void main() {
       );
       expect(value.brokenRules, [
         CapabilitiesRule.mediaDenialForAllowedKind,
-        CapabilitiesRule.slowModeWaitWithoutInterval,
+        CapabilitiesRule.slowModeIntervalNotPositive,
         CapabilitiesRule.messageLengthBelowOne,
         CapabilitiesRule.captionLengthNegative,
         CapabilitiesRule.fileSizeBelowOne,
@@ -179,9 +179,9 @@ void main() {
       ]);
       expect(
         const ChatCapabilities(
-          slowMode: SlowMode(interval: Duration(seconds: -1)),
+          slowMode: SlowMode.active(interval: Duration(seconds: -1)),
         ).brokenRules,
-        [CapabilitiesRule.slowModeIntervalNegative],
+        [CapabilitiesRule.slowModeIntervalNotPositive],
       );
     });
 
@@ -271,7 +271,7 @@ void main() {
         writeAccess: const WriteAccess.restricted(
           DenialReason.unlockable('boost'),
         ),
-        slowMode: SlowMode(
+        slowMode: SlowMode.active(
           interval: const Duration(seconds: 30),
           nextSendAt: DateTime.utc(2026, 11, 27, 12),
           pending: true,
@@ -314,6 +314,39 @@ void main() {
         },
         'custom': {'hostRule': 'allowed'},
       });
+    });
+  });
+
+  group('SendingCapabilities.map', () {
+    test('changes every plain right and keeps the media kinds', () {
+      const media = SendableMedia(
+        allowed: MediaKindSet.none,
+        denials: {MediaKind.photo: DenialReason.everyone()},
+      );
+      final lifted = const SendingCapabilities(
+        text: denied,
+        stickers: denied,
+        polls: denied,
+        media: media,
+      ).map((_) => const Capability.allowed());
+      expect(lifted, const SendingCapabilities(media: media));
+    });
+  });
+
+  group('ChatProtection', () {
+    test('its flags and its fields are one value', () {
+      final protection = ChatProtection.of(
+        ProtectionFlags.copy | ProtectionFlags.captureBlocked,
+      );
+      expect(
+        protection,
+        const ChatProtection(copy: false, captureBlocked: true),
+      );
+      expect(protection.copy, isFalse);
+      expect(protection.forward, isTrue);
+      expect(protection.save, isTrue);
+      expect(protection.captureBlocked, isTrue);
+      expect(const ChatProtection(save: false).flags, ProtectionFlags.save);
     });
   });
 }

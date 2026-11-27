@@ -24,7 +24,9 @@ void main() {
 
   test('a change of another group does not notify', () {
     final sending = source.select((c) => c.sending)..addListener(count);
-    source.update(slowMode: const SlowMode(interval: Duration(seconds: 5)));
+    source.update(
+      slowMode: const SlowMode.active(interval: Duration(seconds: 5)),
+    );
     source.update(limits: const ChatLimits(albumSize: 3));
     expect(notified, 0);
     expect(sending.value, const SendingCapabilities());
@@ -79,5 +81,51 @@ void main() {
     sending.addListener(leave);
     source.update(sending: const SendingCapabilities(text: denied));
     expect(source.isListenedTo, isFalse);
+  });
+
+  group('onValue', () {
+    test('reports each distinct group while listened, before listeners', () {
+      final seen = <(SendingCapabilities?, SendingCapabilities)>[];
+      final order = <String>[];
+      final sending = source.select(
+        (c) => c.sending,
+        onValue: (reported, group) {
+          seen.add((reported, group));
+          order.add('report');
+        },
+      )..addListener(() => order.add('listener'));
+      source
+        ..update(sending: const SendingCapabilities(polls: denied))
+        ..update(
+          slowMode: const SlowMode.active(interval: Duration(seconds: 1)),
+        );
+      expect(seen, [
+        (null, const SendingCapabilities()),
+        (const SendingCapabilities(), const SendingCapabilities(polls: denied)),
+      ]);
+      expect(order, ['report', 'report', 'listener']);
+      expect(sending.value.polls, denied);
+    });
+
+    test('a group that changed while unheard is reported once on attach', () {
+      final seen = <SendingCapabilities>[];
+      final sending = source.select(
+        (c) => c.sending,
+        onValue: (_, group) => seen.add(group),
+      );
+      void listener() {}
+      sending
+        ..addListener(listener)
+        ..removeListener(listener);
+      source.update(sending: const SendingCapabilities(text: denied));
+      sending
+        ..addListener(listener)
+        ..removeListener(listener)
+        ..addListener(listener);
+      expect(seen, [
+        const SendingCapabilities(),
+        const SendingCapabilities(text: denied),
+      ]);
+    });
   });
 }

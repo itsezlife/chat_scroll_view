@@ -66,7 +66,7 @@ void main() {
           CapabilityAction.sendPhoto,
           const DenialReason.unlockable('boost'),
           correlation: chat,
-          form: 'pickerPage',
+          form: _TestForm.pickerPage,
         ),
         isNull,
       );
@@ -79,7 +79,7 @@ void main() {
           fields: {
             'action': CapabilityAction.sendPhoto,
             'reason': 'unlockable(boost)',
-            'form': 'pickerPage',
+            'form': _TestForm.pickerPage,
           },
         ),
       ]);
@@ -186,6 +186,44 @@ void main() {
       ]);
     });
 
+    test('a repeated attempt reports denied and skips the hook', () {
+      final attempts = <CapabilityAction>[];
+      CapabilityFeedback(
+        onDenied: (action, _) => attempts.add(action),
+      ).onDenied(
+        CapabilityAction.sendVoice,
+        everyone,
+        consumer: CapabilityConsumer.composer,
+        repeated: true,
+      );
+      expect(attempts, isEmpty);
+      expect(diagnostics.events, [
+        isChatEvent(
+          op: CapabilitiesOp.denied,
+          fields: {
+            'action': CapabilityAction.sendVoice,
+            'reason': 'everyone',
+            'consumer': CapabilityConsumer.composer,
+            'repeated': true,
+          },
+        ),
+      ]);
+    });
+
+    test('a long host tag still reaches the hook and the event', () {
+      final attempts = <DenialReason>[];
+      final reason = DenialReason.unlockable('k' * 200);
+      CapabilityFeedback(
+        onDenied: (_, reason) => attempts.add(reason),
+      ).onDenied(
+        CapabilityAction.sendText,
+        reason,
+        consumer: CapabilityConsumer.composer,
+      );
+      expect(attempts, [reason]);
+      expect(diagnostics.events, [isChatEvent(op: CapabilitiesOp.denied)]);
+    });
+
     test('the consumer names and order are stable', () {
       expect(CapabilityConsumer.values.map((c) => c.name), [
         'composer',
@@ -226,3 +264,5 @@ void main() {
     });
   });
 }
+
+enum _TestForm implements DenialForm { pickerPage }

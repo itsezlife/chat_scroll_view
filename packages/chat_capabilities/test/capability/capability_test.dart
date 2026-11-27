@@ -3,6 +3,7 @@
 // ignore_for_file: prefer_const_constructors
 
 import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:content_model/content_model.dart' show ChatEvent;
 import 'package:test/test.dart';
 
 void main() {
@@ -104,6 +105,82 @@ void main() {
       ]) {
         expect(access.canWrite, isFalse, reason: '$access');
       }
+    });
+  });
+
+  group('reason', () {
+    test('a denied capability gives its reason, an allowed one none', () {
+      expect(const Capability.allowed().reason, isNull);
+      expect(
+        const Capability.denied(DenialReason.everyone()).reason,
+        const DenialReason.everyone(),
+      );
+    });
+  });
+
+  group('package reasons', () {
+    test('a write access form and a pending send are reasons of their own', () {
+      expect(
+        DenialReason$NoWriteAccess(WriteAccess$ReadOnly()),
+        const DenialReason.noWriteAccess(WriteAccess.readOnly()),
+      );
+      expect(
+        const DenialReason.noWriteAccess(WriteAccess.custom('readOnly')),
+        isNot(const DenialReason.noWriteAccess(WriteAccess.readOnly())),
+      );
+      expect(DenialReason$SendPending(), const DenialReason.sendPending());
+      // A host tag that spells a package reason is still the host's.
+      expect(
+        const DenialReason.other('sendPending'),
+        isNot(const DenialReason.sendPending()),
+      );
+    });
+  });
+
+  group('diagnosticForm', () {
+    test('names each reason, the date of a restriction left out', () {
+      expect(const DenialReason.everyone().diagnosticForm, 'everyone');
+      expect(const DenialReason.restricted().diagnosticForm, 'restricted');
+      expect(
+        DenialReason.restricted(until: DateTime.utc(2030)).diagnosticForm,
+        'restrictedUntil',
+      );
+      expect(
+        const DenialReason.unlockable('boost').diagnosticForm,
+        'unlockable(boost)',
+      );
+      expect(const DenialReason.other('tag').diagnosticForm, 'other(tag)');
+      expect(
+        const DenialReason.noWriteAccess(
+          WriteAccess.custom('a-long-host-tag'),
+        ).diagnosticForm,
+        'noWriteAccess(custom)',
+      );
+      expect(const DenialReason.sendPending().diagnosticForm, 'sendPending');
+    });
+
+    test('a long host string is clipped to what a field holds', () {
+      final long = 'k' * 200;
+      for (final reason in [
+        DenialReason.unlockable(long),
+        DenialReason.other(long),
+      ]) {
+        final form = reason.diagnosticForm;
+        expect(form.length, lessThanOrEqualTo(ChatEvent.maxStringFieldLength));
+        expect(form, endsWith(')'));
+      }
+    });
+
+    test('a write access names its form alone', () {
+      expect(const WriteAccess.canWrite().diagnosticForm, 'canWrite');
+      expect(const WriteAccess.readOnly().diagnosticForm, 'readOnly');
+      expect(const WriteAccess.join().diagnosticForm, 'join');
+      expect(const WriteAccess.requestToJoin().diagnosticForm, 'requestToJoin');
+      expect(
+        const WriteAccess.restricted(DenialReason.everyone()).diagnosticForm,
+        'restricted',
+      );
+      expect(const WriteAccess.custom('tag').diagnosticForm, 'custom');
     });
   });
 }

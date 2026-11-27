@@ -35,7 +35,7 @@ void main() {
       const ChatCapabilities(
         sending: SendingCapabilities(stickers: denied),
         writeAccess: WriteAccess.readOnly(),
-        slowMode: SlowMode(interval: Duration(seconds: 10)),
+        slowMode: SlowMode.active(interval: Duration(seconds: 10)),
         protection: ChatProtection(copy: false, captureBlocked: true),
       ),
     );

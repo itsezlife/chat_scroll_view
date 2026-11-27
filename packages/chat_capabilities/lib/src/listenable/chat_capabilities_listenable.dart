@@ -1,6 +1,6 @@
 import 'package:chat_capabilities/src/chat_capabilities.dart';
 import 'package:chat_capabilities/src/diagnostics/capabilities_op.dart';
-import 'package:chat_capabilities/src/group/write_access.dart';
+import 'package:chat_capabilities/src/listenable/capabilities_trace.dart';
 import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart';
 
@@ -20,9 +20,17 @@ extension ChatCapabilitiesListenable on ValueListenable<ChatCapabilities> {
   /// selection nobody listens to holds no subscription and needs no
   /// disposal. Without listeners its value reads through to the current
   /// group.
+  ///
+  /// [onValue] is how a consumer reports what it derives (a picker's
+  /// limits): it is called with each distinct group the selection sees
+  /// while subscribed, before the listeners hear of it, and on attach when
+  /// the group differs from the last one it was called with. Its first
+  /// argument is that last group, null the first time. A group that
+  /// arrives while nobody listens is reported once, on the next attach.
   ValueListenable<G> select<G>(
-    G Function(ChatCapabilities capabilities) group,
-  ) => _GroupSelection(this, group);
+    G Function(ChatCapabilities capabilities) group, {
+    void Function(G? reported, G group)? onValue,
+  }) => _GroupSelection(this, group, onValue);
 
   /// This listenable, passed through, reporting the chat's `capabilities`
   /// diagnostics events under [chatId].
@@ -90,8 +98,16 @@ abstract base class _LazySelection<T> extends ChangeNotifier
   }
 
   void _onSource() {
-    final next = read(_source.value);
-    if (next == _current) return;
+    final next = CapabilitiesTrace.select.run(() {
+      final next = read(_source.value);
+      return next == _current ? null : (next,);
+    });
+    if (next == null) return;
+    final (value,) = next;
+    _apply(value);
+  }
+
+  void _apply(T next) {
     final previous = _current;
     _current = next;
     try {
@@ -112,12 +128,36 @@ abstract base class _LazySelection<T> extends ChangeNotifier
 }
 
 final class _GroupSelection<G> extends _LazySelection<G> {
-  _GroupSelection(super.source, this._group);
+  _GroupSelection(super.source, this._group, this._onValue);
 
   final G Function(ChatCapabilities capabilities) _group;
+  final void Function(G? reported, G group)? _onValue;
+
+  // The last group [_onValue] was called with, kept across detaches.
+  G? _reported;
+  var _hasReported = false;
 
   @override
   G read(ChatCapabilities capabilities) => _group(capabilities);
+
+  @override
+  void didAttach(G value) => _report(value);
+
+  @override
+  void changed(G previous, G next) {
+    _report(next);
+    notifyListeners();
+  }
+
+  void _report(G value) {
+    final onValue = _onValue;
+    if (onValue == null) return;
+    if (_hasReported && value == _reported) return;
+    final reported = _reported;
+    _reported = value;
+    _hasReported = true;
+    onValue(reported, value);
+  }
 }
 
 final class _ReportedCapabilities extends _LazySelection<ChatCapabilities> {
@@ -201,24 +241,13 @@ final class _ReportedCapabilities extends _LazySelection<ChatCapabilities> {
         if (previous.slowMode != next.slowMode) 'slowMode',
         if (previous.protection != next.protection) 'protection',
         if (previous.limits != next.limits) 'limits',
-        if (ChatCapabilities(custom: previous.custom) !=
-            ChatCapabilities(custom: next.custom))
+        if (!ChatCapabilities.sameCustom(previous.custom, next.custom))
           'custom',
       ].join(','),
-      'writeAccess': _formName(next.writeAccess),
+      'writeAccess': next.writeAccess.diagnosticForm,
       'slowModeActive': next.slowMode.isActive,
       'protected': protected.isEmpty ? 'none' : protected.names.join(','),
       'protectionBits': protected.bits,
     };
   }
-
-  /// The form alone: a reason or tag would make the field host-sized.
-  static String _formName(WriteAccess access) => switch (access) {
-    WriteAccess$CanWrite() => 'canWrite',
-    WriteAccess$ReadOnly() => 'readOnly',
-    WriteAccess$Join() => 'join',
-    WriteAccess$RequestToJoin() => 'requestToJoin',
-    WriteAccess$Restricted() => 'restricted',
-    WriteAccess$Custom() => 'custom',
-  };
 }

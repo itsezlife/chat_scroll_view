@@ -1,3 +1,5 @@
+import 'package:chat_capabilities/src/group/write_access.dart';
+import 'package:content_model/content_model.dart' show ChatEvent;
 import 'package:meta/meta.dart';
 
 /// One action's outcome in the chat capabilities: allowed, or denied with a
@@ -17,6 +19,9 @@ sealed class Capability {
 
   /// Whether the action is allowed.
   bool get isAllowed;
+
+  /// Why the action is denied; null when it is allowed.
+  DenialReason? get reason;
 }
 
 /// [Capability.allowed].
@@ -26,6 +31,9 @@ final class Capability$Allowed extends Capability {
 
   @override
   bool get isAllowed => true;
+
+  @override
+  DenialReason? get reason => null;
 
   @override
   bool operator ==(Object other) => other is Capability$Allowed;
@@ -43,6 +51,7 @@ final class Capability$Denied extends Capability {
   const Capability$Denied(this.reason) : super._();
 
   /// Why the action is denied.
+  @override
   final DenialReason reason;
 
   @override
@@ -61,9 +70,16 @@ final class Capability$Denied extends Capability {
 
 /// Why a [Capability] is denied; the host picks the feedback text from it.
 ///
-/// The host resolves its backend's rights into one of these forms. The
-/// strings it puts in ([DenialReason.unlockable], [DenialReason.other]) are
-/// host tags, never user text: they reach diagnostics.
+/// The host resolves its backend's rights into one of the host forms
+/// ([everyone], [restricted], [unlockable], [other]). The strings it puts in
+/// ([DenialReason.unlockable], [DenialReason.other]) are host tags, never
+/// user text: they reach diagnostics.
+///
+/// Two forms are the packages' own, raised where no host reason exists:
+/// [noWriteAccess] (a write access that replaces the input row without a
+/// restriction, asked for its panel's text) and [sendPending] (slow mode
+/// holding a send while a message is still sending). They are types, not
+/// tags, so a host's own `other` tag can never be read as one of them.
 @immutable
 sealed class DenialReason {
   const DenialReason._();
@@ -82,10 +98,29 @@ sealed class DenialReason {
   /// Any other host reason, by the host's [tag].
   const factory DenialReason.other(String tag) = DenialReason$Other;
 
+  /// Raised by a package: the user may not write because [access] replaces
+  /// the input row (read only, join, request to join, a host form).
+  const factory DenialReason.noWriteAccess(WriteAccess access) =
+      DenialReason$NoWriteAccess;
+
+  /// Raised by a package: a message of the user's is still sending, which
+  /// holds the next send in slow mode.
+  const factory DenialReason.sendPending() = DenialReason$SendPending;
+
   /// The reason's form for diagnostics events: `everyone`, `restricted`,
-  /// `restrictedUntil` (the date left out), `unlockable(kind)` or
-  /// `other(tag)`.
+  /// `restrictedUntil` (the date left out), `unlockable(kind)`,
+  /// `other(tag)`, `noWriteAccess(form)` or `sendPending`.
+  ///
+  /// Always fits a field: a host string longer than a field holds is
+  /// clipped, so the event that carries it never fails its own check.
   String get diagnosticForm;
+
+  // `name(tag)`, the tag clipped so the whole fits a field.
+  static String _tagged(String name, String tag) {
+    final room = ChatEvent.maxStringFieldLength - name.length - 2;
+    final shown = tag.length <= room ? tag : tag.substring(0, room);
+    return '$name($shown)';
+  }
 }
 
 /// [DenialReason.everyone].
@@ -115,7 +150,10 @@ final class DenialReason$Restricted extends DenialReason {
   final DateTime? until;
 
   @override
-  String get diagnosticForm => until == null ? 'restricted' : 'restrictedUntil';
+  String get diagnosticForm => switch (until) {
+    null => 'restricted',
+    _ => 'restrictedUntil',
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -140,7 +178,7 @@ final class DenialReason$Unlockable extends DenialReason {
   final String kind;
 
   @override
-  String get diagnosticForm => 'unlockable($kind)';
+  String get diagnosticForm => DenialReason._tagged('unlockable', kind);
 
   @override
   bool operator ==(Object other) =>
@@ -162,7 +200,7 @@ final class DenialReason$Other extends DenialReason {
   final String tag;
 
   @override
-  String get diagnosticForm => 'other($tag)';
+  String get diagnosticForm => DenialReason._tagged('other', tag);
 
   @override
   bool operator ==(Object other) =>
@@ -173,4 +211,45 @@ final class DenialReason$Other extends DenialReason {
 
   @override
   String toString() => 'other($tag)';
+}
+
+/// [DenialReason.noWriteAccess].
+final class DenialReason$NoWriteAccess extends DenialReason {
+  /// The user may not write because of [access].
+  const DenialReason$NoWriteAccess(this.access) : super._();
+
+  /// The write access that replaces the input row.
+  final WriteAccess access;
+
+  /// The form alone: a host form's tag stays out of the event.
+  @override
+  String get diagnosticForm => 'noWriteAccess(${access.diagnosticForm})';
+
+  @override
+  bool operator ==(Object other) =>
+      other is DenialReason$NoWriteAccess && other.access == access;
+
+  @override
+  int get hashCode => Object.hash(DenialReason$NoWriteAccess, access);
+
+  @override
+  String toString() => 'noWriteAccess($access)';
+}
+
+/// [DenialReason.sendPending].
+final class DenialReason$SendPending extends DenialReason {
+  /// A message still sending holds the send.
+  const DenialReason$SendPending() : super._();
+
+  @override
+  String get diagnosticForm => 'sendPending';
+
+  @override
+  bool operator ==(Object other) => other is DenialReason$SendPending;
+
+  @override
+  int get hashCode => (DenialReason$SendPending).hashCode;
+
+  @override
+  String toString() => 'sendPending';
 }
