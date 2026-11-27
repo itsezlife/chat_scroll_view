@@ -6,3 +6,4 @@
 library;
 
 export 'src/testing/fake_chat_capabilities_source.dart';
+export 'src/testing/recording_capability_feedback.dart';

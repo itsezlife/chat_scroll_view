@@ -30,3 +30,9 @@ this package is pre-1.0.
   `ChatProtection.flags` and `forMessage(messageProtected:)`. The rule
   `mediaDenialForAllowedKind`; `debugDescribe()` and `valueChanged`
   (`protectionBits`) carry the new bits.
+- Denial feedback: `CapabilityAction` (stable names and order) with
+  `forMediaKind`, and `CapabilityFeedback`, the host's `denialText` and
+  `onDenied` hooks behind guarded methods. `CapabilityFeedback.none` has no
+  hooks, so a host without feedback keeps today's behaviour. The events
+  `denialTextMissing` and `feedbackFailed`; `DenialReason.diagnosticForm`.
+  `testing.dart`: `RecordingCapabilityFeedback`.

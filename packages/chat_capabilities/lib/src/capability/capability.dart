@@ -81,12 +81,20 @@ sealed class DenialReason {
 
   /// Any other host reason, by the host's [tag].
   const factory DenialReason.other(String tag) = DenialReason$Other;
+
+  /// The reason's form for diagnostics events: `everyone`, `restricted`,
+  /// `restrictedUntil` (the date left out), `unlockable(kind)` or
+  /// `other(tag)`.
+  String get diagnosticForm;
 }
 
 /// [DenialReason.everyone].
 final class DenialReason$Everyone extends DenialReason {
   /// Denied for every member.
   const DenialReason$Everyone() : super._();
+
+  @override
+  String get diagnosticForm => 'everyone';
 
   @override
   bool operator ==(Object other) => other is DenialReason$Everyone;
@@ -105,6 +113,9 @@ final class DenialReason$Restricted extends DenialReason {
 
   /// When the restriction ends; null when it is for good.
   final DateTime? until;
+
+  @override
+  String get diagnosticForm => until == null ? 'restricted' : 'restrictedUntil';
 
   @override
   bool operator ==(Object other) =>
@@ -129,6 +140,9 @@ final class DenialReason$Unlockable extends DenialReason {
   final String kind;
 
   @override
+  String get diagnosticForm => 'unlockable($kind)';
+
+  @override
   bool operator ==(Object other) =>
       other is DenialReason$Unlockable && other.kind == kind;
 
@@ -146,6 +160,9 @@ final class DenialReason$Other extends DenialReason {
 
   /// The host's tag for the reason.
   final String tag;
+
+  @override
+  String get diagnosticForm => 'other($tag)';
 
   @override
   bool operator ==(Object other) =>

@@ -15,7 +15,7 @@ Decisions: [ADR 049](../../docs/adr/049-chat-capabilities.md). Glossary:
 | --- | --- |
 | `ChatCapabilities` | One immutable, value-equal value per chat, one field per group. `const ChatCapabilities()` allows everything with the default limits, which is what a consumer assumes without a value. `brokenRules` names the rules a value breaks; `debugDescribe()` describes it without user content. |
 | `Capability` | `allowed` or `denied(reason)`; `isAllowed`. Carries no text. |
-| `DenialReason` | `everyone`, `restricted(until:)` (null until is for good), `unlockable(kind)` (an opaque host string for what lifts it), `other(tag)`. |
+| `DenialReason` | `everyone`, `restricted(until:)` (null until is for good), `unlockable(kind)` (an opaque host string for what lifts it), `other(tag)`; `diagnosticForm` names the form for events. |
 | `SendingCapabilities` | `text`, `media`, `stickers`, `linkPreviews`, `polls`, `inline`. |
 | `SendableMedia` | `sending.media`: the `allowed` kinds (a `MediaKindSet`, every kind by default) and `denials`, a reason per kind outside `allowed`; `reasonFor(kind)` is null for an allowed kind and `everyone` for a denied kind without an entry. |
 | `MediaKind`, `MediaKindSet` | The kinds `photo`, `video`, `animation`, `file`, `audio`, `voice`, `roundVideo`, and a bit flag set of them (`none`, `all`, `of`, `\|`, `&`, `without`, `contains`, `kinds`). |
@@ -47,6 +47,28 @@ final sending = chat.select((c) => c.sending);
 first listener and unsubscribes after its last, so it needs no disposal.
 `withDiagnostics` passes the value through and reports it (below).
 
+## Denial feedback
+
+The host passes one `CapabilityFeedback` beside the listenable. It holds the
+host's two hooks, and packages call them through its methods:
+
+| Method | When | Returns |
+| --- | --- | --- |
+| `denialText(action, reason)` | a package draws a denied control with text in place | the host's text, or null for the package's silent form |
+| `onDenied(action, reason)` | the user attempts a denied action | nothing; the host shows the feedback |
+
+`action` is a `CapabilityAction`, whose names and order are stable;
+`CapabilityAction.forMediaKind` maps a `MediaKind` to its send action.
+`CapabilityFeedback.none` (the const default) has no hooks, so texts are
+null and attempts go unreported. A throwing hook is swallowed and reported.
+
+```dart
+final feedback = CapabilityFeedback(
+  denialText: (action, reason) => strings.denied(action, reason),
+  onDenied: (action, reason) => bulletins.show(action, reason),
+);
+```
+
 ## Diagnostics
 
 `capabilities` events through `ChatDiagnostics.current`, operations in
@@ -56,9 +78,16 @@ first listener and unsubscribes after its last, so it needs no disposal.
 | --- | --- | --- |
 | `valueChanged` | debug | `groups` (the changed group names), `writeAccess` (its form), `slowModeActive`, `protected` (what protection denies, or `none`), `protectionBits` |
 | `invalidValue` | warning | `rule`, one event per broken `CapabilitiesRule`; debug builds then assert |
+| `denialTextMissing` | debug | `action`, `reason` (its form), `form` (the silent form the package draws, when it names one) |
+| `feedbackFailed` | error | `hook` (`denialText` or `onDenied`), `action`, `errorType`; the event carries the error and stack trace |
+
+The feedback events are correlated by the `correlation` the calling package
+passes (the chat id, and the message's when known).
 
 ## Testing
 
 `testing.dart`: `FakeChatCapabilitiesSource`, a settable source (`set`,
 `update` per group) that notifies on every set and reports whether it is
-listened to.
+listened to. `RecordingCapabilityFeedback` records every `onDenied` call
+(`denials`, oldest first) and answers `denialText` from its `texts` table by
+action; it goes through the real seam, so its events are the real ones.

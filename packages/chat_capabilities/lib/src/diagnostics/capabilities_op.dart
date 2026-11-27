@@ -13,4 +13,12 @@ enum CapabilitiesOp implements DiagnosticOp {
   /// A chat's value breaks a rule (warning), one event per rule; debug
   /// builds also assert.
   invalidValue,
+
+  /// A package asked for a denial text and got null, so it draws its silent
+  /// form (debug): the action, the reason form and the form drawn.
+  denialTextMissing,
+
+  /// A host feedback hook threw and was swallowed (error): which hook, the
+  /// action and the error's type.
+  feedbackFailed,
 }
