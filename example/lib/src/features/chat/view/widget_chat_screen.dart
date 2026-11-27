@@ -20,6 +20,7 @@ import 'package:chat_scroll_view_example/src/common/widgets/measure_size.dart';
 import 'package:chat_scroll_view_example/src/features/chat/capabilities/capabilities_switcher.dart';
 import 'package:chat_scroll_view_example/src/features/chat/capabilities/capabilities_switcher_sheet.dart';
 import 'package:chat_scroll_view_example/src/features/chat/capabilities/chat_capabilities_host.dart';
+import 'package:chat_scroll_view_example/src/features/chat/capabilities/chat_protection_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/capabilities/demo_chat_rights.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
@@ -239,6 +240,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     bulletins: _bulletins,
   );
 
+  /// The chat's protection over [_selection]: the copy hook, the rows it
+  /// takes from the menus and the bar, the desktop selection cleared on a
+  /// live change, the capture block.
+  late final ChatProtectionHost _protection;
+
   /// The debug switcher's rows over [_rights].
   late final CapabilitiesSwitcher _switcher = CapabilitiesSwitcher(_rights);
 
@@ -300,6 +306,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     if (DemoConfig.scrollLab) ScrollLab.watch(_controller);
     _selection = ChatSelectionController(
       onInteraction: _onSelectionInteraction,
+      chatId: widget.chatId,
       // Selections and code taps keep their formatting on the clipboard.
       copyWriter: (copy) => widget.services.clipboard.write(ChatCopy.of(copy)),
       // A tap on an embed means something here (a pack stub).
@@ -308,6 +315,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       // The dust moves on the asset cache's frames and pause layers.
       spoilerClock: widget.services.assets.clock,
     )..selectionCap = 100;
+    _protection = ChatProtectionHost(
+      chatId: widget.chatId,
+      capabilities: _rights.capabilities,
+      feedback: _rights.feedback,
+      selection: _selection,
+      messageProtected: (id) =>
+          _dataSource?.getMessage(id)?.isProtected ?? false,
+    );
     _emojiPolicy = ValueNotifier(_currentEmojiPolicy());
     _stickersRight.addListener(_refreshEmojiPolicy);
     widget.services.largeEmoji.enabled.addListener(_refreshEmojiPolicy);
@@ -448,6 +463,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   void _onSelectionInteraction(ChatSelectionInteraction interaction) {
     switch (interaction) {
+      case ChatCopyRefused():
+        _protection.reportRefused(interaction);
       case ChatCopied(:final text, :final origin, :final gesture):
         if (gesture == ChatInlineGesture.longPress) {
           HapticFeedback.lightImpact();
@@ -601,6 +618,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _stopScrollReport();
     _controller.dispose();
     _bodyPainters.clear();
+    _protection.dispose();
     _selection.dispose();
     _spoilers.dispose();
     _stickersRight.removeListener(_refreshEmojiPolicy);
@@ -703,7 +721,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               _onLibraryEdited(widget.services.libraryShown.apply(edit)),
           onNotice: _showNotice,
           onMessageLogs: kDebugMode ? _openMessageLogs : null,
+          onDenied: (actionId, messageId) =>
+              _protection.reportDenied(switch (actionId) {
+                MessageMenuActionId.forward => CapabilityAction.forward,
+                MessageMenuActionId.saveGif => CapabilityAction.save,
+                _ => CapabilityAction.copy,
+              }, messageId),
         ),
+        deniedActionsOf: _protection.deniedMenuActions,
         contentOf: (id) => switch (backend.getMessage(id)?.text) {
           final text? => _menuContentOf(text),
           null => null,
@@ -1217,6 +1242,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     }
     final source = _dataSource;
     if (source == null) return;
+    // A protected member refuses the copy; the facade reports it.
+    if (_selection.refusesCopy(_selection.selectedIds)) return;
     final copied = ChatMessagesCopyFormat.forPolicy(
       _selection.selectionPolicy,
     ).compose(ChatCopiedMessage.of(_selection.selectedIds, source));
@@ -1554,6 +1581,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             topInset: insets.headerReserve,
             onSelectText: _selectTextFromBar,
             onCopy: _copySelected,
+            canCopy: _protection.canCopy,
             onEdit: _editSelectedFromBar,
             canEdit: _canEdit,
             onDelete: () => _handleDeleteSelected(_selection.selectedIds),

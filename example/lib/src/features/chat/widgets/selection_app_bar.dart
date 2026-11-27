@@ -23,6 +23,7 @@ class SelectionAppBar extends StatefulWidget {
     required this.selection,
     this.topInset,
     this.onCopy,
+    this.canCopy,
     this.onSelectText,
     this.onEdit,
     this.canEdit,
@@ -38,6 +39,13 @@ class SelectionAppBar extends StatefulWidget {
 
   /// Copy selected messages.
   final VoidCallback? onCopy;
+
+  /// Whether the message with the given id may be copied, or null for every
+  /// message. The Copy button is not shown while a selected message may not
+  /// be (protection); the selection itself stays. The bar rebuilds when the
+  /// selection notifies, which a host whose answers change makes it do
+  /// (`ChatSelectionController.reapplyCanCopy`).
+  final bool Function(int messageId)? canCopy;
 
   /// Enter character-range text selection for the single selected message.
   ///
@@ -175,6 +183,11 @@ class _SelectionAppBarState extends State<SelectionAppBar>
     return id == null || canEdit(id);
   }
 
+  bool get _mayCopy => switch (widget.canCopy) {
+    final canCopy? => widget.selection.selectedIds.every(canCopy),
+    null => true,
+  };
+
   Widget _bar(ColorScheme scheme, int count) => DecoratedBox(
     decoration: BoxDecoration(
       color: scheme.surfaceContainerHigh,
@@ -214,7 +227,7 @@ class _SelectionAppBarState extends State<SelectionAppBar>
                 color: scheme.onSurface,
                 onPressed: widget.onSelectText,
               ),
-            if (widget.onCopy != null)
+            if (widget.onCopy != null && _mayCopy)
               IconButton(
                 icon: const Icon(Icons.copy_rounded),
                 tooltip: 'Копировать',

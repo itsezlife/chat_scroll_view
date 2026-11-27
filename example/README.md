@@ -135,6 +135,13 @@ live (text, each media kind, stickers, link previews, the write access
 forms, slow mode and its pending send, protection, tight limits). The
 changes land in the Logs screen as `capabilities` events.
 
+Protection takes Copy, Forward and Save GIF out of the message menus and
+Copy out of the selection bar and the text selection; a copy tried anyway
+(the copy key) shows the denial. Turning it on keeps a message selection on
+Android and iOS and clears one holding a protected message on desktop.
+Capture blocking sets the window's secure flag on Android and macOS; iOS,
+Windows, Linux and the web have none the demo sets.
+
 ## Disk caches
 
 What the app fetches or renders is kept on disk between launches, as in a

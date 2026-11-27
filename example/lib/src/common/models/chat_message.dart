@@ -77,6 +77,7 @@ class UserChatMessage extends ChatMessage {
     required super.updatedAt,
     required String content,
     this.hasMedia = false,
+    this.isProtected = false,
   }) : body = Markdown.fromString(content),
        emojiOnly = _emojiOnlyOf(content);
 
@@ -88,6 +89,7 @@ class UserChatMessage extends ChatMessage {
     required super.updatedAt,
     required this.body,
     this.hasMedia = false,
+    this.isProtected = false,
   }) : emojiOnly = _emojiOnlyOf(body.markdown);
 
   /// Pre-parsed markdown AST for paint and selection registration.
@@ -101,6 +103,11 @@ class UserChatMessage extends ChatMessage {
   /// Whether the message carries media, a link preview included: a media
   /// message is never shown as the emoji-only body.
   final bool hasMedia;
+
+  /// Whether the message itself is protected: it may not be copied,
+  /// forwarded or saved, whatever the chat allows (the chat capabilities'
+  /// `protection.forMessage` adds it to the chat's).
+  final bool isProtected;
 
   /// Original markdown source (same as [Markdown.markdown]).
   String get content => body.markdown;
@@ -144,6 +151,12 @@ extension ChatMessageExtension on IChatMessage {
   /// Whether the message carries media (a link preview included).
   bool get hasMedia => switch (this) {
     UserChatMessage(:final hasMedia) => hasMedia,
+    _ => false,
+  };
+
+  /// Whether the message itself is protected ([UserChatMessage.isProtected]).
+  bool get isProtected => switch (this) {
+    UserChatMessage(:final isProtected) => isProtected,
     _ => false,
   };
 

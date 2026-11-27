@@ -171,17 +171,20 @@ class ChatMarkdownBody extends StatefulWidget {
     final codeBlockLabels = ChatCodeBlockLabelsScope.of(context);
     // ADR 015 keeps selected bodies hittable — IgnorePointer is not the gate.
     final tablePanEnabled = !controller.isSelected(messageId);
+    final copyable = controller.isCopyAllowed(messageId);
     final themes = _resolvedThemes[ambient] ??=
         <_ResolvedThemeKey, MarkdownThemeData>{};
     return themes[(
       policy: policy,
       codeBlockLabels: codeBlockLabels,
       tablePanEnabled: tablePanEnabled,
+      copyable: copyable,
     )] ??= _ChatMarkdownBodyState._themeFor(
       ambient,
       policy: policy,
       codeBlockLabels: codeBlockLabels,
       tablePanEnabled: tablePanEnabled,
+      copyable: copyable,
     );
   }
 
@@ -224,11 +227,13 @@ final Expando<Map<_ResolvedThemeKey, MarkdownThemeData>> _resolvedThemes =
 
 /// What a resolved theme depends on besides its ambient theme.
 /// [BlockPainter$ScrollableTable.enabled] is construct-time, not a live
-/// callback, so the table pan is part of it.
+/// callback, so the table pan is part of it; so is whether the body's
+/// message may be copied, which decides the fenced code copy chrome.
 typedef _ResolvedThemeKey = ({
   ChatSelectionPolicy policy,
   ChatCodeBlockLabels codeBlockLabels,
   bool tablePanEnabled,
+  bool copyable,
 });
 
 /// The themes of bodies with no [MarkdownTheme] above them, by their inputs.
@@ -474,6 +479,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     required ChatSelectionPolicy policy,
     required ChatCodeBlockLabels codeBlockLabels,
     required bool tablePanEnabled,
+    required bool copyable,
   }) {
     final userBuilder = ambient.builder;
     return ambient.copyWith(
@@ -507,6 +513,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
           themeData,
           policy: policy,
           labels: codeBlockLabels,
+          copyable: copyable,
         );
       },
     );
@@ -543,6 +550,8 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
     ChatSelectionPolicy policy,
   ) {
     if (block case MD$Code(:final text)) {
+      // A message that may not be copied has no copy chrome to click.
+      final copyable = widget.controller.isCopyAllowed(widget.messageId);
       final surface = widget.controller.surfaceFor(widget.messageId);
       if (surface != null && blockIndex != null) {
         final boxes = surface.localBoxesForRange(blockIndex, 0, text.length);
@@ -550,13 +559,12 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
           final codeTop = boxes.first.top;
           final codeBottom = boxes.last.bottom;
           if (localOffset.dy < (codeTop - ChatCodeBlockPainter.padding)) {
-            return policy.hasInteractiveCodeHeader
+            return copyable && policy.hasInteractiveCodeHeader
                 ? SystemMouseCursors.click
                 : SystemMouseCursors.basic;
           }
-          final hasBottomBar = policy.hasBottomCodeCopyBarForLength(
-            text.length,
-          );
+          final hasBottomBar =
+              copyable && policy.hasBottomCodeCopyBarForLength(text.length);
           if (hasBottomBar &&
               localOffset.dy >= (codeBottom + ChatCodeBlockPainter.padding)) {
             return SystemMouseCursors.click;
@@ -565,7 +573,7 @@ class _ChatMarkdownBodyState extends State<ChatMarkdownBody>
           return null;
         }
       }
-      if (policy.hasInteractiveCodeHeader) {
+      if (copyable && policy.hasInteractiveCodeHeader) {
         return SystemMouseCursors.click;
       }
       return SystemMouseCursors.basic;

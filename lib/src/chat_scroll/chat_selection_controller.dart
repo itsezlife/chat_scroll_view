@@ -5,12 +5,15 @@ import 'dart:ui' show Offset, Path, Rect;
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_non_text_body.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_allowed.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_diagnostics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_spoiler_dust.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_text_copy.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_text_selection.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
+import 'package:content_model/content_model.dart'
+    show ChatCorrelation, ChatDiagnostics, ChatEventCategory, ChatEventLevel;
 import 'package:flutter/foundation.dart'
     show
         ChangeNotifier,
@@ -37,6 +40,10 @@ export 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart
 export 'package:chat_scroll_view/src/chat_scroll/chat_selection_policy.dart';
 export 'package:chat_scroll_view/src/chat_scroll/chat_text_copy.dart';
 export 'package:chat_scroll_view/src/chat_widgets/chat_span_feedback.dart';
+
+/// Whether the message with [messageId] may be copied: the host's answer to
+/// [ChatSelectionController.canCopy].
+typedef ChatCanCopy = bool Function(int messageId);
 
 /// Signature for observing active span feedback animation state.
 typedef ChatSpanFeedbackCallback = void Function(ChatSpanFeedback? feedback);
@@ -145,6 +152,29 @@ enum ChatDragSelectAction {
 /// (mobile message selection / live text range), long-press yields to
 /// message or text selection instead.
 ///
+/// ### Copy refusal
+///
+/// [canCopy] is the host's answer to whether a message may be copied; null
+/// (the default) allows every message. It knows no reason: the host decides
+/// from its own rules (a protected chat or message, say). When it answers
+/// false for a message, every copy path of the facade refuses for that
+/// message:
+///
+/// - [copyTextSelection] (the toolbar's Copy, the copy key, a host menu)
+///   when the message is the **text selection subject**; the toolbar drops
+///   its Copy button;
+/// - a tap or hold on inline code ([handleInlineHit]), whether or not
+///   [copyCodeOnClick] is on;
+/// - the fenced code block's copy chrome, which is not drawn and is no hit;
+/// - a message-selection copy the host asks about through [refusesCopy].
+///
+/// A refusal writes nothing, leaves the selection as it was and is reported
+/// once as [ChatCopyRefused] through [onInteraction] and the interaction
+/// listeners, where the host tells the user why. The answer is read at each
+/// copy, so a change applies to the next one; call [reapplyCanCopy] (or
+/// assign a new [canCopy]) when it changes so the bodies redraw their copy
+/// chrome and listeners rebuild their copy entries.
+///
 /// ### Policy
 ///
 /// [selectionPolicy] is fixed at construction. Hosts MUST NOT expect to
@@ -160,9 +190,14 @@ class ChatSelectionController implements Listenable {
   /// cache's playback clock (`ContentAssetScope.clock`): while a hidden spoiler
   /// is on screen the dust moves on its frames and pause layers, and without
   /// one it stands still.
+  ///
+  /// [canCopy] answers whether a message may be copied (see *Copy refusal*);
+  /// [chatId] is only the id this facade's diagnostics events carry.
   ChatSelectionController({
     ChatSelectionPolicy? policy,
     this.onInteraction,
+    ChatCanCopy? canCopy,
+    this.chatId,
     this.copyCodeOnClick = true,
     this.copyWriter,
     this.handlesEmbedHits = false,
@@ -175,7 +210,10 @@ class ChatSelectionController implements Listenable {
          policy: policy ?? ChatSelectionPolicy.forPlatform(),
          spoilers: spoilers,
        ) {
-    _text.markdownSelection.addListener(_onTextRangeChanged);
+    _canCopy = canCopy;
+    _text
+      ..copyAllowed = isCopyAllowed
+      ..markdownSelection.addListener(_onTextRangeChanged);
     if (spoilerClock != null) {
       _spoilerDust = ChatSpoilerDust(
         spoilers: _text.spoilers,
@@ -186,6 +224,10 @@ class ChatSelectionController implements Listenable {
 
   /// Active **selection policy** (entry, nesting, Copy).
   final ChatSelectionPolicy selectionPolicy;
+
+  /// The chat this facade selects in, carried by its diagnostics events as
+  /// their chat id; null leaves it out. Nothing else reads it.
+  final String? chatId;
 
   /// The monotonic clock that stamps a sticker gesture
   /// (`ChatStickerActivated.tapTime`). Injected so a host's batching and a
@@ -942,12 +984,17 @@ class ChatSelectionController implements Listenable {
   /// Returns `false` when disposed, text selection is inactive, there is no
   /// non-empty range, or the write failed (reported to
   /// [FlutterError.reportError]); the state is then unchanged and nothing is
-  /// notified.
+  /// notified. Returns `false` too when [canCopy] refuses the subject; that
+  /// is reported once as [ChatCopyRefused].
   Future<bool> copyTextSelection() async {
     if (_disposed || !_text.isActive || _isCopying) return false;
+    final currentSubject = _text.subjectId;
+    if (currentSubject case final subject? when !isCopyAllowed(subject)) {
+      _refuseCopy(subject, ChatCopyOrigin.textSelection);
+      return false;
+    }
     final text = _text.getText();
     if (text.isEmpty) return false;
-    final currentSubject = _text.subjectId;
     final copy = ChatTextCopy(
       plainText: text,
       origin: ChatCopyOrigin.textSelection,
@@ -1085,6 +1132,22 @@ class ChatSelectionController implements Listenable {
     if (_suppressesInlineActivation(hit.messageId)) {
       return false;
     }
+    // Code is a copy whoever writes it: refused, it is neither copied here
+    // nor handed to the host as [ChatCodeActivated].
+    if (hit case ChatInlineHit$Code(
+      :final messageId,
+      :final code,
+    ) when !isCopyAllowed(messageId)) {
+      _refuseCopy(
+        messageId,
+        ChatCopyOrigin.codeTap,
+        gesture: gesture,
+        path: _isFencedCode(messageId, code)
+            ? ChatCopyPath.codeBlock
+            : ChatCopyPath.inlineCode,
+      );
+      return true;
+    }
     // A tapped code snippet copies itself when the facade owns the clipboard;
     // every other hit is one interaction for the host.
     if (hit case ChatInlineHit$Code(
@@ -1166,6 +1229,101 @@ class ChatSelectionController implements Listenable {
         gesture: gesture,
       ),
   };
+
+  // Whether [code] is a fenced block of [messageId]'s body (its copy chrome)
+  // rather than an inline span. Asked on a refusal only.
+  bool _isFencedCode(int messageId, String code) =>
+      _text
+          .bodyOf(messageId)
+          ?.blocks
+          .any(
+            (block) => switch (block) {
+              MD$Code(:final text) => text == code,
+              _ => false,
+            },
+          ) ??
+      false;
+
+  // --- Copy refusal ---
+
+  /// The host's answer to whether a message may be copied; null (the
+  /// default) allows every message. See *Copy refusal* on the class.
+  ///
+  /// Assigning a different function calls [reapplyCanCopy].
+  ChatCanCopy? get canCopy => _canCopy;
+  set canCopy(ChatCanCopy? value) {
+    if (identical(_canCopy, value)) return;
+    _canCopy = value;
+    reapplyCanCopy();
+  }
+
+  ChatCanCopy? _canCopy;
+
+  /// Whether [messageId] may be copied: [canCopy]'s answer, true without one.
+  bool isCopyAllowed(int messageId) => _canCopy?.call(messageId) ?? true;
+
+  /// Tells the facade that [canCopy]'s answers may have changed (the host's
+  /// rules changed in place): the bodies redraw their copy chrome and the
+  /// facade's listeners are notified, so copy entries built from
+  /// [isCopyAllowed] rebuild. The selection is left as it is; a host that
+  /// clears it calls [clear] itself. A no-op once disposed.
+  void reapplyCanCopy() {
+    if (_disposed) return;
+    _notify();
+  }
+
+  /// Whether a copy of [messageIds] (a message selection, say) is refused:
+  /// true when [canCopy] answers false for any of them, after reporting one
+  /// [ChatCopyRefused] for the first such message with [origin].
+  ///
+  /// The facade writes no message-selection copy itself; a host asks this
+  /// before it writes one, so that copy is refused and reported like the
+  /// facade's own. False when disposed.
+  bool refusesCopy(
+    Iterable<int> messageIds, {
+    ChatCopyOrigin origin = ChatCopyOrigin.messageSelection,
+  }) {
+    if (_disposed) return false;
+    for (final id in messageIds) {
+      if (isCopyAllowed(id)) continue;
+      _refuseCopy(
+        id,
+        origin,
+        path: switch (origin) {
+          ChatCopyOrigin.textSelection => ChatCopyPath.textSelection,
+          ChatCopyOrigin.messageSelection => ChatCopyPath.messageSelection,
+          ChatCopyOrigin.codeTap => ChatCopyPath.inlineCode,
+        },
+      );
+      return true;
+    }
+    return false;
+  }
+
+  void _refuseCopy(
+    int messageId,
+    ChatCopyOrigin origin, {
+    ChatInlineGesture? gesture,
+    ChatCopyPath path = ChatCopyPath.textSelection,
+  }) {
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.info,
+      ChatEventCategory.capabilities,
+      ChatSelectionOp.copyRefused,
+      correlation: ChatCorrelation(
+        chatId: chatId,
+        scrollId: messageId.toString(),
+      ),
+      fields: () => {'path': path},
+    );
+    _notifyInteraction(
+      ChatSelectionInteraction.copyRefused(
+        messageId: messageId,
+        origin: origin,
+        gesture: gesture,
+      ),
+    );
+  }
 
   // A code tap's copy, notified once written.
   Future<void> _copyCode(

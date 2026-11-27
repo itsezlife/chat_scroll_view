@@ -52,6 +52,13 @@ final class ChatTextSelection {
   /// Selection policy governing cross-platform code block and gesture arbitration.
   final ChatSelectionPolicy policy;
 
+  /// Whether the message with the given id may be copied: its fenced code
+  /// copy chrome is no hit when it may not (the painter hides it). The
+  /// facade's `isCopyAllowed`; every message by default.
+  bool Function(int messageId) copyAllowed = _everyMessage;
+
+  static bool _everyMessage(int messageId) => true;
+
   final bool _disposeMarkdown;
   final bool _disposeSpoilers;
 
@@ -274,6 +281,8 @@ final class ChatTextSelection {
         : null;
 
     if (block case MD$Code(:final text, :final language)) {
+      // A message that may not be copied has no copy chrome to hit.
+      if (!copyAllowed(messageId)) return null;
       // Prefer painter-owned chrome (ChatCodeBlockPainter.isLinkAtLocal), with
       // a dy/box fallback when the surface is clipped shorter than the laid-out
       // block (painter bottom bar sits below the render-box bounds).
@@ -392,6 +401,7 @@ final class ChatTextSelection {
     }
     final block = model.blocks[blockIndex];
     if (block case MD$Code(:final text, :final language)) {
+      if (!copyAllowed(messageId)) return null;
       if (isHeader) {
         if (policy != null && !policy.hasInteractiveCodeHeader) {
           return null;

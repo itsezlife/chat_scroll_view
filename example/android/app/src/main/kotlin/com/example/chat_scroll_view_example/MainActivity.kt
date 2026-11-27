@@ -12,6 +12,7 @@ import android.view.Surface
 import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.FrameLayout
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
@@ -107,12 +108,21 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             SYSTEM_CHANNEL,
         ).setMethodCallHandler { call, result ->
-            if (call.method == "clipboardToast") {
-                result.success(
+            when (call.method) {
+                "clipboardToast" -> result.success(
                     mapOf("sdkInt" to Build.VERSION.SDK_INT, "oneUi40" to isOneUi40()),
                 )
-            } else {
-                result.notImplemented()
+                // A chat that blocks capture: the window shows blank in
+                // screenshots and recordings while the flag is set.
+                "secureWindow" -> {
+                    if (call.arguments == true) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    }
+                    result.success(null)
+                }
+                else -> result.notImplemented()
             }
         }
 

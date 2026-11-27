@@ -72,6 +72,8 @@ import 'features/chat/capabilities/chat_capabilities_host_test.dart'
     as chat_capabilities_host_test;
 import 'features/chat/capabilities/chat_panel_availability_test.dart'
     as chat_panel_availability_test;
+import 'features/chat/capabilities/chat_protection_host_test.dart'
+    as chat_protection_host_test;
 import 'features/chat/chat_attach_back_test.dart' as chat_attach_back_test;
 import 'features/chat/chat_attach_messages_test.dart'
     as chat_attach_messages_test;
@@ -478,6 +480,10 @@ void main() {
   group(
     'features/chat/capabilities/chat_panel_availability_test.dart',
     chat_panel_availability_test.main,
+  );
+  group(
+    'features/chat/capabilities/chat_protection_host_test.dart',
+    chat_protection_host_test.main,
   );
   group('features/chat/large_emoji_test.dart', large_emoji_test.main);
   group(

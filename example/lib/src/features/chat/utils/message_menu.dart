@@ -1,3 +1,4 @@
+import 'package:chat_capabilities/chat_capabilities.dart' show ProtectionFlags;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
@@ -285,6 +286,27 @@ abstract final class MessageMenuCatalog {
     return excluding(items, excludeActionIds);
   }
 
+  /// The rows protection takes away, on every platform: each copy row while
+  /// [flags] deny copying, Forward while they deny forwarding, Save GIF
+  /// while they deny saving.
+  static Set<String> protectedActionIds(ProtectionFlags flags) => {
+    if (flags.contains(ProtectionFlags.copy)) ..._copyActionIds,
+    if (flags.contains(ProtectionFlags.forward)) MessageMenuActionId.forward,
+    if (flags.contains(ProtectionFlags.save)) MessageMenuActionId.saveGif,
+  };
+
+  /// The rows that copy something of the message.
+  static const Set<String> _copyActionIds = {
+    MessageMenuActionId.copy,
+    MessageMenuActionId.copySelected,
+    MessageMenuActionId.copyLink,
+    MessageMenuActionId.copyCode,
+  };
+
+  /// Whether the row [actionId] copies something of the message.
+  static bool isCopyAction(String actionId) =>
+      _copyActionIds.contains(actionId);
+
   /// Drops rows whose [ChatMessageMenuItem.id] is in [excludeActionIds].
   static List<ChatMessageMenuItem> excluding(
     List<ChatMessageMenuItem> items,
@@ -498,6 +520,7 @@ final class MessageMenuActions {
     this.onLibraryEdit,
     this.onNotice,
     this.onMessageLogs,
+    this.onDenied,
   });
 
   /// Delete one message.
@@ -551,6 +574,12 @@ final class MessageMenuActions {
   /// pin, a forward): the host's bulletin. Nothing shows when null.
   final ValueChanged<String>? onNotice;
 
+  /// A row chosen while the menu was up whose action protection took away
+  /// meanwhile (Forward, Save GIF): the row's id and the message's. A copy
+  /// row is refused through the selection facade instead
+  /// (`ChatSelectionController.refusesCopy`), which reports it.
+  final void Function(String actionId, int messageId)? onDenied;
+
   /// Opens the Logs screen on the events of the message with the given id
   /// ([MessageMenuActionId.messageLogs]). The row is in the menu of one
   /// message while this is set; the host sets it in debug builds only.
@@ -584,6 +613,7 @@ final class MessageMenu {
     this.canEdit,
     this.emojiPacks,
     this.contentOf,
+    this.deniedActionsOf,
   }) : itemsFor = itemsFor ?? MessageMenuCatalog.itemsFor,
        _reactionsOverride = reactions;
 
@@ -621,6 +651,11 @@ final class MessageMenu {
   /// offers no content rows.
   final MessageMenuContent? Function(int messageId)? contentOf;
 
+  /// The rows taken away from a menu over the messages with the given ids
+  /// (protection), read as the menu opens and again when a row is chosen;
+  /// null takes none away.
+  final Set<String> Function(Iterable<int> messageIds)? deniedActionsOf;
+
   final List<String>? _reactionsOverride;
 
   var _sessionOpen = false;
@@ -653,6 +688,8 @@ final class MessageMenu {
       final content = request.membership == ChatMessageMenuMembership.idle
           ? contentOf?.call(request.messageId)
           : null;
+      final targets = [request.messageId, ...selectedSnapshot];
+      final denied = deniedActionsOf?.call(targets) ?? const <String>{};
       final presentation = AppPlatformPolicy.current()
           .messageMenuPresentationFor(policy);
       final surfaceBuilder = MessageMenuChrome.surfaceBuilderFor(presentation);
@@ -680,13 +717,12 @@ final class MessageMenu {
         items: [
           ...MessageMenuCatalog.excluding(
             itemsFor(request, policy, content: content),
-            switch (canEdit) {
-              final canEdit? when !canEdit(request.messageId) => [
-                ...?excludeActionIds,
+            [
+              ...?excludeActionIds,
+              ...denied,
+              if (canEdit case final canEdit? when !canEdit(request.messageId))
                 MessageMenuActionId.edit,
-              ],
-              _ => excludeActionIds,
-            },
+            ],
           ),
           if (actions.onMessageLogs != null &&
               request.membership == ChatMessageMenuMembership.idle)
@@ -770,6 +806,18 @@ final class MessageMenu {
         }
         actions.onNotice?.call('Reacted $reaction');
       case ChatMessageMenuItemResult(:final itemId):
+        // Protection may have changed while the menu was up.
+        final targets = request.overSelection
+            ? selectedSnapshot
+            : [request.messageId];
+        if (deniedActionsOf?.call(targets).contains(itemId) ?? false) {
+          if (MessageMenuCatalog.isCopyAction(itemId)) {
+            selection?.refusesCopy(targets);
+          } else {
+            actions.onDenied?.call(itemId, request.messageId);
+          }
+          return;
+        }
         switch (itemId) {
           case MessageMenuActionId.copySelected:
             final text = request.selectedTextSnapshot;
