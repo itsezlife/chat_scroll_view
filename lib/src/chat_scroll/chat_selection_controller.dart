@@ -1129,7 +1129,7 @@ class ChatSelectionController implements Listenable {
     if (_disposed) return false;
     // One gate for every [ChatInlineHit] variant — do not special-case link
     // vs code/COPY chrome (that flip-flops idle vs selected behavior).
-    if (_suppressesInlineActivation(hit.messageId)) {
+    if (_suppressesInlineActivation(hit)) {
       return false;
     }
     // Code is a copy whoever writes it: refused, it is neither copied here
@@ -1163,7 +1163,9 @@ class ChatSelectionController implements Listenable {
   // share; null for a hit the host is not told about. An embed the host does
   // not act on is part of the text, so its tap goes on to the message. A
   // sticker is not gated like an embed: it is meant to be tapped, and the body
-  // replays the animation on this notification.
+  // replays the animation on this notification. A body part reports only its
+  // activate role: a menu part's tap opens the message menu, which the
+  // viewport builds, so the facade leaves it unhandled.
   ChatSelectionInteraction? _activationOf(
     ChatInlineHit hit,
     ChatInlineGesture gesture,
@@ -1221,6 +1223,19 @@ class ChatSelectionController implements Listenable {
         code: code,
         gesture: gesture,
       ),
+    ChatInlineHit$BodyPart(
+      :final messageId,
+      :final partId,
+      :final rect,
+      role: ChatBodyPartRole.activate,
+    )
+        when gesture == ChatInlineGesture.tap =>
+      ChatSelectionInteraction.bodyPartActivated(
+        messageId: messageId,
+        partId: partId,
+        rect: rect,
+      ),
+    ChatInlineHit$BodyPart() => null,
   };
 
   // --- Copy refusal ---
@@ -1330,11 +1345,12 @@ class ChatSelectionController implements Listenable {
   /// under mobile **message selection** mode.
   ///
   /// In **message selection** mode under any policy, a hit on a body that
-  /// paints no text (a sticker, a GIF, an emoji-only body; see
+  /// paints no text (a sticker, a GIF, an emoji-only body, a body part; see
   /// [putNonTextBody]) does not activate either: the body is the message, so
   /// a click on it toggles the message, as on a text message. Links and code
   /// in text keep [ChatSelectionPolicy.suppressesLinkTapInMessageSelection].
-  bool _suppressesInlineActivation(int messageId) {
+  bool _suppressesInlineActivation(ChatInlineHit hit) {
+    final messageId = hit.messageId;
     if (_hasLiveTextRange &&
         (!selectionPolicy.scopesTextRangeSuppressionToSubject ||
             _text.subjectId == messageId)) {
@@ -1342,6 +1358,7 @@ class ChatSelectionController implements Listenable {
     }
     if (!isSelectionMode) return false;
     return selectionPolicy.suppressesLinkTapInMessageSelection ||
+        hit is ChatInlineHit$BodyPart ||
         _text.nonTextBodyOf(messageId) != null;
   }
 
@@ -1368,9 +1385,13 @@ class ChatSelectionController implements Listenable {
       case ChatInlineHit$Sticker():
         // A long press on a sticker is message selection, not an activation:
         // it is told (the body restarts under its tap policy) and not claimed.
-        if (!_suppressesInlineActivation(hit.messageId)) {
+        if (!_suppressesInlineActivation(hit)) {
           _notifyInteraction(_activationOf(hit, ChatInlineGesture.longPress)!);
         }
+        return false;
+      case ChatInlineHit$BodyPart():
+        // A long press on a body part is the message's (selection, span, the
+        // host's menu or context preview), whatever the part's role.
         return false;
       case ChatInlineHit$Code():
         // Same action as tap, tagged long-press. Drop press ink immediately —

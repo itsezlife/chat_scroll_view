@@ -5,7 +5,8 @@ import 'package:flutter/foundation.dart';
 
 /// Semantic inline hit on a message body element: a hyperlink, a code block,
 /// one of the three things the markdown engine paints as a style of its own
-/// (an embed, a mention, a hashtag), or the sticker of an emoji-only body.
+/// (an embed, a mention, a hashtag), the sticker of an emoji-only body, or a
+/// part of a body that paints no text ([ChatInlineHit.bodyPart]).
 ///
 /// A hit is read from the span's style bits, never from its URL: a mention is
 /// not a link and an image is not a link. A span inside a hidden spoiler is no
@@ -97,6 +98,24 @@ sealed class ChatInlineHit {
     required ContentKey content,
     required Rect stickerRect,
   }) = ChatInlineHit$Sticker;
+
+  /// Creates a hit on a part of a body that is not text: a media item, its
+  /// status control, a card's area (a **body part hit**).
+  ///
+  /// The viewport knows nothing of what the part is. [partId] is the body's
+  /// own value, handed back untouched: in the `ChatBodyPartActivated` a tap
+  /// reports and on the message menu request (`ChatMessageMenuRequest.partId`).
+  /// [role] is all the viewport reads: [ChatBodyPartRole.activate] parts are
+  /// the body's and the host's to act on, [ChatBodyPartRole.menu] parts open
+  /// the message menu. In message selection every part toggles its message,
+  /// and a long press is always the message's. [rect] is the part's rectangle
+  /// in global coordinates when the hit was read.
+  const factory ChatInlineHit.bodyPart({
+    required int messageId,
+    required Object partId,
+    required ChatBodyPartRole role,
+    required Rect rect,
+  }) = ChatInlineHit$BodyPart;
 
   /// The message ID whose body contains the hit element.
   abstract final int messageId;
@@ -463,4 +482,69 @@ final class ChatInlineHit$Sticker extends ChatInlineHit {
   String toString() =>
       r'ChatInlineHit$Sticker(messageId: '
       '$messageId, content: $content, stickerRect: $stickerRect)';
+}
+
+/// What a primary tap on a [ChatInlineHit$BodyPart] does outside message
+/// selection; in message selection both toggle the message.
+enum ChatBodyPartRole {
+  /// The body and the host act on it: the viewport reports a
+  /// `ChatBodyPartActivated` and does nothing else.
+  activate,
+
+  /// It opens the message menu, as a secondary click on the message does
+  /// (the idle message tap under a policy that opens the menu on a primary
+  /// tap). An options affordance is one.
+  menu,
+}
+
+/// A hit on a part of a body that paints no text; see
+/// [ChatInlineHit.bodyPart].
+///
+/// It has no text contour: the part is not text, so the body draws its own
+/// press feedback.
+@immutable
+final class ChatInlineHit$BodyPart extends ChatInlineHit {
+  /// Creates a body part hit descriptor.
+  const ChatInlineHit$BodyPart({
+    required this.messageId,
+    required this.partId,
+    required this.role,
+    required this.rect,
+  });
+
+  @override
+  final int messageId;
+
+  /// The body's value naming the part, opaque to the viewport. It is
+  /// compared with `==`, so a body gives it value equality.
+  final Object partId;
+
+  /// How the viewport arbitrates a tap on the part.
+  final ChatBodyPartRole role;
+
+  /// Where the part is drawn, in global coordinates, when the hit was read.
+  final Rect rect;
+
+  @override
+  Path? get contourPath => null;
+
+  @override
+  Offset? get touchOrigin => null;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatInlineHit$BodyPart &&
+          other.messageId == messageId &&
+          other.partId == partId &&
+          other.role == role &&
+          other.rect == rect;
+
+  @override
+  int get hashCode => Object.hash(messageId, partId, role, rect);
+
+  @override
+  String toString() =>
+      r'ChatInlineHit$BodyPart(messageId: '
+      '$messageId, partId: $partId, role: ${role.name}, rect: $rect)';
 }

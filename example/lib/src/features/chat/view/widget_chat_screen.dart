@@ -516,6 +516,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             ChatPackTargets.ofContent(content, widget.services.describe),
           );
         }
+      // A body part's activation is its body's own (the media cell); the demo
+      // adds nothing on top.
+      case ChatBodyPartActivated():
+        break;
       case ChatCodeActivated(:final gesture):
         // Host-owned copy path only when [copyCodeOnClick] is false.
         if (gesture == ChatInlineGesture.longPress) {

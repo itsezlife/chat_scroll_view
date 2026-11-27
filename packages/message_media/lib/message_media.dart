@@ -4,9 +4,11 @@
 /// Owns: [MessageMediaPolicy] and its layout step ([MediaLayoutStep], the
 /// default [MediaLayoutPolicy] with its box sizing, mosaic algorithm slot
 /// and fit modes), the [MediaLayout] value it returns (blocks of cells keyed
-/// by `MediaItemId`), and the geometry under it: the single box size
-/// ([computeSingleMediaSize]), the default mosaic ([GroupedMessages],
-/// [MosaicLayout]) and [MediaLayoutMetrics].
+/// by `MediaItemId`), the geometry under it (the single box size
+/// [computeSingleMediaSize], the default mosaic [GroupedMessages] and
+/// [MosaicLayout], [MediaLayoutMetrics]), what a chat's items remember while
+/// it is open ([MessageMediaState]), and the part a body part hit is on
+/// ([MessageMediaHitPart]).
 library;
 
 export 'src/diagnostics/media_op.dart';
@@ -15,9 +17,13 @@ export 'src/grouped_messages.dart';
 export 'src/layout/media_layout.dart';
 export 'src/layout/media_layout_input.dart';
 export 'src/media_layout_metrics.dart';
+export 'src/message_media_hit_part.dart';
 export 'src/mosaic_layout.dart';
 export 'src/policy/media_box_sizing.dart';
 export 'src/policy/media_layout_policy.dart';
 export 'src/policy/message_media_policy.dart';
 export 'src/policy/mosaic_algorithm.dart';
 export 'src/single_media_layout.dart';
+export 'src/state/media_state_op.dart';
+export 'src/state/message_media_state.dart';
+export 'src/state/message_media_state_scope.dart';
