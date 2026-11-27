@@ -21,4 +21,10 @@ enum CapabilitiesOp implements DiagnosticOp {
   /// A host feedback hook threw and was swallowed (error): which hook, the
   /// action and the error's type.
   feedbackFailed,
+
+  /// The user attempted a denied action (info): the action, the reason form,
+  /// the consumer that reported it and, for a send during slow mode, the
+  /// milliseconds left. Emitted by `CapabilityFeedback.onDenied`, so every
+  /// consumer reports it the same way.
+  denied,
 }
