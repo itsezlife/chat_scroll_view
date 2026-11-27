@@ -8,6 +8,7 @@ import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/policy/desktop_mosaic_algorithm.dart';
 import 'package:message_media/src/policy/ios_mosaic_algorithm.dart';
 import 'package:message_media/src/policy/media_box_sizing.dart';
+import 'package:message_media/src/policy/media_caption_width_policy.dart';
 import 'package:message_media/src/policy/media_file_stack_policy.dart';
 import 'package:message_media/src/policy/mosaic_algorithm.dart';
 import 'package:meta/meta.dart';
@@ -125,6 +126,7 @@ final class MediaFitPolicy {
 /// | [mosaicAlgorithm] | Two or more boxes into a mosaic |
 /// | [fit] | Each box kind's fit mode alone, and the album boxes' fit |
 /// | [fileStack] | File and custom items as rows in a vertical stack |
+/// | [captionWidth] | The caption's width metrics (`widenMedia` / `wrapAtMedia`) |
 ///
 /// ## Blocks
 ///
@@ -138,8 +140,9 @@ final class MediaFitPolicy {
 ///
 /// ## Neighbours
 ///
-/// The first block's top side touches the text when it sits above, else
-/// the bubble joined above, else the bubble's edge; the last block's bottom
+/// The first block's top side touches the text when it, or a header, sits
+/// above, else the bubble joined above, else the bubble's edge; the last
+/// block's bottom
 /// side likewise with the text below and the bubble joined below. Sides
 /// between blocks, and the inner sides of a mosaic, touch an item. Left and
 /// right outer sides are the bubble's edge.
@@ -157,6 +160,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     required this.fit,
     required this.fileStack,
     this.mosaicAlgorithm = const GroupedMosaicAlgorithm(),
+    this.captionWidth = const MediaCaptionWidthPolicy.android(),
   });
 
   /// The Android family's layout.
@@ -174,6 +178,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
         fit: const MediaFitPolicy.ios(),
         fileStack: const MediaFileStackPolicy.ios(),
         mosaicAlgorithm: const IosMosaicAlgorithm(),
+        captionWidth: const MediaCaptionWidthPolicy.ios(),
       );
 
   /// The desktop family's layout, albums by [DesktopMosaicAlgorithm].
@@ -183,6 +188,7 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
         fit: const MediaFitPolicy.desktop(),
         fileStack: const MediaFileStackPolicy.desktop(),
         mosaicAlgorithm: const DesktopMosaicAlgorithm(),
+        captionWidth: const MediaCaptionWidthPolicy.desktop(),
       );
 
   /// Box sizing.
@@ -196,6 +202,9 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
 
   /// File rows.
   final MediaFileStackPolicy fileStack;
+
+  /// The caption's width metrics.
+  final MediaCaptionWidthPolicy captionWidth;
 
   /// Whether [kind] is laid out as a box (else a file row).
   static bool isBox(MediaItemKind kind) =>
@@ -240,7 +249,15 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
       0,
       (w, block) => math.max(w, block.rect.right),
     );
-    return MediaLayout(size: Size(width, top), blocks: blocks);
+    return MediaLayout(
+      size: Size(width, top),
+      blocks: blocks,
+      widthMetrics: captionWidth.metricsOf(
+        input,
+        mediaWidth: width,
+        blockWidth: box.blockWidth(input),
+      ),
+    );
   }
 
   /// Consecutive items of the same layout (box or row), in item order.
@@ -381,11 +398,13 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     MosaicAlgorithm? mosaicAlgorithm,
     MediaFitPolicy? fit,
     MediaFileStackPolicy? fileStack,
+    MediaCaptionWidthPolicy? captionWidth,
   }) => MediaLayoutPolicy(
     box: box ?? this.box,
     mosaicAlgorithm: mosaicAlgorithm ?? this.mosaicAlgorithm,
     fit: fit ?? this.fit,
     fileStack: fileStack ?? this.fileStack,
+    captionWidth: captionWidth ?? this.captionWidth,
   );
 }
 
@@ -401,6 +420,7 @@ final class _BlockSides {
     switch ((index, input.captionPosition, input.joinedAbove)) {
       (> 0, _, _) => MediaNeighbour.item,
       (_, MediaCaptionPosition.above, _) => MediaNeighbour.text,
+      _ when input.headerAbove => MediaNeighbour.text,
       (_, _, true) => MediaNeighbour.adjacentBubble,
       _ => MediaNeighbour.bubbleEdge,
     },

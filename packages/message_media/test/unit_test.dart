@@ -8,6 +8,10 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'bubble/media_bubble_composition_test.dart'
+    as bubble_media_bubble_composition_test;
+import 'bubble/message_media_bubble_layout_test.dart'
+    as bubble_message_media_bubble_layout_test;
 import 'chrome/media_cell_chrome_test.dart' as chrome_media_cell_chrome_test;
 import 'chrome/media_chrome_rules_test.dart' as chrome_media_chrome_rules_test;
 import 'diagnostics/media_trace_test.dart' as diagnostics_media_trace_test;
@@ -45,6 +49,14 @@ import 'transition/message_media_transition_test.dart'
     as transition_message_media_transition_test;
 
 void main() {
+  group(
+    'bubble/media_bubble_composition_test',
+    bubble_media_bubble_composition_test.main,
+  );
+  group(
+    'bubble/message_media_bubble_layout_test',
+    bubble_message_media_bubble_layout_test.main,
+  );
   group('chrome/media_cell_chrome_test', chrome_media_cell_chrome_test.main);
   group('chrome/media_chrome_rules_test', chrome_media_chrome_rules_test.main);
   group('diagnostics/media_trace_test', diagnostics_media_trace_test.main);

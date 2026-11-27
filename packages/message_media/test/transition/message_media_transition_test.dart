@@ -361,6 +361,60 @@ void main() {
     });
   });
 
+  group('host inputs', () {
+    testWidgets('a new revision starts a leg though the layout is equal', (
+      tester,
+    ) async {
+      final recorder = RecordingDiagnostics.install();
+      const policy = MessageMediaPolicy.android();
+      final items = [_item('a')];
+      final layout = _layoutOf(policy, items);
+      Widget at(Object revision) => host(
+        MessageMediaTransition(
+          layout: layout,
+          items: items,
+          policy: policy,
+          revision: revision,
+          trigger: MediaTransitionTrigger.caption,
+        ),
+      );
+      await tester.pumpWidget(at(1));
+      await tester.pumpWidget(at(1));
+      expect(recorder.whereOp(MediaOp.transitionStarted), isEmpty);
+      await tester.pumpWidget(at(2));
+      expect(
+        recorder.whereOp(MediaOp.transitionStarted).single.fields['trigger'],
+        MediaTransitionTrigger.caption,
+      );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('the chrome context and selection progress reach the view', (
+      tester,
+    ) async {
+      const policy = MessageMediaPolicy.android();
+      final items = [_item('a')];
+      const progress = AlwaysStoppedAnimation<double>(0.5);
+      const context = MediaChromeContext(compact: true);
+      await tester.pumpWidget(
+        host(
+          MessageMediaTransition(
+            layout: _layoutOf(policy, items),
+            items: items,
+            policy: policy,
+            chromeContext: context,
+            selectionProgress: progress,
+          ),
+        ),
+      );
+      final view = tester.widget<MessageMediaView>(
+        find.byType(MessageMediaView),
+      );
+      expect(view.chromeContext, context);
+      expect(view.selectionProgress, same(progress));
+    });
+  });
+
   group('in a chat list', () {
     testWidgets('a late-dimension change animates the row\'s height and '
         'keeps the tail pinned', (tester) async {

@@ -16,9 +16,15 @@
 /// it is open ([MessageMediaState]), and the part a body part hit is on
 /// ([MessageMediaHitPart]), and how a change of the layout animates
 /// ([MediaLayout.lerp], [MediaTransitionPolicy] and the per-message clock
-/// [MessageMediaTransition]).
+/// [MessageMediaTransition]), and the optional bubble content around it
+/// ([MessageMediaBubbleLayout] with its [MediaBubbleComposition]: caption,
+/// header and time placed by `invertMedia`, the caption's width metrics from
+/// [MediaCaptionWidthPolicy]).
 library;
 
+export 'src/bubble/media_bubble_composition.dart';
+export 'src/bubble/media_bubble_geometry.dart';
+export 'src/bubble/message_media_bubble_layout.dart';
 export 'src/chrome/media_cell_chrome.dart' show MediaControlsScope;
 export 'src/chrome/media_chrome_slots.dart';
 export 'src/chrome/media_options_affordance.dart';
@@ -44,6 +50,7 @@ export 'src/policy/desktop_mosaic_algorithm.dart';
 export 'src/policy/ios_mosaic_algorithm.dart';
 export 'src/policy/media_autoplay_policy.dart';
 export 'src/policy/media_box_sizing.dart';
+export 'src/policy/media_caption_width_policy.dart';
 export 'src/policy/media_corner_policy.dart';
 export 'src/policy/media_file_stack_policy.dart';
 export 'src/policy/media_file_strings.dart';

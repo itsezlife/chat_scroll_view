@@ -43,9 +43,10 @@ enum MediaTailPresence {
   /// Never: the tail corner follows the neighbour rule.
   never,
 
-  /// When the message has text next to its media (a media-only bubble has
-  /// no tail).
-  withText,
+  /// When text sits under the media (a caption below): the bubble is then
+  /// an ordinary text bubble. A media bubble (no caption below, a caption
+  /// above included) has no tail.
+  withTextBelow,
 
   /// When the bubble is not joined to the bubble below it.
   unlessJoinedBelow,
@@ -72,10 +73,10 @@ final class MediaTailRule {
     radius: MediaTailRadius.adjacentBubble,
   );
 
-  /// The Android family: an incoming bubble with text has a tail, and its
-  /// bottom-left corner takes the joined-bubble radius.
+  /// The Android family: an incoming bubble with a caption below has a
+  /// tail, and its bottom-left corner takes the joined-bubble radius.
   static const android = MediaTailRule(
-    presence: MediaTailPresence.withText,
+    presence: MediaTailPresence.withTextBelow,
     radius: MediaTailRadius.adjacentBubble,
     incomingOnly: true,
   );
@@ -101,7 +102,8 @@ final class MediaTailRule {
     if (incomingOnly && input.isOutgoing) return false;
     return switch (presence) {
       MediaTailPresence.never => false,
-      MediaTailPresence.withText => input.hasText,
+      MediaTailPresence.withTextBelow =>
+        input.captionPosition == MediaCaptionPosition.below,
       MediaTailPresence.unlessJoinedBelow => !input.joinedBelow,
     };
   }
