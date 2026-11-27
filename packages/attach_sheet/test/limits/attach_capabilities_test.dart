@@ -211,6 +211,13 @@ void main() {
         ),
       ]);
       expect(host.interactions, isEmpty, reason: 'onDenied, not a refusal');
+      final denied = diagnostics.whereOp(CapabilitiesOp.denied).single;
+      expect(denied.fields, {
+        'action': CapabilityAction.sendPhoto,
+        'reason': 'everyone',
+        'consumer': CapabilityConsumer.picker,
+      });
+      expect(denied.correlation.chatId, 'c1');
 
       await tester.pump(AttachCapabilityGate.deniedGuard);
       await tapCheck(tester, 0);

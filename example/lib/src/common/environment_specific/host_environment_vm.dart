@@ -28,3 +28,7 @@ Future<bool> $glyphFontsSettled(
 
 /// The VM hook: no page around the app to tell how far its boot is.
 void $reportBootProgress(int percent, String status) {}
+
+/// The VM hook: the operating system's version string, for the header of a
+/// log export.
+String? $operatingSystemVersion() => Platform.operatingSystemVersion;

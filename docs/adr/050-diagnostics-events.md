@@ -135,3 +135,15 @@ message-media-transfers map).
 | Correlation ids | `ChatCorrelation` gains an optional `jobId`: the publish job's id for the outbox, the save job's id for a save. Chat events for a job then join mpx's events for the same job, which carry `jobId` too. |
 | Categories | `overlay` joins the set, for the draft options overlay and the chrome scrim. The scrim's operations are `overlay` operations prefixed `scrim`, not a category of their own. |
 | The leaf | `chrome_foundation` stays a leaf and emits nothing: `ChromeScrim` reports its phases (captured, still ready, still skipped, dismissed, cancelled, disposed, capture failed) through a callback its owner passes, and the owner emits the `scrim…` events with an `owner` field. |
+
+## Amendment (2026-11-27, accepted): the `diagnostics` category
+
+Found implementing the example's log journal (chat-capabilities ticket 17):
+the journal reports its own steps (opened, restored with a count, exported,
+a store that failed) and is tested through `RecordingDiagnostics`, so they
+need a category, and none of the set fits.
+
+| Area | Decision |
+| ---- | -------- |
+| Categories | `diagnostics` joins the set, for the host's diagnostics pipeline itself: a journal opening, restoring what a previous run kept, exporting, a store failing. |
+| Loops | A journal never reports from the path that records an event: a store failure is reported once, after the store is switched off, so the report cannot fail and report again. |

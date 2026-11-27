@@ -89,6 +89,7 @@ class ComposerField extends StatefulWidget {
     this.hintFontSize,
     this.hintText,
     this.hintMaxLines,
+    this.hintIcon,
     this.layout = const ComposerFieldLayout.island(),
     super.key,
   });
@@ -156,11 +157,19 @@ class ComposerField extends StatefulWidget {
   /// only); null leaves it to wrap.
   final int? hintMaxLines;
 
+  /// A glyph drawn before the hint in the hint's colour (island layout
+  /// only), such as the lock of a field the chat does not let the user
+  /// type in; null draws the hint alone.
+  final ChromeIconId? hintIcon;
+
   @override
   State<ComposerField> createState() => _ComposerFieldState();
 }
 
 class _ComposerFieldState extends State<ComposerField> {
+  // Between a hint glyph and the hint's text.
+  static const double _hintIconGap = 4;
+
   final _textFieldKey = GlobalKey();
   final _gutterSemanticsKey = GlobalKey();
   var _anchorScheduled = false;
@@ -674,21 +683,48 @@ class _ComposerFieldState extends State<ComposerField> {
         // they are part of its tap target, so a tap anywhere in the slot
         // focuses the field and places the caret, as the reference's field
         // takes its padding up to the buttons beside it.
+        final hintText = widget.hintText ?? strings.messageHint;
+        final hintStyle = TextStyle(
+          color: placeholder.fieldHint,
+          fontSize: hintSize,
+          // Keeps the line box of the field's own line, so the smaller hint
+          // sits on the caret's line instead of riding at the top of it.
+          height: fontSize * lineHeight / hintSize,
+          overflow: widget.hintMaxLines == null ? null : TextOverflow.ellipsis,
+        );
+        final hintIcon = widget.hintIcon;
         decoration =
             InputDecoration.collapsed(
-              hintText: widget.hintText ?? strings.messageHint,
+              // A glyph needs the hint as a widget, which the decoration
+              // takes instead of the text, never beside it.
+              hintText: hintIcon == null ? hintText : null,
               hintMaxLines: widget.hintMaxLines,
-              hintStyle: TextStyle(
-                color: placeholder.fieldHint,
-                fontSize: hintSize,
-                // Keeps the line box of the field's own line, so the smaller hint
-                // sits on the caret's line instead of riding at the top of it.
-                height: fontSize * lineHeight / hintSize,
-                overflow: widget.hintMaxLines == null
-                    ? null
-                    : TextOverflow.ellipsis,
-              ),
+              hintStyle: hintStyle,
             ).copyWith(
+              hint: hintIcon == null
+                  ? null
+                  : Text.rich(
+                      TextSpan(
+                        children: [
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Padding(
+                              padding: const EdgeInsetsDirectional.only(
+                                end: _hintIconGap,
+                              ),
+                              child: ChromeIcon(
+                                hintIcon,
+                                size: hintSize,
+                                color: placeholder.fieldHint,
+                              ),
+                            ),
+                          ),
+                          TextSpan(text: hintText),
+                        ],
+                      ),
+                      style: hintStyle,
+                      maxLines: widget.hintMaxLines,
+                    ),
               contentPadding: EdgeInsetsDirectional.only(
                 start: widget.startInset,
                 top: ComposerMetrics.fieldTopPad,

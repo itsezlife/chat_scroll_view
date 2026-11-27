@@ -67,6 +67,7 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     pastePlainAction: 'Вставить без форматирования',
     replyTo: (name) => 'Ответ для $name',
     editingMessage: 'Редактирование сообщения',
+    unavailableAction: (label) => '$label, недоступно',
   ),
   formatting: FormattingStrings(
     quoteAction: 'Цитата',

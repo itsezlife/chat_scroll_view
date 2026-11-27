@@ -18,6 +18,7 @@ final class ComposerStrings {
     required this.pastePlainAction,
     required this.replyTo,
     required this.editingMessage,
+    required this.unavailableAction,
   });
 
   /// Hint of the empty message field.
@@ -53,4 +54,10 @@ final class ComposerStrings {
 
   /// Header line shown while editing a message.
   final String editingMessage;
+
+  /// Label of an action the chat does not allow, drawn dimmed but still
+  /// focusable, from the action's own [label]:
+  /// `unavailableAction('Record voice message')` reads "Record voice
+  /// message, not available".
+  final String Function(String label) unavailableAction;
 }

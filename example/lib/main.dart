@@ -32,11 +32,15 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_chat_the
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat_list/view/chat_list_screen.dart';
+import 'package:chat_scroll_view_example/src/features/logs/data/diagnostics_journal.dart';
+import 'package:chat_scroll_view_example/src/features/logs/data/journal_store.dart';
 import 'package:chrome_foundation/chrome_foundation.dart'
     show BackdropSnapshotSource, GlassSource;
+import 'package:content_model/content_model.dart' show ChatDiagnostics;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
+import 'package:http_bytes_cache/http_bytes_cache.dart' show BytesDiagnostics;
 import 'package:l/l.dart';
 import 'package:mpx_ui/mpx_ui.dart'
     show ViewerBackdropScope, ViewerBackdropZoom;
@@ -105,6 +109,36 @@ Future<ChatDataSource> _loadSizeMix() async => GeneratedChatDataSource(
 Future<ChatDataSource> _loadCommentsWithShowcase() =>
     CommentsDataSource.load(tailBodies: ShowcaseBodies.all);
 
+// The diagnostics journal, first, so every later step's events are in it:
+// every chat package's events through `ChatDiagnostics.current`, the bytes
+// cache's through `BytesDiagnostics.current`. The media side's
+// `MpxDiagnostics` joins here once the mpx pin carries it (the mpx-transfers
+// MpxDiagnostics contract, issue 30), through a bridge into
+// `JournalSource.media` records. The journal lives as long as the process.
+//
+// A store that cannot open leaves the journal in memory for this run: the
+// logs are a tool, and a full disk must not stop the app starting.
+Future<DiagnosticsJournal> _openJournal() async {
+  JournalStore store;
+  try {
+    store = await JournalStore.open(
+      directory: await environment_specific.$appCacheDirectory(
+        'diagnostics_journal',
+      ),
+      capBytes: DiagnosticsJournal.defaultCapBytes,
+    );
+  } on Object catch (error, stackTrace) {
+    debugPrint('The diagnostics journal stays in memory: $error\n$stackTrace');
+    store = MemoryJournalStore();
+  }
+  final journal = DiagnosticsJournal(store: store);
+  ChatDiagnostics.current = journal.chatDiagnostics;
+  BytesDiagnostics.current = journal.bytesDiagnostics;
+  // Restored behind the boot: what arrives meanwhile goes after it.
+  unawaited(journal.restore());
+  return journal;
+}
+
 // Backend, stores and the emoji catalogue before the first frame, so the
 // panel's last page and the recents are there when it first paints. When one
 // of the two fails the other, if it got as far as existing, is freed.
@@ -113,6 +147,7 @@ Future<ChatDataSource> _loadCommentsWithShowcase() =>
 // page loaded the code up to 90%); it goes with the first frame.
 Future<AppServices> _createServices() async {
   environment_specific.$reportBootProgress(92, 'Preparing chats and emoji');
+  final journal = await _openJournal();
   final glyphCache = createExampleEmojiGlyphCache();
   final services = AppServices.create(
     glyphCache: glyphCache.cache,
@@ -124,6 +159,7 @@ Future<AppServices> _createServices() async {
     lottieFramesDirectory: environment_specific
         .$appCacheDirectory('media')
         .then((root) => root == null ? null : '$root/lottie_frames'),
+    journal: journal,
   );
   // Its own failure is awaited below; until then it is not an unhandled one.
   services.ignore();
@@ -247,6 +283,7 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
     home: switch (widget.start) {
       DemoStart.chat => _chat(context),
       DemoStart.chatList => ChatListScreen(
+        journal: widget.services.journal,
         chat: (context, entry) =>
             _chat(context, kind: entry.kind, title: entry.title),
       ),

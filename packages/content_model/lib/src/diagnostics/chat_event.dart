@@ -48,6 +48,10 @@ enum ChatEventCategory {
 
   /// Overlays over the chat, the scrim's phases among them.
   overlay,
+
+  /// The host's diagnostics pipeline itself: its journal opening, restoring
+  /// what a previous run kept, exporting, a store that failed.
+  diagnostics,
 }
 
 /// What happened, as one value of an emitting package's closed operation

@@ -164,7 +164,12 @@ final class AttachCapabilityGate {
       if (_$guards.containsKey(action)) return;
       _$guards[action] = Timer(deniedGuard, () => _$guards.remove(action));
     }
-    _feedback.onDenied(action, reason, correlation: _id);
+    _feedback.onDenied(
+      action,
+      reason,
+      consumer: CapabilityConsumer.picker,
+      correlation: _id,
+    );
   }
 
   void _relaySending() => _$sending.value = _$chatSending.value;

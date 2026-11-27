@@ -3,15 +3,17 @@ import 'package:chat_capabilities/testing.dart';
 import 'package:content_model/testing.dart';
 import 'package:test/test.dart';
 
+const _consumer = CapabilityConsumer.composer;
+
 void main() {
   const everyone = DenialReason.everyone();
   const restricted = DenialReason.restricted();
 
   test('records attempts in order with their reasons', () {
     final feedback = RecordingCapabilityFeedback()
-      ..onDenied(CapabilityAction.sendNow, restricted)
-      ..onDenied(CapabilityAction.copy, everyone)
-      ..onDenied(CapabilityAction.sendNow, everyone);
+      ..onDenied(CapabilityAction.sendNow, restricted, consumer: _consumer)
+      ..onDenied(CapabilityAction.copy, everyone, consumer: _consumer)
+      ..onDenied(CapabilityAction.sendNow, everyone, consumer: _consumer);
     expect(feedback.denials, [
       (action: CapabilityAction.sendNow, reason: restricted),
       (action: CapabilityAction.copy, reason: everyone),

@@ -46,3 +46,7 @@ this package is pre-1.0.
   hooks, so a host without feedback keeps today's behaviour. The events
   `denialTextMissing` and `feedbackFailed`; `DenialReason.diagnosticForm`.
   `testing.dart`: `RecordingCapabilityFeedback`.
+- `onDenied` takes the reporting `CapabilityConsumer` (required) and, for a
+  send during slow mode, the `remaining` wait, and reports the `denied`
+  event (`CapabilitiesOp.denied`) for every attempt, `CapabilityFeedback.none`
+  included. Consumers no longer emit it themselves.

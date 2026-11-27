@@ -31,6 +31,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/shipped_packs_se
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
+import 'package:chat_scroll_view_example/src/features/logs/data/diagnostics_journal.dart';
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:emoji_data/emoji_data.dart';
@@ -141,6 +142,8 @@ final class AppServices {
     required this.corpus,
     required this.describe,
     required this.scrolling,
+    required this.journal,
+    required DiagnosticsJournal? ownedJournal,
     required List<CollectionSource> pageParts,
     required PlaybackClock clock,
     required LottiePlayback? lottiePlayback,
@@ -170,6 +173,7 @@ final class AppServices {
        _bytesClient = bytesClient,
        _rangedBytes = rangedBytes,
        _pageParts = pageParts,
+       _ownedJournal = ownedJournal,
        _clock = clock,
        _lottiePlayback = lottiePlayback,
        _videoPlayback = videoPlayback,
@@ -253,6 +257,11 @@ final class AppServices {
   /// [DemoConfig.diskCache]): false ignores [glyphCache],
   /// [lottieFramesDirectory] and [bytesCacheDirectory], and everything is
   /// kept in memory for this launch only.
+  ///
+  /// [journal] is the host's diagnostics journal, whose policies the host
+  /// installed at start; the bytes store opens under its policy. Without
+  /// one, a journal in memory is made (and freed) here, and no process-wide
+  /// policy is touched.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -269,6 +278,7 @@ final class AppServices {
     CorpusStickerPack? corpus,
     IDeviceSignals? deviceSignals,
     bool diskCache = DemoConfig.diskCache,
+    DiagnosticsJournal? journal,
   }) async {
     if (!diskCache) {
       l.i(
@@ -287,6 +297,10 @@ final class AppServices {
       return value;
     }
 
+    // The host's journal, or one in memory this owns (a test's services).
+    final diagnostics = journal ?? DiagnosticsJournal.memory();
+    if (journal == null) unwind.add(diagnostics.dispose);
+
     try {
       // 0. The bytes store of fetched media (http_bytes_cache): Giphy's stills
       // and clips, kept by last use under its own quotas, and the one budget
@@ -300,7 +314,15 @@ final class AppServices {
       final bytes = owned<IBytesStore>(
         bytesDirectory == null
             ? MemoryBytesCache()
-            : await BytesCache.open(directory: bytesDirectory),
+            // Opening installs its policy as the process's, so it is the
+            // journal's: the host's start routed the bytes cache there
+            // already, and the default here would silence it again.
+            : await BytesCache.open(
+                directory: bytesDirectory,
+                diagnostics: journal == null
+                    ? const BytesDiagnostics.silent()
+                    : diagnostics.bytesDiagnostics,
+              ),
         (store) => store.close(),
       );
 
@@ -798,6 +820,8 @@ final class AppServices {
         corpus: corpusPacks,
         describe: describe,
         scrolling: scrolling,
+        journal: diagnostics,
+        ownedJournal: journal == null ? diagnostics : null,
         pageParts: [
           recentStickers,
           recentGifs,
@@ -1007,6 +1031,12 @@ final class AppServices {
   /// creations while it does (ADR 043, "Pool").
   final ScrollingSurfaces scrolling;
 
+  /// Every diagnostics event of the process (the Logs screen's records):
+  /// the host's journal, or one in memory when the host passed none.
+  final DiagnosticsJournal journal;
+
+  final DiagnosticsJournal? _ownedJournal;
+
   /// The Giphy clips this session lists and plays, or null without a key.
   final GiphyContent? giphy;
 
@@ -1148,6 +1178,7 @@ final class AppServices {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _ownedJournal?.dispose();
     _webProbePass?.cancel();
     _deviceLibrary.dispose();
     stickerPageSource.dispose();

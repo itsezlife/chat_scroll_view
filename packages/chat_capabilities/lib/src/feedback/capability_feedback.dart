@@ -4,6 +4,29 @@ import 'package:chat_capabilities/src/feedback/capability_action.dart';
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
 
+/// The package that reports an attempted denied action, named in the
+/// `denied` diagnostics event.
+///
+/// Names and order are stable: logs filter by them. A new consumer is
+/// declared last.
+enum CapabilityConsumer {
+  /// The composer: the input row, the locked field, a dimmed action, the
+  /// send during slow mode.
+  composer,
+
+  /// The media picker.
+  picker,
+
+  /// The emoji, sticker and GIF panel.
+  panel,
+
+  /// Message and text selection (copy, forward, save).
+  selection,
+
+  /// The outbox: a server refusal of a sent message.
+  outbox,
+}
+
 /// The host's text for [action] denied for [reason], or null for the
 /// package's silent form.
 typedef CapabilityDenialText =
@@ -80,14 +103,35 @@ base class CapabilityFeedback {
   /// Reports that the user attempted [action], denied for [reason]: a tap on
   /// a dimmed control, a send during slow mode, a server refusal.
   ///
+  /// Every attempt reports `denied` (info) first, with or without a host
+  /// hook ([none] too), so a log shows each attempt whatever the host does
+  /// with it: the action, the reason form, the [consumer] that reported it
+  /// and, given [remaining] (the slow mode wait of a `sendNow`), its
+  /// milliseconds. The event lives here rather than in each consumer so
+  /// every consumer reports the same fields.
+  ///
   /// A throwing hook is swallowed and reports `feedbackFailed`.
   /// [correlation] carries the chat id and, when known, the message's.
   @nonVirtual
   void onDenied(
     CapabilityAction action,
     DenialReason reason, {
+    required CapabilityConsumer consumer,
+    Duration? remaining,
     ChatCorrelation correlation = ChatCorrelation.none,
   }) {
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.info,
+      ChatEventCategory.capabilities,
+      CapabilitiesOp.denied,
+      correlation: correlation,
+      fields: () => {
+        'action': action,
+        'reason': reason.diagnosticForm,
+        'consumer': consumer,
+        'remainingMs': ?remaining?.inMilliseconds,
+      },
+    );
     try {
       _onDenied?.call(action, reason);
     } on Object catch (error, stackTrace) {
