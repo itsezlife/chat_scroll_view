@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'diagnostics/media_trace_test.dart' as diagnostics_media_trace_test;
 import 'goldens/media_geometry_golden_test.dart'
     as goldens_media_geometry_golden_test;
 import 'goldens/message_media_view_golden_test.dart'
@@ -31,8 +32,15 @@ import 'policy/media_layout_policy_test.dart'
 import 'policy/message_media_policy_test.dart'
     as policy_message_media_policy_test;
 import 'single_media_layout_test.dart' as single_media_layout_test;
+import 'transition/media_layout_lerp_test.dart'
+    as transition_media_layout_lerp_test;
+import 'transition/media_layout_transition_test.dart'
+    as transition_media_layout_transition_test;
+import 'transition/message_media_transition_test.dart'
+    as transition_message_media_transition_test;
 
 void main() {
+  group('diagnostics/media_trace_test', diagnostics_media_trace_test.main);
   group(
     'goldens/media_geometry_golden_test',
     goldens_media_geometry_golden_test.main,
@@ -72,4 +80,16 @@ void main() {
     policy_message_media_policy_test.main,
   );
   group('single_media_layout_test', single_media_layout_test.main);
+  group(
+    'transition/media_layout_lerp_test',
+    transition_media_layout_lerp_test.main,
+  );
+  group(
+    'transition/media_layout_transition_test',
+    transition_media_layout_transition_test.main,
+  );
+  group(
+    'transition/message_media_transition_test',
+    transition_message_media_transition_test.main,
+  );
 }
