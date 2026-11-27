@@ -12,8 +12,15 @@ import 'capability/capability_test.dart' as capability_test;
 import 'chat_capabilities_test.dart' as chat_capabilities_test;
 import 'diagnostics/capabilities_diagnostics_test.dart'
     as capabilities_diagnostics_test;
+import 'feedback/capability_action_test.dart' as capability_action_test;
+import 'feedback/capability_feedback_test.dart' as capability_feedback_test;
+import 'flags/media_kind_set_test.dart' as media_kind_set_test;
+import 'flags/protection_flags_test.dart' as protection_flags_test;
+import 'group/sendable_media_test.dart' as sendable_media_test;
 import 'group/slow_mode_test.dart' as slow_mode_test;
 import 'listenable/select_test.dart' as select_test;
+import 'testing/recording_capability_feedback_test.dart'
+    as recording_capability_feedback_test;
 
 void main() {
   group('capability/capability_test.dart', capability_test.main);
@@ -22,6 +29,18 @@ void main() {
     'diagnostics/capabilities_diagnostics_test.dart',
     capabilities_diagnostics_test.main,
   );
+  group('feedback/capability_action_test.dart', capability_action_test.main);
+  group(
+    'feedback/capability_feedback_test.dart',
+    capability_feedback_test.main,
+  );
+  group('flags/media_kind_set_test.dart', media_kind_set_test.main);
+  group('flags/protection_flags_test.dart', protection_flags_test.main);
+  group('group/sendable_media_test.dart', sendable_media_test.main);
   group('group/slow_mode_test.dart', slow_mode_test.main);
   group('listenable/select_test.dart', select_test.main);
+  group(
+    'testing/recording_capability_feedback_test.dart',
+    recording_capability_feedback_test.main,
+  );
 }

@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (capabilities)
+
+- `ComposerView.capabilities`: `limits.messageLength` is the message length
+  budget when `ComposerSpec.messageLengthLimit` is null; an explicit spec limit
+  wins.
+
 ### Changed (length counter)
 
 - The length counter stands over the primary button as an overlay outside

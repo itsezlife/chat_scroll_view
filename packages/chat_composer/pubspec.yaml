@@ -14,6 +14,8 @@ environment:
 
 dependencies:
   characters: ^1.4.0
+  chat_capabilities:
+    path: ../chat_capabilities
   chrome_foundation:
     path: ../chrome_foundation
   composer_editable:

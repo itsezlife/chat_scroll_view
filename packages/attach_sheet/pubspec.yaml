@@ -14,6 +14,8 @@ environment:
 dependencies:
   attach_model:
     path: ../attach_model
+  chat_capabilities:
+    path: ../chat_capabilities
   chat_composer:
     path: ../chat_composer
   chrome_foundation:
@@ -22,6 +24,7 @@ dependencies:
     path: ../content_model
   flutter:
     sdk: flutter
+  listen: ^1.0.1
   meta: ^1.17.0
   # mpx (github.com/itsezlife/mpx), pinned to one commit as in every pubspec:
   # preparation and the camera, the media cache's keys and views, the device

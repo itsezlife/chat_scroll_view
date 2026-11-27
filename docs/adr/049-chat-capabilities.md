@@ -91,12 +91,14 @@ nothing.
 | ------ | -------- |
 | Protection on | Copy, forward and save leave menus and the viewer. The root package's selection facade gains a capability-agnostic `canCopy(messageId) → bool` hook that gates text-selection copy; the host wires it from `protection.forMessage`, so the root takes no capabilities edge. On desktop a selection holding a protected message is cleared; on mobile it stays and loses the entries. Capture blocking reaches the host, which sets the platform's secure flag. |
 | Slow mode | A countdown on the send button (Android, desktop) or in the empty field's placeholder (iOS); the picker sends one unit (an album is one); an early send is refused through `onDenied`. |
-| Server denial | The outgoing message becomes failed with a denied reason and `onDenied` fires (ADR 048). |
+| Server denial | `onDenied` fires and the outgoing message follows a per-platform policy (ADR 048): on mobile it becomes failed with a denied reason, with Retry and Delete (iOS adds Retry All); on desktop denied media becomes failed with Delete only, and a denied text message is removed with its text restored to an empty composer. The host's `denialText` is shown, never the server's code. |
 
-Two defaults are proposed and checked against the reference before their
-work lands (the spec's only open items): items already picked whose kind becomes denied are refused at
-send through `onDenied`; a message the server denies stays failed rather
-than being removed.
+A kind that becomes denied while items are picked is checked on the
+client on every platform: the send is refused through `onDenied` before any
+job exists, the picker stays open with the selection and caption kept and
+the denied items marked (decided with the maintainer 2026-11-27, after
+checking the reference clients, which either send and fail or drop the
+selection).
 
 ## Why
 

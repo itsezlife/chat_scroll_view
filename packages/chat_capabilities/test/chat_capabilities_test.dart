@@ -150,6 +150,15 @@ void main() {
 
     test('names every rule a value breaks', () {
       final value = ChatCapabilities(
+        sending: SendingCapabilities(
+          media: SendableMedia(
+            allowed: MediaKindSet.of([MediaKind.photo]),
+            denials: {
+              MediaKind.photo: const DenialReason.everyone(),
+              MediaKind.video: const DenialReason.everyone(),
+            },
+          ),
+        ),
         slowMode: SlowMode(nextSendAt: DateTime.utc(2026)),
         limits: const ChatLimits(
           messageLength: 0,
@@ -160,6 +169,7 @@ void main() {
         custom: {'': denied},
       );
       expect(value.brokenRules, [
+        CapabilitiesRule.mediaDenialForAllowedKind,
         CapabilitiesRule.slowModeWaitWithoutInterval,
         CapabilitiesRule.messageLengthBelowOne,
         CapabilitiesRule.captionLengthNegative,
@@ -172,6 +182,20 @@ void main() {
           slowMode: SlowMode(interval: Duration(seconds: -1)),
         ).brokenRules,
         [CapabilitiesRule.slowModeIntervalNegative],
+      );
+    });
+
+    test('a denial for a denied kind is valid', () {
+      expect(
+        const ChatCapabilities(
+          sending: SendingCapabilities(
+            media: SendableMedia(
+              allowed: MediaKindSet.none,
+              denials: {MediaKind.photo: DenialReason.everyone()},
+            ),
+          ),
+        ).brokenRules,
+        isEmpty,
       );
     });
 
@@ -190,6 +214,19 @@ void main() {
       expect(const ChatCapabilities().debugDescribe(), {
         'sending': {
           'text': 'allowed',
+          'media': {
+            'allowed': [
+              'photo',
+              'video',
+              'animation',
+              'file',
+              'audio',
+              'voice',
+              'roundVideo',
+            ],
+            'bits': 127,
+            'denials': <String, Object>{},
+          },
           'stickers': 'allowed',
           'linkPreviews': 'allowed',
           'polls': 'allowed',
@@ -202,6 +239,7 @@ void main() {
           'forward': true,
           'save': true,
           'captureBlocked': false,
+          'bits': 0,
         },
         'limits': {
           'messageLength': 4096,
@@ -217,6 +255,10 @@ void main() {
       final value = ChatCapabilities(
         sending: SendingCapabilities(
           text: const Capability.denied(DenialReason.restricted()),
+          media: const SendableMedia(
+            allowed: MediaKindSet.none,
+            denials: {MediaKind.voice: DenialReason.unlockable('premium')},
+          ),
           stickers: Capability.denied(
             DenialReason.restricted(until: DateTime.utc(2026, 12, 1)),
           ),
@@ -241,6 +283,11 @@ void main() {
       expect(value.debugDescribe(), {
         'sending': {
           'text': 'denied(restricted)',
+          'media': {
+            'allowed': <String>[],
+            'bits': 0,
+            'denials': {'voice': 'unlockable(premium)'},
+          },
           'stickers': 'denied(restricted(until: 2026-12-01T00:00:00.000Z))',
           'linkPreviews': 'denied(unlockable(boost))',
           'polls': 'denied(other(ruleTag))',
@@ -257,6 +304,7 @@ void main() {
           'forward': true,
           'save': true,
           'captureBlocked': true,
+          'bits': 9,
         },
         'limits': {
           'messageLength': 4096,

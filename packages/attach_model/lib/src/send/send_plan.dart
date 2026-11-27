@@ -1,3 +1,5 @@
+import 'dart:math' show min;
+
 import 'package:attach_model/src/item/attach_item.dart';
 import 'package:attach_model/src/item/attach_limits.dart';
 import 'package:attach_model/src/policy/attach_policy.dart';
@@ -233,7 +235,8 @@ int _codePoints(RichText? text) => text?.plain.runes.length ?? 0;
 /// sends and places the caption.
 ///
 /// Pure. Every item appears once, in selection order. Items share a send
-/// group of at most [AttachPolicy.maxGroupSize] when their form matches and
+/// group of at most [AttachPolicy.maxGroupSize] (or [AttachLimits.albumSize]
+/// when that is smaller) when their form matches and
 /// grouping is on; an item with a timer and an animation sent as media are
 /// never grouped, and [AttachPolicy.ungroupsBatch] can turn grouping off for
 /// the whole batch. Under "as files", timers are cleared. Spoilers never
@@ -283,7 +286,7 @@ SendPlan planSend(
     items,
     asFiles: asFiles,
     grouped: grouped,
-    maxSize: policy.maxGroupSize,
+    maxSize: min(policy.maxGroupSize, limits.albumSize),
   );
   final own = _ownCaptions(items, caption, policy.itemCaptions);
   return SendPlan$Ready(

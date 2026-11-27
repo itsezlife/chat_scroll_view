@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (derived limits)
+
+- `deriveAttachLimits` and `attachLimitsOf` build `AttachLimits` from a chat's
+  capabilities; `const ChatCapabilities()` gives `const AttachLimits()`. The
+  constructor and fields stay.
+
 ### Fixed (sheet polish, Android)
 
 - The picker viewer's Send carries no count on Android, as the
