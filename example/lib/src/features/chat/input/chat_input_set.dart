@@ -417,6 +417,7 @@ final class ChatInputSet {
          resolver: linkPreviewResolver,
          policy: linkPreviewDismissal,
          correlation: () => ChatCorrelation(chatId: chatId),
+         capabilities: capabilities,
        ) {
     ImeSampleFeed? feed;
     StreamSubscription<PanelEvent>? panelEvents;

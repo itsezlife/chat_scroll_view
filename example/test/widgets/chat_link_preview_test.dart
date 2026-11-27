@@ -7,6 +7,8 @@
 /// `FakeLinkPreviewResolver`.
 library;
 
+import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:chat_capabilities/testing.dart';
 import 'package:chat_composer/chat_composer.dart'
     show LinkPreviewDismissalOp, LinkPreviewDismissalPolicy;
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
@@ -34,6 +36,7 @@ Future<InputRig> _pumpRig(
   WidgetTester tester, {
   LinkPreviewResolver? resolver,
   LinkPreviewDismissalPolicy? policy,
+  FakeChatCapabilitiesSource? capabilities,
 }) async {
   final services = (await tester.runAsync(createTestServices))!;
   addTearDown(services.dispose);
@@ -42,6 +45,7 @@ Future<InputRig> _pumpRig(
     services: services,
     linkPreviewResolver: resolver,
     linkPreviewDismissal: policy,
+    capabilities: capabilities,
   );
 }
 
@@ -525,6 +529,159 @@ void main() {
 
       rig.set.linkPreview.available = true;
       expect(fake.calls.last, [_a, _b]);
+    });
+  });
+
+  group('chat capabilities', () {
+    const denied = Capability.denied(DenialReason.everyone());
+    late FakeChatCapabilitiesSource rights;
+
+    setUp(() => rights = FakeChatCapabilitiesSource());
+    tearDown(() => rights.dispose());
+
+    ChatCapabilities deny() => const ChatCapabilities(
+      sending: SendingCapabilities(linkPreviews: denied),
+    );
+
+    testWidgets('a URL typed while denied starts no lookup and sends removed', (
+      tester,
+    ) async {
+      final diagnostics = RecordingDiagnostics.install();
+      rights.set(deny());
+      final fake = FakeLinkPreviewResolver();
+      final rig = await _pumpRig(tester, resolver: fake, capabilities: rights);
+
+      await rig.typeInField(tester, 'see $_a ');
+      await tester.pump();
+
+      expect(fake.calls, isEmpty);
+      expect(rig.set.linkPreview.card.value, isNull);
+      expect(find.text('a.example'), findsNothing);
+      expect(
+        rig.set.linkPreview.outgoing?.options,
+        LinkPreviewOptions(url: _a, removed: true),
+      );
+      expect(
+        diagnostics.whereOp(
+          ChatLinkPreviewAvailabilityOp.linkPreviewsAvailability,
+        ),
+        [
+          isChatEvent(fields: {'allowed': false}),
+        ],
+      );
+    });
+
+    testWidgets('a live denial drops the page and hides the strip', (
+      tester,
+    ) async {
+      final diagnostics = RecordingDiagnostics.install();
+      final fake = FakeLinkPreviewResolver()..answer([_a], _pageA);
+      final rig = await _pumpRig(tester, resolver: fake, capabilities: rights);
+      await rig.typeInField(tester, 'see $_a ');
+      await _answer(tester, fake);
+      expect(find.text('Site A'), findsOneWidget);
+
+      rights.set(deny());
+      await tester.pump();
+
+      expect(rig.set.linkPreview.card.value, isNull);
+      expect(find.text('Site A'), findsNothing);
+      expect(rig.set.linkPreview.outgoing?.options.removed, isTrue);
+      expect(
+        diagnostics
+            .whereOp(ChatLinkPreviewAvailabilityOp.linkPreviewsAvailability)
+            .map((event) => event.fields['allowed']),
+        [false],
+      );
+    });
+
+    testWidgets('a live denial drops a pending lookup', (tester) async {
+      final diagnostics = RecordingDiagnostics.install();
+      final fake = FakeLinkPreviewResolver();
+      final rig = await _pumpRig(tester, resolver: fake, capabilities: rights);
+      await rig.typeInField(tester, 'see $_a ');
+
+      rights.set(deny());
+
+      expect(fake.cancels, hasLength(1));
+      expect(
+        diagnostics
+            .whereOp(ChatLinkPreviewOp.resolveCancelled)
+            .map((event) => event.fields['reason']),
+        ['denied'],
+      );
+    });
+
+    testWidgets('re-allowed under fieldUntilBigEdit searches again', (
+      tester,
+    ) async {
+      final fake = FakeLinkPreviewResolver();
+      final rig = await _pumpRig(
+        tester,
+        resolver: fake,
+        capabilities: rights,
+        policy: LinkPreviewDismissalPolicy.fieldUntilBigEdit,
+      );
+      await rig.typeInField(tester, 'see $_a ');
+      rights.set(deny());
+      final before = fake.calls.length;
+
+      rights.set(const ChatCapabilities());
+
+      expect(fake.calls.skip(before), [
+        [_a],
+      ]);
+    });
+
+    for (final policy in [
+      LinkPreviewDismissalPolicy.fieldUntilBigEdit,
+      LinkPreviewDismissalPolicy.untilNoLinks,
+    ]) {
+      testWidgets('a field dismissed under ${policy.name} stays dismissed', (
+        tester,
+      ) async {
+        final fake = FakeLinkPreviewResolver()..answer([_a], _pageA);
+        final rig = await _pumpRig(
+          tester,
+          resolver: fake,
+          capabilities: rights,
+          policy: policy,
+        );
+        await rig.typeInField(tester, 'see $_a ');
+        await _answer(tester, fake);
+        rig.set.linkPreview.dismiss();
+        rights.set(deny());
+        final before = fake.calls.length;
+
+        rights.set(const ChatCapabilities());
+        await tester.pump();
+
+        expect(fake.calls.skip(before), isEmpty);
+        expect(rig.set.linkPreview.card.value, isNull);
+      });
+    }
+
+    testWidgets('re-allowed under perUrl skips only the dismissed URL', (
+      tester,
+    ) async {
+      final fake = FakeLinkPreviewResolver()..answer([_a, _b], _pageA);
+      final rig = await _pumpRig(
+        tester,
+        resolver: fake,
+        capabilities: rights,
+        policy: LinkPreviewDismissalPolicy.perUrl,
+      );
+      await rig.typeInField(tester, 'see $_a and $_b ');
+      await _answer(tester, fake);
+      rig.set.linkPreview.dismiss();
+      rights.set(deny());
+      final before = fake.calls.length;
+
+      rights.set(const ChatCapabilities());
+
+      expect(fake.calls.skip(before), [
+        [_b],
+      ]);
     });
   });
 }
