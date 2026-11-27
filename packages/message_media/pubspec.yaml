@@ -1,7 +1,7 @@
 name: message_media
 description: >
-  Message media display: the box and mosaic geometry that lays out a message's
-  media items, keyed by media item id.
+  Message media display: the policy, layouts, cells and link preview card that
+  show a message's media items, keyed by media item id.
 version: 0.1.0
 publish_to: none
 resolution: workspace
