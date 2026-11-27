@@ -15,8 +15,19 @@ import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http_bytes_cache/http_bytes_cache.dart';
+import 'package:mpx/mpx.dart' show CacheDiagnosticsBridge;
+import 'package:mpx_core/mpx_core.dart'
+    show MediaKey, MpxDiagnostics, MpxEvent, MpxEventLevel;
+import 'package:mpx_core/mpx_core.dart' as mpx show DiagnosticOp;
 
 enum _Op implements DiagnosticOp { tick, failed }
+
+enum _MediaOp implements mpx.DiagnosticOp {
+  jobStarted;
+
+  @override
+  String get category => 'transfer';
+}
 
 ChatEvent _event(
   int n, {
@@ -190,6 +201,71 @@ void main() {
       expect(record.source, JournalSource.bytes);
       expect(record.category, 'bytes');
       expect(record.op, 'revalidate_background');
+      expect(record.level, ChatEventLevel.warning);
+      expect(record.encode(), isNot(contains('photo')));
+      expect(record.encode(), isNot(contains('secret')));
+    });
+
+    test("the media side's events, ids and tag kept, errors with URLs cut to "
+        'their host', () {
+      final journal = DiagnosticsJournal.memory();
+      addTearDown(journal.dispose);
+
+      journal.mediaDiagnostics.report(
+        MpxEvent(
+          time: DateTime.utc(2026, 11, 28),
+          level: MpxEventLevel.error,
+          op: _MediaOp.jobStarted,
+          jobId: 'job-1',
+          itemId: 'item-2',
+          mediaKey: const MediaKey.remote('photo-3'),
+          tag: 'chat-4',
+          fields: const {'bytes': 10},
+          error: 'GET https://cdn.example.com/u/42/photo.jpg failed',
+        ),
+      );
+
+      final [record] = journal.records.toList();
+      expect(record.source, JournalSource.media);
+      expect(record.category, 'transfer');
+      expect(record.op, 'jobStarted');
+      expect(record.level, ChatEventLevel.error);
+      expect(record.correlation.jobId, 'job-1');
+      expect(record.correlation.mediaItemId, 'item-2');
+      expect(
+        record.correlation.mediaKey,
+        const MediaKey.remote('photo-3').encoded,
+      );
+      expect(record.fields, {'bytes': 10, 'tag': 'chat-4'});
+      expect(record.error, 'GET https://cdn.example.com failed');
+      expect(
+        JournalRecord.tryParse(record.encode())?.source,
+        JournalSource.media,
+      );
+    });
+
+    test("the bytes cache's events through mpx's cache bridge, category "
+        'cache, without the message', () {
+      final journal = DiagnosticsJournal.memory();
+      addTearDown(journal.dispose);
+      final previous = MpxDiagnostics.current;
+      MpxDiagnostics.current = journal.mediaDiagnostics;
+      addTearDown(() => MpxDiagnostics.current = previous);
+
+      CacheDiagnosticsBridge.policy.report(
+        const BytesLogEvent(
+          level: BytesLogLevel.warning,
+          message:
+              'BytesResolver background revalidation failed for '
+              'https://cdn.example.com/u/42/photo.jpg?token=secret',
+          op: BytesLogOp.revalidateBackground,
+        ),
+      );
+
+      final [record] = journal.records.toList();
+      expect(record.source, JournalSource.media);
+      expect(record.category, 'cache');
+      expect(record.op, 'revalidateBackground');
       expect(record.level, ChatEventLevel.warning);
       expect(record.encode(), isNot(contains('photo')));
       expect(record.encode(), isNot(contains('secret')));
