@@ -48,7 +48,6 @@ void main() {
     attachTaps = 0;
     voiceTaps = 0;
     controller = ComposerController(
-      capabilities: source,
       capabilityFeedback: CapabilityFeedback(
         denialText: _text,
         onDenied: (action, reason) =>
@@ -83,10 +82,17 @@ void main() {
     ComposerPanelActionResolver? accessAction,
     ComposerDeniedForms? deniedForms,
     TextDirection direction = TextDirection.ltr,
+    bool withCapabilities = true,
+    int? messageLengthLimit,
   }) => composerHarness(
     ComposerView(
       controller: over ?? controller,
-      spec: ComposerSpec(panel: panel, actions: actions()),
+      capabilities: withCapabilities ? source : null,
+      spec: ComposerSpec(
+        panel: panel,
+        actions: actions(),
+        messageLengthLimit: messageLengthLimit,
+      ),
       panelResolver: resolver,
       accessAction: accessAction,
       deniedForms: deniedForms,
@@ -105,12 +111,17 @@ void main() {
       tester.pump(ComposerController.defaultDeniedRepeatWindow);
 
   group('with everything allowed', () {
-    testWidgets('builds the same tree as a composer without capabilities', (
-      tester,
-    ) async {
+    testWidgets('builds the same tree as a composer without capabilities '
+        '(given the default length budget)', (tester) async {
       final plain = ComposerController();
       addTearDown(plain.dispose);
-      await tester.pumpWidget(view(over: plain));
+      await tester.pumpWidget(
+        view(
+          over: plain,
+          withCapabilities: false,
+          messageLengthLimit: const ChatLimits().messageLength,
+        ),
+      );
       final before = [for (final w in tester.allWidgets) w.runtimeType];
 
       await tester.pumpWidget(const SizedBox());
@@ -125,7 +136,7 @@ void main() {
     testWidgets('reports the field as the chosen panel, once', (tester) async {
       await tester.pumpWidget(view());
       await tester.pumpWidget(view());
-      expect(diagnostics.whereOp(ComposerCapabilitiesOp.panelChosen), [
+      expect(diagnostics.whereOp(CapabilitiesOp.panelChosen), [
         isChatEvent(
           level: ChatEventLevel.debug,
           category: ChatEventCategory.capabilities,
@@ -144,7 +155,7 @@ void main() {
     ) async {
       final plain = ComposerController();
       addTearDown(plain.dispose);
-      await tester.pumpWidget(view(over: plain));
+      await tester.pumpWidget(view(over: plain, withCapabilities: false));
       expect(diagnostics.events, isEmpty);
     });
   });
@@ -208,7 +219,7 @@ void main() {
         );
         expectChromeText(tester, within: find.byType(ComposerView));
         expect(
-          diagnostics.whereOp(ComposerCapabilitiesOp.panelChosen).single,
+          diagnostics.whereOp(CapabilitiesOp.panelChosen).single,
           isChatEvent(
             correlation: _chat,
             fields: allOf(
@@ -228,9 +239,7 @@ void main() {
       source.update(writeAccess: const WriteAccess.custom('premium'));
       await tester.pump();
       expect(
-        diagnostics
-            .whereOp(ComposerCapabilitiesOp.panelChosen)
-            .map((e) => e.fields),
+        diagnostics.whereOp(CapabilitiesOp.panelChosen).map((e) => e.fields),
         [
           {
             'writeAccess': 'restricted',
@@ -271,7 +280,7 @@ void main() {
       expect(find.text('host join'), findsOneWidget);
       expect(find.text('sendText other(join)'), findsNothing);
       expect(
-        diagnostics.whereOp(ComposerCapabilitiesOp.panelChosen).single.fields,
+        diagnostics.whereOp(CapabilitiesOp.panelChosen).single.fields,
         containsPair('builder', 'host'),
       );
     });
@@ -279,7 +288,7 @@ void main() {
     testWidgets('a null text draws the silent panel and reports it', (
       tester,
     ) async {
-      final silent = ComposerController(capabilities: source);
+      final silent = ComposerController();
       addTearDown(silent.dispose);
       source.update(writeAccess: const WriteAccess.readOnly());
       await tester.pumpWidget(view(over: silent));
@@ -520,7 +529,7 @@ void main() {
     ) async {
       final plain = ComposerController();
       addTearDown(plain.dispose);
-      await tester.pumpWidget(view(over: plain));
+      await tester.pumpWidget(view(over: plain, withCapabilities: false));
       await tester.tap(voice());
       expect(voiceTaps, 1);
       expect(find.byType(Opacity), findsNothing);
@@ -531,7 +540,6 @@ void main() {
     test('reportDenied drops a repeat within the window and after dispose', () {
       final feedback = RecordingCapabilityFeedback();
       final composer = ComposerController(
-        capabilities: source,
         capabilityFeedback: feedback,
         deniedRepeatWindow: Duration.zero,
       );
@@ -540,19 +548,6 @@ void main() {
       composer.dispose();
       expect(composer.reportDenied(CapabilityAction.sendText, _ban), isFalse);
       expect(feedback.denials, hasLength(1));
-    });
-
-    test('denialFor reads the sending rights', () {
-      source.set(_voiceDenied);
-      expect(
-        controller.denialFor(CapabilityAction.sendVoice),
-        const DenialReason.everyone(),
-      );
-      expect(controller.denialFor(CapabilityAction.sendPhoto), isNull);
-      expect(controller.denialFor(CapabilityAction.sendNow), isNull);
-      final plain = ComposerController();
-      addTearDown(plain.dispose);
-      expect(plain.denialFor(CapabilityAction.sendVoice), isNull);
     });
   });
 }

@@ -27,4 +27,15 @@ enum CapabilitiesOp implements DiagnosticOp {
   /// milliseconds left. Emitted by `CapabilityFeedback.onDenied`, so every
   /// consumer reports it the same way.
   denied,
+
+  /// A picker's limits were derived from a chat's value (debug): the allowed
+  /// attach kinds, grouping, single select and the caption, file and album
+  /// limits. Emitted by the picker's package, which owns the derivation.
+  limitsDerived,
+
+  /// The composer chose its input row's panel from the write access (debug):
+  /// the `writeAccess` form (with `reason` for a restriction and `tag` for a
+  /// host form), the `panel` id and the `builder` (`field`, `host` or
+  /// `default`). Emitted by the composer once per change of those.
+  panelChosen,
 }

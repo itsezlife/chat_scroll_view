@@ -19,6 +19,8 @@ package is pre-1.0.
   enum implements. `testing.dart` adds `RecordingDiagnostics` (with
   `install`, which restores the previous policy after the test) and the
   `isChatEvent` matcher.
+- `ChatEventCategory.diagnostics`: the host's diagnostics pipeline itself
+  (its journal opening, restoring, exporting, a store that failed).
 - `MediaForm.vectorImage` (`vector_image`): a resolution-independent still,
   such as an SVG document.
 - `ContentDescriptor.byteSize`, `duration`, `streamable` and `preview`; the

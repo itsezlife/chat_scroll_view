@@ -132,6 +132,9 @@ import 'features/chat/sticker_message_body_test.dart'
 import 'features/chat/video_sticker_pack_test.dart' as video_sticker_pack_test;
 import 'features/chat/wallpaper/downloaded_pattern_test.dart'
     as downloaded_pattern_test;
+import 'features/logs/diagnostics_journal_test.dart'
+    as diagnostics_journal_test;
+import 'features/logs/journal_page_test.dart' as journal_page_test;
 import 'features/streaming/streaming_screen_test.dart' as streaming_screen_test;
 import 'flicker/gif_return_test.dart' as flicker_gif_return_test;
 import 'flicker/hidden_panel_textures_test.dart'
@@ -237,6 +240,11 @@ void main() {
     'features/streaming/streaming_screen_test.dart',
     streaming_screen_test.main,
   );
+  group(
+    'features/logs/diagnostics_journal_test.dart',
+    diagnostics_journal_test.main,
+  );
+  group('features/logs/journal_page_test.dart', journal_page_test.main);
   group('flicker/gif_return_test.dart', flicker_gif_return_test.main);
   group(
     'flicker/hidden_panel_textures_test.dart',

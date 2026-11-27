@@ -8,10 +8,10 @@ is pre-1.0.
 
 ### Added (chat capabilities)
 
-- `ComposerController` takes the chat's `capabilities` (a
-  `ValueListenable<ChatCapabilities>`), the host's `capabilityFeedback` and
-  a `chatId`; without them nothing changes. `denialFor`, `denialText` and
-  `reportDenied` (one report per `deniedRepeatWindow`, 2.3 s by default).
+- `ComposerController` takes the host's `capabilityFeedback` and a
+  `chatId`; without them nothing changes. `denialText` and `reportDenied`
+  (one report per `deniedRepeatWindow`, 2.3 s by default). The rights are
+  read from `ComposerView.capabilities`.
 - The input row follows the write access: `ComposerPanelId.readOnly`,
   `join`, `requestToJoin`, `restricted` and `writeAccessCustom`
   (`ComposerPanelId.forWriteAccess`) replace the requested panel, each with
@@ -24,8 +24,13 @@ is pre-1.0.
   focusable, is announced "…, not available" with the denial text as its
   hint, and a tap reports the attempt instead of calling `onTap`.
 - The `capabilities` / `panelChosen` diagnostics event
-  (`ComposerCapabilitiesOp`); attempts report `denied` through the
+  (`CapabilitiesOp.panelChosen`); attempts report `denied` through the
   feedback seam.
+### Added (capabilities)
+
+- `ComposerView.capabilities`: `limits.messageLength` is the message length
+  budget when `ComposerSpec.messageLengthLimit` is null; an explicit spec limit
+  wins.
 
 ### Changed (length counter)
 

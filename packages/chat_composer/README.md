@@ -55,9 +55,10 @@ morphs in place).
 
 ## Capabilities
 
-Given the chat's capabilities and the host's `CapabilityFeedback`
-(`chat_capabilities`), the controller decides what is denied and the view
-draws it:
+Given the chat's capabilities (`ComposerView.capabilities`) and the host's
+`CapabilityFeedback` (`ComposerController.capabilityFeedback`, both from
+`chat_capabilities`), the view draws what is denied and the controller
+reports the attempts:
 
 | Right | Form |
 | --- | --- |
@@ -68,7 +69,7 @@ draws it:
 A report reaches the host's `onDenied` at most once per
 `deniedRepeatWindow`, so a burst of taps shows one hint; the host shows it.
 Without capabilities the composer is unchanged. Events: `panelChosen`
-(`ComposerCapabilitiesOp`) when the row's panel choice changes, and the
+(`CapabilitiesOp`) when the row's panel choice changes, and the
 seam's `denied`, `denialTextMissing` and `feedbackFailed`.
 
 ## Extent

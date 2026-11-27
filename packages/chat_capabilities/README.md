@@ -84,6 +84,7 @@ A package passes its `CapabilityConsumer` (`composer`, `picker`, `panel`,
 | `invalidValue` | warning | `rule`, one event per broken `CapabilitiesRule`; debug builds then assert |
 | `denialTextMissing` | debug | `action`, `reason` (its form), `form` (the silent form the package draws, when it names one) |
 | `denied` | info | `action`, `reason` (its form), `consumer`, `remainingMs` (when given); reported by `onDenied` for every attempt, with or without a host hook |
+| `panelChosen` | debug | `writeAccess` (its form), `reason` or `tag` when it has one, `panel`, `builder` (`field`, `host`, `default`); emitted by the composer |
 | `feedbackFailed` | error | `hook` (`denialText` or `onDenied`), `action`, `errorType`; the event carries the error and stack trace |
 
 The feedback events are correlated by the `correlation` the calling package

@@ -1,7 +1,6 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:chat_capabilities/chat_capabilities.dart';
-import 'package:chat_composer/src/capabilities/composer_capabilities_op.dart';
 import 'package:chat_composer/src/capabilities/composer_denied_forms.dart';
 import 'package:chat_composer/src/capabilities/sending_denial.dart';
 import 'package:chat_composer/src/input/composer_controller.dart';
@@ -50,7 +49,7 @@ import 'package:listen/listen.dart' as listen;
 ///
 /// ## Capabilities
 ///
-/// With the controller's `capabilities`, the chat's rights shape the row
+/// With [capabilities], the chat's rights shape the row
 /// (each change applies on the next value, the draft kept):
 ///
 /// - a write access other than `canWrite` puts its default panel in the
@@ -65,6 +64,8 @@ import 'package:listen/listen.dart' as listen;
 ///   with the denial text as its hint, and a tap reports the attempt instead
 ///   of calling its `onTap`.
 ///
+/// Texts come from, and attempts are reported through, the controller's
+/// `capabilityFeedback` (`ComposerController.denialText`, `reportDenied`).
 /// Without capabilities the view is what it was before them.
 ///
 /// ## Extent
@@ -108,6 +109,7 @@ class ComposerView extends StatefulWidget {
     this.autofocus = true,
     this.accessAction,
     this.deniedForms,
+    this.capabilities,
     super.key,
   });
 
@@ -228,6 +230,15 @@ class ComposerView extends StatefulWidget {
   /// platform's ([ComposerDeniedForms.forPlatform]).
   final ComposerDeniedForms? deniedForms;
 
+  /// The chat's capabilities, whose `limits.messageLength` is the message
+  /// length budget when [ComposerSpec.messageLengthLimit] is null; an explicit
+  /// spec limit wins. Null leaves the budget to the spec alone. A change of
+  /// the limit reaches the counter and the send refusal at once.
+  ///
+  /// Their `writeAccess` and `sending` rights also pick the row's panel,
+  /// lock the field and dim denied actions (see "Capabilities" above).
+  final listen.ValueListenable<ChatCapabilities>? capabilities;
+
   @override
   State<ComposerView> createState() => _ComposerViewState();
 }
@@ -266,8 +277,7 @@ class _ComposerViewState extends State<ComposerView>
 
   ComposerSpec get _spec => widget.spec;
 
-  // The write access and sending rights, selected from the controller's
-  // capabilities so a slow mode tick does not rebuild the row; null without
+  // The write access and sending rights, selected from the capabilities so a slow mode tick does not rebuild the row; null without
   // capabilities.
   listen.ValueListenable<_Gate>? _gateSource;
 
@@ -275,12 +285,29 @@ class _ComposerViewState extends State<ComposerView>
   Map<String, Object>? _reportedPanel;
 
   _Gate? get _gate => _gateSource?.value;
+  // The limits group of the capabilities, heard only while it is set.
+  listen.ValueListenable<ChatLimits>? _limits;
+
+  // The budget in force: the spec's, else the chat's.
+  int? get _messageLengthLimit =>
+      _spec.messageLengthLimit ?? _limits?.value.messageLength;
+
+  void _bindLimits() {
+    _limits?.removeListener(_onLimits);
+    _limits = widget.capabilities?.select((c) => c.limits)
+      ?..addListener(_onLimits);
+  }
+
+  void _onLimits() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
     _subscribeGate();
     _shownHeader = _spec.header;
+    _bindLimits();
     _reveal = AnimationController(
       vsync: this,
       value: switch (_spec.header) {
@@ -295,10 +322,8 @@ class _ComposerViewState extends State<ComposerView>
   @override
   void didUpdateWidget(ComposerView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(
-      oldWidget.controller.capabilities,
-      widget.controller.capabilities,
-    )) {
+    if (!identical(oldWidget.capabilities, widget.capabilities)) {
+      _bindLimits();
       _gateSource?.removeListener(_onGate);
       _subscribeGate();
     }
@@ -308,7 +333,7 @@ class _ComposerViewState extends State<ComposerView>
   // --- Capabilities ---
 
   void _subscribeGate() {
-    _gateSource = widget.controller.capabilities?.select(
+    _gateSource = widget.capabilities?.select(
       (c) => (writeAccess: c.writeAccess, sending: c.sending),
     )?..addListener(_onGate);
   }
@@ -349,7 +374,7 @@ class _ComposerViewState extends State<ComposerView>
     ChatDiagnostics.current.emit(
       ChatEventLevel.debug,
       ChatEventCategory.capabilities,
-      ComposerCapabilitiesOp.panelChosen,
+      CapabilitiesOp.panelChosen,
       correlation: widget.controller.correlation,
       fields: () => choice,
     );
@@ -372,6 +397,7 @@ class _ComposerViewState extends State<ComposerView>
   @override
   void dispose() {
     _gateSource?.removeListener(_onGate);
+    _limits?.removeListener(_onLimits);
     _reveal
       ..removeStatusListener(_onRevealStatus)
       ..dispose();
@@ -448,7 +474,7 @@ class _ComposerViewState extends State<ComposerView>
       _spec.enabled && action.isTappable && !(_spec.busy && action.primary);
 
   bool get _overBudget {
-    final limit = _spec.messageLengthLimit;
+    final limit = _messageLengthLimit;
     return limit != null && widget.controller.length > limit;
   }
 
@@ -715,7 +741,7 @@ class _ComposerViewState extends State<ComposerView>
                       ),
                       // Over the primary button, at the row's end: drawn
                       // above the island, taking none of its room.
-                      if (_spec.messageLengthLimit case final limit?)
+                      if (_messageLengthLimit case final limit?)
                         PositionedDirectional(
                           end: _rowInset,
                           bottom: ComposerMetrics.actionSize,

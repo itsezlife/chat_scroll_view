@@ -14,8 +14,8 @@ environment:
 
 dependencies:
   characters: ^1.4.0
-  # The chat's capabilities: the input row's panel, the locked field and
-  # the dimmed actions (ADR 049).
+  # The chat's capabilities: the message length budget, the input row's
+  # panel, the locked field and the dimmed actions (ADR 049).
   chat_capabilities:
     path: ../chat_capabilities
   chrome_foundation:

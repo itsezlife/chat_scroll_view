@@ -93,6 +93,50 @@ void main() {
     });
   });
 
+  group('album size', () {
+    test('albumSize 4 splits 9 photos into 4, 4, 1 on every policy', () {
+      for (final policy in _all) {
+        expect(
+          _plan(policy, _photos(9), limits: const AttachLimits(albumSize: 4)),
+          ['G(p0,p1,p2,p3)', 'G(p4,p5,p6,p7)', 'S(p8)'],
+          reason: '$policy',
+        );
+      }
+    });
+
+    test('albumSize 1 sends every item alone', () {
+      expect(
+        _plan(_android, _photos(3), limits: const AttachLimits(albumSize: 1)),
+        ['S(p0)', 'S(p1)', 'S(p2)'],
+      );
+    });
+
+    test('a size above the policy group size changes nothing', () {
+      expect(
+        _plan(_android, _photos(11), limits: const AttachLimits(albumSize: 50)),
+        _plan(_android, _photos(11)),
+      );
+    });
+
+    test('albumSize is in ==, hashCode and copyWith', () {
+      const four = AttachLimits(albumSize: 4);
+      expect(four, isNot(const AttachLimits()));
+      expect(four, const AttachLimits(albumSize: 4));
+      expect(four.hashCode, const AttachLimits(albumSize: 4).hashCode);
+      expect(const AttachLimits().albumSize, 10);
+      expect(const AttachLimits().copyWith(albumSize: 4), four);
+      expect(four.copyWith(captionLength: 5).albumSize, 4);
+      expect(
+        const AttachLimits(fileSizeLimit: 9).copyWith(clearFileSizeLimit: true),
+        const AttachLimits(),
+      );
+    });
+
+    test('an album holds at least one item', () {
+      expect(() => AttachLimits(albumSize: 0), throwsA(isA<AssertionError>()));
+    });
+  });
+
   group('what shares a group', () {
     test('a lone file inside photos breaks the run', () {
       final items = [..._photos(2), AttachItems.file('f'), ..._photos(2, 'q')];

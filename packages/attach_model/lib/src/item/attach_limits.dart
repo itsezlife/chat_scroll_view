@@ -25,7 +25,12 @@ final class AttachLimits {
     this.groupingAllowed = true,
     this.spoilerAllowed = true,
     this.sendAsFileAllowed = true,
-  }) : assert(captionLength >= 0, 'a caption length is never negative');
+    this.albumSize = defaultAlbumSize,
+  }) : assert(captionLength >= 0, 'a caption length is never negative'),
+       assert(albumSize >= 1, 'an album holds at least one item');
+
+  /// [albumSize] when the host sets none.
+  static const defaultAlbumSize = 10;
 
   /// The kinds an item may be; a toggle of any other kind is refused.
   final Set<AttachKind> allowedKinds;
@@ -47,7 +52,7 @@ final class AttachLimits {
   /// Whether a send may be scheduled.
   final bool scheduleAllowed;
 
-  /// Whether items may be sent as send groups (false in a slow-mode chat).
+  /// Whether items may be sent as send groups.
   final bool groupingAllowed;
 
   /// Whether items may be hidden under a spoiler.
@@ -55,6 +60,39 @@ final class AttachLimits {
 
   /// Whether photos and videos may be sent as files.
   final bool sendAsFileAllowed;
+
+  /// The most items one send group (album) holds; the send plan groups at
+  /// the smaller of this and the policy's `maxGroupSize`.
+  final int albumSize;
+
+  /// A copy with the given fields replaced; [clearFileSizeLimit] lifts the
+  /// file size limit.
+  AttachLimits copyWith({
+    Set<AttachKind>? allowedKinds,
+    bool? singleSelect,
+    int? captionLength,
+    int? fileSizeLimit,
+    bool clearFileSizeLimit = false,
+    bool? timerAllowed,
+    bool? scheduleAllowed,
+    bool? groupingAllowed,
+    bool? spoilerAllowed,
+    bool? sendAsFileAllowed,
+    int? albumSize,
+  }) => AttachLimits(
+    allowedKinds: allowedKinds ?? this.allowedKinds,
+    singleSelect: singleSelect ?? this.singleSelect,
+    captionLength: captionLength ?? this.captionLength,
+    fileSizeLimit: clearFileSizeLimit
+        ? null
+        : fileSizeLimit ?? this.fileSizeLimit,
+    timerAllowed: timerAllowed ?? this.timerAllowed,
+    scheduleAllowed: scheduleAllowed ?? this.scheduleAllowed,
+    groupingAllowed: groupingAllowed ?? this.groupingAllowed,
+    spoilerAllowed: spoilerAllowed ?? this.spoilerAllowed,
+    sendAsFileAllowed: sendAsFileAllowed ?? this.sendAsFileAllowed,
+    albumSize: albumSize ?? this.albumSize,
+  );
 
   /// Whether [kind] is allowed.
   bool allows(AttachKind kind) => allowedKinds.contains(kind);
@@ -71,7 +109,8 @@ final class AttachLimits {
       other.scheduleAllowed == scheduleAllowed &&
       other.groupingAllowed == groupingAllowed &&
       other.spoilerAllowed == spoilerAllowed &&
-      other.sendAsFileAllowed == sendAsFileAllowed;
+      other.sendAsFileAllowed == sendAsFileAllowed &&
+      other.albumSize == albumSize;
 
   @override
   int get hashCode => Object.hash(
@@ -84,5 +123,6 @@ final class AttachLimits {
     groupingAllowed,
     spoilerAllowed,
     sendAsFileAllowed,
+    albumSize,
   );
 }

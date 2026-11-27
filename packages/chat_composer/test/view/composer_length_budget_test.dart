@@ -7,12 +7,15 @@
 /// receives and what the counter draws.
 library;
 
+import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:chat_capabilities/testing.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart' hide RichText;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 
 import '../support/composer_harness.dart';
 
@@ -49,6 +52,7 @@ void main() {
     int? limit = _limit,
     int? counterFrom,
     Map<ShortcutActivator, Intent>? shortcuts,
+    listen.ValueListenable<ChatCapabilities>? capabilities,
   }) {
     // Registered after the controller's disposal, so it runs before it.
     addTearDown(() => tester.pumpWidget(const SizedBox()));
@@ -56,6 +60,7 @@ void main() {
       composerHarness(
         ComposerView(
           controller: composer,
+          capabilities: capabilities,
           shortcuts: shortcuts,
           spec: ComposerSpec(
             messageLengthLimit: limit,
@@ -92,6 +97,60 @@ void main() {
     await tester.tap(send());
     await tester.pump();
   }
+
+  group('from the chat capabilities', () {
+    testWidgets('the default capabilities give 4096 code points', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        limit: null,
+        capabilities: FakeChatCapabilitiesSource(),
+      );
+      composer.restore(RichText.plain('a' * 4097));
+      await tester.pumpAndSettle();
+      expect(counter(tester), '-1');
+      await tapSend(tester);
+      expect(sent, isEmpty);
+
+      composer.restore(RichText.plain('a' * 4096));
+      await tester.pumpAndSettle();
+      await tapSend(tester);
+      expect(sent, hasLength(1));
+    });
+
+    testWidgets('a changed limit reaches the counter live', (tester) async {
+      final source = FakeChatCapabilitiesSource();
+      await pump(tester, limit: null, capabilities: source);
+      composer.restore(RichText.plain('a' * 50));
+      await tester.pumpAndSettle();
+      expect(counter(tester), isNull);
+
+      source.update(limits: const ChatLimits(messageLength: 120));
+      await tester.pumpAndSettle();
+      expect(counter(tester), '70');
+    });
+
+    testWidgets('an explicit spec limit wins', (tester) async {
+      await pump(
+        tester,
+        limit: 200,
+        capabilities: FakeChatCapabilitiesSource(
+          const ChatCapabilities(limits: ChatLimits(messageLength: 120)),
+        ),
+      );
+      composer.restore(RichText.plain('a' * 150));
+      await tester.pumpAndSettle();
+      expect(counter(tester), '50');
+    });
+
+    testWidgets('no capabilities and no limit: no budget', (tester) async {
+      await pump(tester, limit: null);
+      composer.restore(RichText.plain('a' * 5000));
+      await tester.pumpAndSettle();
+      expect(counter(tester), isNull);
+    });
+  });
 
   group('the count', () {
     test('is code points of the plain text, not code units', () {

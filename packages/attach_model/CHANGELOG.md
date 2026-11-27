@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (album size)
+
+- `AttachLimits.albumSize` (default 10, at least 1), in `==`, `hashCode` and the new
+  `copyWith`; the send plan groups at the smaller of the policy's `maxGroupSize`
+  and `albumSize`.
+
 ### Changed
 
 - `AttachLimits.captionLength` counts code points of the caption's plain text,

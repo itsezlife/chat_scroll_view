@@ -14,6 +14,7 @@ import mpx_capture
 import mpx_core
 import mpx_player
 import rich_clipboard
+import share_plus
 import shared_preferences_foundation
 import super_native_extensions
 import url_launcher_macos
@@ -28,6 +29,7 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   MpxCorePlugin.register(with: registry.registrar(forPlugin: "MpxCorePlugin"))
   MpxPlayerPlugin.register(with: registry.registrar(forPlugin: "MpxPlayerPlugin"))
   RichClipboardPlugin.register(with: registry.registrar(forPlugin: "RichClipboardPlugin"))
+  SharePlusMacosPlugin.register(with: registry.registrar(forPlugin: "SharePlusMacosPlugin"))
   SharedPreferencesPlugin.register(with: registry.registrar(forPlugin: "SharedPreferencesPlugin"))
   SuperNativeExtensionsPlugin.register(with: registry.registrar(forPlugin: "SuperNativeExtensionsPlugin"))
   UrlLauncherPlugin.register(with: registry.registrar(forPlugin: "UrlLauncherPlugin"))

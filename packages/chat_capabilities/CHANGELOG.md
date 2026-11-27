@@ -6,6 +6,11 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (limitsDerived)
+
+- `CapabilitiesOp.limitsDerived`, emitted by the picker package when it derives
+  its limits.
+
 ### Added
 
 - The package ([ADR 049](../../docs/adr/049-chat-capabilities.md)):

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:chat_capabilities/chat_capabilities.dart';
-import 'package:chat_composer/src/capabilities/sending_denial.dart';
 import 'package:chat_composer/src/input/composer_paste.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/query/composer_input_query.dart';
@@ -43,13 +42,12 @@ import 'package:listen/listen.dart' as listen;
 ///
 /// ## Capabilities
 ///
-/// Given the chat's [capabilities] and the host's [capabilityFeedback], the
-/// view puts the write access's default panel in the input row, locks the
-/// field while text is denied and draws a denied action dimmed. The
-/// controller owns the rules: [denialFor] says what is denied, [denialText]
-/// asks the host for the text drawn in place, and [reportDenied] reports an
-/// attempt, at most once per [deniedRepeatWindow]. Without capabilities
-/// everything is allowed and nothing is reported, as before.
+/// When the view's capabilities deny something (the write access, text, an
+/// action), the controller is how the composer talks to the host:
+/// [denialText] asks the host's [capabilityFeedback] for the text drawn in
+/// place, and [reportDenied] reports an attempt, at most once per
+/// [deniedRepeatWindow]. Without feedback texts are null and attempts go
+/// unreported, as before.
 ///
 /// Commands are no-ops after [dispose].
 final class ComposerController {
@@ -67,7 +65,6 @@ final class ComposerController {
     this.onPastedMedia,
     this.onPaste,
     this.confirmMention,
-    this.capabilities,
     this.capabilityFeedback = CapabilityFeedback.none,
     this.chatId,
     this.deniedRepeatWindow = defaultDeniedRepeatWindow,
@@ -123,14 +120,10 @@ final class ComposerController {
   /// none, so every pasted mention is sent as its `@name`.
   final bool Function(String id)? confirmMention;
 
-  /// The chat's capabilities, which the view reads through `select`; null
-  /// allows everything (the composer before capabilities).
-  final listen.ValueListenable<ChatCapabilities>? capabilities;
-
   /// The host's denial texts and the report of attempts.
   final CapabilityFeedback capabilityFeedback;
 
-  /// The chat the capabilities are of, correlating the composer's
+  /// The chat the composer writes in, correlating the composer's
   /// diagnostics events; null correlates none.
   final String? chatId;
 
@@ -702,14 +695,6 @@ final class ComposerController {
   ChatCorrelation get correlation => switch (chatId) {
     final chatId? => ChatCorrelation(chatId: chatId),
     null => ChatCorrelation.none,
-  };
-
-  /// Why the chat denies [action] now, or null when it allows it (always
-  /// without [capabilities]). Reads the sending rights; slow mode and
-  /// protection are not an action's here.
-  DenialReason? denialFor(CapabilityAction action) => switch (capabilities) {
-    final capabilities? => sendingDenial(capabilities.value.sending, action),
-    null => null,
   };
 
   /// The host's text for [action] denied for [reason], drawn in place as
