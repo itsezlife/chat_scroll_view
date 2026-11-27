@@ -1,0 +1,27 @@
+name: message_media
+description: >
+  Message media display: the box and mosaic geometry that lays out a message's
+  media items, keyed by media item id.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.32.0'
+
+dependencies:
+  # MediaItemId and MediaItemKind, the identity and kind every cell is keyed
+  # and sized by (ADR 047).
+  content_model:
+    path: ../content_model
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+
+dev_dependencies:
+  # Golden baselines are the CI runner's: compared and regenerated there only.
+  golden_baseline:
+    path: ../golden_baseline
+  flutter_test:
+    sdk: flutter

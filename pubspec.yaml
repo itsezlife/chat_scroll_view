@@ -22,6 +22,7 @@ workspace:
   - packages/glyph_atlas
   - packages/golden_baseline
   - packages/kv_shared_preferences
+  - packages/message_media
   - packages/panel_catalog
   - packages/panel_pages
   - packages/panel_presentation
