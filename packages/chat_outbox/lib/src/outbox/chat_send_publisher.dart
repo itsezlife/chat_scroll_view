@@ -61,7 +61,7 @@ final class ChatSendPublisher<M> implements Publisher {
     required OutgoingIdStrategy Function(ChatId chatId) strategyOf,
     required OutgoingPayloadCodec<M> codec,
     required OutgoingMessageSender<M> sender,
-    required CapabilityFeedback feedback,
+    required CapabilityFeedback Function(ChatId chatId) feedbackOf,
     required void Function(OutgoingSent<M> sent) onSent,
     required PublishCounters counters,
     required DateTime Function() now,
@@ -73,7 +73,7 @@ final class ChatSendPublisher<M> implements Publisher {
        _strategyOf = strategyOf,
        _codec = codec,
        _sender = sender,
-       _feedback = feedback,
+       _feedbackOf = feedbackOf,
        _onSent = onSent,
        _onStatusChanged = onStatusChanged,
        _counters = counters,
@@ -87,7 +87,7 @@ final class ChatSendPublisher<M> implements Publisher {
   final OutgoingIdStrategy Function(ChatId chatId) _strategyOf;
   final OutgoingPayloadCodec<M> _codec;
   final OutgoingMessageSender<M> _sender;
-  final CapabilityFeedback _feedback;
+  final CapabilityFeedback Function(ChatId chatId) _feedbackOf;
   final void Function(OutgoingSent<M> sent) _onSent;
   final void Function(OutgoingMessage message)? _onStatusChanged;
   final PublishCounters _counters;
@@ -280,7 +280,7 @@ final class ChatSendPublisher<M> implements Publisher {
             'action': action,
             'reason': reason.diagnosticForm,
           });
-          _feedback.onDenied(
+          _feedbackOf(chatId).onDenied(
             action,
             reason,
             consumer: CapabilityConsumer.outbox,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attach_model/attach_model.dart';
 import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_capabilities/testing.dart';
@@ -32,11 +34,87 @@ void main() {
       onSent: (_) {},
       rowOf: fakeRowOf,
       capabilitiesOf: (chatId) => chatId == 'c1' ? capabilities : null,
-      feedback: feedback,
+      feedbackOf: (_) => feedback,
       clientMessageIds: clientMessageIdsFrom(),
       now: () => now,
     );
     addTearDown(outbox.dispose);
+  });
+
+  group("each chat's denials reach that chat's feedback", () {
+    late Map<ChatId, RecordingCapabilityFeedback> feedbacks;
+    late RecordingOutgoingSender<Note> sender;
+    late ChatOutbox<Note> perChat;
+
+    setUp(() {
+      feedbacks = {
+        const ChatId('c1'): RecordingCapabilityFeedback(),
+        const ChatId('c2'): RecordingCapabilityFeedback(),
+      };
+      sender = RecordingOutgoingSender();
+      final slowMode = ValueNotifier(
+        ChatCapabilities(
+          slowMode: SlowMode.active(
+            interval: const Duration(seconds: 30),
+            nextSendAt: now.add(const Duration(seconds: 12)),
+          ),
+        ),
+      );
+      perChat = ChatOutbox(
+        transfers: transfers,
+        codec: const NotePayloadCodec(),
+        itemOf: sendItemOf,
+        idStrategyOf: fakeIdStrategyOf,
+        onSent: (_) {},
+        rowOf: fakeRowOf,
+        capabilitiesOf: (chatId) => chatId == 'c2' ? slowMode : null,
+        feedbackOf: (chatId) => feedbacks[chatId]!,
+        clientMessageIds: clientMessageIdsFrom(),
+        now: () => now,
+      );
+      addTearDown(perChat.dispose);
+    });
+
+    test('a refusal before the job', () {
+      perChat.sendText(
+        const ChatId('c2'),
+        const RichText.plain('hi'),
+        payload: const Note(text: 'hi'),
+      );
+
+      expect(feedbacks[const ChatId('c2')]!.denials, hasLength(1));
+      expect(feedbacks[const ChatId('c1')]!.denials, isEmpty);
+    });
+
+    test("a server's denial, with the sender's answer in flight while the "
+        'other chat is focused', () async {
+      final answer = Completer<OutgoingSendAnswer<Note>>();
+      sender.answerBy((_) => answer.future);
+      perChat
+        ..registerSender(sender)
+        ..sendText(
+          const ChatId('c1'),
+          const RichText.plain('hi'),
+          payload: const Note(text: 'hi'),
+        );
+      await pumpEventQueue();
+
+      answer.complete(
+        const OutgoingSendAnswer.denied(
+          CapabilityAction.sendText,
+          DenialReason.everyone(),
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(feedbacks[const ChatId('c1')]!.denials, [
+        (
+          action: CapabilityAction.sendText,
+          reason: const DenialReason.everyone(),
+        ),
+      ]);
+      expect(feedbacks[const ChatId('c2')]!.denials, isEmpty);
+    });
   });
 
   OutgoingMessage? sendText(

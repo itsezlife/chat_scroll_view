@@ -31,7 +31,7 @@ void main() {
       idStrategyOf: idStrategyOf,
       rowOf: (message, payload) =>
           FakeTailMessage(message.position, message.clientMessageId),
-      feedback: feedback,
+      feedbackOf: (_) => feedback,
       // The host's duty: the confirmed message replaces the outbox's row.
       onSent: (message) {
         sent.add(message);

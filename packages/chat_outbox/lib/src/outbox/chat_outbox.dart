@@ -61,8 +61,10 @@ final class ChatOutbox<M> {
   /// row for an accepted message at the position the strategy gives it
   /// (`OutgoingMessage.position`). [capabilitiesOf] gives the chat's
   /// capabilities listenable, the one the host passes the chat's other
-  /// consumers; a chat without one is unrestricted. [feedback] hears of a
-  /// refused send. [clientMessageIds] issues each send's client message id
+  /// consumers; a chat without one is unrestricted. [feedbackOf] gives
+  /// the chat's denial feedback, which hears of a refused send and of a
+  /// server's denial in that chat (the one the chat's screen shows, or
+  /// none while no screen of it is up); none unless given. [clientMessageIds] issues each send's client message id
   /// (128 random bits in hex unless given); an id never contains `:`, which
   /// separates the parts of a job's tag. [now] is the clock slow mode is
   /// read at.
@@ -116,7 +118,7 @@ final class ChatOutbox<M> {
     required OutgoingRowBuilder<M> rowOf,
     required void Function(OutgoingSent<M> sent) onSent,
     ValueListenable<ChatCapabilities>? Function(ChatId chatId)? capabilitiesOf,
-    CapabilityFeedback feedback = CapabilityFeedback.none,
+    CapabilityFeedback Function(ChatId chatId)? feedbackOf,
     ClientMessageId Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
     void Function(OutgoingCancelled cancelled)? onCancelled,
@@ -134,7 +136,7 @@ final class ChatOutbox<M> {
          idStrategyOf: idStrategyOf,
          rowOf: rowOf,
          capabilitiesOf: capabilitiesOf,
-         feedback: feedback,
+         feedbackOf: feedbackOf,
          clientMessageIds: clientMessageIds,
          now: now,
          onSent: onSent,
@@ -158,7 +160,7 @@ final class ChatOutbox<M> {
     required OutgoingRowBuilder<M> rowOf,
     required void Function(OutgoingSent<M> sent) onSent,
     ValueListenable<ChatCapabilities>? Function(ChatId chatId)? capabilitiesOf,
-    CapabilityFeedback feedback = CapabilityFeedback.none,
+    CapabilityFeedback Function(ChatId chatId)? feedbackOf,
     ClientMessageId Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
     void Function(OutgoingCancelled cancelled)? onCancelled,
@@ -180,7 +182,7 @@ final class ChatOutbox<M> {
        _makeIdStrategy = idStrategyOf,
        _rowOf = rowOf,
        _capabilitiesOf = capabilitiesOf,
-       _feedback = feedback,
+       _feedbackOf = feedbackOf ?? _noFeedback,
        _issueClientMessageId = clientMessageIds ?? _$randomClientMessageId,
        _now = now,
        _onSent = onSent {
@@ -230,7 +232,10 @@ final class ChatOutbox<M> {
   final Map<ChatId, OutgoingIdStrategy> _$strategies = {};
   final ValueListenable<ChatCapabilities>? Function(ChatId chatId)?
   _capabilitiesOf;
-  final CapabilityFeedback _feedback;
+  final CapabilityFeedback Function(ChatId chatId) _feedbackOf;
+
+  static CapabilityFeedback _noFeedback(ChatId chatId) =>
+      CapabilityFeedback.none;
   final ClientMessageId Function() _issueClientMessageId;
   final DateTime Function() _now;
   final void Function(OutgoingSent<M> sent) _onSent;
@@ -377,7 +382,7 @@ final class ChatOutbox<M> {
       clientMessageId: clientMessageId,
     );
     if (_refusalOf(chatId, send) case final refusal?) {
-      _refuse(refusal, correlation);
+      _refuse(chatId, refusal, correlation);
       return null;
     }
     final ids =
@@ -571,6 +576,7 @@ final class ChatOutbox<M> {
   /// Refuses a send, or a [retry] of a failed message, for [refusal]:
   /// reported, and the host's `onDenied` hears of it.
   void _refuse(
+    ChatId chatId,
     SendRefusal refusal,
     ChatCorrelation correlation, {
     bool retry = false,
@@ -586,7 +592,7 @@ final class ChatOutbox<M> {
         if (retry) 'retry': true,
       },
     );
-    _feedback.onDenied(
+    _feedbackOf(chatId).onDenied(
       refusal.action,
       refusal.reason,
       consumer: CapabilityConsumer.outbox,
@@ -672,7 +678,7 @@ final class ChatOutbox<M> {
         strategyOf: idStrategy,
         codec: _codec,
         sender: sender,
-        feedback: _feedback,
+        feedbackOf: _feedbackOf,
         onSent: _onSent,
         onStatusChanged: _onStatusChanged,
         counters: _$publishCounters,
@@ -1138,6 +1144,7 @@ final class ChatOutbox<M> {
       );
       if (refusal != null) {
         _refuse(
+          chatId,
           refusal,
           ChatCorrelation(chatId: chatId, clientMessageId: clientMessageId),
           retry: true,

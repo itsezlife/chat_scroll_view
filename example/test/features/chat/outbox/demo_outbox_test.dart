@@ -177,6 +177,34 @@ void main() {
     expect(denied, [CapabilityAction.sendText]);
   });
 
+  test(
+    "a denial reaches its own chat's screen, not the one opened last",
+    () async {
+      final deniedHere = <CapabilityAction>[];
+      final deniedThere = <CapabilityAction>[];
+      final here = demo.chat(chat);
+      await here.attach(
+        source,
+        onDenied: (action, _) => deniedHere.add(action),
+      );
+      final otherSource = GeneratedChatDataSource(messageCount: history);
+      addTearDown(otherSource.dispose);
+      await demo
+          .chat('other')
+          .attach(
+            otherSource,
+            onDenied: (action, _) => deniedThere.add(action),
+          );
+      server.script(chat, DemoServerScript.deny);
+
+      here.sendText('nope');
+      await pumpEventQueue();
+
+      expect(deniedHere, [CapabilityAction.sendText]);
+      expect(deniedThere, isEmpty);
+    },
+  );
+
   test('after a restart pendingFor puts the messages still sending back at '
       'the tail', () async {
     final bound = await openChat();

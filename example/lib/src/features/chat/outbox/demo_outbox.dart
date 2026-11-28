@@ -53,12 +53,7 @@ final class DemoOutbox {
       rowOf: (message, payload) =>
           chat(message.chatId)._rowOf(message, payload),
       capabilitiesOf: (chatId) => _$chats[chatId]?._capabilities,
-      feedback: CapabilityFeedback(
-        denialText: (action, reason) =>
-            _$focused?._denialText?.call(action, reason),
-        onDenied: (action, reason) =>
-            _$focused?._onDenied?.call(action, reason),
-      ),
+      feedbackOf: (chatId) => chat(chatId)._feedback,
       onSent: (sent) => chat(sent.chatId)._onSent(sent),
       onCancelled: (cancelled) =>
           chat(cancelled.message.chatId)._onCancelled(cancelled),
@@ -86,10 +81,6 @@ final class DemoOutbox {
   late final ChatOutbox<DemoOutgoingPayload> outbox;
 
   final Map<String, DemoOutboxChat> _$chats = {};
-
-  /// The chat whose screen is open: the denial feedback goes to it, since
-  /// the outbox's hook does not name the chat.
-  DemoOutboxChat? _$focused;
 
   bool _$disposed = false;
 
@@ -213,6 +204,13 @@ final class DemoOutboxChat {
 
   ChatOutbox<DemoOutgoingPayload> get _outbox => _owner.outbox;
 
+  /// The chat's denial feedback: its screen's while one is up, silent
+  /// otherwise.
+  late final CapabilityFeedback _feedback = CapabilityFeedback(
+    denialText: (action, reason) => _denialText?.call(action, reason),
+    onDenied: (action, reason) => _onDenied?.call(action, reason),
+  );
+
   /// The chat's message source, once attached.
   ChatDataSource? get source => _$source;
 
@@ -252,7 +250,6 @@ final class DemoOutboxChat {
     _announce = announce;
     _askForSource = askForSource;
     _atBottom = atBottom;
-    _owner._$focused = this;
     if (_$source == null) {
       _$source = source;
       source.identityOf = (message) => _$identities[message];
@@ -280,7 +277,6 @@ final class DemoOutboxChat {
     _announce = null;
     _askForSource = null;
     _atBottom = null;
-    if (identical(_owner._$focused, this)) _owner._$focused = null;
   }
 
   /// Whether a send of the chat is in flight; see [ChatOutbox.sendInFlight].
