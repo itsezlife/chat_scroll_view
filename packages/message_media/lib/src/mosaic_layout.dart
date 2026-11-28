@@ -132,11 +132,12 @@ final class MosaicLayout {
     }
     final mosaicHeight = rowTops[maxRow] + rowHeights[maxRow];
 
+    final lefts = Map<GroupedMessagePosition, int>.identity();
     final cells = <MosaicCellLayout>[
       for (final pos in positions)
         _cellFor(
           pos: pos,
-          positions: positions,
+          left: _leftFor(pos, positions, lefts) * sx,
           sx: sx,
           rowTops: rowTops,
           rowHeights: rowHeights,
@@ -158,27 +159,35 @@ final class MosaicLayout {
   /// The cell of the media item [id], or null when it is not in the mosaic.
   MosaicCellLayout? cellOf(MediaItemId id) => _cellsById[id];
 
-  /// Pixel left edge: [leftSpanOffset] when set, else max right edge of
-  /// overlapping cells with smaller [GroupedMessagePosition.maxX].
-  static double _leftFor(
+  /// Pixel left edge: [leftSpanOffset] when set, else the furthest right
+  /// edge of the overlapping cells left of [pos] (smaller
+  /// [GroupedMessagePosition.maxX]).
+  ///
+  /// A neighbour's right edge is its own left edge plus its width, found the
+  /// same way: a line of three places its third cell after the first two,
+  /// not after the wider of them. [lefts] memoises the span-unit lefts.
+  static int _leftFor(
     GroupedMessagePosition pos,
     List<GroupedMessagePosition> positions,
-    double sx,
+    Map<GroupedMessagePosition, int> lefts,
   ) {
-    if (pos.leftSpanOffset != 0) {
-      return pos.leftSpanOffset * sx;
+    if (lefts[pos] case final left?) {
+      return left;
     }
-    var left = 0.0;
+    if (pos.leftSpanOffset != 0) {
+      return lefts[pos] = pos.leftSpanOffset;
+    }
+    var left = 0;
     for (final other in positions) {
       if (identical(other, pos)) {
         continue;
       }
       final yOverlap = other.maxY >= pos.minY && other.minY <= pos.maxY;
       if (yOverlap && other.maxX < pos.minX) {
-        left = math.max(left, (other.leftSpanOffset + other.pw) * sx);
+        left = math.max(left, _leftFor(other, positions, lefts) + other.pw);
       }
     }
-    return left;
+    return lefts[pos] = left;
   }
 
   /// Builds one [MosaicCellLayout] from row bands, then insets shared edges
@@ -188,13 +197,12 @@ final class MosaicLayout {
   /// [rowHeights] so their bottom aligns with the peer column.
   static MosaicCellLayout _cellFor({
     required GroupedMessagePosition pos,
-    required List<GroupedMessagePosition> positions,
+    required double left,
     required double sx,
     required List<double> rowTops,
     required List<double> rowHeights,
     required double cellGap,
   }) {
-    final left = _leftFor(pos, positions, sx);
     final width = pos.pw * sx;
     final top = rowTops[pos.minY];
     var height = 0.0;

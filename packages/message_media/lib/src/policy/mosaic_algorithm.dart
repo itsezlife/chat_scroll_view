@@ -130,6 +130,10 @@ final class GroupedMosaicAlgorithm implements MosaicAlgorithm {
       positions: grouped.positions,
       mosaicWidth: width,
       cellGap: cellGap,
+      // A side button narrows the abstract width (750); the lines span that
+      // width, so it maps to the mosaic's, which the box sizing has already
+      // narrowed for the button.
+      maxSizeWidth: grouped.maxSizeWidth.toDouble(),
       rowHeightUnit: maxHeightFor(input),
     );
     return MosaicArrangement(

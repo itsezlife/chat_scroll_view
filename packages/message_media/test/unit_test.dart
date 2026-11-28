@@ -34,6 +34,8 @@ import 'paint/media_row_cell_test.dart' as paint_media_row_cell_test;
 import 'paint/message_media_view_test.dart' as paint_message_media_view_test;
 import 'policy/desktop_mosaic_algorithm_test.dart'
     as policy_desktop_mosaic_algorithm_test;
+import 'policy/grouped_mosaic_algorithm_test.dart'
+    as policy_grouped_mosaic_algorithm_test;
 import 'policy/ios_mosaic_algorithm_test.dart'
     as policy_ios_mosaic_algorithm_test;
 import 'policy/link_preview_card_policy_test.dart'
@@ -96,6 +98,10 @@ void main() {
   group(
     'policy/desktop_mosaic_algorithm_test',
     policy_desktop_mosaic_algorithm_test.main,
+  );
+  group(
+    'policy/grouped_mosaic_algorithm_test',
+    policy_grouped_mosaic_algorithm_test.main,
   );
   group(
     'policy/ios_mosaic_algorithm_test',
