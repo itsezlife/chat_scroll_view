@@ -38,7 +38,16 @@ under a host quality policy
 | `GlassSourceScope`, `GlassSource` | Marks the content that sampled glass reads. A scope above the content and the surfaces, a source around the content. |
 | `BackdropSnapshotSource`, `BackdropSnapshot`, `BackdropSnapshotView` | A small still of what the source last painted, captured between frames, stack-blurred and toned once on the CPU, drawn stretched at an animated opacity. |
 | `ChromeScrim`, `ChromeScrimController`, `ChromeScrimPreset`, `ChromeScrimPhase` | The **chrome scrim**: the backdrop of a surface over the whole window. The controller captures the window when the owner opens it, before the surface paints; the widget draws the still (once made) under the preset's dim, each fading by opacity alone on its own clock, and closes on a press outside (on contact or on lift, by preset), on back and, where the preset says, on Escape. `cancel` takes it away at once; the controller disposes its still after the fade out, on cancel, or when the widget goes. Presets per platform (`android`, `ios`, `ipad`, `desktop`, `web`, `contentPreview`) are values with `copyWith`; under the host's reduce-transparency setting the still is dropped and the dim kept. The scrim emits nothing: its owner is told each phase (`ChromeScrimPhase`) with its numbers and reports it. |
+| `ChromeWidthClass`, `ChromeWidthClassScope` | The **width class** of the window: `compact` (width ≤ 600), `medium` (601-925), `expanded` (> 925). `ChromeWidthClass.of(context)` reads the `MediaQuery` size, so it follows a resize. A landscape phone (≤ 950 wide and ≤ 450 high) counts as `compact` only under `ChromeWidthClassScope(landscapePhoneIsCompact: true)`; off without a scope. |
+| `ChromeInputClass`, `ChromeInputClassScope` | The **input class**: `touch` or `mouse`. It starts from the operating system (`forPlatform`: Android and iOS are touch; on the web, the browser's OS) and, under a `ChromeInputClassScope`, follows the pointer kind of the last pointer event anywhere in the app. `fromPointerKind` maps one event's kind, for a decision made per gesture. |
 | `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `ChromeStringsSnapshot.of` for completeness checks. Tests and demos only. |
+
+Web policies take layout and presentation (sizes, a menu's side, docking)
+from the width class and interaction (hover or tap, long press, density) from
+the input class, never one whole family from the platform. The package reads
+neither: they are values for the policies of other packages, and a host may
+hand them to a policy on any platform. Neither emits diagnostics (the package
+depends on no workspace package); a reader reports a change it acts on.
 
 Geometry is not a token here: the menu metrics stay constants owned by
 the component that draws them. Labels are host strings, never tokens. Motion is

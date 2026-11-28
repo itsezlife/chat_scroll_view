@@ -8,6 +8,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'adaptive/chrome_input_class_test.dart' as chrome_input_class_test;
+import 'adaptive/chrome_width_class_test.dart' as chrome_width_class_test;
 import 'backdrop/backdrop_snapshot_test.dart' as backdrop_snapshot_test;
 import 'backdrop/chrome_scrim_golden_test.dart' as chrome_scrim_golden_test;
 import 'backdrop/chrome_scrim_preset_test.dart' as chrome_scrim_preset_test;
@@ -74,6 +76,8 @@ import 'tokens/selection_menu_tokens_test.dart' as selection_menu_tokens_test;
 import 'tokens/spoiler_tokens_test.dart' as spoiler_tokens_test;
 
 void main() {
+  group('adaptive/chrome_input_class_test.dart', chrome_input_class_test.main);
+  group('adaptive/chrome_width_class_test.dart', chrome_width_class_test.main);
   group('backdrop/backdrop_snapshot_test.dart', backdrop_snapshot_test.main);
   group(
     'backdrop/chrome_scrim_golden_test.dart',

@@ -20,6 +20,17 @@ package is pre-1.0.
   `ScrimMotion`.
 - `BackdropSnapshot.width` and `height`: the still's size, known at capture.
 
+### Added (width and input classes)
+
+- `ChromeWidthClass` (`compact` ≤ 600, `medium` 601-925, `expanded`
+  > 925) with `fromSize` and a live `of(context)` from the `MediaQuery`
+  size; `ChromeWidthClassScope.landscapePhoneIsCompact` makes a window
+  ≤ 950 wide and ≤ 450 high `compact` (off by default).
+- `ChromeInputClass` (`touch`, `mouse`) with `forPlatform`,
+  `fromPointerKind` and `of(context)`; `ChromeInputClassScope` makes the
+  class follow the pointer kind of the last pointer event. Without a scope
+  the class is the platform's, fixed for the run.
+
 ### Added (media strings)
 
 - **Breaking:** `ChromeStrings` requires `media` (`MediaStrings`): the
