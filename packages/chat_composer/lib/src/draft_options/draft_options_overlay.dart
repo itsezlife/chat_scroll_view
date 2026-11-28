@@ -1,13 +1,16 @@
 import 'dart:async';
 
 import 'package:chat_composer/src/capabilities/composer_clock.dart';
+import 'package:chat_composer/src/draft_options/draft_link_page.dart';
 import 'package:chat_composer/src/draft_options/draft_link_part.dart';
+import 'package:chat_composer/src/draft_options/draft_link_rows.dart';
 import 'package:chat_composer/src/draft_options/draft_options_host.dart';
 import 'package:chat_composer/src/draft_options/draft_options_policy.dart';
 import 'package:chat_composer/src/draft_options/draft_options_session.dart';
 import 'package:chat_composer/src/draft_options/overlay_op.dart';
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
+import 'package:chat_composer/src/link_preview/link_preview_dismissal.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/content_model.dart' as model show RichText;
@@ -43,7 +46,10 @@ final class DraftOptionsController {
   /// [correlation] gives the ids of its events (the chat);
   /// [reduceTransparency] is the host's setting, which leaves the scrim
   /// without its still; [composer] is the composer whose keyboard the
-  /// overlay states its intent through, none stating nothing.
+  /// overlay states its intent through, none stating nothing. [dismissal] is
+  /// the composer's link preview dismissal, the one the strip's cross
+  /// applies, which the remove row applies too; [mediaOf] reads a page's media the way the chat's media
+  /// policy sizes it, for the size row ([DraftLinkMedia.of] when null).
   DraftOptionsController({
     required this.policy,
     required this.host,
@@ -52,6 +58,8 @@ final class DraftOptionsController {
     ComposerClock clock = ComposerClock.system,
     ChatCorrelation Function()? correlation,
     this.reduceTransparency = false,
+    this.dismissal,
+    this.mediaOf,
   }) : _clock = clock,
        _correlation = correlation;
 
@@ -75,6 +83,13 @@ final class DraftOptionsController {
   /// Whether the scrim takes no still, for the host's reduce-transparency
   /// setting.
   final bool reduceTransparency;
+
+  /// What the remove row turns off, as the strip's cross does; null when the
+  /// host keeps no dismissal.
+  final LinkPreviewDismissal? dismissal;
+
+  /// The host's reading of a page's media for the size row.
+  final DraftLinkMediaReader? mediaOf;
 
   final ComposerClock _clock;
   final ChatCorrelation Function()? _correlation;
@@ -187,12 +202,21 @@ final class DraftOptionsController {
         ChromeScrimDismissal.escape => DraftOptionsCloseTrigger.escape,
       }),
     );
+    final linkPage = DraftLinkPage(
+      session: session,
+      hasText: text.plain.trim().isNotEmpty,
+      dismissal: dismissal,
+      mediaOf: mediaOf,
+      clock: _clock,
+      correlation: _correlation,
+    );
     final entry = OverlayEntry(
       builder: (context) => DraftOptionsOverlay(
         session: session,
         scrim: scrim,
         bubbleBuilder: bubbleBuilder,
         text: text,
+        linkPage: linkPage,
         passesPresses: () =>
             _clock.now().difference(now) < openGuard && !session.isClosing,
       ),
@@ -425,6 +449,7 @@ class DraftOptionsOverlay extends StatelessWidget {
     required this.bubbleBuilder,
     this.text = model.RichText.empty,
     this.passesPresses,
+    this.linkPage,
     super.key,
   });
 
@@ -447,6 +472,10 @@ class DraftOptionsOverlay extends StatelessWidget {
   /// under it (the opening's tap guard); null takes every press.
   final bool Function()? passesPresses;
 
+  /// The link page's rows under the preview; null draws the page without
+  /// rows.
+  final DraftLinkPage? linkPage;
+
   @override
   Widget build(BuildContext context) {
     Widget overlay = ChromeScrim(
@@ -456,6 +485,7 @@ class DraftOptionsOverlay extends StatelessWidget {
           session: session,
           bubbleBuilder: bubbleBuilder,
           text: text,
+          linkPage: linkPage,
         ),
       ),
     );
@@ -496,11 +526,13 @@ class _DraftOptionsPage extends StatelessWidget {
     required this.session,
     required this.bubbleBuilder,
     required this.text,
+    required this.linkPage,
   });
 
   final DraftOptionsSession session;
   final DraftOptionsBubbleBuilder bubbleBuilder;
   final model.RichText text;
+  final DraftLinkPage? linkPage;
 
   @override
   Widget build(BuildContext context) {
@@ -555,6 +587,10 @@ class _DraftOptionsPage extends StatelessWidget {
               ),
             ],
           ),
+          ?switch (linkPage) {
+            final page? => DraftLinkRows(page: page),
+            null => null,
+          },
         ],
       ),
     );

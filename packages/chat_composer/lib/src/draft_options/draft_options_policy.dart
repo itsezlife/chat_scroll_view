@@ -1,3 +1,4 @@
+import 'package:chat_composer/src/draft_options/draft_link_page_policy.dart';
 import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
@@ -130,6 +131,7 @@ sealed class DraftOptionsPolicy {
     required this.keyboard,
     required this.linkChoice,
     required this.keepsChosenLinkSelected,
+    required this.linkPage,
   });
 
   /// See [DraftOptionsPolicy$Android].
@@ -142,6 +144,7 @@ sealed class DraftOptionsPolicy {
     DraftOptionsKeyboard keyboard,
     DraftOptionsLinkChoice linkChoice,
     bool keepsChosenLinkSelected,
+    DraftLinkPagePolicy linkPage,
   }) = DraftOptionsPolicy$Android;
 
   /// See [DraftOptionsPolicy$IOS].
@@ -155,6 +158,7 @@ sealed class DraftOptionsPolicy {
     DraftOptionsKeyboard keyboard,
     DraftOptionsLinkChoice linkChoice,
     bool keepsChosenLinkSelected,
+    DraftLinkPagePolicy linkPage,
   }) = DraftOptionsPolicy$IOS;
 
   /// See [DraftOptionsPolicy$Desktop].
@@ -167,6 +171,7 @@ sealed class DraftOptionsPolicy {
     DraftOptionsKeyboard keyboard,
     DraftOptionsLinkChoice linkChoice,
     bool keepsChosenLinkSelected,
+    DraftLinkPagePolicy linkPage,
   }) = DraftOptionsPolicy$Desktop;
 
   /// See [DraftOptionsPolicy$Web].
@@ -176,6 +181,7 @@ sealed class DraftOptionsPolicy {
     bool opensOnPending,
     DraftOptionsKeyboard keyboard,
     DraftOptionsLinkChoice linkChoice,
+    DraftLinkPagePolicy linkPage,
   }) = DraftOptionsPolicy$Web;
 
   /// The default of [platform]: Android (and Fuchsia), iOS (the iPad form
@@ -223,6 +229,10 @@ sealed class DraftOptionsPolicy {
   /// loaded; otherwise the highlight goes with the spinner.
   final bool keepsChosenLinkSelected;
 
+  /// The link page's rows: which show and when, their labels, presses and
+  /// motion.
+  final DraftLinkPagePolicy linkPage;
+
   /// The presentation family, for the overlay's events.
   DraftOptionsPresentation get presentation;
 
@@ -257,6 +267,7 @@ final class DraftOptionsPolicy$Android extends DraftOptionsPolicy {
     super.keyboard = DraftOptionsKeyboard.hold,
     super.linkChoice = DraftOptionsLinkChoice.severalLinks,
     super.keepsChosenLinkSelected = false,
+    super.linkPage = DraftLinkPagePolicy.android,
   });
 
   @override
@@ -286,6 +297,7 @@ final class DraftOptionsPolicy$IOS extends DraftOptionsPolicy {
     super.keyboard = DraftOptionsKeyboard.keep,
     super.linkChoice = DraftOptionsLinkChoice.anyLink,
     super.keepsChosenLinkSelected = false,
+    super.linkPage = DraftLinkPagePolicy.ios,
   }) : _scrim = scrim;
 
   /// Whether the window is regular width: the iPad form.
@@ -320,6 +332,7 @@ final class DraftOptionsPolicy$Desktop extends DraftOptionsPolicy {
     super.keyboard = DraftOptionsKeyboard.keep,
     super.linkChoice = DraftOptionsLinkChoice.anyLink,
     super.keepsChosenLinkSelected = true,
+    super.linkPage = DraftLinkPagePolicy.desktop,
   });
 
   @override
@@ -343,6 +356,7 @@ final class DraftOptionsPolicy$Web extends DraftOptionsPolicy {
     super.opensOnPending = true,
     super.keyboard = DraftOptionsKeyboard.keep,
     super.linkChoice = DraftOptionsLinkChoice.anyLink,
+    super.linkPage = DraftLinkPagePolicy.web,
   }) : super(title: DraftOptionsTitle.none, keepsChosenLinkSelected: false);
 
   @override

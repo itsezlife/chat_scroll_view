@@ -37,6 +37,17 @@ is pre-1.0.
   50 ms into the close and ends the hold 15 ms after the full close; the
   remove row ends it with `hide`; iOS, desktop and the web keep it) and
   reports `OverlayOp.keyboardIntent`.
+- The link page's rows: `DraftLinkPage` (headless, over a session) gives
+  position (edits `invertMedia`), size (large / small, by the host's
+  `DraftLinkMediaReader`), apply and remove, with their labels, icons and
+  inert state; `DraftLinkRows` / `DraftLinkRowView` draw them with
+  `ChromeInk`, the icon morph and the label cross-fade. Remove sets
+  `removed`, applies the controller's `LinkPreviewDismissal` and, on
+  Android, takes the next link the dismissal allows. `DraftOptionsPolicy.
+  linkPage` (`DraftLinkPagePolicy`) holds every row rule per platform; a tap
+  within its `rowGuard` is dropped. Under `commitOnSave` a remove now
+  reports the copy, as a save does. New events: `rowInertTouch`,
+  `rowDropped`, `removeApplied`.
 
 ### Changed (link preview strip, breaking)
 

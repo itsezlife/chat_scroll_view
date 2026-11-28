@@ -72,6 +72,19 @@ enum OverlayOp implements DiagnosticOp {
   /// `loaded` or `none`, `ms` since the tap.
   linkState,
 
+  /// A touch on an inert row was ignored (debug): its `row`, the size row
+  /// drawn faded without shrinkable media.
+  rowInertTouch,
+
+  /// A tap on a row came within the row guard of the accepted one, or while
+  /// the overlay closes, and was dropped (debug): its `row` and `ms` since
+  /// the accepted tap.
+  rowDropped,
+
+  /// The remove row dropped the preview (info): the `dismissal` policy it
+  /// applied (`none` without one) and whether the `nextLink` was taken.
+  removeApplied,
+
   /// The overlay stated a keyboard intent through the composer (debug): the
   /// `intent` (`keep`, `hold`, `hide`), whether the keyboard was up on open
   /// (`keyboardWasUp`) and whether a held keyboard was reopened
