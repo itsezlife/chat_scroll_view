@@ -140,15 +140,17 @@ class _AttachSelectionHeaderState extends State<AttachSelectionHeader>
   void _changed() {
     final value = _header.value;
     if (value.count > 0) _words = value;
+    // The fade heads for the selection by its direction, not its value: a
+    // fade in that has not moved yet (its tickers muted under a page over
+    // the sheet, a camera and its viewer) still reads 0, and a removal then
+    // must turn it back, or it runs on to "1 selected" once the page goes.
     final shown = value.count > 0;
-    if (shown &&
-        _$shown.status != AnimationStatus.forward &&
-        _$shown.value < 1) {
-      unawaited(_$shown.forward());
-    } else if (!shown &&
-        _$shown.status != AnimationStatus.reverse &&
-        _$shown.value > 0) {
-      unawaited(_$shown.reverse());
+    switch ((shown, _$shown.status)) {
+      case (true, AnimationStatus.dismissed || AnimationStatus.reverse):
+        unawaited(_$shown.forward());
+      case (false, AnimationStatus.completed || AnimationStatus.forward):
+        unawaited(_$shown.reverse());
+      default:
     }
     if (value.previewing != _previewing) {
       _previewing = value.previewing;
