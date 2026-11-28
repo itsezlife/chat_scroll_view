@@ -90,7 +90,7 @@ final class ChatMediaSaves {
   // and the timer that lifts its guard. A timer rather than a clock alone,
   // so the window runs on a test's fake time.
   final Map<String, (DateTime, Timer)> _$guards = {};
-  _SelectionOffer _$selectionOffer = _SelectionOffer.none;
+  _Offer _$selectionOffer = _Offer.none;
   bool _$disposed = false;
 
   // Each of these saves; protection denies them all at once.
@@ -156,33 +156,52 @@ final class ChatMediaSaves {
               items.isNotEmpty && items.every((item) => !item.kind.isPicture),
         );
     final offer = switch ((entry, files)) {
-      (null, _) || (_, false) => _SelectionOffer.none,
-      _ when !_mayAllSave(selected) => _SelectionOffer.hidden,
-      _ => _SelectionOffer.offered,
+      (null, _) || (_, false) => _Offer.none,
+      _ when !_mayAllSave(selected) => _Offer.hidden,
+      _ => _Offer.offered,
     };
     final previous = _$selectionOffer;
     _$selectionOffer = offer;
-    if (offer != previous) {
-      final correlation = ChatCorrelation(chatId: chatId);
-      switch (offer) {
-        case _SelectionOffer.offered:
-          _offered(
-            entry!,
-            selected.values.expand((items) => items),
-            batch: 'selection',
-            correlation: correlation,
-          );
-        case _SelectionOffer.hidden:
-          _hidden(
-            'protection',
-            live: previous == _SelectionOffer.offered,
-            correlation: correlation,
-          );
-        case _SelectionOffer.none:
-          break;
-      }
+    _changed(
+      previous,
+      offer,
+      entry,
+      selected.values.expand((items) => items),
+      batch: 'selection',
+      correlation: ChatCorrelation(chatId: chatId),
+    );
+    return offer == _Offer.offered ? entry : null;
+  }
+
+  /// The media viewer's saves over the message [messageId]'s items, for as
+  /// long as one viewer stays open.
+  ChatViewerSaves forViewer(int messageId) =>
+      ChatViewerSaves._(this, messageId);
+
+  // Reports a change of what a chrome that re-reads its entry on every
+  // rebuild (the selection bar, the viewer) offers: an entry protection
+  // takes away from a chrome that showed it is hidden `live`.
+  void _changed(
+    _Offer previous,
+    _Offer offer,
+    ChatSaveEntry? entry,
+    Iterable<MediaItem> items, {
+    required String batch,
+    required ChatCorrelation correlation,
+  }) {
+    if (offer == previous) return;
+    switch ((offer, entry)) {
+      case (_Offer.offered, final entry?):
+        _offered(entry, items, batch: batch, correlation: correlation);
+      case (_Offer.hidden, _):
+        _hidden(
+          'protection',
+          live: previous == _Offer.offered,
+          correlation: correlation,
+        );
+      case _:
+        break;
     }
-    return offer == _SelectionOffer.offered ? entry : null;
   }
 
   bool _mayAllSave(Map<int, List<MediaItem>> selected) =>
@@ -366,5 +385,63 @@ final class ChatMediaSaves {
   }
 }
 
-// What the selection bar's entry was at its last rebuild.
-enum _SelectionOffer { none, offered, hidden }
+/// The save of one open media viewer over a message's items: the entry of
+/// the item shown, read again on every rebuild of the viewer's chrome, and
+/// the save it starts.
+///
+/// The viewer's chrome asks for its actions whenever it rebuilds (a page
+/// turn, the controls showing), so the entry is reported only when its
+/// answer changes for an item, and an entry protection takes away while
+/// the viewer is open is hidden `live`. Made by [ChatMediaSaves.forViewer]
+/// when the viewer opens, dropped when it closes; it holds no resource.
+final class ChatViewerSaves {
+  ChatViewerSaves._(this._saves, this.messageId);
+
+  final ChatMediaSaves _saves;
+
+  /// The message whose items the viewer shows.
+  final int messageId;
+
+  // What each item's entry was the last time the chrome asked.
+  final Map<MediaItemId, _Offer> _$offers = {};
+
+  /// The entry of [item]: its kind's on this platform, or null while
+  /// protection denies the save.
+  ChatSaveEntry? entryOf(MediaItem item) {
+    final entry = _saves.entries.entryOf(item.kind);
+    final offer =
+        _saves._mayAllSave({
+          messageId: [item],
+        })
+        ? _Offer.offered
+        : _Offer.hidden;
+    final previous = _$offers[item.id] ?? _Offer.none;
+    _$offers[item.id] = offer;
+    _saves._changed(
+      previous,
+      offer,
+      entry,
+      [item],
+      batch: 'single',
+      correlation: ChatCorrelation(
+        chatId: _saves.chatId,
+        scrollId: '$messageId',
+        mediaItemId: item.id.toString(),
+      ),
+    );
+    return offer == _Offer.offered ? entry : null;
+  }
+
+  /// Saves [item] where the entry of its kind saves, as one job; answers it,
+  /// or null when the tap was dropped (the guard, a save protection denies
+  /// by now, after the saves were disposed).
+  SaveJob? save(MediaItem item) => _saves.save(
+    messageId,
+    [item],
+    _saves.entries.entryOf(item.kind),
+    source: ChatSaveSource.viewer,
+  );
+}
+
+// What a chrome's entry was at its last rebuild.
+enum _Offer { none, offered, hidden }

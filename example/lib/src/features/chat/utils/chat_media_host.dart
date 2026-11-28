@@ -5,6 +5,7 @@ import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_player/mpx_player.dart' show PlayerPool;
@@ -119,8 +120,8 @@ enum ChatViewerAction {
   /// Delete the message the item is in.
   delete,
 
-  /// Save the item to the gallery.
-  saveToGallery,
+  /// Save the item where its kind's save entry saves.
+  save,
 
   /// Share the item out of the chat.
   share,
@@ -189,16 +190,17 @@ abstract final class ChatMediaViewer {
   ], state);
 
   /// The viewer's actions on [item]: Forward and Delete in the bar where
-  /// the chat allows them ([canForward], [canDelete]), then Save to Gallery
-  /// and Share in the menu where [allowed] (the item's
-  /// `MediaItemAction.allowedItemActions`) has them. Each reaches [onAction]
-  /// with the item.
+  /// the chat allows them ([canForward], [canDelete]), then the save entry
+  /// saying [saveLabel] (none when null: protection denies the save) and
+  /// Share where [allowed] (the item's `MediaItemAction.allowedItemActions`)
+  /// has it, in the menu. Each reaches [onAction] with the item.
   static List<ViewerAction> actionsFor(
     MediaItem item, {
     required Set<MediaItemAction> allowed,
     required bool canForward,
     required bool canDelete,
     required void Function(MediaItem item, ChatViewerAction action) onAction,
+    String? saveLabel,
   }) {
     ViewerAction of(ChatViewerAction action, String label, IconData icon) =>
         ViewerAction(
@@ -214,12 +216,8 @@ abstract final class ChatMediaViewer {
         of(ChatViewerAction.forward, 'Forward', Icons.forward_outlined),
       if (canDelete)
         of(ChatViewerAction.delete, 'Delete', Icons.delete_outline),
-      if (allowed.contains(MediaItemAction.saveToGallery))
-        of(
-          ChatViewerAction.saveToGallery,
-          'Save to Gallery',
-          Icons.download_outlined,
-        ),
+      if (saveLabel case final label?)
+        of(ChatViewerAction.save, label, Icons.download_outlined),
       if (allowed.contains(MediaItemAction.share))
         of(ChatViewerAction.share, 'Share', Icons.share_outlined),
     ];
@@ -232,6 +230,12 @@ abstract final class ChatMediaViewer {
   /// bars, the caption and the actions, and an album shows the strip of its
   /// pictures; [state] is the chat's media state the viewer hides its item
   /// in.
+  ///
+  /// The viewer asks [details] for an item's actions each time its chrome
+  /// builds, which a change of the chat's protection does not cause: the
+  /// page builds the chrome again when [changes] notifies, so an action
+  /// protection takes away leaves the open viewer (its menu too), keeping
+  /// the page and the hidden cell as they are.
   static Future<void> open(
     BuildContext context,
     MediaViewerRequest request,
@@ -240,6 +244,7 @@ abstract final class ChatMediaViewer {
     PlayerPool? players,
     ChatViewerDetails? details,
     MessageMediaState? state,
+    listen.Listenable? changes,
   }) {
     final shown = shownOf(request, items);
     if (shown.isEmpty) return Future.value();
@@ -249,24 +254,32 @@ abstract final class ChatMediaViewer {
         .clamp(0, shown.length - 1);
     final scope = AssetCacheProvider.maybeOf(context);
     final policy = ViewerPolicyScope.resolve(context);
+    final source = _ListGallery(gallery);
+    final bridge = bridgeOf(request, items, state: state);
+    final chrome = switch (details) {
+      final details? => _chromeOf(details, shown),
+      null => null,
+    };
     return Navigator.of(context).push<void>(
       PageRouteBuilder<void>(
         opaque: false,
         transitionDuration: Duration.zero,
         reverseTransitionDuration: Duration.zero,
         pageBuilder: (routeContext, _, _) => ChromeTextRoot(
-          child: MediaViewer(
-            source: _ListGallery(gallery),
-            initialIndex: index,
-            bridge: bridgeOf(request, items, state: state),
-            policy: policy,
-            scope: scope,
-            players: players,
-            chrome: switch (details) {
-              final details? => _chromeOf(details, shown),
-              null => null,
-            },
-            onClosed: () => Navigator.of(routeContext).pop(),
+          child: _LiveViewer(
+            changes: changes,
+            // The source and the bridge are made once: a viewer handed new
+            // ones reloads its pages and moves the chat's hidden cell.
+            builder: () => MediaViewer(
+              source: source,
+              initialIndex: index,
+              bridge: bridge,
+              policy: policy,
+              scope: scope,
+              players: players,
+              chrome: chrome,
+              onClosed: () => Navigator.of(routeContext).pop(),
+            ),
           ),
         ),
       ),
@@ -294,6 +307,47 @@ abstract final class ChatMediaViewer {
       null => null,
     },
   );
+}
+
+// Builds the viewer again whenever [changes] notifies, so its chrome asks
+// for the actions again; without changes it builds once.
+final class _LiveViewer extends StatefulWidget {
+  const _LiveViewer({required this.changes, required this.builder});
+
+  final listen.Listenable? changes;
+  final MediaViewer Function() builder;
+
+  @override
+  State<_LiveViewer> createState() => _LiveViewerState();
+}
+
+final class _LiveViewerState extends State<_LiveViewer> {
+  @override
+  void initState() {
+    super.initState();
+    widget.changes?.addListener(_changed);
+  }
+
+  @override
+  void didUpdateWidget(_LiveViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(widget.changes, oldWidget.changes)) return;
+    oldWidget.changes?.removeListener(_changed);
+    widget.changes?.addListener(_changed);
+  }
+
+  @override
+  void dispose() {
+    widget.changes?.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder();
 }
 
 final class _ListGallery implements GallerySource {

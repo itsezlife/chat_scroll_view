@@ -184,6 +184,7 @@ import 'features/chat/save/save_debug_panel_test.dart'
     as save_save_debug_panel_test;
 import 'features/chat/save/selection_save_test.dart'
     as save_selection_save_test;
+import 'features/chat/save/viewer_save_test.dart' as save_viewer_save_test;
 import 'features/chat/shipped_packs_seed_test.dart' as shipped_packs_seed_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/static_sticker_pack_test.dart'
@@ -510,6 +511,7 @@ void main() {
     'features/chat/save/save_debug_panel_test.dart',
     save_save_debug_panel_test.main,
   );
+  group('features/chat/save/viewer_save_test.dart', save_viewer_save_test.main);
   group(
     'features/chat/outbox/outbox_debug_actions_test.dart',
     outbox_outbox_debug_actions_test.main,
