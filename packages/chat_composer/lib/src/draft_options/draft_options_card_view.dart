@@ -134,7 +134,7 @@ class _DraftOptionsCardViewState extends State<DraftOptionsCardView>
       ..reverseDuration = speed.scale(_motion.close.duration);
     _session.reportMotion(
       DraftOptionsMotionPhase.open,
-      duration: duration,
+      duration,
       reduceMotion: speed.isInstant,
     );
     unawaited(_appear.forward());
@@ -162,7 +162,7 @@ class _DraftOptionsCardViewState extends State<DraftOptionsCardView>
     final speed = ChromeMotionScope.of(context).speed;
     _session.reportMotion(
       DraftOptionsMotionPhase.close,
-      duration: speed.scale(_motion.close.duration),
+      speed.scale(_motion.close.duration),
       reduceMotion: speed.isInstant,
     );
     unawaited(_appear.reverse());
@@ -261,7 +261,7 @@ class _DraftOptionsCardViewState extends State<DraftOptionsCardView>
     if (speed.isInstant) {
       _session.reportMotion(
         DraftOptionsMotionPhase.change,
-        duration: duration,
+        duration,
         reduceMotion: true,
       );
       setState(() => _from = _to = target);
@@ -277,7 +277,7 @@ class _DraftOptionsCardViewState extends State<DraftOptionsCardView>
       if (!mounted) return;
       _session.reportMotion(
         DraftOptionsMotionPhase.change,
-        duration: duration,
+        duration,
         reduceMotion: false,
       );
       _offsets.duration = duration;

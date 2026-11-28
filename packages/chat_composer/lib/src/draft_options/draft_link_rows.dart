@@ -173,7 +173,8 @@ class DraftLinkRowView extends StatelessWidget {
       child: Stack(
         children: [
           PositionedDirectional(
-            start: metrics.iconStart,
+            start: metrics.iconAtEnd ? null : metrics.iconStart,
+            end: metrics.iconAtEnd ? metrics.iconStart : null,
             top: (metrics.height - metrics.iconSize) / 2,
             child: AnimatedChromeIcon(
               state.icon,
@@ -183,7 +184,9 @@ class DraftLinkRowView extends StatelessWidget {
           ),
           PositionedDirectional(
             start: metrics.labelStart,
-            end: metrics.iconStart,
+            end: metrics.iconAtEnd
+                ? metrics.minWidthBeyondLabel - metrics.labelStart
+                : metrics.iconStart,
             top: 0,
             bottom: 0,
             child: Align(

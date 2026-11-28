@@ -324,22 +324,12 @@ final class DraftOptionsSession {
     _onClose(trigger);
   }
 
-  /// Reports the host's value with the preview removed: link previews were
-  /// denied while the overlay was up, and it has closed.
-  void reportRemoved() {
-    final options = _reported.options;
-    if (options.removed) return;
-    _report(_reported.copyWith(options: options.copyWith(removed: true)), [
-      DraftOptionsField.remove,
-    ]);
-  }
-
-  /// The presentation started a motion: [phase] over [duration] (already
-  /// scaled by the motion speed), [reduceMotion] when the speed is instant
-  /// and the motion lands on its end at once. Emits `motion`.
+  /// The skin started the [phase] motion of the overlay's presentation,
+  /// lasting [duration] at the chrome motion speed; [reduceMotion] when the
+  /// speed collapsed it to its end state.
   void reportMotion(
-    DraftOptionsMotionPhase phase, {
-    required Duration duration,
+    DraftOptionsMotionPhase phase,
+    Duration duration, {
     required bool reduceMotion,
   }) => _emit(
     ChatEventLevel.trace,
@@ -351,6 +341,16 @@ final class DraftOptionsSession {
       'reduceMotion': reduceMotion,
     },
   );
+
+  /// Reports the host's value with the preview removed: link previews were
+  /// denied while the overlay was up, and it has closed.
+  void reportRemoved() {
+    final options = _reported.options;
+    if (options.removed) return;
+    _report(_reported.copyWith(options: options.copyWith(removed: true)), [
+      DraftOptionsField.remove,
+    ]);
+  }
 
   /// Lets go of the listenables; called by the session's owner once the
   /// overlay is gone.

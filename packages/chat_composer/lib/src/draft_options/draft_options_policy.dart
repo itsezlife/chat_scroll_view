@@ -1,5 +1,6 @@
 import 'package:chat_composer/src/draft_options/draft_link_page_policy.dart';
 import 'package:chat_composer/src/draft_options/draft_options_card.dart';
+import 'package:chat_composer/src/draft_options/draft_options_spring_surface.dart';
 import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
@@ -162,6 +163,7 @@ sealed class DraftOptionsPolicy {
     DraftOptionsLinkChoice linkChoice,
     bool keepsChosenLinkSelected,
     DraftLinkPagePolicy linkPage,
+    DraftOptionsSpringSurface? surface,
   }) = DraftOptionsPolicy$IOS;
 
   /// See [DraftOptionsPolicy$Desktop].
@@ -311,12 +313,22 @@ final class DraftOptionsPolicy$IOS extends DraftOptionsPolicy {
     super.linkChoice = DraftOptionsLinkChoice.anyLink,
     super.keepsChosenLinkSelected = false,
     super.linkPage = DraftLinkPagePolicy.ios,
-  }) : _scrim = scrim;
+    DraftOptionsSpringSurface? surface,
+  }) : _scrim = scrim,
+       _surface = surface;
 
   /// Whether the window is regular width: the iPad form.
   final bool iPad;
 
   final ChromeScrimPreset? _scrim;
+  final DraftOptionsSpringSurface? _surface;
+
+  /// The content springing from the strip and its actions: their layout,
+  /// motion and haptic; the iPad surface in a regular-width window unless
+  /// given.
+  DraftOptionsSpringSurface get surface =>
+      _surface ??
+      (iPad ? DraftOptionsSpringSurface.iPad : DraftOptionsSpringSurface.phone);
 
   @override
   ChromeScrimPreset get scrim =>

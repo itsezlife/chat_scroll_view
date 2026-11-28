@@ -9,6 +9,7 @@ import 'package:chat_composer/src/draft_options/draft_options_card_view.dart';
 import 'package:chat_composer/src/draft_options/draft_options_host.dart';
 import 'package:chat_composer/src/draft_options/draft_options_policy.dart';
 import 'package:chat_composer/src/draft_options/draft_options_session.dart';
+import 'package:chat_composer/src/draft_options/draft_options_spring_view.dart';
 import 'package:chat_composer/src/draft_options/overlay_op.dart';
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
@@ -225,6 +226,11 @@ final class DraftOptionsController {
     );
     open = _open = _OpenOverlay(session, scrim, entry, held: held);
     Overlay.of(context, rootOverlay: true).insert(entry);
+    if (policy case DraftOptionsPolicy$IOS(
+      :final surface,
+    ) when surface.hapticOnOpen) {
+      unawaited(HapticFeedback.mediumImpact());
+    }
     return true;
   }
 
@@ -485,6 +491,20 @@ class DraftOptionsOverlay extends StatelessWidget {
       child: switch (session.policy) {
         DraftOptionsPolicy$Android(:final card, :final cardMotion) =>
           _androidCard(context, card, cardMotion),
+        DraftOptionsPolicy$IOS(:final surface) => DraftOptionsSpringView(
+          surface: surface,
+          session: session,
+          scrim: scrim,
+          preview: DraftOptionsPreviewView(
+            session: session,
+            bubbleBuilder: bubbleBuilder,
+            text: text,
+          ),
+          actions: switch (linkPage) {
+            final page? => DraftLinkRows(page: page),
+            null => null,
+          },
+        ),
         _ => Center(
           child: _DraftOptionsPage(
             session: session,
@@ -539,7 +559,7 @@ class DraftOptionsOverlay extends StatelessWidget {
       motion: motion,
       title: title,
       subtitle: subtitle,
-      preview: _DraftLivePreview(
+      preview: DraftOptionsPreviewView(
         session: session,
         bubbleBuilder: bubbleBuilder,
         text: text,
@@ -606,7 +626,7 @@ class _DraftOptionsPage extends StatelessWidget {
             final subtitle? => Text(subtitle, style: style),
             null => null,
           },
-          _DraftLivePreview(
+          DraftOptionsPreviewView(
             session: session,
             bubbleBuilder: bubbleBuilder,
             text: text,
@@ -621,17 +641,27 @@ class _DraftOptionsPage extends StatelessWidget {
   }
 }
 
-/// The live preview: the host's bubble of the draft as it stands, rebuilt
-/// on every edit and page change, with the chosen link's mark above it.
-class _DraftLivePreview extends StatelessWidget {
-  const _DraftLivePreview({
+/// The live preview of a [session]: the host's bubble for the draft as it
+/// stands, rebuilt on every edit and page change, with the chosen link's
+/// mark in a layer above it.
+///
+/// Every presentation puts it in its own frame.
+class DraftOptionsPreviewView extends StatelessWidget {
+  /// The preview of [session], drawn by [bubbleBuilder].
+  const DraftOptionsPreviewView({
     required this.session,
     required this.bubbleBuilder,
-    required this.text,
+    this.text = model.RichText.empty,
+    super.key,
   });
 
+  /// The open's value, page and link choice.
   final DraftOptionsSession session;
+
+  /// Builds the bubble.
   final DraftOptionsBubbleBuilder bubbleBuilder;
+
+  /// The draft's text.
   final model.RichText text;
 
   @override
