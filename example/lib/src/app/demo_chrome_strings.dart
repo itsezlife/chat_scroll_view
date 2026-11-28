@@ -87,6 +87,9 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
       chooseLinkHint: 'Нажмите на ссылку, чтобы выбрать',
       save: 'Сохранить',
       cancel: 'Отмена',
+      dismiss: 'Закрыть',
+      loadingPreview: 'Загрузка превью',
+      previewLoaded: 'Превью загружено',
     ),
   ),
   formatting: FormattingStrings(

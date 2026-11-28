@@ -34,6 +34,8 @@ import 'draft_options/draft_options_overlay_test.dart'
     as draft_options_overlay_test;
 import 'draft_options/draft_options_policy_test.dart'
     as draft_options_policy_test;
+import 'draft_options/draft_options_semantics_test.dart'
+    as draft_options_semantics_test;
 import 'draft_options/draft_options_session_test.dart'
     as draft_options_session_test;
 import 'draft_options/draft_options_web_menu_golden_test.dart'
@@ -182,6 +184,10 @@ void main() {
   group(
     'draft_options/draft_options_policy_test.dart',
     draft_options_policy_test.main,
+  );
+  group(
+    'draft_options/draft_options_semantics_test.dart',
+    draft_options_semantics_test.main,
   );
   group(
     'draft_options/draft_options_session_test.dart',

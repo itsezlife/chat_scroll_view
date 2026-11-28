@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (draft options semantics, breaking)
+
+- `DraftOptionsStrings.dismiss` (the spoken label of the area outside the
+  draft options overlay's content), `.loadingPreview` and `.previewLoaded`
+  (its polite announcements of the link's page). Required: a host that
+  builds `DraftOptionsStrings` adds them.
+
 ### Added (card overlay timing)
 
 - `ChromeCardOverlayTiming` (`show`, `hide`, `offsets`, `listScroll`: 250 ms

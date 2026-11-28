@@ -6,6 +6,22 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (draft options semantics and RTL)
+
+- The draft options overlay's area outside its content is one semantics
+  node, a button labelled `DraftOptionsStrings.dismiss`; its tap closes the
+  overlay as a press outside does (trigger `outside`). Every platform.
+- `DraftOptionsSession.announcement` (`DraftOptionsAnnouncement`
+  `loadingPreview`, `loaded`): an open on a pending page, or a chosen link's
+  lookup, says "loading preview", and the page loading says it loaded. The
+  overlay speaks each politely from the chrome strings and the session
+  emits the `announced` op (trace, `kind`). A loaded page or one that comes
+  to nothing says nothing.
+- `DraftLinkPagePolicy.labelChangeRtl`: how a row's label changes in a
+  right-to-left text, at once on every preset. On Android the label no
+  longer cross-fades in a right-to-left text; the rows mirror, the label
+  right-aligned.
+
 ### Added (draft options desktop box)
 
 - On macOS, Windows and Linux the draft options open as `DraftOptionsBox`, a

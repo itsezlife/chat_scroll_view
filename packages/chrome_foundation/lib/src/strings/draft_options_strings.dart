@@ -20,6 +20,9 @@ final class DraftOptionsStrings {
     required this.chooseLinkHint,
     required this.save,
     required this.cancel,
+    required this.dismiss,
+    required this.loadingPreview,
+    required this.previewLoaded,
   });
 
   /// Title of the link preview page.
@@ -70,4 +73,14 @@ final class DraftOptionsStrings {
 
   /// The button that drops the changes and closes, beside [save].
   final String cancel;
+
+  /// The spoken label of the area outside the overlay's content, a button
+  /// that closes it.
+  final String dismiss;
+
+  /// Announced, politely, while the link's page is being looked up.
+  final String loadingPreview;
+
+  /// Announced, politely, once a page announced as loading has loaded.
+  final String previewLoaded;
 }
