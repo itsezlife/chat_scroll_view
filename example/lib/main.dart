@@ -24,6 +24,7 @@ import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/capabilities/demo_chat_rights.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/demo_media_messages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/showcase_bodies.dart';
 import 'package:chat_scroll_view_example/src/features/chat/view/chat_page_route.dart';
@@ -107,10 +108,12 @@ Future<ChatDataSource> _loadSizeMix() async => GeneratedChatDataSource(
   style: GeneratedMessageStyle.sizeMix,
 );
 
-// The bundled comments, then one round of the showcase bodies as the newest
-// messages.
-Future<ChatDataSource> _loadCommentsWithShowcase() =>
-    CommentsDataSource.load(tailBodies: ShowcaseBodies.all);
+// The bundled comments, then one round of the showcase bodies, then the media
+// messages as the newest.
+Future<ChatDataSource> _loadCommentsWithShowcase() => CommentsDataSource.load(
+  tailBodies: ShowcaseBodies.all,
+  tailMedia: DemoMediaMessages.all,
+);
 
 // The diagnostics journal, first, so every later step's events are in it:
 // every chat package's events through `ChatDiagnostics.current`, the media
