@@ -444,12 +444,41 @@ void main() {
       expect(android.offersSwitch(_page(photo: _photo())), isTrue);
       expect(android.offersSwitch(_page()), isFalse);
       expect(android.offersSwitch(_page(media: _video())), isFalse);
-      expect(ios.offersSwitch(_page(media: _video())), isTrue);
+      expect(
+        ios.offersSwitch(_page(media: _video(), hasLargeMedia: true)),
+        isTrue,
+      );
       expect(
         android.offersSwitch(
           _page(photo: _photo(), title: null, description: ''),
         ),
         isFalse,
+      );
+    });
+
+    test('iOS and desktop offer the switch only for a page whose media is '
+        'large by default', () {
+      for (final rule in [ios, desktop]) {
+        expect(
+          rule.offersSwitch(_page(photo: _photo(), hasLargeMedia: true)),
+          isTrue,
+          reason: rule.family.name,
+        );
+        expect(
+          rule.offersSwitch(_page(photo: _photo(), hasLargeMedia: false)),
+          isFalse,
+          reason: rule.family.name,
+        );
+        expect(
+          rule.offersSwitch(_page(photo: _photo())),
+          isFalse,
+          reason: '${rule.family.name}: no flag is not large',
+        );
+      }
+      expect(
+        android.offersSwitch(_page(photo: _photo(), hasLargeMedia: false)),
+        isTrue,
+        reason: 'android offers it for any shrinkable photo',
       );
     });
   });

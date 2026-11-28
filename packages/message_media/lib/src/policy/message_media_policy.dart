@@ -65,7 +65,6 @@ final class MessageMediaPolicy {
     this.transition = const MediaTransitionPolicy.none(),
     this.sendFlight = const MediaSendFlightPolicy.none(),
     this.gestures = const MediaGesturePolicy(),
-    this.isWeb = false,
   });
 
   /// The Android family's defaults.
@@ -159,7 +158,6 @@ final class MessageMediaPolicy {
       ),
       gestures: const MediaGesturePolicy.web(),
       transition: const MediaTransitionPolicy.none(),
-      isWeb: true,
     );
   }
 
@@ -173,10 +171,14 @@ final class MessageMediaPolicy {
   /// the browser's operating system's.
   final MessageMediaPlatform family;
 
-  /// Whether this is the web's policy ([MessageMediaPolicy.web]): its view
-  /// follows the window's width class and the input class, and reports a
-  /// change of either (`media` / `webClassChanged`).
-  final bool isWeb;
+  /// Whether this policy's boxes follow the window live, as the web's
+  /// ([MessageMediaPolicy.web]) do: its layout step sizes them with
+  /// `MediaBoxSizing$Web`. Its view then reports a change of the window's
+  /// width class or the input class (`media` / `webClassChanged`).
+  bool get isWeb => switch (layoutStep) {
+    MediaLayoutPolicy(box: MediaBoxSizing$Web()) => true,
+    _ => false,
+  };
 
   /// The layout step.
   final MediaLayoutStep layoutStep;
@@ -275,7 +277,6 @@ final class MessageMediaPolicy {
     MediaTransitionPolicy? transition,
     MediaSendFlightPolicy? sendFlight,
     MediaGesturePolicy? gestures,
-    bool? isWeb,
   }) => MessageMediaPolicy(
     family: family ?? this.family,
     layoutStep: layoutStep ?? this.layoutStep,
@@ -288,6 +289,5 @@ final class MessageMediaPolicy {
     transition: transition ?? this.transition,
     sendFlight: sendFlight ?? this.sendFlight,
     gestures: gestures ?? this.gestures,
-    isWeb: isWeb ?? this.isWeb,
   );
 }

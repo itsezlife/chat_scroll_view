@@ -3,6 +3,7 @@ import 'dart:ui' show Offset, Rect;
 import 'package:chrome_foundation/chrome_foundation.dart'
     show ChromeInputClass, ChromeWidthClass;
 import 'package:content_model/content_model.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:listen/listen.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:meta/meta.dart';
@@ -122,12 +123,13 @@ final class MessageMediaState {
 
   /// Notes the window's width class and the input class a web view of this
   /// chat was built under, and reports a change from the last ones noted
-  /// (`media` / `webClassChanged`, with [chatId]).
+  /// (`media` / `webClassChanged`, with [chatId]) after the frame.
   ///
   /// Every view of the chat notes them on each build, and a resize rebuilds
   /// them all, so the state keeps what it last saw: one report per change,
   /// not one per view or per frame. The first note reports nothing, there
-  /// being nothing it changed from.
+  /// being nothing it changed from. The report waits for the frame's end:
+  /// a build reports nothing of its own.
   @internal
   void noteWebClasses(
     ChromeWidthClass width,
@@ -138,13 +140,20 @@ final class MessageMediaState {
     final last = _$webClasses;
     _$webClasses = (width: width, input: input);
     if (last == null || (last.width == width && last.input == input)) return;
-    ChatDiagnostics.current.emit(
-      ChatEventLevel.debug,
-      ChatEventCategory.media,
-      MediaOp.webClassChanged,
-      correlation: ChatCorrelation(chatId: chatId),
-      fields: () => {'from': last.width, 'to': width, 'input': input},
-    );
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (_disposed) return;
+      ChatDiagnostics.current.emit(
+        ChatEventLevel.debug,
+        ChatEventCategory.media,
+        MediaOp.webClassChanged,
+        correlation: ChatCorrelation(chatId: chatId),
+        fields: () => {
+          'from': last.width.name,
+          'to': width.name,
+          'input': input.name,
+        },
+      );
+    });
   }
 
   /// Releases the item notifiers; the state is unusable afterwards.

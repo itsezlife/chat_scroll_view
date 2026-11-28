@@ -608,13 +608,17 @@ final class LinkPreviewMediaSizeRule {
       (page.title?.isNotEmpty ?? false) || page.description.plain.isNotEmpty;
 
   /// Whether the small / large switch is offered for [page]: it has a
-  /// photo or a video that can shrink.
+  /// photo or a video that can shrink and, on iOS and desktop, its media is
+  /// large by default (`hasLargeMedia`; a page that does not say is not).
   bool offersSwitch(LinkPreview page) =>
       _hasText(page) &&
-      (page.photo != null ||
-          (family != LinkPreviewRuleFamily.android &&
-              page.media != null &&
-              mediaOf(page) != null));
+      switch (family) {
+        LinkPreviewRuleFamily.android => page.photo != null,
+        LinkPreviewRuleFamily.ios || LinkPreviewRuleFamily.desktop =>
+          page.hasLargeMedia == true &&
+              (page.photo != null ||
+                  (page.media != null && mediaOf(page) != null)),
+      };
 
   /// The size [page]'s media shows at under [options]; null when the page
   /// has no media to show. [compact] is the host's compact layout.
