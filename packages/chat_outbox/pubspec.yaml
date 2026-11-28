@@ -8,9 +8,13 @@ resolution: workspace
 
 environment:
   sdk: ^3.11.0
-  flutter: '>=3.32.0'
+  flutter: '>=3.38.0'
 
 dependencies:
+  # PlannedSend and AttachItem, the send the outbox turns into a publish job
+  # (spec §5.3).
+  attach_model:
+    path: ../attach_model
   # CapabilityAction, the action a server denial names in a failed message's
   # reason (ADR 049; ADR 020 amendment, the chat_outbox row).
   chat_capabilities:
@@ -34,4 +38,20 @@ dependencies:
   # Production entry points never import it.
   flutter_test:
     sdk: flutter
+  # The listenables the outbox exposes (send in flight) and reads (the chat
+  # capabilities), as chat_capabilities declares them.
+  listen: ^1.0.1
   meta: ^1.17.0
+  # mpx (github.com/itsezlife/mpx), pinned to one commit as in every pubspec:
+  # the media keys and preparation inputs a publish item names (mpx_core),
+  # and the publish jobs the outbox projects (mpx_transfer; ADR 048).
+  mpx_core:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_core
+      ref: 645a44248c1f68224fcbb8e521d024171b124546
+  mpx_transfer:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_transfer
+      ref: 645a44248c1f68224fcbb8e521d024171b124546

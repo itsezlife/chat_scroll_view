@@ -770,6 +770,15 @@ packages:
       url: "https://github.com/itsezlife/mpx.git"
     source: git
     version: "0.0.1"
+  mpx_transfer:
+    dependency: transitive
+    description:
+      path: "packages/mpx_transfer"
+      ref: "645a44248c1f68224fcbb8e521d024171b124546"
+      resolved-ref: "645a44248c1f68224fcbb8e521d024171b124546"
+      url: "https://github.com/itsezlife/mpx.git"
+    source: git
+    version: "0.0.1"
   mpx_ui:
     dependency: transitive
     description:

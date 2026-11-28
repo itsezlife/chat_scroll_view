@@ -17,6 +17,28 @@ enum OutboxOp implements DiagnosticOp {
   /// appearance (trace): the answer, true once per message.
   freshOutgoingTaken,
 
+  /// The outbox accepted a send (info): its kind (`text`, `single`,
+  /// `group`), its item count and who issued the items' ids (`outbox`,
+  /// `host`).
+  accepted,
+
+  /// A send was refused before any job was made (info): the rule that
+  /// refused it (`sendNow`, or a limit's name) and the reason's form. The
+  /// host's `onDenied` hears of it too, as `capabilities` / `denied`.
+  refusedBeforeJob,
+
+  /// The publish job of an accepted send was made (debug): its durability,
+  /// failure policy, whether an ordering group is set, its items' sources
+  /// by kind (`prepare`, `prepared`, `remote`) and the payload's length.
+  jobCreated,
+
+  /// An outgoing message's status changed with its job (debug): from, to,
+  /// the job state's name and the stage.
+  statusChanged,
+
+  /// Whether a send of the chat is in flight changed (debug): on or off.
+  sendInFlight,
+
   /// An outgoing row took its position in the provisional tail (debug):
   /// `offsetFromTip` (1 for `tip+1`), `strategy`, and `allocation` (`new`, or
   /// `restart` for a row placed again after a restart), with the position as

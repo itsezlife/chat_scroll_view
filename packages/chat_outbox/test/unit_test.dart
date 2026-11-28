@@ -17,9 +17,16 @@ import 'message/outgoing_message_test.dart' as message_outgoing_message_test;
 import 'message/outgoing_payload_codec_test.dart'
     as message_outgoing_payload_codec_test;
 import 'message/outgoing_status_test.dart' as message_outgoing_status_test;
+import 'outbox/chat_outbox_capabilities_test.dart'
+    as outbox_chat_outbox_capabilities_test;
+import 'outbox/chat_outbox_projection_test.dart'
+    as outbox_chat_outbox_projection_test;
+import 'outbox/chat_outbox_send_test.dart' as outbox_chat_outbox_send_test;
 import 'outbox/chat_outbox_test.dart' as outbox_chat_outbox_test;
 import 'testing/fake_outgoing_id_strategy_test.dart'
     as testing_fake_outgoing_id_strategy_test;
+import 'transfers/outbox_transfers_test.dart'
+    as transfers_outbox_transfers_test;
 
 void main() {
   group(
@@ -41,9 +48,22 @@ void main() {
     message_outgoing_payload_codec_test.main,
   );
   group('message/outgoing_status_test.dart', message_outgoing_status_test.main);
+  group(
+    'outbox/chat_outbox_capabilities_test.dart',
+    outbox_chat_outbox_capabilities_test.main,
+  );
+  group(
+    'outbox/chat_outbox_projection_test.dart',
+    outbox_chat_outbox_projection_test.main,
+  );
+  group('outbox/chat_outbox_send_test.dart', outbox_chat_outbox_send_test.main);
   group('outbox/chat_outbox_test.dart', outbox_chat_outbox_test.main);
   group(
     'testing/fake_outgoing_id_strategy_test.dart',
     testing_fake_outgoing_id_strategy_test.main,
+  );
+  group(
+    'transfers/outbox_transfers_test.dart',
+    transfers_outbox_transfers_test.main,
   );
 }

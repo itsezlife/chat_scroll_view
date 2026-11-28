@@ -4,15 +4,16 @@ import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/note_payload_codec.dart';
 import '../support/outgoing_messages.dart';
 
 void main() {
   late OutboxProjection projection;
-  late ChatOutbox outbox;
+  late ChatOutbox<Note> outbox;
 
   setUp(() {
     projection = OutboxProjection();
-    outbox = ChatOutbox.over(projection);
+    outbox = outboxOver(projection);
   });
 
   group('byClientMessageId', () {
