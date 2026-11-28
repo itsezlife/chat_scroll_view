@@ -51,7 +51,8 @@ final class DemoOutbox {
       onCancelled: (cancelled) =>
           chat(cancelled.message.chatId)._onCancelled(cancelled),
       localKeyOf: localKeyOf,
-      undecodableRowOf: (message) => chat(message.chatId)._undecodableRow(),
+      undecodableRowOf: (message) =>
+          chat(message.chatId)._undecodableRow(message),
     )..registerSender(_ServerSender(this));
   }
 
@@ -331,16 +332,19 @@ final class DemoOutboxChat {
     return row;
   }
 
-  // A payload the codec cannot read: a row the user can still delete.
-  IChatMessage _undecodableRow() {
+  // A payload the codec cannot read: a row in the tail the user can still
+  // delete, with nothing of the message to show.
+  IChatMessage _undecodableRow(OutgoingMessage message) {
     final now = DateTime.now();
-    return UserChatMessage(
-      id: 0,
+    final row = UserChatMessage(
+      id: message.position,
       sender: _owner.sender,
       createdAt: now,
       updatedAt: now,
       content: '…',
     );
+    _$identities[row] = message.clientMessageId;
+    return row;
   }
 
   void _onSent(OutgoingSent<DemoOutgoingPayload> sent) {

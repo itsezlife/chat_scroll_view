@@ -199,6 +199,33 @@ void main() {
     expect(restored.items.single.localKey, message.items.single.localKey);
   });
 
+  test('a restored message whose payload does not decode gets a failed row '
+      'in the tail, which Delete takes away', () async {
+    transfers.seed(
+      PublishRequest(
+        tag: ChatOutbox.tagOf(chat, 'old'),
+        items: const [],
+        payload: Uint8List.fromList([1, 2, 3]),
+        publisher: ChatOutbox.publisherId,
+        idempotencyKey: 'old',
+        orderingGroup: chat,
+      ),
+      state: const PublishJobState.awaitingPublisher(),
+    );
+
+    await openChat();
+
+    final restored = demo.outbox.byClientMessageId(chat, 'old')!;
+    expect(
+      restored.status,
+      const OutgoingStatus.failed(OutgoingFailure.unknown()),
+    );
+    expect(source.identityOf!(source.getMessage(restored.position)!), 'old');
+
+    demo.outbox.delete(chat, 'old');
+    expect(source.getMessage(restored.position), isNull);
+  });
+
   test(
     'a lost source asks the host for the file and retries with it',
     () async {

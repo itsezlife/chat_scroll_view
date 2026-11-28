@@ -135,6 +135,8 @@ import 'features/chat/outbox/fake_chat_server_test.dart'
     as outbox_fake_chat_server_test;
 import 'features/chat/outbox/fake_server_script_sheet_test.dart'
     as outbox_fake_server_script_sheet_test;
+import 'features/chat/outbox/source_lost_prompt_test.dart'
+    as outbox_source_lost_prompt_test;
 import 'features/chat/packed_path_test.dart' as packed_path_test;
 import 'features/chat/panel_playback_hold_test.dart'
     as panel_playback_hold_test;
@@ -400,6 +402,10 @@ void main() {
   group(
     'features/chat/outbox/fake_server_script_sheet_test.dart',
     outbox_fake_server_script_sheet_test.main,
+  );
+  group(
+    'features/chat/outbox/source_lost_prompt_test.dart',
+    outbox_source_lost_prompt_test.main,
   );
   group(
     'features/chat/outbox/chat_outbox_screen_test.dart',

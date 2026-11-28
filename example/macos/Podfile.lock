@@ -20,6 +20,9 @@ PODS:
   - mpx_player (0.0.1):
     - Flutter
     - FlutterMacOS
+  - mpx_transfer (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - rich_clipboard (0.1.0):
     - FlutterMacOS
   - share_plus (0.0.1):
@@ -42,6 +45,7 @@ DEPENDENCIES:
   - mpx_capture (from `Flutter/ephemeral/.symlinks/plugins/mpx_capture/darwin`)
   - mpx_core (from `Flutter/ephemeral/.symlinks/plugins/mpx_core/darwin`)
   - mpx_player (from `Flutter/ephemeral/.symlinks/plugins/mpx_player/darwin`)
+  - mpx_transfer (from `Flutter/ephemeral/.symlinks/plugins/mpx_transfer/darwin`)
   - rich_clipboard (from `Flutter/ephemeral/.symlinks/plugins/rich_clipboard/macos`)
   - share_plus (from `Flutter/ephemeral/.symlinks/plugins/share_plus/macos`)
   - shared_preferences_foundation (from `Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin`)
@@ -67,6 +71,8 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/mpx_core/darwin
   mpx_player:
     :path: Flutter/ephemeral/.symlinks/plugins/mpx_player/darwin
+  mpx_transfer:
+    :path: Flutter/ephemeral/.symlinks/plugins/mpx_transfer/darwin
   rich_clipboard:
     :path: Flutter/ephemeral/.symlinks/plugins/rich_clipboard/macos
   share_plus:
@@ -88,6 +94,7 @@ SPEC CHECKSUMS:
   mpx_capture: 94cc85d1c7410a320e2ade3781a33651e3e15246
   mpx_core: 9ae8d0a68d78b47367b4bb8dd47d555532abb832
   mpx_player: ac175bf85c8d8d97bcfdff9479c3056f8a06184a
+  mpx_transfer: 2ef9a79af836e4ec0d3fb183a818ccf94bc670b5
   rich_clipboard: c490dc6e8dbb8f4813d8f80ff592c6add6b19d3a
   share_plus: 510bf0af1a42cd602274b4629920c9649c52f4cc
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
