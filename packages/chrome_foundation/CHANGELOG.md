@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (draft options strings, breaking)
+
+- `ComposerStrings.draftOptions`, a `DraftOptionsStrings` (`linkTitle`,
+  `linkSubtitle`) for the draft options overlay's page titles. Required: a
+  host that builds `ComposerStrings` adds it.
+
 ### Added (chrome scrim)
 
 - `ChromeScrim` and `ChromeScrimController`: the backdrop of a surface over

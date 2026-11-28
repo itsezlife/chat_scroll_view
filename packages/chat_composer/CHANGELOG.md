@@ -6,6 +6,20 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (draft options overlay)
+
+- `DraftOptionsController` opens the draft options overlay from the link
+  preview strip: `DraftOptionsOverlay` over a `ChromeScrim` in the root
+  overlay, the link page with its title from
+  `ChromeStrings.composer.draftOptions` and the host's
+  `DraftOptionsBubbleBuilder` preview. `DraftOptionsSession` holds one open:
+  the `DraftLinkPart` it edits, reported to the `DraftOptionsHost` at once
+  under `liveApply` or on save under `commitOnSave`. `DraftOptionsPolicy`
+  (`$Android`, `$IOS`, `$Desktop`, `$Web`, `forPlatform`) gives the part
+  order, apply mode, opening rule, title and scrim preset. `OverlayOp`
+  names its `overlay` events. Test support: `RecordingDraftOptionsHost`,
+  `FakeDraftBubbleBuilder`.
+
 ### Changed (link preview strip, breaking)
 
 - `ComposerHeader.linkPreview` takes the `url` and the resolver's `page`

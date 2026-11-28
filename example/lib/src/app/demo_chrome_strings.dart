@@ -72,6 +72,10 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     slowModeStarted: (countdown) =>
         'Медленный режим: отправить снова можно через $countdown',
     slowModeEnded: 'Можно отправить сообщение',
+    draftOptions: const DraftOptionsStrings(
+      linkTitle: 'Предпросмотр ссылки',
+      linkSubtitle: 'Вы можете настроить ссылку',
+    ),
   ),
   formatting: FormattingStrings(
     quoteAction: 'Цитата',

@@ -70,6 +70,8 @@ abstract final class ChromeStringsSnapshot {
       'composer.unavailableAction[label]': composer.unavailableAction('label'),
       'composer.slowModeStarted[countdown]': composer.slowModeStarted('0:30'),
       'composer.slowModeEnded': composer.slowModeEnded,
+      'composer.draftOptions[linkTitle]': composer.draftOptions.linkTitle,
+      'composer.draftOptions[linkSubtitle]': composer.draftOptions.linkSubtitle,
       // 90 s, spelled from a motion constant: only the motion directory
       // writes a literal duration.
       'composer.slowModeCountdown[90s]': composer.slowModeCountdown(

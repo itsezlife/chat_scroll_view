@@ -1,5 +1,7 @@
-/// Strings of the composer: field hint, action labels and the reply / edit
-/// header.
+import 'package:chrome_foundation/src/strings/draft_options_strings.dart';
+
+/// Strings of the composer: field hint, action labels, the reply / edit
+/// header and the draft options overlay.
 ///
 /// Supplied by the host as part of `ChromeStrings`; this package ships no
 /// translation. The action labels double as the semantic labels of the
@@ -21,6 +23,7 @@ final class ComposerStrings {
     required this.unavailableAction,
     required this.slowModeStarted,
     required this.slowModeEnded,
+    required this.draftOptions,
     this.slowModeCountdown = minutesSeconds,
   });
 
@@ -73,6 +76,9 @@ final class ComposerStrings {
   /// What assistive technology announces, politely, when slow mode's
   /// countdown ends and the user may send again.
   final String slowModeEnded;
+
+  /// The draft options overlay's copy.
+  final DraftOptionsStrings draftOptions;
 
   /// The wait slow mode's countdown shows, from the time [remaining]:
   /// [minutesSeconds] (`m:ss`) unless the host formats it otherwise.

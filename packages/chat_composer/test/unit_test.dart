@@ -9,6 +9,12 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'boundaries_test.dart' as boundaries_test;
+import 'draft_options/draft_options_overlay_test.dart'
+    as draft_options_overlay_test;
+import 'draft_options/draft_options_policy_test.dart'
+    as draft_options_policy_test;
+import 'draft_options/draft_options_session_test.dart'
+    as draft_options_session_test;
 import 'input/composer_clipboard_test.dart' as input_composer_clipboard_test;
 import 'input/composer_controller_extent_test.dart'
     as composer_controller_extent_test;
@@ -96,6 +102,18 @@ import 'view/composer_view_test.dart' as composer_view_test;
 
 void main() {
   group('boundaries_test.dart', boundaries_test.main);
+  group(
+    'draft_options/draft_options_overlay_test.dart',
+    draft_options_overlay_test.main,
+  );
+  group(
+    'draft_options/draft_options_policy_test.dart',
+    draft_options_policy_test.main,
+  );
+  group(
+    'draft_options/draft_options_session_test.dart',
+    draft_options_session_test.main,
+  );
   group(
     'input/composer_clipboard_test.dart',
     input_composer_clipboard_test.main,

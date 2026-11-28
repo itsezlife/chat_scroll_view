@@ -2,6 +2,7 @@ import 'package:chrome_foundation/src/strings/attach_strings.dart';
 import 'package:chrome_foundation/src/strings/bulletin_strings.dart';
 import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
+import 'package:chrome_foundation/src/strings/draft_options_strings.dart';
 import 'package:chrome_foundation/src/strings/edit_menu_strings.dart';
 import 'package:chrome_foundation/src/strings/formatting_strings.dart';
 import 'package:chrome_foundation/src/strings/media_strings.dart';
@@ -86,6 +87,10 @@ abstract final class ChromeStringsPresets {
       slowModeStarted: (countdown) =>
           'Slow mode: you can send again in $countdown',
       slowModeEnded: 'You can send a message now',
+      draftOptions: const DraftOptionsStrings(
+        linkTitle: 'Link Preview',
+        linkSubtitle: 'You can customize your link',
+      ),
     ),
     formatting: FormattingStrings(
       quoteAction: 'Quote',
@@ -398,6 +403,10 @@ abstract final class ChromeStringsPresets {
       slowModeStarted: (countdown) =>
           'Медленный режим: отправить снова можно через $countdown',
       slowModeEnded: 'Можно отправить сообщение',
+      draftOptions: const DraftOptionsStrings(
+        linkTitle: 'Предпросмотр ссылки',
+        linkSubtitle: 'Вы можете настроить ссылку',
+      ),
     ),
     formatting: FormattingStrings(
       quoteAction: 'Цитата',

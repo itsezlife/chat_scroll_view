@@ -65,6 +65,7 @@ export 'src/strings/bulletin_strings.dart';
 export 'src/strings/chrome_strings.dart';
 export 'src/strings/chrome_strings_scope.dart';
 export 'src/strings/composer_strings.dart';
+export 'src/strings/draft_options_strings.dart';
 export 'src/strings/edit_menu_strings.dart';
 export 'src/strings/formatting_strings.dart';
 export 'src/strings/media_strings.dart';
